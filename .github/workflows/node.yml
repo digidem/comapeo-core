@@ -5,26 +5,21 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ develop ]
+    branches: [ main ]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         node-version:
-         - "10.x" # Not used in apps, but keeping for legacy support
-         - "12.14.1" # Used in Mapeo Desktop (via Electron@9.2.1)
-         - "12.16.3" # Used in Mapeo Mobile (via nodejs-mobile@0.3.1 and nodejs-mobile-react-native@0.6.1). Also in electron@10
-         # "12.19.0" Currently fails - used in current version of nodejs-mobile@0.3.2 (nodejs-mobile-react-native@0.6.2)
-         - "12.18.3" # Used in current electron@11
-         - "14.x" # Test latest LTS Node for forwards compat
+         - "14.x"
+         - "16.x"
+         - "18.x"
     steps:
     - uses: actions/checkout@v2
     - name: Use Node.js ${{ matrix.node-version }}
