@@ -3,6 +3,7 @@
   "version": "9.0.0-alpha.0",
   "description": "Offline p2p mapping library",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "lint": "standard",
     "test": "brittle tests/*.js",
@@ -23,7 +24,14 @@
   },
   "homepage": "https://github.com/digidem/mapeo-core#readme",
   "devDependencies": {
+    "@hyperswarm/testnet": "^2.0.0",
     "brittle": "^2.3.1",
-    "dependency-check": "^4.1.0"
+    "dependency-check": "^4.1.0",
+    "hypercore-crypto": "^3.2.1"
+  },
+  "dependencies": {
+    "@hyperswarm/secret-stream": "^5.2.0",
+    "hyperswarm": "^3.0.4",
+    "mdns-sd-discovery": "^2.0.3"
   }
 }
