@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@hyperswarm/secret-stream": "^5.2.0",
-    "@mapeo/crypto": "github:digidem/mapeo-crypto",
+    "@mapeo/crypto": "^1.0.0-alpha.2",
     "b4a": "^1.5.3",
     "hyperswarm": "^3.0.4",
     "mdns-sd-discovery": "^3.0.0",
