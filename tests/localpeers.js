@@ -107,9 +107,15 @@ test("mdns peer discovery: connect two peers", async (t) => {
 
   let count = 0;
   discover1.on("connection", (connection, peer) => {
+    console.log(
+      "typeof topic and identityPublicKey",
+      typeof peer.topic,
+      typeof peer.identityPublicKey
+    );
+    console.log(peer.topic, peer.identityPublicKey);
     t.ok(peer.topic === key);
     t.ok(Buffer.from(peer.topic, "hex").equals(keyPair.publicKey));
-    t.ok(peer.identityPublicKey == identityPublicKey2);
+    t.ok(peer.identityPublicKey === identityPublicKey2);
     t.ok(
       Buffer.from(peer.identityPublicKey, "hex").equals(
         identity2.identityKeyPair.publicKey
@@ -121,12 +127,9 @@ test("mdns peer discovery: connect two peers", async (t) => {
   discover2.on("connection", (connection, peer) => {
     t.ok(peer.topic === key);
     t.ok(Buffer.from(peer.topic, "hex").equals(keyPair.publicKey));
-    t.ok(peer.identityPublicKey == identityPublicKey1);
-    t.ok(
-      Buffer.from(peer.identityPublicKey, "hex").equals(
-        identity1.identityKeyPair.publicKey
-      )
-    );
+    t.ok(peer.identityPublicKey === identityPublicKey1);
+    const publicKey = Buffer.from(peer.identityPublicKey, "hex");
+    t.ok(publicKey.equals(identity1.identityKeyPair.publicKey));
     end();
   });
 

@@ -6,10 +6,10 @@
   "type": "module",
   "scripts": {
     "lint": "eslint .",
-    "format": "prettier . --format",
+    "format": "prettier . --write",
     "test": "brittle tests/*.js",
     "type": "tsc",
-    "deps": "dependency-check ."
+    "deps": "dependency-check . --no-dev"
   },
   "repository": {
     "type": "git",
