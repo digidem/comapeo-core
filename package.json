@@ -42,7 +42,7 @@
     "b4a": "^1.5.3",
     "get-port": "^6.1.2",
     "hyperswarm": "^4.0.1",
-    "mdns-sd-discovery": "^3.1.0",
+    "mdns-sd-discovery": "^3.1.4",
     "tiny-typed-emitter": "^2.1.0"
   }
 }

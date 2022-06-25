@@ -11,7 +11,10 @@
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
-    "typeRoots": ["types", "node_modules/@types"]
+    "typeRoots": ["types", "node_modules/@types"],
+    "paths": {
+      "@gravitysoftware/dnssd": ["./node_modules/mdns-sd-discovery/types/*"]
+    }
   },
   "include": ["**/*"],
   "exclude": ["node_modules", "tmp"]

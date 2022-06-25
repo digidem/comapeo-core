@@ -39,7 +39,7 @@ test("discovery - dht/hyperswarm", async (t) => {
   discover1.on("peer", async (connection, peer) => {
     console.log("discover1");
     t.ok(
-      peer.identityPublicKey.toString("hex") === identityPublicKey2,
+      peer.identityPublicKey === identityPublicKey2,
       "match key of 2nd peer"
     );
     await step();
@@ -48,7 +48,7 @@ test("discovery - dht/hyperswarm", async (t) => {
   discover2.on("peer", async (connection, peer) => {
     // console.log('discover2')
     t.ok(
-      peer.identityPublicKey.toString("hex") === identityPublicKey1,
+      peer.identityPublicKey === identityPublicKey1,
       "match key of 1st peer"
     );
     await step();
