@@ -4,12 +4,12 @@ module.exports = {
     es2022: true,
     node: true,
   },
-  extends: ["eslint:recommended", "prettier"],
+  extends: ['eslint:recommended', 'prettier'],
   parserOptions: {
     ecmaVersion: 13,
-    sourceType: "module",
+    sourceType: 'module',
   },
-  ignorePatterns: ["tmp"],
+  ignorePatterns: ['tmp'],
   plugins: [],
   rules: {},
-};
+}
