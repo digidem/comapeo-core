@@ -13,7 +13,10 @@
     "noEmit": true,
     "typeRoots": ["types", "node_modules/@types"],
     "paths": {
-      "@gravitysoftware/dnssd": ["./node_modules/mdns-sd-discovery/types/*"]
+      "*": ["./types"],
+      "@gravitysoftware/dnssd": [
+        "./node_modules/mdns-sd-discovery/types/gravitysoftware__dnssd"
+      ]
     }
   },
   "include": ["**/*"],
