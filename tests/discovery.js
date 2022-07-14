@@ -237,14 +237,14 @@ test('discovery - mdns join, leave, join', async (t) => {
   await discover1.ready()
   await discover2.ready()
 
-  discover2.on('connection', async (connection, peer) => {
+  discover2.once('connection', async (connection, peer) => {
     t.ok(peer.identityPublicKey === identityPublicKey1, 'match key of 1st peer')
     t.ok(discover2.peers.length === 1, 'expected peers count')
 
     await discover1.leave(keyPair.publicKey)
     t.ok(discover1.topics.length === 0, 'no topics')
 
-    await discover1.join(keyPair.publicKey)
+    await discover1.join(keyPair.publicKey, { dht: false })
     t.ok(discover1.topics.length === 1, 'expected topic object')
 
     await discover1.leave(keyPair.publicKey)
@@ -253,7 +253,7 @@ test('discovery - mdns join, leave, join', async (t) => {
     await discover2.destroy()
   })
 
-  await discover1.join(keyPair.publicKey)
+  await discover1.join(keyPair.publicKey, { dht: false })
   t.ok(discover1.topics.length === 1, 'expected topic object')
-  await discover2.join(keyPair.publicKey)
+  await discover2.join(keyPair.publicKey, { dht: false })
 })
