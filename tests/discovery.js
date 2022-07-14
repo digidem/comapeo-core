@@ -214,8 +214,7 @@ test('discovery - multiple successive joins', async (t) => {
   t.ok(discover1.topics.length === 0)
 })
 
-// TODO: resolve this with better state tracking of tcp server
-test.skip('discovery - mdns join, leave, join', async (t) => {
+test('discovery - mdns join, leave, join', async (t) => {
   t.plan(5)
 
   const keyPair = createCoreKeyPair('join, leave, join')
@@ -245,7 +244,7 @@ test.skip('discovery - mdns join, leave, join', async (t) => {
     await discover1.leave(keyPair.publicKey)
     t.ok(discover1.topics.length === 0, 'no topics')
 
-    await discover1.join(keyPair.publicKey)
+    await discover1.join(keyPair.publicKey, { dht: false })
     t.ok(discover1.topics.length === 1, 'expected topic object')
 
     await discover1.leave(keyPair.publicKey)
@@ -254,7 +253,7 @@ test.skip('discovery - mdns join, leave, join', async (t) => {
     await discover2.destroy()
   })
 
-  await discover1.join(keyPair.publicKey)
+  await discover1.join(keyPair.publicKey, { dht: false })
   t.ok(discover1.topics.length === 1, 'expected topic object')
-  await discover2.join(keyPair.publicKey)
+  await discover2.join(keyPair.publicKey, { dht: false })
 })
