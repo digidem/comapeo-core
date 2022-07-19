@@ -3,10 +3,17 @@
   "version": "9.0.0-alpha.0",
   "description": "Offline p2p mapping library",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "lint": "standard",
+    "lint": "eslint .",
+    "format": "prettier . --write",
     "test": "brittle tests/*.js",
-    "deps": "dependency-check ."
+    "type": "tsc",
+    "deps": "dependency-check . --no-dev"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true
   },
   "repository": {
     "type": "git",
@@ -23,7 +30,26 @@
   },
   "homepage": "https://github.com/digidem/mapeo-core#readme",
   "devDependencies": {
-    "brittle": "^2.3.1",
-    "dependency-check": "^4.1.0"
+    "@hyperswarm/testnet": "^3.0.0",
+    "@types/node": "^18.0.3",
+    "@types/streamx": "^2.9.1",
+    "brittle": "^2.4.0",
+    "dependency-check": "^4.1.0",
+    "eslint": "^8.19.0",
+    "eslint-config-prettier": "^8.5.0",
+    "hypercore": "^10.0.0-alpha.52",
+    "hypercore-crypto": "^3.3.0",
+    "prettier": "^2.7.1",
+    "random-access-memory": "^4.1.0",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "@hyperswarm/secret-stream": "^6.0.0",
+    "@mapeo/crypto": "^1.0.0-alpha.2",
+    "b4a": "^1.5.3",
+    "base32.js": "^0.1.0",
+    "hyperswarm": "^4.1.1",
+    "mdns-sd-discovery": "^4.0.1",
+    "tiny-typed-emitter": "^2.1.0"
   }
 }

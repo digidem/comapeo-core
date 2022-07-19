@@ -4,11 +4,10 @@ about: A template for features & fixes that are a planned part of the digidem te
 title: ''
 labels: ''
 assignees: ''
-
 ---
 
 ## Description
 
-
 ## Tasks
+
 - [ ]
