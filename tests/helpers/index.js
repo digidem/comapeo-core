@@ -11,7 +11,7 @@ export function createCoreKeyPair(name, namespace = Buffer.alloc(32, 0)) {
 }
 
 export function createIdentityKeys() {
-  const rootKey = KeyManager.generateIdentityKey()
+  const rootKey = KeyManager.generateRootKey()
   const km = new KeyManager(rootKey)
   const identityKeyPair = km.getIdentityKeypair()
   return { rootKey, identityKeyPair, km }
