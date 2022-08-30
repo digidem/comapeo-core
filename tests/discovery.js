@@ -237,7 +237,7 @@ test('discovery - mdns join, leave, join', async (t) => {
   await discover1.ready()
   await discover2.ready()
 
-  discover2.once('connection', async (connection, peer) => {
+  discover2.on('connection', async (connection, peer) => {
     t.ok(peer.identityPublicKey === identityPublicKey1, 'match key of 1st peer')
     t.ok(discover2.peers.length === 1, 'expected peers count')
 
