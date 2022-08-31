@@ -1,26 +1,31 @@
-import Corestore from 'corestore'
 import MultiCoreIndexer from 'multi-core-indexer'
+import SqliteIndexer from '@mapeo/sqlite-indexer'
 import AJV from 'ajv'
 import b4a from 'b4a'
+import ram from 'random-access-memory'
+import { randomBytes } from 'crypto'
 
-class Mapeo {
+export class Mapeo {
   #indexers = new Map()
   #multiCoreIndexer
   #corestore
   #dataTypes
 
   constructor (options) {
-    const { corestore, dataTypes } = options
+    const { corestore, dataTypes, sqlite } = options
     this.#corestore = corestore
     this.#dataTypes = dataTypes
 
     for (const dataType of dataTypes) {
-      const indexer = new Indexer(dataType)
+      const indexer = new Indexer({ dataType, sqlite })
       this.#indexers.set(dataType.name, indexer)
-      this[dataType.name] = new Datastore({ dataType, corestore, indexer })
+      this[dataType.name] = new DataStore({ dataType, corestore, indexer })
     }
 
-    this.#multiCoreIndexer = new MultiCoreIndexer(corestore.cores, {
+    this.#multiCoreIndexer = new MultiCoreIndexer(this.cores, {
+      storage: (key) => {
+        return new ram(key)
+      },
       batch: (entries) => {
         for (const entry of entries) {
           const { block } = entry
@@ -28,44 +33,59 @@ class Mapeo {
           if (!dataType) continue
           const doc = dataType.decode(block)
           const indexer = this.#indexers.get(dataType.name)
-          indexer.append(doc)
+
+          // TODO: replace with real schema
+          doc.properties = JSON.stringify(doc.properties)
+          indexer.batch(doc)
         }
       }
     })
   }
 
+  get cores () {
+    return [...this.#corestore.cores.values()]
+  }
+
   getDataType (block) {
-    const typeHex = b4a.toString(block, 'utf-8', 0, 3)
+    const typeHex = b4a.toString(block, 'utf-8', 0, 4)
     return this.#dataTypes.find((dataType) => {
-      return dataType.magicString === typeHex
+      return dataType.blockPrefix === typeHex
     })
   }
 }
 
-class DataType {
+export class DataType {
   #encode = function defaultEncode (obj) {
-    const block = this.magicString + JSON.stringify(obj)
+    const block = this.blockPrefix + JSON.stringify(obj)
     return b4a.from(block)
   }
-  #decode = function defaultDecode (block) {
-    const magicString = b4a.toString(block, 'utf-8', 0, 3)
 
-    if (magicString !== this.magicString) {
-      throw new Error(`DataType with hex identifier ${magicString} found, expected ${this.magicString}`)
+  #decode = function defaultDecode (block) {
+    const blockPrefix = b4a.toString(block, 'utf-8', 0, 4)
+
+    if (blockPrefix !== this.blockPrefix) {
+      throw new Error(`DataType with hex identifier ${blockPrefix} found, expected ${this.blockPrefix}`)
     }
 
     return JSON.parse(b4a.toString(block, 'utf-8', 4))
   }
+
   #validate
 
-  constructor ({ name, magicString, schema, encode, decode }) {
+  constructor ({ name, blockPrefix, schema, encode, decode }) {
     this.name = name
-    this.magicString = magicString
+    this.blockPrefix = blockPrefix
     this.schema = schema
-    this.#encode = encode
-    this.#decode = decode
     this.ajv = new AJV()
     this.#validate = this.ajv.compile(this.schema)
+
+    if (encode) {
+      this.#encode = encode
+    }
+
+    if (decode) {
+      this.#decode = decode
+    }
   }
 
   validate (doc) {
@@ -104,22 +124,66 @@ class DataStore {
     return this.#dataType.decode(block)
   }
 
-  async create (doc) {
+  async create (data) {
     const writer = this.#corestore.get({ name: 'writer' })
+    await writer.ready()
 
-    const result = await writer.append()
+    const doc = {
+      id: data.id || randomBytes(8).toString('hex'),
+      version: `${writer.key.toString('hex')}@${writer.length}`,
+      timestamp: new Date().toISOString(),
+      properties: data.properties,
+      links: data.links || []
+    }
+
+    const indexing = new Promise((resolve) => {
+      this.#indexer.onceWriteDoc(doc.version, (doc) => {
+        resolve(doc)
+      })
+    })
+
+    const encodedDoc = this.encode(doc)
+    await writer.append(encodedDoc)
+    await indexing
+    return doc
   }
 
-  async read () {
-
+  getById (id) {
+    return this.#indexer.get(`SELECT * from ${this.#indexer.name} where id = :id`, { id })
   }
 
-  async update () {
-
+  getByVersion (version) {
+    return this.#indexer.get(`SELECT * from ${this.#indexer.name} where version = :version`, { version })
   }
 
-  async list () {
+  async update (data) {
+    const writer = this.#corestore.get({ name: 'writer' })
+    await writer.ready()
 
+    const doc = Object.assign({}, data, {
+      version: `${writer.key.toString('hex')}@${writer.length}`
+    })
+
+    const indexing = new Promise((resolve) => {
+      this.#indexer.onceWriteDoc(doc.version, (doc) => {
+        resolve(doc)
+      })
+    })
+
+    const encodedDoc = this.encode(doc)
+    await writer.append(encodedDoc)
+    await indexing
+    return doc
+  }
+
+  list ({ limit = 10, offset = 0, where }) {
+    let statement = `SELECT * from ${this.#indexer.name} LIMIT ${limit} OFFSET ${offset}`
+
+    if (where) {
+      statement += ` WHERE ${where}`
+    }
+
+    return this.#indexer.list(statement)
   }
 
   async versions () {
@@ -134,8 +198,8 @@ class DataStore {
 class Indexer {
   #sqlite
 
-  constructor({ name, cores, sqlite, extraColumns }) {
-    this.name = name
+  constructor({ dataType, sqlite, extraColumns }) {
+    this.name = dataType.name
     this.#sqlite = sqlite
     this.extraColumns = extraColumns
 
@@ -171,37 +235,20 @@ class Indexer {
     })
   }
 
+  onceWriteDoc (version, listener) {
+    this.sqliteIndexer.onceWriteDoc(version, listener)
+  }
+
   batch (entries) {
     const docs = Array.isArray(entries) ? entries : [entries]
     this.sqliteIndexer.batch(docs)
   }
 
-  query (statement) {
-    return this.sqlite.prepare(statement).all()
+  get (statement, data) {
+    return this.#sqlite.prepare(statement).get(data)
+  }
+
+  list (statement) {
+    return this.#sqlite.prepare(statement).all()
   }
 }
-
-const corestore = new Corestore(ram)
-
-const observation = new DataType({
-  name: 'observation',
-  magicString: '6f62', // could make this automatically set based on the name, but that might be too magic
-  schema: {},
-  encode: (doc) => {
-    return JSON.stringify(doc)
-  },
-  decode: (block) => {
-    return JSON.parse(block)
-  }
-})
-
-const mapeo = new Mapeo({
-  corestore,
-  dataTypes: [
-    observation
-  ]
-})
-
-const doc = await mapeo.observation.create({
-
-})

@@ -45,17 +45,16 @@
   "dependencies": {
     "@hyperswarm/secret-stream": "^6.0.0",
     "@mapeo/crypto": "github:digidem/mapeo-crypto",
-    "@mapeo/sqlite-indexer": "github:digidem/mapeo-sqlite-indexer#onWriteDoc",
+    "@mapeo/sqlite-indexer": "github:digidem/mapeo-sqlite-indexer",
     "b4a": "^1.6.0",
     "base32.js": "^0.1.0",
     "better-sqlite3": "^7.6.2",
     "corestore": "^6.0.0",
     "hypercore": "^10.0.0",
     "hyperswarm": "^4.2.0",
-    "multi-core-indexer": "^1.0.0-alpha.0",
+    "multi-core-indexer": "github:digidem/multi-core-indexer",
     "multicast-service-discovery": "^4.0.3",
     "mutexify": "^1.4.0",
-    "randombytes": "^2.1.0",
     "sodium-native": "^3.4.1",
     "tiny-typed-emitter": "^2.1.0"
   }
