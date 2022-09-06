@@ -12,7 +12,7 @@ await writer.ready()
 // TODO: actual schema from mapeo-schema
 const observation = new DataType({
   name: 'observation',
-  magicString: '6f62', // could make this automatically set based on the name, but that might be too magic
+  blockPrefix: '6f62', // could make this automatically set based on the name, but that might be too magic
   schema: {}
 })
 
@@ -38,9 +38,9 @@ const newDocVersion = Object.assign({}, doc, {
 	},
 	links: [doc.version]
 })
-
+console.log('doc', doc)
 await mapeo.observation.update(newDocVersion)
 
-const gotDoc = mapeo.observation.list({})
+const gotDoc = mapeo.observation.query()
 
 console.log(gotDoc)
