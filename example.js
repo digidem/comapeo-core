@@ -2,6 +2,7 @@ import Corestore from 'corestore'
 import ram from 'random-access-memory'
 import Sqlite from 'better-sqlite3'
 import { Mapeo, DataType } from './index.js'
+import { Observation, validateObservation } from 'mapeo-schema'
 
 const corestore = new Corestore(ram)
 
@@ -13,31 +14,39 @@ await writer.ready()
 const observation = new DataType({
   name: 'observation',
   blockPrefix: '6f62', // could make this automatically set based on the name, but that might be too magic
-  schema: {}
+  validate: validateObservation,
+  schema: Observation,
 })
 
 const sqlite = new Sqlite(':memory:')
 
 const mapeo = new Mapeo({
   corestore,
-  dataTypes: [
-    observation
-  ],
-  sqlite
+  sqlite,
+  dataTypes: [observation],
 })
 
+await mapeo.ready()
+
 const doc = await mapeo.observation.create({
-  properties: {
-    test: 'ok'
+  id: '79be849f934590ec',
+  version: '4d822ba6f2e502a5a944f50476217fe90ed5927fe92e71e7d94b0849a65929f3',
+  created_at: '2018-12-28T21:25:01.689Z',
+  timestamp: '2019-01-13T19:27:39.983Z',
+  type: 'observation',
+  schemaVersion: 4,
+  tags: {
+    notes: 'example note'
   }
 })
 
 const newDocVersion = Object.assign({}, doc, {
-	properties: {
-		test: 'cool'
-	},
-	links: [doc.version]
+  tags: {
+    notes: 'updated note',
+  },
+  links: [doc.version],
 })
+
 console.log('doc', doc)
 await mapeo.observation.update(newDocVersion)
 

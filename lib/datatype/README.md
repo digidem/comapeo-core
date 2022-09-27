@@ -10,12 +10,12 @@ For example, to be able to manage GeoJSON Point data:
 
 ```js
 const points = new DataType({
-	// ... provide relevant options
+  // ... provide relevant options
 })
 
 const mapeo = new Mapeo({
-	dataTypes: [points],
-	// ... additional required and optional options
+  dataTypes: [points],
+  // ... additional required and optional options
 })
 
 // there is now an `points` property on `mapeo` with methods for managing data, including:
@@ -38,24 +38,24 @@ const point = new DataType({
   name: 'point',
   blockPrefix: 'abcd', // magic string that is prefixed onto each block of this DataType for easy identification
   schema: {
-		title: 'GeoJSON Point',
-		type: 'object',
-		required: ['type', 'coordinates'],
-		properties: {
-			type: {
-				type: 'string',
-				enum: ['Point']
-			},
-			coordinates: PointCoordinates,
-			bbox: BoundingBox
-		}
-	},
-	encode: (obj) => {
-		return JSON.stringify(obj)
-	},
-	decode: (str) => {
-		return JSON.parse(str)
-	}
+    title: 'GeoJSON Point',
+    type: 'object',
+    required: ['type', 'coordinates'],
+    properties: {
+      type: {
+        type: 'string',
+        enum: ['Point'],
+      },
+      coordinates: PointCoordinates,
+      bbox: BoundingBox,
+    },
+  },
+  encode: (obj) => {
+    return JSON.stringify(obj)
+  },
+  decode: (str) => {
+    return JSON.parse(str)
+  },
 })
 ```
 
@@ -64,4 +64,5 @@ const point = new DataType({
 TODO!
 
 ## Tests
+
 Tests for this module are in [tests/datatype.js](../../tests/datatype.js)
