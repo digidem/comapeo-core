@@ -5,7 +5,7 @@ import ram from 'random-access-memory'
 import createTestnet from '@hyperswarm/testnet'
 
 import { createCoreKeyPair, createIdentityKeys } from './helpers/index.js'
-import { Discovery } from '../lib/discovery.js'
+import { Discovery } from '../lib/discovery/index.js'
 
 test('discovery - dht/hyperswarm', async (t) => {
   t.plan(2)
