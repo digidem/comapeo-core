@@ -17,8 +17,8 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         node-version:
-          - '14.x'
           - '16.x'
+          - '18.x'
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node-version }}

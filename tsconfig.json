@@ -15,7 +15,7 @@
     "paths": {
       "*": ["./types"],
       "@gravitysoftware/dnssd": [
-        "./node_modules/mdns-sd-discovery/types/gravitysoftware__dnssd"
+        "./node_modules/multicast-service-discovery/types/gravitysoftware__dnssd"
       ]
     }
   },
