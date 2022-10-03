@@ -25,7 +25,7 @@ test('mapeo - create, update, query', async (t) => {
 
   // TODO: this should be done automatically somehow
   const writer = corestore.get({ name: 'writer' })
-  await writer.ready()  
+  await writer.ready()
 
   const mapeo = new Mapeo({
     corestore,
@@ -48,7 +48,7 @@ test('mapeo - create, update, query', async (t) => {
     },
     links: [doc.version],
   })
-  
+
   const newDoc = await mapeo.test.update(newDocVersion)
   t.ok(newDoc, 'doc updated')
 

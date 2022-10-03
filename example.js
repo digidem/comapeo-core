@@ -36,8 +36,8 @@ const doc = await mapeo.observation.create({
   type: 'observation',
   schemaVersion: 4,
   tags: {
-    notes: 'example note'
-  }
+    notes: 'example note',
+  },
 })
 
 const newDocVersion = Object.assign({}, doc, {

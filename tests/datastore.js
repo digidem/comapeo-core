@@ -23,9 +23,9 @@ test('datastore - create, update, query', async (t) => {
         version: { type: 'string' },
         value: { type: 'string' },
         created_at: { type: 'string' },
-        links: { type: 'array' }
+        links: { type: 'array' },
       },
-      additionalProperties: false
+      additionalProperties: false,
     },
   })
 
@@ -36,7 +36,7 @@ test('datastore - create, update, query', async (t) => {
   const writer = corestore.get({ name: 'writer' })
   await writer.ready()
 
-  const multiCoreIndexer = new MultiCoreIndexer([...corestore.cores.values()],  {
+  const multiCoreIndexer = new MultiCoreIndexer([...corestore.cores.values()], {
     storage: (key) => {
       return new ram(key)
     },
@@ -91,5 +91,8 @@ test('datastore - create, update, query', async (t) => {
   }
 
   const [gotUpdatedDoc] = datastore.query()
-  t.ok(gotUpdatedDoc && gotUpdatedDoc.value === 'updated', 'updated doc queried')
+  t.ok(
+    gotUpdatedDoc && gotUpdatedDoc.value === 'updated',
+    'updated doc queried'
+  )
 })

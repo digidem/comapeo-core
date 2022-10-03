@@ -3,7 +3,6 @@ import test from 'brittle'
 import Sqlite from 'better-sqlite3'
 
 import { DataType } from '../lib/datatype/index.js'
-import { DataStore } from '../lib/datastore/index.js'
 import { Indexer } from '../lib/indexer/index.js'
 
 test('create a datastore', async (t) => {
@@ -34,7 +33,7 @@ test('create a datastore', async (t) => {
     id: '1',
     version: '1',
     value: 'test',
-    links: []
+    links: [],
   }
 
   const indexing = new Promise((resolve) => {
