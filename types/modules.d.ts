@@ -136,19 +136,16 @@ declare module 'random-access-storage' {
 declare module 'random-access-memory' {
   import RandomAccessStorage from 'random-access-storage'
 
-  // TODO: Seems like many of the hypercore modules can also use Uint8Array
-  type HypercoreBuffer = Buffer | Uint8Array
-
   class RandomAccessMemory extends RandomAccessStorage {
     public length: number
     public pageSize: number
-    public buffers: HypercoreBuffer[]
+    public buffers: Buffer[]
 
     constructor(
       opts?:
         | number
-        | HypercoreBuffer
-        | { length?: number; buffer?: HypercoreBuffer; pageSize?: number }
+        | Buffer
+        | { length?: number; buffer?: Buffer; pageSize?: number }
     )
 
     toBuffer(): Buffer
