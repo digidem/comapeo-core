@@ -62,7 +62,102 @@ declare module 'base32.js'
 declare module '@mapeo/crypto'
 declare module 'hypercore'
 declare module 'corestore'
-declare module 'random-access-memory'
+declare module 'random-access-storage' {
+  import EventEmitter from 'events'
+
+  type Cb<T> = (err: any, val?: T) => void
+
+  class Request {
+    public type: number
+    public offset: number
+    public size: number
+    public data: Buffer
+    public storage: RandomAccessStorage
+
+    constructor(
+      self: RandomAccessStorage,
+      type: number,
+      offset: number,
+      size: number,
+      data: Buffer,
+      cb: Cb<any>
+    )
+
+    callback: Cb<any>
+  }
+
+  class RandomAccessStorage extends EventEmitter {
+    public opened: boolean
+    public suspended: boolean
+    public closed: boolean
+    public unlinked: boolean
+    public writing: boolean
+    public readable: boolean
+    public writable: boolean
+    public deletable: boolean
+    public truncatable: boolean
+    public statable: boolean
+
+    constructor(opts?: {
+      open?: boolean
+      read?: boolean
+      write?: boolean
+      del?: boolean
+      truncate?: boolean
+      stat?: boolean
+      suspend?: boolean
+      close?: boolean
+      unlink?: boolean
+    })
+
+    read(offset: number, size: number, cb: Cb<any>): void
+
+    write(offset: number, data: Buffer, cb?: Cb<any>): void
+
+    del(offset: number, size: number, cb?: Cb<any>): void
+
+    truncate(offset: number, cb?: Cb<any>): void
+
+    stat(cb: Cb<any>): void
+
+    open(cb?: Cb<any>): void
+
+    suspend(cb?: Cb<any>): void
+
+    close(cb?: Cb<any>): void
+
+    unlink(cb?: Cb<any>): void
+
+    run(req: Request, writing?: boolean): void
+  }
+
+  export = RandomAccessStorage
+}
+declare module 'random-access-memory' {
+  import RandomAccessStorage from 'random-access-storage'
+
+  // TODO: Seems like many of the hypercore modules can also use Uint8Array
+  type HypercoreBuffer = Buffer | Uint8Array
+
+  class RandomAccessMemory extends RandomAccessStorage {
+    public length: number
+    public pageSize: number
+    public buffers: HypercoreBuffer[]
+
+    constructor(
+      opts?:
+        | number
+        | HypercoreBuffer
+        | { length?: number; buffer?: HypercoreBuffer; pageSize?: number }
+    )
+
+    toBuffer(): Buffer
+
+    clone(): RandomAccessMemory
+  }
+
+  export = RandomAccessMemory
+}
 declare module 'random-access-file'
 declare module 'randombytes'
 declare module 'b4a'
