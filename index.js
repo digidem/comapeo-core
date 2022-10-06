@@ -4,6 +4,7 @@ import ram from 'random-access-memory'
 
 import { DataStore } from './lib/datastore/index.js'
 import { Indexer } from './lib/indexer/index.js'
+export { DataType } from './lib/datatype/index.js'
 
 /**
  * @property {string, any}
