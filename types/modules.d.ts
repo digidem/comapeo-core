@@ -389,11 +389,8 @@ declare module 'dht-rpc' {
 declare module '@hyperswarm/dht' {
   import { EventEmitter } from 'stream'
   import { Query, QueryOpts } from 'dht-rpc'
+  import SecretStream from '@hyperswarm/secret-stream'
 
-  // TODO: Use definition from https://github.com/digidem/mapeo-core-next/pull/34 when merged
-  interface SecretStream {}
-
-  // TODO: Use definition from https://github.com/digidem/mapeo-core-next/pull/34 when merged
   interface HandshakePayload {
     isInitiator: boolean
     publicKey: Buffer
