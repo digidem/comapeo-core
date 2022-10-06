@@ -68,11 +68,11 @@ declare module 'random-access-storage' {
   type Cb<T> = (err: any, val?: T) => void
 
   class Request {
-    public type: number
-    public offset: number
-    public size: number
-    public data: Buffer
-    public storage: RandomAccessStorage
+    readonly type: number
+    readonly offset: number
+    readonly size: number
+    readonly data: Buffer
+    readonly storage: RandomAccessStorage
 
     constructor(
       self: RandomAccessStorage,
@@ -87,16 +87,16 @@ declare module 'random-access-storage' {
   }
 
   class RandomAccessStorage extends EventEmitter {
-    public opened: boolean
-    public suspended: boolean
-    public closed: boolean
-    public unlinked: boolean
-    public writing: boolean
-    public readable: boolean
-    public writable: boolean
-    public deletable: boolean
-    public truncatable: boolean
-    public statable: boolean
+    readonly opened: boolean
+    readonly suspended: boolean
+    readonly closed: boolean
+    readonly unlinked: boolean
+    readonly writing: boolean
+    readonly readable: boolean
+    readonly writable: boolean
+    readonly deletable: boolean
+    readonly truncatable: boolean
+    readonly statable: boolean
 
     constructor(opts?: {
       open?: boolean
@@ -111,23 +111,14 @@ declare module 'random-access-storage' {
     })
 
     read(offset: number, size: number, cb: Cb<any>): void
-
     write(offset: number, data: Buffer, cb?: Cb<any>): void
-
     del(offset: number, size: number, cb?: Cb<any>): void
-
     truncate(offset: number, cb?: Cb<any>): void
-
     stat(cb: Cb<any>): void
-
     open(cb?: Cb<any>): void
-
     suspend(cb?: Cb<any>): void
-
     close(cb?: Cb<any>): void
-
     unlink(cb?: Cb<any>): void
-
     run(req: Request, writing?: boolean): void
   }
 
@@ -137,9 +128,9 @@ declare module 'random-access-memory' {
   import RandomAccessStorage from 'random-access-storage'
 
   class RandomAccessMemory extends RandomAccessStorage {
-    public length: number
-    public pageSize: number
-    public buffers: Buffer[]
+    readonly length: number
+    readonly pageSize: number
+    readonly buffers: Buffer[]
 
     constructor(
       opts?:
@@ -149,7 +140,6 @@ declare module 'random-access-memory' {
     )
 
     toBuffer(): Buffer
-
     clone(): RandomAccessMemory
   }
 
