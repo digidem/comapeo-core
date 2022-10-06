@@ -23,7 +23,7 @@ declare module '@hyperswarm/secret-stream' {
     connect: () => void
   }
 
-  class SecretStream<
+  class NoiseSecretStream<
     RawStream extends NodeDuplex | Duplex = Duplex
   > extends Duplex<
     any,
@@ -34,14 +34,14 @@ declare module '@hyperswarm/secret-stream' {
     true,
     DuplexEvents<any, any> & NoiseStreamEvents
   > {
-    public publicKey: Buffer
-    public remotePublicKey: Buffer
-    public handshakeHash: Buffer
-    public rawStream: RawStream
-    public isInitiator: boolean
-    public noiseStream: this
-    public opened: Promise<boolean>
-    public userData: any
+    readonly publicKey: Buffer
+    readonly remotePublicKey: Buffer
+    readonly handshakeHash: Buffer
+    readonly rawStream: RawStream
+    readonly isInitiator: boolean
+    readonly noiseStream: this
+    readonly opened: Promise<boolean>
+    readonly userData: any
 
     constructor(isInitiator: boolean, rawStream?: RawStream, opts?: Opts)
 
@@ -50,14 +50,12 @@ declare module '@hyperswarm/secret-stream' {
       secretKey: Buffer
     }
 
-    public start(rawStream?: NodeDuplex, opts?: Opts): void
-
-    public setTimeout(ms?: number): void
-
-    public setKeepAlive(ms?: number): void
+    start(rawStream?: NodeDuplex, opts?: Opts): void
+    setTimeout(ms?: number): void
+    setKeepAlive(ms?: number): void
   }
 
-  export = SecretStream
+  export = NoiseSecretStream
 }
 declare module '@hyperswarm/testnet'
 declare module 'base32.js'
