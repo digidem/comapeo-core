@@ -1,5 +1,7 @@
 // TODO: create types for these modules
 
+// KeyPair is defined in lib/types.js
+
 interface DHTNode {
   host: string
   port: number
@@ -388,16 +390,6 @@ declare module '@hyperswarm/dht' {
   import { EventEmitter } from 'stream'
   import { Query, QueryOpts } from 'dht-rpc'
 
-  // TODO: Extract to shared type
-  type PublicKey = Buffer
-  type SecretKey = Buffer
-
-  // TODO: Extract to shared type
-  interface KeyPair {
-    publicKey: PublicKey
-    secretKey: SecretKey
-  }
-
   // TODO: Use definition from https://github.com/digidem/mapeo-core-next/pull/34 when merged
   interface SecretStream {}
 
@@ -572,7 +564,7 @@ declare module '@hyperswarm/secret-stream' {
     // TODO: Use https://github.com/chm-diederichs/noise-handshake/blob/main/noise.js for specific patterns
     pattern?: string
     remotePublicKey?: Buffer
-    keyPair?: { publicKey: Buffer; secretKey: Buffer }
+    keyPair?: KeyPair
     handshake?: {
       tx: Buffer
       rx: Buffer
@@ -608,10 +600,7 @@ declare module '@hyperswarm/secret-stream' {
 
     constructor(isInitiator: boolean, rawStream?: RawStream, opts?: Opts)
 
-    static keyPair(seed?: Buffer): {
-      publicKey: Buffer
-      secretKey: Buffer
-    }
+    static keyPair(seed?: Buffer): KeyPair
 
     start(rawStream?: NodeDuplex, opts?: Opts): void
     setTimeout(ms?: number): void
