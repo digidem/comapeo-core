@@ -385,7 +385,7 @@ declare module 'dht-rpc' {
   export default DHT
 }
 declare module '@hyperswarm/dht' {
-  import { EventEmitter, Readable } from 'stream'
+  import { EventEmitter } from 'stream'
   import { Query, QueryOpts } from 'dht-rpc'
 
   // TODO: Extract to shared type
