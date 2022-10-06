@@ -1,13 +1,10 @@
 // TODO: create types for these modules
 
-// KeyPair is defined in lib/types.js
+// The following are defined in lib/types.js:
+// - KeyPair
+// - DHTNode
 
-interface DHTNode {
-  host: string
-  port: number
-}
-
-interface IdentifiedDHTNode extends DHTNode {
+type IdentifiedDHTNode = DHTNode & {
   id: Buffer
 }
 
