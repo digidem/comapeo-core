@@ -9,7 +9,8 @@
     "format": "prettier . --write",
     "test": "brittle tests/*.js",
     "type": "tsc",
-    "deps": "dependency-check . --no-dev"
+    "deps": "dependency-check . --no-dev",
+    "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api"
   },
   "prettier": {
     "semi": false,
@@ -41,6 +42,8 @@
     "hypercore-crypto": "^3.3.0",
     "prettier": "^2.7.1",
     "random-access-memory": "^6.0.0",
+    "typedoc": "^0.23.15",
+    "typedoc-plugin-markdown": "^3.13.6",
     "typescript": "^4.8.3"
   },
   "dependencies": {
@@ -53,6 +56,7 @@
     "corestore": "^6.1.1",
     "hypercore": "^10.3.2",
     "hyperswarm": "^4.3.3",
+    "mapeo-schema": "github:digidem/mapeo-schema#typescript",
     "multi-core-indexer": "github:digidem/multi-core-indexer",
     "multicast-service-discovery": "^4.0.3",
     "sodium-native": "^3.4.1",

@@ -20,6 +20,9 @@ const observation = new DataType({
 
 const sqlite = new Sqlite(':memory:')
 
+/**
+ * @type {Mapeo | {{ observation: Observation }}}
+ */
 const mapeo = new Mapeo({
   corestore,
   sqlite,
