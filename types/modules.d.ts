@@ -528,14 +528,6 @@ declare module '@hyperswarm/dht' {
 declare module '@hyperswarm/testnet' {
   import DHT, { DHTOpts } from '@hyperswarm/dht'
 
-  type Teardown = () => Promise<void>
-
-  interface Opts {
-    host?: string
-    port?: number
-    teardown?: Teardown
-  }
-
   class Testnet {
     readonly nodes: DHT[]
     readonly bootstrap: DHTNode[]
@@ -548,7 +540,16 @@ declare module '@hyperswarm/testnet' {
     [Symbol.iterator](): Testnet['nodes'][typeof Symbol.iterator]
   }
 
-  function createTestnet(size: number, opts?: Teardown | Opts): Promise<Testnet>
+  function createTestnet(
+    size: number,
+    opts?:
+      | (() => Promise<void>)
+      | {
+          host?: string
+          port?: number
+          teardown?: () => Promise<void>
+        }
+  ): Promise<Testnet>
 
   export = createTestnet
 }
