@@ -2,9 +2,9 @@
 
 // The following are defined in lib/types.js:
 // - KeyPair
-// - DHTNode
+// - DhtNode
 
-type IdentifiedDHTNode = DHTNode & {
+type IdentifiedDhtNode = DhtNode & {
   id: Buffer
 }
 
@@ -131,8 +131,8 @@ declare module 'dht-rpc' {
   // TODO: Potentially incomplete?
   type Reply = {
     error: number
-    closerNodes: IdentifiedDHTNode[]
-    from: IdentifiedDHTNode
+    closerNodes: IdentifiedDhtNode[]
+    from: IdentifiedDhtNode
   }
 
   export interface QueryOpts {
@@ -141,16 +141,16 @@ declare module 'dht-rpc' {
     maxSlow?: number
     commit?:
       | boolean
-      | ((reply: Reply, dht: DHT, query: Query) => Promise<Request>)
-    nodes?: IdentifiedDHTNode[]
-    closestNodes?: IdentifiedDHTNode[]
+      | ((reply: Reply, dht: Dht, query: Query) => Promise<Request>)
+    nodes?: IdentifiedDhtNode[]
+    closestNodes?: IdentifiedDhtNode[]
     replies?: Reply[]
     closestReplies?: Reply[]
   }
 
   // https://github.com/mafintosh/dht-rpc/blob/c9900d55256f09646b57f99ac9f2342910d52fe7/lib/query.js
   export class Query extends Readable {
-    readonly dht: DHT
+    readonly dht: Dht
     readonly k: number
     readonly target: Buffer
     readonly internal: boolean
@@ -165,7 +165,7 @@ declare module 'dht-rpc' {
     readonly closestReplies: Reply[]
 
     constructor(
-      dht: DHT,
+      dht: Dht,
       target: Buffer,
       internal: boolean,
       command: Buffer,
@@ -173,7 +173,7 @@ declare module 'dht-rpc' {
       opts?: QueryOpts
     )
 
-    get closestNodes(): IdentifiedDHTNode[]
+    get closestNodes(): IdentifiedDhtNode[]
     finished(): Promise<void>
   }
 
@@ -191,9 +191,9 @@ declare module 'dht-rpc' {
   interface Response {
     tid: number
     from: { id: null; host: string; port: number }
-    to: IdentifiedDHTNode
+    to: IdentifiedDhtNode
     token: Buffer
-    closerNodes: IdentifiedDHTNode[]
+    closerNodes: IdentifiedDhtNode[]
     error: number
     value: Buffer
   }
@@ -204,8 +204,8 @@ declare module 'dht-rpc' {
       io: IO,
       socket: UDXSocket,
       tid: number,
-      from: IdentifiedDHTNode,
-      to: IdentifiedDHTNode,
+      from: IdentifiedDhtNode,
+      to: IdentifiedDhtNode,
       token: Buffer | null,
       internal: boolean,
       command: Buffer,
@@ -216,7 +216,7 @@ declare module 'dht-rpc' {
     static decode(
       io: IO,
       socket: UDXSocket,
-      from: IdentifiedDHTNode,
+      from: IdentifiedDhtNode,
       state: {
         start: number
         end: number
@@ -226,26 +226,26 @@ declare module 'dht-rpc' {
     reply(
       value: Buffer | null,
       opts?: {
-        to?: IdentifiedDHTNode
-        from?: IdentifiedDHTNode
+        to?: IdentifiedDhtNode
+        from?: IdentifiedDhtNode
         socket?: UDXSocket
         token?: Buffer | null | boolean
-        closerNodes?: IdentifiedDHTNode[] | boolean
+        closerNodes?: IdentifiedDhtNode[] | boolean
       }
     ): void
     error(
       code: number,
       opts?: {
-        to?: IdentifiedDHTNode
-        from?: IdentifiedDHTNode
+        to?: IdentifiedDhtNode
+        from?: IdentifiedDhtNode
         socket?: UDXSocket
         token?: Buffer | boolean
-        closerNodes?: IdentifiedDHTNode[] | boolean
+        closerNodes?: IdentifiedDhtNode[] | boolean
       }
     ): void
     relay(
       value: Buffer | null,
-      to: IdentifiedDHTNode,
+      to: IdentifiedDhtNode,
       opts?: {
         socket: UDXSocket
       }
@@ -298,7 +298,7 @@ declare module 'dht-rpc' {
     destroy(): Promise<void>
     bind(): Promise<void>
     createRequest(
-      to: IdentifiedDHTNode,
+      to: IdentifiedDhtNode,
       token: Buffer | null,
       internal: boolean,
       command: Buffer,
@@ -307,10 +307,10 @@ declare module 'dht-rpc' {
     ): Request
   }
 
-  interface DHTOpts {
+  interface DhtOpts {
     id?: Buffer
     udx?: UDX
-    bootstrap?: DHTNode[]
+    bootstrap?: DhtNode[]
     concurrency?: number
     ephemeral?: boolean
     adaptive?: boolean
@@ -318,12 +318,12 @@ declare module 'dht-rpc' {
     host?: number
     quickFirewall?: boolean
     addNode?: boolean
-    nodes?: DHTNode[]
+    nodes?: DhtNode[]
   }
 
   // https://github.com/mafintosh/dht-rpc/blob/c9900d55256f09646b57f99ac9f2342910d52fe7/index.js
-  class DHT extends EventEmitter {
-    readonly bootstrapNodes: DHTNode[]
+  class Dht extends EventEmitter {
+    readonly bootstrapNodes: DhtNode[]
     readonly table: Table
     readonly nodes: TOS
     readonly udx: UDX
@@ -335,20 +335,20 @@ declare module 'dht-rpc' {
     readonly adaptive: boolean
     readonly destroyed: boolean
 
-    constructor(opts?: DHTOpts)
+    constructor(opts?: DhtOpts)
 
-    static bootstrapper(port: number, host: string, opts?: DHTOpts): DHT
+    static bootstrapper(port: number, host: string, opts?: DhtOpts): Dht
 
     get id(): Buffer | null
     get host(): string | null
     get port(): number
     get socket(): UDXSocket
 
-    onmessage(socket: UDXSocket, buf: Buffer, rinfo: DHTNode): void
+    onmessage(socket: UDXSocket, buf: Buffer, rinfo: DhtNode): void
     bind(): Promise<void>
     address(): string | null
-    addNode(node: DHTNode): void
-    toArray(): DHTNode[]
+    addNode(node: DhtNode): void
+    toArray(): DhtNode[]
     ready(): Promise<void>
     findNode(target: Buffer, opts?: QueryOpts): Query
     query(params: {
@@ -381,7 +381,7 @@ declare module 'dht-rpc' {
     onrequest(req: Request): void
   }
 
-  export default DHT
+  export default Dht
 }
 declare module '@hyperswarm/dht' {
   import { EventEmitter } from 'stream'
@@ -409,7 +409,7 @@ declare module '@hyperswarm/dht' {
   // TODO: Incomplete
   // https://github.com/hyperswarm/dht/blob/4190b7505c365ef8a6ad607fc3862780c65eb482/lib/server.js
   interface Server extends EventEmitter {
-    constructor: (dht: DHT, opts: any) => Server
+    constructor: (dht: Dht, opts: any) => Server
 
     listen: (keyPair?: KeyPair) => Promise<void>
     address: () => {
@@ -429,7 +429,7 @@ declare module '@hyperswarm/dht' {
       ((event: string | symbol, listener: (...args: any[]) => void) => this)
   }
 
-  export interface DHTOpts {
+  export interface DhtOpts {
     keyPair?: KeyPair
     port?: number
     bootstrap?: { host: string; port: number }[]
@@ -447,20 +447,20 @@ declare module '@hyperswarm/dht' {
 
   // TODO: Incomplete
   // https://github.com/hyperswarm/dht/blob/4190b7505c365ef8a6ad607fc3862780c65eb482/index.js
-  class DHT {
+  class Dht {
     readonly defaultKeyPair: KeyPair
     readonly destroyed: boolean
     readonly listening: Server[]
 
-    constructor(opts?: DHTOpts)
+    constructor(opts?: DhtOpts)
 
     static keyPair: (seed?: Buffer) => KeyPair
-    static create: (opts: DHTOpts & { relays?: string[] }) => Promise<DHT>
+    static create: (opts: DhtOpts & { relays?: string[] }) => Promise<Dht>
     static hash(data: Buffer): Buffer
 
     connect(
       remotePublicKey: Buffer,
-      options?: { nodes: DHTNode[]; keyPair: KeyPair }
+      options?: { nodes: DhtNode[]; keyPair: KeyPair }
     ): SecretStream
     createServer(
       options?: ServerOpts | ((encryptedSocket: SecretStream) => void),
@@ -520,18 +520,18 @@ declare module '@hyperswarm/dht' {
     ) => Query
   }
 
-  export default DHT
+  export default Dht
 }
 declare module '@hyperswarm/testnet' {
-  import DHT, { DHTOpts } from '@hyperswarm/dht'
+  import Dht, { DhtOpts } from '@hyperswarm/dht'
 
   class Testnet {
-    readonly nodes: DHT[]
-    readonly bootstrap: DHTNode[]
+    readonly nodes: Dht[]
+    readonly bootstrap: DhtNode[]
 
-    constructor(nodes: DHT[], bootstrap: DHTNode[])
+    constructor(nodes: Dht[], bootstrap: DhtNode[])
 
-    createNode(opts: DHTOpts): DHT
+    createNode(opts: DhtOpts): Dht
     destroy(): Promise<void>
     // TODO: Not sure if this actually works
     [Symbol.iterator](): Testnet['nodes'][typeof Symbol.iterator]
