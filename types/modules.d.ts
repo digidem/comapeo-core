@@ -8,6 +8,48 @@ type IdentifiedDhtNode = DhtNode & {
   id: Buffer
 }
 
+declare module 'kademlia-routing-table' {
+  import EventEmitter from 'events'
+
+  interface NodeType {
+    id: Buffer
+  }
+
+  class Row extends EventEmitter {
+    readonly index: number
+    readonly table: RoutingTable
+    readonly nodes: NodeType[]
+    public data: any
+
+    constructor(table: RoutingTable, index: number)
+
+    add<N extends NodeType>(node: N): boolean | undefined
+    remove(id: Buffer): boolean
+    get(id: Buffer): NodeType | null
+    random(): NodeType | null
+    insert<N extends NodeType>(i: number, node: N): void
+    splice(i: number): void
+    compare<N extends NodeType>(a: N, b: N): number
+  }
+
+  class RoutingTable extends EventEmitter {
+    readonly id: Buffer
+    readonly k: number
+    readonly rows: Row[]
+
+    constructor(id: Buffer, opts?: { k?: number })
+
+    add<N extends NodeType>(node: N): ReturnType<Row['add']>
+    remove(id: Buffer): ReturnType<Row['remove']>
+    get(id: Buffer): ReturnType<Row['get']>
+    has(id: Buffer): boolean
+    random(): ReturnType<Row['random']>
+    closest(id: Buffer, k: number): NodeType[]
+    toArray(): NodeType[]
+  }
+
+  export = RoutingTable
+}
 declare module 'time-ordered-set' {
   interface Node {
     prev: any
@@ -143,9 +185,7 @@ declare module 'dht-rpc' {
   import { EventEmitter, Readable } from 'stream'
   import UDX, { NetworkInterfaces, UDXSocket } from 'udx-native'
   import TimeOrderedSet from 'time-ordered-set'
-
-  // TODO: See `kademlia-routing-table`
-  class Table {}
+  import RoutingTable from 'kademlia-routing-table'
 
   // TODO: Potentially incomplete?
   type Reply = {
@@ -280,7 +320,7 @@ declare module 'dht-rpc' {
   }
 
   class IO {
-    readonly table: Table
+    readonly table: RoutingTable
     readonly udx: UDX
     readonly inflight: []
     readonly clientSocket: UDXSocket | null
@@ -294,7 +334,7 @@ declare module 'dht-rpc' {
     readonly ontimeout: (req: Request) => void
 
     constructor(
-      table: Table,
+      table: RoutingTable,
       udx: UDX,
       opts?: {
         maxWindow?: number
@@ -343,7 +383,7 @@ declare module 'dht-rpc' {
   // https://github.com/mafintosh/dht-rpc/blob/c9900d55256f09646b57f99ac9f2342910d52fe7/index.js
   class Dht extends EventEmitter {
     readonly bootstrapNodes: DhtNode[]
-    readonly table: Table
+    readonly table: RoutingTable
     readonly nodes: TimeOrderedSet
     readonly udx: UDX
     readonly io: IO
