@@ -10,7 +10,6 @@ const corestore = new Corestore(ram)
 const writer = corestore.get({ name: 'writer' })
 await writer.ready()
 
-// TODO: actual schema from mapeo-schema
 const observation = new DataType({
   name: 'observation',
   blockPrefix: '6f62', // could make this automatically set based on the name, but that might be too magic

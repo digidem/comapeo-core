@@ -55,7 +55,9 @@
     "hyperswarm": "^4.3.3",
     "multi-core-indexer": "github:digidem/multi-core-indexer",
     "multicast-service-discovery": "^4.0.3",
+    "mutexify": "^1.4.0",
     "sodium-native": "^3.4.1",
+    "sodium-universal": "^3.1.0",
     "tiny-typed-emitter": "^2.1.0"
   }
 }

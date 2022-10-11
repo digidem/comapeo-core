@@ -2,6 +2,7 @@ import MultiCoreIndexer from 'multi-core-indexer'
 import b4a from 'b4a'
 import ram from 'random-access-memory'
 
+import { AuthStore } from './lib/authstore/index.js'
 import { DataStore } from './lib/datastore/index.js'
 import { Indexer } from './lib/indexer/index.js'
 export { DataType } from './lib/datatype/index.js'
@@ -88,4 +89,10 @@ export class Mapeo {
       return dataType.blockPrefix === typeHex
     })
   }
+
+  async sync(options) {}
+
+  async syncAuthStore(options) {}
+
+  async syncDataStores(options) {}
 }
