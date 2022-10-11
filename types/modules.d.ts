@@ -8,6 +8,26 @@ type IdentifiedDhtNode = DhtNode & {
   id: Buffer
 }
 
+declare module 'time-ordered-set' {
+  interface Node {
+    prev: any
+    next: any
+  }
+
+  function TimeOrderedSet(): TimeOrderedSet
+
+  class TimeOrderedSet {
+    oldest: Node
+    latest: Node
+    length: number
+    has(node: Node): boolean
+    add(node: any): Node
+    remove(node: Node): Node
+    toArray(pick: number): Node[]
+  }
+
+  export = TimeOrderedSet
+}
 declare module 'hyperswarm'
 declare module 'udx-native' {
   import EventEmitter from 'events'
@@ -122,11 +142,10 @@ declare module 'udx-native' {
 declare module 'dht-rpc' {
   import { EventEmitter, Readable } from 'stream'
   import UDX, { NetworkInterfaces, UDXSocket } from 'udx-native'
+  import TimeOrderedSet from 'time-ordered-set'
 
   // TODO: See `kademlia-routing-table`
   class Table {}
-  // TODO: See `time-ordered-set`
-  class TOS {}
 
   // TODO: Potentially incomplete?
   type Reply = {
@@ -325,7 +344,7 @@ declare module 'dht-rpc' {
   class Dht extends EventEmitter {
     readonly bootstrapNodes: DhtNode[]
     readonly table: Table
-    readonly nodes: TOS
+    readonly nodes: TimeOrderedSet
     readonly udx: UDX
     readonly io: IO
     readonly concurrency: boolean
