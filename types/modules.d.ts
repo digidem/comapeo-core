@@ -84,13 +84,10 @@ declare module 'udx-native' {
       internal: boolean
     }[]
 
-    // TODO: Does using `this` work?
-    watch(): NetworkInterfaces
-    // TODO: Does using `this` work?
+    watch(): this
     unwatch(): NetworkInterfaces
     destroy(): Promise<void>
 
-    // TODO: Have no idea if this actually works
     [Symbol.iterator](): NetworkInterfaces['interfaces'][typeof Symbol.iterator]
   }
 
@@ -592,7 +589,6 @@ declare module '@hyperswarm/testnet' {
 
     createNode(opts: DhtOpts): Dht
     destroy(): Promise<void>
-    // TODO: Not sure if this actually works
     [Symbol.iterator](): Testnet['nodes'][typeof Symbol.iterator]
   }
 
