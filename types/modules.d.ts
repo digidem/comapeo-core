@@ -689,16 +689,16 @@ declare module 'random-access-storage' {
   }
 
   class RandomAccessStorage extends EventEmitter {
-    readonly opened: boolean
-    readonly suspended: boolean
-    readonly closed: boolean
-    readonly unlinked: boolean
-    readonly writing: boolean
     readonly readable: boolean
     readonly writable: boolean
     readonly deletable: boolean
     readonly truncatable: boolean
     readonly statable: boolean
+    opened: boolean
+    suspended: boolean
+    closed: boolean
+    unlinked: boolean
+    writing: boolean
 
     constructor(opts?: {
       open?: boolean
