@@ -77,7 +77,7 @@ declare module 'udx-native' {
 
   // https://github.com/hyperswarm/libudx/blob/e8cdf8f6edb598b7617784867087a69f958d84c3/lib/network-interfaces.js
   export class NetworkInterfaces extends EventEmitter {
-    readonly interfaces: {
+    interfaces: {
       name: string
       host: string
       family: number
@@ -94,7 +94,7 @@ declare module 'udx-native' {
   // https://github.com/hyperswarm/libudx/blob/e8cdf8f6edb598b7617784867087a69f958d84c3/lib/socket.js
   export class UDXSocket extends EventEmitter {
     readonly udx: UDX
-    readonly streams: Set<UDXStream>
+    streams: Set<UDXStream>
 
     constructor(udx: UDX)
 
@@ -127,7 +127,7 @@ declare module 'udx-native' {
   // https://github.com/hyperswarm/libudx/blob/e8cdf8f6edb598b7617784867087a69f958d84c3/lib/stream.js
   class UDXStream extends Duplex {
     readonly udx: UDX
-    readonly socket: UDXSocket | null
+    socket: UDXSocket | null
 
     constructor(
       udx: UDX,
