@@ -639,14 +639,14 @@ declare module '@hyperswarm/secret-stream' {
     true,
     DuplexEvents<any, any> & NoiseStreamEvents
   > {
-    readonly publicKey: Buffer
-    readonly remotePublicKey: Buffer
-    readonly handshakeHash: Buffer
-    readonly rawStream: RawStream
     readonly isInitiator: boolean
     readonly noiseStream: this
-    readonly opened: Promise<boolean>
-    readonly userData: any
+    publicKey: Buffer
+    remotePublicKey: Buffer
+    handshakeHash: Buffer
+    rawStream: RawStream
+    opened: Promise<boolean>
+    userData: any
 
     constructor(isInitiator: boolean, rawStream?: RawStream, opts?: Opts)
 
