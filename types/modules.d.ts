@@ -70,7 +70,130 @@ declare module 'time-ordered-set' {
 
   export = TimeOrderedSet
 }
-declare module 'hyperswarm'
+declare module 'hyperswarm' {
+  import EventEmitter from 'events'
+  import Dht from '@hyperswarm/dht'
+  import NoiseSecretStream from '@hyperswarm/secret-stream'
+
+  interface PeerDiscoveryOpts {
+    wait?: number | null
+    onpeer?: () => void
+    onerror?: (err: any) => void
+  }
+
+  export class PeerDiscovery {
+    readonly swarm: Hyperswarm
+    readonly topic: Buffer
+    isClient: boolean
+    isServer: boolean
+    destroyed: boolean
+    destroying: Promise<void> | null
+
+    constructor(swarm: Hyperswarm, topic: Buffer, opts?: PeerDiscoveryOpts)
+
+    session(opts: {
+      server?: boolean
+      client?: boolean
+      onerror?: (err: any) => void
+    }): PeerDiscoverySession
+    refresh(): Promise<void>
+    flushed(): Promise<boolean>
+    destroy(): Promise<void>
+  }
+
+  export class PeerDiscoverySession {
+    readonly discovery: PeerDiscovery
+    isClient: boolean
+    isServer: boolean
+    destroyed: boolean
+
+    constructor(discovery: PeerDiscovery)
+
+    get swarm(): PeerDiscovery['swarm']
+    get topic(): PeerDiscovery['topic']
+
+    refresh(opts?: { client?: boolean; server?: boolean }): Promise<void>
+    flushed(): Promise<boolean>
+    destroy(): Promise<void>
+  }
+
+  export class PeerInfo extends EventEmitter {
+    readonly publicKey: Buffer
+    readonly relayAddresses: any[]
+    reconnecting: boolean
+    proven: boolean
+    banned: boolean
+    tried: boolean
+    explicit: boolean
+    queued: boolean
+    client: boolean
+    topics: Buffer[]
+    attempts: number
+    priority: number
+
+    constructor(opts: { publicKey: Buffer; relayAddresses: any[] })
+
+    get server(): boolean
+    get prioritized(): boolean
+
+    reconnect(val: any): void
+    ban(val: any): void
+    on: (event: 'topic', listener: (topic: Buffer) => void) => this
+  }
+
+  class Hyperswarm extends EventEmitter {
+    destroyed: boolean
+    listening: boolean
+    readonly maxPeers: number
+    readonly maxClientConnections: number
+    readonly maxServerConnections: number
+    readonly maxParallel: number
+    readonly connections: Set<NoiseSecretStream>
+    readonly peers: Map<string, PeerInfo>
+    readonly explicitPeers: Set<PeerInfo>
+    readonly dht: Dht
+
+    constructor(opts?: {
+      seed?: Buffer
+      keyPair?: KeyPair
+      maxPeers?: number
+      maxClientConnections?: number
+      maxServerConnections?: number
+      maxParallel?: number
+      firewall?: (remotePublicKey: Buffer) => boolean
+      dht?: Dht
+      debug?: boolean
+      bootstrap?: DhtNode[]
+      backoff?: number
+      jitter?: number
+    })
+
+    status(key: Buffer): PeerDiscovery | null
+    listen(): boolean
+    join(
+      topic: Buffer,
+      opts?: {
+        server?: boolean
+        client?: boolean
+        onerror?: (err: any) => void
+      }
+    ): PeerDiscoverySession
+    leave(topic: Buffer): Promise<void>
+    joinPeer(publicKey: Buffer): void
+    leavePeer(publicKey: Buffer): void
+    flush(): Promise<void>
+    clear(): Promise<void[]>
+    destroy(): Promise<void>
+    topics(): PeerDiscovery[]
+    on: (
+      event: 'connection',
+      listener: (conn: NoiseSecretStream, peerInfo: PeerInfo) => void
+    ) => this
+  }
+
+  export default Hyperswarm
+}
+
 declare module 'udx-native' {
   import EventEmitter from 'events'
   import { Duplex } from 'streamx'
