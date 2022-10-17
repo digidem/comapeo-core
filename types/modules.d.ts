@@ -212,13 +212,13 @@ declare module 'dht-rpc' {
     readonly internal: boolean
     readonly command: Buffer
     readonly value: Buffer | null
-    readonly errors: number
-    readonly successes: number
     readonly concurrency: number
-    readonly inflight: number
     readonly map: <R extends Reply>(reply: Reply) => R
     readonly maxSlow: number
-    readonly closestReplies: Reply[]
+    errors: number
+    successes: number
+    inflight: number
+    closestReplies: Reply[]
 
     constructor(
       dht: Dht,
@@ -316,12 +316,10 @@ declare module 'dht-rpc' {
     destroy(): void
   }
 
+  // https://github.com/mafintosh/dht-rpc/blob/c9900d55256f09646b57f99ac9f2342910d52fe7/lib/io.js
   class IO {
     readonly table: RoutingTable
     readonly udx: UDX
-    readonly inflight: []
-    readonly clientSocket: UDXSocket | null
-    readonly serverSocket: UDXSocket | null
     readonly firewalled: boolean
     readonly ephemeral: boolean
     readonly congestion: CongestionWindow
@@ -329,6 +327,9 @@ declare module 'dht-rpc' {
     readonly onrequest: (req: Request, external: boolean) => void
     readonly onresponse: (res: Response, external: boolean) => void
     readonly ontimeout: (req: Request) => void
+    inflight: Request[]
+    clientSocket: UDXSocket | null
+    serverSocket: UDXSocket | null
 
     constructor(
       table: RoutingTable,
@@ -385,11 +386,11 @@ declare module 'dht-rpc' {
     readonly udx: UDX
     readonly io: IO
     readonly concurrency: boolean
-    readonly bootstrapped: boolean
     readonly ephemeral: boolean
     readonly firewalled: boolean
     readonly adaptive: boolean
-    readonly destroyed: boolean
+    bootstrapped: boolean
+    destroyed: boolean
 
     constructor(opts?: DhtOpts)
 
