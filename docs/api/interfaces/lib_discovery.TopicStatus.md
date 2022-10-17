@@ -21,7 +21,7 @@
 
 [lib/discovery/index.js:1182](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1182)
 
-___
+---
 
 ### mdns
 

@@ -25,7 +25,7 @@ Array of {host, port} objects provided by https://github.com/hyperswarm/testnet
 
 [lib/types.js:86](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L86)
 
-___
+---
 
 ### client
 
@@ -35,7 +35,7 @@ ___
 
 [lib/types.js:85](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L85)
 
-___
+---
 
 ### keyPair
 
@@ -45,7 +45,7 @@ ___
 
 [lib/types.js:87](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L87)
 
-___
+---
 
 ### server
 

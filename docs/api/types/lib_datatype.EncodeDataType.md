@@ -12,8 +12,8 @@
 
 ##### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name  | Type                      |
+| :---- | :------------------------ |
 | `doc` | [`Doc`](lib_types.Doc.md) |
 
 ##### Returns

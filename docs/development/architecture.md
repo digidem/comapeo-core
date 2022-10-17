@@ -1,0 +1,1 @@
+# Mapeo Core architecture

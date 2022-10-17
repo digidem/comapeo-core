@@ -34,12 +34,12 @@ Create an indexer for a DataType
 
 #### Parameters
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `options` | `Object` |  |
-| `options.dataType` | [`DataType`](lib_datatype.DataType.md) | an instance of DataType that is being indexed |
-| `options.extraColumns` | `string` | any additional column definitions needed for this table, passed to `CREATE TABLE` statement |
-| `options.sqlite` | `Database` | instance of [better-sqlite3 client](https://npmjs.com/better-sqlite3) |
+| Name                   | Type                                   | Description                                                                                 |
+| :--------------------- | :------------------------------------- | :------------------------------------------------------------------------------------------ |
+| `options`              | `Object`                               |                                                                                             |
+| `options.dataType`     | [`DataType`](lib_datatype.DataType.md) | an instance of DataType that is being indexed                                               |
+| `options.extraColumns` | `string`                               | any additional column definitions needed for this table, passed to `CREATE TABLE` statement |
+| `options.sqlite`       | `Database`                             | instance of [better-sqlite3 client](https://npmjs.com/better-sqlite3)                       |
 
 #### Defined in
 
@@ -55,7 +55,7 @@ Create an indexer for a DataType
 
 [lib/indexer/index.js:21](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/indexer/index.js#L21)
 
-___
+---
 
 ### name
 
@@ -65,7 +65,7 @@ ___
 
 [lib/indexer/index.js:19](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/indexer/index.js#L19)
 
-___
+---
 
 ### sqliteIndexer
 
@@ -85,8 +85,8 @@ Index a batch of documents
 
 #### Parameters
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
+| Name   | Type       | Description      |
+| :----- | :--------- | :--------------- |
 | `docs` | `Object`[] | an array of docs |
 
 #### Returns
@@ -97,7 +97,7 @@ Index a batch of documents
 
 [lib/indexer/index.js:78](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/indexer/index.js#L78)
 
-___
+---
 
 ### onceWriteDoc
 
@@ -107,9 +107,9 @@ Set a listener on a version of a doc that is called when it is finished indexing
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `version` | `string` |
+| Name       | Type            |
+| :--------- | :-------------- |
+| `version`  | `string`        |
 | `listener` | `IndexCallback` |
 
 #### Returns
@@ -120,7 +120,7 @@ Set a listener on a version of a doc that is called when it is finished indexing
 
 [lib/indexer/index.js:69](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/indexer/index.js#L69)
 
-___
+---
 
 ### query
 
@@ -130,8 +130,8 @@ Select documents from the sqlite database
 
 #### Parameters
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
+| Name     | Type     | Description                                           |
+| :------- | :------- | :---------------------------------------------------- |
 | `where?` | `string` | specify the docs to retrieve using a `WHERE` fragment |
 
 #### Returns

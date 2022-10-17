@@ -24,7 +24,7 @@
 
 [lib/types.js:61](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L61)
 
-___
+---
 
 ### rawStream
 
@@ -34,7 +34,7 @@ ___
 
 [lib/types.js:60](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L60)
 
-___
+---
 
 ### remoteHost
 
@@ -44,7 +44,7 @@ ___
 
 [lib/types.js:59](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L59)
 
-___
+---
 
 ### remotePort
 
@@ -54,7 +54,7 @@ ___
 
 [lib/types.js:58](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L58)
 
-___
+---
 
 ### remotePublicKey
 

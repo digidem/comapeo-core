@@ -70,7 +70,7 @@ It extends Node's native Event Emitter and can emit the following events:
 
 **`Example`**
 
-```js
+````js
 const topic = Buffer.alloc(32).fill('my-topic').toString('hex')
 const pubKey = Buffer.alloc(32).fill('my-public-key').toString('hex')
 
@@ -204,7 +204,7 @@ const topic = Buffer.alloc(32).fill('topics-example').toString('hex') // '746f70
 peer.addTopic(topic)
 
 console.log(peer.topics) // Prints `['746f706963732d6578616d706c65746f706963732d6578616d706c65746f7069']`
-```
+````
 
 #### Returns
 
@@ -226,8 +226,8 @@ Add a topic to the list of topics associated with the peer
 
 ```js
 const peer = new PeerInfo({
- topics: [],
- // For the sake of brevity, specify the rest of the contructor options here...
+  topics: [],
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 const topic = Buffer.alloc(32).fill('addTopic-example').toString('hex') // '616464546f7069632d6578616d706c65616464546f7069632d6578616d706c65'
@@ -244,8 +244,8 @@ console.log(peer.topics) // Still prints `['616464546f7069632d6578616d706c656164
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name    | Type     |
+| :------ | :------- |
 | `topic` | `string` |
 
 #### Returns
@@ -256,7 +256,7 @@ console.log(peer.topics) // Still prints `['616464546f7069632d6578616d706c656164
 
 [lib/discovery/index.js:985](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L985)
 
-___
+---
 
 ### addTopics
 
@@ -268,8 +268,8 @@ Add a several topics to the list of topics associated with the peer
 
 ```js
 const peer = new PeerInfo({
- topics: [],
- // For the sake of brevity, specify the rest of the contructor options here...
+  topics: [],
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 const topicFoo = Buffer.alloc(32).fill('foo').toString('hex') // '666f6f666f6f666f6f666f6f666f6f666f6f666f6f666f6f666f6f666f6f666f'
@@ -287,8 +287,8 @@ console.log(peer.topics) // Still prints `['666f6f666f6f666f6f666f6f666f6f666f6f
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name     | Type       |
+| :------- | :--------- |
 | `topics` | `string`[] |
 
 #### Returns
@@ -299,7 +299,7 @@ console.log(peer.topics) // Still prints `['666f6f666f6f666f6f666f6f666f6f666f6f
 
 [lib/discovery/index.js:1016](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1016)
 
-___
+---
 
 ### destroy
 
@@ -311,12 +311,12 @@ Destroy the peer connection
 
 ```js
 const peer = new PeerInfo({
- // For the sake of brevity, specify the rest of the contructor options here...
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 // Add event listener for when the peer is destroyed
 peer.on('close', () => {
- console.log("connection for peer destroyed")
+  console.log('connection for peer destroyed')
 })
 
 peer.destroy()
@@ -330,7 +330,7 @@ peer.destroy()
 
 [lib/discovery/index.js:1172](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1172)
 
-___
+---
 
 ### removeTopic
 
@@ -344,8 +344,8 @@ Remove a topic from the list of topics associated with the peer
 const topic = Buffer.alloc(32).fill('removeTopic-example').toString('hex') // '72656d6f7665546f7069632d6578616d706c6572656d6f7665546f7069632d65'
 
 const peer = new PeerInfo({
- topics: [topic],
- // For the sake of brevity, specify the rest of the contructor options here...
+  topics: [topic],
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 console.log(peer.topics) // Prints `['72656d6f7665546f7069632d6578616d706c6572656d6f7665546f7069632d65']`
@@ -357,8 +357,8 @@ console.log(peer.topics) // Prints `[]`
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name    | Type     |
+| :------ | :------- |
 | `topic` | `string` |
 
 #### Returns
@@ -369,7 +369,7 @@ console.log(peer.topics) // Prints `[]`
 
 [lib/discovery/index.js:1045](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1045)
 
-___
+---
 
 ### toJSON
 
@@ -392,11 +392,11 @@ const pubKey = Buffer.alloc(32).fill('my-public-key').toString('hex') // '6d792d
 const topic = Buffer.alloc(32).fill('toJSON-example').toString('hex') // '746f4a534f4e2d6578616d706c65746f4a534f4e2d6578616d706c65746f4a53'
 
 const peer = new PeerInfo({
- identityPublicKey: pubKey,
- topics: [topic],
- host: 'some.address.lan.local',
- port: 12345,
- // For the sake of brevity, specify the rest of the contructor options here...
+  identityPublicKey: pubKey,
+  topics: [topic],
+  host: 'some.address.lan.local',
+  port: 12345,
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 console.log(peer.toJSON()) // Prints { topics: [ '746f4a534f4e2d6578616d706c65746f4a534f4e2d6578616d706c65746f4a53' ], identityPublicKey: '6d792d7075626c69632d6b65796d792d7075626c69632d6b65796d792d707562', host: 'some.address.lan.local', port: 12345 }
@@ -410,7 +410,7 @@ console.log(peer.toJSON()) // Prints { topics: [ '746f4a534f4e2d6578616d706c6574
 
 [lib/discovery/index.js:1143](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1143)
 
-___
+---
 
 ### update
 
@@ -422,9 +422,9 @@ Update connection info associated with a discovered peer
 
 ```js
 const peer = new PeerInfo({
- host: 'some.address.lan.local',
- port: 12345,
- // For the sake of brevity, specify the rest of the contructor options here...
+  host: 'some.address.lan.local',
+  port: 12345,
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 console.log(peer.host) // Prints `'some.address.lan.local'`
@@ -438,17 +438,17 @@ console.log(peer.port) // Prints `54321`
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `options` | `Object` |
-| `options.connection` | `undefined` \| [`ConnectionStream`](../types/lib_types.ConnectionStream.md) |
-| `options.dhtPeerInfo` | `undefined` \| [`HyperswarmPeerInfo`](../types/lib_types.HyperswarmPeerInfo.md) |
-| `options.discoveryType` | `undefined` \| ``"dht"`` \| ``"mdns"`` |
-| `options.host` | `undefined` \| `string` |
-| `options.identityPublicKey` | `undefined` \| `string` |
-| `options.port` | `undefined` \| `number` |
-| `options.status` | `undefined` \| [`PeerStatus`](../types/lib_discovery.PeerStatus.md) |
-| `options.topics` | `undefined` \| `string`[] |
+| Name                        | Type                                                                            |
+| :-------------------------- | :------------------------------------------------------------------------------ |
+| `options`                   | `Object`                                                                        |
+| `options.connection`        | `undefined` \| [`ConnectionStream`](../types/lib_types.ConnectionStream.md)     |
+| `options.dhtPeerInfo`       | `undefined` \| [`HyperswarmPeerInfo`](../types/lib_types.HyperswarmPeerInfo.md) |
+| `options.discoveryType`     | `undefined` \| `"dht"` \| `"mdns"`                                              |
+| `options.host`              | `undefined` \| `string`                                                         |
+| `options.identityPublicKey` | `undefined` \| `string`                                                         |
+| `options.port`              | `undefined` \| `number`                                                         |
+| `options.status`            | `undefined` \| [`PeerStatus`](../types/lib_discovery.PeerStatus.md)             |
+| `options.topics`            | `undefined` \| `string`[]                                                       |
 
 #### Returns
 
@@ -458,7 +458,7 @@ console.log(peer.port) // Prints `54321`
 
 [lib/discovery/index.js:919](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L919)
 
-___
+---
 
 ### updateStatus
 
@@ -472,8 +472,8 @@ Basic usage
 
 ```js
 const peer = new PeerInfo({
- status: 'connecting',
- // For the sake of brevity, specify the rest of the contructor options here...
+  status: 'connecting',
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 console.log(peer.status) // Prints `'connecting'`
@@ -489,8 +489,8 @@ Listening for status changes using the 'status' event
 
 ```js
 const peer = new PeerInfo({
- status: 'connecting',
- // For the sake of brevity, specify the rest of the contructor options here...
+  status: 'connecting',
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 // Add an event listener on the peer to react to status changes
@@ -502,8 +502,8 @@ peer.updateStatus('connected')
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name     | Type                                                 |
+| :------- | :--------------------------------------------------- |
 | `status` | [`PeerStatus`](../types/lib_discovery.PeerStatus.md) |
 
 #### Returns

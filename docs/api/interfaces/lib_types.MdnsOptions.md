@@ -22,7 +22,7 @@
 
 [lib/types.js:92](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L92)
 
-___
+---
 
 ### name
 
@@ -32,7 +32,7 @@ ___
 
 [lib/types.js:94](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L94)
 
-___
+---
 
 ### port
 

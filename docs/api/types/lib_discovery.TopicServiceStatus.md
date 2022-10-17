@@ -4,7 +4,7 @@
 
 [lib/discovery](../modules/lib_discovery.md).TopicServiceStatus
 
-Ƭ **TopicServiceStatus**<\>: ``"closed"`` \| ``"joining"`` \| ``"joined"`` \| ``"leaving"`` \| ``"deactivated"``
+Ƭ **TopicServiceStatus**<\>: `"closed"` \| `"joining"` \| `"joined"` \| `"leaving"` \| `"deactivated"`
 
 #### Defined in
 

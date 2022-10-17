@@ -21,7 +21,7 @@
 
 [lib/types.js:3](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L3)
 
-___
+---
 
 ### secretKey
 

@@ -32,15 +32,15 @@ The DataType class is used to define the schema and encoding of a document type.
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `options` | `Object` |
-| `options.blockPrefix` | `string` |
-| `options.decode` | `undefined` \| [`DecodeDataType`](../types/lib_datatype.DecodeDataType.md) |
-| `options.encode` | `undefined` \| [`EncodeDataType`](../types/lib_datatype.EncodeDataType.md) |
-| `options.name` | `string` |
-| `options.schema` | `Object` |
-| `options.validate` | `undefined` \| [`ValidateDataType`](../types/lib_datatype.ValidateDataType.md) |
+| Name                  | Type                                                                           |
+| :-------------------- | :----------------------------------------------------------------------------- |
+| `options`             | `Object`                                                                       |
+| `options.blockPrefix` | `string`                                                                       |
+| `options.decode`      | `undefined` \| [`DecodeDataType`](../types/lib_datatype.DecodeDataType.md)     |
+| `options.encode`      | `undefined` \| [`EncodeDataType`](../types/lib_datatype.EncodeDataType.md)     |
+| `options.name`        | `string`                                                                       |
+| `options.schema`      | `Object`                                                                       |
+| `options.validate`    | `undefined` \| [`ValidateDataType`](../types/lib_datatype.ValidateDataType.md) |
 
 #### Defined in
 
@@ -56,7 +56,7 @@ The DataType class is used to define the schema and encoding of a document type.
 
 [lib/datatype/index.js:58](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datatype/index.js#L58)
 
-___
+---
 
 ### name
 
@@ -66,7 +66,7 @@ ___
 
 [lib/datatype/index.js:57](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datatype/index.js#L57)
 
-___
+---
 
 ### schema
 
@@ -84,8 +84,8 @@ ___
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name    | Type     |
+| :------ | :------- |
 | `block` | `Buffer` |
 
 #### Returns
@@ -96,7 +96,7 @@ ___
 
 [lib/datatype/index.js:105](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datatype/index.js#L105)
 
-___
+---
 
 ### encode
 
@@ -104,8 +104,8 @@ ___
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name  | Type     |
+| :---- | :------- |
 | `doc` | `Object` |
 
 #### Returns
@@ -116,7 +116,7 @@ ___
 
 [lib/datatype/index.js:97](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datatype/index.js#L97)
 
-___
+---
 
 ### validate
 
@@ -126,8 +126,8 @@ ___
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name  | Type     |
+| :---- | :------- |
 | `doc` | `Object` |
 
 #### Returns

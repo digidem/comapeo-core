@@ -28,12 +28,12 @@
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `options` | `Object` |
-| `options.corestore` | `Object` |
+| Name                | Type         |
+| :------------------ | :----------- |
+| `options`           | `Object`     |
+| `options.corestore` | `Object`     |
 | `options.dataTypes` | `DataType`[] |
-| `options.sqlite` | `Database` |
+| `options.sqlite`    | `Database`   |
 
 #### Defined in
 
@@ -53,7 +53,7 @@
 
 [index.js:90](https://github.com/digidem/mapeo-core-next/blob/8584770/index.js#L90)
 
-___
+---
 
 ### cores
 
@@ -75,8 +75,8 @@ ___
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name    | Type     |
+| :------ | :------- |
 | `block` | `Buffer` |
 
 #### Returns
@@ -87,7 +87,7 @@ ___
 
 [index.js:103](https://github.com/digidem/mapeo-core-next/blob/8584770/index.js#L103)
 
-___
+---
 
 ### ready
 

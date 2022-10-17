@@ -16,8 +16,8 @@ export class Mapeo {
   #dataTypes
 
   /**
-   * 
-   * @param {Object} options 
+   *
+   * @param {Object} options
    * @param {import('./lib/datatype/index.js').DataType[]} options.dataTypes
    * @param {Corestore} options.corestore
    * @param {import('better-sqlite3').Database} options.sqlite
@@ -97,8 +97,8 @@ export class Mapeo {
   }
 
   /**
-   * 
-   * @param {Block} block 
+   *
+   * @param {Block} block
    * @returns {import('./lib/datatype/index.js').DataType | undefined}
    */
   getDataType(block) {

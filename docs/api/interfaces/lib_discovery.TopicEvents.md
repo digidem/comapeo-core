@@ -23,8 +23,8 @@
 
 ##### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name    | Type   |
+| :------ | :----- |
 | `close` | `void` |
 
 ##### Returns
@@ -35,7 +35,7 @@
 
 [lib/discovery/index.js:1186](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1186)
 
-___
+---
 
 ### status
 
@@ -47,8 +47,8 @@ ___
 
 ##### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name     | Type                                          |
+| :------- | :-------------------------------------------- |
 | `status` | [`TopicStatus`](lib_discovery.TopicStatus.md) |
 
 ##### Returns

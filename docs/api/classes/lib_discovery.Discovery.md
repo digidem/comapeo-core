@@ -64,22 +64,22 @@ import { KeyManager } from '@mapeo/crypto'
 
 // Create the discovery instance
 const discover = new Discovery({
- identityKeyPair: new KeyManager(
-   KeyManager.generateIdentityKey()
- ).getIdentityKeypair(),
- mdns: true,
- dht: true,
+  identityKeyPair: new KeyManager(
+    KeyManager.generateIdentityKey()
+  ).getIdentityKeypair(),
+  mdns: true,
+  dht: true,
 })
 ```
 
 #### Parameters
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `options` | `Object` |  |
-| `options.dht` | `undefined` \| `boolean` \| [`DhtOptions`](../interfaces/lib_types.DhtOptions.md) | Either a boolean that determines whether to use hyperswarm to find peers or an object that provides options that are passed to hyperswarm constructor |
-| `options.identityKeyPair` | [`KeyPair`](../interfaces/lib_types.KeyPair.md) |  |
-| `options.mdns` | `undefined` \| `boolean` | Boolean that determines whether to use multicast dnssd to find peers |
+| Name                      | Type                                                                              | Description                                                                                                                                           |
+| :------------------------ | :-------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options`                 | `Object`                                                                          |                                                                                                                                                       |
+| `options.dht`             | `undefined` \| `boolean` \| [`DhtOptions`](../interfaces/lib_types.DhtOptions.md) | Either a boolean that determines whether to use hyperswarm to find peers or an object that provides options that are passed to hyperswarm constructor |
+| `options.identityKeyPair` | [`KeyPair`](../interfaces/lib_types.KeyPair.md)                                   |                                                                                                                                                       |
+| `options.mdns`            | `undefined` \| `boolean`                                                          | Boolean that determines whether to use multicast dnssd to find peers                                                                                  |
 
 #### Overrides
 
@@ -101,7 +101,7 @@ TypedEmitter.constructor
 
 [lib/discovery/index.js:409](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L409)
 
-___
+---
 
 ### dhtActive
 
@@ -111,7 +111,7 @@ ___
 
 [lib/discovery/index.js:68](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L68)
 
-___
+---
 
 ### dhtOptions
 
@@ -121,7 +121,7 @@ ___
 
 [lib/discovery/index.js:69](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L69)
 
-___
+---
 
 ### host
 
@@ -131,7 +131,7 @@ ___
 
 [lib/discovery/index.js:220](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L220)
 
-___
+---
 
 ### mdns
 
@@ -141,7 +141,7 @@ ___
 
 [lib/discovery/index.js:74](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L74)
 
-___
+---
 
 ### mdnsActive
 
@@ -151,7 +151,7 @@ ___
 
 [lib/discovery/index.js:67](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L67)
 
-___
+---
 
 ### port
 
@@ -176,9 +176,9 @@ import { KeyManager } from '@mapeo/crypto'
 
 // Create discovery instance
 const discover = new Discovery({
- identityKeyPair: new KeyManager(
-   KeyManager.generateIdentityKey()
- ).getIdentityKeypair(),
+  identityKeyPair: new KeyManager(
+    KeyManager.generateIdentityKey()
+  ).getIdentityKeypair(),
 })
 
 console.log(discover.identityPublicKey) // Some hex-encoded string
@@ -192,7 +192,7 @@ console.log(discover.identityPublicKey) // Some hex-encoded string
 
 [lib/discovery/index.js:102](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L102)
 
-___
+---
 
 ### peers
 
@@ -207,15 +207,15 @@ Returns the list of peers that have been connected to
 
 // Create discovery instances
 const discover1 = new Discovery({
- identityKeyPair: identityKeyPair1,
- mdns: true,
- dht: false,
+  identityKeyPair: identityKeyPair1,
+  mdns: true,
+  dht: false,
 })
 
 const discover2 = new Discovery({
- identityKeyPair: identityKeypair2,
- mdns: true,
- dht: false,
+  identityKeyPair: identityKeypair2,
+  mdns: true,
+  dht: false,
 })
 
 // Bootstrap discovery instances
@@ -226,8 +226,8 @@ console.log(discover2.peers) // Prints `[]`
 
 // Add event listener for when a new connection is made
 discover2.once('connection', (_connection, peer) => {
- console.log(discover2.peers) // Prints `[Peer]`, where `Peer` has peer info for `identity1`
- console.log(discover2.peers[0].identityPublicKey === peer.identityPublicKey) // Prints `true`
+  console.log(discover2.peers) // Prints `[Peer]`, where `Peer` has peer info for `identity1`
+  console.log(discover2.peers[0].identityPublicKey === peer.identityPublicKey) // Prints `true`
 })
 
 // Create a shared topic name (see footnote 2)
@@ -252,7 +252,7 @@ Footnotes:
 
 [lib/discovery/index.js:189](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L189)
 
-___
+---
 
 ### topics
 
@@ -266,9 +266,9 @@ Return the list of subscribed topics
 import { KeyManager } from '@mapeo/crypto'
 
 const discover = new Discover({
- identityKeyPair: new KeyManager(
-   KeyManager.generateIdentityKey()
- ).getIdentityKeypair(),
+  identityKeyPair: new KeyManager(
+    KeyManager.generateIdentityKey()
+  ).getIdentityKeypair(),
 })
 
 await discover.ready()
@@ -311,11 +311,11 @@ await discover.ready()
 await discover.join(topic)
 
 setTimeout(() => {
- console.log("Destroying discover instance...")
+  console.log('Destroying discover instance...')
 
- discover.destroy().then(() => {
-   console.log("Discover instance destroyed")
- })
+  discover.destroy().then(() => {
+    console.log('Discover instance destroyed')
+  })
 }, 1000)
 ```
 
@@ -327,7 +327,7 @@ setTimeout(() => {
 
 [lib/discovery/index.js:719](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L719)
 
-___
+---
 
 ### getPeersByTopic
 
@@ -341,9 +341,9 @@ Return a list of connected peers discovered through the specified topic
 const topic = Buffer.alloc(32).fill('getPeersByTopic-example')
 
 discover.on('connection', (connection, peer) => {
- // The topic name is most likely represented as a hex-encoded string value
- const topicHexString = topic.toString('hex')
- console.log(discovery.getPeersByTopic(topicHexString)) // Prints `[Peer, ...]` with each `peer` that has been connected to
+  // The topic name is most likely represented as a hex-encoded string value
+  const topicHexString = topic.toString('hex')
+  console.log(discovery.getPeersByTopic(topicHexString)) // Prints `[Peer, ...]` with each `peer` that has been connected to
 })
 
 await discover.ready()
@@ -352,8 +352,8 @@ await discover.join(topic)
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name    | Type     |
+| :------ | :------- |
 | `topic` | `string` |
 
 #### Returns
@@ -364,7 +364,7 @@ await discover.join(topic)
 
 [lib/discovery/index.js:586](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L586)
 
-___
+---
 
 ### join
 
@@ -389,10 +389,10 @@ Providing specific DHT options
 const topic = Buffer.alloc(32).fill('join-example')
 
 await discover.join(topic, {
- // Pass in specific Hyperswarm DHT options (see footnote 1)
- dht: {
-   // Options go here...
- },
+  // Pass in specific Hyperswarm DHT options (see footnote 1)
+  dht: {
+    // Options go here...
+  },
 })
 ```
 
@@ -402,12 +402,12 @@ Footnotes:
 
 #### Parameters
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `topicBuffer` | `Buffer` |  |
-| `options` | `Object` |  |
-| `options.dht` | `undefined` \| `boolean` \| [`DhtOptions`](../interfaces/lib_types.DhtOptions.md) | Either a boolean that determines whether to use hyperswarm to find peers or an object that provides options that are passed to hyperswarm constructor. Uses dht settings from constructor by default. |
-| `options.mdns` | `undefined` \| `boolean` | Boolean that determines whether to use multicast-service-discovery to find peers. Uses mdns settings from constructor by default. |
+| Name           | Type                                                                              | Description                                                                                                                                                                                           |
+| :------------- | :-------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `topicBuffer`  | `Buffer`                                                                          |                                                                                                                                                                                                       |
+| `options`      | `Object`                                                                          |                                                                                                                                                                                                       |
+| `options.dht`  | `undefined` \| `boolean` \| [`DhtOptions`](../interfaces/lib_types.DhtOptions.md) | Either a boolean that determines whether to use hyperswarm to find peers or an object that provides options that are passed to hyperswarm constructor. Uses dht settings from constructor by default. |
+| `options.mdns` | `undefined` \| `boolean`                                                          | Boolean that determines whether to use multicast-service-discovery to find peers. Uses mdns settings from constructor by default.                                                                     |
 
 #### Returns
 
@@ -417,7 +417,7 @@ Footnotes:
 
 [lib/discovery/index.js:400](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L400)
 
-___
+---
 
 ### leave
 
@@ -439,8 +439,8 @@ await discover.leave(topic)
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name          | Type     |
+| :------------ | :------- |
 | `topicBuffer` | `Buffer` |
 
 #### Returns
@@ -451,7 +451,7 @@ await discover.leave(topic)
 
 [lib/discovery/index.js:632](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L632)
 
-___
+---
 
 ### leavePeer
 
@@ -465,13 +465,13 @@ Disconnect from a connected peer
 const topic = Buffer.alloc(32).fill('leavePeer-example')
 
 discover.on('connection', (connection, peer) => {
- console.log(discover.peers) // Prints `[Peer]` with newly connected `peer`
+  console.log(discover.peers) // Prints `[Peer]` with newly connected `peer`
 
- setTimeout(() => {
-   discover.leavePeer(peer.identityPublicKey).then(() => {
-     console.log(discover.peers) // Prints `[]`
-   })
- }, 3000)
+  setTimeout(() => {
+    discover.leavePeer(peer.identityPublicKey).then(() => {
+      console.log(discover.peers) // Prints `[]`
+    })
+  }, 3000)
 })
 
 await discover.ready()
@@ -480,8 +480,8 @@ await discover.join(topic)
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name                | Type                 |
+| :------------------ | :------------------- |
 | `identityPublicKey` | `string` \| `Buffer` |
 
 #### Returns
@@ -492,7 +492,7 @@ await discover.join(topic)
 
 [lib/discovery/index.js:681](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L681)
 
-___
+---
 
 ### ready
 
@@ -507,9 +507,9 @@ import { KeyManager } from '@mapeo/crypto'
 
 // Create discovery instance
 const discover = new Discover({
- identityKeyPair: new KeyManager(
-   KeyManager.generateIdentityKey()
- ).getIdentityKeypair(),
+  identityKeyPair: new KeyManager(
+    KeyManager.generateIdentityKey()
+  ).getIdentityKeypair(),
 })
 
 // Wait for base listeners to initialize

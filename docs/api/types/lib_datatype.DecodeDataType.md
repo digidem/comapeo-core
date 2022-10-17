@@ -12,8 +12,8 @@
 
 ##### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name    | Type                          |
+| :------ | :---------------------------- |
 | `block` | [`Block`](lib_types.Block.md) |
 
 ##### Returns

@@ -4,7 +4,7 @@
 
 [lib/discovery](../modules/lib_discovery.md).PeerStatus
 
-Ƭ **PeerStatus**<\>: ``"connecting"`` \| ``"connected"`` \| ``"disconnecting"`` \| ``"disconnected"``
+Ƭ **PeerStatus**<\>: `"connecting"` \| `"connected"` \| `"disconnecting"` \| `"disconnected"`
 
 #### Defined in
 

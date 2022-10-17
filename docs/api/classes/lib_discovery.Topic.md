@@ -49,15 +49,15 @@ It extends Node's native Event Emitter and can emit the following events:
 
 ```js
 const topic = new Topic({
- topicBuffer: Buffer.alloc(32).fill('my-topic'),
- dhtStatus: 'joining',
- mdnsStatus: 'joining',
- // Pass a mDNS service discovery instance (see footnote 1)
- mdns: new MdnsDiscovery(),
- // Pass a Hyperswarm instance (see footnote 2)
- dht: new Hyperswarm({
-   // Hyperswarm DHT options...
- })
+  topicBuffer: Buffer.alloc(32).fill('my-topic'),
+  dhtStatus: 'joining',
+  mdnsStatus: 'joining',
+  // Pass a mDNS service discovery instance (see footnote 1)
+  mdns: new MdnsDiscovery(),
+  // Pass a Hyperswarm instance (see footnote 2)
+  dht: new Hyperswarm({
+    // Hyperswarm DHT options...
+  }),
 })
 ```
 
@@ -69,14 +69,14 @@ Footnotes:
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `options` | `Object` |
-| `options.dht` | `any` |
-| `options.dhtStatus` | `undefined` \| [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
-| `options.mdns` | `undefined` \| `MdnsDiscovery` |
-| `options.mdnsStatus` | `undefined` \| [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
-| `options.topicBuffer` | `Buffer` |
+| Name                  | Type                                                                                |
+| :-------------------- | :---------------------------------------------------------------------------------- |
+| `options`             | `Object`                                                                            |
+| `options.dht`         | `any`                                                                               |
+| `options.dhtStatus`   | `undefined` \| [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
+| `options.mdns`        | `undefined` \| `MdnsDiscovery`                                                      |
+| `options.mdnsStatus`  | `undefined` \| [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
+| `options.topicBuffer` | `Buffer`                                                                            |
 
 #### Overrides
 
@@ -96,7 +96,7 @@ TypedEmitter.constructor
 
 [lib/discovery/index.js:1243](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1243)
 
-___
+---
 
 ### dht
 
@@ -106,7 +106,7 @@ ___
 
 [lib/discovery/index.js:1246](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1246)
 
-___
+---
 
 ### dhtStatus
 
@@ -118,7 +118,7 @@ ___
 
 [lib/discovery/index.js:1338](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1338)
 
-___
+---
 
 ### hexString
 
@@ -128,7 +128,7 @@ ___
 
 [lib/discovery/index.js:1244](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1244)
 
-___
+---
 
 ### mdns
 
@@ -138,7 +138,7 @@ ___
 
 [lib/discovery/index.js:1245](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1245)
 
-___
+---
 
 ### mdnsStatus
 
@@ -150,7 +150,7 @@ ___
 
 [lib/discovery/index.js:1342](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1342)
 
-___
+---
 
 ### topicBuffer
 
@@ -172,15 +172,15 @@ Destroy the topic
 
 ```js
 const topic = new Topic({
- // For the sake of brevity, specify the rest of the contructor options here...
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 setTimeout(() => {
- console.log("Destroying topic instance...")
+  console.log('Destroying topic instance...')
 
- topic.destroy().then(() => {
-   console.log("Topic instance destroyed")
- })
+  topic.destroy().then(() => {
+    console.log('Topic instance destroyed')
+  })
 }, 1000)
 ```
 
@@ -192,7 +192,7 @@ setTimeout(() => {
 
 [lib/discovery/index.js:1405](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1405)
 
-___
+---
 
 ### status
 
@@ -204,9 +204,9 @@ Return the connection statuses for the topic
 
 ```js
 const topic = new Topic({
- dhtStatus: 'joined',
- mdnsStatus: 'closed',
- // For the sake of brevity, specify the rest of the contructor options here...
+  dhtStatus: 'joined',
+  mdnsStatus: 'closed',
+  // For the sake of brevity, specify the rest of the contructor options here...
 })
 
 console.log(topic.status()) // Prints `{ dht: 'joined', mdns: 'closed' }`
@@ -220,7 +220,7 @@ console.log(topic.status()) // Prints `{ dht: 'joined', mdns: 'closed' }`
 
 [lib/discovery/index.js:1272](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1272)
 
-___
+---
 
 ### toJSON
 
@@ -240,11 +240,11 @@ Return JSON-serializable information about the topic
 const topicBuffer = Buffer.from('toJSON-example')
 
 const topic = new Topic({
- topicBuffer,
- dhtStatus: 'joined',
- mdnsStatus: 'closed',
- mdns: new MdnsDiscovery(),
- dht: new Hyperswarm(),
+  topicBuffer,
+  dhtStatus: 'joined',
+  mdnsStatus: 'closed',
+  mdns: new MdnsDiscovery(),
+  dht: new Hyperswarm(),
 })
 
 console.log(topic.toJSON()) // Prints `{ topic: '746f4a534f4e2d6578616d706c65', dhtStatus: 'joined', mdnsStatus: 'closed' }`
@@ -258,7 +258,7 @@ console.log(topic.toJSON()) // Prints `{ topic: '746f4a534f4e2d6578616d706c65', 
 
 [lib/discovery/index.js:1376](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L1376)
 
-___
+---
 
 ### updateStatus
 
@@ -271,22 +271,21 @@ Update the connection status for the topic
 Basic usage
 
 ```js
-
 // Updates to the statuses are only possible if `mdns` or `dht` are specified.
 // Otherwise  their respective statuses will always be `'deactivated'`.
 const topic = new Topic({
- topicBuffer: Buffer.alloc(32).fill('updateStatus-example'),
- dhtStatus: 'joined',
- mdnsStatus: 'closed',
- mdns: new MdnsDiscovery(),
- dht: new Hyperswarm(),
+  topicBuffer: Buffer.alloc(32).fill('updateStatus-example'),
+  dhtStatus: 'joined',
+  mdnsStatus: 'closed',
+  mdns: new MdnsDiscovery(),
+  dht: new Hyperswarm(),
 })
 
 console.log(topic.status()) // Prints `{ dht: 'joined', mdns: 'closed' }`
 
 topic.updateStatus({
- dht: 'leaving',
- mdns: 'joining',
+  dht: 'leaving',
+  mdns: 'joining',
 })
 
 console.log(topic.status()) // Prints `{ dht: 'leaving', mdns: 'joining' }`
@@ -300,11 +299,11 @@ Listening to status changes using the 'status' event
 // Updates to the statuses are only possible if `mdns` or `dht` are specified.
 // Otherwise  their respective statuses will always be `'deactivated'`.
 const topic = new Topic({
- topicBuffer: Buffer.alloc(32).fill('updateStatus-example'),
- dhtStatus: 'joined',
- mdnsStatus: 'closed',
- mdns: new MdnsDiscovery(),
- dht: new Hyperswarm(),
+  topicBuffer: Buffer.alloc(32).fill('updateStatus-example'),
+  dhtStatus: 'joined',
+  mdnsStatus: 'closed',
+  mdns: new MdnsDiscovery(),
+  dht: new Hyperswarm(),
 })
 
 console.log(topic.status()) // Prints `{ dht: 'joined', mdns: 'closed' }`
@@ -313,17 +312,17 @@ topic.on('status', console.log)
 
 // Console will print `{ dht: 'leaving', mdns: 'joining' }` after this call
 topic.updateStatus({
- dht: 'leaving',
- mdns: 'joining',
+  dht: 'leaving',
+  mdns: 'joining',
 })
 ```
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `status` | `Object` |
-| `status.dht` | `undefined` \| [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
+| Name          | Type                                                                                |
+| :------------ | :---------------------------------------------------------------------------------- |
+| `status`      | `Object`                                                                            |
+| `status.dht`  | `undefined` \| [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
 | `status.mdns` | `undefined` \| [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
 
 #### Returns

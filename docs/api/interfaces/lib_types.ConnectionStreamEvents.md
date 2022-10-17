@@ -24,8 +24,8 @@
 
 ##### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name    | Type   |
+| :------ | :----- |
 | `close` | `void` |
 
 ##### Returns
@@ -36,7 +36,7 @@
 
 [lib/types.js:71](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L71)
 
-___
+---
 
 ### connect
 
@@ -48,8 +48,8 @@ ___
 
 ##### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name      | Type   |
+| :-------- | :----- |
 | `connect` | `void` |
 
 ##### Returns
@@ -60,7 +60,7 @@ ___
 
 [lib/types.js:70](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/types.js#L70)
 
-___
+---
 
 ### error
 
@@ -72,7 +72,7 @@ ___
 
 ##### Parameters
 
-| Name | Type |
+| Name    | Type    |
 | :------ | :------ |
 | `error` | `Error` |
 

@@ -25,10 +25,10 @@
 
 ##### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name         | Type                                                  |
+| :----------- | :---------------------------------------------------- |
 | `connection` | [`NoiseSecretStream`](lib_types.NoiseSecretStream.md) |
-| `info` | [`PeerInfo`](../classes/lib_discovery.PeerInfo.md) |
+| `info`       | [`PeerInfo`](../classes/lib_discovery.PeerInfo.md)    |
 
 ##### Returns
 
@@ -38,7 +38,7 @@
 
 [lib/discovery/index.js:11](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L11)
 
-___
+---
 
 ### error
 
@@ -50,7 +50,7 @@ ___
 
 ##### Parameters
 
-| Name | Type |
+| Name    | Type    |
 | :------ | :------ |
 | `error` | `Error` |
 
@@ -62,11 +62,11 @@ ___
 
 [lib/discovery/index.js:14](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L14)
 
-___
+---
 
 ### peerStatus
 
-• **peerStatus**: (`peerStatus`: { `peer`: [`PeerInfo`](../classes/lib_discovery.PeerInfo.md) ; `status`: `string`  }) => `void`
+• **peerStatus**: (`peerStatus`: { `peer`: [`PeerInfo`](../classes/lib_discovery.PeerInfo.md) ; `status`: `string` }) => `void`
 
 #### Type declaration
 
@@ -74,11 +74,11 @@ ___
 
 ##### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `peerStatus` | `Object` |
-| `peerStatus.peer` | [`PeerInfo`](../classes/lib_discovery.PeerInfo.md) |
-| `peerStatus.status` | `string` |
+| Name                | Type                                               |
+| :------------------ | :------------------------------------------------- |
+| `peerStatus`        | `Object`                                           |
+| `peerStatus.peer`   | [`PeerInfo`](../classes/lib_discovery.PeerInfo.md) |
+| `peerStatus.status` | `string`                                           |
 
 ##### Returns
 
@@ -88,11 +88,11 @@ ___
 
 [lib/discovery/index.js:13](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/discovery/index.js#L13)
 
-___
+---
 
 ### topicStatus
 
-• **topicStatus**: (`topicStatus`: { `dht`: [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) ; `mdns`: [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) ; `topic`: `string`  }) => `void`
+• **topicStatus**: (`topicStatus`: { `dht`: [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) ; `mdns`: [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) ; `topic`: `string` }) => `void`
 
 #### Type declaration
 
@@ -100,12 +100,12 @@ ___
 
 ##### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `topicStatus` | `Object` |
-| `topicStatus.dht` | [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
-| `topicStatus.mdns` | [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
-| `topicStatus.topic` | `string` |
+| Name                | Type                                                                 |
+| :------------------ | :------------------------------------------------------------------- |
+| `topicStatus`       | `Object`                                                             |
+| `topicStatus.dht`   | [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
+| `topicStatus.mdns`  | [`TopicServiceStatus`](../types/lib_discovery.TopicServiceStatus.md) |
+| `topicStatus.topic` | `string`                                                             |
 
 ##### Returns
 

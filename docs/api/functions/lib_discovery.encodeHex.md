@@ -8,8 +8,8 @@
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name     | Type     |
+| :------- | :------- |
 | `buffer` | `Buffer` |
 
 #### Returns

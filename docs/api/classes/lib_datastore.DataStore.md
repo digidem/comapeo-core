@@ -31,12 +31,12 @@ The DataStore class provides methods for managing a single type of data.
 
 #### Parameters
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `options` | `Object` |  |
-| `options.corestore` | `Object` | an instance of the [Corestore](https://npmjs.com/corestore) class |
-| `options.dataType` | [`DataType`](lib_datatype.DataType.md) | an instance of the [DataType](../datatype/) class |
-| `options.indexer` | [`Indexer`](lib_indexer.Indexer.md) | an instance of the [Indexer](../indexer/) class |
+| Name                | Type                                   | Description                                                       |
+| :------------------ | :------------------------------------- | :---------------------------------------------------------------- |
+| `options`           | `Object`                               |                                                                   |
+| `options.corestore` | `Object`                               | an instance of the [Corestore](https://npmjs.com/corestore) class |
+| `options.dataType`  | [`DataType`](lib_datatype.DataType.md) | an instance of the [DataType](../datatype/) class                 |
+| `options.indexer`   | [`Indexer`](lib_indexer.Indexer.md)    | an instance of the [Indexer](../indexer/) class                   |
 
 #### Defined in
 
@@ -52,8 +52,8 @@ Create a doc
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name   | Type     |
+| :----- | :------- |
 | `data` | `Object` |
 
 #### Returns
@@ -64,7 +64,7 @@ Create a doc
 
 [lib/datastore/index.js:76](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datastore/index.js#L76)
 
-___
+---
 
 ### decode
 
@@ -74,8 +74,8 @@ Decode a block (a Buffer), to a doc (an object)
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name    | Type     |
+| :------ | :------- |
 | `block` | `Buffer` |
 
 #### Returns
@@ -86,7 +86,7 @@ Decode a block (a Buffer), to a doc (an object)
 
 [lib/datastore/index.js:58](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datastore/index.js#L58)
 
-___
+---
 
 ### encode
 
@@ -96,8 +96,8 @@ Encode a doc (an object), to a block (a Buffer)
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name  | Type     |
+| :---- | :------- |
 | `doc` | `Object` |
 
 #### Returns
@@ -108,7 +108,7 @@ Encode a doc (an object), to a block (a Buffer)
 
 [lib/datastore/index.js:49](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datastore/index.js#L49)
 
-___
+---
 
 ### getById
 
@@ -118,8 +118,8 @@ Get a doc by id
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name | Type     |
+| :--- | :------- |
 | `id` | `string` |
 
 #### Returns
@@ -130,7 +130,7 @@ Get a doc by id
 
 [lib/datastore/index.js:67](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datastore/index.js#L67)
 
-___
+---
 
 ### query
 
@@ -140,8 +140,8 @@ Query indexed docs
 
 #### Parameters
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
+| Name     | Type     | Description      |
+| :------- | :------- | :--------------- |
 | `where?` | `string` | sql where clause |
 
 #### Returns
@@ -152,7 +152,7 @@ Query indexed docs
 
 [lib/datastore/index.js:129](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datastore/index.js#L129)
 
-___
+---
 
 ### ready
 
@@ -168,7 +168,7 @@ Wait for the corestore and writer hypercore to be ready
 
 [lib/datastore/index.js:29](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datastore/index.js#L29)
 
-___
+---
 
 ### update
 
@@ -178,8 +178,8 @@ Update a doc
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name   | Type     |
+| :----- | :------- |
 | `data` | `Object` |
 
 #### Returns
@@ -190,7 +190,7 @@ Update a doc
 
 [lib/datastore/index.js:106](https://github.com/digidem/mapeo-core-next/blob/8584770/lib/datastore/index.js#L106)
 
-___
+---
 
 ### validate
 
@@ -202,8 +202,8 @@ Validate a doc
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
+| Name  | Type     |
+| :---- | :------- |
 | `doc` | `Object` |
 
 #### Returns
