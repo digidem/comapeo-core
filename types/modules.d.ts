@@ -730,9 +730,9 @@ declare module 'random-access-memory' {
   import RandomAccessStorage from 'random-access-storage'
 
   class RandomAccessMemory extends RandomAccessStorage {
-    readonly length: number
-    readonly pageSize: number
-    readonly buffers: Buffer[]
+    length: number
+    pageSize: number
+    buffers: Buffer[]
 
     constructor(
       opts?:
