@@ -351,6 +351,7 @@ test('discovery - valid connection discovery types', async (t) => {
     })
 
   for (const instance of instances) {
+    /** @type {string[]} */
     const allowedDiscoveryTypes = []
 
     if (instance.dhtActive) {
