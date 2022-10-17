@@ -18,8 +18,8 @@ declare module 'kademlia-routing-table' {
   class Row extends EventEmitter {
     readonly index: number
     readonly table: RoutingTable
-    readonly nodes: NodeType[]
-    public data: any
+    nodes: NodeType[]
+    data: any
 
     constructor(table: RoutingTable, index: number)
 
@@ -35,7 +35,7 @@ declare module 'kademlia-routing-table' {
   class RoutingTable extends EventEmitter {
     readonly id: Buffer
     readonly k: number
-    readonly rows: Row[]
+    rows: Row[]
 
     constructor(id: Buffer, opts?: { k?: number })
 
