@@ -18,8 +18,8 @@ declare module 'kademlia-routing-table' {
   class Row extends EventEmitter {
     readonly index: number
     readonly table: RoutingTable
-    readonly nodes: NodeType[]
-    public data: any
+    nodes: NodeType[]
+    data: any
 
     constructor(table: RoutingTable, index: number)
 
@@ -35,7 +35,7 @@ declare module 'kademlia-routing-table' {
   class RoutingTable extends EventEmitter {
     readonly id: Buffer
     readonly k: number
-    readonly rows: Row[]
+    rows: Row[]
 
     constructor(id: Buffer, opts?: { k?: number })
 
@@ -77,7 +77,7 @@ declare module 'udx-native' {
 
   // https://github.com/hyperswarm/libudx/blob/e8cdf8f6edb598b7617784867087a69f958d84c3/lib/network-interfaces.js
   export class NetworkInterfaces extends EventEmitter {
-    readonly interfaces: {
+    interfaces: {
       name: string
       host: string
       family: number
@@ -94,7 +94,7 @@ declare module 'udx-native' {
   // https://github.com/hyperswarm/libudx/blob/e8cdf8f6edb598b7617784867087a69f958d84c3/lib/socket.js
   export class UDXSocket extends EventEmitter {
     readonly udx: UDX
-    readonly streams: Set<UDXStream>
+    streams: Set<UDXStream>
 
     constructor(udx: UDX)
 
@@ -127,7 +127,7 @@ declare module 'udx-native' {
   // https://github.com/hyperswarm/libudx/blob/e8cdf8f6edb598b7617784867087a69f958d84c3/lib/stream.js
   class UDXStream extends Duplex {
     readonly udx: UDX
-    readonly socket: UDXSocket | null
+    socket: UDXSocket | null
 
     constructor(
       udx: UDX,
@@ -212,13 +212,13 @@ declare module 'dht-rpc' {
     readonly internal: boolean
     readonly command: Buffer
     readonly value: Buffer | null
-    readonly errors: number
-    readonly successes: number
     readonly concurrency: number
-    readonly inflight: number
     readonly map: <R extends Reply>(reply: Reply) => R
     readonly maxSlow: number
-    readonly closestReplies: Reply[]
+    errors: number
+    successes: number
+    inflight: number
+    closestReplies: Reply[]
 
     constructor(
       dht: Dht,
@@ -316,12 +316,10 @@ declare module 'dht-rpc' {
     destroy(): void
   }
 
+  // https://github.com/mafintosh/dht-rpc/blob/c9900d55256f09646b57f99ac9f2342910d52fe7/lib/io.js
   class IO {
     readonly table: RoutingTable
     readonly udx: UDX
-    readonly inflight: []
-    readonly clientSocket: UDXSocket | null
-    readonly serverSocket: UDXSocket | null
     readonly firewalled: boolean
     readonly ephemeral: boolean
     readonly congestion: CongestionWindow
@@ -329,6 +327,9 @@ declare module 'dht-rpc' {
     readonly onrequest: (req: Request, external: boolean) => void
     readonly onresponse: (res: Response, external: boolean) => void
     readonly ontimeout: (req: Request) => void
+    inflight: Request[]
+    clientSocket: UDXSocket | null
+    serverSocket: UDXSocket | null
 
     constructor(
       table: RoutingTable,
@@ -385,11 +386,11 @@ declare module 'dht-rpc' {
     readonly udx: UDX
     readonly io: IO
     readonly concurrency: boolean
-    readonly bootstrapped: boolean
     readonly ephemeral: boolean
     readonly firewalled: boolean
     readonly adaptive: boolean
-    readonly destroyed: boolean
+    bootstrapped: boolean
+    destroyed: boolean
 
     constructor(opts?: DhtOpts)
 
@@ -433,7 +434,7 @@ declare module 'dht-rpc' {
       }
     ): Promise<Response>
     refresh(): void
-    destroy: IO['destroy']
+    destroy(): ReturnType<IO['destroy']>
     onrequest(req: Request): void
   }
 
@@ -441,7 +442,7 @@ declare module 'dht-rpc' {
 }
 declare module '@hyperswarm/dht' {
   import { EventEmitter } from 'stream'
-  import { Query, QueryOpts } from 'dht-rpc'
+  import Dht, { Query, QueryOpts } from 'dht-rpc'
   import SecretStream from '@hyperswarm/secret-stream'
 
   interface HandshakePayload {
@@ -503,9 +504,8 @@ declare module '@hyperswarm/dht' {
 
   // TODO: Incomplete
   // https://github.com/hyperswarm/dht/blob/4190b7505c365ef8a6ad607fc3862780c65eb482/index.js
-  class Dht {
+  class HyperDht extends Dht {
     readonly defaultKeyPair: KeyPair
-    readonly destroyed: boolean
     readonly listening: Server[]
 
     constructor(opts?: DhtOpts)
@@ -576,7 +576,7 @@ declare module '@hyperswarm/dht' {
     ) => Query
   }
 
-  export default Dht
+  export default HyperDht
 }
 declare module '@hyperswarm/testnet' {
   import Dht, { DhtOpts } from '@hyperswarm/dht'
@@ -639,14 +639,14 @@ declare module '@hyperswarm/secret-stream' {
     true,
     DuplexEvents<any, any> & NoiseStreamEvents
   > {
-    readonly publicKey: Buffer
-    readonly remotePublicKey: Buffer
-    readonly handshakeHash: Buffer
-    readonly rawStream: RawStream
     readonly isInitiator: boolean
     readonly noiseStream: this
-    readonly opened: Promise<boolean>
-    readonly userData: any
+    publicKey: Buffer
+    remotePublicKey: Buffer
+    handshakeHash: Buffer
+    rawStream: RawStream
+    opened: Promise<boolean>
+    userData: any
 
     constructor(isInitiator: boolean, rawStream?: RawStream, opts?: Opts)
 
@@ -689,16 +689,16 @@ declare module 'random-access-storage' {
   }
 
   class RandomAccessStorage extends EventEmitter {
-    readonly opened: boolean
-    readonly suspended: boolean
-    readonly closed: boolean
-    readonly unlinked: boolean
-    readonly writing: boolean
     readonly readable: boolean
     readonly writable: boolean
     readonly deletable: boolean
     readonly truncatable: boolean
     readonly statable: boolean
+    opened: boolean
+    suspended: boolean
+    closed: boolean
+    unlinked: boolean
+    writing: boolean
 
     constructor(opts?: {
       open?: boolean
@@ -730,9 +730,9 @@ declare module 'random-access-memory' {
   import RandomAccessStorage from 'random-access-storage'
 
   class RandomAccessMemory extends RandomAccessStorage {
-    readonly length: number
-    readonly pageSize: number
-    readonly buffers: Buffer[]
+    length: number
+    pageSize: number
+    buffers: Buffer[]
 
     constructor(
       opts?:
