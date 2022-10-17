@@ -434,7 +434,7 @@ declare module 'dht-rpc' {
       }
     ): Promise<Response>
     refresh(): void
-    destroy: IO['destroy']
+    destroy(): ReturnType<IO['destroy']>
     onrequest(req: Request): void
   }
 
@@ -442,7 +442,7 @@ declare module 'dht-rpc' {
 }
 declare module '@hyperswarm/dht' {
   import { EventEmitter } from 'stream'
-  import { Query, QueryOpts } from 'dht-rpc'
+  import Dht, { Query, QueryOpts } from 'dht-rpc'
   import SecretStream from '@hyperswarm/secret-stream'
 
   interface HandshakePayload {
@@ -504,9 +504,8 @@ declare module '@hyperswarm/dht' {
 
   // TODO: Incomplete
   // https://github.com/hyperswarm/dht/blob/4190b7505c365ef8a6ad607fc3862780c65eb482/index.js
-  class Dht {
+  class HyperDht extends Dht {
     readonly defaultKeyPair: KeyPair
-    readonly destroyed: boolean
     readonly listening: Server[]
 
     constructor(opts?: DhtOpts)
@@ -577,7 +576,7 @@ declare module '@hyperswarm/dht' {
     ) => Query
   }
 
-  export default Dht
+  export default HyperDht
 }
 declare module '@hyperswarm/testnet' {
   import Dht, { DhtOpts } from '@hyperswarm/dht'
