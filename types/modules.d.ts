@@ -873,6 +873,42 @@ declare module 'random-access-memory' {
 
   export = RandomAccessMemory
 }
-declare module 'random-access-file'
+declare module 'random-access-file' {
+  import RandomAccessStorage from 'random-access-storage'
+
+  class Pool {
+    readonly maxSize: number
+    readonly active: RandomAccessFile[]
+
+    constructor(maxSize: number)
+  }
+
+  class RandomAccessFile extends RandomAccessStorage {
+    readonly directory: string | null
+    readonly filename: string
+    readonly fd: number
+    readonly mode: number
+
+    constructor(
+      filename: string,
+      opts?: {
+        size?: number
+        truncate?: boolean
+        directory?: string
+        pool?: Pool
+        rmdir?: boolean
+        lock?: boolean
+        sparse?: boolean
+        readable?: boolean
+        writeable?: boolean
+        alloc?: (size: number) => Buffer
+      }
+    )
+
+    static createPool(maxSize: number): Pool
+  }
+
+  export = RandomAccessFile
+}
 declare module 'randombytes'
 declare module 'b4a'
