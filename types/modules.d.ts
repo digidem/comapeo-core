@@ -875,4 +875,149 @@ declare module 'random-access-memory' {
 }
 declare module 'random-access-file'
 declare module 'randombytes'
-declare module 'b4a'
+// This only covers the Node definitions. Including the browser ones is a nice-to-have but out of scope for this project.
+declare module 'b4a' {
+  export function isBuffer(value: any): boolean
+
+  export function isEncoding(encoding: string): boolean
+
+  export function alloc(...args: Parameters<typeof Buffer.alloc>): Buffer
+
+  export function allocUnsafe(size: number): Buffer
+
+  export function allocUnsafeSlow(size: number): Buffer
+
+  export function byteLength(
+    ...args: Parameters<typeof Buffer.byteLength>
+  ): Buffer
+
+  export function compare(...args: Parameters<typeof Buffer.compare>): number
+
+  export function concat(...args: Parameters<typeof Buffer.concat>): Buffer
+
+  export function copy(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...copyArgs: Parameters<Buffer['copy']>
+  ): Buffer
+
+  export function equals(a: Buffer, b: Buffer): boolean
+
+  export function fill(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...fillArgs: Parameters<Buffer['fill']>
+  ): Buffer
+
+  /**
+   * Ideally would do something like:
+   *
+   * export function from(...args: Parameters<typeof Buffer.from>): Buffer
+   *
+   * but due to a TS limitation, this only returns the param types of the last function overload
+   * https://github.com/microsoft/TypeScript/issues/32164
+   */
+  export function from(
+    arrayBuffer: WithImplicitCoercion<ArrayBuffer | SharedArrayBuffer>,
+    byteOffset?: number,
+    length?: number
+  ): Buffer
+  export function from(data: Uint8Array | ReadonlyArray<number>): Buffer
+  export function from(
+    data: WithImplicitCoercion<Uint8Array | ReadonlyArray<number> | string>
+  ): Buffer
+  export function from(
+    str:
+      | WithImplicitCoercion<string>
+      | {
+          [Symbol.toPrimitive](hint: 'string'): string
+        },
+    encoding?: BufferEncoding
+  ): Buffer
+
+  export function includes(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...includesArgs: Parameters<Buffer['includes']>
+  ): boolean
+
+  export function indexOf(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...indexOfArgs: Parameters<Buffer['indexOf']>
+  ): number
+
+  export function lastIndexOf(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...lastIndexOfArgs: Parameters<Buffer['lastIndexOf']>
+  ): number
+
+  export function swap16(buffer: Parameters<typeof toBuffer>[0]): Buffer
+
+  export function swap32(buffer: Parameters<typeof toBuffer>[0]): Buffer
+
+  export function swap64(buffer: Parameters<typeof toBuffer>[0]): Buffer
+
+  export function toBuffer(
+    buffer:
+      | Buffer
+      | {
+          /**
+           * Ideally would do something like:
+           *
+           * buffer: Parameters<typeof Buffer.from>[0]
+           *
+           * but due to a TS limitation, this only returns the param type of the last function overload
+           * https://github.com/microsoft/TypeScript/issues/32164
+           */
+          buffer:
+            | WithImplicitCoercion<ArrayBuffer | SharedArrayBuffer>
+            | Uint8Array
+            | ReadonlyArray<number>
+            | WithImplicitCoercion<Uint8Array | ReadonlyArray<number> | string>
+          byteOffset?: number
+          byteLength?: number
+        }
+  ): Buffer
+
+  export function toString(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...toStringArgs: Parameters<Buffer['toString']>
+  ): string
+
+  export function writeDoubleLE(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...writeDoubleLEArgs: Parameters<Buffer['writeDoubleLE']>
+  ): number
+
+  export function writeFloatLE(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...writeFloatLEArgs: Parameters<Buffer['writeFloatLE']>
+  ): number
+
+  export function writeUInt32LE(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...writeUInt32LEArgs: Parameters<Buffer['writeUInt32LE']>
+  ): number
+
+  export function writeInt32LE(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...writeInt32LEArgs: Parameters<Buffer['writeInt32LE']>
+  ): number
+
+  export function readDoubleLE(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...readDoubleLEArgs: Parameters<Buffer['readDoubleLE']>
+  ): number
+
+  export function readFloatLE(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...readFloatLEArgs: Parameters<Buffer['readFloatLE']>
+  ): number
+
+  export function readUInt32LE(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...readUInt32LEArgs: Parameters<Buffer['readUInt32LE']>
+  ): number
+
+  export function readInt32LE(
+    buffer: Parameters<typeof toBuffer>[0],
+    ...readInt32LEArgs: Parameters<Buffer['readInt32LE']>
+  ): number
+}
