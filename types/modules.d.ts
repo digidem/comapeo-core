@@ -4,10 +4,6 @@
 // - KeyPair
 // - DhtNode
 
-type IdentifiedDhtNode = DhtNode & {
-  id: Buffer
-}
-
 declare module 'kademlia-routing-table' {
   import EventEmitter from 'events'
 
@@ -307,8 +303,12 @@ declare module 'dht-rpc' {
   import TimeOrderedSet from 'time-ordered-set'
   import RoutingTable from 'kademlia-routing-table'
 
+  interface IdentifiedDhtNode extends DhtNode {
+    id: Buffer
+  }
+
   // TODO: Potentially incomplete?
-  type Reply = {
+  interface Reply {
     error: number
     closerNodes: IdentifiedDhtNode[]
     from: IdentifiedDhtNode
