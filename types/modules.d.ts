@@ -72,7 +72,7 @@ declare module 'time-ordered-set' {
 }
 declare module 'hyperswarm' {
   import EventEmitter from 'events'
-  import Dht from '@hyperswarm/dht'
+  import Dht, { RelayAddress } from '@hyperswarm/dht'
   import NoiseSecretStream from '@hyperswarm/secret-stream'
 
   interface PeerDiscoveryOpts {
@@ -119,7 +119,7 @@ declare module 'hyperswarm' {
 
   export class PeerInfo extends EventEmitter {
     readonly publicKey: Buffer
-    readonly relayAddresses: any[]
+    readonly relayAddresses: RelayAddress[]
     reconnecting: boolean
     proven: boolean
     banned: boolean
@@ -131,7 +131,7 @@ declare module 'hyperswarm' {
     attempts: number
     priority: number
 
-    constructor(opts: { publicKey: Buffer; relayAddresses: any[] })
+    constructor(opts: { publicKey: Buffer; relayAddresses: RelayAddress[] })
 
     get server(): boolean
     get prioritized(): boolean
@@ -578,6 +578,11 @@ declare module '@hyperswarm/dht' {
     tx: Buffer
   }
 
+  export interface RelayAddress {
+    host: string
+    port: number
+  }
+
   interface ServerOpts {
     onconnection?: (encryptedSocket: SecretStream) => void
     firewall?: (
@@ -660,8 +665,7 @@ declare module '@hyperswarm/dht' {
           ann: {
             peer: {
               publicKey: Buffer
-              // TODO: Not sure what this is supposed to be
-              relayAddresses: any[]
+              relayAddresses: RelayAddress[]
             }
             signature: Buffer | null
           },
@@ -677,7 +681,7 @@ declare module '@hyperswarm/dht' {
     announce: (
       target: Buffer,
       keyPair: KeyPair,
-      relayAddresses: any[],
+      relayAddresses: RelayAddress[],
       opts?: QueryOpts & {
         // TODO: Maybe incomplete
         signAnnounce?: (
@@ -687,8 +691,7 @@ declare module '@hyperswarm/dht' {
           ann: {
             peer: {
               publicKey: Buffer
-              // TODO: Not sure what this is supposed to be
-              relayAddresses: any[]
+              relayAddresses: RelayAddress[]
             }
             refresh: null
             signature: Buffer | null
