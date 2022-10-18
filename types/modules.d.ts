@@ -5,13 +5,17 @@
 // - DhtNode
 
 declare module 'kademlia-routing-table' {
-  import EventEmitter from 'events'
+  import { TypedEmitter } from 'tiny-typed-emitter'
 
   interface NodeType {
     id: Buffer
   }
 
-  class Row extends EventEmitter {
+  class Row extends TypedEmitter<{
+    full(node: NodeType): void
+    add(node: NodeType): void
+    remove(node: NodeType): void
+  }> {
     readonly index: number
     readonly table: RoutingTable
     nodes: NodeType[]
@@ -28,7 +32,7 @@ declare module 'kademlia-routing-table' {
     compare<N extends NodeType>(a: N, b: N): number
   }
 
-  class RoutingTable extends EventEmitter {
+  class RoutingTable extends TypedEmitter<{ row: (row: Row) => void }> {
     readonly id: Buffer
     readonly k: number
     rows: Row[]
@@ -67,7 +71,7 @@ declare module 'time-ordered-set' {
   export = TimeOrderedSet
 }
 declare module 'hyperswarm' {
-  import EventEmitter from 'events'
+  import { TypedEmitter } from 'tiny-typed-emitter'
   import Dht, { RelayAddress } from '@hyperswarm/dht'
   import NoiseSecretStream from '@hyperswarm/secret-stream'
 
@@ -113,7 +117,9 @@ declare module 'hyperswarm' {
     destroy(): Promise<void>
   }
 
-  export class PeerInfo extends EventEmitter {
+  export class PeerInfo extends TypedEmitter<{
+    topic(topic: Buffer): void
+  }> {
     readonly publicKey: Buffer
     readonly relayAddresses: RelayAddress[]
     reconnecting: boolean
@@ -134,10 +140,11 @@ declare module 'hyperswarm' {
 
     reconnect(val: any): void
     ban(val: any): void
-    on: (event: 'topic', listener: (topic: Buffer) => void) => this
   }
 
-  class Hyperswarm extends EventEmitter {
+  class Hyperswarm extends TypedEmitter<{
+    connection(conn: NoiseSecretStream, peerInfo: PeerInfo): void
+  }> {
     destroyed: boolean
     listening: boolean
     readonly maxPeers: number
@@ -181,27 +188,28 @@ declare module 'hyperswarm' {
     clear(): Promise<void[]>
     destroy(): Promise<void>
     topics(): PeerDiscovery[]
-    on: (
-      event: 'connection',
-      listener: (conn: NoiseSecretStream, peerInfo: PeerInfo) => void
-    ) => this
   }
 
   export default Hyperswarm
 }
 
 declare module 'udx-native' {
-  import EventEmitter from 'events'
+  import { TypedEmitter } from 'tiny-typed-emitter'
   import { Duplex } from 'streamx'
 
+  export interface Interface {
+    name: string
+    host: string
+    family: number
+    internal: boolean
+  }
+
   // https://github.com/hyperswarm/libudx/blob/e8cdf8f6edb598b7617784867087a69f958d84c3/lib/network-interfaces.js
-  export class NetworkInterfaces extends EventEmitter {
-    interfaces: {
-      name: string
-      host: string
-      family: number
-      internal: boolean
-    }[]
+  export class NetworkInterfaces extends TypedEmitter<{
+    close(): void
+    change(interfaces: Interface[]): void
+  }> {
+    interfaces: Interface[]
 
     watch(): this
     unwatch(): NetworkInterfaces
@@ -211,7 +219,16 @@ declare module 'udx-native' {
   }
 
   // https://github.com/hyperswarm/libudx/blob/e8cdf8f6edb598b7617784867087a69f958d84c3/lib/socket.js
-  export class UDXSocket extends EventEmitter {
+  export class UDXSocket extends TypedEmitter<{
+    message(
+      buffer: Buffer,
+      info: { host: string; family: number; port: number }
+    ): void
+    close(): void
+    idle(): void
+    busy(): void
+    listening(): void
+  }> {
     readonly udx: UDX
     streams: Set<UDXStream>
 
@@ -298,8 +315,9 @@ declare module 'udx-native' {
   export default UDX
 }
 declare module 'dht-rpc' {
-  import { EventEmitter, Readable } from 'stream'
-  import UDX, { NetworkInterfaces, UDXSocket } from 'udx-native'
+  import { TypedEmitter } from 'tiny-typed-emitter'
+  import { Readable } from 'stream'
+  import UDX, { Interface, NetworkInterfaces, UDXSocket } from 'udx-native'
   import TimeOrderedSet from 'time-ordered-set'
   import RoutingTable from 'kademlia-routing-table'
 
@@ -502,7 +520,17 @@ declare module 'dht-rpc' {
   }
 
   // https://github.com/mafintosh/dht-rpc/blob/c9900d55256f09646b57f99ac9f2342910d52fe7/index.js
-  class Dht extends EventEmitter {
+  class Dht extends TypedEmitter<{
+    listening(): void
+    ready(): void
+    ephemeral(): void
+    wakeup(): void
+    request(request: Request): void
+    persistent(): void
+    'add-node'(node: DhtNode): void
+    'remove-node'(node: DhtNode): void
+    'network-change'(interfaces: Interface[]): void
+  }> {
     readonly bootstrapNodes: DhtNode[]
     readonly table: RoutingTable
     readonly nodes: TimeOrderedSet
@@ -564,7 +592,7 @@ declare module 'dht-rpc' {
   export default Dht
 }
 declare module '@hyperswarm/dht' {
-  import { EventEmitter } from 'stream'
+  import { TypedEmitter } from 'tiny-typed-emitter'
   import Dht, { Query, QueryOpts } from 'dht-rpc'
   import SecretStream from '@hyperswarm/secret-stream'
 
@@ -593,7 +621,12 @@ declare module '@hyperswarm/dht' {
 
   // TODO: Incomplete
   // https://github.com/hyperswarm/dht/blob/4190b7505c365ef8a6ad607fc3862780c65eb482/lib/server.js
-  interface Server extends EventEmitter {
+  interface Server
+    extends TypedEmitter<{
+      connection(conn: SecretStream): void
+      close(): void
+      listening(): void
+    }> {
     constructor: (dht: Dht, opts: any) => Server
 
     listen: (keyPair?: KeyPair) => Promise<void>
@@ -605,13 +638,6 @@ declare module '@hyperswarm/dht' {
     publicKey: Buffer
     close: () => Promise<void>
     closed: boolean
-    on: ((
-      event: 'connection',
-      listener: (encryptedSocket: SecretStream) => void
-    ) => this) &
-      ((event: 'listening', listener: () => void) => this) &
-      ((event: 'close', listener: () => void) => this) &
-      ((event: string | symbol, listener: (...args: any[]) => void) => this)
   }
 
   export interface DhtOpts {
@@ -791,7 +817,7 @@ declare module '@mapeo/crypto'
 declare module 'hypercore'
 declare module 'corestore'
 declare module 'random-access-storage' {
-  import EventEmitter from 'events'
+  import { TypedEmitter } from 'tiny-typed-emitter'
 
   type Cb<T> = (err: any, val?: T) => void
 
@@ -814,7 +840,13 @@ declare module 'random-access-storage' {
     callback: Cb<any>
   }
 
-  class RandomAccessStorage extends EventEmitter {
+  class RandomAccessStorage extends TypedEmitter<{
+    unsuspend(): void
+    open(): void
+    suspend(): void
+    close(): void
+    unlink(): void
+  }> {
     readonly readable: boolean
     readonly writable: boolean
     readonly deletable: boolean
