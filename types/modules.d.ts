@@ -874,5 +874,4 @@ declare module 'random-access-memory' {
   export = RandomAccessMemory
 }
 declare module 'random-access-file'
-declare module 'randombytes'
 declare module 'b4a'
