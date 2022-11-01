@@ -1,6 +1,7 @@
 import { KeyManager } from '@mapeo/crypto'
 import Corestore from 'corestore'
 import ram from 'random-access-memory'
+import Sqlite from 'better-sqlite3'
 import { AuthStore } from '../../lib/authstore/index.js'
 
 /**
@@ -36,8 +37,10 @@ export async function createAuthStore({ corestore, projectKeyPair } = {}) {
     })
   }
 
+  const sqlite = new Sqlite(':memory:')
   const authstore = new AuthStore({
     corestore,
+    sqlite,
     identityKeyPair,
     projectKeyPair,
   })
@@ -51,6 +54,7 @@ export async function createAuthStore({ corestore, projectKeyPair } = {}) {
     projectKeyPair,
     keyManager,
     rootKey,
+    sqlite,
   }
 }
 

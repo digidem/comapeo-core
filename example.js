@@ -46,9 +46,7 @@ const newDocVersion = Object.assign({}, doc, {
   links: [doc.version],
 })
 
-console.log('doc', doc)
 await mapeo.observation.update(newDocVersion)
-
 const gotDoc = mapeo.observation.query()
 
 console.log(gotDoc)
