@@ -873,6 +873,7 @@ declare module 'random-access-memory' {
 
   export = RandomAccessMemory
 }
+
 declare module 'random-access-file' {
   import RandomAccessStorage from 'random-access-storage'
 
@@ -910,5 +911,5 @@ declare module 'random-access-file' {
 
   export = RandomAccessFile
 }
-declare module 'randombytes'
+
 declare module 'b4a'
