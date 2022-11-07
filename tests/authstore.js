@@ -20,7 +20,7 @@ test('authstore', async (t) => {
 
   const record = await auth1.authstore.create({
     identityPublicKey: auth2PublicKey,
-    capability: 'admin',
+    capability: 'coordinator',
   })
 
   await auth1.authstore.update(
@@ -30,7 +30,9 @@ test('authstore', async (t) => {
     })
   )
 
-  const auth1Capabilities = await auth1.authstore.getCapabilities(auth1PublicKey)
+  const auth1Capabilities = await auth1.authstore.getCapabilities(
+    auth1PublicKey
+  )
 
   t.is(
     auth1Capabilities.length,
@@ -42,7 +44,9 @@ test('authstore', async (t) => {
     'creator',
     'auth1 should have creator capability'
   )
-  const auth2Capabilities = await auth1.authstore.getCapabilities(auth2PublicKey)
+  const auth2Capabilities = await auth1.authstore.getCapabilities(
+    auth2PublicKey
+  )
 
   t.is(
     auth2Capabilities.length,
@@ -54,6 +58,13 @@ test('authstore', async (t) => {
     'member',
     'auth2 should have member capability'
   )
+})
+
+
+test('scenarios', async (t) => {
+    const scenario = {
+
+    }
 })
 
 // test('get capabilities and check access levels', async (t) => {
@@ -69,7 +80,7 @@ test('authstore', async (t) => {
 
 //   await auth1.authstore.append({
 //     type: 'capabilities',
-//     capability: 'admin',
+//     capability: 'coordinator',
 //     identityPublicKey: auth1.identityKeyPair.publicKey.toString('hex'),
 //   })
 
@@ -93,38 +104,38 @@ test('authstore', async (t) => {
 
 //   t.is(
 //     await auth1.authstore.hasCapability({
-//       capability: 'admin',
+//       capability: 'coordinator',
 //       identityPublicKey: auth1.identityKeyPair.publicKey.toString('hex'),
 //     }),
 //     true,
-//     'auth1 should have admin capability'
+//     'auth1 should have coordinator capability'
 //   )
 
 //   t.is(
 //     await auth1.authstore.hasCapability({
-//       capability: 'admin',
+//       capability: 'coordinator',
 //       identityPublicKey: auth2.identityKeyPair.publicKey.toString('hex'),
 //     }),
 //     false,
-//     'auth2 should not have admin capability'
+//     'auth2 should not have coordinator capability'
 //   )
 
 //   t.is(
 //     await auth2.authstore.hasCapability({
-//       capability: 'admin',
+//       capability: 'coordinator',
 //       identityPublicKey: auth1.identityKeyPair.publicKey.toString('hex'),
 //     }),
 //     true,
-//     'auth1 should have admin capability'
+//     'auth1 should have coordinator capability'
 //   )
 
 //   t.is(
 //     await auth2.authstore.hasCapability({
-//       capability: 'admin',
+//       capability: 'coordinator',
 //       identityPublicKey: auth2.identityKeyPair.publicKey.toString('hex'),
 //     }),
 //     false,
-//     'auth2 should not have admin capability'
+//     'auth2 should not have coordinator capability'
 //   )
 // })
 
@@ -150,13 +161,13 @@ test('authstore', async (t) => {
 
 //   await auth1.authstore.append({
 //     type: 'capabilities',
-//     capability: 'admin',
+//     capability: 'coordinator',
 //     identityPublicKey: auth1.identityKeyPair.publicKey.toString('hex'),
 //   })
 
 //   await auth1.authstore.append({
 //     type: 'capabilities',
-//     capability: 'admin',
+//     capability: 'coordinator',
 //     identityPublicKey: auth2.identityKeyPair.publicKey.toString('hex'),
 //   })
 
@@ -180,12 +191,12 @@ test('authstore', async (t) => {
 //     auth3.authstore.identityPublicKeyString
 //   )
 
-//   const isAdmin = await auth1.authstore.hasCapability({
-//     capability: 'admin',
+//   const iscoordinator = await auth1.authstore.hasCapability({
+//     capability: 'coordinator',
 //     identityPublicKey: auth3.authstore.identityPublicKeyString,
 //   })
 
-//   t.is(isAdmin, false, 'auth3 should not be admin')
+//   t.is(iscoordinator, false, 'auth3 should not be coordinator')
 
 //   const isMember = await auth1.authstore.hasCapability({
 //     capability: 'member',

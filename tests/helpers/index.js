@@ -68,3 +68,74 @@ export function addCores(peer1, peer2) {
   peer1.authstore.addCore(peer2.authstore.key)
   peer2.authstore.addCore(peer1.authstore.key)
 }
+
+export async function runAuthStoreScenario(scenario, options = {}) {
+  const { t } = options
+
+  const peers = scenario.peers.reduce(async (obj, peerName) => {
+    const peer = await createAuthStore(options)
+    await peer.authstore.ready()
+    obj[peerName] = peer
+    return obj
+  }, {})
+
+  for (const step of scenario.steps) {
+    const peer = peers[step.peer]
+    const action = actions[step.action]
+    const data = getScenarioData(peers, step.data)
+    const result = await action(peer, data)
+    if (step.result) {
+      t.deepEqual(result, step.result)
+    }
+  }
+}
+
+function getScenarioData (peers, data) {
+  return {
+    ...data,
+    identityPublicKey: peers[data.identityPublicKey].authstore.key.toString('hex'),
+  }
+}
+
+const actions = {
+  create: async (peer, data) => {
+    await peer.authstore.create(data)
+  },
+  update: async (peer, data) => {
+    await peer.authstore.update(data)
+  }
+}
+
+/*
+// todo:
+// - project creator makes user1 an coordinator, user1 makes user2 a member, creator removes user1, user2 is still a member
+// - user can't authorize other users, isn't coordinator, but is trying to anyway
+
+{
+  users: [
+    'peer1',
+    'peer2'
+  ]
+  steps: [
+    {
+      action: 'create',
+      peer: 'peer1',
+      data: {
+        type: 'capabilities',
+        capability: 'creator',
+        identityPublicKey: 'peer1',
+      }
+    },
+    {
+      action: 'update',
+      peer: 'peer1',
+      data: {
+        type: 'capabilities',
+        capability: 'coordinator',
+        identityPublicKey: 'peer2',
+      }
+    }
+  ]
+}
+
+*/
