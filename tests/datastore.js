@@ -4,7 +4,6 @@ import ram from 'random-access-memory'
 import Corestore from 'corestore'
 import Sqlite from 'better-sqlite3'
 import MultiCoreIndexer from 'multi-core-indexer'
-import b4a from 'b4a'
 
 import { DataType } from '../lib/datatype/index.js'
 import { DataStore } from '../lib/datastore/index.js'
@@ -36,7 +35,7 @@ test('datastore - create, update, query', async (t) => {
   const writer = corestore.get({ name: 'writer' })
   await writer.ready()
 
-  const multiCoreIndexer = new MultiCoreIndexer([...corestore.cores.values()], {
+  new MultiCoreIndexer([...corestore.cores.values()], {
     storage: (key) => {
       return new ram(key)
     },

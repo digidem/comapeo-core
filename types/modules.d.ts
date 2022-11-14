@@ -4,6 +4,10 @@
 // - KeyPair
 // - DhtNode
 
+declare module 'brittle'
+declare module 'multi-core-indexer'
+declare module '@mapeo/sqlite-indexer'
+
 declare module 'kademlia-routing-table' {
   import { TypedEmitter } from 'tiny-typed-emitter'
 
@@ -816,6 +820,8 @@ declare module 'base32.js'
 declare module '@mapeo/crypto'
 declare module 'hypercore'
 declare module 'corestore'
+
+
 declare module 'random-access-storage' {
   import { TypedEmitter } from 'tiny-typed-emitter'
 
