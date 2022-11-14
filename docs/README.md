@@ -9,3 +9,5 @@ In most cases you'll be using the [mobile](https://github.com/digidem/mapeo-mobi
 Get detailed information about the classes, methods, function, and types of Mapeo Core in the [API docs](./api/).
 
 ## Developing
+
+[Set up a development environment](development/setup.md) for Mapeo Core.
