@@ -7,12 +7,22 @@ import { DataStore } from './lib/datastore/index.js'
 import { Indexer } from './lib/indexer/index.js'
 export { DataType } from './lib/datatype/index.js'
 
+/**
+ * @property {string, any}
+ */
 export class Mapeo {
   #indexers = new Map()
   #multiCoreIndexer
   #corestore
   #dataTypes
 
+  /**
+   *
+   * @param {Object} options
+   * @param {import('./lib/datatype/index.js').DataType[]} options.dataTypes
+   * @param {Corestore} options.corestore
+   * @param {import('better-sqlite3').Database} options.sqlite
+   */
   constructor(options) {
     const { corestore, dataTypes, sqlite } = options
     this.#corestore = corestore
@@ -49,13 +59,16 @@ export class Mapeo {
       })
 
       this.#indexers.set(dataType.name, indexer)
+
+      // @ts-ignore: TODO: fix this https://github.com/digidem/mapeo-core-next/issues/33
       this[dataType.name] = new DataStore({ dataType, corestore, indexer })
     }
 
     this.#multiCoreIndexer = new MultiCoreIndexer(this.cores, {
-      storage: (key) => {
+      storage: (/** @type {Buffer} */ key) => {
         return new ram(key)
       },
+      // @ts-ignore: TODO: replace this with multi-core-indexer type
       batch: (entries) => {
         for (const entry of entries) {
           const { block } = entry
@@ -71,6 +84,7 @@ export class Mapeo {
 
   async ready() {
     for (const dataType of this.#dataTypes) {
+      // @ts-ignore: TODO: fix this https://github.com/digidem/mapeo-core-next/issues/33
       await this[dataType.name].ready()
     }
   }
@@ -83,6 +97,11 @@ export class Mapeo {
     return [...this.#corestore.cores.values()]
   }
 
+  /**
+   *
+   * @param {Block} block
+   * @returns {import('./lib/datatype/index.js').DataType | undefined}
+   */
   getDataType(block) {
     const typeHex = b4a.toString(block, 'utf-8', 0, 4)
     return this.#dataTypes.find((dataType) => {

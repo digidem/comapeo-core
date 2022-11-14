@@ -1,7 +1,7 @@
 import Corestore from 'corestore'
 import ram from 'random-access-memory'
 import Sqlite from 'better-sqlite3'
-import { Mapeo, DataType } from './index.js'
+import { Mapeo, DataType } from '../index.js'
 import { Observation, validateObservation } from 'mapeo-schema'
 
 const corestore = new Corestore(ram)
@@ -19,6 +19,9 @@ const observation = new DataType({
 
 const sqlite = new Sqlite(':memory:')
 
+/**
+ * @type {Mapeo | {{ observation: Observation }}}
+ */
 const mapeo = new Mapeo({
   corestore,
   sqlite,

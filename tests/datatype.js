@@ -24,7 +24,7 @@ test('datatype - create, validate, encode, decode', async (t) => {
   t.ok(valid, 'valid doc')
 
   try {
-    const notValid = dataType.validate({
+    dataType.validate({
       value: 1,
     })
   } catch (err) {
