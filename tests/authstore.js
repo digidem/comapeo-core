@@ -7,8 +7,8 @@ test('authstore', async (t) => {
   const auth1 = await createAuthStore()
   const auth2 = await createAuthStore()
 
-  const auth1PublicKey = auth1.identity.publicKey.toString('hex')
-  const auth2PublicKey = auth2.identity.publicKey.toString('hex')
+  const auth1PublicKey = auth1.identityKeyPair.publicKey.toString('hex')
+  const auth2PublicKey = auth2.identityKeyPair.publicKey.toString('hex')
 
   replicate(auth1, auth2)
   addCores(auth1, auth2)

@@ -7,6 +7,8 @@ import { DataStore } from './lib/datastore/index.js'
 import { Indexer } from './lib/indexer/index.js'
 export { DataType } from './lib/datatype/index.js'
 
+import { getBlockPrefix } from './lib/utils.js'
+
 /**
  * @property {string, any}
  */
@@ -103,9 +105,9 @@ export class Mapeo {
    * @returns {import('./lib/datatype/index.js').DataType | undefined}
    */
   getDataType(block) {
-    const typeHex = b4a.toString(block, 'utf-8', 0, 4)
+    const blockPrefix = getBlockPrefix(block)
     return this.#dataTypes.find((dataType) => {
-      return dataType.blockPrefix === typeHex
+      return dataType.blockPrefix === blockPrefix
     })
   }
 
