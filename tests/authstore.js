@@ -10,20 +10,20 @@ test('authstore', async (t) => {
   const auth1PublicKey = auth1.identityKeyPair.publicKey.toString('hex')
   const auth2PublicKey = auth2.identityKeyPair.publicKey.toString('hex')
 
-  replicate(auth1, auth2)
-  addCores(auth1, auth2)
+  replicate([auth1, auth2])
+  addCores([auth1, auth2])
 
-  await auth1.authstore.create({
+  await auth1.authstore.createCapability({
     identityPublicKey: auth1PublicKey,
     capability: 'creator',
   })
 
-  const record = await auth1.authstore.create({
+  const record = await auth1.authstore.createCapability({
     identityPublicKey: auth2PublicKey,
     capability: 'coordinator',
   })
 
-  await auth1.authstore.update(
+  const updated = await auth1.authstore.updateCapability(
     Object.assign({}, record, {
       capability: 'member',
       links: [record.version],

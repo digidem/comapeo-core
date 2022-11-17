@@ -9,8 +9,8 @@ import { AuthStore } from '../../lib/authstore/index.js'
  * @param {Buffer} [namespace] - 32 byte Buffer
  */
 export function createCoreKeyPair(name, namespace = Buffer.alloc(32, 0)) {
-  const { km } = createIdentityKeys()
-  const coreKeyPair = km.getHypercoreKeypair(name, namespace)
+  const { keyManager } = createIdentityKeys()
+  const coreKeyPair = keyManager.getHypercoreKeypair(name, namespace)
   return coreKeyPair
 }
 
@@ -43,6 +43,7 @@ export async function createAuthStore({ corestore, projectKeyPair } = {}) {
     sqlite,
     identityKeyPair,
     projectKeyPair,
+    keyManager
   })
 
   await authstore.ready()
@@ -58,15 +59,24 @@ export async function createAuthStore({ corestore, projectKeyPair } = {}) {
   }
 }
 
-export function replicate(peer1, peer2) {
-  const stream1 = peer1.authstore.replicate(true, { live: true })
-  const stream2 = peer2.authstore.replicate(false, { live: true })
-  stream1.pipe(stream2).pipe(stream1)
+export function replicate(peers) {
+  for (const peer1 of peers) {
+    for (const peer2 of peers) {
+      if (peer1 === peer2) continue
+      const stream1 = peer1.authstore.replicate(true, { live: true })
+      const stream2 = peer2.authstore.replicate(false, { live: true })
+      stream1.pipe(stream2).pipe(stream1)
+    }
+  }
 }
 
-export function addCores(peer1, peer2) {
-  peer1.authstore.addCore(peer2.authstore.key)
-  peer2.authstore.addCore(peer1.authstore.key)
+export function addCores(peers) {
+  for (const peer1 of peers) {
+    for (const peer2 of peers) {
+      if (peer1 === peer2) continue
+      peer1.authstore.addCores(peer2.authstore.cores)
+    }
+  }
 }
 
 export async function runAuthStoreScenario(scenario, options = {}) {
@@ -98,44 +108,10 @@ function getScenarioData (peers, data) {
 }
 
 const actions = {
-  create: async (peer, data) => {
-    await peer.authstore.create(data)
+  createCapability: async (peer, data) => {
+    await peer.authstore.createCapability(data)
   },
-  update: async (peer, data) => {
-    await peer.authstore.update(data)
+  updateCapability: async (peer, data) => {
+    await peer.authstore.updateCapability(data)
   }
 }
-
-/*
-// todo:
-// - project creator makes user1 an coordinator, user1 makes user2 a member, creator removes user1, user2 is still a member
-// - user can't authorize other users, isn't coordinator, but is trying to anyway
-
-{
-  users: [
-    'peer1',
-    'peer2'
-  ]
-  steps: [
-    {
-      action: 'create',
-      peer: 'peer1',
-      data: {
-        type: 'capabilities',
-        capability: 'creator',
-        identityPublicKey: 'peer1',
-      }
-    },
-    {
-      action: 'update',
-      peer: 'peer1',
-      data: {
-        type: 'capabilities',
-        capability: 'coordinator',
-        identityPublicKey: 'peer2',
-      }
-    }
-  ]
-}
-
-*/

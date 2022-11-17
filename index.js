@@ -1,5 +1,4 @@
 import MultiCoreIndexer from 'multi-core-indexer'
-import b4a from 'b4a'
 import ram from 'random-access-memory'
 
 import { AuthStore } from './lib/authstore/index.js'
