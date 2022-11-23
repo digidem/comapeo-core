@@ -56,7 +56,6 @@
     "corestore": "^6.2.0",
     "hypercore": "^10.4.1",
     "hyperswarm": "^4.3.5",
-    "mapeo-schema": "github:digidem/mapeo-schema#typescript",
     "multi-core-indexer": "github:digidem/multi-core-indexer",
     "multicast-service-discovery": "^4.0.3",
     "mutexify": "^1.4.0",

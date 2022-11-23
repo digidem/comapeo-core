@@ -60,12 +60,9 @@ test('authstore', async (t) => {
   )
 })
 
-
-test('scenarios', async (t) => {
-    const scenario = {
-
-    }
-})
+// test('scenarios', async (t) => {
+//   const scenario = {}
+// })
 
 // test('get capabilities and check access levels', async (t) => {
 //   t.plan(6)

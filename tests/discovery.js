@@ -190,7 +190,6 @@ test('replication - mdns', async (t) => {
   t.plan(3)
 
   const testnet = await createTestnet(10)
-  const bootstrap = testnet.bootstrap
 
   const core1 = new Hypercore(ram)
   await core1.ready()

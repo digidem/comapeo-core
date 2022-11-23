@@ -821,7 +821,6 @@ declare module '@mapeo/crypto'
 declare module 'hypercore'
 declare module 'corestore'
 
-
 declare module 'random-access-storage' {
   import { TypedEmitter } from 'tiny-typed-emitter'
 

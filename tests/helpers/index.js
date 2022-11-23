@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import Corestore from 'corestore'
 import ram from 'random-access-memory'
@@ -8,7 +9,7 @@ import { AuthStore } from '../../lib/authstore/index.js'
  * @param {string} name
  * @param {Buffer} [namespace] - 32 byte Buffer
  */
-export function createCoreKeyPair(name, namespace = Buffer.alloc(32, 0)) {
+export function createCoreKeyPair(name, namespace = randomBytes(32)) {
   const { keyManager } = createIdentityKeys()
   const coreKeyPair = keyManager.getHypercoreKeypair(name, namespace)
   return coreKeyPair
@@ -25,10 +26,7 @@ export async function createAuthStore({ corestore, projectKeyPair } = {}) {
   const { rootKey, identityKeyPair, keyManager } = createIdentityKeys()
 
   if (!projectKeyPair) {
-    projectKeyPair = keyManager.getHypercoreKeypair(
-      'project',
-      Buffer.alloc(32, 5)
-    )
+    projectKeyPair = keyManager.getHypercoreKeypair('project', randomBytes(32))
   }
 
   if (!corestore) {
@@ -43,7 +41,7 @@ export async function createAuthStore({ corestore, projectKeyPair } = {}) {
     sqlite,
     identityKeyPair,
     projectKeyPair,
-    keyManager
+    keyManager,
   })
 
   await authstore.ready()
@@ -100,10 +98,11 @@ export async function runAuthStoreScenario(scenario, options = {}) {
   }
 }
 
-function getScenarioData (peers, data) {
+function getScenarioData(peers, data) {
   return {
     ...data,
-    identityPublicKey: peers[data.identityPublicKey].authstore.key.toString('hex'),
+    identityPublicKey:
+      peers[data.identityPublicKey].authstore.key.toString('hex'),
   }
 }
 
@@ -113,5 +112,5 @@ const actions = {
   },
   updateCapability: async (peer, data) => {
     await peer.authstore.updateCapability(data)
-  }
+  },
 }

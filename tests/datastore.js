@@ -24,7 +24,7 @@ test('datastore - create, update, query', async (t) => {
         created_at: { type: 'number' },
         updated_at: { type: 'number' },
         links: { type: 'array' },
-        creatorId: { type: 'string' }
+        creatorId: { type: 'string' },
       },
       additionalProperties: false,
     },
@@ -60,7 +60,7 @@ test('datastore - create, update, query', async (t) => {
     corestore,
     indexer,
     dataType,
-    identityPublicKey: 'test'
+    identityPublicKey: 'test',
   })
 
   await datastore.ready()
