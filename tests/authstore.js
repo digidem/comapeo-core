@@ -111,7 +111,6 @@ test('device add, remove, restore, set role', async (t) => {
 
   t.is(peer2Contributor.role, 'contributor', 'peer2 role set to member')
 
-
   const noChangingProjectCreator = peer2.authstore.setRole({
     role: 'member',
     identityId: peer1.identityId,
