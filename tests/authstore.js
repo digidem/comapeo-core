@@ -1,211 +1,131 @@
 import test from 'brittle'
-import { addCores, createAuthStore, replicate } from './helpers/index.js'
+import { createAuthStores } from './helpers/authstore.js'
+import { waitForIndexing } from './helpers/index.js'
 
-test('authstore', async (t) => {
-  t.plan(4)
+test('core ownership, project creator', async (t) => {
+  t.plan(7)
 
-  const auth1 = await createAuthStore()
-  const auth2 = await createAuthStore()
+  const [peer1, peer2] = await createAuthStores(2)
+  await waitForIndexing([peer1.authstore, peer2.authstore])
 
-  const auth1PublicKey = auth1.identityKeyPair.publicKey.toString('hex')
-  const auth2PublicKey = auth2.identityKeyPair.publicKey.toString('hex')
-
-  replicate([auth1, auth2])
-  addCores([auth1, auth2])
-
-  await auth1.authstore.createCapability({
-    identityPublicKey: auth1PublicKey,
-    capability: 'creator',
+  const peer1Owner = await peer1.authstore.getCoreOwner({
+    coreId: peer1.authstore.id,
+  })
+  const peer2Owner = await peer2.authstore.getCoreOwner({
+    coreId: peer2.authstore.id,
   })
 
-  const record = await auth1.authstore.createCapability({
-    identityPublicKey: auth2PublicKey,
-    capability: 'coordinator',
+  t.is(peer1Owner.id, peer1.identityId, 'peer1 owns their core')
+  t.is(peer2Owner.id, peer2.identityId, 'peer2 owns their core')
+
+  const peer1OwnerRemote = await peer2.authstore.getCoreOwner({
+    coreId: peer1.authstore.id,
+  })
+  const peer2OwnerRemote = await peer1.authstore.getCoreOwner({
+    coreId: peer2.authstore.id,
   })
 
-  const updated = await auth1.authstore.updateCapability(
-    Object.assign({}, record, {
-      capability: 'member',
-      links: [record.version],
-    })
-  )
+  t.is(peer1OwnerRemote.id, peer1.identityId, 'peer1 owns their core')
+  t.is(peer2OwnerRemote.id, peer2.identityId, 'peer2 owns their core')
 
-  const auth1Capabilities = await auth1.authstore.getCapabilities(
-    auth1PublicKey
-  )
+  const peer2NotOwner = peer2.authstore.verifyCoreOwner({
+    id: peer2.identityId,
+    coreId: peer1.authstore.id,
+    signature: peer1Owner.signature,
+  })
 
-  t.is(
-    auth1Capabilities.length,
-    1,
-    'auth1 should have 1 capabilities statements'
-  )
-  t.is(
-    auth1Capabilities[0].capability,
-    'creator',
-    'auth1 should have creator capability'
-  )
-  const auth2Capabilities = await auth1.authstore.getCapabilities(
-    auth2PublicKey
-  )
+  await t.exception(peer2NotOwner, 'peer2 cannot verify as owner of peer1 core')
 
-  t.is(
-    auth2Capabilities.length,
-    1,
-    'auth2 should have 1 capabilities statements'
-  )
-  t.is(
-    auth2Capabilities[0].capability,
-    'member',
-    'auth2 should have member capability'
+  const projectCreator = await peer1.authstore.getProjectCreator()
+  t.is(projectCreator.id, peer1.identityId, 'peer1 is project creator')
+
+  const onlyOneProjectCreator = peer2.authstore.setProjectCreator({
+    projectId: peer2.authstore.projectId,
+  })
+
+  await t.exception(
+    onlyOneProjectCreator,
+    'peer2 cannot set themselves as project creator'
   )
 })
 
-// test('scenarios', async (t) => {
-//   const scenario = {}
-// })
+test('device add, remove, restore, set role', async (t) => {
+  t.plan(10)
 
-// test('get capabilities and check access levels', async (t) => {
-//   t.plan(6)
+  const [peer1, peer2] = await createAuthStores(2)
+  await waitForIndexing([peer1.authstore, peer2.authstore])
 
-//   const auth1 = await createAuthStore()
-//   const auth2 = await createAuthStore({
-//     projectKeyPair: auth1.projectKeyPair,
-//   })
+  const peer2Device = await peer1.authstore.addDevice({
+    identityId: peer2.identityId,
+  })
 
-//   replicate(auth1, auth2)
-//   addCores(auth1, auth2)
+  t.ok(peer2Device)
+  await waitForIndexing([peer1.authstore, peer2.authstore])
 
-//   await auth1.authstore.append({
-//     type: 'capabilities',
-//     capability: 'coordinator',
-//     identityPublicKey: auth1.identityKeyPair.publicKey.toString('hex'),
-//   })
+  const peer2DeviceRemote = await peer2.authstore.getDevice({
+    identityId: peer2.identityId,
+  })
 
-//   await auth1.authstore.append({
-//     type: 'capabilities',
-//     capability: 'member',
-//     identityPublicKey: auth2.identityKeyPair.publicKey.toString('hex'),
-//   })
+  t.ok(peer2DeviceRemote, 'peer2 device added')
 
-//   t.is(
-//     (await auth1.authstore.getCapabilities()).length,
-//     4,
-//     'auth1 should have 2 capabilities statements'
-//   )
+  const peer1NotRemoved = peer2.authstore.removeDevice({
+    identityId: peer1.identityId,
+  })
 
-//   t.is(
-//     (await auth2.authstore.getCapabilities()).length,
-//     4,
-//     'auth2 should have 2 capabilities statements'
-//   )
+  await t.exception(peer1NotRemoved, 'project creator cannot be removed')
 
-//   t.is(
-//     await auth1.authstore.hasCapability({
-//       capability: 'coordinator',
-//       identityPublicKey: auth1.identityKeyPair.publicKey.toString('hex'),
-//     }),
-//     true,
-//     'auth1 should have coordinator capability'
-//   )
+  const peer2Removed = await peer1.authstore.removeDevice({
+    identityId: peer2.identityId,
+  })
 
-//   t.is(
-//     await auth1.authstore.hasCapability({
-//       capability: 'coordinator',
-//       identityPublicKey: auth2.identityKeyPair.publicKey.toString('hex'),
-//     }),
-//     false,
-//     'auth2 should not have coordinator capability'
-//   )
+  t.is(peer2Removed.action, 'device:remove', 'peer2 device removed')
 
-//   t.is(
-//     await auth2.authstore.hasCapability({
-//       capability: 'coordinator',
-//       identityPublicKey: auth1.identityKeyPair.publicKey.toString('hex'),
-//     }),
-//     true,
-//     'auth1 should have coordinator capability'
-//   )
+  const peer2NotRemovedTwice = peer1.authstore.removeDevice({
+    identityId: peer2.identityId,
+  })
 
-//   t.is(
-//     await auth2.authstore.hasCapability({
-//       capability: 'coordinator',
-//       identityPublicKey: auth2.identityKeyPair.publicKey.toString('hex'),
-//     }),
-//     false,
-//     'auth2 should not have coordinator capability'
-//   )
-// })
+  await t.exception(
+    peer2NotRemovedTwice,
+    'peer2 device cannot be removed twice'
+  )
 
-// test('resolve fork at lowest capability', async (t) => {
-//   t.plan(3)
+  const peer2Restored = await peer1.authstore.restoreDevice({
+    identityId: peer2.identityId,
+  })
 
-//   const auth1 = await createAuthStore()
-//   const auth2 = await createAuthStore({ projectKeyPair: auth1.projectKeyPair })
-//   const auth3 = await createAuthStore({ projectKeyPair: auth1.projectKeyPair })
+  t.is(peer2Restored.action, 'device:restore', 'peer2 device restored')
 
-//   replicate(auth1, auth2)
-//   replicate(auth1, auth3)
-//   replicate(auth2, auth3)
+  const peer2NotRestoredTwice = peer1.authstore.restoreDevice({
+    identityId: peer2.identityId,
+  })
 
-//   auth1.authstore.addCore(auth2.authstore.key)
-//   auth1.authstore.addCore(auth3.authstore.key)
+  await t.exception(
+    peer2NotRestoredTwice,
+    'peer2 device cannot be restored twice'
+  )
 
-//   auth2.authstore.addCore(auth1.authstore.key)
-//   auth2.authstore.addCore(auth3.authstore.key)
+  const peer2Contributor = await peer1.authstore.setRole({
+    role: 'contributor',
+    identityId: peer2.identityId,
+  })
 
-//   auth3.authstore.addCore(auth2.authstore.key)
-//   auth3.authstore.addCore(auth1.authstore.key)
+  t.is(peer2Contributor.role, 'contributor', 'peer2 role set to member')
 
-//   await auth1.authstore.append({
-//     type: 'capabilities',
-//     capability: 'coordinator',
-//     identityPublicKey: auth1.identityKeyPair.publicKey.toString('hex'),
-//   })
 
-//   await auth1.authstore.append({
-//     type: 'capabilities',
-//     capability: 'coordinator',
-//     identityPublicKey: auth2.identityKeyPair.publicKey.toString('hex'),
-//   })
+  const noChangingProjectCreator = peer2.authstore.setRole({
+    role: 'member',
+    identityId: peer1.identityId,
+  })
 
-//   await auth2.authstore.append({
-//     type: 'capabilities',
-//     capability: 'none',
-//     identityPublicKey: auth3.authstore.identityPublicKeyString,
-//   })
+  await t.exception(
+    noChangingProjectCreator,
+    'project creator cannot be changed'
+  )
 
-//   await auth1.authstore.append({
-//     type: 'capabilities',
-//     capability: 'member',
-//     identityPublicKey: auth3.authstore.identityPublicKeyString,
-//   })
+  const peer2NonMember = await peer1.authstore.setRole({
+    role: 'nonmember',
+    identityId: peer2.identityId,
+  })
 
-//   const capabilities = await auth1.authstore.getCapabilities(
-//     auth3.authstore.identityPublicKeyString
-//   )
-
-//   const auth2capabilities = await auth2.authstore.getCapabilities(
-//     auth3.authstore.identityPublicKeyString
-//   )
-
-//   const iscoordinator = await auth1.authstore.hasCapability({
-//     capability: 'coordinator',
-//     identityPublicKey: auth3.authstore.identityPublicKeyString,
-//   })
-
-//   t.is(iscoordinator, false, 'auth3 should not be coordinator')
-
-//   const isMember = await auth1.authstore.hasCapability({
-//     capability: 'member',
-//     identityPublicKey: auth3.authstore.identityPublicKeyString,
-//   })
-
-//   t.is(isMember, false, 'auth3 should not be member')
-
-//   const isBanned = await auth1.authstore.hasCapability({
-//     capability: 'none',
-//     identityPublicKey: auth3.authstore.identityPublicKeyString,
-//   })
-
-//   t.is(isBanned, true, 'auth3 should have no access to the project')
-// })
+  t.is(peer2NonMember.role, 'nonmember', 'peer2 role set to nonmember')
+})

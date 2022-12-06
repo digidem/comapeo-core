@@ -1,9 +1,5 @@
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
-import Corestore from 'corestore'
-import ram from 'random-access-memory'
-import Sqlite from 'better-sqlite3'
-import { AuthStore } from '../../lib/authstore/index.js'
 
 /**
  * @param {string} name
@@ -19,42 +15,8 @@ export function createIdentityKeys() {
   const rootKey = KeyManager.generateRootKey()
   const keyManager = new KeyManager(rootKey)
   const identityKeyPair = keyManager.getIdentityKeypair()
-  return { rootKey, identityKeyPair, keyManager }
-}
-
-export async function createAuthStore({ corestore, projectKeyPair } = {}) {
-  const { rootKey, identityKeyPair, keyManager } = createIdentityKeys()
-
-  if (!projectKeyPair) {
-    projectKeyPair = keyManager.getHypercoreKeypair('project', randomBytes(32))
-  }
-
-  if (!corestore) {
-    corestore = new Corestore(ram, {
-      primaryKey: identityKeyPair.publicKey,
-    })
-  }
-
-  const sqlite = new Sqlite(':memory:')
-  const authstore = new AuthStore({
-    corestore,
-    sqlite,
-    identityKeyPair,
-    projectKeyPair,
-    keyManager,
-  })
-
-  await authstore.ready()
-
-  return {
-    authstore,
-    corestore,
-    identityKeyPair,
-    projectKeyPair,
-    keyManager,
-    rootKey,
-    sqlite,
-  }
+  const identityId = identityKeyPair.publicKey.toString('hex')
+  return { rootKey, identityId, identityKeyPair, keyManager }
 }
 
 export function replicate(peers) {
@@ -68,49 +30,21 @@ export function replicate(peers) {
   }
 }
 
-export function addCores(peers) {
+export async function addCores(peers) {
   for (const peer1 of peers) {
     for (const peer2 of peers) {
       if (peer1 === peer2) continue
-      peer1.authstore.addCores(peer2.authstore.cores)
+      for (const key of peer2.authstore.keys) {
+        await peer1.authstore.getCore(key)
+      }
     }
   }
 }
 
-export async function runAuthStoreScenario(scenario, options = {}) {
-  const { t } = options
-
-  const peers = scenario.peers.reduce(async (obj, peerName) => {
-    const peer = await createAuthStore(options)
-    await peer.authstore.ready()
-    obj[peerName] = peer
-    return obj
-  }, {})
-
-  for (const step of scenario.steps) {
-    const peer = peers[step.peer]
-    const action = actions[step.action]
-    const data = getScenarioData(peers, step.data)
-    const result = await action(peer, data)
-    if (step.result) {
-      t.deepEqual(result, step.result)
-    }
-  }
-}
-
-function getScenarioData(peers, data) {
-  return {
-    ...data,
-    identityPublicKey:
-      peers[data.identityPublicKey].authstore.key.toString('hex'),
-  }
-}
-
-const actions = {
-  createCapability: async (peer, data) => {
-    await peer.authstore.createCapability(data)
-  },
-  updateCapability: async (peer, data) => {
-    await peer.authstore.updateCapability(data)
-  },
+export async function waitForIndexing(stores) {
+  await Promise.all(
+    stores.map((store) => {
+      return store.indexing()
+    })
+  )
 }
