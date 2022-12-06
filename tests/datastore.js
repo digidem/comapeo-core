@@ -10,7 +10,7 @@ import { Sqlite } from '../lib/sqlite.js'
 import { createIdentityKeys, createCoreKeyPair } from './helpers/index.js'
 import { getBlockPrefix } from '../lib/utils.js'
 
-test.solo('datastore - create, update, query two datatypes', async (t) => {
+test('datastore - create, update, query two datatypes', async (t) => {
   t.plan(13)
 
   const { identityKeyPair, keyManager } = createIdentityKeys()
