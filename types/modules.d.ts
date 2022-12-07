@@ -7,6 +7,11 @@
 declare module 'brittle'
 declare module 'multi-core-indexer'
 declare module '@mapeo/sqlite-indexer'
+declare module '@mapeo/crypto'
+declare module 'sodium-universal'
+declare module 'base32.js'
+declare module 'hypercore'
+declare module 'corestore'
 
 declare module 'kademlia-routing-table' {
   import { TypedEmitter } from 'tiny-typed-emitter'
@@ -815,11 +820,6 @@ declare module '@hyperswarm/secret-stream' {
 
   export = NoiseSecretStream
 }
-declare module '@hyperswarm/testnet'
-declare module 'base32.js'
-declare module '@mapeo/crypto'
-declare module 'hypercore'
-declare module 'corestore'
 
 declare module 'random-access-storage' {
   import { TypedEmitter } from 'tiny-typed-emitter'
