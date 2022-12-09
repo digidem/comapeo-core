@@ -4,7 +4,7 @@ import { createDataType } from './helpers/datatype.js'
 test('datatype - create, encode, decode', async (t) => {
   t.plan(1)
 
-  const { identityId, dataType } = await createDataType({
+  const { dataType } = await createDataType({
     name: 'test',
     schema: {
       type: 'object',

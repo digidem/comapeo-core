@@ -11,7 +11,7 @@ export const scenarios = [
           capability: 'creator',
           identityPublicKey: 'peer1',
         },
-        check: async (t, peer, data, result, previousResult) => {
+        check: async (t, peer, data) => {
           const capabilities = await peer.authstore.getCapabilities(
             data.identityPublicKey
           )
@@ -35,7 +35,7 @@ export const scenarios = [
           capability: 'member',
           identityPublicKey: 'peer2',
         },
-        check: async (t, peer, data, result, previousResult) => {
+        check: async (t, peer, data) => {
           const capabilities = await peer.authstore.getCapabilities(
             data.identityPublicKey
           )
@@ -59,7 +59,7 @@ export const scenarios = [
           capability: 'coordinator',
           identityPublicKey: 'peer2',
         },
-        check: async (t, peer, data, result, previousResult) => {
+        check: async (t, peer, data) => {
           const capabilities = await peer.authstore.getCapabilities(
             data.identityPublicKey
           )
@@ -89,7 +89,7 @@ export const scenarios = [
           capability: 'coordinator',
           identityPublicKey: 'peer2',
         },
-        check: async (t, peer, data, result, previousResult) => {
+        check: async (t, peer, data) => {
           const capabilities = await peer.authstore.getCapabilities(
             data.identityPublicKey
           )
@@ -113,7 +113,7 @@ export const scenarios = [
           capability: 'coordinator',
           identityPublicKey: 'peer3',
         },
-        check: async (t, peer, data, result, previousResult) => {
+        check: async (t, peer, data) => {
           const capabilities = await peer.authstore.getCapabilities(
             data.identityPublicKey
           )
@@ -137,7 +137,7 @@ export const scenarios = [
           capability: 'member',
           identityPublicKey: 'peer3',
         },
-        check: async (t, peer, data, result, previousResult) => {
+        check: async (t, peer, data) => {
           const capabilities = await peer.authstore.getCapabilities(
             data.identityPublicKey
           )

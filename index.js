@@ -1,94 +1,20 @@
-import MultiCoreIndexer from 'multi-core-indexer'
-import ram from 'random-access-memory'
-
-import { AuthStore } from './lib/authstore/index.js'
-import { DataStore } from './lib/datastore/index.js'
-import { Indexer } from './lib/datatype/indexer/index.js'
-export { DataType } from './lib/datatype/index.js'
-
-import { getBlockPrefix } from './lib/utils.js'
-
-/**
- * @property {string, any}
- */
 export class Mapeo {
-  #indexers = new Map()
-  #multiCoreIndexer
   #corestore
-  #dataTypes
+  #sqlite
 
   /**
    *
    * @param {Object} options
-   * @param {import('./lib/datatype/index.js').DataType[]} options.dataTypes
    * @param {Corestore} options.corestore
-   * @param {import('better-sqlite3').Database} options.sqlite
+   * @param {import('./lib/sqlite').Sqlite} options.sqlite
    */
   constructor(options) {
-    const { corestore, dataTypes, sqlite } = options
+    const { corestore, sqlite } = options
     this.#corestore = corestore
-    this.#dataTypes = dataTypes
-
-    for (const dataType of dataTypes) {
-      const extraColumns = Object.keys(dataType.schema.properties)
-        .filter((key) => {
-          return (
-            ['id', 'version', 'links', 'forks', 'properties'].includes(key) ===
-            false
-          )
-        })
-        .map((key) => {
-          // TODO: better support for vaious types
-          if (
-            ['string', 'array', 'object'].includes(
-              dataType.schema.properties[key].type
-            )
-          ) {
-            return `${key} TEXT`
-          } else if (dataType.schema.properties[key].type === 'number') {
-            return `${key} REAL`
-          } else if (dataType.schema.properties[key].type === 'integer') {
-            return `${key} INTEGER`
-          }
-        })
-        .join(', ')
-
-      const indexer = new Indexer({
-        dataType,
-        sqlite,
-        extraColumns,
-      })
-
-      this.#indexers.set(dataType.name, indexer)
-
-      // @ts-ignore: TODO: fix this https://github.com/digidem/mapeo-core-next/issues/33
-      this[dataType.name] = new DataStore({ dataType, corestore, indexer })
-    }
-
-    this.#multiCoreIndexer = new MultiCoreIndexer(this.cores, {
-      storage: (/** @type {Buffer} */ key) => {
-        return new ram(key)
-      },
-      // @ts-ignore: TODO: replace this with multi-core-indexer type
-      batch: (entries) => {
-        for (const entry of entries) {
-          const { block } = entry
-          const dataType = this.getDataType(block)
-          if (!dataType) continue
-          const doc = dataType.decode(block)
-          const indexer = this.#indexers.get(dataType.name)
-          indexer.batch([doc])
-        }
-      },
-    })
+    this.#sqlite = sqlite
   }
 
-  async ready() {
-    for (const dataType of this.#dataTypes) {
-      // @ts-ignore: TODO: fix this https://github.com/digidem/mapeo-core-next/issues/33
-      await this[dataType.name].ready()
-    }
-  }
+  async ready() {}
 
   get coreKeys() {
     return [...this.#corestore.cores.keys()]
@@ -98,21 +24,9 @@ export class Mapeo {
     return [...this.#corestore.cores.values()]
   }
 
-  /**
-   *
-   * @param {Block} block
-   * @returns {import('./lib/datatype/index.js').DataType | undefined}
-   */
-  getDataType(block) {
-    const blockPrefix = getBlockPrefix(block)
-    return this.#dataTypes.find((dataType) => {
-      return dataType.blockPrefix === blockPrefix
-    })
-  }
+  async sync() {}
 
-  async sync(options) {}
+  async syncAuthStore() {}
 
-  async syncAuthStore(options) {}
-
-  async syncDataStores(options) {}
+  async syncDataStores() {}
 }

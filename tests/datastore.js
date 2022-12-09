@@ -7,7 +7,7 @@ import b4a from 'b4a'
 import { DataStore } from '../lib/datastore/index.js'
 import { Sqlite } from '../lib/sqlite.js'
 
-import { createIdentityKeys, createCoreKeyPair } from './helpers/index.js'
+import { createIdentityKeys } from './helpers/index.js'
 import { getBlockPrefix } from '../lib/utils.js'
 
 test('datastore - create, update, query two datatypes', async (t) => {
