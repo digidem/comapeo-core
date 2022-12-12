@@ -33,7 +33,7 @@
   "devDependencies": {
     "@hyperswarm/testnet": "^3.1.0",
     "@types/json-schema": "^7.0.11",
-    "@types/node": "^18.11.12",
+    "@types/node": "^18.11.13",
     "@types/streamx": "^2.9.1",
     "brittle": "^3.1.1",
     "dependency-check": "^4.1.0",
@@ -42,7 +42,7 @@
     "hypercore-crypto": "^3.3.0",
     "prettier": "^2.8.1",
     "random-access-memory": "^6.1.0",
-    "typedoc": "^0.23.21",
+    "typedoc": "^0.23.22",
     "typedoc-plugin-markdown": "^3.14.0",
     "typescript": "^4.9.4"
   },
