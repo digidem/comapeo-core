@@ -4,7 +4,7 @@
 
 ## Purpose
 
-The `AuthStore` class is responsible for defining user identities and authorizing their access to Mapeo projects.
+The `AuthStore` class is responsible for defining user identities and authorizing their access to Mapeo projects by defining the capabilities of each device through relationships with other devices.
 
 ## Usage
 
