@@ -9,7 +9,7 @@
     "format": "prettier . --write",
     "test": "brittle tests/*.js",
     "type": "tsc",
-    "deps": "dependency-check . --no-dev",
+    "deps": "depcheck --ignore-dirs=docs,types --ignores=@types/*,typescript,typedoc,typedoc-plugin-markdown,@hyperswarm/testnet",
     "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api"
   },
   "prettier": {
@@ -33,13 +33,12 @@
   "devDependencies": {
     "@hyperswarm/testnet": "^3.1.0",
     "@types/json-schema": "^7.0.11",
-    "@types/node": "^18.11.13",
+    "@types/node": "^18.11.14",
     "@types/streamx": "^2.9.1",
     "brittle": "^3.1.1",
-    "dependency-check": "^4.1.0",
+    "depcheck": "^1.4.3",
     "eslint": "^8.29.0",
     "eslint-config-prettier": "^8.5.0",
-    "hypercore-crypto": "^3.3.0",
     "prettier": "^2.8.1",
     "random-access-memory": "^6.1.0",
     "typedoc": "^0.23.22",
@@ -59,8 +58,6 @@
     "mapeo-schema": "github:digidem/mapeo-schema#protobufsTypescript",
     "multi-core-indexer": "github:digidem/multi-core-indexer#no-prepare",
     "multicast-service-discovery": "^4.0.4",
-    "mutexify": "^1.4.0",
-    "sodium-native": "^3.4.1",
     "sodium-universal": "^3.1.0",
     "tiny-typed-emitter": "^2.1.0"
   }
