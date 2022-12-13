@@ -16,8 +16,10 @@ export class Mapeo {
 
   async ready() {}
 
-  get coreKeys() {
-    return [...this.#corestore.cores.keys()]
+  get keys() {
+    return this.cores.map((core) => {
+      return core.key.toString('hex')
+    })
   }
 
   get cores() {
