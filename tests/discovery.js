@@ -100,6 +100,9 @@ test('replication - dht/hyperswarm', async (t) => {
   discover1.on('connection', async (connection, peer) => {
     t.ok(peer.identityPublicKey === identityPublicKey2, 'match key of 2nd peer')
     core1.replicate(connection)
+    core1.replicate(connection)
+    core1.replicate(connection)
+    core1.replicate(connection)
     await step()
   })
 
