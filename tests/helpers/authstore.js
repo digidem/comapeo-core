@@ -80,11 +80,11 @@ export async function runAuthStoreScenario(scenario, options = {}) {
   const peers = {}
   for (const peerName of scenario.peers) {
     peers[peerName] = await createAuthStore(options)
-    if (peerName === 'creator') {
+    if (peerName === 'project-creator') {
       await peers[peerName].authstore.createCapability({
         identityPublicKey:
           peers[peerName].identityKeyPair.publicKey.toString('hex'),
-        capability: 'creator',
+        capability: 'project-creator',
       })
     }
   }
