@@ -1,15 +1,13 @@
 /*
 * @module CoreIdCache
 */
-import { Sqlite } from '../lib/sqlite.js'
-
 export class CoreIdCache {
   #sqlite
   #tableName = 'coreIdCache'
   #types = `'auth', 'data', 'blob'`
   /**
     * Create a CoreIdCache instance. This class handles a table to track cores belonging to different namespaces/stores (Authstore, Datastore, Blobstore)
-    * @param {Sqlite} sqlite an instance of better-sqlite3
+    * @param {import('../lib/sqlite.js').Sqlite} sqlite an instance of better-sqlite3
   */
   constructor(sqlite){
     this.#sqlite = sqlite

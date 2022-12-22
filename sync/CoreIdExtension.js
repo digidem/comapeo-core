@@ -1,12 +1,12 @@
 /**
 * @module CoreIdExtension
 */
-import { CoreIdCache } from './CoreIdCache.js'
-
 export class CoreIdExtension {
   /** @type {Hypercore} */
   #core
-  /** @type {CoreIdCache} */
+  /** @type {Corestore */
+  #store
+  /** @type {import('./CoreIdCache.js').CoreIdCache} */
   #coreIdCache
   /** @type {string} */
   #extensionNamespace = 'share'
@@ -14,11 +14,13 @@ export class CoreIdExtension {
   #extension
   /**
   * Create a CoreReplicator instance. This class is in charge of replicating cores belonging to a namespace in a corestore with other peers. This is acomplished by registering an hypercore extension.
-  * @param {Hypercore} core - core public key to use as master core to register the extension in
-  * @param {CoreIdCache} coreIdCache  
+  * @param {Hypercore} core - core to use as master core to register the extension in
+  * @param {Corestore} store - corestore instance
+  * @param {import('./CoreIdCache.js').CoreIdCache} coreIdCache  
   */
-  constructor(core, coreIdCache){
+  constructor(core, store, coreIdCache){
     this.#core = core 
+    this.#store = store
     this.#coreIdCache = coreIdCache
   }
 
@@ -27,19 +29,23 @@ export class CoreIdExtension {
   */
   share(type){
     const ids = this.#coreIdCache.getByStoreType(type).map(records => records.coreId)
-    this.#extension = this.#core.registerExtension(`${this.#extensionNamespace}/${type}`,
-      {onmessage: this.onmessage})
+    this.#extension = this.#core.registerExtension(
+      `${this.#extensionNamespace}/${type}`,
+      {onmessage: this.onmessage, encoding: 'json'})
     this.#core.on('peer-add', 
       /** @param {any} peer */
-      peer => ids.forEach(id => this.#extension.send(id,peer)))
+      peer => this.#extension.send({coreIds: ids, namespace:type}, peer))
   }
 
   /**
-  * @param {string} msg
+  * @param {Object} msg
+  * @param {string[]} msg.coreIds
+  * @param {StoreType} msg.namespace
   * @param {any} peer
   */
   onmessage(msg, peer) {
     console.log(msg,peer)
-    // here we should receive keys from peers through extension. The peer doesn't have control over the type of store to ask.
+    const subStore = this.#store.namespace(msg.namespace)
+    msg.coreIds.forEach(coreId => subStore.get({key:coreId}))
   }
 }
