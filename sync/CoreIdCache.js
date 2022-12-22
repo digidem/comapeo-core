@@ -1,7 +1,7 @@
 /*
 * @module CoreIdCache
 */
-import { Sqlite } from "./../sqlite.js"
+import { Sqlite } from '../lib/sqlite.js'
 
 export class CoreIdCache {
   #sqlite

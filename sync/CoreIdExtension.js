@@ -1,7 +1,7 @@
 /**
 * @module CoreIdExtension
  */
-import { CoreIdCache } from "./authstore/coreIdCache"
+import { CoreIdCache } from './CoreIdCache.js'
 
 export class CoreIdExtension {
   /** @type {Hypercore} */
