@@ -8,7 +8,7 @@ export const scenarios = [
         peer: 'peer1',
         data: {
           type: 'capabilities',
-          capability: 'creator',
+          capability: 'project-creator',
           identityPublicKey: 'peer1',
         },
         check: async (t, peer, data) => {
@@ -22,7 +22,7 @@ export const scenarios = [
           )
           t.is(
             capabilities[0].capability,
-            'creator',
+            'project-creator',
             'peer1 should have creator capability'
           )
         },
@@ -79,11 +79,11 @@ export const scenarios = [
   },
   {
     name: 'creator makes peer2 a coordinator, peer2 makes peer3 a coordinator, creator makes peer3 a member',
-    peers: ['creator', 'peer2', 'peer3'],
+    peers: ['project-creator', 'peer2', 'peer3'],
     steps: [
       {
         action: 'createCapability',
-        peer: 'creator',
+        peer: 'project-creator',
         data: {
           type: 'capabilities',
           capability: 'coordinator',
@@ -131,7 +131,7 @@ export const scenarios = [
       },
       {
         action: 'createCapability',
-        peer: 'creator',
+        peer: 'project-creator',
         data: {
           type: 'capabilities',
           capability: 'member',

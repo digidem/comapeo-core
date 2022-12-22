@@ -2,7 +2,7 @@ import test from 'brittle'
 import { createAuthStores } from './helpers/authstore.js'
 import { waitForIndexing } from './helpers/index.js'
 
-test('core ownership, project creator', async (t) => {
+test('authstore - core ownership, project creator', async (t) => {
   t.plan(7)
 
   const [peer1, peer2] = await createAuthStores(2)
@@ -49,7 +49,7 @@ test('core ownership, project creator', async (t) => {
   )
 })
 
-test('device add, remove, restore, set role', async (t) => {
+test('authstore - device add, remove, restore, set role', async (t) => {
   t.plan(10)
 
   const [peer1, peer2] = await createAuthStores(2)
@@ -122,9 +122,9 @@ test('device add, remove, restore, set role', async (t) => {
   )
 
   const peer2NonMember = await peer1.authstore.setRole({
-    role: 'nonmember',
+    role: 'non-member',
     identityId: peer2.identityId,
   })
 
-  t.is(peer2NonMember.role, 'nonmember', 'peer2 role set to nonmember')
+  t.is(peer2NonMember.role, 'non-member', 'peer2 role set to nonmember')
 })
