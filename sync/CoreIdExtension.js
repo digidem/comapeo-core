@@ -4,7 +4,7 @@
 export class CoreIdExtension {
   /** @type {Hypercore} */
   #core
-  /** @type {Corestore */
+  /** @type {Corestore} */
   #store
   /** @type {import('./CoreIdCache.js').CoreIdCache} */
   #coreIdCache
@@ -27,14 +27,16 @@ export class CoreIdExtension {
   /**
   * @param {StoreType} type
   */
-  share(type){
+  async share(type){
     const ids = this.#coreIdCache.getByStoreType(type).map(records => records.coreId)
-    this.#extension = this.#core.registerExtension(
-      `${this.#extensionNamespace}/${type}`,
-      {onmessage: this.onmessage, encoding: 'json'})
     this.#core.on('peer-add', 
       /** @param {any} peer */
       peer => this.#extension.send({coreIds: ids, namespace:type}, peer))
+    return new Promise((resolve,_) => {
+      this.#extension = this.#core.registerExtension(
+        `${this.#extensionNamespace}/${type}`,
+        {onmessage: resolve, encoding: 'json'})
+    })
   }
 
   /**
