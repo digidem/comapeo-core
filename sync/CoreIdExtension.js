@@ -23,20 +23,29 @@ export class CoreIdExtension {
     this.#store = store
     this.#coreIdCache = coreIdCache
   }
-
+  /**
+  * @callback OnMessage 
+  * @param {Object} msg - message object
+  * @param {String[]} msg.coreIds
+  * @param {String} msg.namespace
+  * @param {Object} peer - socket peer
+  */
   /**
   * @param {StoreType} type
+  * @param {OnMessage} onmessage
   */
-  async share(type){
+  share(type, onmessage){
     const ids = this.#coreIdCache.getByStoreType(type).map(records => records.coreId)
+
+    this.#extension = this.#core.registerExtension(
+      `${this.#extensionNamespace}/${type}`,
+      {onmessage, encoding: 'json'}
+    )
+    
     this.#core.on('peer-add', 
       /** @param {any} peer */
-      peer => this.#extension.send({coreIds: ids, namespace:type}, peer))
-    return new Promise((resolve,_) => {
-      this.#extension = this.#core.registerExtension(
-        `${this.#extensionNamespace}/${type}`,
-        {onmessage: resolve, encoding: 'json'})
-    })
+      peer => this.#extension.send({coreIds: ids, namespace:type}, peer)
+    )
   }
 
   /**
