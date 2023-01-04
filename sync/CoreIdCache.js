@@ -15,7 +15,7 @@ export class CoreIdCache {
     CREATE TABLE IF NOT EXISTS ${this.#tableName}
                   (
                     coreId TEXT PRIMARY KEY NOT NULL,
-                    storeType TEXT CHECK(storeType IN(${this.#types})) NOT NULL, 
+                    namespace TEXT CHECK(namespace IN(${this.#types})) NOT NULL, 
                     identityId TEXT NOT NULL
                   )
                   WITHOUT ROWID`
@@ -23,33 +23,45 @@ export class CoreIdCache {
   }
 
   /**
-  * @param {StoreType} type
-  * @returns {CoreIdRecord[]}
+  * @param {StoreNamespace} namespace
+  * @returns {CoreIdRecordAggregate[]}
   */
-  getByStoreType(type){
+  getByStoreNamespace(namespace){
     return this.#sqlite.query(
-      `select * from ${this.#tableName} where storeType = '${type}'`
-    )
+      `SELECT
+        json_group_array(coreId) as coreIds,
+        identityId,
+        namespace 
+      FROM ${this.#tableName}
+      WHERE namespace = '${namespace}'
+      GROUP BY identityId, namespace;`
+    ).map(doc => ({...doc,coreIds:JSON.parse(doc.coreIds)}))
   }
 
   /**
-  * @param {string} id 
-  * @returns {CoreIdRecord[]}
+  * @param {string} identityId
+  * @returns {CoreIdRecordAggregate[]}
   */
-  getByIdentityId(id){
+  getByIdentityId(identityId){
     return this.#sqlite.query(
-      `select * from ${this.#tableName} where identityId = '${id}'`
-    )
+      `SELECT
+        json_group_array(coreId) as coreIds,
+        identityId,
+        namespace 
+      FROM ${this.#tableName}
+      WHERE identityId = '${identityId}'
+      GROUP BY identityId, namespace;`
+    ).map(doc => ({...doc,coreIds:JSON.parse(doc.coreIds)}))
+
   }
 
   /**
   * @param {CoreIdRecord} obj
   */
-  put({storeType,coreId,identityId}){
-    const str = `'${storeType}','${coreId}','${identityId}'`
+  put({namespace,coreId,identityId}){
     return this.#sqlite.run(`
-    INSERT INTO ${this.#tableName} (storeType, coreId, identityId)
-    VALUES(${str})
+    INSERT INTO ${this.#tableName} (namespace, coreId, identityId)
+    VALUES('${namespace}','${coreId}','${identityId}')
     `)
   }
 }
