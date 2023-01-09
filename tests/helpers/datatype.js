@@ -23,8 +23,13 @@ export async function createDataType(options) {
     sqlite = new Sqlite(':memory:')
   }
 
+  const core = corestore.get({
+    keyPair,
+  })
+
   const dataType = new DataType({
     name,
+    core,
     schema,
     blockPrefix,
     identityPublicKey: identityKeyPair.publicKey,

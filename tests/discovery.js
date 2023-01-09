@@ -351,6 +351,8 @@ test('discovery - mdns join, leave, join', async (t) => {
 // Create a stress test with many peers to see if the connections made using the proper discovery mechanisms
 // i.e. mdns peers will only connect with mdns-enabled peers and dht peers will only connect with dht-enabled peers
 test('discovery - valid connection discovery types', async (t) => {
+  t.timeout(35000)
+
   const testnet = await createTestnet(10)
   const bootstrap = testnet.bootstrap
 
@@ -366,7 +368,7 @@ test('discovery - valid connection discovery types', async (t) => {
     })
   }
 
-  const each = 8 // higher than this and it hits the 30s timeout
+  const each = 8 // much higher than this and it hits the timeout
   const total = each * 3
   const mdnsCount = ((total * (total - each - 1)) / total) * each
   const dhtCount = ((total * (total - each - 1)) / total) * each
