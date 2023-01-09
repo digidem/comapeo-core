@@ -48,7 +48,7 @@ export async function createAuthStore({
     authstore,
     corestore,
     identityKeyPair,
-    identityId: authstore.identityId,
+    identityId: authstore.id,
     keyPair,
     keyManager,
     rootKey,
