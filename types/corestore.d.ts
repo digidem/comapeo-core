@@ -12,8 +12,13 @@ declare module 'corestore' {
     get(key: Buffer | Uint8Array): Hypercore
     get(options: Hypercore.HypercoreOptions & { name: string }): Hypercore
     get(options: Hypercore.HypercoreOptions & { key: Buffer | Uint8Array }): Hypercore
+    get(options: Hypercore.HypercoreOptions & { keyPair: { publicKey: Buffer, secretKey: Buffer} }): Hypercore
     replicate: typeof Hypercore.prototype.replicate
     store(name: string): Corestore
+    ready(): Promise<void>
+    close(): Promise<void>
+    cores: Map<string, Hypercore>
   }
+
   export = Corestore
 }

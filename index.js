@@ -5,7 +5,7 @@ export class Mapeo {
   /**
    *
    * @param {Object} options
-   * @param {Corestore} options.corestore
+   * @param {import('corestore')} options.corestore
    * @param {import('./lib/sqlite').Sqlite} options.sqlite
    */
   constructor(options) {
