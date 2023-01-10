@@ -17,7 +17,10 @@ declare module 'hypercore' {
   type ValueEncoding = 'json' | 'utf-8' | 'binary'
 
   namespace Hypercore {
-    export type HypercoreStorage = string | ((name: string) => RandomAccessStorage) | typeof RandomAccessStorage
+    export type HypercoreStorage =
+      | string
+      | ((name: string) => RandomAccessStorage)
+      | typeof RandomAccessStorage
     export interface HypercoreGetOptions {
       wait?: boolean // wait for block to be downloaded
       onwait?(): void // hook that is called if the get is waiting for download
@@ -57,7 +60,9 @@ declare module 'hypercore' {
     readonly key: Buffer
     get<TGetValueEncoding extends ValueEncoding = TValueEncoding>(
       index: number,
-      options?: Hypercore.HypercoreGetOptions & { valueEncoding?: TGetValueEncoding }
+      options?: Hypercore.HypercoreGetOptions & {
+        valueEncoding?: TGetValueEncoding
+      }
     ): Promise<
       | null
       | (TGetValueEncoding extends 'binary'
