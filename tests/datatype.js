@@ -31,5 +31,8 @@ test('datatype - create, encode, decode', async (t) => {
     Object.assign({}, created, { title: 'hi', links: [] })
   )
 
-  t.exception(notUpdated, 'should throw error if previous version not provided as a link')
+  t.exception(
+    notUpdated,
+    'should throw error if previous version not provided as a link'
+  )
 })

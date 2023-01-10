@@ -68,8 +68,6 @@ export async function createAuthStores(count, options) {
 
     if (i === 0) {
       await peer.authstore.initProjectCreator()
-    } else {
-
     }
   }
 

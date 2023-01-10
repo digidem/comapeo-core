@@ -77,7 +77,7 @@ test('datastore - create, update, query two datatypes', async (t) => {
     sqlite,
     keyPair,
     identityPublicKey: identityKeyPair.publicKey,
-    dataTypes: [example1, example2]
+    dataTypes: [example1, example2],
   })
 
   await datastore.ready()
