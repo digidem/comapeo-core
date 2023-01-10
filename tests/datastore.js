@@ -142,5 +142,9 @@ test('datastore - create, update, query two datatypes', async (t) => {
   t.is(counts.example2, 2, 'example2 has 2 blocks')
   t.is(datastore.dataTypes.length, 2, 'datastore has 2 dataTypes')
   t.is(datastore.cores.length, 1, 'datastore has 1 core')
-  t.is(datastore.localCore.length, 4, 'datastore core has 4 blocks')
+
+  const core = corestore.get({ key: keyPair.publicKey })
+  await core.ready()
+
+  t.is(core.length, 4, 'datastore core has 4 blocks')
 })
