@@ -23,7 +23,7 @@ test('datatype - create, encode, decode', async (t) => {
   })
 
   const updated = await dataType.update(
-    Object.assign({}, created, { title: 'hi', links: [created.id] })
+    Object.assign({}, created, { title: 'hi', links: [created.version] })
   )
   t.is(updated.title, 'hi', 'updated title')
 })
