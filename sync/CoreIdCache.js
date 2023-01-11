@@ -21,21 +21,28 @@ export class CoreIdCache {
                   WITHOUT ROWID`
     )
   }
-
   /**
-  * @param {StoreNamespace} namespace
-  * @returns {CoreIdRecordAggregate[]}
+  * @param {String} type
+  * @param {String} value
   */
-  getByStoreNamespace(namespace){
+  #getBy(type,value){
     return this.#sqlite.query(
       `SELECT
         json_group_array(coreId) as coreIds,
         identityId,
         namespace 
       FROM ${this.#tableName}
-      WHERE namespace = '${namespace}'
+      WHERE ${type} = '${value}'
       GROUP BY identityId, namespace;`
     ).map(doc => ({...doc,coreIds:JSON.parse(doc.coreIds)}))
+  }
+
+  /**
+  * @param {StoreNamespace} namespace
+  * @returns {CoreIdRecordAggregate[]}
+  */
+  getByStoreNamespace(namespace){
+    return this.#getBy('namespace', namespace)
   }
 
   /**
@@ -43,16 +50,7 @@ export class CoreIdCache {
   * @returns {CoreIdRecordAggregate[]}
   */
   getByIdentityId(identityId){
-    return this.#sqlite.query(
-      `SELECT
-        json_group_array(coreId) as coreIds,
-        identityId,
-        namespace 
-      FROM ${this.#tableName}
-      WHERE identityId = '${identityId}'
-      GROUP BY identityId, namespace;`
-    ).map(doc => ({...doc,coreIds:JSON.parse(doc.coreIds)}))
-
+    return this.#getBy('identityId', identityId)
   }
 
   /**
