@@ -22,7 +22,7 @@ export class CoreIdExtension {
 
   /**
   * @callback OnMessage 
-  * @param {CoreIdRecordAggregate} msg - message object
+  * @param {CoreIdRecordAggregate[]} msg - message object
   * @param {Object} peer - socket peer
   */
   /**
