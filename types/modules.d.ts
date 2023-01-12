@@ -10,8 +10,6 @@ declare module '@mapeo/sqlite-indexer'
 declare module '@mapeo/crypto'
 declare module 'sodium-universal'
 declare module 'base32.js'
-declare module 'hypercore'
-declare module 'corestore'
 
 declare module 'kademlia-routing-table' {
   import { TypedEmitter } from 'tiny-typed-emitter'

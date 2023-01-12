@@ -63,8 +63,6 @@ test('discovery - dht/hyperswarm', async (t) => {
 })
 
 test('replication - dht/hyperswarm', async (t) => {
-  t.plan(3)
-
   const testnet = await createTestnet(10)
   const bootstrap = testnet.bootstrap
 
@@ -76,66 +74,79 @@ test('replication - dht/hyperswarm', async (t) => {
 
   core1.append(['a', 'b', 'c'])
 
-  const identity1 = createIdentityKeys()
-  const identityPublicKey1 = identity1.identityKeyPair.publicKey.toString('hex')
+  async function create({ dhtActive, mdnsActive, key }) {
+    const identity = createIdentityKeys()
 
-  const identity2 = createIdentityKeys()
-  const identityPublicKey2 = identity2.identityKeyPair.publicKey.toString('hex')
+    const discovery = new Discovery({
+      identityKeyPair: identity.identityKeyPair,
+      dht: dhtActive && { bootstrap, server: true, client: true },
+      mdns: mdnsActive,
+    })
 
-  const discover1 = new Discovery({
-    identityKeyPair: identity1.identityKeyPair,
-    mdns: false,
-    dht: { bootstrap, server: true, client: true },
-  })
+    const core = new Hypercore(ram, key)
+    await core.ready()
+    await discovery.ready()
 
-  const discover2 = new Discovery({
-    identityKeyPair: identity2.identityKeyPair,
-    mdns: false,
-    dht: { bootstrap, server: true, client: true },
-  })
+    if (!key) {
+      await core.append(['a', 'b', 'c'])
+    }
 
-  await discover1.ready()
-  await discover2.ready()
+    return { discovery, identity, core, writer: !!key }
+  }
 
-  discover1.on('connection', async (connection, peer) => {
-    t.ok(peer.identityPublicKey === identityPublicKey2, 'match key of 2nd peer')
-    core1.replicate(connection)
-    core1.replicate(connection)
-    core1.replicate(connection)
-    core1.replicate(connection)
-    await step()
-  })
+  const readerCount = 5
 
-  discover2.on('connection', async (connection, peer) => {
-    t.ok(peer.identityPublicKey === identityPublicKey1, 'match key of 1st peer')
-    core2.replicate(connection)
+  const writer = await create({ dhtActive: true, mdnsActive: false })
 
-    const stream = core2.createReadStream()
+  const readers = await Promise.all(
+    Array(readerCount)
+      .fill(null)
+      .map(() => {
+        return create({ dhtActive: true, mdnsActive: false })
+      })
+  )
 
-    const results = []
-    stream.on('data', async (/** @type {any} */ data) => {
-      results.push(data)
-      if (results.length === 3) {
-        t.pass()
+  const instances = [writer, ...readers]
+  const connections = instances.length * (instances.length - 1)
+  t.plan(connections)
+
+  for (const instance of instances) {
+    instance.discovery.on('connection', async (connection, peer) => {
+      t.ok(peer)
+      instance.core.replicate(connection)
+      if (instance.writer) {
         await step()
+      } else {
+        const stream = instance.core.createReadStream()
+
+        const results = []
+        stream.on('data', async (/** @type {any} */ data) => {
+          results.push(data)
+          if (results.length === 3) {
+            await step()
+          }
+        })
       }
     })
-  })
+  }
 
   let count = 0
   async function step() {
     count++
-    if (count === 2) {
-      await discover1.leave(core1.discoveryKey)
-      await discover2.leave(core1.discoveryKey)
-      await discover1.destroy()
-      await discover2.destroy()
+    if (count === connections) {
+      await Promise.all(
+        instances.map(async (instance) => {
+          await instance.discovery.leave(core1.discoveryKey)
+          await instance.discovery.destroy()
+        })
+      )
       await testnet.destroy()
     }
   }
 
-  await discover1.join(core1.discoveryKey)
-  await discover2.join(core1.discoveryKey)
+  for (const instance of instances) {
+    await instance.discovery.join(core1.discoveryKey)
+  }
 })
 
 test('discovery - mdns', async (t) => {
@@ -264,13 +275,16 @@ test('replication - mdns', async (t) => {
 test('discovery - multiple successive joins', async (t) => {
   t.plan(4)
 
+  const testnet = await createTestnet(10)
+  const bootstrap = testnet.bootstrap
+
   const keyPair = createCoreKeyPair('multiple successive joins')
   const identity1 = createIdentityKeys()
 
   const discover1 = new Discovery({
     identityKeyPair: identity1.identityKeyPair,
     mdns: true,
-    dht: true,
+    dht: { bootstrap, server: true, client: true },
   })
 
   await discover1.ready()
@@ -287,6 +301,7 @@ test('discovery - multiple successive joins', async (t) => {
   await discover1.leave(keyPair.publicKey)
   await discover1.destroy()
   t.ok(discover1.topics.length === 0)
+  await testnet.destroy()
 })
 
 test('discovery - mdns join, leave, join', async (t) => {
@@ -336,21 +351,53 @@ test('discovery - mdns join, leave, join', async (t) => {
 // Create a stress test with many peers to see if the connections made using the proper discovery mechanisms
 // i.e. mdns peers will only connect with mdns-enabled peers and dht peers will only connect with dht-enabled peers
 test('discovery - valid connection discovery types', async (t) => {
-  let connectionsCount = 0
+  t.timeout(35000)
+
+  const testnet = await createTestnet(10)
+  const bootstrap = testnet.bootstrap
 
   const keyPair = createCoreKeyPair('stress test')
 
-  const instances = Array(20)
+  function create({ dhtActive, mdnsActive }) {
+    const identity = createIdentityKeys()
+
+    return new Discovery({
+      identityKeyPair: identity.identityKeyPair,
+      dht: dhtActive && { bootstrap, server: true, client: true },
+      mdns: mdnsActive,
+    })
+  }
+
+  const each = 8 // much higher than this and it hits the timeout
+  const total = each * 3
+  const mdnsCount = ((total * (total - each - 1)) / total) * each
+  const dhtCount = ((total * (total - each - 1)) / total) * each
+  const mdnsAndDhtCount = ((total * (total - 1)) / total) * each
+  const connections = mdnsCount + dhtCount + mdnsAndDhtCount
+
+  t.plan(connections)
+
+  const mdnsOnly = Array(each)
     .fill(null)
     .map(() => {
-      const identity = createIdentityKeys()
-
-      return new Discovery({
-        identityKeyPair: identity.identityKeyPair,
-        dht: Math.random() > 0.5,
-        mdns: Math.random() > 0.5,
-      })
+      return create({ dhtActive: false, mdnsActive: true })
     })
+
+  const dhtOnly = Array(each)
+    .fill(null)
+    .map(() => {
+      return create({ dhtActive: true, mdnsActive: false })
+    })
+
+  const mdnsAndDht = Array(each)
+    .fill(null)
+    .map(() => {
+      return create({ dhtActive: true, mdnsActive: true })
+    })
+
+  const instances = [...mdnsOnly, ...dhtOnly, ...mdnsAndDht]
+
+  await Promise.all(instances.map((instance) => instance.ready()))
 
   for (const instance of instances) {
     /** @type {string[]} */
@@ -370,21 +417,26 @@ test('discovery - valid connection discovery types', async (t) => {
         return
       }
 
-      connectionsCount++
+      t.ok(peer)
+      await step()
     })
   }
 
-  await Promise.all(instances.map((instance) => instance.ready()))
-  await Promise.all(
-    instances.map((instance) => instance.join(keyPair.publicKey))
-  )
+  let count = 0
+  async function step() {
+    count++
+    if (count === connections) {
+      await Promise.all(
+        instances.map(async (instance) => {
+          await instance.leave(keyPair.publicKey)
+          await instance.destroy()
+        })
+      )
+      await testnet.destroy()
+    }
+  }
 
-  await Promise.all(
-    instances.map(async (instance) => {
-      await instance.leave(keyPair.publicKey)
-      await instance.destroy()
-    })
-  )
-
-  t.ok(connectionsCount > 0)
+  for (const instance of instances) {
+    await instance.join(keyPair.publicKey)
+  }
 })
