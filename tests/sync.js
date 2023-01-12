@@ -2,7 +2,7 @@
 import test from 'brittle'
 import { randomBytes } from 'crypto'
 import { Sqlite } from '../lib/sqlite.js'
-import { CoreIdCache } from '../sync/CoreIdCache.js'
+import { CoreIdCache } from '../lib/sync/CoreIdCache.js'
 
 const sqlite = new Sqlite('/tmp/table')
 const coreIdCache = new CoreIdCache(sqlite)
