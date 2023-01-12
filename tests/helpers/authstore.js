@@ -5,6 +5,7 @@ import ram from 'random-access-memory'
 import { Sqlite } from '../../lib/sqlite.js'
 import { AuthStore } from '../../lib/authstore/index.js'
 import { addCores, replicate, createIdentityKeys } from './index.js'
+import { keyToId } from '../../lib/utils.js'
 
 export async function createAuthStore({
   corestore,
@@ -13,9 +14,10 @@ export async function createAuthStore({
   projectPublicKey,
 } = {}) {
   const { rootKey, identityKeyPair, keyManager } = createIdentityKeys()
+  const identityId = keyToId(identityKeyPair.publicKey)
 
   if (!keyPair) {
-    keyPair = keyManager.getHypercoreKeypair('auth', randomBytes(32))
+    keyPair = keyManager.getHypercoreKeypair(identityId, randomBytes(32))
   }
 
   if (!corestore) {
@@ -48,7 +50,7 @@ export async function createAuthStore({
     authstore,
     corestore,
     identityKeyPair,
-    identityId: authstore.identityId,
+    identityId,
     keyPair,
     keyManager,
     rootKey,

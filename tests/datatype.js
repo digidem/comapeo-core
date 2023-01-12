@@ -2,7 +2,7 @@ import test from 'brittle'
 import { createDataType } from './helpers/datatype.js'
 
 test('datatype - create, encode, decode', async (t) => {
-  t.plan(1)
+  t.plan(2)
 
   const { dataType } = await createDataType({
     name: 'test',
@@ -23,7 +23,16 @@ test('datatype - create, encode, decode', async (t) => {
   })
 
   const updated = await dataType.update(
-    Object.assign({}, created, { title: 'hi' })
+    Object.assign({}, created, { title: 'hi', links: [created.version] })
   )
   t.is(updated.title, 'hi', 'updated title')
+
+  const notUpdated = dataType.update(
+    Object.assign({}, created, { title: 'hi', links: [] })
+  )
+
+  t.exception(
+    notUpdated,
+    'should throw error if previous version not provided as a link'
+  )
 })
