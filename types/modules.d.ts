@@ -7,7 +7,6 @@
 declare module 'brittle'
 declare module 'multi-core-indexer'
 declare module '@mapeo/sqlite-indexer'
-declare module '@mapeo/crypto'
 declare module 'sodium-universal'
 declare module 'base32.js'
 
