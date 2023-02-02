@@ -20,5 +20,5 @@
     }
   },
   "include": ["**/*"],
-  "exclude": ["node_modules", "tmp", "tests", "example.js"]
+  "exclude": ["node_modules", "tmp", "tests", "examples"]
 }

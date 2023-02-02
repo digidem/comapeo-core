@@ -1,18 +1,57 @@
 # DataStore
 
-> Create, read, update, delete, and query data.
+> Manage a collection of `DataType` instances.
 
 ## Purpose
 
-The `DataStore` class composes our [`Indexer` class](../indexer/) with the [`Corestore` instance](https://npmjs.com/corestore) used to store the local writer [hypercore](https://npmjs.com/hypercore) and all the relevant hypercores of peers in a project.
+The `DataStore` class is responsible for managing and indexing a collection of [`DataType`](../datatype/) instances.
 
 ## Usage
 
-The `DataStore` class is used internally by the main [`Mapeo` class](../../index.js).
+The `DataStore` class is used internally by the [`AuthStore`](../authstore/) and [`Mapeo`](../../index.js) classes.
 
-Currently it isn't usable on its own as it requires an instance of the `Indexer` class, which in turn currently assumes it is used along with [multi-core-indexer](https://npmjs.com/multi-core-indexer) as part of the `Mapeo` class.
+The API of this module is primarily a convenient wrapper around the [`DataType`](../datatype/) class.
 
-The API of this module is primarily a convenient wrapper around the [`DataType`](../datatype/) and `Indexer` classes.
+An example of `DataStore` usage taken from the [datastore tests](../../tests/datastore.js):
+
+```js
+const datastore = new DataStore({
+  corestore,
+  sqlite,
+  keyPair,
+  identityPublicKey: identityKeyPair.publicKey,
+})
+
+await datastore.ready()
+t.ok(datastore, 'datastore created')
+
+const example = await datastore.dataType({
+  name: 'example',
+  blockPrefix: '0',
+  schema: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      version: { type: 'string' },
+      value: { type: 'string' },
+      created: { type: 'number' },
+      updated: { type: 'number' },
+      timestamp: { type: 'number' },
+      links: { type: 'array' },
+      forks: { type: 'array' },
+      authorId: { type: 'string' },
+    },
+    additionalProperties: false,
+  },
+  extraColumns: `
+      value TEXT,
+      created INTEGER,
+      updated INTEGER,
+      timestamp INTEGER,
+      authorId TEXT
+    `,
+})
+```
 
 ## API docs
 
