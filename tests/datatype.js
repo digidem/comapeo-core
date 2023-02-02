@@ -1,42 +1,38 @@
 import test from 'brittle'
-import b4a from 'b4a'
-import { DataType } from '../lib/datatype/index.js'
+import { createDataType } from './helpers/datatype.js'
 
-test('datatype - create, validate, encode, decode', async (t) => {
-  t.plan(5)
+test('datatype - create, encode, decode', async (t) => {
+  t.plan(2)
 
-  const dataType = new DataType({
+  const { dataType } = await createDataType({
     name: 'test',
-    blockPrefix: 'test',
     schema: {
       type: 'object',
       properties: {
-        value: { type: 'string' },
+        title: { type: 'string' },
+        content: { type: 'string' },
       },
     },
+    blockPrefix: '0',
+    extraColumns: 'title TEXT, content TEXT, timestamp INTEGER',
   })
 
-  t.ok(dataType, 'datatype created')
-
-  const valid = dataType.validate({
-    value: 'test',
-  })
-  t.ok(valid, 'valid doc')
-
-  try {
-    dataType.validate({
-      value: 1,
-    })
-  } catch (err) {
-    t.ok(err, 'invalid doc')
-  }
-
-  const encoded = dataType.encode({
-    value: 'test',
+  const created = await dataType.create({
+    title: 'Hello World',
+    content: 'This is a test',
   })
 
-  t.ok(b4a.isBuffer(encoded), 'encoded doc is a buffer')
+  const updated = await dataType.update(
+    Object.assign({}, created, { title: 'hi', links: [created.version] })
+  )
+  t.is(updated.title, 'hi', 'updated title')
 
-  const decoded = dataType.decode(encoded)
-  t.ok(typeof decoded === 'object', 'decoded doc is an object')
+  const notUpdated = dataType.update(
+    Object.assign({}, created, { title: 'hi', links: [] })
+  )
+
+  t.exception(
+    notUpdated,
+    'should throw error if previous version not provided as a link'
+  )
 })

@@ -1,60 +1,40 @@
 # DataType
 
-> Define schemas and encode/decode functions for data models.
+> Create, read, update, delete, and query data.
 
 ## Purpose
 
-We created the `DataType` class to establish a clear method for creating and using multiple data types in Mapeo. We provide an array of DataTypes to the Mapeo class to determine which [`DataStore` instances](../datastore/) are made available.
-
-For example, to be able to manage GeoJSON Point data:
-
-```js
-const points = new DataType({
-  // ... provide relevant options
-})
-
-const mapeo = new Mapeo({
-  dataTypes: [points],
-  // ... additional required and optional options
-})
-
-// there is now an `points` property on `mapeo` with methods for managing data, including:
-await mapeo.points.create()
-await mapeo.points.update()
-await mapeo.points.getById()
-await mapeo.points.query()
-```
+The `DataType` class composes our [`Indexer` class](./indexer/) with a [`Corestore` instance](https://npmjs.com/corestore) used to store the local writer [hypercore](https://npmjs.com/hypercore) and all the relevant hypercores of peers in a project.
 
 ## Usage
 
-While this is primarily an internal class used by the main [`Mapeo` class](../../index.js), the `DataType` class can be used on its own.
+The `DataType` class is used internally by the [`DataStore` class](../datastore/).
 
-Here's an example creating a GeoJSON Point `DataType`:
+Currently it isn't easily usable on its own as it assumes it is used along with [multi-core-indexer](https://npmjs.com/multi-core-indexer) as part of the `DataStore` class.
+
+A usage example with multi-core-indexer taken from the [DataType test helpers](../../tests/helpers/datatype.js):
 
 ```js
-import DataType from '@mapeo/core/lib/datatype/index.js'
+const dataType = new DataType({
+  name,
+  schema,
+  blockPrefix,
+  identityPublicKey: identityKeyPair.publicKey,
+  corestore,
+  keyPair,
+  sqlite,
+  extraColumns,
+})
 
-const point = new DataType({
-  name: 'point',
-  blockPrefix: 'abcd', // magic string that is prefixed onto each block of this DataType for easy identification
-  schema: {
-    title: 'GeoJSON Point',
-    type: 'object',
-    required: ['type', 'coordinates'],
-    properties: {
-      type: {
-        type: 'string',
-        enum: ['Point'],
-      },
-      coordinates: PointCoordinates,
-      bbox: BoundingBox,
-    },
+await dataType.ready()
+
+const cores = [...corestore.cores.values()]
+const indexer = new MultiCoreIndexer(cores, {
+  storage: (key) => {
+    return new ram(key)
   },
-  encode: (obj) => {
-    return JSON.stringify(obj)
-  },
-  decode: (str) => {
-    return JSON.parse(str)
+  batch: (entries) => {
+    dataType.index(entries.map((entry) => entry.block))
   },
 })
 ```

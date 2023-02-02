@@ -14,6 +14,7 @@ declare module 'hypercore' {
     append(): void
   }
 
+
   interface RemoteBitfield {
     get(index: number): boolean
   }
@@ -46,6 +47,7 @@ declare module 'hypercore' {
       encryptionKey?: Buffer // optionally pass an encryption key to enable block encryption
       sparse?: boolean // optionally disable sparse mode
     }
+
     export interface HypercorePeer {
       remotePublicKey: Buffer
       remoteBitfield: RemoteBitfield

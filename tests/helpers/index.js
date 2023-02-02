@@ -1,22 +1,18 @@
+import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 
 /**
  * @param {string} name
  * @param {Buffer} [namespace] - 32 byte Buffer
  */
-export function createCoreKeyPair(name, namespace = Buffer.alloc(32, 0)) {
-  const { km } = createIdentityKeys()
-  const coreKeyPair = km.getHypercoreKeypair(name, namespace)
+export function createCoreKeyPair(name, namespace = randomBytes(32)) {
+  const { keyManager } = createIdentityKeys()
+  const coreKeyPair = keyManager.getHypercoreKeypair(name, namespace)
   return coreKeyPair
 }
 
 export function createIdentityKeys() {
   const rootKey = KeyManager.generateRootKey()
-<<<<<<< HEAD
-  const km = new KeyManager(rootKey)
-  const identityKeyPair = km.getIdentityKeypair()
-  return { rootKey, identityKeyPair, km }
-=======
   const keyManager = new KeyManager(rootKey)
   const identityKeyPair = keyManager.getIdentityKeypair()
   const identityId = identityKeyPair.publicKey.toString('hex')
@@ -69,5 +65,4 @@ export async function waitForIndexing(stores) {
       return store.indexing()
     })
   )
->>>>>>> d1f0d64 (replication state)
 }
