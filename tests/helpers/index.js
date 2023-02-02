@@ -1,11 +1,10 @@
-import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 
 /**
  * @param {string} name
  * @param {Buffer} [namespace] - 32 byte Buffer
  */
-export function createCoreKeyPair(name, namespace = randomBytes(32)) {
+export function createCoreKeyPair(name, namespace = Buffer.alloc(32, 0)) {
   const { keyManager } = createIdentityKeys()
   const coreKeyPair = keyManager.getHypercoreKeypair(name, namespace)
   return coreKeyPair
