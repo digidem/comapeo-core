@@ -4,6 +4,14 @@
   "description": "Offline p2p mapping library",
   "main": "index.js",
   "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./authstore": "./lib/authstore/index.js",
+    "./datastore": "./lib/datastore/index.js",
+    "./discovery": "./lib/discovery/index.js",
+    "./datatype": "./lib/datatype/index.js",
+    "./sqlite": "./lib/sqlite.js"
+  },
   "scripts": {
     "lint": "eslint .",
     "format": "prettier . --write",
