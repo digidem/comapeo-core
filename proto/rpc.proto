@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+message Invite {
+  bytes projectKey = 1;
+  optional bytes encryptionKey = 2;
+}
+message InviteResponse {
+  enum Decision {
+    REJECT = 0;
+    ACCEPT = 1;
+  }
+  bytes projectKey = 1;
+  Decision decision = 2;
+}
