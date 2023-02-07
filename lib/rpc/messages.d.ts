@@ -9,10 +9,12 @@ export interface InviteResponse {
     decision: InviteResponse_Decision;
 }
 export declare enum InviteResponse_Decision {
-    REJECT = 0,
-    ACCEPT = 1,
-    UNRECOGNIZED = -1
+    REJECT = "REJECT",
+    ACCEPT = "ACCEPT",
+    UNRECOGNIZED = "UNRECOGNIZED"
 }
+export declare function inviteResponse_DecisionFromJSON(object: any): InviteResponse_Decision;
+export declare function inviteResponse_DecisionToNumber(object: InviteResponse_Decision): number;
 export declare const Invite: {
     encode(message: Invite, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): Invite;

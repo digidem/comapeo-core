@@ -70,7 +70,9 @@
     "mapeo-schema": "github:digidem/mapeo-schema#protobufsTypescript",
     "multi-core-indexer": "github:digidem/multi-core-indexer#no-prepare",
     "multicast-service-discovery": "^4.0.4",
+    "p-defer": "^4.0.0",
     "protobufjs": "^7.1.2",
+    "protomux": "^3.4.1",
     "sodium-universal": "^3.1.0",
     "tiny-typed-emitter": "^2.1.0"
   }
