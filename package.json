@@ -18,7 +18,8 @@
     "test": "brittle tests/*.js",
     "type": "tsc",
     "deps": "depcheck --ignore-dirs=docs,types --ignores=@types/*,typescript,typedoc,typedoc-plugin-markdown,@hyperswarm/testnet",
-    "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api"
+    "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
+    "protobuf": "node ./scripts/build-messages.js"
   },
   "prettier": {
     "semi": false,
@@ -49,23 +50,27 @@
     "eslint-config-prettier": "^8.5.0",
     "prettier": "^2.8.1",
     "random-access-memory": "^6.1.0",
+    "rimraf": "^4.1.2",
+    "ts-proto": "^1.138.0",
     "typedoc": "^0.23.23",
     "typedoc-plugin-markdown": "^3.14.0",
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "@hyperswarm/secret-stream": "^6.1.0",
-    "@mapeo/crypto": "github:digidem/mapeo-crypto",
+    "@hyperswarm/secret-stream": "^6.1.2",
+    "@mapeo/crypto": "^1.0.0-alpha.4",
     "@mapeo/sqlite-indexer": "github:digidem/mapeo-sqlite-indexer#no-prepare",
     "b4a": "^1.6.1",
     "base32.js": "^0.1.0",
     "better-sqlite3": "^8.0.1",
     "corestore": "^6.4.0",
     "hypercore": "^10.5.3",
+    "hypercore-crypto": "^3.3.1",
     "hyperswarm": "^4.3.5",
     "mapeo-schema": "github:digidem/mapeo-schema#protobufsTypescript",
     "multi-core-indexer": "github:digidem/multi-core-indexer#no-prepare",
     "multicast-service-discovery": "^4.0.4",
+    "protobufjs": "^7.1.2",
     "sodium-universal": "^3.1.0",
     "tiny-typed-emitter": "^2.1.0"
   }

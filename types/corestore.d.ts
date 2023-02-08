@@ -1,6 +1,6 @@
 declare module 'corestore' {
   import { TypedEmitter } from 'tiny-typed-emitter'
-  import Hypercore from 'hypercore'
+  import Hypercore, { type HypercoreStorage, type HypercoreOptions } from 'hypercore'
 
   interface CorestoreEvents {
     'core-open'(core: Corestore): void
@@ -8,19 +8,19 @@ declare module 'corestore' {
   }
 
   class Corestore extends TypedEmitter<CorestoreEvents> {
-    constructor(storage: Hypercore.HypercoreStorage)
+    constructor(storage: HypercoreStorage, options?: { primaryKey?: Buffer | Uint8Array })
     get(key: Buffer | Uint8Array): Hypercore
-    get(options: Hypercore.HypercoreOptions & { name: string }): Hypercore
+    get(options: HypercoreOptions & { name: string }): Hypercore
     get(
-      options: Hypercore.HypercoreOptions & { key: Buffer | Uint8Array }
+      options: HypercoreOptions & { key: Buffer | Uint8Array }
     ): Hypercore
     get(
-      options: Hypercore.HypercoreOptions & {
+      options: HypercoreOptions & {
         keyPair: { publicKey: Buffer; secretKey: Buffer }
       }
     ): Hypercore
     replicate: typeof Hypercore.prototype.replicate
-    store(name: string): Corestore
+    namespace(name: string): Corestore
     ready(): Promise<void>
     close(): Promise<void>
     cores: Map<string, Hypercore>
