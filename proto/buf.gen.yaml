@@ -1,0 +1,16 @@
+version: v1
+plugins:
+  - name: ts
+    out: ../lib/core-manager
+    strategy: all
+    path: ../node_modules/ts-proto/protoc-gen-ts_proto
+    opt:
+      - esModuleInterop=true
+      - snakeToCamel=false
+      - importSuffix=.js
+      - initializeFieldsAsUndefined=false
+      - env=node
+      - exportCommonSymbols=false
+      - outputJsonMethods=false
+      - useOptionals=none
+      - outputPartialMethods=false

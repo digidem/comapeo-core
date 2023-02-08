@@ -6,7 +6,7 @@
     "strictNullChecks": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "module": "es2022",
+    "module": "ES2020",
     "moduleResolution": "node",
     "allowJs": true,
     "checkJs": true,
