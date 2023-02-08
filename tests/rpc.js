@@ -1,8 +1,15 @@
 // @ts-check
 import test from 'brittle'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-import { MapeoRPC, PeerDisconnectedError } from '../lib/rpc/index.js'
-import { keyToId } from '../lib/utils.js'
+import {
+  MapeoRPC,
+  PeerDisconnectedError,
+  TimeoutError,
+  UnknownPeerError
+} from '../lib/rpc/index.js'
+import FakeTimers from '@sinonjs/fake-timers'
+import { once } from 'events'
+import { Duplex } from 'streamx'
 
 test('Send invite and accept', async t => {
   t.plan(3)
@@ -50,6 +57,24 @@ test('Send invite and reject', async t => {
   })
 
   replicate(r1, r2)
+})
+
+test('Invite to unknown peer', async t => {
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  const projectKey = Buffer.allocUnsafe(32).fill(0)
+  const unknownPeerId = Buffer.allocUnsafe(32).fill(1).toString('hex')
+  replicate(r1, r2)
+
+  await once(r1, 'peers')
+  await t.exception(r1.invite(unknownPeerId, { projectKey }), UnknownPeerError)
+  await t.exception(
+    () => r2.inviteResponse(unknownPeerId, {
+      projectKey,
+      decision: MapeoRPC.InviteResponse.ACCEPT
+    }), UnknownPeerError
+  )
 })
 
 test('Send invite and already on project', async t => {
@@ -194,9 +219,123 @@ test('Invite to multiple peers', async t => {
   replicate(r3, r1)
 })
 
+test('Multiple invites to a peer, only one response', async t => {
+  t.plan(2)
+  let count = 0
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  const projectKey = Buffer.allocUnsafe(32).fill(0)
+
+  r1.on('peers', async peers => {
+    const responses = await Promise.all([
+      r1.invite(peers[0].id, { projectKey }),
+      r1.invite(peers[0].id, { projectKey }),
+      r1.invite(peers[0].id, { projectKey })
+    ])
+    const expected = Array(3).fill(MapeoRPC.InviteResponse.ACCEPT)
+    t.alike(responses, expected)
+  })
+
+  r2.on('invite', (peerId, invite) => {
+    if (++count < 3) return
+    // Only respond to third invite
+    t.is(count, 3)
+    r2.inviteResponse(peerId, {
+      projectKey: invite.projectKey,
+      decision: MapeoRPC.InviteResponse.ACCEPT
+    })
+  })
+
+  replicate(r1, r2)
+})
+
+test('Default: invites do not timeout', async t => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.teardown(() => clock.uninstall())
+  t.plan(1)
+
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  const projectKey = Buffer.allocUnsafe(32).fill(0)
+
+  r1.once('peers', async peers => {
+    r1.invite(peers[0].id, { projectKey }).then(
+      () => t.fail('invite promise should not resolve'),
+      () => t.fail('invite promise should not reject')
+    )
+    await clock.tickAsync('01:00') // Advance 1 hour
+    t.pass('Waited 1 hour without invite timing out')
+  })
+
+  replicate(r1, r2)
+})
+
+test('Invite timeout', async t => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.teardown(() => clock.uninstall())
+  t.plan(1)
+
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  const projectKey = Buffer.allocUnsafe(32).fill(0)
+
+  r1.once('peers', async peers => {
+    t.exception(
+      r1.invite(peers[0].id, { projectKey, timeout: 5000 }),
+      TimeoutError
+    )
+    clock.tick(5001)
+  })
+
+  replicate(r1, r2)
+})
+
+test('Reconnect peer and send invite', async t => {
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  const projectKey = Buffer.allocUnsafe(32).fill(0)
+
+  const destroy = replicate(r1, r2)
+  await once(r1, 'peers')
+  await destroy()
+
+  t.is(r1.peers.length, 1)
+  t.is(r1.peers[0].status, 'disconnected')
+
+  r2.on('invite', (peerId, invite) => {
+    t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
+    r2.inviteResponse(peerId, {
+      projectKey: invite.projectKey,
+      decision: MapeoRPC.InviteResponse.ACCEPT
+    })
+  })
+
+  replicate(r1, r2)
+  const [peers] = await once(r1, 'peers')
+  t.is(r1.peers.length, 1)
+  t.is(peers[0].status, 'connected')
+  const response = await r1.invite(peers[0].id, { projectKey })
+  t.is(response, MapeoRPC.InviteResponse.ACCEPT)
+})
+
+test('invalid stream', t => {
+  const r1 = new MapeoRPC()
+  const regularStream = new Duplex()
+  t.exception(() => r1.connect(regularStream), 'Invalid stream')
+})
+
 function replicate (rpc1, rpc2) {
-  const n1 = new NoiseSecretStream(true)
-  const n2 = new NoiseSecretStream(false)
+  const n1 = new NoiseSecretStream(true, undefined, {
+    // Keep keypairs deterministic for tests, since we use peer.publicKey as an identifier.
+    keyPair: NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(0))
+  })
+  const n2 = new NoiseSecretStream(false, undefined, {
+    keyPair: NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1))
+  })
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
   rpc1.connect(n1)
