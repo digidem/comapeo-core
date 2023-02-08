@@ -4,6 +4,8 @@ import Hypercore from 'hypercore'
 import RAM from 'random-access-memory'
 import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
+import Sqlite from 'better-sqlite3'
+import { KeyManager } from '@mapeo/crypto'
 import { CoreManager } from '../lib/core-manager/index.js'
 import assert from 'assert'
 
@@ -29,6 +31,29 @@ test('shares auth cores', async function (t) {
   const cm2Keys = getKeys(cm2, 'auth').sort(Buffer.compare)
 
   t.alike(cm1Keys, cm2Keys, 'Share same auth cores')
+})
+
+test('project creator auth core has project key', async function (t) {
+  const db = new Sqlite(':memory:')
+  const keyManager = new KeyManager(randomBytes(16))
+  const { publicKey: projectKey, secretKey: projectSecretKey } =
+    keyManager.getHypercoreKeypair('auth', randomBytes(32))
+  const cm = new CoreManager({
+    db,
+    keyManager,
+    storage: RAM,
+    projectKey,
+    projectSecretKey
+  })
+  const { key: authCoreKey } = cm.getWriterCore('auth')
+  t.ok(authCoreKey.equals(projectKey))
+})
+
+test('getCreatorCore()', async t => {
+  const projectKey = randomBytes(32)
+  const cm = createCoreManager({ projectKey })
+  await cm.creatorCore.ready()
+  t.ok(cm.creatorCore.key.equals(projectKey))
 })
 
 test('eagerly updates remote bitfields', async function (t) {
