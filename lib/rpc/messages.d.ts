@@ -11,6 +11,7 @@ export interface InviteResponse {
 export declare enum InviteResponse_Decision {
     REJECT = "REJECT",
     ACCEPT = "ACCEPT",
+    ALREADY = "ALREADY",
     UNRECOGNIZED = "UNRECOGNIZED"
 }
 export declare function inviteResponse_DecisionFromJSON(object: any): InviteResponse_Decision;
