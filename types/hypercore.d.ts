@@ -44,6 +44,22 @@ declare module 'hypercore' {
     destroy(): void
   }
 
+  interface HypercoreInfo {
+    key: Buffer
+    discoveryKey: Buffer
+    length: number,
+    contiguousLength: number,
+    byteLength: number,
+    fork: number,
+    padding: number,
+    storage: {
+      oplog: number,
+      tree: number,
+      blocks: number,
+      bitfield: number
+    }
+  }
+
   class Hypercore<
     TValueEncoding extends ValueEncoding = 'binary'
   > extends TypedEmitter<HypercoreEvents> {
@@ -84,6 +100,9 @@ declare module 'hypercore' {
           ? any
           : unknown)
     >
+    info(opts?: { storage?: false }): Promise<Omit<HypercoreInfo, 'storage'>>
+    info(opts: { storage: true }): Promise<HypercoreInfo>
+    close(): Promise<void>
     registerExtension(name: string, handlers?: { encoding?: any, onmessage?: (buf: Buffer, peer: any) => void}): HypercoreExtension
     replicate(
       isInitiatorOrReplicationStream: boolean | Duplex,
