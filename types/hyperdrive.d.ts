@@ -37,7 +37,8 @@ declare module 'hyperdrive' {
     readonly key: Buffer | null
     readonly discoveryKey: Buffer | null
     readonly contentKey: Buffer | null
-    readonly core: Hypercore
+    readonly db: any // Hyperbee
+    readonly files: any // Hyperbee sub
     readonly version: number
     ready(): Promise<void>
     createReadStream(path: string, opts?: { core?: Hypercore, start?: number, length?: number, end?: number }): Readable

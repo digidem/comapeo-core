@@ -60,6 +60,11 @@ declare module 'hypercore' {
     }
   }
 
+  interface Download {
+    destroy(): void
+    done(): Promise<void>
+  }
+
   class Hypercore<
     TValueEncoding extends ValueEncoding = 'binary'
   > extends TypedEmitter<HypercoreEvents> {
@@ -102,6 +107,7 @@ declare module 'hypercore' {
     >
     info(opts?: { storage?: false }): Promise<Omit<HypercoreInfo, 'storage'>>
     info(opts: { storage: true }): Promise<HypercoreInfo>
+    download(range?: { start?: number, end?: number, blocks?: number[], linear?: boolean }): Download
     close(): Promise<void>
     registerExtension(name: string, handlers?: { encoding?: any, onmessage?: (buf: Buffer, peer: any) => void}): HypercoreExtension
     replicate(
