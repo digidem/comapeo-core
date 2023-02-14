@@ -21,15 +21,15 @@ test('live download', async t => {
 
   download.on('state', console.log)
 
-  await waitFor(download, 'downloaded')
+  await waitForState(download, 'downloaded')
 
   await drive1.put('/foo/leaving', Buffer.from('goodbye'))
 
-  await waitFor(download, 'downloaded')
+  await waitForState(download, 'downloaded')
 })
 
 /** @returns {Promise<void>} */
-async function waitFor (download, status) {
+async function waitForState (download, status) {
   return new Promise(res => {
     download.on('state', function onState (state) {
       if (state.status !== status) return
