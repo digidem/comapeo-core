@@ -45,6 +45,33 @@ test('live download', async t => {
   t.alike(await drive2.get('/bar'), expected, 'Second blob is downloaded')
 })
 
+test('sparse live download', async t => {
+  const { drive1, drive2, replicate } = await testEnv()
+
+  const buf1 = randomBytes(TEST_BUF_SIZE)
+  const buf2 = randomBytes(TEST_BUF_SIZE)
+
+  await drive1.put('foo/one', buf1)
+  await drive1.put('bar/one', randomBytes(TEST_BUF_SIZE))
+
+  const stream = replicate()
+
+  const download = new LiveDownload(drive2, { folder: '/foo' })
+  await waitForState(download, 'downloaded')
+
+  await drive1.put('foo/two', buf2)
+  await drive1.put('bar/two', randomBytes(TEST_BUF_SIZE))
+  await waitForState(download, 'downloaded')
+
+  stream.destroy()
+  await once(stream, 'close')
+
+  t.alike(await drive2.get('/foo/one'), buf1)
+  t.alike(await drive2.get('/foo/two'), buf2)
+  await t.exception(() => drive2.get('/bar/one'), 'Block not available')
+  await t.exception(() => drive2.get('/bar/two'), 'Block not available')
+})
+
 /** @returns {Promise<void>} */
 async function waitForState (download, status) {
   return new Promise(res => {
