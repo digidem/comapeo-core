@@ -1,5 +1,5 @@
 // @ts-check
-import { LiveDownload } from '../../lib/blob-store/live-download.js'
+import { DriveLiveDownload } from '../../lib/blob-store/live-download.js'
 import Hyperdrive from 'hyperdrive'
 import Corestore from 'corestore'
 import RAM from 'random-access-memory'
@@ -22,7 +22,7 @@ test('live download', async t => {
   const stream = replicate()
   const blobCore2 = (await drive2.getBlobs()).core
 
-  const download = new LiveDownload(drive2)
+  const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
   // Can't use `drive2.get()` here because connected to replication stream, so
   // it would download anyway (no `waitFor = false` support for Hyperdrive yet)
@@ -56,7 +56,7 @@ test('sparse live download', async t => {
 
   const stream = replicate()
 
-  const download = new LiveDownload(drive2, { folder: '/foo' })
+  const download = new DriveLiveDownload(drive2, { folder: '/foo' })
   await waitForState(download, 'downloaded')
 
   await drive1.put('foo/two', buf2)
@@ -83,7 +83,7 @@ test('Abort download (same tick)', async t => {
   await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
   const stream = replicate()
   const controller = new AbortController()
-  const download = new LiveDownload(drive2, { signal: controller.signal })
+  const download = new DriveLiveDownload(drive2, { signal: controller.signal })
   controller.abort()
   stream.destroy()
   await once(stream, 'close')
@@ -103,7 +103,7 @@ test('Abort download (next event loop)', async t => {
   await drive1.put('/one', randomBytes(TEST_BUF_SIZE))
   const stream = replicate()
   const controller = new AbortController()
-  const download = new LiveDownload(drive2, { signal: controller.signal })
+  const download = new DriveLiveDownload(drive2, { signal: controller.signal })
   // This is the only way to trigger abort before the entryStream loop
   await drive2.getBlobs()
   controller.abort()
@@ -132,7 +132,7 @@ test('Abort download (after initial download)', async t => {
 
   const stream = replicate()
   const controller = new AbortController()
-  const download = new LiveDownload(drive2, { signal: controller.signal })
+  const download = new DriveLiveDownload(drive2, { signal: controller.signal })
   await waitForState(download, 'downloaded')
 
   controller.abort()
@@ -168,7 +168,7 @@ test('Live download when data is already downloaded', async t => {
   await once(stream1, 'close')
 
   const stream2 = replicate()
-  const download = new LiveDownload(drive2)
+  const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
   t.alike(download.state, {
     haveCount: 1,
@@ -192,7 +192,7 @@ test('Live download when data is already downloaded', async t => {
 test('Initial status', async t => {
   const { drive1 } = await testEnv()
 
-  const download = new LiveDownload(drive1)
+  const download = new DriveLiveDownload(drive1)
   t.is(download.state.status, 'checking', 'initial status is \'checking\'')
 })
 
