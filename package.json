@@ -19,7 +19,8 @@
     "type": "tsc",
     "deps": "depcheck --ignore-dirs=docs,types --ignores=@types/*,typescript,typedoc,typedoc-plugin-markdown,@hyperswarm/testnet",
     "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
-    "protobuf": "node ./scripts/build-messages.js"
+    "protobuf": "node ./scripts/build-messages.js",
+    "postinstall": "patch-package"
   },
   "prettier": {
     "semi": false,
@@ -71,6 +72,7 @@
     "mapeo-schema": "github:digidem/mapeo-schema#protobufsTypescript",
     "multi-core-indexer": "github:digidem/multi-core-indexer#no-prepare",
     "multicast-service-discovery": "^4.0.4",
+    "patch-package": "^6.5.1",
     "protobufjs": "^7.1.2",
     "sodium-universal": "^3.1.0",
     "tiny-typed-emitter": "^2.1.0"
