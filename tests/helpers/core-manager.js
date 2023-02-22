@@ -7,7 +7,8 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 export function createCoreManager ({
   rootKey = randomBytes(16),
-  projectKey = randomBytes(32)
+  projectKey = randomBytes(32),
+  projectSecretKey
 } = {}) {
   const db = new Sqlite(':memory:')
   const keyManager = new KeyManager(rootKey)
@@ -15,7 +16,8 @@ export function createCoreManager ({
     db,
     keyManager,
     storage: RAM,
-    projectKey
+    projectKey,
+    projectSecretKey,
   })
 }
 
@@ -39,4 +41,38 @@ export function replicate(cm1, cm2) {
       })
     ])
   }
+}
+
+export async function waitForCores (coreManager, keys) {
+  const allKeys = getAllKeys(coreManager)
+  if (hasKeys(keys, allKeys)) return
+  return new Promise(res => {
+    coreManager.on('add-core', async function onAddCore ({ key, core }) {
+      await core.ready()
+      allKeys.push(key)
+      if (hasKeys(keys, allKeys)) {
+        coreManager.off('add-core', onAddCore)
+        res()
+      }
+    })
+  })
+}
+
+export function getAllKeys (coreManager) {
+  const keys = []
+  for (const namespace of CoreManager.namespaces) {
+    keys.push.apply(keys, getKeys(coreManager, namespace))
+  }
+  return keys
+}
+
+export function getKeys (coreManager, namespace) {
+  return coreManager.getCores(namespace).map(({ key }) => key)
+}
+
+export function hasKeys (someKeys, allKeys) {
+  for (const key of someKeys) {
+    if (!allKeys.find(k => k.equals(key))) return false
+  }
+  return true
 }

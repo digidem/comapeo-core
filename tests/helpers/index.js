@@ -1,5 +1,11 @@
 import { KeyManager } from '@mapeo/crypto'
 
+export async function createCore (...args) {
+  const core = new Hypercore(RAM, ...args)
+  await core.ready()
+  return core
+}
+
 /**
  * @param {string} name
  * @param {Buffer} [namespace] - 32 byte Buffer
