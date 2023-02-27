@@ -189,6 +189,34 @@ test('Live download when data is already downloaded', async t => {
   t.alike(await drive2.get('/two'), buf2, 'Second blob is downloaded')
 })
 
+test('Live download continues across disconnection and reconnect', async t => {
+  const { drive1, drive2, replicate } = await testEnv()
+
+  const buf1 = randomBytes(TEST_BUF_SIZE)
+  await drive1.put('/one', buf1)
+
+  const stream1 = replicate()
+
+  const download = new DriveLiveDownload(drive2)
+  await waitForState(download, 'downloaded')
+
+  t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
+
+  stream1.destroy()
+  await once(stream1, 'close')
+
+  const buf2 = randomBytes(TEST_BUF_SIZE)
+  await drive1.put('/two', buf2)
+
+  const stream2 = replicate()
+  await waitForState(download, 'downloaded')
+
+  stream2.destroy()
+  await once(stream2, 'close')
+
+  t.alike(await drive2.get('/two'), buf2, 'Second blob is downloaded')
+})
+
 test('Initial status', async t => {
   const { drive1 } = await testEnv()
 
