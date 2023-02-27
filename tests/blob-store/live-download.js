@@ -224,6 +224,56 @@ test('Initial status', async t => {
   t.is(download.state.status, 'checking', 'initial status is \'checking\'')
 })
 
+test('Unitialized drive with no data', async t => {
+  // This test is important because it catches an edge case where a drive might
+  // have been added by its key, but has never replicated, so it has no data so
+  // the content feed will never be read from the header, which might result in
+  // it forever being in the 'checking' status. This tests that we catch this
+  // and resolve status to 'downloaded'.
+  const { drive2 } = await testEnv()
+  const download = new DriveLiveDownload(drive2)
+  await waitForState(download, 'downloaded')
+  t.is(download.state.status, 'downloaded', 'uninitialized drive without peers results in `downloaded` state')
+})
+
+test('live download started before initial replication', async t => {
+  const { drive1, drive2, replicate } = await testEnv()
+
+  await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
+  const {
+    value: { blob: blob1 }
+  } = await drive1.entry('/foo')
+
+  const download = new DriveLiveDownload(drive2)
+  await waitForState(download, 'downloaded')
+  // initially drive2 is not replicating and empty, so we expect a 'downloaded' status
+  t.is(download.state.status, 'downloaded')
+
+  const stream = replicate()
+  const blobCore2 = (await drive2.getBlobs()).core
+  await waitForState(download, 'downloaded')
+
+  // Can't use `drive2.get()` here because connected to replication stream, so
+  // it would download anyway (no `waitFor = false` support for Hyperdrive yet)
+  t.ok(
+    await blobCore2.has(
+      blob1.blockOffset,
+      blob1.blockOffset + blob1.blockLength
+    ),
+    'First blob is downloaded'
+  )
+  t.ok(blob1.blockLength > 1, 'Blob is more than one block length')
+
+  const expected = randomBytes(TEST_BUF_SIZE)
+  await drive1.put('/bar', expected)
+
+  await waitForState(download, 'downloaded')
+  stream.destroy()
+  await once(stream, 'close')
+
+  t.alike(await drive2.get('/bar'), expected, 'Second blob is downloaded')
+})
+
 /** @returns {Promise<void>} */
 async function waitForState (download, status) {
   return new Promise(res => {

@@ -2,6 +2,7 @@ declare module 'hyperdrive' {
   import Corestore from 'corestore'
   import Hypercore from 'hypercore'
   import { Readable, Writable } from 'streamx'
+  import { TypedEmitter } from 'tiny-typed-emitter'
 
   interface HyperdriveOptions {
     onwait: () => void
@@ -31,9 +32,18 @@ declare module 'hyperdrive' {
     blocks: number[],
   }
 
-  class Hyperdrive {
+  interface HyperdriveEvents {
+    close: () => void
+    ready: () => void
+    blobs: (contentCore: Hypercore) => void
+    'content-key': (contentKey: Buffer) => void
+  }
+
+  class Hyperdrive extends TypedEmitter<HyperdriveEvents> {
     constructor(corestore: Corestore, key: Buffer, opts: HyperdriveOptions)
     constructor(corestore: Corestore, opts: HyperdriveOptions)
+    readonly core: Hypercore
+    readonly blobs: null | Hypercore
     readonly key: Buffer | null
     readonly discoveryKey: Buffer | null
     readonly contentKey: Buffer | null
@@ -41,6 +51,7 @@ declare module 'hyperdrive' {
     readonly files: any // Hyperbee sub
     readonly version: number
     ready(): Promise<void>
+    update(): Promise<Boolean>
     createReadStream(path: string, opts?: { core?: Hypercore, start?: number, length?: number, end?: number }): Readable
     entry(path: string): Promise<HyperdriveEntry>
     getBlobs(): Promise<any>

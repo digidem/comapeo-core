@@ -76,6 +76,9 @@ test('live download', async function (t) {
     name: 'blob2'
   })
 
+  cm3.addCore(cm2.getWriterCore('blobIndex').key, 'blobIndex')
+  cm3.addCore(cm1.getWriterCore('blobIndex').key, 'blobIndex')
+
   // STEP 1: Write a blob to CM1
   const driveId1 = await bs1.put(blob1Id, blob1)
 
@@ -83,8 +86,7 @@ test('live download', async function (t) {
   const rsm1 = cm1.replicate(n1)
   const rsm2 = cm3.replicate(n2)
 
-  // STEP 3: Add the CM1 blob core to CM3, and enable replication of blob and blobIndex namespaces
-  cm3.addCore(cm1.getWriterCore('blobIndex').key, 'blobIndex')
+  // STEP 3: Enable replication of blob and blobIndex namespaces CM1 <-> CM3
   rsm1.enableNamespace('blobIndex')
   rsm1.enableNamespace('blob')
   rsm2.enableNamespace('blobIndex')
@@ -100,8 +102,7 @@ test('live download', async function (t) {
   const rsm3 = cm2.replicate(n3)
   const rsm4 = cm3.replicate(n4)
 
-  // STEP 7: Add the CM2 blob core to CM3, and enable replication of blob and blobIndex namespaces
-  cm3.addCore(cm2.getWriterCore('blobIndex').key, 'blobIndex')
+  // STEP 7: Enable replication of blob and blobIndex namespaces CM2 <-> CM3
   rsm3.enableNamespace('blobIndex')
   rsm3.enableNamespace('blob')
   rsm4.enableNamespace('blobIndex')
