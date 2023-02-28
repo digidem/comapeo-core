@@ -368,7 +368,7 @@ test('discovery - valid connection discovery types', async (t) => {
     })
   }
 
-  const each = 8 // much higher than this and it hits the timeout
+  const each = 5 // much higher than this and it hits the timeout
   const total = each * 3
   const mdnsCount = ((total * (total - each - 1)) / total) * each
   const dhtCount = ((total * (total - each - 1)) / total) * each

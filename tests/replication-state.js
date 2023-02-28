@@ -279,11 +279,12 @@ test('add peer during replication', async function (t) {
     }
   })
 
-  let added
+  let added = false
   rep2.on('state', async function rep2Handler (state) {
     // add another core manager after replication has started between the others
     if (!state.synced && !added) {
-      added = addCoreManager([cm1, cm2])
+      added = true
+      await addCoreManager([cm1, cm2])
     }
     // logState(state)
     if (state.synced) {
@@ -293,5 +294,7 @@ test('add peer during replication', async function (t) {
     }
   })
 
-  await added
+  // console.log('waiting for added')
+  // await added
+  // console.log('after added')
 })
