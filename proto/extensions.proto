@@ -1,3 +1,5 @@
+syntax = "proto3";
+
 message ProjectExtension {
   repeated bytes authCoreKeys = 1;
   repeated bytes wantCoreKeys = 2;
