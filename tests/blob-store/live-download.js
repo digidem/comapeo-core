@@ -51,29 +51,31 @@ test('sparse live download', async t => {
   const buf1 = randomBytes(TEST_BUF_SIZE)
   const buf2 = randomBytes(TEST_BUF_SIZE)
 
-  await drive1.put('foo/one', buf1)
-  await drive1.put('bar/one', randomBytes(TEST_BUF_SIZE))
+  await drive1.put('photo/original/one', buf1)
+  await drive1.put('video/original/one', randomBytes(TEST_BUF_SIZE))
 
   const stream = replicate()
 
-  const download = new DriveLiveDownload(drive2, { folder: '/foo' })
+  const download = new DriveLiveDownload(drive2, {
+    filter: { types: ['photo'] }
+  })
   await waitForState(download, 'downloaded')
 
-  await drive1.put('foo/two', buf2)
-  await drive1.put('bar/two', randomBytes(TEST_BUF_SIZE))
+  await drive1.put('photo/original/two', buf2)
+  await drive1.put('video/original/two', randomBytes(TEST_BUF_SIZE))
   await waitForState(download, 'downloaded')
 
   stream.destroy()
   await once(stream, 'close')
 
-  t.alike(await drive2.get('/foo/one'), buf1)
-  t.alike(await drive2.get('/foo/two'), buf2)
+  t.alike(await drive2.get('photo/original/one'), buf1)
+  t.alike(await drive2.get('photo/original/two'), buf2)
   await t.exception(
-    () => drive2.get('/bar/one', { wait: false }),
+    () => drive2.get('video/original/one', { wait: false }),
     'Block not available'
   )
   await t.exception(
-    () => drive2.get('/bar/two', { wait: false }),
+    () => drive2.get('video/original/two', { wait: false }),
     'Block not available'
   )
 })
@@ -170,14 +172,18 @@ test('Live download when data is already downloaded', async t => {
   const stream2 = replicate()
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
-  t.alike(download.state, {
-    haveCount: 1,
-    haveBytes: buf1.byteLength,
-    wantCount: 0,
-    wantBytes: 0,
-    error: null,
-    status: 'downloaded'
-  }, 'Blob already downloaded is included in state')
+  t.alike(
+    download.state,
+    {
+      haveCount: 1,
+      haveBytes: buf1.byteLength,
+      wantCount: 0,
+      wantBytes: 0,
+      error: null,
+      status: 'downloaded'
+    },
+    'Blob already downloaded is included in state'
+  )
 
   const buf2 = randomBytes(TEST_BUF_SIZE)
   await drive1.put('/two', buf2)
@@ -221,7 +227,7 @@ test('Initial status', async t => {
   const { drive1 } = await testEnv()
 
   const download = new DriveLiveDownload(drive1)
-  t.is(download.state.status, 'checking', 'initial status is \'checking\'')
+  t.is(download.state.status, 'checking', "initial status is 'checking'")
 })
 
 test('Unitialized drive with no data', async t => {
@@ -233,7 +239,11 @@ test('Unitialized drive with no data', async t => {
   const { drive2 } = await testEnv()
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
-  t.is(download.state.status, 'downloaded', 'uninitialized drive without peers results in `downloaded` state')
+  t.is(
+    download.state.status,
+    'downloaded',
+    'uninitialized drive without peers results in `downloaded` state'
+  )
 })
 
 test('live download started before initial replication', async t => {
