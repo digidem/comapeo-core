@@ -4,6 +4,7 @@
     "lib": ["es2020"],
     "noImplicitAny": true,
     "strictNullChecks": true,
+    "strictBindCallApply": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "module": "ES2020",
