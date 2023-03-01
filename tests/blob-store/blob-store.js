@@ -7,6 +7,7 @@ import fs from 'fs'
 import { readFile } from 'fs/promises'
 import { createCoreManager, replicate } from '../helpers/core-manager.js'
 import { BlobStore } from '../../lib/blob-store/index.js'
+import { setTimeout } from 'node:timers/promises'
 
 // Test with buffers that are 3 times the default blockSize for hyperblobs
 const TEST_BUF_SIZE = 3 * 64 * 1024
@@ -219,6 +220,57 @@ test('sparse live download', async function (t) {
   await t.exception(
     () => bs2.get({ ...blob3Id, driveId }),
     'blob3 was not downloaded'
+  )
+})
+
+test('cancelled live download', async function (t) {
+  const projectKey = randomBytes(32)
+  const { blobStore: bs1, coreManager: cm1 } = await testenv({ projectKey })
+  const { blobStore: bs2, coreManager: cm2 } = await testenv({ projectKey })
+  const { blobStore: bs3, coreManager: cm3 } = await testenv({ projectKey })
+
+  const blob1 = randomBytes(TEST_BUF_SIZE)
+  const blob1Id = /** @type {const} */ ({
+    type: 'photo',
+    variant: 'original',
+    name: 'blob1'
+  })
+  const blob2 = randomBytes(TEST_BUF_SIZE)
+  const blob2Id = /** @type {const} */ ({
+    type: 'photo',
+    variant: 'original',
+    name: 'blob2'
+  })
+
+  // STEP 1: Write a blob to CM1
+  const driveId1 = await bs1.put(blob1Id, blob1)
+  // STEP 2: Replicate CM1 with CM3
+  const { destroy: destroy1 } = replicateBlobs(cm1, cm3)
+  // STEP 3: Start live download to CM3
+  const ac = new AbortController()
+  const liveDownload = bs3.download(undefined, { signal: ac.signal })
+  // STEP 4: Wait for blobs to be downloaded
+  await downloaded(liveDownload)
+  // STEP 5: Cancel download
+  ac.abort()
+  // STEP 6: Replicate CM2 with CM3
+  const { destroy: destroy2 } = replicateBlobs(cm2, cm3)
+  // STEP 7: Write a blob to CM2
+  const driveId2 = await bs2.put(blob2Id, blob2)
+  // STEP 8: Wait for blobs to (not) download
+  await setTimeout(200)
+  // STEP 9: destroy all the replication streams
+  await Promise.all([destroy1(), destroy2()])
+
+  // Both blob1 and blob2 (from CM1 and CM2) should have been downloaded to CM3
+  t.alike(
+    await bs3.get({ ...blob1Id, driveId: driveId1 }),
+    blob1,
+    'blob1 was downloaded'
+  )
+  await t.exception(
+    async () => bs3.get({ ...blob2Id, driveId: driveId2 }),
+    'blob2 was not downloaded'
   )
 })
 
