@@ -131,7 +131,7 @@ test('sparse live download', async function (t) {
 
   const { destroy } = replicateBlobs(cm1, cm2)
 
-  const liveDownload = bs2.download({ sizes: ['original', 'preview'] })
+  const liveDownload = bs2.download({ photo: ['original', 'preview'] })
   await downloaded(liveDownload)
 
   await destroy()

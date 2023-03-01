@@ -57,7 +57,7 @@ test('sparse live download', async t => {
   const stream = replicate()
 
   const download = new DriveLiveDownload(drive2, {
-    filter: { types: ['photo'] }
+    filter: { photo: ['original'] }
   })
   await waitForState(download, 'downloaded')
 
