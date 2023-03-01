@@ -16,7 +16,7 @@ test('blobStore.put(blobId, buf) and blobStore.get(blobId)', async t => {
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
     type: 'photo',
-    size: 'original',
+    variant: 'original',
     name: 'test-file'
   })
   const driveId = await blobStore.put(blobId, diskbuf)
@@ -29,7 +29,7 @@ test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
     type: 'photo',
-    size: 'original',
+    variant: 'original',
     name: 'test-file'
   })
   const ws = blobStore.createWriteStream(blobId)
@@ -61,13 +61,13 @@ test('live download', async function (t) {
   const blob1 = randomBytes(TEST_BUF_SIZE)
   const blob1Id = /** @type {const} */ ({
     type: 'photo',
-    size: 'original',
+    variant: 'original',
     name: 'blob1'
   })
   const blob2 = randomBytes(TEST_BUF_SIZE)
   const blob2Id = /** @type {const} */ ({
     type: 'photo',
-    size: 'original',
+    variant: 'original',
     name: 'blob2'
   })
 
@@ -109,19 +109,19 @@ test('sparse live download', async function (t) {
   const blob1 = randomBytes(TEST_BUF_SIZE)
   const blob1Id = /** @type {const} */ ({
     type: 'photo',
-    size: 'original',
+    variant: 'original',
     name: 'blob1'
   })
   const blob2 = randomBytes(TEST_BUF_SIZE)
   const blob2Id = /** @type {const} */ ({
     type: 'photo',
-    size: 'preview',
+    variant: 'preview',
     name: 'blob2'
   })
   const blob3 = randomBytes(TEST_BUF_SIZE)
   const blob3Id = /** @type {const} */ ({
     type: 'photo',
-    size: 'thumbnail',
+    variant: 'thumbnail',
     name: 'blob3'
   })
 
