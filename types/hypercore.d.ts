@@ -31,7 +31,7 @@ declare module 'hypercore' {
     overwrite?: boolean // overwrite any old Hypercore that might already exist
     valueEncoding?: ValueEncoding // defaults to binary
     encodeBatch?(batch: any[]): void // optionally apply an encoding to complete batches
-    keyPair?: { publicKey: Buffer; secretKey: Buffer } // optionally pass the public key and secret key as a key pair
+    keyPair?: { publicKey: Buffer; secretKey?: Buffer | null } // optionally pass the public key and secret key as a key pair
     encryptionKey?: Buffer // optionally pass an encryption key to enable block encryption
     sparse?: boolean // optionally disable sparse mode
   }
