@@ -253,6 +253,31 @@ test('multiplexing waits for cores to be added', async function (t) {
   t.alike(await b2.get(0), Buffer.from('ho'))
 })
 
+test('Added cores are persisted', async t => {
+  const db = new Sqlite(':memory:')
+  const keyManager = new KeyManager(randomBytes(16))
+  const projectKey = randomBytes(32)
+  const cm1 = new CoreManager({
+    db,
+    keyManager,
+    storage: RAM,
+    projectKey
+  })
+  const key = randomBytes(32)
+  cm1.addCore(key, 'auth')
+
+  // No close method yet, need to add one.
+
+  const cm2 = new CoreManager({
+    db,
+    keyManager,
+    storage: RAM,
+    projectKey
+  })
+
+  t.ok(cm2.getCoreByKey(key), 'Added core is persisted')
+})
+
 async function waitForCores (coreManager, keys) {
   const allKeys = getAllKeys(coreManager)
   if (hasKeys(keys, allKeys)) return
