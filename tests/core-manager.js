@@ -253,6 +253,22 @@ test('multiplexing waits for cores to be added', async function (t) {
   t.alike(await b2.get(0), Buffer.from('ho'))
 })
 
+test('close()', async t => {
+  const cm = createCoreManager()
+  for (const namespace of CoreManager.namespaces) {
+    cm.addCore(randomBytes(32), namespace)
+  }
+  await cm.close()
+  for (const namespace of CoreManager.namespaces) {
+    for (const { core } of cm.getCores(namespace)) {
+      t.ok(core.closed, 'core is closed')
+      t.is(core.sessions.length, 0, 'no open sessions')
+    }
+  }
+  const ns = new NoiseSecretStream(true)
+  t.exception(() => cm.replicate(ns), /closed/)
+})
+
 test('Added cores are persisted', async t => {
   const db = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
@@ -266,7 +282,7 @@ test('Added cores are persisted', async t => {
   const key = randomBytes(32)
   cm1.addCore(key, 'auth')
 
-  // No close method yet, need to add one.
+  await cm1.close()
 
   const cm2 = new CoreManager({
     db,
