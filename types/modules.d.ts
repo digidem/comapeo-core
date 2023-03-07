@@ -894,7 +894,7 @@ declare module 'random-access-file' {
 
 // This only covers the Node definitions. Including the browser ones is a nice-to-have but out of scope for this project.
 declare module 'b4a' {
-  export function isBuffer(value: any): boolean
+  export function isBuffer(value: unknown): value is Buffer
 
   export function isEncoding(encoding: string): boolean
 

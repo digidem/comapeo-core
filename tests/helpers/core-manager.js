@@ -19,24 +19,35 @@ export function createCoreManager ({
   })
 }
 
-export function replicate(cm1, cm2) {
+/**
+ *
+ * @param {CoreManager} cm1
+ * @param {CoreManager} cm2
+ * @returns
+ */
+export function replicate (cm1, cm2) {
   const n1 = new NoiseSecretStream(true)
   const n2 = new NoiseSecretStream(false)
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
-  cm1.replicate(n1)
-  cm2.replicate(n2)
+  const rsm1 = cm1.replicate(n1)
+  const rsm2 = cm2.replicate(n2)
 
-  return async function destroy () {
-    return Promise.all([
-      new Promise((res) => {
+  async function destroy () {
+    await Promise.all([
+      new Promise(res => {
         n1.on('close', res)
         n1.destroy()
       }),
-      new Promise((res) => {
+      new Promise(res => {
         n2.on('close', res)
         n2.destroy()
       })
     ])
+  }
+
+  return {
+    rsm: [rsm1, rsm2],
+    destroy
   }
 }
