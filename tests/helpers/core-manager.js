@@ -7,7 +7,8 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 export function createCoreManager ({
   rootKey = randomBytes(16),
-  projectKey = randomBytes(32)
+  projectKey = randomBytes(32),
+  ...opts
 } = {}) {
   const db = new Sqlite(':memory:')
   const keyManager = new KeyManager(rootKey)
@@ -15,7 +16,8 @@ export function createCoreManager ({
     db,
     keyManager,
     storage: RAM,
-    projectKey
+    projectKey,
+    ...opts
   })
 }
 
