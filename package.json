@@ -19,7 +19,8 @@
     "type": "tsc",
     "deps": "depcheck --ignore-dirs=docs,types --ignores=@types/*,typescript,typedoc,typedoc-plugin-markdown,@hyperswarm/testnet",
     "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
-    "protobuf": "node ./scripts/build-messages.js"
+    "protobuf": "node ./scripts/build-messages.js",
+    "postinstall": "patch-package"
   },
   "prettier": {
     "semi": false,
@@ -54,6 +55,7 @@
     "random-access-memory": "^6.1.0",
     "rimraf": "^4.1.2",
     "ts-proto": "^1.138.0",
+    "type-fest": "^3.6.1",
     "typedoc": "^0.23.23",
     "typedoc-plugin-markdown": "^3.14.0",
     "typescript": "^4.9.4"
@@ -68,11 +70,13 @@
     "corestore": "^6.4.0",
     "hypercore": "^10.5.3",
     "hypercore-crypto": "^3.3.1",
+    "hyperdrive": "^11.0.0-alpha.10",
     "hyperswarm": "^4.3.5",
     "mapeo-schema": "github:digidem/mapeo-schema#protobufsTypescript",
     "multi-core-indexer": "github:digidem/multi-core-indexer#no-prepare",
     "multicast-service-discovery": "^4.0.4",
     "p-defer": "^4.0.0",
+    "patch-package": "^6.5.1",
     "protobufjs": "^7.1.2",
     "protomux": "^3.4.1",
     "sodium-universal": "^3.1.0",

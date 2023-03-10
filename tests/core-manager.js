@@ -76,7 +76,7 @@ test('eagerly updates remote bitfields', async function (t) {
   // contiguousLength < length
   await cm1Core.clear(2, 3)
 
-  const destroyReplication = replicate(cm1, cm2)
+  const destroyReplication = replicate(cm1, cm2).destroy
 
   await waitForCores(cm2, [cm1Core.key])
   const cm2Core = cm2.getCoreByKey(cm1Core.key)
@@ -110,7 +110,7 @@ test('eagerly updates remote bitfields', async function (t) {
   {
     // This is ensuring that bitfields also get propogated in the other
     // direction, e.g. from the non-writer to the writer
-    const destroy = replicate(cm1, cm2)
+    const { destroy } = replicate(cm1, cm2)
     // Need to wait for now, since no event for when a remote bitfield is updated
     await new Promise(res => setTimeout(res, 200))
     t.ok(
@@ -251,6 +251,77 @@ test('multiplexing waits for cores to be added', async function (t) {
 
   t.alike(await b1.get(0), Buffer.from('hi'))
   t.alike(await b2.get(0), Buffer.from('ho'))
+})
+
+test('close()', async t => {
+  const cm = createCoreManager()
+  for (const namespace of CoreManager.namespaces) {
+    cm.addCore(randomBytes(32), namespace)
+  }
+  await cm.close()
+  for (const namespace of CoreManager.namespaces) {
+    for (const { core } of cm.getCores(namespace)) {
+      t.ok(core.closed, 'core is closed')
+      t.is(core.sessions.length, 0, 'no open sessions')
+    }
+  }
+  const ns = new NoiseSecretStream(true)
+  t.exception(() => cm.replicate(ns), /closed/)
+})
+
+test('Added cores are persisted', async t => {
+  const db = new Sqlite(':memory:')
+  const keyManager = new KeyManager(randomBytes(16))
+  const projectKey = randomBytes(32)
+  const cm1 = new CoreManager({
+    db,
+    keyManager,
+    storage: RAM,
+    projectKey
+  })
+  const key = randomBytes(32)
+  cm1.addCore(key, 'auth')
+
+  await cm1.close()
+
+  const cm2 = new CoreManager({
+    db,
+    keyManager,
+    storage: RAM,
+    projectKey
+  })
+
+  t.ok(cm2.getCoreByKey(key), 'Added core is persisted')
+})
+
+test('encryption', async function (t) {
+  const encryptionKeys = {}
+  for (const ns of CoreManager.namespaces) {
+    encryptionKeys[ns] = randomBytes(32)
+  }
+  const projectKey = randomBytes(32)
+  const cm1 = createCoreManager({ projectKey, encryptionKeys })
+  const cm2 = createCoreManager({ projectKey })
+  const cm3 = createCoreManager({ projectKey, encryptionKeys })
+
+  const { rsm: rsm1 } = replicate(cm1, cm2)
+  const { rsm: rsm2 } = replicate(cm1, cm3)
+
+  for (const rsm of [...rsm1, ...rsm2]) {
+    for (const ns of CoreManager.namespaces) {
+      rsm.enableNamespace(ns)
+    }
+  }
+
+  for (const ns of CoreManager.namespaces) {
+    const { core, key } = cm1.getWriterCore(ns)
+    const { core: coreReplica2 } = cm2.addCore(key, ns)
+    const { core: coreReplica3 } = cm3.addCore(key, ns)
+    const value = Buffer.from(ns)
+    await core.append(value)
+    t.unlike(await coreReplica2.get(0), value)
+    t.alike(await coreReplica3.get(0), value)
+  }
 })
 
 async function waitForCores (coreManager, keys) {

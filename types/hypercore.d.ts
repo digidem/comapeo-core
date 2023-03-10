@@ -42,7 +42,7 @@ declare module 'hypercore' {
     overwrite?: boolean // overwrite any old Hypercore that might already exist
     valueEncoding?: ValueEncoding // defaults to binary
     encodeBatch?(batch: any[]): void // optionally apply an encoding to complete batches
-    keyPair?: { publicKey: Buffer; secretKey: Buffer } // optionally pass the public key and secret key as a key pair
+    keyPair?: { publicKey: Buffer; secretKey?: Buffer | null } // optionally pass the public key and secret key as a key pair
     encryptionKey?: Buffer // optionally pass an encryption key to enable block encryption
     sparse?: boolean // optionally disable sparse mode
   }
@@ -59,6 +59,27 @@ declare module 'hypercore' {
     send (data: Buffer | Uint8Array, peer: any): void
     broadcast (data: Buffer | Uint8Array): void
     destroy(): void
+  }
+
+  interface HypercoreInfo {
+    key: Buffer
+    discoveryKey: Buffer
+    length: number,
+    contiguousLength: number,
+    byteLength: number,
+    fork: number,
+    padding: number,
+    storage: {
+      oplog: number,
+      tree: number,
+      blocks: number,
+      bitfield: number
+    }
+  }
+
+  interface Download {
+    destroy(): void
+    done(): Promise<void>
   }
 
   class Hypercore<
@@ -101,6 +122,10 @@ declare module 'hypercore' {
           ? any
           : unknown)
     >
+    info(opts?: { storage?: false }): Promise<Omit<HypercoreInfo, 'storage'>>
+    info(opts: { storage: true }): Promise<HypercoreInfo>
+    download(range?: { start?: number, end?: number, blocks?: number[], linear?: boolean }): Download
+    close(): Promise<void>
     registerExtension(name: string, handlers?: { encoding?: any, onmessage?: (buf: Buffer, peer: any) => void}): HypercoreExtension
     replicate(
       isInitiatorOrReplicationStream: boolean | Duplex,
