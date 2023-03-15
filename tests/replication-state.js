@@ -36,25 +36,27 @@ test('sync cores in a namespace', async function (t) {
   const cm2Keys = getKeys(cm2, 'auth')
 
   const writer1 = cm1.getWriterCore('auth')
-  writer1.core.append(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'])
+  await writer1.core.append(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'])
+  await writer1.core.clear(0, 10)
 
   const writer2 = cm2.getWriterCore('auth')
-  writer2.core.append(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'])
+  await writer2.core.append(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'])
 
   for (const key of cm1Keys) {
       if (key.equals(writer1.core.key)) continue
       const core = cm1.getCoreByKey(key)
-      core.download({ live: true, start: 0, end: -1 })
-  }writer1.core.peers.length, writer2.core.peers.length
+      core.download({ start: 0, end: -1, ifAvailable: true })
+  }
 
   for (const key of cm2Keys) {
       if (key.equals(writer2.core.key)) continue
       const core = cm2.getCoreByKey(key)
-      core.download({ live: true, start: 0, end: -1 })
+      core.download({ start: 0, end: -1, ifAvailable: true })
   }
 
   rep1.on('state', function rep1Handler (state) {
     if (state.synced) {
+      console.log('rep1 synced')
       t.ok(state.synced, 'rep1 is synced')
       rep1.off('state', rep1Handler)
     }
@@ -62,6 +64,7 @@ test('sync cores in a namespace', async function (t) {
 
   rep2.on('state', function rep2Handler (state) {
     if (state.synced) {
+      console.log('rep2 synced')
       t.ok(state.synced, 'rep2 is synced')
       rep2.off('state', rep2Handler)
     }
@@ -408,7 +411,7 @@ test('peer leaves during replication, third peer arrives, sync all later', async
   syncStream2.destroy()
 })
 
-test('replicate sparse core', async t => {
+test('replicate core with unavailable blocks', async (t) => {
   const core1 = await createCore()
   const core2 = await createCore(core1.key)
 
@@ -417,8 +420,7 @@ test('replicate sparse core', async t => {
 
   const rs = new CoreReplicationState({ core: core2 })
 
-  rs.on('state', state => console.log('state', state))
-  rs.on('synced', state => {
+  rs.on('synced', () => {
     t.end('Finished sync')
   })
 
