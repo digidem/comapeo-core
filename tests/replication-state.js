@@ -3,40 +3,41 @@ import test from 'brittle'
 import crypto from 'hypercore-crypto'
 
 import { keyToId } from '../lib/utils.js'
-import { ReplicationState } from '../lib/sync/replication-state.js'
+import { ReplicationState, CoreReplicationState } from '../lib/sync/replication-state.js'
 import { createCoreManager, waitForCores, getKeys } from './helpers/core-manager.js'
 import { download, downloadCore, replicate, logState } from './helpers/replication-state.js'
+import { createCore } from './helpers/index.js'
 
 test('sync cores in a namespace', async function (t) {
   t.plan(2)
   const projectKeyPair = crypto.keyPair()
-  
+
   const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
-  
+
   replicate(cm1, cm2)
-  
+
   await Promise.all([
       waitForCores(cm1, getKeys(cm2, 'auth')),
       waitForCores(cm2, getKeys(cm1, 'auth'))
   ])
-  
+
   const rep1 = new ReplicationState({
       coreManager: cm1,
       namespace: 'auth'
   })
-  
+
   const rep2 = new ReplicationState({
       coreManager: cm2,
       namespace: 'auth'
   })
-  
+
   const cm1Keys = getKeys(cm1, 'auth')
   const cm2Keys = getKeys(cm2, 'auth')
-  
+
   const writer1 = cm1.getWriterCore('auth')
   writer1.core.append(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'])
-  
+
   const writer2 = cm2.getWriterCore('auth')
   writer2.core.append(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'])
 
@@ -71,12 +72,12 @@ test('access peer state', async function (t) {
   t.plan(1)
 
   const projectKeyPair = crypto.keyPair()
-  
+
   const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
 
   replicate(cm1, cm2)
-  
+
   await Promise.all([
       waitForCores(cm1, getKeys(cm2, 'auth')),
       waitForCores(cm2, getKeys(cm1, 'auth'))
@@ -121,10 +122,10 @@ test('replicate with updating data', async function (t) {
   t.plan(2)
 
   const projectKeyPair = crypto.keyPair()
-  
+
   const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
-  
+
   const writer1 = cm1.getWriterCore('auth')
   for (let i = 0; i < 5000; i = i + 100) {
     const blocks = new Array(100).fill(null).map((b, i) => `block ${i}`)
@@ -191,7 +192,7 @@ test('add peer during replication', async function (t) {
   t.plan(3)
 
   const projectKeyPair = crypto.keyPair()
-  
+
   const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
 
@@ -209,7 +210,7 @@ test('add peer during replication', async function (t) {
 
   async function addCoreManager (existingCoreManagers) {
     const connectedCoreManager = existingCoreManagers[0]
-  
+
     const coreManager = createCoreManager({ projectKey: projectKeyPair.publicKey })
     const writer = coreManager.getWriterCore('auth')
     await writer.core.ready()
@@ -294,7 +295,7 @@ test('add peer during replication', async function (t) {
 test('peer leaves during replication, third peer arrives, sync all later', async function (t) {
   t.plan(5)
   const projectKeyPair = crypto.keyPair()
-  
+
   const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
   const cm3 = createCoreManager({ projectKey: projectKeyPair.publicKey })
@@ -394,7 +395,7 @@ test('peer leaves during replication, third peer arrives, sync all later', async
 
   syncStream2.on('close', async () => {
     t.is(rep2.state.synced, false, 'writer2 is not synced with writer1')
-    
+
     // replicate between peer2 and peer3
     replicate(cm2, cm3)
     await waitForCores(cm2, cm3Keys)
@@ -405,4 +406,25 @@ test('peer leaves during replication, third peer arrives, sync all later', async
   })
 
   syncStream2.destroy()
+})
+
+test('replicate sparse core', async t => {
+  const core1 = await createCore()
+  const core2 = await createCore(core1.key)
+
+  core1.append(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+  core1.clear(2, 3)
+
+  const rs = new CoreReplicationState({ core: core2 })
+
+  rs.on('state', state => console.log('state', state))
+  rs.on('synced', state => {
+    t.end('Finished sync')
+  })
+
+  const s1 = core1.replicate(true)
+  const s2 = core2.replicate(false)
+  s1.pipe(s2).pipe(s1)
+
+  core2.download()
 })
