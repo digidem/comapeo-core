@@ -415,8 +415,8 @@ test('replicate core with unavailable blocks', async (t) => {
   const core1 = await createCore()
   const core2 = await createCore(core1.key)
 
-  core1.append(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
-  core1.clear(2, 3)
+  await core1.append(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+  await core1.clear(2, 3)
 
   const rs = new CoreReplicationState({ core: core2 })
 
@@ -430,3 +430,35 @@ test('replicate core with unavailable blocks', async (t) => {
 
   core2.download()
 })
+
+test.solo('replicate 3 cores with unavailable blocks', async (t) => {
+  const core1 = await createCore()
+  const core2 = await createCore(core1.key)
+  const core3 = await createCore(core1.key)
+
+  await core1.append(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+  replicate(core1, core2)
+  await core2.download({ start: 0, end: core1.length }).done()
+
+  await core2.clear(2, 3)
+
+  replicate(core1, core3)
+  replicate(core2, core3)
+
+  const rs = new CoreReplicationState({ core: core3 })
+
+  rs.on('state', state => console.log('state', state))
+  rs.on('synced', (state) => {
+    console.log('synced', state)
+    if (state.want > 0) t.fail('should only emit sync when everything is synced')
+    else t.end('Finished sync')
+  })
+
+  core3.download()
+})
+
+// function replicate(core1, core2) {
+//   const s1 = core1.replicate(true)
+//   const s2 = core2.replicate(false)
+//   return s1.pipe(s2).pipe(s1)
+// }
