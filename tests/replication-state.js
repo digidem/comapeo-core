@@ -5,7 +5,7 @@ import crypto from 'hypercore-crypto'
 import { keyToId } from '../lib/utils.js'
 import { ReplicationState, CoreReplicationState } from '../lib/sync/replication-state.js'
 import { createCoreManager, waitForCores, getKeys } from './helpers/core-manager.js'
-import { download, downloadCore, replicate, logState } from './helpers/replication-state.js'
+import { download, downloadCore, replicate } from './helpers/replication-state.js'
 import { createCore } from './helpers/index.js'
 
 test('sync cores in a namespace', async function (t) {
@@ -45,18 +45,17 @@ test('sync cores in a namespace', async function (t) {
   for (const key of cm1Keys) {
       if (key.equals(writer1.core.key)) continue
       const core = cm1.getCoreByKey(key)
-      core.download({ start: 0, end: -1, ifAvailable: true })
+      core.download({ start: 0, end: -1 })
   }
 
   for (const key of cm2Keys) {
       if (key.equals(writer2.core.key)) continue
       const core = cm2.getCoreByKey(key)
-      core.download({ start: 0, end: -1, ifAvailable: true })
+      core.download({ start: 0, end: -1 })
   }
 
   rep1.on('state', function rep1Handler (state) {
     if (state.synced) {
-      console.log('rep1 synced')
       t.ok(state.synced, 'rep1 is synced')
       rep1.off('state', rep1Handler)
     }
@@ -64,7 +63,6 @@ test('sync cores in a namespace', async function (t) {
 
   rep2.on('state', function rep2Handler (state) {
     if (state.synced) {
-      console.log('rep2 synced')
       t.ok(state.synced, 'rep2 is synced')
       rep2.off('state', rep2Handler)
     }
@@ -104,7 +102,7 @@ test('access peer state', async function (t) {
     if (!rep.peers.length) return
 
     const coreId = keyToId(writer.core.key)
-    const peerDownloadState = state.cores[coreId][rep.peers[0]]
+    const peerDownloadState = state.cores[coreId].find((c) => c.peerId === rep.peers[0].id)
 
     if (peerDownloadState.length === 1) {
       reader?.download({ start: 0, end: 2 })
@@ -412,6 +410,8 @@ test('peer leaves during replication, third peer arrives, sync all later', async
 })
 
 test('replicate core with unavailable blocks', async (t) => {
+  t.plan(2)
+
   const core1 = await createCore()
   const core2 = await createCore(core1.key)
 
@@ -420,8 +420,17 @@ test('replicate core with unavailable blocks', async (t) => {
 
   const rs = new CoreReplicationState({ core: core2 })
 
-  rs.on('synced', () => {
-    t.end('Finished sync')
+  const expected = {
+    length: 7,
+    have: 6,
+    want: 1,
+    unavailable: 1
+  }
+
+  rs.on('synced', (state) => {
+    for (const { length, have, want, unavailable } of state) {
+      t.alike({ length, have, want, unavailable }, expected, 'peer state is correct')
+    }
   })
 
   const s1 = core1.replicate(true)
@@ -431,7 +440,8 @@ test('replicate core with unavailable blocks', async (t) => {
   core2.download()
 })
 
-test.solo('replicate 3 cores with unavailable blocks', async (t) => {
+test('replicate 3 cores with unavailable blocks', async (t) => {
+  t.plan(3)
   const core1 = await createCore()
   const core2 = await createCore(core1.key)
   const core3 = await createCore(core1.key)
@@ -440,25 +450,22 @@ test.solo('replicate 3 cores with unavailable blocks', async (t) => {
   replicate(core1, core2)
   await core2.download({ start: 0, end: core1.length }).done()
 
-  await core2.clear(2, 3)
+  await core2.clear(2, 5)
 
   replicate(core1, core3)
   replicate(core2, core3)
 
   const rs = new CoreReplicationState({ core: core3 })
 
-  rs.on('state', state => console.log('state', state))
-  rs.on('synced', (state) => {
-    console.log('synced', state)
-    if (state.want > 0) t.fail('should only emit sync when everything is synced')
-    else t.end('Finished sync')
+  rs.on('synced', async () => {
+    const block1 = await core1.get(2, { wait: false, valueEncoding: 'utf-8' })
+    const block2 = await core2.get(2, { wait: false, valueEncoding: 'utf-8' })
+    const block3 = await core3.get(2, { wait: false, valueEncoding: 'utf-8' })
+
+    t.is(block1, 'c', 'block1 is available in core1')
+    t.is(block2, null, 'block2 is unavailable in core2')
+    t.is(block3, 'c', 'block3 is available in core3')
   })
 
   core3.download()
 })
-
-// function replicate(core1, core2) {
-//   const s1 = core1.replicate(true)
-//   const s2 = core2.replicate(false)
-//   return s1.pipe(s2).pipe(s1)
-// }

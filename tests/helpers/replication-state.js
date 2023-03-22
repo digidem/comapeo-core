@@ -9,7 +9,7 @@ export function logState(syncState, name) {
   for (const [coreId, state] of Object.entries(syncState.cores)) {
     message += `${truncateId(coreId)}`
     for (const [peerId, peerState] of Object.entries(state)) {
-      message += `\n${truncateId(peerId)} (${peerState.remote ? 'remote' : 'local'}) h: ${peerState.have} w: ${peerState.want} l: ${peerState.length} `
+      message += `\n${truncateId(peerId)} (${peerState.remote ? 'remote' : 'local'}) l: ${peerState.length} h: ${peerState.have} w: ${peerState.want} u: ${peerState.unavailable} `
     }
     message += '\n'
   }
