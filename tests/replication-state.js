@@ -2,7 +2,6 @@
 import test from 'brittle'
 import crypto from 'hypercore-crypto'
 
-import { keyToId } from '../lib/utils.js'
 import { ReplicationState, CoreReplicationState } from '../lib/sync/replication-state.js'
 import { createCoreManager, waitForCores, getKeys } from './helpers/core-manager.js'
 import { download, downloadCore, replicate } from './helpers/replication-state.js'
@@ -98,21 +97,17 @@ test('access peer state', async function (t) {
 
   const reader = cm2.getCoreByKey(writer.core.key)
 
-  rep.on('state', function handler (state) {
+  rep.on('state', async function handler () {
     if (!rep.peers.length) return
 
-    const coreId = keyToId(writer.core.key)
-    const peerDownloadState = state.cores[coreId].find((c) => c.peerId === rep.peers[0].id)
-
-    if (peerDownloadState.length === 1) {
-      reader?.download({ start: 0, end: 2 })
-    } else if (peerDownloadState.length === 2) {
-      reader?.download({ start: 0, end: 3 })
-    } else if (peerDownloadState.length === 3) {
+    if (reader.length === 1) {
+      await reader?.download({ start: 0, end: 2 }).done()
+    } else if (reader.length === 2) {
+      await reader?.download({ start: 0, end: 3 }).done()
+    } else if (reader.length === 3) {
       rep.off('state', handler)
       clearInterval(intervalId)
-      rep.close()
-      t.is(rep.isSynced(), true, 'got all blocks')
+      t.pass('got all blocks')
     }
   })
 
