@@ -6,6 +6,7 @@ import { ReplicationState, CoreReplicationState } from '../lib/sync/replication-
 import { createCoreManager, waitForCores, getKeys } from './helpers/core-manager.js'
 import { download, downloadCore, replicate } from './helpers/replication-state.js'
 import { createCore } from './helpers/index.js'
+import { keyToId } from '../lib/utils.js'
 
 test('sync cores in a namespace', async function (t) {
   t.plan(2)
@@ -436,7 +437,7 @@ test('replicate core with unavailable blocks', async (t) => {
 })
 
 test('replicate 3 cores with unavailable blocks', async (t) => {
-  t.plan(3)
+  t.plan(6)
   const core1 = await createCore()
   const core2 = await createCore(core1.key)
   const core3 = await createCore(core1.key)
@@ -452,7 +453,22 @@ test('replicate 3 cores with unavailable blocks', async (t) => {
 
   const rs = new CoreReplicationState({ core: core3 })
 
-  rs.on('synced', async () => {
+  const expectedFullSync = {
+    have: 7,
+    want: 0,
+    unavailable: 0,
+    length: 7
+  }
+
+  const expectedPartialSync = {
+    have: 4,
+    want: 3,
+    unavailable: 3,
+    length: 7
+  }
+
+  rs.on('synced', async (state) => {
+    console.log(state)
     const block1 = await core1.get(2, { wait: false, valueEncoding: 'utf-8' })
     const block2 = await core2.get(2, { wait: false, valueEncoding: 'utf-8' })
     const block3 = await core3.get(2, { wait: false, valueEncoding: 'utf-8' })
@@ -460,6 +476,21 @@ test('replicate 3 cores with unavailable blocks', async (t) => {
     t.is(block1, 'c', 'block1 is available in core1')
     t.is(block2, null, 'block2 is unavailable in core2')
     t.is(block3, 'c', 'block3 is available in core3')
+
+    const core1State = state[1]
+    const core2State = state[2]
+    const core3State = state[0]
+
+    delete core1State.coreId
+    delete core2State.coreId
+    delete core3State.coreId
+    delete core1State.remote
+    delete core2State.remote
+    delete core3State.remote
+
+    t.alike(core1State, expectedFullSync, 'core1 is synced')
+    t.alike(core2State, expectedPartialSync, 'core2 is synced')
+    t.alike(core3State, expectedFullSync, 'core3 is synced')
   })
 
   core3.download()
