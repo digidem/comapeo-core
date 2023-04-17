@@ -72,7 +72,12 @@ export async function createAuthStores(count, options) {
   }
 
   await addCores(peers)
-  replicate(peers)
+  replicate(peers.map((peer) => {
+    return {
+      id: peer.identityId,
+      core: peer.authstore,
+    }
+  }))
   return peers
 }
 

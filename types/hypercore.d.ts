@@ -14,6 +14,17 @@ declare module 'hypercore' {
     append(): void
   }
 
+
+  interface RemoteBitfield {
+    get(index: number): boolean
+  }
+
+  interface PeerOnRangeOptions {
+    drop?: boolean
+    start: number
+    length: number
+  }
+
   type ValueEncoding = 'json' | 'utf-8' | 'binary'
 
   export type HypercoreStorage =
@@ -34,6 +45,12 @@ declare module 'hypercore' {
     keyPair?: { publicKey: Buffer; secretKey?: Buffer | null } // optionally pass the public key and secret key as a key pair
     encryptionKey?: Buffer // optionally pass an encryption key to enable block encryption
     sparse?: boolean // optionally disable sparse mode
+  }
+
+  export interface HypercorePeer {
+    remotePublicKey: Buffer
+    remoteBitfield: RemoteBitfield
+    onrange(options: PeerOnRangeOptions): void
   }
 
   export interface HypercoreExtension {

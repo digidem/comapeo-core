@@ -1,11 +1,18 @@
-import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
+import Hypercore from 'hypercore'
+import RAM from 'random-access-memory'
+
+export async function createCore (...args) {
+  const core = new Hypercore(RAM, ...args)
+  await core.ready()
+  return core
+}
 
 /**
  * @param {string} name
  * @param {Buffer} [namespace] - 32 byte Buffer
  */
-export function createCoreKeyPair(name, namespace = randomBytes(32)) {
+export function createCoreKeyPair(name, namespace = Buffer.alloc(32, 0)) {
   const { keyManager } = createIdentityKeys()
   const coreKeyPair = keyManager.getHypercoreKeypair(name, namespace)
   return coreKeyPair
@@ -24,25 +31,25 @@ export function replicate(peers) {
 
   for (const peer1 of peers) {
     const peer1Connections = new Set()
-    connected.set(peer1.identityId, peer1Connections)
+    connected.set(peer1.id, peer1Connections)
 
     for (const peer2 of peers) {
-      if (peer1 === peer2) {
+      if (peer1.id === peer2.id) {
         continue
       }
 
-      const peer2Connections = connected.get(peer2.identityId)
+      const peer2Connections = connected.get(peer2.id)
 
       if (
-        peer1Connections.has(peer2.identityId) ||
-        (peer2Connections && peer2Connections.has(peer1.identityId))
+        peer1Connections.has(peer2.id) ||
+        (peer2Connections && peer2Connections.has(peer1.id))
       ) {
         continue
       }
 
-      peer1Connections.add(peer2.identityId)
-      const stream1 = peer1.authstore.replicate(true, { live: true })
-      const stream2 = peer2.authstore.replicate(false, { live: true })
+      peer1Connections.add(peer2.id)
+      const stream1 = peer1.core.replicate(true, { live: true })
+      const stream2 = peer2.core.replicate(false, { live: true })
       stream1.pipe(stream2).pipe(stream1)
     }
   }
