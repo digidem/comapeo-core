@@ -203,8 +203,6 @@ test('discovery - mdns', async (t) => {
 test('replication - mdns', async (t) => {
   t.plan(3)
 
-  const testnet = await createTestnet(10)
-
   const core1 = new Hypercore(ram)
   await core1.ready()
 
@@ -244,7 +242,7 @@ test('replication - mdns', async (t) => {
     t.ok(peer.identityPublicKey === identityPublicKey1, 'match key of 1st peer')
     core2.replicate(connection)
 
-    const stream = core2.createReadStream()
+    const stream = core2.createReadStream({ live: true })
 
     const results = []
     stream.on('data', async (/** @type {any} */ data) => {
@@ -264,7 +262,6 @@ test('replication - mdns', async (t) => {
       await discover2.leave(core1.discoveryKey)
       await discover1.destroy()
       await discover2.destroy()
-      await testnet.destroy()
     }
   }
 
