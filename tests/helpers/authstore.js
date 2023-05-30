@@ -1,14 +1,14 @@
 import { randomBytes } from 'crypto'
-import Corestore from 'corestore'
-import ram from 'random-access-memory'
+import RandomAccessMemory from 'random-access-memory'
+import Database from 'better-sqlite3'
 
+import { CoreManager } from '../../lib/core-manager/index.js'
 import { Sqlite } from '../../lib/sqlite.js'
-import { AuthStore } from '../../lib/authstore/index.js'
-import { addCores, replicate, createIdentityKeys } from './index.js'
+import { Authstore } from '../../lib/authstore/index.js'
+import { createIdentityKeys } from './index.js'
 import { keyToId } from '../../lib/utils.js'
 
-export async function createAuthStore({
-  corestore,
+export async function createAuthstore({
   keyPair,
   name,
   projectPublicKey,
@@ -20,11 +20,13 @@ export async function createAuthStore({
     keyPair = keyManager.getHypercoreKeypair(identityId, randomBytes(32))
   }
 
-  if (!corestore) {
-    corestore = new Corestore(ram, {
-      primaryKey: identityKeyPair.publicKey,
-    })
-  }
+  const coreManager = new CoreManager({
+    keyManager,
+    projectKey: keyPair.publicKey,
+    projectSecretKey: keyPair.secretKey,
+    storage: RandomAccessMemory,
+    db: new Database(':memory:'),
+  })
 
   if (!projectPublicKey) {
     projectPublicKey = keyManager.getHypercoreKeypair(
@@ -34,9 +36,9 @@ export async function createAuthStore({
   }
 
   const sqlite = new Sqlite(':memory:')
-  const authstore = new AuthStore({
+  const authstore = new Authstore({
     name,
-    corestore,
+    coreManager,
     sqlite,
     identityKeyPair,
     keyPair,
@@ -48,7 +50,7 @@ export async function createAuthStore({
 
   return {
     authstore,
-    corestore,
+    coreManager,
     identityKeyPair,
     identityId,
     keyPair,
@@ -58,12 +60,12 @@ export async function createAuthStore({
   }
 }
 
-export async function createAuthStores(count, options) {
+export async function createAuthstores(count, options) {
   const projectPublicKey = randomBytes(32)
 
   const peers = []
   for (let i = 0; i < count; i++) {
-    const peer = await createAuthStore({ ...options, projectPublicKey })
+    const peer = await createAuthstore({ ...options, projectPublicKey })
     peers.push(peer)
 
     if (i === 0) {
@@ -71,22 +73,15 @@ export async function createAuthStores(count, options) {
     }
   }
 
-  await addCores(peers)
-  replicate(peers.map((peer) => {
-    return {
-      id: peer.identityId,
-      core: peer.authstore,
-    }
-  }))
   return peers
 }
 
-export async function runAuthStoreScenario(scenario, options = {}) {
+export async function runAuthstoreScenario(scenario, options = {}) {
   const { t } = options
 
   const peers = {}
   for (const peerName of scenario.peers) {
-    peers[peerName] = await createAuthStore(options)
+    peers[peerName] = await createAuthstore(options)
     if (peerName === 'project-creator') {
       await peers[peerName].authstore.createCapability({
         identityPublicKey:

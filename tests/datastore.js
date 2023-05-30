@@ -1,150 +1,117 @@
 import test from 'brittle'
 
-import ram from 'random-access-memory'
-import Corestore from 'corestore'
-import b4a from 'b4a'
-
-import { DataStore } from '../lib/datastore/index.js'
-import { Sqlite } from '../lib/sqlite.js'
-
-import { createIdentityKeys } from './helpers/index.js'
-import { getBlockPrefix } from '../lib/utils.js'
+import { createDatastore } from './helpers/datastore.js'
+import { replicate, waitForCores, getKeys } from './helpers/core-manager.js'
+import { addCores, waitForIndexing } from './helpers/index.js'
 
 test('datastore - create, update, query two datatypes', async (t) => {
-  t.plan(13)
+  t.plan(7)
 
-  const { identityKeyPair, keyManager } = createIdentityKeys()
-  const keyPair = keyManager.getHypercoreKeypair('data', b4a.alloc(32))
-  const corestore = new Corestore(ram)
-  const sqlite = new Sqlite(':memory:')
-
-  const example1 = {
-    name: 'example1',
-    blockPrefix: '0',
-    schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        version: { type: 'string' },
-        value: { type: 'string' },
-        created: { type: 'number' },
-        updated: { type: 'number' },
-        timestamp: { type: 'number' },
-        links: { type: 'array' },
-        forks: { type: 'array' },
-        authorId: { type: 'string' },
-      },
-      additionalProperties: false,
-    },
+  const example = {
+    name: 'Observation',
+    schemaType: 'Observation',
+    schemaVersion: 5,
     extraColumns: `
-      value TEXT,
       created INTEGER,
       updated INTEGER,
       timestamp INTEGER,
-      authorId TEXT
+      authorId TEXT,
+      tags TEXT
     `,
   }
 
-  const example2 = {
-    name: 'example2',
-    blockPrefix: '1',
-    schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        version: { type: 'string' },
-        value: { type: 'string' },
-        created: { type: 'number' },
-        updated: { type: 'number' },
-        timestamp: { type: 'number' },
-        links: { type: 'array' },
-        forks: { type: 'array' },
-        authorId: { type: 'string' },
-      },
-      additionalProperties: false,
-    },
-    extraColumns: `
-      value TEXT,
-      created INTEGER,
-      updated INTEGER,
-      timestamp INTEGER,
-      authorId TEXT
-    `,
-  }
-
-  const datastore = new DataStore({
-    corestore,
-    sqlite,
-    keyPair,
-    identityPublicKey: identityKeyPair.publicKey,
-    dataTypes: [example1, example2],
+  const { datastore } = await createDatastore({
+    dataTypes: [example],
   })
 
   await datastore.ready()
+
   t.ok(datastore, 'datastore created')
 
-  // example1 create doc
-  const doc = await datastore.create('example1', { value: 'example1' })
-  t.is(doc.value, 'example1', 'doc created')
+  // create doc
+  const doc = await datastore.create('Observation', {
+    tags: { value: 'example' },
+  })
 
-  const [gotDoc] = datastore.query(
-    `select * from example1 where id = '${doc.id}'`
-  )
-  t.is(gotDoc.value, 'example1', 'doc queried')
+  t.is(doc.tags.value, 'example', 'doc created')
 
-  // example1 update doc
+  const gotDoc = datastore.getById('Observation', doc.id)
+  t.is(gotDoc.tags.value, 'example', 'doc queried')
+
+  // update doc
   const updatedDocVersion = Object.assign({}, doc, {
-    value: 'updated',
+    tags: { value: 'updated' },
     links: [doc.version],
   })
 
-  const updatedDoc = await datastore.update('example1', updatedDocVersion)
-  t.is(updatedDoc.value, 'updated', 'doc updated')
+  const updatedDoc = await datastore.update('Observation', updatedDocVersion)
+  console.log('updatedDoc', updatedDoc)
+  t.is(updatedDoc.tags.value, 'updated', 'doc updated')
 
   const [gotUpdatedDoc] = datastore.query(
-    `select * from example1 where id = '${doc.id}'`
+    `select * from Observation where id = '${doc.id}'`
   )
-  t.is(gotUpdatedDoc.value, 'updated', 'updated doc queried')
-
-  // example2 create doc
-  const example2Doc = await datastore.create('example2', { value: 'example2' })
-  const [gotDoc2] = datastore.query(
-    `select * from example2 where id = '${example2Doc.id}'`
-  )
-  t.is(gotDoc2.value, 'example2', 'example2 doc queried')
-
-  // example2 update doc
-  const updatedDocVersion2 = Object.assign({}, example2Doc, {
-    value: 'updated2',
-    links: [example2Doc.version],
-  })
-
-  const updatedDoc2 = await datastore.update('example2', updatedDocVersion2)
-  t.is(updatedDoc2.value, 'updated2', 'doc updated')
-
-  const [gotUpdatedDoc2] = datastore.query(
-    `select * from example2 where id = '${example2Doc.id}'`
-  )
-  t.is(gotUpdatedDoc2.value, 'updated2', 'updated doc queried')
+  t.is(gotUpdatedDoc.tags.value, 'updated', 'updated doc queried')
 
   // check hypercore block count
-  const counts = { example1: 0, example2: 0 }
-  for await (const data of datastore.createReadStream()) {
-    const blockPrefix = getBlockPrefix(data)
-    if (blockPrefix === example1.blockPrefix) {
-      counts.example1++
-    } else if (blockPrefix === example2.blockPrefix) {
-      counts.example2++
-    }
+  const [core] = datastore.cores
+  t.is(core.length, 2, 'example has 2 blocks')
+  t.is(datastore.cores.length, 1, 'datastore has 1 core')
+})
+
+test('datastore - replicate two datastores', async (t) => {
+  t.plan(3)
+
+  const example = {
+    name: 'Observation',
+    schemaType: 'Observation',
+    schemaVersion: 5,
+    extraColumns: `
+      created INTEGER,
+      updated INTEGER,
+      timestamp INTEGER,
+      authorId TEXT,
+      tags TEXT
+    `,
   }
 
-  t.is(counts.example1, 2, 'example1 has 2 blocks')
-  t.is(counts.example2, 2, 'example2 has 2 blocks')
-  t.is(datastore.dataTypes.length, 2, 'datastore has 2 dataTypes')
-  t.is(datastore.cores.length, 1, 'datastore has 1 core')
+  const peer1 = await createDatastore({
+    dataTypes: [example],
+  })
 
-  const core = corestore.get({ key: keyPair.publicKey })
-  await core.ready()
+  const peer2 = await createDatastore({
+    dataTypes: [example],
+  })
 
-  t.is(core.length, 4, 'datastore core has 4 blocks')
+  await addCores([peer1.datastore, peer2.datastore])
+  await waitForCores(peer1.coreManager, getKeys(peer2.coreManager, 'data'))
+  await waitForCores(peer2.coreManager, getKeys(peer1.coreManager, 'data'))
+
+  const { core: peer1Core } = peer1.coreManager.getWriterCore('data')
+  await peer1Core.ready()
+  const peer2Core = peer2.coreManager.getCoreByKey(peer1Core.key)
+  await peer2Core.ready()
+
+  const { rsm, destroy } = replicate(peer1.coreManager, peer2.coreManager)
+
+  for (const sm of rsm) {
+    sm.enableNamespace('data')
+  }
+
+  const doc = await peer1.datastore.create('Observation', {
+    tags: { value: 'example' },
+  })
+  await new Promise((res) => setTimeout(res, 200))
+  t.is(peer1Core.length, peer2Core.length)
+  await peer2Core.download({ start: 0, end: peer1Core.length }).done()
+  await waitForIndexing([peer2.datastore])
+
+  const peer2Doc = peer2.datastore.getById('Observation', doc.id)
+  console.log('peer2Doc', peer2Doc)
+  t.ok(doc, 'doc created')
+  t.is(peer2Doc.tags.value, 'example', 'doc replicated')
+
+  t.teardown(async () => {
+    await destroy()
+  })
 })

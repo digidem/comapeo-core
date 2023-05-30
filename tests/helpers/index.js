@@ -1,9 +1,9 @@
 import { KeyManager } from '@mapeo/crypto'
 import Hypercore from 'hypercore'
-import RAM from 'random-access-memory'
+import RandomAccessMemory from 'random-access-memory'
 
-export async function createCore (...args) {
-  const core = new Hypercore(RAM, ...args)
+export async function createCore(...args) {
+  const core = new Hypercore(RandomAccessMemory, ...args)
   await core.ready()
   return core
 }
@@ -26,7 +26,7 @@ export function createIdentityKeys() {
   return { rootKey, identityId, identityKeyPair, keyManager }
 }
 
-export function replicate(peers) {
+export function replicateAll(peers) {
   const connected = new Map()
 
   for (const peer1 of peers) {
@@ -59,8 +59,8 @@ export async function addCores(peers) {
   for (const peer1 of peers) {
     for (const peer2 of peers) {
       if (peer1 === peer2) continue
-      for (const key of peer2.authstore.keys) {
-        await peer1.authstore.getCore(key)
+      for (const key of peer2.keys) {
+        await peer1.getCore(key)
       }
     }
   }

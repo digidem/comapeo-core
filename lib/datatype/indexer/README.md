@@ -8,7 +8,7 @@ The `Indexer` class is a wrapper around a [`DataType` instance](../datatype/), a
 
 ## Usage
 
-This class is used internally in the [`DataStore` class](../datastore/) and isn't well-suited to use on its own.
+This class is used internally in the [`Datastore` class](../datastore/) and isn't well-suited to use on its own.
 
 For similar functionality look into using a package like [@mapeo/sqlite-indexer](https://npmjs.com/@mapeo/sqlite-indexer) in combination with [multi-core-indexer](https://npmjs.com/multi-core-indexer) to implement indexing using a similar approach.
 

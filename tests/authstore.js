@@ -1,16 +1,29 @@
 import test from 'brittle'
-import { createAuthStores } from './helpers/authstore.js'
-import { waitForIndexing } from './helpers/index.js'
+import { createAuthstores } from './helpers/authstore.js'
+import { waitForIndexing, addCores } from './helpers/index.js'
+import { replicate, waitForCores } from './helpers/core-manager.js'
 
 test('authstore - core ownership, project creator', async (t) => {
-  t.plan(7)
+  t.plan(8)
 
-  const [peer1, peer2] = await createAuthStores(2)
-  await waitForIndexing([peer1.authstore, peer2.authstore])
+  const [peer1, peer2] = await createAuthstores(2)
+
+  await addCores([peer1.authstore, peer2.authstore])
+  await waitForCores(peer1.coreManager, [peer2.keyPair.publicKey])
+  await waitForCores(peer2.coreManager, [peer1.keyPair.publicKey])
+
+  const { core: peer1Core } = peer1.coreManager.getWriterCore('auth')
+  const peer2Core = peer2.coreManager.getCoreByKey(peer1Core.key)
+
+  const peer2OwnerCore = peer1.coreManager.getCoreByKey(peer2.keyPair.publicKey)
+  await peer2OwnerCore.ready()
+
+  const { destroy } = replicate(peer1.coreManager, peer2.coreManager)
 
   const peer1Owner = await peer1.authstore.getCoreOwner({
     coreId: peer1.authstore.id,
   })
+
   const peer2Owner = await peer2.authstore.getCoreOwner({
     coreId: peer2.authstore.id,
   })
@@ -18,9 +31,17 @@ test('authstore - core ownership, project creator', async (t) => {
   t.is(peer1Owner.id, peer1.identityId, 'peer1 owns their core')
   t.is(peer2Owner.id, peer2.identityId, 'peer2 owns their core')
 
+  await new Promise((res) => setTimeout(res, 200))
+  await peer2OwnerCore.download({ start: 0, end: 1 }).done()
+  await peer2Core.download({ start: 0, end: peer1Core.length }).done()
+  await waitForIndexing([peer1.authstore, peer2.authstore])
+
+  t.is(peer1Core.length, peer2Core.length)
+
   const peer1OwnerRemote = await peer2.authstore.getCoreOwner({
     coreId: peer1.authstore.id,
   })
+
   const peer2OwnerRemote = await peer1.authstore.getCoreOwner({
     coreId: peer2.authstore.id,
   })
@@ -47,19 +68,33 @@ test('authstore - core ownership, project creator', async (t) => {
     onlyOneProjectCreator,
     'peer2 cannot set themselves as project creator'
   )
+
+  t.teardown(async () => {
+    await destroy()
+  })
 })
 
 test('authstore - device add, remove, restore, set role', async (t) => {
   t.plan(10)
 
-  const [peer1, peer2] = await createAuthStores(2)
+  const [peer1, peer2] = await createAuthstores(2)
+  await addCores([peer1.authstore, peer2.authstore])
+  await waitForCores(peer1.coreManager, [peer2.keyPair.publicKey])
+  await waitForCores(peer2.coreManager, [peer1.keyPair.publicKey])
+  replicate(peer1.coreManager, peer2.coreManager)
+  await new Promise((res) => setTimeout(res, 200))
+
   await waitForIndexing([peer1.authstore, peer2.authstore])
+
+  const { core: peer1Core } = peer1.coreManager.getWriterCore('auth')
+  const peer2Core = peer2.coreManager.getCoreByKey(peer1.keyPair.publicKey)
 
   const peer2Device = await peer1.authstore.addDevice({
     identityId: peer2.identityId,
   })
 
   t.ok(peer2Device)
+  await peer2Core.download({ start: 0, end: peer1Core.length }).done()
   await waitForIndexing([peer1.authstore, peer2.authstore])
 
   const peer2DeviceRemote = await peer2.authstore.getDevice({

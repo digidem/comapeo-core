@@ -4,7 +4,7 @@ import type {
   ValueOf,
   RequireAtLeastOne,
 } from 'type-fest'
-import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
+import { SUPPORTED_BLOB_VARIANTS } from './blobstore/index.js'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 type BlobType = keyof SupportedBlobVariants

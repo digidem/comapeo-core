@@ -14,7 +14,6 @@ declare module 'hypercore' {
     append(): void
   }
 
-
   interface RemoteBitfield {
     get(index: number): boolean
   }
@@ -56,23 +55,23 @@ declare module 'hypercore' {
   export interface HypercoreExtension {
     name: string
     encoding: any
-    send (data: Buffer | Uint8Array, peer: any): void
-    broadcast (data: Buffer | Uint8Array): void
+    send(data: Buffer | Uint8Array, peer: any): void
+    broadcast(data: Buffer | Uint8Array): void
     destroy(): void
   }
 
   interface HypercoreInfo {
     key: Buffer
     discoveryKey: Buffer
-    length: number,
-    contiguousLength: number,
-    byteLength: number,
-    fork: number,
-    padding: number,
+    length: number
+    contiguousLength: number
+    byteLength: number
+    fork: number
+    padding: number
     storage: {
-      oplog: number,
-      tree: number,
-      blocks: number,
+      oplog: number
+      tree: number
+      blocks: number
       bitfield: number
     }
   }
@@ -88,7 +87,7 @@ declare module 'hypercore' {
     static createProtocolStream(
       stream: Duplex,
       options?: { ondiscoverykey?: (discoveryKey: Buffer) => void }
-    ): Duplex & { noiseStream: Duplex & { userData: any }}
+    ): Duplex & { noiseStream: Duplex & { userData: any } }
     constructor(
       options: HypercoreOptions & {
         storage: HypercoreStorage
@@ -106,7 +105,9 @@ declare module 'hypercore' {
     )
     [key: string]: any
     readonly peers: any[]
-    readonly key: Buffer
+    readonly id: String | null
+    readonly key: Buffer | null
+    append(data: unknown): Promise<number>
     get<TGetValueEncoding extends ValueEncoding = TValueEncoding>(
       index: number,
       options?: HypercoreGetOptions & {
@@ -124,13 +125,25 @@ declare module 'hypercore' {
     >
     info(opts?: { storage?: false }): Promise<Omit<HypercoreInfo, 'storage'>>
     info(opts: { storage: true }): Promise<HypercoreInfo>
-    download(range?: { start?: number, end?: number, blocks?: number[], linear?: boolean }): Download
+    download(range?: {
+      start?: number
+      end?: number
+      blocks?: number[]
+      linear?: boolean
+    }): Download
     close(): Promise<void>
-    registerExtension(name: string, handlers?: { encoding?: any, onmessage?: (buf: Buffer, peer: any) => void}): HypercoreExtension
+    registerExtension(
+      name: string,
+      handlers?: {
+        encoding?: any
+        onmessage?: (buf: Buffer, peer: any) => void
+      }
+    ): HypercoreExtension
     replicate(
       isInitiatorOrReplicationStream: boolean | Duplex,
       opts?: { keepAlive?: boolean }
     ): Duplex
+    ready(): Promise<void>
   }
 
   export default Hypercore

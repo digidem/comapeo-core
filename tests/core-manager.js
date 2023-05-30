@@ -9,7 +9,7 @@ import { KeyManager } from '@mapeo/crypto'
 import { CoreManager } from '../lib/core-manager/index.js'
 import assert from 'assert'
 
-async function createCore (...args) {
+async function createCore(...args) {
   const core = new Hypercore(RAM, ...args)
   await core.ready()
   return core
@@ -24,7 +24,7 @@ test('shares auth cores', async function (t) {
 
   await Promise.all([
     waitForCores(cm1, getKeys(cm2, 'auth')),
-    waitForCores(cm2, getKeys(cm1, 'auth'))
+    waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
   const cm1Keys = getKeys(cm1, 'auth').sort(Buffer.compare)
@@ -43,13 +43,13 @@ test('project creator auth core has project key', async function (t) {
     keyManager,
     storage: RAM,
     projectKey,
-    projectSecretKey
+    projectSecretKey,
   })
   const { key: authCoreKey } = cm.getWriterCore('auth')
   t.ok(authCoreKey.equals(projectKey))
 })
 
-test('getCreatorCore()', async t => {
+test('getCreatorCore()', async (t) => {
   const projectKey = randomBytes(32)
   const cm = createCoreManager({ projectKey })
   await cm.creatorCore.ready()
@@ -83,7 +83,7 @@ test('eagerly updates remote bitfields', async function (t) {
   t.ok(cm2Core, 'writer core has replicated')
 
   // Need to wait for now, since no event for when a remote bitfield is updated
-  await new Promise(res => setTimeout(res, 200))
+  await new Promise((res) => setTimeout(res, 200))
 
   t.is(cm2Core.length, cm1Core.length)
 
@@ -112,7 +112,7 @@ test('eagerly updates remote bitfields', async function (t) {
     // direction, e.g. from the non-writer to the writer
     const { destroy } = replicate(cm1, cm2)
     // Need to wait for now, since no event for when a remote bitfield is updated
-    await new Promise(res => setTimeout(res, 200))
+    await new Promise((res) => setTimeout(res, 200))
     t.ok(
       bitfieldEquals(
         cm1Core.peers[0].remoteBitfield,
@@ -131,7 +131,7 @@ test('eagerly updates remote bitfields', async function (t) {
     replicate(cm1, cm2)
     replicate(cm2, cm3)
 
-    await new Promise(res => setTimeout(res, 200))
+    await new Promise((res) => setTimeout(res, 200))
 
     const cm3Core = cm3.getCoreByKey(cm1Core.key)
     t.alike(cm3Core.length, cm1Core.length)
@@ -149,7 +149,7 @@ test('eagerly updates remote bitfields', async function (t) {
     await cm1Core.append(['k', 'l', 'm', 'o', 'p'])
     await cm2Core.download({ start: 9, end: 12 }).done()
 
-    await new Promise(res => setTimeout(res, 200))
+    await new Promise((res) => setTimeout(res, 200))
 
     t.alike(cm3Core.length, cm1Core.length)
     t.ok(
@@ -180,7 +180,7 @@ test('works with an existing protocol stream for replications', async function (
 
   await Promise.all([
     waitForCores(cm1, getKeys(cm2, 'auth')),
-    waitForCores(cm2, getKeys(cm1, 'auth'))
+    waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
   const cm1Keys = getKeys(cm1, 'auth').sort(Buffer.compare)
@@ -211,7 +211,7 @@ test.skip('can mux other project replications over same stream', async function 
 
   await Promise.all([
     waitForCores(cm1, getKeys(cm2, 'auth')),
-    waitForCores(cm2, getKeys(cm1, 'auth'))
+    waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
   cm1.replicate(n1)
@@ -253,7 +253,7 @@ test('multiplexing waits for cores to be added', async function (t) {
   t.alike(await b2.get(0), Buffer.from('ho'))
 })
 
-test('close()', async t => {
+test('close()', async (t) => {
   const cm = createCoreManager()
   for (const namespace of CoreManager.namespaces) {
     cm.addCore(randomBytes(32), namespace)
@@ -269,7 +269,7 @@ test('close()', async t => {
   t.exception(() => cm.replicate(ns), /closed/)
 })
 
-test('Added cores are persisted', async t => {
+test('Added cores are persisted', async (t) => {
   const db = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
   const projectKey = randomBytes(32)
@@ -277,7 +277,7 @@ test('Added cores are persisted', async t => {
     db,
     keyManager,
     storage: RAM,
-    projectKey
+    projectKey,
   })
   const key = randomBytes(32)
   cm1.addCore(key, 'auth')
@@ -288,7 +288,7 @@ test('Added cores are persisted', async t => {
     db,
     keyManager,
     storage: RAM,
-    projectKey
+    projectKey,
   })
 
   t.ok(cm2.getCoreByKey(key), 'Added core is persisted')
@@ -324,11 +324,11 @@ test('encryption', async function (t) {
   }
 })
 
-async function waitForCores (coreManager, keys) {
+async function waitForCores(coreManager, keys) {
   const allKeys = getAllKeys(coreManager)
   if (hasKeys(keys, allKeys)) return
-  return new Promise(res => {
-    coreManager.on('add-core', function onAddCore ({ key }) {
+  return new Promise((res) => {
+    coreManager.on('add-core', function onAddCore({ key }) {
       allKeys.push(key)
       if (hasKeys(keys, allKeys)) {
         coreManager.off('add-core', onAddCore)
@@ -338,7 +338,7 @@ async function waitForCores (coreManager, keys) {
   })
 }
 
-function getAllKeys (coreManager) {
+function getAllKeys(coreManager) {
   const keys = []
   for (const namespace of CoreManager.namespaces) {
     keys.push.apply(keys, getKeys(coreManager, namespace))
@@ -346,13 +346,13 @@ function getAllKeys (coreManager) {
   return keys
 }
 
-function getKeys (coreManager, namespace) {
+function getKeys(coreManager, namespace) {
   return coreManager.getCores(namespace).map(({ key }) => key)
 }
 
-function hasKeys (someKeys, allKeys) {
+function hasKeys(someKeys, allKeys) {
   for (const key of someKeys) {
-    if (!allKeys.find(k => k.equals(key))) return false
+    if (!allKeys.find((k) => k.equals(key))) return false
   }
   return true
 }
@@ -361,7 +361,7 @@ const DEBUG = process.env.DEBUG
 
 // Compare two bitfields (instance of core.core.bitfield or peer.remoteBitfield)
 // Need to pass len, since bitfields don't know their own length
-function bitfieldEquals (actual, expected, len) {
+function bitfieldEquals(actual, expected, len) {
   assert(typeof len === 'number')
   let actualStr = ''
   let expectedStr = ''

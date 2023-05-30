@@ -1,39 +1,43 @@
 import { randomBytes } from 'crypto'
-import Corestore from 'corestore'
-import ram from 'random-access-memory'
+import RandomAccessMemory from 'random-access-memory'
 import MultiCoreIndexer from 'multi-core-indexer'
+import Database from 'better-sqlite3'
 
 import { DataType } from '../../lib/datatype/index.js'
 import { Sqlite } from '../../lib/sqlite.js'
 
 import { createIdentityKeys } from './index.js'
+import { CoreManager } from '../../lib/core-manager/index.js'
 
 export async function createDataType(options) {
-  const { name, schema, extraColumns, blockPrefix } = options
-  let { corestore, sqlite } = options
+  const { name, namespace, extraColumns } = options
+  let { sqlite } = options
   const { identityKeyPair, keyManager } = createIdentityKeys()
   const identityId = identityKeyPair.publicKey.toString('hex')
   const keyPair = keyManager.getHypercoreKeypair(name, randomBytes(32))
-
-  if (!corestore) {
-    corestore = new Corestore(ram)
-  }
 
   if (!sqlite) {
     sqlite = new Sqlite(':memory:')
   }
 
-  const core = corestore.get({
-    keyPair,
+  const coreManager = new CoreManager({
+    keyManager,
+    projectKey: keyPair.publicKey,
+    projectSecretKey: keyPair.secretKey,
+    storage: RandomAccessMemory,
+    db: new Database(':memory:'),
   })
 
+  const { core } = coreManager.getWriterCore(namespace)
+
   const dataType = new DataType({
+    namespace,
     name,
     core,
-    schema,
-    blockPrefix,
+    schemaType: 'Observation',
+    schemaVersion: 5,
     identityPublicKey: identityKeyPair.publicKey,
-    corestore,
+    coreManager,
     keyPair,
     sqlite,
     extraColumns,
@@ -41,23 +45,21 @@ export async function createDataType(options) {
 
   await dataType.ready()
 
-  let indexer
-  if (options.indexer !== false) {
-    const cores = [...corestore.cores.values()]
-    indexer = new MultiCoreIndexer(cores, {
-      storage: (key) => {
-        return new ram(key)
-      },
-      batch: (entries) => {
-        dataType.index(entries.map((entry) => entry.block))
-      },
-    })
-  }
+  const indexer = new MultiCoreIndexer(dataType.cores, {
+    storage: (key) => {
+      return new RandomAccessMemory(key)
+    },
+    batch: (entries) => {
+      console.log('batch', entries)
+      dataType.index(entries)
+    },
+  })
 
   return {
     name,
     identityId,
     dataType,
     indexer,
+    coreManager,
   }
 }

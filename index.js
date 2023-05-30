@@ -1,34 +1,55 @@
+import * as path from 'path'
+import Database from 'better-sqlite3'
+import { KeyManager } from '@mapeo/crypto'
+
+import { Authstore } from './lib/authstore'
+import { CoreManager } from './lib/core-manager'
+import { Sqlite } from './lib/sqlite'
+
 export class Mapeo {
-  #corestore
+  #sqliteDatabase
+  #keyManager
+  #coreManager
+  #authstore
   #sqlite
+
+  #storageDirectory
+  #sqliteFilepath
+  #hypercoreDirectory
 
   /**
    *
    * @param {Object} options
-   * @param {import('corestore')} options.corestore
-   * @param {import('./lib/sqlite').Sqlite} options.sqlite
+   * @param {Buffer} options.rootKey
+   * @param {String} options.storageDirectory
+   * @param {Buffer} options.projectKey
+   * @param {Buffer} options.projectSecretKey
    */
   constructor(options) {
-    const { corestore, sqlite } = options
-    this.#corestore = corestore
-    this.#sqlite = sqlite
-  }
+    this.#storageDirectory = options.storageDirectory
+    this.#sqliteFilepath = path.join(this.#storageDirectory, 'mapeo.sqlite')
+    this.#hypercoreDirectory = path.join(this.#storageDirectory, 'hypercore')
+    this.#sqliteDatabase = new Database(this.#sqliteFilepath)
+    this.#sqlite = new Sqlite(this.#sqliteDatabase)
+    this.#keyManager = new KeyManager(options.rootKey)
 
-  async ready() {}
+    this.projectKeyPair = {
+      publicKey: options.projectKey,
+      secretKey: options.projectSecretKey,
+    }
 
-  get keys() {
-    return this.cores.map((core) => {
-      return core.key.toString('hex')
+    this.#coreManager = new CoreManager({
+      db: this.#sqliteDatabase,
+      keyManager: this.#keyManager,
+      projectKey: options.keyPair.publicKey,
+      projectSecretKey: options.keyPair.secretKey,
+      storage: options.storage,
+    })
+
+    this.auth = new Authstore({
+      sqlite: this.#sqliteDatabase,
+      coreManager: this.#coreManager,
+      keyManager: this.#keyManager,
     })
   }
-
-  get cores() {
-    return [...this.#corestore.cores.values()]
-  }
-
-  async sync() {}
-
-  async syncAuthStore() {}
-
-  async syncDataStores() {}
 }

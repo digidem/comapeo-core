@@ -1,6 +1,6 @@
-[API](../README.md) / [lib/datastore](../modules/lib_datastore.md) / DataStore
+[API](../README.md) / [lib/datastore](../modules/lib_datastore.md) / Datastore
 
-# Class: DataStore
+# Class: Datastore
 
 [lib/datastore](../modules/lib_datastore.md).DataStore
 

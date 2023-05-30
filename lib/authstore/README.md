@@ -1,21 +1,21 @@
-# AuthStore
+# Authstore
 
 > Device access and capability authorization.
 
 ## Purpose
 
-AuthStore is an internal Mapeo Core library used to authorize & verify device access and capabilities through a tree of statements describing each device's role and its relationships to other devices.
+Authstore is an internal Mapeo Core library used to authorize & verify device access and capabilities through a tree of statements describing each device's role and its relationships to other devices.
 
-The `AuthStore` class is responsible for authorizing access to Mapeo projects by defining the capabilities of each device through relationships with other devices. The `AuthStore` API is primarily meant to be internal to the higher-level `Mapeo` class API rather than used directly.
+The `Authstore` class is responsible for authorizing access to Mapeo projects by defining the capabilities of each device through relationships with other devices. The `Authstore` API is primarily meant to be internal to the higher-level `Mapeo` class API rather than used directly.
 
-When a project is created, `AuthStore` writes records about the project, project creator, and the project creator's device.
-`AuthStore` is a collection of linked statements about the relationships between devices and the roles & capabilities assigned to each device. The tree of statements starts with the device assigned as project creator, which can then add devices and assign them roles.
+When a project is created, `Authstore` writes records about the project, project creator, and the project creator's device.
+`Authstore` is a collection of linked statements about the relationships between devices and the roles & capabilities assigned to each device. The tree of statements starts with the device assigned as project creator, which can then add devices and assign them roles.
 
 By traversing the links between statements about devices and verifying the signatures of statements we can validate each device's capabilities.
 
 ### Available roles & capabilities
 
-In its current implementation AuthStore has three types of statements that it uses to describe devices: `Device`, `Role`, `CoreOwnership`.
+In its current implementation Authstore has three types of statements that it uses to describe devices: `Device`, `Role`, `CoreOwnership`.
 
 The device statements are used to add, remove, and restore device access. The role statements are used to assign the role and its associated capabilities to a device. The core ownership statements are used to prove that a device owns a specific hypercore.
 
@@ -50,17 +50,17 @@ The approach used so far makes it possible to define new types of statements abo
 
 ### Project creator
 
-As the root of the tree of relationships between devices, the public key of the `AuthStore` keyPair of the project creator is also the public key of the project. A project creator can't be removed from a project, however a group of coordinators could decide to fork a project with a new project creator and retain the data from the existing project.
+As the root of the tree of relationships between devices, the public key of the `Authstore` keyPair of the project creator is also the public key of the project. A project creator can't be removed from a project, however a group of coordinators could decide to fork a project with a new project creator and retain the data from the existing project.
 
 ### Capability data models
 
-Each type of capability is a `DataType`, each with its own schema, validation, and indexing. The data types are stored in a `DataStore` instance internal to the `AuthStore` class.
+Each type of capability is a `DataType`, each with its own schema, validation, and indexing. The data types are stored in a `Datastore` instance internal to the `Authstore` class.
 
 See the available data schemas in [authtypes.js](authtypes.js).
 
 ### Syncing data
 
-When syncing a project the `AuthStore` hypercores are synced first. Sync then continues with other data after the device has been authorized by verifying its role & capabilities.
+When syncing a project the `Authstore` hypercores are synced first. Sync then continues with other data after the device has been authorized by verifying its role & capabilities.
 
 ## Usage
 
@@ -72,4 +72,4 @@ TODO!
 
 ## Tests
 
-Tests for this module are in [tests/authstore.js](../../tests/authstore.js)
+Tests for this module are in [tests/Authstore.js](../../tests/Authstore.js)

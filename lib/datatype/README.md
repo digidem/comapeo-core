@@ -8,9 +8,9 @@ The `DataType` class composes our [`Indexer` class](./indexer/) with a [`Coresto
 
 ## Usage
 
-The `DataType` class is used internally by the [`DataStore` class](../datastore/).
+The `DataType` class is used internally by the [`Datastore` class](../datastore/).
 
-Currently it isn't easily usable on its own as it assumes it is used along with [multi-core-indexer](https://npmjs.com/multi-core-indexer) as part of the `DataStore` class.
+Currently it isn't easily usable on its own as it assumes it is used along with [multi-core-indexer](https://npmjs.com/multi-core-indexer) as part of the `Datastore` class.
 
 A usage example with multi-core-indexer taken from the [DataType test helpers](../../tests/helpers/datatype.js):
 

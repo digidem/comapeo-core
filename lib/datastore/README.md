@@ -1,21 +1,21 @@
-# DataStore
+# Datastore
 
 > Manage a collection of `DataType` instances.
 
 ## Purpose
 
-The `DataStore` class is responsible for managing and indexing a collection of [`DataType`](../datatype/) instances.
+The `Datastore` class is responsible for managing and indexing a collection of [`DataType`](../datatype/) instances.
 
 ## Usage
 
-The `DataStore` class is used internally by the [`AuthStore`](../authstore/) and [`Mapeo`](../../index.js) classes.
+The `Datastore` class is used internally by the [`Authstore`](../authstore/) and [`Mapeo`](../../index.js) classes.
 
 The API of this module is primarily a convenient wrapper around the [`DataType`](../datatype/) class.
 
-An example of `DataStore` usage taken from the [datastore tests](../../tests/datastore.js):
+An example of `Datastore` usage taken from the [datastore tests](../../tests/datastore.js):
 
 ```js
-const datastore = new DataStore({
+const datastore = new Datastore({
   corestore,
   sqlite,
   keyPair,
