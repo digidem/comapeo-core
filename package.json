@@ -74,6 +74,7 @@
     "hypercore-crypto": "^3.3.1",
     "hyperdrive": "^11.0.0-alpha.10",
     "hyperswarm": "^4.4.1",
+    "ipaddr.js": "^2.1.0",
     "mapeo-schema": "github:digidem/mapeo-schema#protobufsTypescript",
     "multi-core-indexer": "github:digidem/multi-core-indexer#no-prepare",
     "multicast-service-discovery": "^4.0.4",
