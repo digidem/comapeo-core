@@ -1,13 +1,14 @@
 // @ts-check
 import test from 'brittle'
 // @ts-ignore
-import { pipelinePromise as pipeline, Writable } from 'streamx'
+import { pipelinePromise as pipeline } from 'streamx'
 import { randomBytes } from 'node:crypto'
 import fs from 'fs'
 import { readFile } from 'fs/promises'
-import { createCoreManager, replicate } from '../helpers/core-manager.js'
+import { createCoreManager } from '../helpers/core-manager.js'
 import { BlobStore } from '../../lib/blob-store/index.js'
 import { setTimeout } from 'node:timers/promises'
+import { replicateBlobs, concat } from '../helpers/blob-store.js'
 
 // Test with buffers that are 3 times the default blockSize for hyperblobs
 const TEST_BUF_SIZE = 3 * 64 * 1024
@@ -294,41 +295,4 @@ async function downloaded (liveDownload) {
       res()
     })
   })
-}
-
-/**
- *
- * @param {import('../../lib/core-manager/index.js').CoreManager} cm1
- * @param {import('../../lib/core-manager/index.js').CoreManager} cm2
- */
-function replicateBlobs (cm1, cm2) {
-  cm1.addCore(cm2.getWriterCore('blobIndex').key, 'blobIndex')
-  cm2.addCore(cm1.getWriterCore('blobIndex').key, 'blobIndex')
-  const {
-    rsm: [rsm1, rsm2],
-    destroy
-  } = replicate(cm1, cm2)
-  rsm1.enableNamespace('blobIndex')
-  rsm1.enableNamespace('blob')
-  rsm2.enableNamespace('blobIndex')
-  rsm2.enableNamespace('blob')
-  return {
-    rsm: /** @type {const} */ ([rsm1, rsm2]),
-    destroy
-  }
-}
-
-async function concat(rs) {
-  let buf = null
-  await pipeline(
-    rs,
-    new Writable({
-      write (data, cb) {
-        if (buf) buf = data.concat(buf)
-        else buf = data
-        return cb(null)
-      }
-    })
-  )
-  return buf
 }

@@ -52,6 +52,7 @@
     "depcheck": "^1.4.3",
     "eslint": "^8.39.0",
     "eslint-config-prettier": "^8.8.0",
+    "light-my-request": "^5.10.0",
     "nanobench": "^3.0.0",
     "prettier": "^2.8.8",
     "random-access-memory": "^6.2.0",
