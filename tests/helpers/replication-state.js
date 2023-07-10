@@ -19,8 +19,6 @@ export function logState(syncState, name) {
     }
     message += '\n'
   }
-
-  console.log(message)
 }
 
 /**

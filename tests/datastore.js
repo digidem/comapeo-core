@@ -45,7 +45,7 @@ test('datastore - create, update, query two datatypes', async (t) => {
   })
 
   const updatedDoc = await datastore.update('Observation', updatedDocVersion)
-  console.log('updatedDoc', updatedDoc)
+
   t.is(updatedDoc.tags.value, 'updated', 'doc updated')
 
   const [gotUpdatedDoc] = datastore.query(
@@ -107,7 +107,7 @@ test('datastore - replicate two datastores', async (t) => {
   await waitForIndexing([peer2.datastore])
 
   const peer2Doc = peer2.datastore.getById('Observation', doc.id)
-  console.log('peer2Doc', peer2Doc)
+
   t.ok(doc, 'doc created')
   t.is(peer2Doc.tags.value, 'example', 'doc replicated')
 

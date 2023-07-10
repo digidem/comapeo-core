@@ -50,7 +50,6 @@ export async function createDataType(options) {
       return new RandomAccessMemory(key)
     },
     batch: (entries) => {
-      console.log('batch', entries)
       dataType.index(entries)
     },
   })
