@@ -33,6 +33,7 @@ export class Mapeo {
     this.#sqlite = new Sqlite(this.#sqliteDatabase)
     this.#keyManager = new KeyManager(options.rootKey)
 
+    this.identityKeyPair = this.#keyManager.getIdentityKeyPair()
     this.projectKeyPair = {
       publicKey: options.projectKey,
       secretKey: options.projectSecretKey,
@@ -47,9 +48,10 @@ export class Mapeo {
     })
 
     this.auth = new Authstore({
-      sqlite: this.#sqliteDatabase,
+      identityKeyPair: this.identityKeyPair,
+      projectPublicKey: this.projectKeyPair.publicKey,
+      sqlite: this.#sqlite,
       coreManager: this.#coreManager,
-      keyManager: this.#keyManager,
     })
   }
 }

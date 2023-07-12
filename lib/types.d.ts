@@ -8,7 +8,9 @@ import { SUPPORTED_BLOB_VARIANTS } from './blobstore/index.js'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 type BlobType = keyof SupportedBlobVariants
-type BlobVariant<TBlobType extends BlobType> = TupleToUnion<SupportedBlobVariants[TBlobType]>
+type BlobVariant<TBlobType extends BlobType> = TupleToUnion<
+  SupportedBlobVariants[TBlobType]
+>
 
 type BlobIdBase<T extends BlobType> = {
   /** Type of blob */
@@ -31,7 +33,5 @@ export type BlobId = Simplify<
 type ArrayAtLeastOne<T> = [T, ...T[]]
 
 export type BlobFilter = RequireAtLeastOne<{
-  [KeyType in BlobType]: ArrayAtLeastOne<
-    BlobVariant<KeyType>
-  >
+  [KeyType in BlobType]: ArrayAtLeastOne<BlobVariant<KeyType>>
 }>
