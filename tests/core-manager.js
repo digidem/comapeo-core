@@ -459,10 +459,9 @@ function bitfieldEquals (actual, expected, len) {
  */
 async function countOpenFileDescriptors (dir) {
   return new Promise((res, rej) => {
-    exec(`lsof +D '${dir}'`, (error, stdout) => {
-      // if (error) return rej(error)
-      console.log(stdout)
-      res(stdout.split('\n').length - 2)
+    exec(`lsof +D '${dir}' | wc -l`, (error, stdout) => {
+      if (error) return rej(error)
+      res(stdout - 1)
     })
   })
 }
