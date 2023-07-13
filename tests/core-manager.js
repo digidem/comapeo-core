@@ -345,7 +345,7 @@ test('poolSize limits number of open file descriptors', async function (t) {
       projectKey,
       projectSecretKey
     })
-    // -1 because we CoreManager creates a writer core already
+    // -1 because CoreManager creates a writer core already
     for (let i = 0; i < CORE_COUNT - 1; i++) {
       const coreKey = randomBytes(32)
       cm.addCore(coreKey, 'data')
