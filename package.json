@@ -10,7 +10,8 @@
     "./datastore": "./lib/datastore/index.js",
     "./discovery": "./lib/discovery/index.js",
     "./datatype": "./lib/datatype/index.js",
-    "./sqlite": "./lib/sqlite.js"
+    "./sqlite": "./lib/sqlite.js",
+    "./blob-store": "./lib/blob-store/index.js"
   },
   "scripts": {
     "lint": "eslint .",
