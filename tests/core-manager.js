@@ -8,6 +8,11 @@ import Sqlite from 'better-sqlite3'
 import { KeyManager } from '@mapeo/crypto'
 import { CoreManager } from '../lib/core-manager/index.js'
 import assert from 'assert'
+import { temporaryDirectoryTask } from 'tempy'
+import { exec } from 'child_process'
+import { RandomAccessFilePool } from '../lib/core-manager/random-access-file-pool.js'
+import RandomAccessFile from 'random-access-file'
+import path from 'path'
 
 async function createCore (...args) {
   const core = new Hypercore(RAM, ...args)
@@ -324,6 +329,63 @@ test('encryption', async function (t) {
   }
 })
 
+test('poolSize limits number of open file descriptors', async function (t) {
+  const keyManager = new KeyManager(randomBytes(16))
+  const { publicKey: projectKey, secretKey: projectSecretKey } =
+    keyManager.getHypercoreKeypair('auth', randomBytes(32))
+
+  const CORE_COUNT = 500
+  await temporaryDirectoryTask(async tempPath => {
+    const db = new Sqlite(':memory:')
+    const storage = name => new RandomAccessFile(path.join(tempPath, name))
+    const cm = new CoreManager({
+      db,
+      keyManager,
+      storage,
+      projectKey,
+      projectSecretKey
+    })
+    // -1 because CoreManager creates a writer core already
+    for (let i = 0; i < CORE_COUNT - 1; i++) {
+      const coreKey = randomBytes(32)
+      cm.addCore(coreKey, 'data')
+    }
+    const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
+    t.is(readyPromises.length, CORE_COUNT)
+    await Promise.all(readyPromises)
+    const fdCount = await countOpenFileDescriptors(tempPath)
+    t.ok(fdCount > CORE_COUNT, 'without pool, at least one fd per core')
+  })
+
+  await temporaryDirectoryTask(async tempPath => {
+    const POOL_SIZE = 100
+    const db = new Sqlite(':memory:')
+    const pool = new RandomAccessFilePool(POOL_SIZE)
+    const storage = name =>
+      new RandomAccessFile(path.join(tempPath, name), { pool })
+    const cm = new CoreManager({
+      db,
+      keyManager,
+      storage,
+      projectKey,
+      projectSecretKey
+    })
+    // -1 because we CoreManager creates a writer core already
+    for (let i = 0; i < CORE_COUNT - 1; i++) {
+      const coreKey = randomBytes(32)
+      cm.addCore(coreKey, 'data')
+    }
+    const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
+    await Promise.all(readyPromises)
+    const fdCount = await countOpenFileDescriptors(tempPath)
+    t.is(
+      fdCount,
+      POOL_SIZE,
+      'with pool, no more file descriptors than pool size'
+    )
+  })
+})
+
 async function waitForCores (coreManager, keys) {
   const allKeys = getAllKeys(coreManager)
   if (hasKeys(keys, allKeys)) return
@@ -387,4 +449,19 @@ function bitfieldEquals (actual, expected, len) {
   } else {
     return true
   }
+}
+
+/**
+ * Count the open file descriptors in a given folder
+ *
+ * @param {string} dir folder for counting open file descriptors
+ * @returns {Promise<number>}
+ */
+async function countOpenFileDescriptors (dir) {
+  return new Promise((res, rej) => {
+    exec(`lsof +D '${dir}' | wc -l`, (error, stdout) => {
+      if (error) return rej(error)
+      res(stdout - 1)
+    })
+  })
 }
