@@ -14,7 +14,7 @@ declare module 'corestore' {
   class Corestore extends TypedEmitter<CorestoreEvents> {
     constructor(
       storage: HypercoreStorage,
-      options?: { primaryKey?: Buffer | Uint8Array }
+      options?: { primaryKey?: Buffer | Uint8Array, poolSize?: number }
     )
     get(key: Buffer | Uint8Array): Hypercore
     get(
