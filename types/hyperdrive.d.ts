@@ -1,28 +1,12 @@
 declare module 'hyperdrive' {
   import Corestore from 'corestore'
   import Hypercore from 'hypercore'
+  import Hyperblobs, { BlobId } from 'hyperblobs'
   import { Readable, Writable } from 'streamx'
   import { TypedEmitter } from 'tiny-typed-emitter'
 
   interface HyperdriveOptions {
     onwait: () => void
-  }
-
-  interface HyperdriveEntry {
-    seq: number
-    key: string
-    value: {
-      executable: boolean // whether the blob at path is an executable
-      linkname: null | string // if entry not symlink, otherwise a string to the entry this links to
-      blob: {
-        // a Hyperblob id that can be used to fetch the blob associated with this entry
-        blockOffset: number
-        blockLength: number
-        byteOffset: number
-        byteLength: number
-      }
-      metadata: null | object
-    }
   }
 
   type Range =
@@ -42,14 +26,22 @@ declare module 'hyperdrive' {
     'content-key': (contentKey: Buffer) => void
   }
 
-  // This is enough for what we need for now
-  class Hyperblobs {
-    readonly core: Hypercore
-  }
-
   interface HyperdriveGetOpts {
     wait?: boolean
     timeout?: number
+  }
+
+  namespace Hyperdrive {
+    export interface HyperdriveEntry {
+      seq: number
+      key: string
+      value: {
+        executable: boolean // whether the blob at path is an executable
+        linkname: null | string // if entry not symlink, otherwise a string to the entry this links to
+        blob: BlobId // a Hyperblob id that can be used to fetch the blob associated with this entry
+        metadata: null | object
+      }
+    }
   }
 
   class Hyperdrive extends TypedEmitter<HyperdriveEvents> {
@@ -69,9 +61,15 @@ declare module 'hyperdrive' {
       path: string,
       opts?: { core?: Hypercore; start?: number; length?: number; end?: number }
     ): Readable
-    entry(path: string, opts?: HyperdriveGetOpts): Promise<HyperdriveEntry>
-    getBlobs(): Promise<any>
-    get(path: string, opts?: HyperdriveGetOpts): Promise<Buffer>
+    entry(
+      path: string,
+      opts?: HyperdriveGetOpts
+    ): Promise<Hyperdrive.HyperdriveEntry>
+    getBlobs(): Promise<Hyperblobs>
+    get(
+      path: string,
+      opts?: { follow?: boolean } & HyperdriveGetOpts
+    ): Promise<Buffer>
     entries(opts: any): Readable
     put(
       path: string,

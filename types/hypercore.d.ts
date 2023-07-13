@@ -131,6 +131,8 @@ declare module 'hypercore' {
       isInitiatorOrReplicationStream: boolean | Duplex,
       opts?: { keepAlive?: boolean }
     ): Duplex
+    clear(start: number, end?: number, opts?: { diff?: boolean }): Promise<{ blocks: number } | null>
+    clear(start: number, opts?: { diff?: boolean }): Promise<{ blocks: number } | null>
   }
 
   export default Hypercore
