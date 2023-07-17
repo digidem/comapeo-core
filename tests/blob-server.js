@@ -1,4 +1,5 @@
 // @ts-check
+import { randomBytes } from 'node:crypto'
 import test from 'brittle'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
@@ -7,6 +8,7 @@ import fastify from 'fastify'
 import { createCoreManager } from './helpers/core-manager.js'
 import { BlobStore } from '../lib/blob-store/index.js'
 import BlobServerPlugin from '../lib/blob-server/fastify-plugin.js'
+import { replicateBlobs } from './helpers/blob-store.js'
 
 test('Plugin handles prefix option properly', async (t) => {
   const { blobStore } = await testenv()
@@ -127,6 +129,36 @@ test('GET photo uses mime type from metadata if found', async (t) => {
 
     t.is(res.headers['content-type'], expectedContentHeader, 'should be equal')
   }
+})
+
+// TODO: Test not passing for the right reason, I think
+test('GET photo returns 404 when trying to get non-replicated blob', async (t) => {
+  const projectKey = randomBytes(32)
+  const { blobStore: bs1, coreManager: cm1 } = await testenv({ projectKey })
+  const { blobStore: bs2, coreManager: cm2 } = await testenv({ projectKey })
+
+  const [{ blobId }] = await populateStore(bs1)
+
+  console.log(blobId.driveId)
+
+  const { destroy } = replicateBlobs(cm1, cm2)
+
+  /** @type {any} */
+  const replicatedCore = cm2.getCoreByKey(Buffer.from(blobId.driveId, 'hex'))
+  await replicatedCore.update()
+  await replicatedCore.download({ end: replicatedCore.length }).done()
+  await destroy()
+
+  t.pass('replication successful')
+
+  const server = createServer({ blobStore: bs2 })
+
+  const res = await server.inject({
+    method: 'GET',
+    url: `/${blobId.driveId}/${blobId.type}/${blobId.variant}/${blobId.name}`,
+  })
+
+  t.is(res.statusCode, 404)
 })
 
 async function testenv(opts) {
