@@ -3,7 +3,7 @@ import test from 'brittle'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
-import Fastify from 'fastify'
+import fastify from 'fastify'
 import { createCoreManager } from './helpers/core-manager.js'
 import { BlobStore } from '../lib/blob-store/index.js'
 import BlobServerPlugin from '../lib/blob-server/fastify-plugin.js'
@@ -119,7 +119,7 @@ async function testenv(opts) {
   const coreManager = createCoreManager(opts)
   const blobStore = new BlobStore({ coreManager })
   const data = await populateStore(blobStore)
-  const server = Fastify()
+  const server = fastify()
 
   return { blobStore, data, coreManager, server }
 }
