@@ -8,13 +8,6 @@ import { createCoreManager } from './helpers/core-manager.js'
 import { BlobStore } from '../lib/blob-store/index.js'
 import BlobServerPlugin from '../lib/blob-server/fastify-plugin.js'
 
-const IMAGE_FIXTURES_PATH = new URL('./fixtures/images', import.meta.url)
-  .pathname
-
-const IMAGE_FIXTURES = readdirSync(IMAGE_FIXTURES_PATH)
-
-const SUPPORTED_IMAGE_EXTENSIONS = /** @type {const} */ (['png', 'jpg', 'jpeg'])
-
 test('Plugin handles prefix option properly', async (t) => {
   const { blobStore, data, server } = await testenv()
 
@@ -124,6 +117,11 @@ async function testenv(opts) {
   return { blobStore, data, coreManager, server }
 }
 
+const IMAGE_FIXTURES_PATH = new URL('./fixtures/images', import.meta.url)
+  .pathname
+
+const IMAGE_FIXTURES = readdirSync(IMAGE_FIXTURES_PATH)
+
 /**
  * @param {import('../lib/blob-store').BlobStore} blobStore
  */
@@ -156,7 +154,7 @@ async function populateStore(blobStore) {
 function getImageMimeType(extension) {
   if (extension.startsWith('.')) extension = extension.substring(1)
 
-  if (!SUPPORTED_IMAGE_EXTENSIONS.includes(extension)) {
+  if (!['png', 'jpg', 'jpeg'].includes(extension)) {
     return null
   }
 
