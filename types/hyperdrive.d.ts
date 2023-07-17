@@ -64,7 +64,7 @@ declare module 'hyperdrive' {
     entry(
       path: string,
       opts?: HyperdriveGetOpts
-    ): Promise<Hyperdrive.HyperdriveEntry>
+    ): Promise<Hyperdrive.HyperdriveEntry | null>
     getBlobs(): Promise<Hyperblobs>
     get(
       path: string,
