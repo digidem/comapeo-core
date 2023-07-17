@@ -1,5 +1,5 @@
 // @ts-check
-import test, { solo } from 'brittle'
+import test from 'brittle'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -32,32 +32,29 @@ test('Plugin handles prefix option properly', async (t) => {
   }
 })
 
-solo(
-  'Unsupported blob type and variant params are handled properly',
-  async (t) => {
-    const { blobStore, data, server } = await testenv()
+test('Unsupported blob type and variant params are handled properly', async (t) => {
+  const { blobStore, data, server } = await testenv()
 
-    server.register(BlobServerPlugin, { blobStore })
+  server.register(BlobServerPlugin, { blobStore })
 
-    for (const { blobId } of data) {
-      const unsupportedVariantRes = await server.inject({
-        method: 'GET',
-        url: `/${blobId.driveId}/${blobId.type}/foo/${blobId.name}`,
-      })
+  for (const { blobId } of data) {
+    const unsupportedVariantRes = await server.inject({
+      method: 'GET',
+      url: `/${blobId.driveId}/${blobId.type}/foo/${blobId.name}`,
+    })
 
-      t.is(unsupportedVariantRes.statusCode, 400)
-      t.is(unsupportedVariantRes.json().code, 'FST_ERR_VALIDATION')
+    t.is(unsupportedVariantRes.statusCode, 400)
+    t.is(unsupportedVariantRes.json().code, 'FST_ERR_VALIDATION')
 
-      const unsupportedTypeRes = await server.inject({
-        method: 'GET',
-        url: `/${blobId.driveId}/foo/${blobId.variant}/${blobId.name}`,
-      })
+    const unsupportedTypeRes = await server.inject({
+      method: 'GET',
+      url: `/${blobId.driveId}/foo/${blobId.variant}/${blobId.name}`,
+    })
 
-      t.is(unsupportedTypeRes.statusCode, 400)
-      t.is(unsupportedTypeRes.json().code, 'FST_ERR_VALIDATION')
-    }
+    t.is(unsupportedTypeRes.statusCode, 400)
+    t.is(unsupportedTypeRes.json().code, 'FST_ERR_VALIDATION')
   }
-)
+})
 
 test('GET photo returns correct blob payload', async (t) => {
   const { blobStore, data, server } = await testenv()
