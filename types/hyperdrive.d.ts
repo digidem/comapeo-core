@@ -69,7 +69,7 @@ declare module 'hyperdrive' {
     get(
       path: string,
       opts?: { follow?: boolean } & HyperdriveGetOpts
-    ): Promise<Buffer>
+    ): Promise<Buffer | null>
     entries(opts: any): Readable
     put(
       path: string,
