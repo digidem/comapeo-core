@@ -49,6 +49,28 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
   }
 })
 
+test('Missing blob name or variant returns 404', async (t) => {
+  const { blobStore, data, server } = await testenv()
+
+  server.register(BlobServerPlugin, { blobStore })
+
+  for (const { blobId } of data) {
+    const nameMismatchRes = await server.inject({
+      method: 'GET',
+      url: `/${blobId.driveId}/${blobId.type}/${blobId.variant}/foo`,
+    })
+
+    t.is(nameMismatchRes.statusCode, 404)
+
+    const variantMismatchRes = await server.inject({
+      method: 'GET',
+      url: `/${blobId.driveId}/${blobId.type}/thumbnail/${blobId.name}`,
+    })
+
+    t.is(variantMismatchRes.statusCode, 404)
+  }
+})
+
 test('GET photo returns correct blob payload', async (t) => {
   const { blobStore, data, server } = await testenv()
 
