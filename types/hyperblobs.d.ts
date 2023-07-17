@@ -54,7 +54,7 @@ declare module 'hyperblobs' {
         wait?: boolean
         timeout?: number
       } & BlobReadStreamOpts
-    ): Promise<Buffer>
+    ): Promise<Buffer | null>
 
     clear(
       id: Hyperblobs.BlobId,
