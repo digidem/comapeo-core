@@ -275,6 +275,40 @@ test('cancelled live download', async function (t) {
   )
 })
 
+test('blobStore.getEntryBlob({blobId, driveId})', async t => {
+  const { blobStore } = await testenv()
+  const diskbuf = await readFile(new URL(import.meta.url))
+  const blobId = /** @type {const} */ ({
+    type: 'photo',
+    variant: 'original',
+    name: 'test-file'
+  })
+  const driveId = await blobStore.put(blobId, diskbuf)
+  const entry = await blobStore.entry({ ...blobId, driveId })
+
+  const buf = await blobStore.getEntryBlob(driveId, entry)
+
+  t.alike(buf, diskbuf, 'should be equal')
+})
+
+test('blobStore.getEntryReadStream({blobId, driveId})', async t => {
+  const { blobStore } = await testenv()
+  const diskbuf = await readFile(new URL(import.meta.url))
+  const blobId = /** @type {const} */ ({
+    type: 'photo',
+    variant: 'original',
+    name: 'test-file'
+  })
+  const driveId = await blobStore.put(blobId, diskbuf)
+  const entry = await blobStore.entry({ ...blobId, driveId })
+
+  const buf = await concat(
+    await blobStore.createEntryReadStream(driveId, entry)
+  )
+
+  t.alike(buf, diskbuf, 'should be equal')
+})
+
 async function testenv (opts) {
   const coreManager = createCoreManager(opts)
   const blobStore = new BlobStore({ coreManager })
