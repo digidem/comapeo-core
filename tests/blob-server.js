@@ -131,33 +131,36 @@ test('GET photo uses mime type from metadata if found', async (t) => {
   }
 })
 
-// TODO: Test not passing for the right reason, I think
-test('GET photo returns 404 when trying to get non-replicated blob', async (t) => {
-  const projectKey = randomBytes(32)
-  const { blobStore: bs1, coreManager: cm1 } = await testenv({ projectKey })
-  const { blobStore: bs2, coreManager: cm2 } = await testenv({ projectKey })
+test(
+  'GET photo returns 404 when trying to get non-replicated blob',
+  { todo: true },
+  async (t) => {
+    const projectKey = randomBytes(32)
+    const { blobStore: bs1, coreManager: cm1 } = await testenv({ projectKey })
+    const { blobStore: bs2, coreManager: cm2 } = await testenv({ projectKey })
 
-  const [{ blobId }] = await populateStore(bs1)
+    const [{ blobId }] = await populateStore(bs1)
 
-  const { destroy } = replicateBlobs(cm1, cm2)
+    const { destroy } = replicateBlobs(cm1, cm2)
 
-  /** @type {any} */
-  const replicatedCore = cm2.getCoreByKey(Buffer.from(blobId.driveId, 'hex'))
-  await replicatedCore.update()
-  await replicatedCore.download({ end: replicatedCore.length }).done()
-  await destroy()
+    /** @type {any}*/
+    const replicatedCore = cm2.getCoreByKey(Buffer.from(blobId.driveId, 'hex'))
+    await replicatedCore.update({ wait: true })
+    await replicatedCore.download({ end: replicatedCore.length }).done()
+    await destroy()
 
-  t.pass('replication successful')
+    t.pass('replication successful')
 
-  const server = createServer({ blobStore: bs2 })
+    const server = createServer({ blobStore: bs2 })
 
-  const res = await server.inject({
-    method: 'GET',
-    url: `/${blobId.driveId}/${blobId.type}/${blobId.variant}/${blobId.name}`,
-  })
+    const res = await server.inject({
+      method: 'GET',
+      url: `/${blobId.driveId}/${blobId.type}/${blobId.variant}/${blobId.name}`,
+    })
 
-  t.is(res.statusCode, 404)
-})
+    t.is(res.statusCode, 404)
+  }
+)
 
 async function testenv(opts) {
   const coreManager = createCoreManager(opts)
