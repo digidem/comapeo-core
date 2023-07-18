@@ -1,20 +1,18 @@
-// @ts-check
 import { randomBytes } from 'node:crypto'
 import test from 'brittle'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
-import fastify from 'fastify'
 import { createCoreManager } from './helpers/core-manager.js'
 import { BlobStore } from '../lib/blob-store/index.js'
-import BlobServerPlugin from '../lib/blob-server/fastify-plugin.js'
+import { createBlobServer } from '../lib/blob-server/index.js'
 import { replicateBlobs } from './helpers/blob-store.js'
 
 test('Plugin handles prefix option properly', async (t) => {
   const { blobStore } = await testenv()
   const data = await populateStore(blobStore)
   const prefix = '/blobs'
-  const server = createServer({ blobStore, prefix })
+  const server = createBlobServer({ blobStore, prefix })
 
   for (const { blobId } of data) {
     const res = await server.inject({
@@ -29,7 +27,7 @@ test('Plugin handles prefix option properly', async (t) => {
 test('Unsupported blob type and variant params are handled properly', async (t) => {
   const { blobStore } = await testenv()
   const data = await populateStore(blobStore)
-  const server = createServer({ blobStore })
+  const server = createBlobServer({ blobStore })
 
   for (const { blobId } of data) {
     const unsupportedVariantRes = await server.inject({
@@ -53,7 +51,7 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
 test('Missing blob name or variant returns 404', async (t) => {
   const { blobStore } = await testenv()
   const data = await populateStore(blobStore)
-  const server = createServer({ blobStore })
+  const server = createBlobServer({ blobStore })
 
   for (const { blobId } of data) {
     const nameMismatchRes = await server.inject({
@@ -75,7 +73,7 @@ test('Missing blob name or variant returns 404', async (t) => {
 test('GET photo returns correct blob payload', async (t) => {
   const { blobStore } = await testenv()
   const data = await populateStore(blobStore)
-  const server = createServer({ blobStore })
+  const server = createBlobServer({ blobStore })
 
   for (const { blobId, image } of data) {
     const res = await server.inject({
@@ -90,7 +88,7 @@ test('GET photo returns correct blob payload', async (t) => {
 test('GET photo returns inferred content header if metadata is not found', async (t) => {
   const { blobStore } = await testenv()
   const data = await populateStore(blobStore)
-  const server = createServer({ blobStore })
+  const server = createBlobServer({ blobStore })
 
   for (const { blobId, image } of data) {
     const res = await server.inject({
@@ -108,7 +106,7 @@ test('GET photo returns inferred content header if metadata is not found', async
 test('GET photo uses mime type from metadata if found', async (t) => {
   const { blobStore } = await testenv()
   const data = await populateStore(blobStore)
-  const server = createServer({ blobStore })
+  const server = createBlobServer({ blobStore })
 
   for (const { blobId, image } of data) {
     const imageMimeType = getImageMimeType(image.ext)
@@ -151,7 +149,7 @@ test(
 
     t.pass('replication successful')
 
-    const server = createServer({ blobStore: bs2 })
+    const server = createBlobServer({ blobStore: bs2 })
 
     const res = await server.inject({
       method: 'GET',
@@ -200,15 +198,6 @@ async function populateStore(blobStore) {
   }
 
   return data
-}
-
-/**
- * @param {import('../lib/blob-server/fastify-plugin.js').BlobsServerPluginOpts} opts
- */
-function createServer(opts) {
-  const server = fastify()
-  server.register(BlobServerPlugin, opts)
-  return server
 }
 
 function getImageMimeType(extension) {
