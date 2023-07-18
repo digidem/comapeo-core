@@ -10,6 +10,7 @@ declare module 'multi-core-indexer'
 declare module '@mapeo/sqlite-indexer'
 declare module 'sodium-universal'
 declare module 'base32.js'
+declare module 'sub-encoder'
 
 declare module 'kademlia-routing-table' {
   import { TypedEmitter } from 'tiny-typed-emitter'
