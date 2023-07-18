@@ -17,13 +17,12 @@
   "scripts": {
     "lint": "eslint .",
     "format": "prettier . --write",
-    "test": "brittle tests/*.js",
+    "test": "brittle \"tests/**/*.js\"",
     "bench": "nanobench benchmarks/*.js",
     "type": "tsc",
     "deps": "depcheck --ignore-dirs=docs,types --ignores=@types/*,typescript,typedoc,typedoc-plugin-markdown,@hyperswarm/testnet",
     "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
-    "protobuf": "node ./scripts/build-messages.js",
-    "postinstall": "patch-package"
+    "protobuf": "node ./scripts/build-messages.js"
   },
   "prettier": {
     "semi": false,
@@ -64,14 +63,15 @@
     "tempy": "^3.1.0",
     "ts-proto": "^1.147.1",
     "type-fest": "^3.10.0",
-    "typedoc": "^0.24.6",
+    "typedoc": "^0.24.8",
     "typedoc-plugin-markdown": "^3.15.3",
-    "typescript": "^5.0.4"
+    "typescript": "^5.1.6"
   },
   "peerDependencies": {
     "fastify": ">= 4"
   },
   "dependencies": {
+    "@digidem/types": "^1.0.1",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "^1.0.0-alpha.4",
     "@mapeo/sqlite-indexer": "github:digidem/mapeo-sqlite-indexer#no-prepare",
@@ -82,18 +82,18 @@
     "fastify-plugin": "^4.5.0",
     "hypercore": "^10.9.0",
     "hypercore-crypto": "^3.3.1",
-    "hyperdrive": "^11.0.0-alpha.10",
+    "hyperdrive": "github:holepunchto/hyperdrive#3db28f3",
     "hyperswarm": "^4.4.1",
     "magic-bytes.js": "^1.0.14",
     "mapeo-schema": "github:digidem/mapeo-schema#protobufsTypescript",
     "multi-core-indexer": "github:digidem/multi-core-indexer#no-prepare",
     "multicast-service-discovery": "^4.0.4",
     "p-defer": "^4.0.0",
-    "patch-package": "^7.0.0",
     "private-ip": "^3.0.0",
     "protobufjs": "^7.2.3",
     "protomux": "^3.4.1",
     "sodium-universal": "^4.0.0",
+    "sub-encoder": "^2.1.1",
     "tiny-typed-emitter": "^2.1.0"
   }
 }

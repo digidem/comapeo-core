@@ -47,16 +47,16 @@ declare module 'hyperdrive' {
   class Hyperdrive extends TypedEmitter<HyperdriveEvents> {
     constructor(corestore: Corestore, key: Buffer, opts: HyperdriveOptions)
     constructor(corestore: Corestore, opts: HyperdriveOptions)
-    readonly core: Hypercore
+    readonly id: null | string // String containing the id (z-base-32 of the public key) identifying this drive.
+    readonly core: Hypercore // Hypercore used for drive.db
     readonly blobs: null | Hyperblobs
     readonly key: Buffer | null
     readonly discoveryKey: Buffer | null
-    readonly contentKey: Buffer | null
+    readonly contentKey: Buffer | null // The public key of the Hyperblobs instance holding blobs associated with entries in the drive.
     readonly db: any // Hyperbee
-    readonly files: any // Hyperbee sub
     readonly version: number
     ready(): Promise<void>
-    update(): Promise<Boolean>
+    update(options?: { wait?: boolean }): Promise<Boolean>
     createReadStream(
       path: string,
       opts?: { core?: Hypercore; start?: number; length?: number; end?: number }

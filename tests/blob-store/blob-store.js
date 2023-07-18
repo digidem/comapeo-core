@@ -76,7 +76,7 @@ test('get(), initialized but unreplicated drive', async t => {
   const { destroy } = replicateBlobs(cm1, cm2)
   /** @type {any} */
   const replicatedCore = cm2.getCoreByKey(Buffer.from(driveId, 'hex'))
-  await replicatedCore.update()
+  await replicatedCore.update({ wait: true })
   await destroy()
   t.is(replicatedCore.contiguousLength, 0, 'data is not downloaded')
   t.ok(replicatedCore.length > 0, 'proof of length has updated')
@@ -102,7 +102,7 @@ test('get(), replicated blobIndex, but blobs not replicated', async t => {
   const { destroy } = replicateBlobs(cm1, cm2)
   /** @type {any} */
   const replicatedCore = cm2.getCoreByKey(Buffer.from(driveId, 'hex'))
-  await replicatedCore.update()
+  await replicatedCore.update({ wait: true })
   await replicatedCore.download({ end: replicatedCore.length }).done()
   await destroy()
 

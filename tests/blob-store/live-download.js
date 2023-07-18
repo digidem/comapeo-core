@@ -70,12 +70,14 @@ test('sparse live download', async t => {
 
   t.alike(await drive2.get('photo/original/one'), buf1)
   t.alike(await drive2.get('photo/original/two'), buf2)
-  await t.exception(
-    () => drive2.get('video/original/one', { wait: false }),
+  t.is(
+    await drive2.get('video/original/one', { wait: false }),
+    null,
     'Block not available'
   )
-  await t.exception(
-    () => drive2.get('video/original/two', { wait: false }),
+  t.is(
+    await drive2.get('video/original/two', { wait: false }),
+    null,
     'Block not available'
   )
 })
@@ -119,11 +121,7 @@ test('Abort download (next event loop)', async t => {
     error: null,
     status: 'aborted'
   })
-  await t.exception(
-    () => drive2.get('/foo', { wait: false }),
-    Error,
-    'Block not available'
-  )
+  t.is(await drive2.get('/foo', { wait: false }), null, 'Block not available')
 })
 
 test('Abort download (after initial download)', async t => {
@@ -148,9 +146,9 @@ test('Abort download (after initial download)', async t => {
   await once(stream, 'close')
 
   t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
-  await t.exception(
-    () => drive2.get('/two', { wait: false }),
-    Error,
+  t.is(
+    await drive2.get('/two', { wait: false }),
+    null,
     'Second blob is not downloaded'
   )
 })
@@ -158,11 +156,12 @@ test('Abort download (after initial download)', async t => {
 test('Live download when data is already downloaded', async t => {
   const { drive1, drive2, replicate } = await testEnv()
 
-  const buf1 = randomBytes(TEST_BUF_SIZE)
+  const buf1 = randomBytes(20)
   await drive1.put('/one', buf1)
 
   const stream1 = replicate()
 
+  await drive2.db.core.update({ wait: true })
   await drive2.download()
   t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
 
@@ -288,6 +287,7 @@ test('live download started before initial replication', async t => {
 async function waitForState (download, status) {
   return new Promise(res => {
     download.on('state', function onState (state) {
+      // console.log('download state', state)
       if (state.status !== status) return
       download.off('state', onState)
       res()
