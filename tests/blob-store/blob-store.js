@@ -275,7 +275,7 @@ test('cancelled live download', async function (t) {
   )
 })
 
-test('blobStore.getEntryBlob({blobId, driveId})', async t => {
+test('blobStore.getEntryBlob(driveId, entry)', async t => {
   const { blobStore } = await testenv()
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
@@ -291,7 +291,7 @@ test('blobStore.getEntryBlob({blobId, driveId})', async t => {
   t.alike(buf, diskbuf, 'should be equal')
 })
 
-test('blobStore.getEntryReadStream({blobId, driveId})', async t => {
+test('blobStore.getEntryReadStream(driveId, entry)', async t => {
   const { blobStore } = await testenv()
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
