@@ -7,7 +7,7 @@ import path from 'path'
 import fastify from 'fastify'
 import { createCoreManager } from './helpers/core-manager.js'
 import { BlobStore } from '../lib/blob-store/index.js'
-import BlobServerPlugin from '../lib/blob-server/fastify-plugin.js'
+import BlobServerPlugin from '../lib/blob-server/index.js'
 import { replicateBlobs } from './helpers/blob-store.js'
 
 test('Plugin handles prefix option properly', async (t) => {
@@ -203,7 +203,7 @@ async function populateStore(blobStore) {
 }
 
 /**
- * @param {import('../lib/blob-server/fastify-plugin.js').BlobsServerPluginOpts} opts
+ * @param {import('../lib/blob-server/index.js').BlobsServerPluginOpts} opts
  */
 function createServer(opts) {
   const server = fastify()
