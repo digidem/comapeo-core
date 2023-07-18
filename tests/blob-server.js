@@ -139,8 +139,6 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
   const [{ blobId }] = await populateStore(bs1)
 
-  console.log(blobId.driveId)
-
   const { destroy } = replicateBlobs(cm1, cm2)
 
   /** @type {any} */
