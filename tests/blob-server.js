@@ -23,7 +23,11 @@ test('Plugin handles prefix option properly', async (t) => {
   for (const { blobId } of data) {
     const res = await server.inject({
       method: 'GET',
-      url: `${prefix}/${projectId}/${blobId.driveId}/${blobId.type}/${blobId.variant}/${blobId.name}`,
+      url: buildRouteUrl({
+        ...blobId,
+        prefix,
+        projectId,
+      }),
     })
 
     t.is(res.statusCode, 200, 'request successful')
@@ -43,7 +47,12 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
   for (const { blobId } of data) {
     const unsupportedVariantRes = await server.inject({
       method: 'GET',
-      url: `/${projectId}/${blobId.driveId}/${blobId.type}/foo/${blobId.name}`,
+      // url: `/${projectId}/${blobId.driveId}/${blobId.type}/foo/${blobId.name}`,
+      url: buildRouteUrl({
+        ...blobId,
+        projectId,
+        variant: 'foo',
+      }),
     })
 
     t.is(unsupportedVariantRes.statusCode, 400)
@@ -51,7 +60,11 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
 
     const unsupportedTypeRes = await server.inject({
       method: 'GET',
-      url: `/${projectId}/${blobId.driveId}/foo/${blobId.variant}/${blobId.name}`,
+      url: buildRouteUrl({
+        ...blobId,
+        projectId,
+        type: 'foo',
+      }),
     })
 
     t.is(unsupportedTypeRes.statusCode, 400)
@@ -71,7 +84,10 @@ test('Incorrect project id returns 500', async (t) => {
   for (const { blobId } of data) {
     const incorrectProjectIdRes = await server.inject({
       method: 'GET',
-      url: `/${incorrectProjectId}/${blobId.driveId}/${blobId.type}/${blobId.variant}/${blobId.name}`,
+      url: buildRouteUrl({
+        ...blobId,
+        projectId: incorrectProjectId,
+      }),
     })
 
     t.is(incorrectProjectIdRes.statusCode, 500)
@@ -88,14 +104,22 @@ test('Missing blob name or variant returns 404', async (t) => {
   for (const { blobId } of data) {
     const nameMismatchRes = await server.inject({
       method: 'GET',
-      url: `/${projectId}/${blobId.driveId}/${blobId.type}/${blobId.variant}/foo`,
+      url: buildRouteUrl({
+        ...blobId,
+        projectId,
+        name: 'foo',
+      }),
     })
 
     t.is(nameMismatchRes.statusCode, 404)
 
     const variantMismatchRes = await server.inject({
       method: 'GET',
-      url: `/${projectId}/${blobId.driveId}/${blobId.type}/thumbnail/${blobId.name}`,
+      url: buildRouteUrl({
+        ...blobId,
+        projectId,
+        variant: 'thumbnail',
+      }),
     })
 
     t.is(variantMismatchRes.statusCode, 404)
@@ -112,7 +136,10 @@ test('GET photo returns correct blob payload', async (t) => {
   for (const { blobId, image } of data) {
     const res = await server.inject({
       method: 'GET',
-      url: `/${projectId}/${blobId.driveId}/${blobId.type}/${blobId.variant}/${blobId.name}`,
+      url: buildRouteUrl({
+        ...blobId,
+        projectId,
+      }),
     })
 
     t.alike(res.rawPayload, image.data, 'should be equal')
@@ -129,7 +156,10 @@ test('GET photo returns inferred content header if metadata is not found', async
   for (const { blobId, image } of data) {
     const res = await server.inject({
       method: 'GET',
-      url: `/${projectId}/${blobId.driveId}/${blobId.type}/${blobId.variant}/${blobId.name}`,
+      url: buildRouteUrl({
+        ...blobId,
+        projectId,
+      }),
     })
 
     const expectedContentHeader =
@@ -156,7 +186,11 @@ test('GET photo uses mime type from metadata if found', async (t) => {
 
     const res = await server.inject({
       method: 'GET',
-      url: `/${projectId}/${driveId}/${blobId.type}/${blobId.variant}/${blobId.name}`,
+      url: buildRouteUrl({
+        ...blobId,
+        projectId,
+        driveId,
+      }),
     })
 
     const expectedContentHeader = metadata
@@ -187,7 +221,7 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
   const res = await server.inject({
     method: 'GET',
-    url: `/${projectId}/${blobId.driveId}/${blobId.type}/${blobId.variant}/${blobId.name}`,
+    url: buildRouteUrl({ ...blobId, projectId }),
   })
 
   t.is(res.statusCode, 404)
@@ -241,4 +275,27 @@ function getImageMimeType(extension) {
   }
 
   return `image/${extension === 'jpg' ? 'jpeg' : extension}`
+}
+
+/**
+ *
+ * @param {object} opts
+ * @param {string} [opts.prefix]
+ * @param {string} opts.projectId
+ * @param {string} opts.driveId
+ * @param {string} opts.type
+ * @param {string} opts.variant
+ * @param {string} opts.name
+ *
+ * @returns {string}
+ */
+function buildRouteUrl({
+  prefix = '',
+  projectId,
+  driveId,
+  type,
+  variant,
+  name,
+}) {
+  return `${prefix}/${projectId}/${driveId}/${type}/${variant}/${name}`
 }
