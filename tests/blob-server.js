@@ -47,7 +47,6 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
   for (const { blobId } of data) {
     const unsupportedVariantRes = await server.inject({
       method: 'GET',
-      // url: `/${projectId}/${blobId.driveId}/${blobId.type}/foo/${blobId.name}`,
       url: buildRouteUrl({
         ...blobId,
         projectId,
