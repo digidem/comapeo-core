@@ -71,7 +71,7 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
   }
 })
 
-test('Incorrect project id returns 500', async (t) => {
+test('Incorrect project id returns 404', async (t) => {
   const projectKey = randomBytes(32)
   const projectId = projectKey.toString('hex')
   const { blobStore } = await testenv({ projectKey })
@@ -89,7 +89,7 @@ test('Incorrect project id returns 500', async (t) => {
       }),
     })
 
-    t.is(incorrectProjectIdRes.statusCode, 500)
+    t.is(incorrectProjectIdRes.statusCode, 404)
   }
 })
 
