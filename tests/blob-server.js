@@ -56,6 +56,23 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
   }
 })
 
+test('Invalid variant-type combination returns error', async (t) => {
+  const { server, projectId } = await testenv()
+
+  const url = buildRouteUrl({
+    projectId,
+    driveId: Buffer.alloc(32).toString('hex'),
+    name: 'foo',
+    type: 'video',
+    variant: 'thumbnail',
+  })
+
+  const response = await server.inject({ method: 'GET', url })
+
+  t.is(response.statusCode, 400)
+  t.ok(response.json().message.startsWith('Unsupported variant'))
+})
+
 test('Incorrect project id returns 404', async (t) => {
   const { data, server } = await testenv()
 
