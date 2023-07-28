@@ -9,16 +9,8 @@ import { createBlobServer } from '../lib/blob-server/index.js'
 import { replicateBlobs } from './helpers/blob-store.js'
 
 test('Plugin handles prefix option properly', async (t) => {
-  const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
-  const { blobStore } = await testenv({ projectKey })
-  const data = await populateStore(blobStore)
   const prefix = '/blobs'
-  const server = createBlobServer({
-    blobStore,
-    prefix,
-    projectId,
-  })
+  const { data, server, projectId } = await testenv({ prefix })
 
   for (const { blobId } of data) {
     const res = await server.inject({
@@ -35,14 +27,7 @@ test('Plugin handles prefix option properly', async (t) => {
 })
 
 test('Unsupported blob type and variant params are handled properly', async (t) => {
-  const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
-  const { blobStore } = await testenv({ projectKey })
-  const data = await populateStore(blobStore)
-  const server = createBlobServer({
-    blobStore,
-    projectId,
-  })
+  const { data, server, projectId } = await testenv()
 
   for (const { blobId } of data) {
     const unsupportedVariantRes = await server.inject({
@@ -72,11 +57,7 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
 })
 
 test('Incorrect project id returns 404', async (t) => {
-  const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
-  const { blobStore } = await testenv({ projectKey })
-  const data = await populateStore(blobStore)
-  const server = createBlobServer({ blobStore, projectId })
+  const { data, server } = await testenv()
 
   const incorrectProjectId = randomBytes(32).toString('hex')
 
@@ -94,11 +75,7 @@ test('Incorrect project id returns 404', async (t) => {
 })
 
 test('Missing blob name or variant returns 404', async (t) => {
-  const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
-  const { blobStore } = await testenv({ projectKey })
-  const data = await populateStore(blobStore)
-  const server = createBlobServer({ blobStore, projectId })
+  const { data, server, projectId } = await testenv()
 
   for (const { blobId } of data) {
     const nameMismatchRes = await server.inject({
@@ -126,11 +103,7 @@ test('Missing blob name or variant returns 404', async (t) => {
 })
 
 test('GET photo returns correct blob payload', async (t) => {
-  const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
-  const { blobStore } = await testenv({ projectKey })
-  const data = await populateStore(blobStore)
-  const server = createBlobServer({ blobStore, projectId })
+  const { data, server, projectId } = await testenv()
 
   for (const { blobId, image } of data) {
     const res = await server.inject({
@@ -146,11 +119,7 @@ test('GET photo returns correct blob payload', async (t) => {
 })
 
 test('GET photo returns inferred content header if metadata is not found', async (t) => {
-  const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
-  const { blobStore } = await testenv({ projectKey })
-  const data = await populateStore(blobStore)
-  const server = createBlobServer({ blobStore, projectId })
+  const { data, server, projectId } = await testenv()
 
   for (const { blobId, image } of data) {
     const res = await server.inject({
@@ -169,11 +138,7 @@ test('GET photo returns inferred content header if metadata is not found', async
 })
 
 test('GET photo uses mime type from metadata if found', async (t) => {
-  const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
-  const { blobStore } = await testenv({ projectKey })
-  const data = await populateStore(blobStore)
-  const server = createBlobServer({ blobStore, projectId })
+  const { data, server, projectId, blobStore } = await testenv()
 
   for (const { blobId, image } of data) {
     const imageMimeType = getImageMimeType(image.ext)
@@ -201,12 +166,13 @@ test('GET photo uses mime type from metadata if found', async (t) => {
 })
 
 test('GET photo returns 404 when trying to get non-replicated blob', async (t) => {
-  const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
-  const { blobStore: bs1, coreManager: cm1 } = await testenv({ projectKey })
-  const { blobStore: bs2, coreManager: cm2 } = await testenv({ projectKey })
+  const { data, projectId, coreManager: cm1 } = await testenv()
+  const projectKey = Buffer.from(projectId, 'hex')
+  const { blobStore: bs2, coreManager: cm2 } = await createBlobStore({
+    projectKey,
+  })
 
-  const [{ blobId }] = await populateStore(bs1)
+  const [{ blobId }] = data
 
   const { destroy } = replicateBlobs(cm1, cm2)
 
@@ -226,10 +192,19 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
   t.is(res.statusCode, 404)
 })
 
-async function testenv(opts) {
+function createBlobStore(opts) {
   const coreManager = createCoreManager(opts)
   const blobStore = new BlobStore({ coreManager })
   return { blobStore, coreManager }
+}
+
+async function testenv({ prefix } = {}) {
+  const projectKey = randomBytes(32)
+  const projectId = projectKey.toString('hex')
+  const { blobStore, coreManager } = await createBlobStore({ projectKey })
+  const data = await populateStore(blobStore)
+  const server = createBlobServer({ blobStore, projectId, prefix })
+  return { data, server, projectId, coreManager, blobStore }
 }
 
 const IMAGE_FIXTURES_PATH = new URL('./fixtures/images', import.meta.url)
