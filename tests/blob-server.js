@@ -6,7 +6,15 @@ import path from 'path'
 import { createCoreManager } from './helpers/core-manager.js'
 import { BlobStore } from '../lib/blob-store/index.js'
 import { createBlobServer } from '../lib/blob-server/index.js'
+import BlobServerPlugin from '../lib/blob-server/fastify-plugin.js'
+import fastify from 'fastify'
+
 import { replicateBlobs } from './helpers/blob-store.js'
+
+test('Plugin throws error if missing getBlobStore option', async (t) => {
+  const server = fastify()
+  await t.exception(() => server.register(BlobServerPlugin))
+})
 
 test('Plugin handles prefix option properly', async (t) => {
   const prefix = '/blobs'
