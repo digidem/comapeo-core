@@ -159,10 +159,10 @@ test('GET photo uses mime type from metadata if found', async (t) => {
 
   for (const { blobId, image } of data) {
     const imageMimeType = getImageMimeType(image.ext)
-    const metadata = imageMimeType ? { mime: imageMimeType } : undefined
+    const metadata = imageMimeType ? { mimeType: imageMimeType } : undefined
 
     const driveId = await blobStore.put(blobId, image.data, {
-      metadata: imageMimeType ? { mime: imageMimeType } : undefined,
+      metadata: imageMimeType ? { mimeType: imageMimeType } : undefined,
     })
 
     const res = await server.inject({
@@ -175,7 +175,7 @@ test('GET photo uses mime type from metadata if found', async (t) => {
     })
 
     const expectedContentHeader = metadata
-      ? metadata.mime
+      ? metadata.mimeType
       : 'application/octet-stream'
 
     t.is(res.headers['content-type'], expectedContentHeader, 'should be equal')
