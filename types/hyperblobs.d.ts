@@ -61,8 +61,11 @@ declare module 'hyperblobs' {
       opts?: { diff?: boolean }
     ): Promise<{ blocks: number } | null>
 
-    createWriteStream(opts: BlobWriteStreamOpts): BlobWriteStream
-    createReadStream(opts: BlobReadStreamOpts): BlobReadStream
+    createWriteStream(opts?: BlobWriteStreamOpts): BlobWriteStream
+    createReadStream(
+      id: Hyperblobs.BlobId,
+      opts?: BlobReadStreamOpts
+    ): BlobReadStream
   }
 
   export = Hyperblobs
