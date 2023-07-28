@@ -72,9 +72,11 @@
   },
   "dependencies": {
     "@digidem/types": "^1.0.1",
+    "@fastify/type-provider-typebox": "^3.3.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "^1.0.0-alpha.4",
     "@mapeo/sqlite-indexer": "github:digidem/mapeo-sqlite-indexer#no-prepare",
+    "@sinclair/typebox": "^0.29.6",
     "b4a": "^1.6.3",
     "base32.js": "^0.1.0",
     "better-sqlite3": "^8.3.0",
