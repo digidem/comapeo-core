@@ -223,12 +223,12 @@ function createBlobStore(opts) {
   return { blobStore, coreManager }
 }
 
-async function testenv({ prefix } = {}) {
+async function testenv({ prefix, logger } = {}) {
   const projectKey = randomBytes(32)
   const projectId = projectKey.toString('hex')
   const { blobStore, coreManager } = await createBlobStore({ projectKey })
   const data = await populateStore(blobStore)
-  const server = createBlobServer({ blobStore, projectId, prefix })
+  const server = createBlobServer({ blobStore, projectId, prefix, logger })
   return { data, server, projectId, coreManager, blobStore }
 }
 
