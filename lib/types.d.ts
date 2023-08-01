@@ -5,10 +5,13 @@ import type {
   RequireAtLeastOne,
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
+import { MapeoDoc, MapeoValue } from '@mapeo/schema'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 type BlobType = keyof SupportedBlobVariants
-type BlobVariant<TBlobType extends BlobType> = TupleToUnion<SupportedBlobVariants[TBlobType]>
+type BlobVariant<TBlobType extends BlobType> = TupleToUnion<
+  SupportedBlobVariants[TBlobType]
+>
 
 type BlobIdBase<T extends BlobType> = {
   /** Type of blob */
@@ -31,7 +34,23 @@ export type BlobId = Simplify<
 type ArrayAtLeastOne<T> = [T, ...T[]]
 
 export type BlobFilter = RequireAtLeastOne<{
-  [KeyType in BlobType]: ArrayAtLeastOne<
-    BlobVariant<KeyType>
-  >
+  [KeyType in BlobType]: ArrayAtLeastOne<BlobVariant<KeyType>>
 }>
+
+export type OptionalKeysOf<BaseType extends object> = Exclude<
+  {
+    [Key in keyof BaseType]: BaseType extends Record<Key, BaseType[Key]>
+      ? never
+      : Key
+  }[keyof BaseType],
+  undefined
+>
+
+export type MapeoDocMap = {
+  [K in MapeoDoc['schemaName']]: Extract<MapeoDoc, { schemaName: K }>
+}
+
+export type MapeoValueMap = {
+  [K in MapeoValue['schemaName']]: Extract<MapeoValue, { schemaName: K }>
+}
+

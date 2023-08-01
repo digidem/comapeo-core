@@ -4,7 +4,6 @@
 // - KeyPair
 // - DhtNode
 
-declare module 'brittle'
 declare module 'nanobench'
 declare module 'multi-core-indexer'
 declare module '@mapeo/sqlite-indexer'
