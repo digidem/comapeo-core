@@ -53,7 +53,7 @@ test('read and write', async (t) => {
   )
 })
 
-test.solo('index events', async (t) => {
+test('index events', async (t) => {
   const cm = createCoreManager()
   const writerCore = cm.getWriterCore('data').core
   await writerCore.ready()
