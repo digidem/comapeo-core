@@ -36,7 +36,7 @@ declare module 'brittle' {
     todo?: boolean
   }
 
-  interface TestInstance extends Assertion {
+  export interface TestInstance extends Assertion {
     plan(n: number): void
     teardown(fn: () => void | Promise<void>, options?: { order?: number }): void
     timeout(ms: number): void
