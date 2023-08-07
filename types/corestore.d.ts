@@ -14,21 +14,26 @@ declare module 'corestore' {
   class Corestore extends TypedEmitter<CorestoreEvents> {
     constructor(
       storage: HypercoreStorage,
-      options?: { primaryKey?: Buffer | Uint8Array, poolSize?: number }
+      options?: { primaryKey?: Buffer | Uint8Array; poolSize?: number }
     )
-    get(key: Buffer | Uint8Array): Hypercore
+    get(key: Buffer | Uint8Array): Hypercore<Hypercore.ValueEncoding, Buffer>
     get(
       options: Omit<HypercoreOptions, 'keyPair'> & { name: string }
-    ): Hypercore
+    ): Hypercore<Hypercore.ValueEncoding, Buffer>
     get(
       options: Omit<HypercoreOptions, 'keyPair'> & { key: Buffer | Uint8Array }
-    ): Hypercore
-    get(options: SetRequired<HypercoreOptions, 'keyPair'>): Hypercore
+    ): Hypercore<Hypercore.ValueEncoding, Buffer>
+    get(
+      options: Omit<HypercoreOptions, 'keyPair' | 'key'> & {
+        key?: Buffer | string | undefined
+        keyPair: { publicKey: Buffer; secretKey?: Buffer | undefined | null }
+      }
+    ): Hypercore<Hypercore.ValueEncoding, Buffer>
     replicate: typeof Hypercore.prototype.replicate
     namespace(name: string): Corestore
     ready(): Promise<void>
     close(): Promise<void>
-    cores: Map<string, Hypercore>
+    cores: Map<string, Hypercore<Hypercore.ValueEncoding, Buffer>>
   }
 
   export = Corestore

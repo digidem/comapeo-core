@@ -5,7 +5,6 @@
 // - DhtNode
 
 declare module 'nanobench'
-declare module 'multi-core-indexer'
 declare module '@mapeo/sqlite-indexer'
 declare module 'sodium-universal'
 declare module 'base32.js'
