@@ -6,6 +6,10 @@ import * as projectTableSchemas from '../lib/schema/project.js'
 import { dereferencedDocSchemas as jsonSchemas } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Database from 'better-sqlite3'
+import {
+  BACKLINK_TABLE_POSTFIX,
+  getBacklinkTableName,
+} from '../lib/schema/utils.js'
 
 test('Expected table config', (t) => {
   const allTableSchemas = [
@@ -15,6 +19,8 @@ test('Expected table config', (t) => {
 
   for (const tableSchema of allTableSchemas) {
     const config = getTableConfig(tableSchema)
+    // Ignore backlink tables for this test
+    if (config.name.endsWith(BACKLINK_TABLE_POSTFIX)) continue
     const schemaName = config.name
     if (!(schemaName in jsonSchemas)) {
       t.fail()
@@ -75,4 +81,30 @@ test('Types match', { skip: true }, (t) => {
   const f = db.select().from(fieldTable).get()
 
   t.pass()
+})
+
+test('backlink table exists for every endexed data type', (t) => {
+  // Every indexed datatype needs a backlink table, which is used by
+  // sqlite-indexer to track backlinks
+
+  const allTableNames = [
+    ...Object.values(clientTableSchemas),
+    ...Object.values(projectTableSchemas),
+  ].map((tableSchema) => {
+    return getTableConfig(tableSchema).name
+  })
+
+  const backlinkTableNames = allTableNames.filter((name) =>
+    name.endsWith(BACKLINK_TABLE_POSTFIX)
+  )
+  const dataTypeTableNames = allTableNames.filter(
+    (name) => !name.endsWith(BACKLINK_TABLE_POSTFIX)
+  )
+
+  for (const name of dataTypeTableNames) {
+    t.ok(
+      backlinkTableNames.includes(getBacklinkTableName(name)),
+      `backlink table for ${name}`
+    )
+  }
 })
