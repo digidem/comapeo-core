@@ -70,14 +70,15 @@ test('sparse live download', async t => {
 
   t.alike(await drive2.get('photo/original/one'), buf1)
   t.alike(await drive2.get('photo/original/two'), buf2)
-  t.is(
-    await drive2.get('video/original/one', { wait: false }),
-    null,
+
+  await t.exception(
+    drive2.get('video/original/one', { wait: false }),
+    /BLOCK_NOT_AVAILABLE/,
     'Block not available'
   )
-  t.is(
-    await drive2.get('video/original/two', { wait: false }),
-    null,
+  await t.exception(
+    drive2.get('video/original/two', { wait: false }),
+    /BLOCK_NOT_AVAILABLE/,
     'Block not available'
   )
 })
@@ -121,7 +122,11 @@ test('Abort download (next event loop)', async t => {
     error: null,
     status: 'aborted'
   })
-  t.is(await drive2.get('/foo', { wait: false }), null, 'Block not available')
+  await t.exception(
+    drive2.get('/foo', { wait: false }),
+    /Block not available locally/,
+    'Block not available locally'
+  )
 })
 
 test('Abort download (after initial download)', async t => {
@@ -146,9 +151,9 @@ test('Abort download (after initial download)', async t => {
   await once(stream, 'close')
 
   t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
-  t.is(
-    await drive2.get('/two', { wait: false }),
-    null,
+  await t.exception(
+    drive2.get('/two', { wait: false }),
+    /BLOCK_NOT_AVAILABLE/,
     'Second blob is not downloaded'
   )
 })

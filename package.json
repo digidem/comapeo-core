@@ -84,7 +84,7 @@
     "fastify-plugin": "^4.5.0",
     "hypercore": "^10.9.0",
     "hypercore-crypto": "^3.3.1",
-    "hyperdrive": "github:holepunchto/hyperdrive#3db28f3",
+    "hyperdrive": "^11.5.3",
     "hyperswarm": "^4.4.1",
     "magic-bytes.js": "^1.0.14",
     "mapeo-schema": "github:digidem/mapeo-schema#protobufsTypescript",
