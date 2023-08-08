@@ -4,6 +4,7 @@ import { DataStore } from '../lib/datastore/data-store-new.js'
 import { createCoreManager } from './helpers/core-manager.js'
 import { getVersionId } from '@mapeo/schema'
 import { once } from 'events'
+import RAM from 'random-access-memory'
 
 /** @type {Omit<import('@mapeo/schema').Observation, 'versionId'>} */
 const obs = {
@@ -26,12 +27,15 @@ test('read and write', async (t) => {
   const dataStore = new DataStore({
     coreManager: cm,
     namespace: 'data',
-    indexEntries: async (entries) => {
-      for (const { index, key } of entries) {
-        const versionId = getVersionId({ coreKey: key, index })
-        indexedVersionIds.push(versionId)
-      }
-    },
+    indexWriter: /** @type {any} faking IndexWriter for unit test */ ({
+      async batch(entries) {
+        for (const { index, key } of entries) {
+          const versionId = getVersionId({ coreKey: key, index })
+          indexedVersionIds.push(versionId)
+        }
+      },
+    }),
+    storage: () => new RAM(),
   })
   const written = await dataStore.write(obs)
   const expectedVersionId = getVersionId({ coreKey: writerCore.key, index: 0 })
@@ -61,9 +65,12 @@ test('index events', async (t) => {
   const dataStore = new DataStore({
     coreManager: cm,
     namespace: 'data',
-    indexEntries: async () => {
-      await new Promise((res) => setTimeout(res, 10))
-    },
+    indexWriter: /** @type {any} faking IndexWriter for unit test */ ({
+      async batch() {
+        await new Promise((res) => setTimeout(res, 10))
+      },
+    }),
+    storage: () => new RAM(),
   })
   dataStore.on('index-state', (state) => {
     // eslint-disable-next-line no-unused-vars

@@ -4,6 +4,7 @@ import { temporaryFile } from 'tempy'
 import fs from 'node:fs'
 import { execSync } from 'child_process'
 import { test } from 'brittle'
+import RAM from 'random-access-memory'
 import { DataStore } from '../lib/datastore/data-store-new.js'
 import { DataType } from '../lib/datatype/data-type-new.js'
 import { IndexWriter } from '../lib/index-writer.js'
@@ -82,6 +83,7 @@ async function createDataType(t) {
     coreManager,
     namespace: 'data',
     indexWriter,
+    storage: () => new RAM(),
   })
   return new DataType({
     dataStore,
