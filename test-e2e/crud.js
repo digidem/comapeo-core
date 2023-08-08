@@ -81,7 +81,7 @@ async function createDataType(t) {
   const dataStore = new DataStore({
     coreManager,
     namespace: 'data',
-    indexEntries: indexWriter.batch.bind(indexWriter),
+    indexWriter,
   })
   return new DataType({
     dataStore,
