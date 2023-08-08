@@ -33,6 +33,8 @@ test('update', async (t) => {
   // Floating-point errors
   t.ok((updated.lon || 0) - 0.573453 < 0.000001)
   t.ok((updated.lat || 0) - 50.854259 < 0.000001)
+  t.not(written.updatedAt, updated.updatedAt, 'updatedAt has changed')
+  t.is(written.createdAt, updated.createdAt, 'createdAt does not change')
 })
 
 test('getMany', async (t) => {
