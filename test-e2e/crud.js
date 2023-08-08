@@ -76,8 +76,8 @@ async function createDataType(t) {
   await coreManager.getWriterCore('auth').core.ready()
   const { db, sqlite } = createDb(t)
   const indexWriter = new IndexWriter({
-    schemas: [observationTable],
-    db: sqlite,
+    tables: [observationTable],
+    sqlite,
   })
   const dataStore = new DataStore({
     coreManager,
