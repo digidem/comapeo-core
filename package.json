@@ -22,7 +22,8 @@
     "type": "tsc",
     "deps": "depcheck --ignore-dirs=docs,types --ignores=@types/*,typescript,typedoc,typedoc-plugin-markdown,@hyperswarm/testnet",
     "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
-    "protobuf": "node ./scripts/build-messages.js"
+    "protobuf": "node ./scripts/build-messages.js",
+    "db:generate:project": "drizzle-kit generate:sqlite --schema lib/schema/project.js --out drizzle/project"
   },
   "prettier": {
     "semi": false,
