@@ -7,12 +7,17 @@
     "strictBindCallApply": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "module": "ES2020",
-    "moduleResolution": "node",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
-    "typeRoots": ["types", "node_modules/@types", "node_modules/@digidem/types/vendor"],
+    "noErrorTruncation": true,
+    "typeRoots": [
+      "types",
+      "node_modules/@types",
+      "node_modules/@digidem/types/vendor"
+    ],
     "paths": {
       "*": ["./types"],
       "@gravitysoftware/dnssd": [
@@ -20,6 +25,7 @@
       ]
     }
   },
+  "files": ["tests/schema.js", "test-e2e/crud.js"],
   "include": ["**/*"],
   "exclude": ["node_modules", "tmp", "tests", "examples"]
 }
