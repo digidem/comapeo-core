@@ -2,7 +2,7 @@ import { KeyManager } from '@mapeo/crypto'
 import Hypercore from 'hypercore'
 import RAM from 'random-access-memory'
 
-export async function createCore (...args) {
+export async function createCore(...args) {
   const core = new Hypercore(RAM, ...args)
   await core.ready()
   return core

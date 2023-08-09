@@ -3,7 +3,6 @@ import crypto from 'hypercore-crypto'
 /** @typedef {import('./index.js').Namespace} Namespace */
 /** @typedef {import('./index.js').CoreRecord} CoreRecord */
 
-
 /**
  * An in-memory index of open cores.
  */
@@ -27,7 +26,7 @@ export class CoreIndex {
    * @param {Namespace} options.namespace
    * @param {boolean} [options.writer] Is this a writer core?
    */
-  add ({ core, key, namespace, writer = false }) {
+  add({ core, key, namespace, writer = false }) {
     const discoveryKey = crypto.discoveryKey(key)
     const discoveryId = discoveryKey.toString('hex')
     const record = { core, key, namespace }
@@ -43,7 +42,7 @@ export class CoreIndex {
    * @param {Namespace} namespace
    * @returns {CoreRecord[]}
    */
-  getByNamespace (namespace) {
+  getByNamespace(namespace) {
     const records = []
     for (const record of this.#coresByDiscoveryId.values()) {
       if (record.namespace === namespace) records.push(record)
@@ -57,7 +56,7 @@ export class CoreIndex {
    * @param {Namespace} namespace
    * @returns {CoreRecord}
    */
-  getWriter (namespace) {
+  getWriter(namespace) {
     const writerRecord = this.#writersByNamespace.get(namespace)
     // Shouldn't happen, since we add all the writers in the contructor
     if (!writerRecord)
@@ -71,7 +70,7 @@ export class CoreIndex {
    * @param {string} discoveryId
    * @returns {CoreRecord | undefined}
    */
-  getByDiscoveryId (discoveryId) {
+  getByDiscoveryId(discoveryId) {
     return this.#coresByDiscoveryId.get(discoveryId)
   }
 
@@ -81,7 +80,7 @@ export class CoreIndex {
    * @param {Buffer} coreKey
    * @returns {CoreRecord | undefined}
    */
-  getByCoreKey (coreKey) {
+  getByCoreKey(coreKey) {
     const discoveryId = crypto.discoveryKey(coreKey).toString('hex')
     return this.#coresByDiscoveryId.get(discoveryId)
   }

@@ -5,14 +5,14 @@
  */
 export class RandomAccessFilePool {
   /** @param {number} maxSize max number of file descriptors to use */
-  constructor (maxSize) {
+  constructor(maxSize) {
     this.maxSize = maxSize
     /** @type {Set<import('random-access-file')>} */
     this.active = new Set()
   }
 
   /** @param {import('random-access-file')} file */
-  _onactive (file) {
+  _onactive(file) {
     if (this.active.size >= this.maxSize) {
       // suspend least recently inserted this manually iterates in insertion
       // order, but only iterates to the first one (least recently inserted)
@@ -24,7 +24,7 @@ export class RandomAccessFilePool {
   }
 
   /** @param {import('random-access-file')} file */
-  _oninactive (file) {
+  _oninactive(file) {
     this.active.delete(file)
   }
 }

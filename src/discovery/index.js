@@ -242,9 +242,9 @@ export class Discovery extends TypedEmitter {
       return
     }
 
-//     const socketAddress = /** @type {import('net').AddressInfo} */ (
-//       socket.address()
-//     )
+    //     const socketAddress = /** @type {import('net').AddressInfo} */ (
+    //       socket.address()
+    //     )
 
     if (!socket.remoteAddress) {
       console.error('Socket not connected')
@@ -262,7 +262,7 @@ export class Discovery extends TypedEmitter {
     })
 
     connection.on('connect', async () => {
-      if(!connection.remotePublicKey || !connection.publicKey) return
+      if (!connection.remotePublicKey || !connection.publicKey) return
       const remotePublicKey = encodeHex(connection.remotePublicKey)
 
       if (remotePublicKey === this.identityPublicKey) {
@@ -270,18 +270,22 @@ export class Discovery extends TypedEmitter {
         return
       }
 
-      const keepNew = !connection.isInitiator || b4a.compare(connection.publicKey, connection.remotePublicKey) > 0
+      const keepNew =
+        !connection.isInitiator ||
+        b4a.compare(connection.publicKey, connection.remotePublicKey) > 0
       let existing = this.#peers.get(remotePublicKey)
 
       if (existing && keepNew) {
         // to handle close event while still negotiating connection
         let closed = false
-        let onClose = () => { closed = true }
+        let onClose = () => {
+          closed = true
+        }
         connection.on('close', onClose)
         connection.on('error', noop)
-        try{
-        await destroyConnection(existing.connection)
-        }catch(e){
+        try {
+          await destroyConnection(existing.connection)
+        } catch (e) {
           console.error('error destroying connection', e)
         }
         if (closed) return
@@ -1484,15 +1488,15 @@ export function decodeHex(str) {
   return Buffer.from(str, 'hex')
 }
 
-function noop(){}
+function noop() {}
 
 /**
  * @param {NoiseSecretStream<RawConnectionStream>} socket
  * @returns {Promise<void>}
  */
-async function destroyConnection (socket) {
+async function destroyConnection(socket) {
   socket.on('error', noop)
-  return new Promise(res => {
+  return new Promise((res) => {
     socket.on('close', res)
   })
 }

@@ -5,7 +5,7 @@ import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
-export function createCoreManager ({
+export function createCoreManager({
   rootKey = randomBytes(16),
   projectKey = randomBytes(32),
   ...opts
@@ -17,7 +17,7 @@ export function createCoreManager ({
     keyManager,
     storage: RAM,
     projectKey,
-    ...opts
+    ...opts,
   })
 }
 
@@ -27,7 +27,7 @@ export function createCoreManager ({
  * @param {CoreManager} cm2
  * @returns
  */
-export function replicate (cm1, cm2) {
+export function replicate(cm1, cm2) {
   const n1 = new NoiseSecretStream(true)
   const n2 = new NoiseSecretStream(false)
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
@@ -35,30 +35,30 @@ export function replicate (cm1, cm2) {
   const rsm1 = cm1.replicate(n1)
   const rsm2 = cm2.replicate(n2)
 
-  async function destroy () {
+  async function destroy() {
     await Promise.all([
-      new Promise(res => {
+      new Promise((res) => {
         n1.on('close', res)
         n1.destroy()
       }),
-      new Promise(res => {
+      new Promise((res) => {
         n2.on('close', res)
         n2.destroy()
-      })
+      }),
     ])
   }
 
   return {
     rsm: [rsm1, rsm2],
-    destroy
+    destroy,
   }
 }
 
-export async function waitForCores (coreManager, keys) {
+export async function waitForCores(coreManager, keys) {
   const allKeys = getAllKeys(coreManager)
   if (hasKeys(keys, allKeys)) return
-  return new Promise(res => {
-    coreManager.on('add-core', async function onAddCore ({ key, core }) {
+  return new Promise((res) => {
+    coreManager.on('add-core', async function onAddCore({ key, core }) {
       await core.ready()
       allKeys.push(key)
       if (hasKeys(keys, allKeys)) {
@@ -69,7 +69,7 @@ export async function waitForCores (coreManager, keys) {
   })
 }
 
-export function getAllKeys (coreManager) {
+export function getAllKeys(coreManager) {
   const keys = []
   for (const namespace of CoreManager.namespaces) {
     keys.push.apply(keys, getKeys(coreManager, namespace))
@@ -77,13 +77,13 @@ export function getAllKeys (coreManager) {
   return keys
 }
 
-export function getKeys (coreManager, namespace) {
+export function getKeys(coreManager, namespace) {
   return coreManager.getCores(namespace).map(({ key }) => key)
 }
 
-export function hasKeys (someKeys, allKeys) {
+export function hasKeys(someKeys, allKeys) {
   for (const key of someKeys) {
-    if (!allKeys.find(k => k.equals(key))) return false
+    if (!allKeys.find((k) => k.equals(key))) return false
   }
   return true
 }

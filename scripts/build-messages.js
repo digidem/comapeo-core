@@ -13,7 +13,7 @@ rimraf.sync(buildPath)
 
 const destinations = {
   extensions: path.join(projectRootURL.pathname, './src/core-manager'),
-  rpc: path.join(projectRootURL.pathname, './src/rpc')
+  rpc: path.join(projectRootURL.pathname, './src/rpc'),
 }
 
 const command1 = 'buf generate .'

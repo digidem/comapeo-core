@@ -11,12 +11,12 @@ import { randomBytes } from 'node:crypto'
 // Test with buffers that are 3 times the default blockSize for hyperblobs
 const TEST_BUF_SIZE = 3 * 64 * 1024
 
-test('live download', async t => {
+test('live download', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
 
   await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
   const {
-    value: { blob: blob1 }
+    value: { blob: blob1 },
   } = await drive1.entry('/foo')
 
   const stream = replicate()
@@ -45,7 +45,7 @@ test('live download', async t => {
   t.alike(await drive2.get('/bar'), expected, 'Second blob is downloaded')
 })
 
-test('sparse live download', async t => {
+test('sparse live download', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
 
   const buf1 = randomBytes(TEST_BUF_SIZE)
@@ -57,7 +57,7 @@ test('sparse live download', async t => {
   const stream = replicate()
 
   const download = new DriveLiveDownload(drive2, {
-    filter: { photo: ['original'] }
+    filter: { photo: ['original'] },
   })
   await waitForState(download, 'downloaded')
 
@@ -83,7 +83,7 @@ test('sparse live download', async t => {
   )
 })
 
-test('Abort download (same tick)', async t => {
+test('Abort download (same tick)', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
   await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
   const stream = replicate()
@@ -98,12 +98,12 @@ test('Abort download (same tick)', async t => {
     wantCount: 0,
     wantBytes: 0,
     error: null,
-    status: 'aborted'
+    status: 'aborted',
   })
   t.is(await drive2.get('/foo'), null, 'nothing downloaded')
 })
 
-test('Abort download (next event loop)', async t => {
+test('Abort download (next event loop)', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
   await drive1.put('/one', randomBytes(TEST_BUF_SIZE))
   const stream = replicate()
@@ -120,7 +120,7 @@ test('Abort download (next event loop)', async t => {
     wantCount: 0,
     wantBytes: 0,
     error: null,
-    status: 'aborted'
+    status: 'aborted',
   })
   await t.exception(
     drive2.get('/foo', { wait: false }),
@@ -129,7 +129,7 @@ test('Abort download (next event loop)', async t => {
   )
 })
 
-test('Abort download (after initial download)', async t => {
+test('Abort download (after initial download)', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
 
   const buf1 = randomBytes(TEST_BUF_SIZE)
@@ -158,7 +158,7 @@ test('Abort download (after initial download)', async t => {
   )
 })
 
-test('Live download when data is already downloaded', async t => {
+test('Live download when data is already downloaded', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
 
   const buf1 = randomBytes(20)
@@ -184,7 +184,7 @@ test('Live download when data is already downloaded', async t => {
       wantCount: 0,
       wantBytes: 0,
       error: null,
-      status: 'downloaded'
+      status: 'downloaded',
     },
     'Blob already downloaded is included in state'
   )
@@ -199,7 +199,7 @@ test('Live download when data is already downloaded', async t => {
   t.alike(await drive2.get('/two'), buf2, 'Second blob is downloaded')
 })
 
-test('Live download continues across disconnection and reconnect', async t => {
+test('Live download continues across disconnection and reconnect', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
 
   const buf1 = randomBytes(TEST_BUF_SIZE)
@@ -227,14 +227,14 @@ test('Live download continues across disconnection and reconnect', async t => {
   t.alike(await drive2.get('/two'), buf2, 'Second blob is downloaded')
 })
 
-test('Initial status', async t => {
+test('Initial status', async (t) => {
   const { drive1 } = await testEnv()
 
   const download = new DriveLiveDownload(drive1)
   t.is(download.state.status, 'checking', "initial status is 'checking'")
 })
 
-test('Unitialized drive with no data', async t => {
+test('Unitialized drive with no data', async (t) => {
   // This test is important because it catches an edge case where a drive might
   // have been added by its key, but has never replicated, so it has no data so
   // the content feed will never be read from the header, which might result in
@@ -250,12 +250,12 @@ test('Unitialized drive with no data', async t => {
   )
 })
 
-test('live download started before initial replication', async t => {
+test('live download started before initial replication', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
 
   await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
   const {
-    value: { blob: blob1 }
+    value: { blob: blob1 },
   } = await drive1.entry('/foo')
 
   const download = new DriveLiveDownload(drive2)
@@ -289,9 +289,9 @@ test('live download started before initial replication', async t => {
 })
 
 /** @returns {Promise<void>} */
-async function waitForState (download, status) {
-  return new Promise(res => {
-    download.on('state', function onState (state) {
+async function waitForState(download, status) {
+  return new Promise((res) => {
+    download.on('state', function onState(state) {
       // console.log('download state', state)
       if (state.status !== status) return
       download.off('state', onState)
@@ -300,7 +300,7 @@ async function waitForState (download, status) {
   })
 }
 
-async function testEnv () {
+async function testEnv() {
   const store1 = new Corestore(RAM)
   const store2 = new Corestore(RAM)
   const drive1 = new Hyperdrive(store1)
@@ -308,7 +308,7 @@ async function testEnv () {
   const drive2 = new Hyperdrive(store2, drive1.key)
   await drive2.ready()
 
-  function replicate () {
+  function replicate() {
     const s = store1.replicate(true)
     s.pipe(store2.replicate(false)).pipe(s)
     return s
@@ -317,6 +317,6 @@ async function testEnv () {
   return {
     drive1,
     drive2,
-    replicate
+    replicate,
   }
 }

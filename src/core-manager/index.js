@@ -14,7 +14,7 @@ export const NAMESPACES = /** @type {const} */ ([
   'auth',
   'data',
   'blobIndex',
-  'blob'
+  'blob',
 ])
 // WARNING: If changed once in production then we need a migration strategy
 const TABLE = 'cores'
@@ -50,7 +50,7 @@ export class CoreManager extends TypedEmitter {
   /** @type {'opened' | 'closing' | 'closed'} */
   #state = 'opened'
 
-  static get namespaces () {
+  static get namespaces() {
     return NAMESPACES
   }
 
@@ -63,13 +63,13 @@ export class CoreManager extends TypedEmitter {
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
    * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
    */
-  constructor ({
+  constructor({
     sqlite,
     keyManager,
     projectKey,
     projectSecretKey,
     encryptionKeys = {},
-    storage
+    storage,
   }) {
     super()
     assert(
@@ -131,11 +131,11 @@ export class CoreManager extends TypedEmitter {
     this.#extension = this.#creatorCore.registerExtension('mapeo/project', {
       onmessage: (data, peer) => {
         this.#handleExtensionMessage(data, peer)
-      }
+      },
     })
   }
 
-  get creatorCore () {
+  get creatorCore() {
     return this.#creatorCore
   }
 
@@ -144,7 +144,7 @@ export class CoreManager extends TypedEmitter {
    *
    * @param {Namespace} namespace
    */
-  getWriterCore (namespace) {
+  getWriterCore(namespace) {
     return this.#coreIndex.getWriter(namespace)
   }
 
@@ -154,7 +154,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Namespace} namespace
    * @returns
    */
-  getCores (namespace) {
+  getCores(namespace) {
     return this.#coreIndex.getByNamespace(namespace)
   }
 
@@ -164,7 +164,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} key
    * @returns {Core | undefined}
    */
-  getCoreByKey (key) {
+  getCoreByKey(key) {
     const coreRecord = this.#coreIndex.getByCoreKey(key)
     return coreRecord && coreRecord.core
   }
@@ -173,7 +173,7 @@ export class CoreManager extends TypedEmitter {
    * Close all open cores and end any replication streams
    * TODO: gracefully close replication streams
    */
-  async close () {
+  async close() {
     this.#state = 'closing'
     const promises = []
     for (const { core } of this.#coreIndex) {
@@ -194,7 +194,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Namespace} namespace
    * @returns {import('./core-index.js').CoreRecord}
    */
-  addCore (key, namespace) {
+  addCore(key, namespace) {
     return this.#addCore({ publicKey: key }, namespace, true)
   }
 
@@ -206,7 +206,7 @@ export class CoreManager extends TypedEmitter {
    * @param {boolean} [persist=false]
    * @returns {import('./core-index.js').CoreRecord}
    */
-  #addCore (keyPair, namespace, persist = false) {
+  #addCore(keyPair, namespace, persist = false) {
     // No-op if core is already managed
     const existingCore = this.#coreIndex.getByCoreKey(keyPair.publicKey)
     if (existingCore) return existingCore
@@ -215,7 +215,7 @@ export class CoreManager extends TypedEmitter {
     const writer = !!secretKey
     const core = this.#corestore.get({
       keyPair,
-      encryptionKey: this.#encryptionKeys[namespace]
+      encryptionKey: this.#encryptionKeys[namespace],
     })
     // @ts-ignore - ensure key is defined before hypercore is ready
     core.key = key
@@ -224,7 +224,7 @@ export class CoreManager extends TypedEmitter {
     // **Hack** As soon as a peer is added, eagerly send a "want" for the entire
     // core. This ensures that the peer sends back its entire bitfield.
     // Otherwise this would only happen once we call core.download()
-    core.on('peer-add', peer => {
+    core.on('peer-add', (peer) => {
       if (core.length === 0) return
       // **Warning** uses internal method, but should be covered by tests
       peer._maybeWant(0, core.length)
@@ -251,7 +251,7 @@ export class CoreManager extends TypedEmitter {
       if (rsm.state.enabledNamespaces.has(namespace)) {
         core.replicate(stream)
       } else {
-        rsm.on('enable-namespace', function onNamespace (enabledNamespace) {
+        rsm.on('enable-namespace', function onNamespace(enabledNamespace) {
           if (enabledNamespace !== namespace) return
           if (!cores.has(core)) {
             core.replicate(stream)
@@ -286,7 +286,7 @@ export class CoreManager extends TypedEmitter {
    *
    * @param {NoiseStream | ProtocolStream} noiseStream framed noise secret stream, i.e. @hyperswarm/secret-stream
    */
-  replicate (noiseStream) {
+  replicate(noiseStream) {
     if (this.#state !== 'opened') throw new Error('Core manager is closed')
     if (/** @type {ProtocolStream} */ (noiseStream).noiseStream?.userData) {
       console.warn(
@@ -305,7 +305,7 @@ export class CoreManager extends TypedEmitter {
     // replicated to a stream if we want sharing of unknown auth cores to work.
     protocol.pair(
       { protocol: 'hypercore/alpha' },
-      /** @param {Buffer} discoveryKey */ discoveryKey => {
+      /** @param {Buffer} discoveryKey */ (discoveryKey) => {
         this.#handleDiscoveryKey(discoveryKey, stream)
       }
     )
@@ -322,7 +322,7 @@ export class CoreManager extends TypedEmitter {
     const replicationRecord = { stream, rsm, cores: replicatingCores }
     this.#replications.add(replicationRecord)
 
-    rsm.on('enable-namespace', namespace => {
+    rsm.on('enable-namespace', (namespace) => {
       for (const { core } of this.getCores(namespace)) {
         if (!replicatingCores.has(core)) {
           core.replicate(stream)
@@ -343,7 +343,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} discoveryKey
    * @param {any} stream
    */
-  async #handleDiscoveryKey (discoveryKey, stream) {
+  async #handleDiscoveryKey(discoveryKey, stream) {
     const discoveryId = discoveryKey.toString('hex')
     const peer = await this.#findPeer(stream.remotePublicKey)
     if (!peer) {
@@ -355,7 +355,7 @@ export class CoreManager extends TypedEmitter {
     if (this.#coreIndex.getByDiscoveryId(discoveryId)) return
     const message = ProjectExtension.encode({
       wantCoreKeys: [discoveryKey],
-      authCoreKeys: []
+      authCoreKeys: [],
     }).finish()
     this.#extension.send(message, peer)
   }
@@ -363,9 +363,9 @@ export class CoreManager extends TypedEmitter {
   /**
    * @param {Buffer} publicKey
    */
-  async #findPeer (publicKey) {
+  async #findPeer(publicKey) {
     await this.#creatorCore.ready()
-    return this.#creatorCore.peers.find(peer =>
+    return this.#creatorCore.peers.find((peer) =>
       peer.remotePublicKey.equals(publicKey)
     )
   }
@@ -374,7 +374,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} data
    * @param {any} peer
    */
-  #handleExtensionMessage (data, peer) {
+  #handleExtensionMessage(data, peer) {
     const { wantCoreKeys, authCoreKeys } = ProjectExtension.decode(data)
     for (const discoveryKey of wantCoreKeys) {
       const discoveryId = discoveryKey.toString('hex')
@@ -383,7 +383,7 @@ export class CoreManager extends TypedEmitter {
       if (coreRecord.namespace === 'auth') {
         const message = ProjectExtension.encode({
           authCoreKeys: [coreRecord.key],
-          wantCoreKeys: []
+          wantCoreKeys: [],
         }).finish()
         this.#extension.send(message, peer)
       }
