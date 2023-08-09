@@ -1,6 +1,6 @@
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
-import { truncateId } from '../../lib/utils.js'
+import { truncateId } from '../../src/utils.js'
 import { getKeys } from './core-manager.js'
 
 export function logState(syncState, name) {
@@ -20,7 +20,7 @@ export function logState(syncState, name) {
 /**
  * 
  * @param {CoreManager} coreManager 
- * @param {import('../../lib/core-manager/core-index.js').Namespace} namespace 
+ * @param {import('../../src/core-manager/core-index.js').Namespace} namespace 
  * @param {Object} [options]
  * @param {number} [options.start=0]
  * @param {number} [options.end=-1]

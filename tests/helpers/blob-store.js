@@ -3,8 +3,8 @@ import { pipelinePromise as pipeline, Writable } from 'streamx'
 
 /**
  *
- * @param {import('../../lib/core-manager/index.js').CoreManager} cm1
- * @param {import('../../lib/core-manager/index.js').CoreManager} cm2
+ * @param {import('../../src/core-manager/index.js').CoreManager} cm1
+ * @param {import('../../src/core-manager/index.js').CoreManager} cm2
  */
 export function replicateBlobs(cm1, cm2) {
   cm1.addCore(cm2.getWriterCore('blobIndex').key, 'blobIndex');

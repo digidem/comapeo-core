@@ -6,7 +6,7 @@ import { randomBytes } from 'node:crypto'
 import fs from 'fs'
 import { readFile } from 'fs/promises'
 import { createCoreManager } from '../helpers/core-manager.js'
-import { BlobStore } from '../../lib/blob-store/index.js'
+import { BlobStore } from '../../src/blob-store/index.js'
 import { setTimeout } from 'node:timers/promises'
 import { replicateBlobs, concat } from '../helpers/blob-store.js'
 

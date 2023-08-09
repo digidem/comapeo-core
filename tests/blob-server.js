@@ -4,9 +4,9 @@ import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
 import { createCoreManager } from './helpers/core-manager.js'
-import { BlobStore } from '../lib/blob-store/index.js'
-import { createBlobServer } from '../lib/blob-server/index.js'
-import BlobServerPlugin from '../lib/blob-server/fastify-plugin.js'
+import { BlobStore } from '../src/blob-store/index.js'
+import { createBlobServer } from '../src/blob-server/index.js'
+import BlobServerPlugin from '../src/blob-server/fastify-plugin.js'
 import fastify from 'fastify'
 
 import { replicateBlobs } from './helpers/blob-store.js'
@@ -238,10 +238,10 @@ const IMAGE_FIXTURES_PATH = new URL('./fixtures/images', import.meta.url)
 const IMAGE_FIXTURES = readdirSync(IMAGE_FIXTURES_PATH)
 
 /**
- * @param {import('../lib/blob-store').BlobStore} blobStore
+ * @param {import('../src/blob-store').BlobStore} blobStore
  */
 async function populateStore(blobStore) {
-  /** @type {{blobId: import('../lib/types').BlobId, image: {data: Buffer, ext: string}}[]} */
+  /** @type {{blobId: import('../src/types').BlobId, image: {data: Buffer, ext: string}}[]} */
   const data = []
 
   for (const fixture of IMAGE_FIXTURES) {

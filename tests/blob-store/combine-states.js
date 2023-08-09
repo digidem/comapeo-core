@@ -1,4 +1,4 @@
-import { combineStates } from '../../lib/blob-store/live-download.js'
+import { combineStates } from '../../src/blob-store/live-download.js'
 import test from 'brittle'
 
 const partial = {

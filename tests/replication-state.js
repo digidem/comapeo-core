@@ -2,11 +2,10 @@
 import test from 'brittle'
 import crypto from 'hypercore-crypto'
 
-import { ReplicationState, CoreReplicationState } from '../lib/sync/replication-state.js'
+import { ReplicationState, CoreReplicationState } from '../src/sync/replication-state.js'
 import { createCoreManager, waitForCores, getKeys } from './helpers/core-manager.js'
 import { download, downloadCore, replicate } from './helpers/replication-state.js'
 import { createCore } from './helpers/index.js'
-import { keyToId } from '../lib/utils.js'
 
 test('sync cores in a namespace', async function (t) {
   t.plan(2)

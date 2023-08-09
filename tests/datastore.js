@@ -1,6 +1,6 @@
 // @ts-check
 import test from 'brittle'
-import { DataStore } from '../lib/datastore/data-store-new.js'
+import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
 import { getVersionId } from '@mapeo/schema'
 import { once } from 'events'

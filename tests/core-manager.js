@@ -6,11 +6,11 @@ import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 import Sqlite from 'better-sqlite3'
 import { KeyManager } from '@mapeo/crypto'
-import { CoreManager } from '../lib/core-manager/index.js'
+import { CoreManager } from '../src/core-manager/index.js'
 import assert from 'assert'
 import { temporaryDirectoryTask } from 'tempy'
 import { exec } from 'child_process'
-import { RandomAccessFilePool } from '../lib/core-manager/random-access-file-pool.js'
+import { RandomAccessFilePool } from '../src/core-manager/random-access-file-pool.js'
 import RandomAccessFile from 'random-access-file'
 import path from 'path'
 
@@ -39,12 +39,12 @@ test('shares auth cores', async function (t) {
 })
 
 test('project creator auth core has project key', async function (t) {
-  const db = new Sqlite(':memory:')
+  const sqlite = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
   const cm = new CoreManager({
-    db,
+    sqlite,
     keyManager,
     storage: RAM,
     projectKey,
@@ -275,11 +275,11 @@ test('close()', async t => {
 })
 
 test('Added cores are persisted', async t => {
-  const db = new Sqlite(':memory:')
+  const sqlite = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
   const projectKey = randomBytes(32)
   const cm1 = new CoreManager({
-    db,
+    sqlite,
     keyManager,
     storage: RAM,
     projectKey
@@ -290,7 +290,7 @@ test('Added cores are persisted', async t => {
   await cm1.close()
 
   const cm2 = new CoreManager({
-    db,
+    sqlite,
     keyManager,
     storage: RAM,
     projectKey
@@ -336,10 +336,10 @@ test('poolSize limits number of open file descriptors', async function (t) {
 
   const CORE_COUNT = 500
   await temporaryDirectoryTask(async tempPath => {
-    const db = new Sqlite(':memory:')
+    const sqlite = new Sqlite(':memory:')
     const storage = name => new RandomAccessFile(path.join(tempPath, name))
     const cm = new CoreManager({
-      db,
+      sqlite,
       keyManager,
       storage,
       projectKey,
@@ -359,12 +359,12 @@ test('poolSize limits number of open file descriptors', async function (t) {
 
   await temporaryDirectoryTask(async tempPath => {
     const POOL_SIZE = 100
-    const db = new Sqlite(':memory:')
+    const sqlite = new Sqlite(':memory:')
     const pool = new RandomAccessFilePool(POOL_SIZE)
     const storage = name =>
       new RandomAccessFile(path.join(tempPath, name), { pool })
     const cm = new CoreManager({
-      db,
+      sqlite,
       keyManager,
       storage,
       projectKey,

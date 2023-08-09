@@ -6,7 +6,7 @@ import {
   PeerDisconnectedError,
   TimeoutError,
   UnknownPeerError
-} from '../lib/rpc/index.js'
+} from '../src/rpc/index.js'
 import FakeTimers from '@sinonjs/fake-timers'
 import { once } from 'events'
 import { Duplex } from 'streamx'

@@ -1,5 +1,5 @@
 // @ts-check
-import { DriveLiveDownload } from '../../lib/blob-store/live-download.js'
+import { DriveLiveDownload } from '../../src/blob-store/live-download.js'
 import Hyperdrive from 'hyperdrive'
 import Corestore from 'corestore'
 import RAM from 'random-access-memory'

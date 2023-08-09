@@ -1,4 +1,4 @@
-import { CoreManager } from '../../lib/core-manager/index.js'
+import { CoreManager } from '../../src/core-manager/index.js'
 import Sqlite from 'better-sqlite3'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
@@ -10,10 +10,10 @@ export function createCoreManager ({
   projectKey = randomBytes(32),
   ...opts
 } = {}) {
-  const db = new Sqlite(':memory:')
+  const sqlite = new Sqlite(':memory:')
   const keyManager = new KeyManager(rootKey)
   return new CoreManager({
-    db,
+    sqlite,
     keyManager,
     storage: RAM,
     projectKey,
