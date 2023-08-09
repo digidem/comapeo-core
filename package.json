@@ -6,13 +6,13 @@
   "type": "module",
   "exports": {
     ".": "./index.js",
-    "./authstore": "./lib/authstore/index.js",
-    "./datastore": "./lib/datastore/index.js",
-    "./discovery": "./lib/discovery/index.js",
-    "./datatype": "./lib/datatype/index.js",
-    "./sqlite": "./lib/sqlite.js",
-    "./blob-store": "./lib/blob-store/index.js",
-    "./blob-server": "./lib/blob-server/index.js"
+    "./authstore": "./src/authstore/index.js",
+    "./datastore": "./src/datastore/index.js",
+    "./discovery": "./src/discovery/index.js",
+    "./datatype": "./src/datatype/index.js",
+    "./sqlite": "./src/sqlite.js",
+    "./blob-store": "./src/blob-store/index.js",
+    "./blob-server": "./src/blob-server/index.js"
   },
   "scripts": {
     "lint": "eslint .",
@@ -23,7 +23,7 @@
     "deps": "depcheck --ignore-dirs=docs,types --ignores=@types/*,typescript,typedoc,typedoc-plugin-markdown,@hyperswarm/testnet",
     "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
     "protobuf": "node ./scripts/build-messages.js",
-    "db:generate:project": "drizzle-kit generate:sqlite --schema lib/schema/project.js --out drizzle/project"
+    "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project"
   },
   "prettier": {
     "semi": false,
