@@ -10,7 +10,7 @@ import pDefer from 'p-defer'
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
  */
 /**
- * @typedef {import('../datatype/data-type-new.js').MapeoDocTablesMap} MapeoDocTablesMap
+ * @typedef {import('../datatype/index.js').MapeoDocTablesMap} MapeoDocTablesMap
  */
 /**
  * @typedef {object} DefaultEmitterEvents
@@ -50,7 +50,7 @@ export class DataStore extends TypedEmitter {
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {TNamespace} opts.namespace
-   * @param {import('../index-writer.js').IndexWriter<MapeoDocTablesMap[TSchemaName]>} opts.indexWriter
+   * @param {import('../index-writer/index.js').IndexWriter<MapeoDocTablesMap[TSchemaName]>} opts.indexWriter
    * @param {MultiCoreIndexer.StorageParam} opts.storage
    */
   constructor({ coreManager, namespace, indexWriter, storage }) {

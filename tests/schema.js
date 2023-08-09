@@ -1,15 +1,15 @@
 /* eslint-disable no-unused-vars */
 import { test } from 'brittle'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
-import * as clientTableSchemas from '../lib/schema/client.js'
-import * as projectTableSchemas from '../lib/schema/project.js'
+import * as clientTableSchemas from '../src/schema/client.js'
+import * as projectTableSchemas from '../src/schema/project.js'
 import { dereferencedDocSchemas as jsonSchemas } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Database from 'better-sqlite3'
 import {
   BACKLINK_TABLE_POSTFIX,
   getBacklinkTableName,
-} from '../lib/schema/utils.js'
+} from '../src/schema/utils.js'
 
 test('Expected table config', (t) => {
   const allTableSchemas = [
@@ -52,7 +52,7 @@ test('Expected table config', (t) => {
 
 /**
  * @template {object} T
- * @typedef {import('../lib/schema/schema-to-drizzle.js').OptionalToNull<T>} OptionalToNull
+ * @typedef {import('../src/schema/schema-to-drizzle.js').OptionalToNull<T>} OptionalToNull
  */
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc

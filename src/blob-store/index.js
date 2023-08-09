@@ -5,7 +5,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { LiveDownload } from './live-download.js'
 
 /** @typedef {TypedEmitter<{ 'add-drive': (drive: import('hyperdrive')) => void }>} InternalDriveEmitter */
-/** @typedef {import('../types').BlobId} BlobId */
+/** @typedef {import('../types.js').BlobId} BlobId */
 
 // prop = blob type name
 // value = array of blob variants supported for that type
@@ -98,7 +98,7 @@ export class BlobStore {
    * If no filter is specified, all blobs will be downloaded. If a filter is
    * specified, then _only_ blobs that match the filter will be downloaded.
    *
-   * @param {import('../types').BlobFilter} [filter] Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
+   * @param {import('../types.js').BlobFilter} [filter] Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
    * @param {object} options
    * @param {AbortSignal} [options.signal] Optional AbortSignal to cancel in-progress download
    * @returns EventEmitter with `.state` propery, emits `state` with new state when it updates

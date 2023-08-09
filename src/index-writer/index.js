@@ -1,10 +1,10 @@
 import { decode } from '@mapeo/schema'
 import SqliteIndexer from '@mapeo/sqlite-indexer'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
-import { getBacklinkTableName } from './schema/utils.js'
+import { getBacklinkTableName } from '../schema/utils.js'
 
 /**
- * @typedef {import('./datatype/data-type-new.js').MapeoDocTables} MapeoDocTables
+ * @typedef {import('../datatype/index.js').MapeoDocTables} MapeoDocTables
  */
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc

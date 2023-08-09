@@ -10,7 +10,7 @@ export default fp(blobServerPlugin, {
   name: 'mapeo-blob-server',
 })
 
-/** @typedef {import('../types').BlobId} BlobId */
+/** @typedef {import('../types.js').BlobId} BlobId */
 
 /**
  * @typedef {Object} BlobServerPluginOpts

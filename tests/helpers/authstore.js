@@ -2,10 +2,10 @@ import { randomBytes } from 'crypto'
 import Corestore from 'corestore'
 import ram from 'random-access-memory'
 
-import { Sqlite } from '../../lib/sqlite.js'
-import { AuthStore } from '../../lib/authstore/index.js'
+import { Sqlite } from '../../src/sqlite.js'
+import { AuthStore } from '../../src/authstore/index.js'
 import { addCores, replicate, createIdentityKeys } from './index.js'
-import { keyToId } from '../../lib/utils.js'
+import { keyToId } from '../../src/utils.js'
 
 export async function createAuthStore({
   corestore,
@@ -72,12 +72,14 @@ export async function createAuthStores(count, options) {
   }
 
   await addCores(peers)
-  replicate(peers.map((peer) => {
-    return {
-      id: peer.identityId,
-      core: peer.authstore,
-    }
-  }))
+  replicate(
+    peers.map((peer) => {
+      return {
+        id: peer.identityId,
+        core: peer.authstore,
+      }
+    })
+  )
   return peers
 }
 

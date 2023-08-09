@@ -44,7 +44,7 @@ function generateDate() {
 }
 
 /**
- * @template {import('../datastore/data-store-new.js').DataStore} TDataStore
+ * @template {import('../datastore/index.js').DataStore} TDataStore
  * @template {TDataStore['schemas'][number]} TSchemaName
  * @template {MapeoDocTablesMap[TSchemaName]} TTable
  * @template {MapeoDocMap[TSchemaName]} TDoc
