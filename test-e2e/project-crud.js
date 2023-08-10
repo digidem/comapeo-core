@@ -1,7 +1,7 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
-import { MapeoProject } from '../lib/mapeo-project.js'
+import { MapeoProject } from '../src/mapeo-project.js'
 
 /** @type {import('@mapeo/schema').ObservationValue} */
 const obsValue = {

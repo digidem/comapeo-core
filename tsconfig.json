@@ -25,7 +25,7 @@
       ]
     }
   },
-  "files": ["tests/schema.js", "test-e2e/crud.js"],
-  "include": ["**/*"],
+  "files": ["tests/schema.js", "test-e2e/project-crud.js"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "tmp", "tests", "examples"]
 }

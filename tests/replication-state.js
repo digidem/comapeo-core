@@ -2,66 +2,106 @@
 import test from 'brittle'
 import crypto from 'hypercore-crypto'
 
-import { ReplicationState, CoreReplicationState } from '../lib/sync/replication-state.js'
-import { createCoreManager, waitForCores, getKeys } from './helpers/core-manager.js'
-import { download, downloadCore, replicate } from './helpers/replication-state.js'
+import {
+  ReplicationState,
+  CoreReplicationState,
+} from '../src/sync/replication-state.js'
+import {
+  createCoreManager,
+  waitForCores,
+  getKeys,
+} from './helpers/core-manager.js'
+import {
+  download,
+  downloadCore,
+  replicate,
+} from './helpers/replication-state.js'
 import { createCore } from './helpers/index.js'
-import { keyToId } from '../lib/utils.js'
 
 test('sync cores in a namespace', async function (t) {
   t.plan(2)
   const projectKeyPair = crypto.keyPair()
 
-  const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
+  const cm1 = createCoreManager({
+    projectKey: projectKeyPair.publicKey,
+    projectSecretKey: projectKeyPair.secretKey,
+  })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
 
   replicate(cm1, cm2)
 
   await Promise.all([
-      waitForCores(cm1, getKeys(cm2, 'auth')),
-      waitForCores(cm2, getKeys(cm1, 'auth'))
+    waitForCores(cm1, getKeys(cm2, 'auth')),
+    waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
   const rep1 = new ReplicationState({
-      coreManager: cm1,
-      namespace: 'auth'
+    coreManager: cm1,
+    namespace: 'auth',
   })
 
   const rep2 = new ReplicationState({
-      coreManager: cm2,
-      namespace: 'auth'
+    coreManager: cm2,
+    namespace: 'auth',
   })
 
   const cm1Keys = getKeys(cm1, 'auth')
   const cm2Keys = getKeys(cm2, 'auth')
 
   const writer1 = cm1.getWriterCore('auth')
-  await writer1.core.append(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'])
+  await writer1.core.append([
+    'a',
+    'b',
+    'c',
+    'd',
+    'e',
+    'f',
+    'g',
+    'h',
+    'i',
+    'j',
+    'k',
+    'l',
+    'm',
+    'n',
+    'o',
+    'p',
+    'q',
+    'r',
+    's',
+    't',
+    'u',
+    'v',
+    'w',
+    'x',
+    'y',
+    'z',
+  ])
   await writer1.core.clear(0, 10)
 
   const writer2 = cm2.getWriterCore('auth')
   await writer2.core.append(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'])
 
   for (const key of cm1Keys) {
-      if (key.equals(writer1.core.key)) continue
-      const core = cm1.getCoreByKey(key)
-      core.download({ start: 0, end: -1 })
+    if (key.equals(writer1.core.key)) continue
+    const core = cm1.getCoreByKey(key)
+    core.download({ start: 0, end: -1 })
   }
 
   for (const key of cm2Keys) {
-      if (key.equals(writer2.core.key)) continue
-      const core = cm2.getCoreByKey(key)
-      core.download({ start: 0, end: -1 })
+    if (key.equals(writer2.core.key)) continue
+    const core = cm2.getCoreByKey(key)
+    core.download({ start: 0, end: -1 })
   }
 
-  rep1.on('state', function rep1Handler (state) {
+  rep1.on('state', function rep1Handler(state) {
     if (state.synced) {
       t.ok(state.synced, 'rep1 is synced')
       rep1.off('state', rep1Handler)
     }
   })
 
-  rep2.on('state', function rep2Handler (state) {
+  rep2.on('state', function rep2Handler(state) {
     if (state.synced) {
       t.ok(state.synced, 'rep2 is synced')
       rep2.off('state', rep2Handler)
@@ -74,19 +114,22 @@ test('access peer state', async function (t) {
 
   const projectKeyPair = crypto.keyPair()
 
-  const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
+  const cm1 = createCoreManager({
+    projectKey: projectKeyPair.publicKey,
+    projectSecretKey: projectKeyPair.secretKey,
+  })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
 
   replicate(cm1, cm2)
 
   await Promise.all([
-      waitForCores(cm1, getKeys(cm2, 'auth')),
-      waitForCores(cm2, getKeys(cm1, 'auth'))
+    waitForCores(cm1, getKeys(cm2, 'auth')),
+    waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
   const rep = new ReplicationState({
-      coreManager: cm1,
-      namespace: 'auth'
+    coreManager: cm1,
+    namespace: 'auth',
   })
 
   const writer = cm1.getWriterCore('auth')
@@ -98,7 +141,7 @@ test('access peer state', async function (t) {
 
   const reader = cm2.getCoreByKey(writer.core.key)
 
-  rep.on('state', async function handler () {
+  rep.on('state', async function handler() {
     if (!rep.peers.length) return
 
     if (reader.length === 1) {
@@ -120,7 +163,10 @@ test('replicate with updating data', async function (t) {
 
   const projectKeyPair = crypto.keyPair()
 
-  const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
+  const cm1 = createCoreManager({
+    projectKey: projectKeyPair.publicKey,
+    projectSecretKey: projectKeyPair.secretKey,
+  })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
 
   const writer1 = cm1.getWriterCore('auth')
@@ -138,36 +184,36 @@ test('replicate with updating data', async function (t) {
   replicate(cm1, cm2)
 
   await Promise.all([
-      waitForCores(cm1, getKeys(cm2, 'auth')),
-      waitForCores(cm2, getKeys(cm1, 'auth'))
+    waitForCores(cm1, getKeys(cm2, 'auth')),
+    waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
   const rep1 = new ReplicationState({
-      coreManager: cm1,
-      namespace: 'auth'
+    coreManager: cm1,
+    namespace: 'auth',
   })
 
   const rep2 = new ReplicationState({
-      coreManager: cm2,
-      namespace: 'auth'
+    coreManager: cm2,
+    namespace: 'auth',
   })
 
   const cm1Keys = getKeys(cm1, 'auth')
   const cm2Keys = getKeys(cm2, 'auth')
 
   for (const key of cm1Keys) {
-      if (key.equals(writer1.core.key)) continue
-      const core = cm1.getCoreByKey(key)
-      core.download({ live: true, start: 0, end: -1 })
+    if (key.equals(writer1.core.key)) continue
+    const core = cm1.getCoreByKey(key)
+    core.download({ live: true, start: 0, end: -1 })
   }
 
   for (const key of cm2Keys) {
-      if (key.equals(writer2.core.key)) continue
-      const core = cm2.getCoreByKey(key)
-      core.download({ live: true, start: 0, end: -1 })
+    if (key.equals(writer2.core.key)) continue
+    const core = cm2.getCoreByKey(key)
+    core.download({ live: true, start: 0, end: -1 })
   }
 
-  rep1.on('state', function rep1Handler (state) {
+  rep1.on('state', function rep1Handler(state) {
     const synced = rep1.isSynced()
 
     if (synced) {
@@ -176,7 +222,7 @@ test('replicate with updating data', async function (t) {
     }
   })
 
-  rep2.on('state', function rep2Handler (state) {
+  rep2.on('state', function rep2Handler(state) {
     const synced = rep2.isSynced()
     if (synced) {
       t.ok(synced, 'rep2 is synced')
@@ -190,7 +236,10 @@ test('add peer during replication', async function (t) {
 
   const projectKeyPair = crypto.keyPair()
 
-  const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
+  const cm1 = createCoreManager({
+    projectKey: projectKeyPair.publicKey,
+    projectSecretKey: projectKeyPair.secretKey,
+  })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
 
   const writer1 = cm1.getWriterCore('auth')
@@ -205,10 +254,12 @@ test('add peer during replication', async function (t) {
     writer2.core.append(blocks)
   }
 
-  async function addCoreManager (existingCoreManagers) {
+  async function addCoreManager(existingCoreManagers) {
     const connectedCoreManager = existingCoreManagers[0]
 
-    const coreManager = createCoreManager({ projectKey: projectKeyPair.publicKey })
+    const coreManager = createCoreManager({
+      projectKey: projectKeyPair.publicKey,
+    })
     const writer = coreManager.getWriterCore('auth')
     await writer.core.ready()
     for (let i = 0; i < 3000; i = i + 100) {
@@ -221,7 +272,7 @@ test('add peer during replication', async function (t) {
     }
 
     await Promise.all([
-      waitForCores(coreManager, getKeys(connectedCoreManager, 'auth'))
+      waitForCores(coreManager, getKeys(connectedCoreManager, 'auth')),
     ])
 
     download(coreManager, 'auth')
@@ -236,7 +287,7 @@ test('add peer during replication', async function (t) {
       namespace: 'auth',
     })
 
-    rep.on('state', function rep3Handler (state) {
+    rep.on('state', function rep3Handler(state) {
       if (state.synced) {
         t.ok(state.synced, 'rep3 is synced')
         rep.off('state', rep3Handler)
@@ -249,24 +300,24 @@ test('add peer during replication', async function (t) {
   replicate(cm1, cm2)
 
   await Promise.all([
-      waitForCores(cm1, getKeys(cm2, 'auth')),
-      waitForCores(cm2, getKeys(cm1, 'auth'))
+    waitForCores(cm1, getKeys(cm2, 'auth')),
+    waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
   const rep1 = new ReplicationState({
-      coreManager: cm1,
-      namespace: 'auth',
+    coreManager: cm1,
+    namespace: 'auth',
   })
 
   const rep2 = new ReplicationState({
-      coreManager: cm2,
-      namespace: 'auth',
+    coreManager: cm2,
+    namespace: 'auth',
   })
 
   download(cm1, 'auth')
   download(cm2, 'auth')
 
-  rep1.on('state', function rep1Handler (state) {
+  rep1.on('state', function rep1Handler(state) {
     // logState(state)
     if (state.synced) {
       // logState(state)
@@ -276,7 +327,7 @@ test('add peer during replication', async function (t) {
   })
 
   let added = false
-  rep2.on('state', async function rep2Handler (state) {
+  rep2.on('state', async function rep2Handler(state) {
     // add another core manager after replication has started between the others
     if (!state.synced && !added) {
       added = true
@@ -293,7 +344,10 @@ test('peer leaves during replication, third peer arrives, sync all later', async
   t.plan(5)
   const projectKeyPair = crypto.keyPair()
 
-  const cm1 = createCoreManager({ projectKey: projectKeyPair.publicKey, projectSecretKey: projectKeyPair.secretKey })
+  const cm1 = createCoreManager({
+    projectKey: projectKeyPair.publicKey,
+    projectSecretKey: projectKeyPair.secretKey,
+  })
   const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
   const cm3 = createCoreManager({ projectKey: projectKeyPair.publicKey })
 
@@ -321,41 +375,38 @@ test('peer leaves during replication, third peer arrives, sync all later', async
   const cm2Keys = getKeys(cm2, 'auth')
   const cm3Keys = getKeys(cm3, 'auth')
 
-  await Promise.all([
-      waitForCores(cm1, cm2Keys),
-      waitForCores(cm2, cm1Keys)
-  ])
+  await Promise.all([waitForCores(cm1, cm2Keys), waitForCores(cm2, cm1Keys)])
 
   const rep1 = new ReplicationState({
-      coreManager: cm1,
-      namespace: 'auth'
+    coreManager: cm1,
+    namespace: 'auth',
   })
 
   const rep2 = new ReplicationState({
-      coreManager: cm2,
-      namespace: 'auth'
+    coreManager: cm2,
+    namespace: 'auth',
   })
 
   const rep3 = new ReplicationState({
-      coreManager: cm3,
-      namespace: 'auth'
+    coreManager: cm3,
+    namespace: 'auth',
   })
 
-  rep1.on('state', function rep1Handler (state) {
+  rep1.on('state', function rep1Handler(state) {
     if (state.synced) {
       t.ok(state.synced, 'rep1 is synced')
       rep1.off('state', rep1Handler)
     }
   })
 
-  rep2.on('state', function rep2Handler (state) {
+  rep2.on('state', function rep2Handler(state) {
     if (state.synced) {
       t.ok(state.synced, 'rep2 is synced')
       rep2.off('state', rep2Handler)
     }
   })
 
-  rep3.on('state', function rep3Handler (state) {
+  rep3.on('state', function rep3Handler(state) {
     if (state.synced) {
       t.ok(state.synced, 'rep3 is synced')
       rep3.off('state', rep3Handler)
@@ -380,10 +431,7 @@ test('peer leaves during replication, third peer arrives, sync all later', async
 
     // restart replication between peer1 and peer2
     replicate(cm1, cm2)
-    await Promise.all([
-      waitForCores(cm1, cm2Keys),
-      waitForCores(cm2, cm1Keys)
-    ])
+    await Promise.all([waitForCores(cm1, cm2Keys), waitForCores(cm2, cm1Keys)])
 
     // sync all data between peer1 and peer2
     await download(cm1, 'auth')
@@ -420,12 +468,16 @@ test('replicate core with unavailable blocks', async (t) => {
     length: 7,
     have: 6,
     want: 1,
-    unavailable: 1
+    unavailable: 1,
   }
 
   rs.on('synced', (state) => {
     for (const { length, have, want, unavailable } of state) {
-      t.alike({ length, have, want, unavailable }, expected, 'peer state is correct')
+      t.alike(
+        { length, have, want, unavailable },
+        expected,
+        'peer state is correct'
+      )
     }
   })
 
@@ -457,14 +509,14 @@ test('replicate 3 cores with unavailable blocks', async (t) => {
     have: 7,
     want: 0,
     unavailable: 0,
-    length: 7
+    length: 7,
   }
 
   const expectedPartialSync = {
     have: 4,
     want: 3,
     unavailable: 3,
-    length: 7
+    length: 7,
   }
 
   rs.on('synced', async (state) => {

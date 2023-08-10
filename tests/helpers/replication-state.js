@@ -1,15 +1,21 @@
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
-import { truncateId } from '../../lib/utils.js'
+import { truncateId } from '../../src/utils.js'
 import { getKeys } from './core-manager.js'
 
 export function logState(syncState, name) {
-  let message = `${name ? name + ' ' : ''}${syncState.synced ? 'synced' : 'not synced'}\n`
+  let message = `${name ? name + ' ' : ''}${
+    syncState.synced ? 'synced' : 'not synced'
+  }\n`
 
   for (const [coreId, state] of Object.entries(syncState.cores)) {
     message += `${truncateId(coreId)}`
     for (const [peerId, peerState] of Object.entries(state)) {
-      message += `\n${truncateId(peerId)} (${peerState.remote ? 'remote' : 'local'}) l: ${peerState.length} h: ${peerState.have} w: ${peerState.want} u: ${peerState.unavailable} `
+      message += `\n${truncateId(peerId)} (${
+        peerState.remote ? 'remote' : 'local'
+      }) l: ${peerState.length} h: ${peerState.have} w: ${peerState.want} u: ${
+        peerState.unavailable
+      } `
     }
     message += '\n'
   }
@@ -18,14 +24,18 @@ export function logState(syncState, name) {
 }
 
 /**
- * 
- * @param {CoreManager} coreManager 
- * @param {import('../../lib/core-manager/core-index.js').Namespace} namespace 
+ *
+ * @param {CoreManager} coreManager
+ * @param {import('../../src/core-manager/core-index.js').Namespace} namespace
  * @param {Object} [options]
  * @param {number} [options.start=0]
  * @param {number} [options.end=-1]
  */
-export async function download(coreManager, namespace, { start = 0, end = -1 } = {}) {
+export async function download(
+  coreManager,
+  namespace,
+  { start = 0, end = -1 } = {}
+) {
   const writer = coreManager.getWriterCore(namespace)
   const keys = getKeys(coreManager, namespace)
 
@@ -36,7 +46,10 @@ export async function download(coreManager, namespace, { start = 0, end = -1 } =
   }
 }
 
-export async function downloadCore(coreManager, { key, start = 0, end = -1 } = {}) {
+export async function downloadCore(
+  coreManager,
+  { key, start = 0, end = -1 } = {}
+) {
   const core = coreManager.getCoreByKey(key)
   await core.download({ start, end, ifAvailable: true }).done()
 }

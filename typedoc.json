@@ -1,5 +1,5 @@
 {
-  "entryPoints": ["./index.js", "./lib/**/*.js"],
+  "entryPoints": ["./index.js", "./src/**/*.js"],
   "allReflectionsHaveOwnDocument": true,
   "cleanOutputDir": false,
   "readme": "none",
