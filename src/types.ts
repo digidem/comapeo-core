@@ -7,6 +7,13 @@ import type {
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
 import { MapeoDoc, MapeoValue } from '@mapeo/schema'
+import type Protomux from 'protomux'
+import type NoiseStream from '@hyperswarm/secret-stream'
+import { Duplex } from 'streamx'
+import { Socket } from 'net'
+import MultiCoreIndexer from 'multi-core-indexer'
+import Corestore from 'corestore'
+import Hypercore from 'hypercore'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 type BlobType = keyof SupportedBlobVariants
@@ -81,3 +88,76 @@ type NullKeys<Base> = NonNullable<
  * @mapeo/schema
  */
 export type NullableToOptional<T> = Simplify<RemoveNull<NullToOptional<T>>>
+export type KeyPair = {
+  publicKey: PublicKey
+  secretKey: SecretKey
+}
+export type RoleDetails = {
+  name: string
+  capabilities: string[]
+}
+export type AvailableRoles = RoleDetails[]
+
+export type Statement = {
+  id: string
+  type: string
+  version: string
+  signature: string
+  action: string
+  authorId: string
+  authorIndex: number
+  deviceIndex: number
+  created: number
+  timestamp: number
+  links: string[]
+  forks: string[]
+}
+
+export type CoreOwnershipStatement = Statement & { coreId: string }
+export type RoleStatement = Statement & { role: string }
+export type DeviceStatement = Statement
+/** 32 byte buffer */
+export type PublicKey = Buffer
+/** 32 byte buffer */
+export type SecretKey = Buffer
+export type PublicId = string
+export type IdentityKeyPair = KeyPair
+export type IdentityPublicKey = PublicKey
+export type IdentitySecretKey = SecretKey
+export type IdentityId = PublicId
+export type CoreId = PublicId
+export type TopicKey = Buffer
+/** hex string representation of `Topic` Buffer */
+export type TopicId = string
+/** 52 character base32 encoding of `Topic` Buffer */
+export type MdnsTopicId = string
+
+// TODO: Figure out where those extra fields come from and find more elegant way to represent this
+export type RawDhtConnectionStream = Duplex & {
+  remoteAddress: string
+  remotePort: number
+}
+export type RawConnectionStream = Socket | RawDhtConnectionStream
+export type DhtNode = { host: string; port: number }
+
+export type DhtOptions = {
+  server: boolean
+  client: boolean
+  /** Array of {host, port} objects provided by https://github.com/hyperswarm/testnet */
+  bootstrap?: DhtNode[]
+  keyPair?: IdentityKeyPair
+}
+
+export type MdnsOptions = {
+  identityKeyPair: IdentityKeyPair
+  port: number
+  name: string
+}
+
+export type Entry = MultiCoreIndexer.Entry
+export { Corestore }
+export type Core = Hypercore
+export { Duplex }
+
+export { NoiseStream }
+export type ProtocolStream = NoiseStream & { userData: Protomux }

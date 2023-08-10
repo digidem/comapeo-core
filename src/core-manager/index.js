@@ -285,11 +285,14 @@ export class CoreManager extends TypedEmitter {
    * To start replicating other namespaces call `enableNamespace(ns)` on the
    * returned state machine
    *
-   * @param {NoiseStream | ProtocolStream} noiseStream framed noise secret stream, i.e. @hyperswarm/secret-stream
+   * @param {import('../types.js').NoiseStream | import('../types.js').ProtocolStream} noiseStream framed noise secret stream, i.e. @hyperswarm/secret-stream
    */
   replicate(noiseStream) {
     if (this.#state !== 'opened') throw new Error('Core manager is closed')
-    if (/** @type {ProtocolStream} */ (noiseStream).noiseStream?.userData) {
+    if (
+      /** @type {import('../types.js').ProtocolStream} */ (noiseStream)
+        .noiseStream?.userData
+    ) {
       console.warn(
         'Passed an existing protocol stream to coreManager.replicate(). Other corestores and core managers replicated to this stream will no longer automatically inject shared cores into the stream'
       )

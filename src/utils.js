@@ -1,14 +1,6 @@
 import b4a from 'b4a'
 
 /**
- * @param {Block} block
- * @returns {BlockPrefix}
- */
-export function getBlockPrefix(block) {
-  return b4a.toString(block, 'utf8', 0, 1)
-}
-
-/**
  * @param {String|Buffer} id
  * @returns {Buffer | Uint8Array}
  */

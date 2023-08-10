@@ -7,16 +7,16 @@
     "strictBindCallApply": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "module": "CommonJS",
-    "moduleResolution": "Node",
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
     "noErrorTruncation": true,
     "skipLibCheck": true,
-    "typeRoots": ["node_modules/@types", "node_modules/@digidem/types/vendor"],
+    "typeRoots": ["node_modules/@types"],
     "paths": {
-      "*": ["./types"],
+      "*": ["./types", "./node_modules/@digidem/types/vendor/*/index.d.ts"],
       "@gravitysoftware/dnssd": [
         "./node_modules/multicast-service-discovery/types/gravitysoftware__dnssd"
       ]
