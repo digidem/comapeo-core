@@ -53,7 +53,7 @@ test('Expected table config', (t) => {
 
 /**
  * @template {object} T
- * @typedef {import('../src/schema/schema-to-drizzle.js').OptionalToNull<T>} OptionalToNull
+ * @typedef {import('../src/schema/types.js').OptionalToNull<T>} OptionalToNull
  */
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
