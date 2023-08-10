@@ -10,7 +10,7 @@ export function getBlockPrefix(block) {
 
 /**
  * @param {String|Buffer} id
- * @returns {Buffer}
+ * @returns {Buffer | Uint8Array}
  */
 export function idToKey(id) {
   if (b4a.isBuffer(id)) {

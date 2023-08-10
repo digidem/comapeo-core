@@ -151,8 +151,8 @@
  */
 
 /**
- * @template T
- * @typedef {import('hypercore').default<T>} Core
+ * @template {import('hypercore').ValueEncoding}T
+ * @typedef {import('hypercore')<T>} Core
  */
 /** @typedef {import('streamx').Duplex} DuplexStream */
 /** @typedef {import('@hyperswarm/secret-stream')} NoiseStream */

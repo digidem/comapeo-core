@@ -196,7 +196,7 @@ export class DataType {
  * @param {T} obj
  * @returns {import('../types.js').NullableToOptional<T>}
  */
-function deNullify(obj) {
+export function deNullify(obj) {
   /** @type {Record<string, any>} */
   const objNoNulls = {}
   for (const [key, value] of Object.entries(obj)) {

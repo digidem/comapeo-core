@@ -46,6 +46,7 @@
   "devDependencies": {
     "@hyperswarm/testnet": "^3.1.2",
     "@sinonjs/fake-timers": "^10.0.2",
+    "@types/b4a": "^1.6.0",
     "@types/json-schema": "^7.0.11",
     "@types/node": "^18.16.3",
     "@types/sinonjs__fake-timers": "^8.1.2",
@@ -74,7 +75,7 @@
     "fastify": ">= 4"
   },
   "dependencies": {
-    "@digidem/types": "^1.0.1",
+    "@digidem/types": "^2.0.0",
     "@fastify/type-provider-typebox": "^3.3.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "^1.0.0-alpha.4",

@@ -124,6 +124,7 @@ export class CoreManager extends TypedEmitter {
 
     // Load persisted cores
     const stmt = sqlite.prepare(`SELECT publicKey, namespace FROM ${TABLE}`)
+    // @ts-ignore - don't know types returned from sqlite here
     for (const { publicKey, namespace } of stmt.all()) {
       this.#addCore({ publicKey }, namespace)
     }

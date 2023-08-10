@@ -13,11 +13,8 @@
     "checkJs": true,
     "noEmit": true,
     "noErrorTruncation": true,
-    "typeRoots": [
-      "types",
-      "node_modules/@types",
-      "node_modules/@digidem/types/vendor"
-    ],
+    "skipLibCheck": true,
+    "typeRoots": ["node_modules/@types", "node_modules/@digidem/types/vendor"],
     "paths": {
       "*": ["./types"],
       "@gravitysoftware/dnssd": [
@@ -26,6 +23,10 @@
     }
   },
   "files": ["tests/schema.js", "test-e2e/project-crud.js"],
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "tmp", "tests", "examples"]
+  "include": ["src/**/*", "types/**/*.d.ts"],
+  "exclude": [
+    "node_modules",
+    "src/rpc/messages.js",
+    "src/core-manager/messages.js"
+  ]
 }
