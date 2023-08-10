@@ -2,7 +2,8 @@
   "name": "@mapeo/core",
   "version": "9.0.0-alpha.0",
   "description": "Offline p2p mapping library",
-  "main": "index.js",
+  "main": "src/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
     "lint": "eslint .",
@@ -16,6 +17,10 @@
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "prepack": "tsc -p tsconfig.npm.json"
   },
+  "files": [
+    "src",
+    "dist"
+  ],
   "prettier": {
     "semi": false,
     "singleQuote": true
