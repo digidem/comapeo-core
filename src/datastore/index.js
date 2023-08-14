@@ -25,6 +25,7 @@ import pDefer from 'p-defer'
 
 const NAMESPACE_SCHEMAS = /** @type {const} */ ({
   data: ['observation'],
+  config: ['preset', 'field'],
   auth: [],
 })
 
@@ -50,7 +51,7 @@ export class DataStore extends TypedEmitter {
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {TNamespace} opts.namespace
-   * @param {import('../index-writer/index.js').IndexWriter<MapeoDocTablesMap[TSchemaName]>} opts.indexWriter
+   * @param {import('../index-writer/index.js').IndexWriter} opts.indexWriter
    * @param {MultiCoreIndexer.StorageParam} opts.storage
    */
   constructor({ coreManager, namespace, indexWriter, storage }) {
