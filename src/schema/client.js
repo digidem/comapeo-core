@@ -18,7 +18,7 @@ function generateProjectKeysTable() {
     projectSecretKey: blob('projectSecretKey'),
   }
 
-  for (const namespace in NAMESPACES) {
+  for (const namespace of NAMESPACES) {
     const columnName = namespace + 'EncryptionKey'
     columns[columnName] = blob(columnName)
   }
