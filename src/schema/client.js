@@ -6,10 +6,7 @@ import { dereferencedDocSchemas as schemas } from '@mapeo/schema'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable } from './utils.js'
 
-export const projectInfoTable = sqliteTable(
-  'project',
-  toColumns(schemas.project)
-)
+export const projectTable = sqliteTable('project', toColumns(schemas.project))
 
 export const projectKeysTable = sqliteTable('project_keys', {
   projectKey: text('projectKey').notNull().primaryKey(),
@@ -20,4 +17,4 @@ export const projectKeysTable = sqliteTable('project_keys', {
   blobEncryptionKey: blob('blobEncryptionKey'),
 })
 
-export const projectBacklinkTable = backlinkTable(projectInfoTable)
+export const projectBacklinkTable = backlinkTable(projectTable)
