@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "1aed30a0-5e2b-49fe-8c42-5249ff6fb13c",
+  "id": "dba5d47a-2cbd-4312-854b-b6fab03c1a74",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "project_backlink": {
@@ -37,36 +37,29 @@
           "notNull": false,
           "autoincrement": false
         },
-        "0EncryptionKey": {
-          "name": "0EncryptionKey",
+        "authEncryptionKey": {
+          "name": "authEncryptionKey",
           "type": "blob",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "1EncryptionKey": {
-          "name": "1EncryptionKey",
+        "dataEncryptionKey": {
+          "name": "dataEncryptionKey",
           "type": "blob",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "2EncryptionKey": {
-          "name": "2EncryptionKey",
+        "blobIndexEncryptionKey": {
+          "name": "blobIndexEncryptionKey",
           "type": "blob",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "3EncryptionKey": {
-          "name": "3EncryptionKey",
-          "type": "blob",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "randomEncryptionKey": {
-          "name": "randomEncryptionKey",
+        "blobEncryptionKey": {
+          "name": "blobEncryptionKey",
           "type": "blob",
           "primaryKey": false,
           "notNull": false,

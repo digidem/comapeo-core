@@ -5,11 +5,10 @@ CREATE TABLE `project_backlink` (
 CREATE TABLE `projectKeys` (
 	`projectId` text PRIMARY KEY NOT NULL,
 	`projectSecretKey` blob,
-	`0EncryptionKey` blob,
-	`1EncryptionKey` blob,
-	`2EncryptionKey` blob,
-	`3EncryptionKey` blob,
-	`randomEncryptionKey` blob
+	`authEncryptionKey` blob,
+	`dataEncryptionKey` blob,
+	`blobIndexEncryptionKey` blob,
+	`blobEncryptionKey` blob
 );
 --> statement-breakpoint
 CREATE TABLE `project` (
