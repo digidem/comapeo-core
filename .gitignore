@@ -5,3 +5,4 @@ coverage
 tmp
 proto/build
 /dist
+!/drizzle/**/*.sql
