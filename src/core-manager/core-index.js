@@ -21,7 +21,7 @@ export class CoreIndex {
    * core is ready, but we know it beforehand.
    *
    * @param {Object} options
-   * @param {import('hypercore').default} options.core Hypercore instance
+   * @param {import('hypercore')<"binary", Buffer>} options.core Hypercore instance
    * @param {Buffer} options.key Buffer containing public key of this core
    * @param {Namespace} options.namespace
    * @param {boolean} [options.writer] Is this a writer core?

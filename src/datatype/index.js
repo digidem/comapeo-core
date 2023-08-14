@@ -25,7 +25,7 @@ import { randomBytes } from 'node:crypto'
  */
 /**
  * Union of Drizzle schema tables that correspond to MapeoDoc types (e.g. excluding backlink tables and other utility tables)
- * @typedef {GetMapeoDocTables<import('../schema/project.js')> | GetMapeoDocTables<import('../schema/client.js')>} MapeoDocTables
+ * @typedef {GetMapeoDocTables<typeof import('../schema/project.js')> | GetMapeoDocTables<typeof import('../schema/client.js')>} MapeoDocTables
  */
 /**
  * @typedef {{ [K in MapeoDocTables['_']['name']]: Extract<MapeoDocTables, { _: { name: K }}> }} MapeoDocTablesMap
@@ -196,7 +196,7 @@ export class DataType {
  * @param {T} obj
  * @returns {import('../types.js').NullableToOptional<T>}
  */
-function deNullify(obj) {
+export function deNullify(obj) {
   /** @type {Record<string, any>} */
   const objNoNulls = {}
   for (const [key, value] of Object.entries(obj)) {

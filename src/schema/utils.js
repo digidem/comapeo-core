@@ -4,6 +4,7 @@ import { text, getTableConfig, sqliteTable } from 'drizzle-orm/sqlite-core'
  * @template {string} [TName=string]
  * @typedef {import('drizzle-orm/sqlite-core').SQLiteTableWithColumns<{
  *   name: TName;
+ *   dialect: 'sqlite';
  *   schema: string | undefined;
  *   columns: any
  * }>} SqliteTable

@@ -223,7 +223,7 @@ export class DriveLiveDownload extends TypedEmitter {
    * this case and update the state before waiting for the hyperdrive hyperblobs
    * instance. This also makes waiting for the blobs instance cancellable.
    *
-   * @returns {Promise<import('hypercore').default | undefined>}
+   * @returns {Promise<import('hypercore') | undefined>}
    */
   async #getBlobsCore() {
     if (this.#drive.blobs) return this.#drive.blobs.core
@@ -255,7 +255,7 @@ export class DriveLiveDownload extends TypedEmitter {
   /**
    * Update state and queue missing entries for download
    *
-   * @param {import('hypercore').default} core
+   * @param {import('hypercore')} core
    * @param {{ blockOffset: number, blockLength: number, byteLength: number }} blob
    */
   async #processEntry(

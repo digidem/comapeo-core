@@ -244,7 +244,7 @@ class PretendCorestore {
 
   /**
    * @param {Buffer | { publicKey: Buffer } | { name: string }} opts
-   * @returns {import('hypercore') | undefined}
+   * @returns {import('hypercore')<"binary", Buffer> | undefined}
    */
   get(opts) {
     if (b4a.isBuffer(opts)) {

@@ -10,6 +10,7 @@ import {
   BACKLINK_TABLE_POSTFIX,
   getBacklinkTableName,
 } from '../src/schema/utils.js'
+import { deNullify } from '../src/datatype/index.js'
 
 test('Expected table config', (t) => {
   const allTableSchemas = [
@@ -52,7 +53,7 @@ test('Expected table config', (t) => {
 
 /**
  * @template {object} T
- * @typedef {import('../src/schema/schema-to-drizzle.js').OptionalToNull<T>} OptionalToNull
+ * @typedef {import('../src/schema/types.js').OptionalToNull<T>} OptionalToNull
  */
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -71,14 +72,14 @@ test('Types match', { skip: true }, (t) => {
 
   const { observationTable, presetTable, fieldTable } = projectTableSchemas
 
-  /** @type {OptionalToNull<MapeoType<'observation'>>} */
-  const o = db.select().from(observationTable).get()
+  /** @type {MapeoType<'observation'>} */
+  const o = deNullify(db.select().from(observationTable).get())
 
-  /** @type {OptionalToNull<MapeoType<'preset'>>} */
-  const p = db.select().from(presetTable).get()
+  /** @type {MapeoType<'preset'>} */
+  const p = deNullify(db.select().from(presetTable).get())
 
-  /** @type {OptionalToNull<MapeoType<'field'>>} */
-  const f = db.select().from(fieldTable).get()
+  /** @type {MapeoType<'field'>} */
+  const f = deNullify(db.select().from(fieldTable).get())
 
   t.pass()
 })
