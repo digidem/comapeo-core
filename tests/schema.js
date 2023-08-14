@@ -88,7 +88,7 @@ test('Types match', { skip: true }, (t) => {
   t.pass()
 })
 
-test('backlink table exists for every endexed data type', (t) => {
+test('backlink table exists for every indexed data type', (t) => {
   // Every indexed datatype needs a backlink table, which is used by
   // sqlite-indexer to track backlinks
   const allTableNames = [
