@@ -19,6 +19,7 @@
     "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
+    "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
     "prepack": "npm run build:types"
   },
   "files": [
