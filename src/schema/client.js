@@ -3,18 +3,25 @@
 // device
 import { blob, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { dereferencedDocSchemas as schemas } from '@mapeo/schema'
+import { NAMESPACES } from '../core-manager/index.js'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable } from './utils.js'
 
 export const projectTable = sqliteTable('project', toColumns(schemas.project))
-
-export const projectKeysTable = sqliteTable('project_keys', {
-  projectKey: text('projectKey').notNull().primaryKey(),
-  projectSecretKey: blob('projectSecretKey'),
-  authEncryptionKey: blob('authEncryptionKey'),
-  dataEncryptionKey: blob('dataEncryptionKey'),
-  blobIndexEncryptionKey: blob('blobIndexEncryptionKey'),
-  blobEncryptionKey: blob('blobEncryptionKey'),
-})
-
 export const projectBacklinkTable = backlinkTable(projectTable)
+export const projectKeysTable = generateProjectKeysTable()
+
+function generateProjectKeysTable() {
+  /** @type {Record<string, import('drizzle-orm/sqlite-core').SQLiteColumnBuilder>}*/
+  const columns = {
+    projectId: text('projectId').notNull().primaryKey(),
+    projectSecretKey: blob('projectSecretKey'),
+  }
+
+  for (const namespace in NAMESPACES) {
+    const columnName = namespace + 'EncryptionKey'
+    columns[columnName] = blob(columnName)
+  }
+
+  return sqliteTable('projectKeys', columns)
+}
