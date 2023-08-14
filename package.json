@@ -8,14 +8,18 @@
   "scripts": {
     "lint": "eslint .",
     "format": "prettier . --write",
-    "test": "brittle \"tests/**/*.js\"",
+    "test": "npm-run-all build:types test:unit test:e2e test:types",
+    "test:unit": "brittle \"tests/**/*.js\"",
+    "test:e2e": "brittle \"test-e2e/**/*.js\"",
+    "test:types": "tsc -p test-types/tsconfig.json",
+    "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
     "bench": "nanobench benchmarks/*.js",
     "type": "tsc",
     "deps": "depcheck --ignore-dirs=docs,types --ignores=@types/*,typescript,typedoc,typedoc-plugin-markdown,@hyperswarm/testnet",
     "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
-    "prepack": "tsc -p tsconfig.npm.json"
+    "prepack": "npm run build:types"
   },
   "files": [
     "src",
@@ -48,6 +52,7 @@
     "@types/sinonjs__fake-timers": "^8.1.2",
     "@types/streamx": "^2.9.1",
     "brittle": "^3.2.1",
+    "cpy-cli": "^5.0.0",
     "depcheck": "^1.4.3",
     "drizzle-kit": "^0.19.12",
     "eslint": "^8.39.0",
@@ -55,6 +60,7 @@
     "fastify": "^4.20.0",
     "light-my-request": "^5.10.0",
     "nanobench": "^3.0.0",
+    "npm-run-all": "^4.1.5",
     "prettier": "^2.8.8",
     "random-access-file": "^4.0.4",
     "random-access-memory": "^6.2.0",
