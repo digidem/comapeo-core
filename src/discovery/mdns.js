@@ -2,25 +2,38 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import net from 'node:net'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
-import { randomBytes } from 'node:crypto'
-import { KeyManager } from '@mapeo/crypto'
+import dnssd from 'dnssd'
+import b4a from 'b4a'
 
-const keyManager = new KeyManager(randomBytes(16))
-const identityKeypair = keyManager.getIdentityKeypair()
-const mdnsDiscovery = new MdnsDiscovery({ identityKeypair })
 
 const SERVICE_NAME = 'mapeo'
 
-discover.announce('mdns-basic-example', { port: 3456 })
-class MdnsDiscovery extends TypedEmitter {
+
+/** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
+
+/**
+ * @typedef {Object} Service
+ * @property {string} host - hostname of the service
+ * @property {number} port - port of the service
+ * @property {Object<string, any>} txt - TXT records of the service
+ * @property {string[]} [addresses] - addresses of the service
+ */
+
+
+export class MdnsDiscovery extends TypedEmitter {
   #identityKeypair
   #server
-  /** @typedef {Set<string>} */
+  /** @type {Set<string>} */
   #connections = new Set()
+  /** @type {typeof import('dnssd').Advertisement} */
   #advertiser
+  /** @type {typeof import('dnssd').Browser} */
   #browser
 
-  constructor({ identityKeypair }) {
+  /** @param {Object} opts
+   * @param {Keypair} opts.identityKeypair
+   * @param {Number} opts.port */
+  constructor({ identityKeypair, port }) {
     super()
     this.#identityKeypair = identityKeypair
     this.#server = net.createServer(this.#handleConnection.bind(this, false))
@@ -32,24 +45,28 @@ class MdnsDiscovery extends TypedEmitter {
     // TODO: listen for errors
     await once(this.#server, 'listening')
 
-    const listeningPort = this.#server.address().port
+    const addr = /** @type {net.AddressInfo} */ (this.#server.address())
+    const listeningPort = typeof addr === 'string' ? addr : addr?.port
+
 
     this.#advertiser = new dnssd.Advertisement(
       dnssd.tcp(SERVICE_NAME),
       listeningPort
     )
-    this.#advertiser.start()
+    await this.#advertiser.start()
 
     // find all peers adverticing Mapeo
-    this.#browser = dnssd
+    this.#browser = await dnssd
       .Browser(dnssd.tcp(SERVICE_NAME))
-      .on('serviceUp', (service) => {
-        net.connect(
-          service.port,
-          service.addresses[0],
-          this.#handleConnection.bind(this, true)
-        )
-      })
+      .on('serviceUp',
+        /** @param {Service} service */
+        (service) => {
+          const socket = net.connect(
+            service.port,
+            service.addresses && service.addresses[0]
+          )
+          this.#handleConnection(true, socket)
+        })
       .start()
   }
 
@@ -57,25 +74,48 @@ class MdnsDiscovery extends TypedEmitter {
    * @param {boolean} isInitiator
    * @param {net.Socket} socket
    */
-  #handleConnection(isInitiator, socket) {
-    const remoteAddress = socket.remoteAddress
+  async #handleConnection(isInitiator, socket) {
+    // if(!socket.remoteAddress) return
+
+    const remoteAddress = socket.remoteAddress || ''
+
     if (this.#connections.has(remoteAddress)) {
+      console.log('duplicated connection', remoteAddress)
       socket.destroy()
       return
     }
-    this.#connections.add(remoteAddress)
-    // listen for socket disconnect and remove from this.#connections
+
     const secretStream = new NoiseSecretStream(isInitiator, socket, {
       keyPair: this.#identityKeypair,
     })
-    secretStream.on('connect', () => {
-      // dedupe - as in issue based on key comparison
-      // once dedupe is done, emit('connection', secretStream)
+
+    secretStream.on('close', () => {
+      this.#connections.delete(remoteAddress)
+    })
+
+
+    secretStream.on('connect', async () => {
+      this.#connections.add(remoteAddress)
+      console.log('conns', this.#connections)
+      this.emit('connection', secretStream)
+
+      // deterministically choose the connection to keep,
+      // by ordering the {remote,local}public keys
+      // const keep = !secretStream.isInitiator ||
+      //   b4a.compare(secretStream.publicKey, secretStream.remotePublicKey) > 0
+      // if(keep){
+      //   this.#connections.add(addrPort)
+      //   this.emit('connection', secretStream)
+      // }
+
     })
   }
 
   stop() {
     this.#server.close() // wait for close
+    this.#browser.removeAllListeners('serviceUp')
+    this.#browser.stop()
+    this.#advertiser.stop(true)
     // stop browsing
     // stop advertising
   }
