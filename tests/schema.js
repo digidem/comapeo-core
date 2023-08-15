@@ -10,7 +10,7 @@ import {
   BACKLINK_TABLE_POSTFIX,
   getBacklinkTableName,
 } from '../src/schema/utils.js'
-import { deNullify } from '../src/datatype/index.js'
+import { deNullify } from '../src/utils.js'
 
 const MAPEO_DATATYPE_NAMES = Object.keys(jsonSchemas)
 
@@ -50,7 +50,11 @@ test('Expected table config', (t) => {
         jsonSchema.required.includes(key),
         'NOT NULL matches `required`'
       )
-      t.is(columnConfig.default, value.default, 'Default is correct')
+      // Only fields that are required should have a default set in the SQLite column
+      const expectedDefault =
+        // @ts-ignore
+        jsonSchema.required.includes(key) ? value.default : undefined
+      t.is(columnConfig.default, expectedDefault, 'Default is correct')
     }
   }
 })

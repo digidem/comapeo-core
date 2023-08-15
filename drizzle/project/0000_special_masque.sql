@@ -12,10 +12,10 @@ CREATE TABLE `field` (
 	`tagKey` text NOT NULL,
 	`type` text NOT NULL,
 	`label` text NOT NULL,
-	`appearance` text DEFAULT 'multiline',
-	`snakeCase` integer DEFAULT false,
+	`appearance` text,
+	`snakeCase` integer,
 	`options` text,
-	`universal` integer DEFAULT false,
+	`universal` integer,
 	`placeholder` text,
 	`helperText` text,
 	`forks` text NOT NULL
@@ -58,7 +58,7 @@ CREATE TABLE `preset` (
 	`addTags` text NOT NULL,
 	`removeTags` text NOT NULL,
 	`fieldIds` text NOT NULL,
-	`icon` text,
+	`iconId` text,
 	`terms` text NOT NULL,
 	`forks` text NOT NULL
 );

@@ -3,6 +3,7 @@ import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, placeholder } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
+import { deNullify } from '../utils.js'
 
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -186,21 +187,4 @@ export class DataType {
     }
     return { docId, createdAt }
   }
-}
-
-/**
- * When reading from SQLite, any optional properties are set to `null`. This
- * converts `null` back to `undefined` to match the input types (e.g. the types
- * defined in @mapeo/schema)
- * @template {{}} T
- * @param {T} obj
- * @returns {import('../types.js').NullableToOptional<T>}
- */
-export function deNullify(obj) {
-  /** @type {Record<string, any>} */
-  const objNoNulls = {}
-  for (const [key, value] of Object.entries(obj)) {
-    objNoNulls[key] = value === null ? undefined : value
-  }
-  return /** @type {import('../types.js').NullableToOptional<T>} */ (objNoNulls)
 }

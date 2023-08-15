@@ -6,7 +6,7 @@ import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType } from './datatype/index.js'
 import { IndexWriter } from './index-writer/index.js'
-import { observationTable } from './schema/project.js'
+import { fieldTable, observationTable, presetTable } from './schema/project.js'
 import RandomAccessFile from 'random-access-file'
 import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'
@@ -79,10 +79,16 @@ export class MapeoProject {
       sqlite,
     })
     const indexWriter = new IndexWriter({
-      tables: [observationTable],
+      tables: [observationTable, presetTable, fieldTable],
       sqlite,
     })
     this.#dataStores = {
+      config: new DataStore({
+        coreManager: this.#coreManager,
+        namespace: 'config',
+        indexWriter,
+        storage: indexerStorage,
+      }),
       data: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'data',
@@ -96,10 +102,26 @@ export class MapeoProject {
         table: observationTable,
         db,
       }),
+      preset: new DataType({
+        dataStore: this.#dataStores.config,
+        table: presetTable,
+        db,
+      }),
+      field: new DataType({
+        dataStore: this.#dataStores.config,
+        table: fieldTable,
+        db,
+      }),
     }
   }
 
   get observation() {
     return this.#dataTypes.observation
+  }
+  get preset() {
+    return this.#dataTypes.preset
+  }
+  get field() {
+    return this.#dataTypes.field
   }
 }

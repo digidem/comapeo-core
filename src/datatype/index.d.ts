@@ -22,8 +22,8 @@ type OmitUnion<T, K extends keyof any> = T extends any ? Omit<T, K> : never
 
 export class DataType<
   TDataStore extends import('../datastore/index.js').DataStore,
-  TSchemaName extends TDataStore['schemas'][number],
-  TTable extends MapeoDocTablesMap[TSchemaName],
+  TTable extends MapeoDocTables,
+  TSchemaName extends TTable['_']['name'],
   TDoc extends MapeoDocMap[TSchemaName],
   TValue extends MapeoValueMap[TSchemaName]
 > {

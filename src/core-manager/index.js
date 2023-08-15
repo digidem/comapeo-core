@@ -12,6 +12,7 @@ import { ReplicationStateMachine } from './replication-state-machine.js'
 // are used for key derivation
 export const NAMESPACES = /** @type {const} */ ([
   'auth',
+  'config',
   'data',
   'blobIndex',
   'blob',
