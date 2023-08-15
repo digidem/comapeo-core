@@ -65,7 +65,7 @@ test('CRUD operations', async (t) => {
     const { schemaName } = value
     t.test(`create and read ${schemaName}`, async (t) => {
       const project = await createProject()
-      // @ts-ignore - TS can't figure this out, but we're not testing types here to ok to ignore
+      // @ts-ignore - TS can't figure this out, but we're not testing types here so ok to ignore
       const written = await project[schemaName].create(value)
       const read = await project[schemaName].getByDocId(written.docId)
       t.alike(valueOf(stripUndef(written)), value, 'expected value is written')
