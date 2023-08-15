@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "a1266e0d-e17f-41e2-a5ab-fdf6e30eaf71",
+  "id": "7252a475-6391-4179-bb17-214a01d57960",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "field_backlink": {
@@ -91,16 +91,14 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": "'multiline'"
+          "autoincrement": false
         },
         "snakeCase": {
           "name": "snakeCase",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": false
+          "autoincrement": false
         },
         "options": {
           "name": "options",
@@ -114,8 +112,7 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": false
+          "autoincrement": false
         },
         "placeholder": {
           "name": "placeholder",
@@ -363,8 +360,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "icon": {
-          "name": "icon",
+        "iconId": {
+          "name": "iconId",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
