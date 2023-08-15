@@ -46,7 +46,11 @@ test('Expected table config', (t) => {
         jsonSchema.required.includes(key),
         'NOT NULL matches `required`'
       )
-      t.is(columnConfig.default, value.default, 'Default is correct')
+      // Only fields that are required should have a default set in the SQLite column
+      const expectedDefault =
+        // @ts-ignore
+        jsonSchema.required.includes(key) ? value.default : undefined
+      t.is(columnConfig.default, expectedDefault, 'Default is correct')
     }
   }
 })
