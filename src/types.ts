@@ -161,3 +161,10 @@ export { Duplex }
 
 export { NoiseStream }
 export type ProtocolStream = NoiseStream & { userData: Protomux }
+
+// Unsafe type for Object.entries - you must be sure that the object does not
+// have additional properties that are not defined in the type, e.g. when using
+// a const value
+export type Entries<T> = {
+  [K in keyof T]: [K, T[K]]
+}[keyof T][]
