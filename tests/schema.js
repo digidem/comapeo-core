@@ -10,7 +10,7 @@ import {
   BACKLINK_TABLE_POSTFIX,
   getBacklinkTableName,
 } from '../src/schema/utils.js'
-import { deNullify } from '../src/datatype/index.js'
+import { deNullify } from '../src/utils.js'
 
 test('Expected table config', (t) => {
   const allTableSchemas = [
