@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "dba5d47a-2cbd-4312-854b-b6fab03c1a74",
+  "id": "93c3444e-f824-4554-97d9-944a501e5a7a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "project_backlink": {
@@ -39,6 +39,13 @@
         },
         "authEncryptionKey": {
           "name": "authEncryptionKey",
+          "type": "blob",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "configEncryptionKey": {
+          "name": "configEncryptionKey",
           "type": "blob",
           "primaryKey": false,
           "notNull": false,

@@ -6,6 +6,7 @@ CREATE TABLE `projectKeys` (
 	`projectId` text PRIMARY KEY NOT NULL,
 	`projectSecretKey` blob,
 	`authEncryptionKey` blob,
+	`configEncryptionKey` blob,
 	`dataEncryptionKey` blob,
 	`blobIndexEncryptionKey` blob,
 	`blobEncryptionKey` blob
