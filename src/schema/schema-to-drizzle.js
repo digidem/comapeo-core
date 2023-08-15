@@ -80,12 +80,13 @@ export function jsonSchemaToDrizzleColumns(schema) {
         continue
       }
     }
-    const defaultValue = getDefault(value)
-    if (typeof defaultValue !== 'undefined') {
-      columns[key] = columns[key].default(defaultValue)
-    }
     if (isRequired(schema, key)) {
       columns[key] = columns[key].notNull()
+      // Only set defaults for required fields
+      const defaultValue = getDefault(value)
+      if (typeof defaultValue !== 'undefined') {
+        columns[key] = columns[key].default(defaultValue)
+      }
     }
   }
   // Not yet in @mapeo/schema
