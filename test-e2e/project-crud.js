@@ -149,7 +149,6 @@ function stripUndef(obj) {
  *
  * @param {number} value
  * @param {number} decimalPlaces
- * @returns
  */
 function round(value, decimalPlaces) {
   return Math.round(value * 10 ** decimalPlaces) / 10 ** decimalPlaces
