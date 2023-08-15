@@ -65,7 +65,9 @@ export class MdnsDiscovery extends TypedEmitter {
             service.port,
             service.addresses && service.addresses[0]
           )
-          this.#handleConnection(true, socket)
+          socket.on('connect',() => {
+            this.#handleConnection(true, socket)
+          })
         })
       .start()
   }
@@ -75,12 +77,10 @@ export class MdnsDiscovery extends TypedEmitter {
    * @param {net.Socket} socket
    */
   async #handleConnection(isInitiator, socket) {
-    // if(!socket.remoteAddress) return
+    if(!socket.remoteAddress) return
 
-    const remoteAddress = socket.remoteAddress || ''
-
+    const remoteAddress = socket.remoteAddress
     if (this.#connections.has(remoteAddress)) {
-      console.log('duplicated connection', remoteAddress)
       socket.destroy()
       return
     }
@@ -95,18 +95,15 @@ export class MdnsDiscovery extends TypedEmitter {
 
 
     secretStream.on('connect', async () => {
-      this.#connections.add(remoteAddress)
-      console.log('conns', this.#connections)
-      this.emit('connection', secretStream)
-
       // deterministically choose the connection to keep,
       // by ordering the {remote,local}public keys
-      // const keep = !secretStream.isInitiator ||
-      //   b4a.compare(secretStream.publicKey, secretStream.remotePublicKey) > 0
-      // if(keep){
-      //   this.#connections.add(addrPort)
-      //   this.emit('connection', secretStream)
-      // }
+      const keep = !secretStream.isInitiator ||
+        b4a.compare(secretStream.publicKey, secretStream.remotePublicKey) > 0
+      if(keep){
+
+        this.#connections.add(remoteAddress)
+        this.emit('connection', secretStream)
+      }
 
     })
   }
