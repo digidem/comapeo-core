@@ -42,18 +42,17 @@ declare module 'brittle' {
     timeout(ms: number): void
     comment(message: string): void
     end(): void
-  }
-
-  interface SubTestInstance extends TestInstance {
     test(
       name: string,
       options: TestOptions,
       callback: (t: TestInstance) => void | Promise<void>
-    ): TestInstance
+    ): Promise<boolean>
     test(
       name: string,
       callback: (t: TestInstance) => void | Promise<void>
-    ): TestInstance
+    ): Promise<boolean>
+    test(name: string, options: TestOptions): TestInstance
+    test(options: TestOptions): TestInstance
   }
 
   type TestCallback = (t: TestInstance) => void | Promise<void>
@@ -62,21 +61,22 @@ declare module 'brittle' {
     name: string,
     options: TestOptions,
     callback: TestCallback
-  ): TestInstance
-  function test(name: string, callback: TestCallback): TestInstance
-  function test(options: TestOptions): SubTestInstance
+  ): Promise<boolean>
+  function test(name: string, callback: TestCallback): Promise<boolean>
+  function test(name: string, options: TestOptions): TestInstance
+  function test(options: TestOptions): TestInstance
   function solo(
     name: string,
     options: TestOptions,
     callback: TestCallback
-  ): TestInstance
-  function solo(name: string, callback: TestCallback): TestInstance
-  function solo(options: TestOptions): SubTestInstance
+  ): Promise<boolean>
+  function solo(name: string, callback: TestCallback): Promise<boolean>
+  function solo(options: TestOptions): TestInstance
   function skip(
     name: string,
     options: TestOptions,
     callback: TestCallback
-  ): void
+  ): Promise<boolean>
   function skip(name: string, callback: TestCallback): void
   function configure(options: TestOptions): void
 
