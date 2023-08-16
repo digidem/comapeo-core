@@ -19,16 +19,20 @@ test('discovery - mdns', async (t) => {
   mdnsDiscovery1.on('connection',
     /** @param {NoiseSecretStream<net.Socket>} stream */
     (stream) => {
-      console.log('found peer with key', stream.remotePublicKey.toString('hex'))
-      console.log('Im ',  stream.publicKey.toString('hex'))
+      const remoteKey = stream.remotePublicKey.toString('hex')
+      const peerKey = identityKeypair1.publicKey.toString('hex')
+      console.log('found peer with key', remoteKey)
+      console.log('Im ', peerKey)
     })
 
   const mdnsDiscovery2 = new MdnsDiscovery({identityKeypair:identityKeypair2})
   mdnsDiscovery2.on('connection',
     /** @param {NoiseSecretStream<net.Socket>} stream */
     (stream) => {
-      console.log('found peer with key', stream.remotePublicKey.toString('hex'))
-      console.log('Im ',  stream.publicKey.toString('hex'))
+      const remoteKey = stream.remotePublicKey.toString('hex')
+      const peerKey = identityKeypair2.publicKey.toString('hex')
+      console.log('found peer with key', remoteKey)
+      console.log('Im ', peerKey)
     })
   mdnsDiscovery1.start()
   mdnsDiscovery2.start()

@@ -24,8 +24,8 @@ export class MdnsDiscovery extends TypedEmitter {
   #server
   /** @type {Set<string>} */
   #socketConnections = new Set()
-  /** @type {Set<string>} */
-  #noiseConnections = new Set()
+  /** @type {Map<string,NoiseSecretStream<net.Socket>>} */
+  #noiseConnections = new Map()
   /** @type {typeof import('@gravitysoftware/dnssd').Advertisement} */
   #advertiser
   /** @type {typeof import('@gravitysoftware/dnssd').Browser} */
@@ -94,25 +94,31 @@ export class MdnsDiscovery extends TypedEmitter {
       keyPair: this.#identityKeypair,
     })
 
-
     secretStream.on('connect', async () => {
       const remotePublicKey = secretStream.remotePublicKey?.toString('hex')
 
       if(!remotePublicKey) throw new Error('Invalid remote public key')
 
-      secretStream.on('close', () => {
+      function close(){
         this.#socketConnections.delete(remoteAddress)
         this.#noiseConnections.delete(remotePublicKey)
-      })
+        secretStream.destroy()
+        socket.destroy()
+      }
+
+      secretStream.on('close', () => close())
+      secretStream.on('error', () => close())
 
       const isDuplicate = this.#noiseConnections.has(remotePublicKey)
+        && !(this.#noiseConnections.get(remotePublicKey)?.isInitiator)
+
       if(isDuplicate){
         this.#socketConnections.delete(remoteAddress)
         socket.destroy()
         secretStream.destroy()
         return
       }
-      this.#noiseConnections.add(remotePublicKey)
+      this.#noiseConnections.set(remotePublicKey,secretStream)
       this.emit('connection', secretStream)
     })
   }
@@ -123,8 +129,8 @@ export class MdnsDiscovery extends TypedEmitter {
     this.#browser.stop()
     this.#advertiser.stop(true)
   }
-}
 
+}
 
 /**
  * @param {ReturnType<net.Server['address']>} addr
