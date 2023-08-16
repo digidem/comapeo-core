@@ -86,13 +86,13 @@ export class MapeoProject {
       config: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'config',
-        indexWriter,
+        batch: (entries) => indexWriter.batch(entries),
         storage: indexerStorage,
       }),
       data: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'data',
-        indexWriter,
+        batch: (entries) => indexWriter.batch(entries),
         storage: indexerStorage,
       }),
     }

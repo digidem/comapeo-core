@@ -27,14 +27,12 @@ test('read and write', async (t) => {
   const dataStore = new DataStore({
     coreManager: cm,
     namespace: 'data',
-    indexWriter: /** @type {any} faking IndexWriter for unit test */ ({
-      async batch(entries) {
-        for (const { index, key } of entries) {
-          const versionId = getVersionId({ coreKey: key, index })
-          indexedVersionIds.push(versionId)
-        }
-      },
-    }),
+    batch: async (entries) => {
+      for (const { index, key } of entries) {
+        const versionId = getVersionId({ coreKey: key, index })
+        indexedVersionIds.push(versionId)
+      }
+    },
     storage: () => new RAM(),
   })
   const written = await dataStore.write(obs)
@@ -65,11 +63,9 @@ test('index events', async (t) => {
   const dataStore = new DataStore({
     coreManager: cm,
     namespace: 'data',
-    indexWriter: /** @type {any} faking IndexWriter for unit test */ ({
-      async batch() {
-        await new Promise((res) => setTimeout(res, 10))
-      },
-    }),
+    batch: async () => {
+      await new Promise((res) => setTimeout(res, 10))
+    },
     storage: () => new RAM(),
   })
   dataStore.on('index-state', (state) => {

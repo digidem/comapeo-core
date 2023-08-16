@@ -41,7 +41,7 @@ const NAMESPACE_SCHEMAS = /** @type {const} */ ({
 export class DataStore extends TypedEmitter {
   #coreManager
   #namespace
-  #indexWriter
+  #batch
   #writerCore
   #coreIndexer
   /** @type {Map<string, import('p-defer').DeferredPromise<void>>} */
@@ -51,19 +51,19 @@ export class DataStore extends TypedEmitter {
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {TNamespace} opts.namespace
-   * @param {import('../index-writer/index.js').IndexWriter} opts.indexWriter
+   * @param {(entries: MultiCoreIndexer.Entry<'binary'>[]) => Promise<void>} opts.batch
    * @param {MultiCoreIndexer.StorageParam} opts.storage
    */
-  constructor({ coreManager, namespace, indexWriter, storage }) {
+  constructor({ coreManager, namespace, batch, storage }) {
     super()
     this.#coreManager = coreManager
     this.#namespace = namespace
-    this.#indexWriter = indexWriter
+    this.#batch = batch
     this.#writerCore = coreManager.getWriterCore(namespace).core
     const cores = coreManager.getCores(namespace).map((cr) => cr.core)
     this.#coreIndexer = new MultiCoreIndexer(cores, {
       storage,
-      batch: (entries) => this.#batch(entries),
+      batch: (entries) => this.#handleEntries(entries),
     })
 
     // Forward events from coreIndexer
@@ -94,12 +94,12 @@ export class DataStore extends TypedEmitter {
    *
    * @param {MultiCoreIndexer.Entry<'binary'>[]} entries
    */
-  async #batch(entries) {
+  async #handleEntries(entries) {
     // This is needed to avoid the batch running before the append resolves, but
     // I think this is only necessary when using random-access-memory, and will
     // not be an issue when the indexer is on a separate thread.
     await new Promise((res) => setTimeout(res, 0))
-    await this.#indexWriter.batch(entries)
+    await this.#batch(entries)
     // Writes to the writerCore need to wait until the entry is indexed before
     // returning, so we check if any incoming entry has a pending promise
     for (const entry of entries) {
