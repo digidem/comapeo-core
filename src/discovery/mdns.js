@@ -45,6 +45,7 @@ export class MdnsDiscovery extends TypedEmitter {
     this.#server.listen(0, '0.0.0.0')
     // TODO: listen for errors
     await once(this.#server, 'listening')
+    this.#server.on('error', () => {})
 
     const addr = /** @type {net.AddressInfo} */ (this.#server.address())
     if(!isAddressInfo(addr)) throw new Error('Server must be listening on a port')
@@ -57,7 +58,7 @@ export class MdnsDiscovery extends TypedEmitter {
     await this.#advertiser.start()
 
     // find all peers adverticing Mapeo
-    this.#browser = await dnssd
+    this.#browser = new dnssd
       .Browser(dnssd.tcp(SERVICE_NAME))
       .on('serviceUp',
         /** @param {Service} service */
@@ -73,7 +74,8 @@ export class MdnsDiscovery extends TypedEmitter {
             this.#handleConnection(true, socket)
           })
         })
-      .start()
+
+    await this.#browser.start()
   }
 
   /**
@@ -99,9 +101,13 @@ export class MdnsDiscovery extends TypedEmitter {
 
       if(!remotePublicKey) throw new Error('Invalid remote public key')
 
-      function close(){
-        this.#socketConnections.delete(remoteAddress)
-        this.#noiseConnections.delete(remotePublicKey)
+      const close = () => {
+        if(this.#socketConnections.has(remoteAddress)){
+          this.#socketConnections.delete(remoteAddress)
+        }
+        if(this.#noiseConnections.has(remotePublicKey)){
+          this.#noiseConnections.delete(remotePublicKey)
+        }
         secretStream.destroy()
         socket.destroy()
       }
@@ -130,6 +136,9 @@ export class MdnsDiscovery extends TypedEmitter {
     this.#browser.removeAllListeners('serviceUp')
     this.#browser.stop()
     this.#advertiser.stop(true)
+    for(const [_, socket] of this.#noiseConnections){
+      socket.destroy()
+    }
   }
 
 }

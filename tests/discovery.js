@@ -1,6 +1,5 @@
 import test from 'brittle'
 
-
 import Hypercore from 'hypercore'
 import ram from 'random-access-memory'
 import createTestnet from '@hyperswarm/testnet'
