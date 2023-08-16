@@ -2,8 +2,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import net from 'node:net'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
-import dnssd from 'dnssd'
-import b4a from 'b4a'
+import dnssd from '@gravitysoftware/dnssd'
 
 
 const SERVICE_NAME = 'mapeo'
@@ -24,16 +23,18 @@ export class MdnsDiscovery extends TypedEmitter {
   #identityKeypair
   #server
   /** @type {Set<string>} */
-  #connections = new Set()
-  /** @type {typeof import('dnssd').Advertisement} */
+  #socketConnections = new Set()
+  /** @type {Set<string>} */
+  #noiseConnections = new Set()
+  /** @type {typeof import('@gravitysoftware/dnssd').Advertisement} */
   #advertiser
-  /** @type {typeof import('dnssd').Browser} */
+  /** @type {typeof import('@gravitysoftware/dnssd').Browser} */
   #browser
 
   /** @param {Object} opts
    * @param {Keypair} opts.identityKeypair
-   * @param {Number} opts.port */
-  constructor({ identityKeypair, port }) {
+   */
+  constructor({ identityKeypair}) {
     super()
     this.#identityKeypair = identityKeypair
     this.#server = net.createServer(this.#handleConnection.bind(this, false))
@@ -46,12 +47,12 @@ export class MdnsDiscovery extends TypedEmitter {
     await once(this.#server, 'listening')
 
     const addr = /** @type {net.AddressInfo} */ (this.#server.address())
-    const listeningPort = typeof addr === 'string' ? addr : addr?.port
+    if(!isAddressInfo(addr)) throw new Error('Server must be listening on a port')
 
 
     this.#advertiser = new dnssd.Advertisement(
       dnssd.tcp(SERVICE_NAME),
-      listeningPort
+      addr.port
     )
     await this.#advertiser.start()
 
@@ -61,11 +62,14 @@ export class MdnsDiscovery extends TypedEmitter {
       .on('serviceUp',
         /** @param {Service} service */
         (service) => {
+          if(!isValidServerAddresses(service.addresses)) {
+            throw new Error('Got invalid server addresses from service')
+          }
           const socket = net.connect(
             service.port,
-            service.addresses && service.addresses[0]
+            service.addresses[0]
           )
-          socket.on('connect',() => {
+          socket.once('connect',() => {
             this.#handleConnection(true, socket)
           })
         })
@@ -79,32 +83,37 @@ export class MdnsDiscovery extends TypedEmitter {
   async #handleConnection(isInitiator, socket) {
     if(!socket.remoteAddress) return
 
-    const remoteAddress = socket.remoteAddress
-    if (this.#connections.has(remoteAddress)) {
+    const { remoteAddress } = socket
+    if (this.#socketConnections.has(remoteAddress)) {
       socket.destroy()
       return
     }
+    this.#socketConnections.add(remoteAddress)
 
     const secretStream = new NoiseSecretStream(isInitiator, socket, {
       keyPair: this.#identityKeypair,
     })
 
-    secretStream.on('close', () => {
-      this.#connections.delete(remoteAddress)
-    })
-
 
     secretStream.on('connect', async () => {
-      // deterministically choose the connection to keep,
-      // by ordering the {remote,local}public keys
-      const keep = !secretStream.isInitiator ||
-        b4a.compare(secretStream.publicKey, secretStream.remotePublicKey) > 0
-      if(keep){
+      const remotePublicKey = secretStream.remotePublicKey?.toString('hex')
 
-        this.#connections.add(remoteAddress)
-        this.emit('connection', secretStream)
+      if(!remotePublicKey) throw new Error('Invalid remote public key')
+
+      secretStream.on('close', () => {
+        this.#socketConnections.delete(remoteAddress)
+        this.#noiseConnections.delete(remotePublicKey)
+      })
+
+      const isDuplicate = this.#noiseConnections.has(remotePublicKey)
+      if(isDuplicate){
+        this.#socketConnections.delete(remoteAddress)
+        socket.destroy()
+        secretStream.destroy()
+        return
       }
-
+      this.#noiseConnections.add(remotePublicKey)
+      this.emit('connection', secretStream)
     })
   }
 
@@ -113,7 +122,23 @@ export class MdnsDiscovery extends TypedEmitter {
     this.#browser.removeAllListeners('serviceUp')
     this.#browser.stop()
     this.#advertiser.stop(true)
-    // stop browsing
-    // stop advertising
   }
+}
+
+
+/**
+ * @param {ReturnType<net.Server['address']>} addr
+ * @returns {addr is net.AddressInfo}
+ */
+function isAddressInfo(addr) {
+  if (addr === null || typeof addr === 'string') return false
+  return true
+}
+
+/**
+  * @param {string[] | undefined} addr
+  * @returns {boolean}
+  */
+function isValidServerAddresses(addr){
+  return (addr?.length !== 0 && addr !== undefined)
 }
