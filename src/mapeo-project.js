@@ -1,4 +1,5 @@
 // @ts-check
+import { decode } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
@@ -29,13 +30,14 @@ export class MapeoProject {
 
   /**
    * @param {Object} opts
+   * @param {IndexWriter<import('./datatype/index.js').MapeoDocTablesMap['project']>} opts.projectInfoIndexWriter
    * @param {string} [opts.storagePath] Folder for all data storage (hypercores and sqlite db). Folder must exist. If not defined, everything is stored in-memory
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
    */
-  constructor({ storagePath, ...coreManagerOpts }) {
+  constructor({ storagePath, projectInfoIndexWriter, ...coreManagerOpts }) {
     ///////// 1. Setup database
 
     const dbPath =
@@ -86,7 +88,31 @@ export class MapeoProject {
       config: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'config',
-        batch: (entries) => indexWriter.batch(entries),
+        batch: async (entries) => {
+          /** @type {import('multi-core-indexer').Entry[]} */
+          const projectInfoEntries = []
+          /** @type {import('multi-core-indexer').Entry[]} */
+          const projectSpecificEntries = []
+
+          for (const entry of entries) {
+            // TODO: Use simplified decode export from @mapeo/schema when available
+            const schemaName = decode(entry.block, {
+              index: entry.index,
+              coreKey: entry.key,
+            }).schemaName
+
+            if (schemaName === 'project') {
+              projectInfoEntries.push(entry)
+            } else {
+              projectSpecificEntries.push(entry)
+            }
+          }
+
+          await Promise.all([
+            indexWriter.batch(projectInfoEntries),
+            projectInfoIndexWriter.batch(projectSpecificEntries),
+          ])
+        },
         storage: indexerStorage,
       }),
       data: new DataStore({
