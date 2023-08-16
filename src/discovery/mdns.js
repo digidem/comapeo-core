@@ -26,9 +26,9 @@ export class MdnsDiscovery extends TypedEmitter {
   #socketConnections = new Set()
   /** @type {Map<string,NoiseSecretStream<net.Socket>>} */
   #noiseConnections = new Map()
-  /** @type {typeof import('@gravitysoftware/dnssd').Advertisement} */
+  /** @type {typeof import('../../types/dnssd.d.ts').Advertisement} */
   #advertiser
-  /** @type {typeof import('@gravitysoftware/dnssd').Browser} */
+  /** @type {typeof import('../../types/dnssd.d.ts').Browser} */
   #browser
 
   /** @param {Object} opts
@@ -108,6 +108,8 @@ export class MdnsDiscovery extends TypedEmitter {
 
       secretStream.on('close', () => close())
       secretStream.on('error', () => close())
+      // this.#server.on('error', () => close())
+      // this.#server.on('close', () => close())
 
       const isDuplicate = this.#noiseConnections.has(remotePublicKey)
         && !(this.#noiseConnections.get(remotePublicKey)?.isInitiator)
