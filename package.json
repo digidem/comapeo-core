@@ -23,9 +23,35 @@
     "protobuf": "node ./scripts/build-messages.js",
     "postinstall": "patch-package"
   },
-  "prettier": {
-    "semi": false,
-    "singleQuote": true
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "es2022": true,
+      "node": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "prettier"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 13,
+      "sourceType": "module"
+    },
+    "ignorePatterns": [
+      "tmp"
+    ],
+    "plugins": [
+      "prettier"
+    ],
+    "rules": {
+      "prettier/prettier": [
+        "error",
+        {
+          "singleQuote": true,
+          "semi": "false"
+        }
+      ]
+    }
   },
   "repository": {
     "type": "git",
@@ -52,8 +78,9 @@
     "depcheck": "^1.4.3",
     "eslint": "^8.39.0",
     "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^5.0.0",
     "nanobench": "^3.0.0",
-    "prettier": "^2.8.8",
+    "prettier": "^3.0.2",
     "random-access-memory": "^6.2.0",
     "rimraf": "^5.0.0",
     "ts-proto": "^1.147.1",
