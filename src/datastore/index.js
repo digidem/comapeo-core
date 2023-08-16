@@ -63,7 +63,7 @@ export class DataStore extends TypedEmitter {
     const cores = coreManager.getCores(namespace).map((cr) => cr.core)
     this.#coreIndexer = new MultiCoreIndexer(cores, {
       storage,
-      batch: (entries) => this.#batchEntries(entries),
+      batch: (entries) => this.#handleEntries(entries),
     })
 
     // Forward events from coreIndexer
@@ -94,7 +94,7 @@ export class DataStore extends TypedEmitter {
    *
    * @param {MultiCoreIndexer.Entry<'binary'>[]} entries
    */
-  async #batchEntries(entries) {
+  async #handleEntries(entries) {
     // This is needed to avoid the batch running before the append resolves, but
     // I think this is only necessary when using random-access-memory, and will
     // not be an issue when the indexer is on a separate thread.
