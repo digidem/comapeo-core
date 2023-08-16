@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { keyToId } from '../utils.js'
 
@@ -138,7 +139,7 @@ export class CoreReplicationState extends TypedEmitter {
       this.#state.delete(peerId)
     })
 
-    this.#core.on('download', async (index, byteLength, from) => {
+    this.#core.on('download', async () => {
       const state = this.#getLocalState()
       state.length = getMaxLength(this.#core)
 
@@ -342,21 +343,21 @@ function createState(options = { remote: false }) {
   }
 }
 
-function diffState(oldState, newState) {
-  const diff = {}
+// function diffState(oldState, newState) {
+//   const diff = {}
 
-  for (const key of Object.keys(newState)) {
-    if (oldState[key] !== newState[key]) {
-      diff[key] = newState[key]
-    }
-  }
+//   for (const key of Object.keys(newState)) {
+//     if (oldState[key] !== newState[key]) {
+//       diff[key] = newState[key]
+//     }
+//   }
 
-  if (Object.keys(diff).length === 0) {
-    return null
-  }
+//   if (Object.keys(diff).length === 0) {
+//     return null
+//   }
 
-  return diff
-}
+//   return diff
+// }
 
 function getMaxLength(core) {
   const max = core.peers.reduce((max, peer) => {

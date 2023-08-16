@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const availableCapabilities = ['read', 'write', 'edit', 'manage:devices']
 
 /** @type {AvailableRoles} */

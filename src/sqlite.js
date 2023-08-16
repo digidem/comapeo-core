@@ -1,3 +1,4 @@
+// @ts-nocheck
 import BetterSqlite from 'better-sqlite3'
 
 export class Sqlite {

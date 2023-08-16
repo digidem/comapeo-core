@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import sodium from 'sodium-universal'
 import b4a from 'b4a'
 

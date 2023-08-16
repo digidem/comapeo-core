@@ -213,7 +213,7 @@ test('replicate with updating data', async function (t) {
     core.download({ live: true, start: 0, end: -1 })
   }
 
-  rep1.on('state', function rep1Handler(state) {
+  rep1.on('state', function rep1Handler() {
     const synced = rep1.isSynced()
 
     if (synced) {
@@ -222,7 +222,7 @@ test('replicate with updating data', async function (t) {
     }
   })
 
-  rep2.on('state', function rep2Handler(state) {
+  rep2.on('state', function rep2Handler() {
     const synced = rep2.isSynced()
     if (synced) {
       t.ok(synced, 'rep2 is synced')
