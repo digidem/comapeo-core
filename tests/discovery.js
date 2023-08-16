@@ -12,31 +12,43 @@ import { randomBytes } from 'node:crypto'
 import { KeyManager } from '@mapeo/crypto'
 
 test('discovery - mdns', async (t) => {
+  t.plan(2)
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
 
   const mdnsDiscovery1 = new MdnsDiscovery({identityKeypair:identityKeypair1})
   mdnsDiscovery1.on('connection',
     /** @param {NoiseSecretStream<net.Socket>} stream */
-    (stream) => {
+    async (stream) => {
       const remoteKey = stream.remotePublicKey.toString('hex')
-      const peerKey = identityKeypair1.publicKey.toString('hex')
-      console.log('found peer with key', remoteKey)
-      console.log('Im ', peerKey)
+      const peerKey = identityKeypair2.publicKey.toString('hex')
+      // console.log('found peer with key', remoteKey)
+      t.ok(remoteKey === peerKey)
+      await step()
     })
 
   const mdnsDiscovery2 = new MdnsDiscovery({identityKeypair:identityKeypair2})
   mdnsDiscovery2.on('connection',
     /** @param {NoiseSecretStream<net.Socket>} stream */
-    (stream) => {
+    async (stream) => {
       const remoteKey = stream.remotePublicKey.toString('hex')
-      const peerKey = identityKeypair2.publicKey.toString('hex')
-      console.log('found peer with key', remoteKey)
-      console.log('Im ', peerKey)
+      const peerKey = identityKeypair1.publicKey.toString('hex')
+      // console.log('found peer with key', remoteKey)
+      t.ok(remoteKey === peerKey)
+      await step()
     })
+
+  let count = 0
+  async function step(){
+    count++
+    if(count === 2){
+      mdnsDiscovery1.stop()
+      mdnsDiscovery2.stop()
+    }
+  }
+
   mdnsDiscovery1.start()
   mdnsDiscovery2.start()
-  // t.plan(1)
 })
 
 // test('discovery - dht/hyperswarm', async (t) => {
