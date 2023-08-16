@@ -5,6 +5,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType } from './datatype/index.js'
+import { BlobStore } from './blobstore/index.js'
 import { IndexWriter } from './index-writer/index.js'
 import { fieldTable, observationTable, presetTable } from './schema/project.js'
 import RandomAccessFile from 'random-access-file'
@@ -26,6 +27,7 @@ export class MapeoProject {
   #coreManager
   #dataStores
   #dataTypes
+  #blobStore
 
   /**
    * @param {Object} opts
@@ -112,6 +114,25 @@ export class MapeoProject {
         table: fieldTable,
         db,
       }),
+    }
+
+    this.#blobStore = new BlobStore({
+      coreManager: this.#coreManager,
+    })
+
+    this.$blobs = {
+      /**
+       * 
+       * @param {import('./types.js').BlobId} blobId 
+       * @returns {String}
+       */
+      getUrl: (blobId) => {
+        const { driveId, type, variant, name } = blobId
+        // TODO: where is the hostname set?
+        // TODO: expose the projectId
+        return `${this.hostname}/${this.projectId}/${driveId}/${type}/${variant}/${name}`
+      },
+      create: this.#blobStore.create.bind(this.#blobStore),
     }
   }
 

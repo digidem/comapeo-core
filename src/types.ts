@@ -16,8 +16,8 @@ import Corestore from 'corestore'
 import Hypercore from 'hypercore'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
-type BlobType = keyof SupportedBlobVariants
-type BlobVariant<TBlobType extends BlobType> = TupleToUnion<
+export type BlobType = keyof SupportedBlobVariants
+export type BlobVariant<TBlobType extends BlobType> = TupleToUnion<
   SupportedBlobVariants[TBlobType]
 >
 
