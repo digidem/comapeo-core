@@ -6,6 +6,7 @@ import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType } from './datatype/index.js'
 import { BlobStore } from './blobstore/index.js'
+import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { fieldTable, observationTable, presetTable } from './schema/project.js'
 import RandomAccessFile from 'random-access-file'
@@ -24,6 +25,7 @@ const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 const MAX_FILE_DESCRIPTORS = 768
 
 export class MapeoProject {
+  #projectId
   #coreManager
   #dataStores
   #dataTypes
@@ -38,6 +40,8 @@ export class MapeoProject {
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
    */
   constructor({ storagePath, ...coreManagerOpts }) {
+    this.#projectId = coreManagerOpts.projectKey.toString('hex') // TODO: update based on outcome of https://github.com/digidem/mapeo-core-next/issues/171
+
     ///////// 1. Setup database
 
     const dbPath =
@@ -120,20 +124,7 @@ export class MapeoProject {
       coreManager: this.#coreManager,
     })
 
-    this.$blobs = {
-      /**
-       * 
-       * @param {import('./types.js').BlobId} blobId 
-       * @returns {String}
-       */
-      getUrl: (blobId) => {
-        const { driveId, type, variant, name } = blobId
-        // TODO: where is the hostname set?
-        // TODO: expose the projectId
-        return `${this.hostname}/${this.projectId}/${driveId}/${type}/${variant}/${name}`
-      },
-      create: this.#blobStore.create.bind(this.#blobStore),
-    }
+    this.$blobs = new BlobApi({ projectId: this.#projectId })
   }
 
   get observation() {

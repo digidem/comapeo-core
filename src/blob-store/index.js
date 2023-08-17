@@ -1,4 +1,3 @@
-import fs from 'fs'
 import Hyperdrive from 'hyperdrive'
 import b4a from 'b4a'
 import util from 'node:util'
@@ -7,8 +6,6 @@ import { LiveDownload } from './live-download.js'
 
 /** @typedef {TypedEmitter<{ 'add-drive': (drive: import('hyperdrive')) => void }>} InternalDriveEmitter */
 /** @typedef {import('../types.js').BlobId} BlobId */
-/** @typedef {import('../types.js').BlobType} BlobType  */
-/** @typedef {import('../types.js').BlobVariant<BlobType>} BlobVariant  */
 
 // prop = blob type name
 // value = array of blob variants supported for that type
@@ -277,55 +274,6 @@ class PretendCorestore {
     }
   }
 
-  /**
-   * Write blobs for provided variants of a file
-   * @param {{ original: string, preview?: string, thumbnail?: string }} filepaths 
-   * @param {{ mimeType?: string }} metadata
-   * @returns {Promise<{ original: Omit<BlobId, 'driveId'>, preview?: Omit<BlobId, 'driveId'>, thumbnail?: Omit<BlobId, 'driveId'> }>}
-   */
-  async create(filepaths, metadata) {
-    const { original, preview, thumbnail } = filepaths
-    const { mimeType } = metadata
-
-    const originalBlobId = await writeFile(original)
-    const previewBlobId = preview ? await writeFile(preview) : null
-    const thumbnailBlobId = thumbnail ? await writeFile(thumbnail) : null
-
-    const blobIds = /** @type {{ original: Omit<BlobId, 'driveId'>, preview?: Omit<BlobId, 'driveId'>, thumbnail?: Omit<BlobId, 'driveId'> }} */({
-      original: originalBlobId,
-    })
-
-    if (previewBlobId) blobIds.preview = previewBlobId
-    if (thumbnailBlobId) blobIds.thumbnail = thumbnailBlobId
-
-    return blobIds
-
-    /**
-     * @param {string} filename 
-     * @returns {Promise<Omit<BlobId, 'driveId'>>}
-     */
-    function writeFile (filename) {
-      const [type, variant, name] = this.splitPath(filename)
-      return new Promise((resolve, reject) => {
-        fs.createReadStream(filename)
-          .pipe(this.createWriteStream({ type, variant, name }, { metadata: { mimeType } }))
-          .on('error', reject)
-          .on('finish', () => {
-            resolve({ type, variant, name })
-          })
-      })
-    }
-  }
-
-  /**
-   * 
-   * @param {string} filepath 
-   * @returns {Omit<BlobId, 'driveId'>}
-   */
-  splitPath (filepath) {
-    const [type, variant, name] = /** @type {[BlobType, BlobVariant, String]} */(filepath.split('/'))
-    return { type, variant, name }
-  }
   /** no-op */
   close() {}
 }
