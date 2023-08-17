@@ -134,12 +134,14 @@ function createProject({
   return new MapeoProject({
     keyManager,
     projectKey,
-    projectInfoIndexWriter:
-      /** @type {any} faking IndexWriter for testing purposes */ ({
+    // @ts-expect-error
+    projectInfoConfig: {
+      indexWriter: /** @type {any} faking IndexWriter for testing purposes */ ({
         async batch() {
           await new Promise((res) => setTimeout(res, 10))
         },
       }),
+    },
   })
 }
 

@@ -15,6 +15,12 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 
+/** @typedef {Object} ProjectInfoConfig
+ *
+ * @property {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
+ * @property {IndexWriter<import('./datatype/index.js').MapeoDocTablesMap['project']>} indexWriter
+ */
+
 const PROJECT_SQLITE_FILE_NAME = 'project.db'
 const CORE_STORAGE_FOLDER_NAME = 'cores'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -31,14 +37,14 @@ export class MapeoProject {
 
   /**
    * @param {Object} opts
-   * @param {IndexWriter<import('./datatype/index.js').MapeoDocTablesMap['project']>} opts.projectInfoIndexWriter
    * @param {string} [opts.storagePath] Folder for all data storage (hypercores and sqlite db). Folder must exist. If not defined, everything is stored in-memory
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
+   * @param {ProjectInfoConfig} opts.projectInfoConfig
    */
-  constructor({ storagePath, projectInfoIndexWriter, ...coreManagerOpts }) {
+  constructor({ storagePath, projectInfoConfig, ...coreManagerOpts }) {
     ///////// 1. Setup database
 
     const dbPath =
@@ -111,7 +117,7 @@ export class MapeoProject {
 
           await Promise.all([
             indexWriter.batch(projectInfoEntries),
-            projectInfoIndexWriter.batch(projectSpecificEntries),
+            projectInfoConfig.indexWriter.batch(projectSpecificEntries),
           ])
         },
         storage: indexerStorage,
@@ -142,7 +148,7 @@ export class MapeoProject {
       project: new DataType({
         dataStore: this.#dataStores.config,
         table: projectTable,
-        db,
+        db: projectInfoConfig.db,
       }),
     }
   }
