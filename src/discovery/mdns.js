@@ -27,9 +27,9 @@ export class MdnsDiscovery extends TypedEmitter {
   #socketConnections = new Set()
   /** @type {Map<string,NoiseSecretStream<net.Socket>>} */
   #noiseConnections = new Map()
-  /** @type {typeof import('../../types/dnssd.d.ts').Advertisement} */
+  /** @type {typeof import('@gravitysoftware/dnssd').Advertisement} */
   #advertiser
-  /** @type {typeof import('../../types/dnssd.d.ts').Browser} */
+  /** @type {typeof import('@gravitysoftware/dnssd').Browser} */
   #browser
   /** @type {string} */
   #id = randomBytes(8).toString('hex')
