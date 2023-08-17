@@ -8,7 +8,7 @@
   "scripts": {
     "lint": "eslint .",
     "format": "prettier . --write",
-    "test": "npm-run-all build:types test:unit test:e2e test:types",
+    "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
     "test:unit": "brittle \"tests/**/*.js\"",
     "test:e2e": "brittle \"test-e2e/**/*.js\"",
     "test:types": "tsc -p test-types/tsconfig.json",
@@ -29,6 +29,19 @@
   "prettier": {
     "semi": false,
     "singleQuote": true
+  },
+  "eslintConfig": {
+    "env": {
+      "commonjs": true,
+      "es2022": true,
+      "node": true
+    },
+    "extends": "eslint:recommended",
+    "parserOptions": {
+      "ecmaVersion": 13,
+      "sourceType": "module"
+    },
+    "rules": {}
   },
   "repository": {
     "type": "git",
@@ -57,7 +70,6 @@
     "depcheck": "^1.4.3",
     "drizzle-kit": "^0.19.12",
     "eslint": "^8.39.0",
-    "eslint-config-prettier": "^8.8.0",
     "fastify": "^4.20.0",
     "light-my-request": "^5.10.0",
     "nanobench": "^3.0.0",
