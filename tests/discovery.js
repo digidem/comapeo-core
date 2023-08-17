@@ -11,7 +11,7 @@ import { randomBytes } from 'node:crypto'
 import { KeyManager } from '@mapeo/crypto'
 
 test('discovery - mdns', async (t) => {
-  // t.plan(2)
+  t.plan(2)
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
 
@@ -24,9 +24,7 @@ test('discovery - mdns', async (t) => {
     async (stream) => {
       const remoteKey = stream.remotePublicKey.toString('hex')
       const peerKey = identityKeypair2.publicKey.toString('hex')
-      console.log('from 1: found peer with key', remoteKey)
-      console.log('peer', peerKey)
-      // t.ok(remoteKey === peerKey)
+      t.ok(remoteKey === peerKey)
       await step()
     }
   )
@@ -40,9 +38,7 @@ test('discovery - mdns', async (t) => {
     async (stream) => {
       const remoteKey = stream.remotePublicKey.toString('hex')
       const peerKey = identityKeypair1.publicKey.toString('hex')
-      console.log('from 2: found peer with key', remoteKey)
-      console.log('peer', peerKey)
-      // t.ok(remoteKey === peerKey)
+      t.ok(remoteKey === peerKey)
       await step()
     }
   )
@@ -51,7 +47,7 @@ test('discovery - mdns', async (t) => {
   async function step() {
     count++
     if (count === 2) {
-      await new Promise((res) => setTimeout(res, 2000))
+      // await new Promise((res) => setTimeout(res, 2000))
       mdnsDiscovery1.stop()
       mdnsDiscovery2.stop()
     }

@@ -107,15 +107,6 @@ export class MdnsDiscovery extends TypedEmitter {
     if (!socket.remoteAddress) return
 
     const { remoteAddress } = socket
-    // if (this.#socketConnections.has(remoteAddress)) {
-    //   log(
-    //     `Destroying connection ${isInitiator ? 'to' : 'from'} ${
-    //       socket.remotePort
-    //     }`
-    //   )
-    //   socket.destroy()
-    //   return
-    // }
     this.#socketConnections.add(remoteAddress)
 
     const secretStream = new NoiseSecretStream(isInitiator, socket, {
@@ -147,7 +138,7 @@ export class MdnsDiscovery extends TypedEmitter {
       secretStream.on('close', () => close())
       secretStream.on('error', () => close())
       // this.#server.on('error', () => close())
-      // this.#server.on('close', () => close())
+      this.#server.on('close', () => close())
 
       const existing = this.#noiseConnections.get(remoteId)
 
@@ -173,7 +164,6 @@ export class MdnsDiscovery extends TypedEmitter {
 
   stop() {
     const port = this.#server.address()?.port
-    this.#server.close() // wait for close
     this.#browser.removeAllListeners('serviceUp')
     this.#browser.stop()
     this.#advertiser.stop(true)
@@ -181,6 +171,7 @@ export class MdnsDiscovery extends TypedEmitter {
     for (const [_, socket] of this.#noiseConnections) {
       socket.destroy()
     }
+    this.#server.close() // wait for close
     log(`stopped for ${port}`)
   }
 }
