@@ -7,6 +7,7 @@ import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType } from './datatype/index.js'
 import { IndexWriter } from './index-writer/index.js'
+import { projectTable } from './schema/client.js'
 import { fieldTable, observationTable, presetTable } from './schema/project.js'
 import RandomAccessFile from 'random-access-file'
 import RAM from 'random-access-memory'
@@ -136,6 +137,11 @@ export class MapeoProject {
       field: new DataType({
         dataStore: this.#dataStores.config,
         table: fieldTable,
+        db,
+      }),
+      project: new DataType({
+        dataStore: this.#dataStores.config,
+        table: projectTable,
         db,
       }),
     }
