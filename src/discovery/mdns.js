@@ -4,9 +4,11 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
 import dnssd from '@gravitysoftware/dnssd'
 import debug from 'debug'
+import { randomBytes } from 'node:crypto'
+
+const log = debug('mdns')
 
 const SERVICE_NAME = 'mapeo'
-
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 
@@ -17,7 +19,6 @@ const SERVICE_NAME = 'mapeo'
  * @property {Object<string, any>} txt - TXT records of the service
  * @property {string[]} [addresses] - addresses of the service
  */
-
 
 export class MdnsDiscovery extends TypedEmitter {
   #identityKeypair
@@ -30,11 +31,13 @@ export class MdnsDiscovery extends TypedEmitter {
   #advertiser
   /** @type {typeof import('../../types/dnssd.d.ts').Browser} */
   #browser
+  /** @type {string} */
+  #id = randomBytes(8).toString('hex')
 
   /** @param {Object} opts
    * @param {Keypair} opts.identityKeypair
    */
-  constructor({ identityKeypair}) {
+  constructor({ identityKeypair }) {
     super()
     this.#identityKeypair = identityKeypair
     this.#server = net.createServer(this.#handleConnection.bind(this, false))
@@ -45,37 +48,50 @@ export class MdnsDiscovery extends TypedEmitter {
     this.#server.listen(0, '0.0.0.0')
     // TODO: listen for errors
     await once(this.#server, 'listening')
+
     this.#server.on('error', () => {})
 
     const addr = /** @type {net.AddressInfo} */ (this.#server.address())
-    if(!isAddressInfo(addr)) throw new Error('Server must be listening on a port')
-
+    if (!isAddressInfo(addr))
+      throw new Error('Server must be listening on a port')
+    log('server listening on port ' + addr.port)
 
     this.#advertiser = new dnssd.Advertisement(
       dnssd.tcp(SERVICE_NAME),
-      addr.port
+      addr.port,
+      { txt: { id: this.#id } }
     )
     await this.#advertiser.start()
+    log('started advertiser for ' + addr.port)
 
     // find all peers adverticing Mapeo
-    this.#browser = new dnssd
-      .Browser(dnssd.tcp(SERVICE_NAME))
-      .on('serviceUp',
-        /** @param {Service} service */
-        (service) => {
-          if(!isValidServerAddresses(service.addresses)) {
-            throw new Error('Got invalid server addresses from service')
-          }
-          const socket = net.connect(
-            service.port,
-            service.addresses[0]
-          )
-          socket.once('connect',() => {
-            this.#handleConnection(true, socket)
-          })
+    this.#browser = new dnssd.Browser(dnssd.tcp(SERVICE_NAME)).on(
+      'serviceUp',
+      /** @param {Service} service */
+      (service) => {
+        if (service.txt?.id === this.#id) {
+          log(`Discovered self, ignore`)
+          return
+        }
+        log(
+          'serviceUp',
+          addr.port,
+          addr.address,
+          service.port,
+          service.addresses
+        )
+        if (!isValidServerAddresses(service.addresses)) {
+          throw new Error('Got invalid server addresses from service')
+        }
+        const socket = net.connect(service.port, service.addresses[0])
+        socket.once('connect', () => {
+          this.#handleConnection(true, socket)
         })
+      }
+    )
 
     await this.#browser.start()
+    log(`started browser for ${addr.port}`)
   }
 
   /**
@@ -83,31 +99,47 @@ export class MdnsDiscovery extends TypedEmitter {
    * @param {net.Socket} socket
    */
   async #handleConnection(isInitiator, socket) {
-    if(!socket.remoteAddress) return
+    log(
+      `${isInitiator ? 'outgoing' : 'incoming'} connection ${
+        isInitiator ? 'to' : 'from'
+      } ${socket.remotePort}`
+    )
+    if (!socket.remoteAddress) return
 
     const { remoteAddress } = socket
     // if (this.#socketConnections.has(remoteAddress)) {
+    //   log(
+    //     `Destroying connection ${isInitiator ? 'to' : 'from'} ${
+    //       socket.remotePort
+    //     }`
+    //   )
     //   socket.destroy()
     //   return
     // }
-    // this.#socketConnections.add(remoteAddress)
+    this.#socketConnections.add(remoteAddress)
 
     const secretStream = new NoiseSecretStream(isInitiator, socket, {
       keyPair: this.#identityKeypair,
     })
 
     secretStream.on('connect', async () => {
-      const remotePublicKey = secretStream.remotePublicKey?.toString('hex')
-
-      if(!remotePublicKey) throw new Error('Invalid remote public key')
+      log(`${isInitiator ? 'outgoing' : 'incoming'} secretSteam connection`)
+      const { remotePublicKey } = secretStream
+      if (!remotePublicKey) throw new Error('No remote public key')
+      const remoteId = remotePublicKey.toString('hex')
 
       const close = () => {
-        // if(this.#socketConnections.has(remoteAddress)){
-        //   this.#socketConnections.delete(remoteAddress)
-        // }
-        if(this.#noiseConnections.has(remotePublicKey)){
-          this.#noiseConnections.delete(remotePublicKey)
+        if (this.#socketConnections.has(remoteAddress)) {
+          this.#socketConnections.delete(remoteAddress)
         }
+        if (this.#noiseConnections.has(remoteId)) {
+          this.#noiseConnections.delete(remoteId)
+        }
+        log(
+          `Destroying connection ${isInitiator ? 'to' : 'from'} ${
+            socket.remotePort
+          }`
+        )
         secretStream.destroy()
         socket.destroy()
       }
@@ -117,31 +149,40 @@ export class MdnsDiscovery extends TypedEmitter {
       // this.#server.on('error', () => close())
       // this.#server.on('close', () => close())
 
-      const isDuplicate = this.#noiseConnections.has(remotePublicKey)
-        && !(this.#noiseConnections.get(remotePublicKey)?.isInitiator)
+      const existing = this.#noiseConnections.get(remoteId)
 
-      if(isDuplicate){
-        // this.#socketConnections.delete(remoteAddress)
-        socket.destroy()
-        secretStream.destroy()
-        return
+      if (existing) {
+        const keepExisting =
+          (isInitiator && existing.isInitiator) ||
+          (!isInitiator && !existing.isInitiator) ||
+          Buffer.compare(this.#identityKeypair.publicKey, remotePublicKey)
+        if (keepExisting) {
+          log(`keeping existing, destroying new`)
+          socket.destroy()
+          secretStream.destroy()
+          return
+        } else {
+          log(`destroying existing, keeping new`)
+          existing.destroy()
+        }
       }
-      this.#noiseConnections.set(remotePublicKey,secretStream)
+      this.#noiseConnections.set(remoteId, secretStream)
       this.emit('connection', secretStream)
     })
   }
 
   stop() {
+    const port = this.#server.address()?.port
     this.#server.close() // wait for close
     this.#browser.removeAllListeners('serviceUp')
     this.#browser.stop()
     this.#advertiser.stop(true)
     // eslint-disable-next-line no-unused-vars
-    for(const [_, socket] of this.#noiseConnections){
+    for (const [_, socket] of this.#noiseConnections) {
       socket.destroy()
     }
+    log(`stopped for ${port}`)
   }
-
 }
 
 /**
@@ -154,9 +195,9 @@ function isAddressInfo(addr) {
 }
 
 /**
-  * @param {string[] | undefined} addr
-  * @returns {boolean}
-  */
-function isValidServerAddresses(addr){
-  return (addr?.length !== 0 && addr !== undefined)
+ * @param {string[] | undefined} addr
+ * @returns {addr is [string, ...string[]]}
+ */
+function isValidServerAddresses(addr) {
+  return addr?.length !== 0 && addr !== undefined
 }

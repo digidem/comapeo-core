@@ -15,8 +15,11 @@ test('discovery - mdns', async (t) => {
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
 
-  const mdnsDiscovery1 = new MdnsDiscovery({identityKeypair:identityKeypair1})
-  mdnsDiscovery1.on('connection',
+  const mdnsDiscovery1 = new MdnsDiscovery({
+    identityKeypair: identityKeypair1,
+  })
+  mdnsDiscovery1.on(
+    'connection',
     /** @param {NoiseSecretStream<net.Socket>} stream */
     async (stream) => {
       const remoteKey = stream.remotePublicKey.toString('hex')
@@ -25,10 +28,14 @@ test('discovery - mdns', async (t) => {
       console.log('peer', peerKey)
       // t.ok(remoteKey === peerKey)
       await step()
-    })
+    }
+  )
 
-  const mdnsDiscovery2 = new MdnsDiscovery({identityKeypair:identityKeypair2})
-  mdnsDiscovery2.on('connection',
+  const mdnsDiscovery2 = new MdnsDiscovery({
+    identityKeypair: identityKeypair2,
+  })
+  mdnsDiscovery2.on(
+    'connection',
     /** @param {NoiseSecretStream<net.Socket>} stream */
     async (stream) => {
       const remoteKey = stream.remotePublicKey.toString('hex')
@@ -37,12 +44,14 @@ test('discovery - mdns', async (t) => {
       console.log('peer', peerKey)
       // t.ok(remoteKey === peerKey)
       await step()
-    })
+    }
+  )
 
   let count = 0
-  async function step(){
+  async function step() {
     count++
-    if(count === 2){
+    if (count === 2) {
+      await new Promise((res) => setTimeout(res, 2000))
       mdnsDiscovery1.stop()
       mdnsDiscovery2.stop()
     }
