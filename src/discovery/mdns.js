@@ -3,7 +3,7 @@ import net from 'node:net'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
 import dnssd from '@gravitysoftware/dnssd'
-
+import debug from 'debug'
 
 const SERVICE_NAME = 'mapeo'
 
@@ -86,11 +86,11 @@ export class MdnsDiscovery extends TypedEmitter {
     if(!socket.remoteAddress) return
 
     const { remoteAddress } = socket
-    if (this.#socketConnections.has(remoteAddress)) {
-      socket.destroy()
-      return
-    }
-    this.#socketConnections.add(remoteAddress)
+    // if (this.#socketConnections.has(remoteAddress)) {
+    //   socket.destroy()
+    //   return
+    // }
+    // this.#socketConnections.add(remoteAddress)
 
     const secretStream = new NoiseSecretStream(isInitiator, socket, {
       keyPair: this.#identityKeypair,
@@ -102,9 +102,9 @@ export class MdnsDiscovery extends TypedEmitter {
       if(!remotePublicKey) throw new Error('Invalid remote public key')
 
       const close = () => {
-        if(this.#socketConnections.has(remoteAddress)){
-          this.#socketConnections.delete(remoteAddress)
-        }
+        // if(this.#socketConnections.has(remoteAddress)){
+        //   this.#socketConnections.delete(remoteAddress)
+        // }
         if(this.#noiseConnections.has(remotePublicKey)){
           this.#noiseConnections.delete(remotePublicKey)
         }
@@ -121,7 +121,7 @@ export class MdnsDiscovery extends TypedEmitter {
         && !(this.#noiseConnections.get(remotePublicKey)?.isInitiator)
 
       if(isDuplicate){
-        this.#socketConnections.delete(remoteAddress)
+        // this.#socketConnections.delete(remoteAddress)
         socket.destroy()
         secretStream.destroy()
         return
@@ -136,6 +136,7 @@ export class MdnsDiscovery extends TypedEmitter {
     this.#browser.removeAllListeners('serviceUp')
     this.#browser.stop()
     this.#advertiser.stop(true)
+    // eslint-disable-next-line no-unused-vars
     for(const [_, socket] of this.#noiseConnections){
       socket.destroy()
     }
