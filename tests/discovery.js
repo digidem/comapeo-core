@@ -1,10 +1,10 @@
 import test from 'brittle'
 
-import Hypercore from 'hypercore'
-import ram from 'random-access-memory'
-import createTestnet from '@hyperswarm/testnet'
+// import Hypercore from 'hypercore'
+// import ram from 'random-access-memory'
+// import createTestnet from '@hyperswarm/testnet'
 
-import { createCoreKeyPair, createIdentityKeys } from './helpers/index.js'
+// import { createCoreKeyPair, createIdentityKeys } from './helpers/index.js'
 import { MdnsDiscovery } from '../src/discovery/mdns.js'
 
 import { randomBytes } from 'node:crypto'
