@@ -134,8 +134,7 @@ function createProject({
   return new MapeoProject({
     keyManager,
     projectKey,
-    // @ts-expect-error
-    projectInfoConfig: {
+    projectSettingsConfig: {
       indexWriter: /** @type {any} faking IndexWriter for testing purposes */ ({
         async batch() {
           await new Promise((res) => setTimeout(res, 10))

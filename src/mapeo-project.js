@@ -15,7 +15,7 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 
-/** @typedef {Object} ProjectInfoConfig
+/** @typedef {Object} ProjectSettingsConfig
  *
  * @property {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
  * @property {IndexWriter<import('./datatype/index.js').MapeoDocTablesMap['project']>} indexWriter
@@ -42,9 +42,9 @@ export class MapeoProject {
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
-   * @param {ProjectInfoConfig} opts.projectInfoConfig
+   * @param {ProjectSettingsConfig} opts.projectSettingsConfig
    */
-  constructor({ storagePath, projectInfoConfig, ...coreManagerOpts }) {
+  constructor({ storagePath, projectSettingsConfig, ...coreManagerOpts }) {
     ///////// 1. Setup database
 
     const dbPath =
@@ -97,9 +97,9 @@ export class MapeoProject {
         namespace: 'config',
         batch: async (entries) => {
           /** @type {import('multi-core-indexer').Entry[]} */
-          const projectInfoEntries = []
+          const projectSettingsEntries = []
           /** @type {import('multi-core-indexer').Entry[]} */
-          const projectSpecificEntries = []
+          const otherEntries = []
 
           for (const entry of entries) {
             // TODO: Use simplified decode export from @mapeo/schema when available
@@ -109,15 +109,15 @@ export class MapeoProject {
             }).schemaName
 
             if (schemaName === 'project') {
-              projectInfoEntries.push(entry)
+              projectSettingsEntries.push(entry)
             } else {
-              projectSpecificEntries.push(entry)
+              otherEntries.push(entry)
             }
           }
 
           await Promise.all([
-            indexWriter.batch(projectInfoEntries),
-            projectInfoConfig.indexWriter.batch(projectSpecificEntries),
+            indexWriter.batch(projectSettingsEntries),
+            projectSettingsConfig.indexWriter.batch(otherEntries),
           ])
         },
         storage: indexerStorage,
@@ -148,7 +148,7 @@ export class MapeoProject {
       project: new DataType({
         dataStore: this.#dataStores.config,
         table: projectTable,
-        db: projectInfoConfig.db,
+        db: projectSettingsConfig.db,
       }),
     }
   }
