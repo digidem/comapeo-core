@@ -2,6 +2,9 @@ import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { MapeoProject } from '../src/mapeo-project.js'
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -131,10 +134,17 @@ function createProject({
   projectKey = randomBytes(32),
 } = {}) {
   const keyManager = new KeyManager(rootKey)
+
+  // Set up client db
+  const clientSqlite = new Database(':memory:')
+  const clientDb = drizzle(clientSqlite)
+  migrate(clientDb, { migrationsFolder: './drizzle/client' })
+
   return new MapeoProject({
     keyManager,
     projectKey,
     projectSettingsConfig: {
+      db: clientDb,
       indexWriter: /** @type {any} faking IndexWriter for testing purposes */ ({
         async batch() {
           await new Promise((res) => setTimeout(res, 10))
