@@ -5,6 +5,8 @@ import { MapeoProject } from '../src/mapeo-project.js'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import { IndexWriter } from '../src/index-writer/index.js'
+import { projectTable } from '../src/schema/client.js'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -145,10 +147,9 @@ function createProject({
     projectKey,
     projectSettingsConfig: {
       db: clientDb,
-      indexWriter: /** @type {any} faking IndexWriter for testing purposes */ ({
-        async batch() {
-          await new Promise((res) => setTimeout(res, 10))
-        },
+      indexWriter: new IndexWriter({
+        tables: [projectTable],
+        sqlite: clientSqlite,
       }),
     },
   })
