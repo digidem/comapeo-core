@@ -116,8 +116,8 @@ export class MapeoProject {
           }
 
           await Promise.all([
-            indexWriter.batch(projectSettingsEntries),
-            projectSettingsConfig.indexWriter.batch(otherEntries),
+            indexWriter.batch(otherEntries),
+            projectSettingsConfig.indexWriter.batch(projectSettingsEntries),
           ])
         },
         storage: indexerStorage,
