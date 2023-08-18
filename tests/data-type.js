@@ -12,6 +12,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'crypto'
 
+/** @type {import('@mapeo/schema').ObservationValue} */
 const obsFixture = {
   schemaName: 'observation',
   refs: [],
@@ -43,7 +44,6 @@ test('private createWithDocId() method', async (t) => {
     db,
   })
   const customId = randomBytes(8).toString('hex')
-  // @ts-ignore - not sure why this is failing, ignoring for now
   const obs = await dataType[kCreateWithDocId](customId, obsFixture)
   t.is(obs.docId, customId)
   const read = await dataType.getByDocId(customId)
