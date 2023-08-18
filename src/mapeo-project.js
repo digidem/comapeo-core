@@ -5,7 +5,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
-import { DataType } from './datatype/index.js'
+import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectTable } from './schema/client.js'
 import { fieldTable, observationTable, presetTable } from './schema/project.js'
@@ -14,6 +14,7 @@ import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'
 import path from 'path'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
+import { randomBytes } from 'crypto'
 
 /** @typedef {Object} ProjectSettingsConfig
  *
@@ -161,5 +162,30 @@ export class MapeoProject {
   }
   get field() {
     return this.#dataTypes.field
+  }
+
+  /**
+   * @param {import('./types.js').ProjectSettings} settings
+   * @param {string} [versionId]
+   */
+  async $setProjectSettings(settings, versionId) {
+    if (versionId) {
+      const existing = await this.#dataTypes.project.getByVersionId(versionId)
+
+      if (existing) {
+        return this.#dataTypes.project.update(existing.versionId, {
+          ...settings,
+          schemaName: 'project',
+        })
+      }
+    }
+
+    return this.#dataTypes.project[kCreateWithDocId](
+      randomBytes(32).toString('hex'),
+      {
+        ...settings,
+        schemaName: 'project',
+      }
+    )
   }
 }

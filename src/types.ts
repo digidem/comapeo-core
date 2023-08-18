@@ -6,7 +6,7 @@ import type {
   SetOptional,
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
-import { MapeoDoc, MapeoValue } from '@mapeo/schema'
+import { MapeoDoc, MapeoValue, ProjectValue } from '@mapeo/schema'
 import type Protomux from 'protomux'
 import type NoiseStream from '@hyperswarm/secret-stream'
 import { Duplex } from 'streamx'
@@ -168,3 +168,5 @@ export type ProtocolStream = NoiseStream & { userData: Protomux }
 export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
 }[keyof T][]
+
+export type ProjectSettings = Pick<ProjectValue, 'name' | 'defaultPresets'>
