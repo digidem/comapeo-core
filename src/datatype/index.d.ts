@@ -4,6 +4,7 @@
 
 import { type MapeoDoc, type MapeoValue } from '@mapeo/schema'
 import { type MapeoDocMap, type MapeoValueMap } from '../types.js'
+import { kCreateWithDocId } from './index.js'
 
 type MapeoDocTableName = `${MapeoDoc['schemaName']}Table`
 type GetMapeoDocTables<T> = T[keyof T & MapeoDocTableName]
@@ -38,6 +39,11 @@ export class DataType<
     db: import('drizzle-orm/better-sqlite3').BetterSQLite3Database
     getPermissions?: () => any
   })
+
+  [kCreateWithDocId]<T extends import('type-fest').Exact<TValue, T>>(
+    docId: string,
+    value: T
+  ): Promise<TDoc & { forks: string[] }>
 
   create<T extends import('type-fest').Exact<TValue, T>>(
     value: T
