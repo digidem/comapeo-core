@@ -57,7 +57,7 @@ test('Project settings indexer only indexes project record types', async (t) => 
       indexedProjectVersionIds.push(versionId)
     }
 
-    return originalBatch.bind(projectSettingsIndexWriter, entries)()
+    return originalBatch.call(projectSettingsIndexWriter, entries)
   }
 
   const project = createProject({
