@@ -1,4 +1,6 @@
 import fs from 'fs'
+import sodium from 'sodium-universal'
+import b4a from 'b4a'
 
 /** @typedef {import('./types.js').BlobId} BlobId */
 /** @typedef {import('./types.js').BlobType} BlobType  */
@@ -33,18 +35,20 @@ export class BlobApi {
     const { original, preview, thumbnail } = filepaths
     const { mimeType } = metadata
     const blobType = getType(mimeType)
+    const hash = b4a.alloc(sodium.crypto_generichash_BYTES)
+    sodium.crypto_generichash(hash, b4a.from(original))
 
     const originalBlobId = await writeFile({
-      name: original,
+      name: hash,
       variant: 'original',
       type: blobType,
     })
     const previewBlobId = preview
-      ? await writeFile({ name: preview, variant: 'preview', type: blobType })
+      ? await writeFile({ name: hash, variant: 'preview', type: blobType })
       : null
     const thumbnailBlobId = thumbnail
       ? await writeFile({
-          name: thumbnail,
+          name: hash,
           variant: 'thumbnail',
           type: blobType,
         })
