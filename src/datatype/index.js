@@ -43,6 +43,7 @@ function generateId() {
 function generateDate() {
   return new Date().toISOString()
 }
+export const kCreateWithDocId = Symbol('kCreateWithDocId')
 
 /**
  * @template {import('../datastore/index.js').DataStore} TDataStore
@@ -86,6 +87,16 @@ export class DataType {
    * @param {T} value
    */
   async create(value) {
+    const docId = generateId()
+    return this[kCreateWithDocId](docId, value)
+  }
+
+  /**
+   * @template {import('type-fest').Exact<TValue, T>} T
+   * @param {string} docId
+   * @param {T} value
+   */
+  async [kCreateWithDocId](docId, value) {
     if (!validate(this.#schemaName, value)) {
       // TODO: pass through errors from validate functions
       throw new Error('Invalid value ' + value)
@@ -94,7 +105,7 @@ export class DataType {
     /** @type {OmitUnion<MapeoDoc, 'versionId'>} */
     const doc = {
       ...value,
-      docId: generateId(),
+      docId,
       createdAt: nowDateString,
       updatedAt: nowDateString,
       links: [],
