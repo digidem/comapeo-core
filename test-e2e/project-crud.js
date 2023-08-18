@@ -1,12 +1,6 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
-import { KeyManager } from '@mapeo/crypto'
-import { MapeoProject } from '../src/mapeo-project.js'
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import { IndexWriter } from '../src/index-writer/index.js'
-import { projectTable } from '../src/schema/client.js'
+import { setupClient, createProject } from './utils.js'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -66,10 +60,11 @@ function getUpdateFixture(value) {
 }
 
 test('CRUD operations', async (t) => {
+  const client = setupClient()
   for (const value of fixtures) {
     const { schemaName } = value
     t.test(`create and read ${schemaName}`, async (t) => {
-      const project = await createProject()
+      const project = createProject(client)
       // @ts-ignore - TS can't figure this out, but we're not testing types here so ok to ignore
       const written = await project[schemaName].create(value)
       const read = await project[schemaName].getByDocId(written.docId)
@@ -77,7 +72,7 @@ test('CRUD operations', async (t) => {
       t.alike(written, read, 'return create() matches return of getByDocId()')
     })
     t.test('update', async (t) => {
-      const project = await createProject()
+      const project = createProject(client)
       // @ts-ignore
       const written = await project[schemaName].create(value)
       const updateValue = getUpdateFixture(value)
@@ -101,7 +96,7 @@ test('CRUD operations', async (t) => {
       t.is(written.createdAt, updated.createdAt, 'createdAt does not change')
     })
     t.test('getMany', async (t) => {
-      const project = await createProject()
+      const project = createProject(client)
       const values = new Array(5).fill(null).map(() => {
         return getUpdateFixture(value)
       })
@@ -129,30 +124,6 @@ function valueOf(doc) {
   // eslint-disable-next-line no-unused-vars
   const { docId, versionId, links, forks, createdAt, updatedAt, ...rest } = doc
   return rest
-}
-
-function createProject({
-  rootKey = randomBytes(16),
-  projectKey = randomBytes(32),
-} = {}) {
-  const keyManager = new KeyManager(rootKey)
-
-  // Set up client db
-  const clientSqlite = new Database(':memory:')
-  const clientDb = drizzle(clientSqlite)
-  migrate(clientDb, { migrationsFolder: './drizzle/client' })
-
-  return new MapeoProject({
-    keyManager,
-    projectKey,
-    projectSettingsConfig: {
-      db: clientDb,
-      indexWriter: new IndexWriter({
-        tables: [projectTable],
-        sqlite: clientSqlite,
-      }),
-    },
-  })
 }
 
 /**

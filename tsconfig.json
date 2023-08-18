@@ -22,7 +22,7 @@
       ]
     }
   },
-  "files": ["tests/schema.js", "test-e2e/project-crud.js", "test-e2e/project-settings.js"],
+  "files": ["tests/schema.js", "test-e2e/project-crud.js", "test-e2e/project-settings.js", "test-e2e/utils.js"],
   "include": ["src/**/*", "types/**/*.d.ts"],
   "exclude": [
     "node_modules",
