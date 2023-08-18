@@ -4,7 +4,6 @@
 
 import { type MapeoDoc, type MapeoValue } from '@mapeo/schema'
 import { type MapeoDocMap, type MapeoValueMap } from '../types.js'
-import { kCreateWithDocId } from './index.js'
 
 type MapeoDocTableName = `${MapeoDoc['schemaName']}Table`
 type GetMapeoDocTables<T> = T[keyof T & MapeoDocTableName]
@@ -18,6 +17,8 @@ type MapeoDocTablesMap = {
     { _: { name: K } }
   >
 }
+
+export const kCreateWithDocId: unique symbol
 
 type OmitUnion<T, K extends keyof any> = T extends any ? Omit<T, K> : never
 
