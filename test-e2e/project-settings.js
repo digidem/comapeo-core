@@ -69,7 +69,10 @@ test('Project settings indexer only indexes project record types', async (t) => 
     const { schemaName } = value
 
     if (schemaName === 'project') {
-      const written = await project.$setProjectSettings(value)
+      const written = await project.$setProjectSettings(
+        value,
+        allProjectVersionIds[allProjectVersionIds.length - 1]
+      )
       allProjectVersionIds.push(written.versionId)
     } else {
       // @ts-expect-error - TS can't figure this out, but we're not testing types here so ok to ignore
@@ -123,8 +126,14 @@ test('Project settings indexer works across multiple projects', async (t) => {
     const { schemaName } = value
 
     if (schemaName === 'project') {
-      const written1 = await project1.$setProjectSettings(value)
-      const written2 = await project2.$setProjectSettings(value)
+      const written1 = await project1.$setProjectSettings(
+        value,
+        projectVersionIds1[projectVersionIds1.length - 1]
+      )
+      const written2 = await project2.$setProjectSettings(
+        value,
+        projectVersionIds2[projectVersionIds2.length - 1]
+      )
 
       projectVersionIds1.push(written1.versionId)
       projectVersionIds2.push(written2.versionId)
