@@ -5,6 +5,7 @@ import { once } from 'node:events'
 import dnssd from '@gravitysoftware/dnssd'
 import debug from 'debug'
 import { randomBytes } from 'node:crypto'
+import isIpPrivate from 'private-ip'
 
 const log = debug('mdns')
 
@@ -105,6 +106,7 @@ export class MdnsDiscovery extends TypedEmitter {
       } ${socket.remotePort}`
     )
     if (!socket.remoteAddress) return
+    if (!isIpPrivate(socket.remoteAddress)) return
 
     const { remoteAddress } = socket
     this.#socketConnections.add(remoteAddress)
