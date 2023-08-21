@@ -164,6 +164,10 @@ export class MdnsDiscovery extends TypedEmitter {
     })
   }
 
+  get connections() {
+    return this.#noiseConnections.values()
+  }
+
   stop() {
     const port = this.#server.address()?.port
     this.#browser.removeAllListeners('serviceUp')
