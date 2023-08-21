@@ -85,3 +85,65 @@ test('Project settings indexer only indexes project record types', async (t) => 
     })
   )
 })
+
+test('Project settings indexer works across multiple projects', async (t) => {
+  /** @type {string[]} */
+  const projectVersionIds1 = []
+  /** @type {string[]} */
+  const projectVersionIds2 = []
+
+  /** @type {string[]} */
+  const indexedProjectVersionIds = []
+
+  const { clientDb, projectSettingsIndexWriter } = setupClient()
+
+  const originalBatch = projectSettingsIndexWriter.batch
+
+  // Hook into the batch method for testing purposes
+  projectSettingsIndexWriter.batch = async (entries) => {
+    for (const { index, key } of entries) {
+      const versionId = getVersionId({ coreKey: key, index })
+      indexedProjectVersionIds.push(versionId)
+    }
+
+    return originalBatch.call(projectSettingsIndexWriter, entries)
+  }
+
+  const project1 = createProject({
+    clientDb,
+    projectSettingsIndexWriter,
+  })
+
+  const project2 = createProject({
+    clientDb,
+    projectSettingsIndexWriter,
+  })
+
+  for (const value of fixtures) {
+    const { schemaName } = value
+
+    if (schemaName === 'project') {
+      const written1 = await project1.$setProjectSettings(value)
+      const written2 = await project2.$setProjectSettings(value)
+
+      projectVersionIds1.push(written1.versionId)
+      projectVersionIds2.push(written2.versionId)
+    } else {
+      // @ts-expect-error - TS can't figure this out, but we're not testing types here so ok to ignore
+      await project1[schemaName].create(value)
+      // @ts-expect-error
+      await project2[schemaName].create(value)
+    }
+  }
+
+  t.is(
+    indexedProjectVersionIds.length,
+    projectVersionIds1.length + projectVersionIds2.length
+  )
+
+  t.ok(
+    [...projectVersionIds1, ...projectVersionIds2].every((id) => {
+      return indexedProjectVersionIds.includes(id)
+    })
+  )
+})
