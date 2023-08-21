@@ -14,6 +14,7 @@ import { Socket } from 'net'
 import MultiCoreIndexer from 'multi-core-indexer'
 import Corestore from 'corestore'
 import Hypercore from 'hypercore'
+import { NAMESPACES } from './core-manager/index.js'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 type BlobType = keyof SupportedBlobVariants
@@ -168,3 +169,11 @@ export type ProtocolStream = NoiseStream & { userData: Protomux }
 export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
 }[keyof T][]
+
+export type ProjectKeys = {
+  projectKey: Buffer
+  projectSecretKey?: Buffer
+  authEncryptionKey: Buffer
+} & {
+  [n in `${Exclude<(typeof NAMESPACES)[number], 'auth'>}EncryptionKey`]?: Buffer
+}
