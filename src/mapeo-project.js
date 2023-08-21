@@ -14,7 +14,6 @@ import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'
 import path from 'path'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
-import { randomBytes } from 'crypto'
 
 /** @typedef {Object} ProjectSettingsConfig
  *
@@ -35,6 +34,7 @@ export class MapeoProject {
   #coreManager
   #dataStores
   #dataTypes
+  #projectId
 
   /**
    * @param {Object} opts
@@ -46,6 +46,9 @@ export class MapeoProject {
    * @param {ProjectSettingsConfig} opts.projectSettingsConfig
    */
   constructor({ storagePath, projectSettingsConfig, ...coreManagerOpts }) {
+    // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
+    this.#projectId = coreManagerOpts.projectKey.toString('hex')
+
     ///////// 1. Setup database
 
     const dbPath =
@@ -180,12 +183,9 @@ export class MapeoProject {
       }
     }
 
-    return this.#dataTypes.project[kCreateWithDocId](
-      randomBytes(32).toString('hex'),
-      {
-        ...settings,
-        schemaName: 'project',
-      }
-    )
+    return this.#dataTypes.project[kCreateWithDocId](this.#projectId, {
+      ...settings,
+      schemaName: 'project',
+    })
   }
 }
