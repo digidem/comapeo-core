@@ -168,8 +168,9 @@ export class MapeoProject {
   }
 
   /**
-   * @param {import('./types.js').ProjectSettings} settings
+   * @param {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} settings
    * @param {string} [versionId]
+   * @returns {Promise<import('@mapeo/schema').Project>}
    */
   async $setProjectSettings(settings, versionId) {
     if (versionId) {
@@ -187,5 +188,12 @@ export class MapeoProject {
       ...settings,
       schemaName: 'project',
     })
+  }
+
+  /**
+   * @returns {Promise<import('@mapeo/schema').Project>}
+   */
+  async $getProjectSettings() {
+    return this.#dataTypes.project.getByDocId(this.#projectId)
   }
 }
