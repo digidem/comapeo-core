@@ -156,3 +156,49 @@ test('Project settings indexer works across multiple projects', async (t) => {
     })
   )
 })
+
+test('Project settings create, read, and update operations', async (t) => {
+  const { projectSettingsIndexWriter, clientDb } = setupClient()
+
+  const project = createProject({
+    clientDb,
+    projectSettingsIndexWriter,
+  })
+
+  const initialSettings = await project.$setProjectSettings({
+    name: 'initial',
+    defaultPresets: {},
+  })
+
+  const expectedSettings = {
+    name: 'updated',
+    defaultPresets: {},
+  }
+
+  const updatedSettings = await project.$setProjectSettings(
+    expectedSettings,
+    initialSettings.versionId
+  )
+
+  t.not(
+    initialSettings.updatedAt,
+    updatedSettings.updatedAt,
+    'updatedAt has changed'
+  )
+
+  t.is(
+    initialSettings.createdAt,
+    updatedSettings.createdAt,
+    'createdAt does not change'
+  )
+
+  t.is(updatedSettings.name, expectedSettings.name, 'updatable fields change')
+
+  const settings = await project.$getProjectSettings()
+
+  t.alike(
+    updatedSettings,
+    settings,
+    'retrieved settings are equivalent to most recently updated'
+  )
+})
