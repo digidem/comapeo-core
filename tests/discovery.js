@@ -1,7 +1,7 @@
 import test from 'brittle'
 
-// import Hypercore from 'hypercore'
-// import ram from 'random-access-memory'
+import Hypercore from 'hypercore'
+import ram from 'random-access-memory'
 // import createTestnet from '@hyperswarm/testnet'
 
 // import { createCoreKeyPair, createIdentityKeys } from './helpers/index.js'
@@ -10,7 +10,7 @@ import { MdnsDiscovery } from '../src/discovery/mdns.js'
 import { randomBytes } from 'node:crypto'
 import { KeyManager } from '@mapeo/crypto'
 
-test('discovery - mdns', async (t) => {
+test('mdns - discovery', async (t) => {
   t.plan(2)
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
@@ -18,30 +18,22 @@ test('discovery - mdns', async (t) => {
   const mdnsDiscovery1 = new MdnsDiscovery({
     identityKeypair: identityKeypair1,
   })
-  mdnsDiscovery1.on(
-    'connection',
-    /** @param {NoiseSecretStream<net.Socket>} stream */
-    async (stream) => {
-      const remoteKey = stream.remotePublicKey.toString('hex')
-      const peerKey = identityKeypair2.publicKey.toString('hex')
-      t.ok(remoteKey === peerKey)
-      await step()
-    }
-  )
+  mdnsDiscovery1.on('connection', async (stream) => {
+    const remoteKey = stream.remotePublicKey.toString('hex')
+    const peerKey = identityKeypair2.publicKey.toString('hex')
+    t.ok(remoteKey === peerKey)
+    await step()
+  })
 
   const mdnsDiscovery2 = new MdnsDiscovery({
     identityKeypair: identityKeypair2,
   })
-  mdnsDiscovery2.on(
-    'connection',
-    /** @param {NoiseSecretStream<net.Socket>} stream */
-    async (stream) => {
-      const remoteKey = stream.remotePublicKey.toString('hex')
-      const peerKey = identityKeypair1.publicKey.toString('hex')
-      t.ok(remoteKey === peerKey)
-      await step()
-    }
-  )
+  mdnsDiscovery2.on('connection', async (stream) => {
+    const remoteKey = stream.remotePublicKey.toString('hex')
+    const peerKey = identityKeypair1.publicKey.toString('hex')
+    t.ok(remoteKey === peerKey)
+    await step()
+  })
 
   let count = 0
   async function step() {
@@ -57,60 +49,86 @@ test('discovery - mdns', async (t) => {
   mdnsDiscovery2.start()
 })
 
-// test('discovery - dht/hyperswarm', async (t) => {
-//   t.plan(2)
+test(' mdns - discovery and sharing of data', async (t) => {
+  t.plan(1)
+  const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
+  const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
 
-//   const testnet = await createTestnet(10)
-//   const bootstrap = testnet.bootstrap
+  const mdnsDiscovery1 = new MdnsDiscovery({
+    identityKeypair: identityKeypair1,
+  })
+  const mdnsDiscovery2 = new MdnsDiscovery({
+    identityKeypair: identityKeypair2,
+  })
+  const str = 'hi'
 
-//   const keyPair = createCoreKeyPair('dht-peer-discovery')
+  mdnsDiscovery1.on('connection', (stream) => {
+    stream.write(str)
+    step()
+  })
 
-//   const identity1 = createIdentityKeys()
-//   const identityPublicKey1 = identity1.identityKeyPair.publicKey.toString('hex')
+  mdnsDiscovery2.on('connection', (stream) => {
+    stream.on('data', (d) => {
+      t.ok(d.toString() === str)
+      step()
+    })
+  })
+  await mdnsDiscovery1.start()
+  await mdnsDiscovery2.start()
 
-//   const identity2 = createIdentityKeys()
-//   const identityPublicKey2 = identity2.identityKeyPair.publicKey.toString('hex')
+  let count = 0
+  async function step() {
+    count++
+    if (count === 2) {
+      mdnsDiscovery1.stop()
+      mdnsDiscovery2.stop()
+    }
+  }
+})
 
-//   const discover1 = new Discovery({
-//     identityKeyPair: identity1.identityKeyPair,
-//     mdns: false,
-//     dht: { bootstrap, server: true, client: true },
-//   })
+test(' mdns - discovery and hypercore replication', async (t) => {
+  t.plan(1)
+  const str = 'hi'
 
-//   const discover2 = new Discovery({
-//     identityKeyPair: identity2.identityKeyPair,
-//     mdns: false,
-//     dht: { bootstrap, server: true, client: true },
-//   })
+  const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
+  const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
 
-//   await discover1.ready()
-//   await discover2.ready()
+  const mdnsDiscovery1 = new MdnsDiscovery({
+    identityKeypair: identityKeypair1,
+  })
+  const mdnsDiscovery2 = new MdnsDiscovery({
+    identityKeypair: identityKeypair2,
+  })
 
-//   discover1.on('connection', async (connection, peer) => {
-//     t.ok(peer.identityPublicKey === identityPublicKey2, 'match key of 2nd peer')
-//     await step()
-//   })
+  const core1 = new Hypercore(ram, { valueEncoding: 'utf-8' })
+  await core1.ready()
+  const core2 = new Hypercore(ram)
+  await core2.ready()
 
-//   discover2.on('connection', async (connection, peer) => {
-//     t.ok(peer.identityPublicKey === identityPublicKey1, 'match key of 1st peer')
-//     await step()
-//   })
+  core1.append(str)
 
-//   let count = 0
-//   async function step() {
-//     count++
-//     if (count === 2) {
-//       await discover1.leave(keyPair.publicKey)
-//       await discover2.leave(keyPair.publicKey)
-//       await discover1.destroy()
-//       await discover2.destroy()
-//       await testnet.destroy()
-//     }
-//   }
+  mdnsDiscovery1.on('connection', async (stream) => {
+    stream.pipe(core1.replicate(false)).pipe(stream)
+  })
 
-//   await discover1.join(keyPair.publicKey)
-//   await discover2.join(keyPair.publicKey)
-// })
+  mdnsDiscovery2.on('connection', async (stream) => {
+    stream.pipe(core2.replicate(true)).pipe(stream)
+    // I don't know why core1 is not being replicated to core2...
+    t.fail()
+  })
+
+  mdnsDiscovery1.start()
+  mdnsDiscovery2.start()
+
+  let count = 0
+  async function step() {
+    count++
+    if (count === 2) {
+      mdnsDiscovery1.stop()
+      mdnsDiscovery2.stop()
+    }
+  }
+})
 
 // test('replication - dht/hyperswarm', async (t) => {
 //   const testnet = await createTestnet(10)
