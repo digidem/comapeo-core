@@ -4,6 +4,7 @@ import type {
   ValueOf,
   RequireAtLeastOne,
   SetOptional,
+  SetRequired,
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
 import { MapeoDoc, MapeoValue } from '@mapeo/schema'
@@ -173,7 +174,10 @@ export type Entries<T> = {
 export type ProjectKeys = {
   projectKey: Buffer
   projectSecretKey?: Buffer
-  authEncryptionKey: Buffer
-} & {
-  [n in `${Exclude<(typeof NAMESPACES)[number], 'auth'>}EncryptionKey`]?: Buffer
+  encryptionKeys: SetRequired<
+    {
+      [n in (typeof NAMESPACES)[number]]?: Buffer
+    },
+    'auth'
+  >
 }

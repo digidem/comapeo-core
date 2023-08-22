@@ -1,6 +1,5 @@
 import { randomBytes } from 'crypto'
 import path from 'path'
-import { serialize, deserialize } from 'v8'
 import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
 import { eq } from 'drizzle-orm'
@@ -9,9 +8,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject } from './mapeo-project.js'
 import { projectKeysTable, projectTable } from './schema/client.js'
-import { NAMESPACES } from './core-manager/index.js'
-
-/** @typedef {import('./types.js').ProjectKeys} ProjectKeys */
+import { ProjectKeys } from './generated/keys.js'
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -54,7 +51,7 @@ export class MapeoManager {
 
     // 2. Create namespace encryption keys
     /** @type {Record<import('./core-manager/core-index.js').Namespace, Buffer>} */
-    const namespaceEncryptionKeys = {
+    const encryptionKeys = {
       auth: randomBytes(32),
       blob: randomBytes(32),
       blobIndex: randomBytes(32),
@@ -63,15 +60,11 @@ export class MapeoManager {
     }
 
     // 3. Save keys to client db in projectKeys table
-    /** @type {ProjectKeys} */
+    /** @type {import('./types.js').ProjectKeys} */
     const keys = {
       projectKey: projectKeypair.publicKey,
       projectSecretKey: projectKeypair.secretKey,
-      authEncryptionKey: namespaceEncryptionKeys.auth,
-      blobEncryptionKey: namespaceEncryptionKeys.blob,
-      blobIndexEncryptionKey: namespaceEncryptionKeys.blobIndex,
-      configEncryptionKey: namespaceEncryptionKeys.config,
-      dataEncryptionKey: namespaceEncryptionKeys.data,
+      encryptionKeys,
     }
 
     // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
@@ -81,8 +74,8 @@ export class MapeoManager {
       .insert(projectKeysTable)
       .values({
         projectId,
-        encryptionKeys: this.#keyManager.encryptLocalMessage(
-          serialize(keys),
+        keysCipher: this.#keyManager.encryptLocalMessage(
+          Buffer.from(ProjectKeys.encode(keys).finish()),
           projectId
         ),
       })
@@ -91,7 +84,7 @@ export class MapeoManager {
     // 4. Create MapeoProject instance
     const project = new MapeoProject({
       storagePath: this.#storagePath,
-      encryptionKeys: namespaceEncryptionKeys,
+      encryptionKeys,
       keyManager: this.#keyManager,
       projectKey: projectKeypair.publicKey,
       projectSecretKey: projectKeypair.secretKey,
@@ -116,71 +109,32 @@ export class MapeoManager {
   async getProject(projectId) {
     const result = this.#db
       .select({
-        encryptionKeys: projectKeysTable.encryptionKeys,
+        keysCipher: projectKeysTable.keysCipher,
       })
       .from(projectKeysTable)
       .where(eq(projectKeysTable.projectId, projectId))
       .get()
 
-    if (!result.encryptionKeys) {
+    if (!result) {
       throw new Error(
-        `Could not find encryption keys for project with id ${projectId}`
+        `Could not find keys cipher for project with ID ${projectId}`
       )
     }
 
-    const keys = deserialize(
-      this.#keyManager.decryptLocalMessage(result.encryptionKeys, projectId)
+    const { projectKey, projectSecretKey, encryptionKeys } = ProjectKeys.decode(
+      this.#keyManager.decryptLocalMessage(result.keysCipher, projectId)
     )
-
-    validateProjectKeys(keys)
 
     const project = new MapeoProject({
       storagePath: this.#storagePath,
-      projectKey: keys.projectKey,
-      projectSecretKey: keys.projectSecretKey,
-      encryptionKeys: {
-        auth: keys.authEncryptionKey,
-        blob: keys.blobEncryptionKey,
-        blobIndex: keys.blobIndexEncryptionKey,
-        config: keys.configEncryptionKey,
-        data: keys.dataEncryptionKey,
-      },
+      projectKey,
+      projectSecretKey,
+      encryptionKeys,
       keyManager: this.#keyManager,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
     })
 
     return project
-  }
-}
-
-/**
- * @param {{[key: string]: unknown}} keys
- * @returns {asserts keys is ProjectKeys}
- */
-function validateProjectKeys(keys) {
-  /** @type {(keyof import('./types.js').ProjectKeys)[]} */
-  const keynamesToCheck = [
-    'projectKey',
-    'projectSecretKey',
-    ...NAMESPACES.map((n) => /** @type {const} */ (`${n}EncryptionKey`)),
-  ]
-
-  for (const keyname of keynamesToCheck) {
-    const value = keys[keyname]
-
-    // Check that required keys are defined
-    if (keyname === 'projectKey' || keyname === 'authEncryptionKey') {
-      if (value === undefined) {
-        throw new Error(`${keyname} is required but not found`)
-      }
-    }
-
-    // If key's value exists, make sure it's the correct type (buffer)
-    if (value !== undefined && !Buffer.isBuffer(value)) {
-      throw new Error(
-        `${keyname} found but expected buffer type. Received ${typeof value}`
-      )
-    }
   }
 }
