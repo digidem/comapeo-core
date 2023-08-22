@@ -1,5 +1,5 @@
 // @ts-check
-import { decode } from '@mapeo/schema'
+import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
@@ -108,11 +108,7 @@ export class MapeoProject {
 
           for (const entry of entries) {
             try {
-              // TODO: replace with optimized function (https://github.com/digidem/mapeo-schema/pull/130)
-              const { schemaName } = decode(entry.block, {
-                index: entry.index,
-                coreKey: entry.key,
-              })
+              const { schemaName } = decodeBlockPrefix(entry.block)
 
               if (schemaName === 'project') {
                 projectSettingsEntries.push(entry)
