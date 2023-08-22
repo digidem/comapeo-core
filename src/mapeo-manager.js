@@ -101,9 +101,8 @@ export class MapeoManager {
 
     // 5. Write project name and any other relevant metadata to project instance
     await project.$setProjectSettings({
-      // TODO: What's the fallback name?
-      name: settings.name || '',
-      defaultPresets: settings.defaultPresets || {},
+      name: settings.name,
+      defaultPresets: settings.defaultPresets,
     })
 
     // 6. Return project id
