@@ -50,10 +50,7 @@ export class MapeoManager {
    */
   async createProject(settings) {
     // 1. Create project keypair
-    const projectKeypair = {
-      publicKey: randomBytes(32),
-      secretKey: randomBytes(64),
-    }
+    const projectKeypair = KeyManager.generateProjectKeypair()
 
     // 2. Create namespace encryption keys
     /** @type {Record<import('./core-manager/core-index.js').Namespace, Buffer>} */
