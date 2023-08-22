@@ -12,7 +12,7 @@ test('MapeoManager.createProject works', async (t) => {
 
   t.ok(projectId)
 
-  const project = manager.getProject(projectId)
+  const project = await manager.getProject(projectId)
 
   const settings = await project.$getProjectSettings()
 

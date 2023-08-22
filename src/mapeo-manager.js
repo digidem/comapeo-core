@@ -115,9 +115,9 @@ export class MapeoManager {
 
   /**
    * @param {string} projectId
-   * @returns {MapeoProject}
+   * @returns {Promise<MapeoProject>}
    */
-  getProject(projectId) {
+  async getProject(projectId) {
     const result = this.#db
       .select({
         encryptionKeys: projectKeysTable.encryptionKeys,
