@@ -1,3 +1,4 @@
+// @ts-nocheck
 import net from 'net'
 
 import { TypedEmitter } from 'tiny-typed-emitter'

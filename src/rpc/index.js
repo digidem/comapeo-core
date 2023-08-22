@@ -3,7 +3,11 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import { openedNoiseSecretStream, keyToId } from '../utils.js'
 import cenc from 'compact-encoding'
-import { Invite, InviteResponse, InviteResponse_Decision } from './messages.js'
+import {
+  Invite,
+  InviteResponse,
+  InviteResponse_Decision,
+} from '../generated/rpc.js'
 
 const PROTOCOL_NAME = 'mapeo/rpc'
 
@@ -127,7 +131,7 @@ export class MapeoRPC extends TypedEmitter {
    * @param {object} options
    * @param {Invite['projectKey']} options.projectKey project key
    * @param {Invite['encryptionKeys']} [options.encryptionKeys] project encryption key
-   * @param {Invite['projectConfig']} [options.projectConfig] project config (presets, fields & icons)
+   * @param {Invite['projectInfo']} [options.projectInfo] project info - currently name
    * @param {number} [options.timeout] timeout waiting for invite response before rejecting (default 1 minute)
    * @returns {Promise<InviteResponse['decision']>}
    */

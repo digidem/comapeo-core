@@ -8,7 +8,7 @@
   "scripts": {
     "lint": "eslint .",
     "format": "prettier . --write",
-    "test": "npm-run-all build:types test:unit test:e2e test:types",
+    "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
     "test:unit": "brittle \"tests/**/*.js\"",
     "test:e2e": "brittle \"test-e2e/**/*.js\"",
     "test:types": "tsc -p test-types/tsconfig.json",
@@ -30,6 +30,19 @@
     "semi": false,
     "singleQuote": true
   },
+  "eslintConfig": {
+    "env": {
+      "commonjs": true,
+      "es2022": true,
+      "node": true
+    },
+    "extends": "eslint:recommended",
+    "parserOptions": {
+      "ecmaVersion": 13,
+      "sourceType": "module"
+    },
+    "rules": {}
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/digidem/mapeo-core.git"
@@ -45,6 +58,7 @@
   },
   "homepage": "https://github.com/digidem/mapeo-core#readme",
   "devDependencies": {
+    "@bufbuild/buf": "^1.26.1",
     "@hyperswarm/testnet": "^3.1.2",
     "@sinonjs/fake-timers": "^10.0.2",
     "@types/b4a": "^1.6.0",
@@ -53,11 +67,11 @@
     "@types/sinonjs__fake-timers": "^8.1.2",
     "@types/streamx": "^2.9.1",
     "brittle": "^3.2.1",
+    "cpy": "^10.1.0",
     "cpy-cli": "^5.0.0",
     "depcheck": "^1.4.3",
     "drizzle-kit": "^0.19.12",
     "eslint": "^8.39.0",
-    "eslint-config-prettier": "^8.8.0",
     "fastify": "^4.20.0",
     "light-my-request": "^5.10.0",
     "nanobench": "^3.0.0",
@@ -65,10 +79,10 @@
     "prettier": "^2.8.8",
     "random-access-file": "^4.0.4",
     "random-access-memory": "^6.2.0",
-    "rimraf": "^5.0.0",
+    "rimraf": "^5.0.1",
     "streamx": "^2.15.1",
     "tempy": "^3.1.0",
-    "ts-proto": "^1.147.1",
+    "ts-proto": "^1.156.7",
     "type-fest": "^3.10.0",
     "typedoc": "^0.24.8",
     "typedoc-plugin-markdown": "^3.15.3",

@@ -18,6 +18,8 @@ type MapeoDocTablesMap = {
   >
 }
 
+export const kCreateWithDocId: unique symbol
+
 type OmitUnion<T, K extends keyof any> = T extends any ? Omit<T, K> : never
 
 export class DataType<
@@ -38,6 +40,11 @@ export class DataType<
     db: import('drizzle-orm/better-sqlite3').BetterSQLite3Database
     getPermissions?: () => any
   })
+
+  [kCreateWithDocId]<T extends import('type-fest').Exact<TValue, T>>(
+    docId: string,
+    value: T
+  ): Promise<TDoc & { forks: string[] }>
 
   create<T extends import('type-fest').Exact<TValue, T>>(
     value: T
