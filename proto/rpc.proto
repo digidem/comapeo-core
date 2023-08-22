@@ -1,13 +1,8 @@
 syntax = "proto3";
 
+import "keys.proto";
+
 message Invite {
-  message EncryptionKeys {
-    bytes auth = 1;
-    optional bytes data = 2;
-    optional bytes config = 3;
-    optional bytes blobIndex = 4;
-    optional bytes blob = 5;
-  }
   // Project info that is displayed to the user receiving the invite
   message ProjectInfo {
     optional string name = 1;

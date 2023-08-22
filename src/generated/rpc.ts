@@ -1,18 +1,11 @@
 /* eslint-disable */
 import _m0 from "protobufjs/minimal.js";
+import { EncryptionKeys } from "./keys.js";
 
 export interface Invite {
   projectKey: Buffer;
-  encryptionKeys?: Invite_EncryptionKeys | undefined;
+  encryptionKeys?: EncryptionKeys | undefined;
   projectInfo?: Invite_ProjectInfo | undefined;
-}
-
-export interface Invite_EncryptionKeys {
-  auth: Buffer;
-  data?: Buffer | undefined;
-  config?: Buffer | undefined;
-  blobIndex?: Buffer | undefined;
-  blob?: Buffer | undefined;
 }
 
 /** Project info that is displayed to the user receiving the invite */
@@ -74,7 +67,7 @@ export const Invite = {
       writer.uint32(10).bytes(message.projectKey);
     }
     if (message.encryptionKeys !== undefined) {
-      Invite_EncryptionKeys.encode(message.encryptionKeys, writer.uint32(18).fork()).ldelim();
+      EncryptionKeys.encode(message.encryptionKeys, writer.uint32(18).fork()).ldelim();
     }
     if (message.projectInfo !== undefined) {
       Invite_ProjectInfo.encode(message.projectInfo, writer.uint32(26).fork()).ldelim();
@@ -101,7 +94,7 @@ export const Invite = {
             break;
           }
 
-          message.encryptionKeys = Invite_EncryptionKeys.decode(reader, reader.uint32());
+          message.encryptionKeys = EncryptionKeys.decode(reader, reader.uint32());
           continue;
         case 3:
           if (tag !== 26) {
@@ -109,82 +102,6 @@ export const Invite = {
           }
 
           message.projectInfo = Invite_ProjectInfo.decode(reader, reader.uint32());
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-};
-
-function createBaseInvite_EncryptionKeys(): Invite_EncryptionKeys {
-  return { auth: Buffer.alloc(0) };
-}
-
-export const Invite_EncryptionKeys = {
-  encode(message: Invite_EncryptionKeys, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.auth.length !== 0) {
-      writer.uint32(10).bytes(message.auth);
-    }
-    if (message.data !== undefined) {
-      writer.uint32(18).bytes(message.data);
-    }
-    if (message.config !== undefined) {
-      writer.uint32(26).bytes(message.config);
-    }
-    if (message.blobIndex !== undefined) {
-      writer.uint32(34).bytes(message.blobIndex);
-    }
-    if (message.blob !== undefined) {
-      writer.uint32(42).bytes(message.blob);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): Invite_EncryptionKeys {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseInvite_EncryptionKeys();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 10) {
-            break;
-          }
-
-          message.auth = reader.bytes() as Buffer;
-          continue;
-        case 2:
-          if (tag !== 18) {
-            break;
-          }
-
-          message.data = reader.bytes() as Buffer;
-          continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.config = reader.bytes() as Buffer;
-          continue;
-        case 4:
-          if (tag !== 34) {
-            break;
-          }
-
-          message.blobIndex = reader.bytes() as Buffer;
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.blob = reader.bytes() as Buffer;
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {

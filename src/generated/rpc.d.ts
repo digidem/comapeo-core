@@ -1,16 +1,10 @@
 /// <reference types="node" />
 import _m0 from "protobufjs/minimal.js";
+import { EncryptionKeys } from "./keys.js";
 export interface Invite {
     projectKey: Buffer;
-    encryptionKeys?: Invite_EncryptionKeys | undefined;
+    encryptionKeys?: EncryptionKeys | undefined;
     projectInfo?: Invite_ProjectInfo | undefined;
-}
-export interface Invite_EncryptionKeys {
-    auth: Buffer;
-    data?: Buffer | undefined;
-    config?: Buffer | undefined;
-    blobIndex?: Buffer | undefined;
-    blob?: Buffer | undefined;
 }
 /** Project info that is displayed to the user receiving the invite */
 export interface Invite_ProjectInfo {
@@ -31,10 +25,6 @@ export declare function inviteResponse_DecisionToNumber(object: InviteResponse_D
 export declare const Invite: {
     encode(message: Invite, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): Invite;
-};
-export declare const Invite_EncryptionKeys: {
-    encode(message: Invite_EncryptionKeys, writer?: _m0.Writer): _m0.Writer;
-    decode(input: _m0.Reader | Uint8Array, length?: number): Invite_EncryptionKeys;
 };
 export declare const Invite_ProjectInfo: {
     encode(message: Invite_ProjectInfo, writer?: _m0.Writer): _m0.Writer;
