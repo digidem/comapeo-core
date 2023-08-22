@@ -124,7 +124,10 @@ export class MapeoProject {
       coreManager: this.#coreManager,
     })
 
-    this.$blobs = new BlobApi({ projectId: this.#projectId })
+    this.$blobs = new BlobApi({
+      projectId: this.#projectId,
+      blobStore: this.#blobStore,
+    })
   }
 
   get observation() {

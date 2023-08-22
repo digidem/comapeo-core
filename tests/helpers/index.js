@@ -73,3 +73,13 @@ export async function waitForIndexing(stores) {
     })
   )
 }
+
+export async function timeoutException(promise, timeout = 100) {
+  const timer = new Promise((resolve) => {
+    setTimeout(() => {
+      resolve('timeout')
+    }, timeout)
+  })
+
+  return (await Promise.race([promise, timer])) === 'timeout'
+}

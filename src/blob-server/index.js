@@ -1,3 +1,4 @@
+import { once } from 'events'
 import fastify from 'fastify'
 
 import BlobServerPlugin from './fastify-plugin.js'
@@ -22,4 +23,19 @@ export function createBlobServer({ logger, blobStore, prefix, projectId }) {
     prefix,
   })
   return server
+}
+
+/**
+ * @param {import('node:http').Server} server
+ * @returns {Promise<number>}
+ */
+export async function getPort(server) {
+  const address = server.address()
+
+  if (!address || !(typeof address === 'object') || !address.port) {
+    await once(server, 'listening')
+    return getPort(server)
+  }
+
+  return address.port
 }

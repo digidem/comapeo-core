@@ -1,6 +1,9 @@
-import fs from 'fs'
+import fs from 'node:fs'
+import { basename } from 'node:path'
 import sodium from 'sodium-universal'
 import b4a from 'b4a'
+
+import { getPort } from './blob-server/index.js'
 
 /** @typedef {import('./types.js').BlobId} BlobId */
 /** @typedef {import('./types.js').BlobType} BlobType  */
@@ -10,19 +13,24 @@ export class BlobApi {
   /**
    * @param {object} options
    * @param {string} options.projectId
+   * @param {import('./blob-store/index.js').BlobStore} options.blobStore
+   * @param {import('fastify').FastifyInstance} options.blobServer
    */
-  constructor({ projectId }) {
+  constructor({ projectId, blobStore, blobServer }) {
     this.projectId = projectId
+    this.blobStore = blobStore
+    this.blobServer = blobServer
   }
 
   /**
    * Get a url for a blob based on its BlobId
    * @param {import('./types.js').BlobId} blobId
-   * @returns {String}
+   * @returns {Promise<string>}
    */
-  getUrl(blobId) {
+  async getUrl(blobId) {
     const { driveId, type, variant, name } = blobId
-    return `http:///127.0.0.1/${this.projectId}/${driveId}/${type}/${variant}/${name}`
+    const port = await getPort(this.blobServer.server)
+    return `http://127.0.0.1:${port}/${this.projectId}/${driveId}/${type}/${variant}/${name}`
   }
 
   /**
@@ -35,23 +43,40 @@ export class BlobApi {
     const { original, preview, thumbnail } = filepaths
     const { mimeType } = metadata
     const blobType = getType(mimeType)
-    const hash = b4a.alloc(sodium.crypto_generichash_BYTES)
-    sodium.crypto_generichash(hash, b4a.from(original))
+    const hash = b4a.alloc(8)
+    sodium.randombytes_buf(hash)
+    const name = hash.toString('hex')
 
-    const originalBlobId = await writeFile({
-      name: hash,
-      variant: 'original',
-      type: blobType,
-    })
+    const originalBlobId = await this.writeFile(
+      original,
+      {
+        name: `${name}_${basename(original)}`,
+        variant: 'original',
+        type: blobType,
+      },
+      metadata
+    )
     const previewBlobId = preview
-      ? await writeFile({ name: hash, variant: 'preview', type: blobType })
+      ? await this.writeFile(
+          preview,
+          {
+            name: `${name}_${basename(preview)}`,
+            variant: 'preview',
+            type: blobType,
+          },
+          metadata
+        )
       : null
     const thumbnailBlobId = thumbnail
-      ? await writeFile({
-          name: hash,
-          variant: 'thumbnail',
-          type: blobType,
-        })
+      ? await this.writeFile(
+          thumbnail,
+          {
+            name: `${name}_${basename(thumbnail)}`,
+            variant: 'thumbnail',
+            type: blobType,
+          },
+          metadata
+        )
       : null
 
     const blobIds =
@@ -63,26 +88,26 @@ export class BlobApi {
     if (thumbnailBlobId) blobIds.thumbnail = thumbnailBlobId
 
     return blobIds
+  }
 
-    /**
-     * @param {Omit<BlobId, 'driveId'>} options
-     * @returns {Promise<Omit<BlobId, 'driveId'>>}
-     */
-    function writeFile({ name, variant, type }) {
-      return new Promise((resolve, reject) => {
-        fs.createReadStream(name)
-          .pipe(
-            this.createWriteStream(
-              { type, variant, name },
-              { metadata: { mimeType } }
-            )
+  /**
+   * @param {Omit<BlobId, 'driveId'>} options
+   * @returns {Promise<Omit<BlobId, 'driveId'>>}
+   */
+  async writeFile(filepath, { name, variant, type }, metadata) {
+    return new Promise((resolve, reject) => {
+      fs.createReadStream(filepath)
+        .pipe(
+          this.blobStore.createWriteStream(
+            { type, variant, name },
+            { metadata }
           )
-          .on('error', reject)
-          .on('finish', () => {
-            resolve({ type, variant, name })
-          })
-      })
-    }
+        )
+        .on('error', reject)
+        .on('finish', () => {
+          resolve({ type, variant, name })
+        })
+    })
   }
 }
 
