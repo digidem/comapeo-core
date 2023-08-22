@@ -100,31 +100,11 @@ export class MapeoProject {
       config: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'config',
-        batch: async (entries) => {
-          /** @type {import('multi-core-indexer').Entry[]} */
-          const projectSettingsEntries = []
-          /** @type {import('multi-core-indexer').Entry[]} */
-          const otherEntries = []
-
-          for (const entry of entries) {
-            try {
-              const { schemaName } = decodeBlockPrefix(entry.block)
-
-              if (schemaName === 'project') {
-                projectSettingsEntries.push(entry)
-              } else {
-                otherEntries.push(entry)
-              }
-            } catch {
-              // Ignore errors thrown by values that can't be decoded for now
-            }
-          }
-
-          await Promise.all([
-            indexWriter.batch(otherEntries),
-            sharedIndexWriter.batch(projectSettingsEntries),
-          ])
-        },
+        batch: (entries) =>
+          this.#handleConfigEntries(entries, {
+            datastoreIndexWriter: indexWriter,
+            sharedIndexWriter,
+          }),
         storage: indexerStorage,
       }),
       data: new DataStore({
@@ -156,6 +136,39 @@ export class MapeoProject {
         db: sharedDb,
       }),
     }
+  }
+
+  /**
+   * @param {import('multi-core-indexer').Entry[]} entries
+   * @param {{datastoreIndexWriter: IndexWriter, sharedIndexWriter: IndexWriter}} indexWriters
+   */
+  async #handleConfigEntries(
+    entries,
+    { datastoreIndexWriter, sharedIndexWriter }
+  ) {
+    /** @type {import('multi-core-indexer').Entry[]} */
+    const projectSettingsEntries = []
+    /** @type {import('multi-core-indexer').Entry[]} */
+    const otherEntries = []
+
+    for (const entry of entries) {
+      try {
+        const { schemaName } = decodeBlockPrefix(entry.block)
+
+        if (schemaName === 'project') {
+          projectSettingsEntries.push(entry)
+        } else {
+          otherEntries.push(entry)
+        }
+      } catch {
+        // Ignore errors thrown by values that can't be decoded for now
+      }
+    }
+
+    await Promise.all([
+      datastoreIndexWriter.batch(otherEntries),
+      sharedIndexWriter.batch(projectSettingsEntries),
+    ])
   }
 
   get observation() {
