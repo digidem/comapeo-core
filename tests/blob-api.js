@@ -79,12 +79,6 @@ test('get url from blobId', async (t) => {
 })
 
 test('create blobs', async (t) => {
-  const projectId = '1234'
-  const driveId = '1234'
-  const type = 'image'
-  const variant = 'original'
-  const name = '1234'
-
   const { blobStore } = createBlobStore()
   const blobServer = await createBlobServer({ blobStore })
   const blobApi = new BlobApi({ projectId: '1234', blobStore, blobServer })
