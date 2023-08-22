@@ -42,7 +42,7 @@ export class MapeoManager {
 
   /**
    * Create a new project.
-   * @param {import('type-fest').Simplify<Partial<Omit<import("@mapeo/schema").ProjectValue, 'schemaName'>>>} settings
+   * @param {import('type-fest').Simplify<Partial<Pick<import("@mapeo/schema").ProjectValue, 'name'>>>} settings
    * @returns {Promise<string>}
    */
   async createProject(settings) {
@@ -95,7 +95,6 @@ export class MapeoManager {
     // 5. Write project name and any other relevant metadata to project instance
     await project.$setProjectSettings({
       name: settings.name,
-      defaultPresets: settings.defaultPresets,
     })
 
     // 6. Return project id
