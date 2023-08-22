@@ -93,15 +93,13 @@ export class MapeoManager {
 
     // 4. Create MapeoProject instance
     const project = new MapeoProject({
-      projectSettingsConfig: {
-        db: this.#db,
-        indexWriter: this.#projectSettingsIndexWriter,
-      },
       storagePath: this.#storagePath,
       encryptionKeys: namespaceEncryptionKeys,
       keyManager: this.#keyManager,
       projectKey: projectKeypair.publicKey,
       projectSecretKey: projectKeypair.secretKey,
+      sharedDb: this.#db,
+      sharedIndexWriter: this.#projectSettingsIndexWriter,
     })
 
     // 5. Write project name and any other relevant metadata to project instance
@@ -152,10 +150,8 @@ export class MapeoManager {
         data: keys.dataEncryptionKey,
       },
       keyManager: this.#keyManager,
-      projectSettingsConfig: {
-        indexWriter: this.#projectSettingsIndexWriter,
-        db: this.#db,
-      },
+      sharedDb: this.#db,
+      sharedIndexWriter: this.#projectSettingsIndexWriter,
     })
 
     return project
