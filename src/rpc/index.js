@@ -3,7 +3,11 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import { openedNoiseSecretStream, keyToId } from '../utils.js'
 import cenc from 'compact-encoding'
-import { Invite, InviteResponse, InviteResponse_Decision } from './messages.js'
+import {
+  Invite,
+  InviteResponse,
+  InviteResponse_Decision,
+} from '../generated/rpc.js'
 
 const PROTOCOL_NAME = 'mapeo/rpc'
 
