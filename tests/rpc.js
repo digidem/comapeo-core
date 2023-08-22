@@ -139,30 +139,26 @@ test('Send invite with encryption key', async (t) => {
   replicate(r1, r2)
 })
 
-test('Send invite with project config', async (t) => {
+test('Send invite with project info', async (t) => {
   t.plan(4)
   const r1 = new MapeoRPC()
   const r2 = new MapeoRPC()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
-  const projectConfig = Buffer.allocUnsafe(1024).fill(1)
+  const projectInfo = { name: 'MyProject' }
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
     const response = await r1.invite(peers[0].id, {
       projectKey,
-      projectConfig,
+      projectInfo,
     })
     t.is(response, MapeoRPC.InviteResponse.ACCEPT)
   })
 
   r2.on('invite', (peerId, invite) => {
     t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
-    t.alike(
-      invite.projectConfig,
-      projectConfig,
-      'project config is sent with invite'
-    )
+    t.alike(invite.projectInfo, projectInfo, 'project info is sent with invite')
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
       decision: MapeoRPC.InviteResponse.ACCEPT,
