@@ -97,6 +97,9 @@ export class MapeoManager {
       name: settings.name,
     })
 
+    // TODO: Close the project instance
+    // https://github.com/digidem/mapeo-core-next/issues/207
+
     // 6. Return project id
     return projectId
   }
