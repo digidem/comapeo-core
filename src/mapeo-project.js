@@ -198,7 +198,7 @@ export class MapeoProject {
   }
 
   /**
-   * @returns {Promise<import('@mapeo/schema').Project>}
+   * @returns {Promise<Omit<import('@mapeo/schema').Project, 'schemaName'>>}
    */
   async $getProjectSettings() {
     return this.#dataTypes.project.getByDocId(this.#projectId)
