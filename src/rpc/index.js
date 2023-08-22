@@ -131,7 +131,7 @@ export class MapeoRPC extends TypedEmitter {
    * @param {object} options
    * @param {Invite['projectKey']} options.projectKey project key
    * @param {Invite['encryptionKeys']} [options.encryptionKeys] project encryption key
-   * @param {Invite['projectConfig']} [options.projectConfig] project config (presets, fields & icons)
+   * @param {Invite['projectInfo']} [options.projectInfo] project info - currently name
    * @param {number} [options.timeout] timeout waiting for invite response before rejecting (default 1 minute)
    * @returns {Promise<InviteResponse['decision']>}
    */
