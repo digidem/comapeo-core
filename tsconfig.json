@@ -24,9 +24,5 @@
   },
   "files": ["tests/schema.js"],
   "include": ["src/**/*", "types/**/*.d.ts", "test-e2e/**/*"],
-  "exclude": [
-    "node_modules",
-    "src/rpc/messages.js",
-    "src/core-manager/messages.js"
-  ]
+  "exclude": ["node_modules", "src/generated/*.js"]
 }

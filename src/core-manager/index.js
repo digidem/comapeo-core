@@ -4,7 +4,7 @@ import Corestore from 'corestore'
 import assert from 'node:assert'
 import { once } from 'node:events'
 import Hypercore from 'hypercore'
-import { ProjectExtension } from './messages.js'
+import { ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
 

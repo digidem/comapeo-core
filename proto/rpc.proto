@@ -1,15 +1,15 @@
 syntax = "proto3";
 
+import "keys.proto";
+
 message Invite {
-  message EncryptionKeys {
-    optional bytes auth = 1;
-    optional bytes data = 2;
-    optional bytes blobIndex = 3;
-    optional bytes blob = 4;
+  // Project info that is displayed to the user receiving the invite
+  message ProjectInfo {
+    optional string name = 1;
   }
   bytes projectKey = 1;
   optional EncryptionKeys encryptionKeys = 2;
-  optional bytes projectConfig = 3;
+  optional ProjectInfo projectInfo = 3;
 }
 message InviteResponse {
   enum Decision {
