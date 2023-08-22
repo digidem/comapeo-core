@@ -207,9 +207,13 @@ export class MapeoProject {
   }
 
   /**
-   * @returns {Promise<Omit<import('@mapeo/schema').Project, 'schemaName'>>}
+   * @returns {Promise<Omit<import('@mapeo/schema').Project, 'schemaName'> | null>}
    */
   async $getProjectSettings() {
-    return this.#dataTypes.project.getByDocId(this.#projectId)
+    try {
+      return await this.#dataTypes.project.getByDocId(this.#projectId)
+    } catch {
+      return null
+    }
   }
 }

@@ -156,6 +156,11 @@ test('Project settings create, read, and update operations', async (t) => {
     sharedIndexWriter: shared.indexWriter,
   })
 
+  t.absent(
+    await project.$getProjectSettings(),
+    'no settings when project initially created'
+  )
+
   const initialSettings = await project.$setProjectSettings({
     name: 'initial',
     defaultPresets: {},
