@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+message EncryptionKeys {
+  bytes auth = 1;
+  optional bytes data = 2;
+  optional bytes config = 3;
+  optional bytes blobIndex = 4;
+  optional bytes blob = 5;
+}
+
+message ProjectKeys {
+  bytes projectKey = 1;
+  optional bytes projectSecretKey = 2;
+  EncryptionKeys encryptionKeys = 3;
+}
