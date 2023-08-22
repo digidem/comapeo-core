@@ -11,39 +11,39 @@ import { projectTable } from '../src/schema/client.js'
 
 /**
  * @param {string} [storagePath]
+ * @returns {{db: import('drizzle-orm/better-sqlite3').BetterSQLite3Database, indexWriter: IndexWriter}}
  */
-export function setupClient(storagePath) {
+export function setupSharedResources(storagePath) {
   const sqlite = new Database(storagePath || ':memory:')
-  const clientDb = drizzle(sqlite)
+  const db = drizzle(sqlite)
   migrate(drizzle(sqlite), { migrationsFolder: './drizzle/client' })
 
-  const projectSettingsIndexWriter = new IndexWriter({
-    tables: [projectTable],
-    sqlite,
-  })
-
-  return { clientDb, projectSettingsIndexWriter }
+  return {
+    db,
+    indexWriter: new IndexWriter({
+      tables: [projectTable],
+      sqlite,
+    }),
+  }
 }
 
 /**
  * @param {Object} opts
- * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.clientDb
- * @param {ProjectSettingsIndexWriter} opts.projectSettingsIndexWriter
+ * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
+ * @param {IndexWriter} opts.sharedIndexWriter
  * @param {Buffer} [opts.rootKey]
  * @param {Buffer} [opts.projectKey]
  */
 export function createProject({
-  clientDb,
-  projectSettingsIndexWriter,
+  sharedDb,
+  sharedIndexWriter,
   rootKey = randomBytes(16),
   projectKey = randomBytes(32),
 }) {
   return new MapeoProject({
     keyManager: new KeyManager(rootKey),
     projectKey,
-    projectSettingsConfig: {
-      db: clientDb,
-      indexWriter: projectSettingsIndexWriter,
-    },
+    sharedDb,
+    sharedIndexWriter: sharedIndexWriter,
   })
 }

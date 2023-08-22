@@ -16,12 +16,6 @@ import path from 'path'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { valueOf } from './utils.js'
 
-/** @typedef {Object} ProjectSettingsConfig
- *
- * @property {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
- * @property {IndexWriter<import('./datatype/index.js').MapeoDocTablesMap['project']>} indexWriter
- */
-
 const PROJECT_SQLITE_FILE_NAME = 'project.db'
 const CORE_STORAGE_FOLDER_NAME = 'cores'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -44,9 +38,15 @@ export class MapeoProject {
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
-   * @param {ProjectSettingsConfig} opts.projectSettingsConfig
+   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
+   * @param {IndexWriter} opts.sharedIndexWriter
    */
-  constructor({ storagePath, projectSettingsConfig, ...coreManagerOpts }) {
+  constructor({
+    storagePath,
+    sharedDb,
+    sharedIndexWriter,
+    ...coreManagerOpts
+  }) {
     // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
     this.#projectId = coreManagerOpts.projectKey.toString('hex')
 
@@ -126,7 +126,7 @@ export class MapeoProject {
 
           await Promise.all([
             indexWriter.batch(otherEntries),
-            projectSettingsConfig.indexWriter.batch(projectSettingsEntries),
+            sharedIndexWriter.batch(projectSettingsEntries),
           ])
         },
         storage: indexerStorage,
@@ -157,7 +157,7 @@ export class MapeoProject {
       project: new DataType({
         dataStore: this.#dataStores.config,
         table: projectTable,
-        db: projectSettingsConfig.db,
+        db: sharedDb,
       }),
     }
   }

@@ -25,13 +25,11 @@ const sqlite = new Database(':memory:')
 const mapeoProject = new MapeoProject({
   keyManager: new KeyManager(randomBytes(32)),
   projectKey: randomBytes(32),
-  projectSettingsConfig: {
-    db: drizzle(sqlite),
-    indexWriter: new IndexWriter({
-      tables: [projectTable],
-      sqlite,
-    }),
-  },
+  sharedDb: drizzle(sqlite),
+  sharedIndexWriter: new IndexWriter({
+    tables: [projectTable],
+    sqlite,
+  }),
 })
 
 ///// Observations

@@ -1,6 +1,6 @@
 import { test } from 'brittle'
 import { getVersionId } from '@mapeo/schema'
-import { setupClient, createProject } from './utils.js'
+import { setupSharedResources, createProject } from './utils.js'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -46,33 +46,30 @@ test('Project settings indexer only indexes project record types', async (t) => 
   /** @type {string[]} */
   const indexedProjectVersionIds = []
 
-  const { clientDb, projectSettingsIndexWriter } = setupClient()
+  const shared = setupSharedResources()
 
-  const originalBatch = projectSettingsIndexWriter.batch
+  const originalBatch = shared.indexWriter.batch
 
   // Hook into the batch method for testing purposes
-  projectSettingsIndexWriter.batch = async (entries) => {
+  shared.indexWriter.batch = async (entries) => {
     for (const { index, key } of entries) {
       const versionId = getVersionId({ coreKey: key, index })
       indexedProjectVersionIds.push(versionId)
     }
 
-    return originalBatch.call(projectSettingsIndexWriter, entries)
+    return originalBatch.call(shared.indexWriter, entries)
   }
 
   const project = createProject({
-    clientDb,
-    projectSettingsIndexWriter,
+    sharedDb: shared.db,
+    sharedIndexWriter: shared.indexWriter,
   })
 
   for (const value of fixtures) {
     const { schemaName } = value
 
     if (schemaName === 'project') {
-      const written = await project.$setProjectSettings(
-        value,
-        allProjectVersionIds[allProjectVersionIds.length - 1]
-      )
+      const written = await project.$setProjectSettings(value)
       allProjectVersionIds.push(written.versionId)
     } else {
       // @ts-expect-error - TS can't figure this out, but we're not testing types here so ok to ignore
@@ -98,42 +95,36 @@ test('Project settings indexer works across multiple projects', async (t) => {
   /** @type {string[]} */
   const indexedProjectVersionIds = []
 
-  const { clientDb, projectSettingsIndexWriter } = setupClient()
+  const shared = setupSharedResources()
 
-  const originalBatch = projectSettingsIndexWriter.batch
+  const originalBatch = shared.indexWriter.batch
 
   // Hook into the batch method for testing purposes
-  projectSettingsIndexWriter.batch = async (entries) => {
+  shared.indexWriter.batch = async (entries) => {
     for (const { index, key } of entries) {
       const versionId = getVersionId({ coreKey: key, index })
       indexedProjectVersionIds.push(versionId)
     }
 
-    return originalBatch.call(projectSettingsIndexWriter, entries)
+    return originalBatch.call(shared.indexWriter, entries)
   }
 
   const project1 = createProject({
-    clientDb,
-    projectSettingsIndexWriter,
+    sharedDb: shared.db,
+    sharedIndexWriter: shared.indexWriter,
   })
 
   const project2 = createProject({
-    clientDb,
-    projectSettingsIndexWriter,
+    sharedDb: shared.db,
+    sharedIndexWriter: shared.indexWriter,
   })
 
   for (const value of fixtures) {
     const { schemaName } = value
 
     if (schemaName === 'project') {
-      const written1 = await project1.$setProjectSettings(
-        value,
-        projectVersionIds1[projectVersionIds1.length - 1]
-      )
-      const written2 = await project2.$setProjectSettings(
-        value,
-        projectVersionIds2[projectVersionIds2.length - 1]
-      )
+      const written1 = await project1.$setProjectSettings(value)
+      const written2 = await project2.$setProjectSettings(value)
 
       projectVersionIds1.push(written1.versionId)
       projectVersionIds2.push(written2.versionId)
@@ -158,11 +149,11 @@ test('Project settings indexer works across multiple projects', async (t) => {
 })
 
 test('Project settings create, read, and update operations', async (t) => {
-  const { projectSettingsIndexWriter, clientDb } = setupClient()
+  const shared = setupSharedResources()
 
   const project = createProject({
-    clientDb,
-    projectSettingsIndexWriter,
+    sharedDb: shared.db,
+    sharedIndexWriter: shared.indexWriter,
   })
 
   const initialSettings = await project.$setProjectSettings({
@@ -175,10 +166,7 @@ test('Project settings create, read, and update operations', async (t) => {
     defaultPresets: {},
   }
 
-  const updatedSettings = await project.$setProjectSettings(
-    expectedSettings,
-    initialSettings.versionId
-  )
+  const updatedSettings = await project.$setProjectSettings(expectedSettings)
 
   t.not(
     initialSettings.updatedAt,
