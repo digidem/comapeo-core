@@ -106,16 +106,20 @@ export class MapeoProject {
           const otherEntries = []
 
           for (const entry of entries) {
-            // TODO: Use simplified decode export from @mapeo/schema when available
-            const schemaName = decode(entry.block, {
-              index: entry.index,
-              coreKey: entry.key,
-            }).schemaName
+            try {
+              // TODO: replace with optimized function (https://github.com/digidem/mapeo-schema/pull/130)
+              const { schemaName } = decode(entry.block, {
+                index: entry.index,
+                coreKey: entry.key,
+              })
 
-            if (schemaName === 'project') {
-              projectSettingsEntries.push(entry)
-            } else {
-              otherEntries.push(entry)
+              if (schemaName === 'project') {
+                projectSettingsEntries.push(entry)
+              } else {
+                otherEntries.push(entry)
+              }
+            } catch {
+              // Ignore errors thrown by values that can't be decoded for now
             }
           }
 
