@@ -226,6 +226,21 @@ export class MapeoProject {
       return /** @type {EditableProjectSettings} */ ({})
     }
   }
+
+  /**
+   * @returns {Promise<import('./types.js').ProjectInfo>}
+   */
+  async $getProjectInfo() {
+    const { createdAt, updatedAt } = await this.#dataTypes.project.getByDocId(
+      this.#projectId
+    )
+
+    return {
+      projectId: this.#projectId,
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(updatedAt),
+    }
+  }
 }
 
 /**

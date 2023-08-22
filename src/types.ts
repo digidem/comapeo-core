@@ -168,3 +168,9 @@ export type ProtocolStream = NoiseStream & { userData: Protomux }
 export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
 }[keyof T][]
+
+export type ProjectInfo = {
+  createdAt: Date
+  updatedAt: Date
+  projectId: string
+}

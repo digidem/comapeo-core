@@ -10,6 +10,9 @@ import { MapeoProject } from './mapeo-project.js'
 import { projectKeysTable, projectTable } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 
+/** @typedef {import("@mapeo/schema").ProjectValue} ProjectValue */
+/** @typedef {import("./types.js").ProjectInfo} ProjectInfo */
+
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
 export class MapeoManager {
@@ -45,8 +48,19 @@ export class MapeoManager {
   }
 
   /**
+   * @param {Buffer} keysCipher
+   * @param {string} projectId
+   * @returns {ProjectKeys}
+   */
+  #decodeProjectKeysCipher(keysCipher, projectId) {
+    return ProjectKeys.decode(
+      this.#keyManager.decryptLocalMessage(keysCipher, projectId)
+    )
+  }
+
+  /**
    * Create a new project.
-   * @param {import('type-fest').Simplify<Partial<Pick<import("@mapeo/schema").ProjectValue, 'name'>>>} [settings]
+   * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
    * @returns {Promise<string>}
    */
   async createProject(settings = {}) {
@@ -128,8 +142,9 @@ export class MapeoManager {
       throw new Error(`NotFound: project ID ${projectId} not found`)
     }
 
-    const projectKeys = ProjectKeys.decode(
-      this.#keyManager.decryptLocalMessage(result.keysCipher, projectId)
+    const projectKeys = this.#decodeProjectKeysCipher(
+      result.keysCipher,
+      projectId
     )
 
     const project = new MapeoProject({
@@ -141,5 +156,59 @@ export class MapeoManager {
     })
 
     return project
+  }
+
+  /**
+   * @returns {Promise<Array<ProjectInfo & Pick<ProjectValue, 'name'>>>}
+   */
+  async listProjects() {
+    const allProjectsResult = this.#db
+      .select({
+        projectId: projectKeysTable.projectId,
+        keysCipher: projectKeysTable.keysCipher,
+      })
+      .from(projectKeysTable)
+      .all()
+
+    if (allProjectsResult.length === 0) {
+      return []
+    }
+
+    /** @type {Array<Promise<ProjectInfo & Pick<ProjectValue, 'name'>>>} */
+    const resultPromises = []
+
+    for (const { projectId, keysCipher } of allProjectsResult) {
+      let project = this.#activeProjects.get(projectId)
+
+      if (!project) {
+        const projectKeys = this.#decodeProjectKeysCipher(keysCipher, projectId)
+
+        project = new MapeoProject({
+          ...projectKeys,
+          storagePath: this.#storagePath,
+          keyManager: this.#keyManager,
+          sharedDb: this.#db,
+          sharedIndexWriter: this.#projectSettingsIndexWriter,
+        })
+
+        this.#activeProjects.set(projectId, project)
+      }
+
+      const info = await project.$getProjectInfo()
+      const settings = await project.$getProjectSettings()
+
+      resultPromises.push(
+        Promise.resolve({
+          ...info,
+          name: settings.name,
+        })
+      )
+
+      // TODO: Close project instance
+      // https://github.com/digidem/mapeo-core-next/issues/207
+    }
+
+    // TODO: Is it safe to do Promise.all here?
+    return Promise.all(resultPromises)
   }
 }
