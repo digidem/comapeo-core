@@ -17,6 +17,7 @@ test('MapeoManager.createProject works', async (t) => {
   const settings = await project.$getProjectSettings()
 
   t.is(
+    // @ts-ignore
     settings.name,
     expectedSettings.name,
     'settings for fetched project are the same as when created'
