@@ -1,5 +1,6 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
+import { valueOf } from '../src/utils.js'
 import { setupClient, createProject } from './utils.js'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
@@ -114,17 +115,6 @@ test('CRUD operations', async (t) => {
     })
   }
 })
-
-/**
- * @template {import('@mapeo/schema').MapeoDoc & { forks: string[] }} T
- * @param {T} doc
- * @returns {Omit<T, 'docId' | 'versionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt'>}
- */
-function valueOf(doc) {
-  // eslint-disable-next-line no-unused-vars
-  const { docId, versionId, links, forks, createdAt, updatedAt, ...rest } = doc
-  return rest
-}
 
 /**
  * Remove undefined properties from an object, to allow deep comparison

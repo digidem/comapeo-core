@@ -14,6 +14,7 @@ import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'
 import path from 'path'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
+import { valueOf } from './utils.js'
 
 /** @typedef {Object} ProjectSettingsConfig
  *
@@ -172,23 +173,25 @@ export class MapeoProject {
   }
 
   /**
-   * @param {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} settings
-   * @param {string} [versionId]
+   * @param {Partial<Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>>} settings
    * @returns {Promise<import('@mapeo/schema').Project>}
    */
-  async $setProjectSettings(settings, versionId) {
-    if (versionId) {
-      const existing = await this.#dataTypes.project.getByVersionId(versionId)
+  async $setProjectSettings(settings) {
+    const { project } = this.#dataTypes
 
-      if (existing) {
-        return this.#dataTypes.project.update(existing.versionId, {
-          ...settings,
-          schemaName: 'project',
-        })
-      }
+    const existing = await project.getByDocId(this.#projectId).catch(() => {
+      // project does not exist so return null
+      return null
+    })
+
+    if (existing) {
+      return project.update([existing.versionId, ...existing.forks], {
+        ...valueOf(existing),
+        ...settings,
+      })
     }
 
-    return this.#dataTypes.project[kCreateWithDocId](this.#projectId, {
+    return project[kCreateWithDocId](this.#projectId, {
       ...settings,
       schemaName: 'project',
     })
