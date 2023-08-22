@@ -22,8 +22,8 @@
       ]
     }
   },
-  "files": ["tests/schema.js", "test-e2e/project-crud.js", "test-e2e/project-settings.js", "test-e2e/utils.js"],
-  "include": ["src/**/*", "types/**/*.d.ts"],
+  "files": ["tests/schema.js"],
+  "include": ["src/**/*", "types/**/*.d.ts", "test-e2e/**/*"],
   "exclude": [
     "node_modules",
     "src/rpc/messages.js",
