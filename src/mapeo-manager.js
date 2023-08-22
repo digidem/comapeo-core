@@ -120,15 +120,13 @@ export class MapeoManager {
       )
     }
 
-    const { projectKey, projectSecretKey, encryptionKeys } = ProjectKeys.decode(
+    const projectKeys = ProjectKeys.decode(
       this.#keyManager.decryptLocalMessage(result.keysCipher, projectId)
     )
 
     const project = new MapeoProject({
+      ...projectKeys,
       storagePath: this.#storagePath,
-      projectKey,
-      projectSecretKey,
-      encryptionKeys,
       keyManager: this.#keyManager,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
