@@ -36,12 +36,13 @@ export class MapeoProject {
   /**
    * @param {Object} opts
    * @param {string} [opts.storagePath] Folder for all data storage (hypercores and sqlite db). Folder must exist. If not defined, everything is stored in-memory
+   * @param {import('fastify').FastifyInstance} opts.blobServer
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
    */
-  constructor({ storagePath, ...coreManagerOpts }) {
+  constructor({ storagePath, blobServer, ...coreManagerOpts }) {
     this.#projectId = coreManagerOpts.projectKey.toString('hex') // TODO: update based on outcome of https://github.com/digidem/mapeo-core-next/issues/171
 
     ///////// 1. Setup database
@@ -126,12 +127,7 @@ export class MapeoProject {
       coreManager: this.#coreManager,
     })
 
-    this.#blobServer = createBlobServer({
-      logger: true,
-      blobStore: this.#blobStore,
-      prefix: `/blobs/`,
-      projectId: this.#projectId,
-    })
+    this.#blobServer = blobServer
 
     // @ts-ignore TODO: pass in blobServer
     this.$blobs = new BlobApi({
