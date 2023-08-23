@@ -30,6 +30,7 @@ export class HyperSwarmDiscovery extends TypedEmitter {
   async stop() {
     const hyperswarm = this.#hyperswarm
     this.#hyperswarm = null
+    this.removeAllListeners('connection')
     await hyperswarm.destroy()
   }
 }
