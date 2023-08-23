@@ -1,0 +1,96 @@
+import { verifySignature } from '@mapeo/crypto'
+import { NAMESPACES } from './core-manager/index.js'
+import { parseVersionId } from '@mapeo/schema'
+import { defaultGetWinner } from '@mapeo/sqlite-indexer'
+import assert from 'node:assert'
+import sodium from 'sodium-universal'
+
+/**
+ * @typedef {Extract<ReturnType<import('@mapeo/schema').decode>, { schemaName: 'coreOwnership' }>} CoreOwnershipWithSignatures
+ */
+
+/**
+ * - Validate that the doc is written to the core identified by doc.authCoreId
+ * - Verify the signatures
+ * - Remove the signatures (we don't add them to the indexer)
+ * - Set doc.links to an empty array - this forces the indexer to treat every
+ *   document as a fork, so getWinner is called for every doc, which resolves to
+ *   the doc with the lowest index (e.g. the first)
+ *
+ * @param {CoreOwnershipWithSignatures} doc
+ * @param {import('@mapeo/schema').VersionIdObject} version
+ * @returns {import('@mapeo/schema').CoreOwnership}
+ */
+export function mapAndValidateCoreOwnership(doc, { coreKey }) {
+  if (doc.authCoreId !== coreKey.toString('hex')) {
+    throw new Error('Invalid coreOwnership record: mismatched authCoreId')
+  }
+  if (!verifyCoreOwnership(doc)) {
+    throw new Error('Invalid coreOwnership record: signatures are invalid')
+  }
+  // eslint-disable-next-line no-unused-vars
+  const { identitySignature, coreSignatures, ...docWithoutSignatures } = doc
+  docWithoutSignatures.links = []
+  return docWithoutSignatures
+}
+
+/**
+ * Verify the signatures of a coreOwnership record, which verify that the device
+ * with the identityKey matching the docIds does own (e.g. can write to) cores
+ * with the given core IDs
+ *
+ * @param {CoreOwnershipWithSignatures} doc
+ * @returns {boolean}
+ */
+function verifyCoreOwnership(doc) {
+  const { coreSignatures, identitySignature } = doc
+  for (const namespace of NAMESPACES) {
+    const signature = coreSignatures[namespace]
+    const coreKey = Buffer.from(doc[`${namespace}CoreId`], 'hex')
+    assert.equal(
+      signature.length,
+      sodium.crypto_sign_BYTES,
+      'Invalid core ownership signature'
+    )
+    assert.equal(
+      coreKey.length,
+      sodium.crypto_sign_PUBLICKEYBYTES,
+      'Invalid core ownership coreId'
+    )
+    const isValidSignature = verifySignature(coreKey, signature, coreKey)
+    if (!isValidSignature) return false
+  }
+  const identityPublicKey = Buffer.from(doc.docId, 'hex')
+  assert.equal(identitySignature.length, sodium.crypto_sign_BYTES)
+  assert.equal(identityPublicKey.length, sodium.crypto_sign_PUBLICKEYBYTES)
+  const isValidIdentitySignature = verifySignature(
+    identityPublicKey,
+    identitySignature,
+    identityPublicKey
+  )
+  if (!isValidIdentitySignature) return false
+  return true
+}
+
+/**
+ * For coreOwnership records, we only trust the first record written to the core.
+ *
+ * @type {NonNullable<ConstructorParameters<typeof import('./index-writer/index.js').IndexWriter>[0]['getWinner']>}
+ */
+export function getWinner(docA, docB) {
+  if (
+    'schemaName' in docA &&
+    docA.schemaName === 'coreOwnership' &&
+    'schemaName' in docB &&
+    docB.schemaName === 'coreOwnership'
+  ) {
+    // Assumes docA and docB have same coreKey, so we choose the first one
+    // written to the core
+    const docAindex = parseVersionId(docA.versionId).index
+    const docBindex = parseVersionId(docB.versionId).index
+    if (docAindex < docBindex) return docA
+    return docB
+  } else {
+    return defaultGetWinner(docA, docB)
+  }
+}

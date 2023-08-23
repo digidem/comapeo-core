@@ -11,6 +11,7 @@ import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectTable } from './schema/client.js'
 import { fieldTable, observationTable, presetTable } from './schema/project.js'
+import { getWinner, mapAndValidateCoreOwnership } from './core-ownership.js'
 import { valueOf } from './utils.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
@@ -71,6 +72,14 @@ export class MapeoProject {
     const indexWriter = new IndexWriter({
       tables: [observationTable, presetTable, fieldTable],
       sqlite,
+      getWinner,
+      mapDoc: (doc, version) => {
+        if (doc.schemaName === 'coreOwnership') {
+          return mapAndValidateCoreOwnership(doc, version)
+        } else {
+          return doc
+        }
+      },
     })
     this.#dataStores = {
       config: new DataStore({
