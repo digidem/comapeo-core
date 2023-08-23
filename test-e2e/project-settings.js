@@ -1,41 +1,5 @@
 import { test } from 'brittle'
-import { getVersionId } from '@mapeo/schema'
 import { setupSharedResources, createProject } from './utils.js'
-
-/** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
-const fixtures = [
-  {
-    schemaName: 'observation',
-    refs: [],
-    tags: {},
-    attachments: [],
-    metadata: {},
-  },
-  {
-    schemaName: 'preset',
-    name: 'myPreset',
-    tags: {},
-    geometry: ['point'],
-    addTags: {},
-    removeTags: {},
-    fieldIds: [],
-    terms: [],
-  },
-  {
-    schemaName: 'project',
-    name: 'myProject',
-  },
-  {
-    schemaName: 'field',
-    type: 'text',
-    tagKey: 'foo',
-    label: 'my label',
-  },
-  {
-    schemaName: 'project',
-    name: 'myProject updated',
-  },
-]
 
 test('Project settings create, read, and update operations', async (t) => {
   const shared = setupSharedResources()
