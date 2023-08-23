@@ -8,8 +8,6 @@ test('Project settings create, read, and update operations', async (t) => {
 
   const projectId = await manager.createProject()
 
-  console.log('PROJECT CREATED')
-
   t.ok(
     projectId && typeof projectId === 'string',
     'probably valid project ID returned when creating project'
