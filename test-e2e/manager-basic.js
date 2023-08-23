@@ -13,17 +13,20 @@ test('Managing multiple projects', async (t) => {
     'no projects exist when manager is initially created'
   )
 
-  const createdProjectIds = [
-    await manager.createProject(),
-    await manager.createProject(),
-    await manager.createProject(),
-  ]
+  const createdProjectId = await manager.createProject()
+
+  const addedProjectId =
+    KeyManager.generateProjectKeypair().publicKey.toString('hex')
+
+  await manager.addProject(addedProjectId)
+
+  const existingProjectIds = [createdProjectId, addedProjectId]
 
   const allProjects = await manager.listProjects()
 
-  t.is(allProjects.length, createdProjectIds.length)
+  t.is(allProjects.length, existingProjectIds.length)
   t.ok(
-    allProjects.every((p) => createdProjectIds.includes(p.projectId)),
+    allProjects.every((p) => existingProjectIds.includes(p.projectId)),
     'all created projects are listed'
   )
 })
