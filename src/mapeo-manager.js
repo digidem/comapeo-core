@@ -63,7 +63,7 @@ export class MapeoManager {
     }
 
     // 3. Save keys to client db in projectKeys table
-    /** @type {import('./types.js').ProjectKeys} */
+    /** @type {ProjectKeys} */
     const keys = {
       projectKey: projectKeypair.publicKey,
       projectSecretKey: projectKeypair.secretKey,

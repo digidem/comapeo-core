@@ -170,14 +170,3 @@ export type ProtocolStream = NoiseStream & { userData: Protomux }
 export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
 }[keyof T][]
-
-export type ProjectKeys = {
-  projectKey: Buffer
-  projectSecretKey?: Buffer
-  encryptionKeys: SetRequired<
-    {
-      [n in (typeof NAMESPACES)[number]]?: Buffer
-    },
-    'auth'
-  >
-}
