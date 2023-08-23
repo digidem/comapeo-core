@@ -1,9 +1,8 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Hyperswarm from 'hyperswarm'
+import createTestnet from '@hyperswarm/testnet'
 
-export class HyperSwarmDiscovery extends TypedEmitter {
-  /** @type {String} */
-  #projectDiscoveryId
+export class HyperswarmDiscovery extends TypedEmitter {
   #hyperswarm
   constructor() {
     super()
@@ -13,14 +12,33 @@ export class HyperSwarmDiscovery extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async join(projectDiscoveryId) {
-    this.#projectDiscoveryId = projectDiscoveryId
     if (!this.#hyperswarm) {
       this.#hyperswarm = new Hyperswarm()
-      const topic = Buffer.alloc(32).fill(this.#projectDiscoveryId)
-      this.#hyperswarm.join(topic, { server: false, client: true })
+      const topic = Buffer.alloc(32).fill(projectDiscoveryId)
+      const d = this.#hyperswarm.join(topic, { server: false, client: true })
       await this.#hyperswarm.flush()
-      this.#hyperswarm.on('connection', (peerInfo) => {
-        this.emit('connection', peerInfo)
+      this.#hyperswarm.on('connection', (noiseStream, peerInfo) => {
+        this.emit('connection', noiseStream, peerInfo)
+      })
+    }
+  }
+
+  /**
+   * @param {String} projectDiscoveryId
+   * @returns {Promise<void>}
+   */
+  async listen(projectDiscoveryId) {
+    if (!this.#hyperswarm) {
+      // const testnet = await createTestnet(10)
+      this.#hyperswarm = new Hyperswarm()
+      const topic = Buffer.alloc(32).fill(projectDiscoveryId)
+      const swarm = this.#hyperswarm.join(topic, {
+        server: true,
+        client: false,
+      })
+      await swarm.flushed()
+      this.#hyperswarm.on('connection', (noiseStream, peerInfo) => {
+        this.emit('connection', noiseStream, peerInfo)
       })
     }
   }
