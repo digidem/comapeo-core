@@ -1,11 +1,5 @@
 import test from 'brittle'
-
-import Hypercore from 'hypercore'
-import ram from 'random-access-memory'
-
 import { HyperswarmDiscovery } from '../src/discovery/hyperswarm.js'
-import createTestnet from '@hyperswarm/testnet'
-import { argv0 } from 'process'
 
 test('discovery - dht/hyperswarm', async (t) => {
   // If I put this after the tests node complains
