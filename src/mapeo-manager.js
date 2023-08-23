@@ -42,10 +42,10 @@ export class MapeoManager {
 
   /**
    * Create a new project.
-   * @param {import('type-fest').Simplify<Partial<Pick<import("@mapeo/schema").ProjectValue, 'name'>>>} settings
+   * @param {import('type-fest').Simplify<Partial<Pick<import("@mapeo/schema").ProjectValue, 'name'>>>} [settings]
    * @returns {Promise<string>}
    */
-  async createProject(settings) {
+  async createProject(settings = {}) {
     // 1. Create project keypair
     const projectKeypair = KeyManager.generateProjectKeypair()
 
@@ -93,9 +93,7 @@ export class MapeoManager {
     })
 
     // 5. Write project name and any other relevant metadata to project instance
-    await project.$setProjectSettings({
-      name: settings.name,
-    })
+    await project.$setProjectSettings(settings)
 
     // TODO: Close the project instance
     // https://github.com/digidem/mapeo-core-next/issues/207
