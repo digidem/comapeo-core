@@ -1,6 +1,5 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Hyperswarm from 'hyperswarm'
-import createTestnet from '@hyperswarm/testnet'
 
 export class HyperswarmDiscovery extends TypedEmitter {
   #hyperswarm
@@ -15,8 +14,8 @@ export class HyperswarmDiscovery extends TypedEmitter {
     if (!this.#hyperswarm) {
       this.#hyperswarm = new Hyperswarm()
       const topic = Buffer.alloc(32).fill(projectDiscoveryId)
-      const d = this.#hyperswarm.join(topic, { server: false, client: true })
-      await this.#hyperswarm.flush()
+      this.#hyperswarm.join(topic, { server: false, client: true })
+      // await this.#hyperswarm.flush()
       this.#hyperswarm.on('connection', (noiseStream, peerInfo) => {
         this.emit('connection', noiseStream, peerInfo)
       })
@@ -29,7 +28,6 @@ export class HyperswarmDiscovery extends TypedEmitter {
    */
   async listen(projectDiscoveryId) {
     if (!this.#hyperswarm) {
-      // const testnet = await createTestnet(10)
       this.#hyperswarm = new Hyperswarm()
       const topic = Buffer.alloc(32).fill(projectDiscoveryId)
       const swarm = this.#hyperswarm.join(topic, {

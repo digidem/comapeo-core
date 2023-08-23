@@ -5,19 +5,35 @@ import ram from 'random-access-memory'
 
 import { HyperswarmDiscovery } from '../src/discovery/hyperswarm.js'
 import createTestnet from '@hyperswarm/testnet'
+import { argv0 } from 'process'
 
 test('discovery - dht/hyperswarm', async (t) => {
+  // If I put this after the tests node complains
+  // count is used before initialized...
+  let count = 0
+  async function step() {
+    count++
+    if (count === 1) {
+      await swarm1.stop()
+      await swarm2.stop()
+    }
+  }
+
+  t.plan(1)
   const topic = 'myProjectDiscoveryId'
   const swarm1 = new HyperswarmDiscovery()
   const swarm2 = new HyperswarmDiscovery()
 
   swarm1.on('connection', (noiseStream, peerInfo) => {
-    console.log('connected to!', peerInfo)
+    console.log('connected to!')
   })
 
   swarm2.on('connection', (noiseStream, peerInfo) => {
-    console.log('connection from!', peerInfo)
+    console.log('connection from!')
+    t.pass()
+    step()
   })
+
   await swarm2.listen(topic)
   await swarm1.join(topic)
 })
