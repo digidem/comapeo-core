@@ -17,6 +17,8 @@ export class MapeoManager {
   #projectSettingsIndexWriter
   #storagePath
   #db
+  /** @type {Map<string, MapeoProject>} */
+  #activeProjects
 
   /**
    * @param {Object} [opts]
@@ -38,6 +40,7 @@ export class MapeoManager {
       sqlite,
     })
     this.#storagePath = storagePath
+    this.#activeProjects = new Map()
   }
 
   /**
@@ -95,8 +98,9 @@ export class MapeoManager {
     // 5. Write project name and any other relevant metadata to project instance
     await project.$setProjectSettings(settings)
 
-    // TODO: Close the project instance
+    // TODO: Close the project instance instead of keeping it around
     // https://github.com/digidem/mapeo-core-next/issues/207
+    this.#activeProjects.set(projectId, project)
 
     // 6. Return project id
     return projectId
@@ -107,6 +111,10 @@ export class MapeoManager {
    * @returns {Promise<MapeoProject>}
    */
   async getProject(projectId) {
+    const existing = this.#activeProjects.get(projectId)
+
+    if (existing) return existing
+
     const result = this.#db
       .select({
         keysCipher: projectKeysTable.keysCipher,
