@@ -48,6 +48,34 @@ export class MapeoManager {
   }
 
   /**
+   * @param {Buffer} keysCipher
+   * @param {string} projectId
+   * @returns {ProjectKeys}
+   */
+  #decodeProjectKeysCipher(keysCipher, projectId) {
+    return ProjectKeys.decode(
+      this.#keyManager.decryptLocalMessage(keysCipher, projectId)
+    )
+  }
+
+  /**
+   * @param {string} projectId
+   * @param {ProjectKeys} keys
+   */
+  #saveProjectKeys(projectId, keys) {
+    this.#db
+      .insert(projectKeysTable)
+      .values({
+        projectId,
+        keysCipher: this.#keyManager.encryptLocalMessage(
+          Buffer.from(ProjectKeys.encode(keys).finish().buffer),
+          projectId
+        ),
+      })
+      .run()
+  }
+
+  /**
    * Create a new project.
    * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
    * @returns {Promise<string>}
@@ -77,16 +105,7 @@ export class MapeoManager {
     // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
     const projectId = projectKeypair.publicKey.toString('hex')
 
-    this.#db
-      .insert(projectKeysTable)
-      .values({
-        projectId,
-        keysCipher: this.#keyManager.encryptLocalMessage(
-          Buffer.from(ProjectKeys.encode(keys).finish().buffer),
-          projectId
-        ),
-      })
-      .run()
+    this.#saveProjectKeys(projectId, keys)
 
     // 4. Create MapeoProject instance
     const project = new MapeoProject({
@@ -131,8 +150,9 @@ export class MapeoManager {
       throw new Error(`NotFound: project ID ${projectId} not found`)
     }
 
-    const projectKeys = ProjectKeys.decode(
-      this.#keyManager.decryptLocalMessage(result.keysCipher, projectId)
+    const projectKeys = this.#decodeProjectKeysCipher(
+      result.keysCipher,
+      projectId
     )
 
     const project = new MapeoProject({
@@ -160,5 +180,54 @@ export class MapeoManager {
       .from(projectTable)
       .all()
       .map((value) => deNullify(value))
+  }
+
+  /**
+   * @param {string} projectId
+   * @returns {Promise<MapeoProject>}
+   */
+  async addProject(projectId) {
+    const activeProject = this.#activeProjects.get(projectId)
+
+    if (activeProject) return activeProject
+
+    const existingKeysResult = this.#db
+      .select({
+        keysCipher: projectKeysTable.keysCipher,
+      })
+      .from(projectKeysTable)
+      .where(eq(projectKeysTable.projectId, projectId))
+      .get()
+
+    /** @type {ProjectKeys} */
+    let projectKeys
+
+    if (existingKeysResult) {
+      projectKeys = this.#decodeProjectKeysCipher(
+        existingKeysResult.keysCipher,
+        projectId
+      )
+    } else {
+      projectKeys = {
+        projectKey: Buffer.from(projectId, 'hex'),
+        encryptionKeys: {
+          // TODO: How do we get the auth key in this case?
+          auth: randomBytes(32),
+        },
+      }
+      this.#saveProjectKeys(projectId, projectKeys)
+    }
+
+    const project = new MapeoProject({
+      ...projectKeys,
+      storagePath: this.#storagePath,
+      keyManager: this.#keyManager,
+      sharedDb: this.#db,
+      sharedIndexWriter: this.#projectSettingsIndexWriter,
+    })
+
+    this.#activeProjects.set(projectId, project)
+
+    return project
   }
 }
