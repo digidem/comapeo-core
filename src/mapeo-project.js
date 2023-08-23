@@ -5,8 +5,9 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType } from './datatype/index.js'
-import { BlobStore } from './blobstore/index.js'
+import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
+import { createBlobServer } from './blob-server/index.js'
 import { IndexWriter } from './index-writer/index.js'
 import { fieldTable, observationTable, presetTable } from './schema/project.js'
 import RandomAccessFile from 'random-access-file'
@@ -30,6 +31,7 @@ export class MapeoProject {
   #dataStores
   #dataTypes
   #blobStore
+  #blobServer
 
   /**
    * @param {Object} opts
@@ -124,9 +126,18 @@ export class MapeoProject {
       coreManager: this.#coreManager,
     })
 
+    this.#blobServer = createBlobServer({
+      logger: true,
+      blobStore: this.#blobStore,
+      prefix: `/blobs/`,
+      projectId: this.#projectId,
+    })
+
+    // @ts-ignore TODO: pass in blobServer
     this.$blobs = new BlobApi({
       projectId: this.#projectId,
       blobStore: this.#blobStore,
+      blobServer: this.#blobServer,
     })
   }
 

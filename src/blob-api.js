@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { basename } from 'node:path'
+import { pipeline } from 'node:stream/promises'
 import sodium from 'sodium-universal'
 import b4a from 'b4a'
 
@@ -36,8 +36,8 @@ export class BlobApi {
   /**
    * Write blobs for provided variants of a file
    * @param {{ original: string, preview?: string, thumbnail?: string }} filepaths
-   * @param {{ mimeType: string }} metadata
-   * @returns {Promise<{ original: Omit<BlobId, 'driveId'>, preview?: Omit<BlobId, 'driveId'>, thumbnail?: Omit<BlobId, 'driveId'> }>}
+   * @param {{ mimeType: string, driveId: string }} metadata
+   * @returns {Promise<{ driveId: string, name: string, type: 'photo' | 'video' | 'audio' }>}
    */
   async create(filepaths, metadata) {
     const { original, preview, thumbnail } = filepaths
@@ -47,67 +47,61 @@ export class BlobApi {
     sodium.randombytes_buf(hash)
     const name = hash.toString('hex')
 
-    const originalBlobId = await this.writeFile(
+    await this.writeFile(
       original,
       {
-        name: `${name}_${basename(original)}`,
+        name: `${name}`,
         variant: 'original',
         type: blobType,
       },
       metadata
     )
-    const previewBlobId = preview
-      ? await this.writeFile(
-          preview,
-          {
-            name: `${name}_${basename(preview)}`,
-            variant: 'preview',
-            type: blobType,
-          },
-          metadata
-        )
-      : null
-    const thumbnailBlobId = thumbnail
-      ? await this.writeFile(
-          thumbnail,
-          {
-            name: `${name}_${basename(thumbnail)}`,
-            variant: 'thumbnail',
-            type: blobType,
-          },
-          metadata
-        )
-      : null
 
-    const blobIds =
-      /** @type {{ original: Omit<BlobId, 'driveId'>, preview?: Omit<BlobId, 'driveId'>, thumbnail?: Omit<BlobId, 'driveId'> }} */ ({
-        original: originalBlobId,
-      })
+    if (preview) {
+      await this.writeFile(
+        preview,
+        {
+          name: `${name}`,
+          variant: 'preview',
+          type: blobType,
+        },
+        metadata
+      )
+    }
 
-    if (previewBlobId) blobIds.preview = previewBlobId
-    if (thumbnailBlobId) blobIds.thumbnail = thumbnailBlobId
+    if (thumbnail) {
+      await this.writeFile(
+        thumbnail,
+        {
+          name: `${name}`,
+          variant: 'thumbnail',
+          type: blobType,
+        },
+        metadata
+      )
+    }
 
-    return blobIds
+    return {
+      driveId: metadata.driveId,
+      name,
+      type: blobType,
+    }
   }
 
   /**
+   * @param {string} filepath
    * @param {Omit<BlobId, 'driveId'>} options
-   * @returns {Promise<Omit<BlobId, 'driveId'>>}
+   * @param {object} metadata
+   * @param {string} metadata.mimeType
    */
   async writeFile(filepath, { name, variant, type }, metadata) {
-    return new Promise((resolve, reject) => {
-      fs.createReadStream(filepath)
-        .pipe(
-          this.blobStore.createWriteStream(
-            { type, variant, name },
-            { metadata }
-          )
-        )
-        .on('error', reject)
-        .on('finish', () => {
-          resolve({ type, variant, name })
-        })
-    })
+    // @ts-ignore TODO: address blobStore.createWriteStream return type
+    await pipeline(
+      fs.createReadStream(filepath),
+      this.blobStore.createWriteStream({ type, variant, name }, { metadata })
+    )
+
+    return { name, variant, type }
   }
 }
 

@@ -1,4 +1,4 @@
-import { join, basename } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'url'
 import test from 'brittle'
 import { BlobApi } from '../src/blob-api.js'
@@ -93,28 +93,20 @@ test('create blobs', async (t) => {
     new URL('./fixtures/blob-api/', import.meta.url)
   )
 
-  const blobIds = await blobApi.create(
+  const attachment = await blobApi.create(
     {
       original: join(directory, 'original.png'),
       preview: join(directory, 'preview.png'),
       thumbnail: join(directory, 'thumbnail.png'),
     },
     {
+      driveId: '1234',
       mimeType: 'image/png',
     }
   )
 
-  t.is(blobIds.original.type, 'photo')
-  t.is(blobIds.original.variant, 'original')
-  t.ok(blobIds.original.name.includes('_original.png'))
-
-  t.is(blobIds.preview.type, 'photo')
-  t.is(blobIds.preview.variant, 'preview')
-  t.ok(blobIds.preview.name.includes('_preview.png'))
-
-  t.is(blobIds.thumbnail.type, 'photo')
-  t.is(blobIds.thumbnail.variant, 'thumbnail')
-  t.ok(blobIds.thumbnail.name.includes('_thumbnail.png'))
+  t.is(attachment.driveId, '1234')
+  t.is(attachment.type, 'photo')
 
   t.teardown(async () => {
     await blobServer.close()
