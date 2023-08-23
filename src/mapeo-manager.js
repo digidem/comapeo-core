@@ -78,7 +78,9 @@ export class MapeoManager {
       .values({
         projectId,
         keysCipher: this.#keyManager.encryptLocalMessage(
-          Buffer.from(ProjectKeys.encode(keys).finish()),
+          // TODO: Type error should go away once https://github.com/digidem/mapeo-crypto/issues/14 is resolved
+          // @ts-expect-error
+          ProjectKeys.encode(keys).finish(),
           projectId
         ),
       })
