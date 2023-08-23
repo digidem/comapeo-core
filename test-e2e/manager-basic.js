@@ -8,7 +8,7 @@ test('MapeoManager.createProject works', async (t) => {
     name: 'foo',
   }
 
-  const projectId = await manager.createProject({ name: expectedSettings.name })
+  const projectId = await manager.createProject(expectedSettings)
 
   t.ok(projectId)
 
@@ -17,7 +17,6 @@ test('MapeoManager.createProject works', async (t) => {
   const settings = await project.$getProjectSettings()
 
   t.is(
-    // @ts-ignore
     settings.name,
     expectedSettings.name,
     'settings for fetched project are the same as when created'
