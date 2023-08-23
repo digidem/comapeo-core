@@ -188,6 +188,8 @@ export class MapeoProject {
   async $setProjectSettings(settings) {
     const { project } = this.#dataTypes
 
+    // We only want to catch the error to the getByDocId call
+    // Using try/catch for this is a little verbose when dealing with TS types
     const existing = await project.getByDocId(this.#projectId).catch(() => {
       // project does not exist so return null
       return null
