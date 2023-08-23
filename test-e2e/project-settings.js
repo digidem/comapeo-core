@@ -24,7 +24,6 @@ const fixtures = [
   {
     schemaName: 'project',
     name: 'myProject',
-    defaultPresets: {},
   },
   {
     schemaName: 'field',
@@ -35,7 +34,6 @@ const fixtures = [
   {
     schemaName: 'project',
     name: 'myProject updated',
-    defaultPresets: {},
   },
 ]
 
@@ -117,12 +115,10 @@ test('Project settings create, read, and update operations', async (t) => {
 
   const initialSettings = await project.$setProjectSettings({
     name: 'initial',
-    defaultPresets: {},
   })
 
   const expectedSettings = {
     name: 'updated',
-    defaultPresets: {},
   }
 
   const updatedSettings = await project.$setProjectSettings(expectedSettings)
