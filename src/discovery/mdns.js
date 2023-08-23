@@ -28,9 +28,9 @@ export class MdnsDiscovery extends TypedEmitter {
   #socketConnections = new Set()
   /** @type {Map<string,NoiseSecretStream<net.Socket>>} */
   #noiseConnections = new Map()
-  /** @type {typeof import('@gravitysoftware/dnssd').Advertisement} */
+  /** @type {import('@gravitysoftware/dnssd').Advertisement} */
   #advertiser
-  /** @type {typeof import('@gravitysoftware/dnssd').Browser} */
+  /** @type {import('@gravitysoftware/dnssd').Browser} */
   #browser
   /** @type {string} */
   #id = randomBytes(8).toString('hex')
@@ -66,7 +66,8 @@ export class MdnsDiscovery extends TypedEmitter {
     log('started advertiser for ' + addr.port)
 
     // find all peers adverticing Mapeo
-    this.#browser = new dnssd.Browser(dnssd.tcp(SERVICE_NAME)).on(
+    this.#browser = new dnssd.Browser(dnssd.tcp(SERVICE_NAME))
+    this.#browser.on(
       'serviceUp',
       /** @param {Service} service */
       (service) => {
