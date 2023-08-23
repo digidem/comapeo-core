@@ -80,7 +80,7 @@ test('get url from blobId', async (t) => {
 
 test('create blobs', async (t) => {
   const { blobStore } = createBlobStore()
-  const blobServer = await createBlobServer({ blobStore })
+  const blobServer = createBlobServer({ blobStore })
   const blobApi = new BlobApi({ projectId: '1234', blobStore, blobServer })
 
   await new Promise((resolve) => {

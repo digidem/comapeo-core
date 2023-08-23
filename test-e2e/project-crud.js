@@ -2,6 +2,8 @@ import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { MapeoProject } from '../src/mapeo-project.js'
+import { createBlobServer } from '../src/blob-server/index.js'
+import { createBlobStore } from '../tests/helpers/blob-store.js'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -131,9 +133,18 @@ function createProject({
   projectKey = randomBytes(32),
 } = {}) {
   const keyManager = new KeyManager(rootKey)
+  const { blobStore } = createBlobStore()
+  const blobServer = createBlobServer({
+    blobStore,
+    logger: true,
+    prefix: '/',
+    projectId: projectKey.toString('hex'),
+  })
+
   return new MapeoProject({
     keyManager,
     projectKey,
+    blobServer,
   })
 }
 

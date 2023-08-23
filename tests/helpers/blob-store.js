@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { replicate } from './core-manager.js'
 import { pipelinePromise as pipeline, Writable } from 'streamx'
 

@@ -10,15 +10,35 @@ import {
   PresetValue,
 } from '@mapeo/schema'
 import { Expect, type Equal } from './utils.js'
+import { createBlobServer } from '../dist/blob-server/index.js'
+import { BlobStore } from '../dist/blob-store/index.js'
+import { CoreManager } from '../dist/core-manager/index.js'
+import Database from 'better-sqlite3'
+import RandomAccessMemory from 'random-access-memory'
 
 type Forks = { forks: string[] }
 type ObservationWithForks = Observation & Forks
 type PresetWithForks = Preset & Forks
 type FieldWithForks = Field & Forks
 
+const projectKey = randomBytes(32)
+const keyManager = new KeyManager(randomBytes(32))
+const coreManager = new CoreManager({
+  sqlite: new Database(':memory:'),
+  keyManager,
+  projectKey,
+  storage: (name) => new RandomAccessMemory(name),
+})
+
 const mapeoProject = new MapeoProject({
-  keyManager: new KeyManager(randomBytes(32)),
-  projectKey: randomBytes(32),
+  keyManager,
+  projectKey,
+  blobServer: createBlobServer({
+    logger: true,
+    prefix: '/',
+    blobStore: new BlobStore({ coreManager }),
+    projectId: 'abc',
+  }),
 })
 
 ///// Observations
