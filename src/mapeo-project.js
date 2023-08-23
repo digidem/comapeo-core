@@ -198,16 +198,20 @@ export class MapeoProject {
     })
 
     if (existing) {
-      return project.update([existing.versionId, ...existing.forks], {
-        ...valueOf(existing),
-        ...settings,
-      })
+      return extractEditableProjectSettings(
+        await project.update([existing.versionId, ...existing.forks], {
+          ...valueOf(existing),
+          ...settings,
+        })
+      )
     }
 
-    return project[kCreateWithDocId](this.#projectId, {
-      ...settings,
-      schemaName: 'project',
-    })
+    return extractEditableProjectSettings(
+      await project[kCreateWithDocId](this.#projectId, {
+        ...settings,
+        schemaName: 'project',
+      })
+    )
   }
 
   /**
@@ -215,13 +219,21 @@ export class MapeoProject {
    */
   async $getProjectSettings() {
     try {
-      // eslint-disable-next-line no-unused-vars
-      const { schemaName, ...result } = valueOf(
+      return extractEditableProjectSettings(
         await this.#dataTypes.project.getByDocId(this.#projectId)
       )
-      return result
     } catch {
       return /** @type {EditableProjectSettings} */ ({})
     }
   }
+}
+
+/**
+ * @param {import("@mapeo/schema").Project & { forks: string[] }} projectDoc
+ * @returns {EditableProjectSettings}
+ */
+function extractEditableProjectSettings(projectDoc) {
+  // eslint-disable-next-line no-unused-vars
+  const { schemaName, ...result } = valueOf(projectDoc)
+  return result
 }
