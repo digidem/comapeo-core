@@ -16,6 +16,8 @@ import path from 'path'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { valueOf } from './utils.js'
 
+/** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
+
 const PROJECT_SQLITE_FILE_NAME = 'project.db'
 const CORE_STORAGE_FOLDER_NAME = 'cores'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -182,8 +184,8 @@ export class MapeoProject {
   }
 
   /**
-   * @param {Partial<Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>>} settings
-   * @returns {Promise<import('@mapeo/schema').Project>}
+   * @param {Partial<EditableProjectSettings>} settings
+   * @returns {Promise<EditableProjectSettings>}
    */
   async $setProjectSettings(settings) {
     const { project } = this.#dataTypes
@@ -209,13 +211,17 @@ export class MapeoProject {
   }
 
   /**
-   * @returns {Promise<Omit<import('@mapeo/schema').Project, 'schemaName'>>}
+   * @returns {Promise<EditableProjectSettings>}
    */
   async $getProjectSettings() {
     try {
-      return await this.#dataTypes.project.getByDocId(this.#projectId)
+      // eslint-disable-next-line no-unused-vars
+      const { schemaName, ...result } = valueOf(
+        await this.#dataTypes.project.getByDocId(this.#projectId)
+      )
+      return result
     } catch {
-      return /** @type {Omit<import('@mapeo/schema').Project, 'schemaName'>} */ ({})
+      return /** @type {EditableProjectSettings} */ ({})
     }
   }
 }
