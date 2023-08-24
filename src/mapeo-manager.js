@@ -9,6 +9,7 @@ import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject } from './mapeo-project.js'
 import { projectKeysTable, projectTable } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
+import { deNullify } from './utils.js'
 
 /** @typedef {import("@mapeo/schema").ProjectValue} ProjectValue */
 
@@ -158,9 +159,6 @@ export class MapeoManager {
       })
       .from(projectTable)
       .all()
-      .map((value) => ({
-        ...value,
-        name: value.name === null ? undefined : value.name,
-      }))
+      .map((value) => deNullify(value))
   }
 }
