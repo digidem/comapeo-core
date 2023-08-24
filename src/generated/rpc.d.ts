@@ -3,7 +3,7 @@ import _m0 from "protobufjs/minimal.js";
 import { EncryptionKeys } from "./keys.js";
 export interface Invite {
     projectKey: Buffer;
-    encryptionKeys?: EncryptionKeys | undefined;
+    encryptionKeys: EncryptionKeys | undefined;
     projectInfo?: Invite_ProjectInfo | undefined;
 }
 /** Project info that is displayed to the user receiving the invite */
