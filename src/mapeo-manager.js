@@ -11,7 +11,6 @@ import { projectKeysTable, projectTable } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 
 /** @typedef {import("@mapeo/schema").ProjectValue} ProjectValue */
-/** @typedef {import("./types.js").ProjectInfo} ProjectInfo */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -147,23 +146,21 @@ export class MapeoManager {
   }
 
   /**
-   * @returns {Promise<Array<ProjectInfo & Pick<ProjectValue, 'name'>>>}
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt: string, updatedAt: string }>>}
    */
   async listProjects() {
     return this.#db
       .select({
-        docId: projectTable.docId,
+        projectId: projectTable.docId,
         createdAt: projectTable.createdAt,
         updatedAt: projectTable.updatedAt,
         name: projectTable.name,
       })
       .from(projectTable)
       .all()
-      .map(({ createdAt, updatedAt, name, docId }) => ({
-        projectId: docId,
-        createdAt: new Date(createdAt),
-        updatedAt: new Date(updatedAt),
-        name: name === null ? undefined : name,
+      .map((value) => ({
+        ...value,
+        name: value.name === null ? undefined : value.name,
       }))
   }
 }
