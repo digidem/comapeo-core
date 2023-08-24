@@ -59,18 +59,21 @@ export class MapeoManager {
   }
 
   /**
-   * @param {string} projectId
-   * @param {ProjectKeys} keys
+   * @param {Object} opts
+   * @param {string} opts.projectId
+   * @param {ProjectKeys} opts.projectKeys
+   * @param {{ name?: string, addedAt: string }} [opts.projectInfo]
    */
-  #saveProjectKeys(projectId, keys) {
+  #saveToProjectKeysTable({ projectId, projectKeys, projectInfo }) {
     this.#db
       .insert(projectKeysTable)
       .values({
         projectId,
         keysCipher: this.#keyManager.encryptLocalMessage(
-          Buffer.from(ProjectKeys.encode(keys).finish().buffer),
+          Buffer.from(ProjectKeys.encode(projectKeys).finish().buffer),
           projectId
         ),
+        projectInfo,
       })
       .run()
   }
@@ -105,7 +108,7 @@ export class MapeoManager {
     // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
     const projectId = projectKeypair.publicKey.toString('hex')
 
-    this.#saveProjectKeys(projectId, keys)
+    this.#saveToProjectKeysTable({ projectId, projectKeys: keys })
 
     // 4. Create MapeoProject instance
     const project = new MapeoProject({
@@ -170,7 +173,9 @@ export class MapeoManager {
    * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt: string, updatedAt: string }>>}
    */
   async listProjects() {
-    return this.#db
+    const allProjectKeysResult = this.#db.select().from(projectKeysTable).all()
+
+    const allProjectsResult = this.#db
       .select({
         projectId: projectTable.docId,
         createdAt: projectTable.createdAt,
@@ -179,7 +184,34 @@ export class MapeoManager {
       })
       .from(projectTable)
       .all()
-      .map((value) => deNullify(value))
+
+    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt: string, updatedAt: string }>} */
+    const result = []
+
+    for (const { projectId, projectInfo } of allProjectKeysResult) {
+      const existingProject = allProjectsResult.find(
+        (p) => p.projectId === projectId
+      )
+
+      if (!existingProject) continue
+
+      const nameFromProjectKeys =
+        projectInfo &&
+        typeof projectInfo === 'object' &&
+        'name' in projectInfo &&
+        typeof projectInfo.name === 'string'
+          ? projectInfo.name
+          : null
+
+      result.push(
+        deNullify({
+          ...existingProject,
+          name: existingProject?.name || nameFromProjectKeys,
+        })
+      )
+    }
+
+    return result
   }
 
   /**
@@ -205,9 +237,17 @@ export class MapeoManager {
       throw new Error(`Project with ID ${projectId} already exists`)
     }
 
-    this.#saveProjectKeys(projectId, {
-      projectKey,
-      encryptionKeys,
+    this.#saveToProjectKeysTable({
+      projectId,
+      projectKeys: {
+        projectKey,
+        encryptionKeys,
+      },
+      projectInfo: {
+        ...projectInfo,
+        // TODO: Should this come from the invite or be generated here?
+        addedAt: new Date().toISOString(),
+      },
     })
 
     const project = new MapeoProject({
@@ -218,8 +258,6 @@ export class MapeoManager {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
     })
-
-    await project.$setProjectSettings({ name: projectInfo?.name })
 
     // TODO: Close the project instance instead of keeping it around
     // https://github.com/digidem/mapeo-core-next/issues/207
