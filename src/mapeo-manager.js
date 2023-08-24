@@ -222,6 +222,8 @@ export class MapeoManager {
 
     await project.$setProjectSettings({ name: projectInfo?.name })
 
+    // TODO: Close the project instance instead of keeping it around
+    // https://github.com/digidem/mapeo-core-next/issues/207
     this.#activeProjects.set(projectId, project)
 
     return projectId
