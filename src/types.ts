@@ -4,7 +4,6 @@ import type {
   ValueOf,
   RequireAtLeastOne,
   SetOptional,
-  SetRequired,
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
 import { MapeoDoc, MapeoValue } from '@mapeo/schema'
@@ -15,7 +14,6 @@ import { Socket } from 'net'
 import MultiCoreIndexer from 'multi-core-indexer'
 import Corestore from 'corestore'
 import Hypercore from 'hypercore'
-import { NAMESPACES } from './core-manager/index.js'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 type BlobType = keyof SupportedBlobVariants
