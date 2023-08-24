@@ -9,6 +9,10 @@ import {
   Preset,
   PresetValue,
 } from '@mapeo/schema'
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { IndexWriter } from '../dist/index-writer/index.js'
+import { projectTable } from '../dist/schema/client.js'
 import { Expect, type Equal } from './utils.js'
 import { createBlobServer } from '../dist/blob-server/index.js'
 import { BlobStore } from '../dist/blob-store/index.js'
@@ -23,8 +27,10 @@ type FieldWithForks = Field & Forks
 
 const projectKey = randomBytes(32)
 const keyManager = new KeyManager(randomBytes(32))
+const sqlite = new Database(':memory:')
+
 const coreManager = new CoreManager({
-  sqlite: new Database(':memory:'),
+  sqlite,
   keyManager,
   projectKey,
   storage: (name) => new RandomAccessMemory(name),
@@ -38,6 +44,10 @@ const mapeoProject = new MapeoProject({
     prefix: '/',
     blobStore: new BlobStore({ coreManager }),
     projectId: 'abc',
+  sharedDb: drizzle(sqlite),
+  sharedIndexWriter: new IndexWriter({
+    tables: [projectTable],
+    sqlite,
   }),
 })
 

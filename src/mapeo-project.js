@@ -1,19 +1,24 @@
 // @ts-check
+import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
-import { DataType } from './datatype/index.js'
+import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
+import { projectTable } from './schema/client.js'
 import { fieldTable, observationTable, presetTable } from './schema/project.js'
 import RandomAccessFile from 'random-access-file'
 import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'
 import path from 'path'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
+import { valueOf } from './utils.js'
+
+/** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
 
 const PROJECT_SQLITE_FILE_NAME = 'project.db'
 const CORE_STORAGE_FOLDER_NAME = 'cores'
@@ -31,6 +36,7 @@ export class MapeoProject {
   #dataTypes
   #blobStore
   #blobServer
+  #projectId
 
   /**
    * @param {Object} opts
@@ -40,9 +46,18 @@ export class MapeoProject {
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
+   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
+   * @param {IndexWriter} opts.sharedIndexWriter
    */
-  constructor({ storagePath, blobServer, ...coreManagerOpts }) {
-    this.#projectId = coreManagerOpts.projectKey.toString('hex') // TODO: update based on outcome of https://github.com/digidem/mapeo-core-next/issues/171
+  constructor({
+    storagePath,
+    sharedDb,
+    sharedIndexWriter,
+    blobServer,
+    ...coreManagerOpts
+  }) {
+    // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
+    this.#projectId = coreManagerOpts.projectKey.toString('hex')
 
     ///////// 1. Setup database
 
@@ -94,7 +109,11 @@ export class MapeoProject {
       config: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'config',
-        batch: (entries) => indexWriter.batch(entries),
+        batch: (entries) =>
+          this.#handleConfigEntries(entries, {
+            projectIndexWriter: indexWriter,
+            sharedIndexWriter,
+          }),
         storage: indexerStorage,
       }),
       data: new DataStore({
@@ -120,6 +139,11 @@ export class MapeoProject {
         table: fieldTable,
         db,
       }),
+      project: new DataType({
+        dataStore: this.#dataStores.config,
+        table: projectTable,
+        db: sharedDb,
+      }),
     }
 
     this.#blobStore = new BlobStore({
@@ -136,6 +160,39 @@ export class MapeoProject {
     })
   }
 
+  /**
+   * @param {import('multi-core-indexer').Entry[]} entries
+   * @param {{projectIndexWriter: IndexWriter, sharedIndexWriter: IndexWriter}} indexWriters
+   */
+  async #handleConfigEntries(
+    entries,
+    { projectIndexWriter, sharedIndexWriter }
+  ) {
+    /** @type {import('multi-core-indexer').Entry[]} */
+    const projectSettingsEntries = []
+    /** @type {import('multi-core-indexer').Entry[]} */
+    const otherEntries = []
+
+    for (const entry of entries) {
+      try {
+        const { schemaName } = decodeBlockPrefix(entry.block)
+
+        if (schemaName === 'project') {
+          projectSettingsEntries.push(entry)
+        } else {
+          otherEntries.push(entry)
+        }
+      } catch {
+        // Ignore errors thrown by values that can't be decoded for now
+      }
+    }
+
+    await Promise.all([
+      projectIndexWriter.batch(otherEntries),
+      sharedIndexWriter.batch(projectSettingsEntries),
+    ])
+  }
+
   get observation() {
     return this.#dataTypes.observation
   }
@@ -145,4 +202,58 @@ export class MapeoProject {
   get field() {
     return this.#dataTypes.field
   }
+
+  /**
+   * @param {Partial<EditableProjectSettings>} settings
+   * @returns {Promise<EditableProjectSettings>}
+   */
+  async $setProjectSettings(settings) {
+    const { project } = this.#dataTypes
+
+    // We only want to catch the error to the getByDocId call
+    // Using try/catch for this is a little verbose when dealing with TS types
+    const existing = await project.getByDocId(this.#projectId).catch(() => {
+      // project does not exist so return null
+      return null
+    })
+
+    if (existing) {
+      return extractEditableProjectSettings(
+        await project.update([existing.versionId, ...existing.forks], {
+          ...valueOf(existing),
+          ...settings,
+        })
+      )
+    }
+
+    return extractEditableProjectSettings(
+      await project[kCreateWithDocId](this.#projectId, {
+        ...settings,
+        schemaName: 'project',
+      })
+    )
+  }
+
+  /**
+   * @returns {Promise<EditableProjectSettings>}
+   */
+  async $getProjectSettings() {
+    try {
+      return extractEditableProjectSettings(
+        await this.#dataTypes.project.getByDocId(this.#projectId)
+      )
+    } catch {
+      return /** @type {EditableProjectSettings} */ ({})
+    }
+  }
+}
+
+/**
+ * @param {import("@mapeo/schema").Project & { forks: string[] }} projectDoc
+ * @returns {EditableProjectSettings}
+ */
+function extractEditableProjectSettings(projectDoc) {
+  // eslint-disable-next-line no-unused-vars
+  const { schemaName, ...result } = valueOf(projectDoc)
+  return result
 }

@@ -4,7 +4,7 @@ CREATE TABLE `project_backlink` (
 --> statement-breakpoint
 CREATE TABLE `projectKeys` (
 	`projectId` text PRIMARY KEY NOT NULL,
-	`encryptionKeys` blob NOT NULL
+	`keysCipher` blob NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `project` (
@@ -14,7 +14,7 @@ CREATE TABLE `project` (
 	`createdAt` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
-	`name` text NOT NULL,
-	`defaultPresets` text NOT NULL,
+	`name` text,
+	`defaultPresets` text,
 	`forks` text NOT NULL
 );

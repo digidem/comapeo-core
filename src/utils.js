@@ -79,3 +79,14 @@ export function deNullify(obj) {
   }
   return /** @type {import('./types.js').NullableToOptional<T>} */ (objNoNulls)
 }
+
+/**
+ * @template {import('@mapeo/schema').MapeoDoc & { forks: string[] }} T
+ * @param {T} doc
+ * @returns {Omit<T, 'docId' | 'versionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt'>}
+ */
+export function valueOf(doc) {
+  // eslint-disable-next-line no-unused-vars
+  const { docId, versionId, links, forks, createdAt, updatedAt, ...rest } = doc
+  return rest
+}

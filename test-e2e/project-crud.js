@@ -1,9 +1,12 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
+
 import { MapeoProject } from '../src/mapeo-project.js'
 import { createBlobServer } from '../src/blob-server/index.js'
 import { createBlobStore } from '../tests/helpers/blob-store.js'
+import { valueOf } from '../src/utils.js'
+import { MapeoManager } from '../src/mapeo-manager.js'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -63,10 +66,12 @@ function getUpdateFixture(value) {
 }
 
 test('CRUD operations', async (t) => {
+  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
   for (const value of fixtures) {
     const { schemaName } = value
     t.test(`create and read ${schemaName}`, async (t) => {
-      const project = await createProject()
+      const projectId = await manager.createProject()
+      const project = await manager.getProject(projectId)
       // @ts-ignore - TS can't figure this out, but we're not testing types here so ok to ignore
       const written = await project[schemaName].create(value)
       const read = await project[schemaName].getByDocId(written.docId)
@@ -74,7 +79,8 @@ test('CRUD operations', async (t) => {
       t.alike(written, read, 'return create() matches return of getByDocId()')
     })
     t.test('update', async (t) => {
-      const project = await createProject()
+      const projectId = await manager.createProject()
+      const project = await manager.getProject(projectId)
       // @ts-ignore
       const written = await project[schemaName].create(value)
       const updateValue = getUpdateFixture(value)
@@ -98,7 +104,8 @@ test('CRUD operations', async (t) => {
       t.is(written.createdAt, updated.createdAt, 'createdAt does not change')
     })
     t.test('getMany', async (t) => {
-      const project = await createProject()
+      const projectId = await manager.createProject()
+      const project = await manager.getProject(projectId)
       const values = new Array(5).fill(null).map(() => {
         return getUpdateFixture(value)
       })
