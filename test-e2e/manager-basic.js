@@ -1,7 +1,7 @@
 import { test } from 'brittle'
+import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { MapeoManager } from '../src/mapeo-manager.js'
-import { randomBytes } from 'crypto'
 
 test('Managing multiple projects', async (t) => {
   const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
@@ -32,4 +32,26 @@ test('Managing multiple projects', async (t) => {
     allProjects.every((p) => existingProjectIds.includes(p.projectId)),
     'all created projects are listed'
   )
+})
+
+test('Manager cannot add existing project', async (t) => {
+  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
+
+  const existingProjectId = await manager.createProject()
+
+  const existingProjectsCountBefore = (await manager.listProjects()).length
+
+  t.exception(
+    manager.addProject({
+      projectKey: Buffer.from(existingProjectId, 'hex'),
+      encryptionKeys: {
+        auth: randomBytes(32),
+      },
+    }),
+    'attempting to add an existing project throws'
+  )
+
+  const existingProjectsCountAfter = (await manager.listProjects()).length
+
+  t.is(existingProjectsCountBefore, existingProjectsCountAfter)
 })
