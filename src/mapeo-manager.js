@@ -227,13 +227,13 @@ export class MapeoManager {
       throw new Error(`Project with ID ${projectId} already exists`)
     }
 
-    const existingProjectFromDb = this.#db
+    const projectExists = this.#db
       .select()
-      .from(projectTable)
-      .where(eq(projectTable.docId, projectId))
+      .from(projectKeysTable)
+      .where(eq(projectKeysTable.projectId, projectId))
       .get()
 
-    if (existingProjectFromDb) {
+    if (projectExists) {
       throw new Error(`Project with ID ${projectId} already exists`)
     }
 
