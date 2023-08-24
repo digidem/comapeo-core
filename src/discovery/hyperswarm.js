@@ -1,52 +1,42 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Hyperswarm from 'hyperswarm'
+import crypto from 'hypercore-crypto'
+import createTestnet from '@hyperswarm/testnet'
 
 export class HyperswarmDiscovery extends TypedEmitter {
   #hyperswarm
-  constructor() {
+  /** @type {Buffer} */
+  #projectDiscoveryId
+  /**
+   * @param {Buffer} projectDiscoveryId
+   */
+  constructor(projectDiscoveryId) {
     super()
+    this.#projectDiscoveryId = projectDiscoveryId
   }
-  /**
-   * @param {String} projectDiscoveryId
-   * @returns {Promise<void>}
-   */
-  async join(projectDiscoveryId) {
+  /** @returns {Promise<void>} */
+  async start() {
     if (!this.#hyperswarm) {
-      this.#hyperswarm = new Hyperswarm()
-      const topic = Buffer.alloc(32).fill(projectDiscoveryId)
-      this.#hyperswarm.join(topic, { server: false, client: true })
-      // await this.#hyperswarm.flush()
-      this.#hyperswarm.on('connection', (noiseStream, peerInfo) => {
-        this.emit('connection', noiseStream, peerInfo)
-      })
-    }
-  }
-
-  /**
-   * @param {String} projectDiscoveryId
-   * @returns {Promise<void>}
-   */
-  async listen(projectDiscoveryId) {
-    if (!this.#hyperswarm) {
-      this.#hyperswarm = new Hyperswarm()
-      const topic = Buffer.alloc(32).fill(projectDiscoveryId)
+      const testnet = await createTestnet(10)
+      this.#hyperswarm = new Hyperswarm({ dht: testnet.nodes[0] })
+      const topic = crypto.discoveryKey(this.#projectDiscoveryId)
       const swarm = this.#hyperswarm.join(topic, {
         server: true,
-        client: false,
+        client: true,
       })
-      await swarm.flushed()
       this.#hyperswarm.on('connection', (noiseStream, peerInfo) => {
         this.emit('connection', noiseStream, peerInfo)
+        noiseStream.on('error', () => {})
       })
+      await this.#hyperswarm.flush()
+      await swarm.flushed()
     }
   }
-
-  leave() {}
 
   async stop() {
     const hyperswarm = this.#hyperswarm
     this.#hyperswarm = null
-    this.removeAllListeners('connection')
+    hyperswarm.removeAllListeners('connection')
     await hyperswarm.destroy()
   }
 }

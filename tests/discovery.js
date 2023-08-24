@@ -7,29 +7,30 @@ test('discovery - dht/hyperswarm', async (t) => {
   let count = 0
   async function step() {
     count++
-    if (count === 1) {
+    if (count === 2) {
       await swarm1.stop()
       await swarm2.stop()
     }
   }
 
-  t.plan(1)
-  const topic = 'myProjectDiscoveryId'
-  const swarm1 = new HyperswarmDiscovery()
-  const swarm2 = new HyperswarmDiscovery()
+  t.plan(2)
+  const topic = Buffer.alloc(32).fill('myProjectDiscoveryId')
+  const swarm1 = new HyperswarmDiscovery(topic)
+  const swarm2 = new HyperswarmDiscovery(topic)
 
   swarm1.on('connection', (noiseStream, peerInfo) => {
-    console.log('connected to!')
+    console.log('conn1')
+    step()
   })
 
   swarm2.on('connection', (noiseStream, peerInfo) => {
-    console.log('connection from!')
+    console.log('conn2')
     t.pass()
     step()
   })
 
-  await swarm2.listen(topic)
-  await swarm1.join(topic)
+  swarm2.start()
+  swarm1.start()
 })
 
 // import { createCoreKeyPair, createIdentityKeys } from './helpers/index.js'
