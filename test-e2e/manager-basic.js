@@ -2,24 +2,28 @@ import { test } from 'brittle'
 import { KeyManager } from '@mapeo/crypto'
 import { MapeoManager } from '../src/mapeo-manager.js'
 
-test('MapeoManager.createProject works', async (t) => {
+test('Managing multiple projects', async (t) => {
   const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
 
-  const expectedSettings = {
-    name: 'foo',
-  }
-
-  const projectId = await manager.createProject(expectedSettings)
-
-  t.ok(projectId)
-
-  const project = await manager.getProject(projectId)
-
-  const settings = await project.$getProjectSettings()
+  const initialProjects = await manager.listProjects()
 
   t.is(
-    settings.name,
-    expectedSettings.name,
-    'settings for fetched project are the same as when created'
+    initialProjects.length,
+    0,
+    'no projects exist when manager is initially created'
+  )
+
+  const createdProjectIds = [
+    await manager.createProject(),
+    await manager.createProject(),
+    await manager.createProject(),
+  ]
+
+  const allProjects = await manager.listProjects()
+
+  t.is(allProjects.length, createdProjectIds.length)
+  t.ok(
+    allProjects.every((p) => createdProjectIds.includes(p.projectId)),
+    'all created projects are listed'
   )
 })

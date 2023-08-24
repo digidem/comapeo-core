@@ -9,6 +9,9 @@ import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject } from './mapeo-project.js'
 import { projectKeysTable, projectTable } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
+import { deNullify } from './utils.js'
+
+/** @typedef {import("@mapeo/schema").ProjectValue} ProjectValue */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -46,7 +49,7 @@ export class MapeoManager {
 
   /**
    * Create a new project.
-   * @param {import('type-fest').Simplify<Partial<Pick<import("@mapeo/schema").ProjectValue, 'name'>>>} [settings]
+   * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
    * @returns {Promise<string>}
    */
   async createProject(settings = {}) {
@@ -141,5 +144,21 @@ export class MapeoManager {
     })
 
     return project
+  }
+
+  /**
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt: string, updatedAt: string }>>}
+   */
+  async listProjects() {
+    return this.#db
+      .select({
+        projectId: projectTable.docId,
+        createdAt: projectTable.createdAt,
+        updatedAt: projectTable.updatedAt,
+        name: projectTable.name,
+      })
+      .from(projectTable)
+      .all()
+      .map((value) => deNullify(value))
   }
 }
