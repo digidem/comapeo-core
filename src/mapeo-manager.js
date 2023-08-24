@@ -137,11 +137,27 @@ export class MapeoManager {
    * @returns {Promise<MapeoProject>}
    */
   async getProject(projectId) {
-    const existing = this.#activeProjects.get(projectId)
+    // 1. Check for existing active project
+    const activeProject = this.#activeProjects.get(projectId)
 
-    if (existing) return existing
+    if (activeProject) return activeProject
 
-    const result = this.#db
+    // 2. Check that project exists in the project table
+    // Means that we have proper access to the project (e.g. created ourselves, or added then synced)
+    const projectTableResult = this.#db
+      .select({
+        projectId: projectTable.docId,
+      })
+      .from(projectTable)
+      .where(eq(projectTable.docId, projectId))
+      .get()
+
+    if (!projectTableResult) {
+      throw new Error(`NotFound: project ID ${projectId} not found`)
+    }
+
+    // 3. Create project instance
+    const projectKeysTableResult = this.#db
       .select({
         keysCipher: projectKeysTable.keysCipher,
       })
@@ -149,12 +165,12 @@ export class MapeoManager {
       .where(eq(projectKeysTable.projectId, projectId))
       .get()
 
-    if (!result) {
+    if (!projectKeysTableResult) {
       throw new Error(`NotFound: project ID ${projectId} not found`)
     }
 
     const projectKeys = this.#decodeProjectKeysCipher(
-      result.keysCipher,
+      projectKeysTableResult.keysCipher,
       projectId
     )
 
@@ -166,6 +182,9 @@ export class MapeoManager {
       sharedIndexWriter: this.#projectSettingsIndexWriter,
     })
 
+    // 4. Keep track of project instance as we know it's a properly existing project
+    this.#activeProjects.set(projectId, project)
+
     return project
   }
 
@@ -173,6 +192,9 @@ export class MapeoManager {
    * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt: string, updatedAt: string }>>}
    */
   async listProjects() {
+    // We use the project keys table as the source of truth for projects that exist
+    // because we will always update this table when doing a create or add
+    // whereas the project table will only have projects that have been created, or added + synced
     const allProjectKeysResult = this.#db.select().from(projectKeysTable).all()
 
     const allProjectsResult = this.#db
@@ -193,6 +215,8 @@ export class MapeoManager {
         (p) => p.projectId === projectId
       )
 
+      // If the project doesn't exist in the project table, we don't include it in the return result
+      // since it's not considered to be "synced"
       if (!existingProject) continue
 
       const nameFromProjectKeys =
@@ -221,12 +245,15 @@ export class MapeoManager {
   async addProject({ projectKey, encryptionKeys, projectInfo }) {
     const projectId = projectKey.toString('hex')
 
+    // 1. Check for an active project
     const activeProject = this.#activeProjects.get(projectId)
 
     if (activeProject) {
       throw new Error(`Project with ID ${projectId} already exists`)
     }
 
+    // 2. Check if the project exists in the project keys table
+    // If it does, that means the project has already been either created or added before
     const projectExists = this.#db
       .select()
       .from(projectKeysTable)
@@ -237,6 +264,8 @@ export class MapeoManager {
       throw new Error(`Project with ID ${projectId} already exists`)
     }
 
+    // 3. Update the project keys table
+    // This ensures that the project has at least been added (not necessarily synced and usable)
     this.#saveToProjectKeysTable({
       projectId,
       projectKeys: {
@@ -249,19 +278,6 @@ export class MapeoManager {
         addedAt: new Date().toISOString(),
       },
     })
-
-    const project = new MapeoProject({
-      projectKey,
-      encryptionKeys,
-      storagePath: this.#storagePath,
-      keyManager: this.#keyManager,
-      sharedDb: this.#db,
-      sharedIndexWriter: this.#projectSettingsIndexWriter,
-    })
-
-    // TODO: Close the project instance instead of keeping it around
-    // https://github.com/digidem/mapeo-core-next/issues/207
-    this.#activeProjects.set(projectId, project)
 
     return projectId
   }
