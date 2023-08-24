@@ -16,6 +16,7 @@ test('Managing multiple projects', async (t) => {
 
   const createdProjectId = await manager.createProject()
 
+  // eslint-disable-next-line no-unused-vars
   const addedProjectId = await manager.addProject({
     projectKey: KeyManager.generateProjectKeypair().publicKey,
     encryptionKeys: {
@@ -23,18 +24,18 @@ test('Managing multiple projects', async (t) => {
     },
   })
 
-  const existingProjectIds = [createdProjectId, addedProjectId]
+  const listedProjects = await manager.listProjects()
 
-  const allProjects = await manager.listProjects()
+  t.is(listedProjects.length, 1)
 
-  t.is(allProjects.length, existingProjectIds.length)
-  t.ok(
-    allProjects.every((p) => existingProjectIds.includes(p.projectId)),
-    'all created projects are listed'
+  t.is(
+    listedProjects[0].projectId,
+    createdProjectId,
+    'only created projects are listed'
   )
 })
 
-test('Manager cannot add existing project', async (t) => {
+test('Manager cannot add project that already exists', async (t) => {
   const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
 
   const existingProjectId = await manager.createProject()
@@ -48,7 +49,7 @@ test('Manager cannot add existing project', async (t) => {
         auth: randomBytes(32),
       },
     }),
-    'attempting to add an existing project throws'
+    'attempting to add project that already exists throws'
   )
 
   const existingProjectsCountAfter = (await manager.listProjects()).length
