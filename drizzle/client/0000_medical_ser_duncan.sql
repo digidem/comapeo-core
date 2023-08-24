@@ -14,7 +14,7 @@ CREATE TABLE `project` (
 	`createdAt` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
-	`name` text NOT NULL,
-	`defaultPresets` text NOT NULL,
+	`name` text,
+	`defaultPresets` text,
 	`forks` text NOT NULL
 );
