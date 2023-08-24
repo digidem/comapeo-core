@@ -104,7 +104,7 @@ export class MapeoProject {
         namespace: 'config',
         batch: (entries) =>
           this.#handleConfigEntries(entries, {
-            datastoreIndexWriter: indexWriter,
+            projectIndexWriter: indexWriter,
             sharedIndexWriter,
           }),
         storage: indexerStorage,
@@ -146,7 +146,7 @@ export class MapeoProject {
    */
   async #handleConfigEntries(
     entries,
-    { datastoreIndexWriter, sharedIndexWriter }
+    { projectIndexWriter, sharedIndexWriter }
   ) {
     /** @type {import('multi-core-indexer').Entry[]} */
     const projectSettingsEntries = []
@@ -168,7 +168,7 @@ export class MapeoProject {
     }
 
     await Promise.all([
-      datastoreIndexWriter.batch(otherEntries),
+      projectIndexWriter.batch(otherEntries),
       sharedIndexWriter.batch(projectSettingsEntries),
     ])
   }
