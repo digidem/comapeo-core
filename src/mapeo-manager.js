@@ -186,7 +186,7 @@ export class MapeoManager {
    * @param {import('./generated/rpc.js').Invite} invite
    * @returns {Promise<string>}
    */
-  async addProject({ projectKey, encryptionKeys }) {
+  async addProject({ projectKey, encryptionKeys, projectInfo }) {
     const projectId = projectKey.toString('hex')
 
     const activeProject = this.#activeProjects.get(projectId)
@@ -220,7 +220,7 @@ export class MapeoManager {
       sharedIndexWriter: this.#projectSettingsIndexWriter,
     })
 
-    // TODO: Use invite.projectInfo to update project settings?
+    await project.$setProjectSettings({ name: projectInfo?.name })
 
     this.#activeProjects.set(projectId, project)
 
