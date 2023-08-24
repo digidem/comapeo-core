@@ -142,7 +142,7 @@ export class MapeoProject {
 
   /**
    * @param {import('multi-core-indexer').Entry[]} entries
-   * @param {{datastoreIndexWriter: IndexWriter, sharedIndexWriter: IndexWriter}} indexWriters
+   * @param {{projectIndexWriter: IndexWriter, sharedIndexWriter: IndexWriter}} indexWriters
    */
   async #handleConfigEntries(
     entries,
