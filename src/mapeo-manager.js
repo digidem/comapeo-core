@@ -162,53 +162,20 @@ export class MapeoManager {
    * @returns {Promise<Array<ProjectInfo & Pick<ProjectValue, 'name'>>>}
    */
   async listProjects() {
-    const allProjectsResult = this.#db
+    return this.#db
       .select({
-        projectId: projectKeysTable.projectId,
-        keysCipher: projectKeysTable.keysCipher,
+        docId: projectTable.docId,
+        createdAt: projectTable.createdAt,
+        updatedAt: projectTable.updatedAt,
+        name: projectTable.name,
       })
-      .from(projectKeysTable)
+      .from(projectTable)
       .all()
-
-    if (allProjectsResult.length === 0) {
-      return []
-    }
-
-    /** @type {Array<Promise<ProjectInfo & Pick<ProjectValue, 'name'>>>} */
-    const resultPromises = []
-
-    for (const { projectId, keysCipher } of allProjectsResult) {
-      let project = this.#activeProjects.get(projectId)
-
-      if (!project) {
-        const projectKeys = this.#decodeProjectKeysCipher(keysCipher, projectId)
-
-        project = new MapeoProject({
-          ...projectKeys,
-          storagePath: this.#storagePath,
-          keyManager: this.#keyManager,
-          sharedDb: this.#db,
-          sharedIndexWriter: this.#projectSettingsIndexWriter,
-        })
-
-        this.#activeProjects.set(projectId, project)
-      }
-
-      const info = await project.$getProjectInfo()
-      const settings = await project.$getProjectSettings()
-
-      resultPromises.push(
-        Promise.resolve({
-          ...info,
-          name: settings.name,
-        })
-      )
-
-      // TODO: Close project instance
-      // https://github.com/digidem/mapeo-core-next/issues/207
-    }
-
-    // TODO: Is it safe to do Promise.all here?
-    return Promise.all(resultPromises)
+      .map(({ createdAt, updatedAt, name, docId }) => ({
+        projectId: docId,
+        createdAt: new Date(createdAt),
+        updatedAt: new Date(updatedAt),
+        name: name === null ? undefined : name,
+      }))
   }
 }
