@@ -1,5 +1,6 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
+import { KeyManager } from '@mapeo/crypto'
 import { valueOf } from '../src/utils.js'
 import { MapeoManager } from '../src/mapeo-manager.js'
 
@@ -61,7 +62,7 @@ function getUpdateFixture(value) {
 }
 
 test('CRUD operations', async (t) => {
-  const manager = new MapeoManager()
+  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
   for (const value of fixtures) {
     const { schemaName } = value
     t.test(`create and read ${schemaName}`, async (t) => {

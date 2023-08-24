@@ -1,8 +1,9 @@
 import { test } from 'brittle'
+import { KeyManager } from '@mapeo/crypto'
 import { MapeoManager } from '../src/mapeo-manager.js'
 
 test('MapeoManager.createProject works', async (t) => {
-  const manager = new MapeoManager()
+  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
 
   const expectedSettings = {
     name: 'foo',

@@ -21,10 +21,11 @@ export class MapeoManager {
   #activeProjects
 
   /**
-   * @param {Object} [opts]
+   * @param {Object} opts
+   * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
    * @param {string} [opts.storagePath] Folder for all data storage (hypercores and sqlite db). Folder must exist. If not defined, everything is stored in-memory
    */
-  constructor({ storagePath } = {}) {
+  constructor({ rootKey, storagePath }) {
     const dbPath =
       storagePath !== undefined
         ? path.join(storagePath, CLIENT_SQLITE_FILE_NAME)
@@ -34,7 +35,7 @@ export class MapeoManager {
     this.#db = drizzle(sqlite)
     migrate(this.#db, { migrationsFolder: './drizzle/client' })
 
-    this.#keyManager = new KeyManager(KeyManager.generateRootKey())
+    this.#keyManager = new KeyManager(rootKey)
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectTable],
       sqlite,

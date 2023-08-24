@@ -1,10 +1,11 @@
 import { test } from 'brittle'
+import { KeyManager } from '@mapeo/crypto'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { MapeoProject } from '../src/mapeo-project.js'
 import { removeUndefinedFields } from './utils.js'
 
 test('Project settings create, read, and update operations', async (t) => {
-  const manager = new MapeoManager()
+  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
 
   const projectId = await manager.createProject()
 
