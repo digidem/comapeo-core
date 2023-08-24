@@ -126,9 +126,7 @@ export class MapeoManager {
       .get()
 
     if (!result) {
-      throw new Error(
-        `Could not find keys cipher for project with ID ${projectId}`
-      )
+      throw new Error(`NotFound: project ID ${projectId} not found`)
     }
 
     const projectKeys = ProjectKeys.decode(
