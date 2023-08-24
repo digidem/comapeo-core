@@ -48,17 +48,6 @@ export class MapeoManager {
   }
 
   /**
-   * @param {Buffer} keysCipher
-   * @param {string} projectId
-   * @returns {ProjectKeys}
-   */
-  #decodeProjectKeysCipher(keysCipher, projectId) {
-    return ProjectKeys.decode(
-      this.#keyManager.decryptLocalMessage(keysCipher, projectId)
-    )
-  }
-
-  /**
    * Create a new project.
    * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
    * @returns {Promise<string>}
@@ -142,9 +131,8 @@ export class MapeoManager {
       throw new Error(`NotFound: project ID ${projectId} not found`)
     }
 
-    const projectKeys = this.#decodeProjectKeysCipher(
-      result.keysCipher,
-      projectId
+    const projectKeys = ProjectKeys.decode(
+      this.#keyManager.decryptLocalMessage(result.keysCipher, projectId)
     )
 
     const project = new MapeoProject({
