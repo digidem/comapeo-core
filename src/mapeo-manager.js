@@ -183,40 +183,34 @@ export class MapeoManager {
   }
 
   /**
-   * @param {string} projectId
-   * @returns {Promise<MapeoProject>}
+   * @param {import('./generated/rpc.js').Invite} invite
+   * @returns {Promise<string>}
    */
-  async addProject(projectId) {
+  async addProject({ projectKey, encryptionKeys }) {
+    const projectId = projectKey.toString('hex')
+
     const activeProject = this.#activeProjects.get(projectId)
 
-    if (activeProject) return activeProject
+    if (activeProject) {
+      throw new Error(`Project with ID ${projectId} already exists`)
+    }
 
-    const existingKeysResult = this.#db
-      .select({
-        keysCipher: projectKeysTable.keysCipher,
-      })
-      .from(projectKeysTable)
-      .where(eq(projectKeysTable.projectId, projectId))
+    const existingProjectFromDb = this.#db
+      .select()
+      .from(projectTable)
+      .where(eq(projectTable.docId, projectId))
       .get()
 
-    /** @type {ProjectKeys} */
-    let projectKeys
-
-    if (existingKeysResult) {
-      projectKeys = this.#decodeProjectKeysCipher(
-        existingKeysResult.keysCipher,
-        projectId
-      )
-    } else {
-      projectKeys = {
-        projectKey: Buffer.from(projectId, 'hex'),
-        encryptionKeys: {
-          // TODO: How do we get the auth key in this case?
-          auth: randomBytes(32),
-        },
-      }
-      this.#saveProjectKeys(projectId, projectKeys)
+    if (existingProjectFromDb) {
+      throw new Error(`Project with ID ${projectId} already exists`)
     }
+
+    const projectKeys = {
+      projectKey: Buffer.from(projectId, 'hex'),
+      encryptionKeys,
+    }
+
+    this.#saveProjectKeys(projectId, projectKeys)
 
     const project = new MapeoProject({
       ...projectKeys,
@@ -226,8 +220,10 @@ export class MapeoManager {
       sharedIndexWriter: this.#projectSettingsIndexWriter,
     })
 
+    // TODO: Use invite.projectInfo to update project settings?
+
     this.#activeProjects.set(projectId, project)
 
-    return project
+    return projectId
   }
 }
