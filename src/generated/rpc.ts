@@ -14,7 +14,7 @@ export interface Invite_ProjectInfo {
 }
 
 export interface InviteResponse {
-  projectKey: Buffer;
+  projectKey: Buffer | Uint8Array;
   decision: InviteResponse_Decision;
 }
 
