@@ -39,7 +39,7 @@ export function inviteResponse_DecisionToNumber(object) {
     }
 }
 function createBaseInvite() {
-    return { projectKey: Buffer.alloc(0) };
+    return { projectKey: Buffer.alloc(0), encryptionKeys: undefined };
 }
 export var Invite = {
     encode: function (message, writer) {

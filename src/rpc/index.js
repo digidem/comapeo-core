@@ -26,6 +26,7 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 /** @typedef {Peer['info']} PeerInfoInternal */
 /** @typedef {Omit<PeerInfoInternal, 'status'> & { status: Exclude<PeerInfoInternal['status'], 'connecting'> }} PeerInfo */
 /** @typedef {'connecting' | 'connected' | 'disconnected'} PeerState */
+/** @typedef {import('type-fest').SetNonNullable<import('../generated/rpc.js').Invite, 'encryptionKeys'>} Invite */
 
 /**
  * @template ValueType

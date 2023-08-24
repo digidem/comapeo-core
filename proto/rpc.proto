@@ -8,7 +8,7 @@ message Invite {
     optional string name = 1;
   }
   bytes projectKey = 1;
-  optional EncryptionKeys encryptionKeys = 2;
+  EncryptionKeys encryptionKeys = 2;
   optional ProjectInfo projectInfo = 3;
 }
 message InviteResponse {
