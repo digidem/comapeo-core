@@ -80,14 +80,23 @@ test('Types match', { skip: true }, (t) => {
 
   const { observationTable, presetTable, fieldTable } = projectTableSchemas
 
+  const oResult = db.select().from(observationTable).get()
+  const pResult = db.select().from(presetTable).get()
+  const fResult = db.select().from(fieldTable).get()
+
+  if (!(oResult && pResult && fResult)) {
+    t.fail()
+    return
+  }
+
   /** @type {MapeoType<'observation'>} */
-  const o = deNullify(db.select().from(observationTable).get())
+  const o = deNullify(oResult)
 
   /** @type {MapeoType<'preset'>} */
-  const p = deNullify(db.select().from(presetTable).get())
+  const p = deNullify(pResult)
 
   /** @type {MapeoType<'field'>} */
-  const f = deNullify(db.select().from(fieldTable).get())
+  const f = deNullify(fResult)
 
   t.pass()
 })

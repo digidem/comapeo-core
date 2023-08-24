@@ -121,7 +121,8 @@ export class DataType {
    * @param {string} docId
    */
   async getByDocId(docId) {
-    return deNullify(this.#sql.getByDocId.get({ docId }))
+    const result = this.#sql.getByDocId.get({ docId })
+    return result ? deNullify(result) : result
   }
 
   /** @param {string} versionId */
