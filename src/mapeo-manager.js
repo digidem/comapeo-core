@@ -205,15 +205,14 @@ export class MapeoManager {
       throw new Error(`Project with ID ${projectId} already exists`)
     }
 
-    const projectKeys = {
-      projectKey: Buffer.from(projectId, 'hex'),
+    this.#saveProjectKeys(projectId, {
+      projectKey,
       encryptionKeys,
-    }
-
-    this.#saveProjectKeys(projectId, projectKeys)
+    })
 
     const project = new MapeoProject({
-      ...projectKeys,
+      projectKey,
+      encryptionKeys,
       storagePath: this.#storagePath,
       keyManager: this.#keyManager,
       sharedDb: this.#db,
