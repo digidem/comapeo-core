@@ -66,6 +66,10 @@ export class BlobStore {
       throw new Error('Could not find a writer for the blobIndex namespace')
   }
 
+  get writerDriveId() {
+    return this.#writer.key.toString('hex')
+  }
+
   /**
    * @param {string} driveId
    */

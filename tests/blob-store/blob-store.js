@@ -150,6 +150,37 @@ test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)
   t.alike(bndlbuf, diskbuf, 'should be equal')
 })
 
+test('blobStore.writerDriveId', async (t) => {
+  {
+    const { blobStore } = await testenv()
+    const blobId = /** @type {const} */ ({
+      type: 'photo',
+      variant: 'original',
+      name: 'test-file',
+    })
+    const ws = blobStore.createWriteStream(blobId)
+    t.is(
+      ws.driveId,
+      blobStore.writerDriveId,
+      'writerDriveId is same as driveId used for createWriteStream'
+    )
+  }
+  {
+    const { blobStore } = await testenv()
+    const blobId = /** @type {const} */ ({
+      type: 'photo',
+      variant: 'original',
+      name: 'test-file',
+    })
+    const driveId = await blobStore.put(blobId, Buffer.from('hello'))
+    t.is(
+      driveId,
+      blobStore.writerDriveId,
+      'writerDriveId is same as driveId returned by put()'
+    )
+  }
+})
+
 // Tests:
 // A) Downloads from peers connected when download() is first called
 // B) Downloads from peers connected after download() is first called
