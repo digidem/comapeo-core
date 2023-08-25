@@ -7,6 +7,7 @@ import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
+import { createBlobServer } from './blob-server/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectTable } from './schema/client.js'
@@ -36,12 +37,10 @@ export class MapeoProject {
   #dataTypes
   #blobStore
   #blobServer
-  #projectId
 
   /**
    * @param {Object} opts
    * @param {string} [opts.storagePath] Folder for all data storage (hypercores and sqlite db). Folder must exist. If not defined, everything is stored in-memory
-   * @param {import('fastify').FastifyInstance} opts.blobServer
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
@@ -53,7 +52,6 @@ export class MapeoProject {
     storagePath,
     sharedDb,
     sharedIndexWriter,
-    blobServer,
     ...coreManagerOpts
   }) {
     // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
@@ -150,7 +148,12 @@ export class MapeoProject {
       coreManager: this.#coreManager,
     })
 
-    this.#blobServer = blobServer
+    this.#blobServer = createBlobServer({
+      logger: true,
+      blobStore: this.#blobStore,
+      prefix: '/blobs/',
+      projectId: this.#projectId,
+    })
 
     // @ts-ignore TODO: pass in blobServer
     this.$blobs = new BlobApi({

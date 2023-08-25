@@ -1,10 +1,6 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
-
-import { MapeoProject } from '../src/mapeo-project.js'
-import { createBlobServer } from '../src/blob-server/index.js'
-import { createBlobStore } from '../tests/helpers/blob-store.js'
 import { valueOf } from '../src/utils.js'
 import { MapeoManager } from '../src/mapeo-manager.js'
 
@@ -123,37 +119,6 @@ test('CRUD operations', async (t) => {
     })
   }
 })
-
-/**
- * @template {import('@mapeo/schema').MapeoDoc & { forks: string[] }} T
- * @param {T} doc
- * @returns {Omit<T, 'docId' | 'versionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt'>}
- */
-function valueOf(doc) {
-  // eslint-disable-next-line no-unused-vars
-  const { docId, versionId, links, forks, createdAt, updatedAt, ...rest } = doc
-  return rest
-}
-
-function createProject({
-  rootKey = randomBytes(16),
-  projectKey = randomBytes(32),
-} = {}) {
-  const keyManager = new KeyManager(rootKey)
-  const { blobStore } = createBlobStore()
-  const blobServer = createBlobServer({
-    blobStore,
-    logger: true,
-    prefix: '/',
-    projectId: projectKey.toString('hex'),
-  })
-
-  return new MapeoProject({
-    keyManager,
-    projectKey,
-    blobServer,
-  })
-}
 
 /**
  * Remove undefined properties from an object, to allow deep comparison
