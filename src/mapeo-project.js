@@ -5,25 +5,36 @@ import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
-import { CoreManager } from './core-manager/index.js'
+import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectTable } from './schema/client.js'
-import { fieldTable, observationTable, presetTable } from './schema/project.js'
-import { getWinner, mapAndValidateCoreOwnership } from './core-ownership.js'
+import {
+  coreOwnershipTable,
+  fieldTable,
+  observationTable,
+  presetTable,
+} from './schema/project.js'
+import {
+  CoreOwnership,
+  getWinner,
+  mapAndValidateCoreOwnership,
+} from './core-ownership.js'
 import { valueOf } from './utils.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
+export const kCoreOwnership = Symbol('coreOwnership')
 
 export class MapeoProject {
   #coreManager
   #dataStores
   #dataTypes
   #projectId
+  #coreOwnership
 
   /**
    * @param {Object} opts
@@ -42,10 +53,13 @@ export class MapeoProject {
     sharedDb,
     sharedIndexWriter,
     coreStorage,
-    ...coreManagerOpts
+    keyManager,
+    projectKey,
+    projectSecretKey,
+    encryptionKeys,
   }) {
     // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
-    this.#projectId = coreManagerOpts.projectKey.toString('hex')
+    this.#projectId = projectKey.toString('hex')
 
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
@@ -65,12 +79,15 @@ export class MapeoProject {
     ///////// 3. Create instances
 
     this.#coreManager = new CoreManager({
-      ...coreManagerOpts,
+      projectSecretKey,
+      encryptionKeys,
+      projectKey,
+      keyManager,
       storage: coreManagerStorage,
       sqlite,
     })
     const indexWriter = new IndexWriter({
-      tables: [observationTable, presetTable, fieldTable],
+      tables: [observationTable, presetTable, fieldTable, coreOwnershipTable],
       sqlite,
       getWinner,
       mapDoc: (doc, version) => {
@@ -82,6 +99,12 @@ export class MapeoProject {
       },
     })
     this.#dataStores = {
+      auth: new DataStore({
+        coreManager: this.#coreManager,
+        namespace: 'auth',
+        batch: (entries) => indexWriter.batch(entries),
+        storage: indexerStorage,
+      }),
       config: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'config',
@@ -120,7 +143,49 @@ export class MapeoProject {
         table: projectTable,
         db: sharedDb,
       }),
+      coreOwnership: new DataType({
+        dataStore: this.#dataStores.auth,
+        table: coreOwnershipTable,
+        db,
+      }),
     }
+    this.#coreOwnership = new CoreOwnership({
+      dataType: this.#dataTypes.coreOwnership,
+    })
+
+    ///////// 4. Write core ownership record
+
+    const authCore = this.#coreManager.getWriterCore('auth').core
+    authCore.on('ready', () => {
+      if (authCore.length > 0) return
+      const identityKeypair = keyManager.getIdentityKeypair()
+      const coreKeypairs =
+        /** @type {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>} */ (
+          Object.fromEntries(
+            NAMESPACES.map((namespace) => [
+              namespace,
+              namespace === 'auth' && projectSecretKey
+                ? { publicKey: projectKey, secretKey: projectSecretKey }
+                : keyManager.getHypercoreKeypair(namespace, projectKey),
+            ])
+          )
+        )
+      this.#coreOwnership.writeOwnership(identityKeypair, coreKeypairs)
+    })
+  }
+
+  /**
+   * CoreOwnership instance, used for tests
+   */
+  get [kCoreOwnership]() {
+    return this.#coreOwnership
+  }
+
+  /**
+   * Resolves when hypercores have all loaded
+   */
+  async ready() {
+    await this.#coreManager.ready()
   }
 
   /**

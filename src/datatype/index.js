@@ -186,7 +186,7 @@ export class DataType {
   /**
    * @param {Parameters<import('drizzle-orm/better-sqlite3').BetterSQLite3Database['select']>[0]} fields
    */
-  async [kSelect](fields) {
+  [kSelect](fields) {
     return this.#db.select(fields).from(this.#table)
   }
 
