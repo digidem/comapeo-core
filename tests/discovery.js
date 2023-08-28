@@ -10,31 +10,6 @@ import { MdnsDiscovery } from '../src/discovery/mdns.js'
 import { randomBytes } from 'node:crypto'
 import { KeyManager } from '@mapeo/crypto'
 
-test(`mdns - discovery of multiple peers`, async (t) => {
-  const nPeers = 10
-  let n = 0
-  const discoveries = []
-  t.plan(1)
-  const step = async () => {
-    n++
-    if (n === nPeers) {
-      for (let i = 0; i < nPeers; i++) {
-        await discoveries[i].stop()
-      }
-      await t.pass()
-    }
-  }
-  for (let i = 0; i < nPeers; i++) {
-    const identityKeyPair = new KeyManager(randomBytes(16)).getIdentityKeypair()
-    const mdnsDiscovery = new MdnsDiscovery({ identityKeyPair })
-    discoveries.push(mdnsDiscovery)
-    mdnsDiscovery.on('connection', async (stream) => {
-      await step()
-    })
-    mdnsDiscovery.start()
-  }
-})
-
 test('mdns - discovery', async (t) => {
   t.plan(2)
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
@@ -156,6 +131,31 @@ test('mdns - discovery and hypercore replication', async (t) => {
       mdnsDiscovery2.stop()
       t.pass()
     }
+  }
+})
+
+test(`mdns - discovery of multiple peers`, async (t) => {
+  const nPeers = 20
+  let n = 0
+  const discoveries = []
+  t.plan(1)
+  const step = async () => {
+    n++
+    if (n === nPeers) {
+      for (let i = 0; i < nPeers; i++) {
+        await discoveries[i].stop()
+      }
+      await t.pass()
+    }
+  }
+  for (let i = 0; i < nPeers; i++) {
+    const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
+    const mdnsDiscovery = new MdnsDiscovery({ identityKeypair })
+    discoveries.push(mdnsDiscovery)
+    mdnsDiscovery.on('connection', async (stream) => {
+      await step()
+    })
+    mdnsDiscovery.start()
   }
 })
 

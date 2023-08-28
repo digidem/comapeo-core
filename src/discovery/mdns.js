@@ -51,6 +51,7 @@ export class MdnsDiscovery extends TypedEmitter {
     await once(this.#server, 'listening')
 
     this.#server.on('error', () => {})
+    this.#server.on('close', () => {})
 
     const addr = /** @type {net.AddressInfo} */ (this.#server.address())
     if (!isAddressInfo(addr))
@@ -140,8 +141,6 @@ export class MdnsDiscovery extends TypedEmitter {
 
       secretStream.on('close', () => close())
       secretStream.on('error', () => close())
-      // this.#server.on('error', () => close())
-      this.#server.on('close', () => close())
 
       const existing = this.#noiseConnections.get(remoteId)
 
