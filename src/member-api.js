@@ -1,5 +1,4 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
-import { MapeoRPC } from './rpc/index.js'
 
 export class MemberApi extends TypedEmitter {
   #encryptionKeys
@@ -12,7 +11,7 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {() => Promise<import('./generated/rpc.js').Invite_ProjectInfo>} opts.getProjectInfo
    * @param {Buffer} opts.projectKey
-   * @param {MapeoRPC} opts.rpc
+   * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
    */
   constructor({ encryptionKeys, getProjectInfo, projectKey, rpc }) {
     super()
@@ -31,7 +30,7 @@ export class MemberApi extends TypedEmitter {
    *
    * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
    */
-  async invite(deviceId, { role, timeout }) {
+  async invite(deviceId, { timeout }) {
     const projectInfo = await this.#getProjectInfo()
 
     return this.#rpc.invite(deviceId, {
