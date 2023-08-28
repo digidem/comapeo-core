@@ -10,6 +10,31 @@ import { MdnsDiscovery } from '../src/discovery/mdns.js'
 import { randomBytes } from 'node:crypto'
 import { KeyManager } from '@mapeo/crypto'
 
+test(`mdns - discovery of multiple peers`, async (t) => {
+  const nPeers = 10
+  let n = 0
+  const discoveries = []
+  t.plan(1)
+  const step = async () => {
+    n++
+    if (n === nPeers) {
+      for (let i = 0; i < nPeers; i++) {
+        await discoveries[i].stop()
+      }
+      await t.pass()
+    }
+  }
+  for (let i = 0; i < nPeers; i++) {
+    const identityKeyPair = new KeyManager(randomBytes(16)).getIdentityKeypair()
+    const mdnsDiscovery = new MdnsDiscovery({ identityKeyPair })
+    discoveries.push(mdnsDiscovery)
+    mdnsDiscovery.on('connection', async (stream) => {
+      await step()
+    })
+    mdnsDiscovery.start()
+  }
+})
+
 test('mdns - discovery', async (t) => {
   t.plan(2)
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
@@ -49,7 +74,7 @@ test('mdns - discovery', async (t) => {
   mdnsDiscovery2.start()
 })
 
-test(' mdns - discovery and sharing of data', async (t) => {
+test('mdns - discovery and sharing of data', async (t) => {
   t.plan(1)
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
@@ -86,7 +111,7 @@ test(' mdns - discovery and sharing of data', async (t) => {
   }
 })
 
-test(' mdns - discovery and hypercore replication', async (t) => {
+test('mdns - discovery and hypercore replication', async (t) => {
   t.plan(1)
   const str = 'hi'
 
@@ -109,12 +134,15 @@ test(' mdns - discovery and hypercore replication', async (t) => {
 
   mdnsDiscovery1.on('connection', async (stream) => {
     stream.pipe(core1.replicate(false)).pipe(stream)
+    await step()
   })
 
   mdnsDiscovery2.on('connection', async (stream) => {
     stream.pipe(core2.replicate(true)).pipe(stream)
     // I don't know why core1 is not being replicated to core2...
-    t.fail()
+    // t.fail()
+
+    await step()
   })
 
   mdnsDiscovery1.start()
@@ -126,6 +154,7 @@ test(' mdns - discovery and hypercore replication', async (t) => {
     if (count === 2) {
       mdnsDiscovery1.stop()
       mdnsDiscovery2.stop()
+      t.pass()
     }
   }
 })
