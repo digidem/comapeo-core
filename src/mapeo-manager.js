@@ -62,7 +62,7 @@ export class MapeoManager {
    * @param {Object} opts
    * @param {string} opts.projectId
    * @param {ProjectKeys} opts.projectKeys
-   * @param {{ name?: string, addedAt: string }} [opts.projectInfo]
+   * @param {import('./generated/rpc.js').Invite_ProjectInfo} [opts.projectInfo]
    */
   #saveToProjectKeysTable({ projectId, projectKeys, projectInfo }) {
     this.#db
@@ -272,11 +272,7 @@ export class MapeoManager {
         projectKey,
         encryptionKeys,
       },
-      projectInfo: {
-        ...projectInfo,
-        // TODO: Should this come from the invite or be generated here?
-        addedAt: new Date().toISOString(),
-      },
+      projectInfo,
     })
 
     return projectId
