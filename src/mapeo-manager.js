@@ -258,7 +258,6 @@ export class MapeoManager {
     // 3. Sync auth + config cores
 
     // 4. Update the project keys table
-    // This ensures that the project has at least been added (not necessarily synced and usable)
     this.#saveToProjectKeysTable({
       projectId,
       projectKeys: {
