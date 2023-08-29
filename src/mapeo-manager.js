@@ -175,13 +175,19 @@ export class MapeoManager {
   }
 
   /**
-   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt: string, updatedAt: string }>>}
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string }>>}
    */
   async listProjects() {
     // We use the project keys table as the source of truth for projects that exist
     // because we will always update this table when doing a create or add
     // whereas the project table will only have projects that have been created, or added + synced
-    const allProjectKeysResult = this.#db.select().from(projectKeysTable).all()
+    const allProjectKeysResult = this.#db
+      .select({
+        projectId: projectKeysTable.projectId,
+        projectInfo: projectKeysTable.projectInfo,
+      })
+      .from(projectKeysTable)
+      .all()
 
     const allProjectsResult = this.#db
       .select({
@@ -193,17 +199,13 @@ export class MapeoManager {
       .from(projectTable)
       .all()
 
-    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt: string, updatedAt: string }>} */
+    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string }>} */
     const result = []
 
     for (const { projectId, projectInfo } of allProjectKeysResult) {
       const existingProject = allProjectsResult.find(
         (p) => p.projectId === projectId
       )
-
-      // If the project doesn't exist in the project table, we don't include it in the return result
-      // since it's not considered to be "synced"
-      if (!existingProject) continue
 
       const nameFromProjectKeys =
         projectInfo &&
@@ -215,7 +217,9 @@ export class MapeoManager {
 
       result.push(
         deNullify({
-          ...existingProject,
+          projectId,
+          createdAt: existingProject?.createdAt,
+          updatedAt: existingProject?.updatedAt,
           name: existingProject?.name || nameFromProjectKeys,
         })
       )

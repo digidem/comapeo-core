@@ -16,23 +16,22 @@ test('Managing multiple projects', async (t) => {
 
   const createdProjectId = await manager.createProject()
 
-  // eslint-disable-next-line no-unused-vars
   const addedProjectId = await manager.addProject({
     projectKey: KeyManager.generateProjectKeypair().publicKey,
-    encryptionKeys: {
-      auth: randomBytes(32),
-    },
+    encryptionKeys: { auth: randomBytes(32) },
   })
 
   const listedProjects = await manager.listProjects()
 
-  t.is(listedProjects.length, 1)
+  t.is(listedProjects.length, 2)
 
   t.is(
     listedProjects[0].projectId,
     createdProjectId,
-    'only created projects are listed'
+    'created projects are listed'
   )
+
+  t.is(listedProjects[1].projectId, addedProjectId, 'added projects are listed')
 })
 
 test('Manager cannot add project that already exists', async (t) => {
