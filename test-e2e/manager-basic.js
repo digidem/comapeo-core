@@ -28,15 +28,17 @@ test('Managing multiple projects', async (t) => {
 
   t.is(listedProjects.length, 2)
 
-  t.is(
-    listedProjects[0].projectId,
-    createdProjectId,
-    'created projects are listed'
+  const createdProject = listedProjects.find(
+    ({ projectId }) => projectId === createdProjectId
   )
-  t.is(listedProjects[0].name, 'created project')
+  t.ok(createdProject, 'created project is listed')
+  t.is(createdProject?.name, 'created project')
 
-  t.is(listedProjects[1].projectId, addedProjectId, 'added projects are listed')
-  t.is(listedProjects[1].name, 'added project')
+  const addedProject = listedProjects.find(
+    ({ projectId }) => projectId === addedProjectId
+  )
+  t.ok(addedProject, 'added project is listed')
+  t.is(addedProject?.name, 'added project')
 })
 
 test('Manager cannot add project that already exists', async (t) => {
