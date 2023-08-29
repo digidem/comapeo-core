@@ -5,36 +5,46 @@ import Database from 'better-sqlite3'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import RAM from 'random-access-memory'
+import RandomAccessFile from 'random-access-file'
 import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject } from './mapeo-project.js'
 import { projectKeysTable, projectTable } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 import { deNullify } from './utils.js'
+import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 
 /** @typedef {import("@mapeo/schema").ProjectValue} ProjectValue */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
+// Max file descriptors that RandomAccessFile should use for hypercore storage
+// and index bitfield persistence (used by MultiCoreIndexer). Android has a
+// limit of 1024 per process, so choosing 768 to leave 256 descriptors free for
+// other things e.g. SQLite and other parts of the app.
+const MAX_FILE_DESCRIPTORS = 768
+
 export class MapeoManager {
   #keyManager
   #projectSettingsIndexWriter
-  #storagePath
   #db
   /** @type {Map<string, MapeoProject>} */
   #activeProjects
 
+  /** @type {(projectId: string) => {dbPath: string, storage: import('./types.js').StorageParam}} */
+  #createProjectStorageOpts
+
   /**
    * @param {Object} opts
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
-   * @param {string} [opts.storagePath] Folder for all data storage (hypercores and sqlite db). Folder must exist. If not defined, everything is stored in-memory
+   * @param {string} opts.dbFolder Folder for all data storage (hypercores and sqlite dbs). Folder must exist. Use ':memory:' to store everything in-memory
    */
-  constructor({ rootKey, storagePath }) {
-    const dbPath =
-      storagePath !== undefined
-        ? path.join(storagePath, CLIENT_SQLITE_FILE_NAME)
-        : ':memory:'
-
-    const sqlite = new Database(dbPath)
+  constructor({ rootKey, dbFolder }) {
+    const sqlite = new Database(
+      dbFolder === ':memory:'
+        ? ':memory:'
+        : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
+    )
     this.#db = drizzle(sqlite)
     migrate(this.#db, { migrationsFolder: './drizzle/client' })
 
@@ -43,8 +53,26 @@ export class MapeoManager {
       tables: [projectTable],
       sqlite,
     })
-    this.#storagePath = storagePath
     this.#activeProjects = new Map()
+
+    const filePool =
+      dbFolder !== ':memory:'
+        ? new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
+        : undefined
+
+    this.#createProjectStorageOpts =
+      dbFolder === ':memory:'
+        ? () => ({
+            dbPath: ':memory:',
+            storage: () => new RAM(),
+          })
+        : (projectId) => ({
+            dbPath: path.join(dbFolder, projectId),
+            storage: (name) =>
+              new RandomAccessFile(path.join(dbFolder, projectId, name), {
+                pool: filePool,
+              }),
+          })
   }
 
   /**
@@ -112,7 +140,7 @@ export class MapeoManager {
 
     // 4. Create MapeoProject instance
     const project = new MapeoProject({
-      storagePath: this.#storagePath,
+      ...this.#createProjectStorageOpts(projectId),
       encryptionKeys,
       keyManager: this.#keyManager,
       projectKey: projectKeypair.publicKey,
@@ -161,8 +189,8 @@ export class MapeoManager {
     )
 
     const project = new MapeoProject({
+      ...this.#createProjectStorageOpts(projectId),
       ...projectKeys,
-      storagePath: this.#storagePath,
       keyManager: this.#keyManager,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,

@@ -4,7 +4,10 @@ import { KeyManager } from '@mapeo/crypto'
 import { MapeoManager } from '../src/mapeo-manager.js'
 
 test('Managing multiple projects', async (t) => {
-  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    dbFolder: ':memory:',
+  })
 
   const initialProjects = await manager.listProjects()
 
@@ -42,7 +45,10 @@ test('Managing multiple projects', async (t) => {
 })
 
 test('Manager cannot add project that already exists', async (t) => {
-  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    dbFolder: ':memory:',
+  })
 
   const existingProjectId = await manager.createProject()
 

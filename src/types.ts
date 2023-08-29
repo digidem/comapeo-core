@@ -14,6 +14,7 @@ import { Socket } from 'net'
 import MultiCoreIndexer from 'multi-core-indexer'
 import Corestore from 'corestore'
 import Hypercore from 'hypercore'
+import RandomAccessStorage from 'random-access-storage'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 type BlobType = keyof SupportedBlobVariants
@@ -168,3 +169,5 @@ export type ProtocolStream = NoiseStream & { userData: Protomux }
 export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
 }[keyof T][]
+
+export type StorageParam = string | ((name: string) => RandomAccessStorage)

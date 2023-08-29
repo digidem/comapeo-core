@@ -5,7 +5,10 @@ import { MapeoProject } from '../src/mapeo-project.js'
 import { removeUndefinedFields } from './utils.js'
 
 test('Project settings create, read, and update operations', async (t) => {
-  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    dbFolder: ':memory:',
+  })
 
   const projectId = await manager.createProject()
 

@@ -62,7 +62,10 @@ function getUpdateFixture(value) {
 }
 
 test('CRUD operations', async (t) => {
-  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    dbFolder: ':memory:',
+  })
   for (const value of fixtures) {
     const { schemaName } = value
     t.test(`create and read ${schemaName}`, async (t) => {
