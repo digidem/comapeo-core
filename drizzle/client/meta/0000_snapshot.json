@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "86a072d9-179c-4347-be03-0a6bf718bf4b",
+  "id": "a4afa0b6-5fd1-4c8d-bc09-7e3f3fc1928f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "project_backlink": {
@@ -41,7 +41,7 @@
           "name": "projectInfo",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false,
           "default": "'{}'"
         }

@@ -97,7 +97,7 @@ export class MapeoManager {
       data: randomBytes(32),
     }
 
-    // 3. Save keys to client db in projectKeys table
+    // 3. Save keys to client db  projectKeys table
     /** @type {ProjectKeys} */
     const keys = {
       projectKey: projectKeypair.publicKey,
@@ -207,20 +207,12 @@ export class MapeoManager {
         (p) => p.projectId === projectId
       )
 
-      const nameFromProjectKeys =
-        projectInfo &&
-        typeof projectInfo === 'object' &&
-        'name' in projectInfo &&
-        typeof projectInfo.name === 'string'
-          ? projectInfo.name
-          : null
-
       result.push(
         deNullify({
           projectId,
           createdAt: existingProject?.createdAt,
           updatedAt: existingProject?.updatedAt,
-          name: existingProject?.name || nameFromProjectKeys,
+          name: existingProject?.name || projectInfo.name,
         })
       )
     }

@@ -5,7 +5,7 @@ CREATE TABLE `project_backlink` (
 CREATE TABLE `projectKeys` (
 	`projectId` text PRIMARY KEY NOT NULL,
 	`keysCipher` blob NOT NULL,
-	`projectInfo` text DEFAULT '{}'
+	`projectInfo` text DEFAULT '{}' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `project` (
