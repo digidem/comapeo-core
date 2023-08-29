@@ -142,21 +142,7 @@ export class MapeoManager {
 
     if (activeProject) return activeProject
 
-    // 2. Check that project exists in the project table
-    // Means that we have proper access to the project (e.g. created ourselves, or added then synced)
-    const projectTableResult = this.#db
-      .select({
-        projectId: projectTable.docId,
-      })
-      .from(projectTable)
-      .where(eq(projectTable.docId, projectId))
-      .get()
-
-    if (!projectTableResult) {
-      throw new Error(`NotFound: project ID ${projectId} not found`)
-    }
-
-    // 3. Create project instance
+    // 2. Create project instance
     const projectKeysTableResult = this.#db
       .select({
         keysCipher: projectKeysTable.keysCipher,
@@ -182,7 +168,7 @@ export class MapeoManager {
       sharedIndexWriter: this.#projectSettingsIndexWriter,
     })
 
-    // 4. Keep track of project instance as we know it's a properly existing project
+    // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectId, project)
 
     return project
