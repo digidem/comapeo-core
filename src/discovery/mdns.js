@@ -24,8 +24,6 @@ const SERVICE_NAME = 'mapeo'
 export class MdnsDiscovery extends TypedEmitter {
   #identityKeypair
   #server
-  /** @type {Set<string>} */
-  #socketConnections = new Set()
   /** @type {Map<string,NoiseSecretStream<net.Socket>>} */
   #noiseConnections = new Map()
   /** @type {import('@gravitysoftware/dnssd').Advertisement} */
@@ -47,13 +45,11 @@ export class MdnsDiscovery extends TypedEmitter {
   async start() {
     // Let OS choose port, listen on ip4, all interfaces
     this.#server.listen(0, '0.0.0.0')
-    // TODO: listen for errors
-    await once(this.#server, 'listening')
-
     this.#server.on('error', () => {})
     this.#server.on('close', () => {})
+    await once(this.#server, 'listening')
 
-    const addr = /** @type {net.AddressInfo} */ (this.#server.address())
+    const addr = this.#server.address()
     if (!isAddressInfo(addr))
       throw new Error('Server must be listening on a port')
     log('server listening on port ' + addr.port)
@@ -63,8 +59,6 @@ export class MdnsDiscovery extends TypedEmitter {
       addr.port,
       { txt: { id: this.#id } }
     )
-    await this.#advertiser.start()
-    log('started advertiser for ' + addr.port)
 
     // find all peers adverticing Mapeo
     this.#browser = new dnssd.Browser(dnssd.tcp(SERVICE_NAME))
@@ -93,8 +87,11 @@ export class MdnsDiscovery extends TypedEmitter {
       }
     )
 
-    await this.#browser.start()
-    log(`started browser for ${addr.port}`)
+    Promise.all([this.#advertiser.start(), this.#browser.start()]).finally(
+      () => {
+        log(`started advertiser and browser for ${addr.port}`)
+      }
+    )
   }
 
   /**
@@ -111,7 +108,6 @@ export class MdnsDiscovery extends TypedEmitter {
     if (!isIpPrivate(socket.remoteAddress)) return
 
     const { remoteAddress } = socket
-    this.#socketConnections.add(remoteAddress)
 
     const secretStream = new NoiseSecretStream(isInitiator, socket, {
       keyPair: this.#identityKeypair,
@@ -124,9 +120,6 @@ export class MdnsDiscovery extends TypedEmitter {
       const remoteId = remotePublicKey.toString('hex')
 
       const close = () => {
-        if (this.#socketConnections.has(remoteAddress)) {
-          this.#socketConnections.delete(remoteAddress)
-        }
         if (this.#noiseConnections.has(remoteId)) {
           this.#noiseConnections.delete(remoteId)
         }
@@ -168,7 +161,7 @@ export class MdnsDiscovery extends TypedEmitter {
     return this.#noiseConnections.values()
   }
 
-  stop() {
+  async stop() {
     const port = this.#server.address()?.port
     this.#browser.removeAllListeners('serviceUp')
     this.#browser.stop()
@@ -177,7 +170,7 @@ export class MdnsDiscovery extends TypedEmitter {
     for (const [_, socket] of this.#noiseConnections) {
       socket.destroy()
     }
-    this.#server.close() // wait for close
+    await this.#server.close()
     log(`stopped for ${port}`)
   }
 }
