@@ -48,6 +48,37 @@ export class MapeoManager {
   }
 
   /**
+   * @param {Buffer} keysCipher
+   * @param {string} projectId
+   * @returns {ProjectKeys}
+   */
+  #decodeProjectKeysCipher(keysCipher, projectId) {
+    return ProjectKeys.decode(
+      this.#keyManager.decryptLocalMessage(keysCipher, projectId)
+    )
+  }
+
+  /**
+   * @param {Object} opts
+   * @param {string} opts.projectId
+   * @param {ProjectKeys} opts.projectKeys
+   * @param {import('./generated/rpc.js').Invite_ProjectInfo} [opts.projectInfo]
+   */
+  #saveToProjectKeysTable({ projectId, projectKeys, projectInfo }) {
+    this.#db
+      .insert(projectKeysTable)
+      .values({
+        projectId,
+        keysCipher: this.#keyManager.encryptLocalMessage(
+          Buffer.from(ProjectKeys.encode(projectKeys).finish().buffer),
+          projectId
+        ),
+        projectInfo,
+      })
+      .run()
+  }
+
+  /**
    * Create a new project.
    * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
    * @returns {Promise<string>}
@@ -66,7 +97,7 @@ export class MapeoManager {
       data: randomBytes(32),
     }
 
-    // 3. Save keys to client db in projectKeys table
+    // 3. Save keys to client db  projectKeys table
     /** @type {ProjectKeys} */
     const keys = {
       projectKey: projectKeypair.publicKey,
@@ -77,16 +108,7 @@ export class MapeoManager {
     // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
     const projectId = projectKeypair.publicKey.toString('hex')
 
-    this.#db
-      .insert(projectKeysTable)
-      .values({
-        projectId,
-        keysCipher: this.#keyManager.encryptLocalMessage(
-          Buffer.from(ProjectKeys.encode(keys).finish().buffer),
-          projectId
-        ),
-      })
-      .run()
+    this.#saveToProjectKeysTable({ projectId, projectKeys: keys })
 
     // 4. Create MapeoProject instance
     const project = new MapeoProject({
@@ -115,11 +137,13 @@ export class MapeoManager {
    * @returns {Promise<MapeoProject>}
    */
   async getProject(projectId) {
-    const existing = this.#activeProjects.get(projectId)
+    // 1. Check for existing active project
+    const activeProject = this.#activeProjects.get(projectId)
 
-    if (existing) return existing
+    if (activeProject) return activeProject
 
-    const result = this.#db
+    // 2. Create project instance
+    const projectKeysTableResult = this.#db
       .select({
         keysCipher: projectKeysTable.keysCipher,
       })
@@ -127,12 +151,13 @@ export class MapeoManager {
       .where(eq(projectKeysTable.projectId, projectId))
       .get()
 
-    if (!result) {
+    if (!projectKeysTableResult) {
       throw new Error(`NotFound: project ID ${projectId} not found`)
     }
 
-    const projectKeys = ProjectKeys.decode(
-      this.#keyManager.decryptLocalMessage(result.keysCipher, projectId)
+    const projectKeys = this.#decodeProjectKeysCipher(
+      projectKeysTableResult.keysCipher,
+      projectId
     )
 
     const project = new MapeoProject({
@@ -143,14 +168,28 @@ export class MapeoManager {
       sharedIndexWriter: this.#projectSettingsIndexWriter,
     })
 
+    // 3. Keep track of project instance as we know it's a properly existing project
+    this.#activeProjects.set(projectId, project)
+
     return project
   }
 
   /**
-   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt: string, updatedAt: string }>>}
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string }>>}
    */
   async listProjects() {
-    return this.#db
+    // We use the project keys table as the source of truth for projects that exist
+    // because we will always update this table when doing a create or add
+    // whereas the project table will only have projects that have been created, or added + synced
+    const allProjectKeysResult = this.#db
+      .select({
+        projectId: projectKeysTable.projectId,
+        projectInfo: projectKeysTable.projectInfo,
+      })
+      .from(projectKeysTable)
+      .all()
+
+    const allProjectsResult = this.#db
       .select({
         projectId: projectTable.docId,
         createdAt: projectTable.createdAt,
@@ -159,6 +198,67 @@ export class MapeoManager {
       })
       .from(projectTable)
       .all()
-      .map((value) => deNullify(value))
+
+    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string }>} */
+    const result = []
+
+    for (const { projectId, projectInfo } of allProjectKeysResult) {
+      const existingProject = allProjectsResult.find(
+        (p) => p.projectId === projectId
+      )
+
+      result.push(
+        deNullify({
+          projectId,
+          createdAt: existingProject?.createdAt,
+          updatedAt: existingProject?.updatedAt,
+          name: existingProject?.name || projectInfo.name,
+        })
+      )
+    }
+
+    return result
+  }
+
+  /**
+   * @param {import('./generated/rpc.js').Invite} invite
+   * @returns {Promise<string>}
+   */
+  async addProject({ projectKey, encryptionKeys, projectInfo }) {
+    const projectId = projectKey.toString('hex')
+
+    // 1. Check for an active project
+    const activeProject = this.#activeProjects.get(projectId)
+
+    if (activeProject) {
+      throw new Error(`Project with ID ${projectId} already exists`)
+    }
+
+    // 2. Check if the project exists in the project keys table
+    // If it does, that means the project has already been either created or added before
+    const projectExists = this.#db
+      .select()
+      .from(projectKeysTable)
+      .where(eq(projectKeysTable.projectId, projectId))
+      .get()
+
+    if (projectExists) {
+      throw new Error(`Project with ID ${projectId} already exists`)
+    }
+
+    // TODO: Relies on completion of https://github.com/digidem/mapeo-core-next/issues/233
+    // 3. Sync auth + config cores
+
+    // 4. Update the project keys table
+    this.#saveToProjectKeysTable({
+      projectId,
+      projectKeys: {
+        projectKey,
+        encryptionKeys,
+      },
+      projectInfo,
+    })
+
+    return projectId
   }
 }
