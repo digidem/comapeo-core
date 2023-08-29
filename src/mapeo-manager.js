@@ -254,7 +254,10 @@ export class MapeoManager {
       throw new Error(`Project with ID ${projectId} already exists`)
     }
 
-    // 3. Update the project keys table
+    // TODO: Relies on completion of https://github.com/digidem/mapeo-core-next/issues/233
+    // 3. Sync auth + config cores
+
+    // 4. Update the project keys table
     // This ensures that the project has at least been added (not necessarily synced and usable)
     this.#saveToProjectKeysTable({
       projectId,
