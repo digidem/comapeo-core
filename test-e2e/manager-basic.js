@@ -14,11 +14,14 @@ test('Managing multiple projects', async (t) => {
     'no projects exist when manager is initially created'
   )
 
-  const createdProjectId = await manager.createProject()
+  const createdProjectId = await manager.createProject({
+    name: 'created project',
+  })
 
   const addedProjectId = await manager.addProject({
     projectKey: KeyManager.generateProjectKeypair().publicKey,
     encryptionKeys: { auth: randomBytes(32) },
+    projectInfo: { name: 'added project' },
   })
 
   const listedProjects = await manager.listProjects()
@@ -30,8 +33,10 @@ test('Managing multiple projects', async (t) => {
     createdProjectId,
     'created projects are listed'
   )
+  t.is(listedProjects[0].name, 'created project')
 
   t.is(listedProjects[1].projectId, addedProjectId, 'added projects are listed')
+  t.is(listedProjects[1].name, 'added project')
 })
 
 test('Manager cannot add project that already exists', async (t) => {
