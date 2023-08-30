@@ -51,8 +51,8 @@ export const kTable = Symbol('table')
  * @template {import('../datastore/index.js').DataStore} TDataStore
  * @template {TDataStore['schemas'][number]} TSchemaName
  * @template {MapeoDocTablesMap[TSchemaName]} TTable
- * @template {MapeoDocMap[TSchemaName]} TDoc
- * @template {MapeoValueMap[TSchemaName]} TValue
+ * @template {Exclude<MapeoDocMap[TSchemaName], { schemaName: 'coreOwnership' }>} TDoc
+ * @template {Exclude<MapeoValueMap[TSchemaName], { schemaName: 'coreOwnership' }>} TValue
  */
 export class DataType {
   #dataStore
@@ -96,13 +96,13 @@ export class DataType {
    */
   async create(value) {
     const docId = generateId()
+    // @ts-expect-error - can't figure this one out, types in index.d.ts override this
     return this[kCreateWithDocId](docId, value)
   }
 
   /**
-   * @template {import('type-fest').Exact<TValue, T>} T
    * @param {string} docId
-   * @param {T} value
+   * @param {TValue | import('../types.js').CoreOwnershipWithSignaturesValue} value
    */
   async [kCreateWithDocId](docId, value) {
     if (!validate(this.#schemaName, value)) {
@@ -121,7 +121,8 @@ export class DataType {
 
     // TS can't track the relationship between TDoc and TValue, so doc above is
     // typed as MapeoDoc (without versionId) rather than as TDoc.
-    await this.#dataStore.write(/** @type {TDoc} */ (doc))
+    // @ts-expect-error
+    await this.#dataStore.write(doc)
     return this.getByDocId(doc.docId)
   }
 

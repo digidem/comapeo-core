@@ -3,11 +3,16 @@ import { KeyManager } from '@mapeo/crypto'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { kCoreOwnership } from '../src/mapeo-project.js'
 import { parseVersionId } from '@mapeo/schema'
+import RAM from 'random-access-memory'
 
 test('CoreOwnership', async (t) => {
   const rootKey = KeyManager.generateRootKey()
   const km = new KeyManager(rootKey)
-  const manager = new MapeoManager({ rootKey })
+  const manager = new MapeoManager({
+    rootKey,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
 
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
