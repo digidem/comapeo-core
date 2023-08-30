@@ -189,29 +189,25 @@ test('Managing both created and added projects', async (t) => {
     projectInfo: { name: 'added project' },
   })
 
-  t.test('information from listed projects', async (t) => {
-    const listedProjects = await manager.listProjects()
+  const listedProjects = await manager.listProjects()
 
-    t.is(listedProjects.length, 2)
+  t.is(listedProjects.length, 2)
 
-    const createdProjectListed = listedProjects.find(
-      ({ projectId }) => projectId === createdProjectId
-    )
-    t.ok(createdProjectListed, 'created project is listed')
+  const createdProjectListed = listedProjects.find(
+    ({ projectId }) => projectId === createdProjectId
+  )
+  t.ok(createdProjectListed, 'created project is listed')
 
-    const addedProjectListed = listedProjects.find(
-      ({ projectId }) => projectId === addedProjectId
-    )
-    t.ok(addedProjectListed, 'added project is listed')
-  })
+  const addedProjectListed = listedProjects.find(
+    ({ projectId }) => projectId === addedProjectId
+  )
+  t.ok(addedProjectListed, 'added project is listed')
 
-  t.test('retrieving project instances', async (t) => {
-    const createdProject = await manager.getProject(createdProjectId)
-    t.ok(createdProject)
+  const createdProject = await manager.getProject(createdProjectId)
+  t.ok(createdProject)
 
-    const addedProject = await manager.getProject(addedProjectId)
-    t.ok(addedProject)
-  })
+  const addedProject = await manager.getProject(addedProjectId)
+  t.ok(addedProject)
 })
 
 test('Manager cannot add project that already exists', async (t) => {
