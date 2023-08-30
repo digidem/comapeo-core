@@ -1,3 +1,22 @@
+CREATE TABLE `coreOwnership_backlink` (
+	`versionId` text PRIMARY KEY NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `coreOwnership` (
+	`docId` text PRIMARY KEY NOT NULL,
+	`versionId` text NOT NULL,
+	`schemaName` text NOT NULL,
+	`createdAt` text NOT NULL,
+	`updatedAt` text NOT NULL,
+	`links` text NOT NULL,
+	`authCoreId` text NOT NULL,
+	`configCoreId` text NOT NULL,
+	`dataCoreId` text NOT NULL,
+	`blobCoreId` text NOT NULL,
+	`blobIndexCoreId` text NOT NULL,
+	`forks` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `field_backlink` (
 	`versionId` text PRIMARY KEY NOT NULL
 );
