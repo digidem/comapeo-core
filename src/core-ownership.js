@@ -1,13 +1,83 @@
-import { verifySignature } from '@mapeo/crypto'
+import { verifySignature, sign } from '@mapeo/crypto'
 import { NAMESPACES } from './core-manager/index.js'
 import { parseVersionId } from '@mapeo/schema'
 import { defaultGetWinner } from '@mapeo/sqlite-indexer'
 import assert from 'node:assert'
 import sodium from 'sodium-universal'
+import { kTable, kSelect, kCreateWithDocId } from './datatype/index.js'
+import { eq, or } from 'drizzle-orm'
+import mapObject from 'map-obj'
 
 /**
- * @typedef {Extract<ReturnType<import('@mapeo/schema').decode>, { schemaName: 'coreOwnership' }>} CoreOwnershipWithSignatures
+ * @typedef {import('./types.js').CoreOwnershipWithSignatures} CoreOwnershipWithSignatures
  */
+
+export class CoreOwnership {
+  #dataType
+  /**
+   *
+   * @param {object} opts
+   * @param {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'auth'>, typeof import('./schema/project.js').coreOwnershipTable, 'coreOwnership', import('@mapeo/schema').CoreOwnership, import('@mapeo/schema').CoreOwnershipValue>} opts.dataType
+   */
+  constructor({ dataType }) {
+    this.#dataType = dataType
+  }
+
+  /**
+   * @param {string} coreId
+   * @returns {Promise<string>} deviceId of device that owns the core
+   */
+  async getOwner(coreId) {
+    const table = this.#dataType[kTable]
+    const expressions = []
+    for (const namespace of NAMESPACES) {
+      expressions.push(eq(table[`${namespace}CoreId`], coreId))
+    }
+    // prettier-ignore
+    const result = this.#dataType[kSelect]()
+      .where(or.apply(null, expressions))
+      .get()
+    if (!result) {
+      throw new Error('NotFound')
+    }
+    return result.docId
+  }
+
+  /**
+   *
+   * @param {string} deviceId
+   * @param {typeof NAMESPACES[number]} namespace
+   * @returns {Promise<string>} coreId of core belonging to `deviceId` for `namespace`
+   */
+  async getCoreId(deviceId, namespace) {
+    const result = await this.#dataType.getByDocId(deviceId)
+    return result[`${namespace}CoreId`]
+  }
+
+  /**
+   *
+   * @param {import('./types.js').KeyPair} identityKeypair
+   * @param {Record<typeof NAMESPACES[number], import('./types.js').KeyPair>} coreKeypairs
+   */
+  async writeOwnership(identityKeypair, coreKeypairs) {
+    /** @type {import('./types.js').CoreOwnershipWithSignaturesValue} */
+    const docValue = {
+      schemaName: 'coreOwnership',
+      ...mapObject(coreKeypairs, (key, value) => {
+        return [`${key}CoreId`, value.publicKey.toString('hex')]
+      }),
+      identitySignature: sign(
+        identityKeypair.publicKey,
+        identityKeypair.secretKey
+      ),
+      coreSignatures: mapObject(coreKeypairs, (key, value) => {
+        return [key, sign(value.publicKey, value.secretKey)]
+      }),
+    }
+    const docId = identityKeypair.publicKey.toString('hex')
+    this.#dataType[kCreateWithDocId](docId, docValue)
+  }
+}
 
 /**
  * - Validate that the doc is written to the core identified by doc.authCoreId

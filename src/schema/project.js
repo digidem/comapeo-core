@@ -11,7 +11,12 @@ export const observationTable = sqliteTable(
 )
 export const presetTable = sqliteTable('preset', toColumns(schemas.preset))
 export const fieldTable = sqliteTable('field', toColumns(schemas.field))
+export const coreOwnershipTable = sqliteTable(
+  'coreOwnership',
+  toColumns(schemas.coreOwnership)
+)
 
 export const observationBacklinkTable = backlinkTable(observationTable)
 export const presetBacklinkTable = backlinkTable(presetTable)
 export const fieldBacklinkTable = backlinkTable(fieldTable)
+export const coreOwnershipBacklinkTable = backlinkTable(coreOwnershipTable)

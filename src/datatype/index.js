@@ -44,6 +44,8 @@ function generateDate() {
   return new Date().toISOString()
 }
 export const kCreateWithDocId = Symbol('kCreateWithDocId')
+export const kSelect = Symbol('select')
+export const kTable = Symbol('table')
 
 /**
  * @template {import('../datastore/index.js').DataStore} TDataStore
@@ -58,6 +60,7 @@ export class DataType {
   #getPermissions
   #schemaName
   #sql
+  #db
 
   /**
    *
@@ -72,6 +75,7 @@ export class DataType {
     this.#table = table
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
     this.#getPermissions = getPermissions
+    this.#db = db
     this.#sql = {
       getByDocId: db
         .select()
@@ -80,6 +84,10 @@ export class DataType {
         .prepare(),
       getMany: db.select().from(table).prepare(),
     }
+  }
+
+  get [kTable]() {
+    return this.#table
   }
 
   /**
@@ -173,6 +181,13 @@ export class DataType {
     }
     await this.#dataStore.write(doc)
     return this.getByDocId(docId)
+  }
+
+  /**
+   * @param {Parameters<import('drizzle-orm/better-sqlite3').BetterSQLite3Database['select']>[0]} fields
+   */
+  async [kSelect](fields) {
+    return this.#db.select(fields).from(this.#table)
   }
 
   /**
