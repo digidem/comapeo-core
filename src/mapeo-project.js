@@ -1,4 +1,6 @@
 // @ts-check
+import path from 'path'
+import Database from 'better-sqlite3'
 import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
@@ -12,23 +14,13 @@ import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectTable } from './schema/client.js'
 import { fieldTable, observationTable, presetTable } from './schema/project.js'
-import RandomAccessFile from 'random-access-file'
-import RAM from 'random-access-memory'
-import Database from 'better-sqlite3'
-import path from 'path'
-import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
+import { getWinner, mapAndValidateCoreOwnership } from './core-ownership.js'
 import { valueOf } from './utils.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
 
-const PROJECT_SQLITE_FILE_NAME = 'project.db'
-const CORE_STORAGE_FOLDER_NAME = 'cores'
+const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
-// Max file descriptors that RandomAccessFile should use for hypercore storage
-// and index bitfield persistence (used by MultiCoreIndexer). Android has a
-// limit of 1024 per process, so choosing 768 to leave 256 descriptors free for
-// other things e.g. SQLite and other parts of the app.
-const MAX_FILE_DESCRIPTORS = 768
 
 export class MapeoProject {
   #projectId
@@ -40,57 +32,40 @@ export class MapeoProject {
 
   /**
    * @param {Object} opts
-   * @param {string} [opts.storagePath] Folder for all data storage (hypercores and sqlite db). Folder must exist. If not defined, everything is stored in-memory
+   * @param {string} opts.dbPath Path to store project sqlite db. Use `:memory:` for memory storage
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
+   * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
+   *
    */
   constructor({
-    storagePath,
+    dbPath,
     sharedDb,
     sharedIndexWriter,
+    coreStorage,
     ...coreManagerOpts
   }) {
     // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
     this.#projectId = coreManagerOpts.projectKey.toString('hex')
 
     ///////// 1. Setup database
-
-    const dbPath =
-      storagePath !== undefined
-        ? path.join(storagePath, PROJECT_SQLITE_FILE_NAME)
-        : ':memory:'
     const sqlite = new Database(dbPath)
     const db = drizzle(sqlite)
     migrate(db, { migrationsFolder: './drizzle/project' })
 
     ///////// 2. Setup random-access-storage functions
 
-    const filePool =
-      storagePath !== undefined
-        ? new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
-        : undefined
     /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
-    const coreManagerStorage =
-      storagePath !== undefined
-        ? (name) =>
-            new RandomAccessFile(
-              path.join(storagePath, CORE_STORAGE_FOLDER_NAME, name),
-              { pool: filePool }
-            )
-        : () => new RAM()
+    const coreManagerStorage = (name) =>
+      coreStorage(path.join(CORESTORE_STORAGE_FOLDER_NAME, name))
+
     /** @type {ConstructorParameters<typeof DataStore>[0]['storage']} */
-    const indexerStorage =
-      storagePath !== undefined
-        ? (name) =>
-            new RandomAccessFile(
-              path.join(storagePath, INDEXER_STORAGE_FOLDER_NAME, name),
-              { pool: filePool }
-            )
-        : () => new RAM()
+    const indexerStorage = (name) =>
+      coreStorage(path.join(INDEXER_STORAGE_FOLDER_NAME, name))
 
     ///////// 3. Create instances
 
@@ -102,6 +77,14 @@ export class MapeoProject {
     const indexWriter = new IndexWriter({
       tables: [observationTable, presetTable, fieldTable],
       sqlite,
+      getWinner,
+      mapDoc: (doc, version) => {
+        if (doc.schemaName === 'coreOwnership') {
+          return mapAndValidateCoreOwnership(doc, version)
+        } else {
+          return doc
+        }
+      },
     })
     this.#dataStores = {
       config: new DataStore({
