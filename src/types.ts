@@ -6,7 +6,7 @@ import type {
   SetOptional,
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
-import { MapeoDoc, MapeoValue } from '@mapeo/schema'
+import { MapeoCommon, MapeoDoc, MapeoValue, decode } from '@mapeo/schema'
 import type Protomux from 'protomux'
 import type NoiseStream from '@hyperswarm/secret-stream'
 import { Duplex } from 'streamx'
@@ -62,6 +62,16 @@ export type MapeoDocMap = {
 export type MapeoValueMap = {
   [K in MapeoValue['schemaName']]: Extract<MapeoValue, { schemaName: K }>
 }
+
+// TODO: Replace this with exports from @mapeo/schema
+export type CoreOwnershipWithSignatures = Extract<
+  ReturnType<typeof decode>,
+  { schemaName: 'coreOwnership' }
+>
+export type CoreOwnershipWithSignaturesValue = Omit<
+  CoreOwnershipWithSignatures,
+  Exclude<keyof MapeoCommon, 'schemaName'>
+>
 
 type NullToOptional<T> = SetOptional<T, NullKeys<T>>
 type RemoveNull<T> = {
