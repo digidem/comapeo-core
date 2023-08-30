@@ -1,10 +1,15 @@
 import { test } from 'brittle'
-import { randomBytes } from 'crypto'
+import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { MapeoManager } from '../src/mapeo-manager.js'
+import RAM from 'random-access-memory'
 
 test('Managing multiple projects', async (t) => {
-  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
 
   const initialProjects = await manager.listProjects()
 
@@ -42,7 +47,11 @@ test('Managing multiple projects', async (t) => {
 })
 
 test('Manager cannot add project that already exists', async (t) => {
-  const manager = new MapeoManager({ rootKey: KeyManager.generateRootKey() })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
 
   const existingProjectId = await manager.createProject()
 
@@ -62,3 +71,37 @@ test('Manager cannot add project that already exists', async (t) => {
 
   t.is(existingProjectsCountBefore, existingProjectsCountAfter)
 })
+
+test('Consistent storage folders', async (t) => {
+  /** @type {string[]} */
+  const storageNames = []
+  const manager = new MapeoManager({
+    rootKey: randomBytesSeed('root_key').subarray(0, 16),
+    dbFolder: ':memory:',
+    coreStorage: (name) => {
+      storageNames.push(name)
+      return new RAM()
+    },
+  })
+
+  for (let i = 0; i < 10; i++) {
+    const projectId = await manager.addProject({
+      projectKey: randomBytesSeed('test' + i),
+      encryptionKeys: { auth: randomBytes(32) },
+      projectInfo: {},
+    })
+    await manager.getProject(projectId)
+  }
+
+  // @ts-ignore snapshot() is missing from typedefs
+  t.snapshot(storageNames.sort())
+})
+
+/**
+ * Generate a deterministic random bytes
+ *
+ * @param {string} seed
+ */
+function randomBytesSeed(seed) {
+  return createHash('sha256').update(seed).digest()
+}
