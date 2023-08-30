@@ -159,17 +159,11 @@ export class MapeoProject {
     authCore.on('ready', () => {
       if (authCore.length > 0) return
       const identityKeypair = keyManager.getIdentityKeypair()
-      const coreKeypairs =
-        /** @type {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>} */ (
-          Object.fromEntries(
-            NAMESPACES.map((namespace) => [
-              namespace,
-              namespace === 'auth' && projectSecretKey
-                ? { publicKey: projectKey, secretKey: projectSecretKey }
-                : keyManager.getHypercoreKeypair(namespace, projectKey),
-            ])
-          )
-        )
+      const coreKeypairs = getCoreKeypairs({
+        projectKey,
+        projectSecretKey,
+        keyManager,
+      })
       this.#coreOwnership.writeOwnership(identityKeypair, coreKeypairs)
     })
   }
@@ -284,4 +278,30 @@ function extractEditableProjectSettings(projectDoc) {
   // eslint-disable-next-line no-unused-vars
   const { schemaName, ...result } = valueOf(projectDoc)
   return result
+}
+
+/**
+ * Return a map of namespace -> core keypair
+ *
+ * For the project owner the keypair for the 'auth' namespace is the projectKey
+ * and projectSecretKey. In all other cases keypairs are derived from the
+ * project key
+ *
+ * @param {object} opts
+ * @param {Buffer} opts.projectKey
+ * @param {Buffer} [opts.projectSecretKey]
+ * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
+ */
+function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
+  /** @type {Record<string, import('./types.js').KeyPair>} */
+  const keypairs = {}
+  for (const namespace of NAMESPACES) {
+    keypairs[namespace] =
+      namespace === 'auth' && projectSecretKey
+        ? { publicKey: projectKey, secretKey: projectSecretKey }
+        : keyManager.getHypercoreKeypair(namespace, projectKey)
+  }
+  return /** @type {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>} */ (
+    keypairs
+  )
 }
