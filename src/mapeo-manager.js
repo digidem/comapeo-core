@@ -97,12 +97,13 @@ export class MapeoManager {
    * @param {import('./generated/rpc.js').Invite_ProjectInfo} [opts.projectInfo]
    */
   #saveToProjectKeysTable({ projectId, projectKeys, projectInfo }) {
+    const encoded = ProjectKeys.encode(projectKeys).finish()
     this.#db
       .insert(projectKeysTable)
       .values({
         projectId,
         keysCipher: this.#keyManager.encryptLocalMessage(
-          Buffer.from(ProjectKeys.encode(projectKeys).finish().buffer),
+          Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
           projectId
         ),
         projectInfo,
