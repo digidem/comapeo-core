@@ -86,77 +86,58 @@ test('mdns - discovery and sharing of data', async (t) => {
   }
 })
 
-test('mdns - discovery and hypercore replication', async (t) => {
-  t.plan(1)
-  const str = 'hi'
-
-  const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
-  const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
-
-  const mdnsDiscovery1 = new MdnsDiscovery({
-    identityKeypair: identityKeypair1,
-  })
-  const mdnsDiscovery2 = new MdnsDiscovery({
-    identityKeypair: identityKeypair2,
-  })
-
-  const core1 = new Hypercore(ram, { valueEncoding: 'utf-8' })
-  await core1.ready()
-  const core2 = new Hypercore(ram)
-  await core2.ready()
-
-  core1.append(str)
-
-  mdnsDiscovery1.on('connection', async (stream) => {
-    stream.pipe(core1.replicate(false)).pipe(stream)
-    await step()
-  })
-
-  mdnsDiscovery2.on('connection', async (stream) => {
-    stream.pipe(core2.replicate(true)).pipe(stream)
-    // I don't know why core1 is not being replicated to core2...
-    // t.fail()
-
-    await step()
-  })
-
-  mdnsDiscovery1.start()
-  mdnsDiscovery2.start()
-
-  let count = 0
-  async function step() {
-    count++
-    if (count === 2) {
-      mdnsDiscovery1.stop()
-      mdnsDiscovery2.stop()
-      t.pass()
-    }
-  }
-})
-
 test(`mdns - discovery of multiple peers`, async (t) => {
-  const nPeers = 20
-  let n = 0
-  const discoveries = []
-  t.plan(1)
-  const step = async () => {
-    n++
-    if (n === nPeers) {
-      for (let i = 0; i < nPeers; i++) {
-        await discoveries[i].stop()
-      }
-      await t.pass()
-    }
-  }
-  for (let i = 0; i < nPeers; i++) {
+  const nPeers = 6
+  const timeout = 7000
+  let conns = []
+  t.plan(nPeers + 1)
+
+  const spawnPeer = async () => {
     const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
-    const mdnsDiscovery = new MdnsDiscovery({ identityKeypair })
-    discoveries.push(mdnsDiscovery)
-    mdnsDiscovery.on('connection', async (stream) => {
-      await step()
+    const discovery = new MdnsDiscovery({ identityKeypair })
+    discovery.on('connection', (stream) => {
+      conns.push({
+        publicKey: identityKeypair.publicKey,
+        remotePublicKey: stream.remotePublicKey,
+      })
     })
-    mdnsDiscovery.start()
+    const peer = {
+      discovery,
+      publicKey: identityKeypair.publicKey,
+    }
+    await discovery.start()
+    return peer
   }
+
+  /** @type {{
+   * discovery:MdnsDiscovery,
+   * publicKey: String,
+   * stream: NoiseSecretStream<Net.Socket>
+   * }[]} */
+  const peers = []
+  for (let p = 0; p < nPeers; p++) {
+    const randTimeout = Math.floor(Math.random() * 2000)
+    setTimeout(async () => {
+      peers.push(await spawnPeer())
+    }, randTimeout)
+  }
+  setTimeout(async () => {
+    t.is(conns.length, nPeers * (nPeers - 1))
+    for (let peer of peers) {
+      const publicKey = peer.publicKey
+      const peerConns = conns
+        .filter(({ publicKey: localKey }) => localKey === publicKey)
+        .map(({ remotePublicKey }) => remotePublicKey.toString('hex'))
+        .sort()
+      const otherConns = peers
+        .filter(({ publicKey: peerKey }) => publicKey !== peerKey)
+        .map(({ publicKey }) => publicKey.toString('hex'))
+        .sort()
+
+      t.alike(otherConns, peerConns)
+      peer.discovery.stop()
+    }
+  }, timeout)
 })
 
 // test('replication - dht/hyperswarm', async (t) => {

@@ -75,6 +75,7 @@ export class MdnsDiscovery extends TypedEmitter {
           addr.port,
           addr.address,
           service.port,
+          // TODO: this can be an ipv6
           service.addresses
         )
         if (!isValidServerAddresses(service.addresses)) {
