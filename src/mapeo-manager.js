@@ -5,7 +5,7 @@ import Database from 'better-sqlite3'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import RandomAccessFile from 'random-access-file'
+import Hypercore from 'hypercore'
 import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject } from './mapeo-project.js'
 import { projectKeysTable, projectTable } from './schema/client.js'
@@ -58,8 +58,8 @@ export class MapeoManager {
 
     if (typeof coreStorage === 'string') {
       const pool = new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
-      this.#coreStorage = (name) =>
-        new RandomAccessFile(path.join(coreStorage, name), { pool })
+      // @ts-ignore
+      this.#coreStorage = Hypercore.createStorage(coreStorage, { pool })
     } else {
       this.#coreStorage = coreStorage
     }
