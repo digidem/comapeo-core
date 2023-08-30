@@ -2,11 +2,13 @@ import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { MapeoManager } from '../src/mapeo-manager.js'
+import RAM from 'random-access-memory'
 
 test('Managing multiple projects', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
   })
 
   const initialProjects = await manager.listProjects()
@@ -48,6 +50,7 @@ test('Manager cannot add project that already exists', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
   })
 
   const existingProjectId = await manager.createProject()

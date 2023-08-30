@@ -25,7 +25,7 @@ const sqlite = new Database(':memory:')
 
 const mapeoProject = new MapeoProject({
   dbPath: ':memory:',
-  storage: () => new RAM(),
+  coreStorage: () => new RAM(),
   keyManager: new KeyManager(randomBytes(32)),
   projectKey: randomBytes(32),
   sharedDb: drizzle(sqlite),

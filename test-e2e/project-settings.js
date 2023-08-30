@@ -3,11 +3,13 @@ import { KeyManager } from '@mapeo/crypto'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { MapeoProject } from '../src/mapeo-project.js'
 import { removeUndefinedFields } from './utils.js'
+import RAM from 'random-access-memory'
 
 test('Project settings create, read, and update operations', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
   })
 
   const projectId = await manager.createProject()

@@ -170,4 +170,4 @@ export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
 }[keyof T][]
 
-export type StorageParam = string | ((name: string) => RandomAccessStorage)
+export type CoreStorage = (name: string) => RandomAccessStorage

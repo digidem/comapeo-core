@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { valueOf } from '../src/utils.js'
 import { MapeoManager } from '../src/mapeo-manager.js'
+import RAM from 'random-access-memory'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -65,6 +66,7 @@ test('CRUD operations', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
   })
   for (const value of fixtures) {
     const { schemaName } = value

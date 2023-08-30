@@ -1,7 +1,6 @@
 // @ts-check
 import path from 'path'
 import Database from 'better-sqlite3'
-import RandomAccessFile from 'random-access-file'
 import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
@@ -16,7 +15,6 @@ import { valueOf } from './utils.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
 
-const PROJECT_SQLITE_FILE_NAME = 'project.db'
 const CORE_STORAGE_FOLDER_NAME = 'cores'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 
@@ -28,58 +26,40 @@ export class MapeoProject {
 
   /**
    * @param {Object} opts
-   * @param {string} opts.dbPath Folder for all data storage (hypercores and sqlite db). Folder must exist. Use ':memory:' to store everything in-memory
+   * @param {string} opts.dbPath Path to store project sqlite db. Use `:memory:` for memory storage
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
-   * @param {import('./types.js').StorageParam} opts.storage Folder to store all hypercore data
-   * @param {import('./core-manager/random-access-file-pool.js').RandomAccessFilePool} [opts.filePool] FilePool instance to use if opts.storage is a path
+   * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
    *
    */
   constructor({
     dbPath,
     sharedDb,
     sharedIndexWriter,
-    storage,
-    filePool,
+    coreStorage,
     ...coreManagerOpts
   }) {
     // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
     this.#projectId = coreManagerOpts.projectKey.toString('hex')
 
     ///////// 1. Setup database
-    const sqlite = new Database(
-      dbPath === ':memory:'
-        ? ':memory:'
-        : path.join(dbPath, PROJECT_SQLITE_FILE_NAME)
-    )
+    const sqlite = new Database(dbPath)
     const db = drizzle(sqlite)
     migrate(db, { migrationsFolder: './drizzle/project' })
 
     ///////// 2. Setup random-access-storage functions
 
     /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
-    const coreManagerStorage =
-      typeof storage === 'string'
-        ? (name) =>
-            new RandomAccessFile(
-              path.join(dbPath, storage, CORE_STORAGE_FOLDER_NAME, name),
-              { pool: filePool }
-            )
-        : (name) => storage(path.join(CORE_STORAGE_FOLDER_NAME, name))
+    const coreManagerStorage = (name) =>
+      coreStorage(path.join(CORE_STORAGE_FOLDER_NAME, name))
 
     /** @type {ConstructorParameters<typeof DataStore>[0]['storage']} */
-    const indexerStorage =
-      typeof storage === 'string'
-        ? (name) =>
-            new RandomAccessFile(
-              path.join(dbPath, storage, INDEXER_STORAGE_FOLDER_NAME, name),
-              { pool: filePool }
-            )
-        : (name) => storage(path.join(INDEXER_STORAGE_FOLDER_NAME, name))
+    const indexerStorage = (name) =>
+      coreStorage(path.join(INDEXER_STORAGE_FOLDER_NAME, name))
 
     ///////// 3. Create instances
 
