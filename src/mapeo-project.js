@@ -15,7 +15,7 @@ import { valueOf } from './utils.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
 
-const CORE_STORAGE_FOLDER_NAME = 'cores'
+const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 
 export class MapeoProject {
@@ -55,7 +55,7 @@ export class MapeoProject {
 
     /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
     const coreManagerStorage = (name) =>
-      coreStorage(path.join(CORE_STORAGE_FOLDER_NAME, name))
+      coreStorage(path.join(CORESTORE_STORAGE_FOLDER_NAME, name))
 
     /** @type {ConstructorParameters<typeof DataStore>[0]['storage']} */
     const indexerStorage = (name) =>
