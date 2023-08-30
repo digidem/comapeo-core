@@ -17,7 +17,13 @@ export class CoreOwnership {
   /**
    *
    * @param {object} opts
-   * @param {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'auth'>, typeof import('./schema/project.js').coreOwnershipTable, 'coreOwnership', import('@mapeo/schema').CoreOwnership, import('@mapeo/schema').CoreOwnershipValue>} opts.dataType
+   * @param {import('./datatype/index.js').DataType<
+   *   import('./datastore/index.js').DataStore<'auth'>,
+   *   typeof import('./schema/project.js').coreOwnershipTable,
+   *   'coreOwnership',
+   *   import('@mapeo/schema').CoreOwnership,
+   *   import('@mapeo/schema').CoreOwnershipValue
+   * >} opts.dataType
    */
   constructor({ dataType }) {
     this.#dataType = dataType
