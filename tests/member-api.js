@@ -26,7 +26,7 @@ test('Invite sends expected project-related details', async (t) => {
 
   r1.on('peers', async (peers) => {
     const response = await memberApi.invite(peers[0].id, {
-      role: 'member',
+      roleId: randomBytes(8).toString('hex'),
     })
 
     t.is(response, InviteResponse_Decision.ACCEPT)

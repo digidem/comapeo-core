@@ -25,7 +25,7 @@ export class MemberApi extends TypedEmitter {
    * @param {string} deviceId
    *
    * @param {Object} opts
-   * @param {string} opts.role
+   * @param {string} opts.roleId
    * @param {number} [opts.timeout]
    *
    * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
@@ -33,11 +33,15 @@ export class MemberApi extends TypedEmitter {
   async invite(deviceId, { timeout }) {
     const projectInfo = await this.#getProjectInfo()
 
-    return this.#rpc.invite(deviceId, {
+    const response = await this.#rpc.invite(deviceId, {
       projectKey: this.#projectKey,
       encryptionKeys: this.#encryptionKeys,
       projectInfo,
       timeout,
     })
+
+    // TODO: If response is ACCEPT, write to capabilities
+
+    return response
   }
 }
