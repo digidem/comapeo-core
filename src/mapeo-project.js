@@ -291,17 +291,18 @@ function extractEditableProjectSettings(projectDoc) {
  * @param {Buffer} opts.projectKey
  * @param {Buffer} [opts.projectSecretKey]
  * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
+ * @returns {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>}
  */
 function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
-  /** @type {Record<string, import('./types.js').KeyPair>} */
-  const keypairs = {}
+  const keypairs =
+    /** @type {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>} */ ({})
+
   for (const namespace of NAMESPACES) {
     keypairs[namespace] =
       namespace === 'auth' && projectSecretKey
         ? { publicKey: projectKey, secretKey: projectSecretKey }
         : keyManager.getHypercoreKeypair(namespace, projectKey)
   }
-  return /** @type {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>} */ (
-    keypairs
-  )
+
+  return keypairs
 }
