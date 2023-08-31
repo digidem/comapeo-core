@@ -3,13 +3,11 @@ import test from 'brittle'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
-import { createCoreManager } from './helpers/core-manager.js'
-import { BlobStore } from '../src/blob-store/index.js'
 import { createBlobServer } from '../src/blob-server/index.js'
 import BlobServerPlugin from '../src/blob-server/fastify-plugin.js'
 import fastify from 'fastify'
 
-import { replicateBlobs } from './helpers/blob-store.js'
+import { replicateBlobs, createBlobStore } from './helpers/blob-store.js'
 
 test('Plugin throws error if missing getBlobStore option', async (t) => {
   const server = fastify()
