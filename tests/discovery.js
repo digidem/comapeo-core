@@ -86,7 +86,7 @@ test('mdns - discovery and sharing of data', async (t) => {
   }
 })
 
-test(`mdns - discovery of multiple peers`, async (t) => {
+test(`mdns - discovery of multiple peers with random time instantiation`, async (t) => {
   const nPeers = 5
   // lower timeouts can yield a failing test...
   const timeout = 7000
@@ -121,6 +121,68 @@ test(`mdns - discovery of multiple peers`, async (t) => {
     setTimeout(async () => {
       peers.push(await spawnPeer())
     }, randTimeout)
+  }
+  setTimeout(async () => {
+    t.is(
+      conns.length,
+      nPeers * (nPeers - 1),
+      `number of connections match the number of peers (nPeers * (nPeers - 1))`
+    )
+    for (let peer of peers) {
+      const publicKey = peer.publicKey
+      const peerConns = conns
+        .filter(({ publicKey: localKey }) => localKey === publicKey)
+        .map(({ remotePublicKey }) => remotePublicKey.toString('hex'))
+        .sort()
+      const otherConns = peers
+        .filter(({ publicKey: peerKey }) => publicKey !== peerKey)
+        .map(({ publicKey }) => publicKey.toString('hex'))
+        .sort()
+
+      t.alike(otherConns, peerConns, `the set of peer public keys match`)
+    }
+  }, timeout)
+
+  t.teardown(async () => {
+    for (let peer of peers) {
+      await peer.discovery.stop()
+    }
+    t.end()
+  })
+})
+
+test(`mdns - discovery of multiple peers with simultaneous instantiation`, async (t) => {
+  const nPeers = 5
+  // lower timeouts can yield a failing test...
+  const timeout = 7000
+  let conns = []
+  t.plan(nPeers + 1)
+
+  const spawnPeer = async () => {
+    const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
+    const discovery = new MdnsDiscovery({ identityKeypair })
+    discovery.on('connection', (stream) => {
+      conns.push({
+        publicKey: identityKeypair.publicKey,
+        remotePublicKey: stream.remotePublicKey,
+      })
+    })
+    const peer = {
+      discovery,
+      publicKey: identityKeypair.publicKey,
+    }
+    await discovery.start()
+    return peer
+  }
+
+  /** @type {{
+   * discovery:MdnsDiscovery,
+   * publicKey: String,
+   * stream: NoiseSecretStream<Net.Socket>
+   * }[]} */
+  const peers = []
+  for (let p = 0; p < nPeers; p++) {
+    peers.push(await spawnPeer())
   }
   setTimeout(async () => {
     t.is(
