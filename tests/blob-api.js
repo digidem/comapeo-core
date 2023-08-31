@@ -50,7 +50,6 @@ test('get port after listening event with unset port', async (t) => {
 
 test('get url from blobId', async (t) => {
   const projectId = '1234'
-  const driveId = '1234'
   const type = 'image'
   const variant = 'original'
   const name = '1234'
@@ -65,13 +64,13 @@ test('get url from blobId', async (t) => {
     })
   })
 
-  const url = await blobApi.getUrl({ driveId, type, variant, name })
+  const url = await blobApi.getUrl({ type, variant, name })
 
   t.is(
     url,
     `http://127.0.0.1:${
       blobServer.server.address().port
-    }/${projectId}/${driveId}/${type}/${variant}/${name}`
+    }/${projectId}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
   )
   t.teardown(async () => {
     await blobServer.close()
@@ -100,7 +99,6 @@ test('create blobs', async (t) => {
       thumbnail: join(directory, 'thumbnail.png'),
     },
     {
-      driveId: '1234',
       mimeType: 'image/png',
     }
   )
