@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { CoreManager } from '../../src/core-manager/index.js'
 import Sqlite from 'better-sqlite3'
 import { randomBytes } from 'crypto'

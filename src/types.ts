@@ -17,8 +17,8 @@ import Hypercore from 'hypercore'
 import RandomAccessStorage from 'random-access-storage'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
-type BlobType = keyof SupportedBlobVariants
-type BlobVariant<TBlobType extends BlobType> = TupleToUnion<
+export type BlobType = keyof SupportedBlobVariants
+export type BlobVariant<TBlobType extends BlobType> = TupleToUnion<
   SupportedBlobVariants[TBlobType]
 >
 

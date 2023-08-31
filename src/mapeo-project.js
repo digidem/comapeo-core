@@ -9,6 +9,9 @@ import pDefer from 'p-defer'
 import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
+import { BlobStore } from './blob-store/index.js'
+import { createBlobServer } from './blob-server/index.js'
+import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectTable } from './schema/client.js'
 import {
@@ -34,10 +37,12 @@ export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 
 export class MapeoProject {
+  #projectId
   #coreManager
   #dataStores
   #dataTypes
-  #projectId
+  #blobStore
+  #blobServer
   #coreOwnership
   #capabilities
   #ownershipWriteDone
@@ -166,6 +171,25 @@ export class MapeoProject {
         db,
       }),
     }
+
+    this.#blobStore = new BlobStore({
+      coreManager: this.#coreManager,
+    })
+
+    this.#blobServer = createBlobServer({
+      logger: true,
+      blobStore: this.#blobStore,
+      prefix: '/blobs/',
+      projectId: this.#projectId,
+    })
+
+    // @ts-ignore TODO: pass in blobServer
+    this.$blobs = new BlobApi({
+      projectId: this.#projectId,
+      blobStore: this.#blobStore,
+      blobServer: this.#blobServer,
+    })
+
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
     })

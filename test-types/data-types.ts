@@ -21,6 +21,8 @@ type ObservationWithForks = Observation & Forks
 type PresetWithForks = Preset & Forks
 type FieldWithForks = Field & Forks
 
+const projectKey = randomBytes(32)
+const keyManager = new KeyManager(randomBytes(32))
 const sqlite = new Database(':memory:')
 
 const mapeoProject = new MapeoProject({
