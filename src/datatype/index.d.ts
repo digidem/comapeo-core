@@ -6,7 +6,7 @@ import { type MapeoDoc, type MapeoValue } from '@mapeo/schema'
 import {
   type MapeoDocMap,
   type MapeoValueMap,
-  type CoreOwnershipWithSignatures,
+  type CoreOwnershipWithSignaturesValue,
 } from '../types.js'
 import { type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { SQLiteSelectBuilder } from 'drizzle-orm/sqlite-core'
@@ -30,7 +30,10 @@ export const kSelect: unique symbol
 export const kTable: unique symbol
 
 type OmitUnion<T, K extends keyof any> = T extends any ? Omit<T, K> : never
-
+type ExcludeSchema<
+  T extends MapeoValue,
+  S extends MapeoValue['schemaName']
+> = Exclude<T, { schemaName: S }>
 // We do this because we can't pass a generic to this (an "indexed access type")
 // https://stackoverflow.com/a/75792683/3794085
 declare const from: SQLiteSelectBuilder<undefined, 'sync', RunResult>['from']
@@ -56,20 +59,21 @@ export class DataType<
 
   get [kTable](): TTable
 
-  [kCreateWithDocId]<
-    T extends import('type-fest').Exact<
-      // For this we use the "internal" version of CoreOwnership, with signatures
-      | Exclude<TValue, { schemaName: 'coreOwnership' }>
-      | CoreOwnershipWithSignaturesValue,
-      T
-    >
-  >(docId: string, value: T): Promise<TDoc & { forks: string[] }>
+  [kCreateWithDocId](
+    docId: string,
+    value:
+      | ExcludeSchema<TValue, 'coreOwnership'>
+      | CoreOwnershipWithSignaturesValue
+  ): Promise<TDoc & { forks: string[] }>
 
   [kSelect](): ReturnType<typeof from<TTable>>
 
-  create<T extends import('type-fest').Exact<TValue, T>>(
-    value: T
-  ): Promise<TDoc & { forks: string[] }>
+  create<
+    T extends import('type-fest').Exact<
+      ExcludeSchema<TValue, 'coreOwnership'>,
+      T
+    >
+  >(value: T): Promise<TDoc & { forks: string[] }>
 
   getByDocId(docId: string): Promise<TDoc & { forks: string[] }>
 
@@ -77,10 +81,12 @@ export class DataType<
 
   getMany(): Promise<Array<TDoc & { forks: string[] }>>
 
-  update<T extends import('type-fest').Exact<TValue, T>>(
-    versionId: string | string[],
-    value: T
-  ): Promise<TDoc & { forks: string[] }>
+  update<
+    T extends import('type-fest').Exact<
+      ExcludeSchema<TValue, 'coreOwnership'>,
+      T
+    >
+  >(versionId: string | string[], value: T): Promise<TDoc & { forks: string[] }>
 
   delete(versionId: string | string[]): Promise<TDoc & { forks: string[] }>
 }

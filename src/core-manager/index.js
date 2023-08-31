@@ -50,6 +50,7 @@ export class CoreManager extends TypedEmitter {
   #extension
   /** @type {'opened' | 'closing' | 'closed'} */
   #state = 'opened'
+  #ready
 
   static get namespaces() {
     return NAMESPACES
@@ -135,10 +136,23 @@ export class CoreManager extends TypedEmitter {
         this.#handleExtensionMessage(data, peer)
       },
     })
+
+    this.#ready = Promise.all(
+      [...this.#coreIndex].map(({ core }) => core.ready())
+    ).catch(() => {})
   }
 
   get creatorCore() {
     return this.#creatorCore
+  }
+
+  /**
+   * Resolves when all cores have finished loading
+   *
+   * @returns {Promise<void>}
+   */
+  async ready() {
+    await this.#ready
   }
 
   /**
