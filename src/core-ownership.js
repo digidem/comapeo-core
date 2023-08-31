@@ -81,7 +81,7 @@ export class CoreOwnership {
       }),
     }
     const docId = identityKeypair.publicKey.toString('hex')
-    this.#dataType[kCreateWithDocId](docId, docValue)
+    await this.#dataType[kCreateWithDocId](docId, docValue)
   }
 }
 

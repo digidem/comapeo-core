@@ -15,8 +15,10 @@ export const coreOwnershipTable = sqliteTable(
   'coreOwnership',
   toColumns(schemas.coreOwnership)
 )
+export const roleTable = sqliteTable('role', toColumns(schemas.role))
 
 export const observationBacklinkTable = backlinkTable(observationTable)
 export const presetBacklinkTable = backlinkTable(presetTable)
 export const fieldBacklinkTable = backlinkTable(fieldTable)
 export const coreOwnershipBacklinkTable = backlinkTable(coreOwnershipTable)
+export const roleBacklinkTable = backlinkTable(roleTable)
