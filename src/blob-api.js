@@ -28,9 +28,9 @@ export class BlobApi {
    * @returns {Promise<string>}
    */
   async getUrl(blobId) {
-    const { type, variant, name } = blobId
+    const { driveId, type, variant, name } = blobId
     const port = await getPort(this.blobServer.server)
-    return `http://127.0.0.1:${port}/${this.projectId}/${this.blobStore.writerDriveId}/${type}/${variant}/${name}`
+    return `http://127.0.0.1:${port}/${this.projectId}/${driveId}/${type}/${variant}/${name}`
   }
 
   /**
