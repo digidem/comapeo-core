@@ -23,6 +23,10 @@ export function replicateBlobs(cm1, cm2) {
   }
 }
 
+/**
+ * @param {*} rs 
+ * @returns {Promise<Buffer>}
+ */
 export async function concat(rs) {
   let buf = null
   await pipeline(

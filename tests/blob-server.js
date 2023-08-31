@@ -193,7 +193,7 @@ test('GET photo uses mime type from metadata if found', async (t) => {
 test('GET photo returns 404 when trying to get non-replicated blob', async (t) => {
   const { data, projectId, coreManager: cm1 } = await testenv()
   const projectKey = Buffer.from(projectId, 'hex')
-  const { blobStore: bs2, coreManager: cm2 } = await createBlobStore({
+  const { blobStore: bs2, coreManager: cm2 } = createBlobStore({
     projectKey,
   })
 
@@ -215,6 +215,46 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
   })
 
   t.is(res.statusCode, 404)
+})
+
+test('GET photo returns 404 when trying to get non-existent blob', async (t) => {
+  const projectKey = randomBytes(32)
+  const projectId = projectKey.toString('hex')
+  const { blobStore } = createBlobStore({ projectKey })
+  const expected = await readFile(new URL(import.meta.url))
+
+  const blobId = /** @type {const} */ ({
+    type: 'photo',
+    variant: 'original',
+    name: 'test-file',
+  })
+
+  const server = createBlobServer({ blobStore, projectId })
+
+  // Test that the blob does not exist
+  {
+    const res = await server.inject({
+      method: 'GET',
+      url: buildRouteUrl({ ...blobId, projectId, driveId: blobStore.writerDriveId }),
+    })
+
+    t.is(res.statusCode, 404)
+  }
+
+  const driveId = await blobStore.put(blobId, expected)
+
+  await blobStore.put(blobId, expected)
+  await blobStore.clear({ ...blobId, driveId: blobStore.writerDriveId })
+
+  // Test that the entry exists but blob does not
+  {
+    const res = await server.inject({
+      method: 'GET',
+      url: buildRouteUrl({ ...blobId, projectId, driveId }),
+    })
+  
+    t.is(res.statusCode, 404)
+  }
 })
 
 function createBlobStore(opts) {
