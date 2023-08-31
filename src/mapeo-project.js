@@ -4,6 +4,7 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import pDefer from 'p-defer'
 
 import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
@@ -18,12 +19,14 @@ import {
   fieldTable,
   observationTable,
   presetTable,
+  roleTable,
 } from './schema/project.js'
 import {
   CoreOwnership,
   getWinner,
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
+import { Capabilities } from './capabilities.js'
 import { valueOf } from './utils.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
@@ -31,6 +34,7 @@ import { valueOf } from './utils.js'
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreOwnership = Symbol('coreOwnership')
+export const kCapabilities = Symbol('capabilities')
 
 export class MapeoProject {
   #projectId
@@ -40,6 +44,8 @@ export class MapeoProject {
   #blobStore
   #blobServer
   #coreOwnership
+  #capabilities
+  #ownershipWriteDone
 
   /**
    * @param {Object} opts
@@ -92,7 +98,13 @@ export class MapeoProject {
       sqlite,
     })
     const indexWriter = new IndexWriter({
-      tables: [observationTable, presetTable, fieldTable, coreOwnershipTable],
+      tables: [
+        observationTable,
+        presetTable,
+        fieldTable,
+        coreOwnershipTable,
+        roleTable,
+      ],
       sqlite,
       getWinner,
       mapDoc: (doc, version) => {
@@ -153,6 +165,11 @@ export class MapeoProject {
         table: coreOwnershipTable,
         db,
       }),
+      role: new DataType({
+        dataStore: this.#dataStores.auth,
+        table: roleTable,
+        db,
+      }),
     }
 
     this.#blobStore = new BlobStore({
@@ -176,8 +193,20 @@ export class MapeoProject {
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
     })
+    this.#capabilities = new Capabilities({
+      dataType: this.#dataTypes.role,
+      coreOwnership: this.#coreOwnership,
+      coreManager: this.#coreManager,
+      projectKey: projectKey,
+      deviceKey: keyManager.getIdentityKeypair().publicKey,
+    })
 
     ///////// 4. Write core ownership record
+
+    const deferred = pDefer()
+    // Avoid uncaught rejection. If this is rejected then project.ready() will reject
+    deferred.promise.catch(() => {})
+    this.#ownershipWriteDone = deferred.promise
 
     const authCore = this.#coreManager.getWriterCore('auth').core
     authCore.on('ready', () => {
@@ -188,7 +217,10 @@ export class MapeoProject {
         projectSecretKey,
         keyManager,
       })
-      this.#coreOwnership.writeOwnership(identityKeypair, coreKeypairs)
+      this.#coreOwnership
+        .writeOwnership(identityKeypair, coreKeypairs)
+        .then(deferred.resolve)
+        .catch(deferred.reject)
     })
   }
 
@@ -200,10 +232,17 @@ export class MapeoProject {
   }
 
   /**
+   * Capabilities instance, used for tests
+   */
+  get [kCapabilities]() {
+    return this.#capabilities
+  }
+
+  /**
    * Resolves when hypercores have all loaded
    */
   async ready() {
-    await this.#coreManager.ready()
+    await Promise.all([this.#coreManager.ready(), this.#ownershipWriteDone])
   }
 
   /**
