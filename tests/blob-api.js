@@ -105,7 +105,7 @@ test('create blobs', async (t) => {
     }
   )
 
-  t.is(attachment.driveId, '1234')
+  t.is(attachment.driveId, blobStore.writerDriveId)
   t.is(attachment.type, 'photo')
 
   t.teardown(async () => {

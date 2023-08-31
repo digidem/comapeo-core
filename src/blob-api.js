@@ -36,7 +36,7 @@ export class BlobApi {
   /**
    * Write blobs for provided variants of a file
    * @param {{ original: string, preview?: string, thumbnail?: string }} filepaths
-   * @param {{ mimeType: string, driveId: string }} metadata
+   * @param {{ mimeType: string }} metadata
    * @returns {Promise<{ driveId: string, name: string, type: 'photo' | 'video' | 'audio' }>}
    */
   async create(filepaths, metadata) {
@@ -82,7 +82,7 @@ export class BlobApi {
     }
 
     return {
-      driveId: metadata.driveId,
+      driveId: this.blobStore.writerDriveId,
       name,
       type: blobType,
     }
@@ -95,7 +95,7 @@ export class BlobApi {
    * @param {string} metadata.mimeType
    */
   async writeFile(filepath, { name, variant, type }, metadata) {
-    // @ts-ignore TODO: address blobStore.createWriteStream return type
+    // @ts-ignore TODO: return value types don't match pipeline's expectations, though they should
     await pipeline(
       fs.createReadStream(filepath),
       this.blobStore.createWriteStream({ type, variant, name }, { metadata })
