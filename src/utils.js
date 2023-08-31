@@ -61,3 +61,32 @@ export async function openedNoiseSecretStream(stream) {
   await stream.opened
   return /** @type {OpenedNoiseStream | DestroyedNoiseStream} */ (stream)
 }
+
+/**
+ * When reading from SQLite, any optional properties are set to `null`. This
+ * converts `null` back to `undefined` to match the input types (e.g. the types
+ * defined in @mapeo/schema)
+ * @template {{}} T
+ * @param {T} obj
+ * @returns {import('./types.js').NullableToOptional<T>}
+ */
+
+export function deNullify(obj) {
+  /** @type {Record<string, any>} */
+  const objNoNulls = {}
+  for (const [key, value] of Object.entries(obj)) {
+    objNoNulls[key] = value === null ? undefined : value
+  }
+  return /** @type {import('./types.js').NullableToOptional<T>} */ (objNoNulls)
+}
+
+/**
+ * @template {import('@mapeo/schema').MapeoDoc & { forks: string[] }} T
+ * @param {T} doc
+ * @returns {Omit<T, 'docId' | 'versionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt'>}
+ */
+export function valueOf(doc) {
+  // eslint-disable-next-line no-unused-vars
+  const { docId, versionId, links, forks, createdAt, updatedAt, ...rest } = doc
+  return rest
+}

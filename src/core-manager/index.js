@@ -4,7 +4,7 @@ import Corestore from 'corestore'
 import assert from 'node:assert'
 import { once } from 'node:events'
 import Hypercore from 'hypercore'
-import { ProjectExtension } from './messages.js'
+import { ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
 
@@ -12,6 +12,7 @@ import { ReplicationStateMachine } from './replication-state-machine.js'
 // are used for key derivation
 export const NAMESPACES = /** @type {const} */ ([
   'auth',
+  'config',
   'data',
   'blobIndex',
   'blob',
@@ -49,6 +50,7 @@ export class CoreManager extends TypedEmitter {
   #extension
   /** @type {'opened' | 'closing' | 'closed'} */
   #state = 'opened'
+  #ready
 
   static get namespaces() {
     return NAMESPACES
@@ -134,10 +136,23 @@ export class CoreManager extends TypedEmitter {
         this.#handleExtensionMessage(data, peer)
       },
     })
+
+    this.#ready = Promise.all(
+      [...this.#coreIndex].map(({ core }) => core.ready())
+    ).catch(() => {})
   }
 
   get creatorCore() {
     return this.#creatorCore
+  }
+
+  /**
+   * Resolves when all cores have finished loading
+   *
+   * @returns {Promise<void>}
+   */
+  async ready() {
+    await this.#ready
   }
 
   /**

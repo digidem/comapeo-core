@@ -1,4 +1,5 @@
-import { text, integer, real, customType } from 'drizzle-orm/sqlite-core'
+import { text, integer, real } from 'drizzle-orm/sqlite-core'
+import { customJson } from './utils.js'
 
 /**
 @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -6,19 +7,6 @@ import { text, integer, real, customType } from 'drizzle-orm/sqlite-core'
 /**
 @typedef {import('../types.js').MapeoDocMap} MapeoDocMap
  */
-
-const customJson = customType({
-  dataType() {
-    return 'text'
-  },
-  fromDriver(value) {
-    // @ts-ignore
-    return JSON.parse(value)
-  },
-  toDriver(value) {
-    return JSON.stringify(value)
-  },
-})
 
 /**
 Convert a JSONSchema definition to a Drizzle Columns Map (the parameter for
@@ -80,12 +68,13 @@ export function jsonSchemaToDrizzleColumns(schema) {
         continue
       }
     }
-    const defaultValue = getDefault(value)
-    if (typeof defaultValue !== 'undefined') {
-      columns[key] = columns[key].default(defaultValue)
-    }
     if (isRequired(schema, key)) {
       columns[key] = columns[key].notNull()
+      // Only set defaults for required fields
+      const defaultValue = getDefault(value)
+      if (typeof defaultValue !== 'undefined') {
+        columns[key] = columns[key].default(defaultValue)
+      }
     }
   }
   // Not yet in @mapeo/schema

@@ -1,4 +1,9 @@
-import { text, getTableConfig, sqliteTable } from 'drizzle-orm/sqlite-core'
+import {
+  text,
+  getTableConfig,
+  sqliteTable,
+  customType,
+} from 'drizzle-orm/sqlite-core'
 
 /**
  * @template {string} [TName=string]
@@ -30,3 +35,16 @@ export function backlinkTable(tableSchema) {
 export function getBacklinkTableName(tableName) {
   return tableName + BACKLINK_TABLE_POSTFIX
 }
+
+export const customJson = customType({
+  dataType() {
+    return 'text'
+  },
+  fromDriver(value) {
+    // @ts-ignore
+    return JSON.parse(value)
+  },
+  toDriver(value) {
+    return JSON.stringify(value)
+  },
+})

@@ -4,7 +4,7 @@
 
 ## Purpose
 
-The `DataStore` class is an API over a CoreManager namespace, responsible for reading blocks for indexing from all cores in a namespace; writing new documents to the namespace writer core, and reading existing documents from any core in the namespace based on the `versionId`. `DataStore` does not write documents to an index, it only reads them for indexing - it will call the `IndexWriter.batch()` function with entries that are read from cores in the namespace that the datastore manages. Writes will only resolve once `IndexWriter.batch()` resolves (e.g. once a document has been written to the SQLite index tables).
+The `DataStore` class is an API over a CoreManager namespace, responsible for reading blocks for indexing from all cores in a namespace; writing new documents to the namespace writer core, and reading existing documents from any core in the namespace based on the `versionId`. `DataStore` does not write documents to an index, it only reads them for indexing - it will call the `batch()` constructor option with entries that are read from cores in the namespace that the datastore manages. Writes will only resolve once `batch()` resolves (e.g. once a document has been written to the SQLite index tables).
 
 ## Usage
 
@@ -15,7 +15,9 @@ An example of `DataStore` usage taken from the [datastore tests](../../tests/dat
 ```js
 const datastore = new DataStore({
   coreManager,
-  indexWriter,
+  batch: async (entries) => {
+    // Process entries here using an indexer...
+  },
   namespace: 'data',
 })
 

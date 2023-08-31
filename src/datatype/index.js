@@ -3,6 +3,7 @@ import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, placeholder } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
+import { deNullify } from '../utils.js'
 
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -42,13 +43,16 @@ function generateId() {
 function generateDate() {
   return new Date().toISOString()
 }
+export const kCreateWithDocId = Symbol('kCreateWithDocId')
+export const kSelect = Symbol('select')
+export const kTable = Symbol('table')
 
 /**
  * @template {import('../datastore/index.js').DataStore} TDataStore
  * @template {TDataStore['schemas'][number]} TSchemaName
  * @template {MapeoDocTablesMap[TSchemaName]} TTable
- * @template {MapeoDocMap[TSchemaName]} TDoc
- * @template {MapeoValueMap[TSchemaName]} TValue
+ * @template {Exclude<MapeoDocMap[TSchemaName], { schemaName: 'coreOwnership' }>} TDoc
+ * @template {Exclude<MapeoValueMap[TSchemaName], { schemaName: 'coreOwnership' }>} TValue
  */
 export class DataType {
   #dataStore
@@ -56,6 +60,7 @@ export class DataType {
   #getPermissions
   #schemaName
   #sql
+  #db
 
   /**
    *
@@ -70,6 +75,7 @@ export class DataType {
     this.#table = table
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
     this.#getPermissions = getPermissions
+    this.#db = db
     this.#sql = {
       getByDocId: db
         .select()
@@ -80,11 +86,25 @@ export class DataType {
     }
   }
 
+  get [kTable]() {
+    return this.#table
+  }
+
   /**
    * @template {import('type-fest').Exact<TValue, T>} T
    * @param {T} value
    */
   async create(value) {
+    const docId = generateId()
+    // @ts-expect-error - can't figure this one out, types in index.d.ts override this
+    return this[kCreateWithDocId](docId, value)
+  }
+
+  /**
+   * @param {string} docId
+   * @param {TValue | import('../types.js').CoreOwnershipWithSignaturesValue} value
+   */
+  async [kCreateWithDocId](docId, value) {
     if (!validate(this.#schemaName, value)) {
       // TODO: pass through errors from validate functions
       throw new Error('Invalid value ' + value)
@@ -93,7 +113,7 @@ export class DataType {
     /** @type {OmitUnion<MapeoDoc, 'versionId'>} */
     const doc = {
       ...value,
-      docId: generateId(),
+      docId,
       createdAt: nowDateString,
       updatedAt: nowDateString,
       links: [],
@@ -101,7 +121,8 @@ export class DataType {
 
     // TS can't track the relationship between TDoc and TValue, so doc above is
     // typed as MapeoDoc (without versionId) rather than as TDoc.
-    await this.#dataStore.write(/** @type {TDoc} */ (doc))
+    // @ts-expect-error
+    await this.#dataStore.write(doc)
     return this.getByDocId(doc.docId)
   }
 
@@ -109,7 +130,8 @@ export class DataType {
    * @param {string} docId
    */
   async getByDocId(docId) {
-    return deNullify(this.#sql.getByDocId.get({ docId }))
+    const result = this.#sql.getByDocId.get({ docId })
+    return result ? deNullify(result) : result
   }
 
   /** @param {string} versionId */
@@ -163,6 +185,13 @@ export class DataType {
   }
 
   /**
+   * @param {Parameters<import('drizzle-orm/better-sqlite3').BetterSQLite3Database['select']>[0]} fields
+   */
+  [kSelect](fields) {
+    return this.#db.select(fields).from(this.#table)
+  }
+
+  /**
    * Validate that existing docs with the given versionIds (links):
    * - exist
    * - have the same schemaName as this dataType
@@ -186,21 +215,4 @@ export class DataType {
     }
     return { docId, createdAt }
   }
-}
-
-/**
- * When reading from SQLite, any optional properties are set to `null`. This
- * converts `null` back to `undefined` to match the input types (e.g. the types
- * defined in @mapeo/schema)
- * @template {{}} T
- * @param {T} obj
- * @returns {import('../types.js').NullableToOptional<T>}
- */
-export function deNullify(obj) {
-  /** @type {Record<string, any>} */
-  const objNoNulls = {}
-  for (const [key, value] of Object.entries(obj)) {
-    objNoNulls[key] = value === null ? undefined : value
-  }
-  return /** @type {import('../types.js').NullableToOptional<T>} */ (objNoNulls)
 }

@@ -10,7 +10,9 @@ import {
   BACKLINK_TABLE_POSTFIX,
   getBacklinkTableName,
 } from '../src/schema/utils.js'
-import { deNullify } from '../src/datatype/index.js'
+import { deNullify } from '../src/utils.js'
+
+const MAPEO_DATATYPE_NAMES = Object.keys(jsonSchemas)
 
 test('Expected table config', (t) => {
   const allTableSchemas = [
@@ -20,8 +22,10 @@ test('Expected table config', (t) => {
 
   for (const tableSchema of allTableSchemas) {
     const config = getTableConfig(tableSchema)
-    // Ignore backlink tables for this test
-    if (config.name.endsWith(BACKLINK_TABLE_POSTFIX)) continue
+
+    // Only test Mapeo Schema data types in this test
+    if (!MAPEO_DATATYPE_NAMES.includes(config.name)) continue
+
     const schemaName = config.name
     if (!(schemaName in jsonSchemas)) {
       t.fail()
@@ -46,7 +50,11 @@ test('Expected table config', (t) => {
         jsonSchema.required.includes(key),
         'NOT NULL matches `required`'
       )
-      t.is(columnConfig.default, value.default, 'Default is correct')
+      // Only fields that are required should have a default set in the SQLite column
+      const expectedDefault =
+        // @ts-ignore
+        jsonSchema.required.includes(key) ? value.default : undefined
+      t.is(columnConfig.default, expectedDefault, 'Default is correct')
     }
   }
 })
@@ -72,22 +80,30 @@ test('Types match', { skip: true }, (t) => {
 
   const { observationTable, presetTable, fieldTable } = projectTableSchemas
 
+  const oResult = db.select().from(observationTable).get()
+  const pResult = db.select().from(presetTable).get()
+  const fResult = db.select().from(fieldTable).get()
+
+  if (!(oResult && pResult && fResult)) {
+    t.fail()
+    return
+  }
+
   /** @type {MapeoType<'observation'>} */
-  const o = deNullify(db.select().from(observationTable).get())
+  const o = deNullify(oResult)
 
   /** @type {MapeoType<'preset'>} */
-  const p = deNullify(db.select().from(presetTable).get())
+  const p = deNullify(pResult)
 
   /** @type {MapeoType<'field'>} */
-  const f = deNullify(db.select().from(fieldTable).get())
+  const f = deNullify(fResult)
 
   t.pass()
 })
 
-test('backlink table exists for every endexed data type', (t) => {
+test('backlink table exists for every indexed data type', (t) => {
   // Every indexed datatype needs a backlink table, which is used by
   // sqlite-indexer to track backlinks
-
   const allTableNames = [
     ...Object.values(clientTableSchemas),
     ...Object.values(projectTableSchemas),
@@ -98,8 +114,8 @@ test('backlink table exists for every endexed data type', (t) => {
   const backlinkTableNames = allTableNames.filter((name) =>
     name.endsWith(BACKLINK_TABLE_POSTFIX)
   )
-  const dataTypeTableNames = allTableNames.filter(
-    (name) => !name.endsWith(BACKLINK_TABLE_POSTFIX)
+  const dataTypeTableNames = allTableNames.filter((name) =>
+    MAPEO_DATATYPE_NAMES.includes(name)
   )
 
   for (const name of dataTypeTableNames) {
