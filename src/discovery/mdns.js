@@ -81,7 +81,14 @@ export class MdnsDiscovery extends TypedEmitter {
         if (!isValidServerAddresses(service.addresses)) {
           throw new Error('Got invalid server addresses from service')
         }
-        const socket = net.connect(service.port, service.addresses[0])
+        const address = service.addresses?.reduce(
+          (finalAddr, addr) => (net.isIPv4(addr) ? addr : finalAddr),
+          ''
+        )
+        // const ipv4s = service.addresses?.filter((addr) => net.isIPv4(addr))
+        // skip ipv6 addresses
+        // if (ipv4s.length === 0) return
+        const socket = net.connect(service.port, address)
         socket.once('connect', () => {
           this.#handleConnection(true, socket)
         })
