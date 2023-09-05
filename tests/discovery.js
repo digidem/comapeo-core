@@ -1,49 +1,19 @@
+// @ts-check
 import test from 'brittle'
 import { randomBytes } from 'node:crypto'
+import net from 'node:net'
 import { KeyManager } from '@mapeo/crypto'
-import { MdnsDiscovery } from '../src/discovery/mdns.js'
+import { setTimeout as delay } from 'node:timers/promises'
+import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
+import { ERR_DUPLICATE, MdnsDiscovery } from '../src/discovery/mdns.js'
+import { once } from 'node:events'
+import NoiseSecretStream from '@hyperswarm/secret-stream'
 
-test('mdns - discovery', async (t) => {
+// Time in ms to wait for mdns messages to propogate
+const MDNS_WAIT_TIME = 5000
+
+test('mdns - discovery and sharing of data', (t) => {
   t.plan(2)
-  const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
-  const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
-
-  const mdnsDiscovery1 = new MdnsDiscovery({
-    identityKeypair: identityKeypair1,
-  })
-  mdnsDiscovery1.on('connection', async (stream) => {
-    const remoteKey = stream.remotePublicKey.toString('hex')
-    const peerKey = identityKeypair2.publicKey.toString('hex')
-    t.ok(remoteKey === peerKey)
-    await step()
-  })
-
-  const mdnsDiscovery2 = new MdnsDiscovery({
-    identityKeypair: identityKeypair2,
-  })
-  mdnsDiscovery2.on('connection', async (stream) => {
-    const remoteKey = stream.remotePublicKey.toString('hex')
-    const peerKey = identityKeypair1.publicKey.toString('hex')
-    t.ok(remoteKey === peerKey)
-    await step()
-  })
-
-  let count = 0
-  async function step() {
-    count++
-    if (count === 2) {
-      // await new Promise((res) => setTimeout(res, 2000))
-      mdnsDiscovery1.stop()
-      mdnsDiscovery2.stop()
-    }
-  }
-
-  mdnsDiscovery1.start()
-  mdnsDiscovery2.start()
-})
-
-test('mdns - discovery and sharing of data', async (t) => {
-  t.plan(1)
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
 
@@ -57,151 +27,137 @@ test('mdns - discovery and sharing of data', async (t) => {
 
   mdnsDiscovery1.on('connection', (stream) => {
     stream.write(str)
-    step()
   })
 
   mdnsDiscovery2.on('connection', (stream) => {
     stream.on('data', (d) => {
-      t.ok(d.toString() === str)
-      step()
+      t.is(d.toString(), str, 'expected data written')
+      Promise.all([
+        mdnsDiscovery1.stop({ force: true }),
+        mdnsDiscovery2.stop({ force: true }),
+      ]).then(() => {
+        t.pass('teardown complete')
+      })
     })
   })
-  await mdnsDiscovery1.start()
-  await mdnsDiscovery2.start()
 
-  let count = 0
-  async function step() {
-    count++
-    if (count === 2) {
-      mdnsDiscovery1.stop()
-      mdnsDiscovery2.stop()
-    }
+  mdnsDiscovery1.start()
+  mdnsDiscovery2.start()
+})
+
+test('deduplicate incoming connections', async (t) => {
+  const localConnections = new Set()
+  const remoteConnections = new Set()
+
+  const localKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
+  const remoteKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
+  const discovery = new MdnsDiscovery({ identityKeypair: localKp })
+  await discovery.start()
+
+  discovery.on('connection', (conn) => {
+    localConnections.add(conn)
+    conn.on('close', () => localConnections.delete(conn))
+  })
+
+  const addrInfo = discovery.address()
+  for (let i = 0; i < 20; i++) {
+    noiseConnect(addrInfo, remoteKp).then((conn) => {
+      conn.on('connect', () => remoteConnections.add(conn))
+      conn.on('close', () => remoteConnections.delete(conn))
+    })
   }
+
+  await delay(1000)
+  t.is(localConnections.size, 1)
+  t.is(remoteConnections.size, 1)
+  t.alike(
+    localConnections.values().next().value.handshakeHash,
+    remoteConnections.values().next().value.handshakeHash
+  )
+  await discovery.stop({ force: true })
 })
 
 test(`mdns - discovery of multiple peers with random time instantiation`, async (t) => {
-  const nPeers = 5
-  // lower timeouts can yield a failing test...
-  const timeout = 7000
-  let conns = []
-  t.plan(nPeers + 1)
-
-  const spawnPeer = async () => {
-    const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
-    const discovery = new MdnsDiscovery({ identityKeypair })
-    discovery.on('connection', (stream) => {
-      conns.push({
-        publicKey: identityKeypair.publicKey,
-        remotePublicKey: stream.remotePublicKey,
-      })
-    })
-    const peer = {
-      discovery,
-      publicKey: identityKeypair.publicKey,
-    }
-    await discovery.start()
-    return peer
-  }
-
-  /** @type {{
-   * discovery:MdnsDiscovery,
-   * publicKey: String,
-   * stream: NoiseSecretStream<Net.Socket>
-   * }[]} */
-  const peers = []
-  for (let p = 0; p < nPeers; p++) {
-    const randTimeout = Math.floor(Math.random() * 2000)
-    setTimeout(async () => {
-      peers.push(await spawnPeer())
-    }, randTimeout)
-  }
-  setTimeout(async () => {
-    t.is(
-      conns.length,
-      nPeers * (nPeers - 1),
-      `number of connections match the number of peers (nPeers * (nPeers - 1))`
-    )
-    for (let peer of peers) {
-      const publicKey = peer.publicKey
-      const peerConns = conns
-        .filter(({ publicKey: localKey }) => localKey === publicKey)
-        .map(({ remotePublicKey }) => remotePublicKey.toString('hex'))
-        .sort()
-      const otherConns = peers
-        .filter(({ publicKey: peerKey }) => publicKey !== peerKey)
-        .map(({ publicKey }) => publicKey.toString('hex'))
-        .sort()
-
-      t.alike(otherConns, peerConns, `the set of peer public keys match`)
-    }
-  }, timeout)
-
-  t.teardown(async () => {
-    for (let peer of peers) {
-      await peer.discovery.stop()
-    }
-    t.end()
-  })
+  await testMultiple(t, { period: 2000, nPeers: 20 })
 })
 
-test(`mdns - discovery of multiple peers with simultaneous instantiation`, async (t) => {
-  const nPeers = 7
-  // lower timeouts can yield a failing test...
-  const timeout = 7000
-  let conns = []
-  t.plan(nPeers + 1)
+test(`mdns - discovery of multiple peers instantiated at the same time`, async (t) => {
+  await testMultiple(t, { period: 2000, nPeers: 20 })
+})
 
-  const spawnPeer = async () => {
+/**
+ *
+ * @param {net.AddressInfo} addrInfo
+ * @param {{ publicKey: Buffer, secretKey: Buffer }} keyPair
+ * @returns
+ */
+async function noiseConnect({ port, address }, keyPair) {
+  const socket = net.connect(port, address)
+  return new NoiseSecretStream(true, socket, { keyPair })
+}
+
+/**
+ * @param {any} t
+ * @param {object} opts
+ * @param {number} opts.period Randomly spawn peers within this period
+ * @param {number} [opts.nPeers] Number of peers to spawn (default 20)
+ */
+async function testMultiple(t, { period, nPeers = 20 }) {
+  const peersById = new Map()
+  const connsById = new Map()
+  // t.plan(3 * nPeers + 1)
+
+  async function spawnPeer() {
     const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
     const discovery = new MdnsDiscovery({ identityKeypair })
-    discovery.on('connection', (stream) => {
-      conns.push({
-        publicKey: identityKeypair.publicKey,
-        remotePublicKey: stream.remotePublicKey,
+    const peerId = keyToPublicId(discovery.publicKey)
+    peersById.set(peerId, discovery)
+    const conns = []
+    connsById.set(peerId, conns)
+    discovery.on('connection', (conn) => {
+      conn.on('error', (e) => {
+        // We expected connections to be closed when duplicates happen. On the
+        // closing side the error will be ERR_DUPLICATE, but on the other side
+        // the error will be an ECONNRESET - the error is not sent over the
+        // connection
+        const expectedError =
+          e.message === ERR_DUPLICATE || e.code === 'ECONNRESET'
+        t.ok(expectedError, 'connection closed with expected error')
       })
+      conns.push(conn)
     })
-    const peer = {
-      discovery,
-      publicKey: identityKeypair.publicKey,
-    }
     await discovery.start()
-    return peer
+    return discovery
   }
 
-  /** @type {{
-   * discovery:MdnsDiscovery,
-   * publicKey: String,
-   * stream: NoiseSecretStream<Net.Socket>
-   * }[]} */
-  const peers = []
   for (let p = 0; p < nPeers; p++) {
-    peers.push(await spawnPeer())
+    setTimeout(spawnPeer, Math.floor(Math.random() * period))
   }
-  setTimeout(async () => {
-    t.is(
-      conns.length,
-      nPeers * (nPeers - 1),
-      `number of connections match the number of peers (nPeers * (nPeers - 1))`
+
+  await delay(period + MDNS_WAIT_TIME)
+
+  const peerIds = [...peersById.keys()]
+
+  for (const peerId of peerIds) {
+    const expected = peerIds.filter((id) => id !== peerId).sort()
+    const actual = connsById
+      .get(peerId)
+      .filter((conn) => !conn.destroyed)
+      .map((conn) => keyToPublicId(conn.remotePublicKey))
+      .sort()
+    t.alike(
+      actual,
+      expected,
+      `peer ${peerId.slice(0, 7)} connected to all ${
+        expected.length
+      } other peers`
     )
-    for (let peer of peers) {
-      const publicKey = peer.publicKey
-      const peerConns = conns
-        .filter(({ publicKey: localKey }) => localKey === publicKey)
-        .map(({ remotePublicKey }) => remotePublicKey.toString('hex'))
-        .sort()
-      const otherConns = peers
-        .filter(({ publicKey: peerKey }) => publicKey !== peerKey)
-        .map(({ publicKey }) => publicKey.toString('hex'))
-        .sort()
+  }
 
-      t.alike(otherConns, peerConns, `the set of peer public keys match`)
-    }
-  }, timeout)
-
-  t.teardown(async () => {
-    for (let peer of peers) {
-      await peer.discovery.stop()
-    }
-    t.end()
-  })
-})
+  const stopPromises = []
+  for (const discovery of peersById.values()) {
+    stopPromises.push(discovery.stop({ force: true }))
+  }
+  await Promise.all(stopPromises)
+  t.pass('teardown complete')
+}

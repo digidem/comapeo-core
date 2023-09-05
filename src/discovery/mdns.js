@@ -2,199 +2,277 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import net from 'node:net'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
-import dnssd from '@gravitysoftware/dnssd'
+import { DnsSd } from './dns-sd.js'
 import debug from 'debug'
-import { randomBytes } from 'node:crypto'
 import isIpPrivate from 'private-ip'
-
-const log = debug('mdns')
-
-const SERVICE_NAME = 'mapeo'
+import StartStopStateMachine from 'start-stop-state-machine'
+import pTimeout from 'p-timeout'
+import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 
+export const ERR_DUPLICATE = 'Duplicate connection'
+
 /**
- * @typedef {Object} Service
- * @property {string} host - hostname of the service
- * @property {number} port - port of the service
- * @property {Object<string, any>} txt - TXT records of the service
- * @property {string[]} [addresses] - addresses of the service
+ * @typedef {Object} DiscoveryEvents
+ * @property {(connection: import('@hyperswarm/secret-stream')<net.Socket>) => void} connection
  */
 
+/**
+ * @extends {TypedEmitter<DiscoveryEvents>}
+ */
 export class MdnsDiscovery extends TypedEmitter {
   #identityKeypair
   #server
-  /** @type {Map<string,NoiseSecretStream<net.Socket>>} */
+  /** @type {Map<string, NoiseSecretStream<net.Socket>>} */
   #noiseConnections = new Map()
-  /** @type {import('@gravitysoftware/dnssd').Advertisement} */
-  #advertiser
-  /** @type {import('@gravitysoftware/dnssd').Browser} */
-  #browser
-  /** @type {string} */
-  #id = randomBytes(8).toString('hex')
+  #dnssd
+  #sm
+  #log
+  /** @type {(e: Error) => void} */
+  #handleSocketError
 
-  /** @param {Object} opts
+  /**
+   * @param {Object} opts
    * @param {Keypair} opts.identityKeypair
+   * @param {DnsSd} [opts.dnssd] Optional DnsSd instance, used for testing
    */
-  constructor({ identityKeypair }) {
+  constructor({ identityKeypair, dnssd }) {
     super()
+    this.#dnssd =
+      dnssd ||
+      new DnsSd({
+        name: keyToPublicId(identityKeypair.publicKey),
+      })
+    this.#dnssd.on('up', this.#handleServiceUp.bind(this))
+    this.#log = debug('mapeo:mdns:' + keyShortname(identityKeypair.publicKey))
+    this.#sm = new StartStopStateMachine({
+      start: this.#start.bind(this),
+      stop: this.#stop.bind(this),
+    })
+    this.#handleSocketError = (e) => {
+      this.#log('socket error', e.message)
+    }
     this.#identityKeypair = identityKeypair
-    this.#server = net.createServer(this.#handleConnection.bind(this, false))
+    this.#server = net.createServer(this.#handleTcpConnection.bind(this, false))
+    this.#server.on('error', (e) => {
+      this.#log('Server error', e)
+    })
+  }
+
+  get publicKey() {
+    return this.#identityKeypair.publicKey
+  }
+
+  address() {
+    return this.#server.address()
   }
 
   async start() {
+    return this.#sm.start()
+  }
+
+  async #start() {
+    // start browsing straight away
+    this.#dnssd.browse()
+
     // Let OS choose port, listen on ip4, all interfaces
     this.#server.listen(0, '0.0.0.0')
-    this.#server.on('error', () => {})
-    this.#server.on('close', () => {})
     await once(this.#server, 'listening')
+    const addr = getAddress(this.#server)
+    this.#log('server listening on port ' + addr.port)
+    await this.#dnssd.advertise(addr.port)
+    this.#log('advertising service on port ' + addr.port)
+  }
 
-    const addr = this.#server.address()
-    if (!isAddressInfo(addr))
-      throw new Error('Server must be listening on a port')
-    log('server listening on port ' + addr.port)
-
-    this.#advertiser = new dnssd.Advertisement(
-      dnssd.tcp(SERVICE_NAME),
-      addr.port,
-      { txt: { id: this.#id } }
-    )
-
-    // find all peers adverticing Mapeo
-    this.#browser = new dnssd.Browser(dnssd.tcp(SERVICE_NAME))
-    this.#browser.on(
-      'serviceUp',
-      /** @param {Service} service */
-      (service) => {
-        if (service.txt?.id === this.#id) {
-          log(`Discovered self, ignore`)
-          return
-        }
-        log(
-          'serviceUp',
-          addr.port,
-          addr.address,
-          service.port,
-          service.addresses
-        )
-        if (!isValidServerAddresses(service.addresses)) {
-          throw new Error('Got invalid server addresses from service')
-        }
-        // skip ipv6 addresses
-        const address = service.addresses?.reduce(
-          (finalAddr, addr) => (net.isIPv4(addr) ? addr : finalAddr),
-          ''
-        )
-        // const ipv4s = service.addresses?.filter((addr) => net.isIPv4(addr))
-        // if (ipv4s.length === 0) return
-        const socket = net.connect(service.port, address)
-        socket.once('connect', () => {
-          this.#handleConnection(true, socket)
-        })
-      }
-    )
-
-    Promise.all([this.#advertiser.start(), this.#browser.start()]).finally(
-      () => {
-        log(`started advertiser and browser for ${addr.port}`)
-      }
-    )
+  /**
+   *
+   * @param {import('./dns-sd.js').MapeoService} service
+   * @returns
+   */
+  #handleServiceUp({ address, port, name }) {
+    this.#log('serviceUp', name.slice(0, 7), address, port)
+    if (this.#noiseConnections.has(name)) {
+      this.#log(`Already connected to ${name.slice(0, 7)}`)
+      return
+    }
+    const socket = net.connect(port, address)
+    socket.on('error', this.#handleSocketError)
+    socket.once('connect', () => {
+      this.#handleTcpConnection(true, socket)
+    })
   }
 
   /**
    * @param {boolean} isInitiator
    * @param {net.Socket} socket
    */
-  async #handleConnection(isInitiator, socket) {
-    log(
-      `${isInitiator ? 'outgoing' : 'incoming'} connection ${
-        isInitiator ? 'to' : 'from'
-      } ${socket.remotePort}`
-    )
-    if (!socket.remoteAddress) return
-    if (!isIpPrivate(socket.remoteAddress)) return
-
+  #handleTcpConnection(isInitiator, socket) {
     const { remoteAddress } = socket
+    if (!remoteAddress || !isIpPrivate(remoteAddress)) {
+      socket.destroy(new Error('Invalid remoteAddress ' + remoteAddress))
+      return
+    }
+    this.#log(
+      `${isInitiator ? 'outgoing' : 'incoming'} tcp connection ${
+        isInitiator ? 'to' : 'from'
+      } ${remoteAddress}`
+    )
 
     const secretStream = new NoiseSecretStream(isInitiator, socket, {
       keyPair: this.#identityKeypair,
     })
 
-    secretStream.on('connect', async () => {
-      log(`${isInitiator ? 'outgoing' : 'incoming'} secretSteam connection`)
-      const { remotePublicKey } = secretStream
-      if (!remotePublicKey) throw new Error('No remote public key')
-      const remoteId = remotePublicKey.toString('hex')
+    secretStream.on('error', this.#handleSocketError)
 
-      const close = () => {
-        if (this.#noiseConnections.has(remoteId)) {
-          this.#noiseConnections.delete(remoteId)
-        }
-        log(
-          `Destroying connection ${isInitiator ? 'to' : 'from'} ${
-            socket.remotePort
-          }`
-        )
-        secretStream.destroy()
-        socket.destroy()
-      }
-
-      secretStream.on('close', () => close())
-      secretStream.on('error', () => close())
-
-      const existing = this.#noiseConnections.get(remoteId)
-
-      if (existing) {
-        const keepExisting =
-          (isInitiator && existing.isInitiator) ||
-          (!isInitiator && !existing.isInitiator) ||
-          Buffer.compare(this.#identityKeypair.publicKey, remotePublicKey)
-        if (keepExisting) {
-          log(`keeping existing, destroying new`)
-          socket.destroy()
-          secretStream.destroy()
-          return
-        } else {
-          log(`destroying existing, keeping new`)
-          existing.destroy()
-        }
-      }
-      this.#noiseConnections.set(remoteId, secretStream)
-      this.emit('connection', secretStream)
+    secretStream.on('connect', () => {
+      // Further errors will be handled in #handleNoiseStreamConnection()
+      secretStream.off('error', this.#handleSocketError)
+      this.#handleNoiseStreamConnection(secretStream)
     })
+  }
+
+  /**
+   *
+   * @param {NoiseSecretStream<net.Socket>} existing
+   * @param {NoiseSecretStream<net.Socket>} keeping
+   */
+  #handleConnectionSwap(existing, keeping) {
+    let closed = false
+
+    existing.on('close', () => {
+      // The connection we are keeping could have closed before we get here
+      if (closed) return
+
+      keeping.removeListener('error', noop)
+      keeping.removeListener('close', onclose)
+
+      this.#handleNoiseStreamConnection(keeping)
+    })
+
+    keeping.on('error', noop)
+    keeping.on('close', onclose)
+
+    function onclose() {
+      closed = true
+    }
+  }
+
+  /**
+   *
+   * @param {NoiseSecretStream<net.Socket>} conn
+   * @returns
+   */
+  #handleNoiseStreamConnection(conn) {
+    const { remotePublicKey, isInitiator } = conn
+    if (!remotePublicKey) {
+      // Shouldn't get here
+      this.#log('Error: incoming connection with no publicKey')
+      conn.destroy()
+      return
+    }
+    const remoteId = keyToPublicId(remotePublicKey)
+
+    this.#log(
+      `${isInitiator ? 'outgoing' : 'incoming'} secretSteam connection ${
+        isInitiator ? 'to' : 'from'
+      } ${keyShortname(remotePublicKey)}`
+    )
+
+    const existing = this.#noiseConnections.get(remoteId)
+
+    if (existing) {
+      const keepExisting =
+        (isInitiator && existing.isInitiator) ||
+        (!isInitiator && !existing.isInitiator) ||
+        Buffer.compare(this.#identityKeypair.publicKey, remotePublicKey) > 0
+      if (keepExisting) {
+        this.#log(`keeping existing, destroying new`)
+        conn.on('error', noop)
+        conn.destroy(new Error(ERR_DUPLICATE))
+        return
+      } else {
+        this.#log(`destroying existing, keeping new`)
+        existing.on('error', noop)
+        existing.destroy(new Error(ERR_DUPLICATE))
+        this.#handleConnectionSwap(existing, conn)
+        return
+      }
+    }
+    this.#noiseConnections.set(remoteId, conn)
+
+    conn.on('close', () => {
+      this.#log(`closed connection with ${keyShortname(remotePublicKey)}`)
+      this.#noiseConnections.delete(remoteId)
+    })
+
+    // No 'error' listeners attached to `conn` at this point, it's up to the
+    // consumer to attach an 'error' listener to avoid uncaught errors.
+    this.emit('connection', conn)
   }
 
   get connections() {
     return this.#noiseConnections.values()
   }
 
-  async stop() {
-    const port = this.#server.address()?.port
-    this.#browser.removeAllListeners('serviceUp')
-    this.#browser.stop()
-    this.#advertiser.stop(true)
-    // eslint-disable-next-line no-unused-vars
-    for (const [_, socket] of this.#noiseConnections) {
-      socket.destroy()
-    }
-    await this.#server.close()
-    log(`stopped for ${port}`)
+  /**
+   * Close all servers and stop multicast advertising and browsing. Will wait
+   * for open sockets to close unless opts.force=true in which case open sockets
+   * are force-closed after opts.timeout milliseconds
+   *
+   * @param {object} [opts]
+   * @param {boolean} [opts.force=false] Force-close open sockets after timeout milliseconds
+   * @param {number} [opts.timeout=0] Optional timeout when calling stop() with force=true
+   * @returns {Promise<void>}
+   */
+  async stop(opts) {
+    return this.#sm.stop(opts)
+  }
+
+  /**
+   * @type {MdnsDiscovery['stop']}
+   */
+  async #stop({ force = false, timeout = 0 } = {}) {
+    this.#log('stopping')
+    const { port } = getAddress(this.#server)
+    this.#server.close()
+    const destroyPromise = this.#dnssd.destroy()
+    const closePromise = once(this.#server, 'close')
+    await pTimeout(closePromise, {
+      milliseconds: force ? (timeout === 0 ? 1 : timeout) : Infinity,
+      fallback: () => {
+        for (const socket of this.#noiseConnections.values()) {
+          socket.destroy()
+        }
+        return pTimeout(closePromise, { milliseconds: 500 })
+      },
+    })
+    await destroyPromise
+    this.#log(`stopped for ${port}`)
   }
 }
 
 /**
- * @param {ReturnType<net.Server['address']>} addr
- * @returns {addr is net.AddressInfo}
+ * Get the address of a server, will throw if the server is not yet listening or
+ * if it is listening on a socket
+ * @param {import('node:net').Server} server
+ * @returns
  */
-function isAddressInfo(addr) {
-  if (addr === null || typeof addr === 'string') return false
-  return true
+function getAddress(server) {
+  const addr = server.address()
+  if (addr === null || typeof addr === 'string') {
+    throw new Error('Server is not listening on a port')
+  }
+  return addr
 }
 
 /**
- * @param {string[] | undefined} addr
- * @returns {addr is [string, ...string[]]}
+ *
+ * @param {Buffer} key
+ * @returns
  */
-function isValidServerAddresses(addr) {
-  return addr?.length !== 0 && addr !== undefined
+function keyShortname(key) {
+  return keyToPublicId(key).slice(0, 7)
 }
+
+function noop() {}
