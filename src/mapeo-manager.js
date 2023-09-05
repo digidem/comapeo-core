@@ -71,8 +71,9 @@ export class MapeoManager {
    * @returns {ProjectKeys}
    */
   #decodeProjectKeysCipher(keysCipher, projectId) {
+    const nonce = Buffer.from(projectId, 'hex')
     return ProjectKeys.decode(
-      this.#keyManager.decryptLocalMessage(keysCipher, projectId)
+      this.#keyManager.decryptLocalMessage(keysCipher, nonce)
     )
   }
 
@@ -98,13 +99,15 @@ export class MapeoManager {
    */
   #saveToProjectKeysTable({ projectId, projectKeys, projectInfo }) {
     const encoded = ProjectKeys.encode(projectKeys).finish()
+    const nonce = Buffer.from(projectId, 'hex')
+
     this.#db
       .insert(projectKeysTable)
       .values({
         projectId,
         keysCipher: this.#keyManager.encryptLocalMessage(
           Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
-          projectId
+          nonce
         ),
         projectInfo,
       })
