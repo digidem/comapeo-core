@@ -99,7 +99,7 @@ test('invite() does not assign role to invited device if invite is not accepted'
   ).filter((d) => d !== InviteResponse_Decision.ACCEPT)
 
   for (const decision of nonAcceptInviteDecisions) {
-    t.test(`${decision}`, (t) => {
+    t.test(decision, (t) => {
       t.plan(1)
 
       const r1 = new MapeoRPC()

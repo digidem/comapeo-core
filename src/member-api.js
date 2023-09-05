@@ -24,11 +24,11 @@ export class MemberApi extends TypedEmitter {
     rpc,
   }) {
     super()
+    this.#capabilities = capabilities
     this.#encryptionKeys = encryptionKeys
     this.#getProjectInfo = getProjectInfo
     this.#projectKey = projectKey
     this.#rpc = rpc
-    this.#capabilities = capabilities
   }
 
   /**
