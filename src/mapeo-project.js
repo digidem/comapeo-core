@@ -27,7 +27,7 @@ import {
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
 import { Capabilities } from './capabilities.js'
-import { valueOf } from './utils.js'
+import { projectKeyToId, valueOf } from './utils.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
 
@@ -69,8 +69,7 @@ export class MapeoProject {
     projectSecretKey,
     encryptionKeys,
   }) {
-    // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
-    this.#projectId = projectKey.toString('hex')
+    this.#projectId = projectKeyToId(projectKey)
 
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
