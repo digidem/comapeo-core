@@ -175,7 +175,7 @@ async function testMultiple(t, { period, count = 20 }) {
     setTimeout(() => dnsSd.browse(), period * Math.random())
     setTimeout(
       () => dnsSd.stopAdvertising(),
-      MDNS_WAIT_TIME + period * Math.random()
+      MDNS_WAIT_TIME + period + period * Math.random()
     )
   }
   await delay(2 * (period + MDNS_WAIT_TIME))
