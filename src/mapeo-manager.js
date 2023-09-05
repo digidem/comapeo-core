@@ -17,6 +17,7 @@ import {
   projectKeyToPublicId,
 } from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
+import { MapeoRPC } from './rpc/index.js'
 
 /** @typedef {import("@mapeo/schema").ProjectValue} ProjectValue */
 /** @typedef {import('./types.js').ProjectId} ProjectId */
@@ -39,6 +40,7 @@ export class MapeoManager {
   /** @type {import('./types.js').CoreStorage} */
   #coreStorage
   #dbFolder
+  #rpc
 
   /**
    * @param {Object} opts
@@ -56,6 +58,7 @@ export class MapeoManager {
     this.#db = drizzle(sqlite)
     migrate(this.#db, { migrationsFolder: './drizzle/client' })
 
+    this.#rpc = new MapeoRPC()
     this.#keyManager = new KeyManager(rootKey)
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectTable],
@@ -173,6 +176,7 @@ export class MapeoManager {
       projectSecretKey: projectKeypair.secretKey,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
+      rpc: this.#rpc,
     })
 
     // 5. Write project name and any other relevant metadata to project instance
@@ -224,6 +228,7 @@ export class MapeoManager {
       keyManager: this.#keyManager,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
+      rpc: this.#rpc,
     })
 
     // 3. Keep track of project instance as we know it's a properly existing project
