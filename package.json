@@ -20,7 +20,8 @@
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
-    "prepack": "npm run build:types"
+    "prepack": "npm run build:types",
+    "postinstall": "patch-package"
   },
   "files": [
     "src",
@@ -125,6 +126,7 @@
     "protobufjs": "^7.2.3",
     "protomux": "^3.4.1",
     "sodium-universal": "^4.0.0",
+    "start-stop-state-machine": "^1.1.1",
     "sub-encoder": "^2.1.1",
     "tiny-typed-emitter": "^2.1.0"
   }
