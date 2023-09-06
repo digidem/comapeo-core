@@ -4,6 +4,7 @@ import type {
   ValueOf,
   RequireAtLeastOne,
   SetOptional,
+  Opaque,
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
 import { MapeoCommon, MapeoDoc, MapeoValue, decode } from '@mapeo/schema'
@@ -142,6 +143,10 @@ export type TopicKey = Buffer
 export type TopicId = string
 /** 52 character base32 encoding of `Topic` Buffer */
 export type MdnsTopicId = string
+/** hex string representation of project key buffer */
+export type ProjectId = Opaque<string, 'ProjectId'>
+/** z32-encoded hash of project key */
+export type ProjectPublicId = Opaque<string, 'ProjectPublicId'>
 
 // TODO: Figure out where those extra fields come from and find more elegant way to represent this
 export type RawDhtConnectionStream = Duplex & {
