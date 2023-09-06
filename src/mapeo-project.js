@@ -209,11 +209,13 @@ export class MapeoProject {
       // @ts-expect-error
       encryptionKeys,
       projectKey,
-      getProjectInfo: async () => {
-        const settings = await this.$getProjectSettings()
-        return { name: settings.name }
-      },
       rpc,
+      queries: {
+        getProjectInfo: async () => {
+          const settings = await this.$getProjectSettings()
+          return { name: settings.name }
+        },
+      },
     })
 
     ///////// 4. Write core ownership record
