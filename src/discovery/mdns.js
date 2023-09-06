@@ -4,7 +4,7 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
 import { DnsSd } from './dns-sd.js'
 import debug from 'debug'
-import isIpPrivate from 'private-ip'
+import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
 import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
@@ -109,7 +109,7 @@ export class MdnsDiscovery extends TypedEmitter {
    */
   #handleTcpConnection(isInitiator, socket) {
     const { remoteAddress } = socket
-    if (!remoteAddress || !isIpPrivate(remoteAddress)) {
+    if (!remoteAddress || !isPrivate(remoteAddress)) {
       socket.destroy(new Error('Invalid remoteAddress ' + remoteAddress))
       return
     }
