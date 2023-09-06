@@ -1,4 +1,3 @@
-// @ts-check
 import test from 'brittle'
 import { randomBytes } from 'node:crypto'
 import net from 'node:net'
@@ -6,7 +5,6 @@ import { KeyManager } from '@mapeo/crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
 import { ERR_DUPLICATE, MdnsDiscovery } from '../src/discovery/mdns.js'
-import { once } from 'node:events'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 // Time in ms to wait for mdns messages to propogate
