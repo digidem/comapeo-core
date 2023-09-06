@@ -28,6 +28,7 @@ import {
 } from './core-ownership.js'
 import { Capabilities } from './capabilities.js'
 import { projectKeyToId, valueOf } from './utils.js'
+import { MemberApi } from './member-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
 
@@ -46,6 +47,7 @@ export class MapeoProject {
   #coreOwnership
   #capabilities
   #ownershipWriteDone
+  #memberApi
 
   /**
    * @param {Object} opts
@@ -57,6 +59,7 @@ export class MapeoProject {
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
+   * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
    *
    */
   constructor({
@@ -68,6 +71,7 @@ export class MapeoProject {
     projectKey,
     projectSecretKey,
     encryptionKeys,
+    rpc,
   }) {
     this.#projectId = projectKeyToId(projectKey)
 
@@ -200,6 +204,20 @@ export class MapeoProject {
       deviceKey: keyManager.getIdentityKeypair().publicKey,
     })
 
+    this.#memberApi = new MemberApi({
+      capabilities: this.#capabilities,
+      // @ts-expect-error
+      encryptionKeys,
+      projectKey,
+      rpc,
+      queries: {
+        getProjectInfo: async () => {
+          const settings = await this.$getProjectSettings()
+          return { name: settings.name }
+        },
+      },
+    })
+
     ///////// 4. Write core ownership record
 
     const deferred = pDefer()
@@ -285,6 +303,10 @@ export class MapeoProject {
   }
   get field() {
     return this.#dataTypes.field
+  }
+
+  get $member() {
+    return this.#memberApi
   }
 
   /**
