@@ -4,9 +4,10 @@ import Corestore from 'corestore'
 import assert from 'node:assert'
 import { once } from 'node:events'
 import Hypercore from 'hypercore'
-import { ProjectExtension } from '../generated/extensions.js'
+import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
+import RemoteBitfield from './remote-bitfield.js'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
@@ -47,10 +48,16 @@ export class CoreManager extends TypedEmitter {
   #encryptionKeys
   /** @type {Set<ReplicationRecord>} */
   #replications = new Set()
-  #extension
+  #projectExtension
   /** @type {'opened' | 'closing' | 'closed'} */
   #state = 'opened'
   #ready
+  /**
+   * For each peer, indexed by peerId, a map of hypercore bitfields, indexed by discoveryId
+   * @type {Map<string, Map<string, RemoteBitfield>>}
+   */
+  #havesByPeer = new Map()
+  #haveExtension
 
   static get namespaces() {
     return NAMESPACES
@@ -131,9 +138,18 @@ export class CoreManager extends TypedEmitter {
       this.#addCore({ publicKey }, namespace)
     }
 
-    this.#extension = this.#creatorCore.registerExtension('mapeo/project', {
+    this.#projectExtension = this.#creatorCore.registerExtension(
+      'mapeo/project',
+      {
+        onmessage: (data, peer) => {
+          this.#handleProjectMessage(data, peer)
+        },
+      }
+    )
+
+    this.#haveExtension = this.#creatorCore.registerExtension('mapeo/have', {
       onmessage: (data, peer) => {
-        this.#handleExtensionMessage(data, peer)
+        this.#handleHaveMessage(data, peer)
       },
     })
 
@@ -355,6 +371,8 @@ export class CoreManager extends TypedEmitter {
       this.#replications.delete(replicationRecord)
     })
 
+    this.#sendHaves(stream.remotePublicKey)
+
     return rsm
   }
 
@@ -376,7 +394,7 @@ export class CoreManager extends TypedEmitter {
       wantCoreKeys: [discoveryKey],
       authCoreKeys: [],
     }).finish()
-    this.#extension.send(message, peer)
+    this.#projectExtension.send(message, peer)
   }
 
   /**
@@ -393,7 +411,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} data
    * @param {any} peer
    */
-  #handleExtensionMessage(data, peer) {
+  #handleProjectMessage(data, peer) {
     const { wantCoreKeys, authCoreKeys } = ProjectExtension.decode(data)
     for (const discoveryKey of wantCoreKeys) {
       const discoveryId = discoveryKey.toString('hex')
@@ -404,12 +422,74 @@ export class CoreManager extends TypedEmitter {
           authCoreKeys: [coreRecord.key],
           wantCoreKeys: [],
         }).finish()
-        this.#extension.send(message, peer)
+        this.#projectExtension.send(message, peer)
       }
     }
     for (const authCoreKey of authCoreKeys) {
       // Use public method - these must be persisted (private method defaults to persisted=false)
       this.addCore(authCoreKey, 'auth')
     }
+  }
+
+  /**
+   * @param {Buffer} data
+   * @param {any} peer
+   */
+  #handleHaveMessage(data, peer) {
+    const {
+      discoveryKey,
+      start,
+      bitfield: bitfieldBuffer,
+    } = HaveExtension.decode(data)
+    const bitfield = new Uint32Array(bitfieldBuffer.buffer)
+    /** @type {string} */
+    const peerId = peer.remotePublicKey.toString('hex')
+    let peerHaves = this.#havesByPeer.get(peerId)
+    if (!peerHaves) {
+      peerHaves = new Map()
+      this.#havesByPeer.set(peerId, peerHaves)
+    }
+    const discoveryId = discoveryKey.toString('hex')
+    let remoteBitfield = peerHaves.get(discoveryId)
+    if (!remoteBitfield) {
+      remoteBitfield = new RemoteBitfield()
+      peerHaves.set(discoveryId, remoteBitfield)
+    }
+    remoteBitfield.insert(start, bitfield)
+  }
+
+  /**
+   *
+   * @param {Buffer} remotePublicKey
+   */
+  async #sendHaves(remotePublicKey) {
+    const peer = await this.#findPeer(remotePublicKey)
+    if (!peer) {
+      // TODO: How to handle this and when does it happen?
+      return
+    }
+    peer.protomux.cork()
+
+    for (const { core } of this.#coreIndex) {
+      await core.ready()
+      if (core.length === 0) continue
+      const { discoveryKey } = core
+      // This will always be defined after ready(), but need to let TS know
+      if (!discoveryKey) continue
+      // @ts-ignore
+      for (const { start, bitfield } of core.core.bitfield.want(
+        0,
+        core.length
+      )) {
+        const message = HaveExtension.encode({
+          start,
+          bitfield,
+          discoveryKey,
+        }).finish()
+        this.#haveExtension.send(message, peer)
+      }
+    }
+
+    peer.protomux.uncork()
   }
 }
