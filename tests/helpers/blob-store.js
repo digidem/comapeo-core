@@ -39,7 +39,7 @@ export function replicateBlobs(cm1, cm2) {
 }
 
 /**
- * @param {*} rs 
+ * @param {*} rs
  * @returns {Promise<Buffer>}
  */
 export async function concat(rs) {

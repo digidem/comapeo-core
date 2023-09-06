@@ -68,9 +68,9 @@ test('get url from blobId', async (t) => {
 
   t.is(
     url,
-    `http://127.0.0.1:${
-      blobServer.server.address().port
-    }/${projectId}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
+    `http://127.0.0.1:${blobServer.server.address().port}/${projectId}/${
+      blobStore.writerDriveId
+    }/${type}/${variant}/${name}`
   )
   t.teardown(async () => {
     await blobServer.close()

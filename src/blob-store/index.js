@@ -119,7 +119,10 @@ export class BlobStore {
    * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
    * @param {number} [options.timeout] Optional timeout to wait for a blob to download
    */
-  createReadStream({ type, variant, name, driveId }, options = { wait: false }) {
+  createReadStream(
+    { type, variant, name, driveId },
+    options = { wait: false }
+  ) {
     // TODO: Error thrown from this be an emit error on the returned stream?
     const drive = this.#getDrive(driveId)
     const path = makePath({ type, variant, name })
@@ -216,7 +219,7 @@ export class BlobStore {
    * @param {BlobId} blobId
    * @param {object} [options]
    * @param {boolean} [options.diff=false] Enable to return an object with a `block` property with number of bytes removed
-   * @return {Promise<any>}
+   * @return {Promise<{ blocks: number } | null>}
    */
   async clear({ type, variant, name, driveId }, options = {}) {
     const path = makePath({ type, variant, name })

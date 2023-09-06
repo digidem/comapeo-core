@@ -235,15 +235,17 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
   {
     const res = await server.inject({
       method: 'GET',
-      url: buildRouteUrl({ ...blobId, projectId, driveId: blobStore.writerDriveId }),
+      url: buildRouteUrl({
+        ...blobId,
+        projectId,
+        driveId: blobStore.writerDriveId,
+      }),
     })
 
     t.is(res.statusCode, 404)
   }
 
   const driveId = await blobStore.put(blobId, expected)
-
-  await blobStore.put(blobId, expected)
   await blobStore.clear({ ...blobId, driveId: blobStore.writerDriveId })
 
   // Test that the entry exists but blob does not
@@ -252,7 +254,7 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
       method: 'GET',
       url: buildRouteUrl({ ...blobId, projectId, driveId }),
     })
-  
+
     t.is(res.statusCode, 404)
   }
 })

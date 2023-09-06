@@ -161,25 +161,34 @@ test('blobStore.createReadStream should not wait', async (t) => {
   })
 
   try {
-    const result = blobStore.createReadStream({ ...blobId, driveId: blobStore.writerDriveId })
+    const result = blobStore.createReadStream({
+      ...blobId,
+      driveId: blobStore.writerDriveId,
+    })
     await concat(result)
   } catch (error) {
     t.is(error.message, 'Blob does not exist')
   }
 
-  const { blobStore: blobStore2  } = await testenv()
+  const { blobStore: blobStore2 } = await testenv()
 
   const ws = blobStore.createWriteStream(blobId)
   await pipeline(fs.createReadStream(new URL(import.meta.url)), ws)
 
   {
-    const stream = blobStore.createReadStream({ ...blobId, driveId: blobStore.writerDriveId })
+    const stream = blobStore.createReadStream({
+      ...blobId,
+      driveId: blobStore.writerDriveId,
+    })
     const blob = await concat(stream)
     t.alike(blob, expected, 'should be equal')
   }
 
   try {
-    const stream = blobStore2.createReadStream({ ...blobId, driveId: blobStore2.writerDriveId })
+    const stream = blobStore2.createReadStream({
+      ...blobId,
+      driveId: blobStore2.writerDriveId,
+    })
     await concat(stream)
   } catch (error) {
     t.is(error.message, 'Blob does not exist')
@@ -188,16 +197,21 @@ test('blobStore.createReadStream should not wait', async (t) => {
   const ws2 = blobStore2.createWriteStream(blobId)
   await pipeline(fs.createReadStream(new URL(import.meta.url)), ws2)
 
-
   {
-    const stream = blobStore2.createReadStream({ ...blobId, driveId: blobStore2.writerDriveId })
+    const stream = blobStore2.createReadStream({
+      ...blobId,
+      driveId: blobStore2.writerDriveId,
+    })
     const blob = await concat(stream)
     t.alike(blob, expected, 'should be equal')
 
     await blobStore2.clear({ ...blobId, driveId: blobStore2.writerDriveId })
 
     try {
-      const stream = blobStore2.createReadStream({ ...blobId, driveId: blobStore2.writerDriveId })
+      const stream = blobStore2.createReadStream({
+        ...blobId,
+        driveId: blobStore2.writerDriveId,
+      })
       await concat(stream)
     } catch (error) {
       t.is(error.message, 'Block not available')
