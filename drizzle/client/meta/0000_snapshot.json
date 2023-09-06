@@ -1,9 +1,40 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "a4afa0b6-5fd1-4c8d-bc09-7e3f3fc1928f",
+  "id": "26df2e9a-f7ec-44e9-87fc-73d4f33e75c3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "deviceInfo": {
+      "name": "deviceInfo",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "deviceInfo_key_unique": {
+          "name": "deviceInfo_key_unique",
+          "columns": [
+            "key"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "project_backlink": {
       "name": "project_backlink",
       "columns": {

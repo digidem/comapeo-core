@@ -8,7 +8,11 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject } from './mapeo-project.js'
-import { projectKeysTable, projectTable } from './schema/client.js'
+import {
+  deviceInfoTable,
+  projectKeysTable,
+  projectTable,
+} from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 import { deNullify } from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
@@ -293,5 +297,41 @@ export class MapeoManager {
     })
 
     return projectId
+  }
+
+  /**
+   * @typedef {Omit<import('@mapeo/schema').DeviceInfoValue, 'schemaName'>} DeviceInfoParam
+   */
+
+  /**
+   * @template {import('type-fest').Exact<DeviceInfoParam, T>} T
+   * @param {T} deviceInfo
+   */
+  async setDeviceInfo(deviceInfo) {
+    const entries =
+      /** @type {import('type-fest').Entries<DeviceInfoParam>} */ (
+        Object.entries(deviceInfo)
+      )
+    for (const [key, value] of entries) {
+      this.#db
+        .insert(deviceInfoTable)
+        .values({ key, value })
+        .onConflictDoUpdate({
+          target: deviceInfoTable.key,
+          set: { key, value },
+        })
+        .run()
+    }
+    // TODO: Also call project.$member.update(deviceInfo) for each active project
+  }
+
+  async getDeviceInfo() {
+    const deviceInfo = /** @type {DeviceInfoParam} */ ({})
+    const entries = this.#db.select().from(deviceInfoTable).all()
+    for (const { key, value } of entries) {
+      // @ts-ignore
+      deviceInfo[key] = value
+    }
+    return deviceInfo
   }
 }

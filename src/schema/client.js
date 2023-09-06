@@ -2,7 +2,7 @@
 // database and it contains information that is shared across all projects on a
 // device
 import { blob, sqliteTable, text } from 'drizzle-orm/sqlite-core'
-import { dereferencedDocSchemas as schemas } from '@mapeo/schema'
+import { dereferencedDocSchemas as schemas, valueSchemas } from '@mapeo/schema'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable, customJson } from './utils.js'
 
@@ -26,4 +26,18 @@ export const projectKeysTable = sqliteTable('projectKeys', {
       JSON.stringify(PROJECT_INFO_DEFAULT_VALUE)
     )
     .notNull(),
+})
+
+const deviceInfoKeys = /**
+ * @type {import('./types.js').NonEmptyArray<
+ *   Exclude<keyof typeof valueSchemas['deviceInfo']['properties'], 'schemaName'>
+ * >}
+ */ (Object.keys(valueSchemas.deviceInfo.properties))
+
+// This table is for arbitrary deviceInfo data - rather than updating the schema
+// if we add more properties, we just use a row for each property (like mbtiles
+// does for metadata). All values should be stored as JSON
+export const deviceInfoTable = sqliteTable('deviceInfo', {
+  key: text('key', { enum: deviceInfoKeys }).notNull().unique(),
+  value: customJson('value'),
 })
