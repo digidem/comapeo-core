@@ -9,6 +9,12 @@ import {
   Preset,
   PresetValue,
 } from '@mapeo/schema'
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import RAM from 'random-access-memory'
+import { IndexWriter } from '../dist/index-writer/index.js'
+import { projectTable } from '../dist/schema/client.js'
+import { MapeoRPC } from '../dist/rpc/index.js'
 import { Expect, type Equal } from './utils.js'
 
 type Forks = { forks: string[] }
@@ -16,9 +22,21 @@ type ObservationWithForks = Observation & Forks
 type PresetWithForks = Preset & Forks
 type FieldWithForks = Field & Forks
 
+const projectKey = randomBytes(32)
+const keyManager = new KeyManager(randomBytes(32))
+const sqlite = new Database(':memory:')
+
 const mapeoProject = new MapeoProject({
+  dbPath: ':memory:',
+  coreStorage: () => new RAM(),
   keyManager: new KeyManager(randomBytes(32)),
   projectKey: randomBytes(32),
+  sharedDb: drizzle(sqlite),
+  sharedIndexWriter: new IndexWriter({
+    tables: [projectTable],
+    sqlite,
+  }),
+  rpc: new MapeoRPC(),
 })
 
 ///// Observations

@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "9bca3bea-0cdd-4406-891f-9b75e68a94e7",
+  "id": "e047380e-7d10-442c-b5e4-0791b8970eeb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "project_backlink": {
@@ -30,12 +30,27 @@
           "notNull": true,
           "autoincrement": false
         },
-        "encryptionKeys": {
-          "name": "encryptionKeys",
+        "projectPublicId": {
+          "name": "projectPublicId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "keysCipher": {
+          "name": "keysCipher",
           "type": "blob",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "projectInfo": {
+          "name": "projectInfo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
         }
       },
       "indexes": {},
@@ -92,14 +107,14 @@
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "defaultPresets": {
           "name": "defaultPresets",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "forks": {

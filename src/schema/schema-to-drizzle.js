@@ -1,4 +1,5 @@
-import { text, integer, real, customType } from 'drizzle-orm/sqlite-core'
+import { text, integer, real } from 'drizzle-orm/sqlite-core'
+import { customJson } from './utils.js'
 
 /**
 @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -6,19 +7,6 @@ import { text, integer, real, customType } from 'drizzle-orm/sqlite-core'
 /**
 @typedef {import('../types.js').MapeoDocMap} MapeoDocMap
  */
-
-const customJson = customType({
-  dataType() {
-    return 'text'
-  },
-  fromDriver(value) {
-    // @ts-ignore
-    return JSON.parse(value)
-  },
-  toDriver(value) {
-    return JSON.stringify(value)
-  },
-})
 
 /**
 Convert a JSONSchema definition to a Drizzle Columns Map (the parameter for
