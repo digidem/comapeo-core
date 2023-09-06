@@ -150,6 +150,75 @@ test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)
   t.alike(bndlbuf, diskbuf, 'should be equal')
 })
 
+test('blobStore.createReadStream should not wait', async (t) => {
+  const { blobStore } = await testenv()
+  const expected = await readFile(new URL(import.meta.url))
+
+  const blobId = /** @type {const} */ ({
+    type: 'photo',
+    variant: 'original',
+    name: 'test-file',
+  })
+
+  try {
+    const result = blobStore.createReadStream({
+      ...blobId,
+      driveId: blobStore.writerDriveId,
+    })
+    await concat(result)
+  } catch (error) {
+    t.is(error.message, 'Blob does not exist')
+  }
+
+  const { blobStore: blobStore2 } = await testenv()
+
+  const ws = blobStore.createWriteStream(blobId)
+  await pipeline(fs.createReadStream(new URL(import.meta.url)), ws)
+
+  {
+    const stream = blobStore.createReadStream({
+      ...blobId,
+      driveId: blobStore.writerDriveId,
+    })
+    const blob = await concat(stream)
+    t.alike(blob, expected, 'should be equal')
+  }
+
+  try {
+    const stream = blobStore2.createReadStream({
+      ...blobId,
+      driveId: blobStore2.writerDriveId,
+    })
+    await concat(stream)
+  } catch (error) {
+    t.is(error.message, 'Blob does not exist')
+  }
+
+  const ws2 = blobStore2.createWriteStream(blobId)
+  await pipeline(fs.createReadStream(new URL(import.meta.url)), ws2)
+
+  {
+    const stream = blobStore2.createReadStream({
+      ...blobId,
+      driveId: blobStore2.writerDriveId,
+    })
+    const blob = await concat(stream)
+    t.alike(blob, expected, 'should be equal')
+
+    await blobStore2.clear({ ...blobId, driveId: blobStore2.writerDriveId })
+
+    try {
+      const stream = blobStore2.createReadStream({
+        ...blobId,
+        driveId: blobStore2.writerDriveId,
+      })
+      await concat(stream)
+    } catch (error) {
+      t.is(error.message, 'Block not available')
+    }
+  }
+})
+
 test('blobStore.writerDriveId', async (t) => {
   {
     const { blobStore } = await testenv()
@@ -359,6 +428,29 @@ test('blobStore.getEntryReadStream(driveId, entry)', async (t) => {
   )
 
   t.alike(buf, diskbuf, 'should be equal')
+})
+
+test('blobStore.getEntryReadStream(driveId, entry) should not wait', async (t) => {
+  const { blobStore } = await testenv()
+
+  const expected = await readFile(new URL(import.meta.url))
+
+  const blobId = /** @type {const} */ ({
+    type: 'photo',
+    variant: 'original',
+    name: 'test-file',
+  })
+
+  const driveId = await blobStore.put(blobId, expected)
+  const entry = await blobStore.entry({ ...blobId, driveId })
+  await blobStore.clear({ ...blobId, driveId: blobStore.writerDriveId })
+
+  try {
+    const stream = await blobStore.createEntryReadStream(driveId, entry)
+    await concat(stream)
+  } catch (error) {
+    t.is(error.message, 'Block not available', 'Block not available')
+  }
 })
 
 async function testenv(opts) {
