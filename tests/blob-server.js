@@ -3,13 +3,11 @@ import test from 'brittle'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
-import { createCoreManager } from './helpers/core-manager.js'
-import { BlobStore } from '../src/blob-store/index.js'
 import { createBlobServer } from '../src/blob-server/index.js'
 import BlobServerPlugin from '../src/blob-server/fastify-plugin.js'
 import fastify from 'fastify'
 
-import { replicateBlobs } from './helpers/blob-store.js'
+import { replicateBlobs, createBlobStore } from './helpers/blob-store.js'
 
 test('Plugin throws error if missing getBlobStore option', async (t) => {
   const server = fastify()
@@ -216,12 +214,6 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
   t.is(res.statusCode, 404)
 })
-
-function createBlobStore(opts) {
-  const coreManager = createCoreManager(opts)
-  const blobStore = new BlobStore({ coreManager })
-  return { blobStore, coreManager }
-}
 
 async function testenv({ prefix, logger } = {}) {
   const projectKey = randomBytes(32)

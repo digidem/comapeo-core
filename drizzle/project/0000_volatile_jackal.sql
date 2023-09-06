@@ -1,3 +1,22 @@
+CREATE TABLE `coreOwnership_backlink` (
+	`versionId` text PRIMARY KEY NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `coreOwnership` (
+	`docId` text PRIMARY KEY NOT NULL,
+	`versionId` text NOT NULL,
+	`schemaName` text NOT NULL,
+	`createdAt` text NOT NULL,
+	`updatedAt` text NOT NULL,
+	`links` text NOT NULL,
+	`authCoreId` text NOT NULL,
+	`configCoreId` text NOT NULL,
+	`dataCoreId` text NOT NULL,
+	`blobCoreId` text NOT NULL,
+	`blobIndexCoreId` text NOT NULL,
+	`forks` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `field_backlink` (
 	`versionId` text PRIMARY KEY NOT NULL
 );
@@ -12,10 +31,10 @@ CREATE TABLE `field` (
 	`tagKey` text NOT NULL,
 	`type` text NOT NULL,
 	`label` text NOT NULL,
-	`appearance` text DEFAULT 'multiline',
-	`snakeCase` integer DEFAULT false,
+	`appearance` text,
+	`snakeCase` integer,
 	`options` text,
-	`universal` integer DEFAULT false,
+	`universal` integer,
 	`placeholder` text,
 	`helperText` text,
 	`forks` text NOT NULL
@@ -58,7 +77,23 @@ CREATE TABLE `preset` (
 	`addTags` text NOT NULL,
 	`removeTags` text NOT NULL,
 	`fieldIds` text NOT NULL,
-	`icon` text,
+	`iconId` text,
 	`terms` text NOT NULL,
+	`forks` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `role_backlink` (
+	`versionId` text PRIMARY KEY NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `role` (
+	`docId` text PRIMARY KEY NOT NULL,
+	`versionId` text NOT NULL,
+	`schemaName` text NOT NULL,
+	`createdAt` text NOT NULL,
+	`updatedAt` text NOT NULL,
+	`links` text NOT NULL,
+	`roleId` text NOT NULL,
+	`fromIndex` real NOT NULL,
 	`forks` text NOT NULL
 );
