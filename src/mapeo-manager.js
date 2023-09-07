@@ -14,10 +14,18 @@ import {
   projectTable,
 } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
-import { deNullify } from './utils.js'
+import {
+  deNullify,
+  projectIdToNonce,
+  projectKeyToId,
+  projectKeyToPublicId,
+} from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
+import { MapeoRPC } from './rpc/index.js'
 
 /** @typedef {import("@mapeo/schema").ProjectValue} ProjectValue */
+/** @typedef {import('./types.js').ProjectId} ProjectId */
+/** @typedef {import('./types.js').ProjectPublicId} ProjectPublicId */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -31,12 +39,13 @@ export class MapeoManager {
   #keyManager
   #projectSettingsIndexWriter
   #db
-  /** @type {Map<string, MapeoProject>} */
+  /** @type {Map<ProjectPublicId, MapeoProject>} */
   #activeProjects
   /** @type {import('./types.js').CoreStorage} */
   #coreStorage
   #dbFolder
   #deviceId
+  #rpc
 
   /**
    * @param {Object} opts
@@ -54,6 +63,7 @@ export class MapeoManager {
     this.#db = drizzle(sqlite)
     migrate(this.#db, { migrationsFolder: './drizzle/client' })
 
+    this.#rpc = new MapeoRPC()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = this.#keyManager
       .getIdentityKeypair()
@@ -75,17 +85,18 @@ export class MapeoManager {
 
   /**
    * @param {Buffer} keysCipher
-   * @param {string} projectId
+   * @param {ProjectId} projectId
    * @returns {ProjectKeys}
    */
   #decodeProjectKeysCipher(keysCipher, projectId) {
+    const nonce = projectIdToNonce(projectId)
     return ProjectKeys.decode(
-      this.#keyManager.decryptLocalMessage(keysCipher, projectId)
+      this.#keyManager.decryptLocalMessage(keysCipher, nonce)
     )
   }
 
   /**
-   * @param {string} projectId
+   * @param {ProjectId} projectId
    * @returns {Pick<ConstructorParameters<typeof MapeoProject>[0], 'dbPath' | 'coreStorage'>}
    */
   #projectStorage(projectId) {
@@ -100,19 +111,28 @@ export class MapeoManager {
 
   /**
    * @param {Object} opts
-   * @param {string} opts.projectId
+   * @param {ProjectId} opts.projectId
+   * @param {ProjectPublicId} opts.projectPublicId
    * @param {ProjectKeys} opts.projectKeys
    * @param {import('./generated/rpc.js').Invite_ProjectInfo} [opts.projectInfo]
    */
-  #saveToProjectKeysTable({ projectId, projectKeys, projectInfo }) {
+  #saveToProjectKeysTable({
+    projectId,
+    projectPublicId,
+    projectKeys,
+    projectInfo,
+  }) {
     const encoded = ProjectKeys.encode(projectKeys).finish()
+    const nonce = projectIdToNonce(projectId)
+
     this.#db
       .insert(projectKeysTable)
       .values({
         projectId,
+        projectPublicId,
         keysCipher: this.#keyManager.encryptLocalMessage(
           Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
-          projectId
+          nonce
         ),
         projectInfo,
       })
@@ -122,7 +142,7 @@ export class MapeoManager {
   /**
    * Create a new project.
    * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
-   * @returns {Promise<string>}
+   * @returns {Promise<ProjectPublicId>}
    */
   async createProject(settings = {}) {
     // 1. Create project keypair
@@ -146,10 +166,14 @@ export class MapeoManager {
       encryptionKeys,
     }
 
-    // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
-    const projectId = projectKeypair.publicKey.toString('hex')
+    const projectId = projectKeyToId(keys.projectKey)
+    const projectPublicId = projectKeyToPublicId(keys.projectKey)
 
-    this.#saveToProjectKeysTable({ projectId, projectKeys: keys })
+    this.#saveToProjectKeysTable({
+      projectId,
+      projectPublicId,
+      projectKeys: keys,
+    })
 
     // 4. Create MapeoProject instance
     const project = new MapeoProject({
@@ -160,41 +184,46 @@ export class MapeoManager {
       projectSecretKey: projectKeypair.secretKey,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
+      rpc: this.#rpc,
     })
 
     // 5. Write project name and any other relevant metadata to project instance
     await project.$setProjectSettings(settings)
 
     // TODO: Close the project instance instead of keeping it around
-    // https://github.com/digidem/mapeo-core-next/issues/207
-    this.#activeProjects.set(projectId, project)
+    this.#activeProjects.set(projectPublicId, project)
 
-    // 6. Return project id
-    return projectId
+    // 6. Return project public id
+    return projectPublicId
   }
 
   /**
-   * @param {string} projectId
+   * @param {ProjectPublicId} projectPublicId
    * @returns {Promise<MapeoProject>}
    */
-  async getProject(projectId) {
+  async getProject(projectPublicId) {
     // 1. Check for existing active project
-    const activeProject = this.#activeProjects.get(projectId)
+    const activeProject = this.#activeProjects.get(projectPublicId)
 
     if (activeProject) return activeProject
 
     // 2. Create project instance
     const projectKeysTableResult = this.#db
       .select({
+        projectId: projectKeysTable.projectId,
         keysCipher: projectKeysTable.keysCipher,
       })
       .from(projectKeysTable)
-      .where(eq(projectKeysTable.projectId, projectId))
+      .where(eq(projectKeysTable.projectPublicId, projectPublicId))
       .get()
 
     if (!projectKeysTableResult) {
-      throw new Error(`NotFound: project ID ${projectId} not found`)
+      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
     }
+
+    const projectId = /** @type {ProjectId} */ (
+      projectKeysTableResult.projectId
+    )
 
     const projectKeys = this.#decodeProjectKeysCipher(
       projectKeysTableResult.keysCipher,
@@ -207,16 +236,17 @@ export class MapeoManager {
       keyManager: this.#keyManager,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
+      rpc: this.#rpc,
     })
 
     // 3. Keep track of project instance as we know it's a properly existing project
-    this.#activeProjects.set(projectId, project)
+    this.#activeProjects.set(projectPublicId, project)
 
     return project
   }
 
   /**
-   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string }>>}
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string }>>}
    */
   async listProjects() {
     // We use the project keys table as the source of truth for projects that exist
@@ -225,6 +255,7 @@ export class MapeoManager {
     const allProjectKeysResult = this.#db
       .select({
         projectId: projectKeysTable.projectId,
+        projectPublicId: projectKeysTable.projectPublicId,
         projectInfo: projectKeysTable.projectInfo,
       })
       .from(projectKeysTable)
@@ -240,17 +271,21 @@ export class MapeoManager {
       .from(projectTable)
       .all()
 
-    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string }>} */
+    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string }>} */
     const result = []
 
-    for (const { projectId, projectInfo } of allProjectKeysResult) {
+    for (const {
+      projectId,
+      projectPublicId,
+      projectInfo,
+    } of allProjectKeysResult) {
       const existingProject = allProjectsResult.find(
         (p) => p.projectId === projectId
       )
 
       result.push(
         deNullify({
-          projectId,
+          projectId: /** @type {ProjectPublicId} */ (projectPublicId),
           createdAt: existingProject?.createdAt,
           updatedAt: existingProject?.updatedAt,
           name: existingProject?.name || projectInfo.name,
@@ -263,20 +298,22 @@ export class MapeoManager {
 
   /**
    * @param {import('./generated/rpc.js').Invite} invite
-   * @returns {Promise<string>}
+   * @returns {Promise<ProjectPublicId>}
    */
   async addProject({ projectKey, encryptionKeys, projectInfo }) {
-    const projectId = projectKey.toString('hex')
+    const projectPublicId = projectKeyToPublicId(projectKey)
 
     // 1. Check for an active project
-    const activeProject = this.#activeProjects.get(projectId)
+    const activeProject = this.#activeProjects.get(projectPublicId)
 
     if (activeProject) {
-      throw new Error(`Project with ID ${projectId} already exists`)
+      throw new Error(`Project with ID ${projectPublicId} already exists`)
     }
 
     // 2. Check if the project exists in the project keys table
     // If it does, that means the project has already been either created or added before
+    const projectId = projectKeyToId(projectKey)
+
     const projectExists = this.#db
       .select()
       .from(projectKeysTable)
@@ -284,7 +321,7 @@ export class MapeoManager {
       .get()
 
     if (projectExists) {
-      throw new Error(`Project with ID ${projectId} already exists`)
+      throw new Error(`Project with ID ${projectPublicId} already exists`)
     }
 
     // TODO: Relies on completion of https://github.com/digidem/mapeo-core-next/issues/233
@@ -293,6 +330,7 @@ export class MapeoManager {
     // 4. Update the project keys table
     this.#saveToProjectKeysTable({
       projectId,
+      projectPublicId,
       projectKeys: {
         projectKey,
         encryptionKeys,
@@ -300,7 +338,7 @@ export class MapeoManager {
       projectInfo,
     })
 
-    return projectId
+    return projectPublicId
   }
 
   /**

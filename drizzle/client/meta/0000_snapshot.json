@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "8bfa6650-adeb-48a8-96f5-a5aec7deb811",
+  "id": "8d256051-a3d8-47f0-ab8b-ead133232319",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "deviceInfo": {
@@ -58,6 +58,13 @@
           "name": "projectId",
           "type": "text",
           "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "projectPublicId": {
+          "name": "projectPublicId",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },

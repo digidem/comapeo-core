@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import { pipeline } from 'node:stream/promises'
+import { createHash } from 'node:crypto'
 import sodium from 'sodium-universal'
 import b4a from 'b4a'
 
@@ -37,7 +38,7 @@ export class BlobApi {
    * Write blobs for provided variants of a file
    * @param {{ original: string, preview?: string, thumbnail?: string }} filepaths
    * @param {{ mimeType: string }} metadata
-   * @returns {Promise<{ driveId: string, name: string, type: 'photo' | 'video' | 'audio' }>}
+   * @returns {Promise<{ driveId: string, name: string, type: 'photo' | 'video' | 'audio', hash: string }>}
    */
   async create(filepaths, metadata) {
     const { original, preview, thumbnail } = filepaths
@@ -47,6 +48,8 @@ export class BlobApi {
     sodium.randombytes_buf(hash)
     const name = hash.toString('hex')
 
+    const contentHash = createHash('sha256')
+
     await this.writeFile(
       original,
       {
@@ -54,7 +57,8 @@ export class BlobApi {
         variant: 'original',
         type: blobType,
       },
-      metadata
+      metadata,
+      contentHash
     )
 
     if (preview) {
@@ -85,6 +89,7 @@ export class BlobApi {
       driveId: this.blobStore.writerDriveId,
       name,
       type: blobType,
+      hash: contentHash.digest('hex'),
     }
   }
 
@@ -93,8 +98,22 @@ export class BlobApi {
    * @param {Omit<BlobId, 'driveId'>} options
    * @param {object} metadata
    * @param {string} metadata.mimeType
+   * @param {import('node:crypto').Hash} [hash]
    */
-  async writeFile(filepath, { name, variant, type }, metadata) {
+  async writeFile(filepath, { name, variant, type }, metadata, hash) {
+    if (hash) {
+      // @ts-ignore TODO: return value types don't match pipeline's expectations, though they should
+      await pipeline(
+        fs.createReadStream(filepath),
+        hash,
+
+        // @ts-ignore TODO: remove driveId property from createWriteStream
+        this.blobStore.createWriteStream({ type, variant, name }, { metadata })
+      )
+
+      return { name, variant, type, hash }
+    }
+
     // @ts-ignore TODO: return value types don't match pipeline's expectations, though they should
     await pipeline(
       fs.createReadStream(filepath),

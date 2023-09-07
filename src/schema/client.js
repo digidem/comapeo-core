@@ -18,6 +18,7 @@ export const projectTable = sqliteTable('project', toColumns(schemas.project))
 export const projectBacklinkTable = backlinkTable(projectTable)
 export const projectKeysTable = sqliteTable('projectKeys', {
   projectId: text('projectId').notNull().primaryKey(),
+  projectPublicId: text('projectPublicId').notNull(),
   keysCipher: blob('keysCipher', { mode: 'buffer' }).notNull(),
   projectInfo: projectInfoColumn('projectInfo')
     .default(
