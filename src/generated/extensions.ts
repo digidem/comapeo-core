@@ -1,17 +1,17 @@
 /* eslint-disable */
 import _m0 from "protobufjs/minimal.js";
 
-export interface ProjectExtension {
+export interface IProjectExtension {
   authCoreKeys: Buffer[];
   wantCoreKeys: Buffer[];
 }
 
-function createBaseProjectExtension(): ProjectExtension {
+function createBaseProjectExtension(): IProjectExtension {
   return { authCoreKeys: [], wantCoreKeys: [] };
 }
 
 export const ProjectExtension = {
-  encode(message: ProjectExtension, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+  encode(message: IProjectExtension, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     for (const v of message.authCoreKeys) {
       writer.uint32(10).bytes(v!);
     }
@@ -21,7 +21,7 @@ export const ProjectExtension = {
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): ProjectExtension {
+  decode(input: _m0.Reader | Uint8Array, length?: number): IProjectExtension {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseProjectExtension();

@@ -1,19 +1,19 @@
 /* eslint-disable */
 import _m0 from "protobufjs/minimal.js";
-import { EncryptionKeys } from "./keys.js";
+import { IEncryptionKeys, EncryptionKeys } from "./keys.js";
 
-export interface Invite {
+export interface IInvite {
   projectKey: Buffer;
-  encryptionKeys: EncryptionKeys | undefined;
-  projectInfo?: Invite_ProjectInfo | undefined;
+  encryptionKeys: IEncryptionKeys | undefined;
+  projectInfo?: IInvite_ProjectInfo | undefined;
 }
 
 /** Project info that is displayed to the user receiving the invite */
-export interface Invite_ProjectInfo {
+export interface IInvite_ProjectInfo {
   name?: string | undefined;
 }
 
-export interface InviteResponse {
+export interface IInviteResponse {
   projectKey: Buffer;
   decision: InviteResponse_Decision;
 }
@@ -57,12 +57,12 @@ export function inviteResponse_DecisionToNumber(object: InviteResponse_Decision)
   }
 }
 
-function createBaseInvite(): Invite {
+function createBaseInvite(): IInvite {
   return { projectKey: Buffer.alloc(0), encryptionKeys: undefined };
 }
 
 export const Invite = {
-  encode(message: Invite, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+  encode(message: IInvite, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.projectKey.length !== 0) {
       writer.uint32(10).bytes(message.projectKey);
     }
@@ -75,7 +75,7 @@ export const Invite = {
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): Invite {
+  decode(input: _m0.Reader | Uint8Array, length?: number): IInvite {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseInvite();
@@ -113,19 +113,19 @@ export const Invite = {
   },
 };
 
-function createBaseInvite_ProjectInfo(): Invite_ProjectInfo {
+function createBaseInvite_ProjectInfo(): IInvite_ProjectInfo {
   return {};
 }
 
 export const Invite_ProjectInfo = {
-  encode(message: Invite_ProjectInfo, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+  encode(message: IInvite_ProjectInfo, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.name !== undefined) {
       writer.uint32(10).string(message.name);
     }
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): Invite_ProjectInfo {
+  decode(input: _m0.Reader | Uint8Array, length?: number): IInvite_ProjectInfo {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseInvite_ProjectInfo();
@@ -149,12 +149,12 @@ export const Invite_ProjectInfo = {
   },
 };
 
-function createBaseInviteResponse(): InviteResponse {
+function createBaseInviteResponse(): IInviteResponse {
   return { projectKey: Buffer.alloc(0), decision: InviteResponse_Decision.REJECT };
 }
 
 export const InviteResponse = {
-  encode(message: InviteResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+  encode(message: IInviteResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.projectKey.length !== 0) {
       writer.uint32(10).bytes(message.projectKey);
     }
@@ -164,7 +164,7 @@ export const InviteResponse = {
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): InviteResponse {
+  decode(input: _m0.Reader | Uint8Array, length?: number): IInviteResponse {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseInviteResponse();

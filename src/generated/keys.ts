@@ -1,7 +1,7 @@
 /* eslint-disable */
 import _m0 from "protobufjs/minimal.js";
 
-export interface EncryptionKeys {
+export interface IEncryptionKeys {
   auth: Buffer;
   data?: Buffer | undefined;
   config?: Buffer | undefined;
@@ -9,18 +9,18 @@ export interface EncryptionKeys {
   blob?: Buffer | undefined;
 }
 
-export interface ProjectKeys {
+export interface IProjectKeys {
   projectKey: Buffer;
   projectSecretKey?: Buffer | undefined;
-  encryptionKeys: EncryptionKeys | undefined;
+  encryptionKeys: IEncryptionKeys | undefined;
 }
 
-function createBaseEncryptionKeys(): EncryptionKeys {
+function createBaseEncryptionKeys(): IEncryptionKeys {
   return { auth: Buffer.alloc(0) };
 }
 
 export const EncryptionKeys = {
-  encode(message: EncryptionKeys, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+  encode(message: IEncryptionKeys, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.auth.length !== 0) {
       writer.uint32(10).bytes(message.auth);
     }
@@ -39,7 +39,7 @@ export const EncryptionKeys = {
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): EncryptionKeys {
+  decode(input: _m0.Reader | Uint8Array, length?: number): IEncryptionKeys {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseEncryptionKeys();
@@ -91,12 +91,12 @@ export const EncryptionKeys = {
   },
 };
 
-function createBaseProjectKeys(): ProjectKeys {
+function createBaseProjectKeys(): IProjectKeys {
   return { projectKey: Buffer.alloc(0), encryptionKeys: undefined };
 }
 
 export const ProjectKeys = {
-  encode(message: ProjectKeys, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+  encode(message: IProjectKeys, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.projectKey.length !== 0) {
       writer.uint32(10).bytes(message.projectKey);
     }
@@ -109,7 +109,7 @@ export const ProjectKeys = {
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): ProjectKeys {
+  decode(input: _m0.Reader | Uint8Array, length?: number): IProjectKeys {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
     const message = createBaseProjectKeys();
