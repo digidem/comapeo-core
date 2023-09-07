@@ -8,6 +8,7 @@ import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
 import RemoteBitfield from './remote-bitfield.js'
+import * as rle from '../../vendor/bitfield-rle.js'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
@@ -371,7 +372,9 @@ export class CoreManager extends TypedEmitter {
       this.#replications.delete(replicationRecord)
     })
 
-    this.#sendHaves(stream.remotePublicKey)
+    stream.once('connect', () => {
+      this.#sendHaves(stream.remotePublicKey)
+    })
 
     return rsm
   }
@@ -436,12 +439,17 @@ export class CoreManager extends TypedEmitter {
    * @param {any} peer
    */
   #handleHaveMessage(data, peer) {
-    const {
-      discoveryKey,
-      start,
-      bitfield: bitfieldBuffer,
-    } = HaveExtension.decode(data)
-    const bitfield = new Uint32Array(bitfieldBuffer.buffer)
+    let msg
+    let bitfield
+    try {
+      msg = HaveExtension.decode(data)
+      bitfield = new Uint32Array(rle.decode(msg.encodedBitfield).buffer)
+    } catch (e) {
+      // TODO: Better logging
+      console.log('unable to decode have message', e)
+      return
+    }
+    const { start, discoveryKey } = msg
     /** @type {string} */
     const peerId = peer.remotePublicKey.toString('hex')
     let peerHaves = this.#havesByPeer.get(peerId)
@@ -483,7 +491,7 @@ export class CoreManager extends TypedEmitter {
       )) {
         const message = HaveExtension.encode({
           start,
-          bitfield,
+          encodedBitfield: rle.encode(bitfield),
           discoveryKey,
         }).finish()
         this.#haveExtension.send(message, peer)

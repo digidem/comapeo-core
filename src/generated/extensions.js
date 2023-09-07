@@ -46,7 +46,7 @@ export var ProjectExtension = {
     },
 };
 function createBaseHaveExtension() {
-    return { discoveryKey: Buffer.alloc(0), start: 0, bitfield: Buffer.alloc(0) };
+    return { discoveryKey: Buffer.alloc(0), start: 0, encodedBitfield: Buffer.alloc(0) };
 }
 export var HaveExtension = {
     encode: function (message, writer) {
@@ -57,8 +57,8 @@ export var HaveExtension = {
         if (message.start !== 0) {
             writer.uint32(16).uint64(message.start);
         }
-        if (message.bitfield.length !== 0) {
-            writer.uint32(26).bytes(message.bitfield);
+        if (message.encodedBitfield.length !== 0) {
+            writer.uint32(26).bytes(message.encodedBitfield);
         }
         return writer;
     },
@@ -85,7 +85,7 @@ export var HaveExtension = {
                     if (tag !== 26) {
                         break;
                     }
-                    message.bitfield = reader.bytes();
+                    message.encodedBitfield = reader.bytes();
                     continue;
             }
             if ((tag & 7) === 4 || tag === 0) {

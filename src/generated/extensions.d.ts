@@ -7,7 +7,7 @@ export interface ProjectExtension {
 export interface HaveExtension {
     discoveryKey: Buffer;
     start: number;
-    bitfield: Buffer;
+    encodedBitfield: Buffer;
 }
 export declare const ProjectExtension: {
     encode(message: ProjectExtension, writer?: _m0.Writer): _m0.Writer;

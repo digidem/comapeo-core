@@ -10,7 +10,7 @@ export interface ProjectExtension {
 export interface HaveExtension {
   discoveryKey: Buffer;
   start: number;
-  bitfield: Buffer;
+  encodedBitfield: Buffer;
 }
 
 function createBaseProjectExtension(): ProjectExtension {
@@ -60,7 +60,7 @@ export const ProjectExtension = {
 };
 
 function createBaseHaveExtension(): HaveExtension {
-  return { discoveryKey: Buffer.alloc(0), start: 0, bitfield: Buffer.alloc(0) };
+  return { discoveryKey: Buffer.alloc(0), start: 0, encodedBitfield: Buffer.alloc(0) };
 }
 
 export const HaveExtension = {
@@ -71,8 +71,8 @@ export const HaveExtension = {
     if (message.start !== 0) {
       writer.uint32(16).uint64(message.start);
     }
-    if (message.bitfield.length !== 0) {
-      writer.uint32(26).bytes(message.bitfield);
+    if (message.encodedBitfield.length !== 0) {
+      writer.uint32(26).bytes(message.encodedBitfield);
     }
     return writer;
   },
@@ -103,7 +103,7 @@ export const HaveExtension = {
             break;
           }
 
-          message.bitfield = reader.bytes() as Buffer;
+          message.encodedBitfield = reader.bytes() as Buffer;
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
