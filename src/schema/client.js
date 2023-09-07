@@ -7,11 +7,11 @@ import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable, customJson } from './utils.js'
 
 const projectInfoColumn =
-  /** @type {ReturnType<typeof import('drizzle-orm/sqlite-core').customType<{data: import('../generated/rpc.js').Invite_ProjectInfo }>>} */ (
+  /** @type {ReturnType<typeof import('drizzle-orm/sqlite-core').customType<{data: import('../transformers/rpc.js').IInvite_ProjectInfo }>>} */ (
     customJson
   )
 
-/** @type {import('../generated/rpc.js').Invite_ProjectInfo} */
+/** @type {import('../transformers/rpc.js').IInvite_ProjectInfo} */
 const PROJECT_INFO_DEFAULT_VALUE = {}
 
 export const projectTable = sqliteTable('project', toColumns(schemas.project))

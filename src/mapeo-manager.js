@@ -114,7 +114,7 @@ export class MapeoManager {
    * @param {ProjectId} opts.projectId
    * @param {ProjectPublicId} opts.projectPublicId
    * @param {ProjectKeys} opts.projectKeys
-   * @param {import('./generated/rpc.js').Invite_ProjectInfo} [opts.projectInfo]
+   * @param {import('./transformers/rpc.js').IInvite_ProjectInfo} [opts.projectInfo]
    */
   #saveToProjectKeysTable({
     projectId,
@@ -297,7 +297,7 @@ export class MapeoManager {
   }
 
   /**
-   * @param {import('./generated/rpc.js').Invite} invite
+   * @param {import('./transformers/rpc.js').IInvite} invite
    * @returns {Promise<ProjectPublicId>}
    */
   async addProject({ projectKey, encryptionKeys, projectInfo }) {

@@ -7,7 +7,7 @@ import {
   Invite,
   InviteResponse,
   InviteResponse_Decision,
-} from '../generated/rpc.js'
+} from '../transformers/rpc.js'
 
 const PROTOCOL_NAME = 'mapeo/rpc'
 
@@ -26,7 +26,6 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 /** @typedef {Peer['info']} PeerInfoInternal */
 /** @typedef {Omit<PeerInfoInternal, 'status'> & { status: Exclude<PeerInfoInternal['status'], 'connecting'> }} PeerInfo */
 /** @typedef {'connecting' | 'connected' | 'disconnected'} PeerState */
-/** @typedef {import('type-fest').SetNonNullable<import('../generated/rpc.js').Invite, 'encryptionKeys'>} Invite */
 
 /**
  * @template ValueType
@@ -40,7 +39,7 @@ class Peer {
   #state = 'connecting'
   #publicKey
   #channel
-  /** @type {Map<string, Array<DeferredPromise<InviteResponse['decision']>>>} */
+  /** @type {Map<string, Array<DeferredPromise<import('../transformers/rpc.js').IInviteResponse['decision']>>>} */
   pendingInvites = new Map()
 
   /**
@@ -86,14 +85,14 @@ class Peer {
         break
     }
   }
-  /** @param {Invite} invite */
+  /** @param {import('../transformers/rpc.js').IInvite} invite */
   sendInvite(invite) {
     this.#assertConnected()
     const buf = Buffer.from(Invite.encode(invite).finish())
     const messageType = MESSAGE_TYPES.Invite
     this.#channel.messages[messageType].send(buf)
   }
-  /** @param {InviteResponse} response */
+  /** @param {import('../transformers/rpc.js').IInviteResponse} response */
   sendInviteResponse(response) {
     this.#assertConnected()
     const buf = Buffer.from(InviteResponse.encode(response).finish())
@@ -110,7 +109,7 @@ class Peer {
 /**
  * @typedef {object} MapeoRPCEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
- * @property {(peerId: string, invite: Invite) => void} invite Emitted when an invite is received
+ * @property {(peerId: string, invite: import('../transformers/rpc.js').IInvite) => void} invite Emitted when an invite is received
  */
 
 /** @extends {TypedEmitter<MapeoRPCEvents>} */
@@ -130,16 +129,16 @@ export class MapeoRPC extends TypedEmitter {
    *
    * @param {string} peerId
    * @param {object} options
-   * @param {Invite['projectKey']} options.projectKey project key
-   * @param {Invite['encryptionKeys']} [options.encryptionKeys] project encryption key
-   * @param {Invite['projectInfo']} [options.projectInfo] project info - currently name
+   * @param {import('../transformers/rpc.js').IInvite['projectKey']} options.projectKey project key
+   * @param {import('../transformers/rpc.js').IInvite['encryptionKeys']} options.encryptionKeys project encryption keys
+   * @param {import('../transformers/rpc.js').IInvite['projectInfo']} [options.projectInfo] project info - currently name
    * @param {number} [options.timeout] timeout waiting for invite response before rejecting (default 1 minute)
-   * @returns {Promise<InviteResponse['decision']>}
+   * @returns {Promise<import('../transformers/rpc.js').InviteResponse['decision']>}
    */
   async invite(peerId, { timeout, ...invite }) {
     const peer = this.#peers.get(peerId)
     if (!peer) throw new UnknownPeerError('Unknown peer ' + peerId)
-    /** @type {Promise<InviteResponse['decision']>} */
+    /** @type {Promise<import('../transformers/rpc.js').InviteResponse['decision']>} */
     return new Promise((origResolve, origReject) => {
       const projectId = keyToId(invite.projectKey)
 
@@ -179,8 +178,8 @@ export class MapeoRPC extends TypedEmitter {
    *
    * @param {string} peerId id of the peer you want to respond to (publicKey of peer as hex string)
    * @param {object} options
-   * @param {InviteResponse['projectKey']} options.projectKey project key of the invite you are responding to
-   * @param {InviteResponse['decision']} options.decision response to invite, one of "ACCEPT", "REJECT", or "ALREADY" (already on project)
+   * @param {import('../transformers/rpc.js').IInviteResponse['projectKey']} options.projectKey project key of the invite you are responding to
+   * @param {import('../transformers/rpc.js').IInviteResponse['decision']} options.decision response to invite, one of "ACCEPT", "REJECT", or "ALREADY" (already on project)
    */
   inviteResponse(peerId, options) {
     const peer = this.#peers.get(peerId)
