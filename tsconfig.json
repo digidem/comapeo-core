@@ -16,10 +16,7 @@
     "skipLibCheck": true,
     "typeRoots": ["node_modules/@types"],
     "paths": {
-      "*": ["./types", "./node_modules/@digidem/types/vendor/*/index.d.ts"],
-      "@gravitysoftware/dnssd": [
-        "./node_modules/multicast-service-discovery/types/gravitysoftware__dnssd"
-      ]
+      "*": ["./types", "./node_modules/@digidem/types/vendor/*/index.d.ts"]
     }
   },
   "files": ["tests/schema.js"],

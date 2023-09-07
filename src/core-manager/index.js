@@ -8,7 +8,7 @@ import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
 import RemoteBitfield from './remote-bitfield.js'
-import * as rle from '../../vendor/bitfield-rle.js'
+import * as rle from '../vendor/bitfield-rle.js'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
