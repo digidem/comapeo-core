@@ -1,11 +1,11 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "8d256051-a3d8-47f0-ab8b-ead133232319",
+  "id": "518b4a6e-b310-4f08-a39e-5a046c1e1da9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "deviceInfo": {
-      "name": "deviceInfo",
+    "localDeviceInfo": {
+      "name": "localDeviceInfo",
       "columns": {
         "deviceId": {
           "name": "deviceId",
@@ -23,8 +23,8 @@
         }
       },
       "indexes": {
-        "deviceInfo_deviceId_unique": {
-          "name": "deviceInfo_deviceId_unique",
+        "localDeviceInfo_deviceId_unique": {
+          "name": "localDeviceInfo_deviceId_unique",
           "columns": [
             "deviceId"
           ],

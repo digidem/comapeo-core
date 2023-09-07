@@ -1,4 +1,4 @@
-CREATE TABLE `deviceInfo` (
+CREATE TABLE `localDeviceInfo` (
 	`deviceId` text NOT NULL,
 	`deviceInfo` text NOT NULL
 );
@@ -26,4 +26,4 @@ CREATE TABLE `project` (
 	`forks` text NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `deviceInfo_deviceId_unique` ON `deviceInfo` (`deviceId`);
+CREATE UNIQUE INDEX `localDeviceInfo_deviceId_unique` ON `localDeviceInfo` (`deviceId`);

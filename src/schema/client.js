@@ -39,7 +39,7 @@ const deviceInfoColumn =
   )
 
 // This table only ever has one row in it.
-export const localDeviceInfoTable = sqliteTable('deviceInfo', {
+export const localDeviceInfoTable = sqliteTable('localDeviceInfo', {
   deviceId: text('deviceId').notNull().unique(),
   deviceInfo: deviceInfoColumn('deviceInfo').notNull(),
 })
