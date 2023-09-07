@@ -37,7 +37,7 @@ const deviceInfoKeys = /**
 // This table is for arbitrary deviceInfo data - rather than updating the schema
 // if we add more properties, we just use a row for each property (like mbtiles
 // does for metadata). All values should be stored as JSON
-export const deviceInfoTable = sqliteTable('deviceInfo', {
+export const localDeviceInfoTable = sqliteTable('deviceInfo', {
   key: text('key', { enum: deviceInfoKeys }).notNull().unique(),
   value: customJson('value'),
 })

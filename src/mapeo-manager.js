@@ -9,7 +9,7 @@ import Hypercore from 'hypercore'
 import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject } from './mapeo-project.js'
 import {
-  deviceInfoTable,
+  localDeviceInfoTable,
   projectKeysTable,
   projectTable,
 } from './schema/client.js'
@@ -314,10 +314,10 @@ export class MapeoManager {
       )
     for (const [key, value] of entries) {
       this.#db
-        .insert(deviceInfoTable)
+        .insert(localDeviceInfoTable)
         .values({ key, value })
         .onConflictDoUpdate({
-          target: deviceInfoTable.key,
+          target: localDeviceInfoTable.key,
           set: { key, value },
         })
         .run()
@@ -327,7 +327,7 @@ export class MapeoManager {
 
   async getDeviceInfo() {
     const deviceInfo = /** @type {DeviceInfoParam} */ ({})
-    const entries = this.#db.select().from(deviceInfoTable).all()
+    const entries = this.#db.select().from(localDeviceInfoTable).all()
     for (const { key, value } of entries) {
       // @ts-ignore
       deviceInfo[key] = value
