@@ -1,3 +1,8 @@
+CREATE TABLE `localDeviceInfo` (
+	`deviceId` text NOT NULL,
+	`deviceInfo` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `project_backlink` (
 	`versionId` text PRIMARY KEY NOT NULL
 );
@@ -20,3 +25,5 @@ CREATE TABLE `project` (
 	`defaultPresets` text,
 	`forks` text NOT NULL
 );
+--> statement-breakpoint
+CREATE UNIQUE INDEX `localDeviceInfo_deviceId_unique` ON `localDeviceInfo` (`deviceId`);

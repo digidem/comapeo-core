@@ -16,6 +16,7 @@ import { IndexWriter } from './index-writer/index.js'
 import { projectTable } from './schema/client.js'
 import {
   coreOwnershipTable,
+  deviceInfoTable,
   fieldTable,
   observationTable,
   presetTable,
@@ -111,10 +112,13 @@ export class MapeoProject {
       sqlite,
       getWinner,
       mapDoc: (doc, version) => {
-        if (doc.schemaName === 'coreOwnership') {
-          return mapAndValidateCoreOwnership(doc, version)
-        } else {
-          return doc
+        switch (doc.schemaName) {
+          case 'coreOwnership':
+            return mapAndValidateCoreOwnership(doc, version)
+          case 'deviceInfo':
+            return mapAndValidateDeviceInfo(doc, version)
+          default:
+            return doc
         }
       },
     })
@@ -171,6 +175,11 @@ export class MapeoProject {
       role: new DataType({
         dataStore: this.#dataStores.auth,
         table: roleTable,
+        db,
+      }),
+      deviceInfo: new DataType({
+        dataStore: this.#dataStores.config,
+        table: deviceInfoTable,
         db,
       }),
     }
@@ -389,4 +398,21 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
   }
 
   return keypairs
+}
+
+/**
+ * Validate that a deviceInfo record is written by the device that is it about,
+ * e.g. version.coreKey should equal docId
+ *
+ * @param {import('@mapeo/schema').DeviceInfo} doc
+ * @param {import('@mapeo/schema').VersionIdObject} version
+ * @returns {import('@mapeo/schema').DeviceInfo}
+ */
+function mapAndValidateDeviceInfo(doc, { coreKey }) {
+  if (doc.docId !== coreKey.toString('hex')) {
+    throw new Error(
+      'Invalid deviceInfo record, cannot write deviceInfo for another device'
+    )
+  }
+  return doc
 }

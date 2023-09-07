@@ -28,3 +28,18 @@ export const projectKeysTable = sqliteTable('projectKeys', {
     )
     .notNull(),
 })
+
+/**
+ * @typedef {Omit<import('@mapeo/schema').DeviceInfoValue, 'schemaName'>} DeviceInfoParam
+ */
+
+const deviceInfoColumn =
+  /** @type {ReturnType<typeof import('drizzle-orm/sqlite-core').customType<{data: DeviceInfoParam }>>} */ (
+    customJson
+  )
+
+// This table only ever has one row in it.
+export const localDeviceInfoTable = sqliteTable('localDeviceInfo', {
+  deviceId: text('deviceId').notNull().unique(),
+  deviceInfo: deviceInfoColumn('deviceInfo').notNull(),
+})

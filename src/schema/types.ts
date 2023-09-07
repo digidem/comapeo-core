@@ -149,3 +149,5 @@ export type SchemaToDrizzleColumns<
       : never
     : never
 } & { forks: JsonBuilder<'forks', string[], true, false> }
+
+export type NonEmptyArray<T> = [T, ...T[]]

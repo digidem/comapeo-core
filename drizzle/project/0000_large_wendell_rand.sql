@@ -17,6 +17,21 @@ CREATE TABLE `coreOwnership` (
 	`forks` text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `deviceInfo_backlink` (
+	`versionId` text PRIMARY KEY NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `deviceInfo` (
+	`docId` text PRIMARY KEY NOT NULL,
+	`versionId` text NOT NULL,
+	`schemaName` text NOT NULL,
+	`createdAt` text NOT NULL,
+	`updatedAt` text NOT NULL,
+	`links` text NOT NULL,
+	`name` text NOT NULL,
+	`forks` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `field_backlink` (
 	`versionId` text PRIMARY KEY NOT NULL
 );
