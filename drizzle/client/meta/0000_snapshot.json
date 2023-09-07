@@ -1,32 +1,32 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "26df2e9a-f7ec-44e9-87fc-73d4f33e75c3",
+  "id": "8bfa6650-adeb-48a8-96f5-a5aec7deb811",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "deviceInfo": {
       "name": "deviceInfo",
       "columns": {
-        "key": {
-          "name": "key",
+        "deviceId": {
+          "name": "deviceId",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "value": {
-          "name": "value",
+        "deviceInfo": {
+          "name": "deviceInfo",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         }
       },
       "indexes": {
-        "deviceInfo_key_unique": {
-          "name": "deviceInfo_key_unique",
+        "deviceInfo_deviceId_unique": {
+          "name": "deviceInfo_deviceId_unique",
           "columns": [
-            "key"
+            "deviceId"
           ],
           "isUnique": true
         }

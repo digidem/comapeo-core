@@ -36,6 +36,7 @@ export class MapeoManager {
   /** @type {import('./types.js').CoreStorage} */
   #coreStorage
   #dbFolder
+  #deviceId
 
   /**
    * @param {Object} opts
@@ -54,6 +55,9 @@ export class MapeoManager {
     migrate(this.#db, { migrationsFolder: './drizzle/client' })
 
     this.#keyManager = new KeyManager(rootKey)
+    this.#deviceId = this.#keyManager
+      .getIdentityKeypair()
+      .publicKey.toString('hex')
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectTable],
       sqlite,
@@ -300,38 +304,30 @@ export class MapeoManager {
   }
 
   /**
-   * @typedef {Omit<import('@mapeo/schema').DeviceInfoValue, 'schemaName'>} DeviceInfoParam
-   */
-
-  /**
-   * @template {import('type-fest').Exact<DeviceInfoParam, T>} T
+   * @template {import('type-fest').Exact<import('./schema/client.js').DeviceInfoParam, T>} T
    * @param {T} deviceInfo
    */
   async setDeviceInfo(deviceInfo) {
-    const entries =
-      /** @type {import('type-fest').Entries<DeviceInfoParam>} */ (
-        Object.entries(deviceInfo)
-      )
-    for (const [key, value] of entries) {
-      this.#db
-        .insert(localDeviceInfoTable)
-        .values({ key, value })
-        .onConflictDoUpdate({
-          target: localDeviceInfoTable.key,
-          set: { key, value },
-        })
-        .run()
-    }
-    // TODO: Also call project.$member.update(deviceInfo) for each active project
+    const values = { deviceId: this.#deviceId, deviceInfo }
+    this.#db
+      .insert(localDeviceInfoTable)
+      .values(values)
+      .onConflictDoUpdate({
+        target: localDeviceInfoTable.deviceId,
+        set: values,
+      })
+      .run()
   }
 
+  /**
+   * @returns {Promise<Partial<import('./schema/client.js').DeviceInfoParam>>}
+   */
   async getDeviceInfo() {
-    const deviceInfo = /** @type {DeviceInfoParam} */ ({})
-    const entries = this.#db.select().from(localDeviceInfoTable).all()
-    for (const { key, value } of entries) {
-      // @ts-ignore
-      deviceInfo[key] = value
-    }
-    return deviceInfo
+    const row = this.#db
+      .select()
+      .from(localDeviceInfoTable)
+      .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
+      .get()
+    return row ? row.deviceInfo : {}
   }
 }
