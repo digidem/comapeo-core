@@ -11,7 +11,7 @@ export class MemberApi extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {import('./capabilities.js').Capabilities} opts.capabilities
-   * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
+   * @param {import('./generated/keys.js').IEncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
    * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
    * @param {Object} opts.queries

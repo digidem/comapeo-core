@@ -86,7 +86,7 @@ export class MapeoManager {
   /**
    * @param {Buffer} keysCipher
    * @param {ProjectId} projectId
-   * @returns {ProjectKeys}
+   * @returns {import('./generated/keys.js').ProjectKeys}
    */
   #decodeProjectKeysCipher(keysCipher, projectId) {
     const nonce = projectIdToNonce(projectId)
@@ -113,7 +113,7 @@ export class MapeoManager {
    * @param {Object} opts
    * @param {ProjectId} opts.projectId
    * @param {ProjectPublicId} opts.projectPublicId
-   * @param {ProjectKeys} opts.projectKeys
+   * @param {import('./generated/keys.js').ProjectKeys} opts.projectKeys
    * @param {import('./transformers/rpc.js').IInvite_ProjectInfo} [opts.projectInfo]
    */
   #saveToProjectKeysTable({
@@ -159,7 +159,7 @@ export class MapeoManager {
     }
 
     // 3. Save keys to client db  projectKeys table
-    /** @type {ProjectKeys} */
+    /** @type {import('./generated/keys.js').ProjectKeys} */
     const keys = {
       projectKey: projectKeypair.publicKey,
       projectSecretKey: projectKeypair.secretKey,
