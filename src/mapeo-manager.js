@@ -8,7 +8,11 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject } from './mapeo-project.js'
-import { projectKeysTable, projectTable } from './schema/client.js'
+import {
+  localDeviceInfoTable,
+  projectKeysTable,
+  projectTable,
+} from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 import {
   deNullify,
@@ -40,6 +44,7 @@ export class MapeoManager {
   /** @type {import('./types.js').CoreStorage} */
   #coreStorage
   #dbFolder
+  #deviceId
   #rpc
 
   /**
@@ -60,6 +65,9 @@ export class MapeoManager {
 
     this.#rpc = new MapeoRPC()
     this.#keyManager = new KeyManager(rootKey)
+    this.#deviceId = this.#keyManager
+      .getIdentityKeypair()
+      .publicKey.toString('hex')
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectTable],
       sqlite,
@@ -331,5 +339,33 @@ export class MapeoManager {
     })
 
     return projectPublicId
+  }
+
+  /**
+   * @template {import('type-fest').Exact<import('./schema/client.js').DeviceInfoParam, T>} T
+   * @param {T} deviceInfo
+   */
+  async setDeviceInfo(deviceInfo) {
+    const values = { deviceId: this.#deviceId, deviceInfo }
+    this.#db
+      .insert(localDeviceInfoTable)
+      .values(values)
+      .onConflictDoUpdate({
+        target: localDeviceInfoTable.deviceId,
+        set: values,
+      })
+      .run()
+  }
+
+  /**
+   * @returns {Promise<Partial<import('./schema/client.js').DeviceInfoParam>>}
+   */
+  async getDeviceInfo() {
+    const row = this.#db
+      .select()
+      .from(localDeviceInfoTable)
+      .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
+      .get()
+    return row ? row.deviceInfo : {}
   }
 }
