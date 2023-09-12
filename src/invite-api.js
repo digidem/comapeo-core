@@ -1,5 +1,6 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
+import { EncryptionKeys } from './generated/keys.js'
 import { idToKey, keyToId } from './utils.js'
 
 /** @typedef {import('./rpc/index.js').MapeoRPC} MapeoRPC */
@@ -16,7 +17,7 @@ export class InviteApi extends TypedEmitter {
    * @param {MapeoRPC} options.rpc
    * @param {object} options.queries
    * @param {(projectId: string) => Promise<boolean>} options.queries.isMember
-   * @param {(projectId: string, encryptionKeys: import('./types.js').KeyPair) => Promise<void>} options.queries.addProject
+   * @param {(projectId: string, encryptionKeys: EncryptionKeys) => Promise<void>} options.queries.addProject
    */
   constructor({ rpc, queries }) {
     super()
@@ -34,7 +35,7 @@ export class InviteApi extends TypedEmitter {
         peerIds.add(peerId)
         this.#invites.set(projectId, peerIds)
         this.#keys.set(projectId, invite.encryptionKeys)
-  
+
         if (peerIds.size === 1) {
           this.emit('invite-received', {
             projectId,
@@ -60,7 +61,7 @@ export class InviteApi extends TypedEmitter {
   }
 
   /**
-   * @param {string} projectId 
+   * @param {string} projectId
    */
   alreadyJoined(projectId) {
     this.#respond({ projectId, decision: InviteResponse_Decision.ALREADY })
@@ -114,7 +115,7 @@ export class InviteApi extends TypedEmitter {
   }
 
   /**
-   * @param {string} peerId 
+   * @param {string} peerId
    * @returns {boolean}
    */
   #isPeerConnected(peerId) {

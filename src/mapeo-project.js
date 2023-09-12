@@ -1,92 +1,142 @@
 // @ts-check
+import path from 'path'
+import Database from 'better-sqlite3'
+import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import pDefer from 'p-defer'
 
-import { CoreManager } from './core-manager/index.js'
+import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
-import { DataType } from './datatype/index.js'
+import { DataType, kCreateWithDocId } from './datatype/index.js'
+import { BlobStore } from './blob-store/index.js'
+import { createBlobServer } from './blob-server/index.js'
+import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
-import { fieldTable, observationTable, presetTable } from './schema/project.js'
-import RandomAccessFile from 'random-access-file'
-import RAM from 'random-access-memory'
-import Database from 'better-sqlite3'
-import path from 'path'
-import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
+import { projectTable } from './schema/client.js'
+import {
+  coreOwnershipTable,
+  deviceInfoTable,
+  fieldTable,
+  observationTable,
+  presetTable,
+  roleTable,
+} from './schema/project.js'
+import {
+  CoreOwnership,
+  getWinner,
+  mapAndValidateCoreOwnership,
+} from './core-ownership.js'
+import { Capabilities } from './capabilities.js'
+import { projectKeyToId, valueOf } from './utils.js'
+import { MemberApi } from './member-api.js'
 
-const PROJECT_SQLITE_FILE_NAME = 'project.db'
-const CORE_STORAGE_FOLDER_NAME = 'cores'
+/** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
+
+const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
-// Max file descriptors that RandomAccessFile should use for hypercore storage
-// and index bitfield persistence (used by MultiCoreIndexer). Android has a
-// limit of 1024 per process, so choosing 768 to leave 256 descriptors free for
-// other things e.g. SQLite and other parts of the app.
-const MAX_FILE_DESCRIPTORS = 768
+export const kCoreOwnership = Symbol('coreOwnership')
+export const kCapabilities = Symbol('capabilities')
 
 export class MapeoProject {
+  #projectId
   #coreManager
   #dataStores
   #dataTypes
+  #blobStore
+  #blobServer
+  #coreOwnership
+  #capabilities
+  #ownershipWriteDone
+  #memberApi
 
   /**
    * @param {Object} opts
-   * @param {string} [opts.storagePath] Folder for all data storage (hypercores and sqlite db). Folder must exist. If not defined, everything is stored in-memory
+   * @param {string} opts.dbPath Path to store project sqlite db. Use `:memory:` for memory storage
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
+   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
+   * @param {IndexWriter} opts.sharedIndexWriter
+   * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
+   * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
+   *
    */
-  constructor({ storagePath, ...coreManagerOpts }) {
-    ///////// 1. Setup database
+  constructor({
+    dbPath,
+    sharedDb,
+    sharedIndexWriter,
+    coreStorage,
+    keyManager,
+    projectKey,
+    projectSecretKey,
+    encryptionKeys,
+    rpc,
+  }) {
+    this.#projectId = projectKeyToId(projectKey)
 
-    const dbPath =
-      storagePath !== undefined
-        ? path.join(storagePath, PROJECT_SQLITE_FILE_NAME)
-        : ':memory:'
+    ///////// 1. Setup database
     const sqlite = new Database(dbPath)
     const db = drizzle(sqlite)
     migrate(db, { migrationsFolder: './drizzle/project' })
 
     ///////// 2. Setup random-access-storage functions
 
-    const filePool =
-      storagePath !== undefined
-        ? new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
-        : undefined
     /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
-    const coreManagerStorage =
-      storagePath !== undefined
-        ? (name) =>
-            new RandomAccessFile(
-              path.join(storagePath, CORE_STORAGE_FOLDER_NAME, name),
-              { pool: filePool }
-            )
-        : () => new RAM()
+    const coreManagerStorage = (name) =>
+      coreStorage(path.join(CORESTORE_STORAGE_FOLDER_NAME, name))
+
     /** @type {ConstructorParameters<typeof DataStore>[0]['storage']} */
-    const indexerStorage =
-      storagePath !== undefined
-        ? (name) =>
-            new RandomAccessFile(
-              path.join(storagePath, INDEXER_STORAGE_FOLDER_NAME, name),
-              { pool: filePool }
-            )
-        : () => new RAM()
+    const indexerStorage = (name) =>
+      coreStorage(path.join(INDEXER_STORAGE_FOLDER_NAME, name))
 
     ///////// 3. Create instances
 
     this.#coreManager = new CoreManager({
-      ...coreManagerOpts,
+      projectSecretKey,
+      encryptionKeys,
+      projectKey,
+      keyManager,
       storage: coreManagerStorage,
       sqlite,
     })
     const indexWriter = new IndexWriter({
-      tables: [observationTable, presetTable, fieldTable],
+      tables: [
+        observationTable,
+        presetTable,
+        fieldTable,
+        coreOwnershipTable,
+        roleTable,
+      ],
       sqlite,
+      getWinner,
+      mapDoc: (doc, version) => {
+        switch (doc.schemaName) {
+          case 'coreOwnership':
+            return mapAndValidateCoreOwnership(doc, version)
+          case 'deviceInfo':
+            return mapAndValidateDeviceInfo(doc, version)
+          default:
+            return doc
+        }
+      },
     })
     this.#dataStores = {
+      auth: new DataStore({
+        coreManager: this.#coreManager,
+        namespace: 'auth',
+        batch: (entries) => indexWriter.batch(entries),
+        storage: indexerStorage,
+      }),
       config: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'config',
-        batch: (entries) => indexWriter.batch(entries),
+        batch: (entries) =>
+          this.#handleConfigEntries(entries, {
+            projectIndexWriter: indexWriter,
+            sharedIndexWriter,
+          }),
         storage: indexerStorage,
       }),
       data: new DataStore({
@@ -112,7 +162,146 @@ export class MapeoProject {
         table: fieldTable,
         db,
       }),
+      project: new DataType({
+        dataStore: this.#dataStores.config,
+        table: projectTable,
+        db: sharedDb,
+      }),
+      coreOwnership: new DataType({
+        dataStore: this.#dataStores.auth,
+        table: coreOwnershipTable,
+        db,
+      }),
+      role: new DataType({
+        dataStore: this.#dataStores.auth,
+        table: roleTable,
+        db,
+      }),
+      deviceInfo: new DataType({
+        dataStore: this.#dataStores.config,
+        table: deviceInfoTable,
+        db,
+      }),
     }
+
+    this.#blobStore = new BlobStore({
+      coreManager: this.#coreManager,
+    })
+
+    this.#blobServer = createBlobServer({
+      logger: true,
+      blobStore: this.#blobStore,
+      prefix: '/blobs/',
+      projectId: this.#projectId,
+    })
+
+    // @ts-ignore TODO: pass in blobServer
+    this.$blobs = new BlobApi({
+      projectId: this.#projectId,
+      blobStore: this.#blobStore,
+      blobServer: this.#blobServer,
+    })
+
+    this.#coreOwnership = new CoreOwnership({
+      dataType: this.#dataTypes.coreOwnership,
+    })
+    this.#capabilities = new Capabilities({
+      dataType: this.#dataTypes.role,
+      coreOwnership: this.#coreOwnership,
+      coreManager: this.#coreManager,
+      projectKey: projectKey,
+      deviceKey: keyManager.getIdentityKeypair().publicKey,
+    })
+
+    this.#memberApi = new MemberApi({
+      capabilities: this.#capabilities,
+      // @ts-expect-error
+      encryptionKeys,
+      projectKey,
+      rpc,
+      queries: {
+        getProjectInfo: async () => {
+          const settings = await this.$getProjectSettings()
+          return { name: settings.name }
+        },
+      },
+    })
+
+    ///////// 4. Write core ownership record
+
+    const deferred = pDefer()
+    // Avoid uncaught rejection. If this is rejected then project.ready() will reject
+    deferred.promise.catch(() => {})
+    this.#ownershipWriteDone = deferred.promise
+
+    const authCore = this.#coreManager.getWriterCore('auth').core
+    authCore.on('ready', () => {
+      if (authCore.length > 0) return
+      const identityKeypair = keyManager.getIdentityKeypair()
+      const coreKeypairs = getCoreKeypairs({
+        projectKey,
+        projectSecretKey,
+        keyManager,
+      })
+      this.#coreOwnership
+        .writeOwnership(identityKeypair, coreKeypairs)
+        .then(deferred.resolve)
+        .catch(deferred.reject)
+    })
+  }
+
+  /**
+   * CoreOwnership instance, used for tests
+   */
+  get [kCoreOwnership]() {
+    return this.#coreOwnership
+  }
+
+  /**
+   * Capabilities instance, used for tests
+   */
+  get [kCapabilities]() {
+    return this.#capabilities
+  }
+
+  /**
+   * Resolves when hypercores have all loaded
+   */
+  async ready() {
+    await Promise.all([this.#coreManager.ready(), this.#ownershipWriteDone])
+  }
+
+  /**
+   * @param {import('multi-core-indexer').Entry[]} entries
+   * @param {{projectIndexWriter: IndexWriter, sharedIndexWriter: IndexWriter}} indexWriters
+   */
+  async #handleConfigEntries(
+    entries,
+    { projectIndexWriter, sharedIndexWriter }
+  ) {
+    /** @type {import('multi-core-indexer').Entry[]} */
+    const projectSettingsEntries = []
+    /** @type {import('multi-core-indexer').Entry[]} */
+    const otherEntries = []
+
+    for (const entry of entries) {
+      try {
+        const { schemaName } = decodeBlockPrefix(entry.block)
+
+        if (schemaName === 'project') {
+          projectSettingsEntries.push(entry)
+        } else {
+          otherEntries.push(entry)
+        }
+      } catch {
+        // Ignore errors thrown by values that can't be decoded for now
+      }
+    }
+
+    await Promise.all([
+      projectIndexWriter.batch(otherEntries),
+      sharedIndexWriter.batch(projectSettingsEntries),
+    ])
   }
 
   get observation() {
@@ -124,4 +313,106 @@ export class MapeoProject {
   get field() {
     return this.#dataTypes.field
   }
+
+  get $member() {
+    return this.#memberApi
+  }
+
+  /**
+   * @param {Partial<EditableProjectSettings>} settings
+   * @returns {Promise<EditableProjectSettings>}
+   */
+  async $setProjectSettings(settings) {
+    const { project } = this.#dataTypes
+
+    // We only want to catch the error to the getByDocId call
+    // Using try/catch for this is a little verbose when dealing with TS types
+    const existing = await project.getByDocId(this.#projectId).catch(() => {
+      // project does not exist so return null
+      return null
+    })
+
+    if (existing) {
+      return extractEditableProjectSettings(
+        await project.update([existing.versionId, ...existing.forks], {
+          ...valueOf(existing),
+          ...settings,
+        })
+      )
+    }
+
+    return extractEditableProjectSettings(
+      await project[kCreateWithDocId](this.#projectId, {
+        ...settings,
+        schemaName: 'project',
+      })
+    )
+  }
+
+  /**
+   * @returns {Promise<EditableProjectSettings>}
+   */
+  async $getProjectSettings() {
+    try {
+      return extractEditableProjectSettings(
+        await this.#dataTypes.project.getByDocId(this.#projectId)
+      )
+    } catch {
+      return /** @type {EditableProjectSettings} */ ({})
+    }
+  }
+}
+
+/**
+ * @param {import("@mapeo/schema").Project & { forks: string[] }} projectDoc
+ * @returns {EditableProjectSettings}
+ */
+function extractEditableProjectSettings(projectDoc) {
+  // eslint-disable-next-line no-unused-vars
+  const { schemaName, ...result } = valueOf(projectDoc)
+  return result
+}
+
+/**
+ * Return a map of namespace -> core keypair
+ *
+ * For the project owner the keypair for the 'auth' namespace is the projectKey
+ * and projectSecretKey. In all other cases keypairs are derived from the
+ * project key
+ *
+ * @param {object} opts
+ * @param {Buffer} opts.projectKey
+ * @param {Buffer} [opts.projectSecretKey]
+ * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
+ * @returns {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>}
+ */
+function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
+  const keypairs =
+    /** @type {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>} */ ({})
+
+  for (const namespace of NAMESPACES) {
+    keypairs[namespace] =
+      namespace === 'auth' && projectSecretKey
+        ? { publicKey: projectKey, secretKey: projectSecretKey }
+        : keyManager.getHypercoreKeypair(namespace, projectKey)
+  }
+
+  return keypairs
+}
+
+/**
+ * Validate that a deviceInfo record is written by the device that is it about,
+ * e.g. version.coreKey should equal docId
+ *
+ * @param {import('@mapeo/schema').DeviceInfo} doc
+ * @param {import('@mapeo/schema').VersionIdObject} version
+ * @returns {import('@mapeo/schema').DeviceInfo}
+ */
+function mapAndValidateDeviceInfo(doc, { coreKey }) {
+  if (doc.docId !== coreKey.toString('hex')) {
+    throw new Error(
+      'Invalid deviceInfo record, cannot write deviceInfo for another device'
+    )
+  }
+  return doc
 }

@@ -44,13 +44,15 @@ function generateDate() {
   return new Date().toISOString()
 }
 export const kCreateWithDocId = Symbol('kCreateWithDocId')
+export const kSelect = Symbol('select')
+export const kTable = Symbol('table')
 
 /**
  * @template {import('../datastore/index.js').DataStore} TDataStore
  * @template {TDataStore['schemas'][number]} TSchemaName
  * @template {MapeoDocTablesMap[TSchemaName]} TTable
- * @template {MapeoDocMap[TSchemaName]} TDoc
- * @template {MapeoValueMap[TSchemaName]} TValue
+ * @template {Exclude<MapeoDocMap[TSchemaName], { schemaName: 'coreOwnership' }>} TDoc
+ * @template {Exclude<MapeoValueMap[TSchemaName], { schemaName: 'coreOwnership' }>} TValue
  */
 export class DataType {
   #dataStore
@@ -58,6 +60,7 @@ export class DataType {
   #getPermissions
   #schemaName
   #sql
+  #db
 
   /**
    *
@@ -72,6 +75,7 @@ export class DataType {
     this.#table = table
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
     this.#getPermissions = getPermissions
+    this.#db = db
     this.#sql = {
       getByDocId: db
         .select()
@@ -82,19 +86,23 @@ export class DataType {
     }
   }
 
+  get [kTable]() {
+    return this.#table
+  }
+
   /**
    * @template {import('type-fest').Exact<TValue, T>} T
    * @param {T} value
    */
   async create(value) {
     const docId = generateId()
+    // @ts-expect-error - can't figure this one out, types in index.d.ts override this
     return this[kCreateWithDocId](docId, value)
   }
 
   /**
-   * @template {import('type-fest').Exact<TValue, T>} T
    * @param {string} docId
-   * @param {T} value
+   * @param {TValue | import('../types.js').CoreOwnershipWithSignaturesValue} value
    */
   async [kCreateWithDocId](docId, value) {
     if (!validate(this.#schemaName, value)) {
@@ -113,7 +121,7 @@ export class DataType {
 
     // TS can't track the relationship between TDoc and TValue, so doc above is
     // typed as MapeoDoc (without versionId) rather than as TDoc.
-    await this.#dataStore.write(/** @type {TDoc} */ (doc))
+    await this.#dataStore.write(doc)
     return this.getByDocId(doc.docId)
   }
 
@@ -121,7 +129,8 @@ export class DataType {
    * @param {string} docId
    */
   async getByDocId(docId) {
-    return deNullify(this.#sql.getByDocId.get({ docId }))
+    const result = this.#sql.getByDocId.get({ docId })
+    return result ? deNullify(result) : result
   }
 
   /** @param {string} versionId */
@@ -172,6 +181,13 @@ export class DataType {
     }
     await this.#dataStore.write(doc)
     return this.getByDocId(docId)
+  }
+
+  /**
+   * @param {Parameters<import('drizzle-orm/better-sqlite3').BetterSQLite3Database['select']>[0]} fields
+   */
+  [kSelect](fields) {
+    return this.#db.select(fields).from(this.#table)
   }
 
   /**

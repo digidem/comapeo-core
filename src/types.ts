@@ -4,9 +4,10 @@ import type {
   ValueOf,
   RequireAtLeastOne,
   SetOptional,
+  Opaque,
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
-import { MapeoDoc, MapeoValue } from '@mapeo/schema'
+import { MapeoCommon, MapeoDoc, MapeoValue, decode } from '@mapeo/schema'
 import type Protomux from 'protomux'
 import type NoiseStream from '@hyperswarm/secret-stream'
 import { Duplex } from 'streamx'
@@ -14,10 +15,11 @@ import { Socket } from 'net'
 import MultiCoreIndexer from 'multi-core-indexer'
 import Corestore from 'corestore'
 import Hypercore from 'hypercore'
+import RandomAccessStorage from 'random-access-storage'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
-type BlobType = keyof SupportedBlobVariants
-type BlobVariant<TBlobType extends BlobType> = TupleToUnion<
+export type BlobType = keyof SupportedBlobVariants
+export type BlobVariant<TBlobType extends BlobType> = TupleToUnion<
   SupportedBlobVariants[TBlobType]
 >
 
@@ -61,6 +63,16 @@ export type MapeoDocMap = {
 export type MapeoValueMap = {
   [K in MapeoValue['schemaName']]: Extract<MapeoValue, { schemaName: K }>
 }
+
+// TODO: Replace this with exports from @mapeo/schema
+export type CoreOwnershipWithSignatures = Extract<
+  ReturnType<typeof decode>,
+  { schemaName: 'coreOwnership' }
+>
+export type CoreOwnershipWithSignaturesValue = Omit<
+  CoreOwnershipWithSignatures,
+  Exclude<keyof MapeoCommon, 'schemaName'>
+>
 
 type NullToOptional<T> = SetOptional<T, NullKeys<T>>
 type RemoveNull<T> = {
@@ -131,6 +143,10 @@ export type TopicKey = Buffer
 export type TopicId = string
 /** 52 character base32 encoding of `Topic` Buffer */
 export type MdnsTopicId = string
+/** hex string representation of project key buffer */
+export type ProjectId = Opaque<string, 'ProjectId'>
+/** z32-encoded hash of project key */
+export type ProjectPublicId = Opaque<string, 'ProjectPublicId'>
 
 // TODO: Figure out where those extra fields come from and find more elegant way to represent this
 export type RawDhtConnectionStream = Duplex & {
@@ -168,3 +184,5 @@ export type ProtocolStream = NoiseStream & { userData: Protomux }
 export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
 }[keyof T][]
+
+export type CoreStorage = (name: string) => RandomAccessStorage
