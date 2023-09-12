@@ -21,7 +21,7 @@ export class MemberApi extends TypedEmitter {
    * @param {Object} opts.queries
    * @param {() => Promise<import('./generated/rpc.js').Invite_ProjectInfo>} opts.queries.getProjectInfo
    * @param {Object} opts.dataTypes
-   * @param {Pick<DeviceInfoDataType, 'getByDocId'>} opts.dataTypes.deviceInfo
+   * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    */
   constructor({
     capabilities,
@@ -73,5 +73,13 @@ export class MemberApi extends TypedEmitter {
   async getById(deviceId) {
     const { name } = await this.#dataTypes.deviceInfo.getByDocId(deviceId)
     return { deviceId, name }
+  }
+
+  /**
+   * @returns {Promise<Array<MemberInfo>>}
+   */
+  async getMany() {
+    const devices = await this.#dataTypes.deviceInfo.getMany()
+    return devices.map(({ docId, name }) => ({ deviceId: docId, name }))
   }
 }
