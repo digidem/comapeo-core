@@ -4,10 +4,10 @@ import * as rle from '../src/core-manager/bitfield-rle.js'
 
 test('encodes and decodes', function (t) {
   var bits = new Bitfield(1024)
-  var deflated = rle.encode(Buffer.from(bits.buffer))
+  var deflated = rle.encode(toUint32Array(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
+  t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
@@ -29,10 +29,10 @@ test('encodes and decodes with all bits set', function (t) {
 
   for (var i = 0; i < 1024; i++) bits.set(i, true)
 
-  var deflated = rle.encode(Buffer.from(bits.buffer))
+  var deflated = rle.encode(toUint32Array(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
+  t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
@@ -47,10 +47,10 @@ test('encodes and decodes with some bits set', function (t) {
   bits.set(1000, true)
   bits.set(0, true)
 
-  var deflated = rle.encode(Buffer.from(bits.buffer))
+  var deflated = rle.encode(toUint32Array(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
+  t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
@@ -61,10 +61,10 @@ test('encodes and decodes with random bits set', function (t) {
     bits.set(Math.floor(Math.random() * 8 * 1024), true)
   }
 
-  var deflated = rle.encode(Buffer.from(bits.buffer))
+  var deflated = rle.encode(toUint32Array(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
+  t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
@@ -75,27 +75,28 @@ test('encodes and decodes with random bits set (not power of two)', function (t)
     bits.set(Math.floor(Math.random() * 8 * 1024), true)
   }
 
-  var deflated = rle.encode(Buffer.from(bits.buffer))
+  var deflated = rle.encode(toUint32Array(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
+  t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
 test('encodes empty bitfield', function (t) {
-  var deflated = rle.encode(Buffer.alloc(0))
+  var deflated = rle.encode(new Uint32Array())
   var inflated = rle.decode(deflated)
-  t.alike(inflated, Buffer.alloc(0), 'still empty')
+  t.alike(inflated, new Uint32Array(), 'still empty')
   t.end()
 })
 
 test('throws on bad input', function (t) {
   t.exception(function () {
-    rle.decode(Buffer.from([100]))
+    rle.decode(toUint32Array([100, 0, 0, 0]))
   }, 'invalid delta count')
-  t.exception(function () {
+  // t.exception.all also catches RangeErrors, which is what we expect from this
+  t.exception.all(function () {
     rle.decode(
-      Buffer.from([
+      toUint32Array([
         10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0,
         10, 0,
       ])
@@ -105,8 +106,21 @@ test('throws on bad input', function (t) {
 })
 
 test('not power of two', function (t) {
-  var deflated = rle.encode(Buffer.from([255, 255, 255, 240]))
+  var deflated = rle.encode(toUint32Array([255, 255, 255, 240]))
   var inflated = rle.decode(deflated)
-  t.alike(inflated, Buffer.from([255, 255, 255, 240]), 'output equal to input')
+  t.alike(
+    inflated,
+    toUint32Array([255, 255, 255, 240]),
+    'output equal to input'
+  )
   t.end()
 })
+
+/** @param {Bitfield | Buffer | Array<number>} b */
+function toUint32Array(b) {
+  if (Array.isArray(b)) {
+    b = Buffer.from(b)
+  }
+  const buf = b instanceof Bitfield ? b.buffer : b
+  return new Uint32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4)
+}

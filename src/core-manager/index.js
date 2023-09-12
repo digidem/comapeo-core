@@ -1,6 +1,5 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
-import c from 'compact-encoding'
 import Corestore from 'corestore'
 import assert from 'node:assert'
 import { once } from 'node:events'
@@ -539,8 +538,7 @@ const ProjectExtensionCodec = {
 const HaveExtensionCodec = {
   /** @param {HaveMsg} msg */
   encode({ start, discoveryKey, bitfield }) {
-    const encoded = c.encode(c.uint32array, bitfield)
-    const encodedBitfield = rle.encode(encoded)
+    const encodedBitfield = rle.encode(bitfield)
     const msg = { start, discoveryKey, encodedBitfield }
     return HaveExtension.encode(msg).finish()
   },
@@ -551,7 +549,7 @@ const HaveExtensionCodec = {
   decode(buf) {
     const { start, discoveryKey, encodedBitfield } = HaveExtension.decode(buf)
     try {
-      const bitfield = c.decode(c.uint32array, rle.decode(encodedBitfield))
+      const bitfield = rle.decode(encodedBitfield)
       return { start, discoveryKey, bitfield }
     } catch (e) {
       // TODO: Log error

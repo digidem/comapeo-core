@@ -1,9 +1,15 @@
 // @ts-check
 // https://github.com/mafintosh/bitfield-rle/blob/31a0001/index.js
 // Vendored so that we can run cross-platform tests with latest Node versions
+// Modified to encode and decode Uint32Arrays
+
 import varint from 'varint'
 
-// Don't support align() like original
+const isLittleEndian =
+  new Uint8Array(new Uint16Array([0xff]).buffer)[0] === 0xff
+const isBigEndian = !isLittleEndian
+
+// align to 4 bytes for Uint32Array output
 const n = 4
 
 class State {
@@ -25,14 +31,24 @@ class State {
 encode.bytes = 0
 
 /**
- * @param {Buffer} bitfield
+ * @param {Uint32Array} bitfield
  * @param {Buffer} [buffer]
  * @param {number} [offset]
  */
 export function encode(bitfield, buffer, offset) {
   if (!offset) offset = 0
-  if (!buffer) buffer = Buffer.allocUnsafe(encodingLength(bitfield))
-  var state = new State(bitfield, buffer, offset)
+
+  const bitfieldBuf = Buffer.from(
+    bitfield.buffer,
+    bitfield.byteOffset,
+    bitfield.byteLength
+  )
+
+  // Encoded as little endian
+  if (isBigEndian) bitfieldBuf.swap32()
+
+  if (!buffer) buffer = Buffer.allocUnsafe(encodingLength(bitfieldBuf))
+  var state = new State(bitfieldBuf, buffer, offset)
   rle(state)
   encode.bytes = state.outputOffset - offset
   return buffer
@@ -51,11 +67,12 @@ decode.bytes = 0
 /**
  * @param {Buffer} buffer
  * @param {number} [offset]
+ * @returns {Uint32Array}
  */
 export function decode(buffer, offset) {
   if (!offset) offset = 0
 
-  var bitfield = Buffer.allocUnsafe(decodingLength(buffer, offset))
+  var bitfieldBuf = Buffer.allocUnsafe(decodingLength(buffer, offset))
   var ptr = 0
 
   while (offset < buffer.length) {
@@ -66,19 +83,25 @@ export function decode(buffer, offset) {
     offset += varint.decode.bytes || 0
 
     if (repeat) {
-      bitfield.fill(next & 2 ? 255 : 0, ptr, ptr + len)
+      bitfieldBuf.fill(next & 2 ? 255 : 0, ptr, ptr + len)
     } else {
-      buffer.copy(bitfield, ptr, offset, offset + len)
+      buffer.copy(bitfieldBuf, ptr, offset, offset + len)
       offset += len
     }
 
     ptr += len
   }
 
-  bitfield.fill(0, ptr)
+  bitfieldBuf.fill(0, ptr)
   decode.bytes = buffer.length - offset
 
-  return bitfield
+  if (isBigEndian) bitfieldBuf.swap32()
+
+  return new Uint32Array(
+    bitfieldBuf.buffer,
+    bitfieldBuf.byteOffset,
+    bitfieldBuf.byteLength / n
+  )
 }
 
 /**
