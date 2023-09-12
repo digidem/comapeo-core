@@ -4,7 +4,7 @@ import { EncryptionKeys } from "./keys.js";
 
 export interface Invite {
   projectKey: Buffer;
-  encryptionKeys?: EncryptionKeys | undefined;
+  encryptionKeys: EncryptionKeys | undefined;
   projectInfo?: Invite_ProjectInfo | undefined;
 }
 
@@ -58,7 +58,7 @@ export function inviteResponse_DecisionToNumber(object: InviteResponse_Decision)
 }
 
 function createBaseInvite(): Invite {
-  return { projectKey: Buffer.alloc(0) };
+  return { projectKey: Buffer.alloc(0), encryptionKeys: undefined };
 }
 
 export const Invite = {
