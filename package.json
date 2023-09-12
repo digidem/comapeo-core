@@ -20,7 +20,8 @@
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
-    "prepack": "npm run build:types"
+    "prepack": "npm run build:types",
+    "postinstall": "patch-package"
   },
   "files": [
     "src",
@@ -118,6 +119,7 @@
     "multi-core-indexer": "^1.0.0-alpha.7",
     "multicast-service-discovery": "^4.0.4",
     "p-defer": "^4.0.0",
+    "patch-package": "^8.0.0",
     "private-ip": "^3.0.0",
     "protobufjs": "^7.2.3",
     "protomux": "^3.4.1",
