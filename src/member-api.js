@@ -1,6 +1,8 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
 
+/** @typedef {{ deviceId: string, name: import('@mapeo/schema').DeviceInfo['name'] }} MemberInfo */
+
 export class MemberApi extends TypedEmitter {
   #capabilities
   #encryptionKeys
@@ -16,6 +18,8 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
    * @param {Object} opts.queries
    * @param {() => Promise<import('./generated/rpc.js').Invite_ProjectInfo>} opts.queries.getProjectInfo
+   * @param {(deviceId: string) => Promise<import('@mapeo/schema').DeviceInfo>} opts.queries.getDeviceInfo
+   *
    */
   constructor({ capabilities, encryptionKeys, projectKey, rpc, queries }) {
     super()
@@ -50,5 +54,14 @@ export class MemberApi extends TypedEmitter {
     }
 
     return response
+  }
+
+  /**
+   * @param {string} deviceId
+   * @returns {Promise<MemberInfo>}
+   */
+  async getById(deviceId) {
+    const deviceInfo = await this.#queries.getDeviceInfo(deviceId)
+    return { deviceId, name: deviceInfo.name }
   }
 }

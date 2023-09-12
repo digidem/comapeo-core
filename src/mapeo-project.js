@@ -224,6 +224,9 @@ export class MapeoProject {
           const settings = await this.$getProjectSettings()
           return { name: settings.name }
         },
+        getDeviceInfo: async (deviceId) => {
+          return this.#dataTypes.deviceInfo.getByDocId(deviceId)
+        },
       },
     })
 
