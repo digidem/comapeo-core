@@ -26,7 +26,7 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 /** @typedef {Peer['info']} PeerInfoInternal */
 /** @typedef {Omit<PeerInfoInternal, 'status'> & { status: Exclude<PeerInfoInternal['status'], 'connecting'> }} PeerInfo */
 /** @typedef {'connecting' | 'connected' | 'disconnected'} PeerState */
-/** @typedef {import('type-fest').SetNonNullable<import('../generated/rpc.js').Invite, 'encryptionKeys'>} Invite */
+/** @typedef {import('type-fest').SetNonNullable<import('../generated/rpc.js').Invite, 'encryptionKeys'>} InviteWithKeys */
 
 /**
  * @template ValueType
@@ -86,7 +86,7 @@ class Peer {
         break
     }
   }
-  /** @param {Invite} invite */
+  /** @param {InviteWithKeys} invite */
   sendInvite(invite) {
     this.#assertConnected()
     const buf = Buffer.from(Invite.encode(invite).finish())
@@ -110,7 +110,7 @@ class Peer {
 /**
  * @typedef {object} MapeoRPCEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
- * @property {(peerId: string, invite: Invite) => void} invite Emitted when an invite is received
+ * @property {(peerId: string, invite: InviteWithKeys) => void} invite Emitted when an invite is received
  */
 
 /** @extends {TypedEmitter<MapeoRPCEvents>} */
@@ -130,9 +130,9 @@ export class MapeoRPC extends TypedEmitter {
    *
    * @param {string} peerId
    * @param {object} options
-   * @param {Invite['projectKey']} options.projectKey project key
-   * @param {Invite['encryptionKeys']} [options.encryptionKeys] project encryption key
-   * @param {Invite['projectInfo']} [options.projectInfo] project info - currently name
+   * @param {InviteWithKeys['projectKey']} options.projectKey project key
+   * @param {InviteWithKeys['encryptionKeys']} options.encryptionKeys project encryption key
+   * @param {InviteWithKeys['projectInfo']} [options.projectInfo] project info - currently name
    * @param {number} [options.timeout] timeout waiting for invite response before rejecting (default 1 minute)
    * @returns {Promise<InviteResponse['decision']>}
    */
@@ -296,6 +296,7 @@ export class MapeoRPC extends TypedEmitter {
     switch (type) {
       case 'Invite': {
         const invite = Invite.decode(value)
+        assertInviteHasKeys(invite)
         this.emit('invite', peerId, invite)
         break
       }
@@ -341,5 +342,16 @@ export class PeerDisconnectedError extends Error {
   constructor(message) {
     super(message)
     this.name = 'PeerDisconnectedError'
+  }
+}
+
+/**
+ *
+ * @param {Invite} invite
+ * @returns {asserts invite is InviteWithKeys}
+ */
+function assertInviteHasKeys(invite) {
+  if (!invite.encryptionKeys || !invite.encryptionKeys.auth) {
+    throw new Error('Invite is missing auth core encryption key')
   }
 }
