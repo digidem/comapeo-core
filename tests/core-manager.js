@@ -8,6 +8,7 @@ import Sqlite from 'better-sqlite3'
 import { KeyManager } from '@mapeo/crypto'
 import { CoreManager } from '../src/core-manager/index.js'
 import assert from 'assert'
+import { once } from 'node:events'
 import { temporaryDirectoryTask } from 'tempy'
 import { exec } from 'child_process'
 import { RandomAccessFilePool } from '../src/core-manager/random-access-file-pool.js'
@@ -418,6 +419,52 @@ function hasKeys(someKeys, allKeys) {
   }
   return true
 }
+
+test('sends "haves" bitfields over project creator core replication stream', async function (t) {
+  const projectKey = randomBytes(32)
+  const cm1 = createCoreManager({ projectKey })
+  const cm2 = createCoreManager({ projectKey })
+
+  const cm1Core = cm1.getWriterCore('data').core
+  await cm1Core.ready()
+  const batchSize = 4096
+  // Create 1 million entries in hypercore
+  for (let i = 0; i < 2 ** 20; i += batchSize) {
+    const data = Array(batchSize)
+      .fill(null)
+      .map(() => 'block')
+    await cm1Core.append(data)
+  }
+
+  await cm1Core.clear(500, 30000)
+  await cm1Core.clear(700000, 800000)
+
+  const n1 = new NoiseSecretStream(true)
+  const n2 = new NoiseSecretStream(false)
+  n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
+
+  cm1.replicate(n1)
+  cm2.replicate(n2)
+
+  // Need to wait for now, since no event for when a remote bitfield is updated
+  await new Promise((res) => setTimeout(res, 200))
+
+  const { havesByPeer } = cm2
+  const peerId = n1.publicKey.toString('hex')
+  const havesByCore = havesByPeer.get(peerId)
+  t.ok(havesByCore)
+  const bitfield = havesByCore.get(cm1Core.discoveryKey.toString('hex'))
+  t.ok(bitfield)
+
+  t.ok(
+    bitfieldEquals(bitfield, cm1Core.core.bitfield, cm1Core.length),
+    'remote bitfield is same as source bitfield'
+  )
+
+  n1.destroy()
+  n2.destroy()
+  await Promise.all([once(n1, 'close'), once(n2, 'close')])
+})
 
 const DEBUG = process.env.DEBUG
 

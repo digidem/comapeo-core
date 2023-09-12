@@ -1,13 +1,13 @@
 import test from 'brittle'
 import Bitfield from 'bitfield'
-import * as rle from './bitfield-rle.js'
+import * as rle from '../src/core-manager/bitfield-rle.js'
 
 test('encodes and decodes', function (t) {
   var bits = new Bitfield(1024)
   var deflated = rle.encode(Buffer.from(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, trim(Buffer.from(bits.buffer)), 'decodes to same buffer')
+  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
@@ -32,7 +32,7 @@ test('encodes and decodes with all bits set', function (t) {
   var deflated = rle.encode(Buffer.from(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, trim(Buffer.from(bits.buffer)), 'decodes to same buffer')
+  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
@@ -50,7 +50,7 @@ test('encodes and decodes with some bits set', function (t) {
   var deflated = rle.encode(Buffer.from(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, trim(Buffer.from(bits.buffer)), 'decodes to same buffer')
+  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
@@ -64,7 +64,7 @@ test('encodes and decodes with random bits set', function (t) {
   var deflated = rle.encode(Buffer.from(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, trim(Buffer.from(bits.buffer)), 'decodes to same buffer')
+  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
@@ -78,7 +78,7 @@ test('encodes and decodes with random bits set (not power of two)', function (t)
   var deflated = rle.encode(Buffer.from(bits.buffer))
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
-  t.alike(inflated, trim(Buffer.from(bits.buffer)), 'decodes to same buffer')
+  t.alike(inflated, Buffer.from(bits.buffer), 'decodes to same buffer')
   t.end()
 })
 
@@ -110,9 +110,3 @@ test('not power of two', function (t) {
   t.alike(inflated, Buffer.from([255, 255, 255, 240]), 'output equal to input')
   t.end()
 })
-
-function trim(b) {
-  var len = b.length
-  while (len > 0 && !b[len - 1]) len--
-  return b.slice(0, len)
-}

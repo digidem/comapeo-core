@@ -1,5 +1,6 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
+import c from 'compact-encoding'
 import Corestore from 'corestore'
 import assert from 'node:assert'
 import { once } from 'node:events'
@@ -8,7 +9,7 @@ import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
 import RemoteBitfield from './remote-bitfield.js'
-import * as rle from '../vendor/bitfield-rle.js'
+import * as rle from './bitfield-rle.js'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
@@ -142,16 +143,22 @@ export class CoreManager extends TypedEmitter {
     this.#projectExtension = this.#creatorCore.registerExtension(
       'mapeo/project',
       {
-        onmessage: (data, peer) => {
-          this.#handleProjectMessage(data, peer)
+        encoding: ProjectExtensionCodec,
+        onmessage: (msg, peer) => {
+          this.#handleProjectMessage(msg, peer)
         },
       }
     )
 
     this.#haveExtension = this.#creatorCore.registerExtension('mapeo/have', {
-      onmessage: (data, peer) => {
-        this.#handleHaveMessage(data, peer)
+      encoding: HaveExtensionCodec,
+      onmessage: (msg, peer) => {
+        this.#handleHaveMessage(msg, peer)
       },
+    })
+
+    this.#creatorCore.on('peer-add', (peer) => {
+      this.#sendHaves(peer)
     })
 
     this.#ready = Promise.all(
@@ -161,6 +168,10 @@ export class CoreManager extends TypedEmitter {
 
   get creatorCore() {
     return this.#creatorCore
+  }
+
+  get havesByPeer() {
+    return this.#havesByPeer
   }
 
   /**
@@ -372,10 +383,6 @@ export class CoreManager extends TypedEmitter {
       this.#replications.delete(replicationRecord)
     })
 
-    stream.once('connect', () => {
-      this.#sendHaves(stream.remotePublicKey)
-    })
-
     return rsm
   }
 
@@ -387,44 +394,66 @@ export class CoreManager extends TypedEmitter {
     const discoveryId = discoveryKey.toString('hex')
     const peer = await this.#findPeer(stream.remotePublicKey)
     if (!peer) {
+      console.warn('handleDiscovery no peer', stream.remotePublicKey)
       // TODO: How to handle this and when does it happen?
       return
     }
     // If we already know about this core, then we will add it to the
     // replication stream when we are ready
     if (this.#coreIndex.getByDiscoveryId(discoveryId)) return
-    const message = ProjectExtension.encode({
+    const message = {
       wantCoreKeys: [discoveryKey],
       authCoreKeys: [],
-    }).finish()
+    }
     this.#projectExtension.send(message, peer)
   }
 
   /**
    * @param {Buffer} publicKey
+   * @param {{ timeout?: number }} [opts]
    */
-  async #findPeer(publicKey) {
-    await this.#creatorCore.ready()
-    return this.#creatorCore.peers.find((peer) =>
-      peer.remotePublicKey.equals(publicKey)
-    )
+  async #findPeer(publicKey, { timeout = 200 } = {}) {
+    const creatorCore = this.#creatorCore
+    const peer = creatorCore.peers.find((peer) => {
+      return peer.remotePublicKey.equals(publicKey)
+    })
+    if (peer) return peer
+    // This is called from the from the handleDiscoveryId event, which can
+    // happen before the peer connection is fully established, so we wait for
+    // the `peer-add` event, with a timeout in case the peer never gets added
+    return new Promise(function (res) {
+      const timeoutId = setTimeout(function () {
+        creatorCore.off('peer-add', onPeer)
+        res(null)
+      }, timeout)
+
+      creatorCore.on('peer-add', onPeer)
+
+      /** @param {any} peer */
+      function onPeer(peer) {
+        if (peer.remotePublicKey.equals(publicKey)) {
+          clearTimeout(timeoutId)
+          creatorCore.off('peer-add', onPeer)
+          res(peer)
+        }
+      }
+    })
   }
 
   /**
-   * @param {Buffer} data
+   * @param {ProjectExtension} msg
    * @param {any} peer
    */
-  #handleProjectMessage(data, peer) {
-    const { wantCoreKeys, authCoreKeys } = ProjectExtension.decode(data)
+  #handleProjectMessage({ wantCoreKeys, authCoreKeys }, peer) {
     for (const discoveryKey of wantCoreKeys) {
       const discoveryId = discoveryKey.toString('hex')
       const coreRecord = this.#coreIndex.getByDiscoveryId(discoveryId)
       if (!coreRecord) continue
       if (coreRecord.namespace === 'auth') {
-        const message = ProjectExtension.encode({
+        const message = {
           authCoreKeys: [coreRecord.key],
           wantCoreKeys: [],
-        }).finish()
+        }
         this.#projectExtension.send(message, peer)
       }
     }
@@ -435,21 +464,11 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
-   * @param {Buffer} data
+   * @param {HaveMsg} msg
    * @param {any} peer
    */
-  #handleHaveMessage(data, peer) {
-    let msg
-    let bitfield
-    try {
-      msg = HaveExtension.decode(data)
-      bitfield = new Uint32Array(rle.decode(msg.encodedBitfield).buffer)
-    } catch (e) {
-      // TODO: Better logging
-      console.log('unable to decode have message', e)
-      return
-    }
-    const { start, discoveryKey } = msg
+  #handleHaveMessage(msg, peer) {
+    const { start, discoveryKey, bitfield } = msg
     /** @type {string} */
     const peerId = peer.remotePublicKey.toString('hex')
     let peerHaves = this.#havesByPeer.get(peerId)
@@ -468,36 +487,76 @@ export class CoreManager extends TypedEmitter {
 
   /**
    *
-   * @param {Buffer} remotePublicKey
+   * @param {any} peer
    */
-  async #sendHaves(remotePublicKey) {
-    const peer = await this.#findPeer(remotePublicKey)
+  async #sendHaves(peer) {
     if (!peer) {
+      console.warn('sendHaves no peer', peer.remotePublicKey)
       // TODO: How to handle this and when does it happen?
       return
     }
+
     peer.protomux.cork()
 
     for (const { core } of this.#coreIndex) {
+      // We want ready() rather than update() because we are only interested in local data
       await core.ready()
       if (core.length === 0) continue
       const { discoveryKey } = core
       // This will always be defined after ready(), but need to let TS know
       if (!discoveryKey) continue
-      // @ts-ignore
-      for (const { start, bitfield } of core.core.bitfield.want(
-        0,
-        core.length
-      )) {
-        const message = HaveExtension.encode({
-          start,
-          encodedBitfield: rle.encode(bitfield),
-          discoveryKey,
-        }).finish()
+      /** @type {Iterable<{ start: number, bitfield: Uint32Array }>} */
+      // @ts-ignore - accessing internal property
+      const bitfieldIterator = core.core.bitfield.want(0, core.length)
+      for (const { start, bitfield } of bitfieldIterator) {
+        const message = { start, bitfield, discoveryKey }
         this.#haveExtension.send(message, peer)
       }
     }
 
     peer.protomux.uncork()
   }
+}
+
+/**
+ * @typedef {object} HaveMsg
+ * @property {Buffer} discoveryKey
+ * @property {number} start
+ * @property {Uint32Array} bitfield
+ */
+
+const ProjectExtensionCodec = {
+  /** @param {Parameters<typeof ProjectExtension.encode>[0]} msg */
+  encode(msg) {
+    return ProjectExtension.encode(msg).finish()
+  },
+  /** @param {Buffer | Uint8Array} buf */
+  decode(buf) {
+    return ProjectExtension.decode(buf)
+  },
+}
+
+const HaveExtensionCodec = {
+  /** @param {HaveMsg} msg */
+  encode({ start, discoveryKey, bitfield }) {
+    const encoded = c.encode(c.uint32array, bitfield)
+    const encodedBitfield = rle.encode(encoded)
+    const msg = { start, discoveryKey, encodedBitfield }
+    return HaveExtension.encode(msg).finish()
+  },
+  /**
+   * @param {Buffer | Uint8Array} buf
+   * @returns {HaveMsg}
+   */
+  decode(buf) {
+    const { start, discoveryKey, encodedBitfield } = HaveExtension.decode(buf)
+    try {
+      const bitfield = c.decode(c.uint32array, rle.decode(encodedBitfield))
+      return { start, discoveryKey, bitfield }
+    } catch (e) {
+      // TODO: Log error
+      console.error(e)
+      return { start, discoveryKey, bitfield: new Uint32Array() }
+    }
+  },
 }

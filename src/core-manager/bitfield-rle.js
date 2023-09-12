@@ -4,7 +4,7 @@
 import varint from 'varint'
 
 // Don't support align() like original
-const n = 1
+const n = 4
 
 class State {
   /**
@@ -116,8 +116,11 @@ function rle(state) {
   var bits = 0
   var input = state.input
 
-  while (state.inputLength > 0 && !input[state.inputLength - 1])
-    state.inputLength--
+  // Skip trimming for now, since it was breaking re-encoding to a Uint32Array.
+  // Only has a small memory overhead.
+
+  // while (state.inputLength > 0 && !input[state.inputLength - 1])
+  //   state.inputLength--
 
   for (var i = 0; i < state.inputLength; i++) {
     if (input[i] === bits) {
