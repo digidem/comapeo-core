@@ -26,21 +26,28 @@ export function createMapeoClient(messagePort) {
 
       /**
        * @param {import('../types.js').ProjectPublicId} projectPublicId
-       * @returns {import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>}
+       * @returns {Promise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>}
        */
       function createProjectClient(projectPublicId) {
         const existingClient = existingProjectClients.get(projectPublicId)
 
-        if (existingClient) return existingClient
+        if (existingClient) return Promise.resolve(existingClient)
 
         const projectChannel = new SubChannel(messagePort, projectPublicId)
 
         /** @type {import('rpc-reflector').ClientApi<import('../mapeo-project.js').MapeoProject>} */
-        const projectClient = createClient(projectChannel)
+        const projectClient = new Proxy(createClient(projectChannel), {
+          get(target, prop, receiver) {
+            if (prop === 'then') {
+              return projectClient
+            }
+            return Reflect.get(target, prop, receiver)
+          },
+        })
 
         existingProjectClients.set(projectPublicId, projectClient)
 
-        return projectClient
+        return Promise.resolve(projectClient)
       }
     },
   })

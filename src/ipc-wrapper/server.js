@@ -15,24 +15,24 @@ export function createMapeoServer(manager, messagePort) {
 
   const managerServer = createServer(manager, managerChannel)
 
-  managerChannel.on('message', async (payload) => {
+  messagePort.on('message', async (payload) => {
     // TODO: figure out better way to know that this is the project public id
-    const projectPublicId = payload[payload.length - 1]
+    const id = payload?.id
+    if (typeof id !== 'string' || id === '@@manager') return
 
-    if (typeof projectPublicId !== 'string') return
-    if (existing.has(projectPublicId)) return
+    if (existing.has(id)) return
 
-    const projectChannel = new SubChannel(messagePort, projectPublicId)
+    const projectChannel = new SubChannel(messagePort, id)
 
     const project = await manager.getProject(
-      /** @type {import('../types.js').ProjectPublicId} */ (projectPublicId)
+      /** @type {import('../types.js').ProjectPublicId} */ (id)
     )
 
     const { close } = createServer(project, projectChannel)
 
-    projectChannel.emit('message', payload)
+    projectChannel.emit('message', payload.message)
 
-    existing.set(projectPublicId, { close, project })
+    existing.set(id, { close, project })
   })
 
   return managerServer
