@@ -78,7 +78,13 @@ async function routes(fastify, options) {
         throw e
       }
 
-      const entry = await blobStore.entry(blobId, { wait: false })
+      let entry
+      try {
+        entry = await blobStore.entry(blobId, { wait: false })
+      } catch (e) {
+        reply.code(404)
+        throw e
+      }
 
       if (!entry) {
         reply.code(404)
@@ -87,7 +93,13 @@ async function routes(fastify, options) {
 
       const { metadata } = entry.value
 
-      const blobStream = await blobStore.createEntryReadStream(driveId, entry)
+      let blobStream
+      try {
+        blobStream = await blobStore.createEntryReadStream(driveId, entry)
+      } catch (e) {
+        reply.code(404)
+        throw e
+      }
 
       // Extract the 'mimeType' property of the metadata and use it for the response header if found
       if (

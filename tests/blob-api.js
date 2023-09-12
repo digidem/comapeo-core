@@ -1,4 +1,6 @@
 import { join } from 'node:path'
+import * as fs from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'url'
 import test from 'brittle'
 import { BlobApi } from '../src/blob-api.js'
@@ -68,9 +70,9 @@ test('get url from blobId', async (t) => {
 
   t.is(
     url,
-    `http://127.0.0.1:${
-      blobServer.server.address().port
-    }/${projectId}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
+    `http://127.0.0.1:${blobServer.server.address().port}/${projectId}/${
+      blobStore.writerDriveId
+    }/${type}/${variant}/${name}`
   )
   t.teardown(async () => {
     await blobServer.close()
@@ -92,6 +94,10 @@ test('create blobs', async (t) => {
     new URL('./fixtures/blob-api/', import.meta.url)
   )
 
+  const hash = createHash('sha256')
+  const content = await fs.readFile(join(directory, 'original.png'))
+  hash.update(content)
+
   const attachment = await blobApi.create(
     {
       original: join(directory, 'original.png'),
@@ -105,6 +111,7 @@ test('create blobs', async (t) => {
 
   t.is(attachment.driveId, blobStore.writerDriveId)
   t.is(attachment.type, 'photo')
+  t.alike(attachment.hash, hash.digest('hex'))
 
   t.teardown(async () => {
     await blobServer.close()

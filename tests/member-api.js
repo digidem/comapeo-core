@@ -20,9 +20,9 @@ test('invite() sends expected project-related details', async (t) => {
   const memberApi = new MemberApi({
     capabilities: { async assignRole() {} },
     encryptionKeys,
-    getProjectInfo: async () => projectInfo,
     projectKey,
     rpc: r1,
+    queries: { getProjectInfo: async () => projectInfo },
   })
 
   r1.on('peers', async (peers) => {
@@ -68,9 +68,9 @@ test('invite() assigns role to invited device after invite accepted', async (t) 
   const memberApi = new MemberApi({
     capabilities,
     encryptionKeys: { auth: randomBytes(32) },
-    getProjectInfo: async () => {},
     projectKey: KeyManager.generateProjectKeypair().publicKey,
     rpc: r1,
+    queries: { getProjectInfo: async () => {} },
   })
 
   r1.on('peers', async (peers) => {
@@ -117,9 +117,9 @@ test('invite() does not assign role to invited device if invite is not accepted'
       const memberApi = new MemberApi({
         capabilities,
         encryptionKeys: { auth: randomBytes(32) },
-        getProjectInfo: async () => {},
         projectKey: KeyManager.generateProjectKeypair().publicKey,
         rpc: r1,
+        queries: { getProjectInfo: async () => {} },
       })
 
       r1.on('peers', async (peers) => {

@@ -14,6 +14,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import RAM from 'random-access-memory'
 import { IndexWriter } from '../dist/index-writer/index.js'
 import { projectTable } from '../dist/schema/client.js'
+import { MapeoRPC } from '../dist/rpc/index.js'
 import { Expect, type Equal } from './utils.js'
 
 type Forks = { forks: string[] }
@@ -35,6 +36,7 @@ const mapeoProject = new MapeoProject({
     tables: [projectTable],
     sqlite,
   }),
+  rpc: new MapeoRPC(),
 })
 
 ///// Observations

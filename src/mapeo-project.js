@@ -16,6 +16,7 @@ import { IndexWriter } from './index-writer/index.js'
 import { projectTable } from './schema/client.js'
 import {
   coreOwnershipTable,
+  deviceInfoTable,
   fieldTable,
   observationTable,
   presetTable,
@@ -27,7 +28,8 @@ import {
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
 import { Capabilities } from './capabilities.js'
-import { valueOf } from './utils.js'
+import { projectKeyToId, valueOf } from './utils.js'
+import { MemberApi } from './member-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
 
@@ -46,6 +48,7 @@ export class MapeoProject {
   #coreOwnership
   #capabilities
   #ownershipWriteDone
+  #memberApi
 
   /**
    * @param {Object} opts
@@ -57,6 +60,7 @@ export class MapeoProject {
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
+   * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
    *
    */
   constructor({
@@ -68,9 +72,9 @@ export class MapeoProject {
     projectKey,
     projectSecretKey,
     encryptionKeys,
+    rpc,
   }) {
-    // TODO: Update to use @mapeo/crypto when ready (https://github.com/digidem/mapeo-core-next/issues/171)
-    this.#projectId = projectKey.toString('hex')
+    this.#projectId = projectKeyToId(projectKey)
 
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
@@ -108,10 +112,13 @@ export class MapeoProject {
       sqlite,
       getWinner,
       mapDoc: (doc, version) => {
-        if (doc.schemaName === 'coreOwnership') {
-          return mapAndValidateCoreOwnership(doc, version)
-        } else {
-          return doc
+        switch (doc.schemaName) {
+          case 'coreOwnership':
+            return mapAndValidateCoreOwnership(doc, version)
+          case 'deviceInfo':
+            return mapAndValidateDeviceInfo(doc, version)
+          default:
+            return doc
         }
       },
     })
@@ -170,6 +177,11 @@ export class MapeoProject {
         table: roleTable,
         db,
       }),
+      deviceInfo: new DataType({
+        dataStore: this.#dataStores.config,
+        table: deviceInfoTable,
+        db,
+      }),
     }
 
     this.#blobStore = new BlobStore({
@@ -199,6 +211,20 @@ export class MapeoProject {
       coreManager: this.#coreManager,
       projectKey: projectKey,
       deviceKey: keyManager.getIdentityKeypair().publicKey,
+    })
+
+    this.#memberApi = new MemberApi({
+      capabilities: this.#capabilities,
+      // @ts-expect-error
+      encryptionKeys,
+      projectKey,
+      rpc,
+      queries: {
+        getProjectInfo: async () => {
+          const settings = await this.$getProjectSettings()
+          return { name: settings.name }
+        },
+      },
     })
 
     ///////// 4. Write core ownership record
@@ -288,6 +314,10 @@ export class MapeoProject {
     return this.#dataTypes.field
   }
 
+  get $member() {
+    return this.#memberApi
+  }
+
   /**
    * @param {Partial<EditableProjectSettings>} settings
    * @returns {Promise<EditableProjectSettings>}
@@ -368,4 +398,21 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
   }
 
   return keypairs
+}
+
+/**
+ * Validate that a deviceInfo record is written by the device that is it about,
+ * e.g. version.coreKey should equal docId
+ *
+ * @param {import('@mapeo/schema').DeviceInfo} doc
+ * @param {import('@mapeo/schema').VersionIdObject} version
+ * @returns {import('@mapeo/schema').DeviceInfo}
+ */
+function mapAndValidateDeviceInfo(doc, { coreKey }) {
+  if (doc.docId !== coreKey.toString('hex')) {
+    throw new Error(
+      'Invalid deviceInfo record, cannot write deviceInfo for another device'
+    )
+  }
+  return doc
 }
