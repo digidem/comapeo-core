@@ -9,17 +9,36 @@ import { SubChannel } from './sub-channel.js'
 export function createMapeoServer(manager, messagePort) {
   // TODO: LRU? project.close() after time without use?
   /** @type {Map<string, { close: () => void, project: import('../mapeo-project.js').MapeoProject }>}*/
-  const existing = new Map()
+  const existingProjectServers = new Map()
 
   const managerChannel = new SubChannel(messagePort, '@@manager')
 
   const managerServer = createServer(manager, managerChannel)
 
-  messagePort.on('message', async (payload) => {
+  messagePort.on('message', handleMessage)
+
+  return {
+    close() {
+      messagePort.off('message', handleMessage)
+
+      for (const [id, server] of existingProjectServers.entries()) {
+        server.close()
+        existingProjectServers.delete(id)
+      }
+
+      managerServer.close()
+    },
+  }
+
+  /**
+   * @param {any} payload
+   */
+  async function handleMessage(payload) {
     const id = payload?.id
+
     if (typeof id !== 'string' || id === '@@manager') return
 
-    if (existing.has(id)) return
+    if (existingProjectServers.has(id)) return
 
     const projectChannel = new SubChannel(messagePort, id)
 
@@ -31,8 +50,6 @@ export function createMapeoServer(manager, messagePort) {
 
     projectChannel.emit('message', payload.message)
 
-    existing.set(id, { close, project })
-  })
-
-  return managerServer
+    existingProjectServers.set(id, { close, project })
+  }
 }
