@@ -16,7 +16,6 @@ export function createMapeoServer(manager, messagePort) {
   const managerServer = createServer(manager, managerChannel)
 
   messagePort.on('message', async (payload) => {
-    // TODO: figure out better way to know that this is the project public id
     const id = payload?.id
     if (typeof id !== 'string' || id === '@@manager') return
 
