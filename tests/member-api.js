@@ -22,10 +22,7 @@ test('invite() sends expected project-related details', async (t) => {
     encryptionKeys,
     projectKey,
     rpc: r1,
-    queries: {
-      getProjectInfo: async () => projectInfo,
-      getDeviceInfo: async () => {},
-    },
+    queries: { getProjectInfo: async () => projectInfo },
   })
 
   r1.on('peers', async (peers) => {
@@ -73,10 +70,7 @@ test('invite() assigns role to invited device after invite accepted', async (t) 
     encryptionKeys: { auth: randomBytes(32) },
     projectKey: KeyManager.generateProjectKeypair().publicKey,
     rpc: r1,
-    queries: {
-      getProjectInfo: async () => {},
-      getDeviceInfo: async () => {},
-    },
+    queries: { getProjectInfo: async () => {} },
   })
 
   r1.on('peers', async (peers) => {
@@ -125,10 +119,7 @@ test('invite() does not assign role to invited device if invite is not accepted'
         encryptionKeys: { auth: randomBytes(32) },
         projectKey: KeyManager.generateProjectKeypair().publicKey,
         rpc: r1,
-        queries: {
-          getProjectInfo: async () => {},
-          getDeviceInfo: async () => {},
-        },
+        queries: { getProjectInfo: async () => {} },
       })
 
       r1.on('peers', async (peers) => {
