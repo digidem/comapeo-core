@@ -2,9 +2,9 @@ import { test } from 'brittle'
 import { MessageChannel } from 'node:worker_threads'
 import RAM from 'random-access-memory'
 import { KeyManager } from '@mapeo/crypto'
+import { createClient } from 'rpc-reflector'
 import { createMapeoServer } from '../src/ipc-wrapper/server.js'
 import { MapeoManager } from '../src/mapeo-manager.js'
-import { createClient } from 'rpc-reflector'
 import { createMapeoClient } from '../src/ipc-wrapper/client.js'
 
 test('IPC wrappers work', async (t) => {
@@ -32,7 +32,7 @@ test('IPC wrappers work', async (t) => {
 
   const projectSettings = await project.$getProjectSettings()
 
-  t.alike(projectSettings, { name: 'mapeo' })
+  t.alike(projectSettings, { name: 'mapeo', defaultPresets: undefined })
 
   server.close()
   createClient.close(client)
