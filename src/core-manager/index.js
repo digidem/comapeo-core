@@ -381,12 +381,34 @@ export class CoreManager extends TypedEmitter {
 
   /**
    * @param {Buffer} publicKey
+   * @param {{ timeout?: number }} [opts]
    */
-  async #findPeer(publicKey) {
-    await this.#creatorCore.ready()
-    return this.#creatorCore.peers.find((peer) =>
-      peer.remotePublicKey.equals(publicKey)
-    )
+  async #findPeer(publicKey, { timeout = 200 } = {}) {
+    const creatorCore = this.#creatorCore
+    const peer = creatorCore.peers.find((peer) => {
+      return peer.remotePublicKey.equals(publicKey)
+    })
+    if (peer) return peer
+    // This is called from the from the handleDiscoveryId event, which can
+    // happen before the peer connection is fully established, so we wait for
+    // the `peer-add` event, with a timeout in case the peer never gets added
+    return new Promise(function (res) {
+      const timeoutId = setTimeout(function () {
+        creatorCore.off('peer-add', onPeer)
+        res(null)
+      }, timeout)
+
+      creatorCore.on('peer-add', onPeer)
+
+      /** @param {any} peer */
+      function onPeer(peer) {
+        if (peer.remotePublicKey.equals(publicKey)) {
+          clearTimeout(timeoutId)
+          creatorCore.off('peer-add', onPeer)
+          res(peer)
+        }
+      }
+    })
   }
 
   /**
