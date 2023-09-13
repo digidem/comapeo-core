@@ -89,6 +89,19 @@ export const EncryptionKeys = {
     }
     return message;
   },
+
+  create<I extends Exact<DeepPartial<EncryptionKeys>, I>>(base?: I): EncryptionKeys {
+    return EncryptionKeys.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<EncryptionKeys>, I>>(object: I): EncryptionKeys {
+    const message = createBaseEncryptionKeys();
+    message.auth = object.auth ?? Buffer.alloc(0);
+    message.data = object.data ?? undefined;
+    message.config = object.config ?? undefined;
+    message.blobIndex = object.blobIndex ?? undefined;
+    message.blob = object.blob ?? undefined;
+    return message;
+  },
 };
 
 function createBaseProjectKeys(): ProjectKeys {
@@ -145,4 +158,28 @@ export const ProjectKeys = {
     }
     return message;
   },
+
+  create<I extends Exact<DeepPartial<ProjectKeys>, I>>(base?: I): ProjectKeys {
+    return ProjectKeys.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ProjectKeys>, I>>(object: I): ProjectKeys {
+    const message = createBaseProjectKeys();
+    message.projectKey = object.projectKey ?? Buffer.alloc(0);
+    message.projectSecretKey = object.projectSecretKey ?? undefined;
+    message.encryptionKeys = (object.encryptionKeys !== undefined && object.encryptionKeys !== null)
+      ? EncryptionKeys.fromPartial(object.encryptionKeys)
+      : undefined;
+    return message;
+  },
 };
+
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+type DeepPartial<T> = T extends Builtin ? T
+  : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+  : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };

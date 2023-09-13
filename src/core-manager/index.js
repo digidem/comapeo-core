@@ -372,11 +372,12 @@ export class CoreManager extends TypedEmitter {
     // If we already know about this core, then we will add it to the
     // replication stream when we are ready
     if (this.#coreIndex.getByDiscoveryId(discoveryId)) return
-    const message = ProjectExtension.encode({
-      wantCoreKeys: [discoveryKey],
-      authCoreKeys: [],
-    }).finish()
-    this.#extension.send(message, peer)
+    const encodedMessage = ProjectExtension.encode(
+      ProjectExtension.fromPartial({
+        wantCoreKeys: [discoveryKey],
+      })
+    ).finish()
+    this.#extension.send(encodedMessage, peer)
   }
 
   /**
@@ -416,22 +417,25 @@ export class CoreManager extends TypedEmitter {
    * @param {any} peer
    */
   #handleExtensionMessage(data, peer) {
-    const { wantCoreKeys, authCoreKeys } = ProjectExtension.decode(data)
+    const { wantCoreKeys, ...coreKeys } = ProjectExtension.decode(data)
+    const message = ProjectExtension.create()
+    let hasKeys = false
     for (const discoveryKey of wantCoreKeys) {
       const discoveryId = discoveryKey.toString('hex')
       const coreRecord = this.#coreIndex.getByDiscoveryId(discoveryId)
       if (!coreRecord) continue
-      if (coreRecord.namespace === 'auth') {
-        const message = ProjectExtension.encode({
-          authCoreKeys: [coreRecord.key],
-          wantCoreKeys: [],
-        }).finish()
-        this.#extension.send(message, peer)
-      }
+      message[`${coreRecord.namespace}CoreKeys`].push(coreRecord.key)
+      hasKeys = true
     }
-    for (const authCoreKey of authCoreKeys) {
-      // Use public method - these must be persisted (private method defaults to persisted=false)
-      this.addCore(authCoreKey, 'auth')
+    if (hasKeys) {
+      const encodedMessage = ProjectExtension.encode(message).finish()
+      this.#extension.send(encodedMessage, peer)
+    }
+    for (const namespace of NAMESPACES) {
+      for (const coreKey of coreKeys[`${namespace}CoreKeys`]) {
+        // Use public method - these must be persisted (private method defaults to persisted=false)
+        this.addCore(coreKey, namespace)
+      }
     }
   }
 }

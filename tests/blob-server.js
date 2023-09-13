@@ -4,7 +4,7 @@ import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
 import { BlobStore } from '../src/blob-store/index.js'
-import { createCoreManager } from './helpers/core-manager.js'
+import { createCoreManager, waitForCores } from './helpers/core-manager.js'
 import { createBlobServer } from '../src/blob-server/index.js'
 import BlobServerPlugin from '../src/blob-server/fastify-plugin.js'
 import fastify from 'fastify'
@@ -201,6 +201,7 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
   const { destroy } = replicateBlobs(cm1, cm2)
 
+  await waitForCores(cm2, [Buffer.from(blobId.driveId, 'hex')])
   /** @type {any}*/
   const replicatedCore = cm2.getCoreByKey(Buffer.from(blobId.driveId, 'hex'))
   await replicatedCore.update({ wait: true })
