@@ -5,7 +5,7 @@ import { pipelinePromise as pipeline } from 'streamx'
 import { randomBytes } from 'node:crypto'
 import fs from 'fs'
 import { readFile } from 'fs/promises'
-import { createCoreManager } from '../helpers/core-manager.js'
+import { createCoreManager, waitForCores } from '../helpers/core-manager.js'
 import { BlobStore } from '../../src/blob-store/index.js'
 import { setTimeout } from 'node:timers/promises'
 import { replicateBlobs, concat } from '../helpers/blob-store.js'
@@ -83,6 +83,7 @@ test('get(), initialized but unreplicated drive', async (t) => {
   const driveId = await bs1.put(blob1Id, blob1)
 
   const { destroy } = replicateBlobs(cm1, cm2)
+  await waitForCores(cm2, [Buffer.from(driveId, 'hex')])
   /** @type {any} */
   const replicatedCore = cm2.getCoreByKey(Buffer.from(driveId, 'hex'))
   await replicatedCore.update({ wait: true })
@@ -112,6 +113,7 @@ test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
   const driveId = await bs1.put(blob1Id, blob1)
 
   const { destroy } = replicateBlobs(cm1, cm2)
+  await waitForCores(cm2, [Buffer.from(driveId, 'hex')])
   /** @type {any} */
   const replicatedCore = cm2.getCoreByKey(Buffer.from(driveId, 'hex'))
   await replicatedCore.update({ wait: true })
@@ -468,7 +470,11 @@ async function testenv(opts) {
 async function downloaded(liveDownload) {
   return new Promise((res) => {
     liveDownload.on('state', function onState(state) {
-      if (state.status !== 'downloaded') return
+      // If liveDownload is created before all cores have been added to the
+      // replication stream, then initially it will emit `downloaded` (since it
+      // has downloaded the zero data there is available to download), so we
+      // also wait for the `downloaded` once data has actually downloaded
+      if (state.status !== 'downloaded' || state.haveCount === 0) return
       liveDownload.off('state', onState)
       res()
     })
