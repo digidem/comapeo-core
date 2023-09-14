@@ -1,5 +1,5 @@
 // @ts-check
-import { TypedEmitter } from 'tiny-typed-emitter'
+import { EventEmitter } from 'eventemitter3'
 import { extractMessageEventData } from './utils.js'
 
 export const MANAGER_CHANNEL_ID = '@@manager'
@@ -15,10 +15,7 @@ export const MANAGER_CHANNEL_ID = '@@manager'
  * @typedef {EventTarget & { postMessage: (message: any) => void }} MessagePortLike
  */
 
-/**
- * @extends {TypedEmitter<Events>}
- */
-export class SubChannel extends TypedEmitter {
+export class SubChannel extends EventEmitter {
   #id
   #messagePort
   /** @type {'idle' | 'active' | 'closed'} */
