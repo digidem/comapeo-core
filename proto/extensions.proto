@@ -9,3 +9,9 @@ message ProjectExtension {
   repeated bytes blobIndexCoreKeys = 5;
   repeated bytes blobCoreKeys = 6;
 }
+
+message HaveExtension {
+  bytes discoveryKey = 1;
+  uint64 start = 2;
+  bytes encodedBitfield = 3;
+}

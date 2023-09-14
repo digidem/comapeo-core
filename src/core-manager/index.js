@@ -4,9 +4,11 @@ import Corestore from 'corestore'
 import assert from 'node:assert'
 import { once } from 'node:events'
 import Hypercore from 'hypercore'
-import { ProjectExtension } from '../generated/extensions.js'
+import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
+import RemoteBitfield from './remote-bitfield.js'
+import * as rle from './bitfield-rle.js'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
@@ -47,10 +49,16 @@ export class CoreManager extends TypedEmitter {
   #encryptionKeys
   /** @type {Set<ReplicationRecord>} */
   #replications = new Set()
-  #extension
+  #projectExtension
   /** @type {'opened' | 'closing' | 'closed'} */
   #state = 'opened'
   #ready
+  /**
+   * For each peer, indexed by peerId, a map of hypercore bitfields, indexed by discoveryId
+   * @type {Map<string, Map<string, RemoteBitfield>>}
+   */
+  #havesByPeer = new Map()
+  #haveExtension
 
   static get namespaces() {
     return NAMESPACES
@@ -131,10 +139,25 @@ export class CoreManager extends TypedEmitter {
       this.#addCore({ publicKey }, namespace)
     }
 
-    this.#extension = this.#creatorCore.registerExtension('mapeo/project', {
-      onmessage: (data, peer) => {
-        this.#handleExtensionMessage(data, peer)
+    this.#projectExtension = this.#creatorCore.registerExtension(
+      'mapeo/project',
+      {
+        encoding: ProjectExtensionCodec,
+        onmessage: (msg, peer) => {
+          this.#handleProjectMessage(msg, peer)
+        },
+      }
+    )
+
+    this.#haveExtension = this.#creatorCore.registerExtension('mapeo/have', {
+      encoding: HaveExtensionCodec,
+      onmessage: (msg, peer) => {
+        this.#handleHaveMessage(msg, peer)
       },
+    })
+
+    this.#creatorCore.on('peer-add', (peer) => {
+      this.#sendHaves(peer)
     })
 
     this.#ready = Promise.all(
@@ -144,6 +167,10 @@ export class CoreManager extends TypedEmitter {
 
   get creatorCore() {
     return this.#creatorCore
+  }
+
+  get havesByPeer() {
+    return this.#havesByPeer
   }
 
   /**
@@ -366,18 +393,17 @@ export class CoreManager extends TypedEmitter {
     const discoveryId = discoveryKey.toString('hex')
     const peer = await this.#findPeer(stream.remotePublicKey)
     if (!peer) {
+      console.warn('handleDiscovery no peer', stream.remotePublicKey)
       // TODO: How to handle this and when does it happen?
       return
     }
     // If we already know about this core, then we will add it to the
     // replication stream when we are ready
     if (this.#coreIndex.getByDiscoveryId(discoveryId)) return
-    const encodedMessage = ProjectExtension.encode(
-      ProjectExtension.fromPartial({
-        wantCoreKeys: [discoveryKey],
-      })
-    ).finish()
-    this.#extension.send(encodedMessage, peer)
+    const message = ProjectExtension.fromPartial({
+      wantCoreKeys: [discoveryKey],
+    })
+    this.#projectExtension.send(message, peer)
   }
 
   /**
@@ -413,11 +439,10 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
-   * @param {Buffer} data
+   * @param {ProjectExtension} msg
    * @param {any} peer
    */
-  #handleExtensionMessage(data, peer) {
-    const { wantCoreKeys, ...coreKeys } = ProjectExtension.decode(data)
+  #handleProjectMessage({ wantCoreKeys, ...coreKeys }, peer) {
     const message = ProjectExtension.create()
     let hasKeys = false
     for (const discoveryKey of wantCoreKeys) {
@@ -428,8 +453,7 @@ export class CoreManager extends TypedEmitter {
       hasKeys = true
     }
     if (hasKeys) {
-      const encodedMessage = ProjectExtension.encode(message).finish()
-      this.#extension.send(encodedMessage, peer)
+      this.#projectExtension.send(message, peer)
     }
     for (const namespace of NAMESPACES) {
       for (const coreKey of coreKeys[`${namespace}CoreKeys`]) {
@@ -438,4 +462,100 @@ export class CoreManager extends TypedEmitter {
       }
     }
   }
+
+  /**
+   * @param {HaveMsg} msg
+   * @param {any} peer
+   */
+  #handleHaveMessage(msg, peer) {
+    const { start, discoveryKey, bitfield } = msg
+    /** @type {string} */
+    const peerId = peer.remotePublicKey.toString('hex')
+    let peerHaves = this.#havesByPeer.get(peerId)
+    if (!peerHaves) {
+      peerHaves = new Map()
+      this.#havesByPeer.set(peerId, peerHaves)
+    }
+    const discoveryId = discoveryKey.toString('hex')
+    let remoteBitfield = peerHaves.get(discoveryId)
+    if (!remoteBitfield) {
+      remoteBitfield = new RemoteBitfield()
+      peerHaves.set(discoveryId, remoteBitfield)
+    }
+    remoteBitfield.insert(start, bitfield)
+  }
+
+  /**
+   *
+   * @param {any} peer
+   */
+  async #sendHaves(peer) {
+    if (!peer) {
+      console.warn('sendHaves no peer', peer.remotePublicKey)
+      // TODO: How to handle this and when does it happen?
+      return
+    }
+
+    peer.protomux.cork()
+
+    for (const { core } of this.#coreIndex) {
+      // We want ready() rather than update() because we are only interested in local data
+      await core.ready()
+      if (core.length === 0) continue
+      const { discoveryKey } = core
+      // This will always be defined after ready(), but need to let TS know
+      if (!discoveryKey) continue
+      /** @type {Iterable<{ start: number, bitfield: Uint32Array }>} */
+      // @ts-ignore - accessing internal property
+      const bitfieldIterator = core.core.bitfield.want(0, core.length)
+      for (const { start, bitfield } of bitfieldIterator) {
+        const message = { start, bitfield, discoveryKey }
+        this.#haveExtension.send(message, peer)
+      }
+    }
+
+    peer.protomux.uncork()
+  }
+}
+
+/**
+ * @typedef {object} HaveMsg
+ * @property {Buffer} discoveryKey
+ * @property {number} start
+ * @property {Uint32Array} bitfield
+ */
+
+const ProjectExtensionCodec = {
+  /** @param {Parameters<typeof ProjectExtension.encode>[0]} msg */
+  encode(msg) {
+    return ProjectExtension.encode(msg).finish()
+  },
+  /** @param {Buffer | Uint8Array} buf */
+  decode(buf) {
+    return ProjectExtension.decode(buf)
+  },
+}
+
+const HaveExtensionCodec = {
+  /** @param {HaveMsg} msg */
+  encode({ start, discoveryKey, bitfield }) {
+    const encodedBitfield = rle.encode(bitfield)
+    const msg = { start, discoveryKey, encodedBitfield }
+    return HaveExtension.encode(msg).finish()
+  },
+  /**
+   * @param {Buffer | Uint8Array} buf
+   * @returns {HaveMsg}
+   */
+  decode(buf) {
+    const { start, discoveryKey, encodedBitfield } = HaveExtension.decode(buf)
+    try {
+      const bitfield = rle.decode(encodedBitfield)
+      return { start, discoveryKey, bitfield }
+    } catch (e) {
+      // TODO: Log error
+      console.error(e)
+      return { start, discoveryKey, bitfield: new Uint32Array() }
+    }
+  },
 }

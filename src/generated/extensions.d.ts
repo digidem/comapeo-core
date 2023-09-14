@@ -8,6 +8,11 @@ export interface ProjectExtension {
     blobIndexCoreKeys: Buffer[];
     blobCoreKeys: Buffer[];
 }
+export interface HaveExtension {
+    discoveryKey: Buffer;
+    start: number;
+    encodedBitfield: Buffer;
+}
 export declare const ProjectExtension: {
     encode(message: ProjectExtension, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): ProjectExtension;
@@ -41,4 +46,26 @@ export declare const ProjectExtension: {
         blobIndexCoreKeys?: Buffer[] & Buffer[] & { [K_11 in Exclude<keyof I_1["blobIndexCoreKeys"], keyof Buffer[]>]: never; };
         blobCoreKeys?: Buffer[] & Buffer[] & { [K_12 in Exclude<keyof I_1["blobCoreKeys"], keyof Buffer[]>]: never; };
     } & { [K_13 in Exclude<keyof I_1, keyof ProjectExtension>]: never; }>(object: I_1): ProjectExtension;
+};
+export declare const HaveExtension: {
+    encode(message: HaveExtension, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): HaveExtension;
+    create<I extends {
+        discoveryKey?: Buffer;
+        start?: number;
+        encodedBitfield?: Buffer;
+    } & {
+        discoveryKey?: Buffer;
+        start?: number;
+        encodedBitfield?: Buffer;
+    } & { [K in Exclude<keyof I, keyof HaveExtension>]: never; }>(base?: I): HaveExtension;
+    fromPartial<I_1 extends {
+        discoveryKey?: Buffer;
+        start?: number;
+        encodedBitfield?: Buffer;
+    } & {
+        discoveryKey?: Buffer;
+        start?: number;
+        encodedBitfield?: Buffer;
+    } & { [K_1 in Exclude<keyof I_1, keyof HaveExtension>]: never; }>(object: I_1): HaveExtension;
 };
