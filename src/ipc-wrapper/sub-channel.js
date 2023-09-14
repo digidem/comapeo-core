@@ -12,7 +12,7 @@ export const MANAGER_CHANNEL_ID = '@@manager'
 /**
  * Node's built-in types for MessagePort are misleading so we opt for this limited type definition
  * that fits our usage and works in both Node and browser contexts
- * @typedef {EventTarget & { postMessage: (message: any) => void}} MessagePortLike
+ * @typedef {EventTarget & { postMessage: (message: any) => void }} MessagePortLike
  */
 
 /**
