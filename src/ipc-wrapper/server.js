@@ -40,6 +40,7 @@ export function createMapeoServer(manager, messagePort) {
       }
 
       managerServer.close()
+      managerChannel.close()
     },
   }
 
