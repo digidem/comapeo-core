@@ -20,8 +20,7 @@
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
-    "prepack": "npm run build:types",
-    "postinstall": "patch-package"
+    "prepack": "npm run build:types"
   },
   "files": [
     "src",
@@ -95,7 +94,7 @@
     "fastify": ">= 4"
   },
   "dependencies": {
-    "@digidem/types": "^2.0.0",
+    "@digidem/types": "^2.1.0",
     "@fastify/type-provider-typebox": "^3.3.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "^1.0.0-alpha.8",
@@ -119,7 +118,6 @@
     "multi-core-indexer": "^1.0.0-alpha.7",
     "multicast-service-discovery": "^4.0.4",
     "p-defer": "^4.0.0",
-    "patch-package": "^8.0.0",
     "private-ip": "^3.0.0",
     "protobufjs": "^7.2.3",
     "protomux": "^3.4.1",
