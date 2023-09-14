@@ -4,6 +4,7 @@ import Protomux from 'protomux'
 import { openedNoiseSecretStream, keyToId } from '../utils.js'
 import cenc from 'compact-encoding'
 import {
+  DeviceInfo,
   Invite,
   InviteResponse,
   InviteResponse_Decision,
@@ -14,13 +15,12 @@ const PROTOCOL_NAME = 'mapeo/rpc'
 // Protomux message types depend on the order that messages are added to a
 // channel (this needs to remain consistent). To avoid breaking changes, the
 // types here should not change.
-//
-// TODO: Add @satisfies to check this matches the imports from './messages.js'
-// when we switch to Typescript v5
-const MESSAGE_TYPES = /** @type {const} */ ({
+/** @satisfies {{ [k in keyof typeof import('../generated/rpc.js')]?: number }} */
+const MESSAGE_TYPES = {
   Invite: 0,
   InviteResponse: 1,
-})
+  DeviceInfo: 2,
+}
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
 /** @typedef {Peer['info']} PeerInfoInternal */
@@ -100,6 +100,13 @@ class Peer {
     const messageType = MESSAGE_TYPES.InviteResponse
     this.#channel.messages[messageType].send(buf)
   }
+  /** @param {DeviceInfo} deviceInfo */
+  sendDeviceInfo(deviceInfo) {
+    this.#assertConnected()
+    const buf = Buffer.from(DeviceInfo.encode(deviceInfo).finish())
+    const messageType = MESSAGE_TYPES.DeviceInfo
+    this.#channel.messages[messageType].send(buf)
+  }
   #assertConnected() {
     if (this.#state === 'connected' && !this.#channel.closed) return
     /* c8 ignore next */
@@ -111,6 +118,7 @@ class Peer {
  * @typedef {object} MapeoRPCEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
  * @property {(peerId: string, invite: InviteWithKeys) => void} invite Emitted when an invite is received
+ * @property {(deviceInfo: DeviceInfo & { deviceId: string }) => void} device-info Emitted when we receive device info for a device
  */
 
 /** @extends {TypedEmitter<MapeoRPCEvents>} */
@@ -186,6 +194,17 @@ export class MapeoRPC extends TypedEmitter {
     const peer = this.#peers.get(peerId)
     if (!peer) throw new UnknownPeerError('Unknown peer ' + peerId)
     peer.sendInviteResponse(options)
+  }
+
+  /**
+   *
+   * @param {string} peerId id of the peer you want to send to (publicKey of peer as hex string)
+   * @param {DeviceInfo} deviceInfo device info to send
+   */
+  sendDeviceInfo(peerId, deviceInfo) {
+    const peer = this.#peers.get(peerId)
+    if (!peer) throw new UnknownPeerError('Unknown peer ' + peerId)
+    peer.sendDeviceInfo(deviceInfo)
   }
 
   /**
@@ -314,9 +333,18 @@ export class MapeoRPC extends TypedEmitter {
         peer.pendingInvites.set(projectId, [])
         break
       }
-      /* c8 ignore next 2 */
-      default:
-      // TODO: report unhandled message error
+      case 'DeviceInfo': {
+        const deviceInfo = DeviceInfo.decode(value)
+        this.emit('device-info', { ...deviceInfo, deviceId: peerId })
+        break
+      }
+      /* c8 ignore next 5 */
+      default: {
+        /** @type {never} */
+        const _exhaustiveCheck = type
+        return _exhaustiveCheck
+        // TODO: report unhandled message error
+      }
     }
   }
 }

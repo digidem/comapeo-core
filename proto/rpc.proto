@@ -20,3 +20,7 @@ message InviteResponse {
   bytes projectKey = 1;
   Decision decision = 2;
 }
+
+message DeviceInfo {
+  string name = 1;
+}
