@@ -14,6 +14,7 @@ import { exec } from 'child_process'
 import { RandomAccessFilePool } from '../src/core-manager/random-access-file-pool.js'
 import RandomAccessFile from 'random-access-file'
 import path from 'path'
+import { setTimeout as delay } from 'node:timers/promises'
 
 async function createCore(...args) {
   const core = new Hypercore(RAM, ...args)
@@ -37,6 +38,58 @@ test('shares auth cores', async function (t) {
   const cm2Keys = getKeys(cm2, 'auth').sort(Buffer.compare)
 
   t.alike(cm1Keys, cm2Keys, 'Share same auth cores')
+})
+
+test('shares other cores', async function (t) {
+  const projectKey = randomBytes(32)
+  const cm1 = createCoreManager({ projectKey })
+  const cm2 = createCoreManager({ projectKey })
+
+  const {
+    rsm: [rsm1, rsm2],
+  } = replicate(cm1, cm2)
+
+  for (const namespace of ['config', 'data', 'blob', 'blobIndex']) {
+    rsm1.enableNamespace(namespace)
+    rsm2.enableNamespace(namespace)
+    await Promise.all([
+      waitForCores(cm1, getKeys(cm2, namespace)),
+      waitForCores(cm2, getKeys(cm1, namespace)),
+    ])
+    const cm1Keys = getKeys(cm1, namespace).sort(Buffer.compare)
+    const cm2Keys = getKeys(cm2, namespace).sort(Buffer.compare)
+
+    t.alike(cm1Keys, cm2Keys, `Share same ${namespace} cores`)
+  }
+})
+
+// Testing this case because in real-use namespaces are not enabled at the same time
+test('shares cores if namespaces enabled at different times', async function (t) {
+  const projectKey = randomBytes(32)
+  const cm1 = createCoreManager({ projectKey })
+  const cm2 = createCoreManager({ projectKey })
+
+  const {
+    rsm: [rsm1, rsm2],
+  } = replicate(cm1, cm2)
+
+  for (const namespace of ['config', 'data', 'blob', 'blobIndex']) {
+    rsm1.enableNamespace(namespace)
+  }
+
+  await delay(1000)
+
+  for (const namespace of ['config', 'data', 'blob', 'blobIndex']) {
+    rsm2.enableNamespace(namespace)
+    await Promise.all([
+      waitForCores(cm1, getKeys(cm2, namespace)),
+      waitForCores(cm2, getKeys(cm1, namespace)),
+    ])
+    const cm1Keys = getKeys(cm1, namespace).sort(Buffer.compare)
+    const cm2Keys = getKeys(cm2, namespace).sort(Buffer.compare)
+
+    t.alike(cm1Keys, cm2Keys, `Share same ${namespace} cores`)
+  }
 })
 
 test('project creator auth core has project key', async function (t) {

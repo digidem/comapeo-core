@@ -400,10 +400,9 @@ export class CoreManager extends TypedEmitter {
     // If we already know about this core, then we will add it to the
     // replication stream when we are ready
     if (this.#coreIndex.getByDiscoveryId(discoveryId)) return
-    const message = {
+    const message = ProjectExtension.fromPartial({
       wantCoreKeys: [discoveryKey],
-      authCoreKeys: [],
-    }
+    })
     this.#projectExtension.send(message, peer)
   }
 
@@ -443,22 +442,24 @@ export class CoreManager extends TypedEmitter {
    * @param {ProjectExtension} msg
    * @param {any} peer
    */
-  #handleProjectMessage({ wantCoreKeys, authCoreKeys }, peer) {
+  #handleProjectMessage({ wantCoreKeys, ...coreKeys }, peer) {
+    const message = ProjectExtension.create()
+    let hasKeys = false
     for (const discoveryKey of wantCoreKeys) {
       const discoveryId = discoveryKey.toString('hex')
       const coreRecord = this.#coreIndex.getByDiscoveryId(discoveryId)
       if (!coreRecord) continue
-      if (coreRecord.namespace === 'auth') {
-        const message = {
-          authCoreKeys: [coreRecord.key],
-          wantCoreKeys: [],
-        }
-        this.#projectExtension.send(message, peer)
-      }
+      message[`${coreRecord.namespace}CoreKeys`].push(coreRecord.key)
+      hasKeys = true
     }
-    for (const authCoreKey of authCoreKeys) {
-      // Use public method - these must be persisted (private method defaults to persisted=false)
-      this.addCore(authCoreKey, 'auth')
+    if (hasKeys) {
+      this.#projectExtension.send(message, peer)
+    }
+    for (const namespace of NAMESPACES) {
+      for (const coreKey of coreKeys[`${namespace}CoreKeys`]) {
+        // Use public method - these must be persisted (private method defaults to persisted=false)
+        this.addCore(coreKey, namespace)
+      }
     }
   }
 
