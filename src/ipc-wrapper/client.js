@@ -1,20 +1,22 @@
 // @ts-check
 import { createClient } from 'rpc-reflector'
-import { SubChannel } from './sub-channel.js'
+import { MANAGER_CHANNEL_ID, SubChannel } from './sub-channel.js'
 
 /**
- * @param {import('rpc-reflector/client.js').MessagePortLike} messagePort
+ * @param {import('./sub-channel.js').MessagePortLike} messagePort
  * @returns {import('rpc-reflector/client.js').ClientApi<import('../mapeo-manager.js').MapeoManager>}
  */
 export function createMapeoClient(messagePort) {
-  // TODO: LRU cache?
+  // TODO: Use LRU cache?
   /** @type {Map<import('../types.js').ProjectPublicId, import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>} */
   const existingProjectClients = new Map()
 
-  const managerChannel = new SubChannel(messagePort, '@@manager')
+  const managerChannel = new SubChannel(messagePort, MANAGER_CHANNEL_ID)
 
   /** @type {import('rpc-reflector').ClientApi<import('../mapeo-manager.js').MapeoManager>} */
   const managerClient = createClient(managerChannel)
+
+  managerChannel.start()
 
   const client = new Proxy(managerClient, {
     get(target, prop, receiver) {
@@ -44,6 +46,8 @@ export function createMapeoClient(messagePort) {
             return Reflect.get(target, prop, receiver)
           },
         })
+
+        projectChannel.start()
 
         existingProjectClients.set(projectPublicId, projectClient)
 

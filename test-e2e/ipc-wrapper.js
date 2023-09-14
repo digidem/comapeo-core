@@ -1,5 +1,5 @@
 import { test } from 'brittle'
-import { MessageChannel } from 'node:worker_threads'
+import { MessageChannel, MessagePort } from 'node:worker_threads'
 import RAM from 'random-access-memory'
 import { KeyManager } from '@mapeo/crypto'
 import { createClient } from 'rpc-reflector'
@@ -16,7 +16,10 @@ test('IPC wrappers work', async (t) => {
     coreStorage: () => new RAM(),
   })
 
+  // Since v14.7.0, Node's MessagePort extends EventTarget (https://nodejs.org/api/worker_threads.html#class-messageport)
+  // @ts-expect-error
   const server = createMapeoServer(manager, port1)
+  // @ts-expect-error
   const client = createMapeoClient(port2)
 
   port1.start()
@@ -50,27 +53,35 @@ test('Client calls fail after server closes', async (t) => {
     coreStorage: () => new RAM(),
   })
 
+  // Since v14.7.0, Node's MessagePort extends EventTarget (https://nodejs.org/api/worker_threads.html#class-messageport)
+  // @ts-expect-error
   const server = createMapeoServer(manager, port1)
+  // @ts-expect-error
   const client = createMapeoClient(port2)
 
   port1.start()
   port2.start()
 
   const projectId = await client.createProject({ name: 'mapeo' })
-  const project = await client.getProject(projectId)
+  const projectBefore = await client.getProject(projectId)
 
-  await project.$getProjectSettings()
+  await projectBefore.$getProjectSettings()
 
   server.close()
 
+  createClient.close(client)
+  const projectAfter = await client.getProject(projectId)
+
+  // Even after server closes we're still able to get the project ipc instance, which is okay
+  // because any field access should fail on that, rendering it unusable
+  // Adding this assertion to track changes in this behavior
+  t.ok(projectAfter)
+
   // Doing it this way to speed up the test because each should wait for a timeout
+  // Attempting to access any fields on the ipc instances should fail (aside from client.getProject, which is tested above)
   const results = await Promise.allSettled([
-    // Test client method that returns a normal value
     client.listProjects(),
-    // Test client method that returns a proxied value (special case)
-    client.getProject(projectId),
-    // Test project method that returns a normal value
-    project.$getProjectSettings(),
+    projectBefore.$getProjectSettings(),
   ])
 
   for (const result of results) {

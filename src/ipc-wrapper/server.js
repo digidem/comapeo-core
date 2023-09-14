@@ -1,28 +1,32 @@
 // @ts-check
 import { createServer } from 'rpc-reflector'
-import { SubChannel } from './sub-channel.js'
+import { MANAGER_CHANNEL_ID, SubChannel } from './sub-channel.js'
+import { extractMessageEventData } from './utils.js'
 
 /**
  * @param {import('../mapeo-manager.js').MapeoManager} manager
- * @param {import('rpc-reflector/server.js').MessagePortLike} messagePort
+ * @param {import('./sub-channel.js').MessagePortLike} messagePort
  */
 export function createMapeoServer(manager, messagePort) {
-  // TODO: LRU? project.close() after time without use?
-  /** @type {Map<string, { close: () => void, project: import('../mapeo-project.js').MapeoProject }>}*/
+  // TODO: Use LRU cache and call project.close() after time without use?
+  /** @type {Map<string, { close: () => void, channel: SubChannel }>}*/
   const existingProjectServers = new Map()
 
-  const managerChannel = new SubChannel(messagePort, '@@manager')
+  const managerChannel = new SubChannel(messagePort, MANAGER_CHANNEL_ID)
 
   const managerServer = createServer(manager, managerChannel)
 
-  messagePort.on('message', handleMessage)
+  managerChannel.start()
+
+  messagePort.addEventListener('message', handleMessageEvent)
 
   return {
     close() {
-      messagePort.off('message', handleMessage)
+      messagePort.removeEventListener('message', handleMessageEvent)
 
       for (const [id, server] of existingProjectServers.entries()) {
         server.close()
+        server.channel.close()
         existingProjectServers.delete(id)
       }
 
@@ -33,8 +37,10 @@ export function createMapeoServer(manager, messagePort) {
   /**
    * @param {any} payload
    */
-  async function handleMessage(payload) {
-    const id = payload?.id
+  async function handleMessageEvent(payload) {
+    const data = extractMessageEventData(payload)
+
+    const id = data?.id
 
     if (typeof id !== 'string' || id === '@@manager') return
 
@@ -48,8 +54,10 @@ export function createMapeoServer(manager, messagePort) {
 
     const { close } = createServer(project, projectChannel)
 
-    projectChannel.emit('message', payload.message)
+    existingProjectServers.set(id, { close, channel: projectChannel })
 
-    existingProjectServers.set(id, { close, project })
+    projectChannel.emit('message', data.message)
+
+    projectChannel.start()
   }
 }
