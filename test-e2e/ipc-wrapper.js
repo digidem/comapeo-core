@@ -1,5 +1,5 @@
 import { test } from 'brittle'
-import { MessageChannel, MessagePort } from 'node:worker_threads'
+import { MessageChannel } from 'node:worker_threads'
 import RAM from 'random-access-memory'
 import { KeyManager } from '@mapeo/crypto'
 import { createClient } from 'rpc-reflector'
