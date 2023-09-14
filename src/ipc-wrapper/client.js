@@ -1,15 +1,24 @@
 // @ts-check
 import { createClient } from 'rpc-reflector'
+import QuickLRU from 'quick-lru'
 import { MANAGER_CHANNEL_ID, SubChannel } from './sub-channel.js'
+
+const PROJECT_CLIENT_MAX_AGE = 1000 * 60 * 60 // 1 hour
 
 /**
  * @param {import('./sub-channel.js').MessagePortLike} messagePort
  * @returns {import('rpc-reflector/client.js').ClientApi<import('../mapeo-manager.js').MapeoManager>}
  */
 export function createMapeoClient(messagePort) {
-  // TODO: Use LRU cache?
-  /** @type {Map<import('../types.js').ProjectPublicId, import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>} */
-  const existingProjectClients = new Map()
+  /** @type {QuickLRU<import('../types.js').ProjectPublicId, { instance: import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>, channel: SubChannel }>} */
+  const existingProjectClients = new QuickLRU({
+    maxSize: 3,
+    maxAge: PROJECT_CLIENT_MAX_AGE,
+    onEviction: (_id, { instance, channel }) => {
+      createClient.close(instance)
+      channel.close()
+    },
+  })
 
   const managerChannel = new SubChannel(messagePort, MANAGER_CHANNEL_ID)
 
@@ -33,15 +42,15 @@ export function createMapeoClient(messagePort) {
       function createProjectClient(projectPublicId) {
         const existingClient = existingProjectClients.get(projectPublicId)
 
-        if (existingClient) return Promise.resolve(existingClient)
+        if (existingClient) return Promise.resolve(existingClient.instance)
 
         const projectChannel = new SubChannel(messagePort, projectPublicId)
 
         /** @type {import('rpc-reflector').ClientApi<import('../mapeo-project.js').MapeoProject>} */
-        const projectClient = new Proxy(createClient(projectChannel), {
+        const projectClientProxy = new Proxy(createClient(projectChannel), {
           get(target, prop, receiver) {
             if (prop === 'then') {
-              return projectClient
+              return projectClientProxy
             }
             return Reflect.get(target, prop, receiver)
           },
@@ -49,9 +58,12 @@ export function createMapeoClient(messagePort) {
 
         projectChannel.start()
 
-        existingProjectClients.set(projectPublicId, projectClient)
+        existingProjectClients.set(projectPublicId, {
+          instance: projectClientProxy,
+          channel: projectChannel,
+        })
 
-        return Promise.resolve(projectClient)
+        return Promise.resolve(projectClientProxy)
       }
     },
   })
