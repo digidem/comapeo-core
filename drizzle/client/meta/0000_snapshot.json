@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "518b4a6e-b310-4f08-a39e-5a046c1e1da9",
+  "id": "1cf10430-19d0-4f27-b369-f31ca4215b15",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "localDeviceInfo": {
@@ -31,22 +31,6 @@
           "isUnique": true
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "project_backlink": {
-      "name": "project_backlink",
-      "columns": {
-        "versionId": {
-          "name": "versionId",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
@@ -89,8 +73,24 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "project": {
-      "name": "project",
+    "projectSettings_backlink": {
+      "name": "projectSettings_backlink",
+      "columns": {
+        "versionId": {
+          "name": "versionId",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "projectSettings": {
+      "name": "projectSettings",
       "columns": {
         "docId": {
           "name": "docId",

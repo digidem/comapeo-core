@@ -13,7 +13,7 @@ import { BlobStore } from './blob-store/index.js'
 import { createBlobServer } from './blob-server/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
-import { projectTable } from './schema/client.js'
+import { projectSettingsTable } from './schema/client.js'
 import {
   coreOwnershipTable,
   deviceInfoTable,
@@ -30,8 +30,9 @@ import {
 import { Capabilities } from './capabilities.js'
 import { projectKeyToId, valueOf } from './utils.js'
 import { MemberApi } from './member-api.js'
+import { discoveryKey } from 'hypercore-crypto'
 
-/** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
+/** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -164,7 +165,7 @@ export class MapeoProject {
       }),
       project: new DataType({
         dataStore: this.#dataStores.config,
-        table: projectTable,
+        table: projectSettingsTable,
         db: sharedDb,
       }),
       coreOwnership: new DataType({
@@ -288,7 +289,7 @@ export class MapeoProject {
       try {
         const { schemaName } = decodeBlockPrefix(entry.block)
 
-        if (schemaName === 'project') {
+        if (schemaName === 'projectSettings') {
           projectSettingsEntries.push(entry)
         } else {
           otherEntries.push(entry)
@@ -344,7 +345,7 @@ export class MapeoProject {
     return extractEditableProjectSettings(
       await project[kCreateWithDocId](this.#projectId, {
         ...settings,
-        schemaName: 'project',
+        schemaName: 'projectSettings',
       })
     )
   }
@@ -364,7 +365,7 @@ export class MapeoProject {
 }
 
 /**
- * @param {import("@mapeo/schema").Project & { forks: string[] }} projectDoc
+ * @param {import("@mapeo/schema").ProjectSettings & { forks: string[] }} projectDoc
  * @returns {EditableProjectSettings}
  */
 function extractEditableProjectSettings(projectDoc) {
@@ -408,8 +409,8 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
  * @param {import('@mapeo/schema').VersionIdObject} version
  * @returns {import('@mapeo/schema').DeviceInfo}
  */
-function mapAndValidateDeviceInfo(doc, { coreKey }) {
-  if (doc.docId !== coreKey.toString('hex')) {
+function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
+  if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
     throw new Error(
       'Invalid deviceInfo record, cannot write deviceInfo for another device'
     )

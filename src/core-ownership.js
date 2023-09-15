@@ -1,4 +1,5 @@
 import { verifySignature, sign } from '@mapeo/crypto'
+import { discoveryKey } from 'hypercore-crypto'
 import { NAMESPACES } from './core-manager/index.js'
 import { parseVersionId } from '@mapeo/schema'
 import { defaultGetWinner } from '@mapeo/sqlite-indexer'
@@ -97,8 +98,10 @@ export class CoreOwnership {
  * @param {import('@mapeo/schema').VersionIdObject} version
  * @returns {import('@mapeo/schema').CoreOwnership}
  */
-export function mapAndValidateCoreOwnership(doc, { coreKey }) {
-  if (doc.authCoreId !== coreKey.toString('hex')) {
+export function mapAndValidateCoreOwnership(doc, { coreDiscoveryKey }) {
+  if (
+    !coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.authCoreId, 'hex')))
+  ) {
     throw new Error('Invalid coreOwnership record: mismatched authCoreId')
   }
   if (!verifyCoreOwnership(doc)) {
