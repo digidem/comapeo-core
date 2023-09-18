@@ -1,7 +1,9 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
+import { projectKeyToId } from './utils.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
+/** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectTable, "project", import('@mapeo/schema').Project, import('@mapeo/schema').ProjectValue>} ProjectDataType */
 /** @typedef {{ deviceId: string, name: import('@mapeo/schema').DeviceInfo['name'] }} MemberInfo */
 
 export class MemberApi extends TypedEmitter {
@@ -10,7 +12,6 @@ export class MemberApi extends TypedEmitter {
   #projectKey
   #rpc
   #dataTypes
-  #queries
 
   /**
    * @param {Object} opts
@@ -18,23 +19,14 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
    * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
-   * @param {Object} opts.queries
-   * @param {() => Promise<import('./generated/rpc.js').Invite_ProjectInfo>} opts.queries.getProjectInfo
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
+   * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
    */
-  constructor({
-    capabilities,
-    encryptionKeys,
-    projectKey,
-    rpc,
-    queries,
-    dataTypes,
-  }) {
+  constructor({ capabilities, encryptionKeys, projectKey, rpc, dataTypes }) {
     super()
     this.#capabilities = capabilities
     this.#encryptionKeys = encryptionKeys
-    this.#queries = queries
     this.#projectKey = projectKey
     this.#rpc = rpc
     this.#dataTypes = dataTypes
@@ -50,12 +42,14 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
    */
   async invite(deviceId, { roleId, timeout }) {
-    const projectInfo = await this.#queries.getProjectInfo()
+    const projectId = projectKeyToId(this.#projectKey)
+
+    const project = await this.#dataTypes.project.getByDocId(projectId)
 
     const response = await this.#rpc.invite(deviceId, {
       projectKey: this.#projectKey,
       encryptionKeys: this.#encryptionKeys,
-      projectInfo,
+      projectInfo: { name: project.name },
       timeout,
     })
 

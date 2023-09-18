@@ -21,9 +21,14 @@ test('invite() sends expected project-related details', async (t) => {
     encryptionKeys,
     projectKey,
     rpc: r1,
-    queries: { getProjectInfo: async () => projectInfo },
+    dataTypes: {
+      project: {
+        async getByDocId() {
+          return projectInfo
+        },
+      },
+    },
   })
-
   r1.on('peers', async (peers) => {
     const response = await memberApi.invite(peers[0].id, {
       roleId: randomBytes(8).toString('hex'),
@@ -69,7 +74,13 @@ test('invite() assigns role to invited device after invite accepted', async (t) 
     encryptionKeys: { auth: randomBytes(32) },
     projectKey: KeyManager.generateProjectKeypair().publicKey,
     rpc: r1,
-    queries: { getProjectInfo: async () => {} },
+    dataTypes: {
+      project: {
+        async getByDocId() {
+          return { name: 'mapeo' }
+        },
+      },
+    },
   })
 
   r1.on('peers', async (peers) => {
@@ -118,7 +129,13 @@ test('invite() does not assign role to invited device if invite is not accepted'
         encryptionKeys: { auth: randomBytes(32) },
         projectKey: KeyManager.generateProjectKeypair().publicKey,
         rpc: r1,
-        queries: { getProjectInfo: async () => {} },
+        dataTypes: {
+          project: {
+            async getByDocId() {
+              return { name: 'mapeo' }
+            },
+          },
+        },
       })
 
       r1.on('peers', async (peers) => {
@@ -158,7 +175,6 @@ test('getById() works', async (t) => {
     encryptionKeys,
     projectKey,
     rpc,
-    queries: { getProjectInfo: async () => {} },
     dataTypes: {
       deviceInfo: {
         async getByDocId(deviceId) {
