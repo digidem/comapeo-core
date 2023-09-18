@@ -10,22 +10,7 @@ import {
 } from '../src/ipc-wrapper/client.js'
 
 test('IPC wrappers work', async (t) => {
-  const { port1, port2 } = new MessageChannel()
-
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
-
-  // Since v14.7.0, Node's MessagePort extends EventTarget (https://nodejs.org/api/worker_threads.html#class-messageport)
-  // @ts-expect-error
-  const server = createMapeoServer(manager, port1)
-  // @ts-expect-error
-  const client = createMapeoClient(port2)
-
-  port1.start()
-  port2.start()
+  const { client, cleanup } = setup()
 
   const projectId = await client.createProject({ name: 'mapeo' })
 
@@ -39,30 +24,11 @@ test('IPC wrappers work', async (t) => {
 
   t.alike(projectSettings, { name: 'mapeo', defaultPresets: undefined })
 
-  server.close()
-  closeMapeoClient(client)
-
-  port1.close()
-  port2.close()
+  return cleanup()
 })
 
 test('Client calls fail after server closes', async (t) => {
-  const { port1, port2 } = new MessageChannel()
-
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
-
-  // Since v14.7.0, Node's MessagePort extends EventTarget (https://nodejs.org/api/worker_threads.html#class-messageport)
-  // @ts-expect-error
-  const server = createMapeoServer(manager, port1)
-  // @ts-expect-error
-  const client = createMapeoClient(port2)
-
-  port1.start()
-  port2.start()
+  const { client, server, cleanup } = setup()
 
   const projectId = await client.createProject({ name: 'mapeo' })
   const projectBefore = await client.getProject(projectId)
@@ -70,8 +36,8 @@ test('Client calls fail after server closes', async (t) => {
   await projectBefore.$getProjectSettings()
 
   server.close()
-
   closeMapeoClient(client)
+
   const projectAfter = await client.getProject(projectId)
 
   // Even after server closes we're still able to get the project ipc instance, which is okay
@@ -91,6 +57,37 @@ test('Client calls fail after server closes', async (t) => {
     t.is(result.status, 'rejected', result.reason)
   }
 
-  port1.close()
-  port2.close()
+  return cleanup()
 })
+
+function setup() {
+  const { port1, port2 } = new MessageChannel()
+
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
+
+  // Since v14.7.0, Node's MessagePort extends EventTarget (https://nodejs.org/api/worker_threads.html#class-messageport)
+  // @ts-expect-error
+  const server = createMapeoServer(manager, port1)
+  // @ts-expect-error
+  const client = createMapeoClient(port2)
+
+  port1.start()
+  port2.start()
+
+  return {
+    port1,
+    port2,
+    server,
+    client,
+    cleanup: () => {
+      server.close()
+      closeMapeoClient(client)
+      port1.close()
+      port2.close()
+    },
+  }
+}
