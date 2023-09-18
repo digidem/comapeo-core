@@ -149,16 +149,7 @@ test('getById() works', async (t) => {
 
   const deviceId = randomBytes(32).toString('hex')
 
-  /** @type {import('@mapeo/schema').DeviceInfo} */
-  const deviceInfo = {
-    schemaName: 'deviceInfo',
-    docId: deviceId,
-    name: 'mapeo',
-    versionId: `${deviceId}/0`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    links: [],
-  }
+  const deviceInfo = createDeviceInfoRecord({ deviceId, name: 'member' })
 
   const deviceInfoRecords = [deviceInfo]
 
@@ -195,3 +186,70 @@ test('getById() works', async (t) => {
     await memberApi.getById(randomId)
   }, 'throws when no match')
 })
+
+test('getMany() works', async (t) => {
+  const projectKey = KeyManager.generateProjectKeypair().publicKey
+  const encryptionKeys = { auth: randomBytes(32) }
+
+  const rpc = new MapeoRPC()
+
+  const deviceInfoRecords = []
+
+  const memberApi = new MemberApi({
+    capabilities: { async assignRole() {} },
+    encryptionKeys,
+    projectKey,
+    rpc,
+    queries: { getProjectInfo: async () => {} },
+    dataTypes: {
+      deviceInfo: {
+        async getMany() {
+          return deviceInfoRecords
+        },
+      },
+    },
+  })
+
+  const initialMembers = await memberApi.getMany()
+
+  t.is(initialMembers.length, 0, 'no initial members')
+
+  deviceInfoRecords.push(
+    createDeviceInfoRecord({ name: 'member1' }),
+    createDeviceInfoRecord({ name: 'member2' }),
+    createDeviceInfoRecord({ name: 'member3' })
+  )
+
+  const members = await memberApi.getMany()
+
+  t.is(members.length, 3)
+
+  for (const member of members) {
+    const { deviceId, name } = member
+
+    const deviceInfo = deviceInfoRecords.find(({ docId }) => docId === deviceId)
+
+    t.ok(deviceInfo)
+    t.is(name, deviceInfo.name)
+  }
+})
+
+/**
+ * @param {Object} opts
+ * @param {string} [opts.deviceId]
+ * @param {string} opts.name
+ * @returns {import('@mapeo/schema').DeviceInfo}
+ */
+function createDeviceInfoRecord({ deviceId, name }) {
+  const docId = deviceId || randomBytes(32).toString('hex')
+
+  return {
+    schemaName: 'deviceInfo',
+    docId,
+    name,
+    versionId: `${docId}/0`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    links: [],
+  }
+}
