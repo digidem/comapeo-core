@@ -44,17 +44,17 @@ export class SubChannel extends EventEmitter {
 
       if (!isRelevantEvent(value)) return
 
+      const { id, message } = value
+
+      if (this.#id !== id) return
+
       switch (this.#state) {
         case 'idle': {
           this.#queued.push(value)
           break
         }
         case 'active': {
-          const { id, message } = value
-
-          if (this.#id !== id) return
           this.emit('message', message)
-
           break
         }
         case 'closed': {
