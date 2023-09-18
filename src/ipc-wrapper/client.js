@@ -33,41 +33,41 @@ export function createMapeoClient(messagePort) {
       }
 
       return Reflect.get(target, prop, receiver)
-
-      /**
-       * @param {import('../types.js').ProjectPublicId} projectPublicId
-       * @returns {Promise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>}
-       */
-      function createProjectClient(projectPublicId) {
-        const existingClient = existingProjectClients.get(projectPublicId)
-
-        if (existingClient) return Promise.resolve(existingClient.instance)
-
-        const projectChannel = new SubChannel(messagePort, projectPublicId)
-
-        /** @type {import('rpc-reflector').ClientApi<import('../mapeo-project.js').MapeoProject>} */
-        const projectClientProxy = new Proxy(createClient(projectChannel), {
-          get(target, prop, receiver) {
-            if (prop === 'then') {
-              return projectClientProxy
-            }
-            return Reflect.get(target, prop, receiver)
-          },
-        })
-
-        projectChannel.start()
-
-        existingProjectClients.set(projectPublicId, {
-          instance: projectClientProxy,
-          channel: projectChannel,
-        })
-
-        return Promise.resolve(projectClientProxy)
-      }
     },
   })
 
   return client
+
+  /**
+   * @param {import('../types.js').ProjectPublicId} projectPublicId
+   * @returns {Promise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>}
+   */
+  function createProjectClient(projectPublicId) {
+    const existingClient = existingProjectClients.get(projectPublicId)
+
+    if (existingClient) return Promise.resolve(existingClient.instance)
+
+    const projectChannel = new SubChannel(messagePort, projectPublicId)
+
+    /** @type {import('rpc-reflector').ClientApi<import('../mapeo-project.js').MapeoProject>} */
+    const projectClientProxy = new Proxy(createClient(projectChannel), {
+      get(target, prop, receiver) {
+        if (prop === 'then') {
+          return projectClientProxy
+        }
+        return Reflect.get(target, prop, receiver)
+      },
+    })
+
+    projectChannel.start()
+
+    existingProjectClients.set(projectPublicId, {
+      instance: projectClientProxy,
+      channel: projectChannel,
+    })
+
+    return Promise.resolve(projectClientProxy)
+  }
 }
 
 /**
