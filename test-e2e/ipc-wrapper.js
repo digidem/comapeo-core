@@ -27,6 +27,37 @@ test('IPC wrappers work', async (t) => {
   return cleanup()
 })
 
+test('Multiple projects and several calls in same tick', async (t) => {
+  const { client, cleanup } = setup()
+
+  const sample = Array(10).fill(null)
+
+  const projectIds = await Promise.all(
+    sample.map((_, index) =>
+      client.createProject({
+        name: `Mapeo ${index}`,
+      })
+    )
+  )
+
+  const projects = await Promise.all(
+    projectIds.map((id) => client.getProject(id))
+  )
+
+  const settings = await Promise.all(
+    projects.map((project) => project.$getProjectSettings())
+  )
+
+  const listedProjects = await client.listProjects()
+
+  t.is(projectIds.length, sample.length)
+  t.is(projects.length, sample.length)
+  t.is(settings.length, sample.length)
+  t.is(listedProjects.length, sample.length)
+
+  return cleanup()
+})
+
 test('Attempting to get non-existent project fails', async (t) => {
   const { client, cleanup } = setup()
 
