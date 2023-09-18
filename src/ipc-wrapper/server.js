@@ -1,25 +1,15 @@
 // @ts-check
 import { createServer } from 'rpc-reflector'
-import QuickLRU from 'quick-lru'
 import { MANAGER_CHANNEL_ID, SubChannel } from './sub-channel.js'
 import { extractMessageEventData } from './utils.js'
-
-const PROJECT_SERVER_MAX_AGE = 1000 * 60 * 60 // 1 hour
 
 /**
  * @param {import('../mapeo-manager.js').MapeoManager} manager
  * @param {import('./sub-channel.js').MessagePortLike} messagePort
  */
 export function createMapeoServer(manager, messagePort) {
-  /** @type {QuickLRU<string, { close: () => void, channel: SubChannel }>} */
-  const existingProjectServers = new QuickLRU({
-    maxAge: PROJECT_SERVER_MAX_AGE,
-    maxSize: 3,
-    onEviction: (_id, server) => {
-      server.close()
-      server.channel.close()
-    },
-  })
+  /** @type {Map<string, { close: () => void, channel: SubChannel }>} */
+  const existingProjectServers = new Map()
 
   const managerChannel = new SubChannel(messagePort, MANAGER_CHANNEL_ID)
 

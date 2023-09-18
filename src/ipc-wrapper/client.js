@@ -1,24 +1,14 @@
 // @ts-check
 import { createClient } from 'rpc-reflector'
-import QuickLRU from 'quick-lru'
 import { MANAGER_CHANNEL_ID, SubChannel } from './sub-channel.js'
-
-const PROJECT_CLIENT_MAX_AGE = 1000 * 60 * 60 // 1 hour
 
 /**
  * @param {import('./sub-channel.js').MessagePortLike} messagePort
  * @returns {import('rpc-reflector/client.js').ClientApi<import('../mapeo-manager.js').MapeoManager>}
  */
 export function createMapeoClient(messagePort) {
-  /** @type {QuickLRU<import('../types.js').ProjectPublicId, { instance: import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>, channel: SubChannel }>} */
-  const existingProjectClients = new QuickLRU({
-    maxSize: 3,
-    maxAge: PROJECT_CLIENT_MAX_AGE,
-    onEviction: (_id, { instance, channel }) => {
-      createClient.close(instance)
-      channel.close()
-    },
-  })
+  /** @type {Map<import('../types.js').ProjectPublicId, { instance: import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>, channel: SubChannel }>} */
+  const existingProjectClients = new Map()
 
   const managerChannel = new SubChannel(messagePort, MANAGER_CHANNEL_ID)
 
