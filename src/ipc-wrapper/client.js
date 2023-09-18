@@ -2,6 +2,8 @@
 import { createClient } from 'rpc-reflector'
 import { MANAGER_CHANNEL_ID, SubChannel } from './sub-channel.js'
 
+const CLOSE = Symbol('close')
+
 /**
  * @param {import('./sub-channel.js').MessagePortLike} messagePort
  * @returns {import('rpc-reflector/client.js').ClientApi<import('../mapeo-manager.js').MapeoManager>}
@@ -19,11 +21,18 @@ export function createMapeoClient(messagePort) {
 
   const client = new Proxy(managerClient, {
     get(target, prop, receiver) {
+      if (prop === CLOSE) {
+        return () => {
+          managerChannel.close()
+          createClient.close(managerClient)
+        }
+      }
+
       if (prop === 'getProject') {
         return createProjectClient
-      } else {
-        return Reflect.get(target, prop, receiver)
       }
+
+      return Reflect.get(target, prop, receiver)
 
       /**
        * @param {import('../types.js').ProjectPublicId} projectPublicId
@@ -59,4 +68,13 @@ export function createMapeoClient(messagePort) {
   })
 
   return client
+}
+
+/**
+ * @param {import('rpc-reflector').ClientApi<import('../mapeo-manager.js').MapeoManager>} client client created with `createMapeoClient`
+ * @returns {void}
+ */
+export function closeMapeoClient(client) {
+  // @ts-expect-error
+  return client[CLOSE]()
 }

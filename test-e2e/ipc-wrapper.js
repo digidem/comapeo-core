@@ -2,10 +2,12 @@ import { test } from 'brittle'
 import { MessageChannel } from 'node:worker_threads'
 import RAM from 'random-access-memory'
 import { KeyManager } from '@mapeo/crypto'
-import { createClient } from 'rpc-reflector'
 import { createMapeoServer } from '../src/ipc-wrapper/server.js'
 import { MapeoManager } from '../src/mapeo-manager.js'
-import { createMapeoClient } from '../src/ipc-wrapper/client.js'
+import {
+  createMapeoClient,
+  closeMapeoClient,
+} from '../src/ipc-wrapper/client.js'
 
 test('IPC wrappers work', async (t) => {
   const { port1, port2 } = new MessageChannel()
@@ -38,7 +40,7 @@ test('IPC wrappers work', async (t) => {
   t.alike(projectSettings, { name: 'mapeo', defaultPresets: undefined })
 
   server.close()
-  createClient.close(client)
+  closeMapeoClient(client)
 
   port1.close()
   port2.close()
@@ -69,7 +71,7 @@ test('Client calls fail after server closes', async (t) => {
 
   server.close()
 
-  createClient.close(client)
+  closeMapeoClient(client)
   const projectAfter = await client.getProject(projectId)
 
   // Even after server closes we're still able to get the project ipc instance, which is okay
