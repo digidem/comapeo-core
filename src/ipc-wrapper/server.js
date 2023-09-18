@@ -42,7 +42,7 @@ export function createMapeoServer(manager, messagePort) {
 
     const id = data?.id
 
-    if (typeof id !== 'string' || id === '@@manager') return
+    if (typeof id !== 'string' || id === MANAGER_CHANNEL_ID) return
 
     if (existingProjectServers.has(id)) return
 
