@@ -225,6 +225,9 @@ export class MapeoProject {
           return { name: settings.name }
         },
       },
+      dataTypes: {
+        deviceInfo: this.#dataTypes.deviceInfo,
+      },
     })
 
     ///////// 4. Write core ownership record

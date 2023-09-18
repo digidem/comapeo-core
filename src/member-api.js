@@ -1,11 +1,15 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
 
+/** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
+/** @typedef {{ deviceId: string, name: import('@mapeo/schema').DeviceInfo['name'] }} MemberInfo */
+
 export class MemberApi extends TypedEmitter {
   #capabilities
   #encryptionKeys
   #projectKey
   #rpc
+  #dataTypes
   #queries
 
   /**
@@ -16,14 +20,24 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
    * @param {Object} opts.queries
    * @param {() => Promise<import('./generated/rpc.js').Invite_ProjectInfo>} opts.queries.getProjectInfo
+   * @param {Object} opts.dataTypes
+   * @param {Pick<DeviceInfoDataType, 'getByDocId'>} opts.dataTypes.deviceInfo
    */
-  constructor({ capabilities, encryptionKeys, projectKey, rpc, queries }) {
+  constructor({
+    capabilities,
+    encryptionKeys,
+    projectKey,
+    rpc,
+    queries,
+    dataTypes,
+  }) {
     super()
     this.#capabilities = capabilities
     this.#encryptionKeys = encryptionKeys
     this.#queries = queries
     this.#projectKey = projectKey
     this.#rpc = rpc
+    this.#dataTypes = dataTypes
   }
 
   /**
@@ -50,5 +64,14 @@ export class MemberApi extends TypedEmitter {
     }
 
     return response
+  }
+
+  /**
+   * @param {string} deviceId
+   * @returns {Promise<MemberInfo>}
+   */
+  async getById(deviceId) {
+    const { name } = await this.#dataTypes.deviceInfo.getByDocId(deviceId)
+    return { deviceId, name }
   }
 }

@@ -1,7 +1,6 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
-
 import { MapeoRPC } from '../src/rpc/index.js'
 import { MemberApi } from '../src/member-api.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
@@ -140,4 +139,59 @@ test('invite() does not assign role to invited device if invite is not accepted'
       replicate(r1, r2)
     })
   }
+})
+
+test('getById() works', async (t) => {
+  const projectKey = KeyManager.generateProjectKeypair().publicKey
+  const encryptionKeys = { auth: randomBytes(32) }
+
+  const rpc = new MapeoRPC()
+
+  const deviceId = randomBytes(32).toString('hex')
+
+  /** @type {import('@mapeo/schema').DeviceInfo} */
+  const deviceInfo = {
+    schemaName: 'deviceInfo',
+    docId: deviceId,
+    name: 'mapeo',
+    versionId: `${deviceId}/0`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    links: [],
+  }
+
+  const deviceInfoRecords = [deviceInfo]
+
+  const memberApi = new MemberApi({
+    capabilities: { async assignRole() {} },
+    encryptionKeys,
+    projectKey,
+    rpc,
+    queries: { getProjectInfo: async () => {} },
+    dataTypes: {
+      deviceInfo: {
+        async getByDocId(deviceId) {
+          const info = deviceInfoRecords.find(({ docId }) => docId === deviceId)
+          if (!info) throw new Error(`No record with ID ${deviceId}`)
+          return info
+        },
+      },
+    },
+  })
+
+  const member = await memberApi.getById(deviceId)
+
+  t.alike(
+    member,
+    {
+      deviceId,
+      name: deviceInfo.name,
+    },
+    'returns matching member'
+  )
+
+  await t.exception(async () => {
+    const randomId = randomBytes(32)
+    await memberApi.getById(randomId)
+  }, 'throws when no match')
 })
