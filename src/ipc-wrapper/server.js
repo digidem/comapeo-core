@@ -1,7 +1,6 @@
 // @ts-check
 import { createServer } from 'rpc-reflector'
-import { MANAGER_CHANNEL_ID, SubChannel } from './sub-channel.js'
-import { extractMessageEventData } from './utils.js'
+import { MANAGER_CHANNEL_ID, MAPEO_IPC_ID, SubChannel } from './sub-channel.js'
 
 /**
  * @param {import('../mapeo-manager.js').MapeoManager} manager
@@ -11,17 +10,19 @@ export function createMapeoServer(manager, messagePort) {
   /** @type {Map<string, { close: () => void, channel: SubChannel }>} */
   const existingProjectServers = new Map()
 
+  const mapeoIpcChannel = new SubChannel(messagePort, MAPEO_IPC_ID)
+  mapeoIpcChannel.start()
+
+  mapeoIpcChannel.on('message', handleGetProject)
+
   const managerChannel = new SubChannel(messagePort, MANAGER_CHANNEL_ID)
+  managerChannel.start()
 
   const managerServer = createServer(manager, managerChannel)
 
-  managerChannel.start()
-
-  messagePort.addEventListener('message', handleMessageEvent)
-
   return {
     close() {
-      messagePort.removeEventListener('message', handleMessageEvent)
+      mapeoIpcChannel.off('message', handleGetProject)
 
       for (const [id, server] of existingProjectServers.entries()) {
         server.close()
@@ -29,35 +30,49 @@ export function createMapeoServer(manager, messagePort) {
         existingProjectServers.delete(id)
       }
 
+      mapeoIpcChannel.close()
       managerServer.close()
       managerChannel.close()
     },
   }
 
   /**
-   * @param {any} payload
+   *
+   * @param {import('./utils.js').MapeoIpcMessagePayload} payload
    */
-  async function handleMessageEvent(payload) {
-    const data = extractMessageEventData(payload)
+  async function handleGetProject(payload) {
+    const { type, projectId } = payload
 
-    const id = data?.id
+    if (type !== 'get_project') return
+    if (existingProjectServers.has(projectId)) return
 
-    if (typeof id !== 'string' || id === MANAGER_CHANNEL_ID) return
+    let project
+    try {
+      project = await manager.getProject(
+        /** @type {import('../types.js').ProjectPublicId} */ (projectId)
+      )
+    } catch (err) {
+      mapeoIpcChannel.postMessage({
+        type: 'get_project',
+        projectId,
+        error:
+          err instanceof Error
+            ? err.message
+            : `Could not get project with ID ${projectId}`,
+      })
+      return
+    }
 
-    if (existingProjectServers.has(id)) return
-
-    const projectChannel = new SubChannel(messagePort, id)
-
-    const project = await manager.getProject(
-      /** @type {import('../types.js').ProjectPublicId} */ (id)
-    )
+    const projectChannel = new SubChannel(messagePort, projectId)
+    projectChannel.start()
 
     const { close } = createServer(project, projectChannel)
 
-    existingProjectServers.set(id, { close, channel: projectChannel })
+    existingProjectServers.set(projectId, { close, channel: projectChannel })
 
-    projectChannel.emit('message', data.message)
-
-    projectChannel.start()
+    mapeoIpcChannel.postMessage({
+      type: 'get_project',
+      projectId,
+    })
   }
 }

@@ -27,6 +27,17 @@ test('IPC wrappers work', async (t) => {
   return cleanup()
 })
 
+test('Attempting to get non-existent project fails', async (t) => {
+  const { client, cleanup } = setup()
+
+  await t.exception(async () => {
+    // @ts-expect-error
+    await client.getProject('mapeo')
+  })
+
+  return cleanup()
+})
+
 test('Client calls fail after server closes', async (t) => {
   const { client, server, cleanup } = setup()
 
