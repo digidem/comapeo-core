@@ -1,6 +1,8 @@
 // @ts-check
 import { createClient } from 'rpc-reflector'
-import { MANAGER_CHANNEL_ID, SubChannel } from './sub-channel.js'
+import pTimeout from 'p-timeout'
+import { MANAGER_CHANNEL_ID, MAPEO_RPC_ID, SubChannel } from './sub-channel.js'
+import { extractMessageEventData } from './utils.js'
 
 const CLOSE = Symbol('close')
 
@@ -42,11 +44,41 @@ export function createMapeoClient(messagePort) {
    * @param {import('../types.js').ProjectPublicId} projectPublicId
    * @returns {Promise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>}
    */
-  function createProjectClient(projectPublicId) {
+  async function createProjectClient(projectPublicId) {
     const existingClient = existingProjectClients.get(projectPublicId)
 
-    if (existingClient) return Promise.resolve(existingClient.instance)
+    if (existingClient) return existingClient.instance
 
+    await pTimeout(
+      new Promise((res, rej) => {
+        messagePort.addEventListener(
+          'message',
+          /**
+           * @param {unknown} event
+           */
+          function handleMapeoRpcEvent(event) {
+            const data = extractMessageEventData(event)
+
+            if (!data || typeof data !== 'object') return
+            if (!('id' in data && 'projectId' in data)) return
+
+            if (data.id !== MAPEO_RPC_ID) return
+            if (data.projectId !== projectPublicId) return
+
+            messagePort.removeEventListener('message', handleMapeoRpcEvent)
+
+            if ('error' in data && typeof data.error === 'string')
+              rej(new Error(data.error))
+            else res(null)
+          }
+        )
+
+        messagePort.postMessage({
+          id: projectPublicId,
+        })
+      }),
+      { milliseconds: 3000 }
+    )
     const projectChannel = new SubChannel(messagePort, projectPublicId)
 
     /** @type {import('rpc-reflector').ClientApi<import('../mapeo-project.js').MapeoProject>} */
@@ -58,7 +90,7 @@ export function createMapeoClient(messagePort) {
       channel: projectChannel,
     })
 
-    return Promise.resolve(projectClient)
+    return projectClient
   }
 }
 

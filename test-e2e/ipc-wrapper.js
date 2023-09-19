@@ -30,14 +30,17 @@ test('IPC wrappers work', async (t) => {
 test('Multiple projects and several calls in same tick', async (t) => {
   const { client, cleanup } = setup()
 
-  const sample = Array(10).fill(null)
+  const sample = Array(10)
+    .fill(null)
+    .map((_, index) => {
+      return {
+        name: `Mapeo ${index}`,
+        defaultPresets: undefined,
+      }
+    })
 
   const projectIds = await Promise.all(
-    sample.map((_, index) =>
-      client.createProject({
-        name: `Mapeo ${index}`,
-      })
-    )
+    sample.map(async (s) => client.createProject(s))
   )
 
   const projects = await Promise.all(
@@ -55,6 +58,11 @@ test('Multiple projects and several calls in same tick', async (t) => {
   t.is(settings.length, sample.length)
   t.is(listedProjects.length, sample.length)
 
+  settings.forEach((s, index) => {
+    const expectedSettings = sample[index]
+    t.alike(s, expectedSettings)
+  })
+
   return cleanup()
 })
 
@@ -65,6 +73,18 @@ test('Attempting to get non-existent project fails', async (t) => {
     // @ts-expect-error
     await client.getProject('mapeo')
   })
+
+  const results = await Promise.allSettled([
+    // @ts-expect-error
+    client.getProject('mapeo'),
+    // @ts-expect-error
+    client.getProject('mapeo'),
+  ])
+
+  t.alike(
+    results.map(({ status }) => status),
+    ['rejected', 'rejected']
+  )
 
   return cleanup()
 })

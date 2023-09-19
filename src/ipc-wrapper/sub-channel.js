@@ -2,6 +2,8 @@
 import { EventEmitter } from 'eventemitter3'
 import { extractMessageEventData } from './utils.js'
 
+// Ideally unique ID used for identifying "global" Mapeo IPC messages
+export const MAPEO_RPC_ID = '@@mapeo-rpc'
 export const MANAGER_CHANNEL_ID = '@@manager'
 
 /**
