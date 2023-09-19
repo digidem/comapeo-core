@@ -219,11 +219,9 @@ export class MapeoProject {
       encryptionKeys,
       projectKey,
       rpc,
-      queries: {
-        getProjectInfo: async () => {
-          const settings = await this.$getProjectSettings()
-          return { name: settings.name }
-        },
+      dataTypes: {
+        deviceInfo: this.#dataTypes.deviceInfo,
+        project: this.#dataTypes.project,
       },
     })
 

@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier . --write",
     "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
-    "test:unit": "brittle \"tests/**/*.js\"",
+    "test:unit": "brittle \"tests/**/*.js\" \"vendor/**/*.test.js\"",
     "test:e2e": "brittle \"test-e2e/**/*.js\"",
     "test:types": "tsc -p test-types/tsconfig.json",
     "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
@@ -20,7 +20,8 @@
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
-    "prepack": "npm run build:types"
+    "prepack": "npm run build:types",
+    "postinstall": "patch-package"
   },
   "files": [
     "src",
@@ -62,10 +63,13 @@
     "@hyperswarm/testnet": "^3.1.2",
     "@sinonjs/fake-timers": "^10.0.2",
     "@types/b4a": "^1.6.0",
+    "@types/debug": "^4.1.8",
     "@types/json-schema": "^7.0.11",
     "@types/node": "^18.16.3",
     "@types/sinonjs__fake-timers": "^8.1.2",
     "@types/streamx": "^2.9.1",
+    "@types/varint": "^6.0.1",
+    "bitfield": "^4.1.0",
     "brittle": "^3.2.1",
     "cpy": "^10.1.0",
     "cpy-cli": "^5.0.0",
@@ -92,7 +96,7 @@
     "fastify": ">= 4"
   },
   "dependencies": {
-    "@digidem/types": "^2.0.0",
+    "@digidem/types": "^2.1.0",
     "@fastify/type-provider-typebox": "^3.3.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "^1.0.0-alpha.8",
@@ -102,8 +106,12 @@
     "b4a": "^1.6.3",
     "base32.js": "^0.1.0",
     "better-sqlite3": "^8.3.0",
+    "bogon": "^1.1.0",
+    "bonjour-service": "^1.1.1",
+    "big-sparse-array": "^1.0.3",
     "compact-encoding": "^2.12.0",
     "corestore": "^6.8.4",
+    "debug": "^4.3.4",
     "drizzle-orm": "0.28.2",
     "fastify-plugin": "^4.5.0",
     "hypercore": "^10.9.0",
@@ -113,13 +121,17 @@
     "magic-bytes.js": "^1.0.14",
     "map-obj": "^5.0.2",
     "multi-core-indexer": "^1.0.0-alpha.7",
-    "multicast-service-discovery": "^4.0.4",
     "p-defer": "^4.0.0",
-    "private-ip": "^3.0.0",
+    "p-timeout": "^6.1.2",
+    "patch-package": "^8.0.0",
     "protobufjs": "^7.2.3",
     "protomux": "^3.4.1",
+    "quickbit-universal": "^2.2.0",
     "sodium-universal": "^4.0.0",
+    "start-stop-state-machine": "^1.2.0",
     "sub-encoder": "^2.1.1",
-    "tiny-typed-emitter": "^2.1.0"
+    "tiny-typed-emitter": "^2.1.0",
+    "varint": "^6.0.0",
+    "z32": "^1.0.1"
   }
 }

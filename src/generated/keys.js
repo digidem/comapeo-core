@@ -68,6 +68,19 @@ export var EncryptionKeys = {
         }
         return message;
     },
+    create: function (base) {
+        return EncryptionKeys.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a, _b, _c, _d, _e;
+        var message = createBaseEncryptionKeys();
+        message.auth = (_a = object.auth) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        message.data = (_b = object.data) !== null && _b !== void 0 ? _b : undefined;
+        message.config = (_c = object.config) !== null && _c !== void 0 ? _c : undefined;
+        message.blobIndex = (_d = object.blobIndex) !== null && _d !== void 0 ? _d : undefined;
+        message.blob = (_e = object.blob) !== null && _e !== void 0 ? _e : undefined;
+        return message;
+    },
 };
 function createBaseProjectKeys() {
     return { projectKey: Buffer.alloc(0), encryptionKeys: undefined };
@@ -117,6 +130,19 @@ export var ProjectKeys = {
             }
             reader.skipType(tag & 7);
         }
+        return message;
+    },
+    create: function (base) {
+        return ProjectKeys.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a, _b;
+        var message = createBaseProjectKeys();
+        message.projectKey = (_a = object.projectKey) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        message.projectSecretKey = (_b = object.projectSecretKey) !== null && _b !== void 0 ? _b : undefined;
+        message.encryptionKeys = (object.encryptionKeys !== undefined && object.encryptionKeys !== null)
+            ? EncryptionKeys.fromPartial(object.encryptionKeys)
+            : undefined;
         return message;
     },
 };
