@@ -1,8 +1,7 @@
 // @ts-check
 import { createClient } from 'rpc-reflector'
-import pTimeout from 'p-timeout'
+import pDefer from 'p-defer'
 import { MANAGER_CHANNEL_ID, MAPEO_RPC_ID, SubChannel } from './sub-channel.js'
-import { extractMessageEventData } from './utils.js'
 
 const CLOSE = Symbol('close')
 
@@ -11,22 +10,36 @@ const CLOSE = Symbol('close')
  * @returns {import('rpc-reflector/client.js').ClientApi<import('../mapeo-manager.js').MapeoManager>}
  */
 export function createMapeoClient(messagePort) {
-  /** @type {Map<import('../types.js').ProjectPublicId, { instance: import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>, channel: SubChannel }>} */
-  const existingProjectClients = new Map()
+  /** @type {Map<import('../types.js').ProjectPublicId, Promise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>>} */
+  const projectClientPromises = new Map()
 
   const managerChannel = new SubChannel(messagePort, MANAGER_CHANNEL_ID)
+  const mapeoRpcChannel = new SubChannel(messagePort, MAPEO_RPC_ID)
 
   /** @type {import('rpc-reflector').ClientApi<import('../mapeo-manager.js').MapeoManager>} */
   const managerClient = createClient(managerChannel)
+  /** @type {import('rpc-reflector').ClientApi<import('./server.js').MapeoRpcApi>} */
+  const mapeoRpcClient = createClient(mapeoRpcChannel)
 
+  mapeoRpcChannel.start()
   managerChannel.start()
 
   const client = new Proxy(managerClient, {
     get(target, prop, receiver) {
       if (prop === CLOSE) {
-        return () => {
+        return async () => {
           managerChannel.close()
           createClient.close(managerClient)
+
+          const projectClientResults = await Promise.allSettled(
+            projectClientPromises.values()
+          )
+
+          for (const result of projectClientResults) {
+            if (result.status === 'fulfilled') {
+              createClient.close(result.value)
+            }
+          }
         }
       }
 
@@ -45,50 +58,29 @@ export function createMapeoClient(messagePort) {
    * @returns {Promise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>}
    */
   async function createProjectClient(projectPublicId) {
-    const existingClient = existingProjectClients.get(projectPublicId)
+    const existingClientPromise = projectClientPromises.get(projectPublicId)
 
-    if (existingClient) return existingClient.instance
+    if (existingClientPromise) return existingClientPromise
 
-    await pTimeout(
-      new Promise((res, rej) => {
-        messagePort.addEventListener(
-          'message',
-          /**
-           * @param {unknown} event
-           */
-          function handleMapeoRpcEvent(event) {
-            const data = extractMessageEventData(event)
+    /** @type {import('p-defer').DeferredPromise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>}*/
+    const deferred = pDefer()
 
-            if (!data || typeof data !== 'object') return
-            if (!('id' in data && 'projectId' in data)) return
+    projectClientPromises.set(projectPublicId, deferred.promise)
 
-            if (data.id !== MAPEO_RPC_ID) return
-            if (data.projectId !== projectPublicId) return
+    try {
+      await mapeoRpcClient.assertProjectExists(projectPublicId)
+    } catch (err) {
+      deferred.reject(err)
+      throw err
+    }
 
-            messagePort.removeEventListener('message', handleMapeoRpcEvent)
-
-            if ('error' in data && typeof data.error === 'string')
-              rej(new Error(data.error))
-            else res(null)
-          }
-        )
-
-        messagePort.postMessage({
-          id: projectPublicId,
-        })
-      }),
-      { milliseconds: 3000 }
-    )
     const projectChannel = new SubChannel(messagePort, projectPublicId)
 
     /** @type {import('rpc-reflector').ClientApi<import('../mapeo-project.js').MapeoProject>} */
     const projectClient = createClient(projectChannel)
     projectChannel.start()
 
-    existingProjectClients.set(projectPublicId, {
-      instance: projectClient,
-      channel: projectChannel,
-    })
+    deferred.resolve(projectClient)
 
     return projectClient
   }
@@ -96,9 +88,9 @@ export function createMapeoClient(messagePort) {
 
 /**
  * @param {import('rpc-reflector').ClientApi<import('../mapeo-manager.js').MapeoManager>} client client created with `createMapeoClient`
- * @returns {void}
+ * @returns {Promise<void>}
  */
-export function closeMapeoClient(client) {
+export async function closeMapeoClient(client) {
   // @ts-expect-error
   return client[CLOSE]()
 }

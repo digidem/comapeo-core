@@ -89,6 +89,21 @@ test('Attempting to get non-existent project fails', async (t) => {
   return cleanup()
 })
 
+test('Concurrent calls that succeed', async (t) => {
+  const { client, cleanup } = setup()
+
+  const projectId = await client.createProject()
+
+  const [project1, project2] = await Promise.all([
+    client.getProject(projectId),
+    client.getProject(projectId),
+  ])
+
+  t.is(project1, project2)
+
+  return cleanup()
+})
+
 test('Client calls fail after server closes', async (t) => {
   const { client, server, cleanup } = setup()
 
@@ -98,7 +113,7 @@ test('Client calls fail after server closes', async (t) => {
   await projectBefore.$getProjectSettings()
 
   server.close()
-  closeMapeoClient(client)
+  await closeMapeoClient(client)
 
   const projectAfter = await client.getProject(projectId)
 
@@ -145,9 +160,9 @@ function setup() {
     port2,
     server,
     client,
-    cleanup: () => {
+    cleanup: async () => {
       server.close()
-      closeMapeoClient(client)
+      await closeMapeoClient(client)
       port1.close()
       port2.close()
     },
