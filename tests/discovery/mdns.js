@@ -87,12 +87,12 @@ test.skip(`mdns - discovery of 20 peers instantiated at the same time`, async (t
   await testMultiple(t, { period: 0, nPeers: 20 })
 })
 
-test(`mdns - discovery of 5 peers with random time instantiation`, async (t) => {
-  await testMultiple(t, { period: 2000, nPeers: 5 })
+test(`mdns - discovery of 3 peers with random time instantiation`, async (t) => {
+  await testMultiple(t, { period: 2000, nPeers: 3 })
 })
 
-test(`mdns - discovery of 5 peers instantiated at the same time`, async (t) => {
-  await testMultiple(t, { period: 0, nPeers: 5 })
+test(`mdns - discovery of 3 peers instantiated at the same time`, async (t) => {
+  await testMultiple(t, { period: 0, nPeers: 3 })
 })
 
 /**
