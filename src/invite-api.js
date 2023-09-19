@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import { EncryptionKeys } from './generated/keys.js'
-import { idToKey, keyToId } from './utils.js'
+import { projectKeyToId } from './utils.js'
 
 /** @typedef {import('./rpc/index.js').MapeoRPC} MapeoRPC */
 
@@ -26,7 +26,7 @@ export class InviteApi extends TypedEmitter {
     this.#addProject = queries.addProject
 
     this.rpc.on('invite', async (peerId, invite) => {
-      const projectId = keyToId(invite.projectKey)
+      const projectId = projectKeyToId(invite.projectKey)
 
       if (await this.#isMember(projectId)) {
         this.alreadyJoined(projectId)
@@ -75,7 +75,7 @@ export class InviteApi extends TypedEmitter {
   #respond({ projectId, decision }) {
     const peerIds = Array.from(this.#getPeerIds(projectId))
     const encryptionKeys = this.#keys.get(projectId)
-    const projectKey = idToKey(projectId)
+    const projectKey = Buffer.from(projectId, 'hex')
 
     let connectedPeerId
     let remainingPeerIds = []
@@ -92,7 +92,10 @@ export class InviteApi extends TypedEmitter {
       throw new Error('No connected peer to respond to')
     }
 
-    this.rpc.inviteResponse(connectedPeerId, { projectKey, decision })
+    this.rpc.inviteResponse(connectedPeerId, {
+      projectKey,
+      decision,
+    })
 
     if (decision === InviteResponse_Decision.ACCEPT) {
       this.#addProject(projectId, encryptionKeys)
