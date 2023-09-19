@@ -1,5 +1,6 @@
-// @ts-check
 import test from 'brittle'
+import { randomBytes } from 'crypto'
+import { KeyManager } from '@mapeo/crypto'
 import { MapeoRPC } from '../src/rpc/index.js'
 import { InviteApi } from '../src/invite-api.js'
 import { replicate } from './helpers/rpc.js'
@@ -8,13 +9,31 @@ test('Accept invite', async (t) => {
   t.plan(3)
   const r1 = new MapeoRPC()
   const r2 = new MapeoRPC()
-  const inviteApi = new InviteApi({ rpc: r2 })
 
-  const projectKey = Buffer.allocUnsafe(32).fill(0)
+  const members = new Set()
+  const projects = new Map()
+
+  const inviteApi = new InviteApi({
+    rpc: r2,
+    queries: {
+      isMember: async (deviceId) => {
+        return members.has(deviceId)
+      },
+      addProject: async (projectId, encryptionKeys) => {
+        projects.set(projectId, encryptionKeys)
+      },
+    },
+  })
+
+  const projectKey = KeyManager.generateProjectKeypair().publicKey
+  const encryptionKeys = { auth: randomBytes(32) }
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
-    const response = await r1.invite(peers[0].id, { projectKey })
+    const response = await r1.invite(peers[0].id, {
+      projectKey,
+      encryptionKeys,
+    })
     t.is(response, MapeoRPC.InviteResponse.ACCEPT)
   })
 
@@ -30,13 +49,31 @@ test('Reject invite', async (t) => {
   t.plan(3)
   const r1 = new MapeoRPC()
   const r2 = new MapeoRPC()
-  const inviteApi = new InviteApi({ rpc: r2 })
 
-  const projectKey = Buffer.allocUnsafe(32).fill(0)
+  const members = new Set()
+  const projects = new Map()
+
+  const inviteApi = new InviteApi({
+    rpc: r2,
+    queries: {
+      isMember: async (deviceId) => {
+        return members.has(deviceId)
+      },
+      addProject: async (projectId, encryptionKeys) => {
+        projects.set(projectId, encryptionKeys)
+      },
+    },
+  })
+
+  const projectKey = KeyManager.generateProjectKeypair().publicKey
+  const encryptionKeys = { auth: randomBytes(32) }
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
-    const response = await r1.invite(peers[0].id, { projectKey })
+    const response = await r1.invite(peers[0].id, {
+      projectKey,
+      encryptionKeys,
+    })
     t.is(response, MapeoRPC.InviteResponse.REJECT)
   })
 
