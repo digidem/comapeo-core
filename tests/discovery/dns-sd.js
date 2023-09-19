@@ -1,4 +1,4 @@
-import { DnsSd } from '../src/discovery/dns-sd.js'
+import { DnsSd } from '../../src/discovery/dns-sd.js'
 import test from 'brittle'
 import { setTimeout as delay } from 'node:timers/promises'
 
