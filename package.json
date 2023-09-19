@@ -119,7 +119,6 @@
     "multi-core-indexer": "^1.0.0-alpha.7",
     "multicast-service-discovery": "^4.0.4",
     "p-defer": "^4.0.0",
-    "p-timeout": "^6.1.2",
     "private-ip": "^3.0.0",
     "protobufjs": "^7.2.3",
     "protomux": "^3.4.1",

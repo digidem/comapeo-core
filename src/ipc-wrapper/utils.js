@@ -1,14 +1,4 @@
 /**
- * @typedef {Object} MapeoGetProjectPayload
- * @property {'get_project'} type
- * @property {string} projectId
- * @property {string} [error]
- *
- * @typedef {MapeoGetProjectPayload} MapeoIpcMessagePayload
- *
- */
-
-/**
  * @template T
  * @param {T} event
  * @returns {T extends { data: infer D } ? D : T}

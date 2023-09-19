@@ -2,9 +2,6 @@
 import { EventEmitter } from 'eventemitter3'
 import { extractMessageEventData } from './utils.js'
 
-// Ideally unique ID used for identifying "global" Mapeo IPC messages
-export const MAPEO_IPC_ID = '@@mapeo'
-// Ideally unique ID used for identifying messages specific to a MapeoManager instance
 export const MANAGER_CHANNEL_ID = '@@manager'
 
 /**
@@ -113,5 +110,6 @@ function isRelevantEvent(event) {
   if (!event || typeof event !== 'object') return false
   if (!('id' in event && 'message' in event)) return false
   if (typeof event.id !== 'string') return false
+
   return true
 }
