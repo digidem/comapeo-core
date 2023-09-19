@@ -92,7 +92,7 @@ export class SubChannel extends EventEmitter {
   }
 
   close() {
-    if (this.#state !== 'closed') return
+    if (this.#state === 'closed') return
 
     this.#state = 'closed'
     this.#queued = []
