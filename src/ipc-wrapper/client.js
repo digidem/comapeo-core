@@ -50,23 +50,15 @@ export function createMapeoClient(messagePort) {
     const projectChannel = new SubChannel(messagePort, projectPublicId)
 
     /** @type {import('rpc-reflector').ClientApi<import('../mapeo-project.js').MapeoProject>} */
-    const projectClientProxy = new Proxy(createClient(projectChannel), {
-      get(target, prop, receiver) {
-        if (prop === 'then') {
-          return projectClientProxy
-        }
-        return Reflect.get(target, prop, receiver)
-      },
-    })
-
+    const projectClient = createClient(projectChannel)
     projectChannel.start()
 
     existingProjectClients.set(projectPublicId, {
-      instance: projectClientProxy,
+      instance: projectClient,
       channel: projectChannel,
     })
 
-    return Promise.resolve(projectClientProxy)
+    return Promise.resolve(projectClient)
   }
 }
 
