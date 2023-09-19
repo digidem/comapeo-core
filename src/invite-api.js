@@ -1,12 +1,13 @@
+// @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import { EncryptionKeys } from './generated/keys.js'
 import { projectKeyToId } from './utils.js'
 
-/** @typedef {import('./rpc/index.js').MapeoRPC} MapeoRPC */
-
 export class InviteApi extends TypedEmitter {
+  /** @type {Map<string, Set<string>>} */
   #invites = new Map()
+  /** @type {Map<string, import('./generated/keys.js').EncryptionKeys>} */
   #keys = new Map()
 
   #isMember
@@ -14,7 +15,7 @@ export class InviteApi extends TypedEmitter {
 
   /**
    * @param {Object} options
-   * @param {MapeoRPC} options.rpc
+   * @param {import('./rpc/index.js').MapeoRPC} options.rpc
    * @param {object} options.queries
    * @param {(projectId: string) => Promise<boolean>} options.queries.isMember
    * @param {(projectId: string, encryptionKeys: EncryptionKeys) => Promise<void>} options.queries.addProject
@@ -98,6 +99,12 @@ export class InviteApi extends TypedEmitter {
     })
 
     if (decision === InviteResponse_Decision.ACCEPT) {
+      if (!encryptionKeys) {
+        throw new Error(
+          `Missing encryption keys for project with ID ${projectId}`
+        )
+      }
+
       this.#addProject(projectId, encryptionKeys)
 
       for (const peerId of remainingPeerIds) {
