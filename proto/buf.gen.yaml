@@ -13,5 +13,5 @@ plugins:
       - exportCommonSymbols=false
       - outputJsonMethods=false
       - useOptionals=none
-      - outputPartialMethods=false
+      - outputPartialMethods=true
       - stringEnums=true

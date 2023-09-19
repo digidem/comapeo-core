@@ -93,6 +93,10 @@ declare module 'hyperdrive' {
     readdir(folder: string): Readable
     mirror(): any
     batch(): any
+    clear(
+      path: string,
+      opts?: { diff?: boolean }
+    ): Promise<{ blocks: number } | null>
   }
 
   export = Hyperdrive

@@ -1,7 +1,6 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
-
 import { MapeoRPC } from '../src/rpc/index.js'
 import { MemberApi } from '../src/member-api.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
@@ -10,21 +9,24 @@ import { replicate } from './helpers/rpc.js'
 test('invite() sends expected project-related details', async (t) => {
   t.plan(4)
 
-  const projectKey = KeyManager.generateProjectKeypair().publicKey
-  const encryptionKeys = { auth: randomBytes(32) }
-  const projectInfo = { name: 'mapeo' }
+  const { projectKey, encryptionKeys, rpc: r1 } = setup()
 
-  const r1 = new MapeoRPC()
+  const projectInfo = { name: 'mapeo' }
   const r2 = new MapeoRPC()
 
   const memberApi = new MemberApi({
     capabilities: { async assignRole() {} },
     encryptionKeys,
-    getProjectInfo: async () => projectInfo,
     projectKey,
     rpc: r1,
+    dataTypes: {
+      project: {
+        async getByDocId() {
+          return projectInfo
+        },
+      },
+    },
   })
-
   r1.on('peers', async (peers) => {
     const response = await memberApi.invite(peers[0].id, {
       roleId: randomBytes(8).toString('hex'),
@@ -50,7 +52,8 @@ test('invite() sends expected project-related details', async (t) => {
 test('invite() assigns role to invited device after invite accepted', async (t) => {
   t.plan(4)
 
-  const r1 = new MapeoRPC()
+  const { projectKey, encryptionKeys, rpc: r1 } = setup()
+
   const r2 = new MapeoRPC()
 
   const expectedRoleId = randomBytes(8).toString('hex')
@@ -67,10 +70,16 @@ test('invite() assigns role to invited device after invite accepted', async (t) 
 
   const memberApi = new MemberApi({
     capabilities,
-    encryptionKeys: { auth: randomBytes(32) },
-    getProjectInfo: async () => {},
-    projectKey: KeyManager.generateProjectKeypair().publicKey,
+    encryptionKeys,
+    projectKey,
     rpc: r1,
+    dataTypes: {
+      project: {
+        async getByDocId() {
+          return { name: 'mapeo' }
+        },
+      },
+    },
   })
 
   r1.on('peers', async (peers) => {
@@ -102,7 +111,8 @@ test('invite() does not assign role to invited device if invite is not accepted'
     t.test(decision, (t) => {
       t.plan(1)
 
-      const r1 = new MapeoRPC()
+      const { projectKey, encryptionKeys, rpc: r1 } = setup()
+
       const r2 = new MapeoRPC()
 
       const capabilities = {
@@ -116,10 +126,16 @@ test('invite() does not assign role to invited device if invite is not accepted'
 
       const memberApi = new MemberApi({
         capabilities,
-        encryptionKeys: { auth: randomBytes(32) },
-        getProjectInfo: async () => {},
-        projectKey: KeyManager.generateProjectKeypair().publicKey,
+        encryptionKeys,
+        projectKey,
         rpc: r1,
+        dataTypes: {
+          project: {
+            async getByDocId() {
+              return { name: 'mapeo' }
+            },
+          },
+        },
       })
 
       r1.on('peers', async (peers) => {
@@ -141,3 +157,121 @@ test('invite() does not assign role to invited device if invite is not accepted'
     })
   }
 })
+
+test('getById() works', async (t) => {
+  const { projectKey, encryptionKeys, rpc } = setup()
+
+  const deviceId = randomBytes(32).toString('hex')
+
+  const deviceInfo = createDeviceInfoRecord({ deviceId, name: 'member' })
+
+  const deviceInfoRecords = [deviceInfo]
+
+  const memberApi = new MemberApi({
+    capabilities: { async assignRole() {} },
+    encryptionKeys,
+    projectKey,
+    rpc,
+    dataTypes: {
+      deviceInfo: {
+        async getByDocId(deviceId) {
+          const info = deviceInfoRecords.find(({ docId }) => docId === deviceId)
+          if (!info) throw new Error(`No record with ID ${deviceId}`)
+          return info
+        },
+      },
+    },
+  })
+
+  const member = await memberApi.getById(deviceId)
+
+  t.alike(
+    member,
+    {
+      deviceId,
+      name: deviceInfo.name,
+    },
+    'returns matching member'
+  )
+
+  await t.exception(async () => {
+    const randomId = randomBytes(32)
+    await memberApi.getById(randomId)
+  }, 'throws when no match')
+})
+
+test('getMany() works', async (t) => {
+  const { projectKey, encryptionKeys, rpc } = setup()
+
+  const deviceInfoRecords = []
+
+  const memberApi = new MemberApi({
+    capabilities: { async assignRole() {} },
+    encryptionKeys,
+    projectKey,
+    rpc,
+    queries: { getProjectInfo: async () => {} },
+    dataTypes: {
+      deviceInfo: {
+        async getMany() {
+          return deviceInfoRecords
+        },
+      },
+    },
+  })
+
+  const initialMembers = await memberApi.getMany()
+
+  t.is(initialMembers.length, 0, 'no initial members')
+
+  deviceInfoRecords.push(
+    createDeviceInfoRecord({ name: 'member1' }),
+    createDeviceInfoRecord({ name: 'member2' }),
+    createDeviceInfoRecord({ name: 'member3' })
+  )
+
+  const members = await memberApi.getMany()
+
+  t.is(members.length, 3)
+
+  for (const member of members) {
+    const { deviceId, name } = member
+
+    const deviceInfo = deviceInfoRecords.find(({ docId }) => docId === deviceId)
+
+    t.ok(deviceInfo)
+    t.is(name, deviceInfo.name)
+  }
+})
+
+function setup() {
+  const projectKey = KeyManager.generateProjectKeypair().publicKey
+  const encryptionKeys = { auth: randomBytes(32) }
+  const rpc = new MapeoRPC()
+
+  return {
+    projectKey,
+    encryptionKeys,
+    rpc,
+  }
+}
+
+/**
+ * @param {Object} opts
+ * @param {string} [opts.deviceId]
+ * @param {string} opts.name
+ * @returns {import('@mapeo/schema').DeviceInfo}
+ */
+function createDeviceInfoRecord({ deviceId, name }) {
+  const docId = deviceId || randomBytes(32).toString('hex')
+
+  return {
+    schemaName: 'deviceInfo',
+    docId,
+    name,
+    versionId: `${docId}/0`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    links: [],
+  }
+}

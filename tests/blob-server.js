@@ -3,11 +3,13 @@ import test from 'brittle'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
+import { BlobStore } from '../src/blob-store/index.js'
+import { createCoreManager, waitForCores } from './helpers/core-manager.js'
 import { createBlobServer } from '../src/blob-server/index.js'
 import BlobServerPlugin from '../src/blob-server/fastify-plugin.js'
 import fastify from 'fastify'
 
-import { replicateBlobs, createBlobStore } from './helpers/blob-store.js'
+import { replicateBlobs } from './helpers/blob-store.js'
 
 test('Plugin throws error if missing getBlobStore option', async (t) => {
   const server = fastify()
@@ -191,7 +193,7 @@ test('GET photo uses mime type from metadata if found', async (t) => {
 test('GET photo returns 404 when trying to get non-replicated blob', async (t) => {
   const { data, projectId, coreManager: cm1 } = await testenv()
   const projectKey = Buffer.from(projectId, 'hex')
-  const { blobStore: bs2, coreManager: cm2 } = await createBlobStore({
+  const { blobStore: bs2, coreManager: cm2 } = createBlobStore({
     projectKey,
   })
 
@@ -199,6 +201,7 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
   const { destroy } = replicateBlobs(cm1, cm2)
 
+  await waitForCores(cm2, [Buffer.from(blobId.driveId, 'hex')])
   /** @type {any}*/
   const replicatedCore = cm2.getCoreByKey(Buffer.from(blobId.driveId, 'hex'))
   await replicatedCore.update({ wait: true })
@@ -214,6 +217,54 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
   t.is(res.statusCode, 404)
 })
+
+test('GET photo returns 404 when trying to get non-existent blob', async (t) => {
+  const projectKey = randomBytes(32)
+  const projectId = projectKey.toString('hex')
+  const { blobStore } = createBlobStore({ projectKey })
+  const expected = await readFile(new URL(import.meta.url))
+
+  const blobId = /** @type {const} */ ({
+    type: 'photo',
+    variant: 'original',
+    name: 'test-file',
+  })
+
+  const server = createBlobServer({ blobStore, projectId })
+
+  // Test that the blob does not exist
+  {
+    const res = await server.inject({
+      method: 'GET',
+      url: buildRouteUrl({
+        ...blobId,
+        projectId,
+        driveId: blobStore.writerDriveId,
+      }),
+    })
+
+    t.is(res.statusCode, 404)
+  }
+
+  const driveId = await blobStore.put(blobId, expected)
+  await blobStore.clear({ ...blobId, driveId: blobStore.writerDriveId })
+
+  // Test that the entry exists but blob does not
+  {
+    const res = await server.inject({
+      method: 'GET',
+      url: buildRouteUrl({ ...blobId, projectId, driveId }),
+    })
+
+    t.is(res.statusCode, 404)
+  }
+})
+
+function createBlobStore(opts) {
+  const coreManager = createCoreManager(opts)
+  const blobStore = new BlobStore({ coreManager })
+  return { blobStore, coreManager }
+}
 
 async function testenv({ prefix, logger } = {}) {
   const projectKey = randomBytes(32)

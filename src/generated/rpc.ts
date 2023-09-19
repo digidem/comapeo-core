@@ -4,7 +4,7 @@ import { EncryptionKeys } from "./keys.js";
 
 export interface Invite {
   projectKey: Buffer;
-  encryptionKeys?: EncryptionKeys | undefined;
+  encryptionKeys: EncryptionKeys | undefined;
   projectInfo?: Invite_ProjectInfo | undefined;
 }
 
@@ -58,7 +58,7 @@ export function inviteResponse_DecisionToNumber(object: InviteResponse_Decision)
 }
 
 function createBaseInvite(): Invite {
-  return { projectKey: Buffer.alloc(0) };
+  return { projectKey: Buffer.alloc(0), encryptionKeys: undefined };
 }
 
 export const Invite = {
@@ -111,6 +111,21 @@ export const Invite = {
     }
     return message;
   },
+
+  create<I extends Exact<DeepPartial<Invite>, I>>(base?: I): Invite {
+    return Invite.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Invite>, I>>(object: I): Invite {
+    const message = createBaseInvite();
+    message.projectKey = object.projectKey ?? Buffer.alloc(0);
+    message.encryptionKeys = (object.encryptionKeys !== undefined && object.encryptionKeys !== null)
+      ? EncryptionKeys.fromPartial(object.encryptionKeys)
+      : undefined;
+    message.projectInfo = (object.projectInfo !== undefined && object.projectInfo !== null)
+      ? Invite_ProjectInfo.fromPartial(object.projectInfo)
+      : undefined;
+    return message;
+  },
 };
 
 function createBaseInvite_ProjectInfo(): Invite_ProjectInfo {
@@ -145,6 +160,15 @@ export const Invite_ProjectInfo = {
       }
       reader.skipType(tag & 7);
     }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<Invite_ProjectInfo>, I>>(base?: I): Invite_ProjectInfo {
+    return Invite_ProjectInfo.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Invite_ProjectInfo>, I>>(object: I): Invite_ProjectInfo {
+    const message = createBaseInvite_ProjectInfo();
+    message.name = object.name ?? undefined;
     return message;
   },
 };
@@ -193,4 +217,25 @@ export const InviteResponse = {
     }
     return message;
   },
+
+  create<I extends Exact<DeepPartial<InviteResponse>, I>>(base?: I): InviteResponse {
+    return InviteResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<InviteResponse>, I>>(object: I): InviteResponse {
+    const message = createBaseInviteResponse();
+    message.projectKey = object.projectKey ?? Buffer.alloc(0);
+    message.decision = object.decision ?? InviteResponse_Decision.REJECT;
+    return message;
+  },
 };
+
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+type DeepPartial<T> = T extends Builtin ? T
+  : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+  : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };

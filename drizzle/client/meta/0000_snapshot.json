@@ -1,9 +1,40 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "a4afa0b6-5fd1-4c8d-bc09-7e3f3fc1928f",
+  "id": "518b4a6e-b310-4f08-a39e-5a046c1e1da9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "localDeviceInfo": {
+      "name": "localDeviceInfo",
+      "columns": {
+        "deviceId": {
+          "name": "deviceId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deviceInfo": {
+          "name": "deviceInfo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "localDeviceInfo_deviceId_unique": {
+          "name": "localDeviceInfo_deviceId_unique",
+          "columns": [
+            "deviceId"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "project_backlink": {
       "name": "project_backlink",
       "columns": {
@@ -27,6 +58,13 @@
           "name": "projectId",
           "type": "text",
           "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "projectPublicId": {
+          "name": "projectPublicId",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },

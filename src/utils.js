@@ -1,4 +1,5 @@
 import b4a from 'b4a'
+import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
 
 /**
  * @param {String|Buffer} id
@@ -89,4 +90,34 @@ export function valueOf(doc) {
   // eslint-disable-next-line no-unused-vars
   const { docId, versionId, links, forks, createdAt, updatedAt, ...rest } = doc
   return rest
+}
+
+/**
+ * Create an internal ID from a project key
+ * @param {Buffer} projectKey
+ * @returns {import('./types.js').ProjectId}
+ */
+export function projectKeyToId(projectKey) {
+  return /** @type {import('./types.js').ProjectId} */ (
+    projectKey.toString('hex')
+  )
+}
+
+/**
+ * Create a public ID from a project key
+ * @param {Buffer} projectKey
+ * @returns {import('./types.js').ProjectPublicId}
+ */
+export function projectKeyToPublicId(projectKey) {
+  return /** @type {import('./types.js').ProjectPublicId} */ (
+    keyToPublicId(projectKey)
+  )
+}
+
+/**
+ * @param {import('./types.js').ProjectId} projectId
+ * @returns {Buffer} 24-byte nonce (same length as sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
+ */
+export function projectIdToNonce(projectId) {
+  return Buffer.from(projectId, 'hex').subarray(0, 24)
 }

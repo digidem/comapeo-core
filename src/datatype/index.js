@@ -121,7 +121,6 @@ export class DataType {
 
     // TS can't track the relationship between TDoc and TValue, so doc above is
     // typed as MapeoDoc (without versionId) rather than as TDoc.
-    // @ts-expect-error
     await this.#dataStore.write(doc)
     return this.getByDocId(doc.docId)
   }

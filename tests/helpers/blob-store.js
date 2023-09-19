@@ -22,8 +22,6 @@ export function createBlobStore(options = {}) {
  * @param {import('../../src/core-manager/index.js').CoreManager} cm2
  */
 export function replicateBlobs(cm1, cm2) {
-  cm1.addCore(cm2.getWriterCore('blobIndex').key, 'blobIndex')
-  cm2.addCore(cm1.getWriterCore('blobIndex').key, 'blobIndex')
   const {
     rsm: [rsm1, rsm2],
     destroy,
@@ -38,6 +36,10 @@ export function replicateBlobs(cm1, cm2) {
   }
 }
 
+/**
+ * @param {*} rs
+ * @returns {Promise<Buffer>}
+ */
 export async function concat(rs) {
   let buf = null
   await pipeline(

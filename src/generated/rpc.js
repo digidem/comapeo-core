@@ -39,7 +39,7 @@ export function inviteResponse_DecisionToNumber(object) {
     }
 }
 function createBaseInvite() {
-    return { projectKey: Buffer.alloc(0) };
+    return { projectKey: Buffer.alloc(0), encryptionKeys: undefined };
 }
 export var Invite = {
     encode: function (message, writer) {
@@ -88,6 +88,21 @@ export var Invite = {
         }
         return message;
     },
+    create: function (base) {
+        return Invite.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseInvite();
+        message.projectKey = (_a = object.projectKey) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        message.encryptionKeys = (object.encryptionKeys !== undefined && object.encryptionKeys !== null)
+            ? EncryptionKeys.fromPartial(object.encryptionKeys)
+            : undefined;
+        message.projectInfo = (object.projectInfo !== undefined && object.projectInfo !== null)
+            ? Invite_ProjectInfo.fromPartial(object.projectInfo)
+            : undefined;
+        return message;
+    },
 };
 function createBaseInvite_ProjectInfo() {
     return {};
@@ -119,6 +134,15 @@ export var Invite_ProjectInfo = {
             }
             reader.skipType(tag & 7);
         }
+        return message;
+    },
+    create: function (base) {
+        return Invite_ProjectInfo.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseInvite_ProjectInfo();
+        message.name = (_a = object.name) !== null && _a !== void 0 ? _a : undefined;
         return message;
     },
 };
@@ -161,6 +185,16 @@ export var InviteResponse = {
             }
             reader.skipType(tag & 7);
         }
+        return message;
+    },
+    create: function (base) {
+        return InviteResponse.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a, _b;
+        var message = createBaseInviteResponse();
+        message.projectKey = (_a = object.projectKey) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        message.decision = (_b = object.decision) !== null && _b !== void 0 ? _b : InviteResponse_Decision.REJECT;
         return message;
     },
 };

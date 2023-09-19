@@ -115,12 +115,20 @@ export class BlobStore {
 
   /**
    * @param {BlobId} blobId
+   * @param {object} [options]
+   * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
+   * @param {number} [options.timeout] Optional timeout to wait for a blob to download
    */
-  createReadStream({ type, variant, name, driveId }) {
+  createReadStream(
+    { type, variant, name, driveId },
+    options = { wait: false }
+  ) {
     // TODO: Error thrown from this be an emit error on the returned stream?
     const drive = this.#getDrive(driveId)
     const path = makePath({ type, variant, name })
-    return drive.createReadStream(path)
+
+    // @ts-ignore - TODO: update @digidem/types to include wait/timeout options
+    return drive.createReadStream(path, options)
   }
 
   /**
@@ -128,8 +136,10 @@ export class BlobStore {
    * previously read the entry from Hyperdrive using `drive.entry`
    * @param {BlobId['driveId']} driveId Hyperdrive drive id
    * @param {import('hyperdrive').HyperdriveEntry} entry Hyperdrive entry
+   * @param {object} [options]
+   * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
    */
-  async createEntryReadStream(driveId, entry) {
+  async createEntryReadStream(driveId, entry, options = { wait: false }) {
     const drive = this.#getDrive(driveId)
     const blobs = await drive.getBlobs()
 
@@ -138,7 +148,7 @@ export class BlobStore {
         'Hyperblobs instance not found for drive ' + driveId.slice(0, 7)
       )
 
-    return blobs.createReadStream(entry.value.blob)
+    return blobs.createReadStream(entry.value.blob, options)
   }
 
   /**
@@ -203,6 +213,19 @@ export class BlobStore {
     const path = makePath({ type, variant, name })
     const entry = await drive.entry(path, options)
     return entry
+  }
+
+  /**
+   * @param {BlobId} blobId
+   * @param {object} [options]
+   * @param {boolean} [options.diff=false] Enable to return an object with a `block` property with number of bytes removed
+   * @return {Promise<{ blocks: number } | null>}
+   */
+  async clear({ type, variant, name, driveId }, options = {}) {
+    const path = makePath({ type, variant, name })
+    const drive = this.#getDrive(driveId)
+
+    return drive.clear(path, options)
   }
 }
 
