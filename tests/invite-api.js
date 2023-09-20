@@ -16,7 +16,7 @@ test('Accept invite', async (t) => {
     rpc: r2,
     queries: {
       isMember: async (projectId) => {
-        return !!projects.has(projectId)
+        return projects.has(projectId)
       },
       addProject: async (projectId, encryptionKeys) => {
         projects.set(projectId, encryptionKeys)
@@ -55,7 +55,7 @@ test('Reject invite', async (t) => {
     rpc: r2,
     queries: {
       isMember: async (projectId) => {
-        return !!projects.has(projectId)
+        return projects.has(projectId)
       },
       addProject: async (projectId, encryptionKeys) => {
         projects.set(projectId, encryptionKeys)
@@ -78,6 +78,52 @@ test('Reject invite', async (t) => {
   inviteApi.on('invite-received', ({ projectId }) => {
     t.is(projectId, projectKey.toString('hex'))
     inviteApi.reject(projectId)
+  })
+
+  replicate(r1, r2)
+})
+
+test('Receiving invite for project that peer already belongs to', async (t) => {
+  t.plan(2)
+
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  const projectKey = KeyManager.generateProjectKeypair().publicKey
+  const encryptionKeys = { auth: randomBytes(32) }
+
+  // Start off being already part of the project
+  const projects = new Map([[projectKey.toString('hex'), encryptionKeys]])
+
+  const inviteApi = new InviteApi({
+    rpc: r2,
+    queries: {
+      isMember: async (projectId) => {
+        return projects.has(projectId)
+      },
+      addProject: async (projectId, encryptionKeys) => {
+        projects.set(projectId, encryptionKeys)
+      },
+    },
+  })
+
+  inviteApi.on('invite-received', () => {
+    t.fail('invite-received event should not have been emitted')
+  })
+
+  r1.on('peers', async (peers) => {
+    t.is(peers.length, 1)
+
+    const response = await r1.invite(peers[0].id, {
+      projectKey,
+      encryptionKeys,
+    })
+
+    t.is(
+      response,
+      MapeoRPC.InviteResponse.ALREADY,
+      'invited peer automatically responds with "ALREADY"'
+    )
   })
 
   replicate(r1, r2)

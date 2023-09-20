@@ -31,12 +31,13 @@ export class InviteApi extends TypedEmitter {
     this.rpc.on('invite', async (peerId, invite) => {
       const projectId = projectKeyToId(invite.projectKey)
 
+      const peerIds = this.#peersToRespondTo.get(projectId) || new Set()
+      peerIds.add(peerId)
+      this.#peersToRespondTo.set(projectId, peerIds)
+
       if (await this.#isMember(projectId)) {
         this.alreadyJoined(projectId)
       } else {
-        const peerIds = this.#peersToRespondTo.get(projectId) || new Set()
-        peerIds.add(peerId)
-        this.#peersToRespondTo.set(projectId, peerIds)
         this.#invites.set(projectId, invite)
 
         if (peerIds.size === 1) {
