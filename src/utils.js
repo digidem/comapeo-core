@@ -15,7 +15,7 @@ export function idToKey(id) {
 
 /**
  *
- * @param {Buffer|Uint8Array|String} key
+ * @param {Buffer|String} key
  * @returns {String}
  */
 export function keyToId(key) {
