@@ -10,14 +10,13 @@ test('Accept invite', async (t) => {
   const r1 = new MapeoRPC()
   const r2 = new MapeoRPC()
 
-  const members = new Set()
   const projects = new Map()
 
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async (deviceId) => {
-        return members.has(deviceId)
+      isMember: async (projectId) => {
+        return !!projects.has(projectId)
       },
       addProject: async (projectId, encryptionKeys) => {
         projects.set(projectId, encryptionKeys)
@@ -50,14 +49,13 @@ test('Reject invite', async (t) => {
   const r1 = new MapeoRPC()
   const r2 = new MapeoRPC()
 
-  const members = new Set()
   const projects = new Map()
 
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async (deviceId) => {
-        return members.has(deviceId)
+      isMember: async (projectId) => {
+        return !!projects.has(projectId)
       },
       addProject: async (projectId, encryptionKeys) => {
         projects.set(projectId, encryptionKeys)
