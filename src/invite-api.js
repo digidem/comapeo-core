@@ -3,6 +3,15 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import { projectKeyToId, projectKeyToPublicId } from './utils.js'
 
+/**
+ * @typedef {Object} InviteApiEvents
+ *
+ * @property {(info: { projectId: string, projectName?: string }) => void} invite-received
+ */
+
+/**
+ * @extends {TypedEmitter<InviteApiEvents>}
+ */
 export class InviteApi extends TypedEmitter {
   // Maps project id -> set of device ids
   /** @type {Map<string, Set<string>>} */
@@ -42,8 +51,11 @@ export class InviteApi extends TypedEmitter {
 
         if (peerIds.size === 1) {
           this.emit('invite-received', {
+            // TODO: Should this be the project public ID since it can be exposed to the client?
+            // Probably would require changing the public methods to accept the public ID
+            // and using the public ID for #invites and #peersToRespondTo keys instead
             projectId,
-            peerId,
+            projectName: invite.projectInfo?.name,
           })
         }
       }
