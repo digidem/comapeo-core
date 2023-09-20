@@ -142,6 +142,8 @@ export class InviteApi extends TypedEmitter {
             decision: InviteResponse_Decision.ALREADY,
           })
         }
+
+        break
       }
       case InviteResponse_Decision.REJECT: {
         const connectedPeers = this.#getConnectedProjectPeers(projectId)
@@ -157,6 +159,8 @@ export class InviteApi extends TypedEmitter {
             decision: InviteResponse_Decision.REJECT,
           })
         }
+
+        break
       }
       case InviteResponse_Decision.ALREADY: {
         const connectedPeers = this.#getConnectedProjectPeers(projectId)
@@ -172,6 +176,8 @@ export class InviteApi extends TypedEmitter {
             decision: InviteResponse_Decision.ALREADY,
           })
         }
+
+        break
       }
     }
 
