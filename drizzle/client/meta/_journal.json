@@ -8,6 +8,13 @@
       "when": 1694082554479,
       "tag": "0000_charming_klaw",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1695223537896,
+      "tag": "0001_lush_starjammers",
+      "breakpoints": true
     }
   ]
 }
