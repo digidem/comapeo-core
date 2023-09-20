@@ -77,7 +77,6 @@ export class InviteApi extends TypedEmitter {
    */
   #respond({ projectId, decision }) {
     const peerIds = Array.from(this.#getPeerIds(projectId))
-    const invite = this.#invites.get(projectId)
     const projectKey = Buffer.from(projectId, 'hex')
 
     let connectedPeerId
@@ -101,6 +100,8 @@ export class InviteApi extends TypedEmitter {
     })
 
     if (decision === InviteResponse_Decision.ACCEPT) {
+      const invite = this.#invites.get(projectId)
+
       if (!invite) {
         throw new Error(
           `Cannot find invite for project with ID ${projectKeyToPublicId(
