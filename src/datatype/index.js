@@ -4,6 +4,7 @@ import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, placeholder } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { deNullify } from '../utils.js'
+import crypto from 'hypercore-crypto'
 
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -110,13 +111,17 @@ export class DataType {
       throw new Error('Invalid value ' + value)
     }
     const nowDateString = generateDate()
+    const discoveryId = crypto
+      .discoveryKey(this.#dataStore.writerCore.key)
+      .toString('hex')
+
     /** @type {OmitUnion<MapeoDoc, 'versionId'>} */
     const doc = {
       ...value,
       docId,
       createdAt: nowDateString,
       updatedAt: nowDateString,
-      // createdBy,
+      createdBy: discoveryId,
       links: [],
     }
 

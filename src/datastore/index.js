@@ -86,6 +86,10 @@ export class DataStore extends TypedEmitter {
     return NAMESPACE_SCHEMAS[this.#namespace].slice(0)
   }
 
+  get writerCore() {
+    return this.#writerCore
+  }
+
   getIndexState() {
     return this.#coreIndexer.state
   }
