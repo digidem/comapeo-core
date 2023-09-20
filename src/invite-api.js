@@ -1,14 +1,16 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { EncryptionKeys } from './generated/keys.js'
-import { projectKeyToId } from './utils.js'
+import { projectKeyToId, projectKeyToPublicId } from './utils.js'
 
 export class InviteApi extends TypedEmitter {
+  // Maps project id -> set of device ids
   /** @type {Map<string, Set<string>>} */
+  #peersToRespondTo = new Map()
+
+  // Maps project id -> invite
+  /** @type {Map<string, import('./generated/rpc.js').Invite>} */
   #invites = new Map()
-  /** @type {Map<string, import('./generated/keys.js').EncryptionKeys>} */
-  #keys = new Map()
 
   #isMember
   #addProject
@@ -18,7 +20,7 @@ export class InviteApi extends TypedEmitter {
    * @param {import('./rpc/index.js').MapeoRPC} options.rpc
    * @param {object} options.queries
    * @param {(projectId: string) => Promise<boolean>} options.queries.isMember
-   * @param {(projectId: string, encryptionKeys: EncryptionKeys) => Promise<void>} options.queries.addProject
+   * @param {(invite: import('./generated/rpc.js').Invite) => Promise<void>} options.queries.addProject
    */
   constructor({ rpc, queries }) {
     super()
@@ -32,10 +34,10 @@ export class InviteApi extends TypedEmitter {
       if (await this.#isMember(projectId)) {
         this.alreadyJoined(projectId)
       } else {
-        const peerIds = this.#invites.get(projectId) || new Set()
+        const peerIds = this.#peersToRespondTo.get(projectId) || new Set()
         peerIds.add(peerId)
-        this.#invites.set(projectId, peerIds)
-        this.#keys.set(projectId, invite.encryptionKeys)
+        this.#peersToRespondTo.set(projectId, peerIds)
+        this.#invites.set(projectId, invite)
 
         if (peerIds.size === 1) {
           this.emit('invite-received', {
@@ -75,7 +77,7 @@ export class InviteApi extends TypedEmitter {
    */
   #respond({ projectId, decision }) {
     const peerIds = Array.from(this.#getPeerIds(projectId))
-    const encryptionKeys = this.#keys.get(projectId)
+    const invite = this.#invites.get(projectId)
     const projectKey = Buffer.from(projectId, 'hex')
 
     let connectedPeerId
@@ -99,13 +101,13 @@ export class InviteApi extends TypedEmitter {
     })
 
     if (decision === InviteResponse_Decision.ACCEPT) {
-      if (!encryptionKeys) {
+      if (!invite) {
         throw new Error(
-          `Missing encryption keys for project with ID ${projectId}`
+          `Cannot find invite for project with ID ${projectKeyToPublicId}`
         )
       }
 
-      this.#addProject(projectId, encryptionKeys)
+      this.#addProject(invite)
 
       for (const peerId of remainingPeerIds) {
         this.alreadyJoined(projectId)
@@ -120,8 +122,8 @@ export class InviteApi extends TypedEmitter {
       }
     }
 
+    this.#peersToRespondTo.delete(projectId)
     this.#invites.delete(projectId)
-    this.#keys.delete(projectId)
   }
 
   /**
@@ -137,6 +139,6 @@ export class InviteApi extends TypedEmitter {
    * @returns {Set<string>} peerIds
    */
   #getPeerIds(projectId) {
-    return this.#invites.get(projectId) || new Set()
+    return this.#peersToRespondTo.get(projectId) || new Set()
   }
 }
