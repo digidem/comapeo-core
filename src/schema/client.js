@@ -14,8 +14,11 @@ const projectInfoColumn =
 /** @type {import('../generated/rpc.js').Invite_ProjectInfo} */
 const PROJECT_INFO_DEFAULT_VALUE = {}
 
-export const projectTable = sqliteTable('project', toColumns(schemas.project))
-export const projectBacklinkTable = backlinkTable(projectTable)
+export const projectSettingsTable = sqliteTable(
+  'projectSettings',
+  toColumns(schemas.projectSettings)
+)
+export const projectBacklinkTable = backlinkTable(projectSettingsTable)
 export const projectKeysTable = sqliteTable('projectKeys', {
   projectId: text('projectId').notNull().primaryKey(),
   projectPublicId: text('projectPublicId').notNull(),

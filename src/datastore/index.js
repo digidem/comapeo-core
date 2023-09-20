@@ -25,7 +25,7 @@ import pDefer from 'p-defer'
 
 const NAMESPACE_SCHEMAS = /** @type {const} */ ({
   data: ['observation'],
-  config: ['preset', 'field', 'project', 'deviceInfo'],
+  config: ['preset', 'field', 'projectSettings', 'deviceInfo'],
   auth: ['coreOwnership', 'role'],
 })
 

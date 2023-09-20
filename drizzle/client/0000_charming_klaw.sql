@@ -14,7 +14,7 @@ CREATE TABLE `projectKeys` (
 	`projectInfo` text DEFAULT '{}' NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `project` (
+CREATE TABLE `projectSettings` (
 	`docId` text PRIMARY KEY NOT NULL,
 	`versionId` text NOT NULL,
 	`schemaName` text NOT NULL,
