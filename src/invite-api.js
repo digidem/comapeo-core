@@ -76,17 +76,17 @@ export class InviteApi extends TypedEmitter {
    * @param {InviteResponse_Decision} options.decision
    */
   #respond({ projectId, decision }) {
-    const peerIds = Array.from(this.#getPeerIds(projectId))
+    const peerIds = this.#getPeerIds(projectId)
     const projectKey = Buffer.from(projectId, 'hex')
 
     let connectedPeerId
-    let remainingPeerIds = []
+    let remainingPeerIds = new Set()
 
     for (const peerId of peerIds) {
       if (!connectedPeerId && this.#isPeerConnected(peerId)) {
         connectedPeerId = peerId
       } else if (this.#isPeerConnected(peerId)) {
-        remainingPeerIds.push(peerId)
+        remainingPeerIds.add(peerId)
       }
     }
 
