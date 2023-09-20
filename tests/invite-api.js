@@ -20,8 +20,8 @@ test('Accept invite', async (t) => {
       isMember: async (projectId) => {
         return projects.has(projectId)
       },
-      addProject: async (projectId, encryptionKeys) => {
-        projects.set(projectId, encryptionKeys)
+      addProject: async (invite) => {
+        projects.set(invite.projectKey.toString('hex'), invite)
       },
     },
   })
@@ -61,8 +61,8 @@ test('Reject invite', async (t) => {
       isMember: async (projectId) => {
         return projects.has(projectId)
       },
-      addProject: async (projectId, encryptionKeys) => {
-        projects.set(projectId, encryptionKeys)
+      addProject: async (invite) => {
+        projects.set(invite.projectKey.toString('hex'), invite)
       },
     },
   })
@@ -93,7 +93,9 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
   const { rpc: r1, projectKey, encryptionKeys } = setup()
 
   // Start off being already part of the project
-  const projects = new Map([[projectKey.toString('hex'), encryptionKeys]])
+  const projects = new Map([
+    [projectKey.toString('hex'), { projectKey, encryptionKeys }],
+  ])
 
   const r2 = new MapeoRPC()
 
@@ -103,8 +105,8 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       isMember: async (projectId) => {
         return projects.has(projectId)
       },
-      addProject: async (projectId, encryptionKeys) => {
-        projects.set(projectId, encryptionKeys)
+      addProject: async (invite) => {
+        projects.set(invite.projectKey.toString('hex'), invite)
       },
     },
   })
