@@ -1,6 +1,5 @@
 // @ts-check
 import test from 'brittle'
-import { randomBytes } from 'node:crypto'
 import {
   MapeoRPC,
   PeerDisconnectedError,
@@ -11,7 +10,7 @@ import FakeTimers from '@sinonjs/fake-timers'
 import { once } from 'events'
 import { Duplex } from 'streamx'
 import { replicate } from './helpers/rpc.js'
-
+import { randomBytes } from 'node:crypto'
 
 test('Send invite and accept', async (t) => {
   t.plan(3)
