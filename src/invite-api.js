@@ -103,7 +103,9 @@ export class InviteApi extends TypedEmitter {
     if (decision === InviteResponse_Decision.ACCEPT) {
       if (!invite) {
         throw new Error(
-          `Cannot find invite for project with ID ${projectKeyToPublicId}`
+          `Cannot find invite for project with ID ${projectKeyToPublicId(
+            projectKey
+          )}`
         )
       }
 
