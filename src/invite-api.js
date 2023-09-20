@@ -109,15 +109,18 @@ export class InviteApi extends TypedEmitter {
 
       this.#addProject(invite)
 
-      for (const peerId of remainingPeerIds) {
+      // eslint-disable-next-line no-unused-vars
+      for (const _peerId of remainingPeerIds) {
         this.alreadyJoined(projectId)
       }
     } else if (decision === InviteResponse_Decision.REJECT) {
-      for (const peerId of remainingPeerIds) {
+      // eslint-disable-next-line no-unused-vars
+      for (const _peerId of remainingPeerIds) {
         this.reject(projectId)
       }
     } else if (decision === InviteResponse_Decision.ALREADY) {
-      for (const peerId of remainingPeerIds) {
+      // eslint-disable-next-line no-unused-vars
+      for (const _peerId of remainingPeerIds) {
         this.alreadyJoined(projectId)
       }
     }
