@@ -138,6 +138,7 @@ export class MapeoRPC extends TypedEmitter {
    */
   async invite(peerId, { timeout, ...invite }) {
     const peer = this.#peers.get(peerId)
+    if (!peer) console.log([...this.#peers.keys()])
     if (!peer) throw new UnknownPeerError('Unknown peer ' + peerId)
     /** @type {Promise<InviteResponse['decision']>} */
     return new Promise((origResolve, origReject) => {

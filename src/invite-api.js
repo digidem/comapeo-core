@@ -1,25 +1,41 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { projectKeyToId, projectKeyToPublicId } from './utils.js'
+import { projectKeyToId } from './utils.js'
 
 /**
  * @typedef {Object} InviteApiEvents
  *
- * @property {(info: { projectId: string, projectName?: string }) => void} invite-received
+ * @property {(info: { projectId: string, projectName?: string, peerId: string }) => void} invite-received
  */
+
+/**
+ * @template K
+ * @template V
+ * @extends {Map<K, Set<V>>}
+ */
+class MapOfSets extends Map {
+  /** @param {K} key */
+  get(key) {
+    const existing = super.get(key)
+    if (existing) return existing
+    const set = new Set()
+    super.set(key, set)
+    return set
+  }
+}
 
 /**
  * @extends {TypedEmitter<InviteApiEvents>}
  */
 export class InviteApi extends TypedEmitter {
   // Maps project id -> set of device ids
-  /** @type {Map<string, Set<string>>} */
-  #peersToRespondTo = new Map()
+  /** @type {MapOfSets<string, string>} */
+  #peersToRespondTo = new MapOfSets()
 
-  // Maps project id -> invite
-  /** @type {Map<string, import('./generated/rpc.js').Invite>} */
-  #invites = new Map()
+  // Maps project id -> { invite, fromPeerId }
+  /** @type {Map<string, { fromPeerId: string, invite: import('./generated/rpc.js').Invite }>} */
+  #pendingInvites = new Map()
 
   #isMember
   #addProject
@@ -37,31 +53,40 @@ export class InviteApi extends TypedEmitter {
     this.#isMember = queries.isMember
     this.#addProject = queries.addProject
 
-    this.rpc.on('invite', async (peerId, invite) => {
-      const projectId = projectKeyToId(invite.projectKey)
+    this.rpc.on('invite', (peerId, invite) => {
+      this.#handleInvite(peerId, invite).catch(() => {
+        /* c8 ignore next */
+        // TODO: Log errors, but otherwise ignore them, but can't think of a reason there would be an error here
+      })
+    })
+  }
 
-      const peerIds = this.#peersToRespondTo.get(projectId) || new Set()
-      peerIds.add(peerId)
-      this.#peersToRespondTo.set(projectId, peerIds)
+  /**
+   * @param {string} peerId
+   * @param {import('./generated/rpc.js').Invite} invite
+   */
+  async #handleInvite(peerId, invite) {
+    const projectId = projectKeyToId(invite.projectKey)
+    const isAlreadyMember = await this.#isMember(projectId)
 
-      const isAlreadyMember = await this.#isMember(projectId)
+    if (isAlreadyMember) {
+      this.#sendAlreadyResponse({ peerId, projectId })
+      return
+    }
 
-      if (isAlreadyMember) {
-        // TODO: Catch the error and no-op here?
-        this.#respond({ projectId, decision: InviteResponse_Decision.ALREADY })
-      } else {
-        this.#invites.set(projectId, invite)
+    const peerIds = this.#peersToRespondTo.get(projectId)
+    peerIds.add(peerId)
 
-        if (peerIds.size === 1) {
-          this.emit('invite-received', {
-            // TODO: Should this be the project public ID since it can be exposed to the client?
-            // Probably would require changing the public methods to accept the public ID
-            // and using the public ID for #invites and #peersToRespondTo keys instead
-            projectId,
-            projectName: invite.projectInfo?.name,
-          })
-        }
-      }
+    if (this.#pendingInvites.has(projectId)) return
+
+    this.#pendingInvites.set(projectId, { fromPeerId: peerId, invite })
+    this.emit('invite-received', {
+      // TODO: Should this be the project public ID since it can be exposed to the client?
+      // Probably would require changing the public methods to accept the public ID
+      // and using the public ID for #invites and #peersToRespondTo keys instead
+      peerId,
+      projectId,
+      projectName: invite.projectInfo?.name,
     })
   }
 
@@ -71,20 +96,43 @@ export class InviteApi extends TypedEmitter {
    */
   async accept(projectId) {
     const isAlreadyMember = await this.#isMember(projectId)
+    const peersToRespondTo = this.#peersToRespondTo.get(projectId)
 
-    // TODO: Is this check necessary?
-    // If so, do we want to respond here or throw an error?
     if (isAlreadyMember) {
-      return this.#respond({
-        projectId,
-        decision: InviteResponse_Decision.ALREADY,
-      })
+      for (const peerId of peersToRespondTo) {
+        this.#sendAlreadyResponse({ peerId, projectId })
+      }
+      return
     }
 
-    return this.#respond({
-      projectId,
-      decision: InviteResponse_Decision.ACCEPT,
-    })
+    const pendingInvite = this.#pendingInvites.get(projectId)
+
+    if (!pendingInvite) {
+      throw new Error(`Cannot find invite for project with ID ${projectId}`)
+    }
+
+    try {
+      this.#sendAcceptResponse({ peerId: pendingInvite.fromPeerId, projectId })
+      // TODO: Add another RPC message to confirm invitee is written into project after accepting
+    } catch (e) {
+      // TODO: If can't accept invite because peer it was sent from has
+      // disconnected, and another still-connected peer has sent an invite, then
+      // emit another invite-received event
+      throw new Error('Could not accept invite: Peer disconnected')
+    }
+
+    try {
+      await this.#addProject(pendingInvite.invite)
+    } catch (e) {
+      // TODO: Add a reason for the user
+      throw new Error('Failed to join project')
+    }
+
+    // Respond to the remaining peers with ALREADY
+    for (const peerId of peersToRespondTo) {
+      if (peerId === pendingInvite.fromPeerId) continue
+      this.#sendAlreadyResponse({ peerId, projectId })
+    }
   }
 
   /**
@@ -92,130 +140,60 @@ export class InviteApi extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async reject(projectId) {
-    return this.#respond({
-      projectId,
-      decision: InviteResponse_Decision.REJECT,
+    if (!this.#pendingInvites.has(projectId)) {
+      throw new Error(`Cannot find invite for project with ID ${projectId}`)
+    }
+    for (const peerId of this.#peersToRespondTo.get(projectId)) {
+      this.#sendRejectResponse({ peerId, projectId })
+    }
+  }
+
+  /**
+   * Will throw if the response fails to be sent
+   *
+   * @param {{ peerId: string, projectId: string }} opts
+   */
+  #sendAcceptResponse({ peerId, projectId }) {
+    const projectKey = Buffer.from(projectId, 'hex')
+    this.rpc.inviteResponse(peerId, {
+      projectKey,
+      decision: InviteResponse_Decision.ACCEPT,
     })
   }
 
   /**
-   * @param {Object} options
-   * @param {string} options.projectId
-   * @param {InviteResponse_Decision} options.decision
-   */
-  async #respond({ projectId, decision }) {
-    const projectKey = Buffer.from(projectId, 'hex')
-
-    switch (decision) {
-      case InviteResponse_Decision.ACCEPT: {
-        const invite = this.#invites.get(projectId)
-
-        if (!invite) {
-          throw new Error(
-            `Cannot find invite for project with ID ${projectKeyToPublicId(
-              projectKey
-            )}`
-          )
-        }
-
-        // TODO: What should we do if this throws?
-        await this.#addProject(invite)
-
-        const connectedPeers = this.#getConnectedProjectPeers(projectId)
-
-        // TODO: Is this what we want to do here?
-        if (connectedPeers.size === 0) {
-          throw new Error('No connected peers to respond to')
-        }
-
-        const [firstPeerId, ...remainingPeerIds] = Array.from(connectedPeers)
-
-        this.rpc.inviteResponse(firstPeerId, {
-          projectKey,
-          decision: InviteResponse_Decision.ACCEPT,
-        })
-
-        // Respond to the remaining peers with ALREADY
-        for (const peerId of remainingPeerIds) {
-          this.rpc.inviteResponse(peerId, {
-            projectKey,
-            decision: InviteResponse_Decision.ALREADY,
-          })
-        }
-
-        break
-      }
-      case InviteResponse_Decision.REJECT: {
-        const connectedPeers = this.#getConnectedProjectPeers(projectId)
-
-        // TODO: Is this what we want to do here?
-        if (connectedPeers.size === 0) {
-          throw new Error('No connected peers to respond to')
-        }
-
-        for (const peerId of connectedPeers) {
-          this.rpc.inviteResponse(peerId, {
-            projectKey,
-            decision: InviteResponse_Decision.REJECT,
-          })
-        }
-
-        break
-      }
-      case InviteResponse_Decision.ALREADY: {
-        const connectedPeers = this.#getConnectedProjectPeers(projectId)
-
-        // TODO: Is this what we want to do here?
-        if (connectedPeers.size === 0) {
-          throw new Error('No connected peers to respond to')
-        }
-
-        for (const peerId of connectedPeers) {
-          this.rpc.inviteResponse(peerId, {
-            projectKey,
-            decision: InviteResponse_Decision.ALREADY,
-          })
-        }
-
-        break
-      }
-    }
-
-    this.#peersToRespondTo.delete(projectId)
-    this.#invites.delete(projectId)
-  }
-
-  /**
-   * @param {string} peerId
-   * @returns {boolean}
-   */
-  #isPeerConnected(peerId) {
-    return this.rpc.peers.some((peer) => peer.id === peerId)
-  }
-
-  /**
-   * @param {string} projectId
-   * @returns {Set<string>} peerIds
-   */
-  #getProjectPeerIds(projectId) {
-    return this.#peersToRespondTo.get(projectId) || new Set()
-  }
-
-  /**
+   * Will not throw, will silently fail if the response fails to send.
    *
-   * @param {string} projectId
-   * @returns {Set<string>}
+   * @param {{ peerId: string, projectId: string }} opts
    */
-  #getConnectedProjectPeers(projectId) {
-    const connected = new Set()
-    const projectPeerIds = this.#getProjectPeerIds(projectId)
-
-    for (const id of projectPeerIds) {
-      if (this.#isPeerConnected(id)) {
-        connected.add(id)
-      }
+  #sendAlreadyResponse({ peerId, projectId }) {
+    const projectKey = Buffer.from(projectId, 'hex')
+    try {
+      this.rpc.inviteResponse(peerId, {
+        projectKey,
+        decision: InviteResponse_Decision.ALREADY,
+      })
+    } catch (e) {
+      // Ignore errors trying to send an already response because the invitor
+      // will consider the invite failed anyway
     }
+  }
 
-    return connected
+  /**
+   * Will not throw, will silently fail if the response fails to send.
+   *
+   * @param {{ peerId: string, projectId: string }} opts
+   */
+  #sendRejectResponse({ peerId, projectId }) {
+    const projectKey = Buffer.from(projectId, 'hex')
+    try {
+      this.rpc.inviteResponse(peerId, {
+        projectKey,
+        decision: InviteResponse_Decision.REJECT,
+      })
+    } catch (e) {
+      // Ignore errors trying to send an reject response because the invitor
+      // will consider the invite failed anyway
+    }
   }
 }
