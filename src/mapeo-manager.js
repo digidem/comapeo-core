@@ -266,7 +266,6 @@ export class MapeoManager {
         projectId: projectSettingsTable.docId,
         createdAt: projectSettingsTable.createdAt,
         updatedAt: projectSettingsTable.updatedAt,
-        createdBy: projectSettingsTable.createdBy,
         name: projectSettingsTable.name,
       })
       .from(projectSettingsTable)
@@ -289,7 +288,6 @@ export class MapeoManager {
           projectId: /** @type {ProjectPublicId} */ (projectPublicId),
           createdAt: existingProject?.createdAt,
           updatedAt: existingProject?.updatedAt,
-          createdBy: existingProject?.createdBy,
           name: existingProject?.name || projectInfo.name,
         })
       )
