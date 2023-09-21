@@ -123,14 +123,19 @@ test('test validity of `createdBy` field updated from another peer', async (t) =
   /** @type {import('@mapeo/schema').ObservationValue} */
   const newObsFixture = {
     schemaName: 'observation',
-    refs: [],
+    refs: [{ id: randomBytes(32).toString('hex') }],
     tags: {},
     attachments: [],
     metadata: {},
   }
   dt2.update(obs.versionId, newObsFixture)
-  const createdBy = crypto.discoveryKey(ds1.writerCore.key).toString('hex')
-  // t.ok(replicatedObservation.createdBy, createdBy)
+
+  await ds2.writerCore.update({ wait: true })
+  await ds1.writerCore.update({ wait: true })
+  await ds1.writerCore.download({ end: ds2.writerCore.length }).done()
+  // const createdBy = crypto.discoveryKey(ds1.writerCore.key).toString('hex')
+  console.log(dt1.getByDocId(obs.docId))
+  // t.is(replicatedObservation.createdBy, createdBy)
   await destroy()
 })
 
