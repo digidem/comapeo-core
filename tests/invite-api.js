@@ -7,6 +7,58 @@ import { replicate } from './helpers/rpc.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import pDefer from 'p-defer'
 
+test('invite-received event has expected payload', async (t) => {
+  t.plan(5)
+
+  const { rpc: r1, projectKey, encryptionKeys } = setup()
+
+  const projects = new Map()
+
+  const r2 = new MapeoRPC()
+
+  const inviteApi = new InviteApi({
+    rpc: r2,
+    queries: {
+      isMember: async (projectId) => {
+        return projects.has(projectId)
+      },
+      addProject: async (invite) => {
+        projects.set(invite.projectKey.toString('hex'), invite)
+      },
+    },
+  })
+
+  let expectedInvitorPeerId
+
+  r2.on('peers', (peers) => {
+    t.is(peers.length, 1)
+    expectedInvitorPeerId = peers[0].id
+  })
+
+  r1.on('peers', (peers) => {
+    t.is(peers.length, 1)
+
+    r1.invite(peers[0].id, {
+      projectKey,
+      encryptionKeys,
+      projectInfo: {
+        name: 'Mapeo',
+      },
+    })
+  })
+
+  inviteApi.on(
+    'invite-received',
+    async ({ peerId, projectId, projectName }) => {
+      t.is(peerId, expectedInvitorPeerId)
+      t.is(projectName, 'Mapeo')
+      t.is(projectId, projectKey.toString('hex'))
+    }
+  )
+
+  replicate(r1, r2)
+})
+
 test('Accept invite', async (t) => {
   t.plan(4)
 
