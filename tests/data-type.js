@@ -16,7 +16,6 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'crypto'
-import { replicateBlobs } from './helpers/blob-store.js'
 
 /** @type {import('@mapeo/schema').ObservationValue} */
 const obsFixture = {
@@ -78,11 +77,7 @@ test('test validity of `createdBy` field from another peer', async (t) => {
     dataType: dt1,
     dataStore: ds1,
   } = await testenv({ projectKey })
-  const {
-    coreManager: cm2,
-    dataType: dt2,
-    dataStore: ds2,
-  } = await testenv({ projectKey })
+  const { coreManager: cm2, dataType: dt2 } = await testenv({ projectKey })
 
   const obs = await dt1.create(obsFixture)
   const driveId = ds1.writerCore.key
