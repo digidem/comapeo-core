@@ -11,7 +11,7 @@ import { MapeoProject } from './mapeo-project.js'
 import {
   localDeviceInfoTable,
   projectKeysTable,
-  projectTable,
+  projectSettingsTable,
 } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 import {
@@ -23,7 +23,7 @@ import {
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { MapeoRPC } from './rpc/index.js'
 
-/** @typedef {import("@mapeo/schema").ProjectValue} ProjectValue */
+/** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 /** @typedef {import('./types.js').ProjectId} ProjectId */
 /** @typedef {import('./types.js').ProjectPublicId} ProjectPublicId */
 
@@ -69,7 +69,7 @@ export class MapeoManager {
       .getIdentityKeypair()
       .publicKey.toString('hex')
     this.#projectSettingsIndexWriter = new IndexWriter({
-      tables: [projectTable],
+      tables: [projectSettingsTable],
       sqlite,
     })
     this.#activeProjects = new Map()
@@ -246,7 +246,7 @@ export class MapeoManager {
   }
 
   /**
-   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string }>>}
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string}>>}
    */
   async listProjects() {
     // We use the project keys table as the source of truth for projects that exist
@@ -263,15 +263,15 @@ export class MapeoManager {
 
     const allProjectsResult = this.#db
       .select({
-        projectId: projectTable.docId,
-        createdAt: projectTable.createdAt,
-        updatedAt: projectTable.updatedAt,
-        name: projectTable.name,
+        projectId: projectSettingsTable.docId,
+        createdAt: projectSettingsTable.createdAt,
+        updatedAt: projectSettingsTable.updatedAt,
+        name: projectSettingsTable.name,
       })
-      .from(projectTable)
+      .from(projectSettingsTable)
       .all()
 
-    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string }>} */
+    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string, createdBy?: string }>} */
     const result = []
 
     for (const {
