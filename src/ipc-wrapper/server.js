@@ -47,6 +47,7 @@ export function createMapeoServer(manager, messagePort) {
       managerServer.close()
       managerChannel.close()
       mapeoRpcServer.close()
+      mapeoRpcChannel.close()
     },
   }
 
