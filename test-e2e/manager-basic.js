@@ -33,11 +33,13 @@ test('Managing created projects', async (t) => {
     t.absent(listedProject1?.name)
     t.ok(listedProject1?.createdAt)
     t.ok(listedProject1?.updatedAt)
+    t.ok(listedProject1?.createdBy)
 
     t.ok(listedProject2)
     t.is(listedProject2?.name, 'project 2')
     t.ok(listedProject2?.createdAt)
     t.ok(listedProject2?.updatedAt)
+    t.ok(listedProject2?.createdBy)
   })
 
   const project1 = await manager.getProject(project1Id)
@@ -98,11 +100,13 @@ test('Managing created projects', async (t) => {
     t.is(project1FromListed?.name, 'project 1')
     t.ok(project1FromListed?.createdAt)
     t.ok(project1FromListed?.updatedAt)
+    t.ok(project1FromListed?.createdBy)
 
     t.ok(project2FromListed)
     t.is(project2FromListed?.name, 'project 2 updated')
     t.ok(project2FromListed?.createdAt)
     t.ok(project2FromListed?.updatedAt)
+    t.ok(project2FromListed?.createdBy)
   })
 })
 
@@ -142,11 +146,13 @@ test('Managing added projects', async (t) => {
     t.is(listedProject1?.name, 'project 1')
     t.absent(listedProject1?.createdAt)
     t.absent(listedProject1?.updatedAt)
+    t.absent(listedProject1?.createdBy)
 
     t.ok(listedProject2)
     t.is(listedProject2?.name, 'project 2')
     t.absent(listedProject2?.createdAt)
     t.absent(listedProject2?.updatedAt)
+    t.absent(listedProject2?.createdBy)
   })
 
   // TODO: Ideally would use the todo opt but usage in a subtest doesn't work:  https://github.com/holepunchto/brittle/issues/39

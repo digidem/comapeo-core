@@ -246,7 +246,7 @@ export class MapeoManager {
   }
 
   /**
-   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string }>>}
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string, createdBy?: string }>>}
    */
   async listProjects() {
     // We use the project keys table as the source of truth for projects that exist
@@ -266,12 +266,13 @@ export class MapeoManager {
         projectId: projectSettingsTable.docId,
         createdAt: projectSettingsTable.createdAt,
         updatedAt: projectSettingsTable.updatedAt,
+        createdBy: projectSettingsTable.createdBy,
         name: projectSettingsTable.name,
       })
       .from(projectSettingsTable)
       .all()
 
-    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string }>} */
+    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string, createdBy?: string }>} */
     const result = []
 
     for (const {
@@ -288,6 +289,7 @@ export class MapeoManager {
           projectId: /** @type {ProjectPublicId} */ (projectPublicId),
           createdAt: existingProject?.createdAt,
           updatedAt: existingProject?.updatedAt,
+          createdBy: existingProject?.createdBy,
           name: existingProject?.name || projectInfo.name,
         })
       )
