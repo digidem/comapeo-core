@@ -103,6 +103,7 @@ test('CRUD operations', async (t) => {
       )
       t.not(written.updatedAt, updated.updatedAt, 'updatedAt has changed')
       t.is(written.createdAt, updated.createdAt, 'createdAt does not change')
+      t.is(written.createdBy, updated.createdBy, 'createdBy does not change')
     })
     t.test('getMany', async (t) => {
       const projectId = await manager.createProject()
