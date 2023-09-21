@@ -340,6 +340,42 @@ test('invitor disconnecting results in accept throwing', async (t) => {
   const disconnect = replicate(r1, r2)
 })
 
+test('invitor disconnecting results in invite reject response not throwing', async (t) => {
+  t.plan(3)
+
+  const { rpc: r1, projectKey, encryptionKeys } = setup()
+
+  const r2 = new MapeoRPC()
+
+  const inviteApi = new InviteApi({
+    rpc: r2,
+    queries: {
+      isMember: async () => {},
+      addProject: async () => {},
+    },
+  })
+
+  r1.on('peers', async (peers) => {
+    if (peers.length !== 1 || peers[0].status === 'disconnected') return
+
+    await t.exception(() => {
+      return r1.invite(peers[0].id, {
+        projectKey,
+        encryptionKeys,
+      })
+    }, 'invite fails')
+  })
+
+  inviteApi.on('invite-received', async ({ projectId }) => {
+    t.is(projectId, projectKey.toString('hex'), 'received invite')
+    await disconnect()
+    await inviteApi.reject(projectId)
+    t.pass()
+  })
+
+  const disconnect = replicate(r1, r2)
+})
+
 test('addProject throwing results in invite accept throwing', async (t) => {
   t.plan(1)
 
