@@ -95,30 +95,6 @@ test('test validity of `createdBy` field from another peer', async (t) => {
 
   const createdBy = crypto.discoveryKey(ds1.writerCore.key).toString('hex')
   t.is(replicatedObservation.createdBy, createdBy)
-  await destroy()
-})
-
-test('test validity of `createdBy` field updated from another peer', async (t) => {
-  const projectKey = randomBytes(32)
-  const {
-    coreManager: cm1,
-    dataType: dt1,
-    dataStore: ds1,
-  } = await testenv({ projectKey })
-  const {
-    coreManager: cm2,
-    dataType: dt2,
-    dataStore: ds2,
-  } = await testenv({ projectKey })
-
-  const obs = await dt1.create(obsFixture)
-  const driveId = ds1.writerCore.key
-  const { destroy } = replicateDataStore(cm1, cm2)
-  await waitForCores(cm2, [driveId])
-  const replicatedCore = cm2.getCoreByKey(driveId)
-  await replicatedCore.update({ wait: true })
-  await replicatedCore.download({ end: replicatedCore.length }).done()
-  const replicatedObservation = await dt2.getByVersionId(obs.versionId)
 
   /** @type {import('@mapeo/schema').ObservationValue} */
   const newObsFixture = {
@@ -128,14 +104,9 @@ test('test validity of `createdBy` field updated from another peer', async (t) =
     attachments: [],
     metadata: {},
   }
-  dt2.update(obs.versionId, newObsFixture)
-
-  await ds2.writerCore.update({ wait: true })
-  await ds1.writerCore.update({ wait: true })
-  await ds1.writerCore.download({ end: ds2.writerCore.length }).done()
-  // const createdBy = crypto.discoveryKey(ds1.writerCore.key).toString('hex')
-  console.log(dt1.getByDocId(obs.docId))
-  // t.is(replicatedObservation.createdBy, createdBy)
+  const updatedDoc = await dt2.update(obs.versionId, newObsFixture)
+  const updatedObservation = await dt2.getByVersionId(updatedDoc.versionId)
+  t.is(updatedObservation.createdBy, createdBy)
   await destroy()
 })
 
