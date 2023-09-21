@@ -246,7 +246,7 @@ export class MapeoManager {
   }
 
   /**
-   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string, createdBy?: string }>>}
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string}>>}
    */
   async listProjects() {
     // We use the project keys table as the source of truth for projects that exist
