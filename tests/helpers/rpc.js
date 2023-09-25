@@ -1,12 +1,19 @@
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
-export function replicate(rpc1, rpc2) {
-  const n1 = new NoiseSecretStream(true, undefined, {
+export function replicate(
+  rpc1,
+  rpc2,
+  {
     // Keep keypairs deterministic for tests, since we use peer.publicKey as an identifier.
-    keyPair: NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(0)),
+    kp1 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(0)),
+    kp2 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1)),
+  } = {}
+) {
+  const n1 = new NoiseSecretStream(true, undefined, {
+    keyPair: kp1,
   })
   const n2 = new NoiseSecretStream(false, undefined, {
-    keyPair: NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1)),
+    keyPair: kp2,
   })
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
