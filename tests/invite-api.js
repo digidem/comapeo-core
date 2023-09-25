@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { MapeoRPC } from '../src/rpc/index.js'
 import { InviteApi } from '../src/invite-api.js'
+import { projectKeyToPublicId } from '../src/utils.js'
 import { replicate } from './helpers/rpc.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import pDefer from 'p-defer'
@@ -41,9 +42,7 @@ test('invite-received event has expected payload', async (t) => {
     r1.invite(peers[0].id, {
       projectKey,
       encryptionKeys,
-      projectInfo: {
-        name: 'Mapeo',
-      },
+      projectInfo: { name: 'Mapeo' },
     })
   })
 
@@ -52,7 +51,7 @@ test('invite-received event has expected payload', async (t) => {
     async ({ peerId, projectId, projectName }) => {
       t.is(peerId, expectedInvitorPeerId)
       t.is(projectName, 'Mapeo')
-      t.is(projectId, projectKey.toString('hex'))
+      t.is(projectId, projectKeyToPublicId(projectKey))
     }
   )
 
@@ -72,10 +71,11 @@ test('Accept invite', async (t) => {
     rpc: r2,
     queries: {
       isMember: async (projectId) => {
-        return projects.has(projectId)
+        const projectKey = Buffer.from(projectId, 'hex')
+        return projects.has(projectKeyToPublicId(projectKey))
       },
       addProject: async (invite) => {
-        projects.set(invite.projectKey.toString('hex'), invite)
+        projects.set(projectKeyToPublicId(invite.projectKey), invite)
       },
     },
   })
@@ -92,11 +92,13 @@ test('Accept invite', async (t) => {
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKey.toString('hex'))
+    t.is(projectId, projectKeyToPublicId(projectKey))
 
     await inviteApi.accept(projectId)
 
     t.ok(projects.has(projectId), 'project successfully added')
+
+    // t.exception(async () => inviteApi.accept(projectId))
   })
 
   replicate(r1, r2)
@@ -115,10 +117,11 @@ test('Reject invite', async (t) => {
     rpc: r2,
     queries: {
       isMember: async (projectId) => {
-        return projects.has(projectId)
+        const projectKey = Buffer.from(projectId, 'hex')
+        return projects.has(projectKeyToPublicId(projectKey))
       },
       addProject: async (invite) => {
-        projects.set(invite.projectKey.toString('hex'), invite)
+        projects.set(projectKeyToPublicId(invite.projectKey), invite)
       },
     },
   })
@@ -135,7 +138,7 @@ test('Reject invite', async (t) => {
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKey.toString('hex'))
+    t.is(projectId, projectKeyToPublicId(projectKey))
 
     await inviteApi.reject(projectId)
 
@@ -330,7 +333,7 @@ test('invitor disconnecting results in accept throwing', async (t) => {
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKey.toString('hex'), 'received invite')
+    t.is(projectId, projectKeyToPublicId(projectKey), 'received invite')
     await disconnect()
     await t.exception(() => {
       return inviteApi.accept(projectId)
@@ -367,7 +370,7 @@ test('invitor disconnecting results in invite reject response not throwing', asy
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKey.toString('hex'), 'received invite')
+    t.is(projectId, projectKeyToPublicId(projectKey), 'received invite')
     await disconnect()
     await inviteApi.reject(projectId)
     t.pass()
@@ -407,7 +410,7 @@ test('invitor disconnecting results in invite already response not throwing', as
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKey.toString('hex'), 'received invite')
+    t.is(projectId, projectKeyToPublicId(projectKey), 'received invite')
     await disconnect()
     isMember = true
     await inviteApi.accept(projectId)
@@ -464,12 +467,13 @@ test('Invite from multiple peers', async (t) => {
     rpc: invitee,
     queries: {
       isMember: async (projectId) => {
-        return projects.has(projectId)
+        const projectKey = Buffer.from(projectId, 'hex')
+        return projects.has(projectKeyToPublicId(projectKey))
       },
       addProject: async (invite) => {
-        const projectId = invite.projectKey.toString('hex')
-        t.absent(projects.has(projectId), 'add project called only once')
-        projects.set(projectId, invite)
+        const projectPublicId = projectKeyToPublicId(invite.projectKey)
+        t.absent(projects.has(projectPublicId), 'add project called only once')
+        projects.set(projectPublicId, invite)
       },
     },
   })
@@ -479,7 +483,7 @@ test('Invite from multiple peers', async (t) => {
   const deferred = pDefer()
 
   inviteApi.on('invite-received', async ({ projectId, peerId }) => {
-    t.is(projectId, projectKey.toString('hex'), 'expected project id')
+    t.is(projectId, projectKeyToPublicId(projectKey), 'expected project id')
     t.absent(first, 'should only receive invite once')
     first = peerId
 

@@ -1,7 +1,7 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { projectKeyToId } from './utils.js'
+import { projectKeyToId, projectKeyToPublicId } from './utils.js'
 
 /**
  * @typedef {Object} InviteApiEvents
@@ -19,6 +19,7 @@ class MapOfSets extends Map {
   get(key) {
     const existing = super.get(key)
     if (existing) return existing
+    /** @type {Set<V>} */
     const set = new Set()
     super.set(key, set)
     return set
@@ -29,6 +30,10 @@ class MapOfSets extends Map {
  * @extends {TypedEmitter<InviteApiEvents>}
  */
 export class InviteApi extends TypedEmitter {
+  // Maps project public id -> project id
+  /** @type {Map<string, string>} */
+  #projectIdsMapping = new Map()
+
   // Maps project id -> set of device ids
   /** @type {MapOfSets<string, string>} */
   #peersToRespondTo = new MapOfSets()
@@ -74,27 +79,31 @@ export class InviteApi extends TypedEmitter {
       return
     }
 
+    const projectPublicId = projectKeyToPublicId(invite.projectKey)
+
+    this.#projectIdsMapping.set(projectPublicId, projectId)
+
     const peerIds = this.#peersToRespondTo.get(projectId)
     peerIds.add(peerId)
 
     if (this.#pendingInvites.has(projectId)) return
 
     this.#pendingInvites.set(projectId, { fromPeerId: peerId, invite })
+
     this.emit('invite-received', {
-      // TODO: Should this be the project public ID since it can be exposed to the client?
-      // Probably would require changing the public methods to accept the public ID
-      // and using the public ID for #invites and #peersToRespondTo keys instead
       peerId,
-      projectId,
+      projectId: projectPublicId,
       projectName: invite.projectInfo?.name,
     })
   }
 
   /**
-   * @param {string} projectId
+   * @param {string} projectPublicId
    * @returns {Promise<void>}
    */
-  async accept(projectId) {
+  async accept(projectPublicId) {
+    const projectId = this.#getProjectIdFromPublicId(projectPublicId)
+
     const isAlreadyMember = await this.#isMember(projectId)
     const peersToRespondTo = this.#peersToRespondTo.get(projectId)
 
@@ -108,11 +117,16 @@ export class InviteApi extends TypedEmitter {
     const pendingInvite = this.#pendingInvites.get(projectId)
 
     if (!pendingInvite) {
-      throw new Error(`Cannot find invite for project with ID ${projectId}`)
+      throw new Error(
+        `Cannot find invite for project with ID ${projectPublicId}`
+      )
     }
 
     try {
-      this.#sendAcceptResponse({ peerId: pendingInvite.fromPeerId, projectId })
+      this.#sendAcceptResponse({
+        peerId: pendingInvite.fromPeerId,
+        projectId,
+      })
       // TODO: Add another RPC message to confirm invitee is written into project after accepting
     } catch (e) {
       // TODO: If can't accept invite because peer it was sent from has
@@ -136,12 +150,16 @@ export class InviteApi extends TypedEmitter {
   }
 
   /**
-   * @param {string} projectId
+   * @param {string} projectPublicId
    * @returns {Promise<void>}
    */
-  async reject(projectId) {
+  async reject(projectPublicId) {
+    const projectId = this.#getProjectIdFromPublicId(projectPublicId)
+
     if (!this.#pendingInvites.has(projectId)) {
-      throw new Error(`Cannot find invite for project with ID ${projectId}`)
+      throw new Error(
+        `Cannot find invite for project with ID ${projectPublicId}`
+      )
     }
     for (const peerId of this.#peersToRespondTo.get(projectId)) {
       this.#sendRejectResponse({ peerId, projectId })
@@ -195,5 +213,21 @@ export class InviteApi extends TypedEmitter {
       // Ignore errors trying to send an reject response because the invitor
       // will consider the invite failed anyway
     }
+  }
+
+  /**
+   * @param {string} projectPublicId
+   * @returns {string}
+   */
+  #getProjectIdFromPublicId(projectPublicId) {
+    const projectId = this.#projectIdsMapping.get(projectPublicId)
+
+    if (!projectId) {
+      throw new Error(
+        `Cannot find project internal ID for public ID ${projectPublicId}`
+      )
+    }
+
+    return projectId
   }
 }
