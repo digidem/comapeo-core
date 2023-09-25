@@ -70,14 +70,11 @@ test('Attempting to get non-existent project fails', async (t) => {
   const { client, cleanup } = setup()
 
   await t.exception(async () => {
-    // @ts-expect-error
     await client.getProject('mapeo')
   })
 
   const results = await Promise.allSettled([
-    // @ts-expect-error
     client.getProject('mapeo'),
-    // @ts-expect-error
     client.getProject('mapeo'),
   ])
 

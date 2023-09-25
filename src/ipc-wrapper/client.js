@@ -10,7 +10,7 @@ const CLOSE = Symbol('close')
  * @returns {import('rpc-reflector/client.js').ClientApi<import('../mapeo-manager.js').MapeoManager>}
  */
 export function createMapeoClient(messagePort) {
-  /** @type {Map<import('../types.js').ProjectPublicId, Promise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>>} */
+  /** @type {Map<string, Promise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>>} */
   const projectClientPromises = new Map()
 
   const managerChannel = new SubChannel(messagePort, MANAGER_CHANNEL_ID)
@@ -54,7 +54,7 @@ export function createMapeoClient(messagePort) {
   return client
 
   /**
-   * @param {import('../types.js').ProjectPublicId} projectPublicId
+   * @param {string} projectPublicId
    * @returns {Promise<import('rpc-reflector/client.js').ClientApi<import('../mapeo-project.js').MapeoProject>>}
    */
   async function createProjectClient(projectPublicId) {

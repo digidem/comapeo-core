@@ -24,8 +24,6 @@ import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { MapeoRPC } from './rpc/index.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
-/** @typedef {import('./types.js').ProjectId} ProjectId */
-/** @typedef {import('./types.js').ProjectPublicId} ProjectPublicId */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -39,7 +37,8 @@ export class MapeoManager {
   #keyManager
   #projectSettingsIndexWriter
   #db
-  /** @type {Map<ProjectPublicId, MapeoProject>} */
+  // Maps project public id -> project instance
+  /** @type {Map<string, MapeoProject>} */
   #activeProjects
   /** @type {import('./types.js').CoreStorage} */
   #coreStorage
@@ -85,7 +84,7 @@ export class MapeoManager {
 
   /**
    * @param {Buffer} keysCipher
-   * @param {ProjectId} projectId
+   * @param {string} projectId
    * @returns {ProjectKeys}
    */
   #decodeProjectKeysCipher(keysCipher, projectId) {
@@ -96,7 +95,7 @@ export class MapeoManager {
   }
 
   /**
-   * @param {ProjectId} projectId
+   * @param {string} projectId
    * @returns {Pick<ConstructorParameters<typeof MapeoProject>[0], 'dbPath' | 'coreStorage'>}
    */
   #projectStorage(projectId) {
@@ -111,8 +110,8 @@ export class MapeoManager {
 
   /**
    * @param {Object} opts
-   * @param {ProjectId} opts.projectId
-   * @param {ProjectPublicId} opts.projectPublicId
+   * @param {string} opts.projectId
+   * @param {string} opts.projectPublicId
    * @param {ProjectKeys} opts.projectKeys
    * @param {import('./generated/rpc.js').Invite_ProjectInfo} [opts.projectInfo]
    */
@@ -142,7 +141,7 @@ export class MapeoManager {
   /**
    * Create a new project.
    * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
-   * @returns {Promise<ProjectPublicId>}
+   * @returns {Promise<string>} Project public id
    */
   async createProject(settings = {}) {
     // 1. Create project keypair
@@ -198,7 +197,7 @@ export class MapeoManager {
   }
 
   /**
-   * @param {ProjectPublicId} projectPublicId
+   * @param {string} projectPublicId
    * @returns {Promise<MapeoProject>}
    */
   async getProject(projectPublicId) {
@@ -221,9 +220,7 @@ export class MapeoManager {
       throw new Error(`NotFound: project ID ${projectPublicId} not found`)
     }
 
-    const projectId = /** @type {ProjectId} */ (
-      projectKeysTableResult.projectId
-    )
+    const { projectId } = projectKeysTableResult
 
     const projectKeys = this.#decodeProjectKeysCipher(
       projectKeysTableResult.keysCipher,
@@ -246,7 +243,7 @@ export class MapeoManager {
   }
 
   /**
-   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string}>>}
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string}>>}
    */
   async listProjects() {
     // We use the project keys table as the source of truth for projects that exist
@@ -271,7 +268,7 @@ export class MapeoManager {
       .from(projectSettingsTable)
       .all()
 
-    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string, createdBy?: string }>} */
+    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string, createdBy?: string }>} */
     const result = []
 
     for (const {
@@ -285,7 +282,7 @@ export class MapeoManager {
 
       result.push(
         deNullify({
-          projectId: /** @type {ProjectPublicId} */ (projectPublicId),
+          projectId: projectPublicId,
           createdAt: existingProject?.createdAt,
           updatedAt: existingProject?.updatedAt,
           name: existingProject?.name || projectInfo.name,
@@ -298,7 +295,7 @@ export class MapeoManager {
 
   /**
    * @param {import('./generated/rpc.js').Invite} invite
-   * @returns {Promise<ProjectPublicId>}
+   * @returns {Promise<string>}
    */
   async addProject({ projectKey, encryptionKeys, projectInfo }) {
     const projectPublicId = projectKeyToPublicId(projectKey)
