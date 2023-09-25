@@ -97,8 +97,6 @@ test('Accept invite', async (t) => {
     await inviteApi.accept(projectId)
 
     t.ok(projects.has(projectId), 'project successfully added')
-
-    // t.exception(async () => inviteApi.accept(projectId))
   })
 
   replicate(r1, r2)
