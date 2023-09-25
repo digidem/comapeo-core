@@ -3,7 +3,7 @@ import { InviteResponse_Decision } from './generated/rpc.js'
 import { projectKeyToId } from './utils.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
-/** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectTable, "project", import('@mapeo/schema').Project, import('@mapeo/schema').ProjectValue>} ProjectDataType */
+/** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
 /** @typedef {{ deviceId: string, name: import('@mapeo/schema').DeviceInfo['name'] }} MemberInfo */
 
 export class MemberApi extends TypedEmitter {

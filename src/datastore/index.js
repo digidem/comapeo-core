@@ -25,7 +25,7 @@ import pDefer from 'p-defer'
 
 const NAMESPACE_SCHEMAS = /** @type {const} */ ({
   data: ['observation'],
-  config: ['preset', 'field', 'project', 'deviceInfo'],
+  config: ['preset', 'field', 'projectSettings', 'deviceInfo'],
   auth: ['coreOwnership', 'role'],
 })
 
@@ -84,6 +84,10 @@ export class DataStore extends TypedEmitter {
   get schemas() {
     // Return a shallow copy (slice(0)) to avoid mutation bugs
     return NAMESPACE_SCHEMAS[this.#namespace].slice(0)
+  }
+
+  get writerCore() {
+    return this.#writerCore
   }
 
   getIndexState() {
