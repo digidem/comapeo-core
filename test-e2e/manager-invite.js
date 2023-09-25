@@ -8,7 +8,7 @@ import { MapeoManager, kRPC } from '../src/mapeo-manager.js'
 import { replicate } from '../tests/helpers/rpc.js'
 
 test('member invite accepted', async (t) => {
-  t.plan(13)
+  t.plan(10)
 
   const deferred = pDefer()
 
