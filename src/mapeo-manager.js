@@ -22,6 +22,7 @@ import {
 } from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { MapeoRPC } from './rpc/index.js'
+import { InviteApi } from './invite-api.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 /** @typedef {import('./types.js').ProjectId} ProjectId */
@@ -35,6 +36,8 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 // other things e.g. SQLite and other parts of the app.
 const MAX_FILE_DESCRIPTORS = 768
 
+export const kRPC = Symbol('rpc')
+
 export class MapeoManager {
   #keyManager
   #projectSettingsIndexWriter
@@ -46,6 +49,8 @@ export class MapeoManager {
   #dbFolder
   #deviceId
   #rpc
+  /** @type {InviteApi} */
+  #invite
 
   /**
    * @param {Object} opts
@@ -74,6 +79,24 @@ export class MapeoManager {
     })
     this.#activeProjects = new Map()
 
+    this.#invite = new InviteApi({
+      rpc: this.#rpc,
+      queries: {
+        isMember: async (projectId) => {
+          const projectExists = this.#db
+            .select()
+            .from(projectKeysTable)
+            .where(eq(projectKeysTable.projectId, projectId))
+            .get()
+
+          return !!projectExists
+        },
+        addProject: async (invite) => {
+          await this.addProject(invite)
+        },
+      },
+    })
+
     if (typeof coreStorage === 'string') {
       const pool = new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
       // @ts-ignore
@@ -81,6 +104,13 @@ export class MapeoManager {
     } else {
       this.#coreStorage = coreStorage
     }
+  }
+
+  /**
+   * MapeoRPC instance, used for tests
+   */
+  get [kRPC]() {
+    return this.#rpc
   }
 
   /**
@@ -367,5 +397,12 @@ export class MapeoManager {
       .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
       .get()
     return row ? row.deviceInfo : {}
+  }
+
+  /**
+   * @returns {InviteApi}
+   */
+  get invite() {
+    return this.#invite
   }
 }
