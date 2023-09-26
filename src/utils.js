@@ -105,27 +105,23 @@ export function valueOf(doc) {
 /**
  * Create an internal ID from a project key
  * @param {Buffer} projectKey
- * @returns {import('./types.js').ProjectId}
+ * @returns {string}
  */
 export function projectKeyToId(projectKey) {
-  return /** @type {import('./types.js').ProjectId} */ (
-    projectKey.toString('hex')
-  )
+  return projectKey.toString('hex')
 }
 
 /**
  * Create a public ID from a project key
  * @param {Buffer} projectKey
- * @returns {import('./types.js').ProjectPublicId}
+ * @returns {string}
  */
 export function projectKeyToPublicId(projectKey) {
-  return /** @type {import('./types.js').ProjectPublicId} */ (
-    keyToPublicId(projectKey)
-  )
+  return keyToPublicId(projectKey)
 }
 
 /**
- * @param {import('./types.js').ProjectId} projectId
+ * @param {string} projectId Project internal ID
  * @returns {Buffer} 24-byte nonce (same length as sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
  */
 export function projectIdToNonce(projectId) {

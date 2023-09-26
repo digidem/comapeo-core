@@ -70,9 +70,7 @@ export function createMapeoServer(manager, messagePort) {
 
     let project
     try {
-      project = await manager.getProject(
-        /** @type {import('../types.js').ProjectPublicId} */ (id)
-      )
+      project = await manager.getProject(id)
     } catch (err) {
       // TODO: how to respond to client so that method errors?
       projectChannel.close()
@@ -106,9 +104,7 @@ export class MapeoRpcApi {
    * @returns {Promise<boolean>}
    */
   async assertProjectExists(projectId) {
-    const project = await this.#manager.getProject(
-      /** @type {import('../types.js').ProjectPublicId} */ (projectId)
-    )
+    const project = await this.#manager.getProject(projectId)
     return !!project
   }
 }
