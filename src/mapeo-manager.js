@@ -65,7 +65,9 @@ export class MapeoManager {
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
     this.#db = drizzle(sqlite)
-    migrate(this.#db, { migrationsFolder: './drizzle/client' })
+    migrate(this.#db, {
+      migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
+    })
 
     this.#rpc = new MapeoRPC()
     this.#keyManager = new KeyManager(rootKey)

@@ -29,7 +29,10 @@ const obsFixture = {
 test('private createWithDocId() method', async (t) => {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
-  migrate(db, { migrationsFolder: './drizzle/project' })
+  migrate(db, {
+    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+  })
+
   const coreManager = createCoreManager()
   const indexWriter = new IndexWriter({
     tables: [observationTable],
@@ -109,7 +112,10 @@ async function testenv(opts) {
   const coreManager = createCoreManager(opts)
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
-  migrate(db, { migrationsFolder: './drizzle/project' })
+  migrate(db, {
+    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+  })
+
   const indexWriter = new IndexWriter({
     tables: [observationTable],
     sqlite,
