@@ -48,7 +48,6 @@ export class MapeoManager {
   #dbFolder
   #deviceId
   #rpc
-  /** @type {InviteApi} */
   #invite
 
   /**
