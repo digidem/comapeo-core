@@ -25,7 +25,8 @@
   },
   "files": [
     "src",
-    "dist"
+    "dist",
+    "drizzle"
   ],
   "prettier": {
     "semi": false,
