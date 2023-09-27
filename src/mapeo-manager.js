@@ -16,6 +16,7 @@ import {
 import { ProjectKeys } from './generated/keys.js'
 import {
   deNullify,
+  getDeviceId,
   projectIdToNonce,
   projectKeyToId,
   projectKeyToPublicId,
@@ -70,9 +71,7 @@ export class MapeoManager {
 
     this.#rpc = new MapeoRPC()
     this.#keyManager = new KeyManager(rootKey)
-    this.#deviceId = this.#keyManager
-      .getIdentityKeypair()
-      .publicKey.toString('hex')
+    this.#deviceId = getDeviceId(this.#keyManager)
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectSettingsTable],
       sqlite,
