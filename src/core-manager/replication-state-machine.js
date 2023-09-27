@@ -17,7 +17,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 export class ReplicationStateMachine extends TypedEmitter {
   /** @type {ReplicationState} */
   #state = {
-    enabledNamespaces: new Set(['auth']),
+    enabledNamespaces: new Set(),
   }
   #enableNamespace
   #disableNamespace
