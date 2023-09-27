@@ -79,7 +79,9 @@ export class MapeoProject {
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
     const db = drizzle(sqlite)
-    migrate(db, { migrationsFolder: './drizzle/project' })
+    migrate(db, {
+      migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+    })
 
     ///////// 2. Setup random-access-storage functions
 
