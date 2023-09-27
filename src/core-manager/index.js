@@ -293,14 +293,6 @@ export class CoreManager extends TypedEmitter {
       if (cores.has(core)) continue
       if (rsm.state.enabledNamespaces.has(namespace)) {
         core.replicate(stream)
-      } else {
-        rsm.on('enable-namespace', function onNamespace(enabledNamespace) {
-          if (enabledNamespace !== namespace) return
-          if (!cores.has(core)) {
-            core.replicate(stream)
-          }
-          rsm.off('enable-namespace', onNamespace)
-        })
       }
     }
 
@@ -355,26 +347,36 @@ export class CoreManager extends TypedEmitter {
         this.#handleDiscoveryKey(discoveryKey, stream)
       }
     )
-    const rsm = new ReplicationStateMachine()
+
     /** @type {ReplicationRecord['cores']} */
     const replicatingCores = new Set()
+    const rsm = new ReplicationStateMachine({
+      enableNamespace: (namespace) => {
+        for (const { core } of this.getCores(namespace)) {
+          if (replicatingCores.has(core)) continue
+          core.replicate(protocol)
+          replicatingCores.add(core)
+        }
+      },
+      disableNamespace: (namespace) => {
+        for (const { core } of this.getCores(namespace)) {
+          if (core === this.creatorCore) continue
+          unreplicate(core, protocol)
+          replicatingCores.delete(core)
+        }
+      },
+    })
 
-    for (const { core } of this.getCores('auth')) {
-      core.replicate(stream)
-      replicatingCores.add(core)
-    }
+    // Always need to replicate the project creator core
+    this.creatorCore.replicate(protocol)
+    replicatingCores.add(this.creatorCore)
+
+    // For now enable auth namespace here, rather than in sync controller
+    rsm.enableNamespace('auth')
 
     /** @type {ReplicationRecord} */
     const replicationRecord = { stream, rsm, cores: replicatingCores }
     this.#replications.add(replicationRecord)
-
-    rsm.on('enable-namespace', (namespace) => {
-      for (const { core } of this.getCores(namespace)) {
-        if (!replicatingCores.has(core)) {
-          core.replicate(stream)
-        }
-      }
-    })
 
     stream.once('close', () => {
       rsm.disableAll()
@@ -558,4 +560,18 @@ const HaveExtensionCodec = {
       return { start, discoveryKey, bitfield: new Uint32Array() }
     }
   },
+}
+
+/**
+ *
+ * @param {Hypercore<'binary', any>} core
+ * @param {import('protomux')} protomux
+ */
+export function unreplicate(core, protomux) {
+  const peerToUnreplicate = core.peers.find(
+    (peer) => peer.protomux === protomux
+  )
+  if (!peerToUnreplicate) return
+  peerToUnreplicate.channel.close()
+  return
 }

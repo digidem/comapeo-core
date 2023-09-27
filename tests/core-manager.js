@@ -6,7 +6,7 @@ import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 import Sqlite from 'better-sqlite3'
 import { KeyManager } from '@mapeo/crypto'
-import { CoreManager } from '../src/core-manager/index.js'
+import { CoreManager, unreplicate } from '../src/core-manager/index.js'
 import assert from 'assert'
 import { once } from 'node:events'
 import { temporaryDirectoryTask } from 'tempy'
@@ -15,9 +15,10 @@ import { RandomAccessFilePool } from '../src/core-manager/random-access-file-poo
 import RandomAccessFile from 'random-access-file'
 import path from 'path'
 import { setTimeout as delay } from 'node:timers/promises'
+import { Transform } from 'streamx'
 
-async function createCore(...args) {
-  const core = new Hypercore(RAM, ...args)
+async function createCore(key) {
+  const core = new Hypercore(RAM, key)
   await core.ready()
   return core
 }
@@ -519,6 +520,80 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   await Promise.all([once(n1, 'close'), once(n2, 'close')])
 })
 
+test('unreplicate', async (t) => {
+  const WAIT_TIMEOUT = 200
+  const REPLICATION_DELAY = 20
+  await t.test('initiator unreplicates, receiver re-replicates', async (st) => {
+    const a = await createCore()
+    await a.append(['a', 'b'])
+    const b = await createCore(a.key)
+
+    const [s1, s2] = replicateCores(a, b, t, { delay: REPLICATION_DELAY })
+
+    const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
+    st.is(block1.toString(), 'a')
+
+    await unreplicate(a, s1.noiseStream.userData)
+
+    await st.exception(
+      () => b.get(1, { timeout: WAIT_TIMEOUT }),
+      'Throws with timeout error'
+    )
+
+    b.replicate(s2)
+
+    const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
+    st.is(block2.toString(), 'b')
+  })
+  await t.test(
+    'initiator unreplicates, initiator re-replicates',
+    async (st) => {
+      const a = await createCore()
+      await a.append(['a', 'b'])
+      const b = await createCore(a.key)
+
+      const [s1] = replicateCores(a, b, t, { delay: REPLICATION_DELAY })
+
+      const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
+      st.is(block1.toString(), 'a')
+
+      await unreplicate(a, s1.noiseStream.userData)
+
+      await st.exception(
+        () => b.get(1, { timeout: 200 }),
+        'Throws with timeout error'
+      )
+
+      a.replicate(s1)
+
+      const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
+      st.is(block2.toString(), 'b')
+    }
+  )
+  await t.test('receiver unreplicates, receiver re-replicates', async (st) => {
+    const a = await createCore()
+    await a.append(['a', 'b'])
+    const b = await createCore(a.key)
+
+    const [, s2] = replicateCores(a, b, t, { delay: REPLICATION_DELAY })
+
+    const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
+    st.is(block1.toString(), 'a')
+
+    await unreplicate(b, s2.noiseStream.userData)
+
+    await st.exception(
+      () => b.get(1, { timeout: WAIT_TIMEOUT }),
+      'Throws with timeout error'
+    )
+
+    b.replicate(s2)
+
+    const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
+    st.is(block2.toString(), 'b')
+  })
+})
+
 const DEBUG = process.env.DEBUG
 
 // Compare two bitfields (instance of core.core.bitfield or peer.remoteBitfield)
@@ -563,5 +638,31 @@ async function countOpenFileDescriptors(dir) {
       if (error) return rej(error)
       res(stdout - 1)
     })
+  })
+}
+
+function replicateCores(a, b, t, { delay = 0, ...opts } = {}) {
+  const s1 = a.replicate(true, { keepAlive: false, ...opts })
+  const s2 = b.replicate(false, { keepAlive: false, ...opts })
+  s1.on('error', (err) =>
+    t.comment(`replication stream error (initiator): ${err}`)
+  )
+  s2.on('error', (err) =>
+    t.comment(`replication stream error (responder): ${err}`)
+  )
+  s1.pipe(latencyStream(delay)).pipe(s2).pipe(latencyStream(delay)).pipe(s1)
+  return [s1, s2]
+}
+
+/**
+ * Randomly delay stream chunks by up to `delay` milliseconds
+ * @param {number} delay
+ * @returns
+ */
+function latencyStream(delay = 0) {
+  return new Transform({
+    transform(data, callback) {
+      setTimeout(callback, Math.random() * delay, null, data)
+    },
   })
 }
