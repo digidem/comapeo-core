@@ -7,7 +7,6 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 /**
  * @typedef {object} StateMachineEvents
  * @property {(state: ReplicationState) => void } state
- * @property {(namespace: Namespace) => void} enable-namespace Fired whenever a namespace is enabled for replication
  */
 
 /**
@@ -18,7 +17,21 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 export class ReplicationStateMachine extends TypedEmitter {
   /** @type {ReplicationState} */
   #state = {
-    enabledNamespaces: new Set(['auth']),
+    enabledNamespaces: new Set(),
+  }
+  #enableNamespace
+  #disableNamespace
+
+  /**
+   *
+   * @param {object} opts
+   * @param {(namespace: Namespace) => void} opts.enableNamespace
+   * @param {(namespace: Namespace) => void} opts.disableNamespace
+   */
+  constructor({ enableNamespace, disableNamespace }) {
+    super()
+    this.#enableNamespace = enableNamespace
+    this.#disableNamespace = disableNamespace
   }
 
   get state() {
@@ -33,18 +46,22 @@ export class ReplicationStateMachine extends TypedEmitter {
   enableNamespace(namespace) {
     if (this.#state.enabledNamespaces.has(namespace)) return
     this.#state.enabledNamespaces.add(namespace)
-    this.emit('enable-namespace', namespace)
+    this.#enableNamespace(namespace)
     this.emit('state', this.#state)
   }
 
-  // No obvious way to implement this
-  // /** @param {Namespace} namespace */
-  // disableNamespace (namespace) {
-  //   if (!this.#state.enabledNamespaces.has(namespace)) return
-  //   this.#state.enabledNamespaces.delete(namespace)
-  //   this.emit('disable-namespace', namespace)
-  //   this.emit('state', this.#state)
-  // }
+  /**
+   * Disable a namespace for replication - will remove cores in the namespace
+   * from  the replication stream
+   *
+   * @param {Namespace} namespace
+   */
+  disableNamespace(namespace) {
+    if (!this.#state.enabledNamespaces.has(namespace)) return
+    this.#state.enabledNamespaces.delete(namespace)
+    this.#disableNamespace(namespace)
+    this.emit('state', this.#state)
+  }
 
   /**
    * @internal
