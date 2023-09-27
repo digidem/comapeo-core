@@ -594,6 +594,40 @@ test('unreplicate', async (t) => {
   })
 })
 
+test('disableNamespace and re-enable', async (t) => {
+  const projectKey = randomBytes(32)
+  const cm1 = createCoreManager({ projectKey })
+  const cm2 = createCoreManager({ projectKey })
+
+  const {
+    rsm: [rsm1, rsm2],
+  } = replicate(cm1, cm2)
+
+  rsm1.enableNamespace('data')
+  rsm2.enableNamespace('data')
+
+  await Promise.all([
+    waitForCores(cm1, getKeys(cm2, 'data')),
+    waitForCores(cm2, getKeys(cm1, 'data')),
+  ])
+
+  const data1CR = cm1.getWriterCore('data')
+  await data1CR.core.append(['a', 'b', 'c'])
+
+  const data1ReplicaCore = cm2.getCoreByKey(data1CR.key)
+  t.is((await data1ReplicaCore.get(2, { timeout: 200 })).toString(), 'c')
+
+  rsm1.disableNamespace('data')
+
+  await data1CR.core.append(['d', 'e', 'f'])
+
+  await t.exception(() => data1ReplicaCore.get(5, { timeout: 200 }))
+
+  rsm1.enableNamespace('data')
+
+  t.is((await data1ReplicaCore.get(5, { timeout: 200 })).toString(), 'f')
+})
+
 const DEBUG = process.env.DEBUG
 
 // Compare two bitfields (instance of core.core.bitfield or peer.remoteBitfield)
