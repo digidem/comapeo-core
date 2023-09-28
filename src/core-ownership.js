@@ -7,6 +7,7 @@ import sodium from 'sodium-universal'
 import { kTable, kSelect, kCreateWithDocId } from './datatype/index.js'
 import { eq, or } from 'drizzle-orm'
 import mapObject from 'map-obj'
+import { discoveryKey } from 'hypercore-crypto'
 
 /**
  * @typedef {import('./types.js').CoreOwnershipWithSignatures} CoreOwnershipWithSignatures
@@ -97,8 +98,10 @@ export class CoreOwnership {
  * @param {import('@mapeo/schema').VersionIdObject} version
  * @returns {import('@mapeo/schema').CoreOwnership}
  */
-export function mapAndValidateCoreOwnership(doc, { coreKey }) {
-  if (doc.authCoreId !== coreKey.toString('hex')) {
+export function mapAndValidateCoreOwnership(doc, { coreDiscoveryKey }) {
+  if (
+    !coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.authCoreId, 'hex')))
+  ) {
     throw new Error('Invalid coreOwnership record: mismatched authCoreId')
   }
   if (!verifyCoreOwnership(doc)) {
