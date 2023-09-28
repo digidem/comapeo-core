@@ -1,4 +1,4 @@
-import { MapeoProject } from '../dist/index.js'
+import { MapeoProject } from '../dist/mapeo-project.js'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import {
