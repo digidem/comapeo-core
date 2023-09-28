@@ -160,6 +160,7 @@ function generateValidDoc() {
     createdBy: discoveryKey(coreKeypairs.auth.publicKey).toString('hex'),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    deleted: false,
     links: ['5678/0'],
     schemaName: 'coreOwnership',
     authCoreId: coreKeypairs.auth.publicKey.toString('hex'),

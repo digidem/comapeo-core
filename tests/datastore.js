@@ -19,6 +19,7 @@ const obs = {
   tags: {},
   attachments: [],
   metadata: {},
+  deleted: false,
 }
 
 test('read and write', async (t) => {
