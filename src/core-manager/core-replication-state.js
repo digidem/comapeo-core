@@ -35,54 +35,6 @@ import RemoteBitfield from './remote-bitfield.js'
  * @property {() => void} update
  */
 
-class PeerState {
-  /** @type {Bitfield | undefined} */
-  #preHaves
-  /** @type {Bitfield | undefined} */
-  #haves
-  /** @type {Bitfield | undefined} */
-  #wants
-  connected = false
-  /**
-   * @param {Bitfield} bitfield
-   */
-  setPreHavesBitfield(bitfield) {
-    this.#preHaves = bitfield
-  }
-  /**
-   * @param {Bitfield} bitfield
-   */
-  setHavesBitfield(bitfield) {
-    this.#haves = bitfield
-  }
-  /**
-   * @param {Bitfield} bitfield
-   */
-  setWantsBitfield(bitfield) {
-    this.#wants = bitfield
-  }
-  /**
-   *
-   * @param {{ start: number, length: number }} range
-   */
-  setWantRange({ start, length }) {
-    if (!this.#wants) this.#wants = new RemoteBitfield()
-    this.#wants.setRange(start, length, true)
-  }
-  /**
-   * @param {number} index
-   */
-  have(index) {
-    return this.#haves?.get(index) || this.#preHaves?.get(index) || false
-  }
-  /**
-   * @param {number} index
-   */
-  want(index) {
-    return this.#wants?.get(index) || true
-  }
-}
-
 /**
  * Track replication state for a core identified by `discoveryId`. Can start
  * tracking state before the core instance exists locally, via the "preHave"
@@ -255,6 +207,54 @@ export class CoreReplicationState extends TypedEmitter {
     const peerState = this.#getPeerState(peerId)
     peerState.connected = false
     this.emit('update')
+  }
+}
+
+class PeerState {
+  /** @type {Bitfield | undefined} */
+  #preHaves
+  /** @type {Bitfield | undefined} */
+  #haves
+  /** @type {Bitfield | undefined} */
+  #wants
+  connected = false
+  /**
+   * @param {Bitfield} bitfield
+   */
+  setPreHavesBitfield(bitfield) {
+    this.#preHaves = bitfield
+  }
+  /**
+   * @param {Bitfield} bitfield
+   */
+  setHavesBitfield(bitfield) {
+    this.#haves = bitfield
+  }
+  /**
+   * @param {Bitfield} bitfield
+   */
+  setWantsBitfield(bitfield) {
+    this.#wants = bitfield
+  }
+  /**
+   *
+   * @param {{ start: number, length: number }} range
+   */
+  setWantRange({ start, length }) {
+    if (!this.#wants) this.#wants = new RemoteBitfield()
+    this.#wants.setRange(start, length, true)
+  }
+  /**
+   * @param {number} index
+   */
+  have(index) {
+    return this.#haves?.get(index) || this.#preHaves?.get(index) || false
+  }
+  /**
+   * @param {number} index
+   */
+  want(index) {
+    return this.#wants?.get(index) || true
   }
 }
 
