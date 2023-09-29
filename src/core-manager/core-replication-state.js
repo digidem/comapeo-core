@@ -61,6 +61,8 @@ export class CoreReplicationState extends TypedEmitter {
   /** @type {InternalState['localState']} */
   #localState = new PeerState()
   #discoveryId
+  /** @type {DerivedState | null} */
+  #cachedState = null
 
   /**
    * @param {string} discoveryId Discovery ID for the core that this is representing
@@ -72,11 +74,21 @@ export class CoreReplicationState extends TypedEmitter {
 
   /** @type {() => DerivedState} */
   getState() {
+    if (this.#cachedState) return this.#cachedState
     return deriveState({
       length: this.#core?.length,
       localState: this.#localState,
       remoteStates: this.#remoteStates,
     })
+  }
+
+  /**
+   * Called whenever the state changes, so we clear the cache because next call
+   * to getState() will need to re-derive the state
+   */
+  #update() {
+    this.#cachedState = null
+    this.emit('update')
   }
 
   /**
@@ -112,11 +124,11 @@ export class CoreReplicationState extends TypedEmitter {
     // These events happen when the local bitfield changes, so we want to emit
     // state because it will have changed
     this.#core.on('download', () => {
-      this.emit('update')
+      this.#update()
     })
 
     this.#core.on('append', () => {
-      this.emit('update')
+      this.#update()
     })
   }
 
@@ -131,7 +143,7 @@ export class CoreReplicationState extends TypedEmitter {
   setHavesBitfield(peerId, bitfield) {
     const peerState = this.#getPeerState(peerId)
     peerState.setPreHavesBitfield(bitfield)
-    this.emit('update')
+    this.#update()
   }
 
   /**
@@ -147,7 +159,7 @@ export class CoreReplicationState extends TypedEmitter {
     for (const { start, length } of ranges) {
       peerState.setWantRange({ start, length })
     }
-    this.emit('update')
+    this.#update()
   }
 
   /**
@@ -180,7 +192,7 @@ export class CoreReplicationState extends TypedEmitter {
     // message, but when the peer actually connects then we switch to the actual
     // bitfield from the peer object
     peerState.setHavesBitfield(peer.remoteBitfield)
-    this.emit('update')
+    this.#update()
 
     // We want to emit state when a peer's bitfield changes, which can happen as
     // a result of these two internal calls.
@@ -188,11 +200,11 @@ export class CoreReplicationState extends TypedEmitter {
     const originalOnRange = peer.onrange
     peer.onbitfield = (/** @type {any[]} */ ...args) => {
       originalOnBitfield.apply(peer, args)
-      this.emit('update')
+      this.#update()
     }
     peer.onrange = (/** @type {any[]} */ ...args) => {
       originalOnRange.apply(peer, args)
-      this.emit('update')
+      this.#update()
     }
   }
 
@@ -206,7 +218,7 @@ export class CoreReplicationState extends TypedEmitter {
     const peerId = keyToId(peer.remotePublicKey)
     const peerState = this.#getPeerState(peerId)
     peerState.connected = false
-    this.emit('update')
+    this.#update()
   }
 }
 
