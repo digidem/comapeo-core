@@ -222,6 +222,12 @@ export class CoreReplicationState extends TypedEmitter {
   }
 }
 
+/**
+ * Replication state for a core for a peer. Uses an internal bitfield from
+ * Hypercore to track which blocks the peer has. Default is that a peer wants
+ * all blocks, but can set ranges of "wants". Setting a want range changes all
+ * other blocks to "not wanted"
+ */
 class PeerState {
   /** @type {Bitfield | undefined} */
   #preHaves
@@ -249,6 +255,11 @@ class PeerState {
     this.#wants = bitfield
   }
   /**
+   * Set a range of blocks that a peer wants. This is not part of the Hypercore
+   * protocol, so we need our own extension messages that a peer can use to
+   * inform us which blocks they are interested in. For most cores peers always
+   * want all blocks, but for blob cores often peers only want preview or
+   * thumbnail versions of media
    *
    * @param {{ start: number, length: number }} range
    */
@@ -257,12 +268,17 @@ class PeerState {
     this.#wants.setRange(start, length, true)
   }
   /**
+   * Returns whether the peer has the block at `index`. If a pre-have bitfield
+   * has been passed, this is used if no connected peer bitfield is available.
+   * If neither bitfield is available then this defaults to `false`
    * @param {number} index
    */
   have(index) {
     return this.#haves?.get(index) || this.#preHaves?.get(index) || false
   }
   /**
+   * Returns whether this peer wants block at `index`. Defaults to `true` for
+   * all blocks
    * @param {number} index
    */
   want(index) {
