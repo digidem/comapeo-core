@@ -5,16 +5,34 @@ import RemoteBitfield from './remote-bitfield.js'
 /**
  * @typedef {RemoteBitfield} Bitfield
  */
-
 /**
  * @typedef {string} PeerId
  */
-
 /**
- * @typedef {Object} CoreState
+ * @typedef {Object} InternalState
  * @property {number | undefined} length Core length, e.g. how many blocks in the core (including blocks that are not downloaded)
  * @property {PeerState} localState
  * @property {Map<PeerId, PeerState>} remoteStates
+ */
+/**
+ * @typedef {object} PeerSimpleState
+ * @property {number} have blocks the peer has locally
+ * @property {number} want blocks the peer wants, and at least one peer has
+ * @property {number} wanted blocks the peer has that at least one peer wants
+ * @property {number} missing blocks the peer wants but no peer has
+ */
+/**
+ * @typedef {PeerSimpleState & { connected: boolean }} RemotePeerSimpleState
+ */
+/**
+ * @typedef {object} DerivedState
+ * @property {number} coreLength known (sparse) length of the core
+ * @property {PeerSimpleState} localState local state
+ * @property {Record<PeerId, RemotePeerSimpleState>} remoteStates map of state of all known peers
+ */
+/**
+ * @typedef {object} CoreReplicationEvents
+ * @property {() => void} update
  */
 
 class PeerState {
@@ -65,12 +83,30 @@ class PeerState {
   }
 }
 
+/**
+ * Track replication state for a core identified by `discoveryId`. Can start
+ * tracking state before the core instance exists locally, via the "preHave"
+ * messages received over the project creator core.
+ *
+ * Because deriving the state is expensive (it iterates through the bitfields of
+ * all peers), this is designed to be pull-based: an `update` event signals that
+ * the state is updated, but does not pass the state. The consumer can "pull"
+ * the state when it wants it via `coreReplicationState.getState()`.
+ *
+ * Each peer (including the local peer) has a state of:
+ *   1. `have` - number of blocks the peer has locally
+ *   2. `want` - number of blocks the peer wants, and at least one peer has
+ *   3. `wanted` - number of blocks the peer has that at least one peer wants
+ *   4. `missing` - number of blocks the peer wants but no peer has
+ *
+ * @extends {TypedEmitter<CoreReplicationEvents>}
+ */
 export class CoreReplicationState extends TypedEmitter {
   /** @type {import('hypercore')<'binary', Buffer>} */
   #core
-  /** @type {CoreState['remoteStates']} */
+  /** @type {InternalState['remoteStates']} */
   #remoteStates = new Map()
-  /** @type {CoreState['localState']} */
+  /** @type {InternalState['localState']} */
   #localState = new PeerState()
   #discoveryId
 
@@ -89,14 +125,6 @@ export class CoreReplicationState extends TypedEmitter {
       localState: this.#localState,
       remoteStates: this.#remoteStates,
     })
-  }
-
-  // TODO: Throttle this because calculating getState() can be costly and we
-  // don't need too many events. Alternatively, just advise with emit
-  // `state-update` without arguments, then the consumer can 'pull' state when
-  // needed.
-  #emitState() {
-    this.emit('state', this.getState())
   }
 
   /**
@@ -132,11 +160,11 @@ export class CoreReplicationState extends TypedEmitter {
     // These events happen when the local bitfield changes, so we want to emit
     // state because it will have changed
     this.#core.on('download', () => {
-      this.#emitState()
+      this.emit('update')
     })
 
     this.#core.on('append', () => {
-      this.#emitState()
+      this.emit('update')
     })
   }
 
@@ -151,7 +179,7 @@ export class CoreReplicationState extends TypedEmitter {
   setHavesBitfield(peerId, bitfield) {
     const peerState = this.#getPeerState(peerId)
     peerState.setPreHavesBitfield(bitfield)
-    this.#emitState()
+    this.emit('update')
   }
 
   /**
@@ -167,7 +195,7 @@ export class CoreReplicationState extends TypedEmitter {
     for (const { start, length } of ranges) {
       peerState.setWantRange({ start, length })
     }
-    this.#emitState()
+    this.emit('update')
   }
 
   /**
@@ -200,7 +228,7 @@ export class CoreReplicationState extends TypedEmitter {
     // message, but when the peer actually connects then we switch to the actual
     // bitfield from the peer object
     peerState.setHavesBitfield(peer.remoteBitfield)
-    this.#emitState()
+    this.emit('update')
 
     // We want to emit state when a peer's bitfield changes, which can happen as
     // a result of these two internal calls.
@@ -208,11 +236,11 @@ export class CoreReplicationState extends TypedEmitter {
     const originalOnRange = peer.onrange
     peer.onbitfield = (/** @type {any[]} */ ...args) => {
       originalOnBitfield.apply(peer, args)
-      this.#emitState()
+      this.emit('update')
     }
     peer.onrange = (/** @type {any[]} */ ...args) => {
       originalOnRange.apply(peer, args)
-      this.#emitState()
+      this.emit('update')
     }
   }
 
@@ -226,7 +254,7 @@ export class CoreReplicationState extends TypedEmitter {
     const peerId = keyToId(peer.remotePublicKey)
     const peerState = this.#getPeerState(peerId)
     peerState.connected = false
-    this.#emitState()
+    this.emit('update')
   }
 }
 
@@ -235,7 +263,7 @@ export class CoreReplicationState extends TypedEmitter {
  * more performant and clever way of doing this, but at least with this
  * implementation I can understand what I am doing.
  *
- * @param {CoreState} coreState
+ * @param {InternalState} coreState
  */
 function deriveState(coreState) {
   const peerIds = ['local', ...coreState.remoteStates.keys()]
@@ -245,7 +273,7 @@ function deriveState(coreState) {
   const peerStates = new Array(peers.length)
   const length = coreState.length || 0
   for (let i = 0; i < peerStates.length; i++) {
-    peerStates[i] = { want: 0, have: 0, wanted: 0 }
+    peerStates[i] = { want: 0, have: 0, wanted: 0, missing: 0 }
   }
   for (let i = 0; i < length; i++) {
     const haves = new Array(peerStates.length)
@@ -264,10 +292,14 @@ function deriveState(coreState) {
       //   1. The peer wants it
       //   2. They don't have it
       //   3. Someone does have it
-      wants[j] = peer.want(i) && !haves[j] && someoneHasIt
+      const wouldLikeIt = peer.want(i) && !haves[j]
+      wants[j] = wouldLikeIt && someoneHasIt
       if (wants[j]) {
         someoneWantsIt = true
         peerStates[j].want += 1
+      }
+      if (wouldLikeIt && !someoneHasIt) {
+        peerStates[j].missing += 1
       }
     }
     for (let j = 0; j < peerStates.length; j++) {
@@ -282,27 +314,14 @@ function deriveState(coreState) {
   }
   /** @type {DerivedState} */
   const derivedState = {
-    length,
+    coreLength: length,
     localState: peerStates[0],
     remoteStates: {},
   }
   for (let j = 1; j < peerStates.length; j++) {
-    derivedState.remoteStates[peerIds[j]] = peerStates[j]
+    const peerState = /** @type {RemotePeerSimpleState} */ (peerStates[j])
+    peerState.connected = peers[j].connected
+    derivedState.remoteStates[peerIds[j]] = peerState
   }
   return derivedState
 }
-
-/**
- * @typedef {{
- *   want: number
- *   have: number
- *   wanted: number
- * }} PeerSimpleState
- */
-/**
- * @typedef {{
- *   length: number
- *   localState: PeerSimpleState,
- *   remoteStates: Record<PeerId, PeerSimpleState>
- * }} DerivedState
- */
