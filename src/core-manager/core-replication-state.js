@@ -313,20 +313,20 @@ export function deriveState(coreState) {
     const haves = new Array(peerStates.length)
     const wants = new Array(peerStates.length)
     let someoneHasIt = false
-    for (const [j, peer] of peers.entries()) {
-      haves[j] = peer.have(i)
+    for (let j = 0; j < peers.length; j++) {
+      haves[j] = peers[j].have(i)
       if (haves[j]) {
         someoneHasIt = true
         peerStates[j].have += 1
       }
     }
     let someoneWantsIt = false
-    for (const [j, peer] of peers.entries()) {
+    for (let j = 0; j < peers.length; j++) {
       // A block is a want if:
       //   1. The peer wants it
       //   2. They don't have it
       //   3. Someone does have it
-      const wouldLikeIt = peer.want(i) && !haves[j]
+      const wouldLikeIt = peers[j].want(i) && !haves[j]
       wants[j] = wouldLikeIt && someoneHasIt
       if (wants[j]) {
         someoneWantsIt = true
