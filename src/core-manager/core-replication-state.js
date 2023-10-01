@@ -309,9 +309,9 @@ export function deriveState(coreState) {
   for (let i = 0; i < peerStates.length; i++) {
     peerStates[i] = { want: 0, have: 0, wanted: 0, missing: 0 }
   }
+  const haves = new Array(peerStates.length)
+  const wants = new Array(peerStates.length)
   for (let i = 0; i < length; i++) {
-    const haves = new Array(peerStates.length)
-    const wants = new Array(peerStates.length)
     let someoneHasIt = false
     for (let j = 0; j < peers.length; j++) {
       haves[j] = peers[j].have(i)
