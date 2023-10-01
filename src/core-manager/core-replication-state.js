@@ -227,8 +227,11 @@ export class CoreReplicationState extends TypedEmitter {
  * Hypercore to track which blocks the peer has. Default is that a peer wants
  * all blocks, but can set ranges of "wants". Setting a want range changes all
  * other blocks to "not wanted"
+ *
+ * @private
+ * Only exported for testing
  */
-class PeerState {
+export class PeerState {
   /** @type {Bitfield | undefined} */
   #preHaves
   /** @type {Bitfield | undefined} */
@@ -292,8 +295,11 @@ class PeerState {
  * implementation I can understand what I am doing.
  *
  * @param {InternalState} coreState
+ *
+ * @private
+ * Only exporteed for testing
  */
-function deriveState(coreState) {
+export function deriveState(coreState) {
   const peerIds = ['local', ...coreState.remoteStates.keys()]
   const peers = [coreState.localState, ...coreState.remoteStates.values()]
 
