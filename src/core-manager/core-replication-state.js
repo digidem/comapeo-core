@@ -310,7 +310,7 @@ export function deriveState(coreState) {
     peerStates[i] = { want: 0, have: 0, wanted: 0, missing: 0 }
   }
   const haves = new Array(peerStates.length)
-  const wants = new Array(peerStates.length)
+  let want = false
   for (let i = 0; i < length; i++) {
     let someoneHasIt = false
     for (let j = 0; j < peers.length; j++) {
@@ -327,8 +327,8 @@ export function deriveState(coreState) {
       //   2. They don't have it
       //   3. Someone does have it
       const wouldLikeIt = peers[j].want(i) && !haves[j]
-      wants[j] = wouldLikeIt && someoneHasIt
-      if (wants[j]) {
+      want = wouldLikeIt && someoneHasIt
+      if (want) {
         someoneWantsIt = true
         peerStates[j].want += 1
       }
