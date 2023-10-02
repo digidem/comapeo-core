@@ -1,9 +1,17 @@
+import NoiseSecretStream from '@hyperswarm/secret-stream'
 import test from 'brittle'
 import {
   deriveState,
   PeerState,
+  CoreReplicationState,
 } from '../src/core-manager/core-replication-state.js'
-import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
+import RemoteBitfield, {
+  BITS_PER_PAGE,
+} from '../src/core-manager/remote-bitfield.js'
+import { createCore } from './helpers/index.js'
+// import { setTimeout } from 'timers/promises'
+import { once } from 'node:events'
+import pTimeout from 'p-timeout'
 
 /**
  * @type {Array<{
@@ -18,22 +26,6 @@ import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
  */
 const scenarios = [
   {
-    message: 'No bitfields',
-    state: {
-      length: 4,
-      localState: {},
-      remoteStates: [{}, {}],
-    },
-    expected: {
-      coreLength: 4,
-      localState: { want: 0, have: 0, wanted: 0, missing: 4 },
-      remoteStates: {
-        peer0: { want: 0, have: 0, wanted: 0, missing: 4, connected: false },
-        peer1: { want: 0, have: 0, wanted: 0, missing: 4, connected: false },
-      },
-    },
-  },
-  {
     message: '3 peers, start with haves, test want, have, wanted and missing',
     state: {
       length: 4,
@@ -47,6 +39,22 @@ const scenarios = [
         peer0: { want: 1, have: 2, wanted: 1, missing: 1, connected: false },
         peer1: { want: 1, have: 2, wanted: 1, missing: 1, connected: false },
         peer2: { want: 2, have: 1, wanted: 0, missing: 1, connected: false },
+      },
+    },
+  },
+  {
+    message: 'No bitfields',
+    state: {
+      length: 4,
+      localState: { have: 0 }, // always have a bitfield for this
+      remoteStates: [{}, {}],
+    },
+    expected: {
+      coreLength: 4,
+      localState: { want: 0, have: 0, wanted: 0, missing: 4 },
+      remoteStates: {
+        peer0: { want: 0, have: 0, wanted: 0, missing: 4, connected: false },
+        peer1: { want: 0, have: 0, wanted: 0, missing: 4, connected: false },
       },
     },
   },
@@ -163,7 +171,6 @@ test('deriveState() scenarios', (t) => {
 })
 
 test('deriveState() have at index beyond bitfield page size', (t) => {
-  const BITS_PER_PAGE = 32768
   const localState = createState({ have: 2 ** 10 - 1 })
   const remoteState = new PeerState()
   const remoteHaveBitfield = new RemoteBitfield()
@@ -193,6 +200,47 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
     },
   }
   t.alike(deriveState(state), expected)
+})
+
+test.solo('CoreReplicationState', async (t) => {
+  // const { state, expected, message } = scenarios[2]
+  for (const { state, expected, message } of scenarios) {
+    const localCore = await createCore()
+    await localCore.ready()
+    const crs = new CoreReplicationState(localCore.discoveryKey.toString('hex'))
+    crs.attachCore(localCore)
+    const blocks = new Array(state.length).fill('block')
+    await localCore.append(blocks)
+    const downloadPromises = []
+    const seed = Buffer.alloc(32)
+    seed.write('local')
+    const kp1 = NoiseSecretStream.keyPair(seed)
+    const peerIds = new Map()
+    for (const [index, { have, want }] of state.remoteStates.entries()) {
+      const core = await createCore(localCore.key)
+      const seed = Buffer.allocUnsafe(32).fill(index)
+      const kp2 = NoiseSecretStream.keyPair(seed)
+      const peerId = kp2.publicKey.toString('hex')
+      setPeerWants(crs, peerId, want)
+      peerIds.set('peer' + index, peerId)
+      replicate(localCore, core, { kp1, kp2 })
+      await core.update({ wait: true })
+      downloadPromises.push(downloadCore(core, have))
+    }
+    await Promise.all(downloadPromises)
+    await clearCore(localCore, state.localState.have)
+    const expectedRemoteStates = {}
+    for (const [key, value] of Object.entries(expected.remoteStates)) {
+      const peerId = peerIds.get(key)
+      expectedRemoteStates[peerId] = { ...value, connected: true }
+    }
+    await updateWithTimeout(crs, 100)
+    t.alike(
+      crs.getState(),
+      { ...expected, remoteStates: expectedRemoteStates },
+      message
+    )
+  }
 })
 
 /**
@@ -227,8 +275,127 @@ function createBitfield(bits) {
   const bitfield = new RemoteBitfield()
   const bigInt = BigInt(bits)
   // 53 because the max safe integer in JS is 53 bits
-  for (let i = BigInt(0); i < 53; i++) {
-    bitfield.set(Number(i), !!((bigInt >> i) & 1n))
+  for (let i = 0; i < 53; i++) {
+    bitfield.set(i, !!((bigInt >> BigInt(i)) & 1n))
   }
   return bitfield
+}
+
+/**
+ *
+ * @param {import('hypercore')} core
+ * @param {number} [bits]
+ */
+async function clearCore(core, bits) {
+  if (typeof bits !== 'number') return
+  if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
+  await core.ready()
+  const bigInt = BigInt(bits)
+  const promises = []
+  // 53 because the max safe integer in JS is 53 bits
+  for (let i = 0; i < core.length; i++) {
+    if ((bigInt >> BigInt(i)) & 1n) continue
+    promises.push(core.clear(i))
+  }
+  await Promise.all(promises)
+}
+
+/**
+ *
+ * @param {import('hypercore')} core
+ * @param {number} [bits]
+ */
+async function downloadCore(core, bits) {
+  if (typeof bits !== 'number') return
+  if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
+  await core.ready()
+  const bigInt = BigInt(bits)
+  const blocks = []
+  // 53 because the max safe integer in JS is 53 bits
+  for (let i = 0; i < core.length; i++) {
+    if ((bigInt >> BigInt(i)) & 1n) {
+      blocks.push(i)
+    }
+  }
+  await core.download({ blocks }).done()
+}
+
+/**
+ *
+ * @param {CoreReplicationState} crs
+ * @param {string} peerId
+ * @param {number} [bits]
+ */
+function setPeerWants(crs, peerId, bits) {
+  if (typeof bits !== 'number') return
+  if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
+  const bigInt = BigInt(bits)
+  /** @type {{ start: number, length: number}} */
+  const ranges = []
+  // 53 because the max safe integer in JS is 53 bits
+  for (let i = 0; i < 53; i++) {
+    if ((bigInt >> BigInt(i)) & 1n) {
+      ranges.push({ start: i, length: 1 })
+    }
+  }
+  crs.setPeerWants(peerId, ranges)
+}
+
+/**
+ * Wait for update event with a timeout
+ * @param {CoreReplicationState} crs
+ * @param {number} milliseconds
+ */
+async function updateWithTimeout(crs, milliseconds) {
+  return pTimeout(once(crs, 'update'), { milliseconds, message: false })
+}
+
+/**
+ * @param {import('hypercore')} core1
+ * @param {import('hypercore')} core2
+ * @param { {kp1?: import('@hyperswarm/secret-stream'), kp2?: import('@hyperswarm/secret-stream')} } [keyPairs]
+ * @returns {() => Promise<[void, void]>}
+ */
+export function replicate(
+  core1,
+  core2,
+  {
+    // Keep keypairs deterministic for tests, since we use peer.publicKey as an identifier.
+    kp1 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(0)),
+    kp2 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1)),
+  } = {}
+) {
+  const n1 = new NoiseSecretStream(true, undefined, {
+    keyPair: kp1,
+  })
+  const n2 = new NoiseSecretStream(false, undefined, {
+    keyPair: kp2,
+  })
+
+  // @ts-expect-error
+  n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
+
+  // @ts-expect-error
+  core1.replicate(n1)
+  // @ts-expect-error
+  core2.replicate(n2)
+
+  return async function destroy() {
+    return Promise.all([
+      /** @type {Promise<void>} */
+      (
+        new Promise((res) => {
+          n1.on('close', res)
+          n1.destroy()
+        })
+      ),
+      /** @type {Promise<void>} */
+      (
+        new Promise((res) => {
+          n2.on('close', res)
+          n2.destroy()
+        })
+      ),
+    ])
+  }
 }
