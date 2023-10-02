@@ -439,6 +439,7 @@ test('Reconnect peer and send device info', async (t) => {
   const r1 = new MapeoRPC()
   const r2 = new MapeoRPC()
 
+  /** @type {import('../src/generated/rpc.js').DeviceInfo} */
   const expectedDeviceInfo = { name: 'mapeo' }
 
   const destroy = replicate(r1, r2)
