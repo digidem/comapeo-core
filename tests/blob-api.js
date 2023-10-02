@@ -67,7 +67,7 @@ test('get url from blobId', async (t) => {
   })
 
   const url = await blobApi.getUrl({
-    driveId: blobStore.writerDriveId,
+    driveDiscoveryId: blobStore.writerDriveDiscoveryId,
     type,
     variant,
     name,
@@ -76,7 +76,7 @@ test('get url from blobId', async (t) => {
   t.is(
     url,
     `http://127.0.0.1:${blobServer.server.address().port}/${projectId}/${
-      blobStore.writerDriveId
+      blobStore.writerDriveDiscoveryId
     }/${type}/${variant}/${name}`
   )
   t.teardown(async () => {
@@ -114,7 +114,7 @@ test('create blobs', async (t) => {
     }
   )
 
-  t.is(attachment.driveId, blobStore.writerDriveId)
+  t.is(attachment.driveDiscoveryId, blobStore.writerDriveDiscoveryId)
   t.is(attachment.type, 'photo')
   t.alike(attachment.hash, hash.digest('hex'))
 

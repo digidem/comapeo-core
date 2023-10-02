@@ -29,16 +29,16 @@ export class BlobApi {
    * @returns {Promise<string>}
    */
   async getUrl(blobId) {
-    const { driveId, type, variant, name } = blobId
+    const { driveDiscoveryId, type, variant, name } = blobId
     const port = await getPort(this.blobServer.server)
-    return `http://127.0.0.1:${port}/${this.projectId}/${driveId}/${type}/${variant}/${name}`
+    return `http://127.0.0.1:${port}/${this.projectId}/${driveDiscoveryId}/${type}/${variant}/${name}`
   }
 
   /**
    * Write blobs for provided variants of a file
    * @param {{ original: string, preview?: string, thumbnail?: string }} filepaths
    * @param {{ mimeType: string }} metadata
-   * @returns {Promise<{ driveId: string, name: string, type: 'photo' | 'video' | 'audio', hash: string }>}
+   * @returns {Promise<{ driveDiscoveryId: string, name: string, type: 'photo' | 'video' | 'audio', hash: string }>}
    */
   async create(filepaths, metadata) {
     const { original, preview, thumbnail } = filepaths
@@ -86,7 +86,7 @@ export class BlobApi {
     }
 
     return {
-      driveId: this.blobStore.writerDriveId,
+      driveDiscoveryId: this.blobStore.writerDriveDiscoveryId,
       name,
       type: blobType,
       hash: contentHash.digest('hex'),
@@ -95,7 +95,7 @@ export class BlobApi {
 
   /**
    * @param {string} filepath
-   * @param {Omit<BlobId, 'driveId'>} options
+   * @param {Omit<BlobId, 'driveDiscoveryId'>} options
    * @param {object} metadata
    * @param {string} metadata.mimeType
    * @param {import('node:crypto').Hash} [hash]
@@ -107,7 +107,7 @@ export class BlobApi {
         fs.createReadStream(filepath),
         hash,
 
-        // @ts-ignore TODO: remove driveId property from createWriteStream
+        // @ts-ignore TODO: remove driveDiscoveryId property from createWriteStream
         this.blobStore.createWriteStream({ type, variant, name }, { metadata })
       )
 

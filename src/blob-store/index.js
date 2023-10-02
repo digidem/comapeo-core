@@ -56,11 +56,11 @@ export class BlobStore {
     }
     coreManager.on('add-core', ({ key, namespace }) => {
       if (namespace !== 'blobIndex') return
-      const driveId = getDiscoveryId(key)
-      if (this.#hyperdrives.has(driveId)) return
+      const discoveryId = getDiscoveryId(key)
+      if (this.#hyperdrives.has(discoveryId)) return
       // @ts-ignore - we know pretendCorestore is not actually a Corestore
       const drive = new Hyperdrive(corestore, key)
-      this.#hyperdrives.set(driveId, drive)
+      this.#hyperdrives.set(discoveryId, drive)
       this.#driveEmitter.emit('add-drive', drive)
     })
     // This shouldn't happen, but this check ensures this.#writer is typed to exist
@@ -68,16 +68,17 @@ export class BlobStore {
       throw new Error('Could not find a writer for the blobIndex namespace')
   }
 
-  get writerDriveId() {
+  get writerDriveDiscoveryId() {
     return getDiscoveryId(this.#writer.key)
   }
 
   /**
-   * @param {string} driveId hex-encoded discovery key
+   * @param {string} driveDiscoveryId
    */
-  #getDrive(driveId) {
-    const drive = this.#hyperdrives.get(driveId)
-    if (!drive) throw new Error('Drive not found ' + driveId.slice(0, 7))
+  #getDrive(driveDiscoveryId) {
+    const drive = this.#hyperdrives.get(driveDiscoveryId)
+    if (!drive)
+      throw new Error('Drive not found ' + driveDiscoveryId.slice(0, 7))
     return drive
   }
 
@@ -87,8 +88,11 @@ export class BlobStore {
    * @param {false} [opts.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
    * @param {never} [opts.timeout] Optional timeout to wait for a blob to download
    */
-  async get({ type, variant, name, driveId }, { wait = false, timeout } = {}) {
-    const drive = this.#getDrive(driveId)
+  async get(
+    { type, variant, name, driveDiscoveryId },
+    { wait = false, timeout } = {}
+  ) {
+    const drive = this.#getDrive(driveDiscoveryId)
     const path = makePath({ type, variant, name })
     const blob = await drive.get(path, { wait, timeout })
     if (!blob) throw new ErrNotFound()
@@ -122,11 +126,11 @@ export class BlobStore {
    * @param {number} [options.timeout] Optional timeout to wait for a blob to download
    */
   createReadStream(
-    { type, variant, name, driveId },
+    { type, variant, name, driveDiscoveryId },
     options = { wait: false }
   ) {
     // TODO: Error thrown from this be an emit error on the returned stream?
-    const drive = this.#getDrive(driveId)
+    const drive = this.#getDrive(driveDiscoveryId)
     const path = makePath({ type, variant, name })
 
     // @ts-ignore - TODO: update @digidem/types to include wait/timeout options
@@ -136,38 +140,44 @@ export class BlobStore {
   /**
    * Optimization for creating the blobs read stream when you have
    * previously read the entry from Hyperdrive using `drive.entry`
-   * @param {BlobId['driveId']} driveId Hyperdrive drive discovery id
+   * @param {BlobId['driveDiscoveryId']} driveDiscoveryId Hyperdrive drive discovery id
    * @param {import('hyperdrive').HyperdriveEntry} entry Hyperdrive entry
    * @param {object} [options]
    * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
    */
-  async createEntryReadStream(driveId, entry, options = { wait: false }) {
-    const drive = this.#getDrive(driveId)
+  async createEntryReadStream(
+    driveDiscoveryId,
+    entry,
+    options = { wait: false }
+  ) {
+    const drive = this.#getDrive(driveDiscoveryId)
     const blobs = await drive.getBlobs()
 
     if (!blobs)
       throw new Error(
-        'Hyperblobs instance not found for drive ' + driveId.slice(0, 7)
+        'Hyperblobs instance not found for drive ' +
+          driveDiscoveryId.slice(0, 7)
       )
 
     return blobs.createReadStream(entry.value.blob, options)
   }
 
   /**
-   * @param {BlobId['driveId']} driveId Hyperdrive drive id
+   * @param {BlobId['driveDiscoveryId']} driveDiscoveryId Hyperdrive drive id
    * @param {import('hyperdrive').HyperdriveEntry} entry Hyperdrive entry
    * @param {object} [opts]
    * @param {number} [opts.length]
    *
    * @returns {Promise<Buffer | null>}
    */
-  async getEntryBlob(driveId, entry, { length } = {}) {
-    const drive = this.#getDrive(driveId)
+  async getEntryBlob(driveDiscoveryId, entry, { length } = {}) {
+    const drive = this.#getDrive(driveDiscoveryId)
     const blobs = await drive.getBlobs()
 
     if (!blobs)
       throw new Error(
-        'Hyperblobs instance not found for drive ' + driveId.slice(0, 7)
+        'Hyperblobs instance not found for drive ' +
+          driveDiscoveryId.slice(0, 7)
       )
 
     return blobs.get(entry.value.blob, { wait: false, start: 0, length })
@@ -175,7 +185,7 @@ export class BlobStore {
 
   /**
    *
-   * @param {Omit<BlobId, 'driveId'>} blobId
+   * @param {Omit<BlobId, 'driveDiscoveryId'>} blobId
    * @param {Buffer} blob
    * @param {object} [options]
    * @param {{mimeType: string}} [options.metadata] Metadata to store with the blob
@@ -184,11 +194,11 @@ export class BlobStore {
   async put({ type, variant, name }, blob, options) {
     const path = makePath({ type, variant, name })
     await this.#writer.put(path, blob, options)
-    return this.writerDriveId
+    return this.writerDriveDiscoveryId
   }
 
   /**
-   * @param {Omit<BlobId, 'driveId'>} blobId
+   * @param {Omit<BlobId, 'driveDiscoveryId'>} blobId
    * @param {object} [options]
    * @param {{mimeType: string}} [options.metadata] Metadata to store with the blob
    */
@@ -196,7 +206,7 @@ export class BlobStore {
     const path = makePath({ type, variant, name })
     const stream = this.#writer.createWriteStream(path, options)
     return proxyProps(stream, {
-      driveId: this.writerDriveId,
+      driveDiscoveryId: this.writerDriveDiscoveryId,
     })
   }
 
@@ -209,11 +219,12 @@ export class BlobStore {
    * @returns {Promise<import('hyperdrive').HyperdriveEntry | null>}
    */
   async entry(
-    { type, variant, name, driveId },
+    { type, variant, name, driveDiscoveryId },
     options = { follow: false, wait: false }
   ) {
-    const drive = this.#hyperdrives.get(driveId)
-    if (!drive) throw new Error('Drive not found ' + driveId.slice(0, 7))
+    const drive = this.#hyperdrives.get(driveDiscoveryId)
+    if (!drive)
+      throw new Error('Drive not found ' + driveDiscoveryId.slice(0, 7))
     const path = makePath({ type, variant, name })
     const entry = await drive.entry(path, options)
     return entry
@@ -225,9 +236,9 @@ export class BlobStore {
    * @param {boolean} [options.diff=false] Enable to return an object with a `block` property with number of bytes removed
    * @return {Promise<{ blocks: number } | null>}
    */
-  async clear({ type, variant, name, driveId }, options = {}) {
+  async clear({ type, variant, name, driveDiscoveryId }, options = {}) {
     const path = makePath({ type, variant, name })
-    const drive = this.#getDrive(driveId)
+    const drive = this.#getDrive(driveDiscoveryId)
 
     return drive.clear(path, options)
   }

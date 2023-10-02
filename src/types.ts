@@ -30,7 +30,7 @@ type BlobIdBase<T extends BlobType> = {
   /** unique identifier for blob (e.g. hash of content) */
   name: string
   /** discovery key as hex string of hyperdrive where blob is stored */
-  driveId: string
+  driveDiscoveryId: string
 }
 
 // Ugly, but the only way I could figure out how to get what I wanted
