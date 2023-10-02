@@ -105,7 +105,7 @@ export class CoreReplicationState extends TypedEmitter {
     if (discoveryId !== this.#discoveryId) {
       throw new Error('discoveryId does not match')
     }
-    if (!this.#core) return
+    if (this.#core) return
 
     this.#core = core
     this.#localState.setHavesBitfield(
@@ -184,7 +184,7 @@ export class CoreReplicationState extends TypedEmitter {
    * @param {any} peer
    */
   #onPeerAdd = (peer) => {
-    const peerId = keyToId(peer.remotePublicId)
+    const peerId = keyToId(peer.remotePublicKey)
 
     // Update state to ensure this peer is in the state and set to connected
     const peerState = this.#getPeerState(peerId)
@@ -338,7 +338,7 @@ export function deriveState(coreState) {
     for (let j = 0; j < peers.length; j++) {
       haves[j] = peers[j].haveWord(i) & truncate
       someoneHasIt |= haves[j]
-      peerStates[j].have += bitCount(haves[j])
+      peerStates[j].have += bitCount32(haves[j])
     }
     let someoneWantsIt = 0
     for (let j = 0; j < peers.length; j++) {
@@ -349,15 +349,17 @@ export function deriveState(coreState) {
       const wouldLikeIt = peers[j].wantWord(i) & ~haves[j]
       want = wouldLikeIt & someoneHasIt
       someoneWantsIt |= want
-      peerStates[j].want += bitCount(want)
-      peerStates[j].missing += bitCount(wouldLikeIt & ~someoneHasIt & truncate)
+      peerStates[j].want += bitCount32(want)
+      peerStates[j].missing += bitCount32(
+        wouldLikeIt & ~someoneHasIt & truncate
+      )
     }
     for (let j = 0; j < peerStates.length; j++) {
       // A block is wanted if:
       //   1. Someone wants it
       //   2. The peer has it
       const wanted = someoneWantsIt & haves[j]
-      peerStates[j].wanted += bitCount(wanted)
+      peerStates[j].wanted += bitCount32(wanted)
     }
   }
   /** @type {DerivedState} */
@@ -374,8 +376,12 @@ export function deriveState(coreState) {
   return derivedState
 }
 
-/** @param {number} n */
-function bitCount(n) {
+/**
+ * Apologies for the obscure code. From
+ * https://stackoverflow.com/a/109025/903300
+ * @param {number} n
+ */
+export function bitCount32(n) {
   n = n - ((n >> 1) & 0x55555555)
   n = (n & 0x33333333) + ((n >> 2) & 0x33333333)
   return (((n + (n >> 4)) & 0xf0f0f0f) * 0x1010101) >> 24
