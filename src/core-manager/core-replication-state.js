@@ -277,7 +277,11 @@ export class PeerState {
    * @param {number} index
    */
   have(index) {
-    return this.#haves?.get(index) || this.#preHaves?.get(index) || false
+    return this.#haves
+      ? this.#haves.get(index)
+      : this.#preHaves
+      ? this.#preHaves.get(index)
+      : false
   }
   /**
    * Returns whether this peer wants block at `index`. Defaults to `true` for
@@ -285,7 +289,7 @@ export class PeerState {
    * @param {number} index
    */
   want(index) {
-    return this.#wants?.get(index) || true
+    return this.#wants ? this.#wants.get(index) : true
   }
 }
 
@@ -327,6 +331,7 @@ export function deriveState(coreState) {
       //   2. They don't have it
       //   3. Someone does have it
       const wouldLikeIt = peers[j].want(i) && !haves[j]
+      // console.log(peerIds[j], i, peers[j].want(i), haves[j])
       want = wouldLikeIt && someoneHasIt
       if (want) {
         someoneWantsIt = true
