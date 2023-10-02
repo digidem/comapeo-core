@@ -131,6 +131,22 @@ const scenarios = [
       },
     },
   },
+  {
+    message: 'haves and wants beyond length',
+    state: {
+      length: 2,
+      localState: { have: 0b1111 },
+      remoteStates: [{ have: 0, want: 0b1110 }, { have: 0 }],
+    },
+    expected: {
+      coreLength: 2,
+      localState: { want: 0, have: 2, wanted: 2, missing: 0 },
+      remoteStates: {
+        peer0: { want: 1, have: 0, wanted: 0, missing: 0, connected: false },
+        peer1: { want: 2, have: 0, wanted: 0, missing: 0, connected: false },
+      },
+    },
+  },
 ]
 
 test('deriveState() scenarios', (t) => {

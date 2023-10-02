@@ -1,6 +1,6 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { keyToId } from '../utils.js'
-import RemoteBitfield from './remote-bitfield.js'
+import RemoteBitfield, { BITS_PER_PAGE } from './remote-bitfield.js'
 
 /**
  * @typedef {RemoteBitfield} Bitfield
@@ -284,12 +284,27 @@ export class PeerState {
       : false
   }
   /**
+   * @param {number} index
+   */
+  haveWord(index) {
+    if (this.#haves) return getBitfieldWord(this.#haves, index)
+    if (this.#preHaves) return getBitfieldWord(this.#preHaves, index)
+    return 0
+  }
+  /**
    * Returns whether this peer wants block at `index`. Defaults to `true` for
    * all blocks
    * @param {number} index
    */
   want(index) {
     return this.#wants ? this.#wants.get(index) : true
+  }
+  /**
+   * @param {number} index
+   */
+  wantWord(index) {
+    if (this.#wants) return getBitfieldWord(this.#wants, index)
+    return 2 ** 32 - 1
   }
 }
 
@@ -314,41 +329,33 @@ export function deriveState(coreState) {
     peerStates[i] = { want: 0, have: 0, wanted: 0, missing: 0 }
   }
   const haves = new Array(peerStates.length)
-  let want = false
-  for (let i = 0; i < length; i++) {
-    let someoneHasIt = false
+  let want = 0
+  for (let i = 0; i < length; i += 32) {
+    const truncate = 2 ** Math.min(32, length - i) - 1
+    let someoneHasIt = 0
     for (let j = 0; j < peers.length; j++) {
-      haves[j] = peers[j].have(i)
-      if (haves[j]) {
-        someoneHasIt = true
-        peerStates[j].have += 1
-      }
+      haves[j] = peers[j].haveWord(i) & truncate
+      someoneHasIt |= haves[j]
+      peerStates[j].have += bitCount(haves[j])
     }
-    let someoneWantsIt = false
+    let someoneWantsIt = 0
     for (let j = 0; j < peers.length; j++) {
       // A block is a want if:
       //   1. The peer wants it
       //   2. They don't have it
       //   3. Someone does have it
-      const wouldLikeIt = peers[j].want(i) && !haves[j]
-      // console.log(peerIds[j], i, peers[j].want(i), haves[j])
-      want = wouldLikeIt && someoneHasIt
-      if (want) {
-        someoneWantsIt = true
-        peerStates[j].want += 1
-      }
-      if (wouldLikeIt && !someoneHasIt) {
-        peerStates[j].missing += 1
-      }
+      const wouldLikeIt = peers[j].wantWord(i) & ~haves[j]
+      want = wouldLikeIt & someoneHasIt
+      someoneWantsIt |= want
+      peerStates[j].want += bitCount(want)
+      peerStates[j].missing += bitCount(wouldLikeIt & ~someoneHasIt & truncate)
     }
     for (let j = 0; j < peerStates.length; j++) {
       // A block is wanted if:
       //   1. Someone wants it
       //   2. The peer has it
-      const wanted = someoneWantsIt && haves[j]
-      if (wanted) {
-        peerStates[j].wanted += 1
-      }
+      const wanted = someoneWantsIt & haves[j]
+      peerStates[j].wanted += bitCount(wanted)
     }
   }
   /** @type {DerivedState} */
@@ -363,4 +370,26 @@ export function deriveState(coreState) {
     derivedState.remoteStates[peerIds[j]] = peerState
   }
   return derivedState
+}
+
+/** @param {number} n */
+function bitCount(n) {
+  n = n - ((n >> 1) & 0x55555555)
+  n = (n & 0x33333333) + ((n >> 2) & 0x33333333)
+  return (((n + (n >> 4)) & 0xf0f0f0f) * 0x1010101) >> 24
+}
+
+/**
+ *
+ * @param {RemoteBitfield} bitfield
+ * @param {number} index
+ */
+function getBitfieldWord(bitfield, index) {
+  if (index % 32 !== 0) throw new Error('Index must be multiple of 32')
+  const j = index & (BITS_PER_PAGE - 1)
+  const i = (index - j) / BITS_PER_PAGE
+
+  const p = bitfield._pages.get(i)
+
+  return p ? p.bitfield[j / 32] : 0
 }

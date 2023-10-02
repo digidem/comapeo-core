@@ -5,7 +5,7 @@
 import BigSparseArray from 'big-sparse-array'
 import { quickbit } from './compat.js'
 
-const BITS_PER_PAGE = 32768
+export const BITS_PER_PAGE = 32768
 const BYTES_PER_PAGE = BITS_PER_PAGE / 8
 const WORDS_PER_PAGE = BYTES_PER_PAGE / 4
 const BITS_PER_SEGMENT = 2097152
