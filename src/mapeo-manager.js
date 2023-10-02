@@ -215,6 +215,7 @@ export class MapeoManager {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       rpc: this.#rpc,
+      getLocalDeviceInfo: this.getDeviceInfo.bind(this),
     })
 
     // 5. Write project name and any other relevant metadata to project instance
@@ -265,6 +266,7 @@ export class MapeoManager {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       rpc: this.#rpc,
+      getLocalDeviceInfo: this.getDeviceInfo.bind(this),
     })
 
     // 3. Keep track of project instance as we know it's a properly existing project

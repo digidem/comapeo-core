@@ -40,6 +40,7 @@ export const kCapabilities = Symbol('capabilities')
 
 export class MapeoProject {
   #projectId
+  #deviceId
   #coreManager
   #dataStores
   #dataTypes
@@ -48,6 +49,7 @@ export class MapeoProject {
   #coreOwnership
   #capabilities
   #ownershipWriteDone
+  #ownDeviceInfoWriteDone
   #memberApi
 
   /**
@@ -61,6 +63,7 @@ export class MapeoProject {
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
+   * @param {() => Promise<Partial<Pick<import('@mapeo/schema').DeviceInfoValue, 'name'>>>} opts.getLocalDeviceInfo
    *
    */
   constructor({
@@ -73,6 +76,7 @@ export class MapeoProject {
     projectSecretKey,
     encryptionKeys,
     rpc,
+    getLocalDeviceInfo,
   }) {
     this.#projectId = projectKeyToId(projectKey)
 
@@ -103,6 +107,12 @@ export class MapeoProject {
       storage: coreManagerStorage,
       sqlite,
     })
+
+    // TODO: Use discovery key
+    this.#deviceId = this.#coreManager
+      .getWriterCore('config')
+      .key.toString('hex')
+
     const indexWriter = new IndexWriter({
       tables: [
         observationTable,
@@ -110,6 +120,7 @@ export class MapeoProject {
         fieldTable,
         coreOwnershipTable,
         roleTable,
+        deviceInfoTable,
       ],
       sqlite,
       getWinner,
@@ -248,6 +259,54 @@ export class MapeoProject {
         .then(deferred.resolve)
         .catch(deferred.reject)
     })
+
+    ///////// 5. Write device info record for project instance instantiator
+
+    const deferredDeviceInfoWrite = pDefer()
+    // Avoid uncaught rejection. If this is rejected then project.ready() will reject
+    deferredDeviceInfoWrite.promise.catch(() => {})
+    this.#ownDeviceInfoWriteDone = deferredDeviceInfoWrite.promise
+
+    const configCore = this.#coreManager.getWriterCore('config').core
+    configCore.on('ready', async () => {
+      try {
+        const existing = await this.#dataTypes.deviceInfo.getByDocId(
+          this.#deviceId
+        )
+
+        if (existing) {
+          const { name } = await getLocalDeviceInfo()
+
+          // If the device info is different from what the project has, update it for the project
+          if (name && name !== existing.name) {
+            await this.#dataTypes.deviceInfo.update(existing.versionId, {
+              schemaName: 'deviceInfo',
+              name,
+            })
+          }
+
+          return deferredDeviceInfoWrite.resolve()
+        }
+      } catch (err) {
+        return deferredDeviceInfoWrite.reject(err)
+      }
+
+      // No existing device info record exists for instantiator in the project so attempt to write one
+      try {
+        const { name } = await getLocalDeviceInfo()
+
+        if (name) {
+          await this.#dataTypes.deviceInfo[kCreateWithDocId](this.#deviceId, {
+            schemaName: 'deviceInfo',
+            name,
+          })
+        }
+
+        return deferredDeviceInfoWrite.resolve()
+      } catch (err) {
+        return deferredDeviceInfoWrite.reject(err)
+      }
+    })
   }
 
   /**
@@ -268,7 +327,11 @@ export class MapeoProject {
    * Resolves when hypercores have all loaded
    */
   async ready() {
-    await Promise.all([this.#coreManager.ready(), this.#ownershipWriteDone])
+    await Promise.all([
+      this.#coreManager.ready(),
+      this.#ownershipWriteDone,
+      this.#ownDeviceInfoWriteDone,
+    ])
   }
 
   /**
@@ -316,6 +379,13 @@ export class MapeoProject {
 
   get $member() {
     return this.#memberApi
+  }
+
+  /**
+   * @returns {string} id representing the device using this project instance
+   */
+  get deviceId() {
+    return this.#deviceId
   }
 
   /**
