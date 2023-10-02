@@ -69,7 +69,7 @@ test('Invalid variant-type combination returns error', async (t) => {
 
   const url = buildRouteUrl({
     projectId,
-    driveId: Buffer.alloc(32).toString('hex'),
+    driveDiscoveryId: Buffer.alloc(32).toString('hex'),
     name: 'foo',
     type: 'video',
     variant: 'thumbnail',
@@ -169,7 +169,7 @@ test('GET photo uses mime type from metadata if found', async (t) => {
     const imageMimeType = getImageMimeType(image.ext)
     const metadata = imageMimeType ? { mimeType: imageMimeType } : undefined
 
-    const driveId = await blobStore.put(blobId, image.data, {
+    const driveDiscoveryId = await blobStore.put(blobId, image.data, {
       metadata: imageMimeType ? { mimeType: imageMimeType } : undefined,
     })
 
@@ -178,7 +178,7 @@ test('GET photo uses mime type from metadata if found', async (t) => {
       url: buildRouteUrl({
         ...blobId,
         projectId,
-        driveId,
+        driveDiscoveryId,
       }),
     })
 
@@ -201,9 +201,12 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
   const { destroy } = replicateBlobs(cm1, cm2)
 
-  await waitForCores(cm2, [Buffer.from(blobId.driveId, 'hex')])
+  await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
+
   /** @type {any}*/
-  const replicatedCore = cm2.getCoreByKey(Buffer.from(blobId.driveId, 'hex'))
+  const replicatedCore = cm2.getCoreByDiscoveryKey(
+    Buffer.from(blobId.driveDiscoveryId, 'hex')
+  )
   await replicatedCore.update({ wait: true })
   await replicatedCore.download({ end: replicatedCore.length }).done()
   await destroy()
@@ -239,21 +242,24 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
       url: buildRouteUrl({
         ...blobId,
         projectId,
-        driveId: blobStore.writerDriveId,
+        driveDiscoveryId: blobStore.writerDriveDiscoveryId,
       }),
     })
 
     t.is(res.statusCode, 404)
   }
 
-  const driveId = await blobStore.put(blobId, expected)
-  await blobStore.clear({ ...blobId, driveId: blobStore.writerDriveId })
+  const driveDiscoveryId = await blobStore.put(blobId, expected)
+  await blobStore.clear({
+    ...blobId,
+    driveDiscoveryId: blobStore.writerDriveDiscoveryId,
+  })
 
   // Test that the entry exists but blob does not
   {
     const res = await server.inject({
       method: 'GET',
-      url: buildRouteUrl({ ...blobId, projectId, driveId }),
+      url: buildRouteUrl({ ...blobId, projectId, driveDiscoveryId }),
     })
 
     t.is(res.statusCode, 404)
@@ -298,10 +304,10 @@ async function populateStore(blobStore) {
       name: parsedFixture.name,
     })
 
-    const driveId = await blobStore.put(blobIdBase, diskBuffer)
+    const driveDiscoveryId = await blobStore.put(blobIdBase, diskBuffer)
 
     data.push({
-      blobId: { ...blobIdBase, driveId },
+      blobId: { ...blobIdBase, driveDiscoveryId },
       image: { data: diskBuffer, ext: parsedFixture.ext },
     })
   }
@@ -324,7 +330,7 @@ function getImageMimeType(extension) {
  * @param {object} opts
  * @param {string} [opts.prefix]
  * @param {string} opts.projectId
- * @param {string} opts.driveId
+ * @param {string} opts.driveDiscoveryId
  * @param {string} opts.type
  * @param {string} opts.variant
  * @param {string} opts.name
@@ -334,10 +340,10 @@ function getImageMimeType(extension) {
 function buildRouteUrl({
   prefix = '',
   projectId,
-  driveId,
+  driveDiscoveryId,
   type,
   variant,
   name,
 }) {
-  return `${prefix}/${projectId}/${driveId}/${type}/${variant}/${name}`
+  return `${prefix}/${projectId}/${driveDiscoveryId}/${type}/${variant}/${name}`
 }

@@ -9,7 +9,7 @@ import { createBlobStore } from './helpers/blob-store.js'
 import { timeoutException } from './helpers/index.js'
 
 test('get port after listening event with explicit port', async (t) => {
-  const blobStore = createBlobStore()
+  const { blobStore } = createBlobStore()
   const server = await createBlobServer({ blobStore })
 
   t.ok(await timeoutException(getPort(server.server)))
@@ -31,7 +31,7 @@ test('get port after listening event with explicit port', async (t) => {
 })
 
 test('get port after listening event with unset port', async (t) => {
-  const blobStore = createBlobStore()
+  const { blobStore } = createBlobStore()
   const server = await createBlobServer({ blobStore })
 
   t.ok(await timeoutException(getPort(server.server)))
@@ -52,11 +52,11 @@ test('get port after listening event with unset port', async (t) => {
 
 test('get url from blobId', async (t) => {
   const projectId = '1234'
-  const type = 'image'
+  const type = 'photo'
   const variant = 'original'
   const name = '1234'
 
-  const blobStore = createBlobStore()
+  const { blobStore } = createBlobStore()
   const blobServer = await createBlobServer({ blobStore })
   const blobApi = new BlobApi({ projectId: '1234', blobStore, blobServer })
 
@@ -66,12 +66,17 @@ test('get url from blobId', async (t) => {
     })
   })
 
-  const url = await blobApi.getUrl({ type, variant, name })
+  const url = await blobApi.getUrl({
+    driveDiscoveryId: blobStore.writerDriveDiscoveryId,
+    type,
+    variant,
+    name,
+  })
 
   t.is(
     url,
     `http://127.0.0.1:${blobServer.server.address().port}/${projectId}/${
-      blobStore.writerDriveId
+      blobStore.writerDriveDiscoveryId
     }/${type}/${variant}/${name}`
   )
   t.teardown(async () => {
@@ -109,7 +114,7 @@ test('create blobs', async (t) => {
     }
   )
 
-  t.is(attachment.driveId, blobStore.writerDriveId)
+  t.is(attachment.driveDiscoveryId, blobStore.writerDriveDiscoveryId)
   t.is(attachment.type, 'photo')
   t.alike(attachment.hash, hash.digest('hex'))
 
