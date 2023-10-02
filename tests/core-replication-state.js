@@ -202,9 +202,7 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
   t.alike(deriveState(state), expected)
 })
 
-test.solo('CoreReplicationState', async (t) => {
-  // const { state, expected, message } = scenarios[4]
-  // {
+test('CoreReplicationState', async (t) => {
   for (const { state, expected, message } of scenarios) {
     const localCore = await createCore()
     await localCore.ready()
@@ -302,7 +300,7 @@ function createBitfield(bits) {
  * @param {number} [bits]
  */
 async function clearCore(core, bits) {
-  if (typeof bits !== 'number') return
+  if (typeof bits === 'undefined') return
   if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
   await core.ready()
   const bigInt = BigInt(bits)
@@ -321,7 +319,7 @@ async function clearCore(core, bits) {
  * @param {number} [bits]
  */
 async function downloadCore(core, bits) {
-  if (typeof bits !== 'number') return
+  if (typeof bits === 'undefined') return
   if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
   await core.ready()
   const bigInt = BigInt(bits)
@@ -342,7 +340,7 @@ async function downloadCore(core, bits) {
  * @param {number} [bits]
  */
 function setPeerWants(crs, peerId, bits) {
-  if (typeof bits !== 'number') return
+  if (typeof bits === 'undefined') return
   if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
   const bigInt = BigInt(bits)
   /** @type {{ start: number, length: number}} */
