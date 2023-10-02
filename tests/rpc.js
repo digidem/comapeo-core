@@ -410,3 +410,54 @@ test('invalid stream', (t) => {
   // @ts-expect-error
   t.exception(() => r1.connect(regularStream), 'Invalid stream')
 })
+
+test('Send device info', async (t) => {
+  t.plan(3)
+
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  /** @type {import('../src/generated/rpc.js').DeviceInfo} */
+  const expectedDeviceInfo = { name: 'mapeo' }
+
+  r1.on('peers', async (peers) => {
+    t.is(peers.length, 1)
+    r1.sendDeviceInfo(peers[0].id, expectedDeviceInfo)
+  })
+
+  r2.on('device-info', ({ deviceId, ...deviceInfo }) => {
+    t.ok(deviceId)
+    t.alike(deviceInfo, expectedDeviceInfo)
+  })
+
+  replicate(r1, r2)
+})
+
+test('Reconnect peer and send device info', async (t) => {
+  t.plan(6)
+
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  const expectedDeviceInfo = { name: 'mapeo' }
+
+  const destroy = replicate(r1, r2)
+  await once(r1, 'peers')
+  await destroy()
+
+  t.is(r1.peers.length, 1)
+  t.is(r1.peers[0].status, 'disconnected')
+
+  r2.on('device-info', ({ deviceId, ...deviceInfo }) => {
+    t.ok(deviceId)
+    t.alike(deviceInfo, expectedDeviceInfo)
+  })
+
+  replicate(r1, r2)
+
+  const [peers] = await once(r1, 'peers')
+  t.is(r1.peers.length, 1)
+  t.is(peers[0].status, 'connected')
+
+  r1.sendDeviceInfo(peers[0].id, expectedDeviceInfo)
+})
