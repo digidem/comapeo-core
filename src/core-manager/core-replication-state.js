@@ -108,8 +108,10 @@ export class CoreReplicationState extends TypedEmitter {
     if (!this.#core) return
 
     this.#core = core
-    // @ts-ignore - internal property
-    this.#localState.setHavesBitfield(core?.core?.bitfield)
+    this.#localState.setHavesBitfield(
+      // @ts-ignore - internal property
+      core?.core?.bitfield
+    )
 
     for (const peer of this.#core.peers) {
       this.#onPeerAdd(peer)
