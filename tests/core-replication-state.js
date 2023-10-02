@@ -92,8 +92,8 @@ const scenarios = [
     message: 'test starting with prehaves',
     state: {
       length: 3,
-      localState: { preHave: 0b111 },
-      remoteStates: [{ preHave: 0b011 }],
+      localState: { have: 0b111 },
+      remoteStates: [{ prehave: 0b011 }],
     },
     expected: {
       coreLength: 3,
@@ -107,8 +107,8 @@ const scenarios = [
     message: 'test starting with prehaves, then haves',
     state: {
       length: 3,
-      localState: { preHave: 0b111 },
-      remoteStates: [{ preHave: 0b011, have: 0b111 }],
+      localState: { have: 0b111 },
+      remoteStates: [{ prehave: 0b011, have: 0b111 }],
     },
     expected: {
       coreLength: 3,
@@ -203,7 +203,8 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
 })
 
 test.solo('CoreReplicationState', async (t) => {
-  // const { state, expected, message } = scenarios[2]
+  // const { state, expected, message } = scenarios[4]
+  // {
   for (const { state, expected, message } of scenarios) {
     const localCore = await createCore()
     await localCore.ready()
@@ -216,13 +217,24 @@ test.solo('CoreReplicationState', async (t) => {
     seed.write('local')
     const kp1 = NoiseSecretStream.keyPair(seed)
     const peerIds = new Map()
-    for (const [index, { have, want }] of state.remoteStates.entries()) {
-      const core = await createCore(localCore.key)
+    const connectedState = new Map()
+    for (const [
+      index,
+      { have, want, prehave },
+    ] of state.remoteStates.entries()) {
       const seed = Buffer.allocUnsafe(32).fill(index)
       const kp2 = NoiseSecretStream.keyPair(seed)
       const peerId = kp2.publicKey.toString('hex')
-      setPeerWants(crs, peerId, want)
       peerIds.set('peer' + index, peerId)
+      connectedState.set(peerId, false)
+
+      // We unit test deriveState with no bitfields, but we need something here
+      // for things to work
+      crs.setHavesBitfield(peerId, createBitfield(prehave || 0))
+      if (typeof have !== 'number' && typeof want !== 'number') continue
+      connectedState.set(peerId, true)
+      const core = await createCore(localCore.key)
+      setPeerWants(crs, peerId, want)
       replicate(localCore, core, { kp1, kp2 })
       await core.update({ wait: true })
       downloadPromises.push(downloadCore(core, have))
@@ -232,7 +244,10 @@ test.solo('CoreReplicationState', async (t) => {
     const expectedRemoteStates = {}
     for (const [key, value] of Object.entries(expected.remoteStates)) {
       const peerId = peerIds.get(key)
-      expectedRemoteStates[peerId] = { ...value, connected: true }
+      expectedRemoteStates[peerId] = {
+        ...value,
+        connected: connectedState.get(peerId),
+      }
     }
     await updateWithTimeout(crs, 100)
     t.alike(
@@ -247,10 +262,10 @@ test.solo('CoreReplicationState', async (t) => {
  *
  * @param {{ have?: number, prehave?: number, want?: number, connected?: number }} param0
  */
-function createState({ have, preHave, want, connected }) {
+function createState({ have, prehave, want, connected }) {
   const peerState = new PeerState()
-  if (preHave) {
-    const bitfield = createBitfield(preHave)
+  if (prehave) {
+    const bitfield = createBitfield(prehave)
     peerState.setPreHavesBitfield(bitfield)
   }
   if (have) {
