@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "c66bf0a9-28c1-446a-bc4b-51d4ec778947",
+  "id": "5078e2b0-6319-4f3c-aee3-b024e8fe3f9a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -46,6 +46,13 @@
         },
         "createdAt": {
           "name": "createdAt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "createdBy": {
+          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -160,6 +167,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "createdBy": {
+          "name": "createdBy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "updatedAt": {
           "name": "updatedAt",
           "type": "text",
@@ -236,6 +250,13 @@
         },
         "createdAt": {
           "name": "createdAt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "createdBy": {
+          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -378,6 +399,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "createdBy": {
+          "name": "createdBy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "updatedAt": {
           "name": "updatedAt",
           "type": "text",
@@ -489,6 +517,13 @@
         },
         "createdAt": {
           "name": "createdAt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "createdBy": {
+          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -619,6 +654,13 @@
         },
         "createdAt": {
           "name": "createdAt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "createdBy": {
+          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

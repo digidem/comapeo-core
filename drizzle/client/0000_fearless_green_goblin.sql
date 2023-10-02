@@ -3,7 +3,7 @@ CREATE TABLE `localDeviceInfo` (
 	`deviceInfo` text NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `project_backlink` (
+CREATE TABLE `projectSettings_backlink` (
 	`versionId` text PRIMARY KEY NOT NULL
 );
 --> statement-breakpoint
@@ -14,11 +14,12 @@ CREATE TABLE `projectKeys` (
 	`projectInfo` text DEFAULT '{}' NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `project` (
+CREATE TABLE `projectSettings` (
 	`docId` text PRIMARY KEY NOT NULL,
 	`versionId` text NOT NULL,
 	`schemaName` text NOT NULL,
 	`createdAt` text NOT NULL,
+	`createdBy` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
 	`name` text,

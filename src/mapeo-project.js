@@ -13,7 +13,7 @@ import { BlobStore } from './blob-store/index.js'
 import { createBlobServer } from './blob-server/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
-import { projectTable } from './schema/client.js'
+import { projectSettingsTable } from './schema/client.js'
 import {
   coreOwnershipTable,
   deviceInfoTable,
@@ -31,7 +31,7 @@ import { Capabilities } from './capabilities.js'
 import { projectKeyToId, valueOf } from './utils.js'
 import { MemberApi } from './member-api.js'
 
-/** @typedef {Omit<import('@mapeo/schema').ProjectValue, 'schemaName'>} EditableProjectSettings */
+/** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -79,7 +79,9 @@ export class MapeoProject {
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
     const db = drizzle(sqlite)
-    migrate(db, { migrationsFolder: './drizzle/project' })
+    migrate(db, {
+      migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+    })
 
     ///////// 2. Setup random-access-storage functions
 
@@ -162,9 +164,9 @@ export class MapeoProject {
         table: fieldTable,
         db,
       }),
-      project: new DataType({
+      projectSettings: new DataType({
         dataStore: this.#dataStores.config,
-        table: projectTable,
+        table: projectSettingsTable,
         db: sharedDb,
       }),
       coreOwnership: new DataType({
@@ -219,11 +221,9 @@ export class MapeoProject {
       encryptionKeys,
       projectKey,
       rpc,
-      queries: {
-        getProjectInfo: async () => {
-          const settings = await this.$getProjectSettings()
-          return { name: settings.name }
-        },
+      dataTypes: {
+        deviceInfo: this.#dataTypes.deviceInfo,
+        project: this.#dataTypes.projectSettings,
       },
     })
 
@@ -288,7 +288,7 @@ export class MapeoProject {
       try {
         const { schemaName } = decodeBlockPrefix(entry.block)
 
-        if (schemaName === 'project') {
+        if (schemaName === 'projectSettings') {
           projectSettingsEntries.push(entry)
         } else {
           otherEntries.push(entry)
@@ -323,18 +323,20 @@ export class MapeoProject {
    * @returns {Promise<EditableProjectSettings>}
    */
   async $setProjectSettings(settings) {
-    const { project } = this.#dataTypes
+    const { projectSettings } = this.#dataTypes
 
     // We only want to catch the error to the getByDocId call
     // Using try/catch for this is a little verbose when dealing with TS types
-    const existing = await project.getByDocId(this.#projectId).catch(() => {
-      // project does not exist so return null
-      return null
-    })
+    const existing = await projectSettings
+      .getByDocId(this.#projectId)
+      .catch(() => {
+        // project does not exist so return null
+        return null
+      })
 
     if (existing) {
       return extractEditableProjectSettings(
-        await project.update([existing.versionId, ...existing.forks], {
+        await projectSettings.update([existing.versionId, ...existing.forks], {
           ...valueOf(existing),
           ...settings,
         })
@@ -342,9 +344,9 @@ export class MapeoProject {
     }
 
     return extractEditableProjectSettings(
-      await project[kCreateWithDocId](this.#projectId, {
+      await projectSettings[kCreateWithDocId](this.#projectId, {
         ...settings,
-        schemaName: 'project',
+        schemaName: 'projectSettings',
       })
     )
   }
@@ -355,7 +357,7 @@ export class MapeoProject {
   async $getProjectSettings() {
     try {
       return extractEditableProjectSettings(
-        await this.#dataTypes.project.getByDocId(this.#projectId)
+        await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
     } catch {
       return /** @type {EditableProjectSettings} */ ({})
@@ -364,7 +366,7 @@ export class MapeoProject {
 }
 
 /**
- * @param {import("@mapeo/schema").Project & { forks: string[] }} projectDoc
+ * @param {import("@mapeo/schema").ProjectSettings & { forks: string[] }} projectDoc
  * @returns {EditableProjectSettings}
  */
 function extractEditableProjectSettings(projectDoc) {

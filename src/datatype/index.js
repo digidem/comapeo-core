@@ -4,6 +4,7 @@ import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, placeholder } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { deNullify } from '../utils.js'
+import crypto from 'hypercore-crypto'
 
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -110,12 +111,17 @@ export class DataType {
       throw new Error('Invalid value ' + value)
     }
     const nowDateString = generateDate()
+    const discoveryId = crypto
+      .discoveryKey(this.#dataStore.writerCore.key)
+      .toString('hex')
+
     /** @type {OmitUnion<MapeoDoc, 'versionId'>} */
     const doc = {
       ...value,
       docId,
       createdAt: nowDateString,
       updatedAt: nowDateString,
+      createdBy: discoveryId,
       links: [],
     }
 
@@ -150,13 +156,14 @@ export class DataType {
    */
   async update(versionId, value) {
     const links = Array.isArray(versionId) ? versionId : [versionId]
-    const { docId, createdAt } = await this.#validateLinks(links)
+    const { docId, createdAt, createdBy } = await this.#validateLinks(links)
     /** @type {any} */
     const doc = {
       ...value,
       docId,
       createdAt,
       updatedAt: new Date().toISOString(),
+      createdBy,
       links,
     }
     await this.#dataStore.write(doc)
@@ -169,12 +176,13 @@ export class DataType {
    */
   async delete(versionId) {
     const links = Array.isArray(versionId) ? versionId : [versionId]
-    const { docId, createdAt } = await this.#validateLinks(links)
+    const { docId, createdAt, createdBy } = await this.#validateLinks(links)
     /** @type {any} */
     const doc = {
       docId,
       createdAt,
       updatedAt: new Date().toISOString(),
+      createdBy,
       links,
       schemaName: this.#schemaName,
       deleted: true,
@@ -199,19 +207,22 @@ export class DataType {
    * Throws if any of these conditions fail, otherwise returns the validated
    * docId and createAt datetime
    * @param {string[]} links
-   * @returns {Promise<{ docId: MapeoDoc['docId'], createdAt: MapeoDoc['createdAt'] }>}
+   * @returns {Promise<{ docId: MapeoDoc['docId'], createdAt: MapeoDoc['createdAt'], createdBy: MapeoDoc['createdBy'] }>}
    */
   async #validateLinks(links) {
     const prevDocs = await Promise.all(
       links.map((versionId) => this.getByVersionId(versionId))
     )
-    const { docId, createdAt } = prevDocs[0]
+    const { docId, createdAt, createdBy } = prevDocs[0]
     const areLinksValid = prevDocs.every(
-      (doc) => doc.docId === docId && doc.schemaName === this.#schemaName
+      (doc) =>
+        doc.docId === docId &&
+        doc.schemaName === this.#schemaName &&
+        doc.createdBy === createdBy
     )
     if (!areLinksValid) {
       throw new Error('Updated docs must have the same docId and schemaName')
     }
-    return { docId, createdAt }
+    return { docId, createdAt, createdBy }
   }
 }

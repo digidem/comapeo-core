@@ -11,7 +11,7 @@ import { MapeoProject } from './mapeo-project.js'
 import {
   localDeviceInfoTable,
   projectKeysTable,
-  projectTable,
+  projectSettingsTable,
 } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 import {
@@ -22,10 +22,9 @@ import {
 } from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { MapeoRPC } from './rpc/index.js'
+import { InviteApi } from './invite-api.js'
 
-/** @typedef {import("@mapeo/schema").ProjectValue} ProjectValue */
-/** @typedef {import('./types.js').ProjectId} ProjectId */
-/** @typedef {import('./types.js').ProjectPublicId} ProjectPublicId */
+/** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -35,17 +34,21 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 // other things e.g. SQLite and other parts of the app.
 const MAX_FILE_DESCRIPTORS = 768
 
+export const kRPC = Symbol('rpc')
+
 export class MapeoManager {
   #keyManager
   #projectSettingsIndexWriter
   #db
-  /** @type {Map<ProjectPublicId, MapeoProject>} */
+  // Maps project public id -> project instance
+  /** @type {Map<string, MapeoProject>} */
   #activeProjects
   /** @type {import('./types.js').CoreStorage} */
   #coreStorage
   #dbFolder
   #deviceId
   #rpc
+  #invite
 
   /**
    * @param {Object} opts
@@ -61,7 +64,9 @@ export class MapeoManager {
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
     this.#db = drizzle(sqlite)
-    migrate(this.#db, { migrationsFolder: './drizzle/client' })
+    migrate(this.#db, {
+      migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
+    })
 
     this.#rpc = new MapeoRPC()
     this.#keyManager = new KeyManager(rootKey)
@@ -69,10 +74,28 @@ export class MapeoManager {
       .getIdentityKeypair()
       .publicKey.toString('hex')
     this.#projectSettingsIndexWriter = new IndexWriter({
-      tables: [projectTable],
+      tables: [projectSettingsTable],
       sqlite,
     })
     this.#activeProjects = new Map()
+
+    this.#invite = new InviteApi({
+      rpc: this.#rpc,
+      queries: {
+        isMember: async (projectId) => {
+          const projectExists = this.#db
+            .select()
+            .from(projectKeysTable)
+            .where(eq(projectKeysTable.projectId, projectId))
+            .get()
+
+          return !!projectExists
+        },
+        addProject: async (invite) => {
+          await this.addProject(invite)
+        },
+      },
+    })
 
     if (typeof coreStorage === 'string') {
       const pool = new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
@@ -84,8 +107,15 @@ export class MapeoManager {
   }
 
   /**
+   * MapeoRPC instance, used for tests
+   */
+  get [kRPC]() {
+    return this.#rpc
+  }
+
+  /**
    * @param {Buffer} keysCipher
-   * @param {ProjectId} projectId
+   * @param {string} projectId
    * @returns {ProjectKeys}
    */
   #decodeProjectKeysCipher(keysCipher, projectId) {
@@ -96,7 +126,7 @@ export class MapeoManager {
   }
 
   /**
-   * @param {ProjectId} projectId
+   * @param {string} projectId
    * @returns {Pick<ConstructorParameters<typeof MapeoProject>[0], 'dbPath' | 'coreStorage'>}
    */
   #projectStorage(projectId) {
@@ -111,8 +141,8 @@ export class MapeoManager {
 
   /**
    * @param {Object} opts
-   * @param {ProjectId} opts.projectId
-   * @param {ProjectPublicId} opts.projectPublicId
+   * @param {string} opts.projectId
+   * @param {string} opts.projectPublicId
    * @param {ProjectKeys} opts.projectKeys
    * @param {import('./generated/rpc.js').Invite_ProjectInfo} [opts.projectInfo]
    */
@@ -142,7 +172,7 @@ export class MapeoManager {
   /**
    * Create a new project.
    * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
-   * @returns {Promise<ProjectPublicId>}
+   * @returns {Promise<string>} Project public id
    */
   async createProject(settings = {}) {
     // 1. Create project keypair
@@ -198,7 +228,7 @@ export class MapeoManager {
   }
 
   /**
-   * @param {ProjectPublicId} projectPublicId
+   * @param {string} projectPublicId
    * @returns {Promise<MapeoProject>}
    */
   async getProject(projectPublicId) {
@@ -221,9 +251,7 @@ export class MapeoManager {
       throw new Error(`NotFound: project ID ${projectPublicId} not found`)
     }
 
-    const projectId = /** @type {ProjectId} */ (
-      projectKeysTableResult.projectId
-    )
+    const { projectId } = projectKeysTableResult
 
     const projectKeys = this.#decodeProjectKeysCipher(
       projectKeysTableResult.keysCipher,
@@ -246,7 +274,7 @@ export class MapeoManager {
   }
 
   /**
-   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string }>>}
+   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string}>>}
    */
   async listProjects() {
     // We use the project keys table as the source of truth for projects that exist
@@ -263,15 +291,15 @@ export class MapeoManager {
 
     const allProjectsResult = this.#db
       .select({
-        projectId: projectTable.docId,
-        createdAt: projectTable.createdAt,
-        updatedAt: projectTable.updatedAt,
-        name: projectTable.name,
+        projectId: projectSettingsTable.docId,
+        createdAt: projectSettingsTable.createdAt,
+        updatedAt: projectSettingsTable.updatedAt,
+        name: projectSettingsTable.name,
       })
-      .from(projectTable)
+      .from(projectSettingsTable)
       .all()
 
-    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: ProjectPublicId, createdAt?: string, updatedAt?: string }>} */
+    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string, createdBy?: string }>} */
     const result = []
 
     for (const {
@@ -285,7 +313,7 @@ export class MapeoManager {
 
       result.push(
         deNullify({
-          projectId: /** @type {ProjectPublicId} */ (projectPublicId),
+          projectId: projectPublicId,
           createdAt: existingProject?.createdAt,
           updatedAt: existingProject?.updatedAt,
           name: existingProject?.name || projectInfo.name,
@@ -298,7 +326,7 @@ export class MapeoManager {
 
   /**
    * @param {import('./generated/rpc.js').Invite} invite
-   * @returns {Promise<ProjectPublicId>}
+   * @returns {Promise<string>}
    */
   async addProject({ projectKey, encryptionKeys, projectInfo }) {
     const projectPublicId = projectKeyToPublicId(projectKey)
@@ -367,5 +395,12 @@ export class MapeoManager {
       .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
       .get()
     return row ? row.deviceInfo : {}
+  }
+
+  /**
+   * @returns {InviteApi}
+   */
+  get invite() {
+    return this.#invite
   }
 }
