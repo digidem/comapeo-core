@@ -6,7 +6,7 @@ import {
 import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
 import createRandom from 'math-random-seed'
 
-bench('deriveState x 1,000; 10 peers; 10,000 blocks', function (b) {
+bench('deriveState x 10,000; 10 peers; 10,000 blocks', function (b) {
   const length = 10000
   const remotePeers = new Map()
   for (let i = 0; i < 10; i++) {
@@ -21,7 +21,7 @@ bench('deriveState x 1,000; 10 peers; 10,000 blocks', function (b) {
   }
 
   b.start()
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 10000; i++) {
     deriveState(state)
   }
   b.end()
