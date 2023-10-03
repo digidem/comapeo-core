@@ -49,6 +49,7 @@ export class BlobStore {
     for (const { key } of blobIndexCores) {
       // @ts-ignore - we know pretendCorestore is not actually a Corestore
       const drive = new Hyperdrive(corestore, key)
+      // We use the discovery key to derive the id for a drive
       this.#hyperdrives.set(getDiscoveryId(key), drive)
       if (key.equals(writerKey)) {
         this.#writer = proxyProps(drive, { key: writerKey })
@@ -56,6 +57,7 @@ export class BlobStore {
     }
     coreManager.on('add-core', ({ key, namespace }) => {
       if (namespace !== 'blobIndex') return
+      // We use the discovery key to derive the id for a drive
       const driveId = getDiscoveryId(key)
       if (this.#hyperdrives.has(driveId)) return
       // @ts-ignore - we know pretendCorestore is not actually a Corestore
@@ -311,7 +313,7 @@ class PretendCorestore {
 
 /**
  * @param {Buffer} key Public key of hypercore
- * @returns {string} Hex-encoded value of derived discovery key
+ * @returns {string} Hex-encoded string of derived discovery key
  */
 function getDiscoveryId(key) {
   return discoveryKey(key).toString('hex')
