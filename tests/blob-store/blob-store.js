@@ -22,15 +22,12 @@ test('blobStore.put(blobId, buf) and blobStore.get(blobId)', async (t) => {
     variant: 'original',
     name: 'test-file',
   })
-  const driveDiscoveryId = await blobStore.put(blobId, diskbuf)
-  const bndlbuf = await blobStore.get({
-    ...blobId,
-    driveDiscoveryId: driveDiscoveryId,
-  })
+  const driveId = await blobStore.put(blobId, diskbuf)
+  const bndlbuf = await blobStore.get({ ...blobId, driveId })
   t.alike(bndlbuf, diskbuf, 'should be equal')
 })
 
-test('get(), driveDiscoveryId not found', async (t) => {
+test('get(), driveId not found', async (t) => {
   const { blobStore } = await testenv()
   await t.exception(
     async () =>
@@ -38,14 +35,14 @@ test('get(), driveDiscoveryId not found', async (t) => {
         type: 'photo',
         variant: 'original',
         name: 'test-file',
-        driveDiscoveryId: randomBytes(32).toString('hex'),
+        driveId: randomBytes(32).toString('hex'),
       })
   )
 })
 
-test('get(), valid driveDiscoveryId, missing file', async (t) => {
+test('get(), valid driveId, missing file', async (t) => {
   const { blobStore, coreManager } = await testenv()
-  const driveDiscoveryId = discoveryKey(
+  const driveId = discoveryKey(
     coreManager.getWriterCore('blobIndex').key
   ).toString('hex')
 
@@ -55,7 +52,7 @@ test('get(), valid driveDiscoveryId, missing file', async (t) => {
         type: 'photo',
         variant: 'original',
         name: 'test-file',
-        driveDiscoveryId: driveDiscoveryId,
+        driveId,
       })
   )
 })
@@ -63,7 +60,7 @@ test('get(), valid driveDiscoveryId, missing file', async (t) => {
 test('get(), uninitialized drive', async (t) => {
   const { blobStore, coreManager } = await testenv()
   const driveKey = randomBytes(32)
-  const driveDiscoveryId = discoveryKey(driveKey).toString('hex')
+  const driveId = discoveryKey(driveKey).toString('hex')
   coreManager.addCore(driveKey, 'blobIndex')
   await t.exception(
     async () =>
@@ -71,7 +68,7 @@ test('get(), uninitialized drive', async (t) => {
         type: 'photo',
         variant: 'original',
         name: 'test-file',
-        driveDiscoveryId,
+        driveId,
       })
   )
 })
@@ -87,26 +84,18 @@ test('get(), initialized but unreplicated drive', async (t) => {
     variant: 'original',
     name: 'blob1',
   })
-  const driveDiscoveryId = await bs1.put(blob1Id, blob1)
+  const driveId = await bs1.put(blob1Id, blob1)
 
   const { destroy } = replicateBlobs(cm1, cm2)
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
 
   /** @type {any} */
-  const replicatedCore = cm2.getCoreByDiscoveryKey(
-    Buffer.from(driveDiscoveryId, 'hex')
-  )
+  const replicatedCore = cm2.getCoreByDiscoveryKey(Buffer.from(driveId, 'hex'))
   await replicatedCore.update({ wait: true })
   await destroy()
   t.is(replicatedCore.contiguousLength, 0, 'data is not downloaded')
   t.ok(replicatedCore.length > 0, 'proof of length has updated')
-  await t.exception(
-    async () =>
-      await bs2.get({
-        ...blob1Id,
-        driveDiscoveryId,
-      })
-  )
+  await t.exception(async () => await bs2.get({ ...blob1Id, driveId }))
 })
 
 test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
@@ -120,14 +109,12 @@ test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
     variant: 'original',
     name: 'blob1',
   })
-  const driveDiscoveryId = await bs1.put(blob1Id, blob1)
+  const driveId = await bs1.put(blob1Id, blob1)
 
   const { destroy } = replicateBlobs(cm1, cm2)
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
   /** @type {any} */
-  const replicatedCore = cm2.getCoreByDiscoveryKey(
-    Buffer.from(driveDiscoveryId, 'hex')
-  )
+  const replicatedCore = cm2.getCoreByDiscoveryKey(Buffer.from(driveId, 'hex'))
   await replicatedCore.update({ wait: true })
   await replicatedCore.download({ end: replicatedCore.length }).done()
   await destroy()
@@ -138,13 +125,7 @@ test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
     'blobIndex has downloaded'
   )
   t.ok(replicatedCore.length > 0)
-  await t.exception(
-    async () =>
-      await bs2.get({
-        ...blob1Id,
-        driveDiscoveryId,
-      })
-  )
+  await t.exception(async () => await bs2.get({ ...blob1Id, driveId }))
 })
 
 test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)', async (t) => {
@@ -156,13 +137,10 @@ test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)
     name: 'test-file',
   })
   const ws = blobStore.createWriteStream(blobId)
-  const { driveDiscoveryId } = ws
+  const { driveId } = ws
   await pipeline(fs.createReadStream(new URL(import.meta.url)), ws)
   const bndlbuf = await concat(
-    blobStore.createReadStream({
-      ...blobId,
-      driveDiscoveryId,
-    })
+    blobStore.createReadStream({ ...blobId, driveId })
   )
   t.alike(bndlbuf, diskbuf, 'should be equal')
 })
@@ -180,7 +158,7 @@ test('blobStore.createReadStream should not wait', async (t) => {
   try {
     const result = blobStore.createReadStream({
       ...blobId,
-      driveDiscoveryId: blobStore.writerDriveDiscoveryId,
+      driveId: blobStore.writerDriveId,
     })
     await concat(result)
   } catch (error) {
@@ -195,7 +173,7 @@ test('blobStore.createReadStream should not wait', async (t) => {
   {
     const stream = blobStore.createReadStream({
       ...blobId,
-      driveDiscoveryId: blobStore.writerDriveDiscoveryId,
+      driveId: blobStore.writerDriveId,
     })
     const blob = await concat(stream)
     t.alike(blob, expected, 'should be equal')
@@ -204,7 +182,7 @@ test('blobStore.createReadStream should not wait', async (t) => {
   try {
     const stream = blobStore2.createReadStream({
       ...blobId,
-      driveDiscoveryId: blobStore2.writerDriveDiscoveryId,
+      driveId: blobStore2.writerDriveId,
     })
     await concat(stream)
   } catch (error) {
@@ -217,20 +195,20 @@ test('blobStore.createReadStream should not wait', async (t) => {
   {
     const stream = blobStore2.createReadStream({
       ...blobId,
-      driveDiscoveryId: blobStore2.writerDriveDiscoveryId,
+      driveId: blobStore2.writerDriveId,
     })
     const blob = await concat(stream)
     t.alike(blob, expected, 'should be equal')
 
     await blobStore2.clear({
       ...blobId,
-      driveDiscoveryId: blobStore2.writerDriveDiscoveryId,
+      driveId: blobStore2.writerDriveId,
     })
 
     try {
       const stream = blobStore2.createReadStream({
         ...blobId,
-        driveDiscoveryId: blobStore2.writerDriveDiscoveryId,
+        driveId: blobStore2.writerDriveId,
       })
       await concat(stream)
     } catch (error) {
@@ -239,7 +217,7 @@ test('blobStore.createReadStream should not wait', async (t) => {
   }
 })
 
-test('blobStore.writerDriveDiscoveryId', async (t) => {
+test('blobStore.writerDriveId', async (t) => {
   {
     const { blobStore } = await testenv()
     const blobId = /** @type {const} */ ({
@@ -249,9 +227,9 @@ test('blobStore.writerDriveDiscoveryId', async (t) => {
     })
     const ws = blobStore.createWriteStream(blobId)
     t.is(
-      ws.driveDiscoveryId,
-      blobStore.writerDriveDiscoveryId,
-      'writerDriveDiscoveryId is same as driveDiscoveryId used for createWriteStream'
+      ws.driveId,
+      blobStore.writerDriveId,
+      'writerDriveId is same as driveId used for createWriteStream'
     )
   }
   {
@@ -261,11 +239,11 @@ test('blobStore.writerDriveDiscoveryId', async (t) => {
       variant: 'original',
       name: 'test-file',
     })
-    const driveDiscoveryId = await blobStore.put(blobId, Buffer.from('hello'))
+    const driveId = await blobStore.put(blobId, Buffer.from('hello'))
     t.is(
-      driveDiscoveryId,
-      blobStore.writerDriveDiscoveryId,
-      'writerDriveDiscoveryId is same as driveDiscoveryId returned by put()'
+      driveId,
+      blobStore.writerDriveId,
+      'writerDriveId is same as driveId returned by put()'
     )
   }
 })
@@ -293,7 +271,7 @@ test('live download', async function (t) {
   })
 
   // STEP 1: Write a blob to CM1
-  const driveDiscoveryId1 = await bs1.put(blob1Id, blob1)
+  const driveId1 = await bs1.put(blob1Id, blob1)
   // STEP 2: Replicate CM1 with CM3
   const { destroy: destroy1 } = replicateBlobs(cm1, cm3)
   // STEP 3: Start live download to CM3
@@ -303,7 +281,7 @@ test('live download', async function (t) {
   // STEP 5: Replicate CM2 with CM3
   const { destroy: destroy2 } = replicateBlobs(cm2, cm3)
   // STEP 6: Write a blob to CM2
-  const driveDiscoveryId2 = await bs2.put(blob2Id, blob2)
+  const driveId2 = await bs2.put(blob2Id, blob2)
   // STEP 7: Wait for blobs to be downloaded
   await downloaded(liveDownload)
   // STEP 8: destroy all the replication streams
@@ -311,12 +289,12 @@ test('live download', async function (t) {
 
   // Both blob1 and blob2 (from CM1 and CM2) should have been downloaded to CM3
   t.alike(
-    await bs3.get({ ...blob1Id, driveDiscoveryId: driveDiscoveryId1 }),
+    await bs3.get({ ...blob1Id, driveId: driveId1 }),
     blob1,
     'blob1 was downloaded'
   )
   t.alike(
-    await bs3.get({ ...blob2Id, driveDiscoveryId: driveDiscoveryId2 }),
+    await bs3.get({ ...blob2Id, driveId: driveId2 }),
     blob2,
     'blob2 was downloaded'
   )
@@ -346,7 +324,7 @@ test('sparse live download', async function (t) {
     name: 'blob3',
   })
 
-  const driveDiscoveryId = await bs1.put(blob1Id, blob1)
+  const driveId = await bs1.put(blob1Id, blob1)
   await bs1.put(blob2Id, blob2)
   await bs1.put(blob3Id, blob3)
 
@@ -357,18 +335,10 @@ test('sparse live download', async function (t) {
 
   await destroy()
 
-  t.alike(
-    await bs2.get({ ...blob1Id, driveDiscoveryId: driveDiscoveryId }),
-    blob1,
-    'blob1 was downloaded'
-  )
-  t.alike(
-    await bs2.get({ ...blob2Id, driveDiscoveryId: driveDiscoveryId }),
-    blob2,
-    'blob2 was downloaded'
-  )
+  t.alike(await bs2.get({ ...blob1Id, driveId }), blob1, 'blob1 was downloaded')
+  t.alike(await bs2.get({ ...blob2Id, driveId }), blob2, 'blob2 was downloaded')
   await t.exception(
-    () => bs2.get({ ...blob3Id, driveDiscoveryId: driveDiscoveryId }),
+    () => bs2.get({ ...blob3Id, driveId }),
     'blob3 was not downloaded'
   )
 })
@@ -393,7 +363,7 @@ test('cancelled live download', async function (t) {
   })
 
   // STEP 1: Write a blob to CM1
-  const driveDiscoveryId1 = await bs1.put(blob1Id, blob1)
+  const driveId1 = await bs1.put(blob1Id, blob1)
   // STEP 2: Replicate CM1 with CM3
   const { destroy: destroy1 } = replicateBlobs(cm1, cm3)
   // STEP 3: Start live download to CM3
@@ -406,7 +376,7 @@ test('cancelled live download', async function (t) {
   // STEP 6: Replicate CM2 with CM3
   const { destroy: destroy2 } = replicateBlobs(cm2, cm3)
   // STEP 7: Write a blob to CM2
-  const driveDiscoveryId2 = await bs2.put(blob2Id, blob2)
+  const driveId2 = await bs2.put(blob2Id, blob2)
   // STEP 8: Wait for blobs to (not) download
   await setTimeout(200)
   // STEP 9: destroy all the replication streams
@@ -414,17 +384,17 @@ test('cancelled live download', async function (t) {
 
   // Both blob1 and blob2 (from CM1 and CM2) should have been downloaded to CM3
   t.alike(
-    await bs3.get({ ...blob1Id, driveDiscoveryId: driveDiscoveryId1 }),
+    await bs3.get({ ...blob1Id, driveId: driveId1 }),
     blob1,
     'blob1 was downloaded'
   )
   await t.exception(
-    async () => bs3.get({ ...blob2Id, driveDiscoveryId: driveDiscoveryId2 }),
+    async () => bs3.get({ ...blob2Id, driveId: driveId2 }),
     'blob2 was not downloaded'
   )
 })
 
-test('blobStore.getEntryBlob(driveDiscoveryId, entry)', async (t) => {
+test('blobStore.getEntryBlob(driveId, entry)', async (t) => {
   const { blobStore } = await testenv()
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
@@ -432,15 +402,15 @@ test('blobStore.getEntryBlob(driveDiscoveryId, entry)', async (t) => {
     variant: 'original',
     name: 'test-file',
   })
-  const driveDiscoveryId = await blobStore.put(blobId, diskbuf)
-  const entry = await blobStore.entry({ ...blobId, driveDiscoveryId })
+  const driveId = await blobStore.put(blobId, diskbuf)
+  const entry = await blobStore.entry({ ...blobId, driveId })
 
-  const buf = await blobStore.getEntryBlob(driveDiscoveryId, entry)
+  const buf = await blobStore.getEntryBlob(driveId, entry)
 
   t.alike(buf, diskbuf, 'should be equal')
 })
 
-test('blobStore.getEntryReadStream(driveDiscoveryId, entry)', async (t) => {
+test('blobStore.getEntryReadStream(driveId, entry)', async (t) => {
   const { blobStore } = await testenv()
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
@@ -448,17 +418,17 @@ test('blobStore.getEntryReadStream(driveDiscoveryId, entry)', async (t) => {
     variant: 'original',
     name: 'test-file',
   })
-  const driveDiscoveryId = await blobStore.put(blobId, diskbuf)
-  const entry = await blobStore.entry({ ...blobId, driveDiscoveryId })
+  const driveId = await blobStore.put(blobId, diskbuf)
+  const entry = await blobStore.entry({ ...blobId, driveId })
 
   const buf = await concat(
-    await blobStore.createEntryReadStream(driveDiscoveryId, entry)
+    await blobStore.createEntryReadStream(driveId, entry)
   )
 
   t.alike(buf, diskbuf, 'should be equal')
 })
 
-test('blobStore.getEntryReadStream(driveDiscoveryId, entry) should not wait', async (t) => {
+test('blobStore.getEntryReadStream(driveId, entry) should not wait', async (t) => {
   const { blobStore } = await testenv()
 
   const expected = await readFile(new URL(import.meta.url))
@@ -469,18 +439,12 @@ test('blobStore.getEntryReadStream(driveDiscoveryId, entry) should not wait', as
     name: 'test-file',
   })
 
-  const driveDiscoveryId = await blobStore.put(blobId, expected)
-  const entry = await blobStore.entry({ ...blobId, driveDiscoveryId })
-  await blobStore.clear({
-    ...blobId,
-    driveDiscoveryId: blobStore.writerDriveDiscoveryId,
-  })
+  const driveId = await blobStore.put(blobId, expected)
+  const entry = await blobStore.entry({ ...blobId, driveId })
+  await blobStore.clear({ ...blobId, driveId: blobStore.writerDriveId })
 
   try {
-    const stream = await blobStore.createEntryReadStream(
-      driveDiscoveryId,
-      entry
-    )
+    const stream = await blobStore.createEntryReadStream(driveId, entry)
     await concat(stream)
   } catch (error) {
     t.is(error.message, 'Block not available', 'Block not available')

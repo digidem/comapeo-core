@@ -29,7 +29,7 @@ const HEX_STRING_32_BYTES = T.String({ pattern: HEX_REGEX_32_BYTES })
 
 const PARAMS_JSON_SCHEMA = T.Object({
   projectId: HEX_STRING_32_BYTES,
-  driveDiscoveryId: HEX_STRING_32_BYTES,
+  driveId: HEX_STRING_32_BYTES,
   type: T.Union(
     BLOB_TYPES.map((type) => {
       return T.Literal(type)
@@ -57,7 +57,7 @@ async function routes(fastify, options) {
   const { getBlobStore } = options
 
   fastify.get(
-    '/:projectId/:driveDiscoveryId/:type/:variant/:name',
+    '/:projectId/:driveId/:type/:variant/:name',
     { schema: { params: PARAMS_JSON_SCHEMA } },
     async (request, reply) => {
       const { projectId, ...blobId } = request.params
@@ -68,7 +68,7 @@ async function routes(fastify, options) {
           `Unsupported variant "${blobId.variant}" for ${blobId.type}`
         )
       }
-      const { driveDiscoveryId } = blobId
+      const { driveId } = blobId
 
       let blobStore
       try {
@@ -95,10 +95,7 @@ async function routes(fastify, options) {
 
       let blobStream
       try {
-        blobStream = await blobStore.createEntryReadStream(
-          driveDiscoveryId,
-          entry
-        )
+        blobStream = await blobStore.createEntryReadStream(driveId, entry)
       } catch (e) {
         reply.code(404)
         throw e
@@ -113,13 +110,9 @@ async function routes(fastify, options) {
         reply.header('Content-Type', metadata.mimeType)
       } else {
         // Attempt to guess the MIME type based on the blob contents
-        const blobSlice = await blobStore.getEntryBlob(
-          driveDiscoveryId,
-          entry,
-          {
-            length: 20,
-          }
-        )
+        const blobSlice = await blobStore.getEntryBlob(driveId, entry, {
+          length: 20,
+        })
 
         if (!blobSlice) {
           reply.code(404)
