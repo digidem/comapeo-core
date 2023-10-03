@@ -4,6 +4,7 @@ import {
   deriveState,
   PeerState,
   CoreReplicationState,
+  bitCount32,
 } from '../src/core-manager/core-replication-state.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
@@ -255,6 +256,26 @@ test('CoreReplicationState', async (t) => {
     )
   }
 })
+
+// This takes several hours to run on my M2 Macbook Pro (it's the slowBitCount
+// that takes a long time - bitCount32 takes about 23 seconds), so not running
+// this by default. The test did pass when I ran it though.
+test.skip('bitCount32', (t) => {
+  for (let n = 0; n < 2 ** 32; n++) {
+    if (n % 2 ** 28 === 0) console.log(n)
+    const bitCount = bitCount32(n)
+    const expected = slowBitCount(n)
+    if (bitCount !== expected) t.fail('bitcount is correct ' + n)
+  }
+})
+
+/**
+ * Slow but understandable implementation to compare with fast obscure implementation
+ * @param {number} n
+ */
+function slowBitCount(n) {
+  return n.toString(2).replace(/0/g, '').length
+}
 
 /**
  *
