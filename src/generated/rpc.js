@@ -198,3 +198,45 @@ export var InviteResponse = {
         return message;
     },
 };
+function createBaseDeviceInfo() {
+    return { name: "" };
+}
+export var DeviceInfo = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.name !== "") {
+            writer.uint32(10).string(message.name);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseDeviceInfo();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.name = reader.string();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return DeviceInfo.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseDeviceInfo();
+        message.name = (_a = object.name) !== null && _a !== void 0 ? _a : "";
+        return message;
+    },
+};
