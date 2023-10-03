@@ -9,6 +9,7 @@ import { createCoreManager, waitForCores } from '../helpers/core-manager.js'
 import { BlobStore } from '../../src/blob-store/index.js'
 import { setTimeout } from 'node:timers/promises'
 import { replicateBlobs, concat } from '../helpers/blob-store.js'
+import { discoveryKey } from 'hypercore-crypto'
 
 // Test with buffers that are 3 times the default blockSize for hyperblobs
 const TEST_BUF_SIZE = 3 * 64 * 1024
@@ -41,7 +42,10 @@ test('get(), driveId not found', async (t) => {
 
 test('get(), valid driveId, missing file', async (t) => {
   const { blobStore, coreManager } = await testenv()
-  const driveId = coreManager.getWriterCore('blobIndex').key.toString('hex')
+  const driveId = discoveryKey(
+    coreManager.getWriterCore('blobIndex').key
+  ).toString('hex')
+
   await t.exception(
     async () =>
       await blobStore.get({
@@ -56,7 +60,7 @@ test('get(), valid driveId, missing file', async (t) => {
 test('get(), uninitialized drive', async (t) => {
   const { blobStore, coreManager } = await testenv()
   const driveKey = randomBytes(32)
-  const driveId = driveKey.toString('hex')
+  const driveId = discoveryKey(driveKey).toString('hex')
   coreManager.addCore(driveKey, 'blobIndex')
   await t.exception(
     async () =>
@@ -83,20 +87,15 @@ test('get(), initialized but unreplicated drive', async (t) => {
   const driveId = await bs1.put(blob1Id, blob1)
 
   const { destroy } = replicateBlobs(cm1, cm2)
-  await waitForCores(cm2, [Buffer.from(driveId, 'hex')])
+  await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
+
   /** @type {any} */
-  const replicatedCore = cm2.getCoreByKey(Buffer.from(driveId, 'hex'))
+  const replicatedCore = cm2.getCoreByDiscoveryKey(Buffer.from(driveId, 'hex'))
   await replicatedCore.update({ wait: true })
   await destroy()
   t.is(replicatedCore.contiguousLength, 0, 'data is not downloaded')
   t.ok(replicatedCore.length > 0, 'proof of length has updated')
-  await t.exception(
-    async () =>
-      await bs2.get({
-        ...blob1Id,
-        driveId,
-      })
-  )
+  await t.exception(async () => await bs2.get({ ...blob1Id, driveId }))
 })
 
 test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
@@ -113,9 +112,9 @@ test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
   const driveId = await bs1.put(blob1Id, blob1)
 
   const { destroy } = replicateBlobs(cm1, cm2)
-  await waitForCores(cm2, [Buffer.from(driveId, 'hex')])
+  await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
   /** @type {any} */
-  const replicatedCore = cm2.getCoreByKey(Buffer.from(driveId, 'hex'))
+  const replicatedCore = cm2.getCoreByDiscoveryKey(Buffer.from(driveId, 'hex'))
   await replicatedCore.update({ wait: true })
   await replicatedCore.download({ end: replicatedCore.length }).done()
   await destroy()
@@ -126,13 +125,7 @@ test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
     'blobIndex has downloaded'
   )
   t.ok(replicatedCore.length > 0)
-  await t.exception(
-    async () =>
-      await bs2.get({
-        ...blob1Id,
-        driveId,
-      })
-  )
+  await t.exception(async () => await bs2.get({ ...blob1Id, driveId }))
 })
 
 test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)', async (t) => {
@@ -207,7 +200,10 @@ test('blobStore.createReadStream should not wait', async (t) => {
     const blob = await concat(stream)
     t.alike(blob, expected, 'should be equal')
 
-    await blobStore2.clear({ ...blobId, driveId: blobStore2.writerDriveId })
+    await blobStore2.clear({
+      ...blobId,
+      driveId: blobStore2.writerDriveId,
+    })
 
     try {
       const stream = blobStore2.createReadStream({

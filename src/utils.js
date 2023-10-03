@@ -84,7 +84,7 @@ export function deNullify(obj) {
 /**
  * @template {import('@mapeo/schema').MapeoDoc & { forks: string[] }} T
  * @param {T} doc
- * @returns {Omit<T, 'docId' | 'versionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'createdBy'>}
+ * @returns {Omit<T, 'docId' | 'versionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'createdBy' | 'deleted'>}
  */
 export function valueOf(doc) {
   /* eslint-disable no-unused-vars */
@@ -96,6 +96,7 @@ export function valueOf(doc) {
     createdAt,
     updatedAt,
     createdBy,
+    deleted,
     ...rest
   } = doc
   /* eslint-enable no-unused-vars */

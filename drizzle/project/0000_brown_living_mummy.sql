@@ -10,6 +10,7 @@ CREATE TABLE `coreOwnership` (
 	`createdBy` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
+	`deleted` integer NOT NULL,
 	`authCoreId` text NOT NULL,
 	`configCoreId` text NOT NULL,
 	`dataCoreId` text NOT NULL,
@@ -30,6 +31,7 @@ CREATE TABLE `deviceInfo` (
 	`createdBy` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
+	`deleted` integer NOT NULL,
 	`name` text NOT NULL,
 	`forks` text NOT NULL
 );
@@ -46,6 +48,7 @@ CREATE TABLE `field` (
 	`createdBy` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
+	`deleted` integer NOT NULL,
 	`tagKey` text NOT NULL,
 	`type` text NOT NULL,
 	`label` text NOT NULL,
@@ -70,6 +73,7 @@ CREATE TABLE `observation` (
 	`createdBy` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
+	`deleted` integer NOT NULL,
 	`lat` real,
 	`lon` real,
 	`refs` text NOT NULL,
@@ -91,6 +95,7 @@ CREATE TABLE `preset` (
 	`createdBy` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
+	`deleted` integer NOT NULL,
 	`name` text NOT NULL,
 	`geometry` text NOT NULL,
 	`tags` text NOT NULL,
@@ -114,6 +119,7 @@ CREATE TABLE `role` (
 	`createdBy` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
+	`deleted` integer NOT NULL,
 	`roleId` text NOT NULL,
 	`fromIndex` real NOT NULL,
 	`forks` text NOT NULL

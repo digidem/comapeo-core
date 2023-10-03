@@ -22,6 +22,7 @@ CREATE TABLE `projectSettings` (
 	`createdBy` text NOT NULL,
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
+	`deleted` integer NOT NULL,
 	`name` text,
 	`defaultPresets` text,
 	`forks` text NOT NULL

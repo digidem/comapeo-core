@@ -1,6 +1,7 @@
 import Hyperdrive from 'hyperdrive'
 import b4a from 'b4a'
 import util from 'node:util'
+import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { LiveDownload } from './live-download.js'
 
@@ -28,7 +29,7 @@ class ErrNotFound extends Error {
 }
 
 export class BlobStore {
-  /** @type {Map<string, Hyperdrive>} Indexed by hex-encoded key */
+  /** @type {Map<string, Hyperdrive>} Indexed by hex-encoded discovery key */
   #hyperdrives = new Map()
   #writer
   /**
@@ -48,17 +49,20 @@ export class BlobStore {
     for (const { key } of blobIndexCores) {
       // @ts-ignore - we know pretendCorestore is not actually a Corestore
       const drive = new Hyperdrive(corestore, key)
-      this.#hyperdrives.set(key.toString('hex'), drive)
+      // We use the discovery key to derive the id for a drive
+      this.#hyperdrives.set(getDiscoveryId(key), drive)
       if (key.equals(writerKey)) {
         this.#writer = proxyProps(drive, { key: writerKey })
       }
     }
     coreManager.on('add-core', ({ key, namespace }) => {
       if (namespace !== 'blobIndex') return
-      if (this.#hyperdrives.has(key.toString('hex'))) return
+      // We use the discovery key to derive the id for a drive
+      const driveId = getDiscoveryId(key)
+      if (this.#hyperdrives.has(driveId)) return
       // @ts-ignore - we know pretendCorestore is not actually a Corestore
       const drive = new Hyperdrive(corestore, key)
-      this.#hyperdrives.set(key.toString('hex'), drive)
+      this.#hyperdrives.set(driveId, drive)
       this.#driveEmitter.emit('add-drive', drive)
     })
     // This shouldn't happen, but this check ensures this.#writer is typed to exist
@@ -67,11 +71,11 @@ export class BlobStore {
   }
 
   get writerDriveId() {
-    return this.#writer.key.toString('hex')
+    return getDiscoveryId(this.#writer.key)
   }
 
   /**
-   * @param {string} driveId
+   * @param {string} driveId hex-encoded discovery key
    */
   #getDrive(driveId) {
     const drive = this.#hyperdrives.get(driveId)
@@ -134,7 +138,7 @@ export class BlobStore {
   /**
    * Optimization for creating the blobs read stream when you have
    * previously read the entry from Hyperdrive using `drive.entry`
-   * @param {BlobId['driveId']} driveId Hyperdrive drive id
+   * @param {BlobId['driveId']} driveId Hyperdrive drive discovery id
    * @param {import('hyperdrive').HyperdriveEntry} entry Hyperdrive entry
    * @param {object} [options]
    * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
@@ -177,12 +181,12 @@ export class BlobStore {
    * @param {Buffer} blob
    * @param {object} [options]
    * @param {{mimeType: string}} [options.metadata] Metadata to store with the blob
-   * @returns {Promise<string>} public key as hex string of hyperdrive where blob is stored
+   * @returns {Promise<string>} discovery key as hex string of hyperdrive where blob is stored
    */
   async put({ type, variant, name }, blob, options) {
     const path = makePath({ type, variant, name })
     await this.#writer.put(path, blob, options)
-    return this.#writer.key.toString('hex')
+    return this.writerDriveId
   }
 
   /**
@@ -193,7 +197,9 @@ export class BlobStore {
   createWriteStream({ type, variant, name }, options) {
     const path = makePath({ type, variant, name })
     const stream = this.#writer.createWriteStream(path, options)
-    return proxyProps(stream, { driveId: this.#writer.key.toString('hex') })
+    return proxyProps(stream, {
+      driveId: this.writerDriveId,
+    })
   }
 
   /**
@@ -303,4 +309,12 @@ class PretendCorestore {
 
   /** no-op */
   close() {}
+}
+
+/**
+ * @param {Buffer} key Public key of hypercore
+ * @returns {string} Hex-encoded string of derived discovery key
+ */
+function getDiscoveryId(key) {
+  return discoveryKey(key).toString('hex')
 }
