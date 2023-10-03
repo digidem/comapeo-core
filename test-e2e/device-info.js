@@ -23,15 +23,15 @@ test('write and read deviceInfo', async (t) => {
 })
 
 test('device info written to projects', async (t) => {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
+  t.test('when creating project', async (st) => {
+    const manager = new MapeoManager({
+      rootKey: KeyManager.generateRootKey(),
+      dbFolder: ':memory:',
+      coreStorage: () => new RAM(),
+    })
 
-  await manager.setDeviceInfo({ name: 'mapeo' })
+    await manager.setDeviceInfo({ name: 'mapeo' })
 
-  t.test('creating project', async (st) => {
     const projectId = await manager.createProject()
     const project = await manager.getProject(projectId)
 
@@ -39,15 +39,22 @@ test('device info written to projects', async (t) => {
 
     const members = await project.$member.getMany()
 
-    st.is(members.length, 1)
+    const me = members.find(({ deviceId }) => deviceId === project.deviceId)
 
-    const member = members[0]
-
-    st.is(member.deviceId, project.deviceId)
-    st.is(member.name, (await manager.getDeviceInfo())?.name)
+    st.ok(me)
+    st.is(me?.deviceId, project.deviceId)
+    st.alike({ name: me?.name }, { name: 'mapeo' })
   })
 
-  t.test('adding project', async (st) => {
+  t.test('when adding project', async (st) => {
+    const manager = new MapeoManager({
+      rootKey: KeyManager.generateRootKey(),
+      dbFolder: ':memory:',
+      coreStorage: () => new RAM(),
+    })
+
+    await manager.setDeviceInfo({ name: 'mapeo' })
+
     const projectId = await manager.addProject({
       projectKey: randomBytes(32),
       encryptionKeys: { auth: randomBytes(32) },
@@ -57,16 +64,63 @@ test('device info written to projects', async (t) => {
 
     await project.ready()
 
-    const members = await project.$member.getMany()
+    const ownMemberInfo = await getOwnMemberInfo(project)
 
-    st.is(members.length, 1)
-
-    const member = members[0]
-
-    st.is(member.deviceId, project.deviceId)
-    st.is(member.name, (await manager.getDeviceInfo())?.name)
+    st.alike({ name: ownMemberInfo.name }, { name: 'mapeo' })
   })
 
-  // TODO: Test changing device info and checking device info per project afterwards
+  t.test('after updating global device info', async (st) => {
+    const manager = new MapeoManager({
+      rootKey: KeyManager.generateRootKey(),
+      dbFolder: ':memory:',
+      coreStorage: () => new RAM(),
+    })
+
+    await manager.setDeviceInfo({ name: 'before' })
+
+    const projectIds = await Promise.all([
+      manager.createProject(),
+      manager.createProject(),
+      manager.createProject(),
+    ])
+
+    const projects = await Promise.all(
+      projectIds.map(async (projectId) => {
+        const project = await manager.getProject(projectId)
+        await project.ready()
+        return project
+      })
+    )
+
+    {
+      const ownMemberInfos = await Promise.all(projects.map(getOwnMemberInfo))
+
+      for (const info of ownMemberInfos) {
+        st.alike({ name: info.name }, { name: 'before' })
+      }
+    }
+
+    await manager.setDeviceInfo({ name: 'after' })
+
+    {
+      const ownMemberInfos = await Promise.all(projects.map(getOwnMemberInfo))
+
+      for (const info of ownMemberInfos) {
+        st.alike({ name: info.name }, { name: 'after' })
+      }
+    }
+  })
+
   // TODO: Test closing project, changing name, and getting project to see if device info for project is updated
+
+  /**
+   * @param {import('../src/mapeo-project.js').MapeoProject} project
+   *
+   */
+  async function getOwnMemberInfo(project) {
+    const members = await project.$member.getMany()
+    const me = members.find(({ deviceId }) => deviceId === project.deviceId)
+    if (!me) throw Error('Could not get own member info')
+    return me
+  }
 })

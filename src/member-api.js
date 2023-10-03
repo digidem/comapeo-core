@@ -8,6 +8,7 @@ import { projectKeyToId } from './utils.js'
 
 export class MemberApi extends TypedEmitter {
   #capabilities
+  #coreOwnership
   #encryptionKeys
   #projectKey
   #rpc
@@ -16,6 +17,7 @@ export class MemberApi extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {import('./capabilities.js').Capabilities} opts.capabilities
+   * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
    * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
@@ -23,9 +25,17 @@ export class MemberApi extends TypedEmitter {
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
    */
-  constructor({ capabilities, encryptionKeys, projectKey, rpc, dataTypes }) {
+  constructor({
+    capabilities,
+    coreOwnership,
+    encryptionKeys,
+    projectKey,
+    rpc,
+    dataTypes,
+  }) {
     super()
     this.#capabilities = capabilities
+    this.#coreOwnership = coreOwnership
     this.#encryptionKeys = encryptionKeys
     this.#projectKey = projectKey
     this.#rpc = rpc
@@ -77,9 +87,10 @@ export class MemberApi extends TypedEmitter {
     const devices = await this.#dataTypes.deviceInfo.getMany()
     return Promise.all(
       devices.map(async ({ docId, name }) => {
-        const capabilities = await this.#capabilities.getCapabilities(docId)
+        const deviceId = await this.#coreOwnership.getOwner(docId)
+        const capabilities = await this.#capabilities.getCapabilities(deviceId)
         return {
-          deviceId: docId,
+          deviceId,
           name,
           capabilities,
         }

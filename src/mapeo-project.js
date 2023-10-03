@@ -106,11 +106,6 @@ export class MapeoProject {
       sqlite,
     })
 
-    // TODO: Use discovery key
-    this.#deviceId = this.#coreManager
-      .getWriterCore('config')
-      .key.toString('hex')
-
     const indexWriter = new IndexWriter({
       tables: [
         observationTable,
@@ -226,6 +221,7 @@ export class MapeoProject {
 
     this.#memberApi = new MemberApi({
       capabilities: this.#capabilities,
+      coreOwnership: this.#coreOwnership,
       // @ts-expect-error
       encryptionKeys,
       projectKey,
@@ -271,6 +267,10 @@ export class MapeoProject {
    */
   get [kCapabilities]() {
     return this.#capabilities
+  }
+
+  get deviceId() {
+    return this.#deviceId
   }
 
   /**
@@ -325,13 +325,6 @@ export class MapeoProject {
 
   get $member() {
     return this.#memberApi
-  }
-
-  /**
-   * @returns {string} id representing the device using this project instance
-   */
-  get deviceId() {
-    return this.#deviceId
   }
 
   /**
@@ -391,16 +384,20 @@ export class MapeoProject {
   async $setOwnDeviceInfo(value) {
     const { deviceInfo } = this.#dataTypes
 
-    const doc = await deviceInfo.getByDocId(this.#deviceId)
+    const configCoreId = this.#coreManager
+      .getWriterCore('config')
+      .key.toString('hex')
 
-    if (doc) {
-      return deviceInfo.update(doc.versionId, {
+    const existingDoc = await deviceInfo.getByDocId(configCoreId)
+
+    if (existingDoc) {
+      return deviceInfo.update(existingDoc.versionId, {
         ...value,
         schemaName: 'deviceInfo',
       })
     }
 
-    return await deviceInfo[kCreateWithDocId](this.#deviceId, {
+    return await deviceInfo[kCreateWithDocId](configCoreId, {
       ...value,
       schemaName: 'deviceInfo',
     })
