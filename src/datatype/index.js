@@ -122,6 +122,7 @@ export class DataType {
       createdAt: nowDateString,
       updatedAt: nowDateString,
       createdBy: discoveryId,
+      deleted: false,
       links: [],
     }
 

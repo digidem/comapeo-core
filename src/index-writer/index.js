@@ -2,6 +2,7 @@ import { decode } from '@mapeo/schema'
 import SqliteIndexer from '@mapeo/sqlite-indexer'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { getBacklinkTableName } from '../schema/utils.js'
+import { discoveryKey } from 'hypercore-crypto'
 
 /**
  * @typedef {import('../datatype/index.js').MapeoDocTables} MapeoDocTables
@@ -59,7 +60,7 @@ export class IndexWriter {
     const queued = {}
     for (const { block, key, index } of entries) {
       try {
-        const version = { coreKey: key, index }
+        const version = { coreDiscoveryKey: discoveryKey(key), index }
         var doc = this.#mapDoc(decode(block, version), version)
       } catch (e) {
         // Unknown or invalid entry - silently ignore
