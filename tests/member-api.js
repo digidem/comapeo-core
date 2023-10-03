@@ -4,18 +4,23 @@ import { KeyManager } from '@mapeo/crypto'
 import { MapeoRPC } from '../src/rpc/index.js'
 import { MemberApi } from '../src/member-api.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
+import {
+  BLOCKED_ROLE_ID,
+  DEFAULT_CAPABILITIES,
+  MEMBER_ROLE_ID,
+} from '../src/capabilities.js'
 import { replicate } from './helpers/rpc.js'
 
 test('invite() sends expected project-related details', async (t) => {
   t.plan(4)
 
-  const { projectKey, encryptionKeys, rpc: r1 } = setup()
+  const { projectKey, encryptionKeys, rpc: r1, capabilities } = setup()
 
-  const projectInfo = { name: 'mapeo' }
+  const projectInfo = createProjectRecord({ name: 'mapeo' })
   const r2 = new MapeoRPC()
 
   const memberApi = new MemberApi({
-    capabilities: { async assignRole() {} },
+    capabilities,
     encryptionKeys,
     projectKey,
     rpc: r1,
@@ -29,7 +34,7 @@ test('invite() sends expected project-related details', async (t) => {
   })
   r1.on('peers', async (peers) => {
     const response = await memberApi.invite(peers[0].id, {
-      roleId: randomBytes(8).toString('hex'),
+      roleId: MEMBER_ROLE_ID,
     })
 
     t.is(response, InviteResponse_Decision.ACCEPT)
@@ -38,7 +43,7 @@ test('invite() sends expected project-related details', async (t) => {
   r2.on('invite', (peerId, invite) => {
     t.alike(invite.projectKey, projectKey)
     t.alike(invite.encryptionKeys, encryptionKeys)
-    t.alike(invite.projectInfo, projectInfo)
+    t.alike(invite.projectInfo?.name, projectInfo.name)
 
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
@@ -56,7 +61,7 @@ test('invite() assigns role to invited device after invite accepted', async (t) 
 
   const r2 = new MapeoRPC()
 
-  const expectedRoleId = randomBytes(8).toString('hex')
+  const expectedRoleId = MEMBER_ROLE_ID
   let expectedDeviceId = null
 
   // We're only testing that this gets called with the expected arguments
@@ -76,7 +81,7 @@ test('invite() assigns role to invited device after invite accepted', async (t) 
     dataTypes: {
       project: {
         async getByDocId() {
-          return { name: 'mapeo' }
+          return createProjectRecord({ name: 'mapeo' })
         },
       },
     },
@@ -108,31 +113,32 @@ test('invite() does not assign role to invited device if invite is not accepted'
   ).filter((d) => d !== InviteResponse_Decision.ACCEPT)
 
   for (const decision of nonAcceptInviteDecisions) {
-    t.test(decision, (t) => {
-      t.plan(1)
+    t.test(decision, (st) => {
+      st.plan(1)
 
-      const { projectKey, encryptionKeys, rpc: r1 } = setup()
+      const { projectKey, encryptionKeys, rpc: r1, capabilities } = setup()
 
       const r2 = new MapeoRPC()
 
-      const capabilities = {
+      const capabilitiesSpy = {
+        ...capabilities,
         // This should not be called at any point in this test
         async assignRole() {
-          t.fail(
+          st.fail(
             'Attempted to assign role despite decision being non-acceptance'
           )
         },
       }
 
       const memberApi = new MemberApi({
-        capabilities,
+        capabilities: capabilitiesSpy,
         encryptionKeys,
         projectKey,
         rpc: r1,
         dataTypes: {
           project: {
             async getByDocId() {
-              return { name: 'mapeo' }
+              return createProjectRecord({ name: 'mapeo' })
             },
           },
         },
@@ -140,10 +146,10 @@ test('invite() does not assign role to invited device if invite is not accepted'
 
       r1.on('peers', async (peers) => {
         const response = await memberApi.invite(peers[0].id, {
-          roleId: randomBytes(8).toString('hex'),
+          roleId: MEMBER_ROLE_ID,
         })
 
-        t.is(response, decision)
+        st.is(response, decision)
       })
 
       r2.on('invite', (peerId, invite) => {
@@ -159,16 +165,18 @@ test('invite() does not assign role to invited device if invite is not accepted'
 })
 
 test('getById() works', async (t) => {
-  const { projectKey, encryptionKeys, rpc } = setup()
+  const { projectKey, encryptionKeys, rpc, capabilities } = setup()
 
   const deviceId = randomBytes(32).toString('hex')
 
   const deviceInfo = createDeviceInfoRecord({ deviceId, name: 'member' })
 
+  // Pre-populate data
+  await capabilities.assignRole(deviceId, MEMBER_ROLE_ID)
   const deviceInfoRecords = [deviceInfo]
 
   const memberApi = new MemberApi({
-    capabilities: { async assignRole() {} },
+    capabilities,
     encryptionKeys,
     projectKey,
     rpc,
@@ -190,23 +198,24 @@ test('getById() works', async (t) => {
     {
       deviceId,
       name: deviceInfo.name,
+      capabilities: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
     },
     'returns matching member'
   )
 
   await t.exception(async () => {
-    const randomId = randomBytes(32)
-    await memberApi.getById(randomId)
+    const randomDeviceId = randomBytes(32).toString('hex')
+    await memberApi.getById(randomDeviceId)
   }, 'throws when no match')
 })
 
 test('getMany() works', async (t) => {
-  const { projectKey, encryptionKeys, rpc } = setup()
+  const { projectKey, encryptionKeys, rpc, capabilities } = setup()
 
   const deviceInfoRecords = []
 
   const memberApi = new MemberApi({
-    capabilities: { async assignRole() {} },
+    capabilities,
     encryptionKeys,
     projectKey,
     rpc,
@@ -224,23 +233,26 @@ test('getMany() works', async (t) => {
 
   t.is(initialMembers.length, 0, 'no initial members')
 
-  deviceInfoRecords.push(
-    createDeviceInfoRecord({ name: 'member1' }),
-    createDeviceInfoRecord({ name: 'member2' }),
-    createDeviceInfoRecord({ name: 'member3' })
-  )
+  // Pre-populate data
+  for (let i = 0; i < 3; i++) {
+    const deviceInfo = createDeviceInfoRecord({ name: `member${i + 1}` })
+    deviceInfoRecords.push(deviceInfo)
+    await capabilities.assignRole(deviceInfo.docId, MEMBER_ROLE_ID)
+  }
 
   const members = await memberApi.getMany()
 
   t.is(members.length, 3)
 
   for (const member of members) {
-    const { deviceId, name } = member
+    t.alike(member.capabilities, DEFAULT_CAPABILITIES[MEMBER_ROLE_ID])
 
-    const deviceInfo = deviceInfoRecords.find(({ docId }) => docId === deviceId)
+    const deviceInfo = deviceInfoRecords.find(
+      ({ docId }) => docId === member.deviceId
+    )
 
     t.ok(deviceInfo)
-    t.is(name, deviceInfo.name)
+    t.is(member.name, deviceInfo?.name)
   }
 })
 
@@ -249,7 +261,22 @@ function setup() {
   const encryptionKeys = { auth: randomBytes(32) }
   const rpc = new MapeoRPC()
 
+  /** @type {Map<string, import('../src/capabilities.js').RoleId>} */
+  const memberRoles = new Map()
+
+  /** @type {Pick<import('../src/capabilities.js').Capabilities, "assignRole" | "getCapabilities">} */
+  const capabilities = {
+    async assignRole(deviceId, role) {
+      memberRoles.set(deviceId, role)
+    },
+    async getCapabilities(deviceId) {
+      const roleId = memberRoles.get(deviceId)
+      return DEFAULT_CAPABILITIES[roleId || BLOCKED_ROLE_ID]
+    },
+  }
+
   return {
+    capabilities,
     projectKey,
     encryptionKeys,
     rpc,
@@ -264,6 +291,7 @@ function setup() {
  */
 function createDeviceInfoRecord({ deviceId, name }) {
   const docId = deviceId || randomBytes(32).toString('hex')
+  const createdBy = randomBytes(32).toString('hex')
 
   return {
     schemaName: 'deviceInfo',
@@ -272,6 +300,29 @@ function createDeviceInfoRecord({ deviceId, name }) {
     versionId: `${docId}/0`,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    createdBy,
+    links: [],
+  }
+}
+
+/**
+ * @param {Object} opts
+ * @param {string} [opts.projectId]
+ * @param {string} opts.name
+ * @returns {import('@mapeo/schema').ProjectSettings}
+ */
+function createProjectRecord({ projectId, name }) {
+  const docId = projectId || randomBytes(32).toString('hex')
+  const createdBy = randomBytes(32).toString('hex')
+
+  return {
+    schemaName: 'projectSettings',
+    docId,
+    name,
+    versionId: `${docId}/0`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy,
     links: [],
   }
 }
