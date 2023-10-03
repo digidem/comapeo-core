@@ -22,6 +22,7 @@ import {
   observationTable,
   presetTable,
   roleTable,
+  iconTable,
 } from './schema/project.js'
 import {
   CoreOwnership,
@@ -183,6 +184,11 @@ export class MapeoProject {
       deviceInfo: new DataType({
         dataStore: this.#dataStores.config,
         table: deviceInfoTable,
+        db,
+      }),
+      icon: new DataType({
+        dataStore: this.#dataStores.config,
+        table: iconTable,
         db,
       }),
     }
