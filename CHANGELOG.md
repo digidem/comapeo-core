@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [9.0.0-alpha.1](https://github.com/digidem/mapeo-core/compare/v9.0.0-alpha.0...v9.0.0-alpha.1) (2023-10-03)
+
+
+### Features
+
+* $blobs.getUrl and $blobs.create methods ([#184](https://github.com/digidem/mapeo-core/issues/184)) ([fb33178](https://github.com/digidem/mapeo-core/commit/fb33178e61a0b96add31809a227e59f954ba3d1d))
+* add capabilities ([#231](https://github.com/digidem/mapeo-core/issues/231)) ([107bf8f](https://github.com/digidem/mapeo-core/commit/107bf8f563bd817c5acbe416b3315298354bc158))
+* Add config store and preset & field types ([#174](https://github.com/digidem/mapeo-core/issues/174)) ([9f16817](https://github.com/digidem/mapeo-core/commit/9f16817b5d861cfde460337cd8155c12a46321af))
+* Add encode/decode for project keys [3/3] ([#203](https://github.com/digidem/mapeo-core/issues/203)) ([4b9900a](https://github.com/digidem/mapeo-core/commit/4b9900a43a1ba160d9b877f88de59eb2e2cd5e7c))
+* add getById method to member api ([#262](https://github.com/digidem/mapeo-core/issues/262)) ([d035a83](https://github.com/digidem/mapeo-core/commit/d035a834c6179f8113ca8778d27467ce0bb48202))
+* add getMany method to member api ([#263](https://github.com/digidem/mapeo-core/issues/263)) ([350ccc5](https://github.com/digidem/mapeo-core/commit/350ccc59f1d394eb8f7d0e56530455044ea02700))
+* Add internal `dataType.createWithDocId()` ([#192](https://github.com/digidem/mapeo-core/issues/192)) ([ba34e11](https://github.com/digidem/mapeo-core/commit/ba34e11148999693477fffa350336f65de6953b1)), closes [#190](https://github.com/digidem/mapeo-core/issues/190)
+* add invite namespace to MapeoManager ([#281](https://github.com/digidem/mapeo-core/issues/281)) ([021ef15](https://github.com/digidem/mapeo-core/commit/021ef153678527063911006b6b6840187001c787))
+* add ipc wrappers ([#261](https://github.com/digidem/mapeo-core/issues/261)) ([aae39e8](https://github.com/digidem/mapeo-core/commit/aae39e8815b8fe813d8667a87be7a78cf27a1800))
+* Add RPC sendDeviceInfo() + device-info event ([#270](https://github.com/digidem/mapeo-core/issues/270)) ([88723c4](https://github.com/digidem/mapeo-core/commit/88723c4d9dc6768f6f4f089b996f280490225398))
+* add schema definition for project keys table ([#169](https://github.com/digidem/mapeo-core/issues/169)) ([9aaa193](https://github.com/digidem/mapeo-core/commit/9aaa19394b1f47ce5f22dc4d4669a464b61ae3ae))
+* Add set & get deviceInfo & datatype ([#250](https://github.com/digidem/mapeo-core/issues/250)) ([f4d1a24](https://github.com/digidem/mapeo-core/commit/f4d1a24571f2742de0a868fe43fe5fac0c184e51))
+* addCreatedBy ([#274](https://github.com/digidem/mapeo-core/issues/274)) ([ee0defa](https://github.com/digidem/mapeo-core/commit/ee0defa7be33d40700d00b0bc583f9b067c8ffd0))
+* CoreOwnership class w getOwner & getCoreKey [2/3] ([#229](https://github.com/digidem/mapeo-core/issues/229)) ([7faa1d5](https://github.com/digidem/mapeo-core/commit/7faa1d57530fdb2bf387203dcd35e3049827befc))
+* coreOwnership integration [3/3] ([#230](https://github.com/digidem/mapeo-core/issues/230)) ([51d9f80](https://github.com/digidem/mapeo-core/commit/51d9f80b1a5b5674238e2fefd35a3876d32b673d))
+* disable namespace replication ([#285](https://github.com/digidem/mapeo-core/issues/285)) ([c9387bd](https://github.com/digidem/mapeo-core/commit/c9387bd8ec8655f72431ff4ecee56d9ff9167465))
+* expose blobStore.writerDriveId ([#219](https://github.com/digidem/mapeo-core/issues/219)) ([64cd120](https://github.com/digidem/mapeo-core/commit/64cd120badc4c88792a8e929ab897c76f5da47f3))
+* expose capabilities in MapeoProject and its member api ([#286](https://github.com/digidem/mapeo-core/issues/286)) ([1e98363](https://github.com/digidem/mapeo-core/commit/1e98363bf6f0fea027a238841791d6d776addce0))
+* handle `coreOwnership` records in `IndexWriter` [1/3] ([#214](https://github.com/digidem/mapeo-core/issues/214)) ([dbc52c3](https://github.com/digidem/mapeo-core/commit/dbc52c35aedc9fcaeb59e8fbc93d05244b46a562))
+* Implement MdnsDiscovery ([#177](https://github.com/digidem/mapeo-core/issues/177)) ([ca3b6c7](https://github.com/digidem/mapeo-core/commit/ca3b6c73d5bbd6650124d27f14410b1a188f54ef))
+* send core "haves" bitfield on first connect ([#254](https://github.com/digidem/mapeo-core/issues/254)) ([4042a8f](https://github.com/digidem/mapeo-core/commit/4042a8fde1e6428c2605d5707b1c5f3499aed9ad))
+* share all core keys via extension messages ([#264](https://github.com/digidem/mapeo-core/issues/264)) ([7142b86](https://github.com/digidem/mapeo-core/commit/7142b862c7863aa79a2fa403624fc9d64b92025a)), closes [#254](https://github.com/digidem/mapeo-core/issues/254) [#251](https://github.com/digidem/mapeo-core/issues/251)
+* update main exports ([#284](https://github.com/digidem/mapeo-core/issues/284)) ([1e0df1c](https://github.com/digidem/mapeo-core/commit/1e0df1c2380f9231a6f8a6fc9bf74204322ccbb8))
+* update protobuf for RPC [2/3] ([#202](https://github.com/digidem/mapeo-core/issues/202)) ([986f1dd](https://github.com/digidem/mapeo-core/commit/986f1dd2f3747a753d08e2bc67a0077293bfba44))
+
+
+### Bug Fixes
+
+* adjust storage options for MapeoManager and MapeoProject ([#235](https://github.com/digidem/mapeo-core/issues/235)) ([1bd2613](https://github.com/digidem/mapeo-core/commit/1bd261320cc6763e58bbc59931999c9fac6fb1fc))
+* fix usage of drizzle when core is used as a dep ([#283](https://github.com/digidem/mapeo-core/issues/283)) ([2dfa016](https://github.com/digidem/mapeo-core/commit/2dfa016654bfa578363622a3f89465164ba3d21c))
+* invite.encryptionKeys should be required ([#260](https://github.com/digidem/mapeo-core/issues/260)) ([8be90d2](https://github.com/digidem/mapeo-core/commit/8be90d2cde7756594fe9a3fc57d607e991c3b632))
+* properly generate column names in projectKeys table ([#173](https://github.com/digidem/mapeo-core/issues/173)) ([1f62404](https://github.com/digidem/mapeo-core/commit/1f62404fa0b39d73c5e60488d7efcfddced57312))
+
 ## 9.0.0-alpha.0 (2023-08-14)
 
 

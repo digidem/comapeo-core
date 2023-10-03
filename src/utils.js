@@ -128,3 +128,11 @@ export function projectKeyToPublicId(projectKey) {
 export function projectIdToNonce(projectId) {
   return Buffer.from(projectId, 'hex').subarray(0, 24)
 }
+
+/**
+ * @param {import('@mapeo/crypto').KeyManager} keyManager
+ * @returns {string}
+ */
+export function getDeviceId(keyManager) {
+  return keyManager.getIdentityKeypair().publicKey.toString('hex')
+}

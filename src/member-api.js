@@ -4,7 +4,7 @@ import { projectKeyToId } from './utils.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
-/** @typedef {{ deviceId: string, name: import('@mapeo/schema').DeviceInfo['name'] }} MemberInfo */
+/** @typedef {{ deviceId: string, name: import('@mapeo/schema').DeviceInfo['name'], capabilities: import('./capabilities.js').Capability }} MemberInfo */
 
 export class MemberApi extends TypedEmitter {
   #capabilities
@@ -66,7 +66,8 @@ export class MemberApi extends TypedEmitter {
    */
   async getById(deviceId) {
     const { name } = await this.#dataTypes.deviceInfo.getByDocId(deviceId)
-    return { deviceId, name }
+    const capabilities = await this.#capabilities.getCapabilities(deviceId)
+    return { deviceId, name, capabilities }
   }
 
   /**
@@ -74,6 +75,15 @@ export class MemberApi extends TypedEmitter {
    */
   async getMany() {
     const devices = await this.#dataTypes.deviceInfo.getMany()
-    return devices.map(({ docId, name }) => ({ deviceId: docId, name }))
+    return Promise.all(
+      devices.map(async ({ docId, name }) => {
+        const capabilities = await this.#capabilities.getCapabilities(docId)
+        return {
+          deviceId: docId,
+          name,
+          capabilities,
+        }
+      })
+    )
   }
 }
