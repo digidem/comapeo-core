@@ -215,16 +215,21 @@ export class MapeoManager {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       rpc: this.#rpc,
-      getLocalDeviceInfo: this.getDeviceInfo.bind(this),
     })
 
     // 5. Write project name and any other relevant metadata to project instance
     await project.$setProjectSettings(settings)
 
+    // 6. Write device info into project
+    const deviceInfo = await this.getDeviceInfo()
+    if (deviceInfo.name) {
+      await project.$setOwnDeviceInfo({ name: deviceInfo.name })
+    }
+
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
 
-    // 6. Return project public id
+    // 7. Return project public id
     return projectPublicId
   }
 
@@ -266,7 +271,6 @@ export class MapeoManager {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       rpc: this.#rpc,
-      getLocalDeviceInfo: this.getDeviceInfo.bind(this),
     })
 
     // 3. Keep track of project instance as we know it's a properly existing project
@@ -368,6 +372,14 @@ export class MapeoManager {
       projectInfo,
     })
 
+    // 5. Write device info into project
+    const deviceInfo = await this.getDeviceInfo()
+
+    if (deviceInfo.name) {
+      const project = await this.getProject(projectPublicId)
+      await project.$setOwnDeviceInfo({ name: deviceInfo.name })
+    }
+
     return projectPublicId
   }
 
@@ -385,6 +397,15 @@ export class MapeoManager {
         set: values,
       })
       .run()
+
+    const listedProjects = await this.listProjects()
+
+    await Promise.all(
+      listedProjects.map(async ({ projectId }) => {
+        const project = await this.getProject(projectId)
+        await project.$setOwnDeviceInfo(deviceInfo)
+      })
+    )
   }
 
   /**

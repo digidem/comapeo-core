@@ -37,7 +37,6 @@ const mapeoProject = new MapeoProject({
     sqlite,
   }),
   rpc: new MapeoRPC(),
-  getLocalDeviceInfo: async () => ({ name: 'foo' }),
 })
 
 ///// Observations
