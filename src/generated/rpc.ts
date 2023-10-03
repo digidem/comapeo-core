@@ -57,6 +57,10 @@ export function inviteResponse_DecisionToNumber(object: InviteResponse_Decision)
   }
 }
 
+export interface DeviceInfo {
+  name: string;
+}
+
 function createBaseInvite(): Invite {
   return { projectKey: Buffer.alloc(0), encryptionKeys: undefined };
 }
@@ -225,6 +229,51 @@ export const InviteResponse = {
     const message = createBaseInviteResponse();
     message.projectKey = object.projectKey ?? Buffer.alloc(0);
     message.decision = object.decision ?? InviteResponse_Decision.REJECT;
+    return message;
+  },
+};
+
+function createBaseDeviceInfo(): DeviceInfo {
+  return { name: "" };
+}
+
+export const DeviceInfo = {
+  encode(message: DeviceInfo, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): DeviceInfo {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeviceInfo();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<DeviceInfo>, I>>(base?: I): DeviceInfo {
+    return DeviceInfo.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DeviceInfo>, I>>(object: I): DeviceInfo {
+    const message = createBaseDeviceInfo();
+    message.name = object.name ?? "";
     return message;
   },
 };
