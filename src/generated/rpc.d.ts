@@ -22,6 +22,9 @@ export declare enum InviteResponse_Decision {
 }
 export declare function inviteResponse_DecisionFromJSON(object: any): InviteResponse_Decision;
 export declare function inviteResponse_DecisionToNumber(object: InviteResponse_Decision): number;
+export interface DeviceInfo {
+    name: string;
+}
 export declare const Invite: {
     encode(message: Invite, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): Invite;
@@ -123,4 +126,18 @@ export declare const InviteResponse: {
         projectKey?: Buffer;
         decision?: InviteResponse_Decision;
     } & { [K_1 in Exclude<keyof I_1, keyof InviteResponse>]: never; }>(object: I_1): InviteResponse;
+};
+export declare const DeviceInfo: {
+    encode(message: DeviceInfo, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): DeviceInfo;
+    create<I extends {
+        name?: string;
+    } & {
+        name?: string;
+    } & { [K in Exclude<keyof I, "name">]: never; }>(base?: I): DeviceInfo;
+    fromPartial<I_1 extends {
+        name?: string;
+    } & {
+        name?: string;
+    } & { [K_1 in Exclude<keyof I_1, "name">]: never; }>(object: I_1): DeviceInfo;
 };

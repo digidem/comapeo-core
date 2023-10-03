@@ -30,7 +30,7 @@ import {
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
 import { Capabilities } from './capabilities.js'
-import { projectKeyToId, valueOf } from './utils.js'
+import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
 import { MemberApi } from './member-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
@@ -42,6 +42,7 @@ export const kCapabilities = Symbol('capabilities')
 
 export class MapeoProject {
   #projectId
+  #deviceId
   #coreManager
   #dataStores
   #dataTypes
@@ -76,6 +77,7 @@ export class MapeoProject {
     encryptionKeys,
     rpc,
   }) {
+    this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
 
     ///////// 1. Setup database
@@ -369,6 +371,10 @@ export class MapeoProject {
     } catch {
       return /** @type {EditableProjectSettings} */ ({})
     }
+  }
+
+  async $getOwnCapabilities() {
+    return this.#capabilities.getCapabilities(this.#deviceId)
   }
 }
 
