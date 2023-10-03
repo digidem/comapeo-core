@@ -5,6 +5,7 @@ import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import pDefer from 'p-defer'
+import { discoveryKey } from 'hypercore-crypto'
 
 import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
@@ -449,8 +450,8 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
  * @param {import('@mapeo/schema').VersionIdObject} version
  * @returns {import('@mapeo/schema').DeviceInfo}
  */
-function mapAndValidateDeviceInfo(doc, { coreKey }) {
-  if (doc.docId !== coreKey.toString('hex')) {
+function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
+  if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
     throw new Error(
       'Invalid deviceInfo record, cannot write deviceInfo for another device'
     )

@@ -4,6 +4,7 @@ import { MapeoManager } from '../src/mapeo-manager.js'
 import { kCoreOwnership } from '../src/mapeo-project.js'
 import { parseVersionId } from '@mapeo/schema'
 import RAM from 'random-access-memory'
+import { discoveryKey } from 'hypercore-crypto'
 
 test('CoreOwnership', async (t) => {
   const rootKey = KeyManager.generateRootKey()
@@ -35,8 +36,8 @@ test('CoreOwnership', async (t) => {
     fieldIds: [],
   })
   t.is(
-    await coreOwnership.getCoreId(deviceId, 'config'),
-    parseVersionId(preset.versionId).coreKey.toString('hex')
+    discoveryId(await coreOwnership.getCoreId(deviceId, 'config')),
+    parseVersionId(preset.versionId).coreDiscoveryKey.toString('hex')
   )
 
   const observation = await project.observation.create({
@@ -47,7 +48,12 @@ test('CoreOwnership', async (t) => {
     metadata: {},
   })
   t.is(
-    await coreOwnership.getCoreId(deviceId, 'data'),
-    parseVersionId(observation.versionId).coreKey.toString('hex')
+    discoveryId(await coreOwnership.getCoreId(deviceId, 'data')),
+    parseVersionId(observation.versionId).coreDiscoveryKey.toString('hex')
   )
 })
+
+/** @param {string} id */
+function discoveryId(id) {
+  return discoveryKey(Buffer.from(id, 'hex')).toString('hex')
+}

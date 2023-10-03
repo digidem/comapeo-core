@@ -2,6 +2,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { encode, decode, getVersionId, parseVersionId } from '@mapeo/schema'
 import MultiCoreIndexer from 'multi-core-indexer'
 import pDefer from 'p-defer'
+import { discoveryKey } from 'hypercore-crypto'
 
 /**
  * @typedef {import('multi-core-indexer').IndexEvents} IndexEvents
@@ -109,7 +110,7 @@ export class DataStore extends TypedEmitter {
     for (const entry of entries) {
       if (!entry.key.equals(this.#writerCore.key)) continue
       const versionId = getVersionId({
-        coreKey: entry.key,
+        coreDiscoveryKey: discoveryKey(entry.key),
         index: entry.index,
       })
       const pending = this.#pending.get(versionId)
@@ -141,14 +142,18 @@ export class DataStore extends TypedEmitter {
 
     const { length } = await this.#writerCore.append(block)
     const index = length - 1
-    const versionId = getVersionId({ coreKey: this.#writerCore.key, index })
+    const coreDiscoveryKey = this.#writerCore.discoveryKey
+    if (!coreDiscoveryKey) {
+      throw new Error('Writer core is not ready')
+    }
+    const versionId = getVersionId({ coreDiscoveryKey, index })
     /** @type {import('p-defer').DeferredPromise<void>} */
     const deferred = pDefer()
     this.#pending.set(versionId, deferred)
     await deferred.promise
 
     return /** @type {Extract<MapeoDoc, TDoc>} */ (
-      decode(block, { coreKey: this.#writerCore.key, index })
+      decode(block, { coreDiscoveryKey, index })
     )
   }
 
@@ -158,11 +163,11 @@ export class DataStore extends TypedEmitter {
    * @returns {Promise<MapeoDoc>}
    */
   async read(versionId) {
-    const { coreKey, index } = parseVersionId(versionId)
-    const core = this.#coreManager.getCoreByKey(coreKey)
+    const { coreDiscoveryKey, index } = parseVersionId(versionId)
+    const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
     if (!core) throw new Error('Invalid versionId')
     const block = await core.get(index, { wait: false })
     if (!block) throw new Error('Not Found')
-    return decode(block, { coreKey: coreKey, index })
+    return decode(block, { coreDiscoveryKey, index })
   }
 }
