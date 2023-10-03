@@ -6,6 +6,8 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
 import { ERR_DUPLICATE, MdnsDiscovery } from '../../src/discovery/mdns.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
+import dgram from 'node:dgram'
+import { DnsSd } from '../../src/discovery/dns-sd.js'
 
 // Time in ms to wait for mdns messages to propogate
 const MDNS_WAIT_TIME = 5000
@@ -83,9 +85,12 @@ test.skip(`mdns - discovery of 20 peers with random time instantiation`, async (
 
 // These tests are failing randomly due to a race condition when de-duplicating connections.
 // TODO: Fix the race condition and re-enable these tests, and try to write a test that will consistently reproduce
-test.skip(`mdns - discovery of 20 peers instantiated at the same time`, async (t) => {
-  await testMultiple(t, { period: 0, nPeers: 20 })
-})
+test.solo(
+  `mdns - discovery of 20 peers instantiated at the same time`,
+  async (t) => {
+    await testMultiple(t, { period: 0, nPeers: 20 })
+  }
+)
 
 test(`mdns - discovery of 3 peers with random time instantiation`, async (t) => {
   await testMultiple(t, { period: 2000, nPeers: 3 })
@@ -119,7 +124,14 @@ async function testMultiple(t, { period, nPeers = 20 }) {
 
   async function spawnPeer() {
     const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
-    const discovery = new MdnsDiscovery({ identityKeypair })
+    const discovery = new MdnsDiscovery({
+      identityKeypair,
+      latency: { min: 10, max: 50 },
+      dnssd: new DnsSd({
+        name: keyToPublicId(identityKeypair.publicKey),
+        createDgramSocket: () => createSlowDgramSocket({ min: 10, max: 30 }),
+      }),
+    })
     const peerId = keyToPublicId(discovery.publicKey)
     peersById.set(peerId, discovery)
     const conns = []
@@ -170,4 +182,62 @@ async function testMultiple(t, { period, nPeers = 20 }) {
   }
   await Promise.all(stopPromises)
   t.pass('teardown complete')
+}
+
+/**
+ * Create a dgram (UDP) socket with random latency. Packets can potentially be
+ * delivered / received out-of-order due to the random delay, which is what can
+ * happen with UDP.
+ *
+ * @param {{ min: number, max: number }} latency Delay incoming and outgoing messages by between `min` and `max` milliseconds
+ */
+function createSlowDgramSocket(latency) {
+  const socket = dgram.createSocket({
+    type: 'udp4',
+    reuseAddr: true,
+    toString() {
+      return 'udp4'
+    },
+  })
+  return new Proxy(socket, {
+    get(target, prop, receiver) {
+      if (prop === 'on') {
+        /**
+         * @param {string} eventName
+         * @param {(...args: any[]) => void} listener
+         */
+        return function on(eventName, listener) {
+          if (eventName === 'message') {
+            // eslint-disable-next-line no-inner-declarations
+            function delayedListener(...args) {
+              setTimeout(function () {
+                listener.apply(null, args)
+              }, getRandomDelay(latency))
+            }
+            target.on.call(target, eventName, delayedListener)
+            return receiver
+          } else {
+            target.on.call(target, eventName, listener)
+            return receiver
+          }
+        }
+      } else if (prop === 'send') {
+        return function send(...args) {
+          setTimeout(function () {
+            target.send.apply(target, args)
+          }, getRandomDelay(latency))
+        }
+      } else {
+        return Reflect.get(target, prop, receiver)
+      }
+    },
+  })
+}
+
+/**
+ *
+ * @param {{ min: number, max: number }} latency
+ */
+function getRandomDelay(latency) {
+  return Math.ceil(Math.random() * (latency.max - latency.min)) + latency.min
 }

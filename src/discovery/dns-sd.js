@@ -74,17 +74,20 @@ export class DnsSd extends TypedEmitter {
   /** @type {Promise<any> | null} */
   #advertisingStopping = null
   #log
+  #createDgramSocket
 
   /**
    *
    * @param {object} [opts]
    * @param {string} [opts.name]
    * @param {boolean} [opts.disableIpv6]
+   * @param {() => import('node:dgram').Socket} [opts.createDgramSocket] Internal - used for adding latency in tests
    */
-  constructor({ name, disableIpv6 = true } = {}) {
+  constructor({ name, disableIpv6 = true, createDgramSocket } = {}) {
     super()
     this.#name = name || randomBytes(8).toString('hex')
     this.#disableIpv6 = disableIpv6
+    this.#createDgramSocket = createDgramSocket
     this.#log = debug('mapeo:dnssd:' + this.#name)
   }
 
@@ -214,7 +217,10 @@ export class DnsSd extends TypedEmitter {
     }
     this.#error = null
     this.#bonjour = new Bonjour(
-      undefined,
+      {
+        // @ts-ignore types for bonjour-service are incorrect for this
+        socket: this.#createDgramSocket ? this.#createDgramSocket() : undefined,
+      },
       // Tests don't replicate error here yet
       /* c8 ignore start */
       (/** @type {any} */ error) => {

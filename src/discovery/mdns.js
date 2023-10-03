@@ -8,6 +8,8 @@ import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
 import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
+import { Transform } from 'node:stream'
+import Pumpify from 'pumpify'
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 
@@ -15,7 +17,7 @@ export const ERR_DUPLICATE = 'Duplicate connection'
 
 /**
  * @typedef {Object} DiscoveryEvents
- * @property {(connection: import('@hyperswarm/secret-stream')<net.Socket>) => void} connection
+ * @property {(connection: import('@hyperswarm/secret-stream')<import('node:stream').Duplex>) => void} connection
  */
 
 /**
@@ -24,26 +26,29 @@ export const ERR_DUPLICATE = 'Duplicate connection'
 export class MdnsDiscovery extends TypedEmitter {
   #identityKeypair
   #server
-  /** @type {Map<string, NoiseSecretStream<net.Socket>>} */
+  /** @type {Map<string, NoiseSecretStream<import('node:stream').Duplex>>} */
   #noiseConnections = new Map()
   #dnssd
   #sm
   #log
   /** @type {(e: Error) => void} */
   #handleSocketError
+  #latency
 
   /**
    * @param {Object} opts
    * @param {Keypair} opts.identityKeypair
    * @param {DnsSd} [opts.dnssd] Optional DnsSd instance, used for testing
+   * @param {{ min: number, max: number }} [opts.latency] Optional latency, used for testing
    */
-  constructor({ identityKeypair, dnssd }) {
+  constructor({ identityKeypair, dnssd, latency }) {
     super()
     this.#dnssd =
       dnssd ||
       new DnsSd({
         name: keyToPublicId(identityKeypair.publicKey),
       })
+    this.#latency = latency
     this.#dnssd.on('up', this.#handleServiceUp.bind(this))
     this.#log = debug('mapeo:mdns:' + keyShortname(identityKeypair.publicKey))
     this.#sm = new StartStopStateMachine({
@@ -119,7 +124,15 @@ export class MdnsDiscovery extends TypedEmitter {
       } ${remoteAddress}`
     )
 
-    const secretStream = new NoiseSecretStream(isInitiator, socket, {
+    const rawStream = this.#latency
+      ? new Pumpify(
+          latencyStream(this.#latency),
+          socket,
+          latencyStream(this.#latency)
+        )
+      : socket
+
+    const secretStream = new NoiseSecretStream(isInitiator, rawStream, {
       keyPair: this.#identityKeypair,
     })
 
@@ -134,8 +147,8 @@ export class MdnsDiscovery extends TypedEmitter {
 
   /**
    *
-   * @param {NoiseSecretStream<net.Socket>} existing
-   * @param {NoiseSecretStream<net.Socket>} keeping
+   * @param {NoiseSecretStream<import('node:stream').Duplex>} existing
+   * @param {NoiseSecretStream<import('node:stream').Duplex>} keeping
    */
   #handleConnectionSwap(existing, keeping) {
     let closed = false
@@ -160,7 +173,7 @@ export class MdnsDiscovery extends TypedEmitter {
 
   /**
    *
-   * @param {NoiseSecretStream<net.Socket>} conn
+   * @param {NoiseSecretStream<import('node:stream').Duplex>} conn
    * @returns
    */
   #handleNoiseStreamConnection(conn) {
@@ -276,3 +289,21 @@ function keyShortname(key) {
 }
 
 function noop() {}
+
+/**
+ * Randomly delay stream chunks by between `delay.min` and `delay.max` milliseconds
+ * @param {{ min: number, max: number }} delay
+ * @returns
+ */
+function latencyStream(delay = { min: 0, max: 0 }) {
+  return new Transform({
+    transform(data, encoding, callback) {
+      setTimeout(
+        callback,
+        Math.floor(Math.random() * (delay.max - delay.min)) + delay.min,
+        null,
+        data
+      )
+    },
+  })
+}
