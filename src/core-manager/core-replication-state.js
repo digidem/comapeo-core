@@ -286,7 +286,11 @@ export class PeerState {
       : false
   }
   /**
+   * Return the "haves" for the 32 blocks from `index`, as a 32-bit integer
+   *
    * @param {number} index
+   * @returns {number} 32-bit number representing whether the peer has or not
+   * the 32 blocks from `index`
    */
   haveWord(index) {
     if (this.#haves) return getBitfieldWord(this.#haves, index)
@@ -302,10 +306,15 @@ export class PeerState {
     return this.#wants ? this.#wants.get(index) : true
   }
   /**
+   * Return the "wants" for the 32 blocks from `index`, as a 32-bit integer
+   *
    * @param {number} index
+   * @returns {number} 32-bit number representing whether the peer wants or not
+   * the 32 blocks from `index`
    */
   wantWord(index) {
     if (this.#wants) return getBitfieldWord(this.#wants, index)
+    // This is a 32-bit number with all bits set
     return 2 ** 32 - 1
   }
 }
@@ -350,9 +359,14 @@ export function deriveState(coreState) {
       want = wouldLikeIt & someoneHasIt
       someoneWantsIt |= want
       peerStates[j].want += bitCount32(want)
-      peerStates[j].missing += bitCount32(
-        wouldLikeIt & ~someoneHasIt & truncate
-      )
+      // A block is missing if:
+      //   1. The peer wants it
+      //   2. The peer doesn't have it
+      //   3. No other peer has it
+      // Need to truncate to the core length, since otherwise we would get
+      // missing values beyond core length
+      const missing = wouldLikeIt & ~someoneHasIt & truncate
+      peerStates[j].missing += bitCount32(missing)
     }
     for (let j = 0; j < peerStates.length; j++) {
       // A block is wanted if:
@@ -388,6 +402,7 @@ export function bitCount32(n) {
 }
 
 /**
+ * Get a 32-bit "chunk" (word) of the bitfield.
  *
  * @param {RemoteBitfield} bitfield
  * @param {number} index
