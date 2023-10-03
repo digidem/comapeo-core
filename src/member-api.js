@@ -65,6 +65,7 @@ export class MemberApi extends TypedEmitter {
 
     if (response === InviteResponse_Decision.ACCEPT) {
       await this.#capabilities.assignRole(deviceId, roleId)
+      // TODO: Write device info record
     }
 
     return response
@@ -75,7 +76,8 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<MemberInfo>}
    */
   async getById(deviceId) {
-    const { name } = await this.#dataTypes.deviceInfo.getByDocId(deviceId)
+    const configCoreId = await this.#coreOwnership.getCoreId(deviceId, 'config')
+    const { name } = await this.#dataTypes.deviceInfo.getByDocId(configCoreId)
     const capabilities = await this.#capabilities.getCapabilities(deviceId)
     return { deviceId, name, capabilities }
   }
