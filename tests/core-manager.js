@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto'
 import Sqlite from 'better-sqlite3'
 import { KeyManager } from '@mapeo/crypto'
 import { CoreManager, unreplicate } from '../src/core-manager/index.js'
+import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
 import assert from 'assert'
 import { once } from 'node:events'
 import { temporaryDirectoryTask } from 'tempy'
@@ -478,6 +479,25 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   const projectKey = randomBytes(32)
   const cm1 = createCoreManager({ projectKey })
   const cm2 = createCoreManager({ projectKey })
+  /**
+   * For each peer, indexed by peerId, a map of hypercore bitfields, indexed by discoveryId
+   * @type {Map<string, Map<string, RemoteBitfield>>}
+   */
+  const havesByPeer = new Map()
+
+  cm2.on('peer-have', (coreDiscoveryId, peerId, { start, bitfield }) => {
+    let havesByCore = havesByPeer.get(peerId)
+    if (!havesByCore) {
+      havesByCore = new Map()
+      havesByPeer.set(peerId, havesByCore)
+    }
+    let remoteBitfield = havesByCore.get(coreDiscoveryId)
+    if (!remoteBitfield) {
+      remoteBitfield = new RemoteBitfield()
+      havesByCore.set(coreDiscoveryId, remoteBitfield)
+    }
+    remoteBitfield.insert(start, bitfield)
+  })
 
   const cm1Core = cm1.getWriterCore('data').core
   await cm1Core.ready()
@@ -503,7 +523,6 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   // Need to wait for now, since no event for when a remote bitfield is updated
   await new Promise((res) => setTimeout(res, 200))
 
-  const { havesByPeer } = cm2
   const peerId = n1.publicKey.toString('hex')
   const havesByCore = havesByPeer.get(peerId)
   t.ok(havesByCore)
