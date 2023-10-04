@@ -20,6 +20,7 @@ export const deviceInfoTable = sqliteTable(
   'deviceInfo',
   toColumns(schemas.deviceInfo)
 )
+export const iconTable = sqliteTable('icon', toColumns(schemas.icon))
 
 export const observationBacklinkTable = backlinkTable(observationTable)
 export const presetBacklinkTable = backlinkTable(presetTable)
@@ -27,3 +28,4 @@ export const fieldBacklinkTable = backlinkTable(fieldTable)
 export const coreOwnershipBacklinkTable = backlinkTable(coreOwnershipTable)
 export const roleBacklinkTable = backlinkTable(roleTable)
 export const deviceInfoBacklinkTable = backlinkTable(deviceInfoTable)
+export const iconBacklinkTable = backlinkTable(iconTable)
