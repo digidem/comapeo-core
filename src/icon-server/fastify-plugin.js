@@ -1,23 +1,16 @@
 import { parseVersionId } from '@mapeo/schema'
 import { Type as T } from '@sinclair/typebox'
 import fp from 'fastify-plugin'
-import { kDataTypes, kCoreManager } from '../mapeo-project.js'
 
 export default fp(iconServerPlugin, {
   fastify: '4.x',
   name: 'mapeo-icon-server',
 })
 
-// iconDocId is a hex encoded 32-byte string
 const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
-// projectId is a z-base-32 52-byte string
-const Z_BASE_32_REGEX_26_BYTES = '^[0-9a-zA-Z]{52}$'
-const ICON_DOC_ID_STRING = T.String({ pattern: HEX_REGEX_32_BYTES })
-const PROJECT_ID_STRING = T.String({ pattern: Z_BASE_32_REGEX_26_BYTES })
-
+const HEX_STRING_32_BYTES = T.String({ pattern: HEX_REGEX_32_BYTES })
 const PARAMS_JSON_SCHEMA = T.Object({
-  iconDocId: ICON_DOC_ID_STRING,
-  projectId: PROJECT_ID_STRING,
+  iconDocId: HEX_STRING_32_BYTES,
   size: T.String(),
   pixelDensity: T.Number(),
 })
@@ -25,7 +18,13 @@ const PARAMS_JSON_SCHEMA = T.Object({
 /**
  * @typedef {Object} IconServerPluginOpts
  * @property {import('fastify').RegisterOptions['prefix']} prefix
- * @property {(projectId: string) => Promise<import('../mapeo-project.js').MapeoProject>} getProject
+ * @property {import('../core-manager/index.js').CoreManager} coreManager
+ * @property {import('../datatype/index.js').DataType<
+ *   import('../datastore/index.js').DataStore<'config'>,
+ *   typeof import('../schema/project.js').iconTable,
+ *   'icon',
+ *   import('@mapeo/schema').Icon,
+ *   import('@mapeo/schema').IconValue>} iconDataType
  **/
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & IconServerPluginOpts>} */
@@ -38,16 +37,16 @@ async function iconServerPlugin(fastify, options) {
  * import('fastify').RawServerDefault,
  * import('@fastify/type-provider-typebox').TypeBoxTypeProvider>} */
 async function routes(fastify, options) {
-  const { getProject } = options
-
   fastify.get(
-    '/:projectId/:iconDocId/:size/:pixelDensity',
-    { schema: { params: PARAMS_JSON_SCHEMA } },
+    '/:iconDocId/:size/:pixelDensity',
+    {
+      schema: {
+        params: PARAMS_JSON_SCHEMA,
+      },
+    },
     async (req, res) => {
-      const { projectId, iconDocId, size, pixelDensity } = req.params
-      const project = await getProject(projectId)
-      const iconDataType = project[kDataTypes].icon
-      const coreManager = project[kCoreManager]
+      const { coreManager, iconDataType } = options
+      const { iconDocId, size, pixelDensity } = req.params
       const icon = await iconDataType.getByDocId(iconDocId)
       const bestVariant = findBestVariantMatch(icon.variants, {
         size,
@@ -58,12 +57,7 @@ async function routes(fastify, options) {
       )
       const core = coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
       res.headers({ 'mime-type': bestVariant.mimeType })
-      if (core) {
-        const blob = core.get(index)
-        return res.send(blob)
-      } else {
-        return res.code(404)
-      }
+      res.send(core?.get(index))
     }
   )
 }
@@ -75,6 +69,5 @@ async function routes(fastify, options) {
  * @param {number} opts.pixelDensity
  **/
 function findBestVariantMatch(variants, { size, pixelDensity }) {
-  console.log(size, pixelDensity)
   return variants[0]
 }
