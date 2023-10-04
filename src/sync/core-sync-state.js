@@ -1,6 +1,8 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { keyToId } from '../utils.js'
-import RemoteBitfield, { BITS_PER_PAGE } from './remote-bitfield.js'
+import RemoteBitfield, {
+  BITS_PER_PAGE,
+} from '../core-manager/remote-bitfield.js'
 
 /**
  * @typedef {RemoteBitfield} Bitfield
@@ -31,19 +33,19 @@ import RemoteBitfield, { BITS_PER_PAGE } from './remote-bitfield.js'
  * @property {Record<PeerId, RemotePeerSimpleState>} remoteStates map of state of all known peers
  */
 /**
- * @typedef {object} CoreReplicationEvents
+ * @typedef {object} CoreSyncEvents
  * @property {() => void} update
  */
 
 /**
- * Track replication state for a core identified by `discoveryId`. Can start
- * tracking state before the core instance exists locally, via the "preHave"
- * messages received over the project creator core.
+ * Track sync state for a core identified by `discoveryId`. Can start tracking
+ * state before the core instance exists locally, via the "preHave" messages
+ * received over the project creator core.
  *
  * Because deriving the state is expensive (it iterates through the bitfields of
  * all peers), this is designed to be pull-based: an `update` event signals that
  * the state is updated, but does not pass the state. The consumer can "pull"
- * the state when it wants it via `coreReplicationState.getState()`.
+ * the state when it wants it via `coreSyncState.getState()`.
  *
  * Each peer (including the local peer) has a state of:
  *   1. `have` - number of blocks the peer has locally
@@ -51,9 +53,9 @@ import RemoteBitfield, { BITS_PER_PAGE } from './remote-bitfield.js'
  *   3. `wanted` - number of blocks the peer has that at least one peer wants
  *   4. `missing` - number of blocks the peer wants but no peer has
  *
- * @extends {TypedEmitter<CoreReplicationEvents>}
+ * @extends {TypedEmitter<CoreSyncEvents>}
  */
-export class CoreReplicationState extends TypedEmitter {
+export class CoreSyncState extends TypedEmitter {
   /** @type {import('hypercore')<'binary', Buffer>} */
   #core
   /** @type {InternalState['remoteStates']} */
@@ -92,10 +94,9 @@ export class CoreReplicationState extends TypedEmitter {
   }
 
   /**
-   * Attach a core. The replication state can be initialized without a core
-   * instance, because we could receive peer want and have states via extension
-   * messages before we have the core key that allows us to create a core
-   * instance.
+   * Attach a core. The sync state can be initialized without a core instance,
+   * because we could receive peer want and have states via extension messages
+   * before we have the core key that allows us to create a core instance.
    *
    * @param {import('hypercore')<'binary', Buffer>} core
    */
@@ -137,7 +138,7 @@ export class CoreReplicationState extends TypedEmitter {
   /**
    * Add a pre-emptive "have" bitfield for a peer. This is used when we receive
    * a peer "have" via extension message - it allows us to have a state for the
-   * peer before the peer actually starts replicating this core
+   * peer before the peer actually starts syncing this core
    *
    * @param {PeerId} peerId
    * @param {Bitfield} bitfield
@@ -225,10 +226,10 @@ export class CoreReplicationState extends TypedEmitter {
 }
 
 /**
- * Replication state for a core for a peer. Uses an internal bitfield from
- * Hypercore to track which blocks the peer has. Default is that a peer wants
- * all blocks, but can set ranges of "wants". Setting a want range changes all
- * other blocks to "not wanted"
+ * Sync state for a core for a peer. Uses an internal bitfield from Hypercore to
+ * track which blocks the peer has. Default is that a peer wants all blocks, but
+ * can set ranges of "wants". Setting a want range changes all other blocks to
+ * "not wanted"
  *
  * @private
  * Only exported for testing
