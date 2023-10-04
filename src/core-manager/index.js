@@ -215,6 +215,19 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
+   * Get a core by its discovery key
+   *
+   * @param {Buffer} discoveryKey
+   * @returns {Core | undefined}
+   */
+  getCoreByDiscoveryKey(discoveryKey) {
+    const coreRecord = this.#coreIndex.getByDiscoveryId(
+      discoveryKey.toString('hex')
+    )
+    return coreRecord && coreRecord.core
+  }
+
+  /**
    * Close all open cores and end any replication streams
    * TODO: gracefully close replication streams
    */
