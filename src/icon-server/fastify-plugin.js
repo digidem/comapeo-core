@@ -37,6 +37,7 @@ async function iconServerPlugin(fastify, options) {
  * import('fastify').RawServerDefault,
  * import('@fastify/type-provider-typebox').TypeBoxTypeProvider>} */
 async function routes(fastify, options) {
+  const { coreManager, iconDataType } = options
   fastify.get(
     '/:iconDocId/:size/:pixelDensity',
     {
@@ -45,7 +46,6 @@ async function routes(fastify, options) {
       },
     },
     async (req, res) => {
-      const { coreManager, iconDataType } = options
       const { iconDocId, size, pixelDensity } = req.params
       const icon = await iconDataType.getByDocId(iconDocId)
       const bestVariant = findBestVariantMatch(icon.variants, {
@@ -57,7 +57,13 @@ async function routes(fastify, options) {
       )
       const core = coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
       res.headers({ 'mime-type': bestVariant.mimeType })
-      res.send(core?.get(index))
+      if (core) {
+        const blob = core.get(index)
+        res.send(blob)
+      } else {
+        res.statusCode = 404
+        res.send()
+      }
     }
   )
 }
@@ -69,5 +75,6 @@ async function routes(fastify, options) {
  * @param {number} opts.pixelDensity
  **/
 function findBestVariantMatch(variants, { size, pixelDensity }) {
+  console.log(size, pixelDensity)
   return variants[0]
 }
