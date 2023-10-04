@@ -5,6 +5,7 @@ import { createCoreManager } from './helpers/core-manager.js'
 import { getVersionId } from '@mapeo/schema'
 import { once } from 'events'
 import RAM from 'random-access-memory'
+import { discoveryKey } from 'hypercore-crypto'
 
 /** @type {Omit<import('@mapeo/schema').Observation, 'versionId'>} */
 const obs = {
@@ -18,6 +19,7 @@ const obs = {
   tags: {},
   attachments: [],
   metadata: {},
+  deleted: false,
 }
 
 test('read and write', async (t) => {
@@ -30,14 +32,16 @@ test('read and write', async (t) => {
     namespace: 'data',
     batch: async (entries) => {
       for (const { index, key } of entries) {
-        const versionId = getVersionId({ coreKey: key, index })
+        const coreDiscoveryKey = discoveryKey(key)
+        const versionId = getVersionId({ coreDiscoveryKey, index })
         indexedVersionIds.push(versionId)
       }
     },
     storage: () => new RAM(),
   })
   const written = await dataStore.write(obs)
-  const expectedVersionId = getVersionId({ coreKey: writerCore.key, index: 0 })
+  const coreDiscoveryKey = discoveryKey(writerCore.key)
+  const expectedVersionId = getVersionId({ coreDiscoveryKey, index: 0 })
   t.is(
     written.versionId,
     expectedVersionId,

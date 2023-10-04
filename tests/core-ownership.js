@@ -8,6 +8,7 @@ import {
 } from '../src/core-ownership.js'
 import { randomBytes } from 'node:crypto'
 import { parseVersionId, getVersionId } from '@mapeo/schema'
+import { discoveryKey } from 'hypercore-crypto'
 
 test('Valid coreOwnership record', (t) => {
   const validDoc = generateValidDoc()
@@ -91,7 +92,7 @@ test('Invalid - different coreKey', (t) => {
   const validDoc = generateValidDoc()
   const version = {
     ...parseVersionId(validDoc.versionId),
-    coreKey: randomBytes(32),
+    coreDiscoveryKey: discoveryKey(randomBytes(32)),
   }
   t.exception(() => mapAndValidateCoreOwnership(validDoc, version))
 })
@@ -152,9 +153,14 @@ function generateValidDoc() {
   /** @type {ReturnType<typeof import('@mapeo/schema').decode>} */
   const validDoc = {
     docId: km.getIdentityKeypair().publicKey.toString('hex'),
-    versionId: getVersionId({ coreKey: coreKeypairs.auth.publicKey, index: 1 }),
+    versionId: getVersionId({
+      coreDiscoveryKey: discoveryKey(coreKeypairs.auth.publicKey),
+      index: 1,
+    }),
+    createdBy: discoveryKey(coreKeypairs.auth.publicKey).toString('hex'),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    deleted: false,
     links: ['5678/0'],
     schemaName: 'coreOwnership',
     authCoreId: coreKeypairs.auth.publicKey.toString('hex'),
