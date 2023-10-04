@@ -362,11 +362,11 @@ async function downloadCore(core, bits) {
 
 /**
  *
- * @param {CoreSyncState} css
+ * @param {CoreSyncState} state
  * @param {string} peerId
  * @param {number | bigint} [bits]
  */
-function setPeerWants(crs, peerId, bits) {
+function setPeerWants(state, peerId, bits) {
   if (typeof bits === 'undefined') return
   if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
   const bigInt = BigInt(bits)
@@ -378,16 +378,16 @@ function setPeerWants(crs, peerId, bits) {
       ranges.push({ start: i, length: 1 })
     }
   }
-  crs.setPeerWants(peerId, ranges)
+  state.setPeerWants(peerId, ranges)
 }
 
 /**
  * Wait for update event with a timeout
- * @param {CoreSyncState} css
+ * @param {CoreSyncState} state
  * @param {number} milliseconds
  */
-async function updateWithTimeout(crs, milliseconds) {
-  return pTimeout(once(crs, 'update'), { milliseconds, message: false })
+async function updateWithTimeout(state, milliseconds) {
+  return pTimeout(once(state, 'update'), { milliseconds, message: false })
 }
 
 /**
