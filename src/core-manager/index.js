@@ -7,8 +7,8 @@ import Hypercore from 'hypercore'
 import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
-import RemoteBitfield from './remote-bitfield.js'
 import * as rle from './bitfield-rle.js'
+import { ReplicationState } from './replication-state.js'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
@@ -34,6 +34,7 @@ const CREATE_SQL = `CREATE TABLE IF NOT EXISTS ${TABLE} (
 /**
  * @typedef {Object} Events
  * @property {(coreRecord: CoreRecord) => void} add-core
+ * @property {(syncState: import('./replication-state.js').State) => void} state
  */
 
 /**
@@ -53,12 +54,8 @@ export class CoreManager extends TypedEmitter {
   /** @type {'opened' | 'closing' | 'closed'} */
   #state = 'opened'
   #ready
-  /**
-   * For each peer, indexed by peerId, a map of hypercore bitfields, indexed by discoveryId
-   * @type {Map<string, Map<string, RemoteBitfield>>}
-   */
-  #havesByPeer = new Map()
   #haveExtension
+  #replicationState
 
   static get namespaces() {
     return NAMESPACES
@@ -108,6 +105,11 @@ export class CoreManager extends TypedEmitter {
     this.#corestore = new Corestore(storage, { primaryKey })
     // Persistent index of core keys and namespaces in the project
     this.#coreIndex = new CoreIndex()
+    // Track replication state of all cores
+    this.#replicationState = new ReplicationState()
+    this.#replicationState.on('state', (state) => {
+      this.emit('state', state)
+    })
 
     // Writer cores and root core, keys and namespaces are not persisted because
     // we derive the keys here.
@@ -169,8 +171,8 @@ export class CoreManager extends TypedEmitter {
     return this.#creatorCore
   }
 
-  get havesByPeer() {
-    return this.#havesByPeer
+  getSyncState() {
+    return this.#replicationState.getState()
   }
 
   /**
@@ -263,6 +265,10 @@ export class CoreManager extends TypedEmitter {
     // @ts-ignore - ensure key is defined before hypercore is ready
     core.key = key
     this.#coreIndex.add({ core, key, namespace, writer })
+
+    // For all namespaces apart from 'blob' we want all the blocks in each core
+    const wantAll = namespace !== 'blob'
+    this.#replicationState.addCore(core, { wantAll })
 
     // **Hack** As soon as a peer is added, eagerly send a "want" for the entire
     // core. This ensures that the peer sends back its entire bitfield.
@@ -471,20 +477,15 @@ export class CoreManager extends TypedEmitter {
    */
   #handleHaveMessage(msg, peer) {
     const { start, discoveryKey, bitfield } = msg
+    const discoveryId = discoveryKey.toString('hex')
     /** @type {string} */
     const peerId = peer.remotePublicKey.toString('hex')
-    let peerHaves = this.#havesByPeer.get(peerId)
-    if (!peerHaves) {
-      peerHaves = new Map()
-      this.#havesByPeer.set(peerId, peerHaves)
-    }
-    const discoveryId = discoveryKey.toString('hex')
-    let remoteBitfield = peerHaves.get(discoveryId)
-    if (!remoteBitfield) {
-      remoteBitfield = new RemoteBitfield()
-      peerHaves.set(discoveryId, remoteBitfield)
-    }
-    remoteBitfield.insert(start, bitfield)
+    this.#replicationState.insertPreHaves({
+      peerId,
+      start,
+      discoveryId,
+      bitfield,
+    })
   }
 
   /**

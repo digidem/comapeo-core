@@ -3,6 +3,14 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { CoreReplicationState } from './core-replication-state.js'
 import { throttle } from 'throttle-debounce'
 
+/**
+ * @typedef {object} State
+ * @property {{ have: number, want: number, wanted: number, missing: number }} localState
+ */
+
+/**
+ * @extends {TypedEmitter<{ state: (state: State) => void }>}
+ */
 export class ReplicationState extends TypedEmitter {
   /** @type {Map<string, CoreReplicationState>} */
   #coreStates = new Map()
@@ -10,11 +18,14 @@ export class ReplicationState extends TypedEmitter {
 
   constructor({ throttleMs = 200 } = {}) {
     super()
-    this.#handleUpdate = throttle(throttleMs, function () {
+    this.#handleUpdate = throttle(throttleMs, () => {
       this.emit('state', this.getState())
-    }).bind(this)
+    })
   }
 
+  /**
+   * @returns {State}
+   */
   getState() {
     const state = {
       localState: { have: 0, want: 0, wanted: 0, missing: 0 },
@@ -31,10 +42,11 @@ export class ReplicationState extends TypedEmitter {
 
   /**
    * @param {import('hypercore')<"binary", Buffer>} core
+   * @param {{ wantAll: boolean }} opts Set `wantAll = false` for cores that do not want all data by default
    */
-  addCore(core) {
+  addCore(core, { wantAll }) {
     const discoveryId = discoveryKey(core.key).toString('hex')
-    this.#getCoreState(discoveryId).attachCore(core)
+    this.#getCoreState(discoveryId).attachCore(core, { wantAll })
   }
 
   /**

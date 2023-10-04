@@ -98,8 +98,9 @@ export class CoreReplicationState extends TypedEmitter {
    * instance.
    *
    * @param {import('hypercore')<'binary', Buffer>} core
+   * @param {{ wantAll: boolean }} opts Set `wantAll = false` for cores that do not want all data by default
    */
-  attachCore(core) {
+  attachCore(core, { wantAll }) {
     // @ts-ignore - we know discoveryKey exists here
     const discoveryId = keyToId(core.discoveryKey)
     if (discoveryId !== this.#discoveryId) {
@@ -108,6 +109,7 @@ export class CoreReplicationState extends TypedEmitter {
     if (this.#core) return
 
     this.#core = core
+    this.#localState.wantAll = wantAll
     this.#localState.setHavesBitfield(
       // @ts-ignore - internal property
       core?.core?.bitfield
@@ -242,10 +244,8 @@ export class PeerState {
   /** @type {Bitfield} */
   #wants = new RemoteBitfield()
   connected = false
-  #wantAll
-  constructor({ wantAll = true } = {}) {
-    this.#wantAll = wantAll
-  }
+  wantAll = true
+
   /**
    * @param {number} start
    * @param {Uint32Array} bitfield
@@ -269,7 +269,7 @@ export class PeerState {
    * @param {{ start: number, length: number }} range
    */
   setWantRange({ start, length }) {
-    this.#wantAll = false
+    this.wantAll = false
     this.#wants.setRange(start, length, true)
   }
   /**
@@ -298,7 +298,7 @@ export class PeerState {
    * @param {number} index
    */
   want(index) {
-    if (this.#wantAll) return true
+    if (this.wantAll) return true
     return this.#wants.get(index)
   }
   /**
@@ -309,7 +309,7 @@ export class PeerState {
    * the 32 blocks from `index`
    */
   wantWord(index) {
-    if (this.#wantAll) {
+    if (this.wantAll) {
       // This is a 32-bit number with all bits set
       return 2 ** 32 - 1
     }
