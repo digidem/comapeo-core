@@ -141,11 +141,12 @@ export class CoreSyncState extends TypedEmitter {
    * peer before the peer actually starts syncing this core
    *
    * @param {PeerId} peerId
-   * @param {Bitfield} bitfield
+   * @param {number} start
+   * @param {Uint32Array} bitfield
    */
-  setHavesBitfield(peerId, bitfield) {
+  insertPreHaves(peerId, start, bitfield) {
     const peerState = this.#getPeerState(peerId)
-    peerState.setPreHavesBitfield(bitfield)
+    peerState.insertPreHaves(start, bitfield)
     this.#update()
   }
 
@@ -235,30 +236,29 @@ export class CoreSyncState extends TypedEmitter {
  * Only exported for testing
  */
 export class PeerState {
-  /** @type {Bitfield | undefined} */
-  #preHaves
+  /** @type {Bitfield} */
+  #preHaves = new RemoteBitfield()
   /** @type {Bitfield | undefined} */
   #haves
-  /** @type {Bitfield | undefined} */
-  #wants
+  /** @type {Bitfield} */
+  #wants = new RemoteBitfield()
   connected = false
+  #wantAll
+  constructor({ wantAll = true } = {}) {
+    this.#wantAll = wantAll
+  }
   /**
-   * @param {Bitfield} bitfield
+   * @param {number} start
+   * @param {Uint32Array} bitfield
    */
-  setPreHavesBitfield(bitfield) {
-    this.#preHaves = bitfield
+  insertPreHaves(start, bitfield) {
+    return this.#preHaves.insert(start, bitfield)
   }
   /**
    * @param {Bitfield} bitfield
    */
   setHavesBitfield(bitfield) {
     this.#haves = bitfield
-  }
-  /**
-   * @param {Bitfield} bitfield
-   */
-  setWantsBitfield(bitfield) {
-    this.#wants = bitfield
   }
   /**
    * Set a range of blocks that a peer wants. This is not part of the Hypercore
@@ -270,7 +270,7 @@ export class PeerState {
    * @param {{ start: number, length: number }} range
    */
   setWantRange({ start, length }) {
-    if (!this.#wants) this.#wants = new RemoteBitfield()
+    this.#wantAll = false
     this.#wants.setRange(start, length, true)
   }
   /**
@@ -280,11 +280,7 @@ export class PeerState {
    * @param {number} index
    */
   have(index) {
-    return this.#haves
-      ? this.#haves.get(index)
-      : this.#preHaves
-      ? this.#preHaves.get(index)
-      : false
+    return this.#haves ? this.#haves.get(index) : this.#preHaves.get(index)
   }
   /**
    * Return the "haves" for the 32 blocks from `index`, as a 32-bit integer
@@ -295,8 +291,7 @@ export class PeerState {
    */
   haveWord(index) {
     if (this.#haves) return getBitfieldWord(this.#haves, index)
-    if (this.#preHaves) return getBitfieldWord(this.#preHaves, index)
-    return 0
+    return getBitfieldWord(this.#preHaves, index)
   }
   /**
    * Returns whether this peer wants block at `index`. Defaults to `true` for
@@ -304,7 +299,8 @@ export class PeerState {
    * @param {number} index
    */
   want(index) {
-    return this.#wants ? this.#wants.get(index) : true
+    if (this.#wantAll) return true
+    return this.#wants.get(index)
   }
   /**
    * Return the "wants" for the 32 blocks from `index`, as a 32-bit integer
@@ -314,9 +310,11 @@ export class PeerState {
    * the 32 blocks from `index`
    */
   wantWord(index) {
-    if (this.#wants) return getBitfieldWord(this.#wants, index)
-    // This is a 32-bit number with all bits set
-    return 2 ** 32 - 1
+    if (this.#wantAll) {
+      // This is a 32-bit number with all bits set
+      return 2 ** 32 - 1
+    }
+    return getBitfieldWord(this.#wants, index)
   }
 }
 
