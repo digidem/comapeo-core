@@ -6,10 +6,14 @@ import { throttle } from 'throttle-debounce'
 export class ReplicationState extends TypedEmitter {
   /** @type {Map<string, CoreReplicationState>} */
   #coreStates = new Map()
+  #handleUpdate
 
-  #handleUpdate = throttle(200, function () {
-    this.emit('state', this.getState())
-  }).bind(this)
+  constructor({ throttleMs = 200 } = {}) {
+    super()
+    this.#handleUpdate = throttle(throttleMs, function () {
+      this.emit('state', this.getState())
+    }).bind(this)
+  }
 
   getState() {
     const state = {
