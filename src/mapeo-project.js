@@ -395,16 +395,17 @@ export class MapeoProject {
       .getWriterCore('config')
       .key.toString('hex')
 
-    const existingDoc = await deviceInfo.getByDocId(configCoreId)
-
-    if (existingDoc) {
-      return deviceInfo.update(existingDoc.versionId, {
+    let existingDoc
+    try {
+      existingDoc = await deviceInfo.getByDocId(configCoreId)
+    } catch (err) {
+      return await deviceInfo[kCreateWithDocId](configCoreId, {
         ...value,
         schemaName: 'deviceInfo',
       })
     }
 
-    return await deviceInfo[kCreateWithDocId](configCoreId, {
+    return deviceInfo.update(existingDoc.versionId, {
       ...value,
       schemaName: 'deviceInfo',
     })
