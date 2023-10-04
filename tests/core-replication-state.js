@@ -362,7 +362,7 @@ async function downloadCore(core, bits) {
 
 /**
  *
- * @param {CoreSyncState} crs
+ * @param {CoreSyncState} css
  * @param {string} peerId
  * @param {number | bigint} [bits]
  */
@@ -383,7 +383,7 @@ function setPeerWants(crs, peerId, bits) {
 
 /**
  * Wait for update event with a timeout
- * @param {CoreSyncState} crs
+ * @param {CoreSyncState} css
  * @param {number} milliseconds
  */
 async function updateWithTimeout(crs, milliseconds) {
