@@ -15,3 +15,4 @@ plugins:
       - useOptionals=none
       - outputPartialMethods=true
       - stringEnums=true
+      - enumsAsLiterals=true
