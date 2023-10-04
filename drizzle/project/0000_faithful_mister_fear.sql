@@ -61,6 +61,24 @@ CREATE TABLE `field` (
 	`forks` text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `icon_backlink` (
+	`versionId` text PRIMARY KEY NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `icon` (
+	`docId` text PRIMARY KEY NOT NULL,
+	`versionId` text NOT NULL,
+	`schemaName` text NOT NULL,
+	`createdAt` text NOT NULL,
+	`createdBy` text NOT NULL,
+	`updatedAt` text NOT NULL,
+	`links` text NOT NULL,
+	`deleted` integer NOT NULL,
+	`name` text NOT NULL,
+	`variants` text NOT NULL,
+	`forks` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `observation_backlink` (
 	`versionId` text PRIMARY KEY NOT NULL
 );
