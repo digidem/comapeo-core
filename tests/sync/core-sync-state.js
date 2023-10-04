@@ -1,15 +1,16 @@
+// @ts-check
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import test from 'brittle'
 import {
   deriveState,
   PeerState,
-  CoreReplicationState,
+  CoreSyncState,
   bitCount32,
-} from '../src/core-manager/core-replication-state.js'
+} from '../../src/sync/core-sync-state.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
-} from '../src/core-manager/remote-bitfield.js'
-import { createCore } from './helpers/index.js'
+} from '../../src/core-manager/remote-bitfield.js'
+import { createCore } from '../helpers/index.js'
 // import { setTimeout } from 'timers/promises'
 import { once } from 'node:events'
 import pTimeout from 'p-timeout'
@@ -22,7 +23,7 @@ import pTimeout from 'p-timeout'
  *     localState: Parameters<createState>[0],
  *     remoteStates: Array<Parameters<createState>[0]>
  *   },
- *   expected: import('../src/core-manager/core-replication-state.js').DerivedState
+ *   expected: import('../../src/sync/core-sync-state.js').DerivedState
  * }>}
  */
 const scenarios = [
@@ -207,7 +208,7 @@ test('CoreReplicationState', async (t) => {
   for (const { state, expected, message } of scenarios) {
     const localCore = await createCore()
     await localCore.ready()
-    const crs = new CoreReplicationState(localCore.discoveryKey.toString('hex'))
+    const crs = new CoreSyncState(localCore.discoveryKey.toString('hex'))
     crs.attachCore(localCore)
     const blocks = new Array(state.length).fill('block')
     await localCore.append(blocks)
@@ -229,7 +230,7 @@ test('CoreReplicationState', async (t) => {
 
       // We unit test deriveState with no bitfields, but we need something here
       // for things to work
-      crs.setHavesBitfield(peerId, createBitfield(prehave || 0))
+      crs.insertPreHaves(peerId, 0, createUint32Array(prehave || 0))
       if (typeof have !== 'number' && typeof want !== 'number') continue
       connectedState.set(peerId, true)
       const core = await createCore(localCore.key)
@@ -279,21 +280,26 @@ function slowBitCount(n) {
 
 /**
  *
- * @param {{ have?: number, prehave?: number, want?: number, connected?: number }} param0
+ * @param {{ have?: number | bigint, prehave?: number, want?: number | bigint, connected?: boolean }} param0
  */
 function createState({ have, prehave, want, connected }) {
   const peerState = new PeerState()
   if (prehave) {
-    const bitfield = createBitfield(prehave)
-    peerState.setPreHavesBitfield(bitfield)
+    const bitfield = createUint32Array(prehave)
+    peerState.insertPreHaves(0, bitfield)
   }
   if (have) {
     const bitfield = createBitfield(have)
     peerState.setHavesBitfield(bitfield)
   }
   if (want) {
-    const bitfield = createBitfield(want)
-    peerState.setWantsBitfield(bitfield)
+    const bigInt = BigInt(want)
+    // 53 because the max safe integer in JS is 53 bits
+    for (let i = 0; i < 53; i++) {
+      if ((bigInt >> BigInt(i)) & 1n) {
+        peerState.setWantRange({ start: i, length: 1 })
+      }
+    }
   }
   if (typeof connected === 'boolean') peerState.connected = connected
   return peerState
@@ -302,7 +308,7 @@ function createState({ have, prehave, want, connected }) {
 /**
  * Create a bitfield from a number, e.g. `createBitfield(0b1011)` will create a
  * bitfield with the 1st, 2nd and 4th bits set.
- * @param {number} bits
+ * @param {number | bigint} bits
  */
 function createBitfield(bits) {
   if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
@@ -318,7 +324,7 @@ function createBitfield(bits) {
 /**
  *
  * @param {import('hypercore')} core
- * @param {number} [bits]
+ * @param {number | bigint} [bits]
  */
 async function clearCore(core, bits) {
   if (typeof bits === 'undefined') return
@@ -337,7 +343,7 @@ async function clearCore(core, bits) {
 /**
  *
  * @param {import('hypercore')} core
- * @param {number} [bits]
+ * @param {number | bigint} [bits]
  */
 async function downloadCore(core, bits) {
   if (typeof bits === 'undefined') return
@@ -356,15 +362,15 @@ async function downloadCore(core, bits) {
 
 /**
  *
- * @param {CoreReplicationState} crs
+ * @param {CoreSyncState} state
  * @param {string} peerId
- * @param {number} [bits]
+ * @param {number | bigint} [bits]
  */
-function setPeerWants(crs, peerId, bits) {
+function setPeerWants(state, peerId, bits) {
   if (typeof bits === 'undefined') return
   if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
   const bigInt = BigInt(bits)
-  /** @type {{ start: number, length: number}} */
+  /** @type {{ start: number, length: number}[]} */
   const ranges = []
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < 53; i++) {
@@ -372,22 +378,26 @@ function setPeerWants(crs, peerId, bits) {
       ranges.push({ start: i, length: 1 })
     }
   }
-  crs.setPeerWants(peerId, ranges)
+  state.setPeerWants(peerId, ranges)
 }
 
 /**
  * Wait for update event with a timeout
- * @param {CoreReplicationState} crs
+ * @param {CoreSyncState} state
  * @param {number} milliseconds
  */
-async function updateWithTimeout(crs, milliseconds) {
-  return pTimeout(once(crs, 'update'), { milliseconds, message: false })
+async function updateWithTimeout(state, milliseconds) {
+  return pTimeout(once(state, 'update'), { milliseconds, message: false })
 }
+
+/**
+ * @typedef {ReturnType<import('@hyperswarm/secret-stream').keyPair>} KeyPair
+ */
 
 /**
  * @param {import('hypercore')} core1
  * @param {import('hypercore')} core2
- * @param { {kp1?: import('@hyperswarm/secret-stream'), kp2?: import('@hyperswarm/secret-stream')} } [keyPairs]
+ * @param { {kp1?: KeyPair, kp2?: KeyPair} } [keyPairs]
  * @returns {() => Promise<[void, void]>}
  */
 export function replicate(
@@ -406,12 +416,9 @@ export function replicate(
     keyPair: kp2,
   })
 
-  // @ts-expect-error
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
-  // @ts-expect-error
   core1.replicate(n1)
-  // @ts-expect-error
   core2.replicate(n2)
 
   return async function destroy() {
@@ -432,4 +439,14 @@ export function replicate(
       ),
     ])
   }
+}
+
+/**
+ *
+ * @param {number} n
+ */
+function createUint32Array(n) {
+  if (n > 2 ** 32 - 1)
+    throw new Error('Currently can only make array from 32-bit number')
+  return new Uint32Array([n])
 }
