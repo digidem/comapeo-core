@@ -50,6 +50,9 @@ export class MapeoManager {
   #deviceId
   #rpc
   #invite
+  // Keeps track of peer ids that we have sent device info to on first connect
+  /** @type {Set<string>} */
+  #deviceInfoSentTo
 
   /**
    * @param {Object} opts
@@ -69,7 +72,32 @@ export class MapeoManager {
       migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
     })
 
+    this.#deviceInfoSentTo = new Set()
+
     this.#rpc = new MapeoRPC()
+
+    this.#rpc.on('peers', (peers) => {
+      if (peers.length === 0) return
+
+      const deviceInfoResult = this.#db
+        .select()
+        .from(localDeviceInfoTable)
+        .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
+        .get()
+
+      if (!deviceInfoResult) return
+
+      for (const peer of peers) {
+        if (
+          peer.status === 'connected' &&
+          !this.#deviceInfoSentTo.has(peer.id)
+        ) {
+          this.#rpc.sendDeviceInfo(peer.id, deviceInfoResult.deviceInfo)
+          this.#deviceInfoSentTo.add(peer.id)
+        }
+      }
+    })
+
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#projectSettingsIndexWriter = new IndexWriter({
@@ -110,6 +138,10 @@ export class MapeoManager {
    */
   get [kRPC]() {
     return this.#rpc
+  }
+
+  get deviceId() {
+    return this.#deviceId
   }
 
   /**
