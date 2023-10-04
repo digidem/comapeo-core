@@ -37,13 +37,10 @@ test('device info written to projects', async (t) => {
 
     await project.ready()
 
-    const members = await project.$member.getMany()
+    const me = await project.$member.getById(project.deviceId)
 
-    const me = members.find(({ deviceId }) => deviceId === project.deviceId)
-
-    st.ok(me)
-    st.is(me?.deviceId, project.deviceId)
-    st.alike({ name: me?.name }, { name: 'mapeo' })
+    st.is(me.deviceId, project.deviceId)
+    st.alike({ name: me.name }, { name: 'mapeo' })
   })
 
   t.test('when adding project', async (st) => {
@@ -64,9 +61,9 @@ test('device info written to projects', async (t) => {
 
     await project.ready()
 
-    const ownMemberInfo = await getOwnMemberInfo(project)
+    const me = await project.$member.getById(project.deviceId)
 
-    st.alike({ name: ownMemberInfo.name }, { name: 'mapeo' })
+    st.alike({ name: me.name }, { name: 'mapeo' })
   })
 
   t.test('after updating global device info', async (st) => {
@@ -93,7 +90,9 @@ test('device info written to projects', async (t) => {
     )
 
     {
-      const ownMemberInfos = await Promise.all(projects.map(getOwnMemberInfo))
+      const ownMemberInfos = await Promise.all(
+        projects.map((p) => p.$member.getById(p.deviceId))
+      )
 
       for (const info of ownMemberInfos) {
         st.alike({ name: info.name }, { name: 'before' })
@@ -103,7 +102,9 @@ test('device info written to projects', async (t) => {
     await manager.setDeviceInfo({ name: 'after' })
 
     {
-      const ownMemberInfos = await Promise.all(projects.map(getOwnMemberInfo))
+      const ownMemberInfos = await Promise.all(
+        projects.map((p) => p.$member.getById(p.deviceId))
+      )
 
       for (const info of ownMemberInfos) {
         st.alike({ name: info.name }, { name: 'after' })
@@ -112,15 +113,4 @@ test('device info written to projects', async (t) => {
   })
 
   // TODO: Test closing project, changing name, and getting project to see if device info for project is updated
-
-  /**
-   * @param {import('../src/mapeo-project.js').MapeoProject} project
-   *
-   */
-  async function getOwnMemberInfo(project) {
-    const members = await project.$member.getMany()
-    const me = members.find(({ deviceId }) => deviceId === project.deviceId)
-    if (!me) throw Error('Could not get own member info')
-    return me
-  }
 })
