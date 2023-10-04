@@ -6,11 +6,11 @@ import {
   PeerState,
   CoreSyncState,
   bitCount32,
-} from '../src/sync/core-sync-state.js'
+} from '../../src/sync/core-sync-state.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
-} from '../src/core-manager/remote-bitfield.js'
-import { createCore } from './helpers/index.js'
+} from '../../src/core-manager/remote-bitfield.js'
+import { createCore } from '../helpers/index.js'
 // import { setTimeout } from 'timers/promises'
 import { once } from 'node:events'
 import pTimeout from 'p-timeout'
@@ -23,7 +23,7 @@ import pTimeout from 'p-timeout'
  *     localState: Parameters<createState>[0],
  *     remoteStates: Array<Parameters<createState>[0]>
  *   },
- *   expected: import('../src/sync/core-sync-state.js').DerivedState
+ *   expected: import('../../src/sync/core-sync-state.js').DerivedState
  * }>}
  */
 const scenarios = [
