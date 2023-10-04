@@ -7,7 +7,6 @@ import Hypercore from 'hypercore'
 import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
-import RemoteBitfield from './remote-bitfield.js'
 import * as rle from './bitfield-rle.js'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
@@ -34,6 +33,7 @@ const CREATE_SQL = `CREATE TABLE IF NOT EXISTS ${TABLE} (
 /**
  * @typedef {Object} Events
  * @property {(coreRecord: CoreRecord) => void} add-core
+ * @property {(coreDiscoveryId: string, peerId: string, msg: { start: number, bitfield: Uint32Array }) => void} peer-have
  */
 
 /**
@@ -53,11 +53,6 @@ export class CoreManager extends TypedEmitter {
   /** @type {'opened' | 'closing' | 'closed'} */
   #state = 'opened'
   #ready
-  /**
-   * For each peer, indexed by peerId, a map of hypercore bitfields, indexed by discoveryId
-   * @type {Map<string, Map<string, RemoteBitfield>>}
-   */
-  #havesByPeer = new Map()
   #haveExtension
 
   static get namespaces() {
@@ -167,10 +162,6 @@ export class CoreManager extends TypedEmitter {
 
   get creatorCore() {
     return this.#creatorCore
-  }
-
-  get havesByPeer() {
-    return this.#havesByPeer
   }
 
   /**
@@ -486,18 +477,8 @@ export class CoreManager extends TypedEmitter {
     const { start, discoveryKey, bitfield } = msg
     /** @type {string} */
     const peerId = peer.remotePublicKey.toString('hex')
-    let peerHaves = this.#havesByPeer.get(peerId)
-    if (!peerHaves) {
-      peerHaves = new Map()
-      this.#havesByPeer.set(peerId, peerHaves)
-    }
     const discoveryId = discoveryKey.toString('hex')
-    let remoteBitfield = peerHaves.get(discoveryId)
-    if (!remoteBitfield) {
-      remoteBitfield = new RemoteBitfield()
-      peerHaves.set(discoveryId, remoteBitfield)
-    }
-    remoteBitfield.insert(start, bitfield)
+    this.emit('peer-have', discoveryId, peerId, { start, bitfield })
   }
 
   /**
