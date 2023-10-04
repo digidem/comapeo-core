@@ -12,6 +12,7 @@ import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { createBlobServer } from './blob-server/index.js'
+import { createIconServer } from './icon-server/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectSettingsTable } from './schema/client.js'
@@ -51,6 +52,7 @@ export class MapeoProject {
   #dataTypes
   #blobStore
   #blobServer
+  #iconServer
   #coreOwnership
   #capabilities
   #ownershipWriteDone
@@ -210,6 +212,13 @@ export class MapeoProject {
       blobStore: this.#blobStore,
       prefix: '/blobs/',
       projectId: this.#projectId,
+    })
+
+    this.#iconServer = createIconServer({
+      logger: true,
+      prefix: '/icon/',
+      coreManager: this.#coreManager,
+      iconDataType: this.#dataTypes.icon,
     })
 
     // @ts-ignore TODO: pass in blobServer
