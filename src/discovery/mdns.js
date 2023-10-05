@@ -182,10 +182,14 @@ export class MdnsDiscovery extends TypedEmitter {
     const existing = this.#noiseConnections.get(remoteId)
 
     if (existing) {
+      const keyCompare = Buffer.compare(
+        this.#identityKeypair.publicKey,
+        remotePublicKey
+      )
       const keepExisting =
         (isInitiator && existing.isInitiator) ||
         (!isInitiator && !existing.isInitiator) ||
-        Buffer.compare(this.#identityKeypair.publicKey, remotePublicKey) > 0
+        (isInitiator ? keyCompare > 0 : keyCompare <= 0)
       if (keepExisting) {
         this.#log(`keeping existing, destroying new`)
         conn.on('error', noop)
