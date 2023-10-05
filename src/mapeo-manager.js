@@ -24,7 +24,9 @@ import {
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
-import { createIconServer } from './icon-server/index.js'
+import fastify from 'fastify'
+
+import IconServerPlugin from './icon-server/fastify-plugin.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -52,7 +54,7 @@ export class MapeoManager {
   #deviceId
   #rpc
   #invite
-  #iconServer
+  #fastifyServer
 
   /**
    * @param {Object} opts
@@ -99,10 +101,12 @@ export class MapeoManager {
       },
     })
 
-    this.#iconServer = createIconServer({
-      logger: true,
-      prefix: '/icon/',
-      manager: this,
+    this.#fastifyServer = fastify({ logger: true })
+    this.#fastifyServer.register(IconServerPlugin, {
+      prefix: '/icons/',
+      getProject: async (projectId) => {
+        return this.getProject(projectId)
+      },
     })
 
     if (typeof coreStorage === 'string') {
@@ -122,8 +126,8 @@ export class MapeoManager {
   }
 
   /** @param {number} port */
-  async serverListen(port) {
-    await this.#fastifyServer.listen({ port: port || FASTIFY_PORT })
+  serverListen(port) {
+    this.#fastifyServer.listen({ port: port || FASTIFY_PORT })
   }
 
   /**

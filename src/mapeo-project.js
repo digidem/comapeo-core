@@ -12,7 +12,6 @@ import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { createBlobServer } from './blob-server/index.js'
-import { createIconServer } from './icon-server/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectSettingsTable } from './schema/client.js'
@@ -54,7 +53,6 @@ export class MapeoProject {
   #dataTypes
   #blobStore
   #blobServer
-  #iconServer
   #coreOwnership
   #capabilities
   #ownershipWriteDone
@@ -348,11 +346,11 @@ export class MapeoProject {
     return this.#memberApi
   }
 
-  get dataTypes() {
+  get [kDataTypes]() {
     return this.#dataTypes
   }
 
-  get coreManager() {
+  get [kCoreManager]() {
     return this.#coreManager
   }
 
