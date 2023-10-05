@@ -108,6 +108,11 @@ export class MdnsDiscovery extends TypedEmitter {
    * @param {net.Socket} socket
    */
   #handleTcpConnection(isInitiator, socket) {
+    // For outgoing connections we've already attached an error listener, but
+    // not for incoming
+    if (socket.listenerCount('error') === 0) {
+      socket.on('error', this.#handleSocketError)
+    }
     const { remoteAddress } = socket
     if (!remoteAddress || !isPrivate(remoteAddress)) {
       socket.destroy(new Error('Invalid remoteAddress ' + remoteAddress))
