@@ -1,6 +1,54 @@
 /* eslint-disable */
 import Long from "long";
 import _m0 from "protobufjs/minimal.js";
+export var HaveExtension_Namespace = {
+    auth: "auth",
+    config: "config",
+    data: "data",
+    blobIndex: "blobIndex",
+    blob: "blob",
+    UNRECOGNIZED: "UNRECOGNIZED",
+};
+export function haveExtension_NamespaceFromJSON(object) {
+    switch (object) {
+        case 0:
+        case "auth":
+            return HaveExtension_Namespace.auth;
+        case 1:
+        case "config":
+            return HaveExtension_Namespace.config;
+        case 2:
+        case "data":
+            return HaveExtension_Namespace.data;
+        case 3:
+        case "blobIndex":
+            return HaveExtension_Namespace.blobIndex;
+        case 4:
+        case "blob":
+            return HaveExtension_Namespace.blob;
+        case -1:
+        case "UNRECOGNIZED":
+        default:
+            return HaveExtension_Namespace.UNRECOGNIZED;
+    }
+}
+export function haveExtension_NamespaceToNumber(object) {
+    switch (object) {
+        case HaveExtension_Namespace.auth:
+            return 0;
+        case HaveExtension_Namespace.config:
+            return 1;
+        case HaveExtension_Namespace.data:
+            return 2;
+        case HaveExtension_Namespace.blobIndex:
+            return 3;
+        case HaveExtension_Namespace.blob:
+            return 4;
+        case HaveExtension_Namespace.UNRECOGNIZED:
+        default:
+            return -1;
+    }
+}
 function createBaseProjectExtension() {
     return {
         wantCoreKeys: [],
@@ -107,7 +155,12 @@ export var ProjectExtension = {
     },
 };
 function createBaseHaveExtension() {
-    return { discoveryKey: Buffer.alloc(0), start: 0, encodedBitfield: Buffer.alloc(0) };
+    return {
+        discoveryKey: Buffer.alloc(0),
+        start: 0,
+        encodedBitfield: Buffer.alloc(0),
+        namespace: HaveExtension_Namespace.auth,
+    };
 }
 export var HaveExtension = {
     encode: function (message, writer) {
@@ -120,6 +173,9 @@ export var HaveExtension = {
         }
         if (message.encodedBitfield.length !== 0) {
             writer.uint32(26).bytes(message.encodedBitfield);
+        }
+        if (message.namespace !== HaveExtension_Namespace.auth) {
+            writer.uint32(32).int32(haveExtension_NamespaceToNumber(message.namespace));
         }
         return writer;
     },
@@ -148,6 +204,12 @@ export var HaveExtension = {
                     }
                     message.encodedBitfield = reader.bytes();
                     continue;
+                case 4:
+                    if (tag !== 32) {
+                        break;
+                    }
+                    message.namespace = haveExtension_NamespaceFromJSON(reader.int32());
+                    continue;
             }
             if ((tag & 7) === 4 || tag === 0) {
                 break;
@@ -160,11 +222,12 @@ export var HaveExtension = {
         return HaveExtension.fromPartial(base !== null && base !== void 0 ? base : {});
     },
     fromPartial: function (object) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         var message = createBaseHaveExtension();
         message.discoveryKey = (_a = object.discoveryKey) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
         message.start = (_b = object.start) !== null && _b !== void 0 ? _b : 0;
         message.encodedBitfield = (_c = object.encodedBitfield) !== null && _c !== void 0 ? _c : Buffer.alloc(0);
+        message.namespace = (_d = object.namespace) !== null && _d !== void 0 ? _d : HaveExtension_Namespace.auth;
         return message;
     },
 };

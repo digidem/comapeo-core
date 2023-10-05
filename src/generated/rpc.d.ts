@@ -14,12 +14,13 @@ export interface InviteResponse {
     projectKey: Buffer;
     decision: InviteResponse_Decision;
 }
-export declare enum InviteResponse_Decision {
-    REJECT = "REJECT",
-    ACCEPT = "ACCEPT",
-    ALREADY = "ALREADY",
-    UNRECOGNIZED = "UNRECOGNIZED"
-}
+export declare const InviteResponse_Decision: {
+    readonly REJECT: "REJECT";
+    readonly ACCEPT: "ACCEPT";
+    readonly ALREADY: "ALREADY";
+    readonly UNRECOGNIZED: "UNRECOGNIZED";
+};
+export type InviteResponse_Decision = typeof InviteResponse_Decision[keyof typeof InviteResponse_Decision];
 export declare function inviteResponse_DecisionFromJSON(object: any): InviteResponse_Decision;
 export declare function inviteResponse_DecisionToNumber(object: InviteResponse_Decision): number;
 export interface DeviceInfo {

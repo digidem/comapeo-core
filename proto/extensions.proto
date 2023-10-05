@@ -11,7 +11,17 @@ message ProjectExtension {
 }
 
 message HaveExtension {
+
+  enum Namespace {
+    auth = 0;
+    config = 1;
+    data = 2;
+    blobIndex = 3;
+    blob = 4;
+  }
+
   bytes discoveryKey = 1;
   uint64 start = 2;
   bytes encodedBitfield = 3;
+  Namespace namespace = 4;
 }

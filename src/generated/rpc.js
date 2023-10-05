@@ -1,13 +1,12 @@
 /* eslint-disable */
 import _m0 from "protobufjs/minimal.js";
 import { EncryptionKeys } from "./keys.js";
-export var InviteResponse_Decision;
-(function (InviteResponse_Decision) {
-    InviteResponse_Decision["REJECT"] = "REJECT";
-    InviteResponse_Decision["ACCEPT"] = "ACCEPT";
-    InviteResponse_Decision["ALREADY"] = "ALREADY";
-    InviteResponse_Decision["UNRECOGNIZED"] = "UNRECOGNIZED";
-})(InviteResponse_Decision || (InviteResponse_Decision = {}));
+export var InviteResponse_Decision = {
+    REJECT: "REJECT",
+    ACCEPT: "ACCEPT",
+    ALREADY: "ALREADY",
+    UNRECOGNIZED: "UNRECOGNIZED",
+};
 export function inviteResponse_DecisionFromJSON(object) {
     switch (object) {
         case 0:

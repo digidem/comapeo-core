@@ -12,7 +12,19 @@ export interface HaveExtension {
     discoveryKey: Buffer;
     start: number;
     encodedBitfield: Buffer;
+    namespace: HaveExtension_Namespace;
 }
+export declare const HaveExtension_Namespace: {
+    readonly auth: "auth";
+    readonly config: "config";
+    readonly data: "data";
+    readonly blobIndex: "blobIndex";
+    readonly blob: "blob";
+    readonly UNRECOGNIZED: "UNRECOGNIZED";
+};
+export type HaveExtension_Namespace = typeof HaveExtension_Namespace[keyof typeof HaveExtension_Namespace];
+export declare function haveExtension_NamespaceFromJSON(object: any): HaveExtension_Namespace;
+export declare function haveExtension_NamespaceToNumber(object: HaveExtension_Namespace): number;
 export declare const ProjectExtension: {
     encode(message: ProjectExtension, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): ProjectExtension;
@@ -54,18 +66,22 @@ export declare const HaveExtension: {
         discoveryKey?: Buffer;
         start?: number;
         encodedBitfield?: Buffer;
+        namespace?: HaveExtension_Namespace;
     } & {
         discoveryKey?: Buffer;
         start?: number;
         encodedBitfield?: Buffer;
+        namespace?: HaveExtension_Namespace;
     } & { [K in Exclude<keyof I, keyof HaveExtension>]: never; }>(base?: I): HaveExtension;
     fromPartial<I_1 extends {
         discoveryKey?: Buffer;
         start?: number;
         encodedBitfield?: Buffer;
+        namespace?: HaveExtension_Namespace;
     } & {
         discoveryKey?: Buffer;
         start?: number;
         encodedBitfield?: Buffer;
+        namespace?: HaveExtension_Namespace;
     } & { [K_1 in Exclude<keyof I_1, keyof HaveExtension>]: never; }>(object: I_1): HaveExtension;
 };
