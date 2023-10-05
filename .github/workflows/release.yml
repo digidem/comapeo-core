@@ -1,0 +1,51 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      semver:
+        description: 'The semver to use'
+        required: true
+        default: 'prerelease'
+        type: choice
+        options:
+          # - auto
+          # - patch
+          # - minor
+          # - major
+          - prerelease
+          # - prepatch
+          # - preminor
+          # - premajor
+  pull_request:
+    types: [closed]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Use Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - uses: nearform-actions/optic-release-automation-action@v4
+        with:
+          commit-message: 'Release {version}'
+          sync-semver-tags: true
+          access: 'public'
+          # This prefix is added before the prerelease number, e.g. `v3.0.0-alpha.0`
+          prerelease-prefix: 'alpha'
+          semver: ${{ github.event.inputs.semver }}
+          # Prereleases are published under the `alpha` npm dist-tag
+          npm-tag: ${{ startsWith(github.event.inputs.semver, 'pre') && 'alpha' || 'latest' }}
+          # Don't notify linked issues
+          notify-linked-issues: false
+          # optional: set this secret in your repo config for publishing to NPM
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          build-command: |
+            npm install
+            npm run build

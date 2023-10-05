@@ -55,6 +55,9 @@ Expect<Equal<ObservationWithForks, typeof updatedObservation>>
 const manyObservations = await mapeoProject.observation.getMany()
 Expect<Equal<ObservationWithForks[], typeof manyObservations>>
 
+const observationByDocId = await mapeoProject.observation.getByDocId('abc')
+Expect<Equal<Observation & { forks: string[] }, typeof observationByDocId>>
+
 const observationByVersionId = await mapeoProject.observation.getByVersionId(
   'abc'
 )
@@ -71,6 +74,9 @@ Expect<Equal<PresetWithForks, typeof updatedPreset>>
 const manyPresets = await mapeoProject.preset.getMany()
 Expect<Equal<PresetWithForks[], typeof manyPresets>>
 
+const presetByDocId = await mapeoProject.preset.getByDocId('abc')
+Expect<Equal<Preset & { forks: string[] }, typeof presetByDocId>>
+
 const presetByVersionId = await mapeoProject.preset.getByVersionId('abc')
 Expect<Equal<Preset, typeof presetByVersionId>>
 
@@ -84,6 +90,9 @@ Expect<Equal<FieldWithForks, typeof updatedField>>
 
 const manyFields = await mapeoProject.field.getMany()
 Expect<Equal<FieldWithForks[], typeof manyFields>>
+
+const fieldByDocId = await mapeoProject.field.getByDocId('abc')
+Expect<Equal<Field & { forks: string[] }, typeof fieldByDocId>>
 
 const fieldByVersionId = await mapeoProject.field.getByVersionId('abc')
 Expect<Equal<Field, typeof fieldByVersionId>>
