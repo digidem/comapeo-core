@@ -1,17 +1,20 @@
 import { parseVersionId } from '@mapeo/schema'
 import { Type as T } from '@sinclair/typebox'
 import fp from 'fastify-plugin'
+import { kDataTypes, kCoreManager } from '../mapeo-project.js'
 
 export default fp(iconServerPlugin, {
   fastify: '4.x',
   name: 'mapeo-icon-server',
 })
 
-const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
-const HEX_STRING_32_BYTES = T.String({ pattern: HEX_REGEX_32_BYTES })
+// const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
+// const HEX_REGEX_26_BYTES = '^[0-9a-fA-F]{52}$'
+const HEX_STRING_32_BYTES = T.String({})
+const HEX_STRING_26_BYTES = T.String({})
 const PARAMS_JSON_SCHEMA = T.Object({
   iconDocId: HEX_STRING_32_BYTES,
-  projectId: HEX_STRING_32_BYTES,
+  projectId: HEX_STRING_26_BYTES,
   size: T.String(),
   pixelDensity: T.Number(),
 })
@@ -19,7 +22,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
 /**
  * @typedef {Object} IconServerPluginOpts
  * @property {import('fastify').RegisterOptions['prefix']} prefix
- * @property {import('../mapeo-manager.js').MapeoManager} manager
+ * @property {(projectId: string) => Promise<import('../mapeo-project.js').MapeoProject>} getProject
  **/
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & IconServerPluginOpts>} */
@@ -32,19 +35,16 @@ async function iconServerPlugin(fastify, options) {
  * import('fastify').RawServerDefault,
  * import('@fastify/type-provider-typebox').TypeBoxTypeProvider>} */
 async function routes(fastify, options) {
-  const { manager } = options
+  const { getProject } = options
+
   fastify.get(
     '/:projectId/:iconDocId/:size/:pixelDensity',
-    {
-      schema: {
-        params: PARAMS_JSON_SCHEMA,
-      },
-    },
+    { schema: { params: PARAMS_JSON_SCHEMA } },
     async (req, res) => {
       const { projectId, iconDocId, size, pixelDensity } = req.params
-      const project = await manager.getProject(projectId)
-      const iconDataType = project.dataTypes.icon
-      const coreManager = project.coreManager
+      const project = await getProject(projectId)
+      const iconDataType = project[kDataTypes].icon
+      const coreManager = project[kCoreManager]
       const icon = await iconDataType.getByDocId(iconDocId)
       const bestVariant = findBestVariantMatch(icon.variants, {
         size,
@@ -57,10 +57,9 @@ async function routes(fastify, options) {
       res.headers({ 'mime-type': bestVariant.mimeType })
       if (core) {
         const blob = core.get(index)
-        res.send(blob)
+        return res.send(blob)
       } else {
-        res.statusCode = 404
-        res.send()
+        return res.code(404)
       }
     }
   )
