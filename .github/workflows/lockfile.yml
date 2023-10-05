@@ -1,0 +1,13 @@
+name: Check Lockfile
+on: pull_request
+jobs:
+  lockfile:
+    name: Lockfile check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out a copy of the repo
+        uses: actions/checkout@v4
+      - name: Check package-lock.json version has not been changed
+        uses: mansona/npm-lockfile-version@v1
+        with:
+          version: 3
