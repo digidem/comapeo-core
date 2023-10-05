@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+
+# Exit early if this was only a file checkout, not a branch change ($3 == 1)
+[ "$3" = 0 ] && exit 0
+
+oldRef=$1
+newRef=$2
+
+
+changed() {
+  git diff --name-only "$oldRef" "$newRef" | grep "^$1" > /dev/null 2>&1
+}
+
+if changed 'package-lock.json'; then
+  echo "📦 package-lock.json changed. Run npm install to bring your dependencies up to date."
+fi

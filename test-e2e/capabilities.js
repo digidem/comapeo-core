@@ -7,7 +7,6 @@ import {
   DEFAULT_CAPABILITIES,
   CREATOR_CAPABILITIES,
   MEMBER_ROLE_ID,
-  BLOCKED_ROLE_ID,
 } from '../src/capabilities.js'
 import { randomBytes } from 'crypto'
 
@@ -58,9 +57,15 @@ test('New device without capabilities', async (t) => {
   const ownCapabilities = await project.$getOwnCapabilities()
 
   t.alike(
-    ownCapabilities,
-    DEFAULT_CAPABILITIES[BLOCKED_ROLE_ID],
-    'A new device before sync is blocked'
+    ownCapabilities.sync,
+    {
+      auth: 'allowed',
+      config: 'allowed',
+      data: 'blocked',
+      blobIndex: 'blocked',
+      blob: 'blocked',
+    },
+    'A new device before sync can sync auth and config namespaces, but not other namespaces'
   )
   await t.exception(async () => {
     const deviceId = randomBytes(32).toString('hex')
