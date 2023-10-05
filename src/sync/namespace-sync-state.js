@@ -84,12 +84,12 @@ export class NamespaceSyncState extends TypedEmitter {
    * @param {{
    *   peerId: string,
    *   start: number,
-   *   discoveryId: string,
+   *   coreDiscoveryId: string,
    *   bitfield: Uint32Array
    * }} opts
    */
-  #insertPreHaves({ peerId, start, discoveryId, bitfield }) {
-    this.#getCoreState(discoveryId).insertPreHaves(peerId, start, bitfield)
+  #insertPreHaves({ peerId, start, coreDiscoveryId, bitfield }) {
+    this.#getCoreState(coreDiscoveryId).insertPreHaves(peerId, start, bitfield)
   }
 
   /**
