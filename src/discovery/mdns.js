@@ -108,11 +108,19 @@ export class MdnsDiscovery extends TypedEmitter {
    * @param {net.Socket} socket
    */
   #handleTcpConnection(isInitiator, socket) {
-    // For outgoing connections we've already attached an error listener, but
-    // not for incoming
-    if (socket.listenerCount('error') === 0) {
-      socket.on('error', this.#handleSocketError)
+    socket.off('error', this.#handleSocketError)
+    socket.on('error', onSocketError)
+
+    /** @param {any} e */
+    function onSocketError(e) {
+      if (e.code === 'EPIPE') {
+        socket.destroy()
+        if (secretStream) {
+          secretStream.destroy()
+        }
+      }
     }
+
     const { remoteAddress } = socket
     if (!remoteAddress || !isPrivate(remoteAddress)) {
       socket.destroy(new Error('Invalid remoteAddress ' + remoteAddress))
@@ -132,6 +140,7 @@ export class MdnsDiscovery extends TypedEmitter {
 
     secretStream.on('connect', () => {
       // Further errors will be handled in #handleNoiseStreamConnection()
+      socket.off('error', onSocketError)
       secretStream.off('error', this.#handleSocketError)
       this.#handleNoiseStreamConnection(secretStream)
     })
