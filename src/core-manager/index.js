@@ -33,7 +33,7 @@ const CREATE_SQL = `CREATE TABLE IF NOT EXISTS ${TABLE} (
 /**
  * @typedef {Object} Events
  * @property {(coreRecord: CoreRecord) => void} add-core
- * @property {(coreDiscoveryId: string, peerId: string, msg: { start: number, bitfield: Uint32Array }) => void} peer-have
+ * @property {(namespace: Namespace, msg: { coreDiscoveryId: string, peerId: string, start: number, bitfield: Uint32Array }) => void} peer-have
  */
 
 /**
@@ -470,15 +470,21 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
-   * @param {HaveMsg} msg
+   * @param {Omit<HaveMsg, 'namespace'> & { namespace: Namespace | 'UNRECOGNIZED' }} msg
    * @param {any} peer
    */
   #handleHaveMessage(msg, peer) {
-    const { start, discoveryKey, bitfield } = msg
+    const { start, discoveryKey, bitfield, namespace } = msg
+    if (namespace === 'UNRECOGNIZED') return
     /** @type {string} */
     const peerId = peer.remotePublicKey.toString('hex')
-    const discoveryId = discoveryKey.toString('hex')
-    this.emit('peer-have', discoveryId, peerId, { start, bitfield })
+    const coreDiscoveryId = discoveryKey.toString('hex')
+    this.emit('peer-have', namespace, {
+      coreDiscoveryId,
+      peerId,
+      start,
+      bitfield,
+    })
   }
 
   /**
@@ -494,7 +500,7 @@ export class CoreManager extends TypedEmitter {
 
     peer.protomux.cork()
 
-    for (const { core } of this.#coreIndex) {
+    for (const { core, namespace } of this.#coreIndex) {
       // We want ready() rather than update() because we are only interested in local data
       await core.ready()
       if (core.length === 0) continue
@@ -505,7 +511,7 @@ export class CoreManager extends TypedEmitter {
       // @ts-ignore - accessing internal property
       const bitfieldIterator = core.core.bitfield.want(0, core.length)
       for (const { start, bitfield } of bitfieldIterator) {
-        const message = { start, bitfield, discoveryKey }
+        const message = { start, bitfield, discoveryKey, namespace }
         this.#haveExtension.send(message, peer)
       }
     }
@@ -519,6 +525,7 @@ export class CoreManager extends TypedEmitter {
  * @property {Buffer} discoveryKey
  * @property {number} start
  * @property {Uint32Array} bitfield
+ * @property {Namespace} namespace
  */
 
 const ProjectExtensionCodec = {
@@ -534,24 +541,25 @@ const ProjectExtensionCodec = {
 
 const HaveExtensionCodec = {
   /** @param {HaveMsg} msg */
-  encode({ start, discoveryKey, bitfield }) {
+  encode({ start, discoveryKey, bitfield, namespace }) {
     const encodedBitfield = rle.encode(bitfield)
-    const msg = { start, discoveryKey, encodedBitfield }
+    const msg = { start, discoveryKey, encodedBitfield, namespace }
     return HaveExtension.encode(msg).finish()
   },
   /**
    * @param {Buffer | Uint8Array} buf
-   * @returns {HaveMsg}
+   * @returns {Omit<HaveMsg, 'namespace'> & { namespace: HaveMsg['namespace'] | 'UNRECOGNIZED' }}
    */
   decode(buf) {
-    const { start, discoveryKey, encodedBitfield } = HaveExtension.decode(buf)
+    const { start, discoveryKey, encodedBitfield, namespace } =
+      HaveExtension.decode(buf)
     try {
       const bitfield = rle.decode(encodedBitfield)
-      return { start, discoveryKey, bitfield }
+      return { start, discoveryKey, bitfield, namespace }
     } catch (e) {
       // TODO: Log error
       console.error(e)
-      return { start, discoveryKey, bitfield: new Uint32Array() }
+      return { start, discoveryKey, bitfield: new Uint32Array(), namespace }
     }
   },
 }

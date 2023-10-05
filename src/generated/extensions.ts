@@ -15,6 +15,60 @@ export interface HaveExtension {
   discoveryKey: Buffer;
   start: number;
   encodedBitfield: Buffer;
+  namespace: HaveExtension_Namespace;
+}
+
+export const HaveExtension_Namespace = {
+  auth: "auth",
+  config: "config",
+  data: "data",
+  blobIndex: "blobIndex",
+  blob: "blob",
+  UNRECOGNIZED: "UNRECOGNIZED",
+} as const;
+
+export type HaveExtension_Namespace = typeof HaveExtension_Namespace[keyof typeof HaveExtension_Namespace];
+
+export function haveExtension_NamespaceFromJSON(object: any): HaveExtension_Namespace {
+  switch (object) {
+    case 0:
+    case "auth":
+      return HaveExtension_Namespace.auth;
+    case 1:
+    case "config":
+      return HaveExtension_Namespace.config;
+    case 2:
+    case "data":
+      return HaveExtension_Namespace.data;
+    case 3:
+    case "blobIndex":
+      return HaveExtension_Namespace.blobIndex;
+    case 4:
+    case "blob":
+      return HaveExtension_Namespace.blob;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return HaveExtension_Namespace.UNRECOGNIZED;
+  }
+}
+
+export function haveExtension_NamespaceToNumber(object: HaveExtension_Namespace): number {
+  switch (object) {
+    case HaveExtension_Namespace.auth:
+      return 0;
+    case HaveExtension_Namespace.config:
+      return 1;
+    case HaveExtension_Namespace.data:
+      return 2;
+    case HaveExtension_Namespace.blobIndex:
+      return 3;
+    case HaveExtension_Namespace.blob:
+      return 4;
+    case HaveExtension_Namespace.UNRECOGNIZED:
+    default:
+      return -1;
+  }
 }
 
 function createBaseProjectExtension(): ProjectExtension {
@@ -125,7 +179,12 @@ export const ProjectExtension = {
 };
 
 function createBaseHaveExtension(): HaveExtension {
-  return { discoveryKey: Buffer.alloc(0), start: 0, encodedBitfield: Buffer.alloc(0) };
+  return {
+    discoveryKey: Buffer.alloc(0),
+    start: 0,
+    encodedBitfield: Buffer.alloc(0),
+    namespace: HaveExtension_Namespace.auth,
+  };
 }
 
 export const HaveExtension = {
@@ -138,6 +197,9 @@ export const HaveExtension = {
     }
     if (message.encodedBitfield.length !== 0) {
       writer.uint32(26).bytes(message.encodedBitfield);
+    }
+    if (message.namespace !== HaveExtension_Namespace.auth) {
+      writer.uint32(32).int32(haveExtension_NamespaceToNumber(message.namespace));
     }
     return writer;
   },
@@ -170,6 +232,13 @@ export const HaveExtension = {
 
           message.encodedBitfield = reader.bytes() as Buffer;
           continue;
+        case 4:
+          if (tag !== 32) {
+            break;
+          }
+
+          message.namespace = haveExtension_NamespaceFromJSON(reader.int32());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -187,6 +256,7 @@ export const HaveExtension = {
     message.discoveryKey = object.discoveryKey ?? Buffer.alloc(0);
     message.start = object.start ?? 0;
     message.encodedBitfield = object.encodedBitfield ?? Buffer.alloc(0);
+    message.namespace = object.namespace ?? HaveExtension_Namespace.auth;
     return message;
   },
 };

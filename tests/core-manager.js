@@ -481,23 +481,31 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   const cm2 = createCoreManager({ projectKey })
   /**
    * For each peer, indexed by peerId, a map of hypercore bitfields, indexed by discoveryId
-   * @type {Map<string, Map<string, RemoteBitfield>>}
+   * @type {Map<string, Map<import('../src/core-manager/index.js').Namespace, Map<string, RemoteBitfield>>>}
    */
   const havesByPeer = new Map()
 
-  cm2.on('peer-have', (coreDiscoveryId, peerId, { start, bitfield }) => {
-    let havesByCore = havesByPeer.get(peerId)
-    if (!havesByCore) {
-      havesByCore = new Map()
-      havesByPeer.set(peerId, havesByCore)
+  cm2.on(
+    'peer-have',
+    (namespace, { coreDiscoveryId, peerId, start, bitfield }) => {
+      let havesByNamespace = havesByPeer.get(peerId)
+      if (!havesByNamespace) {
+        havesByNamespace = new Map()
+        havesByPeer.set(peerId, havesByNamespace)
+      }
+      let havesByCore = havesByNamespace.get(namespace)
+      if (!havesByCore) {
+        havesByCore = new Map()
+        havesByNamespace.set(namespace, havesByCore)
+      }
+      let remoteBitfield = havesByCore.get(coreDiscoveryId)
+      if (!remoteBitfield) {
+        remoteBitfield = new RemoteBitfield()
+        havesByCore.set(coreDiscoveryId, remoteBitfield)
+      }
+      remoteBitfield.insert(start, bitfield)
     }
-    let remoteBitfield = havesByCore.get(coreDiscoveryId)
-    if (!remoteBitfield) {
-      remoteBitfield = new RemoteBitfield()
-      havesByCore.set(coreDiscoveryId, remoteBitfield)
-    }
-    remoteBitfield.insert(start, bitfield)
-  })
+  )
 
   const cm1Core = cm1.getWriterCore('data').core
   await cm1Core.ready()
@@ -524,7 +532,8 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   await new Promise((res) => setTimeout(res, 200))
 
   const peerId = n1.publicKey.toString('hex')
-  const havesByCore = havesByPeer.get(peerId)
+  const havesByNamespace = havesByPeer.get(peerId)
+  const havesByCore = havesByNamespace.get('data')
   t.ok(havesByCore)
   const bitfield = havesByCore.get(cm1Core.discoveryKey.toString('hex'))
   t.ok(bitfield)

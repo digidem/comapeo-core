@@ -20,7 +20,7 @@ export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
  * @property {string} name
  * @property {Record<import('@mapeo/schema').MapeoDoc['schemaName'], DocCapability>} docs
  * @property {RoleId[]} roleAssignment
- * @property {'allowed' | 'blocked'} sync
+ * @property {Record<import('./core-manager/core-index.js').Namespace, 'allowed' | 'blocked'>} sync
  */
 
 /**
@@ -43,7 +43,41 @@ export const CREATOR_CAPABILITIES = {
     ]
   }),
   roleAssignment: [COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID],
-  sync: 'allowed',
+  sync: {
+    auth: 'allowed',
+    config: 'allowed',
+    data: 'allowed',
+    blobIndex: 'allowed',
+    blob: 'allowed',
+  },
+}
+
+/**
+ * These are the capabilities assumed for a device when no capability record can
+ * be found. This can happen when an invited device did not manage to sync with
+ * the device that invited them, and they then try to sync with someone else. We
+ * want them to be able to sync the auth and config store, because that way they
+ * may be able to receive their role record, and they can get the project config
+ * so that they can start collecting data.
+ *
+ * @type {Capability}
+ */
+export const NO_ROLE_CAPABILITIES = {
+  name: 'No Role',
+  docs: mapObject(currentSchemaVersions, (key) => {
+    return [
+      key,
+      { readOwn: true, writeOwn: true, readOthers: false, writeOthers: false },
+    ]
+  }),
+  roleAssignment: [],
+  sync: {
+    auth: 'allowed',
+    config: 'allowed',
+    data: 'blocked',
+    blobIndex: 'blocked',
+    blob: 'blocked',
+  },
 }
 
 /** @type {Record<RoleId, Capability>} */
@@ -57,7 +91,13 @@ export const DEFAULT_CAPABILITIES = {
       ]
     }),
     roleAssignment: [],
-    sync: 'allowed',
+    sync: {
+      auth: 'allowed',
+      config: 'allowed',
+      data: 'allowed',
+      blobIndex: 'allowed',
+      blob: 'allowed',
+    },
   },
   [COORDINATOR_ROLE_ID]: {
     name: 'Coordinator',
@@ -68,7 +108,13 @@ export const DEFAULT_CAPABILITIES = {
       ]
     }),
     roleAssignment: [COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID],
-    sync: 'allowed',
+    sync: {
+      auth: 'allowed',
+      config: 'allowed',
+      data: 'allowed',
+      blobIndex: 'allowed',
+      blob: 'allowed',
+    },
   },
   [BLOCKED_ROLE_ID]: {
     name: 'Blocked',
@@ -84,7 +130,13 @@ export const DEFAULT_CAPABILITIES = {
       ]
     }),
     roleAssignment: [],
-    sync: 'blocked',
+    sync: {
+      auth: 'blocked',
+      config: 'blocked',
+      data: 'blocked',
+      blobIndex: 'blocked',
+      blob: 'blocked',
+    },
   },
 }
 
@@ -135,7 +187,9 @@ export class Capabilities {
       if (authCoreId === this.#projectCreatorAuthCoreId) {
         return CREATOR_CAPABILITIES
       } else {
-        return DEFAULT_CAPABILITIES[BLOCKED_ROLE_ID]
+        // When no role assignment exists, e.g. a newly added device which has
+        // not yet synced role records.
+        return NO_ROLE_CAPABILITIES
       }
     }
     if (!isKnownRoleId(roleId)) {

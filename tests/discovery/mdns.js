@@ -75,24 +75,12 @@ test('deduplicate incoming connections', async (t) => {
   await discovery.stop({ force: true })
 })
 
-// These tests are failing randomly due to a race condition when de-duplicating connections.
-// TODO: Fix the race condition and re-enable these tests, and try to write a test that will consistently reproduce
-test.skip(`mdns - discovery of 20 peers with random time instantiation`, async (t) => {
-  await testMultiple(t, { period: 2000, nPeers: 20 })
+test(`mdns - discovery of 30 peers with random time instantiation`, async (t) => {
+  await testMultiple(t, { period: 2000, nPeers: 30 })
 })
 
-// These tests are failing randomly due to a race condition when de-duplicating connections.
-// TODO: Fix the race condition and re-enable these tests, and try to write a test that will consistently reproduce
-test.skip(`mdns - discovery of 20 peers instantiated at the same time`, async (t) => {
-  await testMultiple(t, { period: 0, nPeers: 20 })
-})
-
-test(`mdns - discovery of 3 peers with random time instantiation`, async (t) => {
-  await testMultiple(t, { period: 2000, nPeers: 3 })
-})
-
-test(`mdns - discovery of 3 peers instantiated at the same time`, async (t) => {
-  await testMultiple(t, { period: 0, nPeers: 3 })
+test(`mdns - discovery of 30 peers instantiated at the same time`, async (t) => {
+  await testMultiple(t, { period: 0, nPeers: 30 })
 })
 
 /**
