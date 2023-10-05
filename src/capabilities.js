@@ -200,6 +200,44 @@ export class Capabilities {
   }
 
   /**
+   * Get capabilities of all devices in the project. For your own device, if you
+   * have not yet synced your own role record, the "no role" capabilties is
+   * returned. The project creator will have `CREATOR_CAPABILITIES` unless a
+   * different role has been assigned.
+   *
+   * @returns {Promise<Record<string, Capability>>} Map of deviceId to Capability
+   */
+  async getAll() {
+    const roles = await this.#dataType.getMany()
+    let projectCreatorDeviceId
+    try {
+      projectCreatorDeviceId = await this.#coreOwnership.getOwner(
+        this.#projectCreatorAuthCoreId
+      )
+    } catch (e) {
+      // Not found, we don't know who the project creator is so we can't include
+      // them in the returned map
+    }
+    /** @type {Record<string, Capability>} */
+    const capabilities = {}
+    for (const role of roles) {
+      const deviceId = role.docId
+      if (!isKnownRoleId(role.roleId)) continue
+      capabilities[deviceId] = DEFAULT_CAPABILITIES[role.roleId]
+    }
+    const includesSelf = Boolean(capabilities[this.#ownDeviceId])
+    if (!includesSelf) {
+      const isProjectCreator = this.#ownDeviceId === projectCreatorDeviceId
+      if (isProjectCreator) {
+        capabilities[this.#ownDeviceId] = CREATOR_CAPABILITIES
+      } else {
+        capabilities[this.#ownDeviceId] = NO_ROLE_CAPABILITIES
+      }
+    }
+    return capabilities
+  }
+
+  /**
    * Assign a role to the specified `deviceId`. Devices without an assigned role
    * are unable to sync, except the project creator that defaults to having all
    * capabilities. Only the project creator can assign their own role. Will
