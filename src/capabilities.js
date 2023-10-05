@@ -209,9 +209,14 @@ export class Capabilities {
    */
   async getMany() {
     const roles = await this.#dataType.getMany()
-    const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
-      this.#projectCreatorAuthCoreId
-    )
+    let projectCreatorDeviceId
+    try {
+      projectCreatorDeviceId = await this.#coreOwnership.getOwner(
+        this.#projectCreatorAuthCoreId
+      )
+    } catch (e) {
+      // Not found, assume there is no role defined for creator, so will return CREATOR_CAPABILITIES
+    }
     let includesSelf = false
     let includesProjectCreator = false
     /** @type {Capability[]} */
@@ -227,7 +232,7 @@ export class Capabilities {
       if (!isKnownRoleId(role.roleId)) continue
       capabilities.push(DEFAULT_CAPABILITIES[role.roleId])
     }
-    if (!includesSelf) {
+    if (!includesSelf && this.#ownDeviceId !== projectCreatorDeviceId) {
       capabilities.push(NO_ROLE_CAPABILITIES)
     }
     if (!includesProjectCreator) {
