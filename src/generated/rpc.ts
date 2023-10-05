@@ -18,12 +18,14 @@ export interface InviteResponse {
   decision: InviteResponse_Decision;
 }
 
-export enum InviteResponse_Decision {
-  REJECT = "REJECT",
-  ACCEPT = "ACCEPT",
-  ALREADY = "ALREADY",
-  UNRECOGNIZED = "UNRECOGNIZED",
-}
+export const InviteResponse_Decision = {
+  REJECT: "REJECT",
+  ACCEPT: "ACCEPT",
+  ALREADY: "ALREADY",
+  UNRECOGNIZED: "UNRECOGNIZED",
+} as const;
+
+export type InviteResponse_Decision = typeof InviteResponse_Decision[keyof typeof InviteResponse_Decision];
 
 export function inviteResponse_DecisionFromJSON(object: any): InviteResponse_Decision {
   switch (object) {
