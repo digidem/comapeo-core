@@ -205,9 +205,9 @@ export class Capabilities {
    * returned. The project creator will have `CREATOR_CAPABILITIES` unless a
    * different role has been assigned.
    *
-   * @returns {Promise<Capability[]>}
+   * @returns {Promise<Record<string, Capability>>} Map of deviceId to Capability
    */
-  async getMany() {
+  async getAll() {
     const roles = await this.#dataType.getMany()
     let projectCreatorDeviceId
     try {
@@ -215,28 +215,24 @@ export class Capabilities {
         this.#projectCreatorAuthCoreId
       )
     } catch (e) {
-      // Not found, assume there is no role defined for creator, so will return CREATOR_CAPABILITIES
+      // Not found, we don't know who the project creator is so we can't include
+      // them in the returned map
     }
-    let includesSelf = false
-    let includesProjectCreator = false
-    /** @type {Capability[]} */
-    const capabilities = []
+    /** @type {Record<string, Capability>} */
+    const capabilities = {}
     for (const role of roles) {
       const deviceId = role.docId
-      if (deviceId === this.#ownDeviceId) {
-        includesSelf = true
-      }
-      if (deviceId === projectCreatorDeviceId) {
-        includesProjectCreator = true
-      }
       if (!isKnownRoleId(role.roleId)) continue
-      capabilities.push(DEFAULT_CAPABILITIES[role.roleId])
+      capabilities[deviceId] = DEFAULT_CAPABILITIES[role.roleId]
     }
-    if (!includesSelf && this.#ownDeviceId !== projectCreatorDeviceId) {
-      capabilities.push(NO_ROLE_CAPABILITIES)
-    }
-    if (!includesProjectCreator) {
-      capabilities.push(CREATOR_CAPABILITIES)
+    const includesSelf = Boolean(capabilities[this.#ownDeviceId])
+    if (!includesSelf) {
+      const isProjectCreator = this.#ownDeviceId === projectCreatorDeviceId
+      if (isProjectCreator) {
+        capabilities[this.#ownDeviceId] = CREATOR_CAPABILITIES
+      } else {
+        capabilities[this.#ownDeviceId] = NO_ROLE_CAPABILITIES
+      }
     }
     return capabilities
   }

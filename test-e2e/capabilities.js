@@ -77,6 +77,8 @@ test('New device without capabilities', async (t) => {
 
 test('getMany() - on invitor device', async (t) => {
   const rootKey = KeyManager.generateRootKey()
+  const km = new KeyManager(rootKey)
+  const creatorDeviceId = km.getIdentityKeypair().publicKey.toString('hex')
   const manager = new MapeoManager({
     rootKey,
     dbFolder: ':memory:',
@@ -98,14 +100,14 @@ test('getMany() - on invitor device', async (t) => {
   await project[kCapabilities].assignRole(deviceId1, MEMBER_ROLE_ID)
   await project[kCapabilities].assignRole(deviceId2, COORDINATOR_ROLE_ID)
 
-  const expected = [
-    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
-    DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
-    CREATOR_CAPABILITIES,
-  ].sort(sortCapabilties)
+  const expected = {
+    [deviceId1]: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    [deviceId2]: DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
+    [creatorDeviceId]: CREATOR_CAPABILITIES,
+  }
 
   t.alike(
-    (await project[kCapabilities].getMany()).sort(sortCapabilties),
+    await project[kCapabilities].getAll(),
     expected,
     'expected capabilities'
   )
@@ -113,6 +115,8 @@ test('getMany() - on invitor device', async (t) => {
 
 test('getMany() - on newly invited device before sync', async (t) => {
   const rootKey = KeyManager.generateRootKey()
+  const km = new KeyManager(rootKey)
+  const deviceId = km.getIdentityKeypair().publicKey.toString('hex')
   const manager = new MapeoManager({
     rootKey,
     dbFolder: ':memory:',
@@ -126,21 +130,13 @@ test('getMany() - on newly invited device before sync', async (t) => {
   const project = await manager.getProject(projectId)
   await project.ready()
 
-  const expected = [NO_ROLE_CAPABILITIES, CREATOR_CAPABILITIES].sort(
-    sortCapabilties
-  )
+  const expected = {
+    [deviceId]: NO_ROLE_CAPABILITIES,
+  }
 
   t.alike(
-    (await project[kCapabilities].getMany()).sort(sortCapabilties),
+    await project[kCapabilities].getAll(),
     expected,
     'expected capabilities'
   )
 })
-
-/**
- * @param {import('../src/capabilities.js').Capability} a
- * @param {import('../src/capabilities.js').Capability} b
- */
-function sortCapabilties(a, b) {
-  return a.name > b.name ? -1 : a.name === b.name ? 0 : 1
-}
