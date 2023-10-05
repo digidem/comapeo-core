@@ -9,7 +9,7 @@ export default fp(iconServerPlugin, {
 })
 
 const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
-const HEX_REGEX_26_BYTES = '^[0-9a-fA-F]{52}$'
+const HEX_REGEX_26_BYTES = '^[0-9a-z]{52}$'
 const HEX_STRING_32_BYTES = T.String({ pattern: HEX_REGEX_32_BYTES })
 const HEX_STRING_26_BYTES = T.String({ pattern: HEX_REGEX_26_BYTES })
 const PARAMS_JSON_SCHEMA = T.Object({
