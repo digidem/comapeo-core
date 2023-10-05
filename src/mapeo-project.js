@@ -214,13 +214,6 @@ export class MapeoProject {
       projectId: this.#projectId,
     })
 
-    this.#iconServer = createIconServer({
-      logger: true,
-      prefix: '/icon/',
-      coreManager: this.#coreManager,
-      iconDataType: this.#dataTypes.icon,
-    })
-
     // @ts-ignore TODO: pass in blobServer
     this.$blobs = new BlobApi({
       projectId: this.#projectId,
@@ -351,6 +344,14 @@ export class MapeoProject {
 
   get $member() {
     return this.#memberApi
+  }
+
+  get dataTypes() {
+    return this.#dataTypes
+  }
+
+  get coreManager() {
+    return this.#coreManager
   }
 
   /**

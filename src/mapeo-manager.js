@@ -24,6 +24,7 @@ import {
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
+import { createIconServer } from './icon-server/index.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -50,6 +51,7 @@ export class MapeoManager {
   #deviceId
   #rpc
   #invite
+  #iconServer
 
   /**
    * @param {Object} opts
@@ -94,6 +96,12 @@ export class MapeoManager {
           await this.addProject(invite)
         },
       },
+    })
+
+    this.#iconServer = createIconServer({
+      logger: true,
+      prefix: '/icon/',
+      manager: this,
     })
 
     if (typeof coreStorage === 'string') {

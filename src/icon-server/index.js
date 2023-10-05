@@ -5,25 +5,13 @@ import IconServerPlugin from './fastify-plugin.js'
  * @param {object} opts
  * @param {import('fastify').FastifyServerOptions['logger']} opts.logger
  * @param {import('fastify').RegisterOptions['prefix']} opts.prefix
- * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
- * @param {import('../datatype/index.js').DataType<
- *   import('../datastore/index.js').DataStore<'config'>,
- *   typeof import('../schema/project.js').iconTable,
- *   'icon',
- *   import('@mapeo/schema').Icon,
- *   import('@mapeo/schema').IconValue>} opts.iconDataType
+ * @param {import('../mapeo-manager.js').MapeoManager} opts.manager
  **/
-export function createIconServer({
-  logger,
-  prefix,
-  coreManager,
-  iconDataType,
-}) {
+export function createIconServer({ logger, prefix, manager }) {
   const server = fastify({ logger })
   server.register(IconServerPlugin, {
     prefix,
-    coreManager,
-    iconDataType,
+    manager,
   })
   return server
 }
