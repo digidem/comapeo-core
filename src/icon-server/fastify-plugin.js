@@ -11,6 +11,7 @@ const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
 const HEX_STRING_32_BYTES = T.String({ pattern: HEX_REGEX_32_BYTES })
 const PARAMS_JSON_SCHEMA = T.Object({
   iconDocId: HEX_STRING_32_BYTES,
+  projectId: HEX_STRING_32_BYTES,
   size: T.String(),
   pixelDensity: T.Number(),
 })
@@ -18,13 +19,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
 /**
  * @typedef {Object} IconServerPluginOpts
  * @property {import('fastify').RegisterOptions['prefix']} prefix
- * @property {import('../core-manager/index.js').CoreManager} coreManager
- * @property {import('../datatype/index.js').DataType<
- *   import('../datastore/index.js').DataStore<'config'>,
- *   typeof import('../schema/project.js').iconTable,
- *   'icon',
- *   import('@mapeo/schema').Icon,
- *   import('@mapeo/schema').IconValue>} iconDataType
+ * @property {import('../mapeo-manager.js').MapeoManager} manager
  **/
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & IconServerPluginOpts>} */
@@ -37,16 +32,19 @@ async function iconServerPlugin(fastify, options) {
  * import('fastify').RawServerDefault,
  * import('@fastify/type-provider-typebox').TypeBoxTypeProvider>} */
 async function routes(fastify, options) {
-  const { coreManager, iconDataType } = options
+  const { manager } = options
   fastify.get(
-    '/:iconDocId/:size/:pixelDensity',
+    '/:projectId/:iconDocId/:size/:pixelDensity',
     {
       schema: {
         params: PARAMS_JSON_SCHEMA,
       },
     },
     async (req, res) => {
-      const { iconDocId, size, pixelDensity } = req.params
+      const { projectId, iconDocId, size, pixelDensity } = req.params
+      const project = await manager.getProject(projectId)
+      const iconDataType = project.dataTypes.icon
+      const coreManager = project.coreManager
       const icon = await iconDataType.getByDocId(iconDocId)
       const bestVariant = findBestVariantMatch(icon.variants, {
         size,
