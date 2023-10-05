@@ -182,10 +182,20 @@ export class MdnsDiscovery extends TypedEmitter {
     const existing = this.#noiseConnections.get(remoteId)
 
     if (existing) {
+      const keyCompare = Buffer.compare(
+        this.#identityKeypair.publicKey,
+        remotePublicKey
+      )
       const keepExisting =
+        // These first two checks check if a peer tried to connect twice. In
+        // this case we keep the existing connection.
         (isInitiator && existing.isInitiator) ||
         (!isInitiator && !existing.isInitiator) ||
-        Buffer.compare(this.#identityKeypair.publicKey, remotePublicKey) > 0
+        // If each peer tried to connect to the other at the same time, then we
+        // tie-break based on public key comparison (the initiator need to check
+        // the opposite of the non-initiator, because the keys are the other way
+        // around for them)
+        (isInitiator ? keyCompare > 0 : keyCompare <= 0)
       if (keepExisting) {
         this.#log(`keeping existing, destroying new`)
         conn.on('error', noop)
