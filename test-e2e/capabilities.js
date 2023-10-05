@@ -7,6 +7,8 @@ import {
   DEFAULT_CAPABILITIES,
   CREATOR_CAPABILITIES,
   MEMBER_ROLE_ID,
+  COORDINATOR_ROLE_ID,
+  NO_ROLE_CAPABILITIES,
 } from '../src/capabilities.js'
 import { randomBytes } from 'crypto'
 
@@ -71,4 +73,70 @@ test('New device without capabilities', async (t) => {
     const deviceId = randomBytes(32).toString('hex')
     await project[kCapabilities].assignRole(deviceId, MEMBER_ROLE_ID)
   }, 'Trying to assign a role without capabilities throws an error')
+})
+
+test('getMany() - on invitor device', async (t) => {
+  const rootKey = KeyManager.generateRootKey()
+  const km = new KeyManager(rootKey)
+  const creatorDeviceId = km.getIdentityKeypair().publicKey.toString('hex')
+  const manager = new MapeoManager({
+    rootKey,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
+
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+  const ownCapabilities = await project.$getOwnCapabilities()
+
+  t.alike(
+    ownCapabilities,
+    CREATOR_CAPABILITIES,
+    'Project creator has creator capabilities'
+  )
+
+  const deviceId1 = randomBytes(32).toString('hex')
+  const deviceId2 = randomBytes(32).toString('hex')
+  await project[kCapabilities].assignRole(deviceId1, MEMBER_ROLE_ID)
+  await project[kCapabilities].assignRole(deviceId2, COORDINATOR_ROLE_ID)
+
+  const expected = {
+    [deviceId1]: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    [deviceId2]: DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
+    [creatorDeviceId]: CREATOR_CAPABILITIES,
+  }
+
+  t.alike(
+    await project[kCapabilities].getAll(),
+    expected,
+    'expected capabilities'
+  )
+})
+
+test('getMany() - on newly invited device before sync', async (t) => {
+  const rootKey = KeyManager.generateRootKey()
+  const km = new KeyManager(rootKey)
+  const deviceId = km.getIdentityKeypair().publicKey.toString('hex')
+  const manager = new MapeoManager({
+    rootKey,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
+
+  const projectId = await manager.addProject({
+    projectKey: randomBytes(32),
+    encryptionKeys: { auth: randomBytes(32) },
+  })
+  const project = await manager.getProject(projectId)
+  await project.ready()
+
+  const expected = {
+    [deviceId]: NO_ROLE_CAPABILITIES,
+  }
+
+  t.alike(
+    await project[kCapabilities].getAll(),
+    expected,
+    'expected capabilities'
+  )
 })
