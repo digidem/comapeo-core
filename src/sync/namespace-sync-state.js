@@ -38,13 +38,13 @@ export class NamespaceSyncState extends TypedEmitter {
       this.emit('state', this.getState())
     }).bind(this)
 
-    for (const { core } of coreManager.getCores(namespace)) {
-      this.#addCore(core)
+    for (const { core, key } of coreManager.getCores(namespace)) {
+      this.#addCore(core, key)
     }
 
-    coreManager.on('add-core', ({ core, namespace }) => {
+    coreManager.on('add-core', ({ core, namespace, key }) => {
       if (namespace !== this.#namespace) return
-      this.#addCore(core)
+      this.#addCore(core, key)
     })
 
     coreManager.on('peer-have', (namespace, msg) => {
@@ -74,9 +74,10 @@ export class NamespaceSyncState extends TypedEmitter {
 
   /**
    * @param {import('hypercore')<"binary", Buffer>} core
+   * @param {Buffer} coreKey
    */
-  #addCore(core) {
-    const discoveryId = discoveryKey(core.key).toString('hex')
+  #addCore(core, coreKey) {
+    const discoveryId = discoveryKey(coreKey).toString('hex')
     this.#getCoreState(discoveryId).attachCore(core)
   }
 

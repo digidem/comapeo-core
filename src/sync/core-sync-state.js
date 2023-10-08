@@ -101,11 +101,6 @@ export class CoreSyncState extends TypedEmitter {
    * @param {import('hypercore')<'binary', Buffer>} core
    */
   attachCore(core) {
-    // @ts-ignore - we know discoveryKey exists here
-    const discoveryId = keyToId(core.discoveryKey)
-    if (discoveryId !== this.#discoveryId) {
-      throw new Error('discoveryId does not match')
-    }
     if (this.#core) return
 
     this.#core = core
