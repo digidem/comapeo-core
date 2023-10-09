@@ -170,4 +170,26 @@ export class DataStore extends TypedEmitter {
     if (!block) throw new Error('Not Found')
     return decode(block, { coreDiscoveryKey, index })
   }
+
+  /** @param {Buffer} buf} */
+  async writeRaw(buf) {
+    const { length } = await this.#writerCore.append(buf)
+    const index = length - 1
+    const coreDiscoveryKey = this.#writerCore.discoveryKey
+    if (!coreDiscoveryKey) {
+      throw new Error('Writer core is not ready')
+    }
+    const versionId = getVersionId({ coreDiscoveryKey, index })
+    return versionId
+  }
+
+  /** @param {string} versionId */
+  async readRaw(versionId) {
+    const { coreDiscoveryKey, index } = parseVersionId(versionId)
+    const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
+    if (!core) throw new Error('core not found')
+    const block = await core.get(index, { wait: false })
+    if (!block) throw new Error('Not Found')
+    return block
+  }
 }
