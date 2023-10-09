@@ -1,4 +1,4 @@
-export class IconApi {
+export default class IconApi {
   #dataType
   #dataStore
 
@@ -25,6 +25,9 @@ export class IconApi {
    *    & {blob: Buffer}>}} icon
    */
   async create(icon) {
+    if (icon.variants.length < 1) {
+      throw new Error('empty variants array')
+    }
     const blobsIds = await Promise.all(
       icon.variants.map(({ blob }) => {
         return this.#dataStore.writeRaw(blob)
