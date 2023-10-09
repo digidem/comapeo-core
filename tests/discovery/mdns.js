@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import net from 'node:net'
 import { KeyManager } from '@mapeo/crypto'
 import { setTimeout as delay } from 'node:timers/promises'
-import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
+import { keyToPublicId } from '@mapeo/crypto'
 import { ERR_DUPLICATE, MdnsDiscovery } from '../../src/discovery/mdns.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
