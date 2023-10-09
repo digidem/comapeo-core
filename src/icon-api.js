@@ -1,5 +1,3 @@
-import { parseVersionId } from '@mapeo/schema'
-
 export class IconApi {
   #dataType
   #dataStore
@@ -33,11 +31,14 @@ export class IconApi {
       })
     )
     const variantsWithId = icon.variants.map((variant, i) => {
-      return { ...variant, blobVersionId: blobsIds[i] }
+      // eslint-disable-next-line no-unused-vars
+      const { blob, ...variantWithoutBlob } = variant
+      return { ...variantWithoutBlob, blobVersionId: blobsIds[i] }
     })
     return await this.#dataType.create({
       schemaName: 'icon',
       name: icon.name,
+      // @ts-ignore TODO: remove
       variants: variantsWithId,
     })
   }
