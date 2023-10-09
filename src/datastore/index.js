@@ -3,7 +3,6 @@ import { encode, decode, getVersionId, parseVersionId } from '@mapeo/schema'
 import MultiCoreIndexer from 'multi-core-indexer'
 import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
-import { swap16 } from 'b4a'
 
 /**
  * @typedef {import('multi-core-indexer').IndexEvents} IndexEvents
@@ -158,6 +157,20 @@ export class DataStore extends TypedEmitter {
     )
   }
 
+  /**
+   *
+   * @param {string} versionId
+   * @returns {Promise<MapeoDoc>}
+   */
+  async read(versionId) {
+    const { coreDiscoveryKey, index } = parseVersionId(versionId)
+    const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
+    if (!core) throw new Error('Invalid versionId')
+    const block = await core.get(index, { wait: false })
+    if (!block) throw new Error('Not Found')
+    return decode(block, { coreDiscoveryKey, index })
+  }
+
   /** @param {Buffer} buf} */
   async writeRaw(buf) {
     const { length } = await this.#writerCore.append(buf)
@@ -178,19 +191,5 @@ export class DataStore extends TypedEmitter {
     const block = await core.get(index, { wait: false })
     if (!block) throw new Error('Not Found')
     return block
-  }
-
-  /**
-   *
-   * @param {string} versionId
-   * @returns {Promise<MapeoDoc>}
-   */
-  async read(versionId) {
-    const { coreDiscoveryKey, index } = parseVersionId(versionId)
-    const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-    if (!core) throw new Error('Invalid versionId')
-    const block = await core.get(index, { wait: false })
-    if (!block) throw new Error('Not Found')
-    return decode(block, { coreDiscoveryKey, index })
   }
 }
