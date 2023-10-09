@@ -2,6 +2,7 @@ import test from 'brittle'
 import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
 import IconApi from '../src/icon-api.js'
 import { DataType } from '../src/datatype/index.js'
@@ -14,6 +15,10 @@ test('icon create and get', async (t) => {
   const cm = createCoreManager()
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
+  migrate(db, {
+    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+  })
+
   const iconDataStore = new DataStore({
     namespace: 'config',
     coreManager: cm,
@@ -28,11 +33,14 @@ test('icon create and get', async (t) => {
     db,
   })
   const iconApi = new IconApi({ iconDataStore, iconDataType })
-  const iconDoc = iconApi.create({
+  const iconDoc = await iconApi.create({
     name: 'myIcon',
     schemaName: 'icon',
     variants: [
       {
+        size: 'small',
+        pixelDensity: 1,
+        mimeType: 'image/png',
         blob: Buffer.from('myIcon'),
       },
     ],
