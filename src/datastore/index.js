@@ -1,11 +1,5 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
-import {
-  encode,
-  decode,
-  getVersionId,
-  parseVersionId,
-  getVersionId,
-} from '@mapeo/schema'
+import { encode, decode, getVersionId, parseVersionId } from '@mapeo/schema'
 import MultiCoreIndexer from 'multi-core-indexer'
 import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
@@ -174,6 +168,16 @@ export class DataStore extends TypedEmitter {
     }
     const versionId = getVersionId({ coreDiscoveryKey, index })
     return versionId
+  }
+
+  /** @param {string} versionId */
+  async readRaw(versionId) {
+    const { coreDiscoveryKey, index } = parseVersionId(versionId)
+    const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
+    if (!core) throw new Error('Invalid versionId')
+    const block = await core.get(index, { wait: false })
+    if (!block) throw new Error('Not Found')
+    return block
   }
 
   /**

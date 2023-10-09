@@ -60,6 +60,24 @@ test('read and write', async (t) => {
   )
 })
 
+test('writeRaw and read', async (t) => {
+  const cm = createCoreManager()
+  const writerCore = cm.getWriterCore('config').core
+  await writerCore.ready()
+  const dataStore = new DataStore({
+    coreManager: cm,
+    namespace: 'config',
+    batch: async () => {
+      await new Promise((res) => setTimeout(res, 10))
+    },
+    storage: () => new RAM(),
+  })
+  const buf = Buffer.from('myblob')
+  const versionId = await dataStore.writeRaw(buf)
+  const expectedBuf = await dataStore.readRaw(versionId)
+  t.alike(buf, expectedBuf)
+})
+
 test('index events', async (t) => {
   const cm = createCoreManager()
   const writerCore = cm.getWriterCore('data').core
