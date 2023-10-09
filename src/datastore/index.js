@@ -187,7 +187,7 @@ export class DataStore extends TypedEmitter {
   async readRaw(versionId) {
     const { coreDiscoveryKey, index } = parseVersionId(versionId)
     const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-    if (!core) throw new Error('Invalid versionId')
+    if (!core) throw new Error('core not found')
     const block = await core.get(index, { wait: false })
     if (!block) throw new Error('Not Found')
     return block
