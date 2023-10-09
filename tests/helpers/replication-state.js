@@ -1,7 +1,6 @@
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 import { truncateId } from '../../src/utils.js'
-import { getKeys } from './core-manager.js'
 
 export function logState(syncState, name) {
   let message = `${name ? name + ' ' : ''}${
@@ -37,13 +36,19 @@ export async function download(
   { start = 0, end = -1 } = {}
 ) {
   const writer = coreManager.getWriterCore(namespace)
-  const keys = getKeys(coreManager, namespace)
-
-  for (const key of keys) {
+  const donePromises = []
+  for (const { core, key } of coreManager.getCores(namespace)) {
     if (key.equals(writer.core.key)) continue
-    const core = coreManager.getCoreByKey(key)
-    await core.download({ start, end, ifAvailable: true }).done()
+    donePromises.push(core.download({ start, end, ifAvailable: true }).done())
   }
+  if (end !== -1) return Promise.all(donePromises)
+  return new Promise(() => {
+    coreManager.on('add-core', (coreRecord) => {
+      console.log('add-core')
+      if (coreRecord.namespace !== namespace) return
+      coreRecord.core.download({ start, end, ifAvailable: true }).done()
+    })
+  })
 }
 
 export async function downloadCore(

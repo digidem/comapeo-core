@@ -6,6 +6,11 @@ import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
+/**
+ *
+ * @param {Partial<ConstructorParameters<typeof CoreManager>[0]> & { rootKey?: Buffer }} param0
+ * @returns
+ */
 export function createCoreManager({
   rootKey = randomBytes(16),
   projectKey = randomBytes(32),
