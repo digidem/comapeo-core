@@ -1,4 +1,3 @@
-import { TypedEmitter } from 'tiny-typed-emitter'
 import { keyToId } from '../utils.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
@@ -32,10 +31,6 @@ import RemoteBitfield, {
  * @property {PeerSimpleState} localState local state
  * @property {Record<PeerId, RemotePeerSimpleState>} remoteStates map of state of all known peers
  */
-/**
- * @typedef {object} CoreSyncEvents
- * @property {() => void} update
- */
 
 /**
  * Track sync state for a core identified by `discoveryId`. Can start tracking
@@ -43,9 +38,9 @@ import RemoteBitfield, {
  * received over the project creator core.
  *
  * Because deriving the state is expensive (it iterates through the bitfields of
- * all peers), this is designed to be pull-based: an `update` event signals that
- * the state is updated, but does not pass the state. The consumer can "pull"
- * the state when it wants it via `coreSyncState.getState()`.
+ * all peers), this is designed to be pull-based: the onUpdate event signals
+ * that the state is updated, but does not pass the state. The consumer can
+ * "pull" the state when it wants it via `coreSyncState.getState()`.
  *
  * Each peer (including the local peer) has a state of:
  *   1. `have` - number of blocks the peer has locally
@@ -53,25 +48,28 @@ import RemoteBitfield, {
  *   3. `wanted` - number of blocks the peer has that at least one peer wants
  *   4. `missing` - number of blocks the peer wants but no peer has
  *
- * @extends {TypedEmitter<CoreSyncEvents>}
  */
-export class CoreSyncState extends TypedEmitter {
+export class CoreSyncState {
   /** @type {import('hypercore')<'binary', Buffer>} */
   #core
   /** @type {InternalState['remoteStates']} */
   #remoteStates = new Map()
   /** @type {InternalState['localState']} */
   #localState = new PeerState()
-  #discoveryId
   /** @type {DerivedState | null} */
   #cachedState = null
+  #update
 
   /**
-   * @param {string} discoveryId Discovery ID for the core that this is representing
+   * @param {() => void} onUpdate Called when a state update is available (via getState())
    */
-  constructor(discoveryId) {
-    super()
-    this.#discoveryId = discoveryId
+  constructor(onUpdate) {
+    // Called whenever the state changes, so we clear the cache because next
+    // call to getState() will need to re-derive the state
+    this.#update = () => {
+      this.#cachedState = null
+      process.nextTick(onUpdate)
+    }
   }
 
   /** @type {() => DerivedState} */
@@ -82,15 +80,6 @@ export class CoreSyncState extends TypedEmitter {
       localState: this.#localState,
       remoteStates: this.#remoteStates,
     })
-  }
-
-  /**
-   * Called whenever the state changes, so we clear the cache because next call
-   * to getState() will need to re-derive the state
-   */
-  #update() {
-    this.#cachedState = null
-    this.emit('update')
   }
 
   /**

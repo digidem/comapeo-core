@@ -14,6 +14,7 @@ import { createCore } from '../helpers/index.js'
 // import { setTimeout } from 'timers/promises'
 import { once } from 'node:events'
 import pTimeout from 'p-timeout'
+import { EventEmitter } from 'node:events'
 
 /**
  * @type {Array<{
@@ -208,7 +209,8 @@ test('CoreReplicationState', async (t) => {
   for (const { state, expected, message } of scenarios) {
     const localCore = await createCore()
     await localCore.ready()
-    const crs = new CoreSyncState(localCore.discoveryKey.toString('hex'))
+    const emitter = new EventEmitter()
+    const crs = new CoreSyncState(() => emitter.emit('update'))
     crs.attachCore(localCore)
     const blocks = new Array(state.length).fill('block')
     await localCore.append(blocks)
@@ -249,7 +251,7 @@ test('CoreReplicationState', async (t) => {
         connected: connectedState.get(peerId),
       }
     }
-    await updateWithTimeout(crs, 100)
+    await updateWithTimeout(emitter, 100)
     t.alike(
       crs.getState(),
       { ...expected, remoteStates: expectedRemoteStates },
@@ -383,11 +385,14 @@ function setPeerWants(state, peerId, bits) {
 
 /**
  * Wait for update event with a timeout
- * @param {CoreSyncState} state
+ * @param {EventEmitter} updateEmitter
  * @param {number} milliseconds
  */
-async function updateWithTimeout(state, milliseconds) {
-  return pTimeout(once(state, 'update'), { milliseconds, message: false })
+async function updateWithTimeout(updateEmitter, milliseconds) {
+  return pTimeout(once(updateEmitter, 'update'), {
+    milliseconds,
+    message: false,
+  })
 }
 
 /**

@@ -1,5 +1,3 @@
-import { TypedEmitter } from 'tiny-typed-emitter'
-import { throttle } from 'throttle-debounce'
 import { CoreSyncState } from './core-sync-state.js'
 import { discoveryKey } from 'hypercore-crypto'
 
@@ -17,9 +15,9 @@ import { discoveryKey } from 'hypercore-crypto'
  */
 
 /**
- * @extends {TypedEmitter<{ state: (state: SyncState) => void }>}
+ * @template {import('../core-manager/index.js').Namespace} [TNamespace=import('../core-manager/index.js').Namespace]
  */
-export class NamespaceSyncState extends TypedEmitter {
+export class NamespaceSyncState {
   /** @type {Map<string, CoreSyncState>} */
   #coreStates = new Map()
   #handleUpdate
@@ -27,16 +25,13 @@ export class NamespaceSyncState extends TypedEmitter {
 
   /**
    * @param {object} opts
-   * @param {import('../core-manager/index.js').Namespace} opts.namespace
+   * @param {TNamespace} opts.namespace
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
-   * @param {number} [opts.stateEventThrottleMs] Throttle state events to only emit every XX milliseconds
+   * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    */
-  constructor({ namespace, coreManager, stateEventThrottleMs = 200 }) {
-    super()
+  constructor({ namespace, coreManager, onUpdate }) {
     this.#namespace = namespace
-    this.#handleUpdate = throttle(stateEventThrottleMs, function () {
-      this.emit('state', this.getState())
-    }).bind(this)
+    this.#handleUpdate = onUpdate
 
     for (const { core, key } of coreManager.getCores(namespace)) {
       this.#addCore(core, key)
@@ -99,8 +94,7 @@ export class NamespaceSyncState extends TypedEmitter {
   #getCoreState(discoveryId) {
     let coreState = this.#coreStates.get(discoveryId)
     if (!coreState) {
-      coreState = new CoreSyncState(discoveryId)
-      coreState.on('update', this.#handleUpdate)
+      coreState = new CoreSyncState(this.#handleUpdate)
       this.#coreStates.set(discoveryId, coreState)
     }
     return coreState

@@ -26,52 +26,54 @@ test('sync cores in a namespace', async function (t) {
     waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
+  let syncState1Synced = false
+  let syncState2Synced = false
+
   const syncState1 = new NamespaceSyncState({
     coreManager: cm1,
     namespace: 'auth',
+    onUpdate: () => {
+      const { localState } = syncState1.getState()
+      if (
+        localState.want === 0 &&
+        localState.wanted === 0 &&
+        localState.have === 30 &&
+        localState.missing === 10 &&
+        !syncState1Synced
+      ) {
+        t.pass('syncState1 is synced')
+        syncState1Synced = true
+      }
+    },
   })
 
   const syncState2 = new NamespaceSyncState({
     coreManager: cm2,
     namespace: 'auth',
+    onUpdate: () => {
+      const { localState } = syncState2.getState()
+      if (
+        localState.want === 0 &&
+        localState.wanted === 0 &&
+        localState.have === 30 &&
+        localState.missing === 10 &&
+        !syncState2Synced
+      ) {
+        t.pass('syncState2 is synced')
+        syncState2Synced = true
+      }
+    },
   })
 
   const cm1Keys = getKeys(cm1, 'auth')
   const cm2Keys = getKeys(cm2, 'auth')
 
   const writer1 = cm1.getWriterCore('auth')
-  await writer1.core.append([
-    'a',
-    'b',
-    'c',
-    'd',
-    'e',
-    'f',
-    'g',
-    'h',
-    'i',
-    'j',
-    'k',
-    'l',
-    'm',
-    'n',
-    'o',
-    'p',
-    'q',
-    'r',
-    's',
-    't',
-    'u',
-    'v',
-    'w',
-    'x',
-    'y',
-    'z',
-  ])
+  await writer1.core.append(Array(20).fill('block'))
   await writer1.core.clear(0, 10)
 
   const writer2 = cm2.getWriterCore('auth')
-  await writer2.core.append(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'])
+  await writer2.core.append(Array(20).fill('block'))
 
   for (const key of cm1Keys) {
     if (key.equals(writer1.core.key)) continue
@@ -84,20 +86,6 @@ test('sync cores in a namespace', async function (t) {
     const core = cm2.getCoreByKey(key)
     core.download({ start: 0, end: -1 })
   }
-
-  syncState1.on('state', function rep1Handler(state) {
-    if (state.localState.want === 0 && state.localState.wanted === 0) {
-      t.pass('rep1 is synced')
-      syncState1.off('state', rep1Handler)
-    }
-  })
-
-  syncState2.on('state', function rep2Handler(state) {
-    if (state.localState.want === 0 && state.localState.wanted === 0) {
-      t.pass('rep2 is synced')
-      syncState2.off('state', rep2Handler)
-    }
-  })
 })
 
 test('replicate with updating data', async function (t) {
@@ -131,14 +119,35 @@ test('replicate with updating data', async function (t) {
     waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
+  let syncState1AlreadyDone = false
+  let syncState2AlreadyDone = false
+
   const syncState1 = new NamespaceSyncState({
     coreManager: cm1,
     namespace: 'auth',
+    onUpdate: () => {
+      const { localState } = syncState1.getState()
+      const synced =
+        localState.wanted === 0 && localState.have === fillLength * 2
+      if (synced && !syncState1AlreadyDone) {
+        t.ok(synced, 'syncState1 is synced')
+        syncState1AlreadyDone = true
+      }
+    },
   })
 
   const syncState2 = new NamespaceSyncState({
     coreManager: cm2,
     namespace: 'auth',
+    onUpdate: () => {
+      const { localState } = syncState2.getState()
+      const synced =
+        localState.wanted === 0 && localState.have === fillLength * 2
+      if (synced && !syncState2AlreadyDone) {
+        t.ok(synced, 'syncState2 is synced')
+        syncState2AlreadyDone = true
+      }
+    },
   })
 
   const cm1Keys = getKeys(cm1, 'auth')
@@ -155,21 +164,4 @@ test('replicate with updating data', async function (t) {
     const core = cm2.getCoreByKey(key)
     core.download({ live: true, start: 0, end: -1 })
   }
-
-  syncState1.on('state', function onSync({ localState }) {
-    const synced = localState.wanted === 0 && localState.have === fillLength * 2
-
-    if (synced) {
-      t.ok(synced, 'rep1 is synced')
-      syncState1.off('state', onSync)
-    }
-  })
-
-  syncState2.on('state', function onSync({ localState }) {
-    const synced = localState.wanted === 0 && localState.have === fillLength * 2
-    if (synced) {
-      t.ok(synced, 'rep2 is synced')
-      syncState2.off('state', onSync)
-    }
-  })
 })
