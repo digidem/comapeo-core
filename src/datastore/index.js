@@ -1,8 +1,15 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
-import { encode, decode, getVersionId, parseVersionId } from '@mapeo/schema'
+import {
+  encode,
+  decode,
+  getVersionId,
+  parseVersionId,
+  getVersionId,
+} from '@mapeo/schema'
 import MultiCoreIndexer from 'multi-core-indexer'
 import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
+import { swap16 } from 'b4a'
 
 /**
  * @typedef {import('multi-core-indexer').IndexEvents} IndexEvents
@@ -155,6 +162,18 @@ export class DataStore extends TypedEmitter {
     return /** @type {Extract<MapeoDoc, TDoc>} */ (
       decode(block, { coreDiscoveryKey, index })
     )
+  }
+
+  /** @param {Buffer} buf} */
+  async writeRaw(buf) {
+    const { length } = await this.#writerCore.append(buf)
+    const index = length - 1
+    const coreDiscoveryKey = this.#writerCore.discoveryKey
+    if (!coreDiscoveryKey) {
+      throw new Error('Writer core is not ready')
+    }
+    const versionId = getVersionId({ coreDiscoveryKey, index })
+    return versionId
   }
 
   /**
