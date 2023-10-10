@@ -69,7 +69,6 @@ export class MemberApi extends TypedEmitter {
 
     if (response === InviteResponse_Decision.ACCEPT) {
       await this.#capabilities.assignRole(deviceId, roleId)
-      // TODO: Write device info record
     }
 
     return response
