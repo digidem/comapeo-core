@@ -58,7 +58,7 @@ test('icon create and get', async (t) => {
   })
 
   const expectedIcon = await iconApi.getIcon({ iconId: iconDoc.docId })
-  t.is(icon, expectedIcon.toString())
+  t.is(icon, expectedIcon.icon.toString())
 })
 
 test('icon create and get with variants', async (t) => {
@@ -91,7 +91,7 @@ test('icon create and get with variants', async (t) => {
     iconId: iconDoc.docId,
     size: 'large',
   })
-  t.is(largeIcon, expectedIcon.toString())
+  t.is(largeIcon, expectedIcon.icon.toString())
 })
 test('icon create and get with variants, choosing the variant with more matching criteria', async (t) => {
   const iconDoc = await iconApi.create({
@@ -125,7 +125,7 @@ test('icon create and get with variants, choosing the variant with more matching
     pixelDensity: 1,
     mimeType: 'image/png',
   })
-  t.is(largeIcon, expectedIcon.toString())
+  t.is(largeIcon, expectedIcon.icon.toString())
 })
 
 test('icon create and get with variants, choosing the variant with the matching `mimeType`', async (t) => {
@@ -160,5 +160,5 @@ test('icon create and get with variants, choosing the variant with the matching 
     pixelDensity: 1,
     mimeType: 'image/svg+xml',
   })
-  t.is(mediumIcon, expectedIcon.toString())
+  t.is(mediumIcon, expectedIcon.icon.toString())
 })
