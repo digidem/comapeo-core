@@ -46,17 +46,21 @@ export default class IconApi {
     })
   }
 
+  /** @typedef {'image/png' | 'image/svg+xml'} ValidMimeType */
+
   /**
    * @param {Object} opts
    * @param {String} opts.iconId
-   * @param {String} opts.size
-   * @param {number} opts.pixelDensity
+   * @param {String} [opts.size]
+   * @param {number} [opts.pixelDensity]
+   * @param {ValidMimeType} [opts.mimeType]
    */
-  async getIcon({ iconId, size, pixelDensity }) {
+  async getIcon({ iconId, size, pixelDensity, mimeType }) {
     const iconRecord = await this.#dataType.getByDocId(iconId)
     const iconVariant = this.#getBestVariant(iconRecord.variants, {
       size,
       pixelDensity,
+      mimeType,
     })
     return await this.#dataStore.readRaw(iconVariant.blobVersionId)
   }
@@ -64,12 +68,29 @@ export default class IconApi {
   /**
    * @param {import('@mapeo/schema').IconValue['variants']} variants
    * @param {object} opts
-   * @param {string} opts.size
-   * @param {number} opts.pixelDensity
+   * @param {string} [opts.size]
+   * @param {number} [opts.pixelDensity]
+   * @param {ValidMimeType} [opts.mimeType]
    **/
-  #getBestVariant(variants, { size, pixelDensity }) {
-    console.log(size, pixelDensity)
-    // TODO
-    return variants[0]
+  #getBestVariant(variants, { size, pixelDensity, mimeType }) {
+    let bestMatchingCriteria = 0
+    let bestVariant = null
+    for (let variant of variants) {
+      let currentMatchingCriteria = 0
+      if (mimeType && variant.mimeType !== mimeType) {
+        continue
+      }
+      if (variant.size === size) {
+        currentMatchingCriteria++
+      }
+      if (variant.pixelDensity === pixelDensity) {
+        currentMatchingCriteria++
+      }
+      if (currentMatchingCriteria > bestMatchingCriteria) {
+        bestVariant = variant
+        bestMatchingCriteria = currentMatchingCriteria
+      }
+    }
+    return bestVariant || variants[0] // if no matching, return the first one...
   }
 }
