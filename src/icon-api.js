@@ -62,7 +62,8 @@ export default class IconApi {
       pixelDensity,
       mimeType,
     })
-    return await this.#dataStore.readRaw(iconVariant.blobVersionId)
+    const blob = await this.#dataStore.readRaw(iconVariant.blobVersionId)
+    return { icon: blob, mimeType: iconVariant.mimeType }
   }
 
   /**
