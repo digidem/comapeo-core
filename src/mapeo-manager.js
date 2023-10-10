@@ -7,7 +7,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { IndexWriter } from './index-writer/index.js'
-import { MapeoProject } from './mapeo-project.js'
+import { MapeoProject, kSetOwnDeviceInfo } from './mapeo-project.js'
 import {
   localDeviceInfoTable,
   projectKeysTable,
@@ -222,7 +222,7 @@ export class MapeoManager {
     // 6. Write device info into project
     const deviceInfo = await this.getDeviceInfo()
     if (deviceInfo.name) {
-      await project.$setOwnDeviceInfo({ name: deviceInfo.name })
+      await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
     }
 
     // TODO: Close the project instance instead of keeping it around
@@ -376,7 +376,7 @@ export class MapeoManager {
 
     if (deviceInfo.name) {
       const project = await this.getProject(projectPublicId)
-      await project.$setOwnDeviceInfo({ name: deviceInfo.name })
+      await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
     }
 
     return projectPublicId
@@ -402,7 +402,7 @@ export class MapeoManager {
     await Promise.all(
       listedProjects.map(async ({ projectId }) => {
         const project = await this.getProject(projectId)
-        await project.$setOwnDeviceInfo(deviceInfo)
+        await project[kSetOwnDeviceInfo](deviceInfo)
       })
     )
   }

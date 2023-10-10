@@ -39,6 +39,7 @@ const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
+export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 
 export class MapeoProject {
   #projectId
@@ -389,7 +390,7 @@ export class MapeoProject {
    * @param {Pick<import('@mapeo/schema').DeviceInfoValue, 'name'>} value
    * @returns {Promise<import('@mapeo/schema').DeviceInfo>}
    */
-  async $setOwnDeviceInfo(value) {
+  async [kSetOwnDeviceInfo](value) {
     const { deviceInfo } = this.#dataTypes
 
     const configCoreId = this.#coreManager
