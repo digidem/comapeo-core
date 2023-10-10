@@ -1,7 +1,7 @@
-import { parseVersionId } from '@mapeo/schema'
 import { Type as T } from '@sinclair/typebox'
 import fp from 'fastify-plugin'
-import { kDataTypes, kCoreManager } from '../mapeo-project.js'
+import { kDataTypes, kDataStores } from '../mapeo-project.js'
+import IconApi from '../icon-api.js'
 
 export default fp(iconServerPlugin, {
   fastify: '4.x',
@@ -47,34 +47,15 @@ async function routes(fastify, options) {
       const { projectId, iconDocId, size, pixelDensity } = req.params
       const project = await getProject(projectId)
       const iconDataType = project[kDataTypes].icon
-      const coreManager = project[kCoreManager]
-      const icon = await iconDataType.getByDocId(iconDocId)
-      const bestVariant = findBestVariantMatch(icon.variants, {
-        size,
-        pixelDensity,
-      })
-      const { coreDiscoveryKey, index } = parseVersionId(
-        bestVariant.blobVersionId
-      )
-      const core = coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-      res.headers({ 'mime-type': bestVariant.mimeType })
-      if (core) {
-        const blob = core.get(index)
-        return res.send(blob)
-      } else {
+      const iconDataStore = project[kDataStores].config
+      const iconApi = new IconApi({ iconDataType, iconDataStore })
+      let icon
+      try {
+        icon = iconApi.getIcon({ iconId: iconDocId, size, pixelDensity })
+      } catch (e) {
         return res.code(404)
       }
+      return res.send(icon)
     }
   )
-}
-
-/**
- * @param {import('@mapeo/schema').IconValue['variants']} variants
- * @param {object} opts
- * @param {string} opts.size
- * @param {number} opts.pixelDensity
- **/
-function findBestVariantMatch(variants, { size, pixelDensity }) {
-  console.log(size, pixelDensity)
-  return variants[0]
 }

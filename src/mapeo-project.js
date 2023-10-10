@@ -43,6 +43,7 @@ export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kReplicate = Symbol('replicate')
 export const kDataTypes = Symbol('dataTypes')
+export const kDataStores = Symbol('dataTypes')
 export const kCoreManager = Symbol('coreManager')
 
 export class MapeoProject {
@@ -348,6 +349,10 @@ export class MapeoProject {
 
   get [kDataTypes]() {
     return this.#dataTypes
+  }
+
+  get [kDataStores]() {
+    return this.#dataStores
   }
 
   get [kCoreManager]() {
