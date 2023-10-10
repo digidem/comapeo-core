@@ -228,7 +228,7 @@ export class MapeoProject {
     })
 
     this.#memberApi = new MemberApi({
-      deviceKey: keyManager.getIdentityKeypair().publicKey,
+      deviceId: this.#deviceId,
       capabilities: this.#capabilities,
       coreOwnership: this.#coreOwnership,
       // @ts-expect-error

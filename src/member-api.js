@@ -17,7 +17,7 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * @param {Object} opts
-   * @param {Buffer} opts.deviceKey public key of this device
+   * @param {string} opts.deviceId public key of this device as hex string
    * @param {import('./capabilities.js').Capabilities} opts.capabilities
    * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
@@ -28,7 +28,7 @@ export class MemberApi extends TypedEmitter {
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
    */
   constructor({
-    deviceKey,
+    deviceId,
     capabilities,
     coreOwnership,
     encryptionKeys,
@@ -37,7 +37,7 @@ export class MemberApi extends TypedEmitter {
     dataTypes,
   }) {
     super()
-    this.#ownDeviceId = deviceKey.toString('hex')
+    this.#ownDeviceId = deviceId
     this.#capabilities = capabilities
     this.#coreOwnership = coreOwnership
     this.#encryptionKeys = encryptionKeys
