@@ -9,6 +9,7 @@ import { DataType } from '../src/datatype/index.js'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
 import { iconTable } from '../src/schema/project.js'
+import { IndexWriter } from '../src/index-writer/index.js'
 
 // eslint-disable-next-line no-unused-vars
 test('icon create and get', async (t) => {
@@ -19,20 +20,26 @@ test('icon create and get', async (t) => {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
+  const indexWriter = new IndexWriter({
+    tables: [iconTable],
+    sqlite,
+  })
+
   const iconDataStore = new DataStore({
     namespace: 'config',
     coreManager: cm,
     storage: () => new RAM(),
-    batch: async () => {
-      await new Promise((res) => setTimeout(res, 10))
-    },
+    batch: async (entries) => indexWriter.batch(entries),
   })
+
   const iconDataType = new DataType({
     dataStore: iconDataStore,
     table: iconTable,
     db,
   })
+
   const iconApi = new IconApi({ iconDataStore, iconDataType })
+  const icon = 'myIcon'
   const iconDoc = await iconApi.create({
     name: 'myIcon',
     schemaName: 'icon',
@@ -41,9 +48,11 @@ test('icon create and get', async (t) => {
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: Buffer.from('myIcon'),
+        blob: Buffer.from(icon),
       },
     ],
   })
-  console.log('doc', iconDoc)
+
+  const expectedIcon = await iconApi.getIcon({ iconId: iconDoc.docId })
+  t.is(icon, expectedIcon.toString())
 })
