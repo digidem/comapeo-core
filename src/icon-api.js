@@ -86,7 +86,7 @@ export default class IconApi {
       if (variant.pixelDensity === pixelDensity) {
         currentMatchingCriteria++
       }
-      if (currentMatchingCriteria > bestMatchingCriteria) {
+      if (currentMatchingCriteria >= bestMatchingCriteria) {
         bestVariant = variant
         bestMatchingCriteria = currentMatchingCriteria
       }

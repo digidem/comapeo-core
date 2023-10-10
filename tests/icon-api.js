@@ -123,6 +123,41 @@ test('icon create and get with variants, choosing the variant with more matching
     iconId: iconDoc.docId,
     size: 'large',
     pixelDensity: 1,
+    mimeType: 'image/png',
+  })
+  t.is(largeIcon, expectedIcon.toString())
+})
+
+test('icon create and get with variants, choosing the variant with the matching `mimeType`', async (t) => {
+  const iconDoc = await iconApi.create({
+    name: 'myIcon',
+    schemaName: 'icon',
+    variants: [
+      {
+        size: 'small',
+        pixelDensity: 1,
+        mimeType: 'image/png',
+        blob: Buffer.from(smallIcon),
+      },
+      {
+        size: 'medium',
+        pixelDensity: 1,
+        mimeType: 'image/svg+xml',
+        blob: Buffer.from(mediumIcon),
+      },
+      {
+        size: 'large',
+        pixelDensity: 2,
+        mimeType: 'image/png',
+        blob: Buffer.from(largeIcon),
+      },
+    ],
+  })
+
+  const expectedIcon = await iconApi.getIcon({
+    iconId: iconDoc.docId,
+    size: 'large',
+    pixelDensity: 1,
     mimeType: 'image/svg+xml',
   })
   t.is(mediumIcon, expectedIcon.toString())
