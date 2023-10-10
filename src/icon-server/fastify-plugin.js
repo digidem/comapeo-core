@@ -51,11 +51,12 @@ async function routes(fastify, options) {
       const iconApi = new IconApi({ iconDataType, iconDataStore })
       let icon
       try {
-        icon = iconApi.getIcon({ iconId: iconDocId, size, pixelDensity })
+        icon = await iconApi.getIcon({ iconId: iconDocId, size, pixelDensity })
       } catch (e) {
         return res.code(404)
       }
-      return res.send(icon)
+      res.header('mime-type', icon.mimeType)
+      return res.send(icon.icon)
     }
   )
 }
