@@ -4,10 +4,12 @@ import { projectKeyToId } from './utils.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
-/** @typedef {{ deviceId: string, name: import('@mapeo/schema').DeviceInfo['name'], capabilities: import('./capabilities.js').Capability }} MemberInfo */
+/** @typedef {{ deviceId: string, name?: import('@mapeo/schema').DeviceInfo['name'], capabilities: import('./capabilities.js').Capability }} MemberInfo */
 
 export class MemberApi extends TypedEmitter {
+  #ownDeviceId
   #capabilities
+  #coreOwnership
   #encryptionKeys
   #projectKey
   #rpc
@@ -15,7 +17,9 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * @param {Object} opts
+   * @param {string} opts.deviceId public key of this device as hex string
    * @param {import('./capabilities.js').Capabilities} opts.capabilities
+   * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
    * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
@@ -23,9 +27,19 @@ export class MemberApi extends TypedEmitter {
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
    */
-  constructor({ capabilities, encryptionKeys, projectKey, rpc, dataTypes }) {
+  constructor({
+    deviceId,
+    capabilities,
+    coreOwnership,
+    encryptionKeys,
+    projectKey,
+    rpc,
+    dataTypes,
+  }) {
     super()
+    this.#ownDeviceId = deviceId
     this.#capabilities = capabilities
+    this.#coreOwnership = coreOwnership
     this.#encryptionKeys = encryptionKeys
     this.#projectKey = projectKey
     this.#rpc = rpc
@@ -65,24 +79,63 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<MemberInfo>}
    */
   async getById(deviceId) {
-    const { name } = await this.#dataTypes.deviceInfo.getByDocId(deviceId)
     const capabilities = await this.#capabilities.getCapabilities(deviceId)
-    return { deviceId, name, capabilities }
+
+    /** @type {MemberInfo} */
+    const result = { deviceId, capabilities }
+
+    try {
+      const configCoreId = await this.#coreOwnership.getCoreId(
+        deviceId,
+        'config'
+      )
+
+      const deviceInfo = await this.#dataTypes.deviceInfo.getByDocId(
+        configCoreId
+      )
+
+      result.name = deviceInfo.name
+    } catch (err) {
+      // Attempting to get someone else may throw because sync hasn't occurred or completed
+      // Only throw if attempting to get themself since the relevant information should be available
+      if (deviceId === this.#ownDeviceId) throw err
+    }
+
+    return result
   }
 
   /**
    * @returns {Promise<Array<MemberInfo>>}
    */
   async getMany() {
-    const devices = await this.#dataTypes.deviceInfo.getMany()
+    const [allCapabilities, allDeviceInfo] = await Promise.all([
+      this.#capabilities.getAll(),
+      this.#dataTypes.deviceInfo.getMany(),
+    ])
+
     return Promise.all(
-      devices.map(async ({ docId, name }) => {
-        const capabilities = await this.#capabilities.getCapabilities(docId)
-        return {
-          deviceId: docId,
-          name,
-          capabilities,
+      Object.entries(allCapabilities).map(async ([deviceId, capabilities]) => {
+        /** @type {MemberInfo} */
+        const memberInfo = { deviceId, capabilities }
+
+        try {
+          const configCoreId = await this.#coreOwnership.getCoreId(
+            deviceId,
+            'config'
+          )
+
+          const deviceInfo = allDeviceInfo.find(
+            ({ docId }) => docId === configCoreId
+          )
+
+          memberInfo.name = deviceInfo?.name
+        } catch (err) {
+          // Attempting to get someone else may throw because sync hasn't occurred or completed
+          // Only throw if attempting to get themself since the relevant information should be available
+          if (deviceId === this.#ownDeviceId) throw err
         }
+
+        return memberInfo
       })
     )
   }
