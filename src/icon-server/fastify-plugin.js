@@ -24,7 +24,6 @@ const PARAMS_JSON_SCHEMA = T.Object({
 /**
  * @typedef {Object} IconServerPluginOpts
  * @property {import('fastify').RegisterOptions['prefix']} prefix
- * @property {(projectId: string) => Promise<import('../mapeo-project.js').MapeoProject>} getProject
  **/
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & IconServerPluginOpts>} */
@@ -32,12 +31,18 @@ async function iconServerPlugin(fastify, options) {
   fastify.register(routes, options)
 }
 
+/**
+ * @typedef {(projectId: string) =>
+ * Promise<import('../mapeo-project.js').MapeoProject>} GetProject
+ */
+
 /** @type {import('fastify').FastifyPluginAsync<
  * Omit<IconServerPluginOpts, 'prefix'>,
  * import('fastify').RawServerDefault,
- * import('@fastify/type-provider-typebox').TypeBoxTypeProvider>} */
-async function routes(fastify, options) {
-  const { getProject } = options
+ * import('@fastify/type-provider-typebox').TypeBoxTypeProvider>}
+ * */
+async function routes(fastify) {
+  const { getProject } = fastify
 
   fastify.get(
     '/:projectId/:iconDocId/:size/:pixelDensity',

@@ -102,11 +102,17 @@ export class MapeoManager {
     })
 
     this.#fastifyServer = fastify({ logger: true })
+
+    this.#fastifyServer.decorate(
+      'getProject',
+      /** @param {string} projectId */
+      async (projectId) => {
+        return this.getProject(projectId)
+      }
+    )
+
     this.#fastifyServer.register(IconServerPlugin, {
       prefix: '/icons/',
-      getProject: async (projectId) => {
-        return this.getProject(projectId)
-      },
     })
 
     if (typeof coreStorage === 'string') {
