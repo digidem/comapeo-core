@@ -125,9 +125,9 @@ export class MapeoManager {
     return this.#rpc
   }
 
-  /** @param {number} port */
+  /** @param {number} [port] */
   async serverListen(port) {
-    await this.#fastifyServer.listen({ port: port || FASTIFY_PORT })
+    await this.#fastifyServer.listen({ port: typeof port === 'number'  ? number :  FASTIFY_PORT })
   }
 
   /**
