@@ -33,6 +33,7 @@ import { Capabilities } from './capabilities.js'
 import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
 import { MemberApi } from './member-api.js'
 import { SyncController } from './sync/sync-controller.js'
+import { IconApi } from './icon-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -42,9 +43,7 @@ export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kReplicate = Symbol('replicate')
-export const kDataTypes = Symbol('dataTypes')
-export const kDataStores = Symbol('dataTypes')
-export const kCoreManager = Symbol('coreManager')
+export const kIconApi = Symbol('iconApi')
 
 export class MapeoProject {
   #projectId
@@ -59,6 +58,7 @@ export class MapeoProject {
   #ownershipWriteDone
   #memberApi
   #syncController
+  #iconApi
 
   /**
    * @param {Object} opts
@@ -252,6 +252,11 @@ export class MapeoProject {
       capabilities: this.#capabilities,
     })
 
+    this.#iconApi = new IconApi({
+      iconDataStore: this.#dataStores.config,
+      iconDataType: this.#dataTypes.icon,
+    })
+
     ///////// 4. Write core ownership record
 
     const deferred = pDefer()
@@ -287,6 +292,10 @@ export class MapeoProject {
    */
   get [kCapabilities]() {
     return this.#capabilities
+  }
+
+  get [kIconApi]() {
+    return this.#iconApi
   }
 
   get deviceId() {
@@ -345,18 +354,6 @@ export class MapeoProject {
 
   get $member() {
     return this.#memberApi
-  }
-
-  get [kDataTypes]() {
-    return this.#dataTypes
-  }
-
-  get [kDataStores]() {
-    return this.#dataStores
-  }
-
-  get [kCoreManager]() {
-    return this.#coreManager
   }
 
   /**

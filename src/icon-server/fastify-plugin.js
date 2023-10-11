@@ -1,7 +1,6 @@
 import { Type as T } from '@sinclair/typebox'
 import fp from 'fastify-plugin'
-import { kDataTypes, kDataStores } from '../mapeo-project.js'
-import IconApi from '../icon-api.js'
+import { kIconApi } from '../mapeo-project.js'
 
 export default fp(iconServerPlugin, {
   fastify: '4.x',
@@ -46,9 +45,7 @@ async function routes(fastify, options) {
     async (req, res) => {
       const { projectId, iconDocId, size, pixelDensity } = req.params
       const project = await getProject(projectId)
-      const iconDataType = project[kDataTypes].icon
-      const iconDataStore = project[kDataStores].config
-      const iconApi = new IconApi({ iconDataType, iconDataStore })
+      const iconApi = project[kIconApi]
       let icon
       try {
         icon = await iconApi.getIcon({ iconId: iconDocId, size, pixelDensity })
