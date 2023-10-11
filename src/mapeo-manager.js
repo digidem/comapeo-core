@@ -127,7 +127,9 @@ export class MapeoManager {
 
   /** @param {number} [port] */
   async serverListen(port) {
-    await this.#fastifyServer.listen({ port: typeof port === 'number'  ? number :  FASTIFY_PORT })
+    await this.#fastifyServer.listen({
+      port: typeof port === 'number' ? port : FASTIFY_PORT,
+    })
   }
 
   /**
