@@ -9,7 +9,7 @@ export default fp(iconServerPlugin, {
 
 // iconDocId is a hex encoded 32-byte string
 const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
-// projectId is a z-base-32 52-byte string
+// projectId is encoded to a z-base-32 52-character string (32 bytes)
 const Z_BASE_32_REGEX_26_BYTES = '^[0-9a-zA-Z]{52}$'
 const ICON_DOC_ID_STRING = T.String({ pattern: HEX_REGEX_32_BYTES })
 const PROJECT_ID_STRING = T.String({ pattern: Z_BASE_32_REGEX_26_BYTES })
