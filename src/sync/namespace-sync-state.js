@@ -22,6 +22,8 @@ export class NamespaceSyncState {
   #coreStates = new Map()
   #handleUpdate
   #namespace
+  /** @type {SyncState | null} */
+  #cachedState = null
 
   /**
    * @param {object} opts
@@ -31,7 +33,12 @@ export class NamespaceSyncState {
    */
   constructor({ namespace, coreManager, onUpdate }) {
     this.#namespace = namespace
-    this.#handleUpdate = onUpdate
+    // Called whenever the state changes, so we clear the cache because next
+    // call to getState() will need to re-derive the state
+    this.#handleUpdate = () => {
+      this.#cachedState = null
+      process.nextTick(onUpdate)
+    }
 
     for (const { core, key } of coreManager.getCores(namespace)) {
       this.#addCore(core, key)
@@ -54,6 +61,7 @@ export class NamespaceSyncState {
 
   /** @returns {SyncState} */
   getState() {
+    if (this.#cachedState) return this.#cachedState
     const state = {
       localState: { have: 0, want: 0, wanted: 0, missing: 0 },
     }
