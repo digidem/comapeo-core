@@ -2,16 +2,7 @@ import { CoreSyncState } from './core-sync-state.js'
 import { discoveryKey } from 'hypercore-crypto'
 
 /**
- * @typedef {object} PeerSyncState
- * @property {number} have
- * @property {number} want
- * @property {number} wanted
- * @property {number} missing
- */
-
-/**
- * @typedef {object} SyncState
- * @property {PeerSyncState} localState
+ * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'>} SyncState
  */
 
 /**
@@ -62,15 +53,22 @@ export class NamespaceSyncState {
   /** @returns {SyncState} */
   getState() {
     if (this.#cachedState) return this.#cachedState
+    /** @type {SyncState} */
     const state = {
-      localState: { have: 0, want: 0, wanted: 0, missing: 0 },
+      localState: { want: 0, have: 0, wanted: 0, missing: 0 },
+      remoteStates: {},
     }
-    for (const crs of this.#coreStates.values()) {
-      const { localState } = crs.getState()
-      state.localState.have += localState.have
-      state.localState.want += localState.want
-      state.localState.wanted += localState.wanted
-      state.localState.missing += localState.missing
+    for (const css of this.#coreStates.values()) {
+      const coreState = css.getState()
+      mutatingAddPeerState(state.localState, coreState.localState)
+      for (const [peerId, peerCoreState] of Object.entries(
+        coreState.remoteStates
+      )) {
+        if (!(peerId in state.remoteStates)) {
+          state.remoteStates[peerId] = createPeerState(peerCoreState.connected)
+        }
+        mutatingAddPeerState(state.remoteStates[peerId], peerCoreState)
+      }
     }
     return state
   }
@@ -107,4 +105,40 @@ export class NamespaceSyncState {
     }
     return coreState
   }
+}
+
+/** @returns {SyncState['remoteStates'][string]} */
+function createPeerState(connected = false) {
+  return { want: 0, have: 0, wanted: 0, missing: 0, connected }
+}
+
+/**
+ * @overload
+ * @param {SyncState['localState']} accumulator
+ * @param {SyncState['localState']} currentValue
+ * @returns {SyncState['localState']}
+ */
+
+/**
+ * @overload
+ * @param {SyncState['remoteStates'][string]} accumulator
+ * @param {SyncState['remoteStates'][string]} currentValue
+ * @returns {SyncState['remoteStates'][string]}
+ */
+
+/**
+ * Adds peer state in `currentValue` to peer state in `accumulator`
+ *
+ * @param {SyncState['remoteStates'][string]} accumulator
+ * @param {SyncState['remoteStates'][string]} currentValue
+ */
+function mutatingAddPeerState(accumulator, currentValue) {
+  accumulator.have += currentValue.have
+  accumulator.want += currentValue.want
+  accumulator.wanted += currentValue.wanted
+  accumulator.missing += currentValue.missing
+  if ('connected' in accumulator) {
+    accumulator.connected = accumulator.connected && currentValue.connected
+  }
+  return accumulator
 }
