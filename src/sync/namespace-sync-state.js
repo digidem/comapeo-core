@@ -70,6 +70,7 @@ export class NamespaceSyncState {
         mutatingAddPeerState(state.remoteStates[peerId], peerCoreState)
       }
     }
+    this.#cachedState = state
     return state
   }
 
