@@ -7,21 +7,22 @@ export class PeerSyncController {
 
   /**
    * @param {object} opts
-   * @param {import("../types.js").ReplicationStream} opts.stream
+   * @param {import("protomux")} opts.protomux
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    */
-  constructor({ stream, coreManager }) {
+  constructor({ protomux, coreManager }) {
     this.#coreManager = coreManager
-    this.#protomux = stream.noiseStream.userData
+    this.#protomux = protomux
 
     // Always need to replicate the project creator core
-    coreManager.creatorCore.replicate(stream)
+    coreManager.creatorCore.replicate(protomux)
     this.#replicatingCores.add(coreManager.creatorCore)
 
     coreManager.on('add-core', this.#handleAddCore)
   }
 
   /**
+   * Bound to `this` (defined as static property)
    *
    * @param {import("../core-manager/core-index.js").CoreRecord} coreRecord
    */
