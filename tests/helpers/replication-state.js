@@ -1,5 +1,3 @@
-import NoiseSecretStream from '@hyperswarm/secret-stream'
-
 import { truncateId } from '../../src/utils.js'
 
 export function logState(syncState, name) {
@@ -57,15 +55,4 @@ export async function downloadCore(
 ) {
   const core = coreManager.getCoreByKey(key)
   await core.download({ start, end, ifAvailable: true }).done()
-}
-
-export function replicate(cm1, cm2) {
-  const n1 = new NoiseSecretStream(true)
-  const n2 = new NoiseSecretStream(false)
-  n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
-
-  cm1.replicate(n1)
-  cm2.replicate(n2)
-
-  return { syncStream1: n1, syncStream2: n2 }
 }

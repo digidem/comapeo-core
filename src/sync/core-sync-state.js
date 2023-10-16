@@ -16,20 +16,20 @@ import RemoteBitfield, {
  * @property {Map<PeerId, PeerState>} remoteStates
  */
 /**
- * @typedef {object} PeerSimpleState
+ * @typedef {object} CoreState
  * @property {number} have blocks the peer has locally
  * @property {number} want blocks the peer wants, and at least one peer has
  * @property {number} wanted blocks the peer has that at least one peer wants
  * @property {number} missing blocks the peer wants but no peer has
  */
 /**
- * @typedef {PeerSimpleState & { connected: boolean }} RemotePeerSimpleState
+ * @typedef {CoreState & { connected: boolean }} PeerCoreState
  */
 /**
  * @typedef {object} DerivedState
  * @property {number} coreLength known (sparse) length of the core
- * @property {PeerSimpleState} localState local state
- * @property {Record<PeerId, RemotePeerSimpleState>} remoteStates map of state of all known peers
+ * @property {CoreState} localState local state
+ * @property {Record<PeerId, PeerCoreState>} remoteStates map of state of all known peers
  */
 
 /**
@@ -316,7 +316,7 @@ export function deriveState(coreState) {
   const peerIds = ['local', ...coreState.remoteStates.keys()]
   const peers = [coreState.localState, ...coreState.remoteStates.values()]
 
-  /** @type {PeerSimpleState[]} */
+  /** @type {CoreState[]} */
   const peerStates = new Array(peers.length)
   const length = coreState.length || 0
   for (let i = 0; i < peerStates.length; i++) {
@@ -366,7 +366,7 @@ export function deriveState(coreState) {
     remoteStates: {},
   }
   for (let j = 1; j < peerStates.length; j++) {
-    const peerState = /** @type {RemotePeerSimpleState} */ (peerStates[j])
+    const peerState = /** @type {PeerCoreState} */ (peerStates[j])
     peerState.connected = peers[j].connected
     derivedState.remoteStates[peerIds[j]] = peerState
   }
