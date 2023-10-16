@@ -37,11 +37,7 @@ export function createCoreManager({
 export function replicate(
   cm1,
   cm2,
-  {
-    // Keep keypairs deterministic for tests, since we use peer.publicKey as an identifier.
-    kp1 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(0)),
-    kp2 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1)),
-  } = {}
+  { kp1 = NoiseSecretStream.keyPair(), kp2 = NoiseSecretStream.keyPair() } = {}
 ) {
   const n1 = new NoiseSecretStream(true, undefined, { keyPair: kp1 })
   const n2 = new NoiseSecretStream(false, undefined, { keyPair: kp2 })
