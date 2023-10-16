@@ -108,7 +108,7 @@
     "fastify": ">= 4"
   },
   "dependencies": {
-    "@digidem/types": "^2.1.0",
+    "@digidem/types": "^2.2.0",
     "@fastify/type-provider-typebox": "^3.3.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "^1.0.0-alpha.10",
