@@ -348,7 +348,7 @@ export class CoreManager extends TypedEmitter {
     protocol.pair(
       { protocol: 'hypercore/alpha' },
       /** @param {Buffer} discoveryKey */ (discoveryKey) => {
-        this.#handleDiscoveryKey(discoveryKey, stream)
+        this.handleDiscoveryKey(discoveryKey, stream)
       }
     )
 
@@ -395,7 +395,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} discoveryKey
    * @param {any} stream
    */
-  async #handleDiscoveryKey(discoveryKey, stream) {
+  async handleDiscoveryKey(discoveryKey, stream) {
     const discoveryId = discoveryKey.toString('hex')
     const peer = await this.#findPeer(stream.remotePublicKey)
     if (!peer) {
