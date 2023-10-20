@@ -92,10 +92,10 @@ export class MdnsDiscovery extends TypedEmitter {
    */
   #handleServiceUp({ address, port, name }) {
     this.#log('serviceUp', name.slice(0, 7), address, port)
-    // if (this.#noiseConnections.has(name)) {
-    //   this.#log(`Already connected to ${name.slice(0, 7)}`)
-    //   return
-    // }
+    if (this.#noiseConnections.has(name)) {
+      this.#log(`Already connected to ${name.slice(0, 7)}`)
+      return
+    }
     const socket = net.connect(port, address)
     socket.on('error', this.#handleSocketError)
     socket.once('connect', () => {
