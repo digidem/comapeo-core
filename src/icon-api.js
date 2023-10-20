@@ -1,4 +1,10 @@
+export const kCreate = Symbol('create')
+export const kGetIcon = Symbol('getIcon')
+export const kGetBestVariant = Symbol('getBestVariant')
+export const kGetUrl = Symbol('getUrl')
+
 export default class IconApi {
+  #projectId
   #dataType
   #dataStore
 
@@ -12,10 +18,12 @@ export default class IconApi {
    *   import('@mapeo/schema').IconValue
    * >} opts.iconDataType
    * @param {import('./datastore/index.js').DataStore<'config'>} opts.iconDataStore
+   * @param {string} [opts.projectId]
    */
-  constructor({ iconDataType, iconDataStore }) {
+  constructor({ iconDataType, iconDataStore, projectId }) {
     this.#dataType = iconDataType
     this.#dataStore = iconDataStore
+    this.#projectId = projectId
   }
 
   /**
@@ -24,7 +32,7 @@ export default class IconApi {
    *    import('@mapeo/schema/dist/proto/icon/v1.js').Icon_1_IconVariant
    *    & {blob: Buffer}>}} icon
    */
-  async create(icon) {
+  async [kCreate](icon) {
     if (icon.variants.length < 1) {
       throw new Error('empty variants array')
     }
@@ -55,9 +63,9 @@ export default class IconApi {
    * @param {number} [opts.pixelDensity]
    * @param {ValidMimeType} [opts.mimeType]
    */
-  async getIcon({ iconId, size, pixelDensity, mimeType }) {
+  async [kGetIcon]({ iconId, size, pixelDensity, mimeType = 'image/png' }) {
     const iconRecord = await this.#dataType.getByDocId(iconId)
-    const iconVariant = this.#getBestVariant(iconRecord.variants, {
+    const iconVariant = this[kGetBestVariant](iconRecord.variants, {
       size,
       pixelDensity,
       mimeType,
@@ -67,31 +75,75 @@ export default class IconApi {
   }
 
   /**
+   * @param {Object} opts
+   * @param {String} opts.iconDocId
+   * @param {String} [opts.size]
+   * @param {number} [opts.pixelDensity]
+   * @param {ValidMimeType} [opts.mimeType]
+   */
+  async [kGetUrl]({ iconDocId, size, pixelDensity }) {
+    return `/${this.#projectId}/${iconDocId}/${size}/${pixelDensity}`
+  }
+
+  /** @typedef {{
+   * mimeType: ValidMimeType,
+   * size: string,
+   * pixelDensity: number,
+   * score: number
+   * }} IconVariant */
+
+  /**
    * @param {import('@mapeo/schema').IconValue['variants']} variants
    * @param {object} opts
    * @param {string} [opts.size]
    * @param {number} [opts.pixelDensity]
    * @param {ValidMimeType} [opts.mimeType]
    **/
-  #getBestVariant(variants, { size, pixelDensity, mimeType }) {
-    let bestMatchingCriteria = 0
-    let bestVariant = null
-    for (let variant of variants) {
-      let currentMatchingCriteria = 0
-      if (mimeType && variant.mimeType !== mimeType) {
-        continue
+  [kGetBestVariant](variants, { size, pixelDensity, mimeType }) {
+    let variantsScore = []
+    const matchingMimeType = variants.filter(
+      (variant) => variant.mimeType === mimeType
+    )
+
+    // only allow matching mimeType
+    if (matchingMimeType.length === 0) {
+      throw new Error('no matching mimeType for icon')
+    }
+
+    // score each variant
+    for (let i = 0; i < matchingMimeType.length; i++) {
+      const variant = matchingMimeType[i]
+      variantsScore[i] = 0
+      if (variant.pixelDensity === pixelDensity) {
+        variantsScore[i]++
       }
       if (variant.size === size) {
-        currentMatchingCriteria++
-      }
-      if (variant.pixelDensity === pixelDensity) {
-        currentMatchingCriteria++
-      }
-      if (currentMatchingCriteria >= bestMatchingCriteria) {
-        bestVariant = variant
-        bestMatchingCriteria = currentMatchingCriteria
+        variantsScore[i]++
       }
     }
-    return bestVariant || variants[0] // if no matching, return the first one...
+
+    // find variant with best score, tie break with a coin
+    const bestVariantIdx = variantsScore.reduce(
+      ({ bestIdx, bestScore }, score, idx) => {
+        const oldBest = { bestIdx, bestScore }
+        const possibleNewBest = { bestIdx: idx, bestScore: score }
+        // new is best
+        if (score > bestScore) {
+          return possibleNewBest
+          // tie break
+        } else if (score === bestScore) {
+          const keep = Math.random() > 0.5
+          if (keep) {
+            return oldBest
+          } else {
+            return possibleNewBest
+          }
+        } else {
+          return oldBest
+        }
+      },
+      { bestIdx: -1, bestScore: -1 }
+    )
+    return matchingMimeType[bestVariantIdx.bestIdx]
   }
 }
