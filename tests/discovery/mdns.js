@@ -24,10 +24,28 @@ test('mdns - discovery and sharing of data', (t) => {
   const str = 'hi'
 
   mdnsDiscovery1.on('connection', (stream) => {
+    stream.on('error', (e) => {
+      // We expected connections to be closed when duplicates happen. On the
+      // closing side the error will be ERR_DUPLICATE, but on the other side
+      // the error will be an ECONNRESET - the error is not sent over the
+      // connection
+      const expectedError =
+        e.message === ERR_DUPLICATE || e.code === 'ECONNRESET'
+      t.ok(expectedError, 'connection closed with expected error')
+    })
     stream.write(str)
   })
 
   mdnsDiscovery2.on('connection', (stream) => {
+    stream.on('error', (e) => {
+      // We expected connections to be closed when duplicates happen. On the
+      // closing side the error will be ERR_DUPLICATE, but on the other side
+      // the error will be an ECONNRESET - the error is not sent over the
+      // connection
+      const expectedError =
+        e.message === ERR_DUPLICATE || e.code === 'ECONNRESET'
+      t.ok(expectedError, 'connection closed with expected error')
+    })
     stream.on('data', (d) => {
       t.is(d.toString(), str, 'expected data written')
       Promise.all([
@@ -53,6 +71,15 @@ test('deduplicate incoming connections', async (t) => {
   await discovery.start()
 
   discovery.on('connection', (conn) => {
+    conn.on('error', (e) => {
+      // We expected connections to be closed when duplicates happen. On the
+      // closing side the error will be ERR_DUPLICATE, but on the other side
+      // the error will be an ECONNRESET - the error is not sent over the
+      // connection
+      const expectedError =
+        e.message === ERR_DUPLICATE || e.code === 'ECONNRESET'
+      t.ok(expectedError, 'connection closed with expected error')
+    })
     localConnections.add(conn)
     conn.on('close', () => localConnections.delete(conn))
   })
@@ -60,6 +87,15 @@ test('deduplicate incoming connections', async (t) => {
   const addrInfo = discovery.address()
   for (let i = 0; i < 20; i++) {
     noiseConnect(addrInfo, remoteKp).then((conn) => {
+      conn.on('error', (e) => {
+        // We expected connections to be closed when duplicates happen. On the
+        // closing side the error will be ERR_DUPLICATE, but on the other side
+        // the error will be an ECONNRESET - the error is not sent over the
+        // connection
+        const expectedError =
+          e.message === ERR_DUPLICATE || e.code === 'ECONNRESET'
+        t.ok(expectedError, 'connection closed with expected error')
+      })
       conn.on('connect', () => remoteConnections.add(conn))
       conn.on('close', () => remoteConnections.delete(conn))
     })
