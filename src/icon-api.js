@@ -1,7 +1,7 @@
 export const kCreate = Symbol('create')
 export const kGetIcon = Symbol('getIcon')
 export const kGetBestVariant = Symbol('getBestVariant')
-export const kGetUrl = Symbol('getUrl')
+export const kGetIconUrl = Symbol('getIconUrl')
 
 export default class IconApi {
   #projectId
@@ -76,13 +76,13 @@ export default class IconApi {
 
   /**
    * @param {Object} opts
-   * @param {String} opts.iconDocId
+   * @param {String} opts.iconId
    * @param {String} [opts.size]
    * @param {number} [opts.pixelDensity]
    * @param {ValidMimeType} [opts.mimeType]
    */
-  async [kGetUrl]({ iconDocId, size, pixelDensity }) {
-    return `/${this.#projectId}/${iconDocId}/${size}/${pixelDensity}`
+  async [kGetIconUrl]({ iconId, size, pixelDensity }) {
+    return `/${this.#projectId}/${iconId}/${size}/${pixelDensity}`
   }
 
   /** @typedef {{

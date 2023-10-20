@@ -5,7 +5,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'node:crypto'
 
-import IconApi, { kCreate, kGetIcon } from '../src/icon-api.js'
+import IconApi, { kCreate, kGetIcon, kGetIconUrl } from '../src/icon-api.js'
 import { DataType } from '../src/datatype/index.js'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
@@ -39,8 +39,12 @@ const iconDataType = new DataType({
   table: iconTable,
   db,
 })
-
-const iconApi = new IconApi({ iconDataStore, iconDataType })
+const projectId = randomBytes(32).toString('hex')
+const iconApi = new IconApi({
+  iconDataStore,
+  iconDataType,
+  projectId,
+})
 
 // eslint-disable-next-line no-unused-vars
 test('icon create and get', async (t) => {
@@ -185,4 +189,29 @@ test('icon create and get with variants, choosing the first variant with the fir
     mimeType: 'image/svg+xml',
   })
   t.alike(icon, expectedMediumIcon)
+})
+
+test(`getIconUrl, test matching url`, async (t) => {
+  const iconDoc = await iconApi[kCreate]({
+    name: 'myIcon',
+    schemaName: 'icon',
+    variants: [
+      {
+        size: 'small',
+        pixelDensity: 1,
+        mimeType: 'image/png',
+        blob: Buffer.from(expectedSmallIcon),
+      },
+    ],
+  })
+
+  const size = 'small'
+  const pixelDensity = 1
+  const expectedUrl = `/${projectId}/${iconDoc.docId}/${size}/${pixelDensity}`
+  const url = await iconApi[kGetIconUrl]({
+    iconId: iconDoc.docId,
+    size: 'small',
+    pixelDensity: 1,
+  })
+  t.is(url, expectedUrl)
 })
