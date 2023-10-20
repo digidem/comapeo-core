@@ -7,7 +7,7 @@ import debug from 'debug'
 import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
-import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
+import { keyToPublicId } from '@mapeo/crypto'
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 

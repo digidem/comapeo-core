@@ -1,7 +1,4 @@
-import NoiseSecretStream from '@hyperswarm/secret-stream'
-
 import { truncateId } from '../../src/utils.js'
-import { getKeys } from './core-manager.js'
 
 export function logState(syncState, name) {
   let message = `${name ? name + ' ' : ''}${
@@ -37,13 +34,19 @@ export async function download(
   { start = 0, end = -1 } = {}
 ) {
   const writer = coreManager.getWriterCore(namespace)
-  const keys = getKeys(coreManager, namespace)
-
-  for (const key of keys) {
+  const donePromises = []
+  for (const { core, key } of coreManager.getCores(namespace)) {
     if (key.equals(writer.core.key)) continue
-    const core = coreManager.getCoreByKey(key)
-    await core.download({ start, end, ifAvailable: true }).done()
+    donePromises.push(core.download({ start, end, ifAvailable: true }).done())
   }
+  if (end !== -1) return Promise.all(donePromises)
+  return new Promise(() => {
+    coreManager.on('add-core', (coreRecord) => {
+      console.log('add-core')
+      if (coreRecord.namespace !== namespace) return
+      coreRecord.core.download({ start, end, ifAvailable: true }).done()
+    })
+  })
 }
 
 export async function downloadCore(
@@ -52,15 +55,4 @@ export async function downloadCore(
 ) {
   const core = coreManager.getCoreByKey(key)
   await core.download({ start, end, ifAvailable: true }).done()
-}
-
-export function replicate(cm1, cm2) {
-  const n1 = new NoiseSecretStream(true)
-  const n2 = new NoiseSecretStream(false)
-  n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
-
-  cm1.replicate(n1)
-  cm2.replicate(n2)
-
-  return { syncStream1: n1, syncStream2: n2 }
 }

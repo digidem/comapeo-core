@@ -39,6 +39,7 @@ const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
+export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 
 export class MapeoProject {
   #projectId
@@ -107,6 +108,7 @@ export class MapeoProject {
       storage: coreManagerStorage,
       sqlite,
     })
+
     const indexWriter = new IndexWriter({
       tables: [
         observationTable,
@@ -114,6 +116,7 @@ export class MapeoProject {
         fieldTable,
         coreOwnershipTable,
         roleTable,
+        deviceInfoTable,
       ],
       sqlite,
       getWinner,
@@ -225,7 +228,9 @@ export class MapeoProject {
     })
 
     this.#memberApi = new MemberApi({
+      deviceId: this.#deviceId,
       capabilities: this.#capabilities,
+      coreOwnership: this.#coreOwnership,
       // @ts-expect-error
       encryptionKeys,
       projectKey,
@@ -271,6 +276,10 @@ export class MapeoProject {
    */
   get [kCapabilities]() {
     return this.#capabilities
+  }
+
+  get deviceId() {
+    return this.#deviceId
   }
 
   /**
@@ -375,6 +384,33 @@ export class MapeoProject {
 
   async $getOwnCapabilities() {
     return this.#capabilities.getCapabilities(this.#deviceId)
+  }
+
+  /**
+   * @param {Pick<import('@mapeo/schema').DeviceInfoValue, 'name'>} value
+   * @returns {Promise<import('@mapeo/schema').DeviceInfo>}
+   */
+  async [kSetOwnDeviceInfo](value) {
+    const { deviceInfo } = this.#dataTypes
+
+    const configCoreId = this.#coreManager
+      .getWriterCore('config')
+      .key.toString('hex')
+
+    let existingDoc
+    try {
+      existingDoc = await deviceInfo.getByDocId(configCoreId)
+    } catch (err) {
+      return await deviceInfo[kCreateWithDocId](configCoreId, {
+        ...value,
+        schemaName: 'deviceInfo',
+      })
+    }
+
+    return deviceInfo.update(existingDoc.versionId, {
+      ...value,
+      schemaName: 'deviceInfo',
+    })
   }
 }
 
