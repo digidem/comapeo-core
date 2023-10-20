@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import net from 'node:net'
 import { KeyManager } from '@mapeo/crypto'
 import { setTimeout as delay } from 'node:timers/promises'
+import pDefer from 'p-defer'
 import { keyToPublicId } from '@mapeo/crypto'
 import { ERR_DUPLICATE, MdnsDiscovery } from '../../src/discovery/mdns.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
@@ -11,7 +12,7 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 const MDNS_WAIT_TIME = 10000
 
 test('mdns - discovery and sharing of data', (t) => {
-  t.plan(2)
+  const deferred = pDefer()
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
 
@@ -53,12 +54,15 @@ test('mdns - discovery and sharing of data', (t) => {
         mdnsDiscovery2.stop({ force: true }),
       ]).then(() => {
         t.pass('teardown complete')
+        deferred.resolve()
       })
     })
   })
 
   mdnsDiscovery1.start()
   mdnsDiscovery2.start()
+
+  return deferred.promise
 })
 
 test('deduplicate incoming connections', async (t) => {
