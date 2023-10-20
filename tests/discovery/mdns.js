@@ -8,7 +8,7 @@ import { ERR_DUPLICATE, MdnsDiscovery } from '../../src/discovery/mdns.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 // Time in ms to wait for mdns messages to propogate
-const MDNS_WAIT_TIME = 5000
+const MDNS_WAIT_TIME = 10000
 
 test('mdns - discovery and sharing of data', (t) => {
   t.plan(2)
@@ -115,7 +115,7 @@ test(`mdns - discovery of 30 peers with random time instantiation`, async (t) =>
   await testMultiple(t, { period: 2000, nPeers: 30 })
 })
 
-test.skip(`mdns - discovery of 30 peers instantiated at the same time`, async (t) => {
+test(`mdns - discovery of 30 peers instantiated at the same time`, async (t) => {
   await testMultiple(t, { period: 0, nPeers: 30 })
 })
 
