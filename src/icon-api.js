@@ -122,7 +122,7 @@ export default class IconApi {
       }
     }
 
-    // find variant with best score, tie break with a coin
+    // find variant with best score, tie break choosing the first one
     const bestVariantIdx = variantsScore.reduce(
       ({ bestIdx, bestScore }, score, idx) => {
         const oldBest = { bestIdx, bestScore }
@@ -132,12 +132,7 @@ export default class IconApi {
           return possibleNewBest
           // tie break
         } else if (score === bestScore) {
-          const keep = Math.random() > 0.5
-          if (keep) {
-            return oldBest
-          } else {
-            return possibleNewBest
-          }
+          return oldBest
         } else {
           return oldBest
         }
