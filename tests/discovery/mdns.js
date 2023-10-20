@@ -8,9 +8,6 @@ import { keyToPublicId } from '@mapeo/crypto'
 import { ERR_DUPLICATE, MdnsDiscovery } from '../../src/discovery/mdns.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
-// Time in ms to wait for mdns messages to propogate
-const MDNS_WAIT_TIME = 10000
-
 test('mdns - discovery and sharing of data', (t) => {
   const deferred = pDefer()
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
@@ -143,12 +140,15 @@ async function noiseConnect({ port, address }, keyPair) {
 async function testMultiple(t, { period, nPeers = 20 }) {
   const peersById = new Map()
   const connsById = new Map()
+  const promises = []
   // t.plan(3 * nPeers + 1)
 
   async function spawnPeer() {
     const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
     const discovery = new MdnsDiscovery({ identityKeypair })
     const peerId = keyToPublicId(discovery.publicKey)
+    const deferred = pDefer()
+    promises.push(deferred.promise)
     peersById.set(peerId, discovery)
     const conns = []
     connsById.set(peerId, conns)
@@ -163,6 +163,7 @@ async function testMultiple(t, { period, nPeers = 20 }) {
         t.ok(expectedError, 'connection closed with expected error')
       })
       conns.push(conn)
+      if (conns.size >= nPeers - 1) deferred.resolve()
     })
     await discovery.start()
     return discovery
@@ -172,7 +173,10 @@ async function testMultiple(t, { period, nPeers = 20 }) {
     setTimeout(spawnPeer, Math.floor(Math.random() * period))
   }
 
-  await delay(period + MDNS_WAIT_TIME)
+  // Wait for all peers to connect to at least nPeers - 1 peers (every other peer)
+  await Promise.all(promises)
+  // Wait another 1000ms for any deduplication
+  await delay(1000)
 
   const peerIds = [...peersById.keys()]
 
