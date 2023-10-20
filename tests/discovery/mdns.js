@@ -143,12 +143,10 @@ async function testMultiple(t, { period, nPeers = 20 }) {
   const promises = []
   // t.plan(3 * nPeers + 1)
 
-  async function spawnPeer() {
+  async function spawnPeer(onConnected) {
     const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
     const discovery = new MdnsDiscovery({ identityKeypair })
     const peerId = keyToPublicId(discovery.publicKey)
-    const deferred = pDefer()
-    promises.push(deferred.promise)
     peersById.set(peerId, discovery)
     const conns = []
     connsById.set(peerId, conns)
@@ -163,14 +161,16 @@ async function testMultiple(t, { period, nPeers = 20 }) {
         t.ok(expectedError, 'connection closed with expected error')
       })
       conns.push(conn)
-      if (conns.size >= nPeers - 1) deferred.resolve()
+      if (conns.length >= nPeers - 1) onConnected()
     })
     await discovery.start()
     return discovery
   }
 
   for (let p = 0; p < nPeers; p++) {
-    setTimeout(spawnPeer, Math.floor(Math.random() * period))
+    const deferred = pDefer()
+    promises.push(deferred.promise)
+    setTimeout(spawnPeer, Math.floor(Math.random() * period), deferred.resolve)
   }
 
   // Wait for all peers to connect to at least nPeers - 1 peers (every other peer)
