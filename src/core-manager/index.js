@@ -347,7 +347,7 @@ export class CoreManager extends TypedEmitter {
     // replicated to a stream if we want sharing of unknown auth cores to work.
     protocol.pair(
       { protocol: 'hypercore/alpha' },
-      /** @param {Buffer} discoveryKey */ (discoveryKey) => {
+      /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
         this.handleDiscoveryKey(discoveryKey, stream)
       }
     )
