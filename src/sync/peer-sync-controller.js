@@ -26,6 +26,8 @@ export class PeerSyncController {
   #prevLocalState
   /** @type {SyncStatus} */
   #syncStatus = createSyncStatusObject()
+  /** @type {Map<import('hypercore')<'binary', any>, ReturnType<import('hypercore')['download']>>} */
+  #downloadingRanges = new Map()
 
   /**
    * @param {object} opts
@@ -180,11 +182,31 @@ export class PeerSyncController {
   }
 
   /**
+   * @param {import('hypercore')<'binary', any>} core
+   */
+  #downloadCore(core) {
+    if (this.#downloadingRanges.has(core)) return
+    const range = core.download({ start: 0, end: -1 })
+    this.#downloadingRanges.set(core, range)
+  }
+
+  /**
+   * @param {import('hypercore')<'binary', any>} core
+   */
+  #undownloadCore(core) {
+    const range = this.#downloadingRanges.get(core)
+    if (!range) return
+    range.destroy()
+    this.#downloadingRanges.delete(core)
+  }
+
+  /**
    * @param {Namespace} namespace
    */
   #enableNamespace(namespace) {
     for (const { core } of this.#coreManager.getCores(namespace)) {
       this.#replicateCore(core)
+      this.#downloadCore(core)
     }
     this.#enabledNamespaces.add(namespace)
   }
@@ -195,6 +217,7 @@ export class PeerSyncController {
   #disableNamespace(namespace) {
     for (const { core } of this.#coreManager.getCores(namespace)) {
       this.#unreplicateCore(core)
+      this.#undownloadCore(core)
     }
     this.#enabledNamespaces.delete(namespace)
   }
