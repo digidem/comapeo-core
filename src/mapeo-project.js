@@ -32,6 +32,7 @@ import {
 import { Capabilities } from './capabilities.js'
 import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
 import { MemberApi } from './member-api.js'
+import { SyncController } from './sync/sync-controller.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -40,6 +41,7 @@ const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
+export const kReplicate = Symbol('replicate')
 
 export class MapeoProject {
   #projectId
@@ -53,6 +55,7 @@ export class MapeoProject {
   #capabilities
   #ownershipWriteDone
   #memberApi
+  #syncController
 
   /**
    * @param {Object} opts
@@ -241,6 +244,11 @@ export class MapeoProject {
       },
     })
 
+    this.#syncController = new SyncController({
+      coreManager: this.#coreManager,
+      capabilities: this.#capabilities,
+    })
+
     ///////// 4. Write core ownership record
 
     const deferred = pDefer()
@@ -384,6 +392,15 @@ export class MapeoProject {
 
   async $getOwnCapabilities() {
     return this.#capabilities.getCapabilities(this.#deviceId)
+  }
+
+  /**
+   *
+   * @param {import('./types.js').ReplicationStream} stream
+   * @returns
+   */
+  [kReplicate](stream) {
+    return this.#syncController.replicate(stream)
   }
 
   /**
