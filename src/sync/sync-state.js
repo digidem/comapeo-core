@@ -60,7 +60,7 @@ export class SyncState extends TypedEmitter {
     return state
   }
 
-  #handleUpdate() {
+  #handleUpdate = () => {
     this.emit('state', this.getState())
   }
 }

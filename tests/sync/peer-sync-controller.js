@@ -8,8 +8,10 @@ import { KeyManager } from '@mapeo/crypto'
 import { once } from 'node:events'
 import { setTimeout } from 'node:timers/promises'
 import { NAMESPACES } from '../../src/core-manager/index.js'
+import { SyncState } from '../../src/sync/sync-state.js'
+import { CREATOR_CAPABILITIES } from '../../src/capabilities.js'
 
-test('creator core is always replicated', async (t) => {
+test.solo('creator core is always replicated', async (t) => {
   const {
     coreManagers: [cm1, cm2],
   } = await testenv()
@@ -24,18 +26,25 @@ test('creator core is always replicated', async (t) => {
 
   for (const namespace of NAMESPACES) {
     const cm1NamespaceCores = cm1.getCores(namespace)
-    t.is(cm1NamespaceCores.length, 1, 'each namespace has one core')
+    t.is(
+      cm1NamespaceCores.length,
+      namespace === 'auth' ? 2 : 1,
+      'each namespace apart from auth has one core'
+    )
     const cm2NamespaceCores = cm2.getCores(namespace)
     t.is(
       cm2NamespaceCores.length,
       namespace === 'auth' ? 2 : 1,
       'each namespace apart from auth has one core'
     )
-    for (const { core, key } of [...cm1NamespaceCores, ...cm2NamespaceCores]) {
-      if (key.equals(cm1.creatorCore.key)) {
-        t.is(core.peers.length, 1, 'Creator cores has one peer')
+    for (const { core, namespace } of [
+      ...cm1NamespaceCores,
+      ...cm2NamespaceCores,
+    ]) {
+      if (namespace === 'auth') {
+        t.is(core.peers.length, 1, 'Auth cores has one peer')
       } else {
-        t.is(core.peers.length, 0, 'non-creator cores have no peers')
+        t.is(core.peers.length, 0, 'non-auth cores have no peers')
       }
     }
   }
@@ -144,13 +153,34 @@ async function testenv() {
   })
   stream1.pipe(stream2).pipe(stream1)
 
+  await Promise.all([
+    once(stream1.noiseStream, 'connect'),
+    once(stream2.noiseStream, 'connect'),
+  ])
+
   const psc1 = new PeerSyncController({
     protomux: stream1.noiseStream.userData,
     coreManager: cm1,
+    syncState: new SyncState({ coreManager: cm1 }),
+    // @ts-expect-error
+    capabilities: {
+      async getCapabilities() {
+        return CREATOR_CAPABILITIES
+      },
+    },
+    peerId: stream1.noiseStream.remotePublicKey.toString('hex'),
   })
   const psc2 = new PeerSyncController({
     protomux: stream2.noiseStream.userData,
     coreManager: cm2,
+    syncState: new SyncState({ coreManager: cm2 }),
+    // @ts-expect-error
+    capabilities: {
+      async getCapabilities() {
+        return CREATOR_CAPABILITIES
+      },
+    },
+    peerId: stream2.noiseStream.remotePublicKey.toString('hex'),
   })
 
   return {
