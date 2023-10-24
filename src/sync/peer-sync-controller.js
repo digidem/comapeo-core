@@ -28,6 +28,8 @@ export class PeerSyncController {
   #syncStatus = createSyncStatusObject()
   /** @type {Map<import('hypercore')<'binary', any>, ReturnType<import('hypercore')['download']>>} */
   #downloadingRanges = new Map()
+  /** @type {SyncStatus | undefined} */
+  #prevSyncStatus
 
   /**
    * @param {object} opts
@@ -35,17 +37,13 @@ export class PeerSyncController {
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    * @param {import("./sync-state.js").SyncState} opts.syncState
    * @param {import("../capabilities.js").Capabilities} opts.capabilities
+   * @param {string} opts.peerId device id for the peer: the device public key as a hex-encoded string
    */
-  constructor({ protomux, coreManager, syncState, capabilities }) {
+  constructor({ protomux, coreManager, syncState, capabilities, peerId }) {
     this.#coreManager = coreManager
     this.#protomux = protomux
     this.#capabilities = capabilities
-    if (!protomux.stream.remotePublicKey) {
-      throw new Error(
-        'Unitialized NoiseSecretStream: Protomux stream does not have `remotePublicKey`'
-      )
-    }
-    this.#peerId = protomux.stream.remotePublicKey.toString('hex')
+    this.#peerId = peerId
 
     // Always need to replicate the project creator core
     coreManager.creatorCore.replicate(protomux)
@@ -105,6 +103,7 @@ export class PeerSyncController {
       return [ns, this.#prevLocalState[ns].have !== localState[ns].have]
     })
     this.#prevLocalState = localState
+    this.#prevSyncStatus = this.#syncStatus
 
     if (didUpdate.auth && this.#syncStatus.auth === 'synced') {
       try {
@@ -115,6 +114,9 @@ export class PeerSyncController {
         this.#syncCapability = createSyncCapabilityObject('blocked')
       }
     }
+    console.log('sync status', this.#peerId, this.#syncStatus)
+    console.log('cap', this.#syncCapability)
+    console.log('state', state.auth)
 
     // If any namespace has new data, update what is enabled
     if (Object.values(didUpdate).indexOf(true) > -1) {
