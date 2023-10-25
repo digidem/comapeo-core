@@ -16,6 +16,9 @@
     "skipLibCheck": true,
     "typeRoots": ["node_modules/@types"],
     "paths": {
+      "@hyperswarm/secret-stream": [
+        "./node_modules/@digidem/types/vendor/@hyperswarm/secret-stream/index.d.ts"
+      ],
       "*": ["./types", "./node_modules/@digidem/types/vendor/*/index.d.ts"]
     }
   },

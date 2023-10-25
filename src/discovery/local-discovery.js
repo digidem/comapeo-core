@@ -7,7 +7,7 @@ import debug from 'debug'
 import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
-import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
+import { keyToPublicId } from '@mapeo/crypto'
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 
@@ -21,7 +21,7 @@ export const ERR_DUPLICATE = 'Duplicate connection'
 /**
  * @extends {TypedEmitter<DiscoveryEvents>}
  */
-export class MdnsDiscovery extends TypedEmitter {
+export class LocalDiscovery extends TypedEmitter {
   #identityKeypair
   #server
   /** @type {Map<string, NoiseSecretStream<net.Socket>>} */
@@ -108,6 +108,19 @@ export class MdnsDiscovery extends TypedEmitter {
    * @param {net.Socket} socket
    */
   #handleTcpConnection(isInitiator, socket) {
+    socket.off('error', this.#handleSocketError)
+    socket.on('error', onSocketError)
+
+    /** @param {any} e */
+    function onSocketError(e) {
+      if (e.code === 'EPIPE') {
+        socket.destroy()
+        if (secretStream) {
+          secretStream.destroy()
+        }
+      }
+    }
+
     const { remoteAddress } = socket
     if (!remoteAddress || !isPrivate(remoteAddress)) {
       socket.destroy(new Error('Invalid remoteAddress ' + remoteAddress))
@@ -127,6 +140,7 @@ export class MdnsDiscovery extends TypedEmitter {
 
     secretStream.on('connect', () => {
       // Further errors will be handled in #handleNoiseStreamConnection()
+      socket.off('error', onSocketError)
       secretStream.off('error', this.#handleSocketError)
       this.#handleNoiseStreamConnection(secretStream)
     })
@@ -240,7 +254,7 @@ export class MdnsDiscovery extends TypedEmitter {
   }
 
   /**
-   * @type {MdnsDiscovery['stop']}
+   * @type {LocalDiscovery['stop']}
    */
   async #stop({ force = false, timeout = 0 } = {}) {
     this.#log('stopping')

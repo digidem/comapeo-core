@@ -2,16 +2,7 @@ import { CoreSyncState } from './core-sync-state.js'
 import { discoveryKey } from 'hypercore-crypto'
 
 /**
- * @typedef {object} PeerSyncState
- * @property {number} have
- * @property {number} want
- * @property {number} wanted
- * @property {number} missing
- */
-
-/**
- * @typedef {object} SyncState
- * @property {PeerSyncState} localState
+ * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'>} SyncState
  */
 
 /**
@@ -22,6 +13,8 @@ export class NamespaceSyncState {
   #coreStates = new Map()
   #handleUpdate
   #namespace
+  /** @type {SyncState | null} */
+  #cachedState = null
 
   /**
    * @param {object} opts
@@ -31,7 +24,12 @@ export class NamespaceSyncState {
    */
   constructor({ namespace, coreManager, onUpdate }) {
     this.#namespace = namespace
-    this.#handleUpdate = onUpdate
+    // Called whenever the state changes, so we clear the cache because next
+    // call to getState() will need to re-derive the state
+    this.#handleUpdate = () => {
+      this.#cachedState = null
+      process.nextTick(onUpdate)
+    }
 
     for (const { core, key } of coreManager.getCores(namespace)) {
       this.#addCore(core, key)
@@ -54,16 +52,26 @@ export class NamespaceSyncState {
 
   /** @returns {SyncState} */
   getState() {
+    if (this.#cachedState) return this.#cachedState
+    /** @type {SyncState} */
     const state = {
-      localState: { have: 0, want: 0, wanted: 0, missing: 0 },
+      localState: createState(),
+      remoteStates: {},
     }
-    for (const crs of this.#coreStates.values()) {
-      const { localState } = crs.getState()
-      state.localState.have += localState.have
-      state.localState.want += localState.want
-      state.localState.wanted += localState.wanted
-      state.localState.missing += localState.missing
+    for (const css of this.#coreStates.values()) {
+      const coreState = css.getState()
+      mutatingAddPeerState(state.localState, coreState.localState)
+      for (const [peerId, peerCoreState] of Object.entries(
+        coreState.remoteStates
+      )) {
+        if (!(peerId in state.remoteStates)) {
+          state.remoteStates[peerId] = peerCoreState
+        } else {
+          mutatingAddPeerState(state.remoteStates[peerId], peerCoreState)
+        }
+      }
     }
+    this.#cachedState = state
     return state
   }
 
@@ -99,4 +107,64 @@ export class NamespaceSyncState {
     }
     return coreState
   }
+}
+
+/**
+ * @overload
+ * @returns {SyncState['localState']}
+ */
+
+/**
+ * @overload
+ * @param {import('./core-sync-state.js').PeerCoreState['status']} status
+ * @returns {import('./core-sync-state.js').PeerCoreState}
+ */
+
+/**
+ * @param {import('./core-sync-state.js').PeerCoreState['status']} [status]
+ */
+export function createState(status) {
+  if (status) {
+    return { want: 0, have: 0, wanted: 0, missing: 0, status }
+  } else {
+    return { want: 0, have: 0, wanted: 0, missing: 0 }
+  }
+}
+
+/**
+ * @overload
+ * @param {SyncState['localState']} accumulator
+ * @param {SyncState['localState']} currentValue
+ * @returns {SyncState['localState']}
+ */
+
+/**
+ * @overload
+ * @param {import('./core-sync-state.js').PeerCoreState} accumulator
+ * @param {import('./core-sync-state.js').PeerCoreState} currentValue
+ * @returns {import('./core-sync-state.js').PeerCoreState}
+ */
+
+/**
+ * Adds peer state in `currentValue` to peer state in `accumulator`
+ *
+ * @param {import('./core-sync-state.js').PeerCoreState} accumulator
+ * @param {import('./core-sync-state.js').PeerCoreState} currentValue
+ */
+function mutatingAddPeerState(accumulator, currentValue) {
+  accumulator.have += currentValue.have
+  accumulator.want += currentValue.want
+  accumulator.wanted += currentValue.wanted
+  accumulator.missing += currentValue.missing
+  if ('status' in accumulator && accumulator.status !== currentValue.status) {
+    if (currentValue.status === 'disconnected') {
+      accumulator.status === 'disconnected'
+    } else if (
+      currentValue.status === 'connecting' &&
+      accumulator.status === 'connected'
+    ) {
+      accumulator.status = 'connecting'
+    }
+  }
+  return accumulator
 }

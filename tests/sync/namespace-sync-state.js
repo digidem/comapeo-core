@@ -6,20 +6,32 @@ import {
   createCoreManager,
   waitForCores,
   getKeys,
+  replicate,
 } from '../helpers/core-manager.js'
-import { replicate } from '../helpers/replication-state.js'
+import { randomBytes } from 'crypto'
 
 test('sync cores in a namespace', async function (t) {
   t.plan(2)
   const projectKeyPair = KeyManager.generateProjectKeypair()
+  const rootKey1 = randomBytes(16)
+  const rootKey2 = randomBytes(16)
+  const km1 = new KeyManager(rootKey1)
+  const km2 = new KeyManager(rootKey2)
 
   const cm1 = createCoreManager({
+    rootKey: rootKey1,
     projectKey: projectKeyPair.publicKey,
     projectSecretKey: projectKeyPair.secretKey,
   })
-  const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
+  const cm2 = createCoreManager({
+    rootKey: rootKey2,
+    projectKey: projectKeyPair.publicKey,
+  })
 
-  replicate(cm1, cm2)
+  replicate(cm1, cm2, {
+    kp1: km1.getIdentityKeypair(),
+    kp2: km2.getIdentityKeypair(),
+  })
 
   await Promise.all([
     waitForCores(cm1, getKeys(cm2, 'auth')),
@@ -33,15 +45,24 @@ test('sync cores in a namespace', async function (t) {
     coreManager: cm1,
     namespace: 'auth',
     onUpdate: () => {
-      const { localState } = syncState1.getState()
+      const state = syncState1.getState()
       if (
-        localState.want === 0 &&
-        localState.wanted === 0 &&
-        localState.have === 30 &&
-        localState.missing === 10 &&
+        state.localState.want === 0 &&
+        state.localState.wanted === 0 &&
+        state.localState.have === 30 &&
+        state.localState.missing === 10 &&
         !syncState1Synced
       ) {
-        t.pass('syncState1 is synced')
+        const expected = {
+          [km2.getIdentityKeypair().publicKey.toString('hex')]: {
+            want: 0,
+            wanted: 0,
+            have: 30,
+            missing: 10,
+            status: 'connected',
+          },
+        }
+        t.alike(state.remoteStates, expected, 'syncState1 is synced')
         syncState1Synced = true
       }
     },
@@ -51,15 +72,24 @@ test('sync cores in a namespace', async function (t) {
     coreManager: cm2,
     namespace: 'auth',
     onUpdate: () => {
-      const { localState } = syncState2.getState()
+      const state = syncState2.getState()
       if (
-        localState.want === 0 &&
-        localState.wanted === 0 &&
-        localState.have === 30 &&
-        localState.missing === 10 &&
+        state.localState.want === 0 &&
+        state.localState.wanted === 0 &&
+        state.localState.have === 30 &&
+        state.localState.missing === 10 &&
         !syncState2Synced
       ) {
-        t.pass('syncState2 is synced')
+        const expected = {
+          [km1.getIdentityKeypair().publicKey.toString('hex')]: {
+            want: 0,
+            wanted: 0,
+            have: 30,
+            missing: 10,
+            status: 'connected',
+          },
+        }
+        t.alike(state.remoteStates, expected, 'syncState2 is synced')
         syncState2Synced = true
       }
     },

@@ -31,11 +31,16 @@ export function createCoreManager({
  *
  * @param {CoreManager} cm1
  * @param {CoreManager} cm2
+ * @param {{ kp1: import('../../src/types.js').KeyPair, kp2: import('../../src/types.js').KeyPair }} [opts]
  * @returns
  */
-export function replicate(cm1, cm2) {
-  const n1 = new NoiseSecretStream(true)
-  const n2 = new NoiseSecretStream(false)
+export function replicate(
+  cm1,
+  cm2,
+  { kp1 = NoiseSecretStream.keyPair(), kp2 = NoiseSecretStream.keyPair() } = {}
+) {
+  const n1 = new NoiseSecretStream(true, undefined, { keyPair: kp1 })
+  const n2 = new NoiseSecretStream(false, undefined, { keyPair: kp2 })
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
   const rsm1 = cm1.replicate(n1)

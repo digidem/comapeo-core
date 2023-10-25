@@ -16,20 +16,20 @@ import RemoteBitfield, {
  * @property {Map<PeerId, PeerState>} remoteStates
  */
 /**
- * @typedef {object} PeerSimpleState
+ * @typedef {object} CoreState
  * @property {number} have blocks the peer has locally
  * @property {number} want blocks the peer wants, and at least one peer has
  * @property {number} wanted blocks the peer has that at least one peer wants
  * @property {number} missing blocks the peer wants but no peer has
  */
 /**
- * @typedef {PeerSimpleState & { connected: boolean }} RemotePeerSimpleState
+ * @typedef {CoreState & { status: 'disconnected' | 'connecting' | 'connected' }} PeerCoreState
  */
 /**
  * @typedef {object} DerivedState
  * @property {number} coreLength known (sparse) length of the core
- * @property {PeerSimpleState} localState local state
- * @property {Record<PeerId, RemotePeerSimpleState>} remoteStates map of state of all known peers
+ * @property {CoreState} localState local state
+ * @property {{ [peerId in PeerId]: PeerCoreState }} remoteStates map of state of all known peers
  */
 
 /**
@@ -50,7 +50,7 @@ import RemoteBitfield, {
  *
  */
 export class CoreSyncState {
-  /** @type {import('hypercore')<'binary', Buffer>} */
+  /** @type {import('hypercore')<'binary', Buffer> | undefined} */
   #core
   /** @type {InternalState['remoteStates']} */
   #remoteStates = new Map()
@@ -174,7 +174,13 @@ export class CoreSyncState {
 
     // Update state to ensure this peer is in the state and set to connected
     const peerState = this.#getPeerState(peerId)
-    peerState.connected = true
+    peerState.status = 'connecting'
+
+    this.#core?.update({ wait: true }).then(() => {
+      // A peer should become connected
+      peerState.status = 'connected'
+      this.#update()
+    })
 
     // A peer can have a pre-emptive "have" bitfield received via an extension
     // message, but when the peer actually connects then we switch to the actual
@@ -205,7 +211,7 @@ export class CoreSyncState {
   #onPeerRemove = (peer) => {
     const peerId = keyToId(peer.remotePublicKey)
     const peerState = this.#getPeerState(peerId)
-    peerState.connected = false
+    peerState.status = 'disconnected'
     this.#update()
   }
 }
@@ -226,7 +232,8 @@ export class PeerState {
   #haves
   /** @type {Bitfield} */
   #wants = new RemoteBitfield()
-  connected = false
+  /** @type {PeerCoreState['status']} */
+  status = 'disconnected'
   #wantAll
   constructor({ wantAll = true } = {}) {
     this.#wantAll = wantAll
@@ -316,7 +323,7 @@ export function deriveState(coreState) {
   const peerIds = ['local', ...coreState.remoteStates.keys()]
   const peers = [coreState.localState, ...coreState.remoteStates.values()]
 
-  /** @type {PeerSimpleState[]} */
+  /** @type {CoreState[]} */
   const peerStates = new Array(peers.length)
   const length = coreState.length || 0
   for (let i = 0; i < peerStates.length; i++) {
@@ -366,8 +373,8 @@ export function deriveState(coreState) {
     remoteStates: {},
   }
   for (let j = 1; j < peerStates.length; j++) {
-    const peerState = /** @type {RemotePeerSimpleState} */ (peerStates[j])
-    peerState.connected = peers[j].connected
+    const peerState = /** @type {PeerCoreState} */ (peerStates[j])
+    peerState.status = peers[j].status
     derivedState.remoteStates[peerIds[j]] = peerState
   }
   return derivedState

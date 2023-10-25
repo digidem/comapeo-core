@@ -1,5 +1,5 @@
 import b4a from 'b4a'
-import { projectKeyToPublicId as keyToPublicId } from '@mapeo/crypto'
+import { keyToPublicId } from '@mapeo/crypto'
 
 /**
  * @param {String|Buffer} id
