@@ -29,7 +29,9 @@ export function replicate(
   // @ts-expect-error
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
+  // @ts-expect-error
   rpc1.connect(n1)
+  // @ts-expect-error
   rpc2.connect(n2)
 
   return async function destroy() {
