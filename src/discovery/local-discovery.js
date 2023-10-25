@@ -21,7 +21,7 @@ export const ERR_DUPLICATE = 'Duplicate connection'
 /**
  * @extends {TypedEmitter<DiscoveryEvents>}
  */
-export class MdnsDiscovery extends TypedEmitter {
+export class LocalDiscovery extends TypedEmitter {
   #identityKeypair
   #server
   /** @type {Map<string, NoiseSecretStream<net.Socket>>} */
@@ -254,7 +254,7 @@ export class MdnsDiscovery extends TypedEmitter {
   }
 
   /**
-   * @type {MdnsDiscovery['stop']}
+   * @type {LocalDiscovery['stop']}
    */
   async #stop({ force = false, timeout = 0 } = {}) {
     this.#log('stopping')
