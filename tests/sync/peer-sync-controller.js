@@ -145,11 +145,6 @@ async function testenv(cap) {
   })
   stream1.pipe(stream2).pipe(stream1)
 
-  await Promise.all([
-    once(stream1.noiseStream, 'connect'),
-    once(stream2.noiseStream, 'connect'),
-  ])
-
   const psc1 = new PeerSyncController({
     protomux: stream1.noiseStream.userData,
     coreManager: cm1,
@@ -160,7 +155,6 @@ async function testenv(cap) {
         return cap
       },
     },
-    peerId: stream1.noiseStream.remotePublicKey.toString('hex'),
   })
   const psc2 = new PeerSyncController({
     protomux: stream2.noiseStream.userData,
@@ -172,7 +166,6 @@ async function testenv(cap) {
         return cap
       },
     },
-    peerId: stream2.noiseStream.remotePublicKey.toString('hex'),
   })
 
   return {

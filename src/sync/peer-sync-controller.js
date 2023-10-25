@@ -17,7 +17,6 @@ export class PeerSyncController {
   #enabledNamespaces = new Set()
   #coreManager
   #protomux
-  #peerId
   #capabilities
   /** @type {Record<Namespace, SyncCapability>} */
   #syncCapability = createNamespaceMap('unknown')
@@ -37,13 +36,11 @@ export class PeerSyncController {
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    * @param {import("./sync-state.js").SyncState} opts.syncState
    * @param {import("../capabilities.js").Capabilities} opts.capabilities
-   * @param {string} opts.peerId device id for the peer: the device public key as a hex-encoded string
    */
-  constructor({ protomux, coreManager, syncState, capabilities, peerId }) {
+  constructor({ protomux, coreManager, syncState, capabilities }) {
     this.#coreManager = coreManager
     this.#protomux = protomux
     this.#capabilities = capabilities
-    this.#peerId = peerId
 
     // Always need to replicate the project creator core
     coreManager.creatorCore.replicate(protomux)
@@ -92,7 +89,13 @@ export class PeerSyncController {
    * @param {import("./sync-state.js").State} state
    */
   #handleStateChange = async (state) => {
-    this.#syncStatus = getSyncStatus(this.#peerId, state)
+    // The remotePublicKey is only available after the noise stream has
+    // connected. We shouldn't get a state change before the noise stream has
+    // connected, but if we do we can ignore it because we won't have any useful
+    // information until it connects.
+    if (!this.#protomux.stream.remotePublicKey) return
+    const peerId = this.#protomux.stream.remotePublicKey.toString('hex')
+    this.#syncStatus = getSyncStatus(peerId, state)
     const localState = mapObject(state, (ns, nsState) => {
       return [ns, nsState.localState]
     })
@@ -115,15 +118,15 @@ export class PeerSyncController {
 
     if (didUpdate.auth) {
       try {
-        const cap = await this.#capabilities.getCapabilities(this.#peerId)
+        const cap = await this.#capabilities.getCapabilities(peerId)
         this.#syncCapability = cap.sync
       } catch (e) {
         // Any error, consider sync blocked
         this.#syncCapability = createNamespaceMap('blocked')
       }
     }
-    // console.log(this.#peerId.slice(0, 7), this.#syncCapability)
-    // console.log(this.#peerId.slice(0, 7), didUpdate)
+    // console.log(peerId.slice(0, 7), this.#syncCapability)
+    // console.log(peerId.slice(0, 7), didUpdate)
     // console.dir(state, { depth: null, colors: true })
 
     // If any namespace has new data, update what is enabled
