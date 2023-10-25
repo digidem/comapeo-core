@@ -20,16 +20,16 @@ export class PeerSyncController {
   #peerId
   #capabilities
   /** @type {Record<Namespace, SyncCapability>} */
-  #syncCapability = createSyncCapabilityObject('unknown')
+  #syncCapability = createNamespaceMap('unknown')
   #isDataSyncEnabled = false
-  /** @type {Record<Namespace, import('./core-sync-state.js').CoreState> | undefined} */
-  #prevLocalState
+  /** @type {Record<Namespace, import('./core-sync-state.js').CoreState | null>} */
+  #prevLocalState = createNamespaceMap(null)
   /** @type {SyncStatus} */
-  #syncStatus = createSyncStatusObject()
+  #syncStatus = createNamespaceMap('unknown')
   /** @type {Map<import('hypercore')<'binary', any>, ReturnType<import('hypercore')['download']>>} */
   #downloadingRanges = new Map()
-  /** @type {SyncStatus | undefined} */
-  #prevSyncStatus
+  /** @type {SyncStatus} */
+  #prevSyncStatus = createNamespaceMap('unknown')
 
   /**
    * @param {object} opts
@@ -97,26 +97,34 @@ export class PeerSyncController {
       return [ns, nsState.localState]
     })
 
-    // Map of which namespaces have received new data since last state change
+    // Map of which namespaces have received new data since last sync change
     const didUpdate = mapObject(state, (ns) => {
-      if (!this.#prevLocalState) return [ns, true]
-      return [ns, this.#prevLocalState[ns].have !== localState[ns].have]
+      const nsDidSync =
+        this.#prevSyncStatus[ns] !== 'synced' &&
+        this.#syncStatus[ns] === 'synced'
+      const prevNsState = this.#prevLocalState[ns]
+      const nsDidUpdate =
+        nsDidSync &&
+        (prevNsState === null || prevNsState.have !== localState[ns].have)
+      if (nsDidUpdate) {
+        this.#prevLocalState[ns] = localState[ns]
+      }
+      return [ns, nsDidUpdate]
     })
-    this.#prevLocalState = localState
     this.#prevSyncStatus = this.#syncStatus
 
-    if (didUpdate.auth && this.#syncStatus.auth === 'synced') {
+    if (didUpdate.auth) {
       try {
         const cap = await this.#capabilities.getCapabilities(this.#peerId)
         this.#syncCapability = cap.sync
       } catch (e) {
         // Any error, consider sync blocked
-        this.#syncCapability = createSyncCapabilityObject('blocked')
+        this.#syncCapability = createNamespaceMap('blocked')
       }
     }
-    console.log('sync status', this.#peerId, this.#syncStatus)
-    console.log('cap', this.#syncCapability)
-    console.log('state', state.auth)
+    // console.log(this.#peerId.slice(0, 7), this.#syncCapability)
+    // console.log(this.#peerId.slice(0, 7), didUpdate)
+    // console.dir(state, { depth: null, colors: true })
 
     // If any namespace has new data, update what is enabled
     if (Object.values(didUpdate).indexOf(true) > -1) {
@@ -255,23 +263,13 @@ function getSyncStatus(peerId, state) {
 }
 
 /**
- * @param {SyncCapability} capability
- * @returns {Record<Namespace, SyncCapability>} */
-function createSyncCapabilityObject(capability) {
-  const cap = /** @type {Record<Namespace, SyncCapability>} */ ({})
+ * @template T
+ * @param {T} value
+ * @returns {Record<Namespace, T>} */
+function createNamespaceMap(value) {
+  const map = /** @type {Record<Namespace, T>} */ ({})
   for (const ns of NAMESPACES) {
-    cap[ns] = capability
+    map[ns] = value
   }
-  return cap
-}
-
-/**
- * @returns {SyncStatus}
- */
-function createSyncStatusObject() {
-  const status = /** @type {SyncStatus} */ ({})
-  for (const ns of NAMESPACES) {
-    status[ns] = 'unknown'
-  }
-  return status
+  return map
 }

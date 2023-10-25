@@ -9,135 +9,127 @@ import { once } from 'node:events'
 import { setTimeout } from 'node:timers/promises'
 import { NAMESPACES } from '../../src/core-manager/index.js'
 import { SyncState } from '../../src/sync/sync-state.js'
-import { CREATOR_CAPABILITIES } from '../../src/capabilities.js'
+import {
+  BLOCKED_ROLE_ID,
+  CREATOR_CAPABILITIES,
+  DEFAULT_CAPABILITIES,
+} from '../../src/capabilities.js'
 
-test.solo('creator core is always replicated', async (t) => {
+test('auth, config and blobIndex enabled by default', async (t) => {
   const {
     coreManagers: [cm1, cm2],
-  } = await testenv()
+  } = await testenv(CREATOR_CAPABILITIES)
 
-  await Promise.all([
-    once(cm1.creatorCore, 'peer-add'),
-    once(cm2.creatorCore, 'peer-add'),
+  const preSyncNamespaces = /** @type {const} */ ([
+    'auth',
+    'config',
+    'blobIndex',
   ])
 
-  // Wait to give cores a chance to connect
-  await setTimeout(200)
+  const peerAddPromises = []
+  for (const ns of preSyncNamespaces) {
+    peerAddPromises.push(
+      once(cm1.getWriterCore(ns).core, 'peer-add'),
+      once(cm1.getWriterCore(ns).core, 'peer-add')
+    )
+  }
+  await Promise.all(peerAddPromises)
+  t.pass('pre-sync cores connected')
 
-  for (const namespace of NAMESPACES) {
-    const cm1NamespaceCores = cm1.getCores(namespace)
-    t.is(
-      cm1NamespaceCores.length,
-      namespace === 'auth' ? 2 : 1,
-      'each namespace apart from auth has one core'
-    )
-    const cm2NamespaceCores = cm2.getCores(namespace)
-    t.is(
-      cm2NamespaceCores.length,
-      namespace === 'auth' ? 2 : 1,
-      'each namespace apart from auth has one core'
-    )
-    for (const { core, namespace } of [
-      ...cm1NamespaceCores,
-      ...cm2NamespaceCores,
-    ]) {
-      if (namespace === 'auth') {
-        t.is(core.peers.length, 1, 'Auth cores has one peer')
-      } else {
-        t.is(core.peers.length, 0, 'non-auth cores have no peers')
+  // Wait to give other namespaces a chance to connect (they shouldn't)
+  await setTimeout(500)
+
+  for (const ns of NAMESPACES) {
+    for (const cm of [cm1, cm2]) {
+      const nsCores = cm.getCores(ns)
+      t.is(
+        nsCores.length,
+        includes(preSyncNamespaces, ns) ? 2 : 1,
+        'preSync namespaces have 2 cores, others have 1'
+      )
+      for (const { core } of nsCores) {
+        if (includes(preSyncNamespaces, ns)) {
+          t.is(core.peers.length, 1, 'pre-sync namespace cores have one peer')
+        } else {
+          t.is(core.peers.length, 0, 'non-pre-sync cores have no peers')
+        }
       }
     }
   }
 })
 
-test('enabling namespace replicates cores', async (t) => {
+test('enabling data sync replicates all cores', async (t) => {
   const {
     coreManagers: [cm1, cm2],
     peerSyncControllers: [psc1, psc2],
-  } = await testenv()
+  } = await testenv(CREATOR_CAPABILITIES)
 
-  const ACTIVE_NAMESPACES = /** @type {const} */ (['auth', 'config'])
+  psc1.enableDataSync()
+  psc2.enableDataSync()
 
-  for (const namespace of ACTIVE_NAMESPACES) {
-    psc1.enableNamespace(namespace)
-    psc2.enableNamespace(namespace)
+  const peerAddPromises = []
+  for (const ns of NAMESPACES) {
+    peerAddPromises.push(
+      once(cm1.getWriterCore(ns).core, 'peer-add'),
+      once(cm1.getWriterCore(ns).core, 'peer-add')
+    )
   }
+  await Promise.all(peerAddPromises)
 
-  // Wait to give cores a chance to connect
-  await setTimeout(200)
-
-  for (const namespace of NAMESPACES) {
-    const cm1NamespaceCores = cm1.getCores(namespace)
-    t.is(
-      cm1NamespaceCores.length,
-      ACTIVE_NAMESPACES.includes(namespace) ? 2 : 1,
-      'each namespace has one core'
-    )
-    const cm2NamespaceCores = cm2.getCores(namespace)
-    t.is(
-      cm2NamespaceCores.length,
-      ACTIVE_NAMESPACES.includes(namespace) ? 2 : 1,
-      'each namespace apart from auth has one core'
-    )
-    for (const { core } of [...cm1NamespaceCores, ...cm2NamespaceCores]) {
-      if (ACTIVE_NAMESPACES.includes(namespace)) {
-        t.is(core.peers.length, 1, 'enabled cores have one peer')
-      } else {
-        t.is(core.peers.length, 0, 'non-enabled cores have no peers')
+  for (const ns of NAMESPACES) {
+    for (const [i, cm] of [cm1, cm2].entries()) {
+      const nsCores = cm.getCores(ns)
+      t.is(nsCores.length, 2, `cm${i + 1}: namespace ${ns} has 2 cores now`)
+      for (const { core } of nsCores) {
+        t.is(
+          core.peers.length,
+          1,
+          `cm${i + 1}: ${ns} ${
+            core === cm.getWriterCore(ns).core ? 'own' : 'synced'
+          } core is connected`
+        )
       }
     }
   }
 })
 
-test('disabling namespace unreplicates cores', async (t) => {
+test('no sync capabilities === no namespaces sync apart from auth', async (t) => {
   const {
     coreManagers: [cm1, cm2],
     peerSyncControllers: [psc1, psc2],
-  } = await testenv()
+  } = await testenv(DEFAULT_CAPABILITIES[BLOCKED_ROLE_ID])
 
-  const ACTIVE_NAMESPACES = /** @type {const} */ (['auth', 'config'])
-
-  // enable all namespaces to start
-  for (const namespace of NAMESPACES) {
-    psc1.enableNamespace(namespace)
-    psc2.enableNamespace(namespace)
-  }
+  psc1.enableDataSync()
+  psc2.enableDataSync()
 
   // Wait to give cores a chance to connect
-  await setTimeout(200)
+  await setTimeout(500)
 
-  for (const namespace of NAMESPACES) {
-    const cm1NamespaceCores = cm1.getCores(namespace)
-    t.is(cm1NamespaceCores.length, 2, 'each namespace has two cores')
-    const cm2NamespaceCores = cm2.getCores(namespace)
-    t.is(cm2NamespaceCores.length, 2, 'each namespace has two cores')
-    for (const { core } of [...cm1NamespaceCores, ...cm2NamespaceCores]) {
-      t.is(core.peers.length, 1, 'all cores have two peers')
-    }
-  }
-
-  for (const namespace of NAMESPACES) {
-    if (ACTIVE_NAMESPACES.includes(namespace)) continue
-    psc1.disableNamespace(namespace)
-    psc2.disableNamespace(namespace)
-  }
-
-  await setTimeout(200)
-
-  for (const namespace of NAMESPACES) {
-    const cm1NamespaceCores = cm1.getCores(namespace)
-    const cm2NamespaceCores = cm2.getCores(namespace)
-    for (const { core } of [...cm1NamespaceCores, ...cm2NamespaceCores]) {
-      if (ACTIVE_NAMESPACES.includes(namespace)) {
-        t.is(core.peers.length, 1, 'enabled cores have one peer')
-      } else {
-        t.is(core.peers.length, 0, 'non-enabled cores have no peers')
+  for (const ns of NAMESPACES) {
+    for (const cm of [cm1, cm2]) {
+      const nsCores = cm.getCores(ns)
+      if (ns === 'auth') {
+        t.is(nsCores.length, 2, `all auth cores have been shared`)
+        // no guarantees about sharing of other cores yet
+      }
+      for (const { core } of nsCores) {
+        const isCreatorCore = core === cm.creatorCore
+        if (isCreatorCore) {
+          t.is(core.peers.length, 1, 'creator core remains connected')
+        } else {
+          t.is(core.peers.length, 0, 'core is disconnected')
+        }
       }
     }
   }
 })
 
-async function testenv() {
+/**
+ *
+ * @param {import('../../src/capabilities.js').Capability} cap
+ * @returns
+ */
+async function testenv(cap) {
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     KeyManager.generateProjectKeypair()
   const cm1 = await createCoreManager({ projectKey, projectSecretKey })
@@ -165,7 +157,7 @@ async function testenv() {
     // @ts-expect-error
     capabilities: {
       async getCapabilities() {
-        return CREATOR_CAPABILITIES
+        return cap
       },
     },
     peerId: stream1.noiseStream.remotePublicKey.toString('hex'),
@@ -177,7 +169,7 @@ async function testenv() {
     // @ts-expect-error
     capabilities: {
       async getCapabilities() {
-        return CREATOR_CAPABILITIES
+        return cap
       },
     },
     peerId: stream2.noiseStream.remotePublicKey.toString('hex'),
@@ -187,4 +179,17 @@ async function testenv() {
     peerSyncControllers: [psc1, psc2],
     coreManagers: [cm1, cm2],
   }
+}
+
+/**
+ * Helper for Typescript array.prototype.includes
+ *
+ * @template {U} T
+ * @template U
+ * @param {ReadonlyArray<T>} coll
+ * @param {U} el
+ * @returns {el is T}
+ */
+function includes(coll, el) {
+  return coll.includes(/** @type {T} */ (el))
 }
