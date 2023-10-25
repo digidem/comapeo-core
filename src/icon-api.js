@@ -63,7 +63,7 @@ export default class IconApi {
    * @param {number} [opts.pixelDensity]
    * @param {ValidMimeType} [opts.mimeType]
    */
-  async [kGetIcon]({ iconId, size, pixelDensity, mimeType = 'image/png' }) {
+  async [kGetIcon]({ iconId, size, pixelDensity, mimeType }) {
     const iconRecord = await this.#dataType.getByDocId(iconId)
     const iconVariant = this[kGetBestVariant](iconRecord.variants, {
       size,
@@ -99,7 +99,7 @@ export default class IconApi {
    * @param {number} [opts.pixelDensity]
    * @param {ValidMimeType} [opts.mimeType]
    **/
-  [kGetBestVariant](variants, { size, pixelDensity, mimeType }) {
+  [kGetBestVariant](variants, { size, pixelDensity, mimeType = 'image/png' }) {
     let variantsScore = []
     const matchingMimeType = variants.filter(
       (variant) => variant.mimeType === mimeType

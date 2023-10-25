@@ -5,7 +5,12 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'node:crypto'
 
-import IconApi, { kCreate, kGetIcon, kGetIconUrl } from '../src/icon-api.js'
+import IconApi, {
+  kCreate,
+  kGetIcon,
+  kGetIconUrl,
+  kGetBestVariant,
+} from '../src/icon-api.js'
 import { DataType } from '../src/datatype/index.js'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
@@ -47,7 +52,7 @@ const iconApi = new IconApi({
 })
 
 // eslint-disable-next-line no-unused-vars
-test('icon create and get', async (t) => {
+test('icon api - create and get with one variant', async (t) => {
   const iconDoc = await iconApi[kCreate]({
     name: 'myIcon',
     schemaName: 'icon',
@@ -65,7 +70,7 @@ test('icon create and get', async (t) => {
   t.alike(icon, expectedSmallIcon)
 })
 
-test(`icon create and fail to find variant with matching mimeType`, async (t) => {
+test(`icon api - create and fail to find variant with matching mimeType`, async (t) => {
   // const iconDoc = await iconApi[kCreate]({
   //   name: 'myIcon',
   //   schemaName: 'icon',
@@ -89,7 +94,7 @@ test(`icon create and fail to find variant with matching mimeType`, async (t) =>
   t.pass()
 })
 
-test('icon create and get with different variants', async (t) => {
+test('icon api - create and get with different variants', async (t) => {
   const iconDoc = await iconApi[kCreate]({
     name: 'myIcon',
     schemaName: 'icon',
@@ -121,7 +126,8 @@ test('icon create and get with different variants', async (t) => {
   })
   t.alike(icon, expectedLargeIcon)
 })
-test('icon create and get with variants, choosing the variant with more matching criteria', async (t) => {
+
+test('icon api - create and get with variants, choosing the variant with more matching criteria', async (t) => {
   const iconDoc = await iconApi[kCreate]({
     name: 'myIcon',
     schemaName: 'icon',
@@ -156,7 +162,7 @@ test('icon create and get with variants, choosing the variant with more matching
   t.alike(icon, expectedLargeIcon)
 })
 
-test('icon create and get with variants, choosing the first variant with the first best score', async (t) => {
+test('icon api - create and get with variants, choosing the first variant with the first best score', async (t) => {
   const iconDoc = await iconApi[kCreate]({
     name: 'myIcon',
     schemaName: 'icon',
@@ -191,7 +197,7 @@ test('icon create and get with variants, choosing the first variant with the fir
   t.alike(icon, expectedMediumIcon)
 })
 
-test(`getIconUrl, test matching url`, async (t) => {
+test(`icon api - getIconUrl, test matching url`, async (t) => {
   const iconDoc = await iconApi[kCreate]({
     name: 'myIcon',
     schemaName: 'icon',
@@ -214,4 +220,33 @@ test(`getIconUrl, test matching url`, async (t) => {
     pixelDensity: 1,
   })
   t.is(url, expectedUrl)
+})
+
+test(`icon api - getBestVariant`, async (t) => {
+  const variants = [
+    {
+      size: 'small',
+      pixelDensity: 1,
+      mimeType: 'image/png',
+      blob: Buffer.from(expectedSmallIcon),
+    },
+    {
+      size: 'medium',
+      pixelDensity: 1,
+      mimeType: 'image/svg+xml',
+      blob: Buffer.from(expectedMediumIcon),
+    },
+    {
+      size: 'large',
+      pixelDensity: 2,
+      mimeType: 'image/png',
+      blob: Buffer.from(expectedLargeIcon),
+    },
+  ]
+  const expectedVariant = variants[0]
+  const variant = iconApi[kGetBestVariant](variants, {
+    size: 'small',
+    pixelDensity: 2,
+  })
+  t.is(variant, expectedVariant)
 })
