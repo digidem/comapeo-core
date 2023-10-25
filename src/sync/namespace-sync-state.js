@@ -65,7 +65,7 @@ export class NamespaceSyncState {
         coreState.remoteStates
       )) {
         if (!(peerId in state.remoteStates)) {
-          state.remoteStates[peerId] = createState(peerCoreState.status)
+          state.remoteStates[peerId] = peerCoreState
         } else {
           mutatingAddPeerState(state.remoteStates[peerId], peerCoreState)
         }
