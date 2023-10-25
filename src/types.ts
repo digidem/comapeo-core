@@ -171,7 +171,10 @@ export type Core = Hypercore
 export { Duplex }
 
 export { NoiseStream }
-export type ProtocolStream = NoiseStream & { userData: Protomux }
+export type ProtocolStream = Omit<NoiseStream, 'userData'> & {
+  userData: Protomux
+}
+export type ReplicationStream = Duplex & { noiseStream: ProtocolStream }
 
 // Unsafe type for Object.entries - you must be sure that the object does not
 // have additional properties that are not defined in the type, e.g. when using

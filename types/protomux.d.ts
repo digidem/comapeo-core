@@ -1,5 +1,6 @@
 declare module 'protomux' {
   import { Duplex } from 'streamx'
+  import { Duplex as NodeDuplex } from 'stream'
 
   interface PreEncodingState {
     buffer: null
@@ -43,11 +44,11 @@ declare module 'protomux' {
     addMessage(opts?: MessageOptions): Message
   }
 
-  class Protomux {
-    constructor(stream: Duplex)
+  class Protomux<TStream extends Duplex | NodeDuplex = Duplex> {
+    constructor(stream: TStream)
     isProtomux: true
-    stream: Duplex
-    static from(stream: Duplex): Protomux
+    stream: TStream
+    static from(stream: TStream): Protomux<TStream>
     static isProtomux(mux: unknown): mux is Protomux
     cork(): void
     uncork(): void

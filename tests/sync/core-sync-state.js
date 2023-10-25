@@ -39,9 +39,27 @@ const scenarios = [
       coreLength: 4,
       localState: { want: 0, have: 3, wanted: 2, missing: 1 },
       remoteStates: {
-        peer0: { want: 1, have: 2, wanted: 1, missing: 1, connected: false },
-        peer1: { want: 1, have: 2, wanted: 1, missing: 1, connected: false },
-        peer2: { want: 2, have: 1, wanted: 0, missing: 1, connected: false },
+        peer0: {
+          want: 1,
+          have: 2,
+          wanted: 1,
+          missing: 1,
+          status: 'disconnected',
+        },
+        peer1: {
+          want: 1,
+          have: 2,
+          wanted: 1,
+          missing: 1,
+          status: 'disconnected',
+        },
+        peer2: {
+          want: 2,
+          have: 1,
+          wanted: 0,
+          missing: 1,
+          status: 'disconnected',
+        },
       },
     },
   },
@@ -56,8 +74,20 @@ const scenarios = [
       coreLength: 4,
       localState: { want: 0, have: 0, wanted: 0, missing: 4 },
       remoteStates: {
-        peer0: { want: 0, have: 0, wanted: 0, missing: 4, connected: false },
-        peer1: { want: 0, have: 0, wanted: 0, missing: 4, connected: false },
+        peer0: {
+          want: 0,
+          have: 0,
+          wanted: 0,
+          missing: 4,
+          status: 'disconnected',
+        },
+        peer1: {
+          want: 0,
+          have: 0,
+          wanted: 0,
+          missing: 4,
+          status: 'disconnected',
+        },
       },
     },
   },
@@ -66,13 +96,13 @@ const scenarios = [
     state: {
       length: 3,
       localState: { have: 0b111 },
-      remoteStates: [{ have: 0b001, want: 0b011, connected: true }],
+      remoteStates: [{ have: 0b001, want: 0b011, status: 'connected' }],
     },
     expected: {
       coreLength: 3,
       localState: { want: 0, have: 3, wanted: 1, missing: 0 },
       remoteStates: {
-        peer0: { want: 1, have: 1, wanted: 0, missing: 0, connected: true },
+        peer0: { want: 1, have: 1, wanted: 0, missing: 0, status: 'connected' },
       },
     },
   },
@@ -87,7 +117,13 @@ const scenarios = [
       coreLength: 3,
       localState: { want: 0, have: 3, wanted: 1, missing: 0 },
       remoteStates: {
-        peer0: { want: 1, have: 1, wanted: 0, missing: 0, connected: false },
+        peer0: {
+          want: 1,
+          have: 1,
+          wanted: 0,
+          missing: 0,
+          status: 'disconnected',
+        },
       },
     },
   },
@@ -102,7 +138,13 @@ const scenarios = [
       coreLength: 3,
       localState: { want: 0, have: 3, wanted: 1, missing: 0 },
       remoteStates: {
-        peer0: { want: 1, have: 2, wanted: 0, missing: 0, connected: false },
+        peer0: {
+          want: 1,
+          have: 2,
+          wanted: 0,
+          missing: 0,
+          status: 'disconnected',
+        },
       },
     },
   },
@@ -117,7 +159,13 @@ const scenarios = [
       coreLength: 3,
       localState: { want: 0, have: 3, wanted: 0, missing: 0 },
       remoteStates: {
-        peer0: { want: 0, have: 3, wanted: 0, missing: 0, connected: false },
+        peer0: {
+          want: 0,
+          have: 3,
+          wanted: 0,
+          missing: 0,
+          status: 'disconnected',
+        },
       },
     },
   },
@@ -136,9 +184,27 @@ const scenarios = [
       coreLength: 72,
       localState: { want: 0, have: 50, wanted: 15, missing: 22 },
       remoteStates: {
-        peer0: { want: 10, have: 40, wanted: 5, missing: 22, connected: false },
-        peer1: { want: 5, have: 40, wanted: 10, missing: 0, connected: false },
-        peer2: { want: 5, have: 40, wanted: 10, missing: 0, connected: false },
+        peer0: {
+          want: 10,
+          have: 40,
+          wanted: 5,
+          missing: 22,
+          status: 'disconnected',
+        },
+        peer1: {
+          want: 5,
+          have: 40,
+          wanted: 10,
+          missing: 0,
+          status: 'disconnected',
+        },
+        peer2: {
+          want: 5,
+          have: 40,
+          wanted: 10,
+          missing: 0,
+          status: 'disconnected',
+        },
       },
     },
   },
@@ -153,8 +219,20 @@ const scenarios = [
       coreLength: 2,
       localState: { want: 0, have: 2, wanted: 2, missing: 0 },
       remoteStates: {
-        peer0: { want: 1, have: 0, wanted: 0, missing: 0, connected: false },
-        peer1: { want: 2, have: 0, wanted: 0, missing: 0, connected: false },
+        peer0: {
+          want: 1,
+          have: 0,
+          wanted: 0,
+          missing: 0,
+          status: 'disconnected',
+        },
+        peer1: {
+          want: 2,
+          have: 0,
+          wanted: 0,
+          missing: 0,
+          status: 'disconnected',
+        },
       },
     },
   },
@@ -198,7 +276,7 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
         have: 1,
         wanted: 1,
         missing: BITS_PER_PAGE - 1,
-        connected: false,
+        status: 'disconnected',
       },
     },
   }
@@ -219,6 +297,7 @@ test('CoreReplicationState', async (t) => {
     seed.write('local')
     const kp1 = NoiseSecretStream.keyPair(seed)
     const peerIds = new Map()
+    /** @type {Map<string, 'connected' | 'disconnected'>} */
     const connectedState = new Map()
     for (const [
       index,
@@ -228,13 +307,13 @@ test('CoreReplicationState', async (t) => {
       const kp2 = NoiseSecretStream.keyPair(seed)
       const peerId = kp2.publicKey.toString('hex')
       peerIds.set('peer' + index, peerId)
-      connectedState.set(peerId, false)
+      connectedState.set(peerId, 'disconnected')
 
       // We unit test deriveState with no bitfields, but we need something here
       // for things to work
       crs.insertPreHaves(peerId, 0, createUint32Array(prehave || 0))
       if (typeof have !== 'number' && typeof want !== 'number') continue
-      connectedState.set(peerId, true)
+      connectedState.set(peerId, 'connected')
       const core = await createCore(localCore.key)
       setPeerWants(crs, peerId, want)
       replicate(localCore, core, { kp1, kp2 })
@@ -248,7 +327,7 @@ test('CoreReplicationState', async (t) => {
       const peerId = peerIds.get(key)
       expectedRemoteStates[peerId] = {
         ...value,
-        connected: connectedState.get(peerId),
+        status: connectedState.get(peerId),
       }
     }
     await updateWithTimeout(emitter, 100)
@@ -282,9 +361,9 @@ function slowBitCount(n) {
 
 /**
  *
- * @param {{ have?: number | bigint, prehave?: number, want?: number | bigint, connected?: boolean }} param0
+ * @param {{ have?: number | bigint, prehave?: number, want?: number | bigint, status?: import('../../src/sync/core-sync-state.js').PeerCoreState['status'] }} param0
  */
-function createState({ have, prehave, want, connected }) {
+function createState({ have, prehave, want, status }) {
   const peerState = new PeerState()
   if (prehave) {
     const bitfield = createUint32Array(prehave)
@@ -303,7 +382,7 @@ function createState({ have, prehave, want, connected }) {
       }
     }
   }
-  if (typeof connected === 'boolean') peerState.connected = connected
+  if (typeof status === 'string') peerState.status = status
   return peerState
 }
 

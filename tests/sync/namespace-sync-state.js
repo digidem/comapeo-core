@@ -59,7 +59,7 @@ test('sync cores in a namespace', async function (t) {
             wanted: 0,
             have: 30,
             missing: 10,
-            connected: true,
+            status: 'connected',
           },
         }
         t.alike(state.remoteStates, expected, 'syncState1 is synced')
@@ -86,7 +86,7 @@ test('sync cores in a namespace', async function (t) {
             wanted: 0,
             have: 30,
             missing: 10,
-            connected: true,
+            status: 'connected',
           },
         }
         t.alike(state.remoteStates, expected, 'syncState2 is synced')

@@ -55,7 +55,7 @@ export class NamespaceSyncState {
     if (this.#cachedState) return this.#cachedState
     /** @type {SyncState} */
     const state = {
-      localState: { want: 0, have: 0, wanted: 0, missing: 0 },
+      localState: createState(),
       remoteStates: {},
     }
     for (const css of this.#coreStates.values()) {
@@ -65,9 +65,10 @@ export class NamespaceSyncState {
         coreState.remoteStates
       )) {
         if (!(peerId in state.remoteStates)) {
-          state.remoteStates[peerId] = createPeerState(peerCoreState.connected)
+          state.remoteStates[peerId] = peerCoreState
+        } else {
+          mutatingAddPeerState(state.remoteStates[peerId], peerCoreState)
         }
-        mutatingAddPeerState(state.remoteStates[peerId], peerCoreState)
       }
     }
     this.#cachedState = state
@@ -108,9 +109,26 @@ export class NamespaceSyncState {
   }
 }
 
-/** @returns {SyncState['remoteStates'][string]} */
-function createPeerState(connected = false) {
-  return { want: 0, have: 0, wanted: 0, missing: 0, connected }
+/**
+ * @overload
+ * @returns {SyncState['localState']}
+ */
+
+/**
+ * @overload
+ * @param {import('./core-sync-state.js').PeerCoreState['status']} status
+ * @returns {import('./core-sync-state.js').PeerCoreState}
+ */
+
+/**
+ * @param {import('./core-sync-state.js').PeerCoreState['status']} [status]
+ */
+export function createState(status) {
+  if (status) {
+    return { want: 0, have: 0, wanted: 0, missing: 0, status }
+  } else {
+    return { want: 0, have: 0, wanted: 0, missing: 0 }
+  }
 }
 
 /**
@@ -122,24 +140,31 @@ function createPeerState(connected = false) {
 
 /**
  * @overload
- * @param {SyncState['remoteStates'][string]} accumulator
- * @param {SyncState['remoteStates'][string]} currentValue
- * @returns {SyncState['remoteStates'][string]}
+ * @param {import('./core-sync-state.js').PeerCoreState} accumulator
+ * @param {import('./core-sync-state.js').PeerCoreState} currentValue
+ * @returns {import('./core-sync-state.js').PeerCoreState}
  */
 
 /**
  * Adds peer state in `currentValue` to peer state in `accumulator`
  *
- * @param {SyncState['remoteStates'][string]} accumulator
- * @param {SyncState['remoteStates'][string]} currentValue
+ * @param {import('./core-sync-state.js').PeerCoreState} accumulator
+ * @param {import('./core-sync-state.js').PeerCoreState} currentValue
  */
 function mutatingAddPeerState(accumulator, currentValue) {
   accumulator.have += currentValue.have
   accumulator.want += currentValue.want
   accumulator.wanted += currentValue.wanted
   accumulator.missing += currentValue.missing
-  if ('connected' in accumulator) {
-    accumulator.connected = accumulator.connected && currentValue.connected
+  if ('status' in accumulator && accumulator.status !== currentValue.status) {
+    if (currentValue.status === 'disconnected') {
+      accumulator.status === 'disconnected'
+    } else if (
+      currentValue.status === 'connecting' &&
+      accumulator.status === 'connected'
+    ) {
+      accumulator.status = 'connecting'
+    }
   }
   return accumulator
 }
