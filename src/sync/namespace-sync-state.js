@@ -55,7 +55,7 @@ export class NamespaceSyncState {
     if (this.#cachedState) return this.#cachedState
     /** @type {SyncState} */
     const state = {
-      localState: { want: 0, have: 0, wanted: 0, missing: 0 },
+      localState: createState(),
       remoteStates: {},
     }
     for (const css of this.#coreStates.values()) {
@@ -65,7 +65,7 @@ export class NamespaceSyncState {
         coreState.remoteStates
       )) {
         if (!(peerId in state.remoteStates)) {
-          state.remoteStates[peerId] = createPeerState(peerCoreState.status)
+          state.remoteStates[peerId] = createState(peerCoreState.status)
         } else {
           mutatingAddPeerState(state.remoteStates[peerId], peerCoreState)
         }
@@ -110,10 +110,26 @@ export class NamespaceSyncState {
 }
 
 /**
+ * @overload
+ * @returns {SyncState['localState']}
+ */
+
+/**
+ * @overload
  * @param {import('./core-sync-state.js').PeerCoreState['status']} status
- * @returns {import('./core-sync-state.js').PeerCoreState} */
-function createPeerState(status = 'disconnected') {
-  return { want: 0, have: 0, wanted: 0, missing: 0, status }
+ * @returns {import('./core-sync-state.js').PeerCoreState}
+ */
+
+/**
+ * @param {import('./core-sync-state.js').PeerCoreState['status']} [status]
+ * @returns
+ */
+export function createState(status) {
+  if (status) {
+    return { want: 0, have: 0, wanted: 0, missing: 0, status }
+  } else {
+    return { want: 0, have: 0, wanted: 0, missing: 0 }
+  }
 }
 
 /**
