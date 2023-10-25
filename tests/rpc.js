@@ -11,6 +11,7 @@ import { once } from 'events'
 import { Duplex } from 'streamx'
 import { replicate } from './helpers/rpc.js'
 import { randomBytes } from 'node:crypto'
+import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 test('Send invite and accept', async (t) => {
   t.plan(3)
@@ -37,6 +38,34 @@ test('Send invite and accept', async (t) => {
   })
 
   replicate(r1, r2)
+})
+
+test('Send invite immediately', async (t) => {
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  const projectKey = Buffer.allocUnsafe(32).fill(0)
+
+  const kp1 = NoiseSecretStream.keyPair()
+  const kp2 = NoiseSecretStream.keyPair()
+
+  replicate(r1, r2, { kp1, kp2 })
+
+  const responsePromise = r1.invite(kp2.publicKey.toString('hex'), {
+    projectKey,
+    encryptionKeys: { auth: randomBytes(32) },
+  })
+
+  const [peerId, invite] = await once(r2, 'invite')
+
+  t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
+
+  r2.inviteResponse(peerId, {
+    projectKey: invite.projectKey,
+    decision: MapeoRPC.InviteResponse.ACCEPT,
+  })
+
+  t.is(await responsePromise, MapeoRPC.InviteResponse.ACCEPT)
 })
 
 test('Send invite and reject', async (t) => {
@@ -431,6 +460,25 @@ test('Send device info', async (t) => {
   })
 
   replicate(r1, r2)
+})
+
+test('Send device info immediately', async (t) => {
+  const r1 = new MapeoRPC()
+  const r2 = new MapeoRPC()
+
+  /** @type {import('../src/generated/rpc.js').DeviceInfo} */
+  const expectedDeviceInfo = { name: 'mapeo' }
+
+  const kp1 = NoiseSecretStream.keyPair()
+  const kp2 = NoiseSecretStream.keyPair()
+
+  replicate(r1, r2, { kp1, kp2 })
+
+  r1.sendDeviceInfo(kp2.publicKey.toString('hex'), expectedDeviceInfo)
+
+  const [{ deviceId, ...deviceInfo }] = await once(r2, 'device-info')
+  t.ok(deviceId)
+  t.alike(deviceInfo, expectedDeviceInfo)
 })
 
 test('Reconnect peer and send device info', async (t) => {

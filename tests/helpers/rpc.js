@@ -1,9 +1,13 @@
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 /**
+ * @typedef {ReturnType<import('@hyperswarm/secret-stream').keyPair>} KeyPair
+ */
+
+/**
  * @param {import('../../src/rpc/index.js').MapeoRPC} rpc1
  * @param {import('../../src/rpc/index.js').MapeoRPC} rpc2
- * @param { {kp1?: import('@hyperswarm/secret-stream'), kp2?: import('@hyperswarm/secret-stream')} } [keyPairs]
+ * @param { {kp1?: KeyPair, kp2?: KeyPair} } [keyPairs]
  * @returns {() => Promise<[void, void]>}
  */
 export function replicate(
@@ -25,9 +29,7 @@ export function replicate(
   // @ts-expect-error
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
-  // @ts-expect-error
   rpc1.connect(n1)
-  // @ts-expect-error
   rpc2.connect(n2)
 
   return async function destroy() {
