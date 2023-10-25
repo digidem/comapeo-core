@@ -99,7 +99,6 @@
     "streamx": "^2.15.1",
     "tempy": "^3.1.0",
     "ts-proto": "^1.156.7",
-    "type-fest": "^3.10.0",
     "typedoc": "^0.24.8",
     "typedoc-plugin-markdown": "^3.15.3",
     "typescript": "^5.1.6"
@@ -145,6 +144,7 @@
     "sub-encoder": "^2.1.1",
     "throttle-debounce": "^5.0.0",
     "tiny-typed-emitter": "^2.1.0",
+    "type-fest": "^4.5.0",
     "varint": "^6.0.0",
     "z32": "^1.0.1"
   }
