@@ -263,7 +263,8 @@ export class LocalPeers extends TypedEmitter {
   /**
    * Connect to a peer over an existing NoiseSecretStream
    *
-   * @param {import('../types.js').NoiseStream<any> | import('../types.js').ProtocolStream} stream a NoiseSecretStream from @hyperswarm/secret-stream
+   * @param {import('../types.js').NoiseStream<any>} stream a NoiseSecretStream from @hyperswarm/secret-stream
+   * @returns {import('../types.js').ReplicationStream}
    */
   connect(stream) {
     if (!stream.noiseStream) throw new Error('Invalid stream')
@@ -271,6 +272,7 @@ export class LocalPeers extends TypedEmitter {
       stream.userData && Protomux.isProtomux(stream.userData)
         ? stream.userData
         : Protomux.from(stream)
+    stream.userData = protomux
     this.#opening.add(stream.opened)
 
     // No need to connect error handler to stream because Protomux does this,
@@ -315,7 +317,7 @@ export class LocalPeers extends TypedEmitter {
       // Do not emit peers now - will emit when connected
     })
 
-    return stream
+    return stream.rawStream
   }
 
   /** @param {Buffer} publicKey */
