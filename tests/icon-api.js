@@ -1,3 +1,4 @@
+// @ts-check
 import test from 'brittle'
 import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'
@@ -5,12 +6,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'node:crypto'
 
-import IconApi, {
-  kCreate,
-  kGetIcon,
-  kGetIconUrl,
-  kGetBestVariant,
-} from '../src/icon-api.js'
+import IconApi, { kGetIcon, getBestVariant } from '../src/icon-api.js'
 import { DataType } from '../src/datatype/index.js'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
@@ -53,15 +49,14 @@ const iconApi = new IconApi({
 
 // eslint-disable-next-line no-unused-vars
 test('icon api - create and get with one variant', async (t) => {
-  const iconDoc = await iconApi[kCreate]({
+  const iconDoc = await iconApi.create({
     name: 'myIcon',
-    schemaName: 'icon',
     variants: [
       {
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: Buffer.from(expectedSmallIcon),
+        blob: expectedSmallIcon,
       },
     ],
   })
@@ -71,33 +66,29 @@ test('icon api - create and get with one variant', async (t) => {
 })
 
 test(`icon api - create and fail to find variant with matching mimeType`, async (t) => {
-  // const iconDoc = await iconApi[kCreate]({
-  //   name: 'myIcon',
-  //   schemaName: 'icon',
-  //   variants: [
-  //     {
-  //       size: 'small',
-  //       pixelDensity: 1,
-  //       mimeType: 'image/svg+xml',
-  //       blob: Buffer.from(expectedSmallIcon),
-  //     },
-  //   ],
-  // })
+  const iconDoc = await iconApi.create({
+    name: 'myIcon',
+    variants: [
+      {
+        size: 'small',
+        pixelDensity: 1,
+        mimeType: 'image/svg+xml',
+        blob: Buffer.from(expectedSmallIcon),
+      },
+    ],
+  })
 
-  // t.exception(
-  //   await iconApi[kGetIcon]({
-  //     iconId: iconDoc.docId,
-  //     mimeType: 'image/png',
-  //   }),
-  //   'no matching mimeType for icon'
-  // )
-  t.pass()
+  await t.exception(async () => {
+    await iconApi[kGetIcon]({
+      iconId: iconDoc.docId,
+      mimeType: 'image/png',
+    })
+  }, 'no matching mimeType for icon')
 })
 
 test('icon api - create and get with different variants', async (t) => {
-  const iconDoc = await iconApi[kCreate]({
+  const iconDoc = await iconApi.create({
     name: 'myIcon',
-    schemaName: 'icon',
     variants: [
       {
         size: 'small',
@@ -128,27 +119,26 @@ test('icon api - create and get with different variants', async (t) => {
 })
 
 test('icon api - create and get with variants, choosing the variant with more matching criteria', async (t) => {
-  const iconDoc = await iconApi[kCreate]({
+  const iconDoc = await iconApi.create({
     name: 'myIcon',
-    schemaName: 'icon',
     variants: [
       {
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: Buffer.from(expectedSmallIcon),
+        blob: expectedSmallIcon,
       },
       {
         size: 'medium',
         pixelDensity: 1,
         mimeType: 'image/svg+xml',
-        blob: Buffer.from(expectedMediumIcon),
+        blob: expectedMediumIcon,
       },
       {
         size: 'large',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: Buffer.from(expectedLargeIcon),
+        blob: expectedLargeIcon,
       },
     ],
   })
@@ -163,27 +153,26 @@ test('icon api - create and get with variants, choosing the variant with more ma
 })
 
 test('icon api - create and get with variants, choosing the first variant with the first best score', async (t) => {
-  const iconDoc = await iconApi[kCreate]({
+  const iconDoc = await iconApi.create({
     name: 'myIcon',
-    schemaName: 'icon',
     variants: [
       {
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: Buffer.from(expectedSmallIcon),
+        blob: expectedSmallIcon,
       },
       {
         size: 'medium',
         pixelDensity: 1,
         mimeType: 'image/svg+xml',
-        blob: Buffer.from(expectedMediumIcon),
+        blob: expectedMediumIcon,
       },
       {
         size: 'large',
         pixelDensity: 2,
         mimeType: 'image/png',
-        blob: Buffer.from(expectedLargeIcon),
+        blob: expectedLargeIcon,
       },
     ],
   })
@@ -198,15 +187,14 @@ test('icon api - create and get with variants, choosing the first variant with t
 })
 
 test(`icon api - getIconUrl, test matching url`, async (t) => {
-  const iconDoc = await iconApi[kCreate]({
+  const iconDoc = await iconApi.create({
     name: 'myIcon',
-    schemaName: 'icon',
     variants: [
       {
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: Buffer.from(expectedSmallIcon),
+        blob: expectedSmallIcon,
       },
     ],
   })
@@ -214,7 +202,7 @@ test(`icon api - getIconUrl, test matching url`, async (t) => {
   const size = 'small'
   const pixelDensity = 1
   const expectedUrl = `/${projectId}/${iconDoc.docId}/${size}/${pixelDensity}`
-  const url = await iconApi[kGetIconUrl]({
+  const url = await iconApi.getIconUrl({
     iconId: iconDoc.docId,
     size: 'small',
     pixelDensity: 1,
@@ -223,28 +211,30 @@ test(`icon api - getIconUrl, test matching url`, async (t) => {
 })
 
 test(`icon api - getBestVariant`, async (t) => {
+  /** @type {import('@mapeo/schema').IconValue['variants']} variants
+   */
   const variants = [
     {
       size: 'small',
       pixelDensity: 1,
       mimeType: 'image/png',
-      blob: Buffer.from(expectedSmallIcon),
+      blobVersionId: expectedSmallIcon.toString('hex'),
     },
     {
       size: 'medium',
       pixelDensity: 1,
       mimeType: 'image/svg+xml',
-      blob: Buffer.from(expectedMediumIcon),
+      blobVersionId: expectedMediumIcon.toString('hex'),
     },
     {
       size: 'large',
       pixelDensity: 2,
       mimeType: 'image/png',
-      blob: Buffer.from(expectedLargeIcon),
+      blobVersionId: expectedLargeIcon.toString('hex'),
     },
   ]
   const expectedVariant = variants[0]
-  const variant = iconApi[kGetBestVariant](variants, {
+  const variant = getBestVariant(variants, {
     size: 'small',
     pixelDensity: 2,
   })
