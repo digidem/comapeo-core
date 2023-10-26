@@ -12,6 +12,7 @@ import { Duplex } from 'streamx'
 import { replicate } from './helpers/rpc.js'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
+import Protomux from 'protomux'
 
 test('Send invite and accept', async (t) => {
   t.plan(3)
@@ -520,4 +521,13 @@ test('Reconnect peer and send device info', async (t) => {
 
   const [r2Peers] = await once(r2, 'peers')
   t.is(r2Peers[0].name, expectedDeviceInfo.name)
+})
+
+test('connected peer has protomux instance', async (t) => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+  replicate(r1, r2)
+  const [[peer]] = await once(r1, 'peers')
+  t.is(peer.status, 'connected')
+  t.ok(Protomux.isProtomux(peer.protomux))
 })

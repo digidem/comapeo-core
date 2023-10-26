@@ -30,7 +30,7 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
  * @property {string | undefined} name
  */
 /** @typedef {PeerInfoBase & { status: 'connecting' }} PeerInfoConnecting */
-/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number }} PeerInfoConnected */
+/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: Protomux }} PeerInfoConnected */
 /** @typedef {PeerInfoBase & { status: 'disconnected', disconnectedAt: number }} PeerInfoDisconnected */
 
 /** @typedef {PeerInfoConnecting | PeerInfoConnected | PeerInfoDisconnected} PeerInfoInternal */
@@ -57,6 +57,8 @@ class Peer {
   #name
   #connectedAt = 0
   #disconnectedAt = 0
+  /** @type {Protomux} */
+  #protomux
 
   /**
    * @param {object} options
@@ -84,6 +86,7 @@ class Peer {
           deviceId,
           name: this.#name,
           connectedAt: this.#connectedAt,
+          protomux: this.#protomux,
         }
       case 'disconnected':
         return {
@@ -100,38 +103,32 @@ class Peer {
       }
     }
   }
-  /**
-   * Poor-man's finite state machine. Rather than a `setState` method, only
-   * allows specific transitions between states.
-   *
-   * @param {'connect' | 'disconnect'} type
-   */
-  action(type) {
-    switch (type) {
-      case 'connect':
-        /* c8 ignore next 3 */
-        if (this.#state !== 'connecting') {
-          return // TODO: report error - this should not happen
-        }
-        this.#state = 'connected'
-        this.#connectedAt = Date.now()
-        this.#connected.resolve()
-        break
-      case 'disconnect':
-        /* c8 ignore next */
-        if (this.#state === 'disconnected') return
-        this.#state = 'disconnected'
-        this.#disconnectedAt = Date.now()
-        // Can just resolve this rather than reject, because #assertConnected will throw the error
-        this.#connected.resolve()
-        for (const pending of this.pendingInvites.values()) {
-          for (const { reject } of pending) {
-            reject(new PeerDisconnectedError())
-          }
-        }
-        this.pendingInvites.clear()
-        break
+  /** @param {Protomux} protomux */
+  connect(protomux) {
+    this.#protomux = protomux
+    /* c8 ignore next 3 */
+    if (this.#state !== 'connecting') {
+      return // TODO: report error - this should not happen
     }
+    this.#state = 'connected'
+    this.#connectedAt = Date.now()
+    this.#connected.resolve()
+  }
+  disconnect() {
+    // @ts-ignore - easier to ignore this than handle this for TS - avoids holding a reference to old Protomux instances
+    this.#protomux = undefined
+    /* c8 ignore next */
+    if (this.#state === 'disconnected') return
+    this.#state = 'disconnected'
+    this.#disconnectedAt = Date.now()
+    // Can just resolve this rather than reject, because #assertConnected will throw the error
+    this.#connected.resolve()
+    for (const pending of this.pendingInvites.values()) {
+      for (const { reject } of pending) {
+        reject(new PeerDisconnectedError())
+      }
+    }
+    this.pendingInvites.clear()
   }
   /** @param {InviteWithKeys} invite */
   async sendInvite(invite) {
@@ -301,7 +298,7 @@ export class LocalPeers extends TypedEmitter {
         userData: null,
         protocol: PROTOCOL_NAME,
         messages,
-        onopen: this.#openPeer.bind(this, remotePublicKey),
+        onopen: this.#openPeer.bind(this, remotePublicKey, protomux),
         onclose: this.#closePeer.bind(this, remotePublicKey),
       })
       channel.open()
@@ -310,7 +307,7 @@ export class LocalPeers extends TypedEmitter {
       const existingPeer = this.#peers.get(peerId)
       /* c8 ignore next 3 */
       if (existingPeer && existingPeer.info.status !== 'disconnected') {
-        existingPeer.action('disconnect') // Should not happen, but in case
+        existingPeer.disconnect() // Should not happen, but in case
       }
       const peer = new Peer({ publicKey: remotePublicKey, channel })
       this.#peers.set(peerId, peer)
@@ -320,17 +317,18 @@ export class LocalPeers extends TypedEmitter {
     return stream.rawStream
   }
 
-  /** @param {Buffer} publicKey */
-  #openPeer(publicKey) {
+  /**
+   * @param {Buffer} publicKey
+   * @param {Protomux} protomux
+   */
+  #openPeer(publicKey, protomux) {
     const peerId = keyToId(publicKey)
     const peer = this.#peers.get(peerId)
     /* c8 ignore next */
     if (!peer) return // TODO: report error - this should not happen
-    // No-op if no change in state
-    /* c8 ignore next */
-    if (peer.info.status === 'connected') return // TODO: report error - this should not happen
-    peer.action('connect')
-    this.#emitPeers()
+    const wasConnected = peer.info.status === 'connected'
+    peer.connect(protomux)
+    if (!wasConnected) this.#emitPeers()
   }
 
   /** @param {Buffer} publicKey */
@@ -343,7 +341,7 @@ export class LocalPeers extends TypedEmitter {
     /* c8 ignore next */
     if (peer.info.status === 'disconnected') return
     // TODO: Track reasons for closing
-    peer.action('disconnect')
+    peer.disconnect()
     this.#emitPeers()
   }
 
