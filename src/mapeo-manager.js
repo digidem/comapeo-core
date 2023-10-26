@@ -17,7 +17,6 @@ import { ProjectKeys } from './generated/keys.js'
 import {
   deNullify,
   getDeviceId,
-  keyToId,
   projectIdToNonce,
   projectKeyToId,
   projectKeyToPublicId,
@@ -25,7 +24,6 @@ import {
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
-import { LocalDiscovery } from './discovery/local-discovery.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -52,7 +50,6 @@ export class MapeoManager {
   #deviceId
   #rpc
   #invite
-  #localDiscovery
 
   /**
    * @param {Object} opts
@@ -106,17 +103,6 @@ export class MapeoManager {
     } else {
       this.#coreStorage = coreStorage
     }
-
-    this.#localDiscovery = new LocalDiscovery({
-      identityKeypair: this.#keyManager.getIdentityKeypair(),
-    })
-
-    this.#localDiscovery.on('connection', (connection) => {
-      this.#handleDiscoveryConnection(connection).catch((e) => {
-        // Ignore errors here for now
-        console.error('Error handling discovery connection', e)
-      })
-    })
   }
 
   /**
@@ -394,18 +380,6 @@ export class MapeoManager {
     }
 
     return projectPublicId
-  }
-
-  /**
-   * @param {import('./discovery/local-discovery.js').OpenedNoiseStream} connection
-   */
-  async #handleDiscoveryConnection(connection) {
-    const peerId = keyToId(connection.remotePublicKey)
-    this.#rpc.connect(connection)
-    const { name } = await this.getDeviceInfo()
-    if (name) {
-      this.#rpc.sendDeviceInfo(peerId, { name })
-    }
   }
 
   /**
