@@ -179,10 +179,6 @@ export class LocalPeers extends TypedEmitter {
   /** @type {Set<Promise<any>>} */
   #opening = new Set()
 
-  constructor() {
-    super()
-  }
-
   static InviteResponse = InviteResponse_Decision
 
   /**
