@@ -235,15 +235,10 @@ export class MapeoManager {
     })
 
     // 4. Create MapeoProject instance
-    const project = new MapeoProject({
-      ...this.#projectStorage(projectId),
+    const project = this.#getProjectInstance({
       encryptionKeys,
-      keyManager: this.#keyManager,
       projectKey: projectKeypair.publicKey,
       projectSecretKey: projectKeypair.secretKey,
-      sharedDb: this.#db,
-      sharedIndexWriter: this.#projectSettingsIndexWriter,
-      rpc: this.#localPeers,
     })
 
     // 5. Write project name and any other relevant metadata to project instance
@@ -293,19 +288,25 @@ export class MapeoManager {
       projectId
     )
 
-    const project = new MapeoProject({
-      ...this.#projectStorage(projectId),
-      ...projectKeys,
-      keyManager: this.#keyManager,
-      sharedDb: this.#db,
-      sharedIndexWriter: this.#projectSettingsIndexWriter,
-      rpc: this.#localPeers,
-    })
+    const project = this.#getProjectInstance(projectKeys)
 
     // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectPublicId, project)
 
     return project
+  }
+
+  /** @param {ProjectKeys} projectKeys */
+  #getProjectInstance(projectKeys) {
+    const projectId = keyToId(projectKeys.projectKey)
+    return new MapeoProject({
+      ...this.#projectStorage(projectId),
+      ...projectKeys,
+      keyManager: this.#keyManager,
+      sharedDb: this.#db,
+      sharedIndexWriter: this.#projectSettingsIndexWriter,
+      localPeers: this.#localPeers,
+    })
   }
 
   /**

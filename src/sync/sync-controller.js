@@ -1,6 +1,4 @@
-import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
-import Protomux from 'protomux'
 import { SyncState } from './sync-state.js'
 import { PeerSyncController } from './peer-sync-controller.js'
 
@@ -8,7 +6,7 @@ export class SyncController extends TypedEmitter {
   #syncState
   #coreManager
   #capabilities
-  /** @type {Map<Protomux, PeerSyncController>} */
+  /** @type {Map<import('protomux'), PeerSyncController>} */
   #peerSyncControllers = new Map()
 
   /**
@@ -30,35 +28,10 @@ export class SyncController extends TypedEmitter {
   }
 
   /**
-   * @param {Exclude<Parameters<Hypercore.createProtocolStream>[0], boolean>} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
+   * @param {import('protomux')<import('@hyperswarm/secret-stream')>} protomux A protomux instance
    */
-  replicate(stream) {
-    if (
-      Protomux.isProtomux(stream) ||
-      ('userData' in stream && Protomux.isProtomux(stream.userData)) ||
-      ('noiseStream' in stream &&
-        Protomux.isProtomux(stream.noiseStream.userData))
-    ) {
-      console.warn(
-        'Passed an existing protocol stream to syncController.replicate(). Currently any pairing for the `hypercore/alpha` protocol is overwritten'
-      )
-    }
-    const protocolStream = Hypercore.createProtocolStream(stream, {
-      ondiscoverykey: /** @param {Buffer} discoveryKey */ (discoveryKey) => {
-        return this.#coreManager.handleDiscoveryKey(discoveryKey, stream)
-      },
-    })
-    const protomux =
-      // Need to coerce this until we update Hypercore.createProtocolStream types
-      /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
-        protocolStream.noiseStream.userData
-      )
-    if (!protomux) throw new Error('Invalid stream')
-
-    if (this.#peerSyncControllers.has(protomux)) {
-      console.warn('Already replicating to this stream')
-      return
-    }
+  replicate(protomux) {
+    if (this.#peerSyncControllers.has(protomux)) return
 
     const peerSyncController = new PeerSyncController({
       protomux,
