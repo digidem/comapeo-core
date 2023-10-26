@@ -109,7 +109,7 @@ export class InviteApi extends TypedEmitter {
 
     if (isAlreadyMember) {
       for (const peerId of peersToRespondTo) {
-        this.#sendAlreadyResponse({ peerId, projectId })
+        await this.#sendAlreadyResponse({ peerId, projectId })
       }
       return
     }
@@ -123,7 +123,7 @@ export class InviteApi extends TypedEmitter {
     }
 
     try {
-      this.#sendAcceptResponse({
+      await this.#sendAcceptResponse({
         peerId: pendingInvite.fromPeerId,
         projectId,
       })
@@ -162,7 +162,7 @@ export class InviteApi extends TypedEmitter {
       )
     }
     for (const peerId of this.#peersToRespondTo.get(projectId)) {
-      this.#sendRejectResponse({ peerId, projectId })
+      await this.#sendRejectResponse({ peerId, projectId })
     }
   }
 
@@ -171,9 +171,9 @@ export class InviteApi extends TypedEmitter {
    *
    * @param {{ peerId: string, projectId: string }} opts
    */
-  #sendAcceptResponse({ peerId, projectId }) {
+  async #sendAcceptResponse({ peerId, projectId }) {
     const projectKey = Buffer.from(projectId, 'hex')
-    this.rpc.inviteResponse(peerId, {
+    await this.rpc.inviteResponse(peerId, {
       projectKey,
       decision: InviteResponse_Decision.ACCEPT,
     })
@@ -184,10 +184,10 @@ export class InviteApi extends TypedEmitter {
    *
    * @param {{ peerId: string, projectId: string }} opts
    */
-  #sendAlreadyResponse({ peerId, projectId }) {
+  async #sendAlreadyResponse({ peerId, projectId }) {
     const projectKey = Buffer.from(projectId, 'hex')
     try {
-      this.rpc.inviteResponse(peerId, {
+      await this.rpc.inviteResponse(peerId, {
         projectKey,
         decision: InviteResponse_Decision.ALREADY,
       })
@@ -202,10 +202,10 @@ export class InviteApi extends TypedEmitter {
    *
    * @param {{ peerId: string, projectId: string }} opts
    */
-  #sendRejectResponse({ peerId, projectId }) {
+  async #sendRejectResponse({ peerId, projectId }) {
     const projectKey = Buffer.from(projectId, 'hex')
     try {
-      this.rpc.inviteResponse(peerId, {
+      await this.rpc.inviteResponse(peerId, {
         projectKey,
         decision: InviteResponse_Decision.REJECT,
       })
