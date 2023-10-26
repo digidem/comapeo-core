@@ -225,7 +225,7 @@ test('Disconnected peer shows in state', async (t) => {
     if (peers[0].status === 'connected') {
       t.pass('peer appeared as connected')
       t.is(++peerStateUpdates, 1)
-      destroy()
+      destroy(new Error())
     } else {
       t.pass('peer appeared as disconnected')
       t.is(++peerStateUpdates, 2)
@@ -233,6 +233,16 @@ test('Disconnected peer shows in state', async (t) => {
   })
 
   const destroy = replicate(r1, r2)
+})
+
+test('next tick disconnect does not throw', async (t) => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  const destroy = replicate(r1, r2)
+  await Promise.resolve()
+  destroy(new Error())
+  t.pass()
 })
 
 test('Disconnect results in rejected invite', async (t) => {
@@ -390,11 +400,12 @@ test('Invite timeout', async (t) => {
     t.exception(
       r1.invite(peers[0].deviceId, {
         projectKey,
-        timeout: 5000,
+        timeout: 1000,
         encryptionKeys: { auth: randomBytes(32) },
       }),
       TimeoutError
     )
+    // Not working right now, because of the new async code
     clock.tick(5001)
   })
 

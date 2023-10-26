@@ -277,6 +277,9 @@ export class LocalPeers extends TypedEmitter {
         : Protomux.from(stream)
     this.#opening.add(stream.opened)
 
+    // No need to connect error handler to stream because Protomux does this,
+    // and errors are eventually handled by #closePeer
+
     // noiseSecretStream.remotePublicKey can be null before the stream has
     // opened, so this helped awaits the open
     openedNoiseSecretStream(stream).then((stream) => {
