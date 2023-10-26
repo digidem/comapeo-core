@@ -22,7 +22,7 @@ test('Send invite and accept', async (t) => {
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
-    const response = await r1.invite(peers[0].id, {
+    const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
     })
@@ -77,7 +77,7 @@ test('Send invite and reject', async (t) => {
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
-    const response = await r1.invite(peers[0].id, {
+    const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
     })
@@ -130,7 +130,7 @@ test('Send invite and already on project', async (t) => {
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
-    const response = await r1.invite(peers[0].id, {
+    const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
     })
@@ -161,7 +161,7 @@ test('Send invite with encryption key', async (t) => {
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
-    const response = await r1.invite(peers[0].id, {
+    const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys,
     })
@@ -194,7 +194,7 @@ test('Send invite with project info', async (t) => {
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
-    const response = await r1.invite(peers[0].id, {
+    const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       projectInfo,
       encryptionKeys: { auth: randomBytes(32) },
@@ -244,7 +244,7 @@ test('Disconnect results in rejected invite', async (t) => {
 
   r1.on('peers', async (peers) => {
     if (peers[0].status === 'connected') {
-      const invite = r1.invite(peers[0].id, {
+      const invite = r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys: { auth: randomBytes(32) },
       })
@@ -279,7 +279,7 @@ test('Invite to multiple peers', async (t) => {
     t.pass('connected to two peers')
     const responses = await Promise.all(
       peers.map((peer) =>
-        r1.invite(peer.id, {
+        r1.invite(peer.deviceId, {
           projectKey,
           encryptionKeys: { auth: randomBytes(32) },
         })
@@ -321,15 +321,15 @@ test('Multiple invites to a peer, only one response', async (t) => {
 
   r1.on('peers', async (peers) => {
     const responses = await Promise.all([
-      r1.invite(peers[0].id, {
+      r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys: { auth: randomBytes(32) },
       }),
-      r1.invite(peers[0].id, {
+      r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys: { auth: randomBytes(32) },
       }),
-      r1.invite(peers[0].id, {
+      r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys: { auth: randomBytes(32) },
       }),
@@ -362,7 +362,7 @@ test('Default: invites do not timeout', async (t) => {
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
   r1.once('peers', async (peers) => {
-    r1.invite(peers[0].id, {
+    r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
     }).then(
@@ -388,7 +388,7 @@ test('Invite timeout', async (t) => {
 
   r1.once('peers', async (peers) => {
     t.exception(
-      r1.invite(peers[0].id, {
+      r1.invite(peers[0].deviceId, {
         projectKey,
         timeout: 5000,
         encryptionKeys: { auth: randomBytes(32) },
@@ -426,7 +426,7 @@ test('Reconnect peer and send invite', async (t) => {
   const [peers] = await once(r1, 'peers')
   t.is(r1.peers.length, 1)
   t.is(peers[0].status, 'connected')
-  const response = await r1.invite(peers[0].id, {
+  const response = await r1.invite(peers[0].deviceId, {
     projectKey,
     encryptionKeys: { auth: randomBytes(32) },
   })
@@ -440,8 +440,6 @@ test('invalid stream', (t) => {
 })
 
 test('Send device info', async (t) => {
-  t.plan(3)
-
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
@@ -450,15 +448,18 @@ test('Send device info', async (t) => {
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
-    r1.sendDeviceInfo(peers[0].id, expectedDeviceInfo)
-  })
-
-  r2.on('device-info', ({ deviceId, ...deviceInfo }) => {
-    t.ok(deviceId)
-    t.alike(deviceInfo, expectedDeviceInfo)
+    r1.sendDeviceInfo(peers[0].deviceId, expectedDeviceInfo)
   })
 
   replicate(r1, r2)
+
+  await new Promise((res) => {
+    r2.on('peers', (peers) => {
+      if (!(peers.length === 1 && peers[0].name)) return
+      t.is(peers[0].name, expectedDeviceInfo.name)
+      res(true)
+    })
+  })
 })
 
 test('Send device info immediately', async (t) => {
@@ -475,14 +476,16 @@ test('Send device info immediately', async (t) => {
 
   r1.sendDeviceInfo(kp2.publicKey.toString('hex'), expectedDeviceInfo)
 
-  const [{ deviceId, ...deviceInfo }] = await once(r2, 'device-info')
-  t.ok(deviceId)
-  t.alike(deviceInfo, expectedDeviceInfo)
+  await new Promise((res) => {
+    r2.on('peers', (peers) => {
+      if (!(peers.length === 1 && peers[0].name)) return
+      t.is(peers[0].name, expectedDeviceInfo.name)
+      res(true)
+    })
+  })
 })
 
 test('Reconnect peer and send device info', async (t) => {
-  t.plan(6)
-
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
@@ -496,16 +499,14 @@ test('Reconnect peer and send device info', async (t) => {
   t.is(r1.peers.length, 1)
   t.is(r1.peers[0].status, 'disconnected')
 
-  r2.on('device-info', ({ deviceId, ...deviceInfo }) => {
-    t.ok(deviceId)
-    t.alike(deviceInfo, expectedDeviceInfo)
-  })
-
   replicate(r1, r2)
 
-  const [peers] = await once(r1, 'peers')
+  const [r1peers] = await once(r1, 'peers')
   t.is(r1.peers.length, 1)
-  t.is(peers[0].status, 'connected')
+  t.is(r1peers[0].status, 'connected')
 
-  r1.sendDeviceInfo(peers[0].id, expectedDeviceInfo)
+  r1.sendDeviceInfo(r1peers[0].deviceId, expectedDeviceInfo)
+
+  const [r2Peers] = await once(r2, 'peers')
+  t.is(r2Peers[0].name, expectedDeviceInfo.name)
 })

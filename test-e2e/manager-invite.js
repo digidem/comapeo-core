@@ -25,7 +25,7 @@ test('member invite accepted', async (t) => {
   creator[kRPC].on('peers', async (peers) => {
     t.is(peers.length, 1)
 
-    const response = await creatorProject.$member.invite(peers[0].id, {
+    const response = await creatorProject.$member.invite(peers[0].deviceId, {
       roleId: MEMBER_ROLE_ID,
     })
 
@@ -52,7 +52,7 @@ test('member invite accepted', async (t) => {
 
   joiner[kRPC].on('peers', (peers) => {
     t.is(peers.length, 1)
-    expectedInvitorPeerId = peers[0].id
+    expectedInvitorPeerId = peers[0].deviceId
   })
 
   joiner.invite.on('invite-received', async (invite) => {
@@ -119,7 +119,7 @@ test('member invite rejected', async (t) => {
   creator[kRPC].on('peers', async (peers) => {
     t.is(peers.length, 1)
 
-    const response = await creatorProject.$member.invite(peers[0].id, {
+    const response = await creatorProject.$member.invite(peers[0].deviceId, {
       roleId: MEMBER_ROLE_ID,
     })
 
@@ -146,7 +146,7 @@ test('member invite rejected', async (t) => {
 
   joiner[kRPC].on('peers', (peers) => {
     t.is(peers.length, 1)
-    expectedInvitorPeerId = peers[0].id
+    expectedInvitorPeerId = peers[0].deviceId
   })
 
   joiner.invite.on('invite-received', async (invite) => {

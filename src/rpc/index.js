@@ -24,9 +24,18 @@ const MESSAGE_TYPES = {
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
-/** @typedef {Peer['info']} PeerInfoInternal */
-/** @typedef {Omit<PeerInfoInternal, 'status'> & { status: Exclude<PeerInfoInternal['status'], 'connecting'> }} PeerInfo */
-/** @typedef {'connecting' | 'connected' | 'disconnected'} PeerState */
+/**
+ * @typedef {object} PeerInfoBase
+ * @property {string} deviceId
+ * @property {string | undefined} name
+ */
+/** @typedef {PeerInfoBase & { status: 'connecting' }} PeerInfoConnecting */
+/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number }} PeerInfoConnected */
+/** @typedef {PeerInfoBase & { status: 'disconnected', disconnectedAt: number }} PeerInfoDisconnected */
+
+/** @typedef {PeerInfoConnecting | PeerInfoConnected | PeerInfoDisconnected} PeerInfoInternal */
+/** @typedef {PeerInfoConnected | PeerInfoDisconnected} PeerInfo */
+/** @typedef {PeerInfoInternal['status']} PeerState */
 /** @typedef {import('type-fest').SetNonNullable<import('../generated/rpc.js').Invite, 'encryptionKeys'>} InviteWithKeys */
 
 /**
@@ -44,6 +53,10 @@ class Peer {
   #connected
   /** @type {Map<string, Array<DeferredPromise<InviteResponse['decision']>>>} */
   pendingInvites = new Map()
+  /** @type {string | undefined} */
+  #name
+  #connectedAt = 0
+  #disconnectedAt = 0
 
   /**
    * @param {object} options
@@ -55,10 +68,36 @@ class Peer {
     this.#channel = channel
     this.#connected = pDefer()
   }
+  /** @returns {PeerInfoInternal} */
   get info() {
-    return {
-      status: this.#state,
-      id: keyToId(this.#publicKey),
+    const deviceId = keyToId(this.#publicKey)
+    switch (this.#state) {
+      case 'connecting':
+        return {
+          status: this.#state,
+          deviceId,
+          name: this.#name,
+        }
+      case 'connected':
+        return {
+          status: this.#state,
+          deviceId,
+          name: this.#name,
+          connectedAt: this.#connectedAt,
+        }
+      case 'disconnected':
+        return {
+          status: this.#state,
+          deviceId,
+          name: this.#name,
+          disconnectedAt: this.#disconnectedAt,
+        }
+      /* c8 ignore next 4 */
+      default: {
+        /** @type {never} */
+        const _exhaustiveCheck = this.#state
+        return _exhaustiveCheck
+      }
     }
   }
   /**
@@ -75,12 +114,16 @@ class Peer {
           return // TODO: report error - this should not happen
         }
         this.#state = 'connected'
+        this.#connectedAt = Date.now()
         this.#connected.resolve()
         break
       case 'disconnect':
         /* c8 ignore next */
         if (this.#state === 'disconnected') return
         this.#state = 'disconnected'
+        this.#disconnectedAt = Date.now()
+        // Can just resolve this rather than reject, because #assertConnected will throw the error
+        this.#connected.resolve()
         for (const pending of this.pendingInvites.values()) {
           for (const { reject } of pending) {
             reject(new PeerDisconnectedError())
@@ -111,6 +154,10 @@ class Peer {
     const messageType = MESSAGE_TYPES.DeviceInfo
     this.#channel.messages[messageType].send(buf)
   }
+  /** @param {DeviceInfo} deviceInfo */
+  receiveDeviceInfo(deviceInfo) {
+    this.#name = deviceInfo.name
+  }
   async #assertConnected() {
     await this.#connected.promise
     if (this.#state === 'connected' && !this.#channel.closed) return
@@ -120,13 +167,12 @@ class Peer {
 }
 
 /**
- * @typedef {object} MapeoRPCEvents
+ * @typedef {object} LocalPeersEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
  * @property {(peerId: string, invite: InviteWithKeys) => void} invite Emitted when an invite is received
- * @property {(deviceInfo: DeviceInfo & { deviceId: string }) => void} device-info Emitted when we receive device info for a device
  */
 
-/** @extends {TypedEmitter<MapeoRPCEvents>} */
+/** @extends {TypedEmitter<LocalPeersEvents>} */
 export class LocalPeers extends TypedEmitter {
   /** @type {Map<string, Peer>} */
   #peers = new Map()
@@ -348,7 +394,8 @@ export class LocalPeers extends TypedEmitter {
       }
       case 'DeviceInfo': {
         const deviceInfo = DeviceInfo.decode(value)
-        this.emit('device-info', { ...deviceInfo, deviceId: peerId })
+        peer.receiveDeviceInfo(deviceInfo)
+        this.#emitPeers()
         break
       }
       /* c8 ignore next 5 */

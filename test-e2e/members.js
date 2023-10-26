@@ -191,7 +191,7 @@ function setup() {
     })
 
     manager[kRPC].on('peers', (peers) => {
-      const deviceId = peers[0].id
+      const deviceId = peers[0].deviceId
       project.$member
         .invite(deviceId, { roleId })
         .then(() => deferred.resolve(deviceId))
