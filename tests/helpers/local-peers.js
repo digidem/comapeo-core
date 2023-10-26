@@ -5,8 +5,8 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
  */
 
 /**
- * @param {import('../../src/rpc/index.js').LocalPeers} rpc1
- * @param {import('../../src/rpc/index.js').LocalPeers} rpc2
+ * @param {import('../../src/local-peers.js').LocalPeers} rpc1
+ * @param {import('../../src/local-peers.js').LocalPeers} rpc2
  * @param { {kp1?: KeyPair, kp2?: KeyPair} } [keyPairs]
  */
 export function replicate(

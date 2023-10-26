@@ -5,11 +5,11 @@ import {
   PeerDisconnectedError,
   TimeoutError,
   UnknownPeerError,
-} from '../src/rpc/index.js'
+} from '../src/local-peers.js'
 import FakeTimers from '@sinonjs/fake-timers'
 import { once } from 'events'
 import { Duplex } from 'streamx'
-import { replicate } from './helpers/rpc.js'
+import { replicate } from './helpers/local-peers.js'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Protomux from 'protomux'

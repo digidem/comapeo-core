@@ -5,7 +5,7 @@ import RAM from 'random-access-memory'
 import { MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { MapeoManager, kRPC } from '../src/mapeo-manager.js'
-import { replicate } from '../tests/helpers/rpc.js'
+import { replicate } from '../tests/helpers/local-peers.js'
 
 test('member invite accepted', async (t) => {
   t.plan(10)

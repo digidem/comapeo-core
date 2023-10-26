@@ -23,7 +23,7 @@ import {
   projectKeyToPublicId,
 } from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
-import { LocalPeers } from './rpc/index.js'
+import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 

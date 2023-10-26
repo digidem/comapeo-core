@@ -1,14 +1,14 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
-import { openedNoiseSecretStream, keyToId } from '../utils.js'
+import { openedNoiseSecretStream, keyToId } from './utils.js'
 import cenc from 'compact-encoding'
 import {
   DeviceInfo,
   Invite,
   InviteResponse,
   InviteResponse_Decision,
-} from '../generated/rpc.js'
+} from './generated/rpc.js'
 import pDefer from 'p-defer'
 
 const PROTOCOL_NAME = 'mapeo/rpc'
@@ -16,7 +16,7 @@ const PROTOCOL_NAME = 'mapeo/rpc'
 // Protomux message types depend on the order that messages are added to a
 // channel (this needs to remain consistent). To avoid breaking changes, the
 // types here should not change.
-/** @satisfies {{ [k in keyof typeof import('../generated/rpc.js')]?: number }} */
+/** @satisfies {{ [k in keyof typeof import('./generated/rpc.js')]?: number }} */
 const MESSAGE_TYPES = {
   Invite: 0,
   InviteResponse: 1,
@@ -36,7 +36,7 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 /** @typedef {PeerInfoConnecting | PeerInfoConnected | PeerInfoDisconnected} PeerInfoInternal */
 /** @typedef {PeerInfoConnected | PeerInfoDisconnected} PeerInfo */
 /** @typedef {PeerInfoInternal['status']} PeerState */
-/** @typedef {import('type-fest').SetNonNullable<import('../generated/rpc.js').Invite, 'encryptionKeys'>} InviteWithKeys */
+/** @typedef {import('type-fest').SetNonNullable<import('./generated/rpc.js').Invite, 'encryptionKeys'>} InviteWithKeys */
 
 /**
  * @template ValueType
@@ -260,8 +260,8 @@ export class LocalPeers extends TypedEmitter {
   /**
    * Connect to a peer over an existing NoiseSecretStream
    *
-   * @param {import('../types.js').NoiseStream<any>} stream a NoiseSecretStream from @hyperswarm/secret-stream
-   * @returns {import('../types.js').ReplicationStream}
+   * @param {import('./types.js').NoiseStream<any>} stream a NoiseSecretStream from @hyperswarm/secret-stream
+   * @returns {import('./types.js').ReplicationStream}
    */
   connect(stream) {
     if (!stream.noiseStream) throw new Error('Invalid stream')

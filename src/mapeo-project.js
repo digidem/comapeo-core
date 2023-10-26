@@ -67,7 +67,7 @@ export class MapeoProject {
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
-   * @param {import('./rpc/index.js').LocalPeers} opts.rpc
+   * @param {import('./local-peers.js').LocalPeers} opts.rpc
    *
    */
   constructor({

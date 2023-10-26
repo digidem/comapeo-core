@@ -47,7 +47,7 @@ export class InviteApi extends TypedEmitter {
 
   /**
    * @param {Object} options
-   * @param {import('./rpc/index.js').LocalPeers} options.rpc
+   * @param {import('./local-peers.js').LocalPeers} options.rpc
    * @param {object} options.queries
    * @param {(projectId: string) => Promise<boolean>} options.queries.isMember
    * @param {(invite: import('./generated/rpc.js').Invite) => Promise<void>} options.queries.addProject

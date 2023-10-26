@@ -1,10 +1,10 @@
 import test from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
-import { LocalPeers } from '../src/rpc/index.js'
+import { LocalPeers } from '../src/local-peers.js'
 import { InviteApi } from '../src/invite-api.js'
 import { projectKeyToPublicId } from '../src/utils.js'
-import { replicate } from './helpers/rpc.js'
+import { replicate } from './helpers/local-peers.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import pDefer from 'p-defer'
 
