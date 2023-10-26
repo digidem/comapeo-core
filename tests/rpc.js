@@ -1,7 +1,7 @@
 // @ts-check
 import test from 'brittle'
 import {
-  MapeoRPC,
+  LocalPeers,
   PeerDisconnectedError,
   TimeoutError,
   UnknownPeerError,
@@ -15,8 +15,8 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 test('Send invite and accept', async (t) => {
   t.plan(3)
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -26,14 +26,14 @@ test('Send invite and accept', async (t) => {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
     })
-    t.is(response, MapeoRPC.InviteResponse.ACCEPT)
+    t.is(response, LocalPeers.InviteResponse.ACCEPT)
   })
 
   r2.on('invite', (peerId, invite) => {
     t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
-      decision: MapeoRPC.InviteResponse.ACCEPT,
+      decision: LocalPeers.InviteResponse.ACCEPT,
     })
   })
 
@@ -41,8 +41,8 @@ test('Send invite and accept', async (t) => {
 })
 
 test('Send invite immediately', async (t) => {
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -62,16 +62,16 @@ test('Send invite immediately', async (t) => {
 
   r2.inviteResponse(peerId, {
     projectKey: invite.projectKey,
-    decision: MapeoRPC.InviteResponse.ACCEPT,
+    decision: LocalPeers.InviteResponse.ACCEPT,
   })
 
-  t.is(await responsePromise, MapeoRPC.InviteResponse.ACCEPT)
+  t.is(await responsePromise, LocalPeers.InviteResponse.ACCEPT)
 })
 
 test('Send invite and reject', async (t) => {
   t.plan(3)
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -81,14 +81,14 @@ test('Send invite and reject', async (t) => {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
     })
-    t.is(response, MapeoRPC.InviteResponse.REJECT)
+    t.is(response, LocalPeers.InviteResponse.REJECT)
   })
 
   r2.on('invite', (peerId, invite) => {
     t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
-      decision: MapeoRPC.InviteResponse.REJECT,
+      decision: LocalPeers.InviteResponse.REJECT,
     })
   })
 
@@ -96,8 +96,8 @@ test('Send invite and reject', async (t) => {
 })
 
 test('Invite to unknown peer', async (t) => {
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
   const unknownPeerId = Buffer.allocUnsafe(32).fill(1).toString('hex')
@@ -115,7 +115,7 @@ test('Invite to unknown peer', async (t) => {
     () =>
       r2.inviteResponse(unknownPeerId, {
         projectKey,
-        decision: MapeoRPC.InviteResponse.ACCEPT,
+        decision: LocalPeers.InviteResponse.ACCEPT,
       }),
     UnknownPeerError
   )
@@ -123,8 +123,8 @@ test('Invite to unknown peer', async (t) => {
 
 test('Send invite and already on project', async (t) => {
   t.plan(3)
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -134,14 +134,14 @@ test('Send invite and already on project', async (t) => {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
     })
-    t.is(response, MapeoRPC.InviteResponse.ALREADY)
+    t.is(response, LocalPeers.InviteResponse.ALREADY)
   })
 
   r2.on('invite', (peerId, invite) => {
     t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
-      decision: MapeoRPC.InviteResponse.ALREADY,
+      decision: LocalPeers.InviteResponse.ALREADY,
     })
   })
 
@@ -150,8 +150,8 @@ test('Send invite and already on project', async (t) => {
 
 test('Send invite with encryption key', async (t) => {
   t.plan(4)
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
   const encryptionKeys = {
@@ -165,7 +165,7 @@ test('Send invite with encryption key', async (t) => {
       projectKey,
       encryptionKeys,
     })
-    t.is(response, MapeoRPC.InviteResponse.ACCEPT)
+    t.is(response, LocalPeers.InviteResponse.ACCEPT)
   })
 
   r2.on('invite', (peerId, invite) => {
@@ -177,7 +177,7 @@ test('Send invite with encryption key', async (t) => {
     )
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
-      decision: MapeoRPC.InviteResponse.ACCEPT,
+      decision: LocalPeers.InviteResponse.ACCEPT,
     })
   })
 
@@ -186,8 +186,8 @@ test('Send invite with encryption key', async (t) => {
 
 test('Send invite with project info', async (t) => {
   t.plan(4)
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
   const projectInfo = { name: 'MyProject' }
@@ -199,7 +199,7 @@ test('Send invite with project info', async (t) => {
       projectInfo,
       encryptionKeys: { auth: randomBytes(32) },
     })
-    t.is(response, MapeoRPC.InviteResponse.ACCEPT)
+    t.is(response, LocalPeers.InviteResponse.ACCEPT)
   })
 
   r2.on('invite', (peerId, invite) => {
@@ -207,7 +207,7 @@ test('Send invite with project info', async (t) => {
     t.alike(invite.projectInfo, projectInfo, 'project info is sent with invite')
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
-      decision: MapeoRPC.InviteResponse.ACCEPT,
+      decision: LocalPeers.InviteResponse.ACCEPT,
     })
   })
 
@@ -216,8 +216,8 @@ test('Send invite with project info', async (t) => {
 
 test('Disconnected peer shows in state', async (t) => {
   t.plan(6)
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
   let peerStateUpdates = 0
 
   r1.on('peers', async (peers) => {
@@ -237,8 +237,8 @@ test('Disconnected peer shows in state', async (t) => {
 
 test('Disconnect results in rejected invite', async (t) => {
   t.plan(2)
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -268,9 +268,9 @@ test('Disconnect results in rejected invite', async (t) => {
 test('Invite to multiple peers', async (t) => {
   // This is catches not tracking invites by peer
   t.plan(2)
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
-  const r3 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+  const r3 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -287,7 +287,7 @@ test('Invite to multiple peers', async (t) => {
     )
     t.alike(
       responses.sort(),
-      [MapeoRPC.InviteResponse.ACCEPT, MapeoRPC.InviteResponse.REJECT],
+      [LocalPeers.InviteResponse.ACCEPT, LocalPeers.InviteResponse.REJECT],
       'One peer accepted, one rejected'
     )
   })
@@ -295,14 +295,14 @@ test('Invite to multiple peers', async (t) => {
   r2.on('invite', (peerId, invite) => {
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
-      decision: MapeoRPC.InviteResponse.ACCEPT,
+      decision: LocalPeers.InviteResponse.ACCEPT,
     })
   })
 
   r3.on('invite', (peerId, invite) => {
     r3.inviteResponse(peerId, {
       projectKey: invite.projectKey,
-      decision: MapeoRPC.InviteResponse.REJECT,
+      decision: LocalPeers.InviteResponse.REJECT,
     })
   })
 
@@ -314,8 +314,8 @@ test('Invite to multiple peers', async (t) => {
 test('Multiple invites to a peer, only one response', async (t) => {
   t.plan(2)
   let count = 0
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -334,7 +334,7 @@ test('Multiple invites to a peer, only one response', async (t) => {
         encryptionKeys: { auth: randomBytes(32) },
       }),
     ])
-    const expected = Array(3).fill(MapeoRPC.InviteResponse.ACCEPT)
+    const expected = Array(3).fill(LocalPeers.InviteResponse.ACCEPT)
     t.alike(responses, expected)
   })
 
@@ -344,7 +344,7 @@ test('Multiple invites to a peer, only one response', async (t) => {
     t.is(count, 3)
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
-      decision: MapeoRPC.InviteResponse.ACCEPT,
+      decision: LocalPeers.InviteResponse.ACCEPT,
     })
   })
 
@@ -356,8 +356,8 @@ test('Default: invites do not timeout', async (t) => {
   t.teardown(() => clock.uninstall())
   t.plan(1)
 
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -381,8 +381,8 @@ test('Invite timeout', async (t) => {
   t.teardown(() => clock.uninstall())
   t.plan(1)
 
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -402,8 +402,8 @@ test('Invite timeout', async (t) => {
 })
 
 test('Reconnect peer and send invite', async (t) => {
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
@@ -418,7 +418,7 @@ test('Reconnect peer and send invite', async (t) => {
     t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
-      decision: MapeoRPC.InviteResponse.ACCEPT,
+      decision: LocalPeers.InviteResponse.ACCEPT,
     })
   })
 
@@ -430,21 +430,20 @@ test('Reconnect peer and send invite', async (t) => {
     projectKey,
     encryptionKeys: { auth: randomBytes(32) },
   })
-  t.is(response, MapeoRPC.InviteResponse.ACCEPT)
+  t.is(response, LocalPeers.InviteResponse.ACCEPT)
 })
 
 test('invalid stream', (t) => {
-  const r1 = new MapeoRPC()
+  const r1 = new LocalPeers()
   const regularStream = new Duplex()
-  // @ts-expect-error
   t.exception(() => r1.connect(regularStream), 'Invalid stream')
 })
 
 test('Send device info', async (t) => {
   t.plan(3)
 
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
   const expectedDeviceInfo = { name: 'mapeo' }
@@ -463,8 +462,8 @@ test('Send device info', async (t) => {
 })
 
 test('Send device info immediately', async (t) => {
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
   const expectedDeviceInfo = { name: 'mapeo' }
@@ -484,8 +483,8 @@ test('Send device info immediately', async (t) => {
 test('Reconnect peer and send device info', async (t) => {
   t.plan(6)
 
-  const r1 = new MapeoRPC()
-  const r2 = new MapeoRPC()
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
   const expectedDeviceInfo = { name: 'mapeo' }

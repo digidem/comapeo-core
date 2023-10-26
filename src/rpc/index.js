@@ -127,7 +127,7 @@ class Peer {
  */
 
 /** @extends {TypedEmitter<MapeoRPCEvents>} */
-export class MapeoRPC extends TypedEmitter {
+export class LocalPeers extends TypedEmitter {
   /** @type {Map<string, Peer>} */
   #peers = new Map()
   /** @type {Set<Promise<any>>} */

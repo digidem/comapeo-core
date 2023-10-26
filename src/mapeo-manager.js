@@ -23,7 +23,7 @@ import {
   projectKeyToPublicId,
 } from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
-import { MapeoRPC } from './rpc/index.js'
+import { LocalPeers } from './rpc/index.js'
 import { InviteApi } from './invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 
@@ -72,7 +72,7 @@ export class MapeoManager {
       migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
     })
 
-    this.#rpc = new MapeoRPC()
+    this.#rpc = new LocalPeers()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#projectSettingsIndexWriter = new IndexWriter({
