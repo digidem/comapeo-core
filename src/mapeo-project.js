@@ -33,6 +33,7 @@ import { Capabilities } from './capabilities.js'
 import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
 import { MemberApi } from './member-api.js'
 import { SyncController } from './sync/sync-controller.js'
+import Hypercore from 'hypercore'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -67,7 +68,7 @@ export class MapeoProject {
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
-   * @param {import('./local-peers.js').LocalPeers} opts.rpc
+   * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    *
    */
   constructor({
@@ -79,7 +80,7 @@ export class MapeoProject {
     projectKey,
     projectSecretKey,
     encryptionKeys,
-    rpc,
+    localPeers,
   }) {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
@@ -237,7 +238,7 @@ export class MapeoProject {
       // @ts-expect-error
       encryptionKeys,
       projectKey,
-      rpc,
+      rpc: localPeers,
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
@@ -247,6 +248,26 @@ export class MapeoProject {
     this.#syncController = new SyncController({
       coreManager: this.#coreManager,
       capabilities: this.#capabilities,
+    })
+
+    // Replicate already connected local peers
+    for (const peer of localPeers.peers) {
+      if (peer.status !== 'connected') continue
+      this.#syncController.replicate(peer.protomux)
+    }
+
+    localPeers.on('discovery-key', (discoveryKey, stream) => {
+      // The core identified by this discovery key might not be part of this
+      // project, but we can't know that so we will request it from the peer if
+      // we don't have it. The peer will not return the core key unless it _is_
+      // part of this project
+      this.#coreManager.handleDiscoveryKey(discoveryKey, stream)
+    })
+
+    // When a new peer is found, try to replicate (if it is not a member of the
+    // project it will fail the capability check and be ignored)
+    localPeers.on('peer-add', (peer) => {
+      this.#syncController.replicate(peer.protomux)
     })
 
     ///////// 4. Write core ownership record
@@ -396,11 +417,14 @@ export class MapeoProject {
 
   /**
    *
-   * @param {import('./types.js').ReplicationStream} stream
+   * @param {Exclude<Parameters<Hypercore.createProtocolStream>[0], boolean>} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
    * @returns
    */
   [kReplicate](stream) {
-    return this.#syncController.replicate(stream)
+    const replicationStream = Hypercore.createProtocolStream(stream, {})
+    const protomux = replicationStream.noiseStream.userData
+    // @ts-ignore - got fed up jumping through hoops to keep TS heppy
+    return this.#syncController.replicate(protomux)
   }
 
   /**
