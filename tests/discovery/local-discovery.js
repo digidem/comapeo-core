@@ -5,7 +5,10 @@ import { KeyManager } from '@mapeo/crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import pDefer from 'p-defer'
 import { keyToPublicId } from '@mapeo/crypto'
-import { ERR_DUPLICATE, MdnsDiscovery } from '../../src/discovery/mdns.js'
+import {
+  ERR_DUPLICATE,
+  LocalDiscovery,
+} from '../../src/discovery/local-discovery.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 test('mdns - discovery and sharing of data', (t) => {
@@ -13,10 +16,10 @@ test('mdns - discovery and sharing of data', (t) => {
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
 
-  const mdnsDiscovery1 = new MdnsDiscovery({
+  const mdnsDiscovery1 = new LocalDiscovery({
     identityKeypair: identityKeypair1,
   })
-  const mdnsDiscovery2 = new MdnsDiscovery({
+  const mdnsDiscovery2 = new LocalDiscovery({
     identityKeypair: identityKeypair2,
   })
   const str = 'hi'
@@ -52,7 +55,7 @@ test('deduplicate incoming connections', async (t) => {
 
   const localKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const remoteKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
-  const discovery = new MdnsDiscovery({ identityKeypair: localKp })
+  const discovery = new LocalDiscovery({ identityKeypair: localKp })
   await discovery.start()
 
   discovery.on('connection', (conn) => {
@@ -113,7 +116,7 @@ async function testMultiple(t, { period, nPeers = 20 }) {
 
   async function spawnPeer(onConnected) {
     const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
-    const discovery = new MdnsDiscovery({ identityKeypair })
+    const discovery = new LocalDiscovery({ identityKeypair })
     const peerId = keyToPublicId(discovery.publicKey)
     peersById.set(peerId, discovery)
     const conns = []

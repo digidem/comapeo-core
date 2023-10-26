@@ -122,7 +122,6 @@ export class NamespaceSyncState {
 
 /**
  * @param {import('./core-sync-state.js').PeerCoreState['status']} [status]
- * @returns
  */
 export function createState(status) {
   if (status) {

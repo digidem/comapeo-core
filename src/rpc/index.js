@@ -9,6 +9,7 @@ import {
   InviteResponse,
   InviteResponse_Decision,
 } from '../generated/rpc.js'
+import pDefer from 'p-defer'
 
 const PROTOCOL_NAME = 'mapeo/rpc'
 
@@ -40,6 +41,7 @@ class Peer {
   #state = 'connecting'
   #publicKey
   #channel
+  #connected
   /** @type {Map<string, Array<DeferredPromise<InviteResponse['decision']>>>} */
   pendingInvites = new Map()
 
@@ -51,6 +53,7 @@ class Peer {
   constructor({ publicKey, channel }) {
     this.#publicKey = publicKey
     this.#channel = channel
+    this.#connected = pDefer()
   }
   get info() {
     return {
@@ -72,6 +75,7 @@ class Peer {
           return // TODO: report error - this should not happen
         }
         this.#state = 'connected'
+        this.#connected.resolve()
         break
       case 'disconnect':
         /* c8 ignore next */
@@ -87,27 +91,28 @@ class Peer {
     }
   }
   /** @param {InviteWithKeys} invite */
-  sendInvite(invite) {
-    this.#assertConnected()
+  async sendInvite(invite) {
+    await this.#assertConnected()
     const buf = Buffer.from(Invite.encode(invite).finish())
     const messageType = MESSAGE_TYPES.Invite
     this.#channel.messages[messageType].send(buf)
   }
   /** @param {InviteResponse} response */
-  sendInviteResponse(response) {
-    this.#assertConnected()
+  async sendInviteResponse(response) {
+    await this.#assertConnected()
     const buf = Buffer.from(InviteResponse.encode(response).finish())
     const messageType = MESSAGE_TYPES.InviteResponse
     this.#channel.messages[messageType].send(buf)
   }
   /** @param {DeviceInfo} deviceInfo */
-  sendDeviceInfo(deviceInfo) {
-    this.#assertConnected()
+  async sendDeviceInfo(deviceInfo) {
+    await this.#assertConnected()
     const buf = Buffer.from(DeviceInfo.encode(deviceInfo).finish())
     const messageType = MESSAGE_TYPES.DeviceInfo
     this.#channel.messages[messageType].send(buf)
   }
-  #assertConnected() {
+  async #assertConnected() {
+    await this.#connected.promise
     if (this.#state === 'connected' && !this.#channel.closed) return
     /* c8 ignore next */
     throw new PeerDisconnectedError() // TODO: report error - this should not happen
@@ -125,6 +130,8 @@ class Peer {
 export class MapeoRPC extends TypedEmitter {
   /** @type {Map<string, Peer>} */
   #peers = new Map()
+  /** @type {Set<Promise<any>>} */
+  #opening = new Set()
 
   constructor() {
     super()
@@ -145,6 +152,7 @@ export class MapeoRPC extends TypedEmitter {
    * @returns {Promise<InviteResponse['decision']>}
    */
   async invite(peerId, { timeout, ...invite }) {
+    await Promise.all(this.#opening)
     const peer = this.#peers.get(peerId)
     if (!peer) console.log([...this.#peers.keys()])
     if (!peer) throw new UnknownPeerError('Unknown peer ' + peerId)
@@ -168,7 +176,7 @@ export class MapeoRPC extends TypedEmitter {
           origReject(new TimeoutError(`No response after ${timeout}ms`))
         }, timeout)
 
-      peer.sendInvite(invite)
+      peer.sendInvite(invite).catch(origReject)
 
       /** @type {typeof origResolve} */
       function resolve(value) {
@@ -191,10 +199,11 @@ export class MapeoRPC extends TypedEmitter {
    * @param {InviteResponse['projectKey']} options.projectKey project key of the invite you are responding to
    * @param {InviteResponse['decision']} options.decision response to invite, one of "ACCEPT", "REJECT", or "ALREADY" (already on project)
    */
-  inviteResponse(peerId, options) {
+  async inviteResponse(peerId, options) {
+    await Promise.all(this.#opening)
     const peer = this.#peers.get(peerId)
     if (!peer) throw new UnknownPeerError('Unknown peer ' + peerId)
-    peer.sendInviteResponse(options)
+    await peer.sendInviteResponse(options)
   }
 
   /**
@@ -202,10 +211,11 @@ export class MapeoRPC extends TypedEmitter {
    * @param {string} peerId id of the peer you want to send to (publicKey of peer as hex string)
    * @param {DeviceInfo} deviceInfo device info to send
    */
-  sendDeviceInfo(peerId, deviceInfo) {
+  async sendDeviceInfo(peerId, deviceInfo) {
+    await Promise.all(this.#opening)
     const peer = this.#peers.get(peerId)
     if (!peer) throw new UnknownPeerError('Unknown peer ' + peerId)
-    peer.sendDeviceInfo(deviceInfo)
+    await peer.sendDeviceInfo(deviceInfo)
   }
 
   /**
@@ -219,10 +229,12 @@ export class MapeoRPC extends TypedEmitter {
       stream.userData && Protomux.isProtomux(stream.userData)
         ? stream.userData
         : Protomux.from(stream)
+    this.#opening.add(stream.opened)
 
     // noiseSecretStream.remotePublicKey can be null before the stream has
     // opened, so this helped awaits the open
     openedNoiseSecretStream(stream).then((stream) => {
+      this.#opening.delete(stream.opened)
       if (stream.destroyed) return
       const { remotePublicKey } = stream
 

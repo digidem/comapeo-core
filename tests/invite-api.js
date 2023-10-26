@@ -321,7 +321,6 @@ test('invitor disconnecting results in accept throwing', async (t) => {
 
   r1.on('peers', async (peers) => {
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
-
     await t.exception(() => {
       return r1.invite(peers[0].id, {
         projectKey,
