@@ -210,33 +210,347 @@ test(`icon api - getIconUrl, test matching url`, async (t) => {
   t.is(url, expectedUrl)
 })
 
-test(`icon api - getBestVariant`, async (t) => {
-  /** @type {import('@mapeo/schema').IconValue['variants']} variants
-   */
-  const variants = [
-    {
-      size: 'small',
-      pixelDensity: 1,
-      mimeType: 'image/png',
-      blobVersionId: expectedSmallIcon.toString('hex'),
-    },
-    {
-      size: 'medium',
-      pixelDensity: 1,
-      mimeType: 'image/svg+xml',
-      blobVersionId: expectedMediumIcon.toString('hex'),
-    },
-    {
-      size: 'large',
-      pixelDensity: 2,
-      mimeType: 'image/png',
-      blobVersionId: expectedLargeIcon.toString('hex'),
-    },
-  ]
-  const expectedVariant = variants[0]
-  const variant = getBestVariant(variants, {
+test('getBestVariant - no variants exist', (t) => {
+  t.exception(() => {
+    return getBestVariant([], {})
+  })
+})
+
+test('getBestVariant - specify mimeType', (t) => {
+  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'pixelDensity' | 'size'>} */
+  const common = { pixelDensity: 1, size: 'small' }
+
+  const pngVariant = createIconVariant({
+    ...common,
+    mimeType: 'image/png',
+  })
+
+  const svgVariant = createIconVariant({
+    ...common,
+    mimeType: 'image/svg+xml',
+  })
+
+  t.test('request mime type with match present', (st) => {
+    for (const [mimeType, expectedVariant] of [
+      ['image/png', pngVariant],
+      ['image/svg+xml', svgVariant],
+    ]) {
+      const result = getBestVariant([pngVariant, svgVariant], {
+        // @ts-expect-error
+        mimeType,
+      })
+
+      st.alike(
+        result,
+        getBestVariant([pngVariant, svgVariant].reverse(), {
+          // @ts-expect-error
+          mimeType,
+        }),
+        'same result regardless of variants order'
+      )
+
+      st.alike(
+        result,
+        expectedVariant,
+        `returns variant with desired mime type (${mimeType})`
+      )
+    }
+  })
+
+  t.test('request a mime type with no match present', (st) => {
+    st.exception(() => {
+      getBestVariant([pngVariant], {
+        mimeType: 'image/svg+xml',
+      })
+    }, 'throws when no match for svg exists')
+
+    st.exception(() => {
+      getBestVariant([svgVariant], {
+        mimeType: 'image/png',
+      })
+    }, 'throws when no match for png exists')
+  })
+})
+
+test('getBestVariant - specify size', (t) => {
+  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'pixelDensity' | 'mimeType'>} */
+  const common = { pixelDensity: 1, mimeType: 'image/png' }
+
+  const smallVariant = createIconVariant({
+    ...common,
     size: 'small',
+  })
+
+  const mediumVariant = createIconVariant({
+    ...common,
+    size: 'medium',
+  })
+
+  const largeVariant = createIconVariant({
+    ...common,
+    size: 'large',
+  })
+
+  t.test('request size with match present', (st) => {
+    for (const [size, expectedVariant] of [
+      ['small', smallVariant],
+      ['medium', mediumVariant],
+      ['large', largeVariant],
+    ]) {
+      const result = getBestVariant(
+        [smallVariant, mediumVariant, largeVariant],
+        {
+          // @ts-expect-error
+          size,
+        }
+      )
+
+      st.alike(
+        result,
+        getBestVariant([smallVariant, mediumVariant, largeVariant].reverse(), {
+          // @ts-expect-error
+          size,
+        }),
+        'same result regardless of variants order'
+      )
+
+      st.alike(
+        result,
+        expectedVariant,
+        `returns variant with desired size (${size})`
+      )
+    }
+  })
+
+  t.test('request size with only smaller existing', (st) => {
+    const result = getBestVariant([smallVariant, mediumVariant, largeVariant], {
+      size: 'large',
+    })
+
+    st.alike(
+      result,
+      getBestVariant([smallVariant, mediumVariant, largeVariant].reverse(), {
+        size: 'large',
+      }),
+      'same result regardless of variants order'
+    )
+
+    st.alike(result, mediumVariant, 'returns closest smaller size')
+  })
+
+  t.test('request size with both larger and smaller existing', (st) => {
+    const result = getBestVariant([smallVariant, largeVariant], {
+      size: 'medium',
+    })
+
+    st.alike(
+      result,
+      getBestVariant([smallVariant, largeVariant].reverse(), {
+        size: 'medium',
+      }),
+      'same result regardless of variants order'
+    )
+
+    st.alike(result, mediumVariant, 'returns smaller size')
+  })
+
+  t.test('request size with only larger existing', (st) => {
+    const result = getBestVariant([mediumVariant, largeVariant], {
+      size: 'small',
+    })
+
+    st.alike(
+      result,
+      getBestVariant([mediumVariant, largeVariant].reverse(), {
+        size: 'small',
+      }),
+      'same result regardless of variants order'
+    )
+
+    st.alike(result, mediumVariant, 'returns closest larger size')
+  })
+})
+
+test('getBestVariant - specify pixel density', (t) => {
+  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'size' | 'mimeType'>} */
+  const common = { size: 'small', mimeType: 'image/png' }
+
+  const density1Variant = createIconVariant({
+    ...common,
+    pixelDensity: 1,
+  })
+
+  const density2Variant = createIconVariant({
+    ...common,
     pixelDensity: 2,
   })
-  t.is(variant, expectedVariant)
+
+  const density3Variant = createIconVariant({
+    ...common,
+    pixelDensity: 3,
+  })
+
+  t.test('request pixel density with match present', (st) => {
+    for (const [pixelDensity, expectedVariant] of [
+      [1, density1Variant],
+      [2, density2Variant],
+      [3, density3Variant],
+    ]) {
+      const result = getBestVariant(
+        [density1Variant, density2Variant, density3Variant],
+        {
+          // @ts-expect-error
+          pixelDensity,
+        }
+      )
+
+      st.alike(
+        result,
+        getBestVariant(
+          [density1Variant, density2Variant, density3Variant].reverse(),
+          {
+            // @ts-expect-error
+            pixelDensity,
+          }
+        ),
+        'same result regardless of variants order'
+      )
+
+      st.alike(
+        result,
+        expectedVariant,
+        `returns variant with desired pixel density (${pixelDensity})`
+      )
+    }
+  })
+
+  t.test('request pixel density with only smaller existing', (st) => {
+    const result = getBestVariant([density1Variant, density2Variant], {
+      pixelDensity: 3,
+    })
+
+    st.alike(
+      result,
+      getBestVariant([density1Variant, density2Variant].reverse(), {
+        pixelDensity: 3,
+      }),
+      'same result regardless of variants order'
+    )
+
+    st.alike(result, density2Variant, 'returns closest smaller density')
+  })
+
+  t.test(
+    'request pixel density with both larger and smaller existing',
+    (st) => {
+      const result = getBestVariant([density1Variant, density3Variant], {
+        pixelDensity: 2,
+      })
+
+      st.alike(
+        result,
+        getBestVariant([density1Variant, density3Variant].reverse(), {
+          pixelDensity: 2,
+        }),
+        'same result regardless of variants order'
+      )
+
+      st.alike(result, density1Variant, 'returns smaller density')
+    }
+  )
+
+  t.test('request pixel density with only larger existing', (st) => {
+    const result = getBestVariant([density2Variant, density3Variant], {
+      pixelDensity: 1,
+    })
+
+    st.alike(
+      result,
+      getBestVariant([density2Variant, density3Variant].reverse(), {
+        pixelDensity: 1,
+      }),
+      'same result regardless of variants order'
+    )
+
+    st.alike(result, density2Variant, 'returns closest larger density')
+  })
 })
+
+test('getBestVariant - params prioritization', (t) => {
+  const wantedSizePngVariant = createIconVariant({
+    mimeType: 'image/png',
+    pixelDensity: 1,
+    size: 'small',
+  })
+
+  const wantedPixelDensityPngVariant = createIconVariant({
+    mimeType: 'image/png',
+    pixelDensity: 2,
+    size: 'medium',
+  })
+
+  const wantedSizeSvgVariant = createIconVariant({
+    mimeType: 'image/svg+xml',
+    pixelDensity: 1,
+    size: 'small',
+  })
+
+  const wantedPixelDensitySvgVariant = createIconVariant({
+    mimeType: 'image/svg+xml',
+    pixelDensity: 2,
+    size: 'medium',
+  })
+
+  const result = getBestVariant(
+    [
+      wantedSizePngVariant,
+      wantedPixelDensityPngVariant,
+      wantedSizeSvgVariant,
+      wantedPixelDensitySvgVariant,
+    ],
+    {
+      mimeType: 'image/svg+xml',
+      size: 'small',
+      pixelDensity: 2,
+    }
+  )
+
+  t.alike(
+    result,
+    getBestVariant(
+      [
+        wantedSizePngVariant,
+        wantedPixelDensityPngVariant,
+        wantedSizeSvgVariant,
+        wantedPixelDensitySvgVariant,
+      ].reverse(),
+      {
+        mimeType: 'image/svg+xml',
+        size: 'small',
+        pixelDensity: 2,
+      }
+    ),
+    'same result regardless of variants order'
+  )
+
+  t.alike(result, wantedSizeSvgVariant, 'mime type > size > pixel density')
+})
+
+function createRandomVersionId(index = 0) {
+  return randomBytes(32).toString('hex') + `/${index}`
+}
+
+/**
+ * @param {object} opts
+ * @param {import('@mapeo/schema').Icon['variants'][number]['size']} opts.size
+ * @param {import('@mapeo/schema').Icon['variants'][number]['mimeType']} opts.mimeType
+ * @param {import('@mapeo/schema').Icon['variants'][number]['pixelDensity']} opts.pixelDensity
+ *
+ * @returns {import('@mapeo/schema').Icon['variants'][number]}
+ */
+function createIconVariant(opts) {
+  return {
+    ...opts,
+    blobVersionId: createRandomVersionId(),
+  }
+}
