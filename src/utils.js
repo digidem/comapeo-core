@@ -46,9 +46,12 @@ export function truncateId(keyOrId, length = 3) {
   return keyToId(keyOrId).slice(0, length)
 }
 
-/** @typedef {import('@hyperswarm/secret-stream')} NoiseStream */
+/** @typedef {import('@hyperswarm/secret-stream')<any>} NoiseStream */
 /** @typedef {NoiseStream & { destroyed: true }} DestroyedNoiseStream */
-/** @typedef {NoiseStream & { publicKey: Buffer, remotePublicKey: Buffer, handshake: Buffer }} OpenedNoiseStream */
+/**
+ * @template {import('node:stream').Duplex | import('streamx').Duplex} [T=import('node:stream').Duplex | import('streamx').Duplex]
+ * @typedef {import('@hyperswarm/secret-stream')<T> & { publicKey: Buffer, remotePublicKey: Buffer, handshake: Buffer }} OpenedNoiseStream
+ */
 
 /**
  * Utility to await a NoiseSecretStream to open, that returns a stream with the

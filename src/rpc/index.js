@@ -221,7 +221,7 @@ export class MapeoRPC extends TypedEmitter {
   /**
    * Connect to a peer over an existing NoiseSecretStream
    *
-   * @param {import('../types.js').NoiseStream | import('../types.js').ProtocolStream} stream a NoiseSecretStream from @hyperswarm/secret-stream
+   * @param {import('../types.js').NoiseStream<any> | import('../types.js').ProtocolStream} stream a NoiseSecretStream from @hyperswarm/secret-stream
    */
   connect(stream) {
     if (!stream.noiseStream) throw new Error('Invalid stream')

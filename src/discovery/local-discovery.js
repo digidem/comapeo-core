@@ -10,12 +10,13 @@ import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
+/** @typedef {import('../utils.js').OpenedNoiseStream<net.Socket>} OpenedNoiseStream */
 
 export const ERR_DUPLICATE = 'Duplicate connection'
 
 /**
  * @typedef {Object} DiscoveryEvents
- * @property {(connection: import('@hyperswarm/secret-stream')<net.Socket>) => void} connection
+ * @property {(connection: OpenedNoiseStream) => void} connection
  */
 
 /**
@@ -24,7 +25,7 @@ export const ERR_DUPLICATE = 'Duplicate connection'
 export class LocalDiscovery extends TypedEmitter {
   #identityKeypair
   #server
-  /** @type {Map<string, NoiseSecretStream<net.Socket>>} */
+  /** @type {Map<string, OpenedNoiseStream>} */
   #noiseConnections = new Map()
   #dnssd
   #sm
@@ -142,14 +143,18 @@ export class LocalDiscovery extends TypedEmitter {
       // Further errors will be handled in #handleNoiseStreamConnection()
       socket.off('error', onSocketError)
       secretStream.off('error', this.#handleSocketError)
-      this.#handleNoiseStreamConnection(secretStream)
+      this.#handleNoiseStreamConnection(
+        // We know the NoiseStream is open at this point, so we can coerce the type
+        /** @type {OpenedNoiseStream} */
+        (secretStream)
+      )
     })
   }
 
   /**
    *
-   * @param {NoiseSecretStream<net.Socket>} existing
-   * @param {NoiseSecretStream<net.Socket>} keeping
+   * @param {OpenedNoiseStream} existing
+   * @param {OpenedNoiseStream} keeping
    */
   #handleConnectionSwap(existing, keeping) {
     let closed = false
@@ -174,7 +179,7 @@ export class LocalDiscovery extends TypedEmitter {
 
   /**
    *
-   * @param {NoiseSecretStream<net.Socket>} conn
+   * @param {OpenedNoiseStream} conn
    * @returns
    */
   #handleNoiseStreamConnection(conn) {
