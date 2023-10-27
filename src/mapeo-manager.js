@@ -383,6 +383,10 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
+   * Add a project to this device. After adding a project the client should
+   * await `project.$waitForInitialSync()` to ensure that the device has
+   * downloaded their proof of project membership and the project config.
+   *
    * @param {import('./generated/rpc.js').Invite} invite
    * @returns {Promise<string>}
    */
@@ -410,10 +414,9 @@ export class MapeoManager extends TypedEmitter {
       throw new Error(`Project with ID ${projectPublicId} already exists`)
     }
 
-    // TODO: Relies on completion of https://github.com/digidem/mapeo-core-next/issues/233
-    // 3. Sync auth + config cores
+    // No awaits here - need to update table in same tick as the projectExists check
 
-    // 4. Update the project keys table
+    // 3. Update the project keys table
     this.#saveToProjectKeysTable({
       projectId,
       projectPublicId,
@@ -424,9 +427,8 @@ export class MapeoManager extends TypedEmitter {
       projectInfo,
     })
 
-    // 5. Write device info into project
+    // 4. Write device info into project
     const deviceInfo = await this.getDeviceInfo()
-
     if (deviceInfo.name) {
       const project = await this.getProject(projectPublicId)
       await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })

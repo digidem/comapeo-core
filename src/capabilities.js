@@ -147,6 +147,8 @@ export class Capabilities {
   #projectCreatorAuthCoreId
   #ownDeviceId
 
+  static NO_ROLE_CAPABILITIES = NO_ROLE_CAPABILITIES
+
   /**
    *
    * @param {object} opts

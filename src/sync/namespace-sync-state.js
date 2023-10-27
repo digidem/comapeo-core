@@ -2,7 +2,7 @@ import { CoreSyncState } from './core-sync-state.js'
 import { discoveryKey } from 'hypercore-crypto'
 
 /**
- * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'>} SyncState
+ * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'> & { dataToSync: boolean }} SyncState
  */
 
 /**
@@ -55,6 +55,7 @@ export class NamespaceSyncState {
     if (this.#cachedState) return this.#cachedState
     /** @type {SyncState} */
     const state = {
+      dataToSync: false,
       localState: createState(),
       remoteStates: {},
     }
@@ -70,6 +71,9 @@ export class NamespaceSyncState {
           mutatingAddPeerState(state.remoteStates[peerId], peerCoreState)
         }
       }
+    }
+    if (state.localState.want > 0 || state.localState.wanted > 0) {
+      state.dataToSync = true
     }
     this.#cachedState = state
     return state
