@@ -27,6 +27,7 @@ import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
+import { TypedEmitter } from 'tiny-typed-emitter'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -40,7 +41,19 @@ const MAX_FILE_DESCRIPTORS = 768
 
 export const kRPC = Symbol('rpc')
 
-export class MapeoManager {
+/**
+ * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
+ */
+
+/**
+ * @typedef {object} MapeoManagerEvents
+ * @property {(peers: PublicPeerInfo[]) => void} local-peers Emitted when the list of connected peers changes (new ones added, or connection status changes)
+ */
+
+/**
+ * @extends {TypedEmitter<MapeoManagerEvents>}
+ */
+export class MapeoManager extends TypedEmitter {
   #keyManager
   #projectSettingsIndexWriter
   #db
@@ -62,6 +75,7 @@ export class MapeoManager {
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    */
   constructor({ rootKey, dbFolder, coreStorage }) {
+    super()
     this.#dbFolder = dbFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
@@ -74,6 +88,10 @@ export class MapeoManager {
     })
 
     this.#localPeers = new LocalPeers()
+    this.#localPeers.on('peers', (peers) => {
+      this.emit('local-peers', omitPeerProtomux(peers))
+    })
+
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#projectSettingsIndexWriter = new IndexWriter({
@@ -456,4 +474,36 @@ export class MapeoManager {
   get invite() {
     return this.#invite
   }
+
+  /**
+   * @returns {Promise<PublicPeerInfo[]>}
+   */
+  async listLocalPeers() {
+    return omitPeerProtomux(this.#localPeers.peers)
+  }
+}
+
+// We use the `protomux` property of connected peers internally, but we don't
+// expose it to the API. I have avoided using a private symbol for this for fear
+// that we could accidentally keep references around of protomux instances,
+// which could cause a memory leak (it shouldn't, but just to eliminate the
+// possibility)
+
+/**
+ * Remove the protomux property of connected peers
+ *
+ * @param {import('./local-peers.js').PeerInfo[]} peers
+ * @returns {PublicPeerInfo[]}
+ */
+function omitPeerProtomux(peers) {
+  return peers.map(
+    ({
+      // @ts-ignore
+      // eslint-disable-next-line no-unused-vars
+      protomux,
+      ...publicPeerInfo
+    }) => {
+      return publicPeerInfo
+    }
+  )
 }
