@@ -28,6 +28,7 @@ import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { Capabilities } from './capabilities.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -427,14 +428,94 @@ export class MapeoManager extends TypedEmitter {
       projectInfo,
     })
 
-    // 4. Write device info into project
-    const deviceInfo = await this.getDeviceInfo()
-    if (deviceInfo.name) {
+    // Any errors from here we need to remove project from db because it has not
+    // been fully added and synced
+    try {
+      // 4. Write device info into project
       const project = await this.getProject(projectPublicId)
-      await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
-    }
 
+      try {
+        const deviceInfo = await this.getDeviceInfo()
+        if (deviceInfo.name) {
+          await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
+        }
+      } catch (e) {
+        // Can ignore an error trying to write device info
+        console.error(e)
+      }
+
+      // 5. Wait for initial project sync
+      await this.#waitForInitialSync(project)
+
+      this.#activeProjects.set(projectPublicId, project)
+    } catch (e) {
+      this.#db
+        .delete(projectKeysTable)
+        .where(eq(projectKeysTable.projectId, projectId))
+        .run()
+      throw e
+    }
     return projectPublicId
+  }
+
+  /**
+   * Sync initial data: the `auth` cores which contain the capability messages,
+   * and the `config` cores which contain the project name & custom config (if
+   * it exists). The API consumer should await this after `client.addProject()`
+   * to ensure that the device is fully added to the project.
+   *
+   * @param {MapeoProject} project
+   * @param {object} [opts]
+   * @param {number} [opts.timeoutMs=5000] Timeout in milliseconds for max time
+   * to wait between sync status updates before giving up. As long as syncing is
+   * happening, this will never timeout, but if more than timeoutMs passes
+   * without any sync activity, then this will resolve `false` e.g. data has not
+   * synced
+   * @returns
+   */
+  async #waitForInitialSync(project, { timeoutMs = 5000 } = {}) {
+    const [capability, projectSettings] = await Promise.all([
+      project.$getOwnCapabilities(),
+      project.$getProjectSettings(),
+    ])
+    const {
+      auth: { localState: authState },
+      config: { localState: configState },
+    } = project.$sync.getState()
+    const isCapabilitySynced = capability !== Capabilities.NO_ROLE_CAPABILITIES
+    const isProjectSettingsSynced =
+      projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
+    // Assumes every project that someone is invited to has at least one record
+    // in the auth store - the capability record for the invited device
+    const isAuthSynced = authState.want === 0 && authState.have > 0
+    // Assumes every project that someone is invited to has at least one record
+    // in the config store - defining the name of the project.
+    // TODO: Enforce adding a project name in the invite method
+    const isConfigSynced = configState.want === 0 && configState.have > 0
+    if (
+      isCapabilitySynced &&
+      isProjectSettingsSynced &&
+      isAuthSynced &&
+      isConfigSynced
+    ) {
+      return true
+    }
+    return new Promise((resolve, reject) => {
+      /** @param {import('./sync/sync-state.js').State} syncState */
+      const onSyncState = (syncState) => {
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(onTimeout, timeoutMs)
+        if (syncState.auth.dataToSync || syncState.config.dataToSync) return
+        project.$sync.off('sync-state', onSyncState)
+        resolve(this.#waitForInitialSync(project, { timeoutMs }))
+      }
+      const onTimeout = () => {
+        project.$sync.off('sync-state', onSyncState)
+        reject(new Error('Sync timeout'))
+      }
+      let timeoutId = setTimeout(onTimeout, timeoutMs)
+      project.$sync.on('sync-state', onSyncState)
+    })
   }
 
   /**

@@ -59,6 +59,8 @@ export class MapeoProject {
   #memberApi
   #syncApi
 
+  static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
+
   /**
    * @param {Object} opts
    * @param {string} opts.dbPath Path to store project sqlite db. Use `:memory:` for memory storage
@@ -420,64 +422,6 @@ export class MapeoProject {
 
   async $getOwnCapabilities() {
     return this.#capabilities.getCapabilities(this.#deviceId)
-  }
-
-  /**
-   * Sync initial data: the `auth` cores which contain the capability messages,
-   * and the `config` cores which contain the project name & custom config (if
-   * it exists). The API consumer should await this after `client.addProject()`
-   * to ensure that the device is fully added to the project.
-   *
-   * @param {object} [opts]
-   * @param {number} [opts.timeoutMs=5000] Timeout in milliseconds for max time
-   * to wait between sync status updates before giving up. As long as syncing is
-   * happening, this will never timeout, but if more than timeoutMs passes
-   * without any sync activity, then this will resolve `false` e.g. data has not
-   * synced
-   * @returns
-   */
-  async $waitForInitialSync({ timeoutMs = 5000 } = {}) {
-    const [capability, projectSettings] = await Promise.all([
-      this.$getOwnCapabilities(),
-      this.$getProjectSettings(),
-    ])
-    const {
-      auth: { localState: authState },
-      config: { localState: configState },
-    } = this.#syncApi.getState()
-    const isCapabilitySynced = capability !== Capabilities.NO_ROLE_CAPABILITIES
-    const isProjectSettingsSynced = projectSettings !== EMPTY_PROJECT_SETTINGS
-    // Assumes every project that someone is invited to has at least one record
-    // in the auth store - the capability record for the invited device
-    const isAuthSynced = authState.want === 0 && authState.have > 0
-    // Assumes every project that someone is invited to has at least one record
-    // in the config store - defining the name of the project.
-    // TODO: Enforce adding a project name in the invite method
-    const isConfigSynced = configState.want === 0 && configState.have > 0
-    if (
-      isCapabilitySynced &&
-      isProjectSettingsSynced &&
-      isAuthSynced &&
-      isConfigSynced
-    ) {
-      return true
-    }
-    return new Promise((resolve) => {
-      /** @param {import('./sync/sync-state.js').State} syncState */
-      const onSyncState = (syncState) => {
-        clearTimeout(timeoutId)
-        timeoutId = setTimeout(onTimeout, timeoutMs)
-        if (syncState.auth.dataToSync || syncState.config.dataToSync) return
-        this.#syncApi.off('sync-state', onSyncState)
-        resolve(this.$waitForInitialSync())
-      }
-      const onTimeout = () => {
-        this.#syncApi.off('sync-state', onSyncState)
-        resolve(false)
-      }
-      let timeoutId = setTimeout(onTimeout, timeoutMs)
-      this.#syncApi.on('sync-state', onSyncState)
-    })
   }
 
   /**
