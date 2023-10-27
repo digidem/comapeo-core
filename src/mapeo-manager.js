@@ -40,6 +40,7 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 const MAX_FILE_DESCRIPTORS = 768
 
 export const kRPC = Symbol('rpc')
+export const kManagerReplicate = Symbol('replicate manager')
 
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
@@ -129,7 +130,7 @@ export class MapeoManager extends TypedEmitter {
     this.#localDiscovery = new LocalDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
     })
-    this.#localDiscovery.on('connection', this.replicate.bind(this))
+    this.#localDiscovery.on('connection', this[kManagerReplicate].bind(this))
   }
 
   /**
@@ -140,12 +141,15 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * Replicate Mapeo to a `@hyperswarm/secret-stream`. Should only be used for
-   * local (trusted) connections, because the RPC channel key is public
+   * Replicate Mapeo to a `@hyperswarm/secret-stream`. This replication connects
+   * the Mapeo RPC channel and allows invites. All active projects will sync
+   * automatically to this replication stream. Only use for local (trusted)
+   * connections, because the RPC channel key is public. To sync a specific
+   * project without connecting RPC, use project[kProjectReplication].
    *
    * @param {import('@hyperswarm/secret-stream')<any>} noiseStream
    */
-  replicate(noiseStream) {
+  [kManagerReplicate](noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
     Promise.all([this.getDeviceInfo(), openedNoiseSecretStream(noiseStream)])
       .then(([{ name }, openedNoiseStream]) => {
