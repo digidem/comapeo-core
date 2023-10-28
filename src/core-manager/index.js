@@ -54,6 +54,7 @@ export class CoreManager extends TypedEmitter {
   #state = 'opened'
   #ready
   #haveExtension
+  #deviceId
 
   static get namespaces() {
     return NAMESPACES
@@ -86,6 +87,7 @@ export class CoreManager extends TypedEmitter {
       'project owner core secret key must be 64-byte buffer'
     )
     const primaryKey = keyManager.getDerivedKey('primaryKey', projectKey)
+    this.#deviceId = keyManager.getIdentityKeypair().publicKey.toString('hex')
     this.#projectKey = projectKey
     this.#encryptionKeys = encryptionKeys
 
@@ -158,6 +160,10 @@ export class CoreManager extends TypedEmitter {
     this.#ready = Promise.all(
       [...this.#coreIndex].map(({ core }) => core.ready())
     ).catch(() => {})
+  }
+
+  get deviceId() {
+    return this.#deviceId
   }
 
   get creatorCore() {
