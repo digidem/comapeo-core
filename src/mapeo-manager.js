@@ -474,6 +474,7 @@ export class MapeoManager extends TypedEmitter {
    * @returns
    */
   async #waitForInitialSync(project, { timeoutMs = 5000 } = {}) {
+    await project.ready()
     const [capability, projectSettings] = await Promise.all([
       project.$getOwnCapabilities(),
       project.$getProjectSettings(),
