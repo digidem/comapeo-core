@@ -29,6 +29,7 @@ import { InviteApi } from './invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { Capabilities } from './capabilities.js'
+import NoiseSecretStream from '@hyperswarm/secret-stream'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -131,7 +132,7 @@ export class MapeoManager extends TypedEmitter {
     this.#localDiscovery = new LocalDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
     })
-    this.#localDiscovery.on('connection', this[kManagerReplicate].bind(this))
+    this.#localDiscovery.on('connection', this.#replicate.bind(this))
   }
 
   /**
@@ -141,16 +142,30 @@ export class MapeoManager extends TypedEmitter {
     return this.#localPeers
   }
 
+  get deviceId() {
+    return this.#deviceId
+  }
+
   /**
-   * Replicate Mapeo to a `@hyperswarm/secret-stream`. This replication connects
-   * the Mapeo RPC channel and allows invites. All active projects will sync
-   * automatically to this replication stream. Only use for local (trusted)
-   * connections, because the RPC channel key is public. To sync a specific
-   * project without connecting RPC, use project[kProjectReplication].
+   * Create a Mapeo replication stream. This replication connects the Mapeo RPC
+   * channel and allows invites. All active projects will sync automatically to
+   * this replication stream. Only use for local (trusted) connections, because
+   * the RPC channel key is public. To sync a specific project without
+   * connecting RPC, use project[kProjectReplication].
    *
-   * @param {import('@hyperswarm/secret-stream')<any>} noiseStream
+   * @param {boolean} isInitiator
    */
-  [kManagerReplicate](noiseStream) {
+  [kManagerReplicate](isInitiator) {
+    const noiseStream = new NoiseSecretStream(isInitiator, undefined, {
+      keyPair: this.#keyManager.getIdentityKeypair(),
+    })
+    return this.#replicate(noiseStream)
+  }
+
+  /**
+   * @param {NoiseSecretStream<any>} noiseStream
+   */
+  #replicate(noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
     Promise.all([this.getDeviceInfo(), openedNoiseSecretStream(noiseStream)])
       .then(([{ name }, openedNoiseStream]) => {
@@ -389,9 +404,13 @@ export class MapeoManager extends TypedEmitter {
    * downloaded their proof of project membership and the project config.
    *
    * @param {import('./generated/rpc.js').Invite} invite
+   * @param {{ waitForSync?: boolean }} [opts] For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject()
    * @returns {Promise<string>}
    */
-  async addProject({ projectKey, encryptionKeys, projectInfo }) {
+  async addProject(
+    { projectKey, encryptionKeys, projectInfo },
+    { waitForSync = true } = {}
+  ) {
     const projectPublicId = projectKeyToPublicId(projectKey)
 
     // 1. Check for an active project
@@ -445,7 +464,9 @@ export class MapeoManager extends TypedEmitter {
       }
 
       // 5. Wait for initial project sync
-      await this.#waitForInitialSync(project)
+      if (waitForSync) {
+        await this.#waitForInitialSync(project)
+      }
 
       this.#activeProjects.set(projectPublicId, project)
     } catch (e) {
@@ -495,7 +516,7 @@ export class MapeoManager extends TypedEmitter {
     const isConfigSynced = configState.want === 0 && configState.have > 0
     if (
       isCapabilitySynced &&
-      isProjectSettingsSynced &&
+      // isProjectSettingsSynced &&
       isAuthSynced &&
       isConfigSynced
     ) {

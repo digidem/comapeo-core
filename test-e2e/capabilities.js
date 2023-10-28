@@ -49,10 +49,13 @@ test('New device without capabilities', async (t) => {
     coreStorage: () => new RAM(),
   })
 
-  const projectId = await manager.addProject({
-    projectKey: randomBytes(32),
-    encryptionKeys: { auth: randomBytes(32) },
-  })
+  const projectId = await manager.addProject(
+    {
+      projectKey: randomBytes(32),
+      encryptionKeys: { auth: randomBytes(32) },
+    },
+    { waitForSync: false }
+  )
   const project = await manager.getProject(projectId)
   await project.ready()
 
@@ -123,10 +126,13 @@ test('getMany() - on newly invited device before sync', async (t) => {
     coreStorage: () => new RAM(),
   })
 
-  const projectId = await manager.addProject({
-    projectKey: randomBytes(32),
-    encryptionKeys: { auth: randomBytes(32) },
-  })
+  const projectId = await manager.addProject(
+    {
+      projectKey: randomBytes(32),
+      encryptionKeys: { auth: randomBytes(32) },
+    },
+    { waitForSync: false }
+  )
   const project = await manager.getProject(projectId)
   await project.ready()
 

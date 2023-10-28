@@ -51,10 +51,13 @@ test('getting yourself after being invited to project (but not yet synced)', asy
 
   await manager.setDeviceInfo({ name: 'mapeo' })
   const project = await manager.getProject(
-    await manager.addProject({
-      projectKey: randomBytes(32),
-      encryptionKeys: { auth: randomBytes(32) },
-    })
+    await manager.addProject(
+      {
+        projectKey: randomBytes(32),
+        encryptionKeys: { auth: randomBytes(32) },
+      },
+      { waitForSync: false }
+    )
   )
   await project.ready()
 
