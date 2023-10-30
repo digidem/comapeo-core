@@ -279,7 +279,7 @@ export class CoreManager extends TypedEmitter {
       keyPair,
       encryptionKey: this.#encryptionKeys[namespace],
       // Starts live download of core immediately
-      sparse: false,
+      sparse: namespace === 'blob',
     })
     // @ts-ignore - ensure key is defined before hypercore is ready
     core.key = key
