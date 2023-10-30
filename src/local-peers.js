@@ -1,14 +1,14 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
-import { openedNoiseSecretStream, keyToId } from '../utils.js'
+import { openedNoiseSecretStream, keyToId } from './utils.js'
 import cenc from 'compact-encoding'
 import {
   DeviceInfo,
   Invite,
   InviteResponse,
   InviteResponse_Decision,
-} from '../generated/rpc.js'
+} from './generated/rpc.js'
 import pDefer from 'p-defer'
 
 const PROTOCOL_NAME = 'mapeo/rpc'
@@ -16,7 +16,7 @@ const PROTOCOL_NAME = 'mapeo/rpc'
 // Protomux message types depend on the order that messages are added to a
 // channel (this needs to remain consistent). To avoid breaking changes, the
 // types here should not change.
-/** @satisfies {{ [k in keyof typeof import('../generated/rpc.js')]?: number }} */
+/** @satisfies {{ [k in keyof typeof import('./generated/rpc.js')]?: number }} */
 const MESSAGE_TYPES = {
   Invite: 0,
   InviteResponse: 1,
@@ -24,10 +24,19 @@ const MESSAGE_TYPES = {
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
-/** @typedef {Peer['info']} PeerInfoInternal */
-/** @typedef {Omit<PeerInfoInternal, 'status'> & { status: Exclude<PeerInfoInternal['status'], 'connecting'> }} PeerInfo */
-/** @typedef {'connecting' | 'connected' | 'disconnected'} PeerState */
-/** @typedef {import('type-fest').SetNonNullable<import('../generated/rpc.js').Invite, 'encryptionKeys'>} InviteWithKeys */
+/**
+ * @typedef {object} PeerInfoBase
+ * @property {string} deviceId
+ * @property {string | undefined} name
+ */
+/** @typedef {PeerInfoBase & { status: 'connecting' }} PeerInfoConnecting */
+/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: Protomux }} PeerInfoConnected */
+/** @typedef {PeerInfoBase & { status: 'disconnected', disconnectedAt: number }} PeerInfoDisconnected */
+
+/** @typedef {PeerInfoConnecting | PeerInfoConnected | PeerInfoDisconnected} PeerInfoInternal */
+/** @typedef {PeerInfoConnected | PeerInfoDisconnected} PeerInfo */
+/** @typedef {PeerInfoInternal['status']} PeerState */
+/** @typedef {import('type-fest').SetNonNullable<import('./generated/rpc.js').Invite, 'encryptionKeys'>} InviteWithKeys */
 
 /**
  * @template ValueType
@@ -44,6 +53,12 @@ class Peer {
   #connected
   /** @type {Map<string, Array<DeferredPromise<InviteResponse['decision']>>>} */
   pendingInvites = new Map()
+  /** @type {string | undefined} */
+  #name
+  #connectedAt = 0
+  #disconnectedAt = 0
+  /** @type {Protomux} */
+  #protomux
 
   /**
    * @param {object} options
@@ -55,40 +70,65 @@ class Peer {
     this.#channel = channel
     this.#connected = pDefer()
   }
+  /** @returns {PeerInfoInternal} */
   get info() {
-    return {
-      status: this.#state,
-      id: keyToId(this.#publicKey),
+    const deviceId = keyToId(this.#publicKey)
+    switch (this.#state) {
+      case 'connecting':
+        return {
+          status: this.#state,
+          deviceId,
+          name: this.#name,
+        }
+      case 'connected':
+        return {
+          status: this.#state,
+          deviceId,
+          name: this.#name,
+          connectedAt: this.#connectedAt,
+          protomux: this.#protomux,
+        }
+      case 'disconnected':
+        return {
+          status: this.#state,
+          deviceId,
+          name: this.#name,
+          disconnectedAt: this.#disconnectedAt,
+        }
+      /* c8 ignore next 4 */
+      default: {
+        /** @type {never} */
+        const _exhaustiveCheck = this.#state
+        return _exhaustiveCheck
+      }
     }
   }
-  /**
-   * Poor-man's finite state machine. Rather than a `setState` method, only
-   * allows specific transitions between states.
-   *
-   * @param {'connect' | 'disconnect'} type
-   */
-  action(type) {
-    switch (type) {
-      case 'connect':
-        /* c8 ignore next 3 */
-        if (this.#state !== 'connecting') {
-          return // TODO: report error - this should not happen
-        }
-        this.#state = 'connected'
-        this.#connected.resolve()
-        break
-      case 'disconnect':
-        /* c8 ignore next */
-        if (this.#state === 'disconnected') return
-        this.#state = 'disconnected'
-        for (const pending of this.pendingInvites.values()) {
-          for (const { reject } of pending) {
-            reject(new PeerDisconnectedError())
-          }
-        }
-        this.pendingInvites.clear()
-        break
+  /** @param {Protomux} protomux */
+  connect(protomux) {
+    this.#protomux = protomux
+    /* c8 ignore next 3 */
+    if (this.#state !== 'connecting') {
+      return // TODO: report error - this should not happen
     }
+    this.#state = 'connected'
+    this.#connectedAt = Date.now()
+    this.#connected.resolve()
+  }
+  disconnect() {
+    // @ts-ignore - easier to ignore this than handle this for TS - avoids holding a reference to old Protomux instances
+    this.#protomux = undefined
+    /* c8 ignore next */
+    if (this.#state === 'disconnected') return
+    this.#state = 'disconnected'
+    this.#disconnectedAt = Date.now()
+    // Can just resolve this rather than reject, because #assertConnected will throw the error
+    this.#connected.resolve()
+    for (const pending of this.pendingInvites.values()) {
+      for (const { reject } of pending) {
+        reject(new PeerDisconnectedError())
+      }
+    }
+    this.pendingInvites.clear()
   }
   /** @param {InviteWithKeys} invite */
   async sendInvite(invite) {
@@ -111,6 +151,10 @@ class Peer {
     const messageType = MESSAGE_TYPES.DeviceInfo
     this.#channel.messages[messageType].send(buf)
   }
+  /** @param {DeviceInfo} deviceInfo */
+  receiveDeviceInfo(deviceInfo) {
+    this.#name = deviceInfo.name
+  }
   async #assertConnected() {
     await this.#connected.promise
     if (this.#state === 'connected' && !this.#channel.closed) return
@@ -120,22 +164,17 @@ class Peer {
 }
 
 /**
- * @typedef {object} MapeoRPCEvents
+ * @typedef {object} LocalPeersEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
  * @property {(peerId: string, invite: InviteWithKeys) => void} invite Emitted when an invite is received
- * @property {(deviceInfo: DeviceInfo & { deviceId: string }) => void} device-info Emitted when we receive device info for a device
  */
 
-/** @extends {TypedEmitter<MapeoRPCEvents>} */
-export class MapeoRPC extends TypedEmitter {
+/** @extends {TypedEmitter<LocalPeersEvents>} */
+export class LocalPeers extends TypedEmitter {
   /** @type {Map<string, Peer>} */
   #peers = new Map()
   /** @type {Set<Promise<any>>} */
   #opening = new Set()
-
-  constructor() {
-    super()
-  }
 
   static InviteResponse = InviteResponse_Decision
 
@@ -221,7 +260,8 @@ export class MapeoRPC extends TypedEmitter {
   /**
    * Connect to a peer over an existing NoiseSecretStream
    *
-   * @param {import('../types.js').NoiseStream | import('../types.js').ProtocolStream} stream a NoiseSecretStream from @hyperswarm/secret-stream
+   * @param {import('./types.js').NoiseStream<any>} stream a NoiseSecretStream from @hyperswarm/secret-stream
+   * @returns {import('./types.js').ReplicationStream}
    */
   connect(stream) {
     if (!stream.noiseStream) throw new Error('Invalid stream')
@@ -229,7 +269,11 @@ export class MapeoRPC extends TypedEmitter {
       stream.userData && Protomux.isProtomux(stream.userData)
         ? stream.userData
         : Protomux.from(stream)
+    stream.userData = protomux
     this.#opening.add(stream.opened)
+
+    // No need to connect error handler to stream because Protomux does this,
+    // and errors are eventually handled by #closePeer
 
     // noiseSecretStream.remotePublicKey can be null before the stream has
     // opened, so this helped awaits the open
@@ -254,7 +298,7 @@ export class MapeoRPC extends TypedEmitter {
         userData: null,
         protocol: PROTOCOL_NAME,
         messages,
-        onopen: this.#openPeer.bind(this, remotePublicKey),
+        onopen: this.#openPeer.bind(this, remotePublicKey, protomux),
         onclose: this.#closePeer.bind(this, remotePublicKey),
       })
       channel.open()
@@ -263,27 +307,28 @@ export class MapeoRPC extends TypedEmitter {
       const existingPeer = this.#peers.get(peerId)
       /* c8 ignore next 3 */
       if (existingPeer && existingPeer.info.status !== 'disconnected') {
-        existingPeer.action('disconnect') // Should not happen, but in case
+        existingPeer.disconnect() // Should not happen, but in case
       }
       const peer = new Peer({ publicKey: remotePublicKey, channel })
       this.#peers.set(peerId, peer)
       // Do not emit peers now - will emit when connected
     })
 
-    return stream
+    return stream.rawStream
   }
 
-  /** @param {Buffer} publicKey */
-  #openPeer(publicKey) {
+  /**
+   * @param {Buffer} publicKey
+   * @param {Protomux} protomux
+   */
+  #openPeer(publicKey, protomux) {
     const peerId = keyToId(publicKey)
     const peer = this.#peers.get(peerId)
     /* c8 ignore next */
     if (!peer) return // TODO: report error - this should not happen
-    // No-op if no change in state
-    /* c8 ignore next */
-    if (peer.info.status === 'connected') return // TODO: report error - this should not happen
-    peer.action('connect')
-    this.#emitPeers()
+    const wasConnected = peer.info.status === 'connected'
+    peer.connect(protomux)
+    if (!wasConnected) this.#emitPeers()
   }
 
   /** @param {Buffer} publicKey */
@@ -296,7 +341,7 @@ export class MapeoRPC extends TypedEmitter {
     /* c8 ignore next */
     if (peer.info.status === 'disconnected') return
     // TODO: Track reasons for closing
-    peer.action('disconnect')
+    peer.disconnect()
     this.#emitPeers()
   }
 
@@ -348,7 +393,8 @@ export class MapeoRPC extends TypedEmitter {
       }
       case 'DeviceInfo': {
         const deviceInfo = DeviceInfo.decode(value)
-        this.emit('device-info', { ...deviceInfo, deviceId: peerId })
+        peer.receiveDeviceInfo(deviceInfo)
+        this.#emitPeers()
         break
       }
       /* c8 ignore next 5 */

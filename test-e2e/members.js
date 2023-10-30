@@ -11,7 +11,7 @@ import {
   MEMBER_ROLE_ID,
   NO_ROLE_CAPABILITIES,
 } from '../src/capabilities.js'
-import { replicate } from '../tests/helpers/rpc.js'
+import { replicate } from '../tests/helpers/local-peers.js'
 
 test('getting yourself after creating project', async (t) => {
   const { manager } = setup()
@@ -191,7 +191,7 @@ function setup() {
     })
 
     manager[kRPC].on('peers', (peers) => {
-      const deviceId = peers[0].id
+      const deviceId = peers[0].deviceId
       project.$member
         .invite(deviceId, { roleId })
         .then(() => deferred.resolve(deviceId))
