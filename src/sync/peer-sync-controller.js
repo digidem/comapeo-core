@@ -217,6 +217,7 @@ export class PeerSyncController {
    * @param {Namespace} namespace
    */
   #enableNamespace(namespace) {
+    if (this.#enabledNamespaces.has(namespace)) return
     for (const { core } of this.#coreManager.getCores(namespace)) {
       this.#replicateCore(core)
       this.#downloadCore(core)
@@ -228,6 +229,7 @@ export class PeerSyncController {
    * @param {Namespace} namespace
    */
   #disableNamespace(namespace) {
+    if (!this.#enabledNamespaces.has(namespace)) return
     for (const { core } of this.#coreManager.getCores(namespace)) {
       this.#unreplicateCore(core)
       this.#undownloadCore(core)
