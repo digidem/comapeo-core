@@ -1,5 +1,6 @@
 import mapObject from 'map-obj'
 import { NAMESPACES } from '../core-manager/index.js'
+import { Logger } from '../logger.js'
 
 /**
  * @typedef {import('../core-manager/index.js').Namespace} Namespace
@@ -29,6 +30,7 @@ export class PeerSyncController {
   #downloadingRanges = new Map()
   /** @type {SyncStatus} */
   #prevSyncStatus = createNamespaceMap('unknown')
+  #log
 
   /**
    * @param {object} opts
@@ -36,20 +38,37 @@ export class PeerSyncController {
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    * @param {import("./sync-state.js").SyncState} opts.syncState
    * @param {import("../capabilities.js").Capabilities} opts.capabilities
+   * @param {Logger} [opts.logger]
    */
-  constructor({ protomux, coreManager, syncState, capabilities }) {
+  constructor({ protomux, coreManager, syncState, capabilities, logger }) {
+    // @ts-ignore
+    this.#log = (formatter, ...args) => {
+      const log = Logger.create('peer', logger).log
+      return log.apply(null, [
+        `[%h] ${formatter}`,
+        protomux.stream.remotePublicKey,
+        ...args,
+      ])
+    }
     this.#coreManager = coreManager
     this.#protomux = protomux
     this.#capabilities = capabilities
 
     // Always need to replicate the project creator core
-    coreManager.creatorCore.replicate(protomux)
-    this.#replicatingCores.add(coreManager.creatorCore)
+    this.#replicateCore(coreManager.creatorCore)
 
     coreManager.on('add-core', this.#handleAddCore)
     syncState.on('state', this.#handleStateChange)
 
     this.#updateEnabledNamespaces()
+  }
+
+  get peerKey() {
+    return this.#protomux.stream.remotePublicKey
+  }
+
+  get peerId() {
+    return this.peerKey?.toString('hex')
   }
 
   /**
@@ -78,6 +97,7 @@ export class PeerSyncController {
    * @param {import("../core-manager/core-index.js").CoreRecord} coreRecord
    */
   #handleAddCore = ({ core, namespace }) => {
+    this.#log('Add core %h to %s', core.key, namespace)
     if (!this.#enabledNamespaces.has(namespace)) return
     this.#replicateCore(core)
   }
@@ -93,12 +113,12 @@ export class PeerSyncController {
     // connected. We shouldn't get a state change before the noise stream has
     // connected, but if we do we can ignore it because we won't have any useful
     // information until it connects.
-    if (!this.#protomux.stream.remotePublicKey) return
-    const peerId = this.#protomux.stream.remotePublicKey.toString('hex')
-    this.#syncStatus = getSyncStatus(peerId, state)
+    if (!this.peerId) return
+    this.#syncStatus = getSyncStatus(this.peerId, state)
     const localState = mapObject(state, (ns, nsState) => {
       return [ns, nsState.localState]
     })
+    this.#log('state %O', state)
 
     // Map of which namespaces have received new data since last sync change
     const didUpdate = mapObject(state, (ns) => {
@@ -118,16 +138,15 @@ export class PeerSyncController {
 
     if (didUpdate.auth) {
       try {
-        const cap = await this.#capabilities.getCapabilities(peerId)
+        const cap = await this.#capabilities.getCapabilities(this.peerId)
         this.#syncCapability = cap.sync
       } catch (e) {
-        // Any error, consider sync blocked
-        this.#syncCapability = createNamespaceMap('blocked')
+        this.#log('Error reading capability', e)
+        // Any error, consider sync unknown
+        this.#syncCapability = createNamespaceMap('unknown')
       }
     }
-    // console.log(peerId.slice(0, 7), this.#syncCapability)
-    // console.log(peerId.slice(0, 7), didUpdate)
-    // console.dir(state, { depth: null, colors: true })
+    this.#log('capability %o', this.#syncCapability)
 
     // If any namespace has new data, update what is enabled
     if (Object.values(didUpdate).indexOf(true) > -1) {
@@ -177,7 +196,12 @@ export class PeerSyncController {
    */
   #replicateCore(core) {
     if (this.#replicatingCores.has(core)) return
+    this.#log('replicating core %k', core.key)
     core.replicate(this.#protomux)
+    core.on('peer-remove', (peer) => {
+      if (!peer.remotePublicKey.equals(this.peerKey)) return
+      this.#log('peer-remove %h from core %k', peer.remotePublicKey, core.key)
+    })
     this.#replicatingCores.add(core)
   }
 
@@ -190,6 +214,7 @@ export class PeerSyncController {
       (peer) => peer.protomux === this.#protomux
     )
     if (!peerToUnreplicate) return
+    this.#log('unreplicating core %k', core.key)
     peerToUnreplicate.channel.close()
     this.#replicatingCores.delete(core)
   }
@@ -203,6 +228,7 @@ export class PeerSyncController {
       this.#replicateCore(core)
     }
     this.#enabledNamespaces.add(namespace)
+    this.#log('enabled namespace %s', namespace)
   }
 
   /**
@@ -214,6 +240,7 @@ export class PeerSyncController {
       this.#unreplicateCore(core)
     }
     this.#enabledNamespaces.delete(namespace)
+    this.#log('disabled namespace %s', namespace)
   }
 }
 

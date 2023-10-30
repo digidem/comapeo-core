@@ -30,6 +30,7 @@ import { LocalDiscovery } from './discovery/local-discovery.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { Capabilities } from './capabilities.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
+import { Logger } from './logger.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -70,6 +71,7 @@ export class MapeoManager extends TypedEmitter {
   #localPeers
   #invite
   #localDiscovery
+  #l
 
   /**
    * @param {Object} opts
@@ -79,6 +81,9 @@ export class MapeoManager extends TypedEmitter {
    */
   constructor({ rootKey, dbFolder, coreStorage }) {
     super()
+    this.#keyManager = new KeyManager(rootKey)
+    this.#deviceId = getDeviceId(this.#keyManager)
+    this.#l = new Logger({ deviceId: this.#deviceId })
     this.#dbFolder = dbFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
@@ -90,16 +95,20 @@ export class MapeoManager extends TypedEmitter {
       migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
     })
 
-    this.#localPeers = new LocalPeers()
+    this.#localPeers = new LocalPeers({ logger: this.#l })
     this.#localPeers.on('peers', (peers) => {
       this.emit('local-peers', omitPeerProtomux(peers))
     })
+    this.#localPeers.on('discovery-key', (dk) => {
+      if (this.#activeProjects.size === 0) {
+        this.#l.log('Received dk %h but no active projects', dk)
+      }
+    })
 
-    this.#keyManager = new KeyManager(rootKey)
-    this.#deviceId = getDeviceId(this.#keyManager)
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectSettingsTable],
       sqlite,
+      logger: this.#l,
     })
     this.#activeProjects = new Map()
 
@@ -175,7 +184,11 @@ export class MapeoManager extends TypedEmitter {
       })
       .catch((e) => {
         // Ignore error but log
-        console.error('Failed to send device info to peer', e)
+        this.#l.log(
+          'Failed to send device info to peer %h',
+          noiseStream.remotePublicKey,
+          e
+        )
       })
     return replicationStream
   }
@@ -291,6 +304,12 @@ export class MapeoManager extends TypedEmitter {
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
 
+    this.#l.log(
+      'created project %h, public id: %S',
+      projectKeypair.publicKey,
+      projectPublicId
+    )
+
     // 7. Return project public id
     return projectPublicId
   }
@@ -344,6 +363,7 @@ export class MapeoManager extends TypedEmitter {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
+      logger: this.#l,
     })
   }
 
@@ -460,7 +480,11 @@ export class MapeoManager extends TypedEmitter {
         }
       } catch (e) {
         // Can ignore an error trying to write device info
-        console.error(e)
+        this.#l.log(
+          'ERROR: failed to write project %h deviceInfo %o',
+          projectKey,
+          e
+        )
       }
 
       // 5. Wait for initial project sync
@@ -470,12 +494,14 @@ export class MapeoManager extends TypedEmitter {
 
       this.#activeProjects.set(projectPublicId, project)
     } catch (e) {
+      this.#l.log('ERROR: could not add project', e)
       this.#db
         .delete(projectKeysTable)
         .where(eq(projectKeysTable.projectId, projectId))
         .run()
       throw e
     }
+    this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
     return projectPublicId
   }
 
@@ -504,9 +530,15 @@ export class MapeoManager extends TypedEmitter {
       auth: { localState: authState },
       config: { localState: configState },
     } = project.$sync.getState()
+    this.#l.log('Wait for sync, auth state: %o', authState)
+    this.#l.log('Wait for sync, config state: %o', configState)
     const isCapabilitySynced = capability !== Capabilities.NO_ROLE_CAPABILITIES
     const isProjectSettingsSynced =
       projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
+    this.#l.log('Wait for sync: %o', {
+      isCapabilitySynced,
+      isProjectSettingsSynced,
+    })
     // Assumes every project that someone is invited to has at least one record
     // in the auth store - the capability record for the invited device
     const isAuthSynced = authState.want === 0 && authState.have > 0
@@ -516,7 +548,7 @@ export class MapeoManager extends TypedEmitter {
     const isConfigSynced = configState.want === 0 && configState.have > 0
     if (
       isCapabilitySynced &&
-      // isProjectSettingsSynced &&
+      isProjectSettingsSynced &&
       isAuthSynced &&
       isConfigSynced
     ) {
@@ -525,6 +557,11 @@ export class MapeoManager extends TypedEmitter {
     return new Promise((resolve, reject) => {
       /** @param {import('./sync/sync-state.js').State} syncState */
       const onSyncState = (syncState) => {
+        this.#l.log(
+          'Wait for sync: syncState %O\n%O',
+          syncState.auth,
+          syncState.config
+        )
         clearTimeout(timeoutId)
         timeoutId = setTimeout(onTimeout, timeoutMs)
         if (syncState.auth.dataToSync || syncState.config.dataToSync) return

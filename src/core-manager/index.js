@@ -8,6 +8,7 @@ import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
 import * as rle from './bitfield-rle.js'
+import { Logger } from '../logger.js'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
@@ -55,6 +56,7 @@ export class CoreManager extends TypedEmitter {
   #ready
   #haveExtension
   #deviceId
+  #l
 
   static get namespaces() {
     return NAMESPACES
@@ -68,6 +70,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
    * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
+   * @param {Logger} [options.logger]
    */
   constructor({
     sqlite,
@@ -76,6 +79,7 @@ export class CoreManager extends TypedEmitter {
     projectSecretKey,
     encryptionKeys = {},
     storage,
+    logger,
   }) {
     super()
     assert(
@@ -86,6 +90,7 @@ export class CoreManager extends TypedEmitter {
       !projectSecretKey || projectSecretKey.length === 64,
       'project owner core secret key must be 64-byte buffer'
     )
+    this.#l = Logger.create('coreManager', logger)
     const primaryKey = keyManager.getDerivedKey('primaryKey', projectKey)
     this.#deviceId = keyManager.getIdentityKeypair().publicKey.toString('hex')
     this.#projectKey = projectKey
@@ -159,7 +164,11 @@ export class CoreManager extends TypedEmitter {
 
     this.#ready = Promise.all(
       [...this.#coreIndex].map(({ core }) => core.ready())
-    ).catch(() => {})
+    )
+      .then(() => {
+        this.#l.log('ready')
+      })
+      .catch(() => {})
   }
 
   get deviceId() {
@@ -311,7 +320,12 @@ export class CoreManager extends TypedEmitter {
     if (persist) {
       this.#addCoreSqlStmt.run({ publicKey: key, namespace })
     }
-
+    this.#l.log(
+      'Added %s %s core %k',
+      persist ? 'remote' : writer ? 'local' : 'creator',
+      namespace,
+      key
+    )
     this.emit('add-core', { core, key, namespace })
 
     return { core, key, namespace }
@@ -407,13 +421,21 @@ export class CoreManager extends TypedEmitter {
     const discoveryId = discoveryKey.toString('hex')
     const peer = await this.#findPeer(stream.remotePublicKey)
     if (!peer) {
-      console.warn('handleDiscovery no peer', stream.remotePublicKey)
+      this.#l.log(
+        'Receive dk %h but no connected peer %h',
+        discoveryKey,
+        stream.remotePublicKey
+      )
       // TODO: How to handle this and when does it happen?
       return
     }
     // If we already know about this core, then we will add it to the
     // replication stream when we are ready
-    if (this.#coreIndex.getByDiscoveryId(discoveryId)) return
+    if (this.#coreIndex.getByDiscoveryId(discoveryId)) {
+      this.#l.log('Received dk %h, but already have core', discoveryKey)
+      return
+    }
+    this.#l.log('Requesting core key for dk %h', discoveryKey)
     const message = ProjectExtension.fromPartial({
       wantCoreKeys: [discoveryKey],
     })

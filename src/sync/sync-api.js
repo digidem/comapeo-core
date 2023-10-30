@@ -1,6 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { SyncState } from './sync-state.js'
 import { PeerSyncController } from './peer-sync-controller.js'
+import { Logger } from '../logger.js'
 
 export const kSyncReplicate = Symbol('replicate sync')
 
@@ -20,6 +21,7 @@ export class SyncApi extends TypedEmitter {
   #peerSyncControllers = new Map()
   /** @type {Set<'local' | 'remote'>} */
   #dataSyncEnabled = new Set()
+  #l
 
   /**
    *
@@ -27,9 +29,11 @@ export class SyncApi extends TypedEmitter {
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {import("../capabilities.js").Capabilities} opts.capabilities
    * @param {number} [opts.throttleMs]
+   * @param {Logger} [opts.logger]
    */
-  constructor({ coreManager, throttleMs = 200, capabilities }) {
+  constructor({ coreManager, throttleMs = 200, capabilities, logger }) {
     super()
+    this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
     this.#capabilities = capabilities
     this.syncState = new SyncState({ coreManager, throttleMs })
@@ -46,6 +50,7 @@ export class SyncApi extends TypedEmitter {
   start() {
     if (this.#dataSyncEnabled.has('local')) return
     this.#dataSyncEnabled.add('local')
+    this.#l.log('Starting data sync')
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.enableDataSync()
     }
@@ -57,6 +62,7 @@ export class SyncApi extends TypedEmitter {
   stop() {
     if (!this.#dataSyncEnabled.has('local')) return
     this.#dataSyncEnabled.delete('local')
+    this.#l.log('Stopping data sync')
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.disableDataSync()
     }
@@ -66,13 +72,20 @@ export class SyncApi extends TypedEmitter {
    * @param {import('protomux')<import('@hyperswarm/secret-stream')>} protomux A protomux instance
    */
   [kSyncReplicate](protomux) {
-    if (this.#peerSyncControllers.has(protomux)) return
+    if (this.#peerSyncControllers.has(protomux)) {
+      this.#l.log(
+        'Existing sync controller for peer %h',
+        protomux.stream.remotePublicKey
+      )
+      return
+    }
 
     const peerSyncController = new PeerSyncController({
       protomux,
       coreManager: this.#coreManager,
       syncState: this.syncState,
       capabilities: this.#capabilities,
+      logger: this.#l,
     })
     if (this.#dataSyncEnabled.has('local')) {
       peerSyncController.enableDataSync()
