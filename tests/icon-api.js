@@ -61,7 +61,12 @@ test('icon api - create and get with one variant', async (t) => {
     ],
   })
 
-  const { icon } = await iconApi[kGetIcon]({ iconId: iconDoc.docId })
+  const { icon } = await iconApi[kGetIcon]({
+    iconId: iconDoc.docId,
+    size: 'small',
+    mimeType: 'image/png',
+    pixelDensity: 1,
+  })
   t.alike(icon, expectedSmallIcon)
 })
 
@@ -81,6 +86,8 @@ test(`icon api - create and fail to find variant with matching mimeType`, async 
   await t.exception(async () => {
     await iconApi[kGetIcon]({
       iconId: iconDoc.docId,
+      size: 'small',
+      pixelDensity: 1,
       mimeType: 'image/png',
     })
   }, 'no matching mimeType for icon')
@@ -112,6 +119,8 @@ test('icon api - create and get with different variants', async (t) => {
   })
 
   const { icon } = await iconApi[kGetIcon]({
+    mimeType: 'image/png',
+    pixelDensity: 2,
     iconId: iconDoc.docId,
     size: 'large',
   })
@@ -212,8 +221,12 @@ test(`icon api - getIconUrl, test matching url`, async (t) => {
 
 test('getBestVariant - no variants exist', (t) => {
   t.exception(() => {
-    return getBestVariant([], {})
-  })
+    return getBestVariant([], {
+      mimeType: 'image/png',
+      size: 'small',
+      pixelDensity: 1,
+    })
+  }, 'throws when no variants exist')
 })
 
 test('getBestVariant - specify mimeType', (t) => {
@@ -236,6 +249,7 @@ test('getBestVariant - specify mimeType', (t) => {
       ['image/svg+xml', svgVariant],
     ]) {
       const result = getBestVariant([pngVariant, svgVariant], {
+        ...common,
         // @ts-expect-error
         mimeType,
       })
@@ -243,6 +257,7 @@ test('getBestVariant - specify mimeType', (t) => {
       st.alike(
         result,
         getBestVariant([pngVariant, svgVariant].reverse(), {
+          ...common,
           // @ts-expect-error
           mimeType,
         }),
@@ -260,12 +275,14 @@ test('getBestVariant - specify mimeType', (t) => {
   t.test('request a mime type with no match present', (st) => {
     st.exception(() => {
       getBestVariant([pngVariant], {
+        ...common,
         mimeType: 'image/svg+xml',
       })
     }, 'throws when no match for svg exists')
 
     st.exception(() => {
       getBestVariant([svgVariant], {
+        ...common,
         mimeType: 'image/png',
       })
     }, 'throws when no match for png exists')
@@ -300,6 +317,7 @@ test('getBestVariant - specify size', (t) => {
       const result = getBestVariant(
         [smallVariant, mediumVariant, largeVariant],
         {
+          ...common,
           // @ts-expect-error
           size,
         }
@@ -308,6 +326,7 @@ test('getBestVariant - specify size', (t) => {
       st.alike(
         result,
         getBestVariant([smallVariant, mediumVariant, largeVariant].reverse(), {
+          ...common,
           // @ts-expect-error
           size,
         }),
@@ -323,13 +342,15 @@ test('getBestVariant - specify size', (t) => {
   })
 
   t.test('request size with only smaller existing', (st) => {
-    const result = getBestVariant([smallVariant, mediumVariant, largeVariant], {
+    const result = getBestVariant([smallVariant, mediumVariant], {
+      ...common,
       size: 'large',
     })
 
     st.alike(
       result,
-      getBestVariant([smallVariant, mediumVariant, largeVariant].reverse(), {
+      getBestVariant([smallVariant, mediumVariant].reverse(), {
+        ...common,
         size: 'large',
       }),
       'same result regardless of variants order'
@@ -340,28 +361,32 @@ test('getBestVariant - specify size', (t) => {
 
   t.test('request size with both larger and smaller existing', (st) => {
     const result = getBestVariant([smallVariant, largeVariant], {
+      ...common,
       size: 'medium',
     })
 
     st.alike(
       result,
       getBestVariant([smallVariant, largeVariant].reverse(), {
+        ...common,
         size: 'medium',
       }),
       'same result regardless of variants order'
     )
 
-    st.alike(result, mediumVariant, 'returns smaller size')
+    st.alike(result, smallVariant, 'returns smaller size')
   })
 
   t.test('request size with only larger existing', (st) => {
     const result = getBestVariant([mediumVariant, largeVariant], {
+      ...common,
       size: 'small',
     })
 
     st.alike(
       result,
       getBestVariant([mediumVariant, largeVariant].reverse(), {
+        ...common,
         size: 'small',
       }),
       'same result regardless of variants order'
@@ -399,6 +424,7 @@ test('getBestVariant - specify pixel density', (t) => {
       const result = getBestVariant(
         [density1Variant, density2Variant, density3Variant],
         {
+          ...common,
           // @ts-expect-error
           pixelDensity,
         }
@@ -409,6 +435,7 @@ test('getBestVariant - specify pixel density', (t) => {
         getBestVariant(
           [density1Variant, density2Variant, density3Variant].reverse(),
           {
+            ...common,
             // @ts-expect-error
             pixelDensity,
           }
@@ -426,12 +453,14 @@ test('getBestVariant - specify pixel density', (t) => {
 
   t.test('request pixel density with only smaller existing', (st) => {
     const result = getBestVariant([density1Variant, density2Variant], {
+      ...common,
       pixelDensity: 3,
     })
 
     st.alike(
       result,
       getBestVariant([density1Variant, density2Variant].reverse(), {
+        ...common,
         pixelDensity: 3,
       }),
       'same result regardless of variants order'
@@ -444,12 +473,14 @@ test('getBestVariant - specify pixel density', (t) => {
     'request pixel density with both larger and smaller existing',
     (st) => {
       const result = getBestVariant([density1Variant, density3Variant], {
+        ...common,
         pixelDensity: 2,
       })
 
       st.alike(
         result,
         getBestVariant([density1Variant, density3Variant].reverse(), {
+          ...common,
           pixelDensity: 2,
         }),
         'same result regardless of variants order'
@@ -461,12 +492,14 @@ test('getBestVariant - specify pixel density', (t) => {
 
   t.test('request pixel density with only larger existing', (st) => {
     const result = getBestVariant([density2Variant, density3Variant], {
+      ...common,
       pixelDensity: 1,
     })
 
     st.alike(
       result,
       getBestVariant([density2Variant, density3Variant].reverse(), {
+        ...common,
         pixelDensity: 1,
       }),
       'same result regardless of variants order'
