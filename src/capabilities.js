@@ -211,17 +211,21 @@ export class Capabilities {
    */
   async getAll() {
     const roles = await this.#dataType.getMany()
+    /** @type {Record<string, Capability>} */
+    const capabilities = {}
     let projectCreatorDeviceId
     try {
       projectCreatorDeviceId = await this.#coreOwnership.getOwner(
         this.#projectCreatorAuthCoreId
       )
+      // Default to creator capabilities, but can be overwritten if a different
+      // role is set below
+      capabilities[projectCreatorDeviceId] = CREATOR_CAPABILITIES
     } catch (e) {
       // Not found, we don't know who the project creator is so we can't include
       // them in the returned map
     }
-    /** @type {Record<string, Capability>} */
-    const capabilities = {}
+
     for (const role of roles) {
       const deviceId = role.docId
       if (!isKnownRoleId(role.roleId)) continue
