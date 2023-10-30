@@ -66,6 +66,10 @@ export class DataStore extends TypedEmitter {
       storage,
       batch: (entries) => this.#handleEntries(entries),
     })
+    coreManager.on('add-core', (coreRecord) => {
+      if (coreRecord.namespace !== namespace) return
+      this.#coreIndexer.addCore(coreRecord.core)
+    })
 
     // Forward events from coreIndexer
     this.on('newListener', (eventName, listener) => {
