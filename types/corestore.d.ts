@@ -27,6 +27,7 @@ declare module 'corestore' {
       options: Omit<HypercoreOptions, 'keyPair' | 'key'> & {
         key?: Buffer | string | undefined
         keyPair: { publicKey: Buffer; secretKey?: Buffer | undefined | null }
+        sparse: boolean
       }
     ): Hypercore<Hypercore.ValueEncoding, Buffer>
     replicate: typeof Hypercore.prototype.replicate

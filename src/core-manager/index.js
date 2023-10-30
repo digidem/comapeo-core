@@ -269,6 +269,8 @@ export class CoreManager extends TypedEmitter {
     const core = this.#corestore.get({
       keyPair,
       encryptionKey: this.#encryptionKeys[namespace],
+      // Starts live download of core immediately
+      sparse: false,
     })
     // @ts-ignore - ensure key is defined before hypercore is ready
     core.key = key
