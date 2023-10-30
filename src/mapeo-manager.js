@@ -530,15 +530,9 @@ export class MapeoManager extends TypedEmitter {
       auth: { localState: authState },
       config: { localState: configState },
     } = project.$sync.getState()
-    this.#l.log('Wait for sync, auth state: %o', authState)
-    this.#l.log('Wait for sync, config state: %o', configState)
     const isCapabilitySynced = capability !== Capabilities.NO_ROLE_CAPABILITIES
     const isProjectSettingsSynced =
       projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
-    this.#l.log('Wait for sync: %o', {
-      isCapabilitySynced,
-      isProjectSettingsSynced,
-    })
     // Assumes every project that someone is invited to has at least one record
     // in the auth store - the capability record for the invited device
     const isAuthSynced = authState.want === 0 && authState.have > 0
@@ -557,14 +551,11 @@ export class MapeoManager extends TypedEmitter {
     return new Promise((resolve, reject) => {
       /** @param {import('./sync/sync-state.js').State} syncState */
       const onSyncState = (syncState) => {
-        this.#l.log(
-          'Wait for sync: syncState %O\n%O',
-          syncState.auth,
-          syncState.config
-        )
         clearTimeout(timeoutId)
-        timeoutId = setTimeout(onTimeout, timeoutMs)
-        if (syncState.auth.dataToSync || syncState.config.dataToSync) return
+        if (syncState.auth.dataToSync || syncState.config.dataToSync) {
+          timeoutId = setTimeout(onTimeout, timeoutMs)
+          return
+        }
         project.$sync.off('sync-state', onSyncState)
         resolve(this.#waitForInitialSync(project, { timeoutMs }))
       }
