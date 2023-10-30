@@ -97,7 +97,6 @@ export class PeerSyncController {
    * @param {import("../core-manager/core-index.js").CoreRecord} coreRecord
    */
   #handleAddCore = ({ core, namespace }) => {
-    this.#log('Add core %h to %s', core.key, namespace)
     if (!this.#enabledNamespaces.has(namespace)) return
     this.#replicateCore(core)
   }
