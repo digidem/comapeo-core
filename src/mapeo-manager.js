@@ -6,8 +6,9 @@ import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
+import fastify from 'fastify'
 import { IndexWriter } from './index-writer/index.js'
-import { MapeoProject, kSetOwnDeviceInfo } from './mapeo-project.js'
+import { MapeoProject, kBlobStore, kSetOwnDeviceInfo } from './mapeo-project.js'
 import {
   localDeviceInfoTable,
   projectKeysTable,
@@ -24,6 +25,8 @@ import {
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
+import BlobServerPlugin from './fastify-plugins/blobs.js'
+import { once } from 'events'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -34,6 +37,9 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 // limit of 1024 per process, so choosing 768 to leave 256 descriptors free for
 // other things e.g. SQLite and other parts of the app.
 const MAX_FILE_DESCRIPTORS = 768
+
+const MEDIA_SERVER_BLOBS_PREFIX = 'blobs'
+const MEDIA_SERVER_ICONS_PREFIX = 'icons'
 
 export const kRPC = Symbol('rpc')
 
@@ -50,14 +56,16 @@ export class MapeoManager {
   #deviceId
   #rpc
   #invite
+  #mediaServer
 
   /**
    * @param {Object} opts
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
+   * @param {number} [opts.mediaServerPort]
    */
-  constructor({ rootKey, dbFolder, coreStorage }) {
+  constructor({ rootKey, dbFolder, coreStorage, mediaServerPort }) {
     this.#dbFolder = dbFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
@@ -103,6 +111,25 @@ export class MapeoManager {
     } else {
       this.#coreStorage = coreStorage
     }
+
+    this.#mediaServer = fastify({ logger: true })
+
+    this.#mediaServer.register(BlobServerPlugin, {
+      prefix: MEDIA_SERVER_BLOBS_PREFIX,
+      getBlobStore: async (projectPublicId) => {
+        const project = await this.getProject(projectPublicId)
+        return project[kBlobStore]
+      },
+    })
+
+    this.#mediaServer
+      .listen({ port: mediaServerPort })
+      .then((address) => {
+        console.log(`Media server listening on ${address}`)
+      })
+      .catch((err) => {
+        console.error('Could not start media server', err)
+      })
   }
 
   /**
@@ -110,6 +137,41 @@ export class MapeoManager {
    */
   get [kRPC]() {
     return this.#rpc
+  }
+
+  /**
+   * @returns {Promise<string>}
+   */
+  async #getMediaServerAddress() {
+    const address = this.#mediaServer.server.address()
+
+    if (!address) {
+      await once(this.#mediaServer.server, 'listening')
+      return this.#getMediaServerAddress()
+    }
+
+    if (typeof address === 'string') {
+      return address
+    }
+
+    return address.address
+  }
+
+  /**
+   * @param {'blobs' | 'icons'} mediaType
+   * @returns
+   */
+  async #getMediaBaseUrl(mediaType) {
+    const address = await this.#getMediaServerAddress()
+
+    switch (mediaType) {
+      case 'blobs': {
+        return `${address}/${MEDIA_SERVER_BLOBS_PREFIX}`
+      }
+      case 'icons': {
+        return `${address}/${MEDIA_SERVER_ICONS_PREFIX}`
+      }
+    }
   }
 
   /**
@@ -214,6 +276,7 @@ export class MapeoManager {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       rpc: this.#rpc,
+      getMediaBaseUrl: this.#getMediaBaseUrl,
     })
 
     // 5. Write project name and any other relevant metadata to project instance
@@ -270,6 +333,7 @@ export class MapeoManager {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       rpc: this.#rpc,
+      getMediaBaseUrl: this.#getMediaBaseUrl,
     })
 
     // 3. Keep track of project instance as we know it's a properly existing project

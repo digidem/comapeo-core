@@ -15,7 +15,7 @@ export default fp(blobServerPlugin, {
 /**
  * @typedef {Object} BlobServerPluginOpts
  *
- * @property {(projectId: string) => import('../blob-store/index.js').BlobStore} getBlobStore
+ * @property {(projectPublicId: string) => Promise<import('../blob-store/index.js').BlobStore>} getBlobStore
  */
 
 const BLOB_TYPES = /** @type {BlobId['type'][]} */ (
@@ -72,7 +72,7 @@ async function routes(fastify, options) {
 
       let blobStore
       try {
-        blobStore = getBlobStore(projectId)
+        blobStore = await getBlobStore(projectId)
       } catch (e) {
         reply.code(404)
         throw e

@@ -37,6 +37,7 @@ const mapeoProject = new MapeoProject({
     sqlite,
   }),
   rpc: new LocalPeers(),
+  getMediaBaseUrl: async (mediaType) => `http://127.0.0.1:8080/${mediaType}`,
 })
 
 ///// Observations

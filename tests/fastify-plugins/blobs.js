@@ -1,15 +1,15 @@
+// @ts-check
 import { randomBytes } from 'node:crypto'
 import test from 'brittle'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
-import { BlobStore } from '../src/blob-store/index.js'
-import { createCoreManager, waitForCores } from './helpers/core-manager.js'
-import { createBlobServer } from '../src/blob-server/index.js'
-import BlobServerPlugin from '../src/blob-server/fastify-plugin.js'
 import fastify from 'fastify'
 
-import { replicateBlobs } from './helpers/blob-store.js'
+import { BlobStore } from '../../src/blob-store/index.js'
+import BlobServerPlugin from '../../src/fastify-plugins/blobs.js'
+import { replicateBlobs } from '../helpers/blob-store.js'
+import { createCoreManager, waitForCores } from '../helpers/core-manager.js'
 
 test('Plugin throws error if missing getBlobStore option', async (t) => {
   const server = fastify()
@@ -211,7 +211,7 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
   await replicatedCore.download({ end: replicatedCore.length }).done()
   await destroy()
 
-  const server = createBlobServer({ blobStore: bs2, projectId })
+  const server = createServer({ blobStore: bs2, projectId })
 
   const res = await server.inject({
     method: 'GET',
@@ -233,7 +233,7 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
     name: 'test-file',
   })
 
-  const server = createBlobServer({ blobStore, projectId })
+  const server = createServer({ blobStore, projectId })
 
   // Test that the blob does not exist
   {
@@ -269,25 +269,50 @@ function createBlobStore(opts) {
   return { blobStore, coreManager }
 }
 
-async function testenv({ prefix, logger } = {}) {
+/**
+ * @param {object} opts
+ * @param {string} [opts.prefix]
+ * @param {import('../../src/blob-store/index.js').BlobStore} opts.blobStore
+ * @param {string} opts.projectId
+ */
+function createServer({ prefix, blobStore, projectId }) {
+  return fastify().register(BlobServerPlugin, {
+    prefix,
+    getBlobStore: async (projectPublicId) => {
+      if (projectPublicId !== projectId)
+        throw new Error(
+          `Could not get blobStore for project id ${projectPublicId}`
+        )
+      return blobStore
+    },
+  })
+}
+
+/**
+ * @param {{ prefix?: string }} [opts]
+ */
+
+async function testenv({ prefix } = {}) {
   const projectKey = randomBytes(32)
   const projectId = projectKey.toString('hex')
-  const { blobStore, coreManager } = await createBlobStore({ projectKey })
+  const { blobStore, coreManager } = createBlobStore({ projectKey })
   const data = await populateStore(blobStore)
-  const server = createBlobServer({ blobStore, projectId, prefix, logger })
+
+  const server = createServer({ prefix, blobStore, projectId })
+
   return { data, server, projectId, coreManager, blobStore }
 }
 
-const IMAGE_FIXTURES_PATH = new URL('./fixtures/images', import.meta.url)
+const IMAGE_FIXTURES_PATH = new URL('../fixtures/images', import.meta.url)
   .pathname
 
 const IMAGE_FIXTURES = readdirSync(IMAGE_FIXTURES_PATH)
 
 /**
- * @param {import('../src/blob-store').BlobStore} blobStore
+ * @param {import('../../src/blob-store').BlobStore} blobStore
  */
 async function populateStore(blobStore) {
-  /** @type {{blobId: import('../src/types').BlobId, image: {data: Buffer, ext: string}}[]} */
+  /** @type {{blobId: import('../../src/types').BlobId, image: {data: Buffer, ext: string}}[]} */
   const data = []
 
   for (const fixture of IMAGE_FIXTURES) {

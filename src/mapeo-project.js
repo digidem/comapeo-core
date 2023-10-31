@@ -11,7 +11,6 @@ import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
-import { createBlobServer } from './blob-server/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectSettingsTable } from './schema/client.js'
@@ -51,7 +50,6 @@ export class MapeoProject {
   #dataStores
   #dataTypes
   #blobStore
-  #blobServer
   #coreOwnership
   #capabilities
   #ownershipWriteDone
@@ -69,6 +67,7 @@ export class MapeoProject {
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
+   * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    *
    */
   constructor({
@@ -81,6 +80,7 @@ export class MapeoProject {
     projectSecretKey,
     encryptionKeys,
     rpc,
+    getMediaBaseUrl,
   }) {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
@@ -206,18 +206,10 @@ export class MapeoProject {
       coreManager: this.#coreManager,
     })
 
-    this.#blobServer = createBlobServer({
-      logger: true,
-      blobStore: this.#blobStore,
-      prefix: '/blobs/',
-      projectId: this.#projectId,
-    })
-
     this.$blobs = new BlobApi({
       projectId: this.#projectId,
       blobStore: this.#blobStore,
-      // TODO: Needs media server to be set up
-      getBaseUrl: async () => 'http://localhost:8080',
+      getBaseUrl: async () => getMediaBaseUrl('blobs'),
     })
 
     this.#coreOwnership = new CoreOwnership({
