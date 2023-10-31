@@ -6,177 +6,147 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'node:crypto'
 
-import IconApi, { kGetIcon, getBestVariant } from '../src/icon-api.js'
+import { IconApi, kGetIconBlob, getBestVariant } from '../src/icon-api.js'
 import { DataType } from '../src/datatype/index.js'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
 import { iconTable } from '../src/schema/project.js'
 import { IndexWriter } from '../src/index-writer/index.js'
 
-test('icon api - create and get with one variant', async (t) => {
-  const { iconApi } = setup()
+test('create()', async (t) => {
+  const { iconApi, iconDataType } = setup()
 
-  const iconBlob = randomBytes(128)
+  const expectedName = 'myIcon'
 
-  const iconDoc = await iconApi.create({
-    name: 'myIcon',
-    variants: [
-      {
-        size: 'small',
-        pixelDensity: 1,
-        mimeType: 'image/png',
-        blob: iconBlob,
-      },
-    ],
-  })
-
-  const { icon } = await iconApi[kGetIcon](iconDoc.docId, {
-    size: 'small',
-    mimeType: 'image/png',
-    pixelDensity: 1,
-  })
-
-  t.alike(icon, iconBlob)
-})
-
-test(`icon api - create and fail to find variant with matching mimeType`, async (t) => {
-  const { iconApi } = setup()
-
-  const iconBlob = randomBytes(128)
-
-  const iconDoc = await iconApi.create({
-    name: 'myIcon',
-    variants: [
-      {
-        size: 'small',
-        mimeType: 'image/svg+xml',
-        blob: iconBlob,
-      },
-    ],
-  })
+  const bitmapBlob = randomBytes(128)
+  const svgBlob = randomBytes(128)
 
   await t.exception(async () => {
-    await iconApi[kGetIcon](iconDoc.docId, {
+    return iconApi.create({ name: expectedName, variants: [] })
+  }, 'throws when no variants are provided')
+
+  /** @type {Parameters<import('../src/icon-api.js').IconApi['create']>[0]['variants']} */
+  const expectedVariants = [
+    {
+      size: 'small',
+      pixelDensity: 1,
+      mimeType: 'image/png',
+      blob: bitmapBlob,
+    },
+    {
+      size: 'small',
+      mimeType: 'image/svg+xml',
+      blob: svgBlob,
+    },
+  ]
+
+  const iconId = await iconApi.create({
+    name: expectedName,
+    variants: expectedVariants,
+  })
+
+  t.ok(iconId, 'returns document id')
+
+  const doc = await iconDataType.getByDocId(iconId)
+
+  t.ok(doc, 'icon document created')
+  t.is(doc.name, expectedName, 'document has expected icon name')
+  t.is(
+    doc.variants.length,
+    expectedVariants.length,
+    'document has expected icon name'
+  )
+
+  for (const expected of expectedVariants) {
+    const match = doc.variants.find((v) => {
+      const mimeTypeMatches = v.mimeType === expected.mimeType
+      const sizeMatches = v.size === expected.size
+
+      if (expected.mimeType === 'image/svg+xml') {
+        return mimeTypeMatches && sizeMatches
+      }
+
+      const pixelDensityMatches = v.pixelDensity === expected.pixelDensity
+      return mimeTypeMatches && sizeMatches && pixelDensityMatches
+    })
+
+    t.ok(match, 'variant is saved')
+
+    // TODO: Do we need to check the blobVersionId field?
+  }
+})
+
+test('[kGetIconBlob]()', async (t) => {
+  const { iconApi } = setup()
+
+  const expectedName = 'myIcon'
+
+  const bitmapBlob = randomBytes(128)
+  const svgBlob = randomBytes(128)
+
+  /** @type {Parameters<import('../src/icon-api.js').IconApi['create']>[0]['variants']} */
+  const expectedVariants = [
+    {
+      size: 'small',
+      pixelDensity: 1,
+      mimeType: 'image/png',
+      blob: bitmapBlob,
+    },
+    {
+      size: 'large',
+      mimeType: 'image/svg+xml',
+      blob: svgBlob,
+    },
+  ]
+
+  const iconId = await iconApi.create({
+    name: expectedName,
+    variants: expectedVariants,
+  })
+
+  // Bitmap exact
+  {
+    const result = await iconApi[kGetIconBlob](iconId, {
       size: 'small',
       pixelDensity: 1,
       mimeType: 'image/png',
     })
-  }, 'no matching mimeType for icon')
-})
 
-test('icon api - create and get with different variants', async (t) => {
-  const { iconApi } = setup()
+    t.alike(result, bitmapBlob, 'returns expected bitmap blob')
+  }
 
-  const smallIconBlob = randomBytes(128)
-  const mediumIconBlob = randomBytes(256)
-  const largeIconBlob = randomBytes(512)
+  // SVG exact
+  {
+    const result = await iconApi[kGetIconBlob](iconId, {
+      size: 'large',
+      mimeType: 'image/svg+xml',
+    })
 
-  const iconDoc = await iconApi.create({
-    name: 'myIcon',
-    variants: [
-      {
-        size: 'small',
-        pixelDensity: 1,
-        mimeType: 'image/png',
-        blob: smallIconBlob,
-      },
-      {
-        size: 'medium',
-        mimeType: 'image/svg+xml',
-        blob: mediumIconBlob,
-      },
-      {
-        size: 'large',
-        pixelDensity: 2,
-        mimeType: 'image/png',
-        blob: largeIconBlob,
-      },
-    ],
-  })
+    t.alike(result, svgBlob, 'returns expected svg blob')
+  }
 
-  const { icon } = await iconApi[kGetIcon](iconDoc.docId, {
-    mimeType: 'image/png',
-    pixelDensity: 2,
-    size: 'large',
-  })
+  /// See more extensive non-exact testing in getBestVariant() tests further down
 
-  t.alike(icon, largeIconBlob)
-})
+  // Bitmap non-exact
+  {
+    const result = await iconApi[kGetIconBlob](iconId, {
+      size: 'medium',
+      pixelDensity: 2,
+      mimeType: 'image/png',
+    })
 
-test('icon api - create and get with variants, choosing the variant with more matching criteria', async (t) => {
-  const { iconApi } = setup()
+    t.alike(result, bitmapBlob, 'returns expected bitmap blob')
+  }
 
-  const smallIconBlob = randomBytes(128)
-  const mediumIconBlob = randomBytes(256)
-  const largeIconBlob = randomBytes(512)
+  // SVG non-exact
+  {
+    const result = await iconApi[kGetIconBlob](iconId, {
+      size: 'medium',
+      mimeType: 'image/svg+xml',
+    })
 
-  const iconDoc = await iconApi.create({
-    name: 'myIcon',
-    variants: [
-      {
-        size: 'small',
-        pixelDensity: 1,
-        mimeType: 'image/png',
-        blob: smallIconBlob,
-      },
-      {
-        size: 'medium',
-        mimeType: 'image/svg+xml',
-        blob: mediumIconBlob,
-      },
-      {
-        size: 'large',
-        pixelDensity: 1,
-        mimeType: 'image/png',
-        blob: largeIconBlob,
-      },
-    ],
-  })
-
-  const { icon } = await iconApi[kGetIcon](iconDoc.docId, {
-    size: 'large',
-    pixelDensity: 1,
-    mimeType: 'image/png',
-  })
-
-  t.alike(icon, largeIconBlob)
-})
-
-test('icon api - create and get with variants, choosing the first variant with the first best score', async (t) => {
-  const { iconApi } = setup()
-
-  const smallIconBlob = randomBytes(128)
-  const mediumIconBlob = randomBytes(256)
-  const largeIconBlob = randomBytes(512)
-
-  const iconDoc = await iconApi.create({
-    name: 'myIcon',
-    variants: [
-      {
-        size: 'small',
-        pixelDensity: 1,
-        mimeType: 'image/png',
-        blob: smallIconBlob,
-      },
-      {
-        size: 'medium',
-        mimeType: 'image/svg+xml',
-        blob: mediumIconBlob,
-      },
-      {
-        size: 'large',
-        pixelDensity: 2,
-        mimeType: 'image/png',
-        blob: largeIconBlob,
-      },
-    ],
-  })
-
-  const { icon } = await iconApi[kGetIcon](iconDoc.docId, {
-    size: 'large',
-    mimeType: 'image/svg+xml',
-  })
-  t.alike(icon, mediumIconBlob)
+    t.alike(result, svgBlob, 'returns expected svg blob')
+  }
 })
 
 test(`getIconUrl()`, (t) => {
@@ -184,31 +154,35 @@ test(`getIconUrl()`, (t) => {
 
   const iconId = randomBytes(32).toString('hex')
 
-  const bitmapUrl = iconApi.getIconUrl(iconId, {
-    size: 'small',
-    mimeType: 'image/png',
-    pixelDensity: 1,
-  })
+  {
+    const url = iconApi.getIconUrl(iconId, {
+      size: 'small',
+      mimeType: 'image/png',
+      pixelDensity: 1,
+    })
 
-  t.is(
-    bitmapUrl,
-    `/${projectId}/${iconId}/small@1.png`,
-    'returns expected bitmap icon url'
-  )
+    t.is(
+      url,
+      `/${projectId}/${iconId}/small@1.png`,
+      'returns expected bitmap icon url'
+    )
+  }
 
-  const svgUrl = iconApi.getIconUrl(iconId, {
-    size: 'small',
-    mimeType: 'image/svg+xml',
-  })
+  {
+    const url = iconApi.getIconUrl(iconId, {
+      size: 'small',
+      mimeType: 'image/svg+xml',
+    })
 
-  t.is(
-    svgUrl,
-    `/${projectId}/${iconId}/small.svg`,
-    'returns expected svg icon url'
-  )
+    t.is(
+      url,
+      `/${projectId}/${iconId}/small.svg`,
+      'returns expected svg icon url'
+    )
+  }
 })
 
-test('getBestVariant - no variants exist', (t) => {
+test('getBestVariant() - no variants exist', (t) => {
   t.exception(() => {
     return getBestVariant([], {
       mimeType: 'image/png',
@@ -218,7 +192,7 @@ test('getBestVariant - no variants exist', (t) => {
   }, 'throws when no variants exist')
 })
 
-test('getBestVariant - specify mimeType', (t) => {
+test('getBestVariant() - specify mimeType', (t) => {
   /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'pixelDensity' | 'size'>} */
   const common = { pixelDensity: 1, size: 'small' }
 
@@ -279,7 +253,7 @@ test('getBestVariant - specify mimeType', (t) => {
   })
 })
 
-test('getBestVariant - specify size', (t) => {
+test('getBestVariant() - specify size', (t) => {
   /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'pixelDensity' | 'mimeType'>} */
   const common = { pixelDensity: 1, mimeType: 'image/png' }
 
@@ -383,7 +357,7 @@ test('getBestVariant - specify size', (t) => {
   })
 })
 
-test('getBestVariant - specify pixel density', (t) => {
+test('getBestVariant() - specify pixel density', (t) => {
   /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'size' | 'mimeType'>} */
   const common = { size: 'small', mimeType: 'image/png' }
 
@@ -490,7 +464,7 @@ test('getBestVariant - specify pixel density', (t) => {
   })
 })
 
-test('getBestVariant - params prioritization', (t) => {
+test('getBestVariant() - params prioritization', (t) => {
   const wantedSizePngVariant = createIconVariant({
     mimeType: 'image/png',
     pixelDensity: 1,
@@ -548,7 +522,8 @@ test('getBestVariant - params prioritization', (t) => {
   t.alike(result, wantedSizeSvgVariant, 'mime type > size > pixel density')
 })
 
-test('getBestVariant - svgs requests are not affected by pixel density', (t) => {
+// TODO: The IconApi doesn't allow creating svg variants with a custom pixel density, so maybe can remove this test?
+test('getBestVariant() - svg requests are not affected by pixel density', (t) => {
   /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'size' | 'mimeType'>} */
   const common = { size: 'small', mimeType: 'image/svg+xml' }
 
@@ -645,6 +620,7 @@ function setup() {
   return {
     projectId,
     iconApi,
+    iconDataType,
   }
 }
 

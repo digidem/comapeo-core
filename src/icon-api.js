@@ -1,4 +1,4 @@
-export const kGetIcon = Symbol('getIcon')
+export const kGetIconBlob = Symbol('getIcon')
 
 /** @typedef {import('@mapeo/schema').IconValue['variants']} IconVariants */
 /** @typedef {IconVariants[number]} IconVariant */
@@ -20,7 +20,7 @@ const MIME_TO_EXTENSION = {
   'image/svg+xml': '.svg',
 }
 
-export default class IconApi {
+export class IconApi {
   #projectId
   #dataType
   #dataStore
@@ -35,7 +35,7 @@ export default class IconApi {
    *   import('@mapeo/schema').IconValue
    * >} opts.iconDataType
    * @param {import('./datastore/index.js').DataStore<'config'>} opts.iconDataStore
-   * @param {string} [opts.projectId]
+   * @param {string} opts.projectId
    */
   constructor({ iconDataType, iconDataStore, projectId }) {
     this.#dataType = iconDataType
@@ -47,6 +47,8 @@ export default class IconApi {
    * @param {object} icon
    * @param {import('@mapeo/schema').IconValue['name']} icon.name
    * @param {Array<(BitmapOpts | SvgOpts) & { blob: Buffer }>} icon.variants
+   *
+   * @returns {Promise<string>}
    */
   async create(icon) {
     if (icon.variants.length < 1) {
@@ -70,27 +72,33 @@ export default class IconApi {
       })
     )
 
-    return this.#dataType.create({
+    const { docId } = await this.#dataType.create({
       schemaName: 'icon',
       name: icon.name,
       variants: savedVariants,
     })
+
+    return docId
   }
 
   /**
    * @param {string} iconId
    * @param {BitmapOpts | SvgOpts} opts
+   *
+   * @returns {Promise<Buffer>}
    */
-  async [kGetIcon](iconId, opts) {
+  async [kGetIconBlob](iconId, opts) {
     const iconRecord = await this.#dataType.getByDocId(iconId)
     const iconVariant = getBestVariant(iconRecord.variants, opts)
     const blob = await this.#dataStore.readRaw(iconVariant.blobVersionId)
-    return { icon: blob, mimeType: iconVariant.mimeType }
+    return blob
   }
 
   /**
    * @param {string} iconId
    * @param {BitmapOpts | SvgOpts} opts
+   *
+   * @returns {string}
    */
   getIconUrl(iconId, opts) {
     let base = `/${this.#projectId}/${iconId}`
