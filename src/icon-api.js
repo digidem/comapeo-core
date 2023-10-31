@@ -107,13 +107,14 @@ const SIZE_AS_NUMERIC = {
  *     2. Otherwise prefer closest larger size.
  * 3. Matching pixel density. If no exact match:
  *     1. If smaller ones exist, prefer closest smaller density.
- *     2. Otherwise Prefer closest larger density.
+ *     2. Otherwise prefer closest larger density.
  *
  * @param {IconVariants} variants
  * @param {BitmapOpts | SvgOpts} opts
  */
 export function getBestVariant(variants, opts) {
   const { size: wantedSize, mimeType: wantedMimeType } = opts
+  // Pixel density doesn't matter for svg so default to 1
   const wantedPixelDensity =
     opts.mimeType === 'image/svg+xml' ? 1 : opts.pixelDensity
 
@@ -129,78 +130,80 @@ export function getBestVariant(variants, opts) {
     )
   }
 
+  const wantedSizeNum = SIZE_AS_NUMERIC[wantedSize]
+
   // Sort the relevant variants based on the desired size and pixel density, using the rules of the preference.
   // Sorted from closest match to furthest match.
   matchingMime.sort((a, b) => {
     const aSizeNum = SIZE_AS_NUMERIC[a.size]
     const bSizeNum = SIZE_AS_NUMERIC[b.size]
 
-    const aSizeDiff = aSizeNum - SIZE_AS_NUMERIC[wantedSize]
-    const bSizeDiff = bSizeNum - SIZE_AS_NUMERIC[wantedSize]
+    const aSizeDiff = aSizeNum - wantedSizeNum
+    const bSizeDiff = bSizeNum - wantedSizeNum
 
     // Both variants match desired size, use pixel density to determine preferred match
     if (aSizeDiff === 0 && bSizeDiff === 0) {
-      // Pixel density doesn't matter for svg so don't sort
+      // Pixel density doesn't matter for svg but prefer lower for consistent results
       if (opts.mimeType === 'image/svg+xml') {
-        return 0
+        return a.pixelDensity <= b.pixelDensity ? -1 : 1
       }
 
-      const aPixelDensityDiff = a.pixelDensity - wantedPixelDensity
-      const bPixelDensityDiff = b.pixelDensity - wantedPixelDensity
-
-      // Both have desired pixel density so don't change sort order
-      if (aPixelDensityDiff === 0 && bPixelDensityDiff === 0) {
-        return 0
-      }
-
-      // Both are larger than desired density, prefer smaller of the two
-      if (aPixelDensityDiff > 0 && bPixelDensityDiff > 0) {
-        return a.pixelDensity < b.pixelDensity ? -1 : 1
-      }
-
-      // Both are smaller than desired density, prefer larger of the two
-      if (aPixelDensityDiff < 0 && bPixelDensityDiff < 0) {
-        return a.pixelDensity < b.pixelDensity ? 1 : -1
-      }
-
-      // a matches in pixel density but b doesn't, prefer a
-      if (aPixelDensityDiff === 0 && bPixelDensityDiff !== 0) {
-        return -1
-      }
-
-      // b matches in pixel density but a doesn't, prefer b
-      if (bPixelDensityDiff === 0 && aPixelDensityDiff !== 0) {
-        return 1
-      }
-
-      // Mix of smaller and larger than desired density, prefer smaller of the two
-      return a.pixelDensity < b.pixelDensity ? -1 : 1
+      return determineSortValue(
+        wantedPixelDensity,
+        a.pixelDensity,
+        b.pixelDensity
+      )
     }
 
-    // a matches in size but b doesn't, prefer a
-    if (aSizeDiff === 0 && bSizeDiff !== 0) {
-      return -1
-    }
-
-    // b matches in size but a doesn't, prefer b
-    if (bSizeDiff === 0 && aSizeDiff !== 0) {
-      return 1
-    }
-
-    // Both are larger than desired size, prefer smaller of the two
-    if (aSizeDiff > 0 && bSizeDiff > 0) {
-      return aSizeNum < bSizeNum ? -1 : 1
-    }
-
-    // Both are smaller than desired size, prefer larger of the two
-    if (aSizeDiff < 0 && bSizeDiff < 0) {
-      return aSizeNum < bSizeNum ? 1 : -1
-    }
-
-    // Mix of smaller and larger than desired size, prefer smaller of the two
-    return aSizeNum < bSizeNum ? -1 : 1
+    return determineSortValue(wantedSizeNum, aSizeNum, bSizeNum)
   })
 
   // Closest match will be first element
   return matchingMime[0]
+}
+
+/**
+ * Determines a sort value based on the order of precedence outlined below. Winning value moves closer to front.
+ *
+ * 1. Exactly match `target`
+ * 2. Closest value smaller than `target`
+ * 3. Closest value larger than `target`
+ *
+ * @param {number} target
+ * @param {number} a
+ * @param {number} b
+ *
+ * @returns {-1 | 0 | 1}
+ */
+function determineSortValue(target, a, b) {
+  const aDiff = a - target
+  const bDiff = b - target
+
+  // Both match exactly, don't change sort order
+  if (aDiff === 0 && bDiff === 0) {
+    return 0
+  }
+
+  // a matches but b doesn't, prefer a
+  if (aDiff === 0 && bDiff !== 0) {
+    return -1
+  }
+
+  // b matches but a doesn't, prefer b
+  if (bDiff === 0 && aDiff !== 0) {
+    return 1
+  }
+
+  // Both are larger than desired, prefer smaller of the two
+  if (aDiff > 0 && bDiff > 0) {
+    return a < b ? -1 : 1
+  }
+
+  // Both are smaller than desired, prefer larger of the two
+  if (aDiff < 0 && bDiff < 0) {
+    return a < b ? 1 : -1
+  }
+
+  // Mix of smaller and larger than desired, prefer smaller of the two
+  return a < b ? -1 : 1
 }
