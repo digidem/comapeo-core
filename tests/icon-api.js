@@ -163,7 +163,7 @@ test(`getIconUrl()`, (t) => {
 
     t.is(
       url,
-      `/${projectId}/${iconId}/small@1.png`,
+      `/${projectId}/${iconId}/small@1x.png`,
       'returns expected bitmap icon url'
     )
   }

@@ -109,8 +109,7 @@ export class IconApi {
       return `${base}/${opts.size}${mimeExtension}`
     }
 
-    // TODO: add `x` after pixel density?
-    return `${base}/${opts.size}@${opts.pixelDensity}${mimeExtension}`
+    return `${base}/${opts.size}@${opts.pixelDensity}x${mimeExtension}`
   }
 }
 
