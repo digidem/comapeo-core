@@ -3,6 +3,23 @@ export const kGetIcon = Symbol('getIcon')
 /** @typedef {import('@mapeo/schema').IconValue['variants']} IconVariants */
 /** @typedef {IconVariants[number]} IconVariant */
 
+/**
+ * @typedef {Object} BitmapOpts
+ * @property {Extract<IconVariant['mimeType'], 'image/png'>} mimeType
+ * @property {IconVariant['pixelDensity']} pixelDensity
+ * @property {IconVariant['size']} size
+ *
+ * @typedef {Object} SvgOpts
+ * @property {Extract<IconVariant['mimeType'], 'image/svg+xml'>} mimeType
+ * @property {IconVariant['size']} size
+ */
+
+/** @type {{ [mime in IconVariant['mimeType']]: string }} */
+const MIME_TO_EXTENSION = {
+  'image/png': '.png',
+  'image/svg+xml': '.svg',
+}
+
 export default class IconApi {
   #projectId
   #dataType
@@ -49,31 +66,31 @@ export default class IconApi {
   }
 
   /**
-   * @param {Object} opts
-   * @param {string} opts.iconId
-   * @param {IconVariant['size']} opts.size
-   * @param {IconVariant['pixelDensity']} opts.pixelDensity
-   * @param {IconVariant['mimeType']} opts.mimeType
+   * @param {string} iconId
+   * @param {BitmapOpts | SvgOpts} opts
    */
-  async [kGetIcon]({ iconId, size, pixelDensity, mimeType }) {
+  async [kGetIcon](iconId, opts) {
     const iconRecord = await this.#dataType.getByDocId(iconId)
-    const iconVariant = getBestVariant(iconRecord.variants, {
-      size,
-      pixelDensity,
-      mimeType,
-    })
+    const iconVariant = getBestVariant(iconRecord.variants, opts)
     const blob = await this.#dataStore.readRaw(iconVariant.blobVersionId)
     return { icon: blob, mimeType: iconVariant.mimeType }
   }
 
   /**
-   * @param {Object} opts
-   * @param {string} opts.iconId
-   * @param {string} opts.size
-   * @param {number} opts.pixelDensity
+   * @param {string} iconId
+   * @param {BitmapOpts | SvgOpts} opts
    */
-  getIconUrl({ iconId, size, pixelDensity }) {
-    return `/${this.#projectId}/${iconId}/${size}/${pixelDensity}`
+  getIconUrl(iconId, opts) {
+    let base = `/${this.#projectId}/${iconId}`
+
+    const mimeExtension = MIME_TO_EXTENSION[opts.mimeType]
+
+    if (opts.mimeType === 'image/svg+xml') {
+      return `${base}/${opts.size}${mimeExtension}`
+    }
+
+    // TODO: add `x` after pixel density?
+    return `${base}/${opts.size}@${opts.pixelDensity}${mimeExtension}`
   }
 }
 
@@ -85,17 +102,6 @@ const SIZE_AS_NUMERIC = {
   medium: 2,
   large: 3,
 }
-
-/**
- * @typedef {Object} BitmapOpts
- * @property {Extract<IconVariant['mimeType'], 'image/png'>} mimeType
- * @property {IconVariant['pixelDensity']} pixelDensity
- * @property {IconVariant['size']} size
- *
- * @typedef {Object} SvgOpts
- * @property {Extract<IconVariant['mimeType'], 'image/svg+xml'>} mimeType
- * @property {IconVariant['size']} size
- */
 
 /**
  * Given a list of icon variants returns the variant that most closely matches the desired parameters.

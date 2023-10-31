@@ -61,8 +61,7 @@ test('icon api - create and get with one variant', async (t) => {
     ],
   })
 
-  const { icon } = await iconApi[kGetIcon]({
-    iconId: iconDoc.docId,
+  const { icon } = await iconApi[kGetIcon](iconDoc.docId, {
     size: 'small',
     mimeType: 'image/png',
     pixelDensity: 1,
@@ -84,8 +83,7 @@ test(`icon api - create and fail to find variant with matching mimeType`, async 
   })
 
   await t.exception(async () => {
-    await iconApi[kGetIcon]({
-      iconId: iconDoc.docId,
+    await iconApi[kGetIcon](iconDoc.docId, {
       size: 'small',
       pixelDensity: 1,
       mimeType: 'image/png',
@@ -118,10 +116,9 @@ test('icon api - create and get with different variants', async (t) => {
     ],
   })
 
-  const { icon } = await iconApi[kGetIcon]({
+  const { icon } = await iconApi[kGetIcon](iconDoc.docId, {
     mimeType: 'image/png',
     pixelDensity: 2,
-    iconId: iconDoc.docId,
     size: 'large',
   })
   t.alike(icon, expectedLargeIcon)
@@ -152,8 +149,7 @@ test('icon api - create and get with variants, choosing the variant with more ma
     ],
   })
 
-  const { icon } = await iconApi[kGetIcon]({
-    iconId: iconDoc.docId,
+  const { icon } = await iconApi[kGetIcon](iconDoc.docId, {
     size: 'large',
     pixelDensity: 1,
     mimeType: 'image/png',
@@ -186,37 +182,38 @@ test('icon api - create and get with variants, choosing the first variant with t
     ],
   })
 
-  const { icon } = await iconApi[kGetIcon]({
-    iconId: iconDoc.docId,
+  const { icon } = await iconApi[kGetIcon](iconDoc.docId, {
     size: 'large',
-    pixelDensity: 1,
     mimeType: 'image/svg+xml',
   })
   t.alike(icon, expectedMediumIcon)
 })
 
-test(`icon api - getIconUrl, test matching url`, async (t) => {
-  const iconDoc = await iconApi.create({
-    name: 'myIcon',
-    variants: [
-      {
-        size: 'small',
-        pixelDensity: 1,
-        mimeType: 'image/png',
-        blob: expectedSmallIcon,
-      },
-    ],
-  })
+test(`getIconUrl()`, (t) => {
+  const iconId = randomBytes(32).toString('hex')
 
-  const size = 'small'
-  const pixelDensity = 1
-  const expectedUrl = `/${projectId}/${iconDoc.docId}/${size}/${pixelDensity}`
-  const url = await iconApi.getIconUrl({
-    iconId: iconDoc.docId,
+  const bitmapUrl = iconApi.getIconUrl(iconId, {
     size: 'small',
+    mimeType: 'image/png',
     pixelDensity: 1,
   })
-  t.is(url, expectedUrl)
+
+  t.is(
+    bitmapUrl,
+    `/${projectId}/${iconId}/small@1.png`,
+    'returns expected bitmap icon url'
+  )
+
+  const svgUrl = iconApi.getIconUrl(iconId, {
+    size: 'small',
+    mimeType: 'image/svg+xml',
+  })
+
+  t.is(
+    svgUrl,
+    `/${projectId}/${iconId}/small.svg`,
+    'returns expected svg icon url'
+  )
 })
 
 test('getBestVariant - no variants exist', (t) => {
