@@ -13,42 +13,11 @@ import { createCoreManager } from './helpers/core-manager.js'
 import { iconTable } from '../src/schema/project.js'
 import { IndexWriter } from '../src/index-writer/index.js'
 
-const expectedSmallIcon = randomBytes(128)
-const expectedMediumIcon = randomBytes(128)
-const expectedLargeIcon = randomBytes(128)
-const cm = createCoreManager()
-const sqlite = new Database(':memory:')
-const db = drizzle(sqlite)
-migrate(db, {
-  migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
-})
-
-const indexWriter = new IndexWriter({
-  tables: [iconTable],
-  sqlite,
-})
-
-const iconDataStore = new DataStore({
-  namespace: 'config',
-  coreManager: cm,
-  storage: () => new RAM(),
-  batch: async (entries) => indexWriter.batch(entries),
-})
-
-const iconDataType = new DataType({
-  dataStore: iconDataStore,
-  table: iconTable,
-  db,
-})
-const projectId = randomBytes(32).toString('hex')
-const iconApi = new IconApi({
-  iconDataStore,
-  iconDataType,
-  projectId,
-})
-
-// eslint-disable-next-line no-unused-vars
 test('icon api - create and get with one variant', async (t) => {
+  const { iconApi } = setup()
+
+  const iconBlob = randomBytes(128)
+
   const iconDoc = await iconApi.create({
     name: 'myIcon',
     variants: [
@@ -56,7 +25,7 @@ test('icon api - create and get with one variant', async (t) => {
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: expectedSmallIcon,
+        blob: iconBlob,
       },
     ],
   })
@@ -66,10 +35,15 @@ test('icon api - create and get with one variant', async (t) => {
     mimeType: 'image/png',
     pixelDensity: 1,
   })
-  t.alike(icon, expectedSmallIcon)
+
+  t.alike(icon, iconBlob)
 })
 
 test(`icon api - create and fail to find variant with matching mimeType`, async (t) => {
+  const { iconApi } = setup()
+
+  const iconBlob = randomBytes(128)
+
   const iconDoc = await iconApi.create({
     name: 'myIcon',
     variants: [
@@ -77,7 +51,7 @@ test(`icon api - create and fail to find variant with matching mimeType`, async 
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/svg+xml',
-        blob: Buffer.from(expectedSmallIcon),
+        blob: iconBlob,
       },
     ],
   })
@@ -92,6 +66,12 @@ test(`icon api - create and fail to find variant with matching mimeType`, async 
 })
 
 test('icon api - create and get with different variants', async (t) => {
+  const { iconApi } = setup()
+
+  const smallIconBlob = randomBytes(128)
+  const mediumIconBlob = randomBytes(256)
+  const largeIconBlob = randomBytes(512)
+
   const iconDoc = await iconApi.create({
     name: 'myIcon',
     variants: [
@@ -99,19 +79,19 @@ test('icon api - create and get with different variants', async (t) => {
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: Buffer.from(expectedSmallIcon),
+        blob: smallIconBlob,
       },
       {
         size: 'medium',
         pixelDensity: 1,
         mimeType: 'image/svg+xml',
-        blob: Buffer.from(expectedMediumIcon),
+        blob: mediumIconBlob,
       },
       {
         size: 'large',
         pixelDensity: 2,
         mimeType: 'image/png',
-        blob: Buffer.from(expectedLargeIcon),
+        blob: largeIconBlob,
       },
     ],
   })
@@ -121,10 +101,17 @@ test('icon api - create and get with different variants', async (t) => {
     pixelDensity: 2,
     size: 'large',
   })
-  t.alike(icon, expectedLargeIcon)
+
+  t.alike(icon, largeIconBlob)
 })
 
 test('icon api - create and get with variants, choosing the variant with more matching criteria', async (t) => {
+  const { iconApi } = setup()
+
+  const smallIconBlob = randomBytes(128)
+  const mediumIconBlob = randomBytes(256)
+  const largeIconBlob = randomBytes(512)
+
   const iconDoc = await iconApi.create({
     name: 'myIcon',
     variants: [
@@ -132,19 +119,19 @@ test('icon api - create and get with variants, choosing the variant with more ma
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: expectedSmallIcon,
+        blob: smallIconBlob,
       },
       {
         size: 'medium',
         pixelDensity: 1,
         mimeType: 'image/svg+xml',
-        blob: expectedMediumIcon,
+        blob: mediumIconBlob,
       },
       {
         size: 'large',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: expectedLargeIcon,
+        blob: largeIconBlob,
       },
     ],
   })
@@ -154,10 +141,17 @@ test('icon api - create and get with variants, choosing the variant with more ma
     pixelDensity: 1,
     mimeType: 'image/png',
   })
-  t.alike(icon, expectedLargeIcon)
+
+  t.alike(icon, largeIconBlob)
 })
 
 test('icon api - create and get with variants, choosing the first variant with the first best score', async (t) => {
+  const { iconApi } = setup()
+
+  const smallIconBlob = randomBytes(128)
+  const mediumIconBlob = randomBytes(256)
+  const largeIconBlob = randomBytes(512)
+
   const iconDoc = await iconApi.create({
     name: 'myIcon',
     variants: [
@@ -165,19 +159,19 @@ test('icon api - create and get with variants, choosing the first variant with t
         size: 'small',
         pixelDensity: 1,
         mimeType: 'image/png',
-        blob: expectedSmallIcon,
+        blob: smallIconBlob,
       },
       {
         size: 'medium',
         pixelDensity: 1,
         mimeType: 'image/svg+xml',
-        blob: expectedMediumIcon,
+        blob: mediumIconBlob,
       },
       {
         size: 'large',
         pixelDensity: 2,
         mimeType: 'image/png',
-        blob: expectedLargeIcon,
+        blob: largeIconBlob,
       },
     ],
   })
@@ -186,10 +180,12 @@ test('icon api - create and get with variants, choosing the first variant with t
     size: 'large',
     mimeType: 'image/svg+xml',
   })
-  t.alike(icon, expectedMediumIcon)
+  t.alike(icon, mediumIconBlob)
 })
 
 test(`getIconUrl()`, (t) => {
+  const { iconApi, projectId } = setup()
+
   const iconId = randomBytes(32).toString('hex')
 
   const bitmapUrl = iconApi.getIconUrl(iconId, {
@@ -614,6 +610,47 @@ test(
     t.alike(result, variantA)
   }
 )
+
+function setup() {
+  const cm = createCoreManager()
+  const sqlite = new Database(':memory:')
+  const db = drizzle(sqlite)
+
+  migrate(db, {
+    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+  })
+
+  const indexWriter = new IndexWriter({
+    tables: [iconTable],
+    sqlite,
+  })
+
+  const iconDataStore = new DataStore({
+    namespace: 'config',
+    coreManager: cm,
+    storage: () => new RAM(),
+    batch: async (entries) => indexWriter.batch(entries),
+  })
+
+  const iconDataType = new DataType({
+    dataStore: iconDataStore,
+    table: iconTable,
+    db,
+  })
+
+  const projectId = randomBytes(32).toString('hex')
+
+  const iconApi = new IconApi({
+    iconDataStore,
+    iconDataType,
+    projectId,
+  })
+
+  return {
+    projectId,
+    iconApi,
+  }
+}
 
 function createRandomVersionId(index = 0) {
   return randomBytes(32).toString('hex') + `/${index}`
