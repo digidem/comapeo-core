@@ -544,7 +544,6 @@ test('getBestVariant - params prioritization', (t) => {
     {
       mimeType: 'image/svg+xml',
       size: 'small',
-      pixelDensity: 2,
     }
   )
 
@@ -560,7 +559,6 @@ test('getBestVariant - params prioritization', (t) => {
       {
         mimeType: 'image/svg+xml',
         size: 'small',
-        pixelDensity: 2,
       }
     ),
     'same result regardless of variants order'

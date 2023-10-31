@@ -87,6 +87,17 @@ const SIZE_AS_NUMERIC = {
 }
 
 /**
+ * @typedef {Object} BitmapOpts
+ * @property {Extract<IconVariant['mimeType'], 'image/png'>} mimeType
+ * @property {IconVariant['pixelDensity']} pixelDensity
+ * @property {IconVariant['size']} size
+ *
+ * @typedef {Object} SvgOpts
+ * @property {Extract<IconVariant['mimeType'], 'image/svg+xml'>} mimeType
+ * @property {IconVariant['size']} size
+ */
+
+/**
  * Given a list of icon variants returns the variant that most closely matches the desired parameters.
  * Rules, in order of precedence:
  *
@@ -99,20 +110,23 @@ const SIZE_AS_NUMERIC = {
  *     2. Otherwise Prefer closest larger density.
  *
  * @param {IconVariants} variants
- * @param {object} opts
- * @param {IconVariant['size']} opts.size
- * @param {number} opts.pixelDensity
- * @param {IconVariant['mimeType']} opts.mimeType
+ * @param {BitmapOpts | SvgOpts} opts
  */
-export function getBestVariant(variants, { size, pixelDensity, mimeType }) {
+export function getBestVariant(variants, opts) {
+  const { size: wantedSize, mimeType: wantedMimeType } = opts
+  const wantedPixelDensity =
+    opts.mimeType === 'image/svg+xml' ? 1 : opts.pixelDensity
+
   if (variants.length === 0) {
     throw new Error('No variants exist')
   }
 
-  const matchingMime = variants.filter((v) => v.mimeType === mimeType)
+  const matchingMime = variants.filter((v) => v.mimeType === wantedMimeType)
 
   if (matchingMime.length === 0) {
-    throw new Error(`No variants with desired mime type ${mimeType} exist`)
+    throw new Error(
+      `No variants with desired mime type ${wantedMimeType} exist`
+    )
   }
 
   // Sort the relevant variants based on the desired size and pixel density, using the rules of the preference.
@@ -121,13 +135,18 @@ export function getBestVariant(variants, { size, pixelDensity, mimeType }) {
     const aSizeNum = SIZE_AS_NUMERIC[a.size]
     const bSizeNum = SIZE_AS_NUMERIC[b.size]
 
-    const aSizeDiff = aSizeNum - SIZE_AS_NUMERIC[size]
-    const bSizeDiff = bSizeNum - SIZE_AS_NUMERIC[size]
+    const aSizeDiff = aSizeNum - SIZE_AS_NUMERIC[wantedSize]
+    const bSizeDiff = bSizeNum - SIZE_AS_NUMERIC[wantedSize]
 
     // Both variants match desired size, use pixel density to determine preferred match
     if (aSizeDiff === 0 && bSizeDiff === 0) {
-      const aPixelDensityDiff = a.pixelDensity - pixelDensity
-      const bPixelDensityDiff = b.pixelDensity - pixelDensity
+      // Pixel density doesn't matter for svg so don't sort
+      if (opts.mimeType === 'image/svg+xml') {
+        return 0
+      }
+
+      const aPixelDensityDiff = a.pixelDensity - wantedPixelDensity
+      const bPixelDensityDiff = b.pixelDensity - wantedPixelDensity
 
       // Both have desired pixel density so don't change sort order
       if (aPixelDensityDiff === 0 && bPixelDensityDiff === 0) {
