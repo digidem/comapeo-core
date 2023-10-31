@@ -244,13 +244,15 @@ test('getBestVariant - specify mimeType', (t) => {
   })
 
   t.test('request mime type with match present', (st) => {
-    for (const [mimeType, expectedVariant] of [
+    /** @type {Array<[import('@mapeo/schema').Icon['variants'][number]['mimeType'], import('@mapeo/schema').Icon['variants'][number]]>} */
+    const pairs = [
       ['image/png', pngVariant],
       ['image/svg+xml', svgVariant],
-    ]) {
+    ]
+
+    for (const [mimeType, expectedVariant] of pairs) {
       const result = getBestVariant([pngVariant, svgVariant], {
         ...common,
-        // @ts-expect-error
         mimeType,
       })
 
@@ -258,7 +260,6 @@ test('getBestVariant - specify mimeType', (t) => {
         result,
         getBestVariant([pngVariant, svgVariant].reverse(), {
           ...common,
-          // @ts-expect-error
           mimeType,
         }),
         'same result regardless of variants order'
@@ -309,25 +310,22 @@ test('getBestVariant - specify size', (t) => {
   })
 
   t.test('request size with match present', (st) => {
-    for (const [size, expectedVariant] of [
+    /** @type {Array<[import('@mapeo/schema').Icon['variants'][number]['size'], import('@mapeo/schema').Icon['variants'][number]]>} */
+    const pairs = [
       ['small', smallVariant],
       ['medium', mediumVariant],
       ['large', largeVariant],
-    ]) {
+    ]
+    for (const [size, expectedVariant] of pairs) {
       const result = getBestVariant(
         [smallVariant, mediumVariant, largeVariant],
-        {
-          ...common,
-          // @ts-expect-error
-          size,
-        }
+        { ...common, size }
       )
 
       st.alike(
         result,
         getBestVariant([smallVariant, mediumVariant, largeVariant].reverse(), {
           ...common,
-          // @ts-expect-error
           size,
         }),
         'same result regardless of variants order'
@@ -416,29 +414,23 @@ test('getBestVariant - specify pixel density', (t) => {
   })
 
   t.test('request pixel density with match present', (st) => {
-    for (const [pixelDensity, expectedVariant] of [
+    /** @type {Array<[import('@mapeo/schema').Icon['variants'][number]['pixelDensity'], import('@mapeo/schema').Icon['variants'][number]]>} */
+    const pairs = [
       [1, density1Variant],
       [2, density2Variant],
       [3, density3Variant],
-    ]) {
+    ]
+    for (const [pixelDensity, expectedVariant] of pairs) {
       const result = getBestVariant(
         [density1Variant, density2Variant, density3Variant],
-        {
-          ...common,
-          // @ts-expect-error
-          pixelDensity,
-        }
+        { ...common, pixelDensity }
       )
 
       st.alike(
         result,
         getBestVariant(
           [density1Variant, density2Variant, density3Variant].reverse(),
-          {
-            ...common,
-            // @ts-expect-error
-            pixelDensity,
-          }
+          { ...common, pixelDensity }
         ),
         'same result regardless of variants order'
       )
