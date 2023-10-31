@@ -1,10 +1,10 @@
 import test from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
-import { MapeoRPC } from '../src/rpc/index.js'
+import { LocalPeers } from '../src/local-peers.js'
 import { InviteApi } from '../src/invite-api.js'
 import { projectKeyToPublicId } from '../src/utils.js'
-import { replicate } from './helpers/rpc.js'
+import { replicate } from './helpers/local-peers.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import pDefer from 'p-defer'
 
@@ -15,7 +15,7 @@ test('invite-received event has expected payload', async (t) => {
 
   const projects = new Map()
 
-  const r2 = new MapeoRPC()
+  const r2 = new LocalPeers()
 
   const inviteApi = new InviteApi({
     rpc: r2,
@@ -33,13 +33,13 @@ test('invite-received event has expected payload', async (t) => {
 
   r2.on('peers', (peers) => {
     t.is(peers.length, 1)
-    expectedInvitorPeerId = peers[0].id
+    expectedInvitorPeerId = peers[0].deviceId
   })
 
   r1.on('peers', (peers) => {
     t.is(peers.length, 1)
 
-    r1.invite(peers[0].id, {
+    r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys,
       projectInfo: { name: 'Mapeo' },
@@ -65,7 +65,7 @@ test('Accept invite', async (t) => {
 
   const projects = new Map()
 
-  const r2 = new MapeoRPC()
+  const r2 = new LocalPeers()
 
   const inviteApi = new InviteApi({
     rpc: r2,
@@ -83,12 +83,12 @@ test('Accept invite', async (t) => {
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
 
-    const response = await r1.invite(peers[0].id, {
+    const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys,
     })
 
-    t.is(response, MapeoRPC.InviteResponse.ACCEPT)
+    t.is(response, LocalPeers.InviteResponse.ACCEPT)
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
@@ -109,7 +109,7 @@ test('Reject invite', async (t) => {
 
   const projects = new Map()
 
-  const r2 = new MapeoRPC()
+  const r2 = new LocalPeers()
 
   const inviteApi = new InviteApi({
     rpc: r2,
@@ -127,12 +127,12 @@ test('Reject invite', async (t) => {
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
 
-    const response = await r1.invite(peers[0].id, {
+    const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys,
     })
 
-    t.is(response, MapeoRPC.InviteResponse.REJECT)
+    t.is(response, LocalPeers.InviteResponse.REJECT)
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
@@ -152,7 +152,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
     const { rpc: r1, projectKey, encryptionKeys } = setup()
 
-    const r2 = new MapeoRPC()
+    const r2 = new LocalPeers()
 
     const inviteApi = new InviteApi({
       rpc: r2,
@@ -169,14 +169,14 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     r1.on('peers', async (peers) => {
       t.is(peers.length, 1)
 
-      const response = await r1.invite(peers[0].id, {
+      const response = await r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys,
       })
 
       t.is(
         response,
-        MapeoRPC.InviteResponse.ALREADY,
+        LocalPeers.InviteResponse.ALREADY,
         'invited peer automatically responds with "ALREADY"'
       )
     })
@@ -195,7 +195,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
       const { rpc: r1, projectKey, encryptionKeys } = setup()
 
-      const r2 = new MapeoRPC()
+      const r2 = new LocalPeers()
       let isMember = false
 
       const inviteApi = new InviteApi({
@@ -213,14 +213,14 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       r1.on('peers', async (peers) => {
         t.is(peers.length, 1)
 
-        const response = await r1.invite(peers[0].id, {
+        const response = await r1.invite(peers[0].deviceId, {
           projectKey,
           encryptionKeys,
         })
 
         t.is(
           response,
-          MapeoRPC.InviteResponse.ALREADY,
+          LocalPeers.InviteResponse.ALREADY,
           'invited peer automatically responds with "ALREADY"'
         )
       })
@@ -242,7 +242,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
     const projects = new Map()
 
-    const r2 = new MapeoRPC()
+    const r2 = new LocalPeers()
 
     const inviteApi = new InviteApi({
       rpc: r2,
@@ -257,19 +257,19 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     })
 
     r1.on('peers', async (peers) => {
-      const response1 = await r1.invite(peers[0].id, {
+      const response1 = await r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys,
       })
 
-      t.is(response1, MapeoRPC.InviteResponse.ACCEPT)
+      t.is(response1, LocalPeers.InviteResponse.ACCEPT)
 
-      const response2 = await r1.invite(peers[0].id, {
+      const response2 = await r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys,
       })
 
-      t.is(response2, MapeoRPC.InviteResponse.ALREADY)
+      t.is(response2, LocalPeers.InviteResponse.ALREADY)
     })
 
     let inviteReceivedEventCount = 0
@@ -286,7 +286,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 })
 
 test('trying to accept or reject non-existent invite throws', async (t) => {
-  const rpc = new MapeoRPC()
+  const rpc = new LocalPeers()
   const inviteApi = new InviteApi({
     rpc,
     queries: {
@@ -307,7 +307,7 @@ test('invitor disconnecting results in accept throwing', async (t) => {
 
   const { rpc: r1, projectKey, encryptionKeys } = setup()
 
-  const r2 = new MapeoRPC()
+  const r2 = new LocalPeers()
 
   const inviteApi = new InviteApi({
     rpc: r2,
@@ -322,7 +322,7 @@ test('invitor disconnecting results in accept throwing', async (t) => {
   r1.on('peers', async (peers) => {
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
     await t.exception(() => {
-      return r1.invite(peers[0].id, {
+      return r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys,
       })
@@ -345,7 +345,7 @@ test('invitor disconnecting results in invite reject response not throwing', asy
 
   const { rpc: r1, projectKey, encryptionKeys } = setup()
 
-  const r2 = new MapeoRPC()
+  const r2 = new LocalPeers()
 
   const inviteApi = new InviteApi({
     rpc: r2,
@@ -359,7 +359,7 @@ test('invitor disconnecting results in invite reject response not throwing', asy
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
 
     await t.exception(() => {
-      return r1.invite(peers[0].id, {
+      return r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys,
       })
@@ -381,7 +381,7 @@ test('invitor disconnecting results in invite already response not throwing', as
 
   const { rpc: r1, projectKey, encryptionKeys } = setup()
 
-  const r2 = new MapeoRPC()
+  const r2 = new LocalPeers()
 
   let isMember = false
 
@@ -399,7 +399,7 @@ test('invitor disconnecting results in invite already response not throwing', as
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
 
     await t.exception(() => {
-      return r1.invite(peers[0].id, {
+      return r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys,
       })
@@ -422,7 +422,7 @@ test('addProject throwing results in invite accept throwing', async (t) => {
 
   const { rpc: r1, projectKey, encryptionKeys } = setup()
 
-  const r2 = new MapeoRPC()
+  const r2 = new LocalPeers()
 
   const inviteApi = new InviteApi({
     rpc: r2,
@@ -435,7 +435,7 @@ test('addProject throwing results in invite accept throwing', async (t) => {
   })
 
   r1.on('peers', (peers) => {
-    r1.invite(peers[0].id, {
+    r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys,
     })
@@ -455,7 +455,7 @@ test('Invite from multiple peers', async (t) => {
   t.plan(5 + invitorCount)
 
   const { projectKey, encryptionKeys } = setup()
-  const invitee = new MapeoRPC()
+  const invitee = new LocalPeers()
   const inviteeKeyPair = NoiseSecretStream.keyPair()
 
   const projects = new Map()
@@ -492,19 +492,19 @@ test('Invite from multiple peers', async (t) => {
   })
 
   for (let i = 0; i < invitorCount; i++) {
-    const invitor = new MapeoRPC()
+    const invitor = new LocalPeers()
     const keyPair = NoiseSecretStream.keyPair()
     invitor.on('peers', async (peers) => {
       if (++connected === invitorCount) deferred.resolve()
-      const response = await invitor.invite(peers[0].id, {
+      const response = await invitor.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys,
       })
       if (first === keyPair.publicKey.toString('hex')) {
         t.pass('One invitor did receive accept response')
-        t.is(response, MapeoRPC.InviteResponse.ACCEPT, 'accept response')
+        t.is(response, LocalPeers.InviteResponse.ACCEPT, 'accept response')
       } else {
-        t.is(response, MapeoRPC.InviteResponse.ALREADY, 'already response')
+        t.is(response, LocalPeers.InviteResponse.ALREADY, 'already response')
       }
     })
     replicate(invitee, invitor, { kp1: inviteeKeyPair, kp2: keyPair })
@@ -517,7 +517,7 @@ test.skip('Invite from multiple peers, first disconnects before accepted, receiv
   t.plan(8 + invitorCount)
 
   const { projectKey, encryptionKeys } = setup()
-  const invitee = new MapeoRPC()
+  const invitee = new LocalPeers()
   const inviteeKeyPair = NoiseSecretStream.keyPair()
 
   const projects = new Map()
@@ -562,22 +562,22 @@ test.skip('Invite from multiple peers, first disconnects before accepted, receiv
   })
 
   for (let i = 0; i < invitorCount; i++) {
-    const invitor = new MapeoRPC()
+    const invitor = new LocalPeers()
     const keyPair = NoiseSecretStream.keyPair()
     const invitorId = keyPair.publicKey.toString('hex')
     invitor.on('peers', async (peers) => {
       if (peers[0].status !== 'connected') return
       if (++connected === invitorCount) deferred.resolve()
       try {
-        const response = await invitor.invite(peers[0].id, {
+        const response = await invitor.invite(peers[0].deviceId, {
           projectKey,
           encryptionKeys,
         })
         if (invitorId === invitesReceived[1]) {
           t.pass('One invitor did receive accept response')
-          t.is(response, MapeoRPC.InviteResponse.ACCEPT, 'accept response')
+          t.is(response, LocalPeers.InviteResponse.ACCEPT, 'accept response')
         } else {
-          t.is(response, MapeoRPC.InviteResponse.ALREADY, 'already response')
+          t.is(response, LocalPeers.InviteResponse.ALREADY, 'already response')
         }
       } catch (e) {
         t.is(
@@ -598,7 +598,7 @@ test.skip('Invite from multiple peers, first disconnects before accepted, receiv
 function setup() {
   const encryptionKeys = { auth: randomBytes(32) }
   const projectKey = KeyManager.generateProjectKeypair().publicKey
-  const rpc = new MapeoRPC()
+  const rpc = new LocalPeers()
 
   return {
     rpc,

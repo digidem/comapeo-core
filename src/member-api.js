@@ -22,7 +22,7 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
-   * @param {import('./rpc/index.js').MapeoRPC} opts.rpc
+   * @param {import('./local-peers.js').LocalPeers} opts.rpc
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
