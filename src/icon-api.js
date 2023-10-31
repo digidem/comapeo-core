@@ -46,18 +46,30 @@ export default class IconApi {
   /**
    * @param {object} icon
    * @param {import('@mapeo/schema').IconValue['name']} icon.name
-   * @param {Array<Omit<IconVariant, 'blobVersionId'> & { blob: Buffer }>} icon.variants
+   * @param {Array<(BitmapOpts | SvgOpts) & { blob: Buffer }>} icon.variants
    */
   async create(icon) {
     if (icon.variants.length < 1) {
       throw new Error('empty variants array')
     }
+
     const savedVariants = await Promise.all(
       icon.variants.map(async ({ blob, ...variant }) => {
         const blobVersionId = await this.#dataStore.writeRaw(blob)
-        return { ...variant, blobVersionId }
+
+        return {
+          ...variant,
+          blobVersionId,
+          pixelDensity:
+            // Pixel density does not apply to svg variants
+            // TODO: Ideally @mapeo/schema wouldn't require pixelDensity when the mime type is svg
+            variant.mimeType === 'image/svg+xml'
+              ? /** @type {const} */ (1)
+              : variant.pixelDensity,
+        }
       })
     )
+
     return this.#dataType.create({
       schemaName: 'icon',
       name: icon.name,

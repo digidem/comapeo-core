@@ -49,7 +49,6 @@ test(`icon api - create and fail to find variant with matching mimeType`, async 
     variants: [
       {
         size: 'small',
-        pixelDensity: 1,
         mimeType: 'image/svg+xml',
         blob: iconBlob,
       },
@@ -83,7 +82,6 @@ test('icon api - create and get with different variants', async (t) => {
       },
       {
         size: 'medium',
-        pixelDensity: 1,
         mimeType: 'image/svg+xml',
         blob: mediumIconBlob,
       },
@@ -123,7 +121,6 @@ test('icon api - create and get with variants, choosing the variant with more ma
       },
       {
         size: 'medium',
-        pixelDensity: 1,
         mimeType: 'image/svg+xml',
         blob: mediumIconBlob,
       },
@@ -163,7 +160,6 @@ test('icon api - create and get with variants, choosing the first variant with t
       },
       {
         size: 'medium',
-        pixelDensity: 1,
         mimeType: 'image/svg+xml',
         blob: mediumIconBlob,
       },
