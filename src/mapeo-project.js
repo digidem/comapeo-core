@@ -42,6 +42,7 @@ export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kReplicate = Symbol('replicate')
+export const kBlobStore = Symbol('blobStore')
 
 export class MapeoProject {
   #projectId
@@ -212,11 +213,11 @@ export class MapeoProject {
       projectId: this.#projectId,
     })
 
-    // @ts-ignore TODO: pass in blobServer
     this.$blobs = new BlobApi({
       projectId: this.#projectId,
       blobStore: this.#blobStore,
-      blobServer: this.#blobServer,
+      // TODO: Needs media server to be set up
+      getBaseUrl: async () => 'http://localhost:8080',
     })
 
     this.#coreOwnership = new CoreOwnership({
@@ -284,6 +285,10 @@ export class MapeoProject {
    */
   get [kCapabilities]() {
     return this.#capabilities
+  }
+
+  get [kBlobStore]() {
+    return this.#blobStore
   }
 
   get deviceId() {

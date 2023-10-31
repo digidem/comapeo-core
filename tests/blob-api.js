@@ -1,98 +1,19 @@
+// @ts-check
 import { join } from 'node:path'
 import * as fs from 'node:fs/promises'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'url'
 import test from 'brittle'
 import { BlobApi } from '../src/blob-api.js'
-import { createBlobServer, getPort } from '../src/blob-server/index.js'
 import { createBlobStore } from './helpers/blob-store.js'
-import { timeoutException } from './helpers/index.js'
-
-test('get port after listening event with explicit port', async (t) => {
-  const { blobStore } = createBlobStore()
-  const server = await createBlobServer({ blobStore })
-
-  t.ok(await timeoutException(getPort(server.server)))
-
-  await new Promise((resolve) => {
-    server.listen({ port: 3456 }, (err, address) => {
-      resolve(address)
-    })
-  })
-
-  const port = await getPort(server.server)
-
-  t.is(typeof port, 'number')
-  t.is(port, 3456)
-
-  t.teardown(async () => {
-    await server.close()
-  })
-})
-
-test('get port after listening event with unset port', async (t) => {
-  const { blobStore } = createBlobStore()
-  const server = await createBlobServer({ blobStore })
-
-  t.ok(await timeoutException(getPort(server.server)))
-
-  await new Promise((resolve) => {
-    server.listen({ port: 0 }, (err, address) => {
-      resolve(address)
-    })
-  })
-
-  const port = await getPort(server.server)
-
-  t.is(typeof port, 'number', 'port is a number')
-  t.teardown(async () => {
-    await server.close()
-  })
-})
-
-test('get url from blobId', async (t) => {
-  const projectId = '1234'
-  const type = 'photo'
-  const variant = 'original'
-  const name = '1234'
-
-  const { blobStore } = createBlobStore()
-  const blobServer = await createBlobServer({ blobStore })
-  const blobApi = new BlobApi({ projectId: '1234', blobStore, blobServer })
-
-  await new Promise((resolve) => {
-    blobServer.listen({ port: 0 }, (err, address) => {
-      resolve(address)
-    })
-  })
-
-  const url = await blobApi.getUrl({
-    driveId: blobStore.writerDriveId,
-    type,
-    variant,
-    name,
-  })
-
-  t.is(
-    url,
-    `http://127.0.0.1:${blobServer.server.address().port}/${projectId}/${
-      blobStore.writerDriveId
-    }/${type}/${variant}/${name}`
-  )
-  t.teardown(async () => {
-    await blobServer.close()
-  })
-})
 
 test('create blobs', async (t) => {
   const { blobStore } = createBlobStore()
-  const blobServer = createBlobServer({ blobStore })
-  const blobApi = new BlobApi({ projectId: '1234', blobStore, blobServer })
 
-  await new Promise((resolve) => {
-    blobServer.listen({ port: 0 }, (err, address) => {
-      resolve(address)
-    })
+  const blobApi = new BlobApi({
+    projectId: randomBytes(32).toString('hex'),
+    blobStore,
+    getBaseUrl: async () => 'http://127.0.0.1:8080/blobs',
   })
 
   const directory = fileURLToPath(
@@ -100,8 +21,8 @@ test('create blobs', async (t) => {
   )
 
   const hash = createHash('sha256')
-  const content = await fs.readFile(join(directory, 'original.png'))
-  hash.update(content)
+  const originalContent = await fs.readFile(join(directory, 'original.png'))
+  hash.update(originalContent)
 
   const attachment = await blobApi.create(
     {
@@ -109,16 +30,77 @@ test('create blobs', async (t) => {
       preview: join(directory, 'preview.png'),
       thumbnail: join(directory, 'thumbnail.png'),
     },
-    {
-      mimeType: 'image/png',
-    }
+    { mimeType: 'image/png' }
   )
 
   t.is(attachment.driveId, blobStore.writerDriveId)
   t.is(attachment.type, 'photo')
   t.alike(attachment.hash, hash.digest('hex'))
+})
 
-  t.teardown(async () => {
-    await blobServer.close()
+test('get url from blobId', async (t) => {
+  const projectId = randomBytes(32).toString('hex')
+  const type = 'photo'
+  const variant = 'original'
+  const name = '1234'
+
+  const { blobStore } = createBlobStore()
+
+  let port = 8080
+  /** @type {string | undefined} */
+  let prefix = undefined
+
+  const blobApi = new BlobApi({
+    projectId,
+    blobStore,
+    getBaseUrl: async () => `http://127.0.0.1:${port}/${prefix || ''}`,
   })
+
+  {
+    const url = await blobApi.getUrl({
+      driveId: blobStore.writerDriveId,
+      type,
+      variant,
+      name,
+    })
+
+    t.is(
+      url,
+      `http://127.0.0.1:${port}/${projectId}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
+    )
+  }
+
+  // Change port
+  port = 1234
+
+  {
+    const url = await blobApi.getUrl({
+      driveId: blobStore.writerDriveId,
+      type,
+      variant,
+      name,
+    })
+
+    t.is(
+      url,
+      `http://127.0.0.1:${port}/${projectId}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
+    )
+  }
+
+  // Change prefix (this isn't usually dynamic but valid to test)
+  prefix = 'blobs'
+
+  {
+    const url = await blobApi.getUrl({
+      driveId: blobStore.writerDriveId,
+      type,
+      variant,
+      name,
+    })
+
+    t.is(
+      url,
+      `http://127.0.0.1:${port}/${prefix}/${projectId}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
+    )
+  }
 })
