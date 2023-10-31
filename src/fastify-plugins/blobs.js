@@ -27,8 +27,14 @@ const BLOB_VARIANTS = [
 const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
 const HEX_STRING_32_BYTES = T.String({ pattern: HEX_REGEX_32_BYTES })
 
+const Z_BASE_32_REGEX_32_BYTES = '^[0-9a-zA-Z]{52}$'
+const Z_BASE_32_STRING_32_BYTES = T.String({
+  pattern: Z_BASE_32_REGEX_32_BYTES,
+})
+
 const PARAMS_JSON_SCHEMA = T.Object({
-  projectId: HEX_STRING_32_BYTES,
+  // the projectPublicId is encoded to a z-base-32 52-character string (32 bytes)
+  projectPublicId: Z_BASE_32_STRING_32_BYTES,
   driveId: HEX_STRING_32_BYTES,
   type: T.Union(
     BLOB_TYPES.map((type) => {
@@ -57,10 +63,10 @@ async function routes(fastify, options) {
   const { getBlobStore } = options
 
   fastify.get(
-    '/:projectId/:driveId/:type/:variant/:name',
+    '/:projectPublicId/:driveId/:type/:variant/:name',
     { schema: { params: PARAMS_JSON_SCHEMA } },
     async (request, reply) => {
-      const { projectId, ...blobId } = request.params
+      const { projectPublicId, ...blobId } = request.params
 
       if (!isValidBlobId(blobId)) {
         reply.code(400)
@@ -72,7 +78,7 @@ async function routes(fastify, options) {
 
       let blobStore
       try {
-        blobStore = await getBlobStore(projectId)
+        blobStore = await getBlobStore(projectPublicId)
       } catch (e) {
         reply.code(404)
         throw e

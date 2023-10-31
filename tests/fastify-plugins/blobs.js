@@ -8,6 +8,7 @@ import fastify from 'fastify'
 
 import { BlobStore } from '../../src/blob-store/index.js'
 import BlobServerPlugin from '../../src/fastify-plugins/blobs.js'
+import { projectKeyToPublicId } from '../../src/utils.js'
 import { replicateBlobs } from '../helpers/blob-store.js'
 import { createCoreManager, waitForCores } from '../helpers/core-manager.js'
 
@@ -18,7 +19,7 @@ test('Plugin throws error if missing getBlobStore option', async (t) => {
 
 test('Plugin handles prefix option properly', async (t) => {
   const prefix = '/blobs'
-  const { data, server, projectId } = await testenv({ prefix })
+  const { data, server, projectPublicId } = await setup({ prefix })
 
   for (const { blobId } of data) {
     const res = await server.inject({
@@ -26,7 +27,7 @@ test('Plugin handles prefix option properly', async (t) => {
       url: buildRouteUrl({
         ...blobId,
         prefix,
-        projectId,
+        projectPublicId,
       }),
     })
 
@@ -35,14 +36,14 @@ test('Plugin handles prefix option properly', async (t) => {
 })
 
 test('Unsupported blob type and variant params are handled properly', async (t) => {
-  const { data, server, projectId } = await testenv()
+  const { data, server, projectPublicId } = await setup()
 
   for (const { blobId } of data) {
     const unsupportedVariantRes = await server.inject({
       method: 'GET',
       url: buildRouteUrl({
         ...blobId,
-        projectId,
+        projectPublicId,
         variant: 'foo',
       }),
     })
@@ -54,7 +55,7 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
       method: 'GET',
       url: buildRouteUrl({
         ...blobId,
-        projectId,
+        projectPublicId,
         type: 'foo',
       }),
     })
@@ -65,10 +66,10 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
 })
 
 test('Invalid variant-type combination returns error', async (t) => {
-  const { server, projectId } = await testenv()
+  const { server, projectPublicId } = await setup()
 
   const url = buildRouteUrl({
-    projectId,
+    projectPublicId,
     driveId: Buffer.alloc(32).toString('hex'),
     name: 'foo',
     type: 'video',
@@ -81,33 +82,51 @@ test('Invalid variant-type combination returns error', async (t) => {
   t.ok(response.json().message.startsWith('Unsupported variant'))
 })
 
-test('Incorrect project id returns 404', async (t) => {
-  const { data, server } = await testenv()
+test('Incorrect project public id returns 404', async (t) => {
+  const { data, server } = await setup()
 
-  const incorrectProjectId = randomBytes(32).toString('hex')
+  const incorrectProjectPublicId = projectKeyToPublicId(randomBytes(32))
 
   for (const { blobId } of data) {
-    const incorrectProjectIdRes = await server.inject({
+    const incorrectProjectPublicIdRes = await server.inject({
       method: 'GET',
       url: buildRouteUrl({
         ...blobId,
-        projectId: incorrectProjectId,
+        projectPublicId: incorrectProjectPublicId,
       }),
     })
 
-    t.is(incorrectProjectIdRes.statusCode, 404)
+    t.is(incorrectProjectPublicIdRes.statusCode, 404)
+  }
+})
+
+test('Incorrectly formatted project public id returns 400', async (t) => {
+  const { data, server } = await setup()
+
+  const hexString = randomBytes(32).toString('hex')
+
+  for (const { blobId } of data) {
+    const incorrectProjectPublicIdRes = await server.inject({
+      method: 'GET',
+      url: buildRouteUrl({
+        ...blobId,
+        projectPublicId: hexString,
+      }),
+    })
+
+    t.is(incorrectProjectPublicIdRes.statusCode, 400)
   }
 })
 
 test('Missing blob name or variant returns 404', async (t) => {
-  const { data, server, projectId } = await testenv()
+  const { data, server, projectPublicId } = await setup()
 
   for (const { blobId } of data) {
     const nameMismatchRes = await server.inject({
       method: 'GET',
       url: buildRouteUrl({
         ...blobId,
-        projectId,
+        projectPublicId,
         name: 'foo',
       }),
     })
@@ -118,7 +137,7 @@ test('Missing blob name or variant returns 404', async (t) => {
       method: 'GET',
       url: buildRouteUrl({
         ...blobId,
-        projectId,
+        projectPublicId,
         variant: 'thumbnail',
       }),
     })
@@ -128,14 +147,14 @@ test('Missing blob name or variant returns 404', async (t) => {
 })
 
 test('GET photo returns correct blob payload', async (t) => {
-  const { data, server, projectId } = await testenv()
+  const { data, server, projectPublicId } = await setup()
 
   for (const { blobId, image } of data) {
     const res = await server.inject({
       method: 'GET',
       url: buildRouteUrl({
         ...blobId,
-        projectId,
+        projectPublicId,
       }),
     })
 
@@ -144,14 +163,14 @@ test('GET photo returns correct blob payload', async (t) => {
 })
 
 test('GET photo returns inferred content header if metadata is not found', async (t) => {
-  const { data, server, projectId } = await testenv()
+  const { data, server, projectPublicId } = await setup()
 
   for (const { blobId, image } of data) {
     const res = await server.inject({
       method: 'GET',
       url: buildRouteUrl({
         ...blobId,
-        projectId,
+        projectPublicId,
       }),
     })
 
@@ -163,7 +182,7 @@ test('GET photo returns inferred content header if metadata is not found', async
 })
 
 test('GET photo uses mime type from metadata if found', async (t) => {
-  const { data, server, projectId, blobStore } = await testenv()
+  const { data, server, projectPublicId, blobStore } = await setup()
 
   for (const { blobId, image } of data) {
     const imageMimeType = getImageMimeType(image.ext)
@@ -177,7 +196,7 @@ test('GET photo uses mime type from metadata if found', async (t) => {
       method: 'GET',
       url: buildRouteUrl({
         ...blobId,
-        projectId,
+        projectPublicId,
         driveId,
       }),
     })
@@ -191,8 +210,14 @@ test('GET photo uses mime type from metadata if found', async (t) => {
 })
 
 test('GET photo returns 404 when trying to get non-replicated blob', async (t) => {
-  const { data, projectId, coreManager: cm1 } = await testenv()
-  const projectKey = Buffer.from(projectId, 'hex')
+  const projectKey = randomBytes(32)
+
+  const {
+    data,
+    projectPublicId,
+    coreManager: cm1,
+  } = await setup({ projectKey })
+
   const { blobStore: bs2, coreManager: cm2 } = createBlobStore({
     projectKey,
   })
@@ -211,11 +236,11 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
   await replicatedCore.download({ end: replicatedCore.length }).done()
   await destroy()
 
-  const server = createServer({ blobStore: bs2, projectId })
+  const server = createServer({ blobStore: bs2, projectKey })
 
   const res = await server.inject({
     method: 'GET',
-    url: buildRouteUrl({ ...blobId, projectId }),
+    url: buildRouteUrl({ ...blobId, projectPublicId }),
   })
 
   t.is(res.statusCode, 404)
@@ -223,8 +248,9 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
 test('GET photo returns 404 when trying to get non-existent blob', async (t) => {
   const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
-  const { blobStore } = createBlobStore({ projectKey })
+
+  const { projectPublicId, blobStore } = await setup({ projectKey })
+
   const expected = await readFile(new URL(import.meta.url))
 
   const blobId = /** @type {const} */ ({
@@ -233,7 +259,7 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
     name: 'test-file',
   })
 
-  const server = createServer({ blobStore, projectId })
+  const server = createServer({ blobStore, projectKey })
 
   // Test that the blob does not exist
   {
@@ -241,7 +267,7 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
       method: 'GET',
       url: buildRouteUrl({
         ...blobId,
-        projectId,
+        projectPublicId,
         driveId: blobStore.writerDriveId,
       }),
     })
@@ -256,7 +282,7 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
   {
     const res = await server.inject({
       method: 'GET',
-      url: buildRouteUrl({ ...blobId, projectId, driveId }),
+      url: buildRouteUrl({ ...blobId, projectPublicId, driveId }),
     })
 
     t.is(res.statusCode, 404)
@@ -273,34 +299,35 @@ function createBlobStore(opts) {
  * @param {object} opts
  * @param {string} [opts.prefix]
  * @param {import('../../src/blob-store/index.js').BlobStore} opts.blobStore
- * @param {string} opts.projectId
+ * @param {Buffer} opts.projectKey
  */
-function createServer({ prefix, blobStore, projectId }) {
+function createServer(opts) {
   return fastify().register(BlobServerPlugin, {
-    prefix,
+    prefix: opts.prefix,
     getBlobStore: async (projectPublicId) => {
-      if (projectPublicId !== projectId)
+      if (projectPublicId !== projectKeyToPublicId(opts.projectKey))
         throw new Error(
           `Could not get blobStore for project id ${projectPublicId}`
         )
-      return blobStore
+      return opts.blobStore
     },
   })
 }
 
 /**
- * @param {{ prefix?: string }} [opts]
+ * @param {object} [opts]
+ * @param {string} [opts.prefix]
+ * @param {Buffer} [opts.projectKey]
  */
-
-async function testenv({ prefix } = {}) {
-  const projectKey = randomBytes(32)
-  const projectId = projectKey.toString('hex')
+async function setup({ prefix, projectKey = randomBytes(32) } = {}) {
   const { blobStore, coreManager } = createBlobStore({ projectKey })
   const data = await populateStore(blobStore)
 
-  const server = createServer({ prefix, blobStore, projectId })
+  const server = createServer({ prefix, blobStore, projectKey })
 
-  return { data, server, projectId, coreManager, blobStore }
+  const projectPublicId = projectKeyToPublicId(projectKey)
+
+  return { data, server, projectPublicId, coreManager, blobStore }
 }
 
 const IMAGE_FIXTURES_PATH = new URL('../fixtures/images', import.meta.url)
@@ -351,7 +378,7 @@ function getImageMimeType(extension) {
  *
  * @param {object} opts
  * @param {string} [opts.prefix]
- * @param {string} opts.projectId
+ * @param {string} opts.projectPublicId
  * @param {string} opts.driveId
  * @param {string} opts.type
  * @param {string} opts.variant
@@ -361,11 +388,11 @@ function getImageMimeType(extension) {
  */
 function buildRouteUrl({
   prefix = '',
-  projectId,
+  projectPublicId,
   driveId,
   type,
   variant,
   name,
 }) {
-  return `${prefix}/${projectId}/${driveId}/${type}/${variant}/${name}`
+  return `${prefix}/${projectPublicId}/${driveId}/${type}/${variant}/${name}`
 }
