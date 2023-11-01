@@ -24,6 +24,7 @@ export class IconApi {
   #projectId
   #dataType
   #dataStore
+  #getMediaBaseUrl
 
   /**
    * @param {Object} opts
@@ -36,11 +37,13 @@ export class IconApi {
    * >} opts.iconDataType
    * @param {import('./datastore/index.js').DataStore<'config'>} opts.iconDataStore
    * @param {string} opts.projectId
+   * @param {() => Promise<string>} opts.getMediaBaseUrl
    */
-  constructor({ iconDataType, iconDataStore, projectId }) {
+  constructor({ iconDataType, iconDataStore, projectId, getMediaBaseUrl }) {
     this.#dataType = iconDataType
     this.#dataStore = iconDataStore
     this.#projectId = projectId
+    this.#getMediaBaseUrl = getMediaBaseUrl
   }
 
   /**
@@ -98,18 +101,24 @@ export class IconApi {
    * @param {string} iconId
    * @param {BitmapOpts | SvgOpts} opts
    *
-   * @returns {string}
+   * @returns {Promise<string>}
    */
-  getIconUrl(iconId, opts) {
-    let base = `/${this.#projectId}/${iconId}`
+  async getIconUrl(iconId, opts) {
+    let base = await this.#getMediaBaseUrl()
+
+    if (!base.endsWith('/')) {
+      base += '/'
+    }
+
+    base += `${this.#projectId}/${iconId}/`
 
     const mimeExtension = MIME_TO_EXTENSION[opts.mimeType]
 
     if (opts.mimeType === 'image/svg+xml') {
-      return `${base}/${opts.size}${mimeExtension}`
+      return base + `${opts.size}${mimeExtension}`
     }
 
-    return `${base}/${opts.size}@${opts.pixelDensity}x${mimeExtension}`
+    return base + `${opts.size}@${opts.pixelDensity}x${mimeExtension}`
   }
 }
 

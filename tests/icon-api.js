@@ -149,13 +149,17 @@ test('[kGetIconBlob]()', async (t) => {
   }
 })
 
-test(`getIconUrl()`, (t) => {
-  const { iconApi, projectId } = setup()
+test(`getIconUrl()`, async (t) => {
+  let mediaBaseUrl = 'http://127.0.0.1:8080/icons/'
+
+  const { iconApi, projectId } = setup({
+    getMediaBaseUrl: async () => mediaBaseUrl,
+  })
 
   const iconId = randomBytes(32).toString('hex')
 
   {
-    const url = iconApi.getIconUrl(iconId, {
+    const url = await iconApi.getIconUrl(iconId, {
       size: 'small',
       mimeType: 'image/png',
       pixelDensity: 1,
@@ -163,21 +167,51 @@ test(`getIconUrl()`, (t) => {
 
     t.is(
       url,
-      `/${projectId}/${iconId}/small@1x.png`,
+      mediaBaseUrl + `${projectId}/${iconId}/small@1x.png`,
       'returns expected bitmap icon url'
     )
   }
 
   {
-    const url = iconApi.getIconUrl(iconId, {
+    const url = await iconApi.getIconUrl(iconId, {
       size: 'small',
       mimeType: 'image/svg+xml',
     })
 
     t.is(
       url,
-      `/${projectId}/${iconId}/small.svg`,
+      mediaBaseUrl + `${projectId}/${iconId}/small.svg`,
       'returns expected svg icon url'
+    )
+  }
+
+  // Change media base url (e.g. port changes)
+  mediaBaseUrl = 'http://127.0.0.1:3000/'
+
+  {
+    const url = await iconApi.getIconUrl(iconId, {
+      size: 'medium',
+      mimeType: 'image/png',
+      pixelDensity: 2,
+    })
+
+    t.is(
+      url,
+      mediaBaseUrl + `${projectId}/${iconId}/medium@2x.png`,
+      'returns expected bitmap icon url after media base url changes'
+    )
+  }
+
+  {
+    const url = await iconApi.getIconUrl(iconId, {
+      size: 'large',
+      mimeType: 'image/svg+xml',
+    })
+
+    t.is(
+      url,
+      mediaBaseUrl + `${projectId}/${iconId}/large.svg`,
+      'returns expected svg icon url after media base url changes'
     )
   }
 })
@@ -582,7 +616,13 @@ test(
   }
 )
 
-function setup() {
+/**
+ *
+ * @param {{ getMediaBaseUrl?: () => Promise<string> }} [opts]
+ */
+function setup({
+  getMediaBaseUrl = async () => 'http://127.0.0.1:8080/icons',
+} = {}) {
   const cm = createCoreManager()
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
@@ -615,6 +655,7 @@ function setup() {
     iconDataStore,
     iconDataType,
     projectId,
+    getMediaBaseUrl,
   })
 
   return {
