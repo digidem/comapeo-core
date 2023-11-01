@@ -67,7 +67,7 @@ export class MapeoManager {
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
-   * @param {{port?: number, logger: import('fastify').FastifyServerOptions['logger'] }} [opts.mediaServerOpts]
+   * @param {{ port?: number, logger: import('fastify').FastifyServerOptions['logger'] }} [opts.mediaServerOpts]
    */
   constructor({ rootKey, dbFolder, coreStorage, mediaServerOpts }) {
     this.#dbFolder = dbFolder
