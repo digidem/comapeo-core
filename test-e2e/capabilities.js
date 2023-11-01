@@ -1,6 +1,6 @@
 import { test } from 'brittle'
 import { KeyManager } from '@mapeo/crypto'
-import { MapeoManager } from '../src/mapeo-manager.js'
+import { MapeoManager, kClose } from '../src/mapeo-manager.js'
 import RAM from 'random-access-memory'
 import { kCapabilities } from '../src/mapeo-project.js'
 import {
@@ -18,6 +18,10 @@ test('Creator capabilities and role assignment', async (t) => {
     rootKey,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await manager[kClose]()
   })
 
   const projectId = await manager.createProject()
@@ -47,6 +51,10 @@ test('New device without capabilities', async (t) => {
     rootKey,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await manager[kClose]()
   })
 
   const projectId = await manager.addProject({
@@ -85,6 +93,10 @@ test('getMany() - on invitor device', async (t) => {
     coreStorage: () => new RAM(),
   })
 
+  t.teardown(async () => {
+    await manager[kClose]()
+  })
+
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
   const ownCapabilities = await project.$getOwnCapabilities()
@@ -121,6 +133,10 @@ test('getMany() - on newly invited device before sync', async (t) => {
     rootKey,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await manager[kClose]()
   })
 
   const projectId = await manager.addProject({

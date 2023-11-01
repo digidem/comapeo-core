@@ -1,8 +1,8 @@
 import { test } from 'brittle'
 import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
-import { MapeoManager } from '../src/mapeo-manager.js'
 import RAM from 'random-access-memory'
+import { MapeoManager, kClose } from '../src/mapeo-manager.js'
 
 test('Managing created projects', async (t) => {
   const manager = new MapeoManager({
@@ -11,15 +11,19 @@ test('Managing created projects', async (t) => {
     coreStorage: () => new RAM(),
   })
 
+  t.teardown(async () => {
+    await manager[kClose]()
+  })
+
   const project1Id = await manager.createProject()
   const project2Id = await manager.createProject({
     name: 'project 2',
   })
 
-  t.test('initial information from listed projects', async (t) => {
+  t.test('initial information from listed projects', async (st) => {
     const listedProjects = await manager.listProjects()
 
-    t.is(listedProjects.length, 2)
+    st.is(listedProjects.length, 2)
 
     const listedProject1 = listedProjects.find(
       (p) => p.projectId === project1Id
@@ -29,15 +33,15 @@ test('Managing created projects', async (t) => {
       (p) => p.projectId === project2Id
     )
 
-    t.ok(listedProject1)
-    t.absent(listedProject1?.name)
-    t.ok(listedProject1?.createdAt)
-    t.ok(listedProject1?.updatedAt)
+    st.ok(listedProject1)
+    st.absent(listedProject1?.name)
+    st.ok(listedProject1?.createdAt)
+    st.ok(listedProject1?.updatedAt)
 
-    t.ok(listedProject2)
-    t.is(listedProject2?.name, 'project 2')
-    t.ok(listedProject2?.createdAt)
-    t.ok(listedProject2?.updatedAt)
+    st.ok(listedProject2)
+    st.is(listedProject2?.name, 'project 2')
+    st.ok(listedProject2?.createdAt)
+    st.ok(listedProject2?.updatedAt)
   })
 
   const project1 = await manager.getProject(project1Id)
@@ -46,22 +50,22 @@ test('Managing created projects', async (t) => {
   t.ok(project1)
   t.ok(project2)
 
-  t.test('initial settings from project instances', async (t) => {
+  t.test('initial settings from project instances', async (st) => {
     const settings1 = await project1.$getProjectSettings()
     const settings2 = await project2.$getProjectSettings()
 
-    t.alike(settings1, {
+    st.alike(settings1, {
       name: undefined,
       defaultPresets: undefined,
     })
 
-    t.alike(settings2, {
+    st.alike(settings2, {
       name: 'project 2',
       defaultPresets: undefined,
     })
   })
 
-  t.test('after updating project settings', async (t) => {
+  t.test('after updating project settings', async (st) => {
     await project1.$setProjectSettings({
       name: 'project 1',
     })
@@ -72,19 +76,19 @@ test('Managing created projects', async (t) => {
     const settings1 = await project1.$getProjectSettings()
     const settings2 = await project2.$getProjectSettings()
 
-    t.alike(settings1, {
+    st.alike(settings1, {
       name: 'project 1',
       defaultPresets: undefined,
     })
 
-    t.alike(settings2, {
+    st.alike(settings2, {
       name: 'project 2 updated',
       defaultPresets: undefined,
     })
 
     const listedProjects = await manager.listProjects()
 
-    t.is(listedProjects.length, 2)
+    st.is(listedProjects.length, 2)
 
     const project1FromListed = listedProjects.find(
       (p) => p.projectId === project1Id
@@ -94,15 +98,15 @@ test('Managing created projects', async (t) => {
       (p) => p.projectId === project2Id
     )
 
-    t.ok(project1FromListed)
-    t.is(project1FromListed?.name, 'project 1')
-    t.ok(project1FromListed?.createdAt)
-    t.ok(project1FromListed?.updatedAt)
+    st.ok(project1FromListed)
+    st.is(project1FromListed?.name, 'project 1')
+    st.ok(project1FromListed?.createdAt)
+    st.ok(project1FromListed?.updatedAt)
 
-    t.ok(project2FromListed)
-    t.is(project2FromListed?.name, 'project 2 updated')
-    t.ok(project2FromListed?.createdAt)
-    t.ok(project2FromListed?.updatedAt)
+    st.ok(project2FromListed)
+    st.is(project2FromListed?.name, 'project 2 updated')
+    st.ok(project2FromListed?.createdAt)
+    st.ok(project2FromListed?.updatedAt)
   })
 })
 
@@ -111,6 +115,10 @@ test('Managing added projects', async (t) => {
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await manager[kClose]()
   })
 
   const project1Id = await manager.addProject({
@@ -125,10 +133,10 @@ test('Managing added projects', async (t) => {
     projectInfo: { name: 'project 2' },
   })
 
-  t.test('initial information from listed projects', async (t) => {
+  t.test('initial information from listed projects', async (st) => {
     const listedProjects = await manager.listProjects()
 
-    t.is(listedProjects.length, 2)
+    st.is(listedProjects.length, 2)
 
     const listedProject1 = listedProjects.find(
       (p) => p.projectId === project1Id
@@ -138,15 +146,15 @@ test('Managing added projects', async (t) => {
       (p) => p.projectId === project2Id
     )
 
-    t.ok(listedProject1)
-    t.is(listedProject1?.name, 'project 1')
-    t.absent(listedProject1?.createdAt)
-    t.absent(listedProject1?.updatedAt)
+    st.ok(listedProject1)
+    st.is(listedProject1?.name, 'project 1')
+    st.absent(listedProject1?.createdAt)
+    st.absent(listedProject1?.updatedAt)
 
-    t.ok(listedProject2)
-    t.is(listedProject2?.name, 'project 2')
-    t.absent(listedProject2?.createdAt)
-    t.absent(listedProject2?.updatedAt)
+    st.ok(listedProject2)
+    st.is(listedProject2?.name, 'project 2')
+    st.absent(listedProject2?.createdAt)
+    st.absent(listedProject2?.updatedAt)
   })
 
   // TODO: Ideally would use the todo opt but usage in a subtest doesn't work:  https://github.com/holepunchto/brittle/issues/39
@@ -177,6 +185,10 @@ test('Managing both created and added projects', async (t) => {
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await manager[kClose]()
   })
 
   const createdProjectId = await manager.createProject({
@@ -217,15 +229,20 @@ test('Manager cannot add project that already exists', async (t) => {
     coreStorage: () => new RAM(),
   })
 
+  t.teardown(async () => {
+    await manager[kClose]()
+  })
+
   const existingProjectId = await manager.createProject()
 
   const existingProjectsCountBefore = (await manager.listProjects()).length
 
-  t.exception(
-    manager.addProject({
-      projectKey: Buffer.from(existingProjectId, 'hex'),
-      encryptionKeys: { auth: randomBytes(32) },
-    }),
+  await t.exception(
+    async () =>
+      manager.addProject({
+        projectKey: Buffer.from(existingProjectId, 'hex'),
+        encryptionKeys: { auth: randomBytes(32) },
+      }),
     'attempting to add project that already exists throws'
   )
 
@@ -244,6 +261,10 @@ test('Consistent storage folders', async (t) => {
       storageNames.push(name)
       return new RAM()
     },
+  })
+
+  t.teardown(async () => {
+    await manager[kClose]()
   })
 
   for (let i = 0; i < 10; i++) {

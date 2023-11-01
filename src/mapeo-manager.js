@@ -7,6 +7,8 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import fastify from 'fastify'
+import pDefer from 'p-defer'
+
 import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject, kBlobStore, kSetOwnDeviceInfo } from './mapeo-project.js'
 import {
@@ -26,7 +28,6 @@ import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
-import { once } from 'events'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -42,6 +43,7 @@ const MEDIA_SERVER_BLOBS_PREFIX = 'blobs'
 const MEDIA_SERVER_ICONS_PREFIX = 'icons'
 
 export const kRPC = Symbol('rpc')
+export const kClose = Symbol('close')
 
 export class MapeoManager {
   #keyManager
@@ -56,6 +58,8 @@ export class MapeoManager {
   #deviceId
   #rpc
   #invite
+  /** @type {import('p-defer').DeferredPromise<string>} */
+  #deferredMediaServerListen
   #mediaServer
 
   /**
@@ -63,9 +67,9 @@ export class MapeoManager {
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
-   * @param {number} [opts.mediaServerPort]
+   * @param {{port?: number, logger: import('fastify').FastifyServerOptions['logger'] }} [opts.mediaServerOpts]
    */
-  constructor({ rootKey, dbFolder, coreStorage, mediaServerPort }) {
+  constructor({ rootKey, dbFolder, coreStorage, mediaServerOpts }) {
     this.#dbFolder = dbFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
@@ -112,7 +116,7 @@ export class MapeoManager {
       this.#coreStorage = coreStorage
     }
 
-    this.#mediaServer = fastify({ logger: true })
+    this.#mediaServer = fastify({ logger: mediaServerOpts?.logger })
 
     this.#mediaServer.register(BlobServerPlugin, {
       prefix: MEDIA_SERVER_BLOBS_PREFIX,
@@ -122,13 +126,13 @@ export class MapeoManager {
       },
     })
 
+    this.#deferredMediaServerListen = pDefer()
     this.#mediaServer
-      .listen({ port: mediaServerPort })
-      .then((address) => {
-        console.log(`Media server listening on ${address}`)
-      })
+      .listen({ port: mediaServerOpts?.port, host: '127.0.0.1' })
+      .then(this.#deferredMediaServerListen.resolve)
       .catch((err) => {
         console.error('Could not start media server', err)
+        this.#deferredMediaServerListen.reject(err)
       })
   }
 
@@ -140,29 +144,20 @@ export class MapeoManager {
   }
 
   /**
-   * @returns {Promise<string>}
-   */
-  async #getMediaServerAddress() {
-    const address = this.#mediaServer.server.address()
-
-    if (!address) {
-      await once(this.#mediaServer.server, 'listening')
-      return this.#getMediaServerAddress()
-    }
-
-    if (typeof address === 'string') {
-      return address
-    }
-
-    return address.address
-  }
-
-  /**
    * @param {'blobs' | 'icons'} mediaType
    * @returns
    */
   async #getMediaBaseUrl(mediaType) {
-    const address = await this.#getMediaServerAddress()
+    await this.#deferredMediaServerListen.promise
+
+    let address = this.#mediaServer.server.address()
+
+    // Should happen but just in case
+    if (!address) throw new Error('Could not get address')
+
+    if (typeof address !== 'string') {
+      address = address.address
+    }
 
     switch (mediaType) {
       case 'blobs': {
@@ -488,5 +483,11 @@ export class MapeoManager {
    */
   get invite() {
     return this.#invite
+  }
+
+  async [kClose]() {
+    // Needs to be called to ensure that the server.listen() finished fully
+    await this.#deferredMediaServerListen.promise
+    await this.#mediaServer.close()
   }
 }

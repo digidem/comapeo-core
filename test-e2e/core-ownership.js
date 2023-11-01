@@ -1,6 +1,6 @@
 import { test } from 'brittle'
 import { KeyManager } from '@mapeo/crypto'
-import { MapeoManager } from '../src/mapeo-manager.js'
+import { MapeoManager, kClose } from '../src/mapeo-manager.js'
 import { kCoreOwnership } from '../src/mapeo-project.js'
 import { parseVersionId } from '@mapeo/schema'
 import RAM from 'random-access-memory'
@@ -13,6 +13,10 @@ test('CoreOwnership', async (t) => {
     rootKey,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await manager[kClose]()
   })
 
   const projectId = await manager.createProject()

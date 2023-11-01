@@ -4,7 +4,7 @@ import pDefer from 'p-defer'
 import RAM from 'random-access-memory'
 import { MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
-import { MapeoManager, kRPC } from '../src/mapeo-manager.js'
+import { MapeoManager, kClose, kRPC } from '../src/mapeo-manager.js'
 import { replicate } from '../tests/helpers/local-peers.js'
 
 test('member invite accepted', async (t) => {
@@ -16,6 +16,10 @@ test('member invite accepted', async (t) => {
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await creator[kClose]()
   })
 
   await creator.setDeviceInfo({ name: 'Creator' })
@@ -41,6 +45,10 @@ test('member invite accepted', async (t) => {
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await joiner[kClose]()
   })
 
   await joiner.setDeviceInfo({ name: 'Joiner' })
@@ -111,6 +119,10 @@ test('member invite rejected', async (t) => {
     coreStorage: () => new RAM(),
   })
 
+  t.teardown(async () => {
+    await creator[kClose]()
+  })
+
   await creator.setDeviceInfo({ name: 'Creator' })
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
@@ -135,6 +147,10 @@ test('member invite rejected', async (t) => {
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await joiner[kClose]()
   })
 
   await joiner.setDeviceInfo({ name: 'Joiner' })

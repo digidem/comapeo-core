@@ -4,7 +4,7 @@ import { KeyManager } from '@mapeo/crypto'
 import pDefer from 'p-defer'
 import { randomBytes } from 'crypto'
 
-import { MapeoManager, kRPC } from '../src/mapeo-manager.js'
+import { MapeoManager, kClose, kRPC } from '../src/mapeo-manager.js'
 import {
   CREATOR_CAPABILITIES,
   DEFAULT_CAPABILITIES,
@@ -14,7 +14,7 @@ import {
 import { replicate } from '../tests/helpers/local-peers.js'
 
 test('getting yourself after creating project', async (t) => {
-  const { manager } = setup()
+  const { manager } = setup(t)
 
   await manager.setDeviceInfo({ name: 'mapeo' })
   const project = await manager.getProject(await manager.createProject())
@@ -47,7 +47,7 @@ test('getting yourself after creating project', async (t) => {
 })
 
 test('getting yourself after being invited to project (but not yet synced)', async (t) => {
-  const { manager } = setup()
+  const { manager } = setup(t)
 
   await manager.setDeviceInfo({ name: 'mapeo' })
   const project = await manager.getProject(
@@ -85,7 +85,7 @@ test('getting yourself after being invited to project (but not yet synced)', asy
 })
 
 test('getting invited member after invite rejected', async (t) => {
-  const { manager, simulateMemberInvite } = setup()
+  const { manager, simulateMemberInvite } = setup(t)
 
   await manager.setDeviceInfo({ name: 'mapeo' })
   const project = await manager.getProject(await manager.createProject())
@@ -111,7 +111,7 @@ test('getting invited member after invite rejected', async (t) => {
 })
 
 test('getting invited member after invite accepted', async (t) => {
-  const { manager, simulateMemberInvite } = setup()
+  const { manager, simulateMemberInvite } = setup(t)
 
   await manager.setDeviceInfo({ name: 'mapeo' })
   const project = await manager.getProject(await manager.createProject())
@@ -156,11 +156,18 @@ test('getting invited member after invite accepted', async (t) => {
   // TODO: Test that device info of invited member can be read from invitor after syncing
 })
 
-function setup() {
+/**
+ * @param {import('brittle').TestInstance} t
+ */
+function setup(t) {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+  })
+
+  t.teardown(async () => {
+    await manager[kClose]()
   })
 
   /**
@@ -182,6 +189,10 @@ function setup() {
       rootKey: KeyManager.generateRootKey(),
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
+    })
+
+    t.teardown(async () => {
+      await otherManager[kClose]()
     })
 
     await otherManager.setDeviceInfo(deviceInfo)

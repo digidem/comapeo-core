@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 
-import { MapeoManager } from '../src/mapeo-manager.js'
+import { MapeoManager, kClose } from '../src/mapeo-manager.js'
 
 test('write and read deviceInfo', async (t) => {
   const rootKey = KeyManager.generateRootKey()
@@ -12,6 +12,11 @@ test('write and read deviceInfo', async (t) => {
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
+
+  t.teardown(async () => {
+    await manager[kClose]()
+  })
+
   const info1 = { name: 'my device' }
   await manager.setDeviceInfo(info1)
   const readInfo1 = await manager.getDeviceInfo()
@@ -22,12 +27,16 @@ test('write and read deviceInfo', async (t) => {
   t.alike(readInfo2, info2)
 })
 
-test('device info written to projects', async (t) => {
+test('device info written to projects', (t) => {
   t.test('when creating project', async (st) => {
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
+    })
+
+    st.teardown(async () => {
+      await manager[kClose]()
     })
 
     await manager.setDeviceInfo({ name: 'mapeo' })
@@ -48,6 +57,10 @@ test('device info written to projects', async (t) => {
       rootKey: KeyManager.generateRootKey(),
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
+    })
+
+    st.teardown(async () => {
+      await manager[kClose]()
     })
 
     await manager.setDeviceInfo({ name: 'mapeo' })
@@ -71,6 +84,10 @@ test('device info written to projects', async (t) => {
       rootKey: KeyManager.generateRootKey(),
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
+    })
+
+    st.teardown(async () => {
+      await manager[kClose]()
     })
 
     await manager.setDeviceInfo({ name: 'before' })

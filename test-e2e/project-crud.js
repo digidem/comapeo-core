@@ -2,7 +2,7 @@ import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { valueOf } from '../src/utils.js'
-import { MapeoManager } from '../src/mapeo-manager.js'
+import { MapeoManager, kClose } from '../src/mapeo-manager.js'
 import RAM from 'random-access-memory'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
@@ -68,18 +68,23 @@ test('CRUD operations', async (t) => {
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
+
+  t.teardown(async () => {
+    await manager[kClose]()
+  })
+
   for (const value of fixtures) {
     const { schemaName } = value
-    t.test(`create and read ${schemaName}`, async (t) => {
+    t.test(`create and read ${schemaName}`, async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       // @ts-ignore - TS can't figure this out, but we're not testing types here so ok to ignore
       const written = await project[schemaName].create(value)
       const read = await project[schemaName].getByDocId(written.docId)
-      t.alike(valueOf(stripUndef(written)), value, 'expected value is written')
-      t.alike(written, read, 'return create() matches return of getByDocId()')
+      st.alike(valueOf(stripUndef(written)), value, 'expected value is written')
+      st.alike(written, read, 'return create() matches return of getByDocId()')
     })
-    t.test('update', async (t) => {
+    t.test('update', async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       // @ts-ignore
@@ -91,21 +96,21 @@ test('CRUD operations', async (t) => {
         updateValue
       )
       const updatedReRead = await project[schemaName].getByDocId(written.docId)
-      t.alike(
+      st.alike(
         updated,
         updatedReRead,
         'return of update() matched return of getByDocId()'
       )
-      t.alike(
+      st.alike(
         valueOf(stripUndef(updated)),
         updateValue,
         'expected value is updated'
       )
-      t.not(written.updatedAt, updated.updatedAt, 'updatedAt has changed')
-      t.is(written.createdAt, updated.createdAt, 'createdAt does not change')
-      t.is(written.createdBy, updated.createdBy, 'createdBy does not change')
+      st.not(written.updatedAt, updated.updatedAt, 'updatedAt has changed')
+      st.is(written.createdAt, updated.createdAt, 'createdAt does not change')
+      st.is(written.createdBy, updated.createdBy, 'createdBy does not change')
     })
-    t.test('getMany', async (t) => {
+    t.test('getMany', async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       const values = new Array(5).fill(null).map(() => {
@@ -117,7 +122,7 @@ test('CRUD operations', async (t) => {
       }
       const many = await project[schemaName].getMany()
       const manyValues = many.map((doc) => valueOf(doc))
-      t.alike(
+      st.alike(
         stripUndef(manyValues),
         values,
         'expected values returns from getMany()'
