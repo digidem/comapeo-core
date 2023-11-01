@@ -13,7 +13,7 @@ test('create blobs', async (t) => {
   const blobApi = new BlobApi({
     projectId: randomBytes(32).toString('hex'),
     blobStore,
-    getBaseUrl: async () => 'http://127.0.0.1:8080/blobs',
+    getMediaBaseUrl: async () => 'http://127.0.0.1:8080/blobs',
   })
 
   const directory = fileURLToPath(
@@ -53,7 +53,7 @@ test('get url from blobId', async (t) => {
   const blobApi = new BlobApi({
     projectId,
     blobStore,
-    getBaseUrl: async () => `http://127.0.0.1:${port}/${prefix || ''}`,
+    getMediaBaseUrl: async () => `http://127.0.0.1:${port}/${prefix || ''}`,
   })
 
   {

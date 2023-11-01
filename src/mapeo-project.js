@@ -209,7 +209,7 @@ export class MapeoProject {
     this.$blobs = new BlobApi({
       projectId: this.#projectId,
       blobStore: this.#blobStore,
-      getBaseUrl: async () => getMediaBaseUrl('blobs'),
+      getMediaBaseUrl: async () => getMediaBaseUrl('blobs'),
     })
 
     this.#coreOwnership = new CoreOwnership({
