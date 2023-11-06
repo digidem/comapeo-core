@@ -1,16 +1,9 @@
 // @ts-check
 import { test } from 'brittle'
 
-import {
-  MEDIA_SERVER_BLOBS_PREFIX,
-  MEDIA_SERVER_ICONS_PREFIX,
-  MediaServer,
-} from '../src/media-server.js'
+import { BLOBS_PREFIX, ICONS_PREFIX, MediaServer } from '../src/media-server.js'
 
-const MEDIA_TYPES = /** @type {const} */ ([
-  MEDIA_SERVER_BLOBS_PREFIX,
-  MEDIA_SERVER_ICONS_PREFIX,
-])
+const MEDIA_TYPES = /** @type {const} */ ([BLOBS_PREFIX, ICONS_PREFIX])
 
 test('lifecycle', async (t) => {
   const server = new MediaServer({
@@ -78,13 +71,8 @@ test('getMediaAddress()', async (t) => {
 
         const parsedUrl = new URL(address)
 
-        const mediaPrefix =
-          mediaType === 'blobs'
-            ? MEDIA_SERVER_BLOBS_PREFIX
-            : MEDIA_SERVER_ICONS_PREFIX
-
         t.ok(
-          parsedUrl.pathname.startsWith('/' + mediaPrefix),
+          parsedUrl.pathname.startsWith('/' + mediaType),
           'blob url starts with blobs prefix'
         )
 

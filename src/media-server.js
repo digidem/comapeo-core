@@ -6,8 +6,8 @@ import StateMachine from 'start-stop-state-machine'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
 import { kBlobStore } from './mapeo-project.js'
 
-export const MEDIA_SERVER_BLOBS_PREFIX = 'blobs'
-export const MEDIA_SERVER_ICONS_PREFIX = 'icons'
+export const BLOBS_PREFIX = 'blobs'
+export const ICONS_PREFIX = 'icons'
 
 /**
  * @typedef {Object} StartOpts
@@ -31,7 +31,7 @@ export class MediaServer {
       const server = fastify({ logger })
 
       server.register(BlobServerPlugin, {
-        prefix: MEDIA_SERVER_BLOBS_PREFIX,
+        prefix: BLOBS_PREFIX,
         getBlobStore: async (projectPublicId) => {
           const project = await getProject(projectPublicId)
           return project[kBlobStore]
@@ -100,11 +100,11 @@ export class MediaServer {
 
     switch (mediaType) {
       case 'blobs': {
-        prefix = MEDIA_SERVER_BLOBS_PREFIX
+        prefix = BLOBS_PREFIX
         break
       }
       case 'icons': {
-        prefix = MEDIA_SERVER_ICONS_PREFIX
+        prefix = ICONS_PREFIX
         break
       }
       default: {
