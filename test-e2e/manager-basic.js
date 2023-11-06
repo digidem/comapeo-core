@@ -267,25 +267,14 @@ test('manager.start() and manager.stop()', async (t) => {
     coreStorage: () => new RAM(),
   })
 
-  await t.execution(async () => {
-    await manager.start()
-  }, 'initial manager.start() runs without issue')
+  await manager.start()
+  await manager.start()
+  await manager.stop()
 
-  await t.execution(async () => {
-    await manager.start()
-  }, 'immediately subsequent manager.start() runs without issue')
+  await manager.start()
+  await manager.stop()
 
-  await t.execution(async () => {
-    await manager.stop()
-  }, 'manager.stop() runs without issue')
-
-  await t.execution(async () => {
-    await manager.start()
-  }, 'manager.start() after stopping runs without issue')
-
-  await t.execution(async () => {
-    await manager.stop()
-  }, 'final manager.stop() runs without issue')
+  t.pass('start() and stop() life cycle runs without issues')
 })
 
 /**
