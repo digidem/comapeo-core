@@ -37,7 +37,6 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 const MAX_FILE_DESCRIPTORS = 768
 
 export const kRPC = Symbol('rpc')
-export const kClose = Symbol('close')
 
 export class MapeoManager {
   #keyManager
