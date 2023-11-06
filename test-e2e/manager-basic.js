@@ -2,17 +2,13 @@ import { test } from 'brittle'
 import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
-import { MapeoManager, kClose } from '../src/mapeo-manager.js'
+import { MapeoManager } from '../src/mapeo-manager.js'
 
 test('Managing created projects', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
-  })
-
-  t.teardown(async () => {
-    await manager[kClose]()
   })
 
   const project1Id = await manager.createProject()
@@ -117,10 +113,6 @@ test('Managing added projects', async (t) => {
     coreStorage: () => new RAM(),
   })
 
-  t.teardown(async () => {
-    await manager[kClose]()
-  })
-
   const project1Id = await manager.addProject({
     projectKey: KeyManager.generateProjectKeypair().publicKey,
     encryptionKeys: { auth: randomBytes(32) },
@@ -187,10 +179,6 @@ test('Managing both created and added projects', async (t) => {
     coreStorage: () => new RAM(),
   })
 
-  t.teardown(async () => {
-    await manager[kClose]()
-  })
-
   const createdProjectId = await manager.createProject({
     name: 'created project',
   })
@@ -229,10 +217,6 @@ test('Manager cannot add project that already exists', async (t) => {
     coreStorage: () => new RAM(),
   })
 
-  t.teardown(async () => {
-    await manager[kClose]()
-  })
-
   const existingProjectId = await manager.createProject()
 
   const existingProjectsCountBefore = (await manager.listProjects()).length
@@ -263,10 +247,6 @@ test('Consistent storage folders', async (t) => {
     },
   })
 
-  t.teardown(async () => {
-    await manager[kClose]()
-  })
-
   for (let i = 0; i < 10; i++) {
     const projectId = await manager.addProject({
       projectKey: randomBytesSeed('test' + i),
@@ -278,6 +258,34 @@ test('Consistent storage folders', async (t) => {
 
   // @ts-ignore snapshot() is missing from typedefs
   t.snapshot(storageNames.sort())
+})
+
+test('manager.start() and manager.stop()', async (t) => {
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
+
+  await t.execution(async () => {
+    await manager.start()
+  }, 'initial manager.start() runs without issue')
+
+  await t.execution(async () => {
+    await manager.start()
+  }, 'immediately subsequent manager.start() runs without issue')
+
+  await t.execution(async () => {
+    await manager.stop()
+  }, 'manager.stop() runs without issue')
+
+  await t.execution(async () => {
+    await manager.start()
+  }, 'manager.start() after stopping runs without issue')
+
+  await t.execution(async () => {
+    await manager.stop()
+  }, 'final manager.stop() runs without issue')
 })
 
 /**

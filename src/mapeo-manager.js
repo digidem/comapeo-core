@@ -6,11 +6,8 @@ import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
-import fastify from 'fastify'
-import pDefer from 'p-defer'
-
 import { IndexWriter } from './index-writer/index.js'
-import { MapeoProject, kBlobStore, kSetOwnDeviceInfo } from './mapeo-project.js'
+import { MapeoProject, kSetOwnDeviceInfo } from './mapeo-project.js'
 import {
   localDeviceInfoTable,
   projectKeysTable,
@@ -27,7 +24,7 @@ import {
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
-import BlobServerPlugin from './fastify-plugins/blobs.js'
+import { MediaServer } from './media-server.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -38,9 +35,6 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 // limit of 1024 per process, so choosing 768 to leave 256 descriptors free for
 // other things e.g. SQLite and other parts of the app.
 const MAX_FILE_DESCRIPTORS = 768
-
-const MEDIA_SERVER_BLOBS_PREFIX = 'blobs'
-const MEDIA_SERVER_ICONS_PREFIX = 'icons'
 
 export const kRPC = Symbol('rpc')
 export const kClose = Symbol('close')
@@ -58,8 +52,6 @@ export class MapeoManager {
   #deviceId
   #rpc
   #invite
-  /** @type {import('p-defer').DeferredPromise<string>} */
-  #deferredMediaServerListen
   #mediaServer
 
   /**
@@ -116,24 +108,10 @@ export class MapeoManager {
       this.#coreStorage = coreStorage
     }
 
-    this.#mediaServer = fastify({ logger: mediaServerOpts?.logger })
-
-    this.#mediaServer.register(BlobServerPlugin, {
-      prefix: MEDIA_SERVER_BLOBS_PREFIX,
-      getBlobStore: async (projectPublicId) => {
-        const project = await this.getProject(projectPublicId)
-        return project[kBlobStore]
-      },
+    this.#mediaServer = new MediaServer({
+      logger: mediaServerOpts?.logger,
+      getProject: this.getProject,
     })
-
-    this.#deferredMediaServerListen = pDefer()
-    this.#mediaServer
-      .listen({ port: mediaServerOpts?.port, host: '127.0.0.1' })
-      .then(this.#deferredMediaServerListen.resolve)
-      .catch((err) => {
-        console.error('Could not start media server', err)
-        this.#deferredMediaServerListen.reject(err)
-      })
   }
 
   /**
@@ -141,32 +119,6 @@ export class MapeoManager {
    */
   get [kRPC]() {
     return this.#rpc
-  }
-
-  /**
-   * @param {'blobs' | 'icons'} mediaType
-   * @returns
-   */
-  async #getMediaBaseUrl(mediaType) {
-    await this.#deferredMediaServerListen.promise
-
-    let address = this.#mediaServer.server.address()
-
-    // Should happen but just in case
-    if (!address) throw new Error('Could not get address')
-
-    if (typeof address !== 'string') {
-      address = address.address
-    }
-
-    switch (mediaType) {
-      case 'blobs': {
-        return `${address}/${MEDIA_SERVER_BLOBS_PREFIX}`
-      }
-      case 'icons': {
-        return `${address}/${MEDIA_SERVER_ICONS_PREFIX}`
-      }
-    }
   }
 
   /**
@@ -271,7 +223,9 @@ export class MapeoManager {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       rpc: this.#rpc,
-      getMediaBaseUrl: this.#getMediaBaseUrl,
+      getMediaBaseUrl: this.#mediaServer.getMediaAddress.bind(
+        this.#mediaServer
+      ),
     })
 
     // 5. Write project name and any other relevant metadata to project instance
@@ -328,7 +282,7 @@ export class MapeoManager {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       rpc: this.#rpc,
-      getMediaBaseUrl: this.#getMediaBaseUrl,
+      getMediaBaseUrl: this.#mediaServer.getMediaAddress,
     })
 
     // 3. Keep track of project instance as we know it's a properly existing project
@@ -485,9 +439,14 @@ export class MapeoManager {
     return this.#invite
   }
 
-  async [kClose]() {
-    // Needs to be called to ensure that the server.listen() finished fully
-    await this.#deferredMediaServerListen.promise
-    await this.#mediaServer.close()
+  /**
+   * @param {import('./media-server.js').StartOpts} [opts]
+   */
+  async start(opts) {
+    await this.#mediaServer.start(opts)
+  }
+
+  async stop() {
+    await this.#mediaServer.stop()
   }
 }

@@ -1,6 +1,6 @@
 import { test } from 'brittle'
 import { KeyManager } from '@mapeo/crypto'
-import { MapeoManager, kClose } from '../src/mapeo-manager.js'
+import { MapeoManager } from '../src/mapeo-manager.js'
 import { MapeoProject } from '../src/mapeo-project.js'
 import { removeUndefinedFields } from './utils.js'
 import RAM from 'random-access-memory'
@@ -10,10 +10,6 @@ test('Project settings create, read, and update operations', async (t) => {
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
-  })
-
-  t.teardown(async () => {
-    await manager[kClose]()
   })
 
   const projectId = await manager.createProject()

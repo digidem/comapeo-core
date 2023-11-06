@@ -2,7 +2,7 @@ import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { valueOf } from '../src/utils.js'
-import { MapeoManager, kClose } from '../src/mapeo-manager.js'
+import { MapeoManager } from '../src/mapeo-manager.js'
 import RAM from 'random-access-memory'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
@@ -67,10 +67,6 @@ test('CRUD operations', async (t) => {
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
-  })
-
-  t.teardown(async () => {
-    await manager[kClose]()
   })
 
   for (const value of fixtures) {
