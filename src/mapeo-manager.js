@@ -24,9 +24,6 @@ import {
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
-import fastify from 'fastify'
-
-import IconServerPlugin from './icon-server/fastify-plugin.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -37,7 +34,6 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 // limit of 1024 per process, so choosing 768 to leave 256 descriptors free for
 // other things e.g. SQLite and other parts of the app.
 const MAX_FILE_DESCRIPTORS = 768
-const FASTIFY_PORT = 8080
 
 export const kRPC = Symbol('rpc')
 
@@ -54,7 +50,6 @@ export class MapeoManager {
   #deviceId
   #rpc
   #invite
-  #fastifyServer
 
   /**
    * @param {Object} opts
@@ -101,20 +96,6 @@ export class MapeoManager {
       },
     })
 
-    this.#fastifyServer = fastify({ logger: true })
-
-    this.#fastifyServer.decorate(
-      'getProject',
-      /** @param {string} projectId */
-      async (projectId) => {
-        return this.getProject(projectId)
-      }
-    )
-
-    this.#fastifyServer.register(IconServerPlugin, {
-      prefix: '/icons/',
-    })
-
     if (typeof coreStorage === 'string') {
       const pool = new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
       // @ts-ignore
@@ -129,13 +110,6 @@ export class MapeoManager {
    */
   get [kRPC]() {
     return this.#rpc
-  }
-
-  /** @param {number} [port] */
-  async serverListen(port) {
-    await this.#fastifyServer.listen({
-      port: typeof port === 'number' ? port : FASTIFY_PORT,
-    })
   }
 
   /**
