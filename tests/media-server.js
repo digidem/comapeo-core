@@ -73,7 +73,7 @@ test('getMediaAddress()', async (t) => {
 
         t.ok(
           parsedUrl.pathname.startsWith('/' + mediaType),
-          'blob url starts with blobs prefix'
+          `${mediaType} url starts with '${mediaType}' prefix`
         )
 
         t.is(parsedUrl.protocol, 'http:', 'url uses http protocol')
