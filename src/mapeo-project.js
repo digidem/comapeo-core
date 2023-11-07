@@ -33,6 +33,7 @@ import { Capabilities } from './capabilities.js'
 import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
 import { MemberApi } from './member-api.js'
 import { SyncController } from './sync/sync-controller.js'
+import { IconApi } from './icon-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -42,6 +43,7 @@ export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kReplicate = Symbol('replicate')
+export const kIconApi = Symbol('iconApi')
 
 export class MapeoProject {
   #projectId
@@ -56,6 +58,7 @@ export class MapeoProject {
   #ownershipWriteDone
   #memberApi
   #syncController
+  #iconApi
 
   /**
    * @param {Object} opts
@@ -244,6 +247,16 @@ export class MapeoProject {
       },
     })
 
+    this.#iconApi = new IconApi({
+      iconDataStore: this.#dataStores.config,
+      iconDataType: this.#dataTypes.icon,
+      projectId: this.#projectId,
+      // TODO: Update after merging https://github.com/digidem/mapeo-core-next/pull/365
+      getMediaBaseUrl: async () => {
+        throw new Error('Not yet implemented')
+      },
+    })
+
     this.#syncController = new SyncController({
       coreManager: this.#coreManager,
       capabilities: this.#capabilities,
@@ -428,6 +441,13 @@ export class MapeoProject {
       ...value,
       schemaName: 'deviceInfo',
     })
+  }
+
+  /**
+   * @returns {import('./icon-api.js').IconApi}
+   */
+  get $icons() {
+    return this.#iconApi
   }
 }
 
