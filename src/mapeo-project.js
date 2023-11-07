@@ -29,7 +29,12 @@ import {
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
 import { Capabilities } from './capabilities.js'
-import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
+import {
+  getDeviceId,
+  projectKeyToId,
+  projectKeyToPublicId,
+  valueOf,
+} from './utils.js'
 import { MemberApi } from './member-api.js'
 import { SyncController } from './sync/sync-controller.js'
 
@@ -55,6 +60,7 @@ export class MapeoProject {
   #ownershipWriteDone
   #memberApi
   #syncController
+  #projectPublicId
 
   /**
    * @param {Object} opts
@@ -84,6 +90,7 @@ export class MapeoProject {
   }) {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
+    this.#projectPublicId = projectKeyToPublicId(projectKey)
 
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
@@ -207,7 +214,7 @@ export class MapeoProject {
     })
 
     this.$blobs = new BlobApi({
-      projectId: this.#projectId,
+      projectId: this.#projectPublicId,
       blobStore: this.#blobStore,
       getMediaBaseUrl: async () => getMediaBaseUrl('blobs'),
     })
