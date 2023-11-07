@@ -2,6 +2,7 @@ import { test } from 'brittle'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { KeyManager } from '@mapeo/crypto'
+import FakeTimers from '@sinonjs/fake-timers'
 import { fetch } from 'undici'
 import fs from 'fs/promises'
 import RAM from 'random-access-memory'
@@ -13,6 +14,9 @@ const BLOB_FIXTURES_DIR = fileURLToPath(
 )
 
 test('retrieving blobs urls', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.teardown(() => clock.uninstall())
+
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     dbFolder: ':memory:',
@@ -28,12 +32,15 @@ test('retrieving blobs urls', async (t) => {
     { mimeType: 'image/png' }
   )
 
-  await t.exception(async () => {
+  const exceptionPromise1 = t.exception(async () => {
     await project.$blobs.getUrl({
       ...blobId,
       variant: 'original',
     })
   }, 'getting blob url fails if manager.start() has not been called yet')
+
+  clock.tick(100_000)
+  await exceptionPromise1
 
   await manager.start()
 
@@ -56,9 +63,11 @@ test('retrieving blobs urls', async (t) => {
 
   await manager.stop()
 
-  await t.exception(async () => {
+  const exceptionPromise2 = t.exception(async () => {
     await project.$blobs.getUrl({ ...blobId, variant: 'original' })
   }, 'getting url after manager.stop() has been called fails')
+  clock.tick(100_000)
+  await exceptionPromise2
 })
 
 // TODO: Add icon urls test here
