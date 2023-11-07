@@ -247,14 +247,19 @@ export class MapeoProject {
       },
     })
 
-    this.#syncController = new SyncController({
-      coreManager: this.#coreManager,
-      capabilities: this.#capabilities,
-    })
-
     this.#iconApi = new IconApi({
       iconDataStore: this.#dataStores.config,
       iconDataType: this.#dataTypes.icon,
+      projectId: this.#projectId,
+      // TODO: Update after merging https://github.com/digidem/mapeo-core-next/pull/365
+      getMediaBaseUrl: async () => {
+        throw new Error('Not yet implemented')
+      },
+    })
+
+    this.#syncController = new SyncController({
+      coreManager: this.#coreManager,
+      capabilities: this.#capabilities,
     })
 
     ///////// 4. Write core ownership record
@@ -292,10 +297,6 @@ export class MapeoProject {
    */
   get [kCapabilities]() {
     return this.#capabilities
-  }
-
-  get [kIconApi]() {
-    return this.#iconApi
   }
 
   get deviceId() {
@@ -440,6 +441,13 @@ export class MapeoProject {
       ...value,
       schemaName: 'deviceInfo',
     })
+  }
+
+  /**
+   * @returns {import('./icon-api.js').IconApi}
+   */
+  get $icons() {
+    return this.#iconApi
   }
 }
 
