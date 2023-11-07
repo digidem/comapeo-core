@@ -1,13 +1,13 @@
-// @ts-check
 import fp from 'fastify-plugin'
 import { filetypemime } from 'magic-bytes.js'
 import { Type as T } from '@sinclair/typebox'
 
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
+import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
 
 export default fp(blobServerPlugin, {
   fastify: '4.x',
-  name: 'mapeo-blob-server',
+  name: 'mapeo-blobs',
 })
 
 /** @typedef {import('../types.js').BlobId} BlobId */
@@ -24,18 +24,10 @@ const BLOB_TYPES = /** @type {BlobId['type'][]} */ (
 const BLOB_VARIANTS = [
   ...new Set(Object.values(SUPPORTED_BLOB_VARIANTS).flat()),
 ]
-const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
-const HEX_STRING_32_BYTES = T.String({ pattern: HEX_REGEX_32_BYTES })
-
-const Z_BASE_32_REGEX_32_BYTES = '^[0-9a-zA-Z]{52}$'
-const Z_BASE_32_STRING_32_BYTES = T.String({
-  pattern: Z_BASE_32_REGEX_32_BYTES,
-})
 
 const PARAMS_JSON_SCHEMA = T.Object({
-  // the projectPublicId is encoded to a z-base-32 52-character string (32 bytes)
-  projectPublicId: Z_BASE_32_STRING_32_BYTES,
-  driveId: HEX_STRING_32_BYTES,
+  projectPublicId: T.String({ pattern: Z_BASE_32_REGEX_32_BYTES }),
+  driveId: T.String({ pattern: HEX_REGEX_32_BYTES }),
   type: T.Union(
     BLOB_TYPES.map((type) => {
       return T.Literal(type)
