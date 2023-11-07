@@ -3,16 +3,13 @@ import fp from 'fastify-plugin'
 import { docSchemas } from '@mapeo/schema'
 
 import { kGetIconBlob } from '../icon-api.js'
+import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
 
 export default fp(iconServerPlugin, {
   fastify: '4.x',
-  name: 'mapeo-icon-server',
+  name: 'mapeo-icons',
 })
 
-// iconDocId is a hex encoded 32-byte string
-const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
-// projectId is encoded to a z-base-32 52-character string (32 bytes)
-const Z_BASE_32_REGEX_32_BYTES = '^[0-9a-zA-Z]{52}$'
 const ICON_DOC_ID_STRING = T.String({ pattern: HEX_REGEX_32_BYTES })
 const PROJECT_PUBLIC_ID_STRING = T.String({ pattern: Z_BASE_32_REGEX_32_BYTES })
 
