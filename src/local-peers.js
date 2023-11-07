@@ -207,10 +207,10 @@ export class LocalPeers extends TypedEmitter {
 
   /**
    *
-   * @param {object} opts
+   * @param {object} [opts]
    * @param {Logger} [opts.logger]
    */
-  constructor({ logger }) {
+  constructor({ logger } = {}) {
     super()
     this.#l = Logger.create('localPeers', logger)
   }
