@@ -43,7 +43,6 @@ export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kReplicate = Symbol('replicate')
-export const kIconApi = Symbol('iconApi')
 
 export class MapeoProject {
   #projectId
