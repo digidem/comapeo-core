@@ -109,7 +109,7 @@ export class MapeoManager {
 
     this.#mediaServer = new MediaServer({
       logger: mediaServerOpts?.logger,
-      getProject: this.getProject,
+      getProject: this.getProject.bind(this),
     })
   }
 
