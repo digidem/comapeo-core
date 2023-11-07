@@ -64,8 +64,8 @@ export class BlobApi {
         variant: 'original',
         type: blobType,
       },
-      metadata,
-      contentHash
+      metadata
+      // contentHash
     )
 
     if (preview) {
