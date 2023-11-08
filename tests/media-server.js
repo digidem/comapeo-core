@@ -34,7 +34,7 @@ test('lifecycle', async (t) => {
   }
 })
 
-test('getMediaAddress()', { solo: true }, async (t) => {
+test('getMediaAddress()', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
 
   t.teardown(() => clock.uninstall())
