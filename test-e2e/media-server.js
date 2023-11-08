@@ -3,7 +3,7 @@ import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { KeyManager } from '@mapeo/crypto'
 import FakeTimers from '@sinonjs/fake-timers'
-import { fetch } from 'undici'
+import { Agent, fetch } from 'undici'
 import fs from 'fs/promises'
 import RAM from 'random-access-memory'
 
@@ -54,7 +54,13 @@ test('retrieving blobs urls', async (t) => {
     'retrieving url based on media server resolves after starting it'
   )
 
-  const response = await fetch(blobUrl)
+  const response = await fetch(blobUrl, {
+    // Noticed that the process was hanging (on Node 18, at least) after calling manager.stop() further below
+    // Probably related to https://github.com/nodejs/undici/issues/2348
+    // Adding the below seems to fix it
+    dispatcher: new Agent({ keepAliveMaxTimeout: 100 }),
+  })
+
   t.is(response.status, 200)
   t.is(response.headers.get('content-type'), 'image/png')
   const expected = await fs.readFile(join(BLOB_FIXTURES_DIR, 'original.png'))

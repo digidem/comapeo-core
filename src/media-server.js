@@ -1,4 +1,5 @@
 import { once } from 'events'
+import { promisify } from 'util'
 import fastify from 'fastify'
 import pTimeout from 'p-timeout'
 import StateMachine from 'start-stop-state-machine'
@@ -17,9 +18,11 @@ export const ICONS_PREFIX = 'icons'
  */
 
 export class MediaServer {
-  #serverState
   #fastify
-  #createFastify
+  #fastifyStarted
+  #host
+  #port
+  #serverState
 
   /**
    * @param {object} params
@@ -27,21 +30,22 @@ export class MediaServer {
    * @param {import('fastify').FastifyServerOptions['logger']} [params.logger]
    */
   constructor({ getProject, logger }) {
-    this.#createFastify = () => {
-      const server = fastify({ logger })
+    this.#fastifyStarted = false
+    this.#host = '127.0.0.1'
+    this.#port = 0
 
-      server.register(BlobServerPlugin, {
-        prefix: BLOBS_PREFIX,
-        getBlobStore: async (projectPublicId) => {
-          const project = await getProject(projectPublicId)
-          return project[kBlobStore]
-        },
-      })
+    this.#fastify = fastify({ logger })
 
-      return server
-    }
+    // Don't accept new connections when closing/closed
+    this.#fastify.addHook('onRequest', this.#onRequestHook.bind(this))
 
-    this.#fastify = this.#createFastify()
+    this.#fastify.register(BlobServerPlugin, {
+      prefix: BLOBS_PREFIX,
+      getBlobStore: async (projectPublicId) => {
+        const project = await getProject(projectPublicId)
+        return project[kBlobStore]
+      },
+    })
 
     this.#serverState = new StateMachine({
       start: this.#startServer.bind(this),
@@ -50,14 +54,67 @@ export class MediaServer {
   }
 
   /**
+   * This is necessary because a keep-alive connection from another device will
+   * prevent this server from closing. This hook ensures that if this server is
+   * in the "stopping", "stopped" or "error" states, then it responds with the
+   * "Connection: close" header, which tells the keep-alive client to stop. It
+   * also responds with a 503 "Service unavailable" error.
+   *
+   * @param {import('fastify').FastifyRequest} request
+   * @param {import('fastify').FastifyReply} reply
+   */
+  async #onRequestHook(request, reply) {
+    const state = this.#serverState.state.value
+    if (state === 'starting' || state === 'started') return
+
+    if (request.raw.httpVersionMajor !== 2) {
+      reply.raw.once('finish', () => request.raw.destroy())
+      reply.header('Connection', 'close')
+    }
+
+    reply.code(503)
+    throw new Error('Service Unavailable')
+  }
+
+  /**
    * @param {StartOpts} [opts]
    */
-  async #startServer({ host = '127.0.0.1', port } = {}) {
-    await this.#fastify.listen({ host, port })
+  async #startServer({ host = '127.0.0.1', port = 0 } = {}) {
+    this.#host = host
+    this.#port = port
+
+    if (!this.#fastifyStarted) {
+      await this.#fastify.listen({ host: this.#host, port: this.#port })
+      this.#fastifyStarted = true
+      return
+    }
+
+    const { server } = this.#fastify
+
+    await new Promise((res, rej) => {
+      server.listen.bind(server)(this.#port, this.#host)
+
+      server.once('listening', onListening)
+      server.once('error', onError)
+
+      function onListening() {
+        server.removeListener('error', onError)
+        res(null)
+      }
+
+      /**
+       * @param {Error} err
+       */
+      function onError(err) {
+        server.removeListener('listening', onListening)
+        rej(err)
+      }
+    })
   }
 
   async #stopServer() {
-    await this.#fastify.close()
+    const { server } = this.#fastify
+    await promisify(server.close.bind(server))()
   }
 
   /**
@@ -73,12 +130,6 @@ export class MediaServer {
    * @param {StartOpts} [opts]
    */
   async start(opts) {
-    // Server was stopped before
-    // Need to replace the existing Fastify instance with a new one in order to listen again
-    if (this.#serverState.state.value === 'stopped') {
-      this.#fastify = this.#createFastify()
-    }
-
     await this.#serverState.start(opts)
   }
 
