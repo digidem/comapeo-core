@@ -109,11 +109,23 @@ export class IconApi {
 
     const mimeExtension = MIME_TO_EXTENSION[opts.mimeType]
 
-    if (opts.mimeType === 'image/svg+xml') {
-      return base + `${iconId}/${opts.size}${mimeExtension}`
-    }
+    const pixelDensity =
+      opts.mimeType === 'image/svg+xml' ||
+      // if the pixel density is 1, we can omit the density suffix in the resulting url
+      // and assume the pixel density is 1 for applicable mime types when using the url
+      opts.pixelDensity === 1
+        ? undefined
+        : opts.pixelDensity
 
-    return base + `${iconId}/${opts.size}@${opts.pixelDensity}x${mimeExtension}`
+    return (
+      base +
+      constructIconPath({
+        pixelDensity,
+        size: opts.size,
+        extension: mimeExtension,
+        iconId,
+      })
+    )
   }
 }
 
@@ -235,4 +247,34 @@ function determineSortValue(target, a, b) {
 
   // Mix of smaller and larger than desired, prefer smaller of the two
   return a < b ? -1 : 1
+}
+
+/**
+ * General purpose path builder for an icon
+ *
+ * @param {object} opts
+ * @param {string} opts.iconId
+ * @param {string} opts.size
+ * @param {number} [opts.pixelDensity]
+ * @param {string} opts.extension
+ *
+ * @returns {string}
+ */
+export function constructIconPath({ size, pixelDensity, iconId, extension }) {
+  if (iconId.length === 0 || size.length === 0 || extension.length === 0) {
+    throw new Error('iconId, size, and extension cannot be empty strings')
+  }
+
+  let result = `${iconId}/${size}`
+
+  if (typeof pixelDensity === 'number') {
+    if (pixelDensity < 1) {
+      throw new Error('pixelDensity must be a positive number')
+    }
+    result += `@${pixelDensity}x`
+  }
+
+  result += extension.startsWith('.') ? extension : '.' + extension
+
+  return result
 }
