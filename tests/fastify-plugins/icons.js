@@ -61,7 +61,6 @@ test('url param validation', async (t) => {
     ],
     [
       'invalid icon id',
-
       {
         projectPublicId,
         iconId: randomBytes(16).toString('hex'),
@@ -71,7 +70,6 @@ test('url param validation', async (t) => {
     ],
     [
       'invalid pixel density',
-
       {
         projectPublicId,
         iconId,
@@ -82,7 +80,6 @@ test('url param validation', async (t) => {
     ],
     [
       'invalid size',
-
       {
         projectPublicId,
         iconId,
