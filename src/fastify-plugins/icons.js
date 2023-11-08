@@ -13,17 +13,23 @@ export default fp(iconServerPlugin, {
 const ICON_DOC_ID_STRING = T.String({ pattern: HEX_REGEX_32_BYTES })
 const PROJECT_PUBLIC_ID_STRING = T.String({ pattern: Z_BASE_32_REGEX_32_BYTES })
 
-const sizes = docSchemas.icon.properties.variants.items.properties.size.enum
-const mimeTypes =
+const VALID_SIZES =
+  docSchemas.icon.properties.variants.items.properties.size.enum
+const VALID_MIME_TYPES =
   docSchemas.icon.properties.variants.items.properties.mimeType.enum
+const VALID_PIXEL_DENSITIES =
+  docSchemas.icon.properties.variants.items.properties.pixelDensity.enum
 
 const PARAMS_JSON_SCHEMA = T.Object({
   iconDocId: ICON_DOC_ID_STRING,
   projectPublicId: PROJECT_PUBLIC_ID_STRING,
-  size: T.Union(sizes.map((size) => T.Literal(size))),
-  pixelDensity: T.Optional(T.String()), // e.g. @2x
+  iconInfo: T.String({
+    pattern: `^(${VALID_SIZES.join('|')})(@(${VALID_PIXEL_DENSITIES.join(
+      '|'
+    )}+)x)?$`,
+  }),
   mimeTypeExtension: T.Union(
-    mimeTypes.map((mimeType) => {
+    VALID_MIME_TYPES.map((mimeType) => {
       switch (mimeType) {
         case 'image/png':
           return T.Literal('png')
@@ -51,14 +57,13 @@ async function routes(fastify, options) {
   const { getProject } = options
 
   fastify.get(
-    '/:projectPublicId/:iconDocId/:size:pixelDensity(@[123]x)?.:mimeTypeExtension',
+    '/:projectPublicId/:iconDocId/:iconInfo.:mimeTypeExtension',
     { schema: { params: PARAMS_JSON_SCHEMA } },
     async (req, res) => {
-      const { projectPublicId, iconDocId, size, mimeTypeExtension } = req.params
+      const { projectPublicId, iconDocId, iconInfo, mimeTypeExtension } =
+        req.params
 
-      const pixelDensity = req.params.pixelDensity
-        ? extractPixelDensity(req.params.pixelDensity)
-        : 1
+      const { size, pixelDensity } = extractSizeAndPixelDensity(iconInfo)
 
       const project = await getProject(projectPublicId)
 
@@ -66,11 +71,19 @@ async function routes(fastify, options) {
         mimeTypeExtension === 'png' ? 'image/png' : 'image/svg+xml'
 
       try {
-        const icon = await project.$icons[kGetIconBlob](iconDocId, {
-          size,
-          pixelDensity,
-          mimeType,
-        })
+        const icon = await project.$icons[kGetIconBlob](
+          iconDocId,
+          mimeType === 'image/svg+xml'
+            ? {
+                size,
+                mimeType,
+              }
+            : {
+                size,
+                pixelDensity,
+                mimeType,
+              }
+        )
 
         res.header('Content-Type', mimeType)
         return res.send(icon)
@@ -82,21 +95,59 @@ async function routes(fastify, options) {
   )
 }
 
+// matches strings that end in `@_x` and captures `_`, where `_` is a positive integer
+const DENSITY_MATCH_REGEX = /@(\d+)x$/i
+
 /**
  * @param {string} input
- * @returns {import('@mapeo/schema').Icon['variants'][number]['pixelDensity']}
+ *
+ * @return {Pick<import('@mapeo/schema').Icon['variants'][number], 'size' | 'pixelDensity'>}
  */
-function extractPixelDensity(input) {
-  const result = parseInt(input[1], 10)
+function extractSizeAndPixelDensity(input) {
+  const result = DENSITY_MATCH_REGEX.exec(input)
 
-  if (isNaN(result)) throw new Error('Could not extract pixel density')
+  if (result) {
+    const [match, capturedDensity] = result
+    const size = input.split(match, 1)[0]
+    const pixelDensity = parseInt(capturedDensity, 10)
 
-  switch (result) {
-    case 1:
-    case 2:
-    case 3:
-      return result
-    default:
-      throw new Error(`Invalid pixel density ${result}`)
+    assertValidSize(size)
+    assertValidPixelDensity(pixelDensity)
+
+    return { size, pixelDensity }
+  }
+
+  assertValidSize(input)
+
+  return { size: input, pixelDensity: 1 }
+}
+
+/**
+ * @param {string} value
+ * @returns {asserts value is import('@mapeo/schema').Icon['variants'][number]['size']}
+ */
+function assertValidSize(value) {
+  if (
+    !VALID_SIZES.includes(
+      // @ts-expect-error
+      value
+    )
+  ) {
+    throw new Error(`'${value}' is not a valid icon size`)
+  }
+}
+
+/**
+ * @param {number} value
+ * @returns {asserts value is import('@mapeo/schema').Icon['variants'][number]['pixelDensity']}
+ */
+function assertValidPixelDensity(value) {
+  if (
+    !VALID_PIXEL_DENSITIES.includes(
+      // @ts-expect-error
+      value
+    )
+  ) {
+    throw new Error(`${value} is not a valid icon pixel density`)
   }
 }
