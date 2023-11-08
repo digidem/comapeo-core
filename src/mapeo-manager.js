@@ -98,8 +98,8 @@ export class MapeoManager {
 
     if (typeof coreStorage === 'string') {
       const pool = new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
-      // @ts-ignore
-      this.#coreStorage = Hypercore.createStorage(coreStorage, { pool })
+      // @ts-expect-error
+      this.#coreStorage = Hypercore.defaultStorage(coreStorage, { pool })
     } else {
       this.#coreStorage = coreStorage
     }
