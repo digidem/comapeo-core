@@ -62,7 +62,6 @@ export class MapeoProject {
   #capabilities
   #ownershipWriteDone
   #memberApi
-  #projectPublicId
   #iconApi
   #syncApi
   #l
@@ -98,7 +97,6 @@ export class MapeoProject {
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
-    this.#projectPublicId = projectKeyToPublicId(projectKey)
 
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
@@ -220,21 +218,6 @@ export class MapeoProject {
       }),
     }
 
-    this.#blobStore = new BlobStore({
-      coreManager: this.#coreManager,
-    })
-
-    this.$blobs = new BlobApi({
-      blobStore: this.#blobStore,
-      getMediaBaseUrl: async () => {
-        let base = await getMediaBaseUrl('blobs')
-        if (!base.endsWith('/')) {
-          base += '/'
-        }
-        return base + this.#projectPublicId
-      },
-    })
-
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
     })
@@ -260,6 +243,23 @@ export class MapeoProject {
       },
     })
 
+    const projectPublicId = projectKeyToPublicId(projectKey)
+
+    this.#blobStore = new BlobStore({
+      coreManager: this.#coreManager,
+    })
+
+    this.$blobs = new BlobApi({
+      blobStore: this.#blobStore,
+      getMediaBaseUrl: async () => {
+        let base = await getMediaBaseUrl('blobs')
+        if (!base.endsWith('/')) {
+          base += '/'
+        }
+        return base + projectPublicId
+      },
+    })
+
     this.#iconApi = new IconApi({
       iconDataStore: this.#dataStores.config,
       iconDataType: this.#dataTypes.icon,
@@ -268,7 +268,7 @@ export class MapeoProject {
         if (!base.endsWith('/')) {
           base += '/'
         }
-        return base + this.#projectPublicId
+        return base + projectPublicId
       },
     })
 
