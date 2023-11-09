@@ -36,9 +36,6 @@ export class MediaServer {
 
     this.#fastify = fastify({ logger })
 
-    // Don't accept new connections when closing/closed
-    this.#fastify.addHook('onRequest', this.#onRequestHook.bind(this))
-
     this.#fastify.register(BlobServerPlugin, {
       prefix: BLOBS_PREFIX,
       getBlobStore: async (projectPublicId) => {
@@ -51,29 +48,6 @@ export class MediaServer {
       start: this.#startServer.bind(this),
       stop: this.#stopServer.bind(this),
     })
-  }
-
-  /**
-   * This is necessary because a keep-alive connection from another device will
-   * prevent this server from closing. This hook ensures that if this server is
-   * in the "stopping", "stopped" or "error" states, then it responds with the
-   * "Connection: close" header, which tells the keep-alive client to stop. It
-   * also responds with a 503 "Service unavailable" error.
-   *
-   * @param {import('fastify').FastifyRequest} request
-   * @param {import('fastify').FastifyReply} reply
-   */
-  async #onRequestHook(request, reply) {
-    const state = this.#serverState.state.value
-    if (state === 'starting' || state === 'started') return
-
-    if (request.raw.httpVersionMajor !== 2) {
-      reply.raw.once('finish', () => request.raw.destroy())
-      reply.header('Connection', 'close')
-    }
-
-    reply.code(503)
-    throw new Error('Service Unavailable')
   }
 
   /**
