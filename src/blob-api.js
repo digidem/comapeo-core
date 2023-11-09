@@ -4,23 +4,24 @@ import { createHash } from 'node:crypto'
 import sodium from 'sodium-universal'
 import b4a from 'b4a'
 
-import { getPort } from './blob-server/index.js'
-
 /** @typedef {import('./types.js').BlobId} BlobId */
 /** @typedef {import('./types.js').BlobType} BlobType  */
-/** @typedef {import('./types.js').BlobVariant<BlobType>} BlobVariant  */
 
 export class BlobApi {
+  #blobStore
+  #getMediaBaseUrl
+  #projectPublicId
+
   /**
    * @param {object} options
-   * @param {string} options.projectId
+   * @param {string} options.projectPublicId
    * @param {import('./blob-store/index.js').BlobStore} options.blobStore
-   * @param {import('fastify').FastifyInstance} options.blobServer
+   * @param {() => Promise<string>} options.getMediaBaseUrl
    */
-  constructor({ projectId, blobStore, blobServer }) {
-    this.projectId = projectId
-    this.blobStore = blobStore
-    this.blobServer = blobServer
+  constructor({ projectPublicId, blobStore, getMediaBaseUrl }) {
+    this.#blobStore = blobStore
+    this.#getMediaBaseUrl = getMediaBaseUrl
+    this.#projectPublicId = projectPublicId
   }
 
   /**
@@ -30,8 +31,16 @@ export class BlobApi {
    */
   async getUrl(blobId) {
     const { driveId, type, variant, name } = blobId
-    const port = await getPort(this.blobServer.server)
-    return `http://127.0.0.1:${port}/${this.projectId}/${driveId}/${type}/${variant}/${name}`
+
+    let base = await this.#getMediaBaseUrl()
+
+    if (!base.endsWith('/')) {
+      base += '/'
+    }
+
+    return (
+      base + `${this.#projectPublicId}/${driveId}/${type}/${variant}/${name}`
+    )
   }
 
   /**
@@ -57,8 +66,8 @@ export class BlobApi {
         variant: 'original',
         type: blobType,
       },
-      metadata,
-      contentHash
+      metadata
+      // contentHash
     )
 
     if (preview) {
@@ -86,7 +95,7 @@ export class BlobApi {
     }
 
     return {
-      driveId: this.blobStore.writerDriveId,
+      driveId: this.#blobStore.writerDriveId,
       name,
       type: blobType,
       hash: contentHash.digest('hex'),
@@ -108,7 +117,7 @@ export class BlobApi {
         hash,
 
         // @ts-ignore TODO: remove driveId property from createWriteStream
-        this.blobStore.createWriteStream({ type, variant, name }, { metadata })
+        this.#blobStore.createWriteStream({ type, variant, name }, { metadata })
       )
 
       return { name, variant, type, hash }
@@ -117,7 +126,7 @@ export class BlobApi {
     // @ts-ignore TODO: return value types don't match pipeline's expectations, though they should
     await pipeline(
       fs.createReadStream(filepath),
-      this.blobStore.createWriteStream({ type, variant, name }, { metadata })
+      this.#blobStore.createWriteStream({ type, variant, name }, { metadata })
     )
 
     return { name, variant, type }

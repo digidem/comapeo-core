@@ -11,7 +11,6 @@ import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
-import { createBlobServer } from './blob-server/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectSettingsTable } from './schema/client.js'
@@ -30,7 +29,12 @@ import {
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
 import { Capabilities } from './capabilities.js'
-import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
+import {
+  getDeviceId,
+  projectKeyToId,
+  projectKeyToPublicId,
+  valueOf,
+} from './utils.js'
 import { MemberApi } from './member-api.js'
 import { IconApi } from './icon-api.js'
 import { SyncApi, kSyncReplicate } from './sync/sync-api.js'
@@ -43,6 +47,7 @@ const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
+export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 
 export class MapeoProject {
@@ -52,11 +57,11 @@ export class MapeoProject {
   #dataStores
   #dataTypes
   #blobStore
-  #blobServer
   #coreOwnership
   #capabilities
   #ownershipWriteDone
   #memberApi
+  #projectPublicId
   #iconApi
   #syncApi
 
@@ -70,6 +75,7 @@ export class MapeoProject {
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
+   * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    *
    */
@@ -82,10 +88,12 @@ export class MapeoProject {
     projectKey,
     projectSecretKey,
     encryptionKeys,
+    getMediaBaseUrl,
     localPeers,
   }) {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
+    this.#projectPublicId = projectKeyToPublicId(projectKey)
 
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
@@ -208,18 +216,10 @@ export class MapeoProject {
       coreManager: this.#coreManager,
     })
 
-    this.#blobServer = createBlobServer({
-      logger: true,
-      blobStore: this.#blobStore,
-      prefix: '/blobs/',
-      projectId: this.#projectId,
-    })
-
-    // @ts-ignore TODO: pass in blobServer
     this.$blobs = new BlobApi({
-      projectId: this.#projectId,
+      projectPublicId: this.#projectPublicId,
       blobStore: this.#blobStore,
-      blobServer: this.#blobServer,
+      getMediaBaseUrl: async () => getMediaBaseUrl('blobs'),
     })
 
     this.#coreOwnership = new CoreOwnership({
@@ -319,6 +319,10 @@ export class MapeoProject {
    */
   get [kCapabilities]() {
     return this.#capabilities
+  }
+
+  get [kBlobStore]() {
+    return this.#blobStore
   }
 
   get deviceId() {
