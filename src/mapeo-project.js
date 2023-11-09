@@ -32,7 +32,8 @@ import {
 import { Capabilities } from './capabilities.js'
 import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
 import { MemberApi } from './member-api.js'
-import { SyncController } from './sync/sync-controller.js'
+import { SyncApi, kSyncReplicate } from './sync/sync-api.js'
+import Hypercore from 'hypercore'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -41,7 +42,7 @@ const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
-export const kReplicate = Symbol('replicate')
+export const kProjectReplicate = Symbol('replicate project')
 
 export class MapeoProject {
   #projectId
@@ -55,7 +56,7 @@ export class MapeoProject {
   #capabilities
   #ownershipWriteDone
   #memberApi
-  #syncController
+  #syncApi
 
   /**
    * @param {Object} opts
@@ -67,7 +68,7 @@ export class MapeoProject {
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
-   * @param {import('./local-peers.js').LocalPeers} opts.rpc
+   * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    *
    */
   constructor({
@@ -79,7 +80,7 @@ export class MapeoProject {
     projectKey,
     projectSecretKey,
     encryptionKeys,
-    rpc,
+    localPeers,
   }) {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
@@ -237,19 +238,41 @@ export class MapeoProject {
       // @ts-expect-error
       encryptionKeys,
       projectKey,
-      rpc,
+      rpc: localPeers,
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
       },
     })
 
-    this.#syncController = new SyncController({
+    this.#syncApi = new SyncApi({
       coreManager: this.#coreManager,
       capabilities: this.#capabilities,
     })
 
-    ///////// 4. Write core ownership record
+    ///////// 4. Wire up sync
+
+    // Replicate already connected local peers
+    for (const peer of localPeers.peers) {
+      if (peer.status !== 'connected') continue
+      this.#syncApi[kSyncReplicate](peer.protomux)
+    }
+
+    localPeers.on('discovery-key', (discoveryKey, stream) => {
+      // The core identified by this discovery key might not be part of this
+      // project, but we can't know that so we will request it from the peer if
+      // we don't have it. The peer will not return the core key unless it _is_
+      // part of this project
+      this.#coreManager.handleDiscoveryKey(discoveryKey, stream)
+    })
+
+    // When a new peer is found, try to replicate (if it is not a member of the
+    // project it will fail the capability check and be ignored)
+    localPeers.on('peer-add', (peer) => {
+      this.#syncApi[kSyncReplicate](peer.protomux)
+    })
+
+    ///////// 5. Write core ownership record
 
     const deferred = pDefer()
     // Avoid uncaught rejection. If this is rejected then project.ready() will reject
@@ -344,6 +367,10 @@ export class MapeoProject {
     return this.#memberApi
   }
 
+  get $sync() {
+    return this.#syncApi
+  }
+
   /**
    * @param {Partial<EditableProjectSettings>} settings
    * @returns {Promise<EditableProjectSettings>}
@@ -395,12 +422,24 @@ export class MapeoProject {
   }
 
   /**
+   * Replicate a project to a @hyperswarm/secret-stream. Invites will not
+   * function because the RPC channel is not connected for project replication,
+   * and only this project will replicate (to replicate multiple projects you
+   * need to replicate the manager instance via manager[kManagerReplicate])
    *
-   * @param {import('./types.js').ReplicationStream} stream
+   * @param {Exclude<Parameters<Hypercore.createProtocolStream>[0], boolean>} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
    * @returns
    */
-  [kReplicate](stream) {
-    return this.#syncController.replicate(stream)
+  [kProjectReplicate](stream) {
+    const replicationStream = Hypercore.createProtocolStream(stream, {
+      ondiscoverykey: async (discoveryKey) => {
+        this.#coreManager.handleDiscoveryKey(discoveryKey, replicationStream)
+      },
+    })
+    const protomux = replicationStream.noiseStream.userData
+    // @ts-ignore - got fed up jumping through hoops to keep TS heppy
+    this.#syncApi[kSyncReplicate](protomux)
+    return replicationStream
   }
 
   /**

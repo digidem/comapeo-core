@@ -36,7 +36,7 @@ const mapeoProject = new MapeoProject({
     tables: [projectSettingsTable],
     sqlite,
   }),
-  rpc: new LocalPeers(),
+  localPeers: new LocalPeers(),
 })
 
 ///// Observations
