@@ -6,6 +6,8 @@ import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
+import { TypedEmitter } from 'tiny-typed-emitter'
+
 import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject, kSetOwnDeviceInfo } from './mapeo-project.js'
 import {
@@ -17,6 +19,8 @@ import { ProjectKeys } from './generated/keys.js'
 import {
   deNullify,
   getDeviceId,
+  keyToId,
+  openedNoiseSecretStream,
   projectIdToNonce,
   projectKeyToId,
   projectKeyToPublicId,
@@ -25,6 +29,7 @@ import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
 import { MediaServer } from './media-server.js'
+import { LocalDiscovery } from './discovery/local-discovery.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -37,8 +42,21 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 const MAX_FILE_DESCRIPTORS = 768
 
 export const kRPC = Symbol('rpc')
+export const kManagerReplicate = Symbol('replicate manager')
 
-export class MapeoManager {
+/**
+ * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
+ */
+
+/**
+ * @typedef {object} MapeoManagerEvents
+ * @property {(peers: PublicPeerInfo[]) => void} local-peers Emitted when the list of connected peers changes (new ones added, or connection status changes)
+ */
+
+/**
+ * @extends {TypedEmitter<MapeoManagerEvents>}
+ */
+export class MapeoManager extends TypedEmitter {
   #keyManager
   #projectSettingsIndexWriter
   #db
@@ -49,9 +67,10 @@ export class MapeoManager {
   #coreStorage
   #dbFolder
   #deviceId
-  #rpc
+  #localPeers
   #invite
   #mediaServer
+  #localDiscovery
 
   /**
    * @param {Object} opts
@@ -61,6 +80,8 @@ export class MapeoManager {
    * @param {{ port?: number, logger: import('fastify').FastifyServerOptions['logger'] }} [opts.mediaServerOpts]
    */
   constructor({ rootKey, dbFolder, coreStorage, mediaServerOpts }) {
+    super()
+
     this.#dbFolder = dbFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
@@ -72,7 +93,11 @@ export class MapeoManager {
       migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
     })
 
-    this.#rpc = new LocalPeers()
+    this.#localPeers = new LocalPeers()
+    this.#localPeers.on('peers', (peers) => {
+      this.emit('local-peers', omitPeerProtomux(peers))
+    })
+
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#projectSettingsIndexWriter = new IndexWriter({
@@ -82,7 +107,7 @@ export class MapeoManager {
     this.#activeProjects = new Map()
 
     this.#invite = new InviteApi({
-      rpc: this.#rpc,
+      rpc: this.#localPeers,
       queries: {
         isMember: async (projectId) => {
           const projectExists = this.#db
@@ -101,8 +126,7 @@ export class MapeoManager {
 
     if (typeof coreStorage === 'string') {
       const pool = new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
-      // @ts-ignore
-      this.#coreStorage = Hypercore.createStorage(coreStorage, { pool })
+      this.#coreStorage = Hypercore.defaultStorage(coreStorage, { pool })
     } else {
       this.#coreStorage = coreStorage
     }
@@ -111,13 +135,42 @@ export class MapeoManager {
       logger: mediaServerOpts?.logger,
       getProject: this.getProject.bind(this),
     })
+
+    this.#localDiscovery = new LocalDiscovery({
+      identityKeypair: this.#keyManager.getIdentityKeypair(),
+    })
+    this.#localDiscovery.on('connection', this[kManagerReplicate].bind(this))
   }
 
   /**
    * MapeoRPC instance, used for tests
    */
   get [kRPC]() {
-    return this.#rpc
+    return this.#localPeers
+  }
+
+  /**
+   * Replicate Mapeo to a `@hyperswarm/secret-stream`. This replication connects
+   * the Mapeo RPC channel and allows invites. All active projects will sync
+   * automatically to this replication stream. Only use for local (trusted)
+   * connections, because the RPC channel key is public. To sync a specific
+   * project without connecting RPC, use project[kProjectReplication].
+   *
+   * @param {import('@hyperswarm/secret-stream')<any>} noiseStream
+   */
+  [kManagerReplicate](noiseStream) {
+    const replicationStream = this.#localPeers.connect(noiseStream)
+    Promise.all([this.getDeviceInfo(), openedNoiseSecretStream(noiseStream)])
+      .then(([{ name }, openedNoiseStream]) => {
+        if (openedNoiseStream.destroyed || !name) return
+        const peerId = keyToId(openedNoiseStream.remotePublicKey)
+        return this.#localPeers.sendDeviceInfo(peerId, { name })
+      })
+      .catch((e) => {
+        // Ignore error but log
+        console.error('Failed to send device info to peer', e)
+      })
+    return replicationStream
   }
 
   /**
@@ -213,18 +266,10 @@ export class MapeoManager {
     })
 
     // 4. Create MapeoProject instance
-    const project = new MapeoProject({
-      ...this.#projectStorage(projectId),
+    const project = this.#createProjectInstance({
       encryptionKeys,
-      keyManager: this.#keyManager,
       projectKey: projectKeypair.publicKey,
       projectSecretKey: projectKeypair.secretKey,
-      sharedDb: this.#db,
-      sharedIndexWriter: this.#projectSettingsIndexWriter,
-      rpc: this.#rpc,
-      getMediaBaseUrl: this.#mediaServer.getMediaAddress.bind(
-        this.#mediaServer
-      ),
     })
 
     // 5. Write project name and any other relevant metadata to project instance
@@ -274,20 +319,28 @@ export class MapeoManager {
       projectId
     )
 
-    const project = new MapeoProject({
-      ...this.#projectStorage(projectId),
-      ...projectKeys,
-      keyManager: this.#keyManager,
-      sharedDb: this.#db,
-      sharedIndexWriter: this.#projectSettingsIndexWriter,
-      rpc: this.#rpc,
-      getMediaBaseUrl: this.#mediaServer.getMediaAddress,
-    })
+    const project = this.#createProjectInstance(projectKeys)
 
     // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectPublicId, project)
 
     return project
+  }
+
+  /** @param {ProjectKeys} projectKeys */
+  #createProjectInstance(projectKeys) {
+    const projectId = keyToId(projectKeys.projectKey)
+    return new MapeoProject({
+      ...this.#projectStorage(projectId),
+      ...projectKeys,
+      keyManager: this.#keyManager,
+      sharedDb: this.#db,
+      sharedIndexWriter: this.#projectSettingsIndexWriter,
+      localPeers: this.#localPeers,
+      getMediaBaseUrl: this.#mediaServer.getMediaAddress.bind(
+        this.#mediaServer
+      ),
+    })
   }
 
   /**
@@ -448,4 +501,36 @@ export class MapeoManager {
   async stop() {
     await this.#mediaServer.stop()
   }
+
+  /**
+   * @returns {Promise<PublicPeerInfo[]>}
+   */
+  async listLocalPeers() {
+    return omitPeerProtomux(this.#localPeers.peers)
+  }
+}
+
+// We use the `protomux` property of connected peers internally, but we don't
+// expose it to the API. I have avoided using a private symbol for this for fear
+// that we could accidentally keep references around of protomux instances,
+// which could cause a memory leak (it shouldn't, but just to eliminate the
+// possibility)
+
+/**
+ * Remove the protomux property of connected peers
+ *
+ * @param {import('./local-peers.js').PeerInfo[]} peers
+ * @returns {PublicPeerInfo[]}
+ */
+function omitPeerProtomux(peers) {
+  return peers.map(
+    ({
+      // @ts-ignore
+      // eslint-disable-next-line no-unused-vars
+      protomux,
+      ...publicPeerInfo
+    }) => {
+      return publicPeerInfo
+    }
+  )
 }
