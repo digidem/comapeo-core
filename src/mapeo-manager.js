@@ -121,7 +121,7 @@ export class MapeoManager extends TypedEmitter {
 
     if (typeof coreStorage === 'string') {
       const pool = new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
-      // @ts-ignore
+      // @ts-expect-error
       this.#coreStorage = Hypercore.defaultStorage(coreStorage, { pool })
     } else {
       this.#coreStorage = coreStorage
