@@ -30,7 +30,7 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
  * @property {string | undefined} name
  */
 /** @typedef {PeerInfoBase & { status: 'connecting' }} PeerInfoConnecting */
-/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: Protomux }} PeerInfoConnected */
+/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: Protomux<import('@hyperswarm/secret-stream')> }} PeerInfoConnected */
 /** @typedef {PeerInfoBase & { status: 'disconnected', disconnectedAt: number }} PeerInfoDisconnected */
 
 /** @typedef {PeerInfoConnecting | PeerInfoConnected | PeerInfoDisconnected} PeerInfoInternal */
@@ -57,7 +57,7 @@ class Peer {
   #name
   #connectedAt = 0
   #disconnectedAt = 0
-  /** @type {Protomux} */
+  /** @type {Protomux<import('@hyperswarm/secret-stream')>} */
   #protomux
 
   /**
@@ -103,7 +103,7 @@ class Peer {
       }
     }
   }
-  /** @param {Protomux} protomux */
+  /** @param {Protomux<import('@hyperswarm/secret-stream')>} protomux */
   connect(protomux) {
     this.#protomux = protomux
     /* c8 ignore next 3 */
@@ -166,7 +166,9 @@ class Peer {
 /**
  * @typedef {object} LocalPeersEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
+ * @property {(peer: PeerInfoConnected) => void} peer-add Emitted when a new peer is connected
  * @property {(peerId: string, invite: InviteWithKeys) => void} invite Emitted when an invite is received
+ * @property {(discoveryKey: Buffer, stream: import('./types.js').ReplicationStream) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer replication stream (passed as the second parameter)
  */
 
 /** @extends {TypedEmitter<LocalPeersEvents>} */
@@ -272,6 +274,13 @@ export class LocalPeers extends TypedEmitter {
     stream.userData = protomux
     this.#opening.add(stream.opened)
 
+    protomux.pair(
+      { protocol: 'hypercore/alpha' },
+      /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
+        this.emit('discovery-key', discoveryKey, stream.rawStream)
+      }
+    )
+
     // No need to connect error handler to stream because Protomux does this,
     // and errors are eventually handled by #closePeer
 
@@ -319,16 +328,16 @@ export class LocalPeers extends TypedEmitter {
 
   /**
    * @param {Buffer} publicKey
-   * @param {Protomux} protomux
+   * @param {Protomux<import('@hyperswarm/secret-stream')>} protomux
    */
   #openPeer(publicKey, protomux) {
     const peerId = keyToId(publicKey)
     const peer = this.#peers.get(peerId)
     /* c8 ignore next */
     if (!peer) return // TODO: report error - this should not happen
-    const wasConnected = peer.info.status === 'connected'
     peer.connect(protomux)
-    if (!wasConnected) this.#emitPeers()
+    this.#emitPeers()
+    this.emit('peer-add', /** @type {PeerInfoConnected} */ (peer.info))
   }
 
   /** @param {Buffer} publicKey */
