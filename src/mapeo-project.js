@@ -137,6 +137,7 @@ export class MapeoProject {
         coreOwnershipTable,
         roleTable,
         deviceInfoTable,
+        iconTable,
       ],
       sqlite,
       getWinner,
