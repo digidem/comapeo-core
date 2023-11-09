@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { createHash } from 'node:crypto'
 import sodium from 'sodium-universal'
@@ -66,8 +67,8 @@ export class BlobApi {
         variant: 'original',
         type: blobType,
       },
-      metadata
-      // contentHash
+      metadata,
+      contentHash
     )
 
     if (preview) {
@@ -111,11 +112,14 @@ export class BlobApi {
    */
   async writeFile(filepath, { name, variant, type }, metadata, hash) {
     if (hash) {
-      // @ts-ignore TODO: return value types don't match pipeline's expectations, though they should
       await pipeline(
         fs.createReadStream(filepath),
-        hash,
-
+        new Transform({
+          transform: (data, _, cb) => {
+            hash.update(data)
+            cb(null, data)
+          },
+        }),
         // @ts-ignore TODO: remove driveId property from createWriteStream
         this.#blobStore.createWriteStream({ type, variant, name }, { metadata })
       )
