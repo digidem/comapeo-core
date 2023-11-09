@@ -32,6 +32,7 @@ import {
 import { Capabilities } from './capabilities.js'
 import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
 import { MemberApi } from './member-api.js'
+import { IconApi } from './icon-api.js'
 import { SyncApi, kSyncReplicate } from './sync/sync-api.js'
 import Hypercore from 'hypercore'
 
@@ -56,6 +57,7 @@ export class MapeoProject {
   #capabilities
   #ownershipWriteDone
   #memberApi
+  #iconApi
   #syncApi
 
   /**
@@ -242,6 +244,16 @@ export class MapeoProject {
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
+      },
+    })
+
+    this.#iconApi = new IconApi({
+      iconDataStore: this.#dataStores.config,
+      iconDataType: this.#dataTypes.icon,
+      projectId: this.#projectId,
+      // TODO: Update after merging https://github.com/digidem/mapeo-core-next/pull/365
+      getMediaBaseUrl: async () => {
+        throw new Error('Not yet implemented')
       },
     })
 
@@ -467,6 +479,13 @@ export class MapeoProject {
       ...value,
       schemaName: 'deviceInfo',
     })
+  }
+
+  /**
+   * @returns {import('./icon-api.js').IconApi}
+   */
+  get $icons() {
+    return this.#iconApi
   }
 }
 
