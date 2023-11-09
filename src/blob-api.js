@@ -10,18 +10,18 @@ import b4a from 'b4a'
 export class BlobApi {
   #blobStore
   #getMediaBaseUrl
-  #projectId
+  #projectPublicId
 
   /**
    * @param {object} options
-   * @param {string} options.projectId
+   * @param {string} options.projectPublicId
    * @param {import('./blob-store/index.js').BlobStore} options.blobStore
    * @param {() => Promise<string>} options.getMediaBaseUrl
    */
-  constructor({ projectId, blobStore, getMediaBaseUrl }) {
+  constructor({ projectPublicId, blobStore, getMediaBaseUrl }) {
     this.#blobStore = blobStore
     this.#getMediaBaseUrl = getMediaBaseUrl
-    this.#projectId = projectId
+    this.#projectPublicId = projectPublicId
   }
 
   /**
@@ -38,7 +38,9 @@ export class BlobApi {
       base += '/'
     }
 
-    return base + `${this.#projectId}/${driveId}/${type}/${variant}/${name}`
+    return (
+      base + `${this.#projectPublicId}/${driveId}/${type}/${variant}/${name}`
+    )
   }
 
   /**

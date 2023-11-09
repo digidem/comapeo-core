@@ -217,7 +217,7 @@ export class MapeoProject {
     })
 
     this.$blobs = new BlobApi({
-      projectId: this.#projectPublicId,
+      projectPublicId: this.#projectPublicId,
       blobStore: this.#blobStore,
       getMediaBaseUrl: async () => getMediaBaseUrl('blobs'),
     })
