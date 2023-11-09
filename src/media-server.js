@@ -92,7 +92,7 @@ export class MediaServer {
     const { server } = this.#fastify
 
     await new Promise((res, rej) => {
-      server.listen.bind(server)(this.#port, this.#host)
+      server.listen.call(server, { port: this.#port, host: this.#host })
 
       server.once('listening', onListening)
       server.once('error', onError)
