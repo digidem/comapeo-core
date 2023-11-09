@@ -150,7 +150,7 @@ test('[kGetIconBlob]()', async (t) => {
 })
 
 test(`getIconUrl()`, async (t) => {
-  let mediaBaseUrl = `http://127.0.0.1:8080/icons/`
+  let mediaBaseUrl = 'http://127.0.0.1:8080/icons/'
 
   const { iconApi } = setup({
     getMediaBaseUrl: async () => mediaBaseUrl,
@@ -186,7 +186,7 @@ test(`getIconUrl()`, async (t) => {
   }
 
   // Change media base url (e.g. host or port changes)
-  mediaBaseUrl = `http://0.0.0.0:3000/icons/`
+  mediaBaseUrl = 'http://0.0.0.0:3000/icons/'
 
   {
     const url = await iconApi.getIconUrl(iconId, {
@@ -621,7 +621,7 @@ test(
  * @param {{ getMediaBaseUrl?: () => Promise<string> }} [opts]
  */
 function setup({
-  getMediaBaseUrl = async () => `http://127.0.0.1:8080/icons`,
+  getMediaBaseUrl = async () => 'http://127.0.0.1:8080/icons',
 } = {}) {
   const cm = createCoreManager()
   const sqlite = new Database(':memory:')
