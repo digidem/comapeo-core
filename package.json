@@ -104,9 +104,6 @@
     "typescript": "^5.1.6",
     "undici": "^5.27.2"
   },
-  "peerDependencies": {
-    "fastify": ">= 4"
-  },
   "dependencies": {
     "@digidem/types": "^2.2.0",
     "@fastify/type-provider-typebox": "^3.3.0",
@@ -126,6 +123,7 @@
     "debug": "^4.3.4",
     "drizzle-orm": "0.28.2",
     "eventemitter3": "^5.0.1",
+    "fastify": ">= 4",
     "fastify-plugin": "^4.5.0",
     "hypercore": "10.17.0",
     "hypercore-crypto": "^3.3.1",
