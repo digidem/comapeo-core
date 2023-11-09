@@ -150,9 +150,9 @@ test('[kGetIconBlob]()', async (t) => {
 })
 
 test(`getIconUrl()`, async (t) => {
-  let mediaBaseUrl = 'http://127.0.0.1:8080/icons/'
+  let mediaBaseUrl = `http://127.0.0.1:8080/icons/`
 
-  const { iconApi, projectId } = setup({
+  const { iconApi } = setup({
     getMediaBaseUrl: async () => mediaBaseUrl,
   })
 
@@ -167,7 +167,7 @@ test(`getIconUrl()`, async (t) => {
 
     t.is(
       url,
-      mediaBaseUrl + `${projectId}/${iconId}/small@1x.png`,
+      mediaBaseUrl + `${iconId}/small@1x.png`,
       'returns expected bitmap icon url'
     )
   }
@@ -180,13 +180,13 @@ test(`getIconUrl()`, async (t) => {
 
     t.is(
       url,
-      mediaBaseUrl + `${projectId}/${iconId}/small.svg`,
+      mediaBaseUrl + `${iconId}/small.svg`,
       'returns expected svg icon url'
     )
   }
 
-  // Change media base url (e.g. port changes)
-  mediaBaseUrl = 'http://127.0.0.1:3000/'
+  // Change media base url (e.g. host or port changes)
+  mediaBaseUrl = `http://0.0.0.0:3000/icons/`
 
   {
     const url = await iconApi.getIconUrl(iconId, {
@@ -197,7 +197,7 @@ test(`getIconUrl()`, async (t) => {
 
     t.is(
       url,
-      mediaBaseUrl + `${projectId}/${iconId}/medium@2x.png`,
+      mediaBaseUrl + `${iconId}/medium@2x.png`,
       'returns expected bitmap icon url after media base url changes'
     )
   }
@@ -210,7 +210,7 @@ test(`getIconUrl()`, async (t) => {
 
     t.is(
       url,
-      mediaBaseUrl + `${projectId}/${iconId}/large.svg`,
+      mediaBaseUrl + `${iconId}/large.svg`,
       'returns expected svg icon url after media base url changes'
     )
   }
@@ -621,7 +621,7 @@ test(
  * @param {{ getMediaBaseUrl?: () => Promise<string> }} [opts]
  */
 function setup({
-  getMediaBaseUrl = async () => 'http://127.0.0.1:8080/icons',
+  getMediaBaseUrl = async () => `http://127.0.0.1:8080/icons`,
 } = {}) {
   const cm = createCoreManager()
   const sqlite = new Database(':memory:')
@@ -649,17 +649,13 @@ function setup({
     db,
   })
 
-  const projectId = randomBytes(32).toString('hex')
-
   const iconApi = new IconApi({
     iconDataStore,
     iconDataType,
-    projectId,
     getMediaBaseUrl,
   })
 
   return {
-    projectId,
     iconApi,
     iconDataType,
   }

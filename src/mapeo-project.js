@@ -224,9 +224,14 @@ export class MapeoProject {
     })
 
     this.$blobs = new BlobApi({
-      projectPublicId: this.#projectPublicId,
       blobStore: this.#blobStore,
-      getMediaBaseUrl: async () => getMediaBaseUrl('blobs'),
+      getMediaBaseUrl: async () => {
+        let base = await getMediaBaseUrl('blobs')
+        if (!base.endsWith('/')) {
+          base += '/'
+        }
+        return base + this.#projectPublicId
+      },
     })
 
     this.#coreOwnership = new CoreOwnership({
@@ -257,10 +262,12 @@ export class MapeoProject {
     this.#iconApi = new IconApi({
       iconDataStore: this.#dataStores.config,
       iconDataType: this.#dataTypes.icon,
-      projectId: this.#projectId,
-      // TODO: Update after merging https://github.com/digidem/mapeo-core-next/pull/365
       getMediaBaseUrl: async () => {
-        throw new Error('Not yet implemented')
+        let base = await getMediaBaseUrl('icons')
+        if (!base.endsWith('/')) {
+          base += '/'
+        }
+        return base + this.#projectPublicId
       },
     })
 
