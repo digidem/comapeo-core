@@ -11,7 +11,6 @@ import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
-import { createBlobServer } from './blob-server/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectSettingsTable } from './schema/client.js'
@@ -30,10 +29,16 @@ import {
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
 import { Capabilities } from './capabilities.js'
-import { getDeviceId, projectKeyToId, valueOf } from './utils.js'
+import {
+  getDeviceId,
+  projectKeyToId,
+  projectKeyToPublicId,
+  valueOf,
+} from './utils.js'
 import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
+import { IconApi } from './icon-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -42,6 +47,7 @@ const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
+export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
@@ -52,11 +58,12 @@ export class MapeoProject {
   #dataStores
   #dataTypes
   #blobStore
-  #blobServer
   #coreOwnership
   #capabilities
   #ownershipWriteDone
   #memberApi
+  #projectPublicId
+  #iconApi
   #syncApi
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
@@ -72,6 +79,7 @@ export class MapeoProject {
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
+   * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {Logger} [opts.logger]
    *
@@ -85,12 +93,14 @@ export class MapeoProject {
     projectKey,
     projectSecretKey,
     encryptionKeys,
+    getMediaBaseUrl,
     localPeers,
     logger,
   }) {
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
+    this.#projectPublicId = projectKeyToPublicId(projectKey)
 
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
@@ -215,18 +225,10 @@ export class MapeoProject {
       coreManager: this.#coreManager,
     })
 
-    this.#blobServer = createBlobServer({
-      logger: true,
-      blobStore: this.#blobStore,
-      prefix: '/blobs/',
-      projectId: this.#projectId,
-    })
-
-    // @ts-ignore TODO: pass in blobServer
     this.$blobs = new BlobApi({
-      projectId: this.#projectId,
+      projectPublicId: this.#projectPublicId,
       blobStore: this.#blobStore,
-      blobServer: this.#blobServer,
+      getMediaBaseUrl: async () => getMediaBaseUrl('blobs'),
     })
 
     this.#coreOwnership = new CoreOwnership({
@@ -251,6 +253,16 @@ export class MapeoProject {
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
+      },
+    })
+
+    this.#iconApi = new IconApi({
+      iconDataStore: this.#dataStores.config,
+      iconDataType: this.#dataTypes.icon,
+      projectId: this.#projectId,
+      // TODO: Update after merging https://github.com/digidem/mapeo-core-next/pull/365
+      getMediaBaseUrl: async () => {
+        throw new Error('Not yet implemented')
       },
     })
 
@@ -317,6 +329,10 @@ export class MapeoProject {
    */
   get [kCapabilities]() {
     return this.#capabilities
+  }
+
+  get [kBlobStore]() {
+    return this.#blobStore
   }
 
   get deviceId() {
@@ -477,6 +493,13 @@ export class MapeoProject {
       ...value,
       schemaName: 'deviceInfo',
     })
+  }
+
+  /**
+   * @returns {import('./icon-api.js').IconApi}
+   */
+  get $icons() {
+    return this.#iconApi
   }
 }
 

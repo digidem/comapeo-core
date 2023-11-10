@@ -85,7 +85,7 @@
     "depcheck": "^1.4.3",
     "drizzle-kit": "^0.19.12",
     "eslint": "^8.39.0",
-    "fastify": "^4.20.0",
+    "fastify": "^4.24.3",
     "husky": "^8.0.0",
     "light-my-request": "^5.10.0",
     "lint-staged": "^14.0.1",
@@ -101,10 +101,8 @@
     "ts-proto": "^1.156.7",
     "typedoc": "^0.24.8",
     "typedoc-plugin-markdown": "^3.15.3",
-    "typescript": "^5.1.6"
-  },
-  "peerDependencies": {
-    "fastify": ">= 4"
+    "typescript": "^5.1.6",
+    "undici": "^5.27.2"
   },
   "dependencies": {
     "@digidem/types": "^2.2.0",
@@ -125,6 +123,7 @@
     "debug": "^4.3.4",
     "drizzle-orm": "0.28.2",
     "eventemitter3": "^5.0.1",
+    "fastify": ">= 4",
     "fastify-plugin": "^4.5.0",
     "hypercore": "10.17.0",
     "hypercore-crypto": "^3.3.1",

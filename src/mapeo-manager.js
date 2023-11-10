@@ -6,6 +6,8 @@ import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
+import { TypedEmitter } from 'tiny-typed-emitter'
+
 import { IndexWriter } from './index-writer/index.js'
 import { MapeoProject, kSetOwnDeviceInfo } from './mapeo-project.js'
 import {
@@ -26,8 +28,8 @@ import {
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
+import { MediaServer } from './media-server.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
-import { TypedEmitter } from 'tiny-typed-emitter'
 import { Capabilities } from './capabilities.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { Logger } from './logger.js'
@@ -70,6 +72,7 @@ export class MapeoManager extends TypedEmitter {
   #deviceId
   #localPeers
   #invite
+  #mediaServer
   #localDiscovery
   #l
 
@@ -78,8 +81,9 @@ export class MapeoManager extends TypedEmitter {
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
+   * @param {{ port?: number, logger: import('fastify').FastifyServerOptions['logger'] }} [opts.mediaServerOpts]
    */
-  constructor({ rootKey, dbFolder, coreStorage }) {
+  constructor({ rootKey, dbFolder, coreStorage, mediaServerOpts }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
@@ -132,11 +136,16 @@ export class MapeoManager extends TypedEmitter {
 
     if (typeof coreStorage === 'string') {
       const pool = new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
-      // @ts-ignore
+      // @ts-expect-error
       this.#coreStorage = Hypercore.defaultStorage(coreStorage, { pool })
     } else {
       this.#coreStorage = coreStorage
     }
+
+    this.#mediaServer = new MediaServer({
+      logger: mediaServerOpts?.logger,
+      getProject: this.getProject.bind(this),
+    })
 
     this.#localDiscovery = new LocalDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
@@ -364,6 +373,9 @@ export class MapeoManager extends TypedEmitter {
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
       logger: this.#l,
+      getMediaBaseUrl: this.#mediaServer.getMediaAddress.bind(
+        this.#mediaServer
+      ),
     })
   }
 
@@ -610,6 +622,17 @@ export class MapeoManager extends TypedEmitter {
    */
   get invite() {
     return this.#invite
+  }
+
+  /**
+   * @param {import('./media-server.js').StartOpts} [opts]
+   */
+  async start(opts) {
+    await this.#mediaServer.start(opts)
+  }
+
+  async stop() {
+    await this.#mediaServer.stop()
   }
 
   /**
