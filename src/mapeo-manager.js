@@ -85,7 +85,7 @@ export class MapeoManager extends TypedEmitter {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
-    this.#l = new Logger({ deviceId: this.#deviceId })
+    this.#l = new Logger({ deviceId: this.#deviceId, ns: 'manager' })
     this.#dbFolder = dbFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
@@ -142,6 +142,7 @@ export class MapeoManager extends TypedEmitter {
 
     this.#localDiscovery = new LocalDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
+      logger: this.#l,
     })
     this.#localDiscovery.on('connection', this[kManagerReplicate].bind(this))
   }
