@@ -303,6 +303,7 @@ export class CoreManager extends TypedEmitter {
     if (persist) {
       this.#addCoreSqlStmt.run({ publicKey: key, namespace })
     }
+
     this.#l.log(
       'Added %s %s core %k',
       persist ? 'remote' : writer ? 'local' : 'creator',

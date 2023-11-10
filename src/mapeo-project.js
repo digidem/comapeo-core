@@ -65,9 +65,9 @@ export class MapeoProject {
   #projectPublicId
   #iconApi
   #syncApi
+  #l
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
-  #l
 
   /**
    * @param {Object} opts
