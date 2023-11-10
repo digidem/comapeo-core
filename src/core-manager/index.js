@@ -8,6 +8,7 @@ import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import { ReplicationStateMachine } from './replication-state-machine.js'
 import * as rle from './bitfield-rle.js'
+import { Logger } from '../logger.js'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
@@ -54,6 +55,8 @@ export class CoreManager extends TypedEmitter {
   #state = 'opened'
   #ready
   #haveExtension
+  #deviceId
+  #l
 
   static get namespaces() {
     return NAMESPACES
@@ -67,6 +70,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
    * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
+   * @param {Logger} [options.logger]
    */
   constructor({
     sqlite,
@@ -75,6 +79,7 @@ export class CoreManager extends TypedEmitter {
     projectSecretKey,
     encryptionKeys = {},
     storage,
+    logger,
   }) {
     super()
     assert(
@@ -85,7 +90,9 @@ export class CoreManager extends TypedEmitter {
       !projectSecretKey || projectSecretKey.length === 64,
       'project owner core secret key must be 64-byte buffer'
     )
+    this.#l = Logger.create('coreManager', logger)
     const primaryKey = keyManager.getDerivedKey('primaryKey', projectKey)
+    this.#deviceId = keyManager.getIdentityKeypair().publicKey.toString('hex')
     this.#projectKey = projectKey
     this.#encryptionKeys = encryptionKeys
 
@@ -157,7 +164,15 @@ export class CoreManager extends TypedEmitter {
 
     this.#ready = Promise.all(
       [...this.#coreIndex].map(({ core }) => core.ready())
-    ).catch(() => {})
+    )
+      .then(() => {
+        this.#l.log('ready')
+      })
+      .catch(() => {})
+  }
+
+  get deviceId() {
+    return this.#deviceId
   }
 
   get creatorCore() {
@@ -304,6 +319,12 @@ export class CoreManager extends TypedEmitter {
       this.#addCoreSqlStmt.run({ publicKey: key, namespace })
     }
 
+    this.#l.log(
+      'Added %s %s core %k',
+      persist ? 'remote' : writer ? 'local' : 'creator',
+      namespace,
+      key
+    )
     this.emit('add-core', { core, key, namespace })
 
     return { core, key, namespace }

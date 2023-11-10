@@ -30,6 +30,7 @@ import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
 import { MediaServer } from './media-server.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
+import { Logger } from './logger.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -71,6 +72,7 @@ export class MapeoManager extends TypedEmitter {
   #invite
   #mediaServer
   #localDiscovery
+  #l
 
   /**
    * @param {Object} opts
@@ -81,7 +83,9 @@ export class MapeoManager extends TypedEmitter {
    */
   constructor({ rootKey, dbFolder, coreStorage, mediaServerOpts }) {
     super()
-
+    this.#keyManager = new KeyManager(rootKey)
+    this.#deviceId = getDeviceId(this.#keyManager)
+    this.#l = new Logger({ deviceId: this.#deviceId })
     this.#dbFolder = dbFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
@@ -93,16 +97,15 @@ export class MapeoManager extends TypedEmitter {
       migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
     })
 
-    this.#localPeers = new LocalPeers()
+    this.#localPeers = new LocalPeers({ logger: this.#l })
     this.#localPeers.on('peers', (peers) => {
       this.emit('local-peers', omitPeerProtomux(peers))
     })
 
-    this.#keyManager = new KeyManager(rootKey)
-    this.#deviceId = getDeviceId(this.#keyManager)
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectSettingsTable],
       sqlite,
+      logger: this.#l,
     })
     this.#activeProjects = new Map()
 
@@ -150,6 +153,10 @@ export class MapeoManager extends TypedEmitter {
     return this.#localPeers
   }
 
+  get deviceId() {
+    return this.#deviceId
+  }
+
   /**
    * Replicate Mapeo to a `@hyperswarm/secret-stream`. This replication connects
    * the Mapeo RPC channel and allows invites. All active projects will sync
@@ -169,7 +176,11 @@ export class MapeoManager extends TypedEmitter {
       })
       .catch((e) => {
         // Ignore error but log
-        console.error('Failed to send device info to peer', e)
+        this.#l.log(
+          'Failed to send device info to peer %h',
+          noiseStream.remotePublicKey,
+          e
+        )
       })
     return replicationStream
   }
@@ -285,6 +296,12 @@ export class MapeoManager extends TypedEmitter {
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
 
+    this.#l.log(
+      'created project %h, public id: %S',
+      projectKeypair.publicKey,
+      projectPublicId
+    )
+
     // 7. Return project public id
     return projectPublicId
   }
@@ -338,6 +355,7 @@ export class MapeoManager extends TypedEmitter {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
+      logger: this.#l,
       getMediaBaseUrl: this.#mediaServer.getMediaAddress.bind(
         this.#mediaServer
       ),
