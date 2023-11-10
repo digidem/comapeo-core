@@ -204,7 +204,7 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
 
   /** @type {any}*/
-  const replicatedCore = cm2.getCoreByDiscoveryKey(
+  const { core: replicatedCore } = cm2.getCoreByDiscoveryKey(
     Buffer.from(blobId.driveId, 'hex')
   )
   await replicatedCore.update({ wait: true })

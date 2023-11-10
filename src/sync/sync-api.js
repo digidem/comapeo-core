@@ -3,7 +3,7 @@ import { SyncState } from './sync-state.js'
 import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 
-export const kSyncReplicate = Symbol('replicate sync')
+export const kHandleDiscoveryKey = Symbol('handle discovery key')
 
 /**
  * @typedef {object} SyncEvents
@@ -21,6 +21,8 @@ export class SyncApi extends TypedEmitter {
   #peerSyncControllers = new Map()
   /** @type {Set<'local' | 'remote'>} */
   #dataSyncEnabled = new Set()
+  /** @type {Map<import('protomux'), Set<Buffer>>} */
+  #pendingDiscoveryKeys = new Map()
   #l
 
   /**
@@ -38,6 +40,38 @@ export class SyncApi extends TypedEmitter {
     this.#capabilities = capabilities
     this.syncState = new SyncState({ coreManager, throttleMs })
     this.syncState.on('state', this.emit.bind(this, 'sync-state'))
+
+    this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
+    this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
+  }
+
+  /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */
+  [kHandleDiscoveryKey](discoveryKey, stream) {
+    const protomux = stream.noiseStream.userData
+    const peerSyncController = this.#peerSyncControllers.get(protomux)
+    if (peerSyncController) {
+      peerSyncController.handleDiscoveryKey(discoveryKey)
+      return
+    }
+    // We will reach here if we are not part of the project, so we can ignore
+    // these keys. However it's also possible to reach here when we are part of
+    // a project, but the creator core `peer-add` event has not yet fired, so we
+    // queue this to be handled in `#handlePeerAdd`
+    const peerQueue = this.#pendingDiscoveryKeys.get(protomux) || new Set()
+    peerQueue.add(discoveryKey)
+    this.#pendingDiscoveryKeys.set(protomux, peerQueue)
+
+    // If we _are_ part of the project, the `peer-add` should happen very soon
+    // after we get a discovery-key event, so we cleanup our queue to avoid
+    // memory leaks for any discovery keys that have not been handled.
+    setTimeout(() => {
+      const peerQueue = this.#pendingDiscoveryKeys.get(protomux)
+      if (!peerQueue) return
+      peerQueue.delete(discoveryKey)
+      if (peerQueue.size === 0) {
+        this.#pendingDiscoveryKeys.delete(protomux)
+      }
+    }, 500)
   }
 
   getState() {
@@ -69,17 +103,24 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
-   * @param {import('protomux')<import('@hyperswarm/secret-stream')>} protomux A protomux instance
+   * Bound to `this`
+   *
+   * This will be called whenever a peer is successfully added to the creator
+   * core, which means that the peer has the project key. The PeerSyncController
+   * will then handle validation of role records to ensure that the peer is
+   * actually still part of the project.
+   *
+   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')> }} peer
    */
-  [kSyncReplicate](protomux) {
+  #handlePeerAdd = (peer) => {
+    const { protomux } = peer
     if (this.#peerSyncControllers.has(protomux)) {
       this.#l.log(
-        'Existing sync controller for peer %h',
+        'Unexpected existing peer sync controller for peer %h',
         protomux.stream.remotePublicKey
       )
       return
     }
-
     const peerSyncController = new PeerSyncController({
       protomux,
       coreManager: this.#coreManager,
@@ -87,9 +128,39 @@ export class SyncApi extends TypedEmitter {
       capabilities: this.#capabilities,
       logger: this.#l,
     })
+    this.#peerSyncControllers.set(protomux, peerSyncController)
+
     if (this.#dataSyncEnabled.has('local')) {
       peerSyncController.enableDataSync()
     }
-    this.#peerSyncControllers.set(protomux, peerSyncController)
+
+    const peerQueue = this.#pendingDiscoveryKeys.get(protomux)
+    if (peerQueue) {
+      for (const discoveryKey of peerQueue) {
+        peerSyncController.handleDiscoveryKey(discoveryKey)
+      }
+      this.#pendingDiscoveryKeys.delete(protomux)
+    }
+  }
+
+  /**
+   * Bound to `this`
+   *
+   * Called when a peer is removed from the creator core, e.g. when the
+   * connection is terminated.
+   *
+   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')> }} peer
+   */
+  #handlePeerRemove = (peer) => {
+    const { protomux } = peer
+    if (!this.#peerSyncControllers.has(protomux)) {
+      this.#l.log(
+        'Unexpected no existing peer sync controller for peer %h',
+        protomux.stream.remotePublicKey
+      )
+      return
+    }
+    this.#peerSyncControllers.delete(protomux)
+    this.#pendingDiscoveryKeys.delete(protomux)
   }
 }

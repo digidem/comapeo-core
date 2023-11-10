@@ -91,6 +91,31 @@ export class PeerSyncController {
   }
 
   /**
+   * @param {Buffer} discoveryKey
+   */
+  handleDiscoveryKey(discoveryKey) {
+    const coreRecord = this.#coreManager.getCoreByDiscoveryKey(discoveryKey)
+    // If we already know about this core, then we will add it to the
+    // replication stream when we are ready
+    if (coreRecord) {
+      this.#log(
+        'Received discovery key %h, but already have core in namespace %s',
+        discoveryKey,
+        coreRecord.namespace
+      )
+      if (this.#enabledNamespaces.has(coreRecord.namespace)) {
+        this.#replicateCore(coreRecord.core)
+      }
+      return
+    }
+    if (!this.peerKey) {
+      this.#log('Unexpected null peerKey')
+      return
+    }
+    this.#coreManager.requestCoreKey(this.peerKey, discoveryKey)
+  }
+
+  /**
    * Handler for 'core-add' event from CoreManager
    * Bound to `this` (defined as static property)
    *

@@ -2,11 +2,8 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
 import assert from 'node:assert'
-import { once } from 'node:events'
-import Hypercore from 'hypercore'
 import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
-import { ReplicationStateMachine } from './replication-state-machine.js'
 import * as rle from './bitfield-rle.js'
 import { Logger } from '../logger.js'
 
@@ -30,7 +27,6 @@ const CREATE_SQL = `CREATE TABLE IF NOT EXISTS ${TABLE} (
 /** @typedef {(typeof NAMESPACES)[number]} Namespace */
 /** @typedef {{ core: Core, key: Buffer, namespace: Namespace }} CoreRecord */
 /** @typedef {import('streamx').Duplex} DuplexStream */
-/** @typedef {{ rsm: ReplicationStateMachine, stream: DuplexStream, cores: Set<Core> }} ReplicationRecord */
 /**
  * @typedef {Object} Events
  * @property {(coreRecord: CoreRecord) => void} add-core
@@ -48,8 +44,6 @@ export class CoreManager extends TypedEmitter {
   #projectKey
   #addCoreSqlStmt
   #encryptionKeys
-  /** @type {Set<ReplicationRecord>} */
-  #replications = new Set()
   #projectExtension
   /** @type {'opened' | 'closing' | 'closed'} */
   #state = 'opened'
@@ -222,13 +216,13 @@ export class CoreManager extends TypedEmitter {
    * Get a core by its discovery key
    *
    * @param {Buffer} discoveryKey
-   * @returns {Core | undefined}
+   * @returns {CoreRecord | undefined}
    */
   getCoreByDiscoveryKey(discoveryKey) {
     const coreRecord = this.#coreIndex.getByDiscoveryId(
       discoveryKey.toString('hex')
     )
-    return coreRecord && coreRecord.core
+    return coreRecord
   }
 
   /**
@@ -240,10 +234,6 @@ export class CoreManager extends TypedEmitter {
     const promises = []
     for (const { core } of this.#coreIndex) {
       promises.push(core.close())
-    }
-    for (const { stream } of this.#replications) {
-      promises.push(once(stream, 'close'))
-      stream.destroy()
     }
     await Promise.all(promises)
     this.#state = 'closed'
@@ -310,13 +300,6 @@ export class CoreManager extends TypedEmitter {
       })
     }
 
-    for (const { stream, rsm, cores } of this.#replications.values()) {
-      if (cores.has(core)) continue
-      if (rsm.state.enabledNamespaces.has(namespace)) {
-        core.replicate(stream)
-      }
-    }
-
     if (persist) {
       this.#addCoreSqlStmt.run({ publicKey: key, namespace })
     }
@@ -332,146 +315,37 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
-   * Start replicating cores managed by CoreManager to a Noise Secret Stream (as
-   * created by @hyperswarm/secret-stream). Important: only one CoreManager can
-   * be replicated to a given stream - attempting to replicate a second
-   * CoreManager to the same stream will cause sharing of auth core keys to
-   * fail - see https://github.com/holepunchto/corestore/issues/45
+   * Send an extension message over the project creator core replication stream
+   * requesting a core key for the given discovery key.
    *
-   * Initially only cores in the `auth` namespace are replicated to the stream.
-   * All cores in the `auth` namespace are shared to all peers who have the
-   * `rootCoreKey` core, and also replicated to the stream
-   *
-   * To start replicating other namespaces call `enableNamespace(ns)` on the
-   * returned state machine
-   *
-   * @param {import('../types.js').NoiseStream | import('../types.js').ProtocolStream} noiseStream framed noise secret stream, i.e. @hyperswarm/secret-stream
-   */
-  replicate(noiseStream) {
-    if (this.#state !== 'opened') throw new Error('Core manager is closed')
-    if (
-      /** @type {import('../types.js').ProtocolStream} */ (noiseStream)
-        .noiseStream?.userData
-    ) {
-      console.warn(
-        'Passed an existing protocol stream to coreManager.replicate(). Other corestores and core managers replicated to this stream will no longer automatically inject shared cores into the stream'
-      )
-    }
-    // @ts-expect-error - too complex to type right now
-    const stream = Hypercore.createProtocolStream(noiseStream)
-    const protocol = stream.noiseStream.userData
-    if (!protocol) throw new Error('Invalid stream')
-    // If the noise stream already had a protomux instance attached to
-    // noiseStream.userData, then Hypercore.createProtocolStream does not attach
-    // the ondiscoverykey listener, so we make sure we are listening for this,
-    // and that we override any previous notifier that was attached to protomux.
-    // This means that only one Core Manager instance can currently be
-    // replicated to a stream if we want sharing of unknown auth cores to work.
-    protocol.pair(
-      { protocol: 'hypercore/alpha' },
-      /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
-        this.handleDiscoveryKey(discoveryKey, stream)
-      }
-    )
-
-    /** @type {ReplicationRecord['cores']} */
-    const replicatingCores = new Set()
-    const rsm = new ReplicationStateMachine({
-      enableNamespace: (namespace) => {
-        for (const { core } of this.getCores(namespace)) {
-          if (replicatingCores.has(core)) continue
-          core.replicate(protocol)
-          replicatingCores.add(core)
-        }
-      },
-      disableNamespace: (namespace) => {
-        for (const { core } of this.getCores(namespace)) {
-          if (core === this.creatorCore) continue
-          unreplicate(core, protocol)
-          replicatingCores.delete(core)
-        }
-      },
-    })
-
-    // Always need to replicate the project creator core
-    this.creatorCore.replicate(protocol)
-    replicatingCores.add(this.creatorCore)
-
-    // For now enable auth namespace here, rather than in sync controller
-    rsm.enableNamespace('auth')
-
-    /** @type {ReplicationRecord} */
-    const replicationRecord = { stream, rsm, cores: replicatingCores }
-    this.#replications.add(replicationRecord)
-
-    stream.once('close', () => {
-      rsm.disableAll()
-      rsm.removeAllListeners()
-      this.#replications.delete(replicationRecord)
-    })
-
-    return rsm
-  }
-
-  /**
+   * @param {Buffer} peerKey
    * @param {Buffer} discoveryKey
-   * @param {any} stream
    */
-  async handleDiscoveryKey(discoveryKey, stream) {
-    const discoveryId = discoveryKey.toString('hex')
-    const peer = await this.#findPeer(stream.remotePublicKey)
+  requestCoreKey(peerKey, discoveryKey) {
+    // No-op if we already have this core
+    if (this.getCoreByDiscoveryKey(discoveryKey)) return
+    const peer = this.#creatorCore.peers.find((peer) => {
+      return peer.remotePublicKey.equals(peerKey)
+    })
     if (!peer) {
+      // This should not happen because this is only called from SyncApi, which
+      // checks the peer exists before calling this method.
       this.#l.log(
-        'Receive dk %h but no connected peer %h',
+        'Attempted to request core key for %h, but no connected peer %h',
         discoveryKey,
-        stream.remotePublicKey
+        peerKey
       )
-      // TODO: How to handle this and when does it happen?
       return
     }
-    // If we already know about this core, then we will add it to the
-    // replication stream when we are ready
-    if (this.#coreIndex.getByDiscoveryId(discoveryId)) {
-      this.#l.log('Received dk %h, but already have core', discoveryKey)
-      return
-    }
-    this.#l.log('Requesting core key for dk %h', discoveryKey)
+    this.#l.log(
+      'Requesting core key for discovery key %h from peer %h',
+      discoveryKey,
+      peerKey
+    )
     const message = ProjectExtension.fromPartial({
       wantCoreKeys: [discoveryKey],
     })
     this.#projectExtension.send(message, peer)
-  }
-
-  /**
-   * @param {Buffer} publicKey
-   * @param {{ timeout?: number }} [opts]
-   */
-  async #findPeer(publicKey, { timeout = 200 } = {}) {
-    const creatorCore = this.#creatorCore
-    const peer = creatorCore.peers.find((peer) => {
-      return peer.remotePublicKey.equals(publicKey)
-    })
-    if (peer) return peer
-    // This is called from the from the handleDiscoveryId event, which can
-    // happen before the peer connection is fully established, so we wait for
-    // the `peer-add` event, with a timeout in case the peer never gets added
-    return new Promise(function (res) {
-      const timeoutId = setTimeout(function () {
-        creatorCore.off('peer-add', onPeer)
-        res(null)
-      }, timeout)
-
-      creatorCore.on('peer-add', onPeer)
-
-      /** @param {any} peer */
-      function onPeer(peer) {
-        if (peer.remotePublicKey.equals(publicKey)) {
-          clearTimeout(timeoutId)
-          creatorCore.off('peer-add', onPeer)
-          res(peer)
-        }
-      }
-    })
   }
 
   /**
@@ -592,18 +466,4 @@ const HaveExtensionCodec = {
       return { start, discoveryKey, bitfield: new Uint32Array(), namespace }
     }
   },
-}
-
-/**
- *
- * @param {Hypercore<'binary', any>} core
- * @param {import('protomux')} protomux
- */
-export function unreplicate(core, protomux) {
-  const peerToUnreplicate = core.peers.find(
-    (peer) => peer.protomux === protomux
-  )
-  if (!peerToUnreplicate) return
-  peerToUnreplicate.channel.close()
-  return
 }
