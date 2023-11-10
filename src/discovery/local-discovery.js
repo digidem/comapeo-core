@@ -3,11 +3,11 @@ import net from 'node:net'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
 import { DnsSd } from './dns-sd.js'
-import debug from 'debug'
 import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
+import { Logger } from '../logger.js'
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 /** @typedef {import('../utils.js').OpenedNoiseStream<net.Socket>} OpenedNoiseStream */
@@ -32,21 +32,25 @@ export class LocalDiscovery extends TypedEmitter {
   #log
   /** @type {(e: Error) => void} */
   #handleSocketError
+  #l
 
   /**
    * @param {Object} opts
    * @param {Keypair} opts.identityKeypair
    * @param {DnsSd} [opts.dnssd] Optional DnsSd instance, used for testing
+   * @param {Logger} [opts.logger]
    */
-  constructor({ identityKeypair, dnssd }) {
+  constructor({ identityKeypair, dnssd, logger }) {
     super()
+    this.#l = Logger.create('mdns', logger)
+    this.#log = this.#l.log.bind(this.#l)
     this.#dnssd =
       dnssd ||
       new DnsSd({
         name: keyToPublicId(identityKeypair.publicKey),
+        logger: this.#l,
       })
     this.#dnssd.on('up', this.#handleServiceUp.bind(this))
-    this.#log = debug('mapeo:mdns:' + keyShortname(identityKeypair.publicKey))
     this.#sm = new StartStopStateMachine({
       start: this.#start.bind(this),
       stop: this.#stop.bind(this),
@@ -195,7 +199,8 @@ export class LocalDiscovery extends TypedEmitter {
     this.#log(
       `${isInitiator ? 'outgoing' : 'incoming'} secretSteam connection ${
         isInitiator ? 'to' : 'from'
-      } ${keyShortname(remotePublicKey)}`
+      } %h`,
+      remotePublicKey
     )
 
     const existing = this.#noiseConnections.get(remoteId)
@@ -231,7 +236,7 @@ export class LocalDiscovery extends TypedEmitter {
     this.#noiseConnections.set(remoteId, conn)
 
     conn.on('close', () => {
-      this.#log(`closed connection with ${keyShortname(remotePublicKey)}`)
+      this.#log('closed connection with %h', remotePublicKey)
       this.#noiseConnections.delete(remoteId)
     })
 
@@ -293,15 +298,6 @@ function getAddress(server) {
     throw new Error('Server is not listening on a port')
   }
   return addr
-}
-
-/**
- *
- * @param {Buffer} key
- * @returns
- */
-function keyShortname(key) {
-  return keyToPublicId(key).slice(0, 7)
 }
 
 function noop() {}

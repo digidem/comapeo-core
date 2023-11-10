@@ -1,5 +1,6 @@
 import mapObject from 'map-obj'
 import { NAMESPACES } from '../core-manager/index.js'
+import { Logger } from '../logger.js'
 
 /**
  * @typedef {import('../core-manager/index.js').Namespace} Namespace
@@ -29,6 +30,7 @@ export class PeerSyncController {
   #downloadingRanges = new Map()
   /** @type {SyncStatus} */
   #prevSyncStatus = createNamespaceMap('unknown')
+  #log
 
   /**
    * @param {object} opts
@@ -36,8 +38,18 @@ export class PeerSyncController {
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    * @param {import("./sync-state.js").SyncState} opts.syncState
    * @param {import("../capabilities.js").Capabilities} opts.capabilities
+   * @param {Logger} [opts.logger]
    */
-  constructor({ protomux, coreManager, syncState, capabilities }) {
+  constructor({ protomux, coreManager, syncState, capabilities, logger }) {
+    // @ts-ignore
+    this.#log = (formatter, ...args) => {
+      const log = Logger.create('peer', logger).log
+      return log.apply(null, [
+        `[%h] ${formatter}`,
+        protomux.stream.remotePublicKey,
+        ...args,
+      ])
+    }
     this.#coreManager = coreManager
     this.#protomux = protomux
     this.#capabilities = capabilities
@@ -50,6 +62,14 @@ export class PeerSyncController {
     syncState.on('state', this.#handleStateChange)
 
     this.#updateEnabledNamespaces()
+  }
+
+  get peerKey() {
+    return this.#protomux.stream.remotePublicKey
+  }
+
+  get peerId() {
+    return this.peerKey?.toString('hex')
   }
 
   /**
@@ -99,6 +119,7 @@ export class PeerSyncController {
     const localState = mapObject(state, (ns, nsState) => {
       return [ns, nsState.localState]
     })
+    this.#log('state %O', state)
 
     // Map of which namespaces have received new data since last sync change
     const didUpdate = mapObject(state, (ns) => {
@@ -121,13 +142,12 @@ export class PeerSyncController {
         const cap = await this.#capabilities.getCapabilities(peerId)
         this.#syncCapability = cap.sync
       } catch (e) {
+        this.#log('Error reading capability', e)
         // Any error, consider sync blocked
         this.#syncCapability = createNamespaceMap('blocked')
       }
     }
-    // console.log(peerId.slice(0, 7), this.#syncCapability)
-    // console.log(peerId.slice(0, 7), didUpdate)
-    // console.dir(state, { depth: null, colors: true })
+    this.#log('capability %o', this.#syncCapability)
 
     // If any namespace has new data, update what is enabled
     if (Object.values(didUpdate).indexOf(true) > -1) {
@@ -190,6 +210,7 @@ export class PeerSyncController {
       (peer) => peer.protomux === this.#protomux
     )
     if (!peerToUnreplicate) return
+    this.#log('unreplicating core %k', core.key)
     peerToUnreplicate.channel.close()
     this.#replicatingCores.delete(core)
   }
@@ -222,6 +243,7 @@ export class PeerSyncController {
       this.#downloadCore(core)
     }
     this.#enabledNamespaces.add(namespace)
+    this.#log('enabled namespace %s', namespace)
   }
 
   /**
@@ -233,6 +255,7 @@ export class PeerSyncController {
       this.#undownloadCore(core)
     }
     this.#enabledNamespaces.delete(namespace)
+    this.#log('disabled namespace %s', namespace)
   }
 }
 

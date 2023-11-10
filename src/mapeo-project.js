@@ -39,6 +39,7 @@ import { MemberApi } from './member-api.js'
 import { IconApi } from './icon-api.js'
 import { SyncApi, kSyncReplicate } from './sync/sync-api.js'
 import Hypercore from 'hypercore'
+import { Logger } from './logger.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -64,6 +65,7 @@ export class MapeoProject {
   #projectPublicId
   #iconApi
   #syncApi
+  #l
 
   /**
    * @param {Object} opts
@@ -77,6 +79,7 @@ export class MapeoProject {
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
+   * @param {Logger} [opts.logger]
    *
    */
   constructor({
@@ -90,7 +93,9 @@ export class MapeoProject {
     encryptionKeys,
     getMediaBaseUrl,
     localPeers,
+    logger,
   }) {
+    this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
     this.#projectPublicId = projectKeyToPublicId(projectKey)
@@ -121,6 +126,7 @@ export class MapeoProject {
       keyManager,
       storage: coreManagerStorage,
       sqlite,
+      logger: this.#l,
     })
 
     const indexWriter = new IndexWriter({
@@ -144,6 +150,7 @@ export class MapeoProject {
             return doc
         }
       },
+      logger: this.#l,
     })
     this.#dataStores = {
       auth: new DataStore({
@@ -260,6 +267,7 @@ export class MapeoProject {
     this.#syncApi = new SyncApi({
       coreManager: this.#coreManager,
       capabilities: this.#capabilities,
+      logger: this.#l,
     })
 
     ///////// 4. Wire up sync
@@ -305,6 +313,7 @@ export class MapeoProject {
         .then(deferred.resolve)
         .catch(deferred.reject)
     })
+    this.#l.log('Created project instance %h', projectKey)
   }
 
   /**
@@ -428,7 +437,8 @@ export class MapeoProject {
       return extractEditableProjectSettings(
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
-    } catch {
+    } catch (e) {
+      this.#l.log('No project settings')
       return /** @type {EditableProjectSettings} */ ({})
     }
   }

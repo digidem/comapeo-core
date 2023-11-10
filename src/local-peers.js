@@ -10,6 +10,7 @@ import {
   InviteResponse_Decision,
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
+import { Logger } from './logger.js'
 
 const PROTOCOL_NAME = 'mapeo/rpc'
 
@@ -59,16 +60,23 @@ class Peer {
   #disconnectedAt = 0
   /** @type {Protomux<import('@hyperswarm/secret-stream')>} */
   #protomux
+  #log
 
   /**
    * @param {object} options
    * @param {Buffer} options.publicKey
    * @param {ReturnType<typeof Protomux.prototype.createChannel>} options.channel
+   * @param {Logger} [options.logger]
    */
-  constructor({ publicKey, channel }) {
+  constructor({ publicKey, channel, logger }) {
     this.#publicKey = publicKey
     this.#channel = channel
     this.#connected = pDefer()
+    // @ts-ignore
+    this.#log = (formatter, ...args) => {
+      const log = Logger.create('peer', logger).log
+      return log.apply(null, [`[%h] ${formatter}`, publicKey, ...args])
+    }
   }
   /** @returns {PeerInfoInternal} */
   get info() {
@@ -108,26 +116,34 @@ class Peer {
     this.#protomux = protomux
     /* c8 ignore next 3 */
     if (this.#state !== 'connecting') {
+      this.#log('ERROR: tried to connect but state was %s', this.#state)
       return // TODO: report error - this should not happen
     }
     this.#state = 'connected'
     this.#connectedAt = Date.now()
     this.#connected.resolve()
+    this.#log('connected')
   }
   disconnect() {
     // @ts-ignore - easier to ignore this than handle this for TS - avoids holding a reference to old Protomux instances
     this.#protomux = undefined
     /* c8 ignore next */
-    if (this.#state === 'disconnected') return
+    if (this.#state === 'disconnected') {
+      this.#log('ERROR: tried to disconnect but was already disconnected')
+      return
+    }
     this.#state = 'disconnected'
     this.#disconnectedAt = Date.now()
     // Can just resolve this rather than reject, because #assertConnected will throw the error
     this.#connected.resolve()
+    let rejectCount = 0
     for (const pending of this.pendingInvites.values()) {
       for (const { reject } of pending) {
         reject(new PeerDisconnectedError())
+        rejectCount++
       }
     }
+    this.#log('disconnected and rejected %d pending invites', rejectCount)
     this.pendingInvites.clear()
   }
   /** @param {InviteWithKeys} invite */
@@ -136,6 +152,7 @@ class Peer {
     const buf = Buffer.from(Invite.encode(invite).finish())
     const messageType = MESSAGE_TYPES.Invite
     this.#channel.messages[messageType].send(buf)
+    this.#log('sent invite for %h', invite.projectKey)
   }
   /** @param {InviteResponse} response */
   async sendInviteResponse(response) {
@@ -143,6 +160,11 @@ class Peer {
     const buf = Buffer.from(InviteResponse.encode(response).finish())
     const messageType = MESSAGE_TYPES.InviteResponse
     this.#channel.messages[messageType].send(buf)
+    this.#log(
+      'sent response for %h: %s',
+      response.projectKey,
+      response.decision
+    )
   }
   /** @param {DeviceInfo} deviceInfo */
   async sendDeviceInfo(deviceInfo) {
@@ -150,10 +172,12 @@ class Peer {
     const buf = Buffer.from(DeviceInfo.encode(deviceInfo).finish())
     const messageType = MESSAGE_TYPES.DeviceInfo
     this.#channel.messages[messageType].send(buf)
+    this.#log('sent deviceInfo %o', deviceInfo)
   }
   /** @param {DeviceInfo} deviceInfo */
   receiveDeviceInfo(deviceInfo) {
     this.#name = deviceInfo.name
+    this.#log('received deviceInfo %o', deviceInfo)
   }
   async #assertConnected() {
     await this.#connected.promise
@@ -179,6 +203,17 @@ export class LocalPeers extends TypedEmitter {
   #opening = new Set()
 
   static InviteResponse = InviteResponse_Decision
+  #l
+
+  /**
+   *
+   * @param {object} [opts]
+   * @param {Logger} [opts.logger]
+   */
+  constructor({ logger } = {}) {
+    super()
+    this.#l = Logger.create('localPeers', logger)
+  }
 
   /**
    * Invite a peer to a project. Resolves with the response from the invitee:
@@ -195,7 +230,6 @@ export class LocalPeers extends TypedEmitter {
   async invite(peerId, { timeout, ...invite }) {
     await Promise.all(this.#opening)
     const peer = this.#peers.get(peerId)
-    if (!peer) console.log([...this.#peers.keys()])
     if (!peer) throw new UnknownPeerError('Unknown peer ' + peerId)
     /** @type {Promise<InviteResponse['decision']>} */
     return new Promise((origResolve, origReject) => {
@@ -277,6 +311,11 @@ export class LocalPeers extends TypedEmitter {
     protomux.pair(
       { protocol: 'hypercore/alpha' },
       /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
+        this.#l.log(
+          'Received discovery key %h from %h',
+          discoveryKey,
+          stream.noiseStream.remotePublicKey
+        )
         this.emit('discovery-key', discoveryKey, stream.rawStream)
       }
     )
@@ -288,7 +327,13 @@ export class LocalPeers extends TypedEmitter {
     // opened, so this helped awaits the open
     openedNoiseSecretStream(stream).then((stream) => {
       this.#opening.delete(stream.opened)
-      if (stream.destroyed) return
+      if (stream.destroyed) {
+        this.#l.log(
+          'Opened connection to %h but was already destroyed',
+          stream.remotePublicKey
+        )
+        return
+      }
       const { remotePublicKey } = stream
 
       // This is written like this because the protomux uses the index within
@@ -318,7 +363,11 @@ export class LocalPeers extends TypedEmitter {
       if (existingPeer && existingPeer.info.status !== 'disconnected') {
         existingPeer.disconnect() // Should not happen, but in case
       }
-      const peer = new Peer({ publicKey: remotePublicKey, channel })
+      const peer = new Peer({
+        publicKey: remotePublicKey,
+        channel,
+        logger: this.#l,
+      })
       this.#peers.set(peerId, peer)
       // Do not emit peers now - will emit when connected
     })
@@ -345,7 +394,10 @@ export class LocalPeers extends TypedEmitter {
     const peerId = publicKey.toString('hex')
     const peer = this.#peers.get(peerId)
     /* c8 ignore next */
-    if (!peer) return // TODO: report error - this should not happen
+    if (!peer) {
+      this.#l.log('ERROR: Could not close peer %h', publicKey)
+      return // TODO: report error - this should not happen
+    }
     // No-op if no change in state
     /* c8 ignore next */
     if (peer.info.status === 'disconnected') return
@@ -384,6 +436,7 @@ export class LocalPeers extends TypedEmitter {
         const invite = Invite.decode(value)
         assertInviteHasKeys(invite)
         this.emit('invite', peerId, invite)
+        this.#l.log('Invite from %h for %h', peerPublicKey, invite.projectKey)
         break
       }
       case 'InviteResponse': {
@@ -397,6 +450,12 @@ export class LocalPeers extends TypedEmitter {
         for (const deferredPromise of pending) {
           deferredPromise.resolve(response.decision)
         }
+        this.#l.log(
+          'Invite response from %h for %h: %s',
+          peerPublicKey,
+          response.projectKey,
+          response.decision
+        )
         peer.pendingInvites.set(projectId, [])
         break
       }

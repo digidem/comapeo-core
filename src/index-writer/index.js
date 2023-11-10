@@ -3,6 +3,7 @@ import SqliteIndexer from '@mapeo/sqlite-indexer'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { getBacklinkTableName } from '../schema/utils.js'
 import { discoveryKey } from 'hypercore-crypto'
+import { Logger } from '../logger.js'
 
 /**
  * @typedef {import('../datatype/index.js').MapeoDocTables} MapeoDocTables
@@ -21,6 +22,7 @@ export class IndexWriter {
   /** @type {Map<TTables['_']['name'], SqliteIndexer>} */
   #indexers = new Map()
   #mapDoc
+  #l
   /**
    *
    * @param {object} opts
@@ -28,8 +30,10 @@ export class IndexWriter {
    * @param {TTables[]} opts.tables
    * @param {(doc: MapeoDocInternal, version: import('@mapeo/schema').VersionIdObject) => MapeoDoc} [opts.mapDoc] optionally transform a document prior to indexing. Can also validate, if an error is thrown then the document will not be indexed
    * @param {typeof import('@mapeo/sqlite-indexer').defaultGetWinner} [opts.getWinner] custom function to determine the "winner" of two forked documents. Defaults to choosing the document with the most recent `updatedAt`
+   * @param {Logger} [opts.logger]
    */
-  constructor({ tables, sqlite, mapDoc = (d) => d, getWinner }) {
+  constructor({ tables, sqlite, mapDoc = (d) => d, getWinner, logger }) {
+    this.#l = Logger.create('indexWriter', logger)
     this.#mapDoc = mapDoc
     for (const table of tables) {
       const config = getTableConfig(table)
@@ -63,6 +67,7 @@ export class IndexWriter {
         const version = { coreDiscoveryKey: discoveryKey(key), index }
         var doc = this.#mapDoc(decode(block, version), version)
       } catch (e) {
+        this.#l.log('Could not decode entry %d of %h', index, key)
         // Unknown or invalid entry - silently ignore
         continue
       }
@@ -80,6 +85,16 @@ export class IndexWriter {
         continue
       }
       indexer.batch(docs)
+      if (this.#l.enabled) {
+        for (const doc of docs) {
+          this.#l.log(
+            'Indexed %s %S @ %S',
+            doc.schemaName,
+            doc.docId,
+            doc.versionId
+          )
+        }
+      }
     }
   }
 }
