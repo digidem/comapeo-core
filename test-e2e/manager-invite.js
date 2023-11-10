@@ -2,26 +2,21 @@ import { test } from 'brittle'
 import RAM from 'random-access-memory'
 import { MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
-import { MapeoManager, kManagerReplicate } from '../src/mapeo-manager.js'
+import { MapeoManager, kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
 import { once } from 'node:events'
 import sodium from 'sodium-universal'
 
 test('member invite accepted', async (t) => {
-  const creator = createManager('creator')
-  await creator.setDeviceInfo({ name: 'Creator' })
+  const [creator, joiner] = await createManagers(2)
+  await connectPeers([creator, joiner])
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
-
-  const joiner = createManager('joiner1')
-  await joiner.setDeviceInfo({ name: 'Joiner' })
 
   await t.exception(
     async () => joiner.getProject(createdProjectId),
     'joiner cannot get project instance before being invited and added to project'
   )
-
-  const destroy = replicate(creator, joiner)
 
   const responsePromise = creatorProject.$member.invite(joiner.deviceId, {
     roleId: MEMBER_ROLE_ID,
@@ -61,25 +56,20 @@ test('member invite accepted', async (t) => {
     'Project members match'
   )
 
-  await destroy()
+  await disconnectPeers([creator, joiner])
 })
 
 test('member invite rejected', async (t) => {
-  const creator = createManager('creator')
-  await creator.setDeviceInfo({ name: 'Creator' })
+  const [creator, joiner] = await createManagers(2)
+  await connectPeers([creator, joiner])
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
-
-  const joiner = createManager('joiner1')
-  await joiner.setDeviceInfo({ name: 'Joiner' })
 
   await t.exception(
     async () => joiner.getProject(createdProjectId),
     'joiner cannot get project instance before being invited and added to project'
   )
-
-  const destroy = replicate(creator, joiner)
 
   const responsePromise = creatorProject.$member.invite(joiner.deviceId, {
     roleId: MEMBER_ROLE_ID,
@@ -114,7 +104,7 @@ test('member invite rejected', async (t) => {
     'Only 1 member in project still'
   )
 
-  await destroy()
+  await disconnectPeers([creator, joiner])
 })
 
 /**
@@ -146,6 +136,48 @@ export function replicate(mm1, mm2) {
       ),
     ])
   }
+}
+
+/**
+ * @param {MapeoManager[]} managers
+ */
+async function disconnectPeers(managers) {
+  return Promise.all(
+    managers.map(async (manager) => {
+      return manager.stopLocalPeerDiscovery({ force: true })
+    })
+  )
+}
+
+/**
+ * @param {MapeoManager[]} managers
+ */
+async function connectPeers(managers) {
+  for (const manager of managers) {
+    manager.startLocalPeerDiscovery()
+  }
+  return new Promise((res) => {
+    managers[0][kRPC].on('peers', function onPeers(peers) {
+      if (peers.length !== managers.length - 1) return
+      if (!peers.every((peerInfo) => peerInfo.status === 'connected')) return
+      managers[0][kRPC].off('peers', onPeers)
+      res(null)
+    })
+  })
+}
+
+/** @param {number} count */
+async function createManagers(count) {
+  return Promise.all(
+    Array(count)
+      .fill(null)
+      .map(async (_, i) => {
+        const name = 'device' + i
+        const manager = createManager(name)
+        await manager.setDeviceInfo({ name })
+        return manager
+      })
+  )
 }
 
 /** @param {string} [seed] */

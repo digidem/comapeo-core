@@ -316,9 +316,15 @@ export class LocalPeers extends TypedEmitter {
           discoveryKey,
           stream.noiseStream.remotePublicKey
         )
-        this.emit('discovery-key', discoveryKey, stream.rawStream)
+        this.emit('discovery-key', discoveryKey, stream)
       }
     )
+
+    protomux.pair({ protocol: PROTOCOL_NAME }, async () => {
+      // Seem to need this because of the async tick below waiting for the noise
+      // stream to open
+      await stream.opened
+    })
 
     // No need to connect error handler to stream because Protomux does this,
     // and errors are eventually handled by #closePeer

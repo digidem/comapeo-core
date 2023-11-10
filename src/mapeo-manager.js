@@ -636,6 +636,15 @@ export class MapeoManager extends TypedEmitter {
     await this.#mediaServer.stop()
   }
 
+  async startLocalPeerDiscovery() {
+    return this.#localDiscovery.start()
+  }
+
+  /** @type {LocalDiscovery['stop']} */
+  async stopLocalPeerDiscovery(opts) {
+    return this.#localDiscovery.stop(opts)
+  }
+
   /**
    * @returns {Promise<PublicPeerInfo[]>}
    */
