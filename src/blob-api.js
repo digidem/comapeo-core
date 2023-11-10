@@ -1,7 +1,6 @@
 import fs from 'node:fs'
-import { Transform } from 'node:stream'
-// @ts-ignore - missing from streamx types
-import { pipelinePromise as pipeline } from 'streamx'
+// @ts-ignore - pipelinePromise missing from streamx types
+import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
 
 /** @typedef {import('./types.js').BlobId} BlobId */
@@ -96,7 +95,7 @@ export class BlobApi {
  */
 function hashTransform(hash) {
   return new Transform({
-    transform: (data, _, cb) => {
+    transform: (data, cb) => {
       hash.update(data)
       cb(null, data)
     },
