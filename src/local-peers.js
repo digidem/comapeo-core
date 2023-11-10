@@ -312,7 +312,7 @@ export class LocalPeers extends TypedEmitter {
       { protocol: 'hypercore/alpha' },
       /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
         this.#l.log(
-          'Received dk %h from %h',
+          'Received discovery key %h from %h',
           discoveryKey,
           stream.noiseStream.remotePublicKey
         )
