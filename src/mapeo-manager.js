@@ -74,6 +74,7 @@ export class MapeoManager extends TypedEmitter {
   #invite
   #mediaServer
   #localDiscovery
+  #loggerBase
   #l
 
   /**
@@ -87,7 +88,8 @@ export class MapeoManager extends TypedEmitter {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
-    this.#l = new Logger({ deviceId: this.#deviceId, ns: 'manager' })
+    const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
+    this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
@@ -99,7 +101,7 @@ export class MapeoManager extends TypedEmitter {
       migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
     })
 
-    this.#localPeers = new LocalPeers({ logger: this.#l })
+    this.#localPeers = new LocalPeers({ logger })
     this.#localPeers.on('peers', (peers) => {
       this.emit('local-peers', omitPeerProtomux(peers))
     })
@@ -112,7 +114,7 @@ export class MapeoManager extends TypedEmitter {
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectSettingsTable],
       sqlite,
-      logger: this.#l,
+      logger,
     })
     this.#activeProjects = new Map()
 
@@ -149,7 +151,7 @@ export class MapeoManager extends TypedEmitter {
 
     this.#localDiscovery = new LocalDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
-      logger: this.#l,
+      logger,
     })
     this.#localDiscovery.on('connection', this.#replicate.bind(this))
   }
@@ -373,7 +375,7 @@ export class MapeoManager extends TypedEmitter {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
-      logger: this.#l,
+      logger: this.#loggerBase,
       getMediaBaseUrl: this.#mediaServer.getMediaAddress.bind(
         this.#mediaServer
       ),
@@ -604,6 +606,7 @@ export class MapeoManager extends TypedEmitter {
         await project[kSetOwnDeviceInfo](deviceInfo)
       })
     )
+    this.#l.log('set device info %o', deviceInfo)
   }
 
   /**
