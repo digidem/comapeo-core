@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-// @ts-ignore - pipelinePromise missing from streamx types
+// @ts-expect-error - pipelinePromise missing from streamx types
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
 
