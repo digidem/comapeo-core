@@ -122,7 +122,6 @@
     "corestore": "^6.8.4",
     "debug": "^4.3.4",
     "drizzle-orm": "0.28.2",
-    "eventemitter3": "^5.0.1",
     "fastify": ">= 4",
     "fastify-plugin": "^4.5.0",
     "hypercore": "10.17.0",
