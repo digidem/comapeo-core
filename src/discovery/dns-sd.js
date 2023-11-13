@@ -1,10 +1,9 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { Bonjour } from 'bonjour-service'
-// @ts-ignore
-import debug from 'debug'
 import pTimeout from 'p-timeout'
 import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
+import { Logger } from '../logger.js'
 
 const SERVICE_NAME = 'mapeo'
 
@@ -48,7 +47,7 @@ export class DnsSd extends TypedEmitter {
     }
     /* c8 ignore stop */
     const { name, port } = service
-    this.#log(`service up`, [name, address, port])
+    this.#log('serviceUp', name.slice(0, 7), address, port)
     this.emit('up', { port, name, address })
   }
   /** @param {import('bonjour-service').Service} service */
@@ -74,18 +73,21 @@ export class DnsSd extends TypedEmitter {
   /** @type {Promise<any> | null} */
   #advertisingStopping = null
   #log
+  #l
 
   /**
    *
    * @param {object} [opts]
    * @param {string} [opts.name]
    * @param {boolean} [opts.disableIpv6]
+   * @param {Logger} [opts.logger]
    */
-  constructor({ name, disableIpv6 = true } = {}) {
+  constructor({ name, disableIpv6 = true, logger } = {}) {
     super()
+    this.#l = Logger.create('dnssd', logger)
     this.#name = name || randomBytes(8).toString('hex')
     this.#disableIpv6 = disableIpv6
-    this.#log = debug('mapeo:dnssd:' + this.#name)
+    this.#log = this.#l.log.bind(this.#l)
   }
 
   get name() {

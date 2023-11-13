@@ -39,6 +39,7 @@ import { MemberApi } from './member-api.js'
 import { IconApi } from './icon-api.js'
 import { SyncApi, kSyncReplicate } from './sync/sync-api.js'
 import Hypercore from 'hypercore'
+import { Logger } from './logger.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -61,9 +62,9 @@ export class MapeoProject {
   #capabilities
   #ownershipWriteDone
   #memberApi
-  #projectPublicId
   #iconApi
   #syncApi
+  #l
 
   /**
    * @param {Object} opts
@@ -77,6 +78,7 @@ export class MapeoProject {
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
+   * @param {Logger} [opts.logger]
    *
    */
   constructor({
@@ -90,10 +92,11 @@ export class MapeoProject {
     encryptionKeys,
     getMediaBaseUrl,
     localPeers,
+    logger,
   }) {
+    this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
-    this.#projectPublicId = projectKeyToPublicId(projectKey)
 
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
@@ -121,6 +124,7 @@ export class MapeoProject {
       keyManager,
       storage: coreManagerStorage,
       sqlite,
+      logger: this.#l,
     })
 
     const indexWriter = new IndexWriter({
@@ -131,6 +135,7 @@ export class MapeoProject {
         coreOwnershipTable,
         roleTable,
         deviceInfoTable,
+        iconTable,
       ],
       sqlite,
       getWinner,
@@ -144,6 +149,7 @@ export class MapeoProject {
             return doc
         }
       },
+      logger: this.#l,
     })
     this.#dataStores = {
       auth: new DataStore({
@@ -212,16 +218,6 @@ export class MapeoProject {
       }),
     }
 
-    this.#blobStore = new BlobStore({
-      coreManager: this.#coreManager,
-    })
-
-    this.$blobs = new BlobApi({
-      projectPublicId: this.#projectPublicId,
-      blobStore: this.#blobStore,
-      getMediaBaseUrl: async () => getMediaBaseUrl('blobs'),
-    })
-
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
     })
@@ -247,19 +243,39 @@ export class MapeoProject {
       },
     })
 
+    const projectPublicId = projectKeyToPublicId(projectKey)
+
+    this.#blobStore = new BlobStore({
+      coreManager: this.#coreManager,
+    })
+
+    this.$blobs = new BlobApi({
+      blobStore: this.#blobStore,
+      getMediaBaseUrl: async () => {
+        let base = await getMediaBaseUrl('blobs')
+        if (!base.endsWith('/')) {
+          base += '/'
+        }
+        return base + projectPublicId
+      },
+    })
+
     this.#iconApi = new IconApi({
       iconDataStore: this.#dataStores.config,
       iconDataType: this.#dataTypes.icon,
-      projectId: this.#projectId,
-      // TODO: Update after merging https://github.com/digidem/mapeo-core-next/pull/365
       getMediaBaseUrl: async () => {
-        throw new Error('Not yet implemented')
+        let base = await getMediaBaseUrl('icons')
+        if (!base.endsWith('/')) {
+          base += '/'
+        }
+        return base + projectPublicId
       },
     })
 
     this.#syncApi = new SyncApi({
       coreManager: this.#coreManager,
       capabilities: this.#capabilities,
+      logger: this.#l,
     })
 
     ///////// 4. Wire up sync
@@ -305,6 +321,7 @@ export class MapeoProject {
         .then(deferred.resolve)
         .catch(deferred.reject)
     })
+    this.#l.log('Created project instance %h', projectKey)
   }
 
   /**
@@ -428,7 +445,8 @@ export class MapeoProject {
       return extractEditableProjectSettings(
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
-    } catch {
+    } catch (e) {
+      this.#l.log('No project settings')
       return /** @type {EditableProjectSettings} */ ({})
     }
   }

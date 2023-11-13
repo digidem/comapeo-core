@@ -1,9 +1,10 @@
 import { test } from 'brittle'
+import { randomBytes } from 'crypto'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { KeyManager } from '@mapeo/crypto'
 import FakeTimers from '@sinonjs/fake-timers'
-import { Agent, fetch } from 'undici'
+import { Agent, fetch as uFetch } from 'undici'
 import fs from 'fs/promises'
 import RAM from 'random-access-memory'
 
@@ -13,7 +14,7 @@ const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../tests/fixtures/blob-api/', import.meta.url)
 )
 
-test('retrieving blobs urls', async (t) => {
+test('retrieving blobs using url', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.teardown(() => clock.uninstall())
 
@@ -25,16 +26,13 @@ test('retrieving blobs urls', async (t) => {
 
   const project = await manager.getProject(await manager.createProject())
 
-  const blobId = await project.$blobs.create(
-    {
-      original: join(BLOB_FIXTURES_DIR, 'original.png'),
-    },
-    { mimeType: 'image/png' }
-  )
+  await project.ready()
 
   const exceptionPromise1 = t.exception(async () => {
     await project.$blobs.getUrl({
-      ...blobId,
+      driveId: randomBytes(32).toString('hex'),
+      name: 'foo',
+      type: 'photo',
       variant: 'original',
     })
   }, 'getting blob url fails if manager.start() has not been called yet')
@@ -44,36 +42,174 @@ test('retrieving blobs urls', async (t) => {
 
   await manager.start()
 
-  const blobUrl = await project.$blobs.getUrl({
-    ...blobId,
-    variant: 'original',
+  await t.test('blob does not exist', async (st) => {
+    const blobUrl = await project.$blobs.getUrl({
+      driveId: randomBytes(32).toString('hex'),
+      name: 'foo',
+      type: 'photo',
+      variant: 'original',
+    })
+
+    st.ok(
+      new URL(blobUrl),
+      'retrieving url based on media server resolves after starting it'
+    )
+
+    const response = await fetch(blobUrl)
+
+    st.is(response.status, 404, 'response is 404')
   })
 
-  t.ok(
-    new URL(blobUrl),
-    'retrieving url based on media server resolves after starting it'
-  )
+  await t.test('blob exists', async (st) => {
+    const blobId = await project.$blobs.create(
+      { original: join(BLOB_FIXTURES_DIR, 'original.png') },
+      { mimeType: 'image/png' }
+    )
 
-  const response = await fetch(blobUrl, {
-    // Noticed that the process was hanging (on Node 18, at least) after calling manager.stop() further below
-    // Probably related to https://github.com/nodejs/undici/issues/2348
-    // Adding the below seems to fix it
-    dispatcher: new Agent({ keepAliveMaxTimeout: 100 }),
+    const blobUrl = await project.$blobs.getUrl({
+      ...blobId,
+      variant: 'original',
+    })
+
+    st.ok(
+      new URL(blobUrl),
+      'retrieving url based on media server resolves after starting it'
+    )
+
+    const response = await fetch(blobUrl)
+
+    st.is(response.status, 200, 'response status ok')
+    st.is(
+      response.headers.get('content-type'),
+      'image/png',
+      'matching content type header'
+    )
+
+    const expected = await fs.readFile(join(BLOB_FIXTURES_DIR, 'original.png'))
+    const body = Buffer.from(await response.arrayBuffer())
+
+    st.alike(body, expected, 'matching reponse body')
   })
-
-  t.is(response.status, 200)
-  t.is(response.headers.get('content-type'), 'image/png')
-  const expected = await fs.readFile(join(BLOB_FIXTURES_DIR, 'original.png'))
-  const body = Buffer.from(await response.arrayBuffer())
-  t.alike(body, expected)
 
   await manager.stop()
 
   const exceptionPromise2 = t.exception(async () => {
-    await project.$blobs.getUrl({ ...blobId, variant: 'original' })
+    await project.$blobs.getUrl({
+      driveId: randomBytes(32).toString('hex'),
+      name: 'foo',
+      type: 'photo',
+      variant: 'original',
+    })
   }, 'getting url after manager.stop() has been called fails')
   clock.tick(100_000)
   await exceptionPromise2
 })
 
-// TODO: Add icon urls test here
+test('retrieving icons using url', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.teardown(() => clock.uninstall())
+
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
+
+  const project = await manager.getProject(await manager.createProject())
+
+  await project.ready()
+
+  const exceptionPromise1 = t.exception(async () => {
+    await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {
+      mimeType: 'image/png',
+      pixelDensity: 1,
+      size: 'small',
+    })
+  }, 'getting icon url fails if manager.start() has not been called yet')
+
+  clock.tick(100_000)
+  await exceptionPromise1
+
+  await manager.start()
+
+  await t.test('icon does not exist', async (st) => {
+    const nonExistentIconId = randomBytes(32).toString('hex')
+
+    const iconUrl = await project.$icons.getIconUrl(nonExistentIconId, {
+      size: 'small',
+      mimeType: 'image/png',
+      pixelDensity: 1,
+    })
+
+    st.ok(
+      new URL(iconUrl),
+      'retrieving url based on media server resolves after starting it'
+    )
+
+    const response = await fetch(iconUrl)
+
+    st.is(response.status, 404, 'response is 404')
+  })
+
+  await t.test('icon exists', async (st) => {
+    const iconBuffer = randomBytes(128)
+
+    const iconId = await project.$icons.create({
+      name: 'foo',
+      variants: [
+        {
+          blob: iconBuffer,
+          mimeType: 'image/png',
+          pixelDensity: 1,
+          size: 'small',
+        },
+      ],
+    })
+
+    const iconUrl = await project.$icons.getIconUrl(iconId, {
+      size: 'small',
+      mimeType: 'image/png',
+      pixelDensity: 1,
+    })
+
+    st.ok(
+      new URL(iconUrl),
+      'retrieving url based on media server resolves after starting it'
+    )
+
+    const response = await fetch(iconUrl)
+
+    st.is(response.status, 200, 'response status ok')
+    st.is(
+      response.headers.get('content-type'),
+      'image/png',
+      'matching content type header'
+    )
+    const body = Buffer.from(await response.arrayBuffer())
+    st.alike(body, iconBuffer, 'matching response body')
+  })
+
+  await manager.stop()
+
+  const exceptionPromise2 = t.exception(async () => {
+    await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {
+      mimeType: 'image/png',
+      pixelDensity: 1,
+      size: 'small',
+    })
+  }, 'getting url after manager.stop() has been called fails')
+  clock.tick(100_000)
+  await exceptionPromise2
+})
+
+/**
+ * @param {string} url
+ */
+async function fetch(url) {
+  return uFetch(url, {
+    // Noticed that the process was hanging (on Node 18, at least) after calling manager.stop() further below
+    // Probably related to https://github.com/nodejs/undici/issues/2348
+    // Adding the below seems to fix it
+    dispatcher: new Agent({ keepAliveMaxTimeout: 100 }),
+  })
+}

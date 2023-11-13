@@ -1,11 +1,10 @@
 // @ts-check
 import { join } from 'node:path'
 import * as fs from 'node:fs/promises'
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'url'
 import test from 'brittle'
 import { BlobApi } from '../src/blob-api.js'
-import { projectKeyToPublicId } from '../src/utils.js'
 
 import { createBlobStore } from './helpers/blob-store.js'
 
@@ -13,7 +12,6 @@ test('create blobs', async (t) => {
   const { blobStore } = createBlobStore()
 
   const blobApi = new BlobApi({
-    projectPublicId: projectKeyToPublicId(randomBytes(32)),
     blobStore,
     getMediaBaseUrl: async () => 'http://127.0.0.1:8080/blobs',
   })
@@ -42,7 +40,6 @@ test('create blobs', async (t) => {
 })
 
 test('get url from blobId', async (t) => {
-  const projectPublicId = projectKeyToPublicId(randomBytes(32))
   const type = 'photo'
   const variant = 'original'
   const name = '1234'
@@ -54,7 +51,6 @@ test('get url from blobId', async (t) => {
   let prefix = undefined
 
   const blobApi = new BlobApi({
-    projectPublicId,
     blobStore,
     getMediaBaseUrl: async () => `http://127.0.0.1:${port}/${prefix || ''}`,
   })
@@ -69,7 +65,7 @@ test('get url from blobId', async (t) => {
 
     t.is(
       url,
-      `http://127.0.0.1:${port}/${projectPublicId}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
+      `http://127.0.0.1:${port}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
     )
   }
 
@@ -86,7 +82,7 @@ test('get url from blobId', async (t) => {
 
     t.is(
       url,
-      `http://127.0.0.1:${port}/${projectPublicId}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
+      `http://127.0.0.1:${port}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
     )
   }
 
@@ -103,7 +99,7 @@ test('get url from blobId', async (t) => {
 
     t.is(
       url,
-      `http://127.0.0.1:${port}/${prefix}/${projectPublicId}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
+      `http://127.0.0.1:${port}/${prefix}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
     )
   }
 })

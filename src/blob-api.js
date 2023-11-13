@@ -9,18 +9,15 @@ import { createHash, randomBytes } from 'node:crypto'
 export class BlobApi {
   #blobStore
   #getMediaBaseUrl
-  #projectPublicId
 
   /**
    * @param {object} options
-   * @param {string} options.projectPublicId
    * @param {import('./blob-store/index.js').BlobStore} options.blobStore
    * @param {() => Promise<string>} options.getMediaBaseUrl
    */
-  constructor({ projectPublicId, blobStore, getMediaBaseUrl }) {
+  constructor({ blobStore, getMediaBaseUrl }) {
     this.#blobStore = blobStore
     this.#getMediaBaseUrl = getMediaBaseUrl
-    this.#projectPublicId = projectPublicId
   }
 
   /**
@@ -37,9 +34,7 @@ export class BlobApi {
       base += '/'
     }
 
-    return (
-      base + `${this.#projectPublicId}/${driveId}/${type}/${variant}/${name}`
-    )
+    return base + `${driveId}/${type}/${variant}/${name}`
   }
 
   /**
