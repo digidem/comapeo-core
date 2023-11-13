@@ -5,6 +5,8 @@ import pTimeout from 'p-timeout'
 import StateMachine from 'start-stop-state-machine'
 
 import BlobServerPlugin from './fastify-plugins/blobs.js'
+import IconServerPlugin from './fastify-plugins/icons.js'
+
 import { kBlobStore } from './mapeo-project.js'
 
 export const BLOBS_PREFIX = 'blobs'
@@ -42,6 +44,11 @@ export class MediaServer {
         const project = await getProject(projectPublicId)
         return project[kBlobStore]
       },
+    })
+
+    this.#fastify.register(IconServerPlugin, {
+      prefix: ICONS_PREFIX,
+      getProject,
     })
 
     this.#serverState = new StateMachine({
