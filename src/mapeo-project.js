@@ -346,6 +346,24 @@ export class MapeoProject {
   }
 
   /**
+   */
+  async close() {
+    this.#l.log('closing project %h', this.#projectId)
+    // close hypercores for every namespace
+    // remove listeners
+    for await (let namespace of NAMESPACES) {
+      const namespaceCores = this.#coreManager.getCores(namespace)
+      for (let { core } of namespaceCores) {
+        core.removeAllListeners()
+        await core.close()
+      }
+    }
+    // for(let [_, dataType] of Object.entries(this.#dataTypes)){
+    //   // dataType.close()
+    // }
+  }
+
+  /**
    * @param {import('multi-core-indexer').Entry[]} entries
    * @param {{projectIndexWriter: IndexWriter, sharedIndexWriter: IndexWriter}} indexWriters
    */
