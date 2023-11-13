@@ -61,6 +61,7 @@ export class MapeoProject {
   #coreOwnership
   #capabilities
   #ownershipWriteDone
+  #sqlite
   #memberApi
   #projectPublicId
   #iconApi
@@ -101,8 +102,8 @@ export class MapeoProject {
     this.#projectPublicId = projectKeyToPublicId(projectKey)
 
     ///////// 1. Setup database
-    const sqlite = new Database(dbPath)
-    const db = drizzle(sqlite)
+    this.#sqlite = new Database(dbPath)
+    const db = drizzle(this.#sqlite)
     migrate(db, {
       migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
     })
@@ -125,7 +126,7 @@ export class MapeoProject {
       projectKey,
       keyManager,
       storage: coreManagerStorage,
-      sqlite,
+      sqlite: this.#sqlite,
       logger: this.#l,
     })
 
@@ -138,7 +139,7 @@ export class MapeoProject {
         roleTable,
         deviceInfoTable,
       ],
-      sqlite,
+      sqlite: this.#sqlite,
       getWinner,
       mapDoc: (doc, version) => {
         switch (doc.schemaName) {
@@ -349,20 +350,14 @@ export class MapeoProject {
    */
   async close() {
     this.#l.log('closing project %h', this.#projectId)
-    // close hypercores for every namespace
-    // remove listeners
-    for await (let namespace of NAMESPACES) {
-      const namespaceCores = this.#coreManager.getCores(namespace)
-      for (let { core } of namespaceCores) {
-        core.removeAllListeners()
-        await core.close()
-      }
-    }
+    this.#coreManager.close()
 
     // eslint-disable-next-line no-unused-vars
     for await (let [_, dataStore] of Object.entries(this.#dataStores)) {
       await dataStore.close()
     }
+
+    this.#sqlite.close()
   }
 
   /**
