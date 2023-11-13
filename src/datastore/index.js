@@ -192,4 +192,9 @@ export class DataStore extends TypedEmitter {
     if (!block) throw new Error('Not Found')
     return block
   }
+
+  async close() {
+    this.#coreIndexer.removeAllListeners()
+    await this.#coreIndexer.close()
+  }
 }

@@ -358,9 +358,11 @@ export class MapeoProject {
         await core.close()
       }
     }
-    // for(let [_, dataType] of Object.entries(this.#dataTypes)){
-    //   // dataType.close()
-    // }
+
+    // eslint-disable-next-line no-unused-vars
+    for await (let [_, dataStore] of Object.entries(this.#dataStores)) {
+      await dataStore.close()
+    }
   }
 
   /**
