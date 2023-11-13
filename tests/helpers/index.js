@@ -55,17 +55,6 @@ export function replicate(peers) {
   }
 }
 
-export async function addCores(peers) {
-  for (const peer1 of peers) {
-    for (const peer2 of peers) {
-      if (peer1 === peer2) continue
-      for (const key of peer2.authstore.keys) {
-        await peer1.authstore.getCore(key)
-      }
-    }
-  }
-}
-
 export async function waitForIndexing(stores) {
   await Promise.all(
     stores.map((store) => {
