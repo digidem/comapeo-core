@@ -131,7 +131,7 @@ class Peer {
   }
 
   connect() {
-    /* c8 ignore next 3 */
+    /* c8 ignore next 4 */
     if (this.#state !== 'connecting') {
       this.#log('ERROR: tried to connect but state was %s', this.#state)
       return // TODO: report error - this should not happen
@@ -144,7 +144,7 @@ class Peer {
   disconnect() {
     // @ts-ignore - easier to ignore this than handle this for TS - avoids holding a reference to old Protomux instances
     this.#protomux = undefined
-    /* c8 ignore next */
+    /* c8 ignore next 4 */
     if (this.#state === 'disconnected') {
       this.#log('ERROR: tried to disconnect but was already disconnected')
       return
@@ -370,6 +370,7 @@ export class LocalPeers extends TypedEmitter {
     )
     noiseStream.once('close', () => {
       this.#attached.delete(protomux)
+      done()
     })
 
     noiseStream.opened.then((opened) => {
