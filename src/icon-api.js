@@ -21,7 +21,6 @@ const MIME_TO_EXTENSION = {
 }
 
 export class IconApi {
-  #projectId
   #dataType
   #dataStore
   #getMediaBaseUrl
@@ -36,13 +35,11 @@ export class IconApi {
    *   import('@mapeo/schema').IconValue
    * >} opts.iconDataType
    * @param {import('./datastore/index.js').DataStore<'config'>} opts.iconDataStore
-   * @param {string} opts.projectId
    * @param {() => Promise<string>} opts.getMediaBaseUrl
    */
-  constructor({ iconDataType, iconDataStore, projectId, getMediaBaseUrl }) {
+  constructor({ iconDataType, iconDataStore, getMediaBaseUrl }) {
     this.#dataType = iconDataType
     this.#dataStore = iconDataStore
-    this.#projectId = projectId
     this.#getMediaBaseUrl = getMediaBaseUrl
   }
 
@@ -110,15 +107,13 @@ export class IconApi {
       base += '/'
     }
 
-    base += `${this.#projectId}/${iconId}/`
-
     const mimeExtension = MIME_TO_EXTENSION[opts.mimeType]
 
     if (opts.mimeType === 'image/svg+xml') {
-      return base + `${opts.size}${mimeExtension}`
+      return base + `${iconId}/${opts.size}${mimeExtension}`
     }
 
-    return base + `${opts.size}@${opts.pixelDensity}x${mimeExtension}`
+    return base + `${iconId}/${opts.size}@${opts.pixelDensity}x${mimeExtension}`
   }
 }
 

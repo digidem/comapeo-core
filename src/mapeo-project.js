@@ -62,7 +62,6 @@ export class MapeoProject {
   #capabilities
   #ownershipWriteDone
   #memberApi
-  #projectPublicId
   #iconApi
   #syncApi
   #l
@@ -98,7 +97,6 @@ export class MapeoProject {
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
-    this.#projectPublicId = projectKeyToPublicId(projectKey)
 
     ///////// 1. Setup database
     const sqlite = new Database(dbPath)
@@ -137,6 +135,7 @@ export class MapeoProject {
         coreOwnershipTable,
         roleTable,
         deviceInfoTable,
+        iconTable,
       ],
       sqlite,
       getWinner,
@@ -219,16 +218,6 @@ export class MapeoProject {
       }),
     }
 
-    this.#blobStore = new BlobStore({
-      coreManager: this.#coreManager,
-    })
-
-    this.$blobs = new BlobApi({
-      projectPublicId: this.#projectPublicId,
-      blobStore: this.#blobStore,
-      getMediaBaseUrl: async () => getMediaBaseUrl('blobs'),
-    })
-
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
     })
@@ -254,13 +243,32 @@ export class MapeoProject {
       },
     })
 
+    const projectPublicId = projectKeyToPublicId(projectKey)
+
+    this.#blobStore = new BlobStore({
+      coreManager: this.#coreManager,
+    })
+
+    this.$blobs = new BlobApi({
+      blobStore: this.#blobStore,
+      getMediaBaseUrl: async () => {
+        let base = await getMediaBaseUrl('blobs')
+        if (!base.endsWith('/')) {
+          base += '/'
+        }
+        return base + projectPublicId
+      },
+    })
+
     this.#iconApi = new IconApi({
       iconDataStore: this.#dataStores.config,
       iconDataType: this.#dataTypes.icon,
-      projectId: this.#projectId,
-      // TODO: Update after merging https://github.com/digidem/mapeo-core-next/pull/365
       getMediaBaseUrl: async () => {
-        throw new Error('Not yet implemented')
+        let base = await getMediaBaseUrl('icons')
+        if (!base.endsWith('/')) {
+          base += '/'
+        }
+        return base + projectPublicId
       },
     })
 
