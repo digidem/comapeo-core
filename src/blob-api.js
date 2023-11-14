@@ -1,8 +1,7 @@
 import fs from 'node:fs'
-import { pipeline } from 'node:stream/promises'
-import { createHash } from 'node:crypto'
-import sodium from 'sodium-universal'
-import b4a from 'b4a'
+// @ts-expect-error - pipelinePromise missing from streamx types
+import { Transform, pipelinePromise as pipeline } from 'streamx'
+import { createHash, randomBytes } from 'node:crypto'
 
 /** @typedef {import('./types.js').BlobId} BlobId */
 /** @typedef {import('./types.js').BlobType} BlobType  */
@@ -10,18 +9,15 @@ import b4a from 'b4a'
 export class BlobApi {
   #blobStore
   #getMediaBaseUrl
-  #projectPublicId
 
   /**
    * @param {object} options
-   * @param {string} options.projectPublicId
    * @param {import('./blob-store/index.js').BlobStore} options.blobStore
    * @param {() => Promise<string>} options.getMediaBaseUrl
    */
-  constructor({ projectPublicId, blobStore, getMediaBaseUrl }) {
+  constructor({ blobStore, getMediaBaseUrl }) {
     this.#blobStore = blobStore
     this.#getMediaBaseUrl = getMediaBaseUrl
-    this.#projectPublicId = projectPublicId
   }
 
   /**
@@ -38,9 +34,7 @@ export class BlobApi {
       base += '/'
     }
 
-    return (
-      base + `${this.#projectPublicId}/${driveId}/${type}/${variant}/${name}`
-    )
+    return base + `${driveId}/${type}/${variant}/${name}`
   }
 
   /**
@@ -52,85 +46,55 @@ export class BlobApi {
   async create(filepaths, metadata) {
     const { original, preview, thumbnail } = filepaths
     const { mimeType } = metadata
-    const blobType = getType(mimeType)
-    const hash = b4a.alloc(8)
-    sodium.randombytes_buf(hash)
-    const name = hash.toString('hex')
+    const type = getType(mimeType)
+    const name = randomBytes(8).toString('hex')
+    const hash = createHash('sha256')
 
-    const contentHash = createHash('sha256')
-
-    await this.writeFile(
-      original,
-      {
-        name: `${name}`,
-        variant: 'original',
-        type: blobType,
-      },
-      metadata
-      // contentHash
+    const ws = this.#blobStore.createWriteStream(
+      { type, variant: 'original', name },
+      { metadata }
     )
+    const writePromises = [
+      pipeline(fs.createReadStream(original), hashTransform(hash), ws),
+    ]
 
     if (preview) {
-      await this.writeFile(
-        preview,
-        {
-          name: `${name}`,
-          variant: 'preview',
-          type: blobType,
-        },
-        metadata
+      const ws = this.#blobStore.createWriteStream(
+        { type, variant: 'preview', name },
+        { metadata }
       )
+      writePromises.push(pipeline(fs.createReadStream(preview), ws))
     }
 
     if (thumbnail) {
-      await this.writeFile(
-        thumbnail,
-        {
-          name: `${name}`,
-          variant: 'thumbnail',
-          type: blobType,
-        },
-        metadata
+      const ws = this.#blobStore.createWriteStream(
+        { type, variant: 'thumbnail', name },
+        { metadata }
       )
+      writePromises.push(pipeline(fs.createReadStream(thumbnail), ws))
     }
+
+    await Promise.all(writePromises)
 
     return {
       driveId: this.#blobStore.writerDriveId,
       name,
-      type: blobType,
-      hash: contentHash.digest('hex'),
+      type,
+      hash: hash.digest('hex'),
     }
   }
+}
 
-  /**
-   * @param {string} filepath
-   * @param {Omit<BlobId, 'driveId'>} options
-   * @param {object} metadata
-   * @param {string} metadata.mimeType
-   * @param {import('node:crypto').Hash} [hash]
-   */
-  async writeFile(filepath, { name, variant, type }, metadata, hash) {
-    if (hash) {
-      // @ts-ignore TODO: return value types don't match pipeline's expectations, though they should
-      await pipeline(
-        fs.createReadStream(filepath),
-        hash,
-
-        // @ts-ignore TODO: remove driveId property from createWriteStream
-        this.#blobStore.createWriteStream({ type, variant, name }, { metadata })
-      )
-
-      return { name, variant, type, hash }
-    }
-
-    // @ts-ignore TODO: return value types don't match pipeline's expectations, though they should
-    await pipeline(
-      fs.createReadStream(filepath),
-      this.#blobStore.createWriteStream({ type, variant, name }, { metadata })
-    )
-
-    return { name, variant, type }
-  }
+/**
+ * @param {import('node:crypto').Hash} hash
+ */
+function hashTransform(hash) {
+  return new Transform({
+    transform: (data, cb) => {
+      hash.update(data)
+      cb(null, data)
+    },
+  })
 }
 
 /**

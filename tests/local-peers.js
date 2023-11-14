@@ -69,6 +69,98 @@ test('Send invite immediately', async (t) => {
   t.is(await responsePromise, LocalPeers.InviteResponse.ACCEPT)
 })
 
+test('Send invite, duplicate connections', async (t) => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  const invite = {
+    projectKey: Buffer.allocUnsafe(32).fill(0),
+    encryptionKeys: { auth: randomBytes(32) },
+  }
+
+  const kp1 = NoiseSecretStream.keyPair()
+  const kp2 = NoiseSecretStream.keyPair()
+
+  const destroy1 = replicate(r1, r2, { kp1, kp2 })
+  const [peers1] = await once(r1, 'peers')
+  const destroy2 = replicate(r1, r2, { kp1, kp2 })
+  const [peers2] = await once(r1, 'peers')
+
+  t.is(peers1.length, 1)
+  t.is(peers2.length, 1)
+  t.is(peers1[0].connectedAt, peers2[0].connectedAt, 'first connected is used')
+
+  {
+    const responsePromise = r1.invite(peers1[0].deviceId, invite)
+    const [peerId, receivedInvite] = await once(r2, 'invite')
+    t.alike(receivedInvite, invite)
+
+    r2.inviteResponse(peerId, {
+      projectKey: receivedInvite.projectKey,
+      decision: LocalPeers.InviteResponse.ACCEPT,
+    })
+
+    t.is(await responsePromise, LocalPeers.InviteResponse.ACCEPT)
+  }
+
+  destroy1()
+  const [peers3] = await once(r1, 'peers')
+
+  t.is(peers3.length, 1)
+  t.ok(
+    peers3[0].connectedAt > peers1[0].connectedAt,
+    'later connected peer is not used'
+  )
+
+  {
+    const responsePromise = r1.invite(peers1[0].deviceId, invite)
+    const [peerId, receivedInvite] = await once(r2, 'invite')
+    t.alike(receivedInvite, invite)
+
+    r2.inviteResponse(peerId, {
+      projectKey: receivedInvite.projectKey,
+      decision: LocalPeers.InviteResponse.ACCEPT,
+    })
+
+    t.is(await responsePromise, LocalPeers.InviteResponse.ACCEPT)
+  }
+
+  const now = Date.now()
+  destroy2()
+  const [peers4] = await once(r1, 'peers')
+  t.is(peers4.length, 1)
+  t.is(peers4[0].status, 'disconnected')
+  t.ok(peers4[0].disconnectedAt >= now, 'most recently disconnected exposed')
+})
+
+test('Duplicate connections with immediate disconnect', async (t) => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  const invite = {
+    projectKey: Buffer.allocUnsafe(32).fill(0),
+    encryptionKeys: { auth: randomBytes(32) },
+  }
+
+  const kp1 = NoiseSecretStream.keyPair()
+  const kp2 = NoiseSecretStream.keyPair()
+
+  replicate(r1, r2, { kp1, kp2 })
+  const destroy2 = replicate(r1, r2, { kp1, kp2 })
+  destroy2()
+
+  const responsePromise = r1.invite(kp2.publicKey.toString('hex'), invite)
+  const [peerId, receivedInvite] = await once(r2, 'invite')
+  t.alike(receivedInvite, invite)
+
+  r2.inviteResponse(peerId, {
+    projectKey: receivedInvite.projectKey,
+    decision: LocalPeers.InviteResponse.ACCEPT,
+  })
+
+  t.is(await responsePromise, LocalPeers.InviteResponse.ACCEPT)
+})
+
 test('Send invite and reject', async (t) => {
   t.plan(3)
   const r1 = new LocalPeers()
@@ -399,18 +491,34 @@ test('Invite timeout', async (t) => {
 
   r1.once('peers', async (peers) => {
     t.exception(
-      r1.invite(peers[0].deviceId, {
+      () =>
+        r1.invite(peers[0].deviceId, {
+          projectKey,
+          timeout: 5000,
+          encryptionKeys: { auth: randomBytes(32) },
+        }),
+      TimeoutError
+    )
+    clock.tickAsync(5005)
+  })
+
+  replicate(r1, r2)
+})
+
+test('Send invite to non-existent peer', async (t) => {
+  const r1 = new LocalPeers()
+  const projectKey = Buffer.allocUnsafe(32).fill(0)
+  const deviceId = Buffer.allocUnsafe(32).fill(0).toString('hex')
+
+  await t.exception(
+    () =>
+      r1.invite(deviceId, {
         projectKey,
         timeout: 1000,
         encryptionKeys: { auth: randomBytes(32) },
       }),
-      TimeoutError
-    )
-    // Not working right now, because of the new async code
-    clock.tick(5001)
-  })
-
-  replicate(r1, r2)
+    UnknownPeerError
+  )
 })
 
 test('Reconnect peer and send invite', async (t) => {
