@@ -388,6 +388,8 @@ test('Default: invites do not timeout', async (t) => {
 })
 
 test('Invite timeout', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.teardown(() => clock.uninstall())
   t.plan(1)
 
   const r1 = new LocalPeers()
@@ -400,11 +402,12 @@ test('Invite timeout', async (t) => {
       () =>
         r1.invite(peers[0].deviceId, {
           projectKey,
-          timeout: 1000,
+          timeout: 5000,
           encryptionKeys: { auth: randomBytes(32) },
         }),
       TimeoutError
     )
+    clock.tickAsync(5005)
   })
 
   replicate(r1, r2)
