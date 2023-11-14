@@ -1,4 +1,4 @@
-import { test } from 'brittle'
+import { test, skip } from 'brittle'
 import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'
@@ -64,7 +64,7 @@ test('member invite accepted', async (t) => {
 })
 
 test('chain of invites', async (t) => {
-  const managers = await createManagers(6)
+  const managers = await createManagers(10)
   const [creator, ...joiners] = managers
   connectPeers(managers)
   await waitForPeers(managers)
@@ -108,6 +108,42 @@ test('chain of invites', async (t) => {
       'Project members match'
     )
   }
+
+  await disconnectPeers(managers)
+})
+
+// Needs fix to inviteApi to check capabilities before sending invite
+skip("member can't invite", async (t) => {
+  const managers = await createManagers(3)
+  const [creator, member, joiner] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+
+  const responsePromise = creatorProject.$member.invite(member.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  const [invite] = await once(member.invite, 'invite-received')
+  await member.invite.accept(invite.projectId)
+  await responsePromise
+
+  /// After invite flow has completed...
+
+  const memberProject = await member.getProject(createdProjectId)
+
+  t.alike(
+    await memberProject.$getProjectSettings(),
+    await creatorProject.$getProjectSettings(),
+    'Project settings match'
+  )
+
+  const exceptionPromise = t.exception(() =>
+    memberProject.$member.invite(joiner.deviceId, { roleId: MEMBER_ROLE_ID })
+  )
+  joiner.invite.once('invite-received', () => t.fail('should not send invite'))
+  await exceptionPromise
 
   await disconnectPeers(managers)
 })

@@ -39,6 +39,7 @@ export class SyncApi extends TypedEmitter {
     this.#coreManager = coreManager
     this.#capabilities = capabilities
     this.syncState = new SyncState({ coreManager, throttleMs })
+    this.syncState.setMaxListeners(0)
     this.syncState.on('state', this.emit.bind(this, 'sync-state'))
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)

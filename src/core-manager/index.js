@@ -84,6 +84,8 @@ export class CoreManager extends TypedEmitter {
       !projectSecretKey || projectSecretKey.length === 64,
       'project owner core secret key must be 64-byte buffer'
     )
+    // Each peer will attach a listener, so max listeners is max attached peers
+    this.setMaxListeners(0)
     this.#l = Logger.create('coreManager', logger)
     const primaryKey = keyManager.getDerivedKey('primaryKey', projectKey)
     this.#deviceId = keyManager.getIdentityKeypair().publicKey.toString('hex')
@@ -271,6 +273,8 @@ export class CoreManager extends TypedEmitter {
       // Starts live download of core immediately
       sparse: namespace === 'blob',
     })
+    // Every peer adds a listener, so could have many peers
+    core.setMaxListeners(0)
     // @ts-ignore - ensure key is defined before hypercore is ready
     core.key = key
     this.#coreIndex.add({ core, key, namespace, writer })
