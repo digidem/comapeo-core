@@ -388,8 +388,6 @@ test('Default: invites do not timeout', async (t) => {
 })
 
 test('Invite timeout', async (t) => {
-  const clock = FakeTimers.install({ shouldAdvanceTime: true })
-  t.teardown(() => clock.uninstall())
   t.plan(1)
 
   const r1 = new LocalPeers()
@@ -399,18 +397,33 @@ test('Invite timeout', async (t) => {
 
   r1.once('peers', async (peers) => {
     t.exception(
-      r1.invite(peers[0].deviceId, {
+      () =>
+        r1.invite(peers[0].deviceId, {
+          projectKey,
+          timeout: 1000,
+          encryptionKeys: { auth: randomBytes(32) },
+        }),
+      TimeoutError
+    )
+  })
+
+  replicate(r1, r2)
+})
+
+test('Send invite to non-existent peer', async (t) => {
+  const r1 = new LocalPeers()
+  const projectKey = Buffer.allocUnsafe(32).fill(0)
+  const deviceId = Buffer.allocUnsafe(32).fill(0).toString('hex')
+
+  await t.exception(
+    () =>
+      r1.invite(deviceId, {
         projectKey,
         timeout: 1000,
         encryptionKeys: { auth: randomBytes(32) },
       }),
-      TimeoutError
-    )
-    // Not working right now, because of the new async code
-    clock.tick(5001)
-  })
-
-  replicate(r1, r2)
+    UnknownPeerError
+  )
 })
 
 test('Reconnect peer and send invite', async (t) => {
