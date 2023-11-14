@@ -330,14 +330,13 @@ export class LocalPeers extends TypedEmitter {
   connect(stream) {
     const noiseStream = stream.noiseStream
     if (!noiseStream) throw new Error('Invalid stream')
-    const outerStream = noiseStream.rawStream
     const protomux =
       noiseStream.userData && Protomux.isProtomux(noiseStream.userData)
         ? noiseStream.userData
         : Protomux.from(noiseStream)
     noiseStream.userData = protomux
 
-    if (this.#attached.has(protomux)) return outerStream
+    if (this.#attached.has(protomux)) return stream
 
     protomux.pair(
       { protocol: 'hypercore/alpha' },
@@ -347,7 +346,7 @@ export class LocalPeers extends TypedEmitter {
           discoveryKey,
           stream.noiseStream.remotePublicKey
         )
-        this.emit('discovery-key', discoveryKey, outerStream)
+        this.emit('discovery-key', discoveryKey, stream)
       }
     )
 
@@ -379,7 +378,7 @@ export class LocalPeers extends TypedEmitter {
       if (opened) makePeer()
     })
 
-    return outerStream
+    return stream
   }
 
   /**
@@ -419,12 +418,6 @@ export class LocalPeers extends TypedEmitter {
       onclose: () => {
         // TODO: Track reasons for closing
         peer.disconnect()
-        // console.log(
-        //   'existing',
-        //   [...existingDevicePeers].map(
-        //     ({ info: { protomux, ...rest } }) => rest
-        //   )
-        // )
         // We keep disconnected peers around, but not duplicates
         if (existingDevicePeers.size > 1) {
           // TODO: Decide which existing peer to delete
@@ -474,7 +467,6 @@ export class LocalPeers extends TypedEmitter {
     const peers = new Set()
     for (const devicePeers of this.#peers.values()) {
       const peer = chooseDevicePeer(devicePeers)
-      // console.log('choose result', peer?.info)
       if (peer) peers.add(peer)
     }
     return peers
@@ -646,10 +638,6 @@ function noop() {}
  * @returns {undefined | Peer & { info: PeerInfoConnected | PeerInfoDisconnected }}
  */
 function chooseDevicePeer(devicePeers) {
-  // console.log(
-  //   'chooseDevicePeer',
-  //   [...devicePeers].map(({ info: { protomux, ...rest } }) => rest)
-  // )
   if (devicePeers.size === 0) return
   let [pick] = devicePeers
   if (devicePeers.size > 1) {
