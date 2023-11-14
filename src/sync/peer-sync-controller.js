@@ -142,7 +142,7 @@ export class PeerSyncController {
     const localState = mapObject(state, (ns, nsState) => {
       return [ns, nsState.localState]
     })
-    this.#log('state %O', state)
+    this.#log('state %X', state)
 
     // Map of which namespaces have received new data since last sync change
     const didUpdate = mapObject(state, (ns) => {
