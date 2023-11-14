@@ -1,5 +1,5 @@
 import { test } from 'brittle'
-import { MEMBER_ROLE_ID } from '../src/capabilities.js'
+import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'
 import {
@@ -63,6 +63,55 @@ test('member invite accepted', async (t) => {
   await disconnectPeers([creator, joiner])
 })
 
+test('chain of invites', async (t) => {
+  const managers = await createManagers(6)
+  const [creator, ...joiners] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+
+  let invitor = creator
+  for (const joiner of joiners) {
+    const invitorProject = await invitor.getProject(createdProjectId)
+    const responsePromise = invitorProject.$member.invite(joiner.deviceId, {
+      roleId: COORDINATOR_ROLE_ID,
+    })
+    const [invite] = await once(joiner.invite, 'invite-received')
+    await joiner.invite.accept(invite.projectId)
+    t.is(
+      await responsePromise,
+      InviteResponse_Decision.ACCEPT,
+      'correct invite response'
+    )
+  }
+
+  /// After invite flow has completed...
+
+  const creatorProject = await creator.getProject(createdProjectId)
+  const expectedProjectSettings = await creatorProject.$getProjectSettings()
+  const expectedMembers = await creatorProject.$member.getMany()
+
+  for (const joiner of joiners) {
+    const joinerProject = await joiner.getProject(createdProjectId)
+
+    t.alike(
+      await joinerProject.$getProjectSettings(),
+      expectedProjectSettings,
+      'Project settings match'
+    )
+
+    const joinerMembers = await joinerProject.$member.getMany()
+    t.alike(
+      joinerMembers.sort(memberSort),
+      expectedMembers.sort(memberSort),
+      'Project members match'
+    )
+  }
+
+  await disconnectPeers(managers)
+})
+
 test('member invite rejected', async (t) => {
   const [creator, joiner] = await createManagers(2)
   connectPeers([creator, joiner])
@@ -111,3 +160,13 @@ test('member invite rejected', async (t) => {
 
   await disconnectPeers([creator, joiner])
 })
+
+/**
+ * @param {import('../src/member-api.js').MemberInfo} a
+ * @param {import('../src/member-api.js').MemberInfo} b
+ */
+function memberSort(a, b) {
+  if (a.deviceId < b.deviceId) return -1
+  if (a.deviceId > b.deviceId) return 1
+  return 0
+}

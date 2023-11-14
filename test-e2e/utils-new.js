@@ -5,7 +5,7 @@ import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/index.js'
 
 /**
- * @param {MapeoManager[]} managers
+ * @param {readonly MapeoManager[]} managers
  */
 export async function disconnectPeers(managers) {
   return Promise.all(
@@ -16,7 +16,7 @@ export async function disconnectPeers(managers) {
 }
 
 /**
- * @param {MapeoManager[]} managers
+ * @param {readonly MapeoManager[]} managers
  */
 export function connectPeers(managers, { discovery = true } = {}) {
   if (discovery) {
@@ -31,7 +31,7 @@ export function connectPeers(managers, { discovery = true } = {}) {
 /**
  * Waits for all manager instances to be connected to each other
  *
- * @param {MapeoManager[]} managers
+ * @param {readonly MapeoManager[]} managers
  */
 export async function waitForPeers(managers) {
   const peerCounts = Array(managers.length).fill(0)
