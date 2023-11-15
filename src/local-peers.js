@@ -121,7 +121,7 @@ class Peer {
   }
   /**
    * A promise that resolves when the peer connects, or rejects if it
-   * failes to connect
+   * fails to connect
    */
   get connected() {
     return this.#connected.promise
@@ -307,7 +307,7 @@ export class LocalPeers extends TypedEmitter {
   async inviteResponse(peerId, options) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(peerId)
-    await peer.sendInviteResponse(options)
+    peer.sendInviteResponse(options)
   }
 
   /**
@@ -318,7 +318,7 @@ export class LocalPeers extends TypedEmitter {
   async sendDeviceInfo(peerId, deviceInfo) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(peerId)
-    await peer.sendDeviceInfo(deviceInfo)
+    peer.sendDeviceInfo(deviceInfo)
   }
 
   /**
@@ -419,12 +419,6 @@ export class LocalPeers extends TypedEmitter {
       onclose: () => {
         // TODO: Track reasons for closing
         peer.disconnect()
-        // console.log(
-        //   'existing',
-        //   [...existingDevicePeers].map(
-        //     ({ info: { protomux, ...rest } }) => rest
-        //   )
-        // )
         // We keep disconnected peers around, but not duplicates
         if (existingDevicePeers.size > 1) {
           // TODO: Decide which existing peer to delete
@@ -474,7 +468,6 @@ export class LocalPeers extends TypedEmitter {
     const peers = new Set()
     for (const devicePeers of this.#peers.values()) {
       const peer = chooseDevicePeer(devicePeers)
-      // console.log('choose result', peer?.info)
       if (peer) peers.add(peer)
     }
     return peers
@@ -646,10 +639,6 @@ function noop() {}
  * @returns {undefined | Peer & { info: PeerInfoConnected | PeerInfoDisconnected }}
  */
 function chooseDevicePeer(devicePeers) {
-  // console.log(
-  //   'chooseDevicePeer',
-  //   [...devicePeers].map(({ info: { protomux, ...rest } }) => rest)
-  // )
   if (devicePeers.size === 0) return
   let [pick] = devicePeers
   if (devicePeers.size > 1) {
