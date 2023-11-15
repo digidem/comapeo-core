@@ -351,11 +351,11 @@ export class MapeoProject {
   async close() {
     this.#l.log('closing project %h', this.#projectId)
     this.#coreManager.close()
-
-    // eslint-disable-next-line no-unused-vars
-    for await (let [_, dataStore] of Object.entries(this.#dataStores)) {
-      await dataStore.close()
+    let dataStorePromises = []
+    for (const dataStore of Object.values(this.#dataStores)) {
+      dataStorePromises.push(dataStore.close())
     }
+    Promise.all(dataStorePromises)
 
     this.#sqlite.close()
   }
