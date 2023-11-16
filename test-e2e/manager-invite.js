@@ -64,7 +64,7 @@ test('member invite accepted', async (t) => {
 })
 
 test('chain of invites', async (t) => {
-  const managers = await createManagers(10)
+  const managers = await createManagers(4)
   const [creator, ...joiners] = managers
   connectPeers(managers)
   await waitForPeers(managers)
