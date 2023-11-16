@@ -48,4 +48,3 @@ jobs:
           npm-token: ${{ secrets.NPM_TOKEN }}
           build-command: |
             npm install
-            npm run build

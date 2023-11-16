@@ -6,7 +6,6 @@
 
 declare module 'nanobench'
 declare module 'sodium-universal'
-declare module 'base32.js'
 declare module 'sub-encoder'
 
 declare module 'kademlia-routing-table' {
