@@ -3,6 +3,9 @@ import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 
 import { MapeoManager } from '../src/index.js'
+import { kRPC } from '../src/mapeo-manager.js'
+import { MEMBER_ROLE_ID } from '../src/capabilities.js'
+import { once } from 'node:events'
 
 /**
  * @param {readonly MapeoManager[]} managers
@@ -29,14 +32,59 @@ export function connectPeers(managers, { discovery = true } = {}) {
 }
 
 /**
+ * Invite mapeo clients to a project
+ *
+ * @param {{
+ *   invitor: MapeoManager,
+ *   projectId: string,
+ *   invitees: MapeoManager[],
+ *   roleId?: import('../src/capabilities.js').RoleId,
+ *   reject?: boolean
+ * }} opts
+ */
+export async function invite({
+  invitor,
+  projectId,
+  invitees,
+  roleId = MEMBER_ROLE_ID,
+  reject = false,
+}) {
+  const invitorProject = await invitor.getProject(projectId)
+  const promises = []
+
+  for (const invitee of invitees) {
+    promises.push(
+      invitorProject.$member.invite(invitee.deviceId, {
+        roleId,
+      })
+    )
+    promises.push(
+      once(invitee.invite, 'invite-received').then(([invite]) => {
+        return reject
+          ? invitee.invite.reject(invite.projectId)
+          : invitee.invite.accept(invite.projectId)
+      })
+    )
+  }
+
+  await Promise.allSettled(promises)
+}
+
+/**
  * Waits for all manager instances to be connected to each other
  *
  * @param {readonly MapeoManager[]} managers
  */
 export async function waitForPeers(managers) {
-  const peerCounts = Array(managers.length).fill(0)
+  const peerCounts = managers.map((manager) => {
+    return manager[kRPC].peers.filter(({ status }) => status === 'connected')
+      .length
+  })
   const expectedCount = managers.length - 1
   return new Promise((res) => {
+    if (peerCounts.every((v) => v === expectedCount)) {
+      return res(null)
+    }
     for (const [idx, manager] of managers.entries()) {
       manager.on('local-peers', function onPeers(peers) {
         const connectedPeerCount = peers.filter(

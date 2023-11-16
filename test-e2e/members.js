@@ -1,22 +1,25 @@
+// @ts-check
 import { test } from 'brittle'
-import RAM from 'random-access-memory'
-import { KeyManager } from '@mapeo/crypto'
-import pDefer from 'p-defer'
 import { randomBytes } from 'crypto'
 
-import { MapeoManager, kRPC } from '../src/mapeo-manager.js'
 import {
   CREATOR_CAPABILITIES,
   DEFAULT_CAPABILITIES,
   MEMBER_ROLE_ID,
   NO_ROLE_CAPABILITIES,
 } from '../src/capabilities.js'
-import { replicate } from '../tests/helpers/local-peers.js'
+import {
+  connectPeers,
+  createManagers,
+  disconnectPeers,
+  invite,
+  waitForPeers,
+} from './utils-new.js'
 
 test('getting yourself after creating project', async (t) => {
-  const { manager } = setup()
+  const [manager] = await createManagers(1)
 
-  await manager.setDeviceInfo({ name: 'mapeo' })
+  const deviceInfo = await manager.getDeviceInfo()
   const project = await manager.getProject(await manager.createProject())
   await project.ready()
 
@@ -26,7 +29,7 @@ test('getting yourself after creating project', async (t) => {
     me,
     {
       deviceId: project.deviceId,
-      name: 'mapeo',
+      name: deviceInfo.name,
       capabilities: CREATOR_CAPABILITIES,
     },
     'has expected member info with creator capabilities'
@@ -39,17 +42,17 @@ test('getting yourself after creating project', async (t) => {
     members[0],
     {
       deviceId: project.deviceId,
-      name: 'mapeo',
+      name: deviceInfo.name,
       capabilities: CREATOR_CAPABILITIES,
     },
     'has expected member info with creator capabilities'
   )
 })
 
-test('getting yourself after being invited to project (but not yet synced)', async (t) => {
-  const { manager } = setup()
+test('getting yourself after adding project (but not yet synced)', async (t) => {
+  const [manager] = await createManagers(1)
 
-  await manager.setDeviceInfo({ name: 'mapeo' })
+  const deviceInfo = await manager.getDeviceInfo()
   const project = await manager.getProject(
     await manager.addProject(
       {
@@ -67,7 +70,7 @@ test('getting yourself after being invited to project (but not yet synced)', asy
     me,
     {
       deviceId: project.deviceId,
-      name: 'mapeo',
+      name: deviceInfo.name,
       capabilities: NO_ROLE_CAPABILITIES,
     },
     'has expected member info with no role capabilities'
@@ -80,7 +83,7 @@ test('getting yourself after being invited to project (but not yet synced)', asy
     members[0],
     {
       deviceId: project.deviceId,
-      name: 'mapeo',
+      name: deviceInfo.name,
       capabilities: NO_ROLE_CAPABILITIES,
     },
     'has expected member info with no role capabilities'
@@ -88,19 +91,24 @@ test('getting yourself after being invited to project (but not yet synced)', asy
 })
 
 test('getting invited member after invite rejected', async (t) => {
-  const { manager, simulateMemberInvite } = setup()
+  const managers = await createManagers(2)
+  const [invitor, invitee] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
 
-  await manager.setDeviceInfo({ name: 'mapeo' })
-  const project = await manager.getProject(await manager.createProject())
+  const projectId = await invitor.createProject()
+  const project = await invitor.getProject(projectId)
   await project.ready()
 
-  const invitedDeviceId = await simulateMemberInvite(project, 'reject', {
-    deviceInfo: { name: 'member' },
-    roleId: MEMBER_ROLE_ID,
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+    reject: true,
   })
 
   await t.exception(
-    () => project.$member.getById(invitedDeviceId),
+    () => project.$member.getById(invitee.deviceId),
     'invited member cannot be retrieved'
   )
 
@@ -108,103 +116,46 @@ test('getting invited member after invite rejected', async (t) => {
 
   t.is(members.length, 1)
   t.absent(
-    members.find((m) => m.deviceId === invitedDeviceId),
+    members.find((m) => m.deviceId === invitee.deviceId),
     'invited member not found'
   )
+  await disconnectPeers(managers)
 })
 
 test('getting invited member after invite accepted', async (t) => {
-  const { manager, simulateMemberInvite } = setup()
+  const managers = await createManagers(2)
+  const [invitor, invitee] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
 
-  await manager.setDeviceInfo({ name: 'mapeo' })
-  const project = await manager.getProject(await manager.createProject())
+  const { name: inviteeName } = await invitee.getDeviceInfo()
+  const projectId = await invitor.createProject()
+  const project = await invitor.getProject(projectId)
   await project.ready()
 
-  const invitedDeviceId = await simulateMemberInvite(project, 'accept', {
-    deviceInfo: { name: 'member' },
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
     roleId: MEMBER_ROLE_ID,
   })
 
-  // Before syncing
-  {
-    const invitedMember = await project.$member.getById(invitedDeviceId)
+  const members = await project.$member.getMany()
 
-    t.alike(
-      invitedMember,
-      {
-        deviceId: invitedDeviceId,
-        capabilities: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
-      },
-      'has expected member info with member capabilities'
-    )
-  }
+  t.is(members.length, 2)
 
-  {
-    const members = await project.$member.getMany()
+  const invitedMember = members.find((m) => m.deviceId === invitee.deviceId)
 
-    t.is(members.length, 2)
-
-    const invitedMember = members.find((m) => m.deviceId === invitedDeviceId)
-
-    t.alike(
-      invitedMember,
-      {
-        deviceId: invitedDeviceId,
-        capabilities: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
-      },
-      'has expected member info with member capabilities'
-    )
-  }
+  t.alike(
+    invitedMember,
+    {
+      deviceId: invitee.deviceId,
+      name: inviteeName,
+      capabilities: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    },
+    'has expected member info with member capabilities'
+  )
 
   // TODO: Test that device info of invited member can be read from invitor after syncing
+  await disconnectPeers(managers)
 })
-
-function setup() {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
-
-  /**
-   *
-   * @param {import('../src/mapeo-project.js').MapeoProject} project
-   * @param {'accept' | 'reject'} respondWith
-   * @param {{ deviceInfo: import('../src/generated/rpc.js').DeviceInfo, roleId: import('../src/capabilities.js').RoleId }} mocked
-   *
-   */
-  async function simulateMemberInvite(
-    project,
-    respondWith,
-    { deviceInfo, roleId }
-  ) {
-    /** @type {import('p-defer').DeferredPromise<string>} */
-    const deferred = pDefer()
-
-    const otherManager = new MapeoManager({
-      rootKey: KeyManager.generateRootKey(),
-      dbFolder: ':memory:',
-      coreStorage: () => new RAM(),
-    })
-
-    await otherManager.setDeviceInfo(deviceInfo)
-
-    otherManager.invite.on('invite-received', ({ projectId }) => {
-      otherManager.invite[respondWith](projectId).catch(deferred.reject)
-    })
-
-    manager[kRPC].on('peers', (peers) => {
-      const deviceId = peers[0].deviceId
-      project.$member
-        .invite(deviceId, { roleId })
-        .then(() => deferred.resolve(deviceId))
-        .catch(deferred.reject)
-    })
-
-    replicate(manager[kRPC], otherManager[kRPC])
-
-    return deferred.promise
-  }
-
-  return { manager, simulateMemberInvite }
-}
