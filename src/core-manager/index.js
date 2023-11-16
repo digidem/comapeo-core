@@ -6,6 +6,8 @@ import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { CoreIndex } from './core-index.js'
 import * as rle from './bitfield-rle.js'
 import { Logger } from '../logger.js'
+import { keyToId } from '../utils.js'
+import { discoveryKey } from 'hypercore-crypto'
 
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
@@ -51,6 +53,12 @@ export class CoreManager extends TypedEmitter {
   #haveExtension
   #deviceId
   #l
+  /**
+   * We use this to reduce network traffic caused by requesting the same key
+   * from multiple clients.
+   * TODO: Remove items from this set after a max age
+   */
+  #keyRequests = new TrackedKeyRequests()
 
   static get namespaces() {
     return NAMESPACES
@@ -157,6 +165,12 @@ export class CoreManager extends TypedEmitter {
     this.#creatorCore.on('peer-add', (peer) => {
       this.#sendHaves(peer)
     })
+    this.#creatorCore.on('peer-remove', (peer) => {
+      // When a peer is removed we clean up any unanswered key requests, so that
+      // we will request from a different peer, and to avoid the tracking of key
+      // requests growing without bounds.
+      this.#keyRequests.deleteByPeerKey(peer.remotePublicKey)
+    })
 
     this.#ready = Promise.all(
       [...this.#coreIndex].map(({ core }) => core.ready())
@@ -233,6 +247,7 @@ export class CoreManager extends TypedEmitter {
    */
   async close() {
     this.#state = 'closing'
+    this.#keyRequests.clear()
     const promises = []
     for (const { core } of this.#coreIndex) {
       promises.push(core.close())
@@ -342,6 +357,13 @@ export class CoreManager extends TypedEmitter {
       )
       return
     }
+    // Only request a key once, e.g. from the peer we first receive it from (we
+    // can assume that a peer must have the key if we see the discovery key in
+    // the protomux). This is necessary to reduce network traffic for many newly
+    // connected peers - otherwise duplicate requests will be sent to every peer
+    if (this.#keyRequests.has(discoveryKey)) return
+    this.#keyRequests.set(discoveryKey, peerKey)
+
     this.#l.log(
       'Requesting core key for discovery key %h from peer %h',
       discoveryKey,
@@ -361,8 +383,7 @@ export class CoreManager extends TypedEmitter {
     const message = ProjectExtension.create()
     let hasKeys = false
     for (const discoveryKey of wantCoreKeys) {
-      const discoveryId = discoveryKey.toString('hex')
-      const coreRecord = this.#coreIndex.getByDiscoveryId(discoveryId)
+      const coreRecord = this.getCoreByDiscoveryKey(discoveryKey)
       if (!coreRecord) continue
       message[`${coreRecord.namespace}CoreKeys`].push(coreRecord.key)
       hasKeys = true
@@ -374,6 +395,7 @@ export class CoreManager extends TypedEmitter {
       for (const coreKey of coreKeys[`${namespace}CoreKeys`]) {
         // Use public method - these must be persisted (private method defaults to persisted=false)
         this.addCore(coreKey, namespace)
+        this.#keyRequests.deleteByDiscoveryKey(discoveryKey(coreKey))
       }
     }
   }
@@ -471,4 +493,62 @@ const HaveExtensionCodec = {
       return { start, discoveryKey, bitfield: new Uint32Array(), namespace }
     }
   },
+}
+
+class TrackedKeyRequests {
+  /** @type {Map<string, string>} */
+  #byDiscoveryId = new Map()
+  /** @type {Map<string, Set<string>>} */
+  #byPeerId = new Map()
+
+  /**
+   * @param {Buffer} discoveryKey
+   * @param {Buffer} peerKey
+   */
+  set(discoveryKey, peerKey) {
+    const discoveryId = keyToId(discoveryKey)
+    const peerId = keyToId(peerKey)
+    const existingForPeer = this.#byPeerId.get(peerId) || new Set()
+    this.#byDiscoveryId.set(discoveryId, peerId)
+    existingForPeer.add(discoveryId)
+    this.#byPeerId.set(peerId, existingForPeer)
+    return this
+  }
+  /**
+   * @param {Buffer} discoveryKey
+   */
+  has(discoveryKey) {
+    const discoveryId = keyToId(discoveryKey)
+    return this.#byDiscoveryId.has(discoveryId)
+  }
+  /**
+   * @param {Buffer} discoveryKey
+   */
+  deleteByDiscoveryKey(discoveryKey) {
+    const discoveryId = keyToId(discoveryKey)
+    const peerId = this.#byDiscoveryId.get(discoveryId)
+    if (!peerId) return false
+    this.#byDiscoveryId.delete(discoveryId)
+    const existingForPeer = this.#byPeerId.get(peerId)
+    if (existingForPeer) {
+      existingForPeer.delete(discoveryId)
+    }
+    return true
+  }
+  /**
+   * @param {Buffer} peerKey
+   */
+  deleteByPeerKey(peerKey) {
+    const peerId = keyToId(peerKey)
+    const existingForPeer = this.#byPeerId.get(peerId)
+    if (!existingForPeer) return
+    for (const discoveryId of existingForPeer) {
+      this.#byDiscoveryId.delete(discoveryId)
+    }
+    this.#byPeerId.delete(peerId)
+  }
+  clear() {
+    this.#byDiscoveryId.clear()
+    this.#byPeerId.clear()
+  }
 }
