@@ -123,7 +123,7 @@
     "hypercore": "10.17.0",
     "hypercore-crypto": "^3.3.1",
     "hyperdrive": "11.5.3",
-    "hyperswarm": "^4.4.1",
+    "hyperswarm": "4.4.1",
     "magic-bytes.js": "^1.0.14",
     "map-obj": "^5.0.2",
     "multi-core-indexer": "1.0.0-alpha.7",
