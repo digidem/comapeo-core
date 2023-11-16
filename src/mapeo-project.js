@@ -350,12 +350,12 @@ export class MapeoProject {
    */
   async close() {
     this.#l.log('closing project %h', this.#projectId)
-    this.#coreManager.close()
+    await this.#coreManager.close()
     let dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())
     }
-    Promise.all(dataStorePromises)
+    await Promise.all(dataStorePromises)
 
     this.#sqlite.close()
   }
