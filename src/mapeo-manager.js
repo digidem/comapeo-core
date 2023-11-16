@@ -487,6 +487,7 @@ export class MapeoManager extends TypedEmitter {
     try {
       // 4. Write device info into project
       const project = await this.getProject(projectPublicId)
+      await project.ready()
 
       try {
         const deviceInfo = await this.getDeviceInfo()
