@@ -1,7 +1,11 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { SyncState } from './sync-state.js'
-import { PeerSyncController } from './peer-sync-controller.js'
+import {
+  PeerSyncController,
+  PRESYNC_NAMESPACES,
+} from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
+import { NAMESPACES } from '../core-manager/index.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 
@@ -104,6 +108,22 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
+   * @param {'initial' | 'full'} type
+   */
+  async waitForSync(type) {
+    const state = this.getState()
+    const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
+    if (isSynced(state, namespaces, this.#peerSyncControllers.size)) return
+    return new Promise((res) => {
+      this.on('sync-state', function onState(state) {
+        if (!isSynced(state, namespaces, this.#peerSyncControllers.size)) return
+        this.off('sync-state', onState)
+        res(null)
+      })
+    })
+  }
+
+  /**
    * Bound to `this`
    *
    * This will be called whenever a peer is successfully added to the creator
@@ -164,4 +184,23 @@ export class SyncApi extends TypedEmitter {
     this.#peerSyncControllers.delete(protomux)
     this.#pendingDiscoveryKeys.delete(protomux)
   }
+}
+
+/**
+ * Is the sync state "synced", e.g. is there nothing left to sync
+ *
+ * @param {import('./sync-state.js').State} state
+ * @param {readonly import('../core-manager/index.js').Namespace[]} namespaces
+ * @param {number} peerCount
+ */
+function isSynced(state, namespaces, peerCount) {
+  for (const ns of namespaces) {
+    if (state[ns].dataToSync) return false
+    const remoteStates = Object.values(state[ns].remoteStates)
+    if (remoteStates.length !== peerCount) return false
+    for (const rs of remoteStates) {
+      if (rs.status === 'connecting') return false
+    }
+  }
+  return true
 }

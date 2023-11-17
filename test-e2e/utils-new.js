@@ -3,9 +3,13 @@ import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 
 import { MapeoManager } from '../src/index.js'
-import { kRPC } from '../src/mapeo-manager.js'
+import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
 import { MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { once } from 'node:events'
+// @ts-expect-error - pending publishing module with types
+import { generate } from '@mapeo/mock-data'
+import { valueOf } from '../src/utils.js'
+import { randomInt } from 'node:crypto'
 
 /**
  * @param {readonly MapeoManager[]} managers
@@ -26,8 +30,36 @@ export function connectPeers(managers, { discovery = true } = {}) {
     for (const manager of managers) {
       manager.startLocalPeerDiscovery()
     }
+    return function destroy() {
+      return disconnectPeers(managers)
+    }
   } else {
-    // TODO: replicate all managers, for faster tests (discovery can take extra time)
+    /** @type {import('../src/types.js').ReplicationStream[]} */
+    const replicationStreams = []
+    for (let i = 0; i < managers.length; i++) {
+      for (let j = i + 1; j < managers.length; j++) {
+        const r1 = managers[i][kManagerReplicate](true)
+        const r2 = managers[j][kManagerReplicate](false)
+        replicationStreams.push(r1, r2)
+        // @ts-ignore - either the types or wrong, or we're returning the wrong thing
+        r1.rawStream.pipe(r2.rawStream).pipe(r1.rawStream)
+      }
+    }
+    return function destroy() {
+      const promises = []
+      for (const stream of replicationStreams) {
+        promises.push(
+          /** @type {Promise<void>} */
+          (
+            new Promise((res) => {
+              stream.on('close', res)
+              stream.destroy()
+            })
+          )
+        )
+      }
+      return Promise.all(promises)
+    }
   }
 }
 
@@ -144,4 +176,110 @@ function getRootKey(seed) {
     sodium.randombytes_buf_deterministic(key, seedBuf)
   }
   return key
+}
+/**
+ * Remove undefined properties from an object, to allow deep comparison
+ * @param {object} obj
+ */
+export function stripUndef(obj) {
+  return JSON.parse(JSON.stringify(obj))
+}
+/**
+ *
+ * @param {number} value
+ * @param {number} decimalPlaces
+ */
+export function round(value, decimalPlaces) {
+  return Math.round(value * 10 ** decimalPlaces) / 10 ** decimalPlaces
+}
+
+/**
+ * Unlike `mapeo.project.$sync.waitForSync` this also waits for the specified
+ * number of peers to connect.
+ *
+ * @param {import('../src/mapeo-project.js').MapeoProject} project
+ * @param {number} peerCount
+ * @param {'initial' | 'full'} [type]
+ */
+async function waitForProjectSync(project, peerCount, type = 'initial') {
+  const state = await project.$sync.getState()
+  if (Object.keys(state.auth.remoteStates).length === peerCount) {
+    return project.$sync.waitForSync(type)
+  }
+  return new Promise((res) => {
+    project.$sync.on('sync-state', function onState(state) {
+      if (Object.keys(state.auth.remoteStates).length !== peerCount) return
+      project.$sync.off('sync-state', onState)
+      res(project.$sync.waitForSync(type))
+    })
+  })
+}
+
+/**
+ * Wait for all projects to connect and sync
+ *
+ * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
+ * @param {'initial' | 'full'} [type]
+ */
+export function waitForSync(projects, type = 'initial') {
+  return Promise.all(
+    projects.map((project) => {
+      return waitForProjectSync(project, projects.length - 1, type)
+    })
+  )
+}
+
+/**
+ * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
+ */
+export function seedDatabases(projects) {
+  return Promise.all(projects.map((p) => seedProjectDatabase(p)))
+}
+
+const SCHEMAS_TO_SEED = /** @type {const} */ ([
+  'observation',
+  'preset',
+  'field',
+])
+
+/**
+ * @param {import('../src/mapeo-project.js').MapeoProject} project
+ * @returns {Promise<Array<import('@mapeo/schema').MapeoDoc & { forks: string[] }>>}
+ */
+async function seedProjectDatabase(project) {
+  const promises = []
+  for (const schemaName of SCHEMAS_TO_SEED) {
+    const count =
+      schemaName === 'observation' ? randomInt(20, 100) : randomInt(0, 10)
+    let i = 0
+    while (i++ < count) {
+      const value = valueOf(
+        // @ts-ignore
+        generate(schemaName)[0]
+      )
+      promises.push(
+        // @ts-ignore
+        project[schemaName].create(value)
+      )
+    }
+  }
+  return Promise.all(promises)
+}
+
+/**
+ * @template {object} T
+ * @param {T[]} arr
+ * @param {keyof T} key
+ */
+export function sortBy(arr, key) {
+  return arr.sort(function (a, b) {
+    if (a[key] < b[key]) return -1
+    if (a[key] > b[key]) return 1
+    return 0
+  })
+}
+
+/** @param {import('@mapeo/schema').MapeoDoc[]} docs */
+export function sortById(docs) {
+  return sortBy(docs, 'docId')
 }

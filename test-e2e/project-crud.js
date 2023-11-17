@@ -4,6 +4,8 @@ import { KeyManager } from '@mapeo/crypto'
 import { valueOf } from '../src/utils.js'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import RAM from 'random-access-memory'
+import { stripUndef } from './utils-new.js'
+import { round } from './utils-new.js'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -126,20 +128,3 @@ test('CRUD operations', async (t) => {
     })
   }
 })
-
-/**
- * Remove undefined properties from an object, to allow deep comparison
- * @param {object} obj
- */
-function stripUndef(obj) {
-  return JSON.parse(JSON.stringify(obj))
-}
-
-/**
- *
- * @param {number} value
- * @param {number} decimalPlaces
- */
-function round(value, decimalPlaces) {
-  return Math.round(value * 10 ** decimalPlaces) / 10 ** decimalPlaces
-}

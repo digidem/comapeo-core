@@ -10,7 +10,7 @@ import { Logger } from '../logger.js'
  */
 
 /** @type {Namespace[]} */
-const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
+export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
 
 export class PeerSyncController {
   #replicatingCores = new Set()
