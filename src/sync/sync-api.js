@@ -6,6 +6,7 @@ import {
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../core-manager/index.js'
+import { keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 
@@ -23,6 +24,8 @@ export class SyncApi extends TypedEmitter {
   #capabilities
   /** @type {Map<import('protomux'), PeerSyncController>} */
   #peerSyncControllers = new Map()
+  /** @type {Set<string>} */
+  #peerIds = new Set()
   /** @type {Set<'local' | 'remote'>} */
   #dataSyncEnabled = new Set()
   /** @type {Map<import('protomux'), Set<Buffer>>} */
@@ -51,8 +54,7 @@ export class SyncApi extends TypedEmitter {
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */
-  [kHandleDiscoveryKey](discoveryKey, stream) {
-    const protomux = stream.noiseStream.userData
+  [kHandleDiscoveryKey](discoveryKey, protomux) {
     const peerSyncController = this.#peerSyncControllers.get(protomux)
     if (peerSyncController) {
       peerSyncController.handleDiscoveryKey(discoveryKey)
@@ -113,10 +115,10 @@ export class SyncApi extends TypedEmitter {
   async waitForSync(type) {
     const state = this.getState()
     const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
-    if (isSynced(state, namespaces, this.#peerSyncControllers.size)) return
+    if (isSynced(state, namespaces, this.#peerSyncControllers)) return
     return new Promise((res) => {
       this.on('sync-state', function onState(state) {
-        if (!isSynced(state, namespaces, this.#peerSyncControllers.size)) return
+        if (!isSynced(state, namespaces, this.#peerSyncControllers)) return
         this.off('sync-state', onState)
         res(null)
       })
@@ -131,7 +133,7 @@ export class SyncApi extends TypedEmitter {
    * will then handle validation of role records to ensure that the peer is
    * actually still part of the project.
    *
-   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')> }} peer
+   * @param {{ protomux: import('protomux')<import('../utils.js').OpenedNoiseStream> }} peer
    */
   #handlePeerAdd = (peer) => {
     const { protomux } = peer
@@ -150,6 +152,7 @@ export class SyncApi extends TypedEmitter {
       logger: this.#l,
     })
     this.#peerSyncControllers.set(protomux, peerSyncController)
+    if (peerSyncController.peerId) this.#peerIds.add(peerSyncController.peerId)
 
     if (this.#dataSyncEnabled.has('local')) {
       peerSyncController.enableDataSync()
@@ -170,7 +173,7 @@ export class SyncApi extends TypedEmitter {
    * Called when a peer is removed from the creator core, e.g. when the
    * connection is terminated.
    *
-   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')> }} peer
+   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
    */
   #handlePeerRemove = (peer) => {
     const { protomux } = peer
@@ -182,6 +185,7 @@ export class SyncApi extends TypedEmitter {
       return
     }
     this.#peerSyncControllers.delete(protomux)
+    this.#peerIds.delete(keyToId(peer.remotePublicKey))
     this.#pendingDiscoveryKeys.delete(protomux)
   }
 }
@@ -191,15 +195,16 @@ export class SyncApi extends TypedEmitter {
  *
  * @param {import('./sync-state.js').State} state
  * @param {readonly import('../core-manager/index.js').Namespace[]} namespaces
- * @param {number} peerCount
+ * @param {Map<import('protomux'), PeerSyncController>} peerSyncControllers
  */
-function isSynced(state, namespaces, peerCount) {
+function isSynced(state, namespaces, peerSyncControllers) {
   for (const ns of namespaces) {
     if (state[ns].dataToSync) return false
-    const remoteStates = Object.values(state[ns].remoteStates)
-    if (remoteStates.length !== peerCount) return false
-    for (const rs of remoteStates) {
-      if (rs.status === 'connecting') return false
+    for (const psc of peerSyncControllers.values()) {
+      const { peerId } = psc
+      if (psc.syncCapability[ns] === 'blocked') continue
+      if (!(peerId in state[ns].remoteStates)) return false
+      if (state[ns].remoteStates[peerId].status === 'connecting') return false
     }
   }
   return true

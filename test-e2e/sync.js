@@ -14,6 +14,7 @@ import { PRESYNC_NAMESPACES } from '../src/sync/peer-sync-controller.js'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
+import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/capabilities.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
@@ -187,4 +188,69 @@ test('shares cores', async function (t) {
       t.is(keyCount, COUNT, 'expected number of cores')
     }
   }
+})
+
+test('no sync capabilities === no namespaces sync apart from auth', async (t) => {
+  const COUNT = 3
+  const managers = await createManagers(COUNT)
+  const [invitor, invitee, blocked] = managers
+  const disconnect1 = connectPeers(managers, { discovery: false })
+  const projectId = await invitor.createProject()
+  await invite({
+    invitor,
+    invitees: [blocked],
+    projectId,
+    roleId: BLOCKED_ROLE_ID,
+  })
+  await invite({
+    invitor,
+    invitees: [invitee],
+    projectId,
+    roleId: COORDINATOR_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  const [invitorProject, inviteeProject] = projects
+
+  const generatedDocs = (await seedDatabases([inviteeProject])).flat()
+  const configDocsCount = generatedDocs.filter(
+    (doc) => doc.schemaName !== 'observation'
+  ).length
+  const dataDocsCount = generatedDocs.length - configDocsCount
+
+  for (const project of projects) {
+    project.$sync.start()
+  }
+
+  await waitForSync([inviteeProject, invitorProject], 'full')
+
+  const [invitorState, inviteeState, blockedState] = projects.map((p) =>
+    p.$sync.getState()
+  )
+
+  t.is(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
+  t.is(invitorState.data.localState.have, dataDocsCount)
+  t.is(blockedState.config.localState.have, 1) // just the device info doc
+  t.is(blockedState.data.localState.have, 0) // no data docs synced
+
+  for (const ns of NAMESPACES) {
+    if (ns === 'auth') {
+      t.is(invitorState[ns].coreCount, 3)
+      t.is(inviteeState[ns].coreCount, 3)
+      t.is(blockedState[ns].coreCount, 3)
+    } else if (PRESYNC_NAMESPACES.includes(ns)) {
+      t.is(invitorState[ns].coreCount, 3)
+      t.is(inviteeState[ns].coreCount, 3)
+      t.is(blockedState[ns].coreCount, 1)
+    } else {
+      t.is(invitorState[ns].coreCount, 2)
+      t.is(inviteeState[ns].coreCount, 2)
+      t.is(blockedState[ns].coreCount, 1)
+    }
+    t.alike(invitorState[ns].localState, inviteeState[ns].localState)
+  }
+
+  await disconnect1()
 })

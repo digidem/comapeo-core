@@ -40,8 +40,7 @@ export function connectPeers(managers, { discovery = true } = {}) {
         const r1 = managers[i][kManagerReplicate](true)
         const r2 = managers[j][kManagerReplicate](false)
         replicationStreams.push(r1, r2)
-        // @ts-ignore - either the types or wrong, or we're returning the wrong thing
-        r1.rawStream.pipe(r2.rawStream).pipe(r1.rawStream)
+        r1.pipe(r2).pipe(r1)
       }
     }
     return function destroy() {
@@ -197,21 +196,33 @@ export function round(value, decimalPlaces) {
  * number of peers to connect.
  *
  * @param {import('../src/mapeo-project.js').MapeoProject} project
- * @param {number} peerCount
+ * @param {string[]} peerIds
  * @param {'initial' | 'full'} [type]
  */
-async function waitForProjectSync(project, peerCount, type = 'initial') {
+async function waitForProjectSync(project, peerIds, type = 'initial') {
   const state = await project.$sync.getState()
-  if (Object.keys(state.auth.remoteStates).length === peerCount) {
+  if (hasPeerIds(state.auth.remoteStates, peerIds)) {
     return project.$sync.waitForSync(type)
   }
   return new Promise((res) => {
     project.$sync.on('sync-state', function onState(state) {
-      if (Object.keys(state.auth.remoteStates).length !== peerCount) return
+      if (!hasPeerIds(state.auth.remoteStates, peerIds)) return
       project.$sync.off('sync-state', onState)
       res(project.$sync.waitForSync(type))
     })
   })
+}
+
+/**
+ * @param {Record<string, unknown>} remoteStates
+ * @param {string[]} peerIds
+ * @returns
+ */
+function hasPeerIds(remoteStates, peerIds) {
+  for (const peerId of peerIds) {
+    if (!(peerId in remoteStates)) return false
+  }
+  return true
 }
 
 /**
@@ -223,7 +234,10 @@ async function waitForProjectSync(project, peerCount, type = 'initial') {
 export function waitForSync(projects, type = 'initial') {
   return Promise.all(
     projects.map((project) => {
-      return waitForProjectSync(project, projects.length - 1, type)
+      const peerIds = projects
+        .filter((p) => p !== project)
+        .map((p) => p.deviceId)
+      return waitForProjectSync(project, peerIds, type)
     })
   )
 }

@@ -34,7 +34,7 @@ export class PeerSyncController {
 
   /**
    * @param {object} opts
-   * @param {import("protomux")<import('../types.js').NoiseStream>} opts.protomux
+   * @param {import("protomux")<import('../utils.js').OpenedNoiseStream>} opts.protomux
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    * @param {import("./sync-state.js").SyncState} opts.syncState
    * @param {import("../capabilities.js").Capabilities} opts.capabilities
@@ -68,7 +68,11 @@ export class PeerSyncController {
   }
 
   get peerId() {
-    return this.peerKey?.toString('hex')
+    return this.peerKey.toString('hex')
+  }
+
+  get syncCapability() {
+    return this.#syncCapability
   }
 
   /**
