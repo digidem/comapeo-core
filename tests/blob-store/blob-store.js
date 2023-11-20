@@ -5,10 +5,14 @@ import { pipelinePromise as pipeline } from 'streamx'
 import { randomBytes } from 'node:crypto'
 import fs from 'fs'
 import { readFile } from 'fs/promises'
-import { createCoreManager, waitForCores } from '../helpers/core-manager.js'
+import {
+  replicate,
+  createCoreManager,
+  waitForCores,
+} from '../helpers/core-manager.js'
 import { BlobStore } from '../../src/blob-store/index.js'
 import { setTimeout } from 'node:timers/promises'
-import { replicateBlobs, concat } from '../helpers/blob-store.js'
+import { concat } from '../helpers/blob-store.js'
 import { discoveryKey } from 'hypercore-crypto'
 
 // Test with buffers that are 3 times the default blockSize for hyperblobs
@@ -86,7 +90,7 @@ test('get(), initialized but unreplicated drive', async (t) => {
   })
   const driveId = await bs1.put(blob1Id, blob1)
 
-  const { destroy } = replicateBlobs(cm1, cm2)
+  const { destroy } = replicate(cm1, cm2)
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
 
   /** @type {any} */
@@ -113,7 +117,7 @@ test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
   })
   const driveId = await bs1.put(blob1Id, blob1)
 
-  const { destroy } = replicateBlobs(cm1, cm2)
+  const { destroy } = replicate(cm1, cm2)
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
   /** @type {any} */
   const { core: replicatedCore } = cm2.getCoreByDiscoveryKey(
@@ -277,13 +281,13 @@ test('live download', async function (t) {
   // STEP 1: Write a blob to CM1
   const driveId1 = await bs1.put(blob1Id, blob1)
   // STEP 2: Replicate CM1 with CM3
-  const { destroy: destroy1 } = replicateBlobs(cm1, cm3)
+  const { destroy: destroy1 } = replicate(cm1, cm3)
   // STEP 3: Start live download to CM3
   const liveDownload = bs3.download()
   // STEP 4: Wait for blobs to be downloaded
   await downloaded(liveDownload)
   // STEP 5: Replicate CM2 with CM3
-  const { destroy: destroy2 } = replicateBlobs(cm2, cm3)
+  const { destroy: destroy2 } = replicate(cm2, cm3)
   // STEP 6: Write a blob to CM2
   const driveId2 = await bs2.put(blob2Id, blob2)
   // STEP 7: Wait for blobs to be downloaded
@@ -332,7 +336,7 @@ test('sparse live download', async function (t) {
   await bs1.put(blob2Id, blob2)
   await bs1.put(blob3Id, blob3)
 
-  const { destroy } = replicateBlobs(cm1, cm2)
+  const { destroy } = replicate(cm1, cm2)
 
   const liveDownload = bs2.download({ photo: ['original', 'preview'] })
   await downloaded(liveDownload)
@@ -369,7 +373,7 @@ test('cancelled live download', async function (t) {
   // STEP 1: Write a blob to CM1
   const driveId1 = await bs1.put(blob1Id, blob1)
   // STEP 2: Replicate CM1 with CM3
-  const { destroy: destroy1 } = replicateBlobs(cm1, cm3)
+  const { destroy: destroy1 } = replicate(cm1, cm3)
   // STEP 3: Start live download to CM3
   const ac = new AbortController()
   const liveDownload = bs3.download(undefined, { signal: ac.signal })
@@ -378,7 +382,7 @@ test('cancelled live download', async function (t) {
   // STEP 5: Cancel download
   ac.abort()
   // STEP 6: Replicate CM2 with CM3
-  const { destroy: destroy2 } = replicateBlobs(cm2, cm3)
+  const { destroy: destroy2 } = replicate(cm2, cm3)
   // STEP 7: Write a blob to CM2
   const driveId2 = await bs2.put(blob2Id, blob2)
   // STEP 8: Wait for blobs to (not) download
