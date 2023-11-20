@@ -6,7 +6,6 @@ import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
 import { MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { once } from 'node:events'
-// @ts-expect-error - pending publishing module with types
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import { randomInt } from 'node:crypto'
@@ -253,10 +252,7 @@ async function seedProjectDatabase(project) {
       schemaName === 'observation' ? randomInt(20, 100) : randomInt(0, 10)
     let i = 0
     while (i++ < count) {
-      const value = valueOf(
-        // @ts-ignore
-        generate(schemaName)[0]
-      )
+      const value = valueOf(generate(schemaName)[0])
       promises.push(
         // @ts-ignore
         project[schemaName].create(value)
