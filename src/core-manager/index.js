@@ -285,9 +285,10 @@ export class CoreManager extends TypedEmitter {
     const core = this.#corestore.get({
       keyPair,
       encryptionKey: this.#encryptionKeys[namespace],
-      // Starts live download of core immediately
-      sparse: namespace === 'blob',
     })
+    if (namespace !== 'blob') {
+      core.download({ start: 0, end: -1 })
+    }
     // Every peer adds a listener, so could have many peers
     core.setMaxListeners(0)
     // @ts-ignore - ensure key is defined before hypercore is ready
