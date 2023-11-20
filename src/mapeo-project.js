@@ -44,6 +44,7 @@ import { IconApi } from './icon-api.js'
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
+export const kCoreManager = Symbol('coreManager')
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
@@ -323,6 +324,13 @@ export class MapeoProject {
         .catch(deferred.reject)
     })
     this.#l.log('Created project instance %h', projectKey)
+  }
+
+  /**
+   * CoreManager instance, used for tests
+   */
+  get [kCoreManager]() {
+    return this.#coreManager
   }
 
   /**

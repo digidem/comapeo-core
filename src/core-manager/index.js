@@ -8,7 +8,9 @@ import * as rle from './bitfield-rle.js'
 import { Logger } from '../logger.js'
 import { keyToId } from '../utils.js'
 import { discoveryKey } from 'hypercore-crypto'
+import Hypercore from 'hypercore'
 
+export const kCoreManagerReplicate = Symbol('replicate core manager')
 // WARNING: Changing these will break things for existing apps, since namespaces
 // are used for key derivation
 export const NAMESPACES = /** @type {const} */ ([
@@ -454,6 +456,28 @@ export class CoreManager extends TypedEmitter {
 
     peer.protomux.uncork()
   }
+
+  /**
+   * ONLY FOR TESTING
+   * Replicate all cores in core manager
+   *
+   * @param {Parameters<Corestore['replicate']>[0]} stream
+   * @returns
+   */
+  [kCoreManagerReplicate](stream) {
+    const protocolStream = Hypercore.createProtocolStream(stream, {
+      ondiscoverykey: async (discoveryKey) => {
+        const peer = await findPeer(
+          this.creatorCore,
+          // @ts-ignore
+          protocolStream.noiseStream.remotePublicKey
+        )
+        if (!peer) return
+        this.requestCoreKey(peer.remotePublicKey, discoveryKey)
+      },
+    })
+    return this.#corestore.replicate(stream)
+  }
 }
 
 /**
@@ -556,4 +580,36 @@ class TrackedKeyRequests {
     this.#byDiscoveryId.clear()
     this.#byPeerId.clear()
   }
+}
+
+/**
+ * @param {Hypercore<"binary", Buffer>} core
+ * @param {Buffer} publicKey
+ * @param {{ timeout?: number }} [opts]
+ */
+function findPeer(core, publicKey, { timeout = 200 } = {}) {
+  const peer = core.peers.find((peer) => {
+    return peer.remotePublicKey.equals(publicKey)
+  })
+  if (peer) return peer
+  // This is called from the from the handleDiscoveryId event, which can
+  // happen before the peer connection is fully established, so we wait for
+  // the `peer-add` event, with a timeout in case the peer never gets added
+  return new Promise(function (res) {
+    const timeoutId = setTimeout(function () {
+      core.off('peer-add', onPeer)
+      res(null)
+    }, timeout)
+
+    core.on('peer-add', onPeer)
+
+    /** @param {any} peer */
+    function onPeer(peer) {
+      if (peer.remotePublicKey.equals(publicKey)) {
+        clearTimeout(timeoutId)
+        core.off('peer-add', onPeer)
+        res(peer)
+      }
+    }
+  })
 }

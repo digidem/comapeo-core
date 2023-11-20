@@ -6,7 +6,10 @@ import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 import Sqlite from 'better-sqlite3'
 import { KeyManager } from '@mapeo/crypto'
-import { CoreManager, unreplicate } from '../src/core-manager/index.js'
+import {
+  CoreManager,
+  kCoreManagerReplicate,
+} from '../src/core-manager/index.js'
 import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
 import assert from 'assert'
 import { once } from 'node:events'
@@ -15,84 +18,14 @@ import { exec } from 'child_process'
 import { RandomAccessFilePool } from '../src/core-manager/random-access-file-pool.js'
 import RandomAccessFile from 'random-access-file'
 import path from 'path'
-import { setTimeout as delay } from 'node:timers/promises'
 import { Transform } from 'streamx'
+import { waitForCores } from './helpers/core-manager.js'
 
 async function createCore(key) {
   const core = new Hypercore(RAM, key)
   await core.ready()
   return core
 }
-
-test('shares auth cores', async function (t) {
-  const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
-
-  replicate(cm1, cm2)
-
-  await Promise.all([
-    waitForCores(cm1, getKeys(cm2, 'auth')),
-    waitForCores(cm2, getKeys(cm1, 'auth')),
-  ])
-
-  const cm1Keys = getKeys(cm1, 'auth').sort(Buffer.compare)
-  const cm2Keys = getKeys(cm2, 'auth').sort(Buffer.compare)
-
-  t.alike(cm1Keys, cm2Keys, 'Share same auth cores')
-})
-
-test('shares other cores', async function (t) {
-  const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
-
-  const {
-    rsm: [rsm1, rsm2],
-  } = replicate(cm1, cm2)
-
-  for (const namespace of ['config', 'data', 'blob', 'blobIndex']) {
-    rsm1.enableNamespace(namespace)
-    rsm2.enableNamespace(namespace)
-    await Promise.all([
-      waitForCores(cm1, getKeys(cm2, namespace)),
-      waitForCores(cm2, getKeys(cm1, namespace)),
-    ])
-    const cm1Keys = getKeys(cm1, namespace).sort(Buffer.compare)
-    const cm2Keys = getKeys(cm2, namespace).sort(Buffer.compare)
-
-    t.alike(cm1Keys, cm2Keys, `Share same ${namespace} cores`)
-  }
-})
-
-// Testing this case because in real-use namespaces are not enabled at the same time
-test('shares cores if namespaces enabled at different times', async function (t) {
-  const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
-
-  const {
-    rsm: [rsm1, rsm2],
-  } = replicate(cm1, cm2)
-
-  for (const namespace of ['config', 'data', 'blob', 'blobIndex']) {
-    rsm1.enableNamespace(namespace)
-  }
-
-  await delay(1000)
-
-  for (const namespace of ['config', 'data', 'blob', 'blobIndex']) {
-    rsm2.enableNamespace(namespace)
-    await Promise.all([
-      waitForCores(cm1, getKeys(cm2, namespace)),
-      waitForCores(cm2, getKeys(cm1, namespace)),
-    ])
-    const cm1Keys = getKeys(cm1, namespace).sort(Buffer.compare)
-    const cm2Keys = getKeys(cm2, namespace).sort(Buffer.compare)
-
-    t.alike(cm1Keys, cm2Keys, `Share same ${namespace} cores`)
-  }
-})
 
 test('project creator auth core has project key', async function (t) {
   const sqlite = new Sqlite(':memory:')
@@ -167,7 +100,6 @@ test('eagerly updates remote bitfields', async function (t) {
     .done()
   await destroyReplication()
   await cm1Core.clear(0, 2)
-
   {
     // This is ensuring that bitfields also get propogated in the other
     // direction, e.g. from the non-writer to the writer
@@ -224,62 +156,6 @@ test('eagerly updates remote bitfields', async function (t) {
   }
 })
 
-test('works with an existing protocol stream for replications', async function (t) {
-  const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
-
-  const n1 = new NoiseSecretStream(true)
-  const n2 = new NoiseSecretStream(false)
-  n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
-
-  const s1 = Hypercore.createProtocolStream(n1)
-  const s2 = Hypercore.createProtocolStream(n2)
-
-  cm1.replicate(s1)
-  cm2.replicate(s2)
-
-  await Promise.all([
-    waitForCores(cm1, getKeys(cm2, 'auth')),
-    waitForCores(cm2, getKeys(cm1, 'auth')),
-  ])
-
-  const cm1Keys = getKeys(cm1, 'auth').sort(Buffer.compare)
-  const cm2Keys = getKeys(cm2, 'auth').sort(Buffer.compare)
-
-  t.alike(cm1Keys, cm2Keys, 'Share same auth cores')
-})
-
-test.skip('can mux other project replications over same stream', async function (t) {
-  // This test fails because https://github.com/holepunchto/corestore/issues/45
-  // The `ondiscoverykey` hook for `Hypercore.createProtocolStream()` that we
-  // use to know when other cores are muxed in the stream is only called the
-  // first time the protocol stream is created. When a second core replicates
-  // to the same stream, it sees it is already a protomux stream, and it does
-  // not add the notify hook for `ondiscoverykey`.
-  // We might be able to work around this if we want to enable multi-project
-  // muxing before the issue is resolved by creating the protomux stream outside
-  // the core manager, and then somehow hooking into the relevant corestore.
-  t.plan(2)
-  const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
-  const otherProject = createCoreManager()
-
-  const n1 = new NoiseSecretStream(true)
-  const n2 = new NoiseSecretStream(false)
-  n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
-
-  await Promise.all([
-    waitForCores(cm1, getKeys(cm2, 'auth')),
-    waitForCores(cm2, getKeys(cm1, 'auth')),
-  ])
-
-  cm1.replicate(n1)
-  otherProject.replicate(n2)
-  cm2.replicate(n2)
-})
-
 test('multiplexing waits for cores to be added', async function (t) {
   // Mapeo code expects replication to work when cores are not added to the
   // replication stream at the same time. This is not explicitly tested in
@@ -326,8 +202,6 @@ test('close()', async (t) => {
       t.is(core.sessions.length, 0, 'no open sessions')
     }
   }
-  const ns = new NoiseSecretStream(true)
-  t.exception(() => cm.replicate(ns), /closed/)
 })
 
 test('Added cores are persisted', async (t) => {
@@ -365,14 +239,8 @@ test('encryption', async function (t) {
   const cm2 = createCoreManager({ projectKey })
   const cm3 = createCoreManager({ projectKey, encryptionKeys })
 
-  const { rsm: rsm1 } = replicate(cm1, cm2)
-  const { rsm: rsm2 } = replicate(cm1, cm3)
-
-  for (const rsm of [...rsm1, ...rsm2]) {
-    for (const ns of CoreManager.namespaces) {
-      rsm.enableNamespace(ns)
-    }
-  }
+  replicate(cm1, cm2)
+  replicate(cm1, cm3)
 
   for (const ns of CoreManager.namespaces) {
     const { core, key } = cm1.getWriterCore(ns)
@@ -442,39 +310,6 @@ test('poolSize limits number of open file descriptors', async function (t) {
   })
 })
 
-async function waitForCores(coreManager, keys) {
-  const allKeys = getAllKeys(coreManager)
-  if (hasKeys(keys, allKeys)) return
-  return new Promise((res) => {
-    coreManager.on('add-core', function onAddCore({ key }) {
-      allKeys.push(key)
-      if (hasKeys(keys, allKeys)) {
-        coreManager.off('add-core', onAddCore)
-        res()
-      }
-    })
-  })
-}
-
-function getAllKeys(coreManager) {
-  const keys = []
-  for (const namespace of CoreManager.namespaces) {
-    keys.push.apply(keys, getKeys(coreManager, namespace))
-  }
-  return keys
-}
-
-function getKeys(coreManager, namespace) {
-  return coreManager.getCores(namespace).map(({ key }) => key)
-}
-
-function hasKeys(someKeys, allKeys) {
-  for (const key of someKeys) {
-    if (!allKeys.find((k) => k.equals(key))) return false
-  }
-  return true
-}
-
 test('sends "haves" bitfields over project creator core replication stream', async function (t) {
   const projectKey = randomBytes(32)
   const cm1 = createCoreManager({ projectKey })
@@ -510,8 +345,8 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   const cm1Core = cm1.getWriterCore('data').core
   await cm1Core.ready()
   const batchSize = 4096
-  // Create 1 million entries in hypercore
-  for (let i = 0; i < 2 ** 20; i += batchSize) {
+  // Create 4 million entries in hypercore - will be at least two have bitfields
+  for (let i = 0; i < 2 ** 22; i += batchSize) {
     const data = Array(batchSize)
       .fill(null)
       .map(() => 'block')
@@ -525,8 +360,8 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   const n2 = new NoiseSecretStream(false)
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
-  cm1.replicate(n1)
-  cm2.replicate(n2)
+  cm1[kCoreManagerReplicate](n1)
+  cm2[kCoreManagerReplicate](n2)
 
   // Need to wait for now, since no event for when a remote bitfield is updated
   await new Promise((res) => setTimeout(res, 200))
@@ -622,40 +457,6 @@ test('unreplicate', async (t) => {
   })
 })
 
-test('disableNamespace and re-enable', async (t) => {
-  const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
-
-  const {
-    rsm: [rsm1, rsm2],
-  } = replicate(cm1, cm2)
-
-  rsm1.enableNamespace('data')
-  rsm2.enableNamespace('data')
-
-  await Promise.all([
-    waitForCores(cm1, getKeys(cm2, 'data')),
-    waitForCores(cm2, getKeys(cm1, 'data')),
-  ])
-
-  const data1CR = cm1.getWriterCore('data')
-  await data1CR.core.append(['a', 'b', 'c'])
-
-  const data1ReplicaCore = cm2.getCoreByKey(data1CR.key)
-  t.is((await data1ReplicaCore.get(2, { timeout: 200 })).toString(), 'c')
-
-  rsm1.disableNamespace('data')
-
-  await data1CR.core.append(['d', 'e', 'f'])
-
-  await t.exception(() => data1ReplicaCore.get(5, { timeout: 200 }))
-
-  rsm1.enableNamespace('data')
-
-  t.is((await data1ReplicaCore.get(5, { timeout: 200 })).toString(), 'f')
-})
-
 const DEBUG = process.env.DEBUG
 
 // Compare two bitfields (instance of core.core.bitfield or peer.remoteBitfield)
@@ -727,4 +528,18 @@ function latencyStream(delay = 0) {
       setTimeout(callback, Math.random() * delay, null, data)
     },
   })
+}
+
+/**
+ *
+ * @param {Hypercore<'binary', any>} core
+ * @param {import('protomux')} protomux
+ */
+export function unreplicate(core, protomux) {
+  const peerToUnreplicate = core.peers.find(
+    (peer) => peer.protomux === protomux
+  )
+  if (!peerToUnreplicate) return
+  peerToUnreplicate.channel.close()
+  return
 }
