@@ -59,6 +59,7 @@ export class CoreManager extends TypedEmitter {
    * TODO: Remove items from this set after a max age
    */
   #keyRequests = new TrackedKeyRequests()
+  #autoDownload
 
   static get namespaces() {
     return NAMESPACES
@@ -72,6 +73,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
    * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
+   * @param {boolean} [options.autoDownload=true] Immediately start downloading cores - should only be set to false for tests
    * @param {Logger} [options.logger]
    */
   constructor({
@@ -81,6 +83,7 @@ export class CoreManager extends TypedEmitter {
     projectSecretKey,
     encryptionKeys = {},
     storage,
+    autoDownload = true,
     logger,
   }) {
     super()
@@ -99,6 +102,7 @@ export class CoreManager extends TypedEmitter {
     this.#deviceId = keyManager.getIdentityKeypair().publicKey.toString('hex')
     this.#projectKey = projectKey
     this.#encryptionKeys = encryptionKeys
+    this.#autoDownload = autoDownload
 
     // Make sure table exists for persisting known cores
     sqlite.prepare(CREATE_SQL).run()
@@ -286,7 +290,7 @@ export class CoreManager extends TypedEmitter {
       keyPair,
       encryptionKey: this.#encryptionKeys[namespace],
     })
-    if (namespace !== 'blob') {
+    if (namespace !== 'blob' && this.#autoDownload) {
       core.download({ start: 0, end: -1 })
     }
     // Every peer adds a listener, so could have many peers
