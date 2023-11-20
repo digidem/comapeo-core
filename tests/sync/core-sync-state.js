@@ -1,6 +1,8 @@
 // @ts-check
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import test from 'brittle'
+import Hypercore from 'hypercore'
+import RAM from 'random-access-memory'
 import {
   deriveState,
   PeerState,
@@ -10,8 +12,6 @@ import {
 import RemoteBitfield, {
   BITS_PER_PAGE,
 } from '../../src/core-manager/remote-bitfield.js'
-import { createCore } from '../helpers/index.js'
-// import { setTimeout } from 'timers/promises'
 import { once } from 'node:events'
 import pTimeout from 'p-timeout'
 import { EventEmitter } from 'node:events'
@@ -350,6 +350,12 @@ test.skip('bitCount32', (t) => {
     if (bitCount !== expected) t.fail('bitcount is correct ' + n)
   }
 })
+
+async function createCore(key) {
+  const core = new Hypercore(RAM, key)
+  await core.ready()
+  return core
+}
 
 /**
  * Slow but understandable implementation to compare with fast obscure implementation

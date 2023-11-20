@@ -6,7 +6,12 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'node:crypto'
 
-import { IconApi, kGetIconBlob, getBestVariant } from '../src/icon-api.js'
+import {
+  IconApi,
+  kGetIconBlob,
+  getBestVariant,
+  constructIconPath,
+} from '../src/icon-api.js'
 import { DataType } from '../src/datatype/index.js'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
@@ -167,7 +172,7 @@ test(`getIconUrl()`, async (t) => {
 
     t.is(
       url,
-      mediaBaseUrl + `${iconId}/small@1x.png`,
+      mediaBaseUrl + `${iconId}/small.png`,
       'returns expected bitmap icon url'
     )
   }
@@ -615,6 +620,63 @@ test(
     t.alike(result, variantA)
   }
 )
+
+test('constructIconPath() - bad inputs', (t) => {
+  // Array of [input, test message]
+  /** @type {Array<[Parameters<typeof constructIconPath>[0], string]>} */
+  const fixtures = [
+    [
+      { iconId: '', size: 'small', extension: 'svg' },
+      'throws when iconId is empty string',
+    ],
+    [
+      { iconId: 'abc', size: '', extension: 'png' },
+      'throws when size is empty string',
+    ],
+    [
+      { iconId: 'abc', size: 'small', extension: '' },
+      'throws when extension is empty string',
+    ],
+    [
+      { iconId: 'abc', size: 'small', extension: 'png', pixelDensity: 0 },
+      'throws when pixelDensity is zero',
+    ],
+    [
+      { iconId: 'abc', size: 'small', extension: 'png', pixelDensity: -1 },
+      'throws when pixelDensity is a negative number',
+    ],
+  ]
+
+  for (const [input, message] of fixtures) {
+    t.exception(() => constructIconPath(input), message)
+  }
+})
+
+test('constructIconPath() - good inputs', (t) => {
+  // Array of [input, expected, test message]
+  /** @type {Array<[Parameters<typeof constructIconPath>[0], string, string]>} */
+  const fixtures = [
+    [
+      { iconId: 'abc', size: 'small', extension: 'svg' },
+      'abc/small.svg',
+      'omitting pixelDensity leaves out density suffix',
+    ],
+    [
+      { iconId: 'abc', size: 'small', extension: 'png', pixelDensity: 2 },
+      'abc/small@2x.png',
+      'including pixelDensity includes density suffix',
+    ],
+    [
+      { iconId: 'abc', size: 'small', extension: '.png' },
+      'abc/small.png',
+      'handles extension starting with `.`',
+    ],
+  ]
+
+  for (const [input, expected, message] of fixtures) {
+    t.is(constructIconPath(input), expected, message)
+  }
+})
 
 /**
  *

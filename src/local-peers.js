@@ -121,7 +121,7 @@ class Peer {
   }
   /**
    * A promise that resolves when the peer connects, or rejects if it
-   * failes to connect
+   * fails to connect
    */
   get connected() {
     return this.#connected.promise
@@ -307,7 +307,7 @@ export class LocalPeers extends TypedEmitter {
   async inviteResponse(peerId, options) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(peerId)
-    await peer.sendInviteResponse(options)
+    peer.sendInviteResponse(options)
   }
 
   /**
@@ -318,7 +318,7 @@ export class LocalPeers extends TypedEmitter {
   async sendDeviceInfo(peerId, deviceInfo) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(peerId)
-    await peer.sendDeviceInfo(deviceInfo)
+    peer.sendDeviceInfo(deviceInfo)
   }
 
   /**
@@ -330,13 +330,14 @@ export class LocalPeers extends TypedEmitter {
   connect(stream) {
     const noiseStream = stream.noiseStream
     if (!noiseStream) throw new Error('Invalid stream')
+    const outerStream = noiseStream.rawStream
     const protomux =
       noiseStream.userData && Protomux.isProtomux(noiseStream.userData)
         ? noiseStream.userData
         : Protomux.from(noiseStream)
     noiseStream.userData = protomux
 
-    if (this.#attached.has(protomux)) return stream
+    if (this.#attached.has(protomux)) return outerStream
 
     protomux.pair(
       { protocol: 'hypercore/alpha' },
@@ -346,7 +347,7 @@ export class LocalPeers extends TypedEmitter {
           discoveryKey,
           stream.noiseStream.remotePublicKey
         )
-        this.emit('discovery-key', discoveryKey, stream)
+        this.emit('discovery-key', discoveryKey, outerStream)
       }
     )
 
@@ -378,7 +379,7 @@ export class LocalPeers extends TypedEmitter {
       if (opened) makePeer()
     })
 
-    return stream
+    return outerStream
   }
 
   /**
