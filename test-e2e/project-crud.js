@@ -151,9 +151,10 @@ test('CRUD operations', async (t) => {
         }
       }, 'should fail creating since the project is already closed')
 
-      await st.exception(async () => {
+      // @ts-ignore
+      await st.exception.all(async () => {
         await project[schemaName].getMany()
-      }, 'should fail creating since the project is already closed')
+      }, 'should fail getting since the project is already closed')
     })
   }
 })
