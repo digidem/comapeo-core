@@ -1,32 +1,37 @@
 // Types generated from brittle readme with chatgpt
 
 declare module 'brittle' {
+  interface CoercibleAssertion {
+    (actual: any, expected: any, message?: string): void
+    coercively(actual: any, expected: any, message?: string): void
+  }
+
+  interface ExceptionAssertion {
+    <T>(
+      fn: T | Promise<T>,
+      error?: RegExp | Error,
+      message?: string
+    ): Promise<void>
+    <T>(fn: T | Promise<T>, message?: string): Promise<void>
+    all<T>(fn: T | Promise<T>, message?: string): Promise<void>
+    all<T>(
+      fn: T | Promise<T>,
+      error?: RegExp | Error,
+      message?: string
+    ): Promise<void>
+  }
+
   interface Assertion {
-    is(actual: any, expected: any, message?: string): void
-    not(actual: any, expected: any, message?: string): void
-    alike(actual: any, expected: any, message?: string): void
-    unlike(actual: any, expected: any, message?: string): void
+    is: CoercibleAssertion
+    not: CoercibleAssertion
+    alike: CoercibleAssertion
+    unlike: CoercibleAssertion
     ok(value: any, message?: string): void
     absent(value: any, message?: string): void
     pass(message?: string): void
     fail(message?: string): void
-    exception<T>(
-      fn: T | Promise<T>,
-      error?: RegExp | Error,
-      message?: string
-    ): Promise<void>
-    exception<T>(fn: T | Promise<T>, message?: string): Promise<void>
-    'exception.all'<T>(
-      fn: T | Promise<T>,
-      error?: RegExp | Error,
-      message?: string
-    ): Promise<void>
-    'exception.all'<T>(fn: T | Promise<T>, message?: string): Promise<void>
+    exception: ExceptionAssertion
     execution<T>(fn: T | Promise<T>, message?: string): Promise<number>
-    'is.coercively'(actual: any, expected: any, message?: string): void
-    'not.coercively'(actual: any, expected: any, message?: string): void
-    'alike.coercively'(actual: any, expected: any, message?: string): void
-    'unlike.coercively'(actual: any, expected: any, message?: string): void
   }
 
   interface TestOptions {
