@@ -68,7 +68,7 @@ export class MapeoManager extends TypedEmitter {
   #coreStorage
   #dbFolder
   /** @type {string} */
-  #projectMigrationFolder
+  #projectMigrationsFolder
   #deviceId
   #localPeers
   #invite
