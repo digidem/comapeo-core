@@ -98,7 +98,7 @@ export class MapeoManager extends TypedEmitter {
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#l = new Logger({ deviceId: this.#deviceId, ns: 'manager' })
     this.#dbFolder = dbFolder
-    this.#projectMigrationFolder = projectMigrationFolder
+    this.#projectMigrationsFolder = projectMigrationsFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
         ? ':memory:'
@@ -106,7 +106,7 @@ export class MapeoManager extends TypedEmitter {
     )
     this.#db = drizzle(sqlite)
     migrate(this.#db, {
-      migrationsFolder: new URL(clientMigrationFolder, import.meta.url)
+      migrationsFolder: new URL(clientMigrationsFolder, import.meta.url)
         .pathname,
     })
 
@@ -365,7 +365,7 @@ export class MapeoManager extends TypedEmitter {
     return new MapeoProject({
       ...this.#projectStorage(projectId),
       ...projectKeys,
-      projectMigrationFolder: this.#projectMigrationFolder,
+      projectMigrationFolder: this.#projectMigrationsFolder,
       keyManager: this.#keyManager,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
