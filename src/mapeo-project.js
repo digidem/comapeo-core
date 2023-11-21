@@ -478,7 +478,11 @@ export class MapeoProject {
     const replicationStream = this.#coreManager.creatorCore.replicate(stream, {
       // @ts-ignore - hypercore types do not currently include this option
       ondiscoverykey: async (discoveryKey) => {
-        this.#syncApi[kHandleDiscoveryKey](discoveryKey, replicationStream)
+        const protomux =
+          /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
+            replicationStream.noiseStream.userData
+          )
+        this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
       },
     })
     return replicationStream

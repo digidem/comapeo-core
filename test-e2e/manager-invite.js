@@ -112,7 +112,7 @@ test('chain of invites', async (t) => {
   await disconnectPeers(managers)
 })
 
-// Needs fix to inviteApi to check capabilities before sending invite
+// TODO: Needs fix to inviteApi to check capabilities before sending invite
 skip("member can't invite", async (t) => {
   const managers = await createManagers(3)
   const [creator, member, joiner] = managers

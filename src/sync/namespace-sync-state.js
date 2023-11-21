@@ -86,9 +86,9 @@ export class NamespaceSyncState {
    * @param {Buffer} coreKey
    */
   #addCore(core, coreKey) {
-    this.#coreCount++
     const discoveryId = discoveryKey(coreKey).toString('hex')
     this.#getCoreState(discoveryId).attachCore(core)
+    this.#coreCount++
   }
 
   /**

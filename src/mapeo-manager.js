@@ -534,7 +534,7 @@ export class MapeoManager extends TypedEmitter {
    * happening, this will never timeout, but if more than timeoutMs passes
    * without any sync activity, then this will resolve `false` e.g. data has not
    * synced
-   * @returns
+   * @returns {Promise<boolean>}
    */
   async #waitForInitialSync(project, { timeoutMs = 5000 } = {}) {
     await project.ready()
