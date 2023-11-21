@@ -11,6 +11,10 @@ test('CoreOwnership', async (t) => {
   const km = new KeyManager(rootKey)
   const manager = new MapeoManager({
     rootKey,
+    projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
+      .pathname,
+    clientMigrationsFolder: new URL('../drizzle/client', import.meta.url)
+      .pathname,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })

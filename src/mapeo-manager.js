@@ -105,10 +105,7 @@ export class MapeoManager extends TypedEmitter {
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
     this.#db = drizzle(sqlite)
-    migrate(this.#db, {
-      migrationsFolder: new URL(clientMigrationsFolder, import.meta.url)
-        .pathname,
-    })
+    migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
 
     this.#localPeers = new LocalPeers({ logger: this.#l })
     this.#localPeers.on('peers', (peers) => {
@@ -365,7 +362,7 @@ export class MapeoManager extends TypedEmitter {
     return new MapeoProject({
       ...this.#projectStorage(projectId),
       ...projectKeys,
-      projectMigrationFolder: this.#projectMigrationsFolder,
+      projectMigrationsFolder: this.#projectMigrationsFolder,
       keyManager: this.#keyManager,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,

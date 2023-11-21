@@ -7,6 +7,11 @@ import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { MapeoManager, kRPC } from '../src/mapeo-manager.js'
 import { replicate } from '../tests/helpers/local-peers.js'
 
+const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
+  .pathname
+const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
+  .pathname
+
 test('member invite accepted', async (t) => {
   t.plan(10)
 
@@ -14,6 +19,8 @@ test('member invite accepted', async (t) => {
 
   const creator = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -39,6 +46,8 @@ test('member invite accepted', async (t) => {
 
   const joiner = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -107,6 +116,8 @@ test('member invite rejected', async (t) => {
 
   const creator = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -133,6 +144,8 @@ test('member invite rejected', async (t) => {
 
   const joiner = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })

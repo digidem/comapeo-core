@@ -13,6 +13,11 @@ import {
 } from '../src/capabilities.js'
 import { replicate } from '../tests/helpers/local-peers.js'
 
+const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
+  .pathname
+const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
+  .pathname
+
 test('getting yourself after creating project', async (t) => {
   const { manager } = setup()
 
@@ -159,6 +164,8 @@ test('getting invited member after invite accepted', async (t) => {
 function setup() {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -180,6 +187,8 @@ function setup() {
 
     const otherManager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
+      projectMigrationsFolder,
+      clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
     })
