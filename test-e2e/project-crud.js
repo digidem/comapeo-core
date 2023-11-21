@@ -124,6 +124,37 @@ test('CRUD operations', async (t) => {
         'expected values returns from getMany()'
       )
     })
+    t.test('create, close and then create, update', async (st) => {
+      const projectId = await manager.createProject()
+      const project = await manager.getProject(projectId)
+      const values = new Array(5).fill(null).map(() => {
+        return getUpdateFixture(value)
+      })
+      for (const value of values) {
+        // @ts-ignore
+        await project[schemaName].create(value)
+      }
+      // @ts-ignore
+      const written = await project[schemaName].create(value)
+      await project.close()
+
+      await st.exception(async () => {
+        const updateValue = getUpdateFixture(value)
+        // @ts-ignore
+        await project[schemaName].update(written.versionId, updateValue)
+      }, 'should fail updating since the project is already closed')
+
+      await st.exception(async () => {
+        for (const value of values) {
+          // @ts-ignore
+          await project[schemaName].create(value)
+        }
+      }, 'should fail creating since the project is already closed')
+
+      await st.exception(async () => {
+        await project[schemaName].getMany()
+      }, 'should fail creating since the project is already closed')
+    })
   }
 })
 
