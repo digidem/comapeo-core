@@ -67,6 +67,8 @@ export class MapeoManager extends TypedEmitter {
   /** @type {import('./types.js').CoreStorage} */
   #coreStorage
   #dbFolder
+  /** @type {string} */
+  #projectMigrationFolder
   #deviceId
   #localPeers
   #invite
@@ -78,15 +80,25 @@ export class MapeoManager extends TypedEmitter {
    * @param {Object} opts
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
+   * @param {string} [opts.projectMigrationFolder] path for drizzle migration folder for project
+   * @param {string} [opts.clientMigrationFolder] path for drizzle migration folder for client
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {{ port?: number, logger: import('fastify').FastifyServerOptions['logger'] }} [opts.mediaServerOpts]
    */
-  constructor({ rootKey, dbFolder, coreStorage, mediaServerOpts }) {
+  constructor({
+    rootKey,
+    dbFolder,
+    projectMigrationFolder = '../drizzle/project',
+    clientMigrationFolder = '../drizzle/client',
+    coreStorage,
+    mediaServerOpts,
+  }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#l = new Logger({ deviceId: this.#deviceId, ns: 'manager' })
     this.#dbFolder = dbFolder
+    this.#projectMigrationFolder = projectMigrationFolder
     const sqlite = new Database(
       dbFolder === ':memory:'
         ? ':memory:'
@@ -94,7 +106,8 @@ export class MapeoManager extends TypedEmitter {
     )
     this.#db = drizzle(sqlite)
     migrate(this.#db, {
-      migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
+      migrationsFolder: new URL(clientMigrationFolder, import.meta.url)
+        .pathname,
     })
 
     this.#localPeers = new LocalPeers({ logger: this.#l })
@@ -352,6 +365,7 @@ export class MapeoManager extends TypedEmitter {
     return new MapeoProject({
       ...this.#projectStorage(projectId),
       ...projectKeys,
+      projectMigrationFolder: this.#projectMigrationFolder,
       keyManager: this.#keyManager,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,

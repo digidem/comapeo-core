@@ -69,6 +69,7 @@ export class MapeoProject {
   /**
    * @param {Object} opts
    * @param {string} opts.dbPath Path to store project sqlite db. Use `:memory:` for memory storage
+   * @param {string} [opts.projectMigrationFolder] path for drizzle migration folder for project
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
@@ -83,6 +84,7 @@ export class MapeoProject {
    */
   constructor({
     dbPath,
+    projectMigrationFolder = '../drizzle/project',
     sharedDb,
     sharedIndexWriter,
     coreStorage,
@@ -102,7 +104,8 @@ export class MapeoProject {
     const sqlite = new Database(dbPath)
     const db = drizzle(sqlite)
     migrate(db, {
-      migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+      migrationsFolder: new URL(projectMigrationFolder, import.meta.url)
+        .pathname,
     })
 
     ///////// 2. Setup random-access-storage functions
