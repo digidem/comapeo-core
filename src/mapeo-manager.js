@@ -88,8 +88,8 @@ export class MapeoManager extends TypedEmitter {
   constructor({
     rootKey,
     dbFolder,
-    projectMigrationFolder = '../drizzle/project',
-    clientMigrationFolder = '../drizzle/client',
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     coreStorage,
     mediaServerOpts,
   }) {
