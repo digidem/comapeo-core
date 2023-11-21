@@ -7,7 +7,7 @@ import {
   createManagers,
   disconnectPeers,
   waitForPeers,
-} from './utils-new.js'
+} from './utils.js'
 
 test('member invite accepted', async (t) => {
   const [creator, joiner] = await createManagers(2)

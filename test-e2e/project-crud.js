@@ -4,8 +4,8 @@ import { KeyManager } from '@mapeo/crypto'
 import { valueOf } from '../src/utils.js'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import RAM from 'random-access-memory'
-import { stripUndef } from './utils-new.js'
-import { round } from './utils-new.js'
+import { stripUndef } from './utils.js'
+import { round } from './utils.js'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [

@@ -14,7 +14,7 @@ import {
   disconnectPeers,
   invite,
   waitForPeers,
-} from './utils-new.js'
+} from './utils.js'
 
 test('getting yourself after creating project', async (t) => {
   const [manager] = await createManagers(1)

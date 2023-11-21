@@ -6,7 +6,7 @@ import {
   seedDatabases,
   sortById,
   waitForSync,
-} from './utils-new.js'
+} from './utils.js'
 import { kCoreManager } from '../src/mapeo-project.js'
 import { getKeys } from '../tests/helpers/core-manager.js'
 import { NAMESPACES } from '../src/core-manager/index.js'
