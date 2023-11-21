@@ -24,20 +24,26 @@ createDebug.formatters.k = function (v) {
  * @param {import('./sync/sync-state.js').State} v
  * @this {any} */
 createDebug.formatters.X = function (v) {
-  const mapped = mapObject(v, (k, v) => [
-    k,
-    mapObject(v, (k, v) => {
-      if (k === 'remoteStates')
-        return [k, mapObject(v, (k, v) => [k.slice(0, 7), v])]
-      return [k, v]
-    }),
-  ])
-  return util.inspect(mapped, {
-    colors: true,
-    depth: 10,
-    compact: 6,
-    breakLength: 90,
-  })
+  try {
+    const mapped = mapObject(v, (k, v) => [
+      k,
+      // @ts-ignore - type checks here don't get us anything
+      mapObject(v, (k, v) => {
+        if (k === 'remoteStates')
+          // @ts-ignore - type checks here don't get us anything
+          return [k, mapObject(v, (k, v) => [k.slice(0, 7), v])]
+        return [k, v]
+      }),
+    ])
+    return util.inspect(mapped, {
+      colors: true,
+      depth: 10,
+      compact: 6,
+      breakLength: 90,
+    })
+  } catch (e) {
+    return `[ERROR: $(e.message)]`
+  }
 }
 
 const counts = new Map()
