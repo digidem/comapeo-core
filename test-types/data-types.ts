@@ -28,6 +28,8 @@ const sqlite = new Database(':memory:')
 
 const mapeoProject = new MapeoProject({
   dbPath: ':memory:',
+  projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
+    .pathname,
   coreStorage: () => new RAM(),
   keyManager: new KeyManager(randomBytes(32)),
   projectKey: randomBytes(32),
