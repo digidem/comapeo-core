@@ -10,6 +10,11 @@ import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import { randomInt } from 'node:crypto'
 
+const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
+  .pathname
+const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
+  .pathname
+
 /**
  * @param {readonly MapeoManager[]} managers
  */
@@ -158,6 +163,8 @@ export async function createManagers(count) {
 export function createManager(seed) {
   return new MapeoManager({
     rootKey: getRootKey(seed),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })

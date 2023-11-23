@@ -8,6 +8,10 @@ import RAM from 'random-access-memory'
 test('Project settings create, read, and update operations', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
+      .pathname,
+    clientMigrationsFolder: new URL('../drizzle/client', import.meta.url)
+      .pathname,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })

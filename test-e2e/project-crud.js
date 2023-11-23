@@ -67,6 +67,10 @@ function getUpdateFixture(value) {
 test('CRUD operations', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
+      .pathname,
+    clientMigrationsFolder: new URL('../drizzle/client', import.meta.url)
+      .pathname,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })

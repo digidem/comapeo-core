@@ -4,9 +4,16 @@ import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
 
+const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
+  .pathname
+const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
+  .pathname
+
 test('Managing created projects', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -109,6 +116,8 @@ test('Managing created projects', async (t) => {
 test('Managing added projects', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -181,6 +190,8 @@ test('Managing added projects', async (t) => {
 test('Managing both created and added projects', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -222,6 +233,8 @@ test('Managing both created and added projects', async (t) => {
 test('Manager cannot add project that already exists', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -249,6 +262,8 @@ test('Consistent storage folders', async (t) => {
   const storageNames = []
   const manager = new MapeoManager({
     rootKey: randomBytesSeed('root_key').subarray(0, 16),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: (name) => {
       storageNames.push(name)
@@ -275,6 +290,8 @@ test('Consistent storage folders', async (t) => {
 test('manager.start() and manager.stop()', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
