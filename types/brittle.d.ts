@@ -47,43 +47,40 @@ declare module 'brittle' {
     timeout(ms: number): void
     comment(message: string): void
     end(): void
-    test(
-      name: string,
-      options: TestOptions,
-      callback: (t: TestInstance) => void | Promise<void>
-    ): Promise<boolean>
-    test(
-      name: string,
-      callback: (t: TestInstance) => void | Promise<void>
-    ): Promise<boolean>
-    test(name: string, options: TestOptions): TestInstance
-    test(options: TestOptions): TestInstance
+    test: TestFn
   }
 
   type TestCallback = (t: TestInstance) => void | Promise<void>
 
-  function test(
-    name: string,
-    options: TestOptions,
-    callback: TestCallback
-  ): Promise<boolean>
-  function test(name: string, callback: TestCallback): Promise<boolean>
-  function test(name: string, options: TestOptions): TestInstance
-  function test(options: TestOptions): TestInstance
-  function solo(
-    name: string,
-    options: TestOptions,
-    callback: TestCallback
-  ): Promise<boolean>
-  function solo(name: string, callback: TestCallback): Promise<boolean>
-  function solo(options: TestOptions): TestInstance
-  function skip(
-    name: string,
-    options: TestOptions,
-    callback: TestCallback
-  ): Promise<boolean>
-  function skip(name: string, callback: TestCallback): void
-  function configure(options: TestOptions): void
+  interface TestFn {
+    // The brittle docs suggest the return value is `Promise<boolean>` but this is not the case.
+    (
+      name: string,
+      options: TestOptions,
+      callback: (t: TestInstance) => void | Promise<void>
+    ): Promise<void>
+    (
+      name: string,
+      callback: (t: TestInstance) => void | Promise<void>
+    ): Promise<void>
+    (callback: (t: TestInstance) => void | Promise<void>): Promise<void>
+    (name: string, options: TestOptions): TestInstance
+    (name: string): TestInstance
+    (): TestInstance
+    // The docs suggest the below is possible, but it isn't
+    // (options: TestOptions): TestInstance
+  }
 
-  export { test, solo, skip, configure }
+  interface Test extends TestFn {
+    test: Test
+    solo: TestFn
+    skip: TestFn
+  }
+
+  export const solo: TestFn
+  export const skip: TestFn
+  export const test: Test
+  export function configure(options: TestOptions): void
+
+  export default test
 }
