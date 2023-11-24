@@ -11,6 +11,7 @@ import {
 import { type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { SQLiteSelectBuilder } from 'drizzle-orm/sqlite-core'
 import { RunResult } from 'better-sqlite3'
+import type Hypercore from 'hypercore'
 
 type MapeoDocTableName = `${MapeoDoc['schemaName']}Table`
 type GetMapeoDocTables<T> = T[keyof T & MapeoDocTableName]
@@ -58,6 +59,8 @@ export class DataType<
   })
 
   get [kTable](): TTable
+
+  get writerCore(): Hypercore<'binary', Buffer>
 
   [kCreateWithDocId](
     docId: string,

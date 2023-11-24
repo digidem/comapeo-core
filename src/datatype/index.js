@@ -91,6 +91,10 @@ export class DataType {
     return this.#table
   }
 
+  get writerCore() {
+    return this.#dataStore.writerCore
+  }
+
   /**
    * @template {import('type-fest').Exact<TValue, T>} T
    * @param {T} value

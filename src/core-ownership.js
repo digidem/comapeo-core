@@ -8,6 +8,7 @@ import { kTable, kSelect, kCreateWithDocId } from './datatype/index.js'
 import { eq, or } from 'drizzle-orm'
 import mapObject from 'map-obj'
 import { discoveryKey } from 'hypercore-crypto'
+import pDefer from 'p-defer'
 
 /**
  * @typedef {import('./types.js').CoreOwnershipWithSignatures} CoreOwnershipWithSignatures
@@ -15,6 +16,7 @@ import { discoveryKey } from 'hypercore-crypto'
 
 export class CoreOwnership {
   #dataType
+  #ownershipWriteDone
   /**
    *
    * @param {object} opts
@@ -25,9 +27,30 @@ export class CoreOwnership {
    *   import('@mapeo/schema').CoreOwnership,
    *   import('@mapeo/schema').CoreOwnershipValue
    * >} opts.dataType
+   * @param {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>} opts.coreKeypairs
+   * @param {import('./types.js').KeyPair} opts.identityKeypair
    */
-  constructor({ dataType }) {
+  constructor({ dataType, coreKeypairs, identityKeypair }) {
     this.#dataType = dataType
+    const authWriterCore = dataType.writerCore
+    const deferred = pDefer()
+    this.#ownershipWriteDone = deferred.promise
+
+    const writeOwnership = () => {
+      if (authWriterCore.length > 0) {
+        deferred.resolve()
+        return
+      }
+      this.#writeOwnership(identityKeypair, coreKeypairs)
+        .then(deferred.resolve)
+        .catch(deferred.reject)
+    }
+    // @ts-ignore - opened missing from types
+    if (authWriterCore.opened) {
+      writeOwnership()
+    } else {
+      authWriterCore.on('ready', writeOwnership)
+    }
   }
 
   /**
@@ -35,6 +58,7 @@ export class CoreOwnership {
    * @returns {Promise<string>} deviceId of device that owns the core
    */
   async getOwner(coreId) {
+    await this.#ownershipWriteDone
     const table = this.#dataType[kTable]
     const expressions = []
     for (const namespace of NAMESPACES) {
@@ -57,6 +81,7 @@ export class CoreOwnership {
    * @returns {Promise<string>} coreId of core belonging to `deviceId` for `namespace`
    */
   async getCoreId(deviceId, namespace) {
+    await this.#ownershipWriteDone
     const result = await this.#dataType.getByDocId(deviceId)
     return result[`${namespace}CoreId`]
   }
@@ -66,7 +91,7 @@ export class CoreOwnership {
    * @param {import('./types.js').KeyPair} identityKeypair
    * @param {Record<typeof NAMESPACES[number], import('./types.js').KeyPair>} coreKeypairs
    */
-  async writeOwnership(identityKeypair, coreKeypairs) {
+  async #writeOwnership(identityKeypair, coreKeypairs) {
     /** @type {import('./types.js').CoreOwnershipWithSignaturesValue} */
     const docValue = {
       schemaName: 'coreOwnership',
