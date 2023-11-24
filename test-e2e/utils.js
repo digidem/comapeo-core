@@ -9,7 +9,10 @@ import { once } from 'node:events'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import { randomInt } from 'node:crypto'
+import { temporaryDirectory } from 'tempy'
+import fsPromises from 'node:fs/promises'
 
+const FAST_TESTS = !!process.env.FAST_TESTS
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
@@ -143,30 +146,48 @@ export async function waitForPeers(managers) {
  *
  * @template {number} T
  * @param {T} count
+ * @param {import('brittle').TestInstance} t
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
-export async function createManagers(count) {
+export async function createManagers(count, t) {
   // @ts-ignore
   return Promise.all(
     Array(count)
       .fill(null)
       .map(async (_, i) => {
         const name = 'device' + i
-        const manager = createManager(name)
+        const manager = createManager(name, t)
         await manager.setDeviceInfo({ name })
         return manager
       })
   )
 }
 
-/** @param {string} [seed] */
-export function createManager(seed) {
+/**
+ * @param {string} seed
+ * @param {import('brittle').TestInstance} t
+ */
+export function createManager(seed, t) {
+  const dbFolder = FAST_TESTS ? ':memory:' : temporaryDirectory()
+  const coreStorage = FAST_TESTS ? () => new RAM() : temporaryDirectory()
+  t.teardown(async () => {
+    if (FAST_TESTS) return
+    await Promise.all([
+      fsPromises.rm(dbFolder, { recursive: true, force: true, maxRetries: 2 }),
+      // @ts-ignore
+      fsPromises.rm(coreStorage, {
+        recursive: true,
+        force: true,
+        maxRetries: 2,
+      }),
+    ])
+  })
   return new MapeoManager({
     rootKey: getRootKey(seed),
     projectMigrationsFolder,
     clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
+    dbFolder,
+    coreStorage,
   })
 }
 
