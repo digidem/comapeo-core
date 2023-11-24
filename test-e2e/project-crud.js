@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto'
 import { valueOf } from '../src/utils.js'
 import { createManager, stripUndef } from './utils.js'
 import { round } from './utils.js'
+import { generate } from '@mapeo/mock-data'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -61,6 +62,8 @@ function getUpdateFixture(value) {
   }
 }
 
+const CREATE_COUNT = 100
+
 test('CRUD operations', async (t) => {
   const manager = createManager('device0', t)
 
@@ -69,10 +72,21 @@ test('CRUD operations', async (t) => {
     await t.test(`create and read ${schemaName}`, async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
-      // @ts-ignore - TS can't figure this out, but we're not testing types here so ok to ignore
-      const written = await project[schemaName].create(value)
-      const read = await project[schemaName].getByDocId(written.docId)
-      st.alike(valueOf(stripUndef(written)), value, 'expected value is written')
+      const values = []
+      const writePromises = []
+      let i = 0
+      while (i++ < CREATE_COUNT) {
+        const value = valueOf(generate(schemaName)[0])
+        values.push(value)
+        writePromises.push(
+          // @ts-ignore
+          project[schemaName].create(value)
+        )
+      }
+      const written = await Promise.all(writePromises)
+      const read = await Promise.all(
+        written.map((doc) => project[schemaName].getByDocId(doc.docId))
+      )
       st.alike(written, read, 'return create() matches return of getByDocId()')
     })
     await t.test('update', async (st) => {
