@@ -356,13 +356,6 @@ export class MapeoProject {
   }
 
   /**
-   * Resolves when hypercores have all loaded
-   */
-  async ready() {
-    await Promise.all([this.#coreManager.ready(), this.#ownershipWriteDone])
-  }
-
-  /**
    * @param {import('multi-core-indexer').Entry[]} entries
    * @param {{projectIndexWriter: IndexWriter, sharedIndexWriter: IndexWriter}} indexWriters
    */

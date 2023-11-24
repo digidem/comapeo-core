@@ -66,7 +66,6 @@ test('New device without capabilities', async (t) => {
     { waitForSync: false }
   )
   const project = await manager.getProject(projectId)
-  await project.ready()
 
   const ownCapabilities = await project.$getOwnCapabilities()
 
@@ -147,7 +146,6 @@ test('getMany() - on newly invited device before sync', async (t) => {
     { waitForSync: false }
   )
   const project = await manager.getProject(projectId)
-  await project.ready()
 
   const expected = {
     [deviceId]: NO_ROLE_CAPABILITIES,

@@ -45,8 +45,6 @@ test('device info written to projects', (t) => {
     const projectId = await manager.createProject()
     const project = await manager.getProject(projectId)
 
-    await project.ready()
-
     const me = await project.$member.getById(project.deviceId)
 
     st.is(me.deviceId, project.deviceId)
@@ -74,8 +72,6 @@ test('device info written to projects', (t) => {
 
     const project = await manager.getProject(projectId)
 
-    await project.ready()
-
     const me = await project.$member.getById(project.deviceId)
 
     st.alike({ name: me.name }, { name: 'mapeo' })
@@ -101,7 +97,6 @@ test('device info written to projects', (t) => {
     const projects = await Promise.all(
       projectIds.map(async (projectId) => {
         const project = await manager.getProject(projectId)
-        await project.ready()
         return project
       })
     )
