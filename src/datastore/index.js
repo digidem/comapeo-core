@@ -46,7 +46,9 @@ export class DataStore extends TypedEmitter {
   #writerCore
   #coreIndexer
   /** @type {Map<string, import('p-defer').DeferredPromise<void>>} */
-  #pending = new Map()
+  #pendingIndex = new Map()
+  /** @type {Set<import('p-defer').DeferredPromise<void>['promise']>} */
+  #pendingAppends = new Set()
 
   /**
    * @param {object} opts
@@ -104,11 +106,8 @@ export class DataStore extends TypedEmitter {
    * @param {MultiCoreIndexer.Entry<'binary'>[]} entries
    */
   async #handleEntries(entries) {
-    // This is needed to avoid the batch running before the append resolves, but
-    // I think this is only necessary when using random-access-memory, and will
-    // not be an issue when the indexer is on a separate thread.
-    await new Promise((res) => setTimeout(res, 0))
     await this.#batch(entries)
+    await Promise.all(this.#pendingAppends)
     // Writes to the writerCore need to wait until the entry is indexed before
     // returning, so we check if any incoming entry has a pending promise
     for (const entry of entries) {
@@ -117,7 +116,7 @@ export class DataStore extends TypedEmitter {
         coreDiscoveryKey: discoveryKey(entry.key),
         index: entry.index,
       })
-      const pending = this.#pending.get(versionId)
+      const pending = this.#pendingIndex.get(versionId)
       if (!pending) continue
       pending.resolve()
     }
@@ -143,8 +142,16 @@ export class DataStore extends TypedEmitter {
       )
     }
     const block = encode(doc)
-
+    // The indexer batch can sometimes complete before the append below
+    // resolves, so in the batch function we await any pending appends. We can't
+    // know the versionId before the append, because docs can be written in the
+    // same tick, so we can't know their index before append resolves.
+    const deferredAppend = pDefer()
+    this.#pendingAppends.add(deferredAppend.promise)
     const { length } = await this.#writerCore.append(block)
+    deferredAppend.resolve()
+    this.#pendingAppends.delete(deferredAppend.promise)
+
     const index = length - 1
     const coreDiscoveryKey = this.#writerCore.discoveryKey
     if (!coreDiscoveryKey) {
@@ -153,7 +160,7 @@ export class DataStore extends TypedEmitter {
     const versionId = getVersionId({ coreDiscoveryKey, index })
     /** @type {import('p-defer').DeferredPromise<void>} */
     const deferred = pDefer()
-    this.#pending.set(versionId, deferred)
+    this.#pendingIndex.set(versionId, deferred)
     await deferred.promise
 
     return /** @type {Extract<MapeoDoc, TDoc>} */ (

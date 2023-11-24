@@ -12,7 +12,7 @@ import { randomInt } from 'node:crypto'
 import { temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 
-const FAST_TESTS = !!process.env.FAST_TESTS
+const FAST_TESTS = true
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)

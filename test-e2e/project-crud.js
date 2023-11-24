@@ -4,6 +4,7 @@ import { valueOf } from '../src/utils.js'
 import { createManager, stripUndef } from './utils.js'
 import { round } from './utils.js'
 import { generate } from '@mapeo/mock-data'
+import { setTimeout as delay } from 'timers/promises'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -95,6 +96,7 @@ test('CRUD operations', async (t) => {
       // @ts-ignore
       const written = await project[schemaName].create(value)
       const updateValue = getUpdateFixture(value)
+      await delay(1) // delay to ensure updatedAt is different to createdAt
       // @ts-ignore
       const updated = await project[schemaName].update(
         written.versionId,
