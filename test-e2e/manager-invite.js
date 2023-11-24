@@ -10,7 +10,7 @@ import {
 } from './utils.js'
 
 test('member invite accepted', async (t) => {
-  const [creator, joiner] = await createManagers(2)
+  const [creator, joiner] = await createManagers(2, t)
   connectPeers([creator, joiner])
   await waitForPeers([creator, joiner])
 
@@ -64,7 +64,7 @@ test('member invite accepted', async (t) => {
 })
 
 test('chain of invites', async (t) => {
-  const managers = await createManagers(4)
+  const managers = await createManagers(4, t)
   const [creator, ...joiners] = managers
   connectPeers(managers)
   await waitForPeers(managers)
@@ -114,7 +114,7 @@ test('chain of invites', async (t) => {
 
 // TODO: Needs fix to inviteApi to check capabilities before sending invite
 skip("member can't invite", async (t) => {
-  const managers = await createManagers(3)
+  const managers = await createManagers(3, t)
   const [creator, member, joiner] = managers
   connectPeers(managers)
   await waitForPeers(managers)
@@ -149,7 +149,7 @@ skip("member can't invite", async (t) => {
 })
 
 test('member invite rejected', async (t) => {
-  const [creator, joiner] = await createManagers(2)
+  const [creator, joiner] = await createManagers(2, t)
   connectPeers([creator, joiner])
   await waitForPeers([creator, joiner])
 

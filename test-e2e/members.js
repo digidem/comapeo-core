@@ -17,7 +17,7 @@ import {
 } from './utils.js'
 
 test('getting yourself after creating project', async (t) => {
-  const [manager] = await createManagers(1)
+  const [manager] = await createManagers(1, t)
 
   const deviceInfo = await manager.getDeviceInfo()
   const project = await manager.getProject(await manager.createProject())
@@ -49,7 +49,7 @@ test('getting yourself after creating project', async (t) => {
 })
 
 test('getting yourself after adding project (but not yet synced)', async (t) => {
-  const [manager] = await createManagers(1)
+  const [manager] = await createManagers(1, t)
 
   const deviceInfo = await manager.getDeviceInfo()
   const project = await manager.getProject(
@@ -89,7 +89,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
 })
 
 test('getting invited member after invite rejected', async (t) => {
-  const managers = await createManagers(2)
+  const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
   connectPeers(managers)
   await waitForPeers(managers)
@@ -120,7 +120,7 @@ test('getting invited member after invite rejected', async (t) => {
 })
 
 test('getting invited member after invite accepted', async (t) => {
-  const managers = await createManagers(2)
+  const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
   connectPeers(managers)
   await waitForPeers(managers)
