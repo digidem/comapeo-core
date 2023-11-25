@@ -101,10 +101,6 @@ test('index events', async (t) => {
   await idlePromise
   const expectedStates = [
     {
-      current: 'idle',
-      remaining: 0,
-    },
-    {
       current: 'indexing',
       remaining: 1,
     },

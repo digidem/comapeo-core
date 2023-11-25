@@ -280,7 +280,9 @@ test('Consistent storage folders', async (t) => {
       },
       { waitForSync: false }
     )
-    await manager.getProject(projectId)
+    const project = await manager.getProject(projectId)
+    // awaiting this ensures that indexing is done, which means that indexer storage is created
+    await project.$getOwnCapabilities()
   }
 
   // @ts-ignore snapshot() is missing from typedefs

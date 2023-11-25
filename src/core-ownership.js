@@ -65,7 +65,7 @@ export class CoreOwnership {
       expressions.push(eq(table[`${namespace}CoreId`], coreId))
     }
     // prettier-ignore
-    const result = this.#dataType[kSelect]()
+    const result = (await this.#dataType[kSelect]())
       .where(or.apply(null, expressions))
       .get()
     if (!result) {

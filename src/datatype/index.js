@@ -140,6 +140,7 @@ export class DataType {
    * @param {string} docId
    */
   async getByDocId(docId) {
+    await this.#dataStore.indexer.idle()
     const result = this.#sql.getByDocId.get({ docId })
     if (!result) throw new Error('Not found')
     return deNullify(result)
@@ -151,6 +152,7 @@ export class DataType {
   }
 
   async getMany() {
+    await this.#dataStore.indexer.idle()
     return this.#sql.getMany.all().map((doc) => deNullify(doc))
   }
 
@@ -161,6 +163,7 @@ export class DataType {
    * @param {T} value
    */
   async update(versionId, value) {
+    await this.#dataStore.indexer.idle()
     const links = Array.isArray(versionId) ? versionId : [versionId]
     const { docId, createdAt, createdBy } = await this.#validateLinks(links)
     /** @type {any} */
@@ -181,6 +184,7 @@ export class DataType {
    * @param {string | string[]} versionId
    */
   async delete(versionId) {
+    await this.#dataStore.indexer.idle()
     const links = Array.isArray(versionId) ? versionId : [versionId]
     const { docId, createdAt, createdBy } = await this.#validateLinks(links)
     /** @type {any} */
@@ -200,7 +204,8 @@ export class DataType {
   /**
    * @param {Parameters<import('drizzle-orm/better-sqlite3').BetterSQLite3Database['select']>[0]} fields
    */
-  [kSelect](fields) {
+  async [kSelect](fields) {
+    await this.#dataStore.indexer.idle()
     return this.#db.select(fields).from(this.#table)
   }
 
