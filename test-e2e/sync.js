@@ -252,5 +252,9 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     t.alike(invitorState[ns].localState, inviteeState[ns].localState)
   }
 
+  // Temp fix until we have .close() method - waits for indexing idle to ensure
+  // we don't close storage in teardown while index is still being written.
+  await Promise.all(projects.map((p) => p.$getProjectSettings()))
+
   await disconnect1()
 })
