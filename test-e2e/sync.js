@@ -18,8 +18,8 @@ import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/capabilities.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
-test('Create and sync data', async function (t) {
-  const COUNT = 5
+test('Create and sync data', { timeout: 100_000 }, async function (t) {
+  const COUNT = 10
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
@@ -251,6 +251,10 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     }
     t.alike(invitorState[ns].localState, inviteeState[ns].localState)
   }
+
+  // Temp fix until we have .close() method - waits for indexing idle to ensure
+  // we don't close storage in teardown while index is still being written.
+  await Promise.all(projects.map((p) => p.$getProjectSettings()))
 
   await disconnect1()
 })

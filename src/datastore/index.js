@@ -84,6 +84,10 @@ export class DataStore extends TypedEmitter {
     })
   }
 
+  get indexer() {
+    return this.#coreIndexer
+  }
+
   get namespace() {
     return this.#namespace
   }
