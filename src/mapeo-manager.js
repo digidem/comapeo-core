@@ -30,6 +30,8 @@ import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
 import { MediaServer } from './media-server.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
+import { Capabilities } from './capabilities.js'
+import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { Logger } from './logger.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
@@ -74,6 +76,7 @@ export class MapeoManager extends TypedEmitter {
   #invite
   #mediaServer
   #localDiscovery
+  #loggerBase
   #l
 
   /**
@@ -96,7 +99,8 @@ export class MapeoManager extends TypedEmitter {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
-    this.#l = new Logger({ deviceId: this.#deviceId, ns: 'manager' })
+    const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
+    this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
     this.#projectMigrationsFolder = projectMigrationsFolder
     const sqlite = new Database(
@@ -107,15 +111,20 @@ export class MapeoManager extends TypedEmitter {
     this.#db = drizzle(sqlite)
     migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
 
-    this.#localPeers = new LocalPeers({ logger: this.#l })
+    this.#localPeers = new LocalPeers({ logger })
     this.#localPeers.on('peers', (peers) => {
       this.emit('local-peers', omitPeerProtomux(peers))
+    })
+    this.#localPeers.on('discovery-key', (dk) => {
+      if (this.#activeProjects.size === 0) {
+        this.#l.log('Received dk %h but no active projects', dk)
+      }
     })
 
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectSettingsTable],
       sqlite,
-      logger: this.#l,
+      logger,
     })
     this.#activeProjects = new Map()
 
@@ -152,9 +161,9 @@ export class MapeoManager extends TypedEmitter {
 
     this.#localDiscovery = new LocalDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
-      logger: this.#l,
+      logger,
     })
-    this.#localDiscovery.on('connection', this[kManagerReplicate].bind(this))
+    this.#localDiscovery.on('connection', this.#replicate.bind(this))
   }
 
   /**
@@ -169,15 +178,25 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * Replicate Mapeo to a `@hyperswarm/secret-stream`. This replication connects
-   * the Mapeo RPC channel and allows invites. All active projects will sync
-   * automatically to this replication stream. Only use for local (trusted)
-   * connections, because the RPC channel key is public. To sync a specific
-   * project without connecting RPC, use project[kProjectReplication].
+   * Create a Mapeo replication stream. This replication connects the Mapeo RPC
+   * channel and allows invites. All active projects will sync automatically to
+   * this replication stream. Only use for local (trusted) connections, because
+   * the RPC channel key is public. To sync a specific project without
+   * connecting RPC, use project[kProjectReplication].
    *
-   * @param {import('@hyperswarm/secret-stream')<any>} noiseStream
+   * @param {boolean} isInitiator
    */
-  [kManagerReplicate](noiseStream) {
+  [kManagerReplicate](isInitiator) {
+    const noiseStream = new NoiseSecretStream(isInitiator, undefined, {
+      keyPair: this.#keyManager.getIdentityKeypair(),
+    })
+    return this.#replicate(noiseStream)
+  }
+
+  /**
+   * @param {NoiseSecretStream<any>} noiseStream
+   */
+  #replicate(noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
     Promise.all([this.getDeviceInfo(), openedNoiseSecretStream(noiseStream)])
       .then(([{ name }, openedNoiseStream]) => {
@@ -367,7 +386,7 @@ export class MapeoManager extends TypedEmitter {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
-      logger: this.#l,
+      logger: this.#loggerBase,
       getMediaBaseUrl: this.#mediaServer.getMediaAddress.bind(
         this.#mediaServer
       ),
@@ -426,10 +445,18 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
+   * Add a project to this device. After adding a project the client should
+   * await `project.$waitForInitialSync()` to ensure that the device has
+   * downloaded their proof of project membership and the project config.
+   *
    * @param {import('./generated/rpc.js').Invite} invite
+   * @param {{ waitForSync?: boolean }} [opts] For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject()
    * @returns {Promise<string>}
    */
-  async addProject({ projectKey, encryptionKeys, projectInfo }) {
+  async addProject(
+    { projectKey, encryptionKeys, projectInfo },
+    { waitForSync = true } = {}
+  ) {
     const projectPublicId = projectKeyToPublicId(projectKey)
 
     // 1. Check for an active project
@@ -453,10 +480,9 @@ export class MapeoManager extends TypedEmitter {
       throw new Error(`Project with ID ${projectPublicId} already exists`)
     }
 
-    // TODO: Relies on completion of https://github.com/digidem/mapeo-core-next/issues/233
-    // 3. Sync auth + config cores
+    // No awaits here - need to update table in same tick as the projectExists check
 
-    // 4. Update the project keys table
+    // 3. Update the project keys table
     this.#saveToProjectKeysTable({
       projectId,
       projectPublicId,
@@ -467,15 +493,106 @@ export class MapeoManager extends TypedEmitter {
       projectInfo,
     })
 
-    // 5. Write device info into project
-    const deviceInfo = await this.getDeviceInfo()
-
-    if (deviceInfo.name) {
+    // Any errors from here we need to remove project from db because it has not
+    // been fully added and synced
+    try {
+      // 4. Write device info into project
       const project = await this.getProject(projectPublicId)
-      await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
-    }
+      await project.ready()
 
+      try {
+        const deviceInfo = await this.getDeviceInfo()
+        if (deviceInfo.name) {
+          await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
+        }
+      } catch (e) {
+        // Can ignore an error trying to write device info
+        this.#l.log(
+          'ERROR: failed to write project %h deviceInfo %o',
+          projectKey,
+          e
+        )
+      }
+
+      // 5. Wait for initial project sync
+      if (waitForSync) {
+        await this.#waitForInitialSync(project)
+      }
+
+      this.#activeProjects.set(projectPublicId, project)
+    } catch (e) {
+      this.#l.log('ERROR: could not add project', e)
+      this.#db
+        .delete(projectKeysTable)
+        .where(eq(projectKeysTable.projectId, projectId))
+        .run()
+      throw e
+    }
+    this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
     return projectPublicId
+  }
+
+  /**
+   * Sync initial data: the `auth` cores which contain the capability messages,
+   * and the `config` cores which contain the project name & custom config (if
+   * it exists). The API consumer should await this after `client.addProject()`
+   * to ensure that the device is fully added to the project.
+   *
+   * @param {MapeoProject} project
+   * @param {object} [opts]
+   * @param {number} [opts.timeoutMs=5000] Timeout in milliseconds for max time
+   * to wait between sync status updates before giving up. As long as syncing is
+   * happening, this will never timeout, but if more than timeoutMs passes
+   * without any sync activity, then this will resolve `false` e.g. data has not
+   * synced
+   * @returns {Promise<boolean>}
+   */
+  async #waitForInitialSync(project, { timeoutMs = 5000 } = {}) {
+    await project.ready()
+    const [capability, projectSettings] = await Promise.all([
+      project.$getOwnCapabilities(),
+      project.$getProjectSettings(),
+    ])
+    const {
+      auth: { localState: authState },
+      config: { localState: configState },
+    } = project.$sync.getState()
+    const isCapabilitySynced = capability !== Capabilities.NO_ROLE_CAPABILITIES
+    const isProjectSettingsSynced =
+      projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
+    // Assumes every project that someone is invited to has at least one record
+    // in the auth store - the capability record for the invited device
+    const isAuthSynced = authState.want === 0 && authState.have > 0
+    // Assumes every project that someone is invited to has at least one record
+    // in the config store - defining the name of the project.
+    // TODO: Enforce adding a project name in the invite method
+    const isConfigSynced = configState.want === 0 && configState.have > 0
+    if (
+      isCapabilitySynced &&
+      isProjectSettingsSynced &&
+      isAuthSynced &&
+      isConfigSynced
+    ) {
+      return true
+    }
+    return new Promise((resolve, reject) => {
+      /** @param {import('./sync/sync-state.js').State} syncState */
+      const onSyncState = (syncState) => {
+        clearTimeout(timeoutId)
+        if (syncState.auth.dataToSync || syncState.config.dataToSync) {
+          timeoutId = setTimeout(onTimeout, timeoutMs)
+          return
+        }
+        project.$sync.off('sync-state', onSyncState)
+        resolve(this.#waitForInitialSync(project, { timeoutMs }))
+      }
+      const onTimeout = () => {
+        project.$sync.off('sync-state', onSyncState)
+        reject(new Error('Sync timeout'))
+      }
+      let timeoutId = setTimeout(onTimeout, timeoutMs)
+      project.$sync.on('sync-state', onSyncState)
+    })
   }
 
   /**
@@ -501,6 +618,7 @@ export class MapeoManager extends TypedEmitter {
         await project[kSetOwnDeviceInfo](deviceInfo)
       })
     )
+    this.#l.log('set device info %o', deviceInfo)
   }
 
   /**
@@ -531,6 +649,15 @@ export class MapeoManager extends TypedEmitter {
 
   async stop() {
     await this.#mediaServer.stop()
+  }
+
+  async startLocalPeerDiscovery() {
+    return this.#localDiscovery.start()
+  }
+
+  /** @type {LocalDiscovery['stop']} */
+  async stopLocalPeerDiscovery(opts) {
+    return this.#localDiscovery.stop(opts)
   }
 
   /**

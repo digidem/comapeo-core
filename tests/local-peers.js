@@ -109,7 +109,7 @@ test('Send invite, duplicate connections', async (t) => {
   t.is(peers3.length, 1)
   t.ok(
     peers3[0].connectedAt > peers1[0].connectedAt,
-    'later connected peer is not used'
+    `later connected peer is not used: ${peers3[0].connectedAt} ${peers1[0].connectedAt}`
   )
 
   {

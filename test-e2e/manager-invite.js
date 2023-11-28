@@ -1,179 +1,181 @@
-import { test } from 'brittle'
-import { KeyManager } from '@mapeo/crypto'
-import pDefer from 'p-defer'
-import RAM from 'random-access-memory'
-import { MEMBER_ROLE_ID } from '../src/capabilities.js'
+import { test, skip } from 'brittle'
+import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
-import { MapeoManager, kRPC } from '../src/mapeo-manager.js'
-import { replicate } from '../tests/helpers/local-peers.js'
-
-const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
-  .pathname
-const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
-  .pathname
+import { once } from 'node:events'
+import {
+  connectPeers,
+  createManagers,
+  disconnectPeers,
+  waitForPeers,
+} from './utils.js'
 
 test('member invite accepted', async (t) => {
-  t.plan(10)
-
-  const deferred = pDefer()
-
-  const creator = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
-
-  await creator.setDeviceInfo({ name: 'Creator' })
+  const [creator, joiner] = await createManagers(2)
+  connectPeers([creator, joiner])
+  await waitForPeers([creator, joiner])
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
-  creator[kRPC].on('peers', async (peers) => {
-    t.is(peers.length, 1)
 
-    const response = await creatorProject.$member.invite(peers[0].deviceId, {
-      roleId: MEMBER_ROLE_ID,
-    })
-
-    t.is(response, InviteResponse_Decision.ACCEPT)
-
-    deferred.resolve()
-  })
-
-  /** @type {string | undefined} */
-  let expectedInvitorPeerId
-
-  const joiner = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
-
-  await joiner.setDeviceInfo({ name: 'Joiner' })
-
-  t.exception(
+  await t.exception(
     async () => joiner.getProject(createdProjectId),
     'joiner cannot get project instance before being invited and added to project'
   )
 
-  joiner[kRPC].on('peers', (peers) => {
-    t.is(peers.length, 1)
-    expectedInvitorPeerId = peers[0].deviceId
+  const responsePromise = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
   })
+  const [invite] = await once(joiner.invite, 'invite-received')
+  t.is(invite.projectId, createdProjectId, 'projectId of invite matches')
+  t.is(invite.peerId, creator.deviceId, 'deviceId of invite matches')
+  t.is(invite.projectName, 'Mapeo', 'project name of invite matches')
 
-  joiner.invite.on('invite-received', async (invite) => {
-    t.is(invite.projectId, createdProjectId)
-    t.is(invite.peerId, expectedInvitorPeerId)
-    t.is(invite.projectName, 'Mapeo')
-    // TODO: Check role being invited for (needs https://github.com/digidem/mapeo-core-next/issues/275)
+  await joiner.invite.accept(invite.projectId)
 
-    await joiner.invite.accept(invite.projectId)
-  })
-
-  replicate(creator[kRPC], joiner[kRPC])
-
-  await deferred.promise
+  t.is(
+    await responsePromise,
+    InviteResponse_Decision.ACCEPT,
+    'correct invite response'
+  )
 
   /// After invite flow has completed...
 
-  const joinerListedProjects = await joiner.listProjects()
-
-  t.is(joinerListedProjects.length, 1, 'project added to joiner')
   t.alike(
-    joinerListedProjects[0],
-    {
-      name: 'Mapeo',
-      projectId: createdProjectId,
-      createdAt: undefined,
-      updatedAt: undefined,
-    },
+    await joiner.listProjects(),
+    await creator.listProjects(),
     'project info recorded in joiner successfully'
   )
 
-  const joinerProject = await joiner.getProject(
-    joinerListedProjects[0].projectId
+  const joinerProject = await joiner.getProject(createdProjectId)
+
+  t.alike(
+    await joinerProject.$getProjectSettings(),
+    await creatorProject.$getProjectSettings(),
+    'Project settings match'
   )
 
-  t.ok(joinerProject, 'can create joiner project instance')
+  t.alike(
+    await creatorProject.$member.getMany(),
+    await joinerProject.$member.getMany(),
+    'Project members match'
+  )
 
-  // TODO: Get project settings of joiner and ensure they're similar to creator's project's settings
-  // const joinerProjectSettings = await joinerProject.$getProjectSettings()
-  // t.alike(joinerProjectSettings, { defaultPresets: undefined, name: 'Mapeo' })
-
-  // TODO: Get members of creator project and assert info matches joiner
-  // const creatorProjectMembers = await creatorProject.$member.getMany()
-  // t.is(creatorProjectMembers.length, 1)
-  // t.alike(creatorProjectMembers[0], await joiner.getDeviceInfo())
+  await disconnectPeers([creator, joiner])
 })
 
-test('member invite rejected', async (t) => {
-  t.plan(9)
+test('chain of invites', async (t) => {
+  const managers = await createManagers(4)
+  const [creator, ...joiners] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
 
-  const deferred = pDefer()
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
 
-  const creator = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
+  let invitor = creator
+  for (const joiner of joiners) {
+    const invitorProject = await invitor.getProject(createdProjectId)
+    const responsePromise = invitorProject.$member.invite(joiner.deviceId, {
+      roleId: COORDINATOR_ROLE_ID,
+    })
+    const [invite] = await once(joiner.invite, 'invite-received')
+    await joiner.invite.accept(invite.projectId)
+    t.is(
+      await responsePromise,
+      InviteResponse_Decision.ACCEPT,
+      'correct invite response'
+    )
+  }
 
-  await creator.setDeviceInfo({ name: 'Creator' })
+  /// After invite flow has completed...
+
+  const creatorProject = await creator.getProject(createdProjectId)
+  const expectedProjectSettings = await creatorProject.$getProjectSettings()
+  const expectedMembers = await creatorProject.$member.getMany()
+
+  for (const joiner of joiners) {
+    const joinerProject = await joiner.getProject(createdProjectId)
+
+    t.alike(
+      await joinerProject.$getProjectSettings(),
+      expectedProjectSettings,
+      'Project settings match'
+    )
+
+    const joinerMembers = await joinerProject.$member.getMany()
+    t.alike(
+      joinerMembers.sort(memberSort),
+      expectedMembers.sort(memberSort),
+      'Project members match'
+    )
+  }
+
+  await disconnectPeers(managers)
+})
+
+// TODO: Needs fix to inviteApi to check capabilities before sending invite
+skip("member can't invite", async (t) => {
+  const managers = await createManagers(3)
+  const [creator, member, joiner] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
 
-  creator[kRPC].on('peers', async (peers) => {
-    t.is(peers.length, 1)
-
-    const response = await creatorProject.$member.invite(peers[0].deviceId, {
-      roleId: MEMBER_ROLE_ID,
-    })
-
-    t.is(response, InviteResponse_Decision.REJECT)
-
-    deferred.resolve()
+  const responsePromise = creatorProject.$member.invite(member.deviceId, {
+    roleId: MEMBER_ROLE_ID,
   })
+  const [invite] = await once(member.invite, 'invite-received')
+  await member.invite.accept(invite.projectId)
+  await responsePromise
 
-  /** @type {string | undefined} */
-  let expectedInvitorPeerId
+  /// After invite flow has completed...
 
-  const joiner = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
+  const memberProject = await member.getProject(createdProjectId)
 
-  await joiner.setDeviceInfo({ name: 'Joiner' })
+  t.alike(
+    await memberProject.$getProjectSettings(),
+    await creatorProject.$getProjectSettings(),
+    'Project settings match'
+  )
 
-  t.exception(
+  const exceptionPromise = t.exception(() =>
+    memberProject.$member.invite(joiner.deviceId, { roleId: MEMBER_ROLE_ID })
+  )
+  joiner.invite.once('invite-received', () => t.fail('should not send invite'))
+  await exceptionPromise
+
+  await disconnectPeers(managers)
+})
+
+test('member invite rejected', async (t) => {
+  const [creator, joiner] = await createManagers(2)
+  connectPeers([creator, joiner])
+  await waitForPeers([creator, joiner])
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+
+  await t.exception(
     async () => joiner.getProject(createdProjectId),
     'joiner cannot get project instance before being invited and added to project'
   )
 
-  joiner[kRPC].on('peers', (peers) => {
-    t.is(peers.length, 1)
-    expectedInvitorPeerId = peers[0].deviceId
+  const responsePromise = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
   })
+  const [invite] = await once(joiner.invite, 'invite-received')
+  t.is(invite.projectId, createdProjectId, 'projectId of invite matches')
+  t.is(invite.peerId, creator.deviceId, 'deviceId of invite matches')
+  t.is(invite.projectName, 'Mapeo', 'project name of invite matches')
 
-  joiner.invite.on('invite-received', async (invite) => {
-    t.is(invite.projectId, createdProjectId)
-    t.is(invite.peerId, expectedInvitorPeerId)
-    t.is(invite.projectName, 'Mapeo')
-    // TODO: Check role being invited for (needs https://github.com/digidem/mapeo-core-next/issues/275)
+  await joiner.invite.reject(invite.projectId)
 
-    await joiner.invite.reject(invite.projectId)
-  })
-
-  replicate(creator[kRPC], joiner[kRPC])
-
-  await deferred.promise
+  t.is(
+    await responsePromise,
+    InviteResponse_Decision.REJECT,
+    'correct invite response'
+  )
 
   /// After invite flow has completed...
 
@@ -186,7 +188,21 @@ test('member invite rejected', async (t) => {
     'joiner cannot get project instance'
   )
 
-  // TODO: Get members of creator project and assert joiner not added
-  // const creatorProjectMembers = await creatorProject.$member.getMany()
-  // t.is(creatorProjectMembers.length, 0)
+  t.is(
+    (await creatorProject.$member.getMany()).length,
+    1,
+    'Only 1 member in project still'
+  )
+
+  await disconnectPeers([creator, joiner])
 })
+
+/**
+ * @param {import('../src/member-api.js').MemberInfo} a
+ * @param {import('../src/member-api.js').MemberInfo} b
+ */
+function memberSort(a, b) {
+  if (a.deviceId < b.deviceId) return -1
+  if (a.deviceId > b.deviceId) return 1
+  return 0
+}

@@ -64,10 +64,13 @@ test('device info written to projects', (t) => {
 
     await manager.setDeviceInfo({ name: 'mapeo' })
 
-    const projectId = await manager.addProject({
-      projectKey: randomBytes(32),
-      encryptionKeys: { auth: randomBytes(32) },
-    })
+    const projectId = await manager.addProject(
+      {
+        projectKey: randomBytes(32),
+        encryptionKeys: { auth: randomBytes(32) },
+      },
+      { waitForSync: false }
+    )
 
     const project = await manager.getProject(projectId)
 

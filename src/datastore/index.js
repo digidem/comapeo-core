@@ -66,6 +66,10 @@ export class DataStore extends TypedEmitter {
       storage,
       batch: (entries) => this.#handleEntries(entries),
     })
+    coreManager.on('add-core', (coreRecord) => {
+      if (coreRecord.namespace !== namespace) return
+      this.#coreIndexer.addCore(coreRecord.core)
+    })
 
     // Forward events from coreIndexer
     this.on('newListener', (eventName, listener) => {
@@ -164,9 +168,9 @@ export class DataStore extends TypedEmitter {
    */
   async read(versionId) {
     const { coreDiscoveryKey, index } = parseVersionId(versionId)
-    const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-    if (!core) throw new Error('Invalid versionId')
-    const block = await core.get(index, { wait: false })
+    const coreRecord = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
+    if (!coreRecord) throw new Error('Invalid versionId')
+    const block = await coreRecord.core.get(index, { wait: false })
     if (!block) throw new Error('Not Found')
     return decode(block, { coreDiscoveryKey, index })
   }
@@ -186,9 +190,9 @@ export class DataStore extends TypedEmitter {
   /** @param {string} versionId */
   async readRaw(versionId) {
     const { coreDiscoveryKey, index } = parseVersionId(versionId)
-    const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-    if (!core) throw new Error('core not found')
-    const block = await core.get(index, { wait: false })
+    const coreRecord = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
+    if (!coreRecord) throw new Error('core not found')
+    const block = await coreRecord.core.get(index, { wait: false })
     if (!block) throw new Error('Not Found')
     return block
   }

@@ -36,20 +36,21 @@ import {
   valueOf,
 } from './utils.js'
 import { MemberApi } from './member-api.js'
-import { IconApi } from './icon-api.js'
-import { SyncApi, kSyncReplicate } from './sync/sync-api.js'
-import Hypercore from 'hypercore'
+import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
+import { IconApi } from './icon-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
+export const kCoreManager = Symbol('coreManager')
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
+const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
 export class MapeoProject {
   #projectId
@@ -65,6 +66,8 @@ export class MapeoProject {
   #iconApi
   #syncApi
   #l
+
+  static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
   /**
    * @param {Object} opts
@@ -278,26 +281,25 @@ export class MapeoProject {
       logger: this.#l,
     })
 
-    ///////// 4. Wire up sync
+    ///////// 4. Replicate local peers automatically
 
     // Replicate already connected local peers
     for (const peer of localPeers.peers) {
       if (peer.status !== 'connected') continue
-      this.#syncApi[kSyncReplicate](peer.protomux)
+      this.#coreManager.creatorCore.replicate(peer.protomux)
     }
-
-    localPeers.on('discovery-key', (discoveryKey, stream) => {
-      // The core identified by this discovery key might not be part of this
-      // project, but we can't know that so we will request it from the peer if
-      // we don't have it. The peer will not return the core key unless it _is_
-      // part of this project
-      this.#coreManager.handleDiscoveryKey(discoveryKey, stream)
-    })
 
     // When a new peer is found, try to replicate (if it is not a member of the
     // project it will fail the capability check and be ignored)
     localPeers.on('peer-add', (peer) => {
-      this.#syncApi[kSyncReplicate](peer.protomux)
+      this.#coreManager.creatorCore.replicate(peer.protomux)
+    })
+
+    // This happens whenever a peer replicates a core to the stream. SyncApi
+    // handles replicating this core if we also have it, or requesting the key
+    // for the core.
+    localPeers.on('discovery-key', (discoveryKey, stream) => {
+      this.#syncApi[kHandleDiscoveryKey](discoveryKey, stream)
     })
 
     ///////// 5. Write core ownership record
@@ -322,6 +324,13 @@ export class MapeoProject {
         .catch(deferred.reject)
     })
     this.#l.log('Created project instance %h', projectKey)
+  }
+
+  /**
+   * CoreManager instance, used for tests
+   */
+  get [kCoreManager]() {
+    return this.#coreManager
   }
 
   /**
@@ -447,7 +456,7 @@ export class MapeoProject {
       )
     } catch (e) {
       this.#l.log('No project settings')
-      return /** @type {EditableProjectSettings} */ ({})
+      return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
     }
   }
 
@@ -461,18 +470,21 @@ export class MapeoProject {
    * and only this project will replicate (to replicate multiple projects you
    * need to replicate the manager instance via manager[kManagerReplicate])
    *
-   * @param {Exclude<Parameters<Hypercore.createProtocolStream>[0], boolean>} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
+   * @param {Parameters<import('hypercore')['replicate']>[0]} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
    * @returns
    */
   [kProjectReplicate](stream) {
-    const replicationStream = Hypercore.createProtocolStream(stream, {
+    // @ts-expect-error - hypercore types need updating
+    const replicationStream = this.#coreManager.creatorCore.replicate(stream, {
+      // @ts-ignore - hypercore types do not currently include this option
       ondiscoverykey: async (discoveryKey) => {
-        this.#coreManager.handleDiscoveryKey(discoveryKey, replicationStream)
+        const protomux =
+          /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
+            replicationStream.noiseStream.userData
+          )
+        this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
       },
     })
-    const protomux = replicationStream.noiseStream.userData
-    // @ts-ignore - got fed up jumping through hoops to keep TS heppy
-    this.#syncApi[kSyncReplicate](protomux)
     return replicationStream
   }
 

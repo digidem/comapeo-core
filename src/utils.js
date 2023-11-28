@@ -85,7 +85,7 @@ export function deNullify(obj) {
 }
 
 /**
- * @template {import('@mapeo/schema').MapeoDoc & { forks: string[] }} T
+ * @template {import('@mapeo/schema').MapeoDoc & { forks?: string[] }} T
  * @param {T} doc
  * @returns {Omit<T, 'docId' | 'versionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'createdBy' | 'deleted'>}
  */

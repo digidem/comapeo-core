@@ -122,17 +122,23 @@ test('Managing added projects', async (t) => {
     coreStorage: () => new RAM(),
   })
 
-  const project1Id = await manager.addProject({
-    projectKey: KeyManager.generateProjectKeypair().publicKey,
-    encryptionKeys: { auth: randomBytes(32) },
-    projectInfo: { name: 'project 1' },
-  })
+  const project1Id = await manager.addProject(
+    {
+      projectKey: KeyManager.generateProjectKeypair().publicKey,
+      encryptionKeys: { auth: randomBytes(32) },
+      projectInfo: { name: 'project 1' },
+    },
+    { waitForSync: false }
+  )
 
-  const project2Id = await manager.addProject({
-    projectKey: KeyManager.generateProjectKeypair().publicKey,
-    encryptionKeys: { auth: randomBytes(32) },
-    projectInfo: { name: 'project 2' },
-  })
+  const project2Id = await manager.addProject(
+    {
+      projectKey: KeyManager.generateProjectKeypair().publicKey,
+      encryptionKeys: { auth: randomBytes(32) },
+      projectInfo: { name: 'project 2' },
+    },
+    { waitForSync: false }
+  )
 
   t.test('initial information from listed projects', async (st) => {
     const listedProjects = await manager.listProjects()
@@ -194,11 +200,14 @@ test('Managing both created and added projects', async (t) => {
     name: 'created project',
   })
 
-  const addedProjectId = await manager.addProject({
-    projectKey: KeyManager.generateProjectKeypair().publicKey,
-    encryptionKeys: { auth: randomBytes(32) },
-    projectInfo: { name: 'added project' },
-  })
+  const addedProjectId = await manager.addProject(
+    {
+      projectKey: KeyManager.generateProjectKeypair().publicKey,
+      encryptionKeys: { auth: randomBytes(32) },
+      projectInfo: { name: 'added project' },
+    },
+    { waitForSync: false }
+  )
 
   const listedProjects = await manager.listProjects()
 
@@ -263,11 +272,14 @@ test('Consistent storage folders', async (t) => {
   })
 
   for (let i = 0; i < 10; i++) {
-    const projectId = await manager.addProject({
-      projectKey: randomBytesSeed('test' + i),
-      encryptionKeys: { auth: randomBytes(32) },
-      projectInfo: {},
-    })
+    const projectId = await manager.addProject(
+      {
+        projectKey: randomBytesSeed('test' + i),
+        encryptionKeys: { auth: randomBytes(32) },
+        projectInfo: {},
+      },
+      { waitForSync: false }
+    )
     await manager.getProject(projectId)
   }
 

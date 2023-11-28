@@ -84,7 +84,7 @@ test('test validity of `createdBy` field from another peer', async (t) => {
 
   const obs = await dt1.create(obsFixture)
   const driveId = ds1.writerCore.key
-  const { destroy } = replicateDataStore(cm1, cm2)
+  const { destroy } = replicate(cm1, cm2)
   await waitForCores(cm2, [driveId])
   const replicatedCore = cm2.getCoreByKey(driveId)
   await replicatedCore.update({ wait: true })
@@ -134,18 +134,4 @@ async function testenv(opts) {
   })
 
   return { coreManager, dataType, dataStore }
-}
-
-function replicateDataStore(cm1, cm2) {
-  const {
-    rsm: [rsm1, rsm2],
-    destroy,
-  } = replicate(cm1, cm2)
-
-  rsm1.enableNamespace('data')
-  rsm2.enableNamespace('data')
-  return {
-    rsm: /** @type {const} */ ([rsm1, rsm2]),
-    destroy,
-  }
 }
