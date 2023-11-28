@@ -22,7 +22,6 @@ test('CoreOwnership', async (t) => {
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
   const coreOwnership = project[kCoreOwnership]
-  await project.ready()
 
   const identityKeypair = km.getIdentityKeypair()
   const deviceId = identityKeypair.publicKey.toString('hex')

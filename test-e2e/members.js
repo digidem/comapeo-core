@@ -21,7 +21,6 @@ test('getting yourself after creating project', async (t) => {
 
   const deviceInfo = await manager.getDeviceInfo()
   const project = await manager.getProject(await manager.createProject())
-  await project.ready()
 
   const me = await project.$member.getById(project.deviceId)
 
@@ -62,7 +61,6 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
       { waitForSync: false }
     )
   )
-  await project.ready()
 
   const me = await project.$member.getById(project.deviceId)
 
@@ -98,7 +96,6 @@ test('getting invited member after invite rejected', async (t) => {
 
   const projectId = await invitor.createProject()
   const project = await invitor.getProject(projectId)
-  await project.ready()
 
   await invite({
     invitor,
@@ -131,7 +128,6 @@ test('getting invited member after invite accepted', async (t) => {
   const { name: inviteeName } = await invitee.getDeviceInfo()
   const projectId = await invitor.createProject()
   const project = await invitor.getProject(projectId)
-  await project.ready()
 
   await invite({
     invitor,

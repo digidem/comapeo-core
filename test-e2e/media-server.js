@@ -33,8 +33,6 @@ test('retrieving blobs using url', async (t) => {
 
   const project = await manager.getProject(await manager.createProject())
 
-  await project.ready()
-
   const exceptionPromise1 = t.exception(async () => {
     await project.$blobs.getUrl({
       driveId: randomBytes(32).toString('hex'),
@@ -125,8 +123,6 @@ test('retrieving icons using url', async (t) => {
   })
 
   const project = await manager.getProject(await manager.createProject())
-
-  await project.ready()
 
   const exceptionPromise1 = t.exception(async () => {
     await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {

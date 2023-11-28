@@ -4,7 +4,6 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
 
 import { CoreManager, NAMESPACES } from './core-manager/index.js'
@@ -61,7 +60,6 @@ export class MapeoProject {
   #blobStore
   #coreOwnership
   #capabilities
-  #ownershipWriteDone
   #memberApi
   #iconApi
   #syncApi
@@ -220,9 +218,16 @@ export class MapeoProject {
         db,
       }),
     }
-
+    const identityKeypair = keyManager.getIdentityKeypair()
+    const coreKeypairs = getCoreKeypairs({
+      projectKey,
+      projectSecretKey,
+      keyManager,
+    })
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
+      coreKeypairs,
+      identityKeypair,
     })
     this.#capabilities = new Capabilities({
       dataType: this.#dataTypes.role,
@@ -302,27 +307,6 @@ export class MapeoProject {
       this.#syncApi[kHandleDiscoveryKey](discoveryKey, stream)
     })
 
-    ///////// 5. Write core ownership record
-
-    const deferred = pDefer()
-    // Avoid uncaught rejection. If this is rejected then project.ready() will reject
-    deferred.promise.catch(() => {})
-    this.#ownershipWriteDone = deferred.promise
-
-    const authCore = this.#coreManager.getWriterCore('auth').core
-    authCore.on('ready', () => {
-      if (authCore.length > 0) return
-      const identityKeypair = keyManager.getIdentityKeypair()
-      const coreKeypairs = getCoreKeypairs({
-        projectKey,
-        projectSecretKey,
-        keyManager,
-      })
-      this.#coreOwnership
-        .writeOwnership(identityKeypair, coreKeypairs)
-        .then(deferred.resolve)
-        .catch(deferred.reject)
-    })
     this.#l.log('Created project instance %h', projectKey)
   }
 
@@ -353,13 +337,6 @@ export class MapeoProject {
 
   get deviceId() {
     return this.#deviceId
-  }
-
-  /**
-   * Resolves when hypercores have all loaded
-   */
-  async ready() {
-    await Promise.all([this.#coreManager.ready(), this.#ownershipWriteDone])
   }
 
   /**
@@ -544,11 +521,11 @@ function extractEditableProjectSettings(projectDoc) {
  * @param {Buffer} opts.projectKey
  * @param {Buffer} [opts.projectSecretKey]
  * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
- * @returns {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>}
+ * @returns {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>}
  */
 function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
   const keypairs =
-    /** @type {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>} */ ({})
+    /** @type {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>} */ ({})
 
   for (const namespace of NAMESPACES) {
     keypairs[namespace] =

@@ -498,7 +498,6 @@ export class MapeoManager extends TypedEmitter {
     try {
       // 4. Write device info into project
       const project = await this.getProject(projectPublicId)
-      await project.ready()
 
       try {
         const deviceInfo = await this.getDeviceInfo()
@@ -548,7 +547,6 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<boolean>}
    */
   async #waitForInitialSync(project, { timeoutMs = 5000 } = {}) {
-    await project.ready()
     const [capability, projectSettings] = await Promise.all([
       project.$getOwnCapabilities(),
       project.$getProjectSettings(),
