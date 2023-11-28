@@ -20,7 +20,7 @@ const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
 test('Create and sync data', async function (t) {
   const COUNT = 5
-  const managers = await createManagers(COUNT)
+  const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
   const projectId = await invitor.createProject()
@@ -88,7 +88,7 @@ test('start and stop sync', async function (t) {
   // Checks that both peers need to start syncing for data to sync, and that
   // $sync.stop() actually stops data syncing
   const COUNT = 2
-  const managers = await createManagers(COUNT)
+  const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
   const projectId = await invitor.createProject()
@@ -154,7 +154,7 @@ test('start and stop sync', async function (t) {
 
 test('shares cores', async function (t) {
   const COUNT = 5
-  const managers = await createManagers(COUNT)
+  const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   connectPeers(managers, { discovery: false })
   const projectId = await invitor.createProject()
@@ -192,7 +192,7 @@ test('shares cores', async function (t) {
 
 test('no sync capabilities === no namespaces sync apart from auth', async (t) => {
   const COUNT = 3
-  const managers = await createManagers(COUNT)
+  const managers = await createManagers(COUNT, t)
   const [invitor, invitee, blocked] = managers
   const disconnect1 = connectPeers(managers, { discovery: false })
   const projectId = await invitor.createProject()
