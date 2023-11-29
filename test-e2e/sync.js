@@ -22,7 +22,7 @@ test('Create and sync data', { timeout: 100_000 }, async function (t) {
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
   await disconnect()
 
@@ -90,7 +90,7 @@ test('start and stop sync', async function (t) {
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
 
   const projects = await Promise.all(
@@ -156,7 +156,7 @@ test('shares cores', async function (t) {
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   connectPeers(managers, { discovery: false })
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
 
   const projects = await Promise.all(
@@ -194,7 +194,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const managers = await createManagers(COUNT, t)
   const [invitor, invitee, blocked] = managers
   const disconnect1 = connectPeers(managers, { discovery: false })
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({
     invitor,
     invitees: [blocked],

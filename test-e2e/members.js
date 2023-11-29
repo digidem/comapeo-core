@@ -94,7 +94,7 @@ test('getting invited member after invite rejected', async (t) => {
   connectPeers(managers)
   await waitForPeers(managers)
 
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   const project = await invitor.getProject(projectId)
 
   await invite({
@@ -126,7 +126,7 @@ test('getting invited member after invite accepted', async (t) => {
   await waitForPeers(managers)
 
   const { name: inviteeName } = await invitee.getDeviceInfo()
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   const project = await invitor.getProject(projectId)
 
   await invite({
