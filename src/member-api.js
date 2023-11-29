@@ -1,6 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import { projectKeyToId } from './utils.js'
+import { DEFAULT_CAPABILITIES } from './capabilities.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
@@ -46,24 +47,47 @@ export class MemberApi extends TypedEmitter {
     this.#dataTypes = dataTypes
   }
 
+  /** @typedef {import('./capabilities.js').RoleId} COSO */
+
+  /** @type {Array<any>}
+   * @property {import('./capabilities.js').RoleId} 0
+   * @property {import('./capabilities.js').Capability} 1 */
+
   /**
    * @param {string} deviceId
    *
    * @param {Object} opts
-   * @param {import('./capabilities.js').RoleId} opts.roleId
+   * @param {'Coordinator' | 'Member'} opts.roleName
+   * @param {string} [opts.roleDescription]
    * @param {number} [opts.timeout]
    *
    * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
    */
-  async invite(deviceId, { roleId, timeout }) {
+  async invite(deviceId, { roleName, roleDescription, timeout }) {
+    /** @type {[
+     * roleId: import('./capabilities.js').RoleId,
+     * cap: import('./capabilities.js').Capability] | undefined} */
+    // @ts-ignore TODO:  force cast to literal type
+    const entry = Object.entries(DEFAULT_CAPABILITIES).find(
+      /* eslint-disable no-unused-vars */
+      ([roleId, cap]) => cap.name === roleName
+    )
+    if (entry === undefined) throw new Error('invalid roleName')
+    const [roleId] = entry
+
     const projectId = projectKeyToId(this.#projectKey)
 
     const project = await this.#dataTypes.project.getByDocId(projectId)
+
+    if (!project.name)
+      throw new Error('Project must have a name to invite people')
 
     const response = await this.#rpc.invite(deviceId, {
       projectKey: this.#projectKey,
       encryptionKeys: this.#encryptionKeys,
       projectInfo: { name: project.name },
+      roleName,
+      roleDescription,
       timeout,
     })
 
