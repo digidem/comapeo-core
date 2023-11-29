@@ -77,6 +77,8 @@ test('Send invite, duplicate connections', async (t) => {
   const invite = {
     projectKey: Buffer.allocUnsafe(32).fill(0),
     encryptionKeys: { auth: randomBytes(32) },
+    /** @type {import('../src/generated/rpc.js').Invite_RoleName} */
+    roleName: 'MEMBER',
   }
 
   const kp1 = NoiseSecretStream.keyPair()
@@ -142,6 +144,8 @@ test('Duplicate connections with immediate disconnect', async (t) => {
   const invite = {
     projectKey: Buffer.allocUnsafe(32).fill(0),
     encryptionKeys: { auth: randomBytes(32) },
+    /** @type {import('../src/generated/rpc.js').Invite_RoleName} */
+    roleName: 'MEMBER',
   }
 
   const kp1 = NoiseSecretStream.keyPair()

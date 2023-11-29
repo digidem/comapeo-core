@@ -139,3 +139,8 @@ export function projectIdToNonce(projectId) {
 export function getDeviceId(keyManager) {
   return keyManager.getIdentityKeypair().publicKey.toString('hex')
 }
+
+/** @param {string} str */
+export function capitalize(str) {
+  return str.slice(0, 1).toUpperCase() + str.slice(1)
+}

@@ -1,6 +1,6 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { projectKeyToId } from './utils.js'
+import { capitalize, projectKeyToId } from './utils.js'
 import { DEFAULT_CAPABILITIES } from './capabilities.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
@@ -68,7 +68,7 @@ export class MemberApi extends TypedEmitter {
     // @ts-ignore TODO:  force cast to literal type
     const entry = Object.entries(DEFAULT_CAPABILITIES).find(
       /* eslint-disable no-unused-vars */
-      ([roleId, cap]) => cap.name === roleName
+      ([roleId, cap]) => cap.name === capitalize(roleName.toLowerCase())
     )
     if (entry === undefined) throw new Error('invalid roleName')
     const [roleId] = entry

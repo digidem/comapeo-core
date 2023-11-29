@@ -449,7 +449,7 @@ export class MapeoManager extends TypedEmitter {
    * await `project.$waitForInitialSync()` to ensure that the device has
    * downloaded their proof of project membership and the project config.
    *
-   * @param {import('./generated/rpc.js').Invite} invite
+   * @param {Omit<import('./generated/rpc.js').Invite, 'roleName'>} invite
    * @param {{ waitForSync?: boolean }} [opts] For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject()
    * @returns {Promise<string>}
    */
