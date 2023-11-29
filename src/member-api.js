@@ -57,7 +57,7 @@ export class MemberApi extends TypedEmitter {
    * @param {string} deviceId
    *
    * @param {Object} opts
-   * @param {'Coordinator' | 'Member'} opts.roleName
+   * @param {import('./generated/rpc.js').Invite_RoleName} opts.roleName
    * @param {string} [opts.roleDescription]
    * @param {number} [opts.timeout]
    *

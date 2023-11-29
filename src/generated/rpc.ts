@@ -6,8 +6,49 @@ export interface Invite {
   projectKey: Buffer;
   encryptionKeys: EncryptionKeys | undefined;
   projectInfo?: Invite_ProjectInfo | undefined;
-  roleName: string;
+  roleName: Invite_RoleName;
   roleDescription?: string | undefined;
+}
+
+export const Invite_RoleName = {
+  MEMBER: "MEMBER",
+  COORDINATOR: "COORDINATOR",
+  BLOCKED: "BLOCKED",
+  UNRECOGNIZED: "UNRECOGNIZED",
+} as const;
+
+export type Invite_RoleName = typeof Invite_RoleName[keyof typeof Invite_RoleName];
+
+export function invite_RoleNameFromJSON(object: any): Invite_RoleName {
+  switch (object) {
+    case 0:
+    case "MEMBER":
+      return Invite_RoleName.MEMBER;
+    case 1:
+    case "COORDINATOR":
+      return Invite_RoleName.COORDINATOR;
+    case 2:
+    case "BLOCKED":
+      return Invite_RoleName.BLOCKED;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return Invite_RoleName.UNRECOGNIZED;
+  }
+}
+
+export function invite_RoleNameToNumber(object: Invite_RoleName): number {
+  switch (object) {
+    case Invite_RoleName.MEMBER:
+      return 0;
+    case Invite_RoleName.COORDINATOR:
+      return 1;
+    case Invite_RoleName.BLOCKED:
+      return 2;
+    case Invite_RoleName.UNRECOGNIZED:
+    default:
+      return -1;
+  }
 }
 
 /** Project info that is displayed to the user receiving the invite */
@@ -66,7 +107,7 @@ export interface DeviceInfo {
 }
 
 function createBaseInvite(): Invite {
-  return { projectKey: Buffer.alloc(0), encryptionKeys: undefined, roleName: "" };
+  return { projectKey: Buffer.alloc(0), encryptionKeys: undefined, roleName: Invite_RoleName.MEMBER };
 }
 
 export const Invite = {
@@ -80,8 +121,8 @@ export const Invite = {
     if (message.projectInfo !== undefined) {
       Invite_ProjectInfo.encode(message.projectInfo, writer.uint32(26).fork()).ldelim();
     }
-    if (message.roleName !== "") {
-      writer.uint32(34).string(message.roleName);
+    if (message.roleName !== Invite_RoleName.MEMBER) {
+      writer.uint32(32).int32(invite_RoleNameToNumber(message.roleName));
     }
     if (message.roleDescription !== undefined) {
       writer.uint32(42).string(message.roleDescription);
@@ -118,11 +159,11 @@ export const Invite = {
           message.projectInfo = Invite_ProjectInfo.decode(reader, reader.uint32());
           continue;
         case 4:
-          if (tag !== 34) {
+          if (tag !== 32) {
             break;
           }
 
-          message.roleName = reader.string();
+          message.roleName = invite_RoleNameFromJSON(reader.int32());
           continue;
         case 5:
           if (tag !== 42) {
@@ -152,7 +193,7 @@ export const Invite = {
     message.projectInfo = (object.projectInfo !== undefined && object.projectInfo !== null)
       ? Invite_ProjectInfo.fromPartial(object.projectInfo)
       : undefined;
-    message.roleName = object.roleName ?? "";
+    message.roleName = object.roleName ?? Invite_RoleName.MEMBER;
     message.roleDescription = object.roleDescription ?? undefined;
     return message;
   },
