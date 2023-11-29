@@ -47,8 +47,6 @@ export class MemberApi extends TypedEmitter {
     this.#dataTypes = dataTypes
   }
 
-  /** @typedef {import('./capabilities.js').RoleId} COSO */
-
   /** @type {Array<any>}
    * @property {import('./capabilities.js').RoleId} 0
    * @property {import('./capabilities.js').Capability} 1 */

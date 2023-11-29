@@ -4,7 +4,6 @@ import RAM from 'random-access-memory'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
-import { MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { once } from 'node:events'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
@@ -76,7 +75,7 @@ export function connectPeers(managers, { discovery = true } = {}) {
  *   invitor: MapeoManager,
  *   projectId: string,
  *   invitees: MapeoManager[],
- *   roleId?: import('../src/capabilities.js').RoleId,
+ *   roleName?: import('../src/generated/rpc.js').Invite_RoleName,
  *   reject?: boolean
  * }} opts
  */
@@ -84,7 +83,7 @@ export async function invite({
   invitor,
   projectId,
   invitees,
-  roleId = MEMBER_ROLE_ID,
+  roleName = 'MEMBER',
   reject = false,
 }) {
   const invitorProject = await invitor.getProject(projectId)
@@ -93,7 +92,7 @@ export async function invite({
   for (const invitee of invitees) {
     promises.push(
       invitorProject.$member.invite(invitee.deviceId, {
-        roleId,
+        roleName,
       })
     )
     promises.push(

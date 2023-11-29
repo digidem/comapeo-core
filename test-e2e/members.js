@@ -133,7 +133,7 @@ test('getting invited member after invite accepted', async (t) => {
     invitor,
     projectId,
     invitees: [invitee],
-    roleId: MEMBER_ROLE_ID,
+    roleName: 'MEMBER',
   })
 
   const members = await project.$member.getMany()

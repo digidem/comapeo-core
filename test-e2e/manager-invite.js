@@ -1,5 +1,4 @@
 import { test, skip } from 'brittle'
-import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'
 import {
@@ -23,12 +22,13 @@ test('member invite accepted', async (t) => {
   )
 
   const responsePromise = creatorProject.$member.invite(joiner.deviceId, {
-    roleId: MEMBER_ROLE_ID,
+    roleName: 'MEMBER',
   })
   const [invite] = await once(joiner.invite, 'invite-received')
   t.is(invite.projectId, createdProjectId, 'projectId of invite matches')
   t.is(invite.peerId, creator.deviceId, 'deviceId of invite matches')
   t.is(invite.projectName, 'Mapeo', 'project name of invite matches')
+  t.is(invite.roleName, 'MEMBER', 'roleName of invite matches')
 
   await joiner.invite.accept(invite.projectId)
 
@@ -75,7 +75,7 @@ test('chain of invites', async (t) => {
   for (const joiner of joiners) {
     const invitorProject = await invitor.getProject(createdProjectId)
     const responsePromise = invitorProject.$member.invite(joiner.deviceId, {
-      roleId: COORDINATOR_ROLE_ID,
+      roleName: 'COORDINATOR',
     })
     const [invite] = await once(joiner.invite, 'invite-received')
     await joiner.invite.accept(invite.projectId)
@@ -123,7 +123,7 @@ skip("member can't invite", async (t) => {
   const creatorProject = await creator.getProject(createdProjectId)
 
   const responsePromise = creatorProject.$member.invite(member.deviceId, {
-    roleId: MEMBER_ROLE_ID,
+    roleName: 'COORDINATOR',
   })
   const [invite] = await once(member.invite, 'invite-received')
   await member.invite.accept(invite.projectId)
@@ -140,7 +140,7 @@ skip("member can't invite", async (t) => {
   )
 
   const exceptionPromise = t.exception(() =>
-    memberProject.$member.invite(joiner.deviceId, { roleId: MEMBER_ROLE_ID })
+    memberProject.$member.invite(joiner.deviceId, { roleName: 'MEMBER' })
   )
   joiner.invite.once('invite-received', () => t.fail('should not send invite'))
   await exceptionPromise
@@ -162,12 +162,13 @@ test('member invite rejected', async (t) => {
   )
 
   const responsePromise = creatorProject.$member.invite(joiner.deviceId, {
-    roleId: MEMBER_ROLE_ID,
+    roleName: 'MEMBER',
   })
   const [invite] = await once(joiner.invite, 'invite-received')
   t.is(invite.projectId, createdProjectId, 'projectId of invite matches')
   t.is(invite.peerId, creator.deviceId, 'deviceId of invite matches')
   t.is(invite.projectName, 'Mapeo', 'project name of invite matches')
+  t.is(invite.roleName, 'MEMBER', 'roleName of invite matches')
 
   await joiner.invite.reject(invite.projectId)
 
