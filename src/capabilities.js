@@ -303,3 +303,15 @@ export class Capabilities {
 function isKnownRoleId(roleId) {
   return roleId in DEFAULT_CAPABILITIES
 }
+
+/**
+ * @param {string} name
+ * @returns {RoleId | undefined}
+ */
+export function roleIdFromName(name) {
+  for (const [roleId, caps] of Object.entries(DEFAULT_CAPABILITIES)) {
+    if (name.toLowerCase() === caps.name.toLowerCase()) {
+      return /** @type {RoleId} */ (roleId)
+    }
+  }
+}

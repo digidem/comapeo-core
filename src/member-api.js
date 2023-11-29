@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { capitalize, projectKeyToId } from './utils.js'
-import { DEFAULT_CAPABILITIES } from './capabilities.js'
+import { projectKeyToId } from './utils.js'
+import { roleIdFromName } from './capabilities.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
@@ -62,19 +62,10 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
    */
   async invite(deviceId, { roleName, roleDescription, timeout }) {
-    /** @type {[
-     * roleId: import('./capabilities.js').RoleId,
-     * cap: import('./capabilities.js').Capability] | undefined} */
-    // @ts-ignore TODO:  force cast to literal type
-    const entry = Object.entries(DEFAULT_CAPABILITIES).find(
-      /* eslint-disable no-unused-vars */
-      ([roleId, cap]) => cap.name === capitalize(roleName.toLowerCase())
-    )
-    if (entry === undefined) throw new Error('invalid roleName')
-    const [roleId] = entry
+    const roleId = roleIdFromName(roleName)
 
+    if (!roleId) throw new Error('Invalid role name')
     const projectId = projectKeyToId(this.#projectKey)
-
     const project = await this.#dataTypes.project.getByDocId(projectId)
 
     if (!project.name)
