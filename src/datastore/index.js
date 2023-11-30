@@ -132,7 +132,6 @@ export class DataStore extends TypedEmitter {
       for (const docId of docIds) {
         // We'll only emit these once the indexer is idle - a particular docId
         // could have many updates, and we only emit it once after indexing
-        // @ts-ignore
         this.#pendingEmits[schemaName].add(docId)
       }
     }
