@@ -1,10 +1,11 @@
 // @ts-check
 import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
-import { eq, placeholder } from 'drizzle-orm'
+import { eq, inArray, placeholder } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { deNullify } from '../utils.js'
 import crypto from 'hypercore-crypto'
+import { TypedEmitter } from 'tiny-typed-emitter'
 
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -37,6 +38,11 @@ import crypto from 'hypercore-crypto'
  * @template {keyof any} K
  * @typedef {T extends any ? Omit<T, K> : never} OmitUnion
  */
+/**
+ * @template {MapeoDoc} TDoc
+ * @typedef {object} DataTypeEvents
+ * @property {(docs: TDoc[]) => void} updated-docs
+ */
 
 function generateId() {
   return randomBytes(32).toString('hex')
@@ -54,8 +60,9 @@ export const kTable = Symbol('table')
  * @template {MapeoDocTablesMap[TSchemaName]} TTable
  * @template {Exclude<MapeoDocMap[TSchemaName], { schemaName: 'coreOwnership' }>} TDoc
  * @template {Exclude<MapeoValueMap[TSchemaName], { schemaName: 'coreOwnership' }>} TValue
+ * @extends {TypedEmitter<DataTypeEvents<TDoc> & import('../types.js').DefaultEmitterEvents<DataTypeEvents<TDoc>>>}
  */
-export class DataType {
+export class DataType extends TypedEmitter {
   #dataStore
   #table
   #getPermissions
@@ -72,6 +79,7 @@ export class DataType {
    * @param {() => any} [opts.getPermissions]
    */
   constructor({ dataStore, table, getPermissions, db }) {
+    super()
     this.#dataStore = dataStore
     this.#table = table
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
@@ -85,6 +93,19 @@ export class DataType {
         .prepare(),
       getMany: db.select().from(table).prepare(),
     }
+    this.on('newListener', (eventName) => {
+      if (eventName !== 'updated-docs') return
+      if (this.listenerCount('updated-docs') > 1) return
+      if (this.#schemaName === 'projectSettings') return
+      // Avoid adding a listener to the dataStore unless we need to (e.g. this has a listener attached), for performance reasons.
+      this.#dataStore.on(this.#schemaName, this.#handleDataStoreUpdate)
+    })
+    this.on('removeListener', (eventName) => {
+      if (eventName !== 'updated-docs') return
+      if (this.listenerCount('updated-docs') > 0) return
+      if (this.#schemaName === 'projectSettings') return
+      this.#dataStore.off(this.#schemaName, this.#handleDataStoreUpdate)
+    })
   }
 
   get [kTable]() {
@@ -235,5 +256,21 @@ export class DataType {
       throw new Error('Updated docs must have the same docId and schemaName')
     }
     return { docId, createdAt, createdBy }
+  }
+
+  /**
+   * @param {Set<string>} docIds
+   */
+  #handleDataStoreUpdate = (docIds) => {
+    if (this.listenerCount('updated-docs') === 0) return
+    const updatedDocs = /** @type {TDoc[]} */ (
+      this.#db
+        .select()
+        .from(this.#table)
+        .where(inArray(this.#table.docId, [...docIds]))
+        .all()
+        .map((doc) => deNullify(doc))
+    )
+    this.emit('updated-docs', updatedDocs)
   }
 }

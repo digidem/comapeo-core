@@ -1,6 +1,7 @@
 import mapObject from 'map-obj'
 import { NAMESPACES } from '../core-manager/index.js'
 import { Logger } from '../logger.js'
+import { createMap } from '../utils.js'
 
 /**
  * @typedef {import('../core-manager/index.js').Namespace} Namespace
@@ -304,11 +305,7 @@ function getSyncStatus(peerId, state) {
 /**
  * @template T
  * @param {T} value
- * @returns {Record<Namespace, T>} */
+ **/
 function createNamespaceMap(value) {
-  const map = /** @type {Record<Namespace, T>} */ ({})
-  for (const ns of NAMESPACES) {
-    map[ns] = value
-  }
-  return map
+  return createMap(NAMESPACES, value)
 }
