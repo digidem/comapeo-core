@@ -641,11 +641,11 @@ export class MapeoManager extends TypedEmitter {
   /**
    * @param {import('./media-server.js').StartOpts} [opts]
    */
-  async start(opts) {
+  async startMediaServer(opts) {
     await this.#mediaServer.start(opts)
   }
 
-  async stop() {
+  async stopMediaServer() {
     await this.#mediaServer.stop()
   }
 

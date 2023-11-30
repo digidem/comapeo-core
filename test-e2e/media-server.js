@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { join } from 'path'
@@ -18,6 +19,27 @@ const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
+
+test('start/stop lifecycle', async (t) => {
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
+
+  await manager.startMediaServer()
+  await manager.startMediaServer()
+  await manager.stopMediaServer()
+
+  await manager.startMediaServer()
+  await manager.stopMediaServer()
+
+  t.pass(
+    'startMediaServer() and stopMediaServer() life cycle runs without issues'
+  )
+})
 
 test('retrieving blobs using url', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
@@ -40,12 +62,12 @@ test('retrieving blobs using url', async (t) => {
       type: 'photo',
       variant: 'original',
     })
-  }, 'getting blob url fails if manager.start() has not been called yet')
+  }, 'getting blob url fails if manager.startMediaServer() has not been called yet')
 
   clock.tick(100_000)
   await exceptionPromise1
 
-  await manager.start()
+  await manager.startMediaServer()
 
   await t.test('blob does not exist', async (st) => {
     const blobUrl = await project.$blobs.getUrl({
@@ -96,7 +118,7 @@ test('retrieving blobs using url', async (t) => {
     st.alike(body, expected, 'matching reponse body')
   })
 
-  await manager.stop()
+  await manager.stopMediaServer()
 
   const exceptionPromise2 = t.exception(async () => {
     await project.$blobs.getUrl({
@@ -130,12 +152,12 @@ test('retrieving icons using url', async (t) => {
       pixelDensity: 1,
       size: 'small',
     })
-  }, 'getting icon url fails if manager.start() has not been called yet')
+  }, 'getting icon url fails if manager.startMediaServer() has not been called yet')
 
   clock.tick(100_000)
   await exceptionPromise1
 
-  await manager.start()
+  await manager.startMediaServer()
 
   await t.test('icon does not exist', async (st) => {
     const nonExistentIconId = randomBytes(32).toString('hex')
@@ -194,7 +216,7 @@ test('retrieving icons using url', async (t) => {
     st.alike(body, iconBuffer, 'matching response body')
   })
 
-  await manager.stop()
+  await manager.stopMediaServer()
 
   const exceptionPromise2 = t.exception(async () => {
     await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {
