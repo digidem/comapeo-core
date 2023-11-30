@@ -139,3 +139,19 @@ export function projectIdToNonce(projectId) {
 export function getDeviceId(keyManager) {
   return keyManager.getIdentityKeypair().publicKey.toString('hex')
 }
+
+/**
+ * Small helper to create a typed map
+ *
+ * @template {string} K
+ * @template {any} V
+ * @param {ReadonlyArray<K>} keys
+ * @param {V} value
+ * @returns {Record<K, V extends () => infer T ? T : V>} */
+export function createMap(keys, value) {
+  const map = /** @type {Record<K, V extends () => infer T ? T : V>} */ ({})
+  for (const key of keys) {
+    map[key] = typeof value === 'function' ? value() : value
+  }
+  return map
+}

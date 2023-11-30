@@ -1,7 +1,7 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { valueOf } from '../src/utils.js'
-import { createManager, stripUndef } from './utils.js'
+import { createManager, sortById, stripUndef } from './utils.js'
 import { round } from './utils.js'
 import { generate } from '@mapeo/mock-data'
 import { setTimeout as delay } from 'timers/promises'
@@ -73,12 +73,13 @@ test('CRUD operations', async (t) => {
     await t.test(`create and read ${schemaName}`, async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
-      const values = []
+      /** @type {any[]} */
+      const updates = []
       const writePromises = []
+      project[schemaName].on('updated-docs', (docs) => updates.push(...docs))
       let i = 0
       while (i++ < CREATE_COUNT) {
         const value = valueOf(generate(schemaName)[0])
-        values.push(value)
         writePromises.push(
           // @ts-ignore
           project[schemaName].create(value)
@@ -88,7 +89,12 @@ test('CRUD operations', async (t) => {
       const read = await Promise.all(
         written.map((doc) => project[schemaName].getByDocId(doc.docId))
       )
-      st.alike(written, read, 'return create() matches return of getByDocId()')
+      st.alike(
+        sortById(written),
+        sortById(read),
+        'return create() matches return of getByDocId()'
+      )
+      st.alike(sortById(updates), sortById(written), 'updated-docs emitted')
     })
     await t.test('update', async (st) => {
       const projectId = await manager.createProject()

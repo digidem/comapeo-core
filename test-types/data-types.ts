@@ -67,6 +67,10 @@ const observationByVersionId = await mapeoProject.observation.getByVersionId(
 )
 Expect<Equal<Observation, typeof observationByVersionId>>
 
+mapeoProject.observation.on('updated-docs', (docs) => {
+  Expect<Equal<Observation[], typeof docs>>
+})
+
 ///// Presets
 
 const createdPreset = await mapeoProject.preset.create({} as PresetValue)
@@ -84,6 +88,10 @@ Expect<Equal<Preset & { forks: string[] }, typeof presetByDocId>>
 const presetByVersionId = await mapeoProject.preset.getByVersionId('abc')
 Expect<Equal<Preset, typeof presetByVersionId>>
 
+mapeoProject.preset.on('updated-docs', (docs) => {
+  Expect<Equal<Preset[], typeof docs>>
+})
+
 ///// Fields
 
 const createdField = await mapeoProject.field.create({} as FieldValue)
@@ -100,3 +108,7 @@ Expect<Equal<Field & { forks: string[] }, typeof fieldByDocId>>
 
 const fieldByVersionId = await mapeoProject.field.getByVersionId('abc')
 Expect<Equal<Field, typeof fieldByVersionId>>
+
+mapeoProject.field.on('updated-docs', (docs) => {
+  Expect<Equal<Field[], typeof docs>>
+})
