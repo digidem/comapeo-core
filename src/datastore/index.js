@@ -226,7 +226,8 @@ export class DataStore extends TypedEmitter {
       if (!docIds.size) continue
       // @ts-ignore - I'm pretty sure TS is just not smart enough here, it's not me!
       this.emit(eventName, docIds)
-      docIds.clear()
     }
+    // Make sure we reset this, otherwise we'd get a memory leak of this growing without bounds.
+    this.#pendingEmits = createMap(this.schemas, () => new Set())
   }
 }
