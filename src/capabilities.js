@@ -1,6 +1,7 @@
 import { currentSchemaVersions } from '@mapeo/schema'
 import mapObject from 'map-obj'
-import { kCreateWithDocId } from './datatype/index.js'
+import { kCreateWithDocId, kDataStore } from './datatype/index.js'
+import { TypedEmitter } from 'tiny-typed-emitter'
 
 // Randomly generated 8-byte encoded as hex
 export const COORDINATOR_ROLE_ID = 'f7c150f5a3a9a855'
@@ -140,7 +141,15 @@ export const DEFAULT_CAPABILITIES = {
   },
 }
 
-export class Capabilities {
+/**
+ * @typedef {object} CapabilitiesEvents
+ * @property {(docs: import('@mapeo/schema').Role[]) => void} update - Emitted when new role records are indexed
+ */
+
+/**
+ * @extends {TypedEmitter<CapabilitiesEvents>}
+ */
+export class Capabilities extends TypedEmitter {
   #dataType
   #coreOwnership
   #coreManager
@@ -165,11 +174,14 @@ export class Capabilities {
    * @param {Buffer} opts.deviceKey public key of this device
    */
   constructor({ dataType, coreOwnership, coreManager, projectKey, deviceKey }) {
+    super()
     this.#dataType = dataType
     this.#coreOwnership = coreOwnership
     this.#coreManager = coreManager
     this.#projectCreatorAuthCoreId = projectKey.toString('hex')
     this.#ownDeviceId = deviceKey.toString('hex')
+
+    dataType[kDataStore].on('role', this.emit.bind(this, 'update'))
   }
 
   /**

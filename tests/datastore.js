@@ -91,12 +91,12 @@ test('index events', async (t) => {
     },
     storage: () => new RAM(),
   })
-  dataStore.on('index-state', (state) => {
+  dataStore.indexer.on('index-state', (state) => {
     // eslint-disable-next-line no-unused-vars
     const { entriesPerSecond, ...rest } = state
     indexStates.push(rest)
   })
-  const idlePromise = once(dataStore, 'idle')
+  const idlePromise = once(dataStore.indexer, 'idle')
   await dataStore.write(obs)
   await idlePromise
   const expectedStates = [

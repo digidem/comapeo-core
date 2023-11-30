@@ -1,23 +1,22 @@
-import { TypedEmitter } from 'tiny-typed-emitter'
-import { encode, decode, getVersionId, parseVersionId } from '@mapeo/schema'
+import {
+  encode,
+  decode,
+  getVersionId,
+  parseVersionId,
+  decodeBlockPrefix,
+} from '@mapeo/schema'
 import MultiCoreIndexer from 'multi-core-indexer'
 import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
+import { TypedEmitter } from 'tiny-typed-emitter'
 
-/**
- * @typedef {import('multi-core-indexer').IndexEvents} IndexEvents
- */
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
  */
 /**
  * @typedef {import('../datatype/index.js').MapeoDocTablesMap} MapeoDocTablesMap
  */
-/**
- * @typedef {object} DefaultEmitterEvents
- * @property {(eventName: keyof IndexEvents, listener: (...args: any[]) => any) => void} newListener
- * @property {(eventName: keyof IndexEvents, listener: (...args: any[]) => any) => void} removeListener
- */
+
 /**
  * @template T
  * @template {keyof any} K
@@ -35,9 +34,16 @@ const NAMESPACE_SCHEMAS = /** @type {const} */ ({
  */
 
 /**
+ * @template {MapeoDoc['schemaName']} TSchemaName
+ * @typedef {{
+ *  [S in TSchemaName]: (docs: Extract<MapeoDoc, { schemaName: S }>[]) => void
+ * }} DataStoreEvents
+ */
+
+/**
  * @template {keyof NamespaceSchemas} [TNamespace=keyof NamespaceSchemas]
  * @template {NamespaceSchemas[TNamespace][number]} [TSchemaName=NamespaceSchemas[TNamespace][number]]
- * @extends {TypedEmitter<IndexEvents & DefaultEmitterEvents>}
+ * @extends {TypedEmitter<DataStoreEvents<TSchemaName>>}
  */
 export class DataStore extends TypedEmitter {
   #coreManager
@@ -49,6 +55,7 @@ export class DataStore extends TypedEmitter {
   #pendingIndex = new Map()
   /** @type {Set<import('p-defer').DeferredPromise<void>['promise']>} */
   #pendingAppends = new Set()
+  #emitUpdates
 
   /**
    * @param {object} opts
@@ -56,12 +63,14 @@ export class DataStore extends TypedEmitter {
    * @param {TNamespace} opts.namespace
    * @param {(entries: MultiCoreIndexer.Entry<'binary'>[]) => Promise<void>} opts.batch
    * @param {MultiCoreIndexer.StorageParam} opts.storage
+   * @param {TSchemaName[]} [opts.emitUpdates] - List of schemas to emit updates for. Emitting an update is expensive because it requires decoding an entry, so should only be done schemas that will not have many documents in the database
    */
-  constructor({ coreManager, namespace, batch, storage }) {
+  constructor({ coreManager, namespace, batch, storage, emitUpdates }) {
     super()
     this.#coreManager = coreManager
     this.#namespace = namespace
     this.#batch = batch
+    this.#emitUpdates = emitUpdates && new Set(emitUpdates)
     this.#writerCore = coreManager.getWriterCore(namespace).core
     const cores = coreManager.getCores(namespace).map((cr) => cr.core)
     this.#coreIndexer = new MultiCoreIndexer(cores, {
@@ -71,16 +80,6 @@ export class DataStore extends TypedEmitter {
     coreManager.on('add-core', (coreRecord) => {
       if (coreRecord.namespace !== namespace) return
       this.#coreIndexer.addCore(coreRecord.core)
-    })
-
-    // Forward events from coreIndexer
-    this.on('newListener', (eventName, listener) => {
-      if (['newListener', 'removeListener'].includes(eventName)) return
-      this.#coreIndexer.on(eventName, listener)
-    })
-    this.on('removeListener', (eventName, listener) => {
-      if (['newListener', 'removeListener'].includes(eventName)) return
-      this.#coreIndexer.off(eventName, listener)
     })
   }
 
@@ -112,17 +111,44 @@ export class DataStore extends TypedEmitter {
   async #handleEntries(entries) {
     await this.#batch(entries)
     await Promise.all(this.#pendingAppends)
+    const toEmit =
+      /** @type {{ [S in TSchemaName]: Array<Extract<MapeoDoc, { schemaName: S }>> }} */
+      ({})
     // Writes to the writerCore need to wait until the entry is indexed before
     // returning, so we check if any incoming entry has a pending promise
     for (const entry of entries) {
-      if (!entry.key.equals(this.#writerCore.key)) continue
-      const versionId = getVersionId({
+      const versionObj = {
         coreDiscoveryKey: discoveryKey(entry.key),
         index: entry.index,
-      })
+      }
+      // We do this here rather than in IndexWriter (which is already decoding
+      // the entries and could return decoded entries from the batch function or
+      // emit events itself) because IndexWriter will eventually be in a worker
+      // thread, and my assumption is that sending a decoded doc over a
+      // MessageChannel from the worker is more expensive than decoding the
+      // entry here. This also avoids setting up RPC calls with the worker.
+      if (this.#emitUpdates) {
+        try {
+          const { schemaName } = decodeBlockPrefix(entry.block)
+          // @ts-ignore
+          if (!this.#emitUpdates.has(schemaName)) return
+          // @ts-ignore
+          toEmit[schemaName] = toEmit[schemaName] || []
+          // @ts-ignore
+          toEmit[schemaName].push(decode(entry.block, versionObj))
+        } catch (e) {
+          // Ignore docs we can't decode
+        }
+      }
+      if (!entry.key.equals(this.#writerCore.key)) continue
+      const versionId = getVersionId(versionObj)
       const pending = this.#pendingIndex.get(versionId)
       if (!pending) continue
       pending.resolve()
+    }
+    for (const [schemaName, docs] of Object.entries(toEmit)) {
+      // @ts-ignore
+      this.emit(schemaName, docs)
     }
   }
 
