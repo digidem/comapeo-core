@@ -68,7 +68,7 @@ export class InviteApi extends TypedEmitter {
 
   /**
    * @param {string} peerId
-   * @param {import('./generated/rpc.js').Invite & { invitorName: string }} invite
+   * @param {import('./generated/rpc.js').Invite} invite
    */
   async #handleInvite(peerId, invite) {
     const projectId = projectKeyToId(invite.projectKey)

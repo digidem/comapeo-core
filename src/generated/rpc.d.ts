@@ -7,6 +7,7 @@ export interface Invite {
     projectInfo?: Invite_ProjectInfo | undefined;
     roleName: string;
     roleDescription?: string | undefined;
+    invitorName: string;
 }
 /** Project info that is displayed to the user receiving the invite */
 export interface Invite_ProjectInfo {
@@ -45,6 +46,7 @@ export declare const Invite: {
         };
         roleName?: string;
         roleDescription?: string | undefined;
+        invitorName?: string;
     } & {
         projectKey?: Buffer;
         encryptionKeys?: {
@@ -67,6 +69,7 @@ export declare const Invite: {
         } & { [K_1 in Exclude<keyof I["projectInfo"], "name">]: never; };
         roleName?: string;
         roleDescription?: string | undefined;
+        invitorName?: string;
     } & { [K_2 in Exclude<keyof I, keyof Invite>]: never; }>(base?: I): Invite;
     fromPartial<I_1 extends {
         projectKey?: Buffer;
@@ -82,6 +85,7 @@ export declare const Invite: {
         };
         roleName?: string;
         roleDescription?: string | undefined;
+        invitorName?: string;
     } & {
         projectKey?: Buffer;
         encryptionKeys?: {
@@ -104,6 +108,7 @@ export declare const Invite: {
         } & { [K_4 in Exclude<keyof I_1["projectInfo"], "name">]: never; };
         roleName?: string;
         roleDescription?: string | undefined;
+        invitorName?: string;
     } & { [K_5 in Exclude<keyof I_1, keyof Invite>]: never; }>(object: I_1): Invite;
 };
 export declare const Invite_ProjectInfo: {

@@ -43,7 +43,7 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 /** @typedef {PeerInfoConnecting | PeerInfoConnected | PeerInfoDisconnected} PeerInfoInternal */
 /** @typedef {PeerInfoConnected | PeerInfoDisconnected} PeerInfo */
 /** @typedef {PeerInfoInternal['status']} PeerState */
-/** @typedef {import('type-fest').SetNonNullable<import('./generated/rpc.js').Invite, 'encryptionKeys'> & {invitorName: string}} InviteWithKeys */
+/** @typedef {import('type-fest').SetNonNullable<import('./generated/rpc.js').Invite, 'encryptionKeys'>} InviteWithKeys */
 
 /**
  * @template ValueType
@@ -252,7 +252,7 @@ export class LocalPeers extends TypedEmitter {
    * @param {InviteWithKeys['encryptionKeys']} options.encryptionKeys project encryption key
    * @param {InviteWithKeys['projectInfo']} [options.projectInfo] project info - currently name
    * @param {InviteWithKeys['roleName']} options.roleName
-   * @param {string} options.invitorName
+   * @param {InviteWithKeys['invitorName']} options.invitorName
    * @param {InviteWithKeys['roleDescription']} [options.roleDescription]
    * @param {number} [options.timeout] timeout waiting for invite response before rejecting (default 1 minute)
    * @returns {Promise<InviteResponse['decision']>}

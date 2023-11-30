@@ -42,6 +42,7 @@ function createBaseInvite() {
     projectKey: Buffer.alloc(0),
     encryptionKeys: undefined,
     roleName: '',
+    invitorName: '',
   }
 }
 export var Invite = {
@@ -69,6 +70,9 @@ export var Invite = {
     }
     if (message.roleDescription !== undefined) {
       writer.uint32(42).string(message.roleDescription)
+    }
+    if (message.invitorName !== '') {
+      writer.uint32(50).string(message.invitorName)
     }
     return writer
   },
@@ -115,6 +119,12 @@ export var Invite = {
           }
           message.roleDescription = reader.string()
           continue
+        case 6:
+          if (tag !== 50) {
+            break
+          }
+          message.invitorName = reader.string()
+          continue
       }
       if ((tag & 7) === 4 || tag === 0) {
         break
@@ -127,7 +137,7 @@ export var Invite = {
     return Invite.fromPartial(base !== null && base !== void 0 ? base : {})
   },
   fromPartial: function (object) {
-    var _a, _b, _c
+    var _a, _b, _c, _d
     var message = createBaseInvite()
     message.projectKey =
       (_a = object.projectKey) !== null && _a !== void 0 ? _a : Buffer.alloc(0)
@@ -143,6 +153,8 @@ export var Invite = {
       (_b = object.roleName) !== null && _b !== void 0 ? _b : ''
     message.roleDescription =
       (_c = object.roleDescription) !== null && _c !== void 0 ? _c : undefined
+    message.invitorName =
+      (_d = object.invitorName) !== null && _d !== void 0 ? _d : ''
     return message
   },
 }
