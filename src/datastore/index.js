@@ -222,6 +222,7 @@ export class DataStore extends TypedEmitter {
 
   #handleIndexerIdle = () => {
     for (const eventName of this.eventNames()) {
+      if (!(eventName in this.#pendingEmits)) continue
       const docIds = this.#pendingEmits[eventName]
       if (!docIds.size) continue
       // @ts-ignore - I'm pretty sure TS is just not smart enough here, it's not me!

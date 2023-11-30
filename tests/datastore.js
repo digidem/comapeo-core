@@ -36,6 +36,7 @@ test('read and write', async (t) => {
         const versionId = getVersionId({ coreDiscoveryKey, index })
         indexedVersionIds.push(versionId)
       }
+      return {}
     },
     storage: () => new RAM(),
   })
@@ -69,6 +70,7 @@ test('writeRaw and read', async (t) => {
     namespace: 'config',
     batch: async () => {
       await new Promise((res) => setTimeout(res, 10))
+      return {}
     },
     storage: () => new RAM(),
   })
@@ -88,15 +90,16 @@ test('index events', async (t) => {
     namespace: 'data',
     batch: async () => {
       await new Promise((res) => setTimeout(res, 10))
+      return {}
     },
     storage: () => new RAM(),
   })
-  dataStore.on('index-state', (state) => {
+  dataStore.indexer.on('index-state', (state) => {
     // eslint-disable-next-line no-unused-vars
     const { entriesPerSecond, ...rest } = state
     indexStates.push(rest)
   })
-  const idlePromise = once(dataStore, 'idle')
+  const idlePromise = once(dataStore.indexer, 'idle')
   await dataStore.write(obs)
   await idlePromise
   const expectedStates = [
