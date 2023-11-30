@@ -6,7 +6,7 @@ import { projectKeyToId, projectKeyToPublicId } from './utils.js'
 /**
  * @typedef {Object} InviteApiEvents
  *
- * @property {(info: { projectId: string, projectName?: string, peerId: string, roleName: string, roleDescription: string }) => void} invite-received
+ * @property {(info: { projectId: string, projectName?: string, peerId: string, roleName: string, roleDescription: string, invitorName: string }) => void} invite-received
  */
 
 /**
@@ -68,7 +68,7 @@ export class InviteApi extends TypedEmitter {
 
   /**
    * @param {string} peerId
-   * @param {import('./generated/rpc.js').Invite} invite
+   * @param {import('./generated/rpc.js').Invite & { invitorName: string }} invite
    */
   async #handleInvite(peerId, invite) {
     const projectId = projectKeyToId(invite.projectKey)
@@ -96,6 +96,7 @@ export class InviteApi extends TypedEmitter {
       projectName: invite.projectInfo?.name,
       roleName: invite.roleName,
       roleDescription: invite.roleDescription || '',
+      invitorName: invite.invitorName,
     })
   }
 

@@ -59,6 +59,11 @@ export class MemberApi extends TypedEmitter {
    */
   async invite(deviceId, { roleId, roleDescription, timeout }) {
     const roleName = DEFAULT_CAPABILITIES[roleId].name
+    const { name: deviceName } = await this.getById(this.#ownDeviceId)
+
+    // since we are always getting #ownDeviceId,
+    // this should never throw (see comment on getById), but it pleases ts
+    if (!deviceName) throw new Error('Invalid deviceName')
 
     if (!roleName) throw new Error('Invalid roleId')
 
@@ -74,6 +79,7 @@ export class MemberApi extends TypedEmitter {
       projectInfo: { name: project.name },
       roleName,
       roleDescription,
+      invitorName: deviceName,
       timeout,
     })
 
