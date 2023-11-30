@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import { projectKeyToId } from './utils.js'
-import { roleIdFromName } from './capabilities.js'
+import { DEFAULT_CAPABILITIES } from './capabilities.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
@@ -47,24 +47,21 @@ export class MemberApi extends TypedEmitter {
     this.#dataTypes = dataTypes
   }
 
-  /** @type {Array<any>}
-   * @property {import('./capabilities.js').RoleId} 0
-   * @property {import('./capabilities.js').Capability} 1 */
-
   /**
    * @param {string} deviceId
    *
    * @param {Object} opts
-   * @param {import('./generated/rpc.js').Invite_RoleName} opts.roleName
+   * @param {import('./capabilities.js').RoleId} opts.roleId
    * @param {string} [opts.roleDescription]
    * @param {number} [opts.timeout]
    *
    * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
    */
-  async invite(deviceId, { roleName, roleDescription, timeout }) {
-    const roleId = roleIdFromName(roleName)
+  async invite(deviceId, { roleId, roleDescription, timeout }) {
+    const roleName = DEFAULT_CAPABILITIES[roleId].name
 
-    if (!roleId) throw new Error('Invalid role name')
+    if (!roleName) throw new Error('Invalid roleId')
+
     const projectId = projectKeyToId(this.#projectKey)
     const project = await this.#dataTypes.project.getByDocId(projectId)
 

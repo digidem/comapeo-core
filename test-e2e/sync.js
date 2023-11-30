@@ -14,6 +14,7 @@ import { PRESYNC_NAMESPACES } from '../src/sync/peer-sync-controller.js'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
+import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/capabilities.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
@@ -199,13 +200,13 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     invitor,
     invitees: [blocked],
     projectId,
-    roleName: 'BLOCKED',
+    roleId: BLOCKED_ROLE_ID,
   })
   await invite({
     invitor,
     invitees: [invitee],
     projectId,
-    roleName: 'COORDINATOR',
+    roleId: COORDINATOR_ROLE_ID,
   })
 
   const projects = await Promise.all(

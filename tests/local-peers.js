@@ -14,6 +14,7 @@ import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Protomux from 'protomux'
 import { setTimeout as delay } from 'timers/promises'
+import { DEFAULT_CAPABILITIES, MEMBER_ROLE_ID } from '../src/capabilities.js'
 
 test('Send invite and accept', async (t) => {
   t.plan(3)
@@ -27,6 +28,7 @@ test('Send invite and accept', async (t) => {
     const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
     })
     t.is(response, LocalPeers.InviteResponse.ACCEPT)
   })
@@ -77,8 +79,7 @@ test('Send invite, duplicate connections', async (t) => {
   const invite = {
     projectKey: Buffer.allocUnsafe(32).fill(0),
     encryptionKeys: { auth: randomBytes(32) },
-    /** @type {import('../src/generated/rpc.js').Invite_RoleName} */
-    roleName: 'MEMBER',
+    roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
   }
 
   const kp1 = NoiseSecretStream.keyPair()

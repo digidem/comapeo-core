@@ -10,12 +10,7 @@ message Invite {
   bytes projectKey = 1;
   EncryptionKeys encryptionKeys = 2;
   optional ProjectInfo projectInfo = 3;
-  enum RoleName {
-    MEMBER = 0;
-    COORDINATOR = 1;
-    BLOCKED = 2;
-  };
-  RoleName roleName = 4;
+  string roleName = 4;
   optional string roleDescription = 5;
 }
 message InviteResponse {

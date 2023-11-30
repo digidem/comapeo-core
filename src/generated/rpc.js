@@ -1,42 +1,6 @@
 /* eslint-disable */
 import _m0 from 'protobufjs/minimal.js'
 import { EncryptionKeys } from './keys.js'
-export var Invite_RoleName = {
-  MEMBER: 'MEMBER',
-  COORDINATOR: 'COORDINATOR',
-  BLOCKED: 'BLOCKED',
-  UNRECOGNIZED: 'UNRECOGNIZED',
-}
-export function invite_RoleNameFromJSON(object) {
-  switch (object) {
-    case 0:
-    case 'MEMBER':
-      return Invite_RoleName.MEMBER
-    case 1:
-    case 'COORDINATOR':
-      return Invite_RoleName.COORDINATOR
-    case 2:
-    case 'BLOCKED':
-      return Invite_RoleName.BLOCKED
-    case -1:
-    case 'UNRECOGNIZED':
-    default:
-      return Invite_RoleName.UNRECOGNIZED
-  }
-}
-export function invite_RoleNameToNumber(object) {
-  switch (object) {
-    case Invite_RoleName.MEMBER:
-      return 0
-    case Invite_RoleName.COORDINATOR:
-      return 1
-    case Invite_RoleName.BLOCKED:
-      return 2
-    case Invite_RoleName.UNRECOGNIZED:
-    default:
-      return -1
-  }
-}
 export var InviteResponse_Decision = {
   REJECT: 'REJECT',
   ACCEPT: 'ACCEPT',
@@ -77,7 +41,7 @@ function createBaseInvite() {
   return {
     projectKey: Buffer.alloc(0),
     encryptionKeys: undefined,
-    roleName: Invite_RoleName.MEMBER,
+    roleName: '',
   }
 }
 export var Invite = {
@@ -100,8 +64,8 @@ export var Invite = {
         writer.uint32(26).fork()
       ).ldelim()
     }
-    if (message.roleName !== Invite_RoleName.MEMBER) {
-      writer.uint32(32).int32(invite_RoleNameToNumber(message.roleName))
+    if (message.roleName !== '') {
+      writer.uint32(34).string(message.roleName)
     }
     if (message.roleDescription !== undefined) {
       writer.uint32(42).string(message.roleDescription)
@@ -140,10 +104,10 @@ export var Invite = {
           )
           continue
         case 4:
-          if (tag !== 32) {
+          if (tag !== 34) {
             break
           }
-          message.roleName = invite_RoleNameFromJSON(reader.int32())
+          message.roleName = reader.string()
           continue
         case 5:
           if (tag !== 42) {
@@ -176,9 +140,7 @@ export var Invite = {
         ? Invite_ProjectInfo.fromPartial(object.projectInfo)
         : undefined
     message.roleName =
-      (_b = object.roleName) !== null && _b !== void 0
-        ? _b
-        : Invite_RoleName.MEMBER
+      (_b = object.roleName) !== null && _b !== void 0 ? _b : ''
     message.roleDescription =
       (_c = object.roleDescription) !== null && _c !== void 0 ? _c : undefined
     return message
