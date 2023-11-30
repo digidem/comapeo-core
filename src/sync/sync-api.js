@@ -6,9 +6,15 @@ import {
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../core-manager/index.js'
-import { keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
+
+/**
+ * @typedef {{
+ *   protomux: import('protomux')<import('@hyperswarm/secret-stream')>,
+ *   remotePublicKey: Buffer
+ * }} Peer
+ */
 
 /**
  * @typedef {object} SyncEvents
@@ -22,40 +28,48 @@ export class SyncApi extends TypedEmitter {
   syncState
   #coreManager
   #capabilities
-  /** @type {Map<import('protomux'), PeerSyncController>} */
-  #peerSyncControllers = new Map()
-  /** @type {Set<string>} */
-  #peerIds = new Set()
+  #PSCIndex = new PSCIndex()
   /** @type {Set<'local' | 'remote'>} */
   #dataSyncEnabled = new Set()
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
+  #coreOwnership
 
   /**
    *
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {import("../capabilities.js").Capabilities} opts.capabilities
+   * @param {import('../core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
    */
-  constructor({ coreManager, throttleMs = 200, capabilities, logger }) {
+  constructor({
+    coreManager,
+    capabilities,
+    coreOwnership,
+    throttleMs = 200,
+    logger,
+  }) {
     super()
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
     this.#capabilities = capabilities
+    this.#coreOwnership = coreOwnership
     this.syncState = new SyncState({ coreManager, throttleMs })
     this.syncState.setMaxListeners(0)
     this.syncState.on('state', this.emit.bind(this, 'sync-state'))
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
     this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
+    capabilities.on('update', this.#handleRoleUdpate.bind(this))
+    coreOwnership.on('update', this.#handleCoreOwnershipUpdate.bind(this))
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */
   [kHandleDiscoveryKey](discoveryKey, protomux) {
-    const peerSyncController = this.#peerSyncControllers.get(protomux)
+    const peerSyncController = this.#PSCIndex.getByProtomux(protomux)
     if (peerSyncController) {
       peerSyncController.handleDiscoveryKey(discoveryKey)
       return
@@ -92,7 +106,7 @@ export class SyncApi extends TypedEmitter {
     if (this.#dataSyncEnabled.has('local')) return
     this.#dataSyncEnabled.add('local')
     this.#l.log('Starting data sync')
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
+    for (const peerSyncController of this.#PSCIndex.values()) {
       peerSyncController.enableDataSync()
     }
   }
@@ -104,7 +118,7 @@ export class SyncApi extends TypedEmitter {
     if (!this.#dataSyncEnabled.has('local')) return
     this.#dataSyncEnabled.delete('local')
     this.#l.log('Stopping data sync')
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
+    for (const peerSyncController of this.#PSCIndex.values()) {
       peerSyncController.disableDataSync()
     }
   }
@@ -115,10 +129,10 @@ export class SyncApi extends TypedEmitter {
   async waitForSync(type) {
     const state = this.getState()
     const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
-    if (isSynced(state, namespaces, this.#peerSyncControllers)) return
+    if (isSynced(state, namespaces, this.#PSCIndex.values())) return
     return new Promise((res) => {
       this.on('sync-state', function onState(state) {
-        if (!isSynced(state, namespaces, this.#peerSyncControllers)) return
+        if (!isSynced(state, namespaces, this.#PSCIndex.values())) return
         this.off('sync-state', onState)
         res(null)
       })
@@ -133,26 +147,25 @@ export class SyncApi extends TypedEmitter {
    * will then handle validation of role records to ensure that the peer is
    * actually still part of the project.
    *
-   * @param {{ protomux: import('protomux')<import('../utils.js').OpenedNoiseStream> }} peer
+   * @param {Peer} peer
    */
   #handlePeerAdd = (peer) => {
     const { protomux } = peer
-    if (this.#peerSyncControllers.has(protomux)) {
+    if (this.#PSCIndex.hasProtomux(protomux)) {
       this.#l.log(
         'Unexpected existing peer sync controller for peer %h',
-        protomux.stream.remotePublicKey
+        peer.remotePublicKey
       )
       return
     }
     const peerSyncController = new PeerSyncController({
-      protomux,
+      creatorCorePeer: peer,
       coreManager: this.#coreManager,
       syncState: this.syncState,
       capabilities: this.#capabilities,
       logger: this.#l,
     })
-    this.#peerSyncControllers.set(protomux, peerSyncController)
-    if (peerSyncController.peerId) this.#peerIds.add(peerSyncController.peerId)
+    this.#PSCIndex.add(peerSyncController)
 
     if (this.#dataSyncEnabled.has('local')) {
       peerSyncController.enableDataSync()
@@ -173,20 +186,74 @@ export class SyncApi extends TypedEmitter {
    * Called when a peer is removed from the creator core, e.g. when the
    * connection is terminated.
    *
-   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
+   * @param {Peer} peer
    */
   #handlePeerRemove = (peer) => {
     const { protomux } = peer
-    if (!this.#peerSyncControllers.has(protomux)) {
+    const psc = this.#PSCIndex.getByProtomux(protomux)
+    if (!psc) {
       this.#l.log(
         'Unexpected no existing peer sync controller for peer %h',
         protomux.stream.remotePublicKey
       )
       return
     }
-    this.#peerSyncControllers.delete(protomux)
-    this.#peerIds.delete(keyToId(peer.remotePublicKey))
+    psc.destroy()
+    this.#PSCIndex.delete(psc)
     this.#pendingDiscoveryKeys.delete(protomux)
+  }
+
+  /**
+   * @param {import('@mapeo/schema').Role[]} roleDocs
+   */
+  async #handleRoleUdpate(roleDocs) {
+    /** @type {Set<string>} */
+    const updatedDeviceIds = new Set()
+    for (const doc of roleDocs) {
+      // Ignore docs about ourselves
+      if (doc.docId === this.#coreManager.deviceId) continue
+      updatedDeviceIds.add(doc.docId)
+    }
+    const coreOwnershipPromises = []
+    for (const deviceId of updatedDeviceIds) {
+      coreOwnershipPromises.push(this.#coreOwnership.get(deviceId))
+    }
+    const ownershipResults = await Promise.allSettled(coreOwnershipPromises)
+    for (const result of ownershipResults) {
+      if (result.status === 'rejected') continue
+      this.#addCores(result.value)
+      this.#l.log('Added cores for device %S', result.value.docId)
+    }
+  }
+
+  /**
+   * @param {import('@mapeo/schema').CoreOwnership[]} coreOwnershipDocs
+   */
+  async #handleCoreOwnershipUpdate(coreOwnershipDocs) {
+    for (const coreOwnershipDoc of coreOwnershipDocs) {
+      // Ignore our own ownership doc - we don't need to add cores for ourselves
+      if (coreOwnershipDoc.docId === this.#coreManager.deviceId) continue
+      try {
+        // We don't actually need the role, we just need to check if it exists
+        await this.#capabilities.getCapabilities(coreOwnershipDoc.docId)
+        this.#addCores(coreOwnershipDoc)
+        this.#l.log('Added cores for device %S', coreOwnershipDoc.docId)
+      } catch (e) {
+        // Ignore, we'll add these when the role is added
+        this.#l.log('No role for device %S', coreOwnershipDoc.docId)
+      }
+    }
+  }
+
+  /**
+   * @param {import('@mapeo/schema').CoreOwnership} coreOwnership
+   */
+  #addCores(coreOwnership) {
+    for (const ns of NAMESPACES) {
+      if (ns === 'auth') continue
+      const coreKey = Buffer.from(coreOwnership[`${ns}CoreId`], 'hex')
+      this.#coreManager.addCore(coreKey, ns)
+    }
   }
 }
 
@@ -195,12 +262,12 @@ export class SyncApi extends TypedEmitter {
  *
  * @param {import('./sync-state.js').State} state
  * @param {readonly import('../core-manager/index.js').Namespace[]} namespaces
- * @param {Map<import('protomux'), PeerSyncController>} peerSyncControllers
+ * @param {Iterable<PeerSyncController>} peerSyncControllers
  */
 function isSynced(state, namespaces, peerSyncControllers) {
   for (const ns of namespaces) {
     if (state[ns].dataToSync) return false
-    for (const psc of peerSyncControllers.values()) {
+    for (const psc of peerSyncControllers) {
       const { peerId } = psc
       if (psc.syncCapability[ns] === 'blocked') continue
       if (!(peerId in state[ns].remoteStates)) return false
@@ -208,4 +275,53 @@ function isSynced(state, namespaces, peerSyncControllers) {
     }
   }
   return true
+}
+
+class PSCIndex {
+  /** @type {Map<import('protomux'), PeerSyncController>} */
+  #byProtomux = new Map()
+  /** @type {Map<string, Set<PeerSyncController>>} */
+  #byPeerId = new Map()
+  /**
+   * @param {PeerSyncController} psc
+   */
+  add(psc) {
+    this.#byProtomux.set(psc.protomux, psc)
+    const peerSet = this.#byPeerId.get(psc.peerId) || new Set()
+    peerSet.add(psc)
+    this.#byPeerId.set(psc.peerId, peerSet)
+  }
+  values() {
+    return this.#byProtomux.values()
+  }
+  /**
+   * @param {import('protomux')} protomux
+   */
+  hasProtomux(protomux) {
+    return this.#byProtomux.has(protomux)
+  }
+  /**
+   * @param {import('protomux')} protomux
+   */
+  getByProtomux(protomux) {
+    return this.#byProtomux.get(protomux)
+  }
+  /**
+   * @param {string} peerId
+   */
+  getByPeerId(peerId) {
+    return this.#byPeerId.get(peerId)
+  }
+  /**
+   * @param {PeerSyncController} psc
+   */
+  delete(psc) {
+    this.#byProtomux.delete(psc.protomux)
+    const peerSet = this.#byPeerId.get(psc.peerId)
+    if (!peerSet) return
+    peerSet.delete(psc)
+    if (peerSet.size === 0) {
+      this.#byPeerId.delete(psc.peerId)
+    }
+  }
 }

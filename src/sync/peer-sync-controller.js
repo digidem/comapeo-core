@@ -1,4 +1,3 @@
-import mapObject from 'map-obj'
 import { NAMESPACES } from '../core-manager/index.js'
 import { Logger } from '../logger.js'
 
@@ -13,58 +12,78 @@ import { Logger } from '../logger.js'
 export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
 
 export class PeerSyncController {
+  /** @type {Set<import('hypercore')<any, any>>} */
   #replicatingCores = new Set()
   /** @type {Set<Namespace>} */
   #enabledNamespaces = new Set()
   #coreManager
-  #protomux
+  #creatorCorePeer
   #capabilities
   /** @type {Record<Namespace, SyncCapability>} */
   #syncCapability = createNamespaceMap('unknown')
   #isDataSyncEnabled = false
-  /** @type {Record<Namespace, import('./core-sync-state.js').CoreState | null>} */
-  #prevLocalState = createNamespaceMap(null)
-  /** @type {SyncStatus} */
-  #syncStatus = createNamespaceMap('unknown')
-  /** @type {Map<import('hypercore')<'binary', any>, ReturnType<import('hypercore')['download']>>} */
-  #downloadingRanges = new Map()
-  /** @type {SyncStatus} */
-  #prevSyncStatus = createNamespaceMap('unknown')
+  #hasSentHaves = createNamespaceMap(false)
   #log
+  #syncState
+  #presyncDone = false
 
   /**
    * @param {object} opts
-   * @param {import("protomux")<import('../utils.js').OpenedNoiseStream>} opts.protomux
+   * @param {import('./sync-api.js').Peer} opts.creatorCorePeer
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    * @param {import("./sync-state.js").SyncState} opts.syncState
    * @param {import("../capabilities.js").Capabilities} opts.capabilities
    * @param {Logger} [opts.logger]
    */
-  constructor({ protomux, coreManager, syncState, capabilities, logger }) {
+  constructor({
+    creatorCorePeer,
+    coreManager,
+    syncState,
+    capabilities,
+    logger,
+  }) {
     // @ts-ignore
     this.#log = (formatter, ...args) => {
       const log = Logger.create('peer', logger).log
       return log.apply(null, [
         `[%h] ${formatter}`,
-        protomux.stream.remotePublicKey,
+        creatorCorePeer.remotePublicKey,
         ...args,
       ])
     }
     this.#coreManager = coreManager
-    this.#protomux = protomux
+    this.#creatorCorePeer = creatorCorePeer
     this.#capabilities = capabilities
+    this.#syncState = syncState
 
-    // Always need to replicate the project creator core
-    this.#replicateCore(coreManager.creatorCore)
+    // The creator core is replicating before this instance is created
+    this.#replicatingCores = new Set([coreManager.creatorCore])
+
+    // A PeerSyncController instance is only created once the creator cores are
+    // replicating, which imeans that the peer has the project key, so now we
+    // can send all the auth core keys.
+    //
+    // We could reduce network traffic by delaying sending this until we see
+    // which keys the peer already has, so that we only send the keys they are
+    // missing. However the network traffic cost of sending keys is low (it's 8
+    // bytes * number of devices in a project) vs. the delay in sync e.g. if the
+    // delay is more than the time it takes to share the keys, it's not worth
+    // it.
+    coreManager.sendAuthCoreKeys(creatorCorePeer)
 
     coreManager.on('add-core', this.#handleAddCore)
     syncState.on('state', this.#handleStateChange)
+    capabilities.on('update', this.#handleCapabilitiesUpdate)
 
     this.#updateEnabledNamespaces()
   }
 
+  get protomux() {
+    return this.#creatorCorePeer.protomux
+  }
+
   get peerKey() {
-    return this.#protomux.stream.remotePublicKey
+    return this.#creatorCorePeer.remotePublicKey
   }
 
   get peerId() {
@@ -99,24 +118,24 @@ export class PeerSyncController {
    */
   handleDiscoveryKey(discoveryKey) {
     const coreRecord = this.#coreManager.getCoreByDiscoveryKey(discoveryKey)
-    // If we already know about this core, then we will add it to the
-    // replication stream when we are ready
-    if (coreRecord) {
-      this.#log(
-        'Received discovery key %h, but already have core in namespace %s',
-        discoveryKey,
-        coreRecord.namespace
-      )
-      if (this.#enabledNamespaces.has(coreRecord.namespace)) {
-        this.#replicateCore(coreRecord.core)
-      }
-      return
+    // If we don't have the core record, we'll add and replicate it when we
+    // receive the core key via an extension or from a core ownership record.
+    if (!coreRecord) return
+
+    this.#log(
+      'Received discovery key %h, but already have core in namespace %s',
+      discoveryKey,
+      coreRecord.namespace
+    )
+    if (this.#enabledNamespaces.has(coreRecord.namespace)) {
+      this.#replicateCore(coreRecord.core)
     }
-    if (!this.peerKey) {
-      this.#log('Unexpected null peerKey')
-      return
-    }
-    this.#coreManager.requestCoreKey(this.peerKey, discoveryKey)
+  }
+
+  destroy() {
+    this.#coreManager.off('add-core', this.#handleAddCore)
+    this.#syncState.off('state', this.#handleStateChange)
+    this.#capabilities.off('update', this.#handleCapabilitiesUpdate)
   }
 
   /**
@@ -137,48 +156,54 @@ export class PeerSyncController {
    * @param {import("./sync-state.js").State} state
    */
   #handleStateChange = async (state) => {
-    // The remotePublicKey is only available after the noise stream has
-    // connected. We shouldn't get a state change before the noise stream has
-    // connected, but if we do we can ignore it because we won't have any useful
-    // information until it connects.
-    if (!this.peerId) return
-    this.#syncStatus = getSyncStatus(this.peerId, state)
-    const localState = mapObject(state, (ns, nsState) => {
-      return [ns, nsState.localState]
+    if (this.#presyncDone) return
+    const syncStatus = getSyncStatus(this.peerId, state)
+    this.#presyncDone = PRESYNC_NAMESPACES.every((ns) => {
+      return syncStatus[ns] === 'synced'
     })
-    this.#log('state %X', state)
+    if (!this.#presyncDone) return
+    this.#log('Pre-sync done')
+    // Once pre-sync is done, if data sync is enabled and the peer has the
+    // correct capabilities, then we will enable sync of data namespaces
+    this.#updateEnabledNamespaces()
+  }
 
-    // Map of which namespaces have received new data since last sync change
-    const didUpdate = mapObject(state, (ns) => {
-      const nsDidSync =
-        this.#prevSyncStatus[ns] !== 'synced' &&
-        this.#syncStatus[ns] === 'synced'
-      const prevNsState = this.#prevLocalState[ns]
-      const nsDidUpdate =
-        nsDidSync &&
-        (prevNsState === null || prevNsState.have !== localState[ns].have)
-      if (nsDidUpdate) {
-        this.#prevLocalState[ns] = localState[ns]
-      }
-      return [ns, nsDidUpdate]
-    })
-    this.#prevSyncStatus = this.#syncStatus
-
-    if (didUpdate.auth) {
-      try {
-        const cap = await this.#capabilities.getCapabilities(this.peerId)
-        this.#syncCapability = cap.sync
-      } catch (e) {
-        this.#log('Error reading capability', e)
-        // Any error, consider sync unknown
-        this.#syncCapability = createNamespaceMap('unknown')
-      }
+  /**
+   * Handler for capabilities being updated. If they have changed for this peer
+   * then we update enabled namespaces and send pre-haves for any namespaces
+   * authorized for sync
+   *
+   * @param {import('@mapeo/schema').Role[]} docs
+   */
+  #handleCapabilitiesUpdate = async (docs) => {
+    const peerRoleUpdated = docs.some((doc) => doc.docId === this.peerId)
+    if (!peerRoleUpdated) return
+    const prevSyncCapability = this.#syncCapability
+    try {
+      const cap = await this.#capabilities.getCapabilities(this.peerId)
+      this.#syncCapability = cap.sync
+    } catch (e) {
+      this.#log('Error reading capability', e)
+      // Any error, consider sync unknown
+      this.#syncCapability = createNamespaceMap('unknown')
     }
-    this.#log('capability %o', this.#syncCapability)
+    const syncCapabilityChanged = !shallowEqual(
+      prevSyncCapability,
+      this.#syncCapability
+    )
+    if (!syncCapabilityChanged) return
 
-    // If any namespace has new data, update what is enabled
-    if (Object.values(didUpdate).indexOf(true) > -1) {
-      this.#updateEnabledNamespaces()
+    this.#log('Sync capability changed %o', this.#syncCapability)
+    this.#updateEnabledNamespaces()
+
+    // Send pre-haves for any namespaces that the peer is allowed to sync
+    for (const ns of NAMESPACES) {
+      if (ns === 'auth') continue
+      if (this.#hasSentHaves[ns]) continue
+      if (this.#syncCapability[ns] !== 'allowed') continue
+      this.#coreManager.sendHaves(this.#creatorCorePeer, ns)
+      this.#log('Sent pre-haves for %s', ns)
+      this.#hasSentHaves[ns] = true
     }
   }
 
@@ -200,14 +225,9 @@ export class PeerSyncController {
       } else if (cap === 'allowed') {
         if (PRESYNC_NAMESPACES.includes(ns)) {
           this.#enableNamespace(ns)
-        } else if (this.#isDataSyncEnabled) {
-          const arePresyncNamespacesSynced = PRESYNC_NAMESPACES.every(
-            (ns) => this.#syncStatus[ns] === 'synced'
-          )
+        } else if (this.#isDataSyncEnabled && this.#presyncDone) {
           // Only enable data namespaces once the pre-sync namespaces have synced
-          if (arePresyncNamespacesSynced) {
-            this.#enableNamespace(ns)
-          }
+          this.#enableNamespace(ns)
         } else {
           this.#disableNamespace(ns)
         }
@@ -225,7 +245,7 @@ export class PeerSyncController {
   #replicateCore(core) {
     if (this.#replicatingCores.has(core)) return
     this.#log('replicating core %k', core.key)
-    core.replicate(this.#protomux)
+    core.replicate(this.#creatorCorePeer.protomux)
     core.on('peer-remove', (peer) => {
       if (!peer.remotePublicKey.equals(this.peerKey)) return
       this.#log('peer-remove %h from core %k', peer.remotePublicKey, core.key)
@@ -239,7 +259,7 @@ export class PeerSyncController {
   #unreplicateCore(core) {
     if (core === this.#coreManager.creatorCore) return
     const peerToUnreplicate = core.peers.find(
-      (peer) => peer.protomux === this.#protomux
+      (peer) => peer.protomux === this.#creatorCorePeer.protomux
     )
     if (!peerToUnreplicate) return
     this.#log('unreplicating core %k', core.key)
@@ -311,4 +331,18 @@ function createNamespaceMap(value) {
     map[ns] = value
   }
   return map
+}
+
+/**
+ * Very naive shallow equal, but all we need for comparing sync capabilities
+ *
+ * @param {Record<string, any>} a
+ * @param {Record<string, any>} b
+ * @returns
+ */
+function shallowEqual(a, b) {
+  for (const key of Object.keys(a)) {
+    if (a[key] !== b[key]) return false
+  }
+  return true
 }

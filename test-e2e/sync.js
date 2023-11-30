@@ -190,71 +190,65 @@ test('shares cores', async function (t) {
   }
 })
 
-test('no sync capabilities === no namespaces sync apart from auth', async (t) => {
-  const COUNT = 3
-  const managers = await createManagers(COUNT, t)
-  const [invitor, invitee, blocked] = managers
-  const disconnect1 = connectPeers(managers, { discovery: false })
-  const projectId = await invitor.createProject()
-  await invite({
-    invitor,
-    invitees: [blocked],
-    projectId,
-    roleId: BLOCKED_ROLE_ID,
-  })
-  await invite({
-    invitor,
-    invitees: [invitee],
-    projectId,
-    roleId: COORDINATOR_ROLE_ID,
-  })
+test.solo(
+  'no sync capabilities === no namespaces sync apart from auth',
+  async (t) => {
+    const COUNT = 3
+    const managers = await createManagers(COUNT, t)
+    const [invitor, invitee, blocked] = managers
+    const disconnect1 = connectPeers(managers, { discovery: false })
+    const projectId = await invitor.createProject()
+    await invite({
+      invitor,
+      invitees: [blocked],
+      projectId,
+      roleId: BLOCKED_ROLE_ID,
+    })
+    await invite({
+      invitor,
+      invitees: [invitee],
+      projectId,
+      roleId: COORDINATOR_ROLE_ID,
+    })
 
-  const projects = await Promise.all(
-    managers.map((m) => m.getProject(projectId))
-  )
-  const [invitorProject, inviteeProject] = projects
+    const projects = await Promise.all(
+      managers.map((m) => m.getProject(projectId))
+    )
+    const [invitorProject, inviteeProject] = projects
 
-  const generatedDocs = (await seedDatabases([inviteeProject])).flat()
-  const configDocsCount = generatedDocs.filter(
-    (doc) => doc.schemaName !== 'observation'
-  ).length
-  const dataDocsCount = generatedDocs.length - configDocsCount
+    const generatedDocs = (await seedDatabases([inviteeProject])).flat()
+    const configDocsCount = generatedDocs.filter(
+      (doc) => doc.schemaName !== 'observation'
+    ).length
+    const dataDocsCount = generatedDocs.length - configDocsCount
 
-  for (const project of projects) {
-    project.$sync.start()
-  }
-
-  await waitForSync([inviteeProject, invitorProject], 'full')
-
-  const [invitorState, inviteeState, blockedState] = projects.map((p) =>
-    p.$sync.getState()
-  )
-
-  t.is(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
-  t.is(invitorState.data.localState.have, dataDocsCount)
-  t.is(blockedState.config.localState.have, 1) // just the device info doc
-  t.is(blockedState.data.localState.have, 0) // no data docs synced
-
-  for (const ns of NAMESPACES) {
-    if (ns === 'auth') {
-      t.is(invitorState[ns].coreCount, 3)
-      t.is(inviteeState[ns].coreCount, 3)
-      t.is(blockedState[ns].coreCount, 3)
-    } else if (PRESYNC_NAMESPACES.includes(ns)) {
-      t.is(invitorState[ns].coreCount, 3)
-      t.is(inviteeState[ns].coreCount, 3)
-      t.is(blockedState[ns].coreCount, 1)
-    } else {
-      t.is(invitorState[ns].coreCount, 2)
-      t.is(inviteeState[ns].coreCount, 2)
-      t.is(blockedState[ns].coreCount, 1)
+    for (const project of projects) {
+      project.$sync.start()
     }
-    t.alike(invitorState[ns].localState, inviteeState[ns].localState)
+
+    await waitForSync([inviteeProject, invitorProject], 'full')
+
+    const [invitorState, inviteeState, blockedState] = projects.map((p) =>
+      p.$sync.getState()
+    )
+
+    t.is(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
+    t.is(invitorState.data.localState.have, dataDocsCount)
+    console.dir(blockedState, { depth: null })
+    t.is(blockedState.config.localState.have, 1) // just the device info doc
+    t.is(blockedState.data.localState.have, 0) // no data docs synced
+
+    // Temp fix until we have .close() method - waits for indexing idle to ensure
+    // we don't close storage in teardown while index is still being written.
+    await Promise.all(projects.map((p) => p.$getProjectSettings()))
+
+    for (const ns of NAMESPACES) {
+      t.is(invitorState[ns].coreCount, 3)
+      t.is(inviteeState[ns].coreCount, 3)
+      t.is(blockedState[ns].coreCount, 3, ns)
+      t.alike(invitorState[ns].localState, inviteeState[ns].localState)
+    }
+
+    await disconnect1()
   }
-
-  // Temp fix until we have .close() method - waits for indexing idle to ensure
-  // we don't close storage in teardown while index is still being written.
-  await Promise.all(projects.map((p) => p.$getProjectSettings()))
-
-  await disconnect1()
-})
+)

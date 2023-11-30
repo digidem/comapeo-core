@@ -158,6 +158,7 @@ export class MapeoProject {
         namespace: 'auth',
         batch: (entries) => indexWriter.batch(entries),
         storage: indexerStorage,
+        emitUpdates: ['role', 'coreOwnership'],
       }),
       config: new DataStore({
         coreManager: this.#coreManager,
@@ -283,6 +284,7 @@ export class MapeoProject {
     this.#syncApi = new SyncApi({
       coreManager: this.#coreManager,
       capabilities: this.#capabilities,
+      coreOwnership: this.#coreOwnership,
       logger: this.#l,
     })
 

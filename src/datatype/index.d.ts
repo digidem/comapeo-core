@@ -29,6 +29,7 @@ type MapeoDocTablesMap = {
 export const kCreateWithDocId: unique symbol
 export const kSelect: unique symbol
 export const kTable: unique symbol
+export const kDataStore: unique symbol
 
 type OmitUnion<T, K extends keyof any> = T extends any ? Omit<T, K> : never
 type ExcludeSchema<
@@ -60,7 +61,7 @@ export class DataType<
 
   get [kTable](): TTable
 
-  get writerCore(): Hypercore<'binary', Buffer>
+  get [kDataStore](): TDataStore
 
   [kCreateWithDocId](
     docId: string,
