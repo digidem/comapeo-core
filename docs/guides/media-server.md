@@ -24,7 +24,7 @@ The example code in the following sections assume that some variation of the abo
 
 Blobs represent any binary objects. In the case of Mapeo, that will most likely be media assets such as photos, videos, and audio files. Mapeo provides a project-scoped API that is used for creating and retrieving blobs. Combined with the media server, applications can access them using HTTP requests.
 
-In the case of an observation record, there can be any number references to "attachments" (in most cases, an image). In order to create these attachments, we need to work with a project's blob API, which can be accessed using `project.$blobs`.
+In the case of an observation record, there can be any number of references to "attachments" (in most cases, an image). In order to create these attachments we need to work with a project's blob API, which can be accessed using `project.$blobs`.
 
 The snippet below shows how to create a blob that represents a PNG image that is located at a specific path on our device. The `mimeType` represents the asset's MIME type using the format specified by the Internet Assigned Numbers Authority (IANA) (see full list at https://www.iana.org/assignments/media-types/media-types.xhtml).
 
