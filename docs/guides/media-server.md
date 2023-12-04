@@ -95,7 +95,7 @@ You can then use this URL with anything that uses HTTP to fetch media. Some exam
 - React Native `Image` component
 
   ```js
-  <Image source="{blobUrl}" />
+  <Image source={blobUrl} />
   ```
 
 ## Working with icons
@@ -127,7 +127,7 @@ const svgBlob = await fs.readFile('/path/to/my/icon/plant.svg')
 
 // Then create an icon (this one has multiple variants in this case)
 // Note that pixelDensity does not matter for SVG
-const iconId = await project.$icons.create({
+const plantIconId = await project.$icons.create({
   name: 'plant',
   variants: [
     {
@@ -145,25 +145,46 @@ const iconId = await project.$icons.create({
 })
 ```
 
-Each icon can have multiple variants which can be used accorrding to the application's context. In the example above, we created an icon that has two variants: a small PNG and a small SVG. Currently, the Icons API only supports creating icon recorsd based on PNG and SVG assets.
+Each icon can have multiple variants which can be used according to the application's context. In the example above, we created an icon that has two variants: a small PNG and a small SVG. Currently, the Icons API only supports creating icons based on PNG and SVG assets.
 
-The returned `iconId` can be used to get the URL that points to the desired icon and its variant:
+You will most likely want to have a project preset that uses the icon in the user interface. The following snippet creates a preset that references the icon:
 
 ```js
-const pngIconUrl = await project.$icons.getIconUrl(iconId, {
+const plantPreset = await project.preset.create({
+  schemaName: 'preset',
+  name: 'plants',
+  geometry: ['point'],
+  iconId: plantIconId,
+  tags: {},
+  addTags: {},
+  removeTags: {},
+  terms: [],
+  fieldIds: [],
+})
+```
+
+The `iconId` can be used to get the URL that points to the desired icon and its variant:
+
+```js
+// If you do not already have the icon id, you may need to do something like the following first
+const plantPreset = await project.preset
+  .getMany()
+  .find((p) => p.name === 'plants')
+
+const pngIconUrl = await project.$icons.getIconUrl(plantPreset.iconId, {
   mimeType: 'image/png',
   size: 'small',
   pixelDensity: 1,
 })
 
 // Note that pixelDensity does not matter for SVG
-const svgIconUrl = await project.$icons.getIconUrl(iconId, {
+const svgIconUrl = await project.$icons.getIconUrl(plantPreset.iconId, {
   mimeType: 'image/svg+xml',
   size: 'small',
 })
 ```
 
-The `blobUrl` is a string with the following structure:
+The `pngIconUrl` and `svgIconUrl` are strings with the following structure:
 
 ```
 http://{HOST_NAME}:{PORT}/icons/{PROJECT_PUBLIC_ID}/{ICON_ID}/{SIZE}{PIXEL_DENSITY}.${EXTENSION}
@@ -179,7 +200,7 @@ Explanation of the different parts of this URL:
 - `PIXEL_DENSITY`: The denoted pixel density of the assets. If included, this is formatted as `@_x` where the `_` is a positive integer (usually `1`, `2`, or `3`). Note that this may be omitted from the url, in which case the pixel density is assumed to be `1` for applicable assets (e.g. bitmaps like PNG or JPG).
 - `EXTENSION`: The file extension associated with the `mimeType` option. For PNG it is `png` and for SVG it is `svg`.
 
-You can then use this URL with anything that uses HTTP to fetch media. Some examples:
+You can then use the URL with anything that uses HTTP to fetch media. Some examples:
 
 - HTML `img` tag
 
@@ -191,7 +212,7 @@ You can then use this URL with anything that uses HTTP to fetch media. Some exam
 
 - React Native `Image` component
 
-  ```js
-  <Image source="{pngIconUrl}" />
-  <Image source="{svgIconUrl}" />
+  ```
+  <Image source={pngIconUrl} />
+  <Image source={svgIconUrl} />
   ```
