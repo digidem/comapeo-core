@@ -173,13 +173,15 @@ const plantPreset = await project.preset
   .getMany()
   .find((p) => p.name === 'plants')
 
+// Even though we do not have a PNG icon of pixel density 3, getIconUrl() will still return a
+// value using the closest matching PNG available (pixel density 1 in this example)
 const pngIconUrl = await project.$icons.getIconUrl(plantPreset.iconId, {
   mimeType: 'image/png',
   size: 'small',
-  pixelDensity: 1,
+  pixelDensity: 3,
 })
 
-// Note that pixelDensity does not matter for SVG
+// Note that pixel density does not apply to SVG
 const svgIconUrl = await project.$icons.getIconUrl(plantPreset.iconId, {
   mimeType: 'image/svg+xml',
   size: 'small',
