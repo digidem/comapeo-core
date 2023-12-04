@@ -27,34 +27,36 @@ In the case of an observation record, there can be any number references to "att
 The snippet below shows how to create a blob that represents a PNG image that is located at a specific path on our device. The `mimeType` represents the asset's MIME type using the format specified by the Internet Assigned Numbers Authority (IANA) (see full list at https://www.iana.org/assignments/media-types/media-types.xhtml).
 
 ```js
-// Create the media asset blob
 const blobId = await project.$blobs.create({
     { original: '/path/to/my/original-blob.png' },
     { mimeType: 'image/png' }
 })
+```
 
-// Create an observation record and add the blob as an attachment to it
+This blob can then be attached to an observation record:
+
+```js
 const observation = await project.observation.create({
-    schemaName: 'observation',
-    attachments: [
-      {
-        driveDiscoveryId: blobId.driveId, // discovery id for hyperdrive instance containing the blob
-        type: blobId.type, // media type ('photo' in this case)
-        name: blobId.name, // random 8 byte hex string
-        hash: blobId.hash, // content hash
-      }
-    ],
-    tags: {},
-    refs: [],
-    metadata: {},
+  schemaName: 'observation',
+  attachments: [
+    {
+      driveDiscoveryId: blobId.driveId, // discovery id for hyperdrive instance containing the blob
+      type: blobId.type, // media type ('photo' in this case)
+      name: blobId.name, // random 8 byte hex string
+      hash: blobId.hash, // content hash
+    },
+  ],
+  tags: {},
+  refs: [],
+  metadata: {},
 })
 ```
 
 The attachment provides the information that is needed to create a HTTP URL that can be used to access the asset from the media server:
 
 ```js
-// If you don't already have the observation record, you may need to get the relevant observation by doing the following
-// const observation = await project.observation.getByDocId(...)
+// If you don't already have the observation record, you may need to retrieve it by doing the following
+const observation = await project.observation.getByDocId(...)
 
 // Get the attachment that represents the blob
 const attachment = observation.attachments[0]
@@ -163,7 +165,7 @@ const plantPreset = await project.preset.create({
 })
 ```
 
-The `iconId` can be used to get the URL that points to the desired icon and its variant:
+The icon ID can be used to get the URL that points to the desired icon and its variant:
 
 ```js
 // If you do not already have the icon id, you may need to do something like the following first
