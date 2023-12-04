@@ -27,24 +27,45 @@ In the case of an observation record, there can be any number references to "att
 The snippet below shows how to create a blob that represents a PNG image that is located at a specific path on our device. The `mimeType` represents the asset's MIME type using the format specified by the Internet Assigned Numbers Authority (IANA) (see full list at https://www.iana.org/assignments/media-types/media-types.xhtml).
 
 ```js
+// Create the media asset blob
 const blobId = await project.$blobs.create({
     { original: '/path/to/my/original-blob.png' },
     { mimeType: 'image/png' }
 })
+
+// Create an observation record and add the blob as an attachment to it
+const observation = await project.observation.create({
+    schemaName: 'observation',
+    attachments: [
+      {
+        driveDiscoveryId: blobId.driveId, // discovery id for hyperdrive instance containing the blob
+        type: blobId.type, // media type ('photo' in this case)
+        name: blobId.name, // random 8 byte hex string
+        hash: blobId.hash, // content hash
+      }
+    ],
+    tags: {},
+    refs: [],
+    metadata: {},
+})
 ```
 
-The returned `blobId` contains the necessary information we need in order to construct the HTTP URL that can be used to access the asset from the media server:
+The attachment provides the information that is needed to create a HTTP URL that can be used to access the asset from the media server:
 
 ```js
-const blobUrl = await project.$blobs.getUrl({
-  driveId: blob.driveId, // discovery id for hyperdrive instance containing the blob
-  type: blob.type, // media type ('photo' in this case)
-  variant: blob.variant, // asset variant ('original' in this case)
-  name: blob.name, // random 8 byte hex string
-})
+// If you don't already have the observation record, you may need to get the relevant observation by doing the following
+// const observation = await project.observation.getByDocId(...)
 
-// Alternatively, can do this instead since the blobId conveniently matches the expected parameter type:
-// const blobUrl = await project.$blobs.getUrl(blobId)
+// Get the attachment that represents the blob
+const attachment = observation.attachments[0]
+
+// Get the URL pointing to the blob's original variant
+const blobUrl = await project.$blobs.getUrl({
+  driveId: attachment.driveDiscoveryId,
+  type: attachment.type,
+  name: attachment.name,
+  variant: 'original',
+})
 ```
 
 The `blobUrl` is a string with the following structure:
