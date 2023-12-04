@@ -1,11 +1,13 @@
 // @ts-nocheck
-import { CoreManager } from '../../src/core-manager/index.js'
+import {
+  CoreManager,
+  kCoreManagerReplicate,
+} from '../../src/core-manager/index.js'
 import Sqlite from 'better-sqlite3'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-
 /**
  *
  * @param {Partial<ConstructorParameters<typeof CoreManager>[0]> & { rootKey?: Buffer }} param0
@@ -23,6 +25,7 @@ export function createCoreManager({
     keyManager,
     storage: RAM,
     projectKey,
+    autoDownload: false,
     ...opts,
   })
 }
@@ -43,8 +46,8 @@ export function replicate(
   const n2 = new NoiseSecretStream(false, undefined, { keyPair: kp2 })
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
-  const rsm1 = cm1.replicate(n1)
-  const rsm2 = cm2.replicate(n2)
+  cm1[kCoreManagerReplicate](n1)
+  cm2[kCoreManagerReplicate](n2)
 
   async function destroy() {
     await Promise.all([
@@ -60,7 +63,6 @@ export function replicate(
   }
 
   return {
-    rsm: [rsm1, rsm2],
     destroy,
   }
 }

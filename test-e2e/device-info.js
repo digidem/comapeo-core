@@ -5,10 +5,17 @@ import RAM from 'random-access-memory'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
 
+const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
+  .pathname
+const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
+  .pathname
+
 test('write and read deviceInfo', async (t) => {
   const rootKey = KeyManager.generateRootKey()
   const manager = new MapeoManager({
     rootKey,
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -27,6 +34,8 @@ test('device info written to projects', (t) => {
   t.test('when creating project', async (st) => {
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
+      projectMigrationsFolder,
+      clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
     })
@@ -35,8 +44,6 @@ test('device info written to projects', (t) => {
 
     const projectId = await manager.createProject()
     const project = await manager.getProject(projectId)
-
-    await project.ready()
 
     const me = await project.$member.getById(project.deviceId)
 
@@ -47,20 +54,23 @@ test('device info written to projects', (t) => {
   t.test('when adding project', async (st) => {
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
+      projectMigrationsFolder,
+      clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
     })
 
     await manager.setDeviceInfo({ name: 'mapeo' })
 
-    const projectId = await manager.addProject({
-      projectKey: randomBytes(32),
-      encryptionKeys: { auth: randomBytes(32) },
-    })
+    const projectId = await manager.addProject(
+      {
+        projectKey: randomBytes(32),
+        encryptionKeys: { auth: randomBytes(32) },
+      },
+      { waitForSync: false }
+    )
 
     const project = await manager.getProject(projectId)
-
-    await project.ready()
 
     const me = await project.$member.getById(project.deviceId)
 
@@ -70,6 +80,8 @@ test('device info written to projects', (t) => {
   t.test('after updating global device info', async (st) => {
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
+      projectMigrationsFolder,
+      clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
     })
@@ -85,7 +97,6 @@ test('device info written to projects', (t) => {
     const projects = await Promise.all(
       projectIds.map(async (projectId) => {
         const project = await manager.getProject(projectId)
-        await project.ready()
         return project
       })
     )

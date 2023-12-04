@@ -12,6 +12,9 @@ import { Logger } from '../logger.js'
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
  */
 /**
+ * @typedef {{ [K in MapeoDoc['schemaName']]?: string[] }} IndexedDocIds
+ */
+/**
  * @typedef {ReturnType<import('@mapeo/schema').decode>} MapeoDocInternal
  */
 
@@ -54,14 +57,16 @@ export class IndexWriter {
   }
 
   /**
-   *
    * @param {import('multi-core-indexer').Entry[]} entries
+   * @returns {Promise<IndexedDocIds>} map of indexed docIds by schemaName
    */
   async batch(entries) {
     // sqlite-indexer is _significantly_ faster when batching even <10 at a
     // time, so best to queue docs here before calling sliteIndexer.batch()
     /** @type {Record<string, MapeoDoc[]>} */
     const queued = {}
+    /** @type {IndexedDocIds} */
+    const indexed = {}
     for (const { block, key, index } of entries) {
       try {
         const version = { coreDiscoveryKey: discoveryKey(key), index }
@@ -71,19 +76,21 @@ export class IndexWriter {
         // Unknown or invalid entry - silently ignore
         continue
       }
+      // Don't have an indexer for this type - silently ignore
+      if (!this.#indexers.has(doc.schemaName)) continue
       if (queued[doc.schemaName]) {
         queued[doc.schemaName].push(doc)
+        // @ts-expect-error - we know this is defined, TS doesn't
+        indexed[doc.schemaName].push(doc.docId)
       } else {
         queued[doc.schemaName] = [doc]
+        indexed[doc.schemaName] = [doc.docId]
       }
     }
     for (const [schemaName, docs] of Object.entries(queued)) {
       // @ts-expect-error
       const indexer = this.#indexers.get(schemaName)
-      if (!indexer) {
-        // Don't have an indexer for this type - silently ignore
-        continue
-      }
+      if (!indexer) continue // Won't happen, but TS doesn't know that
       indexer.batch(docs)
       if (this.#l.enabled) {
         for (const doc of docs) {
@@ -96,5 +103,6 @@ export class IndexWriter {
         }
       }
     }
+    return indexed
   }
 }

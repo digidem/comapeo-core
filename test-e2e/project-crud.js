@@ -1,9 +1,10 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
-import { KeyManager } from '@mapeo/crypto'
 import { valueOf } from '../src/utils.js'
-import { MapeoManager } from '../src/mapeo-manager.js'
-import RAM from 'random-access-memory'
+import { createManager, sortById, stripUndef } from './utils.js'
+import { round } from './utils.js'
+import { generate } from '@mapeo/mock-data'
+import { setTimeout as delay } from 'timers/promises'
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -62,30 +63,46 @@ function getUpdateFixture(value) {
   }
 }
 
+const CREATE_COUNT = 100
+
 test('CRUD operations', async (t) => {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
+  const manager = createManager('device0', t)
 
   for (const value of fixtures) {
     const { schemaName } = value
-    t.test(`create and read ${schemaName}`, async (st) => {
+    await t.test(`create and read ${schemaName}`, async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
-      // @ts-ignore - TS can't figure this out, but we're not testing types here so ok to ignore
-      const written = await project[schemaName].create(value)
-      const read = await project[schemaName].getByDocId(written.docId)
-      st.alike(valueOf(stripUndef(written)), value, 'expected value is written')
-      st.alike(written, read, 'return create() matches return of getByDocId()')
+      /** @type {any[]} */
+      const updates = []
+      const writePromises = []
+      project[schemaName].on('updated-docs', (docs) => updates.push(...docs))
+      let i = 0
+      while (i++ < CREATE_COUNT) {
+        const value = valueOf(generate(schemaName)[0])
+        writePromises.push(
+          // @ts-ignore
+          project[schemaName].create(value)
+        )
+      }
+      const written = await Promise.all(writePromises)
+      const read = await Promise.all(
+        written.map((doc) => project[schemaName].getByDocId(doc.docId))
+      )
+      st.alike(
+        sortById(written),
+        sortById(read),
+        'return create() matches return of getByDocId()'
+      )
+      st.alike(sortById(updates), sortById(written), 'updated-docs emitted')
     })
-    t.test('update', async (st) => {
+    await t.test('update', async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       // @ts-ignore
       const written = await project[schemaName].create(value)
       const updateValue = getUpdateFixture(value)
+      await delay(1) // delay to ensure updatedAt is different to createdAt
       // @ts-ignore
       const updated = await project[schemaName].update(
         written.versionId,
@@ -106,7 +123,7 @@ test('CRUD operations', async (t) => {
       st.is(written.createdAt, updated.createdAt, 'createdAt does not change')
       st.is(written.createdBy, updated.createdBy, 'createdBy does not change')
     })
-    t.test('getMany', async (st) => {
+    await t.test('getMany', async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       const values = new Array(5).fill(null).map(() => {
@@ -182,20 +199,3 @@ test('CRUD operations', async (t) => {
     )
   }
 })
-
-/**
- * Remove undefined properties from an object, to allow deep comparison
- * @param {object} obj
- */
-function stripUndef(obj) {
-  return JSON.parse(JSON.stringify(obj))
-}
-
-/**
- *
- * @param {number} value
- * @param {number} decimalPlaces
- */
-function round(value, decimalPlaces) {
-  return Math.round(value * 10 ** decimalPlaces) / 10 ** decimalPlaces
-}

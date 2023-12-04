@@ -4,7 +4,6 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
 
 import { CoreManager, NAMESPACES } from './core-manager/index.js'
@@ -36,20 +35,21 @@ import {
   valueOf,
 } from './utils.js'
 import { MemberApi } from './member-api.js'
-import { IconApi } from './icon-api.js'
-import { SyncApi, kSyncReplicate } from './sync/sync-api.js'
-import Hypercore from 'hypercore'
+import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
+import { IconApi } from './icon-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
+export const kCoreManager = Symbol('coreManager')
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
+const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
 export class MapeoProject {
   #projectId
@@ -60,6 +60,7 @@ export class MapeoProject {
   #blobStore
   #coreOwnership
   #capabilities
+  /** @ts-ignore */
   #ownershipWriteDone
   #sqlite
   #memberApi
@@ -67,9 +68,12 @@ export class MapeoProject {
   #syncApi
   #l
 
+  static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
+
   /**
    * @param {Object} opts
    * @param {string} opts.dbPath Path to store project sqlite db. Use `:memory:` for memory storage
+   * @param {string} opts.projectMigrationsFolder path for drizzle migration folder for project
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
@@ -84,6 +88,7 @@ export class MapeoProject {
    */
   constructor({
     dbPath,
+    projectMigrationsFolder,
     sharedDb,
     sharedIndexWriter,
     coreStorage,
@@ -102,9 +107,7 @@ export class MapeoProject {
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
     const db = drizzle(this.#sqlite)
-    migrate(db, {
-      migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
-    })
+    migrate(db, { migrationsFolder: projectMigrationsFolder })
 
     ///////// 2. Setup random-access-storage functions
 
@@ -218,9 +221,16 @@ export class MapeoProject {
         db,
       }),
     }
-
+    const identityKeypair = keyManager.getIdentityKeypair()
+    const coreKeypairs = getCoreKeypairs({
+      projectKey,
+      projectSecretKey,
+      keyManager,
+    })
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
+      coreKeypairs,
+      identityKeypair,
     })
     this.#capabilities = new Capabilities({
       dataType: this.#dataTypes.role,
@@ -279,50 +289,35 @@ export class MapeoProject {
       logger: this.#l,
     })
 
-    ///////// 4. Wire up sync
+    ///////// 4. Replicate local peers automatically
 
     // Replicate already connected local peers
     for (const peer of localPeers.peers) {
       if (peer.status !== 'connected') continue
-      this.#syncApi[kSyncReplicate](peer.protomux)
+      this.#coreManager.creatorCore.replicate(peer.protomux)
     }
-
-    localPeers.on('discovery-key', (discoveryKey, stream) => {
-      // The core identified by this discovery key might not be part of this
-      // project, but we can't know that so we will request it from the peer if
-      // we don't have it. The peer will not return the core key unless it _is_
-      // part of this project
-      this.#coreManager.handleDiscoveryKey(discoveryKey, stream)
-    })
 
     // When a new peer is found, try to replicate (if it is not a member of the
     // project it will fail the capability check and be ignored)
     localPeers.on('peer-add', (peer) => {
-      this.#syncApi[kSyncReplicate](peer.protomux)
+      this.#coreManager.creatorCore.replicate(peer.protomux)
     })
 
-    ///////// 5. Write core ownership record
-
-    const deferred = pDefer()
-    // Avoid uncaught rejection. If this is rejected then project.ready() will reject
-    deferred.promise.catch(() => {})
-    this.#ownershipWriteDone = deferred.promise
-
-    const authCore = this.#coreManager.getWriterCore('auth').core
-    authCore.on('ready', () => {
-      if (authCore.length > 0) return
-      const identityKeypair = keyManager.getIdentityKeypair()
-      const coreKeypairs = getCoreKeypairs({
-        projectKey,
-        projectSecretKey,
-        keyManager,
-      })
-      this.#coreOwnership
-        .writeOwnership(identityKeypair, coreKeypairs)
-        .then(deferred.resolve)
-        .catch(deferred.reject)
+    // This happens whenever a peer replicates a core to the stream. SyncApi
+    // handles replicating this core if we also have it, or requesting the key
+    // for the core.
+    localPeers.on('discovery-key', (discoveryKey, stream) => {
+      this.#syncApi[kHandleDiscoveryKey](discoveryKey, stream)
     })
+
     this.#l.log('Created project instance %h', projectKey)
+  }
+
+  /**
+   * CoreManager instance, used for tests
+   */
+  get [kCoreManager]() {
+    return this.#coreManager
   }
 
   /**
@@ -394,11 +389,14 @@ export class MapeoProject {
         // Ignore errors thrown by values that can't be decoded for now
       }
     }
-
-    await Promise.all([
+    // TODO: Note that docs indexed to the shared index writer (project
+    // settings) are not currently returned here, so it is not possible to
+    // subscribe to updates for projectSettings
+    const [indexed] = await Promise.all([
       projectIndexWriter.batch(otherEntries),
       sharedIndexWriter.batch(projectSettingsEntries),
     ])
+    return indexed
   }
 
   get observation() {
@@ -462,7 +460,7 @@ export class MapeoProject {
       )
     } catch (e) {
       this.#l.log('No project settings')
-      return /** @type {EditableProjectSettings} */ ({})
+      return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
     }
   }
 
@@ -476,18 +474,21 @@ export class MapeoProject {
    * and only this project will replicate (to replicate multiple projects you
    * need to replicate the manager instance via manager[kManagerReplicate])
    *
-   * @param {Exclude<Parameters<Hypercore.createProtocolStream>[0], boolean>} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
+   * @param {Parameters<import('hypercore')['replicate']>[0]} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
    * @returns
    */
   [kProjectReplicate](stream) {
-    const replicationStream = Hypercore.createProtocolStream(stream, {
+    // @ts-expect-error - hypercore types need updating
+    const replicationStream = this.#coreManager.creatorCore.replicate(stream, {
+      // @ts-ignore - hypercore types do not currently include this option
       ondiscoverykey: async (discoveryKey) => {
-        this.#coreManager.handleDiscoveryKey(discoveryKey, replicationStream)
+        const protomux =
+          /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
+            replicationStream.noiseStream.userData
+          )
+        this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
       },
     })
-    const protomux = replicationStream.noiseStream.userData
-    // @ts-ignore - got fed up jumping through hoops to keep TS heppy
-    this.#syncApi[kSyncReplicate](protomux)
     return replicationStream
   }
 
@@ -547,11 +548,11 @@ function extractEditableProjectSettings(projectDoc) {
  * @param {Buffer} opts.projectKey
  * @param {Buffer} [opts.projectSecretKey]
  * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
- * @returns {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>}
+ * @returns {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>}
  */
 function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
   const keypairs =
-    /** @type {Record<import('./core-manager/core-index.js').Namespace, import('./types.js').KeyPair>} */ ({})
+    /** @type {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>} */ ({})
 
   for (const namespace of NAMESPACES) {
     keypairs[namespace] =

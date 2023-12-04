@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { replicate } from './core-manager.js'
 import { pipelinePromise as pipeline, Writable } from 'streamx'
 
 import { BlobStore } from '../../src/blob-store/index.js'
@@ -14,26 +13,6 @@ export function createBlobStore(options = {}) {
   const coreManager = createCoreManager(options)
   const blobStore = new BlobStore({ coreManager })
   return { blobStore, coreManager }
-}
-
-/**
- *
- * @param {import('../../src/core-manager/index.js').CoreManager} cm1
- * @param {import('../../src/core-manager/index.js').CoreManager} cm2
- */
-export function replicateBlobs(cm1, cm2) {
-  const {
-    rsm: [rsm1, rsm2],
-    destroy,
-  } = replicate(cm1, cm2)
-  rsm1.enableNamespace('blobIndex')
-  rsm1.enableNamespace('blob')
-  rsm2.enableNamespace('blobIndex')
-  rsm2.enableNamespace('blob')
-  return {
-    rsm: /** @type {const} */ ([rsm1, rsm2]),
-    destroy,
-  }
 }
 
 /**

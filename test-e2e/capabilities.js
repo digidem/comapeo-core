@@ -12,10 +12,17 @@ import {
 } from '../src/capabilities.js'
 import { randomBytes } from 'crypto'
 
+const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
+  .pathname
+const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
+  .pathname
+
 test('Creator capabilities and role assignment', async (t) => {
   const rootKey = KeyManager.generateRootKey()
   const manager = new MapeoManager({
     rootKey,
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -44,17 +51,21 @@ test('Creator capabilities and role assignment', async (t) => {
 test('New device without capabilities', async (t) => {
   const rootKey = KeyManager.generateRootKey()
   const manager = new MapeoManager({
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     rootKey,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
 
-  const projectId = await manager.addProject({
-    projectKey: randomBytes(32),
-    encryptionKeys: { auth: randomBytes(32) },
-  })
+  const projectId = await manager.addProject(
+    {
+      projectKey: randomBytes(32),
+      encryptionKeys: { auth: randomBytes(32) },
+    },
+    { waitForSync: false }
+  )
   const project = await manager.getProject(projectId)
-  await project.ready()
 
   const ownCapabilities = await project.$getOwnCapabilities()
 
@@ -81,6 +92,8 @@ test('getMany() - on invitor device', async (t) => {
   const creatorDeviceId = km.getIdentityKeypair().publicKey.toString('hex')
   const manager = new MapeoManager({
     rootKey,
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
@@ -118,17 +131,21 @@ test('getMany() - on newly invited device before sync', async (t) => {
   const km = new KeyManager(rootKey)
   const deviceId = km.getIdentityKeypair().publicKey.toString('hex')
   const manager = new MapeoManager({
+    projectMigrationsFolder,
+    clientMigrationsFolder,
     rootKey,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
   })
 
-  const projectId = await manager.addProject({
-    projectKey: randomBytes(32),
-    encryptionKeys: { auth: randomBytes(32) },
-  })
+  const projectId = await manager.addProject(
+    {
+      projectKey: randomBytes(32),
+      encryptionKeys: { auth: randomBytes(32) },
+    },
+    { waitForSync: false }
+  )
   const project = await manager.getProject(projectId)
-  await project.ready()
 
   const expected = {
     [deviceId]: NO_ROLE_CAPABILITIES,

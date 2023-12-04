@@ -93,10 +93,13 @@ export class CoreSyncState {
     if (this.#core) return
 
     this.#core = core
-    this.#localState.setHavesBitfield(
-      // @ts-ignore - internal property
-      core?.core?.bitfield
-    )
+
+    this.#core.ready().then(() => {
+      this.#localState.setHavesBitfield(
+        // @ts-ignore - internal property
+        core?.core?.bitfield
+      )
+    })
 
     for (const peer of this.#core.peers) {
       this.#onPeerAdd(peer)

@@ -1,6 +1,7 @@
 import mapObject from 'map-obj'
 import { NAMESPACES } from '../core-manager/index.js'
 import { Logger } from '../logger.js'
+import { createMap } from '../utils.js'
 
 /**
  * @typedef {import('../core-manager/index.js').Namespace} Namespace
@@ -10,7 +11,7 @@ import { Logger } from '../logger.js'
  */
 
 /** @type {Namespace[]} */
-const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
+export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
 
 export class PeerSyncController {
   #replicatingCores = new Set()
@@ -34,7 +35,7 @@ export class PeerSyncController {
 
   /**
    * @param {object} opts
-   * @param {import("protomux")<import('../types.js').NoiseStream>} opts.protomux
+   * @param {import("protomux")<import('../utils.js').OpenedNoiseStream>} opts.protomux
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    * @param {import("./sync-state.js").SyncState} opts.syncState
    * @param {import("../capabilities.js").Capabilities} opts.capabilities
@@ -55,8 +56,7 @@ export class PeerSyncController {
     this.#capabilities = capabilities
 
     // Always need to replicate the project creator core
-    coreManager.creatorCore.replicate(protomux)
-    this.#replicatingCores.add(coreManager.creatorCore)
+    this.#replicateCore(coreManager.creatorCore)
 
     coreManager.on('add-core', this.#handleAddCore)
     syncState.on('state', this.#handleStateChange)
@@ -69,7 +69,11 @@ export class PeerSyncController {
   }
 
   get peerId() {
-    return this.peerKey?.toString('hex')
+    return this.peerKey.toString('hex')
+  }
+
+  get syncCapability() {
+    return this.#syncCapability
   }
 
   /**
@@ -89,6 +93,31 @@ export class PeerSyncController {
   disableDataSync() {
     this.#isDataSyncEnabled = false
     this.#updateEnabledNamespaces()
+  }
+
+  /**
+   * @param {Buffer} discoveryKey
+   */
+  handleDiscoveryKey(discoveryKey) {
+    const coreRecord = this.#coreManager.getCoreByDiscoveryKey(discoveryKey)
+    // If we already know about this core, then we will add it to the
+    // replication stream when we are ready
+    if (coreRecord) {
+      this.#log(
+        'Received discovery key %h, but already have core in namespace %s',
+        discoveryKey,
+        coreRecord.namespace
+      )
+      if (this.#enabledNamespaces.has(coreRecord.namespace)) {
+        this.#replicateCore(coreRecord.core)
+      }
+      return
+    }
+    if (!this.peerKey) {
+      this.#log('Unexpected null peerKey')
+      return
+    }
+    this.#coreManager.requestCoreKey(this.peerKey, discoveryKey)
   }
 
   /**
@@ -113,13 +142,12 @@ export class PeerSyncController {
     // connected. We shouldn't get a state change before the noise stream has
     // connected, but if we do we can ignore it because we won't have any useful
     // information until it connects.
-    if (!this.#protomux.stream.remotePublicKey) return
-    const peerId = this.#protomux.stream.remotePublicKey.toString('hex')
-    this.#syncStatus = getSyncStatus(peerId, state)
+    if (!this.peerId) return
+    this.#syncStatus = getSyncStatus(this.peerId, state)
     const localState = mapObject(state, (ns, nsState) => {
       return [ns, nsState.localState]
     })
-    this.#log('state %O', state)
+    this.#log('state %X', state)
 
     // Map of which namespaces have received new data since last sync change
     const didUpdate = mapObject(state, (ns) => {
@@ -139,12 +167,12 @@ export class PeerSyncController {
 
     if (didUpdate.auth) {
       try {
-        const cap = await this.#capabilities.getCapabilities(peerId)
+        const cap = await this.#capabilities.getCapabilities(this.peerId)
         this.#syncCapability = cap.sync
       } catch (e) {
         this.#log('Error reading capability', e)
-        // Any error, consider sync blocked
-        this.#syncCapability = createNamespaceMap('blocked')
+        // Any error, consider sync unknown
+        this.#syncCapability = createNamespaceMap('unknown')
       }
     }
     this.#log('capability %o', this.#syncCapability)
@@ -197,7 +225,12 @@ export class PeerSyncController {
    */
   #replicateCore(core) {
     if (this.#replicatingCores.has(core)) return
+    this.#log('replicating core %k', core.key)
     core.replicate(this.#protomux)
+    core.on('peer-remove', (peer) => {
+      if (!peer.remotePublicKey.equals(this.peerKey)) return
+      this.#log('peer-remove %h from core %k', peer.remotePublicKey, core.key)
+    })
     this.#replicatingCores.add(core)
   }
 
@@ -216,31 +249,12 @@ export class PeerSyncController {
   }
 
   /**
-   * @param {import('hypercore')<'binary', any>} core
-   */
-  #downloadCore(core) {
-    if (this.#downloadingRanges.has(core)) return
-    const range = core.download({ start: 0, end: -1 })
-    this.#downloadingRanges.set(core, range)
-  }
-
-  /**
-   * @param {import('hypercore')<'binary', any>} core
-   */
-  #undownloadCore(core) {
-    const range = this.#downloadingRanges.get(core)
-    if (!range) return
-    range.destroy()
-    this.#downloadingRanges.delete(core)
-  }
-
-  /**
    * @param {Namespace} namespace
    */
   #enableNamespace(namespace) {
+    if (this.#enabledNamespaces.has(namespace)) return
     for (const { core } of this.#coreManager.getCores(namespace)) {
       this.#replicateCore(core)
-      this.#downloadCore(core)
     }
     this.#enabledNamespaces.add(namespace)
     this.#log('enabled namespace %s', namespace)
@@ -250,9 +264,9 @@ export class PeerSyncController {
    * @param {Namespace} namespace
    */
   #disableNamespace(namespace) {
+    if (!this.#enabledNamespaces.has(namespace)) return
     for (const { core } of this.#coreManager.getCores(namespace)) {
       this.#unreplicateCore(core)
-      this.#undownloadCore(core)
     }
     this.#enabledNamespaces.delete(namespace)
     this.#log('disabled namespace %s', namespace)
@@ -291,11 +305,7 @@ function getSyncStatus(peerId, state) {
 /**
  * @template T
  * @param {T} value
- * @returns {Record<Namespace, T>} */
+ **/
 function createNamespaceMap(value) {
-  const map = /** @type {Record<Namespace, T>} */ ({})
-  for (const ns of NAMESPACES) {
-    map[ns] = value
-  }
-  return map
+  return createMap(NAMESPACES, value)
 }

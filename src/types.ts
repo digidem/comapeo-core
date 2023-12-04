@@ -15,6 +15,7 @@ import MultiCoreIndexer from 'multi-core-indexer'
 import Corestore from 'corestore'
 import Hypercore from 'hypercore'
 import RandomAccessStorage from 'random-access-storage'
+import { DefaultListener, ListenerSignature } from 'tiny-typed-emitter'
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 export type BlobType = keyof SupportedBlobVariants
@@ -184,3 +185,10 @@ export type Entries<T> = {
 }[keyof T][]
 
 export type CoreStorage = (name: string) => RandomAccessStorage
+
+export type DefaultEmitterEvents<
+  L extends ListenerSignature<L> = DefaultListener
+> = {
+  newListener: (event: keyof L, listener: L[keyof L]) => void
+  removeListener: (event: keyof L, listener: L[keyof L]) => void
+}

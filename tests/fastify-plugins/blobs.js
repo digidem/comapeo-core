@@ -9,8 +9,11 @@ import fastify from 'fastify'
 import { BlobStore } from '../../src/blob-store/index.js'
 import BlobServerPlugin from '../../src/fastify-plugins/blobs.js'
 import { projectKeyToPublicId } from '../../src/utils.js'
-import { replicateBlobs } from '../helpers/blob-store.js'
-import { createCoreManager, waitForCores } from '../helpers/core-manager.js'
+import {
+  createCoreManager,
+  waitForCores,
+  replicate,
+} from '../helpers/core-manager.js'
 
 test('Plugin throws error if missing getBlobStore option', async (t) => {
   const server = fastify()
@@ -224,12 +227,12 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
   const [{ blobId }] = data
 
-  const { destroy } = replicateBlobs(cm1, cm2)
+  const { destroy } = replicate(cm1, cm2)
 
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
 
   /** @type {any}*/
-  const replicatedCore = cm2.getCoreByDiscoveryKey(
+  const { core: replicatedCore } = cm2.getCoreByDiscoveryKey(
     Buffer.from(blobId.driveId, 'hex')
   )
   await replicatedCore.update({ wait: true })

@@ -13,6 +13,7 @@ import { replicate } from './helpers/local-peers.js'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Protomux from 'protomux'
+import { setTimeout as delay } from 'timers/promises'
 
 test('Send invite and accept', async (t) => {
   t.plan(3)
@@ -83,6 +84,7 @@ test('Send invite, duplicate connections', async (t) => {
 
   const destroy1 = replicate(r1, r2, { kp1, kp2 })
   const [peers1] = await once(r1, 'peers')
+  await delay(1) // Ensure that connectedAt is different
   const destroy2 = replicate(r1, r2, { kp1, kp2 })
   const [peers2] = await once(r1, 'peers')
 
@@ -109,7 +111,7 @@ test('Send invite, duplicate connections', async (t) => {
   t.is(peers3.length, 1)
   t.ok(
     peers3[0].connectedAt > peers1[0].connectedAt,
-    'later connected peer is not used'
+    `later connected peer is not used: ${peers3[0].connectedAt} ${peers1[0].connectedAt}`
   )
 
   {

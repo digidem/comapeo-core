@@ -1,32 +1,37 @@
 // Types generated from brittle readme with chatgpt
 
 declare module 'brittle' {
+  interface CoercibleAssertion {
+    (actual: any, expected: any, message?: string): void
+    coercively(actual: any, expected: any, message?: string): void
+  }
+
+  interface ExceptionAssertion {
+    <T>(
+      fn: T | Promise<T>,
+      error?: RegExp | Error,
+      message?: string
+    ): Promise<void>
+    <T>(fn: T | Promise<T>, message?: string): Promise<void>
+    all<T>(fn: T | Promise<T>, message?: string): Promise<void>
+    all<T>(
+      fn: T | Promise<T>,
+      error?: RegExp | Error,
+      message?: string
+    ): Promise<void>
+  }
+
   interface Assertion {
-    is(actual: any, expected: any, message?: string): void
-    not(actual: any, expected: any, message?: string): void
-    alike(actual: any, expected: any, message?: string): void
-    unlike(actual: any, expected: any, message?: string): void
+    is: CoercibleAssertion
+    not: CoercibleAssertion
+    alike: CoercibleAssertion
+    unlike: CoercibleAssertion
     ok(value: any, message?: string): void
     absent(value: any, message?: string): void
     pass(message?: string): void
     fail(message?: string): void
-    exception<T>(
-      fn: T | Promise<T>,
-      error?: RegExp | Error,
-      message?: string
-    ): Promise<void>
-    exception<T>(fn: T | Promise<T>, message?: string): Promise<void>
-    'exception.all'<T>(
-      fn: T | Promise<T>,
-      error?: RegExp | Error,
-      message?: string
-    ): Promise<void>
-    'exception.all'<T>(fn: T | Promise<T>, message?: string): Promise<void>
+    exception: ExceptionAssertion
     execution<T>(fn: T | Promise<T>, message?: string): Promise<number>
-    'is.coercively'(actual: any, expected: any, message?: string): void
-    'not.coercively'(actual: any, expected: any, message?: string): void
-    'alike.coercively'(actual: any, expected: any, message?: string): void
-    'unlike.coercively'(actual: any, expected: any, message?: string): void
   }
 
   interface TestOptions {
@@ -42,43 +47,40 @@ declare module 'brittle' {
     timeout(ms: number): void
     comment(message: string): void
     end(): void
-    test(
-      name: string,
-      options: TestOptions,
-      callback: (t: TestInstance) => void | Promise<void>
-    ): Promise<boolean>
-    test(
-      name: string,
-      callback: (t: TestInstance) => void | Promise<void>
-    ): Promise<boolean>
-    test(name: string, options: TestOptions): TestInstance
-    test(options: TestOptions): TestInstance
+    test: TestFn
   }
 
   type TestCallback = (t: TestInstance) => void | Promise<void>
 
-  function test(
-    name: string,
-    options: TestOptions,
-    callback: TestCallback
-  ): Promise<boolean>
-  function test(name: string, callback: TestCallback): Promise<boolean>
-  function test(name: string, options: TestOptions): TestInstance
-  function test(options: TestOptions): TestInstance
-  function solo(
-    name: string,
-    options: TestOptions,
-    callback: TestCallback
-  ): Promise<boolean>
-  function solo(name: string, callback: TestCallback): Promise<boolean>
-  function solo(options: TestOptions): TestInstance
-  function skip(
-    name: string,
-    options: TestOptions,
-    callback: TestCallback
-  ): Promise<boolean>
-  function skip(name: string, callback: TestCallback): void
-  function configure(options: TestOptions): void
+  interface TestFn {
+    // The brittle docs suggest the return value is `Promise<boolean>` but this is not the case.
+    (
+      name: string,
+      options: TestOptions,
+      callback: (t: TestInstance) => void | Promise<void>
+    ): Promise<void>
+    (
+      name: string,
+      callback: (t: TestInstance) => void | Promise<void>
+    ): Promise<void>
+    (callback: (t: TestInstance) => void | Promise<void>): Promise<void>
+    (name: string, options: TestOptions): TestInstance
+    (name: string): TestInstance
+    (): TestInstance
+    // The docs suggest the below is possible, but it isn't
+    // (options: TestOptions): TestInstance
+  }
 
-  export { test, solo, skip, configure }
+  interface Test extends TestFn {
+    test: Test
+    solo: TestFn
+    skip: TestFn
+  }
+
+  export const solo: TestFn
+  export const skip: TestFn
+  export const test: Test
+  export function configure(options: TestOptions): void
+
+  export default test
 }

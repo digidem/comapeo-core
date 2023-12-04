@@ -11,6 +11,8 @@ import {
 import { type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { SQLiteSelectBuilder } from 'drizzle-orm/sqlite-core'
 import { RunResult } from 'better-sqlite3'
+import type Hypercore from 'hypercore'
+import { TypedEmitter } from 'tiny-typed-emitter'
 
 type MapeoDocTableName = `${MapeoDoc['schemaName']}Table`
 type GetMapeoDocTables<T> = T[keyof T & MapeoDocTableName]
@@ -23,6 +25,9 @@ type MapeoDocTablesMap = {
     MapeoDocTables,
     { _: { name: K } }
   >
+}
+export interface DataTypeEvents<TDoc extends MapeoDoc> {
+  'updated-docs': (docs: TDoc[]) => void
 }
 
 export const kCreateWithDocId: unique symbol
@@ -44,7 +49,7 @@ export class DataType<
   TSchemaName extends TTable['_']['name'],
   TDoc extends MapeoDocMap[TSchemaName],
   TValue extends MapeoValueMap[TSchemaName]
-> {
+> extends TypedEmitter<DataTypeEvents<TDoc>> {
   constructor({
     dataStore,
     table,
@@ -58,6 +63,8 @@ export class DataType<
   })
 
   get [kTable](): TTable
+
+  get writerCore(): Hypercore<'binary', Buffer>
 
   [kCreateWithDocId](
     docId: string,

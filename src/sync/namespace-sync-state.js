@@ -2,7 +2,7 @@ import { CoreSyncState } from './core-sync-state.js'
 import { discoveryKey } from 'hypercore-crypto'
 
 /**
- * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'>} SyncState
+ * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'> & { dataToSync: boolean, coreCount: number }} SyncState
  */
 
 /**
@@ -11,6 +11,7 @@ import { discoveryKey } from 'hypercore-crypto'
 export class NamespaceSyncState {
   /** @type {Map<string, CoreSyncState>} */
   #coreStates = new Map()
+  #coreCount = 0
   #handleUpdate
   #namespace
   /** @type {SyncState | null} */
@@ -55,6 +56,8 @@ export class NamespaceSyncState {
     if (this.#cachedState) return this.#cachedState
     /** @type {SyncState} */
     const state = {
+      dataToSync: false,
+      coreCount: this.#coreCount,
       localState: createState(),
       remoteStates: {},
     }
@@ -71,6 +74,9 @@ export class NamespaceSyncState {
         }
       }
     }
+    if (state.localState.want > 0 || state.localState.wanted > 0) {
+      state.dataToSync = true
+    }
     this.#cachedState = state
     return state
   }
@@ -82,6 +88,7 @@ export class NamespaceSyncState {
   #addCore(core, coreKey) {
     const discoveryId = discoveryKey(coreKey).toString('hex')
     this.#getCoreState(discoveryId).attachCore(core)
+    this.#coreCount++
   }
 
   /**

@@ -3,10 +3,8 @@ import { encode, decode, getVersionId, parseVersionId } from '@mapeo/schema'
 import MultiCoreIndexer from 'multi-core-indexer'
 import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
+import { createMap } from '../utils.js'
 
-/**
- * @typedef {import('multi-core-indexer').IndexEvents} IndexEvents
- */
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
  */
@@ -14,9 +12,14 @@ import { discoveryKey } from 'hypercore-crypto'
  * @typedef {import('../datatype/index.js').MapeoDocTablesMap} MapeoDocTablesMap
  */
 /**
- * @typedef {object} DefaultEmitterEvents
- * @property {(eventName: keyof IndexEvents, listener: (...args: any[]) => any) => void} newListener
- * @property {(eventName: keyof IndexEvents, listener: (...args: any[]) => any) => void} removeListener
+ * For each schemaName in this dataStore, emits an array of docIds that have
+ * been indexed whenever indexing finishes (becomes idle). `projectSettings`
+ * currently not supported.
+ *
+ * @template {MapeoDoc['schemaName']} TSchemaName
+ * @typedef {{
+ *   [S in Exclude<TSchemaName, 'projectSettings'>]: (docIds: Set<string>) => void
+ * }} DataStoreEvents
  */
 /**
  * @template T
@@ -37,7 +40,7 @@ const NAMESPACE_SCHEMAS = /** @type {const} */ ({
 /**
  * @template {keyof NamespaceSchemas} [TNamespace=keyof NamespaceSchemas]
  * @template {NamespaceSchemas[TNamespace][number]} [TSchemaName=NamespaceSchemas[TNamespace][number]]
- * @extends {TypedEmitter<IndexEvents & DefaultEmitterEvents>}
+ * @extends {TypedEmitter<DataStoreEvents<TSchemaName>>}
  */
 export class DataStore extends TypedEmitter {
   #coreManager
@@ -46,13 +49,17 @@ export class DataStore extends TypedEmitter {
   #writerCore
   #coreIndexer
   /** @type {Map<string, import('p-defer').DeferredPromise<void>>} */
-  #pending = new Map()
+  #pendingIndex = new Map()
+  /** @type {Set<import('p-defer').DeferredPromise<void>['promise']>} */
+  #pendingAppends = new Set()
+  /** @type {Record<MapeoDoc['schemaName'], Set<string>>} */
+  #pendingEmits
 
   /**
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {TNamespace} opts.namespace
-   * @param {(entries: MultiCoreIndexer.Entry<'binary'>[]) => Promise<void>} opts.batch
+   * @param {(entries: MultiCoreIndexer.Entry<'binary'>[]) => Promise<import('../index-writer/index.js').IndexedDocIds>} opts.batch
    * @param {MultiCoreIndexer.StorageParam} opts.storage
    */
   constructor({ coreManager, namespace, batch, storage }) {
@@ -60,22 +67,25 @@ export class DataStore extends TypedEmitter {
     this.#coreManager = coreManager
     this.#namespace = namespace
     this.#batch = batch
+    this.#pendingEmits = createMap(
+      NAMESPACE_SCHEMAS[namespace],
+      () => new Set()
+    )
     this.#writerCore = coreManager.getWriterCore(namespace).core
     const cores = coreManager.getCores(namespace).map((cr) => cr.core)
     this.#coreIndexer = new MultiCoreIndexer(cores, {
       storage,
       batch: (entries) => this.#handleEntries(entries),
     })
+    coreManager.on('add-core', (coreRecord) => {
+      if (coreRecord.namespace !== namespace) return
+      this.#coreIndexer.addCore(coreRecord.core)
+    })
+    this.#coreIndexer.on('idle', this.#handleIndexerIdle)
+  }
 
-    // Forward events from coreIndexer
-    this.on('newListener', (eventName, listener) => {
-      if (['newListener', 'removeListener'].includes(eventName)) return
-      this.#coreIndexer.on(eventName, listener)
-    })
-    this.on('removeListener', (eventName, listener) => {
-      if (['newListener', 'removeListener'].includes(eventName)) return
-      this.#coreIndexer.off(eventName, listener)
-    })
+  get indexer() {
+    return this.#coreIndexer
   }
 
   get namespace() {
@@ -100,11 +110,8 @@ export class DataStore extends TypedEmitter {
    * @param {MultiCoreIndexer.Entry<'binary'>[]} entries
    */
   async #handleEntries(entries) {
-    // This is needed to avoid the batch running before the append resolves, but
-    // I think this is only necessary when using random-access-memory, and will
-    // not be an issue when the indexer is on a separate thread.
-    await new Promise((res) => setTimeout(res, 0))
-    await this.#batch(entries)
+    const indexed = await this.#batch(entries)
+    await Promise.all(this.#pendingAppends)
     // Writes to the writerCore need to wait until the entry is indexed before
     // returning, so we check if any incoming entry has a pending promise
     for (const entry of entries) {
@@ -113,9 +120,20 @@ export class DataStore extends TypedEmitter {
         coreDiscoveryKey: discoveryKey(entry.key),
         index: entry.index,
       })
-      const pending = this.#pending.get(versionId)
+      const pending = this.#pendingIndex.get(versionId)
       if (!pending) continue
       pending.resolve()
+    }
+    for (const schemaName of this.schemas) {
+      // Unsupported initially
+      if (schemaName === 'projectSettings') continue
+      const docIds = indexed[schemaName]
+      if (!docIds) continue
+      for (const docId of docIds) {
+        // We'll only emit these once the indexer is idle - a particular docId
+        // could have many updates, and we only emit it once after indexing
+        this.#pendingEmits[schemaName].add(docId)
+      }
     }
   }
 
@@ -139,8 +157,16 @@ export class DataStore extends TypedEmitter {
       )
     }
     const block = encode(doc)
-
+    // The indexer batch can sometimes complete before the append below
+    // resolves, so in the batch function we await any pending appends. We can't
+    // know the versionId before the append, because docs can be written in the
+    // same tick, so we can't know their index before append resolves.
+    const deferredAppend = pDefer()
+    this.#pendingAppends.add(deferredAppend.promise)
     const { length } = await this.#writerCore.append(block)
+    deferredAppend.resolve()
+    this.#pendingAppends.delete(deferredAppend.promise)
+
     const index = length - 1
     const coreDiscoveryKey = this.#writerCore.discoveryKey
     if (!coreDiscoveryKey) {
@@ -149,7 +175,7 @@ export class DataStore extends TypedEmitter {
     const versionId = getVersionId({ coreDiscoveryKey, index })
     /** @type {import('p-defer').DeferredPromise<void>} */
     const deferred = pDefer()
-    this.#pending.set(versionId, deferred)
+    this.#pendingIndex.set(versionId, deferred)
     await deferred.promise
 
     return /** @type {Extract<MapeoDoc, TDoc>} */ (
@@ -164,14 +190,14 @@ export class DataStore extends TypedEmitter {
    */
   async read(versionId) {
     const { coreDiscoveryKey, index } = parseVersionId(versionId)
-    const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-    if (!core) throw new Error('Invalid versionId')
-    const block = await core.get(index, { wait: false })
+    const coreRecord = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
+    if (!coreRecord) throw new Error('Invalid versionId')
+    const block = await coreRecord.core.get(index, { wait: false })
     if (!block) throw new Error('Not Found')
     return decode(block, { coreDiscoveryKey, index })
   }
 
-  /** @param {Buffer} buf} */
+  /** @param {Buffer} buf */
   async writeRaw(buf) {
     const { length } = await this.#writerCore.append(buf)
     const index = length - 1
@@ -186,9 +212,9 @@ export class DataStore extends TypedEmitter {
   /** @param {string} versionId */
   async readRaw(versionId) {
     const { coreDiscoveryKey, index } = parseVersionId(versionId)
-    const core = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-    if (!core) throw new Error('core not found')
-    const block = await core.get(index, { wait: false })
+    const coreRecord = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
+    if (!coreRecord) throw new Error('core not found')
+    const block = await coreRecord.core.get(index, { wait: false })
     if (!block) throw new Error('Not Found')
     return block
   }
@@ -196,5 +222,16 @@ export class DataStore extends TypedEmitter {
   async close() {
     this.#coreIndexer.removeAllListeners()
     await this.#coreIndexer.close()
+  }
+  #handleIndexerIdle = () => {
+    for (const eventName of this.eventNames()) {
+      if (!(eventName in this.#pendingEmits)) continue
+      const docIds = this.#pendingEmits[eventName]
+      if (!docIds.size) continue
+      // @ts-ignore - I'm pretty sure TS is just not smart enough here, it's not me!
+      this.emit(eventName, docIds)
+    }
+    // Make sure we reset this, otherwise we'd get a memory leak of this growing without bounds.
+    this.#pendingEmits = createMap(this.schemas, () => new Set())
   }
 }
