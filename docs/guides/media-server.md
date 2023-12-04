@@ -2,10 +2,6 @@
 
 Each Mapeo manager instance includes an embedded HTTP server that is responsible for serving media assets over HTTP. Each server is responsible for handling requests for assets that can live in any Mapeo project (the URL structure reflects this, as we will show later on).
 
-## Working with blobs
-
-Blobs represent any binary objects. In the case of Mapeo, that will most likely be media assets such as photos, videos, and audio files. Mapeo provides a project-scoped API that is used for creating and retrieving blobs. Combined with the media server, applications can access them using HTTP requests.
-
 Some boilerplate for getting started with a Mapeo project:
 
 ```js
@@ -21,6 +17,12 @@ const projectPublicId = await manager.createProject()
 // Get the project instance
 const project = await manager.getProject(projectPublicId)
 ```
+
+The example code in the following sections assume that some variation of the above has been done already.
+
+## Working with blobs
+
+Blobs represent any binary objects. In the case of Mapeo, that will most likely be media assets such as photos, videos, and audio files. Mapeo provides a project-scoped API that is used for creating and retrieving blobs. Combined with the media server, applications can access them using HTTP requests.
 
 In the case of an observation record, there can be any number references to "attachments" (in most cases, an image). In order to create these attachments, we need to work with a project's blob API, which can be accessed using `project.$blobs`.
 
@@ -104,22 +106,6 @@ You can then use this URL with anything that uses HTTP to fetch media. Some exam
 
 Icons are primarily used in the context of project presets, where they are displayed as visual representations of a particular category when recording observations. Mapeo provides a project-scoped API for creating and retrieving icons. Combined with the media server, applications can access them using HTTP requests.
 
-Some boilerplate for getting started with a Mapeo project:
-
-```js
-// Create the manager instance (truncated for brevity)
-const manager = new MapeoManager({...})
-
-// Start the media server (no need to await in most cases, unless you need to immediately access the HTTP endpoints)
-manager.startMediaServer()
-
-// Create a project
-const projectPublicId = await manager.createProject()
-
-// Get the project instance
-const project = await manager.getProject(projectPublicId)
-```
-
 In order to create an icon we need to work with a project's icon API, which can be accessed using `project.$icons`:
 
 ```js
@@ -128,7 +114,7 @@ const pngBlob = await fs.readFile('/path/to/my/icon/plant.png')
 const svgBlob = await fs.readFile('/path/to/my/icon/plant.svg')
 
 // Then create an icon (this one has multiple variants in this case)
-// Note that pixelDensity does not matter for SVG
+// Note that pixel density does not matter for SVG
 const plantIconId = await project.$icons.create({
   name: 'plant',
   variants: [
