@@ -77,8 +77,100 @@ You can then use this URL with anything that uses HTTP to fetch media. Some exam
   <Image source="{blobUrl}" />
   ```
 
----
-
 ## Working with icons
 
-_TODO_
+Icons are primarily used in the context of project presets, where they are displayed as visual representations of a particular category when recording observations. Mapeo provides a project-scoped API for creating and retrieving icons. Combined with the media server, applications can access them using HTTP requests.
+
+Some boilerplate for getting started with a Mapeo project:
+
+```js
+// Create the manager instance (truncated for brevity)
+const manager = new MapeoManager({...})
+
+// Start the media server (no need to await in most cases, unless you need to immediately access the HTTP endpoints)
+manager.startMediaServer()
+
+// Create a project
+const projectPublicId = await manager.createProject()
+
+// Get the project instance
+const project = await manager.getProject(projectPublicId)
+```
+
+In order to create an icon we need to work with a project's icon API, which can be accessed using `project.$icons`:
+
+```js
+// Read the icon asset(s) first
+const pngBlob = await fs.readFile('/path/to/my/icon/plant.png')
+const svgBlob = await fs.readFile('/path/to/my/icon/plant.svg')
+
+// Then create an icon (this one has multiple variants in this case)
+// Note that pixelDensity does not matter for SVG
+const iconId = await project.$icons.create({
+  name: 'plant',
+  variants: [
+    {
+      size: 'small',
+      pixelDensity: 1,
+      mimeType: 'image/png',
+      blob: pngBlob,
+    },
+    {
+      size: 'small',
+      mimeType: 'image/svg+xml',
+      blob: svgBlob,
+    },
+  ],
+})
+```
+
+Each icon can have multiple variants which can be used accorrding to the application's context. In the example above, we created an icon that has two variants: a small PNG and a small SVG. Currently, the Icons API only supports creating icon recorsd based on PNG and SVG assets.
+
+The returned `iconId` can be used to get the URL that points to the desired icon and its variant:
+
+```js
+const pngIconUrl = await project.$icons.getIconUrl(iconId, {
+  mimeType: 'image/png',
+  size: 'small',
+  pixelDensity: 1,
+})
+
+// Note that pixelDensity does not matter for SVG
+const svgIconUrl = await project.$icons.getIconUrl(iconId, {
+  mimeType: 'image/svg+xml',
+  size: 'small',
+})
+```
+
+The `blobUrl` is a string with the following structure:
+
+```
+http://{HOST_NAME}:{PORT}/icons/{PROJECT_PUBLIC_ID}/{ICON_ID}/{SIZE}{PIXEL_DENSITY}.${EXTENSION}
+```
+
+Explanation of the different parts of this URL:
+
+- `HOST_NAME`: Hostname of the server. Defaults to `127.0.0.1` (localhost)
+- `PORT`: Port that's being listened on. A random available port is used when the media server is started.
+- `PROJECT_PUBLIC_ID`: The public ID used to identify the project of interest.
+- `ICON_ID`: The ID of the icon record associated with the asset.
+- `SIZE`: The denoted size of the asset. Can be `'small'`, `'medium'`, or `'large'`.
+- `PIXEL_DENSITY`: The denoted pixel density of the assets. If included, this is formatted as `@_x` where the `_` is a positive integer (usually `1`, `2`, or `3`). Note that this may be omitted from the url, in which case the pixel density is assumed to be `1` for applicable assets (e.g. bitmaps like PNG or JPG).
+- `EXTENSION`: The file extension associated with the `mimeType` option. For PNG it is `png` and for SVG it is `svg`.
+
+You can then use this URL with anything that uses HTTP to fetch media. Some examples:
+
+- HTML `img` tag
+
+  ```js
+  const imageElement = document.querySelector('img')
+  imageElement.setAttribute('src', pngIconUrl)
+  imageElement.setAttribute('src', svgIconUrl)
+  ```
+
+- React Native `Image` component
+
+  ```js
+  <Image source="{pngIconUrl}" />
+  <Image source="{svgIconUrl}" />
+  ```
