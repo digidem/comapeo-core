@@ -29,16 +29,55 @@ test('start/stop lifecycle', async (t) => {
     coreStorage: () => new RAM(),
   })
 
-  await manager.startMediaServer()
-  await manager.startMediaServer()
-  await manager.stopMediaServer()
+  const project = await manager.getProject(await manager.createProject())
 
   await manager.startMediaServer()
-  await manager.stopMediaServer()
 
-  t.pass(
-    'startMediaServer() and stopMediaServer() life cycle runs without issues'
+  const blobUrl1 = await project.$blobs.getUrl({
+    driveId: randomBytes(32).toString('hex'),
+    name: randomBytes(8).toString('hex'),
+    type: 'photo',
+    variant: 'original',
+  })
+  const response1 = await fetch(blobUrl1)
+  t.is(response1.status, 404, 'server started and listening')
+
+  await manager.startMediaServer()
+
+  const blobUrl2 = await project.$blobs.getUrl({
+    driveId: randomBytes(32).toString('hex'),
+    name: randomBytes(8).toString('hex'),
+    type: 'video',
+    variant: 'original',
+  })
+  t.is(
+    new URL(blobUrl1).port,
+    new URL(blobUrl2).port,
+    'server port is the same'
   )
+
+  await manager.stopMediaServer()
+
+  await t.exception.all(async () => {
+    await fetch(blobUrl2)
+  }, 'failed to fetch due to connection error')
+
+  await manager.startMediaServer()
+
+  const blobUrl3 = await project.$blobs.getUrl({
+    driveId: randomBytes(32).toString('hex'),
+    name: randomBytes(8).toString('hex'),
+    type: 'audio',
+    variant: 'original',
+  })
+  const response3 = await fetch(blobUrl3)
+  t.is(response3.status, 404, 'server started and listening')
+
+  await manager.stopMediaServer()
+
+  await t.exception.all(async () => {
+    await fetch(blobUrl3)
+  }, 'failed to fetch due to connection error')
 })
 
 test('retrieving blobs using url', async (t) => {
