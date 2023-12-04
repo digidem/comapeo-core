@@ -220,7 +220,6 @@ export class DataStore extends TypedEmitter {
   }
 
   async close() {
-    this.#coreIndexer.removeAllListeners()
     await this.#coreIndexer.close()
   }
   #handleIndexerIdle = () => {

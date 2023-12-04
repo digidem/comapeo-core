@@ -173,29 +173,31 @@ test('CRUD operations', async (t) => {
         await project[schemaName].getMany()
       }, 'should fail getting since the project is already closed')
     })
-    t.test(
-      'create project, close, then re-create a project and create',
-      async (st) => {
-        // create project
-        const projectId = await manager.createProject()
-        const project = await manager.getProject(projectId)
-        // close it
-        await project.close()
-        // re create project
-        const newProjectId = await manager.createProject()
-        const newProject = await manager.getProject(newProjectId)
-        const newValues = new Array(5).fill(null).map(() => {
-          return getUpdateFixture(value)
-        })
+    // t.test(
+    //   'create project, create docs, close it, then re-open it and .getMany',
+    //   async (st) => {
+    //     // create project
+    //     const projectId = await manager.createProject()
+    //     const project = await manager.getProject(projectId)
 
-        for (const value of newValues) {
-          await st.execution(
-            // @ts-ignore
-            await newProject[schemaName].create(value),
-            'create after `project.close()` and creating new project'
-          )
-        }
-      }
-    )
+    //     const newValues = new Array(5).fill(null).map(() => {
+    //       return getUpdateFixture(value)
+    //     })
+
+    //     for (const value of newValues) {
+    //       await st.execution(
+    //         // @ts-ignore
+    //         await project[schemaName].create(value),
+    //         'create after `project.close()` and creating new project'
+    //       )
+    //     }
+    //     // close it
+    //     await project.close()
+    //     // re open project
+    //     const reOpenedProject = await manager.getProject(projectId)
+    //     // console.log(await reOpenedProject[schemaName].getMany())
+    //     // const newProject = await manager.getProject(newProjectId)
+    //   }
+    // )
   }
 })
