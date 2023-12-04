@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { join } from 'path'
@@ -18,6 +19,66 @@ const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
+
+test('start/stop lifecycle', async (t) => {
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  })
+
+  const project = await manager.getProject(await manager.createProject())
+
+  await manager.startMediaServer()
+
+  const blobUrl1 = await project.$blobs.getUrl({
+    driveId: randomBytes(32).toString('hex'),
+    name: randomBytes(8).toString('hex'),
+    type: 'photo',
+    variant: 'original',
+  })
+  const response1 = await fetch(blobUrl1)
+  t.is(response1.status, 404, 'server started and listening')
+
+  await manager.startMediaServer()
+
+  const blobUrl2 = await project.$blobs.getUrl({
+    driveId: randomBytes(32).toString('hex'),
+    name: randomBytes(8).toString('hex'),
+    type: 'video',
+    variant: 'original',
+  })
+  t.is(
+    new URL(blobUrl1).port,
+    new URL(blobUrl2).port,
+    'server port is the same'
+  )
+
+  await manager.stopMediaServer()
+
+  await t.exception.all(async () => {
+    await fetch(blobUrl2)
+  }, 'failed to fetch due to connection error')
+
+  await manager.startMediaServer()
+
+  const blobUrl3 = await project.$blobs.getUrl({
+    driveId: randomBytes(32).toString('hex'),
+    name: randomBytes(8).toString('hex'),
+    type: 'audio',
+    variant: 'original',
+  })
+  const response3 = await fetch(blobUrl3)
+  t.is(response3.status, 404, 'server started and listening')
+
+  await manager.stopMediaServer()
+
+  await t.exception.all(async () => {
+    await fetch(blobUrl3)
+  }, 'failed to fetch due to connection error')
+})
 
 test('retrieving blobs using url', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
@@ -40,12 +101,12 @@ test('retrieving blobs using url', async (t) => {
       type: 'photo',
       variant: 'original',
     })
-  }, 'getting blob url fails if manager.start() has not been called yet')
+  }, 'getting blob url fails if manager.startMediaServer() has not been called yet')
 
   clock.tick(100_000)
   await exceptionPromise1
 
-  await manager.start()
+  await manager.startMediaServer()
 
   await t.test('blob does not exist', async (st) => {
     const blobUrl = await project.$blobs.getUrl({
@@ -96,7 +157,7 @@ test('retrieving blobs using url', async (t) => {
     st.alike(body, expected, 'matching reponse body')
   })
 
-  await manager.stop()
+  await manager.stopMediaServer()
 
   const exceptionPromise2 = t.exception(async () => {
     await project.$blobs.getUrl({
@@ -130,12 +191,12 @@ test('retrieving icons using url', async (t) => {
       pixelDensity: 1,
       size: 'small',
     })
-  }, 'getting icon url fails if manager.start() has not been called yet')
+  }, 'getting icon url fails if manager.startMediaServer() has not been called yet')
 
   clock.tick(100_000)
   await exceptionPromise1
 
-  await manager.start()
+  await manager.startMediaServer()
 
   await t.test('icon does not exist', async (st) => {
     const nonExistentIconId = randomBytes(32).toString('hex')
@@ -194,7 +255,7 @@ test('retrieving icons using url', async (t) => {
     st.alike(body, iconBuffer, 'matching response body')
   })
 
-  await manager.stop()
+  await manager.stopMediaServer()
 
   const exceptionPromise2 = t.exception(async () => {
     await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {

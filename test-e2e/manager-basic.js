@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'brittle'
 import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
@@ -287,25 +288,6 @@ test('Consistent storage folders', async (t) => {
 
   // @ts-ignore snapshot() is missing from typedefs
   t.snapshot(storageNames.sort())
-})
-
-test('manager.start() and manager.stop()', async (t) => {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-  })
-
-  await manager.start()
-  await manager.start()
-  await manager.stop()
-
-  await manager.start()
-  await manager.stop()
-
-  t.pass('start() and stop() life cycle runs without issues')
 })
 
 /**

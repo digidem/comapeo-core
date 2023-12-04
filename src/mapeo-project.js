@@ -365,11 +365,14 @@ export class MapeoProject {
         // Ignore errors thrown by values that can't be decoded for now
       }
     }
-
-    await Promise.all([
+    // TODO: Note that docs indexed to the shared index writer (project
+    // settings) are not currently returned here, so it is not possible to
+    // subscribe to updates for projectSettings
+    const [indexed] = await Promise.all([
       projectIndexWriter.batch(otherEntries),
       sharedIndexWriter.batch(projectSettingsEntries),
     ])
+    return indexed
   }
 
   get observation() {
