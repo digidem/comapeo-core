@@ -40,7 +40,7 @@ import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
-import { readPresets } from './config-import.js'
+import { readPresets, addFields, parseIconFile } from './config-import.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -505,8 +505,8 @@ export class MapeoProject {
     return this.#iconApi
   }
 
-  /** @params {Object} opts
-   * @property {String} path
+  /** @param {Object} opts
+   *  @param {string} opts.configPath
    */
   async importConfig({ configPath }) {
     // console.log(path.resolve(configPath))
@@ -516,38 +516,54 @@ export class MapeoProject {
       console.log(`error loading config file ${configPath}`, e)
     }
     const zip = await yauzl.open(configPath)
-    const ids = await this.preset.getMany()
+    const ids = (await this.preset.getMany()).map((doc) => doc.versionId)
     if (ids.length !== 0) await this.preset.delete(ids)
     try {
       for await (const entry of zip) {
         if (entry.filename === 'presets.json') {
+          // 1. get fields and add them to db
           /* eslint-disable no-unused-vars */
           const { fields, presets } = await readPresets(
             await zip.openReadStream(entry)
           )
+          /** @type {Object<String,String>} */
+          let fieldIds = {}
           for (let [fieldName, field] of Object.entries(fields)) {
-            const fieldDoc = {
-              // shouldn't schemaName be derived when calling .create?
-              schemaName: 'field',
-              label: fieldName,
-              ...field,
-            }
-            fieldDoc.tagKey = fieldDoc.key
-            delete fieldDoc.key
-            await this.field.create(fieldDoc)
-            const fields = await this.field.getMany()
-            for (let field of fields) {
-              console.log('docId', field.docId)
-              console.log('tagKey', field.tagKey)
-            }
-            // this.#iconApi.create()
-            // console.log(presets)
+            const { docId, tagKey } = await addFields({
+              fieldName,
+              field,
+              fieldDb: this.field,
+            })
+            fieldIds[tagKey] = docId
+            console.log(docId, tagKey)
           }
+          // for (let [presetName, preset] of Object.entries(presets)) {
+          //   // console.log(presetName, preset.fields)
+          //   preset.fieldIds = []
+          //   for (let field of preset.fields || []) {
+          //     preset.fieldIds.push(fieldIds[field])
+          //   }
+          //   preset.name = presetName
+          //   preset.schemaName = 'preset'
+          //   preset.addTags = {}
+          //   preset.removeTags = {}
+          //   delete preset.fields
+          //   // this.preset.create(preset)
+          //   // console.log(preset)
+          // }
           // this.preset.create()
-          // console.log(presets)
         }
-        if (entry.filename.endsWith('icons/')) {
-          console.log(entry.filename)
+        if (entry.filename.match(/icons\/[aA-zZ]/)) {
+          const icon = parseIconFile(entry.filename.split('/')[1])
+          const file = await zip.openReadStream(entry)
+          let bufs = []
+          for await (const chunk of file) {
+            bufs.push(chunk)
+          }
+          icon.variants[0].blob = Buffer.concat(bufs)
+          console.log(icon)
+          // console.log(path.extname(entry.filename))
+          console.log(await this.#iconApi.create(icon))
         }
         // const file = await zip.openReadStream(entry)
         // file.pipe(process.stdout)
