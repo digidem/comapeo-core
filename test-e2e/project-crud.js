@@ -141,6 +141,7 @@ test('CRUD operations', async (t) => {
         'expected values returns from getMany()'
       )
     })
+
     t.test('create, close and then create, update', async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
@@ -173,31 +174,38 @@ test('CRUD operations', async (t) => {
         await project[schemaName].getMany()
       }, 'should fail getting since the project is already closed')
     })
-    // t.test(
-    //   'create project, create docs, close it, then re-open it and .getMany',
-    //   async (st) => {
-    //     // create project
-    //     const projectId = await manager.createProject()
-    //     const project = await manager.getProject(projectId)
 
-    //     const newValues = new Array(5).fill(null).map(() => {
-    //       return getUpdateFixture(value)
-    //     })
+    t.test('create, read, close, re-open, read', async (st) => {
+      const projectId = await manager.createProject()
 
-    //     for (const value of newValues) {
-    //       await st.execution(
-    //         // @ts-ignore
-    //         await project[schemaName].create(value),
-    //         'create after `project.close()` and creating new project'
-    //       )
-    //     }
-    //     // close it
-    //     await project.close()
-    //     // re open project
-    //     const reOpenedProject = await manager.getProject(projectId)
-    //     // console.log(await reOpenedProject[schemaName].getMany())
-    //     // const newProject = await manager.getProject(newProjectId)
-    //   }
-    // )
+      let project = await manager.getProject(projectId)
+
+      const values = new Array(5).fill(null).map(() => {
+        return getUpdateFixture(value)
+      })
+
+      for (const value of values) {
+        // @ts-ignore
+        await project[schemaName].create(value)
+      }
+
+      const many1 = await project[schemaName].getMany()
+      const manyValues1 = many1.map((doc) => valueOf(doc))
+
+      // close it
+      await project.close()
+
+      // re-open project
+      project = await manager.getProject(projectId)
+
+      const many2 = await project[schemaName].getMany()
+      const manyValues2 = many2.map((doc) => valueOf(doc))
+
+      st.alike(
+        stripUndef(manyValues1),
+        stripUndef(manyValues2),
+        'expected values returned before closing and after re-opening'
+      )
+    })
   }
 })

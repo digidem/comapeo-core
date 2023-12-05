@@ -5,6 +5,7 @@ import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
+import { TypedEmitter } from 'tiny-typed-emitter'
 
 import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
@@ -51,7 +52,10 @@ export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
-export class MapeoProject {
+/**
+ * @extends {TypedEmitter<{ close: () => void }>}
+ */
+export class MapeoProject extends TypedEmitter {
   #projectId
   #deviceId
   #coreManager
@@ -100,6 +104,8 @@ export class MapeoProject {
     localPeers,
     logger,
   }) {
+    super()
+
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
@@ -361,6 +367,8 @@ export class MapeoProject {
     await Promise.all(dataStorePromises)
 
     this.#sqlite.close()
+
+    this.emit('close')
   }
 
   /**
