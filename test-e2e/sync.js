@@ -254,7 +254,5 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
 
   await disconnect1()
 
-  // Temp fix until we have .close() method - waits for indexing idle to ensure
-  // we don't close storage in teardown while index is still being written.
-  await Promise.all(projects.map((p) => p.$getProjectSettings()))
+  await Promise.all(projects.map((p) => p.close()))
 })
