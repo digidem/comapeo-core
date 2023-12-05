@@ -1,5 +1,7 @@
 // @ts-check
 import path from 'path'
+import fs from 'fs/promises'
+import yauzl from 'yauzl-promise'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
@@ -38,6 +40,7 @@ import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
+import { readPresets } from './config-import.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -500,6 +503,63 @@ export class MapeoProject {
    */
   get $icons() {
     return this.#iconApi
+  }
+
+  /** @params {Object} opts
+   * @property {String} path
+   */
+  async importConfig({ configPath }) {
+    // console.log(path.resolve(configPath))
+    try {
+      await fs.stat(path.resolve(configPath))
+    } catch (e) {
+      console.log(`error loading config file ${configPath}`, e)
+    }
+    const zip = await yauzl.open(configPath)
+    const ids = await this.preset.getMany()
+    if (ids.length !== 0) await this.preset.delete(ids)
+    try {
+      for await (const entry of zip) {
+        if (entry.filename === 'presets.json') {
+          /* eslint-disable no-unused-vars */
+          const { fields, presets } = await readPresets(
+            await zip.openReadStream(entry)
+          )
+          for (let [fieldName, field] of Object.entries(fields)) {
+            const fieldDoc = {
+              // shouldn't schemaName be derived when calling .create?
+              schemaName: 'field',
+              label: fieldName,
+              ...field,
+            }
+            fieldDoc.tagKey = fieldDoc.key
+            delete fieldDoc.key
+            await this.field.create(fieldDoc)
+            const fields = await this.field.getMany()
+            for (let field of fields) {
+              console.log('docId', field.docId)
+              console.log('tagKey', field.tagKey)
+            }
+            // this.#iconApi.create()
+            // console.log(presets)
+          }
+          // this.preset.create()
+          // console.log(presets)
+        }
+        if (entry.filename.endsWith('icons/')) {
+          console.log(entry.filename)
+        }
+        // const file = await zip.openReadStream(entry)
+        // file.pipe(process.stdout)
+        // console.log(entry.filename, entry.createReadStream())
+        // await pipeline(entry.createReadStream(), process.stdout)
+        // await entry.createReadStream().pipe(process.stdout)
+      }
+    } catch (e) {
+      console.log('error', e)
+    } finally {
+      await zip.close()
+    }
   }
 }
 
