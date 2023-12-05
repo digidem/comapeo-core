@@ -303,17 +303,32 @@ export class MapeoProject extends TypedEmitter {
       this.#coreManager.creatorCore.replicate(peer.protomux)
     }
 
+    /**
+     * @type {import('./local-peers.js').LocalPeersEvents['peer-add']}
+     */
+    const onPeerAdd = (peer) => {
+      this.#coreManager.creatorCore.replicate(peer.protomux)
+    }
+
+    /**
+     * @type {import('./local-peers.js').LocalPeersEvents['discovery-key']}
+     */
+    const onDiscoverykey = (discoveryKey, stream) => {
+      this.#syncApi[kHandleDiscoveryKey](discoveryKey, stream)
+    }
+
     // When a new peer is found, try to replicate (if it is not a member of the
     // project it will fail the capability check and be ignored)
-    localPeers.on('peer-add', (peer) => {
-      this.#coreManager.creatorCore.replicate(peer.protomux)
-    })
+    localPeers.on('peer-add', onPeerAdd)
 
     // This happens whenever a peer replicates a core to the stream. SyncApi
     // handles replicating this core if we also have it, or requesting the key
     // for the core.
-    localPeers.on('discovery-key', (discoveryKey, stream) => {
-      this.#syncApi[kHandleDiscoveryKey](discoveryKey, stream)
+    localPeers.on('discovery-key', onDiscoverykey)
+
+    this.once('close', () => {
+      localPeers.off('peer-add', onPeerAdd)
+      localPeers.off('discovery-key', onDiscoverykey)
     })
 
     this.#l.log('Created project instance %h', projectKey)
