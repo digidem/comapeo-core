@@ -76,7 +76,7 @@ export function connectPeers(managers, { discovery = true } = {}) {
  *   invitor: MapeoManager,
  *   projectId: string,
  *   invitees: MapeoManager[],
- *   roleId?: import('../src/capabilities.js').RoleId ,
+ *   roleId?: import('../src/capabilities.js').RoleId,
  *   reject?: boolean
  * }} opts
  */
