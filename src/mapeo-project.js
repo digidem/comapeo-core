@@ -374,12 +374,12 @@ export class MapeoProject extends TypedEmitter {
    */
   async close() {
     this.#l.log('closing project %h', this.#projectId)
-    await this.#coreManager.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())
     }
     await Promise.all(dataStorePromises)
+    await this.#coreManager.close()
 
     this.#sqlite.close()
 
