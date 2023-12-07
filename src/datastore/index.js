@@ -197,7 +197,7 @@ export class DataStore extends TypedEmitter {
     return decode(block, { coreDiscoveryKey, index })
   }
 
-  /** @param {Buffer} buf} */
+  /** @param {Buffer} buf */
   async writeRaw(buf) {
     const { length } = await this.#writerCore.append(buf)
     const index = length - 1
@@ -219,6 +219,9 @@ export class DataStore extends TypedEmitter {
     return block
   }
 
+  async close() {
+    await this.#coreIndexer.close()
+  }
   #handleIndexerIdle = () => {
     for (const eventName of this.eventNames()) {
       if (!(eventName in this.#pendingEmits)) continue
