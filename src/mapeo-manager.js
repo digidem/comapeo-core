@@ -36,6 +36,7 @@ import { Logger } from './logger.js'
 import { kSyncState } from './sync/sync-api.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
+/** @typedef {import('type-fest').SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -386,6 +387,7 @@ export class MapeoManager extends TypedEmitter {
 
   /** @param {ProjectKeys} projectKeys */
   #createProjectInstance(projectKeys) {
+    validateProjectKeys(projectKeys)
     const projectId = keyToId(projectKeys.projectKey)
     return new MapeoProject({
       ...this.#projectStorage(projectId),
@@ -698,4 +700,14 @@ function omitPeerProtomux(peers) {
       return publicPeerInfo
     }
   )
+}
+
+/**
+ * @param {ProjectKeys} projectKeys
+ * @returns {asserts projectKeys is ValidatedProjectKeys}
+ */
+function validateProjectKeys(projectKeys) {
+  if (!projectKeys.encryptionKeys) {
+    throw new Error('encryptionKeys should not be undefined')
+  }
 }

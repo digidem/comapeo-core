@@ -217,7 +217,6 @@ export class CoreManager extends TypedEmitter {
    * Get an array of all cores in the given namespace
    *
    * @param {Namespace} namespace
-   * @returns
    */
   getCores(namespace) {
     return this.#coreIndex.getByNamespace(namespace)

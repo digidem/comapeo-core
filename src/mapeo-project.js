@@ -13,7 +13,7 @@ import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
-import { projectSettingsTable } from './schema/client.js'
+import { projectKeysTable, projectSettingsTable } from './schema/client.js'
 import {
   coreOwnershipTable,
   deviceInfoTable,
@@ -28,9 +28,16 @@ import {
   getWinner,
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
-import { Capabilities } from './capabilities.js'
+import {
+  COORDINATOR_ROLE_ID,
+  CREATOR_CAPABILITIES,
+  Capabilities,
+  DEFAULT_CAPABILITIES,
+  LEFT_ROLE_ID,
+} from './capabilities.js'
 import {
   getDeviceId,
+  projectIdToNonce,
   projectKeyToId,
   projectKeyToPublicId,
   valueOf,
@@ -39,6 +46,8 @@ import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
+import { ProjectKeys } from './generated/keys.js'
+import { eq } from 'drizzle-orm'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -71,6 +80,10 @@ export class MapeoProject extends TypedEmitter {
   #iconApi
   #syncApi
   #l
+  #sharedDb
+  #keyManager
+  #projectSecretKey
+  #encryptionKeys
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
@@ -81,7 +94,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
-   * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
+   * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
@@ -108,7 +121,11 @@ export class MapeoProject extends TypedEmitter {
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
+    this.#keyManager = keyManager
     this.#projectId = projectKeyToId(projectKey)
+    this.#projectSecretKey = projectSecretKey
+    this.#encryptionKeys = encryptionKeys
+    this.#sharedDb = sharedDb
 
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
@@ -250,7 +267,6 @@ export class MapeoProject extends TypedEmitter {
       deviceId: this.#deviceId,
       capabilities: this.#capabilities,
       coreOwnership: this.#coreOwnership,
-      // @ts-expect-error
       encryptionKeys,
       projectKey,
       rpc: localPeers,
@@ -548,6 +564,67 @@ export class MapeoProject extends TypedEmitter {
   get $icons() {
     return this.#iconApi
   }
+
+  async $leave() {
+    const canLeaveProject = await deviceCanLeaveProject(
+      this.#deviceId,
+      this.#capabilities
+    )
+
+    if (!canLeaveProject) {
+      throw new Error(
+        'Cannot leave a project that does not have an external creator or another coordinator'
+      )
+    }
+
+    // update client database (delete all encryption keys except auth)
+    const encoded = ProjectKeys.encode({
+      projectKey: Buffer.from(this.#projectId, 'hex'),
+      projectSecretKey: this.#projectSecretKey,
+      encryptionKeys: { auth: this.#encryptionKeys.auth },
+    }).finish()
+
+    const nonce = projectIdToNonce(this.#projectId)
+
+    this.#sharedDb
+      .update(projectKeysTable)
+      .set({
+        keysCipher: this.#keyManager.encryptLocalMessage(
+          Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
+          nonce
+        ),
+      })
+      .where(eq(projectKeysTable.projectId, this.#projectId))
+      .run()
+
+    // stop indexers? (multi-core and sqlite)
+    // clear data from project database
+
+    // clear data from cores
+    // TODO: only clear synced data
+    const namespacePromises = []
+    for (const namespace of /** @type {import('./core-manager/core-index.js').Namespace[]} */ ([
+      'config',
+      'data',
+      'blobs',
+      'blobIndex',
+    ])) {
+      const deletionPromises = []
+      const coreRecords = this.#coreManager.getCores(namespace)
+
+      for (const { core } of coreRecords) {
+        deletionPromises.push(core.purge())
+      }
+
+      namespacePromises.push(Promise.all(deletionPromises))
+    }
+
+    await Promise.all(namespacePromises)
+
+    // TODO: update sync mode to "unsynced-data-background-sync"?
+
+    await this.#capabilities.assignRole(this.#deviceId, LEFT_ROLE_ID)
+  }
 }
 
 /**
@@ -602,4 +679,31 @@ function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
     )
   }
   return doc
+}
+
+/**
+ * @param {string} deviceId
+ * @param {import('./capabilities.js').Capabilities} capabilities
+ */
+async function deviceCanLeaveProject(deviceId, capabilities) {
+  // Check that we're allowed to leave the project
+  const deviceIdToCaps = await capabilities.getAll()
+
+  const deviceIdToCapsList = Object.entries(deviceIdToCaps)
+
+  // Check if the the device of interest is the only one for the project
+  if (deviceId in deviceIdToCaps && deviceIdToCapsList.length === 1) {
+    return false
+  }
+
+  return deviceIdToCapsList.some(([id, cap]) => {
+    // Skip device of interest
+    if (id === deviceId) return false
+
+    // Only allowed to leave a project where we know that an external creator or a coordinator that isn't ourself exists
+    const isCoordinator = cap === DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID]
+    const isCreator = cap === CREATOR_CAPABILITIES
+
+    return isCoordinator || isCreator
+  })
 }

@@ -6,6 +6,7 @@ import { kCreateWithDocId } from './datatype/index.js'
 export const COORDINATOR_ROLE_ID = 'f7c150f5a3a9a855'
 export const MEMBER_ROLE_ID = '012fd2d431c0bf60'
 export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
+export const LEFT_ROLE_ID = '8ced989b1904606b'
 
 /**
  * @typedef {object} DocCapability
@@ -24,7 +25,7 @@ export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
  */
 
 /**
- * @typedef {typeof COORDINATOR_ROLE_ID | typeof MEMBER_ROLE_ID | typeof BLOCKED_ROLE_ID} RoleId
+ * @typedef {typeof COORDINATOR_ROLE_ID | typeof MEMBER_ROLE_ID | typeof BLOCKED_ROLE_ID | typeof LEFT_ROLE_ID} RoleId
  */
 
 /**
@@ -42,7 +43,12 @@ export const CREATOR_CAPABILITIES = {
       { readOwn: true, writeOwn: true, readOthers: true, writeOthers: true },
     ]
   }),
-  roleAssignment: [COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID],
+  roleAssignment: [
+    COORDINATOR_ROLE_ID,
+    MEMBER_ROLE_ID,
+    BLOCKED_ROLE_ID,
+    LEFT_ROLE_ID,
+  ],
   sync: {
     auth: 'allowed',
     config: 'allowed',
@@ -70,7 +76,8 @@ export const NO_ROLE_CAPABILITIES = {
       { readOwn: true, writeOwn: true, readOthers: false, writeOthers: false },
     ]
   }),
-  roleAssignment: [],
+  // TODO: Does this make sense?
+  roleAssignment: [LEFT_ROLE_ID],
   sync: {
     auth: 'allowed',
     config: 'allowed',
@@ -90,7 +97,7 @@ export const DEFAULT_CAPABILITIES = {
         { readOwn: true, writeOwn: true, readOthers: true, writeOthers: false },
       ]
     }),
-    roleAssignment: [],
+    roleAssignment: [LEFT_ROLE_ID],
     sync: {
       auth: 'allowed',
       config: 'allowed',
@@ -107,7 +114,12 @@ export const DEFAULT_CAPABILITIES = {
         { readOwn: true, writeOwn: true, readOthers: true, writeOthers: true },
       ]
     }),
-    roleAssignment: [COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID],
+    roleAssignment: [
+      COORDINATOR_ROLE_ID,
+      MEMBER_ROLE_ID,
+      BLOCKED_ROLE_ID,
+      LEFT_ROLE_ID,
+    ],
     sync: {
       auth: 'allowed',
       config: 'allowed',
@@ -132,6 +144,28 @@ export const DEFAULT_CAPABILITIES = {
     roleAssignment: [],
     sync: {
       auth: 'blocked',
+      config: 'blocked',
+      data: 'blocked',
+      blobIndex: 'blocked',
+      blob: 'blocked',
+    },
+  },
+  [LEFT_ROLE_ID]: {
+    name: 'Left',
+    docs: mapObject(currentSchemaVersions, (key) => {
+      return [
+        key,
+        {
+          readOwn: false,
+          writeOwn: false,
+          readOthers: false,
+          writeOthers: false,
+        },
+      ]
+    }),
+    roleAssignment: [],
+    sync: {
+      auth: 'allowed',
       config: 'blocked',
       data: 'blocked',
       blobIndex: 'blocked',
@@ -254,6 +288,10 @@ export class Capabilities {
    * @param {keyof typeof DEFAULT_CAPABILITIES} roleId
    */
   async assignRole(deviceId, roleId) {
+    if (deviceId !== this.#ownDeviceId && roleId === LEFT_ROLE_ID) {
+      throw new Error('Can only assign LEFT role to your own device')
+    }
+
     let fromIndex = 0
     let authCoreId
     try {
@@ -280,6 +318,7 @@ export class Capabilities {
     if (!ownCapabilities.roleAssignment.includes(roleId)) {
       throw new Error('No capability to assign role ' + roleId)
     }
+
     await this.#dataType[kCreateWithDocId](deviceId, {
       schemaName: 'role',
       roleId,
