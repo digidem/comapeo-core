@@ -292,14 +292,28 @@ async function seedProjectDatabase(project) {
   for (const schemaName of SCHEMAS_TO_SEED) {
     const count =
       schemaName === 'observation' ? randomInt(20, 100) : randomInt(0, 10)
-    let i = 0
-    while (i++ < count) {
-      const value = valueOf(generate(schemaName)[0])
-      promises.push(
-        // @ts-ignore
-        project[schemaName].create(value)
-      )
-    }
+    promises.push(addMockData(project, schemaName, count))
+  }
+  const docs = await Promise.all(promises)
+  return docs.flat()
+}
+
+/**
+ * @template {import('@mapeo/schema').MapeoDoc['schemaName'] & keyof import('../src/mapeo-project.js').MapeoProject} T
+ * @param {import('../src/mapeo-project.js').MapeoProject} project
+ * @param {T} schemaName
+ * @param {number} count
+ * @returns {Promise<Array<Extract<import('@mapeo/schema').MapeoDoc, { schemaName: T }> & { forks: string[] }>>}
+ */
+export function addMockData(project, schemaName, count) {
+  const promises = []
+  let i = 0
+  while (i++ < count) {
+    const value = valueOf(generate(schemaName)[0])
+    promises.push(
+      // @ts-expect-error - another dependent types challenge for TS
+      project[schemaName].create(value)
+    )
   }
   return Promise.all(promises)
 }
