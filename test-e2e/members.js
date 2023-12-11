@@ -165,15 +165,17 @@ test('invite uses custom role name when provided', async (t) => {
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
-  const inviteResponse = await invite({
+  invitee.invite.on('invite-received', ({ roleName }) => {
+    t.is(roleName, 'friend', 'roleName should be equal')
+  })
+  
+  await invite({
     invitor,
     projectId,
     invitees: [invitee],
     roleName: 'friend',
     reject: true,
   })
-
-  t.is(inviteResponse?.roleName, 'friend', 'roleName should be equal')
 
   await disconnectPeers(managers)
 })
@@ -187,18 +189,20 @@ test('invite uses default role name when not provided', async (t) => {
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
-  const inviteResponse = await invite({
+  invitee.invite.on('invite-received', ({ roleName }) => {
+    t.is(
+      roleName,
+      DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      '`roleName` should use the fallback by deriving `roleId`'
+    )
+  })
+
+  await invite({
     invitor,
     projectId,
     invitees: [invitee],
     reject: true,
   })
-
-  t.is(
-    inviteResponse?.roleName,
-    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
-    '`roleName` should use the fallback by deriving `roleId`'
-  )
 
   await disconnectPeers(managers)
 })
