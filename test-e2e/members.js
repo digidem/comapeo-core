@@ -156,7 +156,7 @@ test('getting invited member after invite accepted', async (t) => {
   await disconnectPeers(managers)
 })
 
-test('invite with abritrary name', async (t) => {
+test('invite uses custom role name when provided', async (t) => {
   t.plan(1)
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
@@ -178,7 +178,7 @@ test('invite with abritrary name', async (t) => {
   await disconnectPeers(managers)
 })
 
-test('invite without roleName', async (t) => {
+test('invite uses default role name when not provided', async (t) => {
   t.plan(1)
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
