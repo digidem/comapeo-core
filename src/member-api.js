@@ -1,11 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import { projectKeyToId } from './utils.js'
-import {
-  DEFAULT_CAPABILITIES,
-  MEMBER_ROLE_ID,
-  COORDINATOR_ROLE_ID,
-} from './capabilities.js'
+import { DEFAULT_CAPABILITIES } from './capabilities.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
@@ -63,7 +59,7 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
    */
   async invite(deviceId, { roleId, roleName, roleDescription, timeout }) {
-    if (!(roleId === MEMBER_ROLE_ID || roleId === COORDINATOR_ROLE_ID)) {
+    if (!DEFAULT_CAPABILITIES[roleId]) {
       throw new Error('Invalid role id')
     }
 
@@ -71,9 +67,10 @@ export class MemberApi extends TypedEmitter {
 
     // since we are always getting #ownDeviceId,
     // this should never throw (see comment on getById), but it pleases ts
-    if (!deviceName) throw new Error('Invalid deviceName')
-
-    if (!roleName) throw new Error('Invalid roleId')
+    if (!deviceName)
+      throw new Error(
+        'Internal error trying to read own device name for this invite'
+      )
 
     const projectId = projectKeyToId(this.#projectKey)
     const project = await this.#dataTypes.project.getByDocId(projectId)

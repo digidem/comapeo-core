@@ -155,3 +155,50 @@ test('getting invited member after invite accepted', async (t) => {
   // TODO: Test that device info of invited member can be read from invitor after syncing
   await disconnectPeers(managers)
 })
+
+test('invite with abritrary name', async (t) => {
+  t.plan(1)
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  const inviteResponse = await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+    roleName: 'friend',
+    reject: true,
+  })
+
+  t.is(inviteResponse?.roleName, 'friend', 'roleName should be equal')
+
+  await disconnectPeers(managers)
+})
+
+test('invite without roleName', async (t) => {
+  t.plan(1)
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  const inviteResponse = await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+    reject: true,
+  })
+
+  t.is(
+    inviteResponse?.roleName,
+    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+    '`roleName` should use the fallback by deriving `roleId`'
+  )
+
+  await disconnectPeers(managers)
+})

@@ -69,6 +69,16 @@ export function connectPeers(managers, { discovery = true } = {}) {
   }
 }
 
+/** @typedef {{
+ * peerId: string,
+ * projectId: string,
+ * projectName: string,
+ * roleName: string,
+ * roleDescription?: string
+ * invitorName: string
+ * }}InviteResponse
+ */
+
 /**
  * Invite mapeo clients to a project
  *
@@ -77,27 +87,35 @@ export function connectPeers(managers, { discovery = true } = {}) {
  *   projectId: string,
  *   invitees: MapeoManager[],
  *   roleId?: import('../src/capabilities.js').RoleId,
+ *   roleName?: string
  *   reject?: boolean
  * }} opts
+ * @returns {Promise<InviteResponse | undefined>}
  */
 export async function invite({
   invitor,
   projectId,
   invitees,
   roleId = MEMBER_ROLE_ID,
+  roleName,
   reject = false,
 }) {
   const invitorProject = await invitor.getProject(projectId)
   const promises = []
 
+  /** @type {InviteResponse | undefined} */
+  let inviteResponse
+
   for (const invitee of invitees) {
     promises.push(
       invitorProject.$member.invite(invitee.deviceId, {
         roleId,
+        roleName,
       })
     )
     promises.push(
       once(invitee.invite, 'invite-received').then(([invite]) => {
+        inviteResponse = invite
         return reject
           ? invitee.invite.reject(invite.projectId)
           : invitee.invite.accept(invite.projectId)
@@ -106,6 +124,7 @@ export async function invite({
   }
 
   await Promise.allSettled(promises)
+  return inviteResponse
 }
 
 /**

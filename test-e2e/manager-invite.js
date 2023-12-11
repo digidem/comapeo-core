@@ -123,7 +123,7 @@ skip("member can't invite", async (t) => {
   const creatorProject = await creator.getProject(createdProjectId)
 
   const responsePromise = creatorProject.$member.invite(member.deviceId, {
-    roleId: COORDINATOR_ROLE_ID,
+    roleId: MEMBER_ROLE_ID,
   })
   const [invite] = await once(member.invite, 'invite-received')
   await member.invite.accept(invite.projectId)
