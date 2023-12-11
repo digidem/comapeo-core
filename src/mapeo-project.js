@@ -5,6 +5,7 @@ import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
+import { TypedEmitter } from 'tiny-typed-emitter'
 
 import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
@@ -51,7 +52,10 @@ export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
-export class MapeoProject {
+/**
+ * @extends {TypedEmitter<{ close: () => void }>}
+ */
+export class MapeoProject extends TypedEmitter {
   #projectId
   #deviceId
   #coreManager
@@ -60,6 +64,9 @@ export class MapeoProject {
   #blobStore
   #coreOwnership
   #capabilities
+  /** @ts-ignore */
+  #ownershipWriteDone
+  #sqlite
   #memberApi
   #iconApi
   #syncApi
@@ -97,13 +104,15 @@ export class MapeoProject {
     localPeers,
     logger,
   }) {
+    super()
+
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
 
     ///////// 1. Setup database
-    const sqlite = new Database(dbPath)
-    const db = drizzle(sqlite)
+    this.#sqlite = new Database(dbPath)
+    const db = drizzle(this.#sqlite)
     migrate(db, { migrationsFolder: projectMigrationsFolder })
 
     ///////// 2. Setup random-access-storage functions
@@ -124,7 +133,7 @@ export class MapeoProject {
       projectKey,
       keyManager,
       storage: coreManagerStorage,
-      sqlite,
+      sqlite: this.#sqlite,
       logger: this.#l,
     })
 
@@ -138,7 +147,7 @@ export class MapeoProject {
         deviceInfoTable,
         iconTable,
       ],
-      sqlite,
+      sqlite: this.#sqlite,
       getWinner,
       mapDoc: (doc, version) => {
         switch (doc.schemaName) {
@@ -294,17 +303,32 @@ export class MapeoProject {
       this.#coreManager.creatorCore.replicate(peer.protomux)
     }
 
+    /**
+     * @type {import('./local-peers.js').LocalPeersEvents['peer-add']}
+     */
+    const onPeerAdd = (peer) => {
+      this.#coreManager.creatorCore.replicate(peer.protomux)
+    }
+
+    /**
+     * @type {import('./local-peers.js').LocalPeersEvents['discovery-key']}
+     */
+    const onDiscoverykey = (discoveryKey, stream) => {
+      this.#syncApi[kHandleDiscoveryKey](discoveryKey, stream)
+    }
+
     // When a new peer is found, try to replicate (if it is not a member of the
     // project it will fail the capability check and be ignored)
-    localPeers.on('peer-add', (peer) => {
-      this.#coreManager.creatorCore.replicate(peer.protomux)
-    })
+    localPeers.on('peer-add', onPeerAdd)
 
     // This happens whenever a peer replicates a core to the stream. SyncApi
     // handles replicating this core if we also have it, or requesting the key
     // for the core.
-    localPeers.on('discovery-key', (discoveryKey, stream) => {
-      this.#syncApi[kHandleDiscoveryKey](discoveryKey, stream)
+    localPeers.on('discovery-key', onDiscoverykey)
+
+    this.once('close', () => {
+      localPeers.off('peer-add', onPeerAdd)
+      localPeers.off('discovery-key', onDiscoverykey)
     })
 
     this.#l.log('Created project instance %h', projectKey)
@@ -337,6 +361,29 @@ export class MapeoProject {
 
   get deviceId() {
     return this.#deviceId
+  }
+
+  /**
+   * Resolves when hypercores have all loaded
+   */
+  async ready() {
+    await Promise.all([this.#coreManager.ready(), this.#ownershipWriteDone])
+  }
+
+  /**
+   */
+  async close() {
+    this.#l.log('closing project %h', this.#projectId)
+    const dataStorePromises = []
+    for (const dataStore of Object.values(this.#dataStores)) {
+      dataStorePromises.push(dataStore.close())
+    }
+    await Promise.all(dataStorePromises)
+    await this.#coreManager.close()
+
+    this.#sqlite.close()
+
+    this.emit('close')
   }
 
   /**

@@ -314,6 +314,10 @@ export class MapeoManager extends TypedEmitter {
       projectSecretKey: projectKeypair.secretKey,
     })
 
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+    })
+
     // 5. Write project name and any other relevant metadata to project instance
     await project.$setProjectSettings(settings)
 
@@ -368,6 +372,10 @@ export class MapeoManager extends TypedEmitter {
     )
 
     const project = this.#createProjectInstance(projectKeys)
+
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+    })
 
     // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectPublicId, project)

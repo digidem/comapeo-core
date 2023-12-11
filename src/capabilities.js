@@ -251,7 +251,7 @@ export class Capabilities {
    * capability for the given roleId
    *
    * @param {string} deviceId
-   * @param {keyof DEFAULT_CAPABILITIES} roleId
+   * @param {keyof typeof DEFAULT_CAPABILITIES} roleId
    */
   async assignRole(deviceId, roleId) {
     let fromIndex = 0
