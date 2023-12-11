@@ -10,6 +10,7 @@ import { NAMESPACES } from '../core-manager/index.js'
 import { keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
+export const kSyncState = Symbol('sync state')
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -38,7 +39,6 @@ export const kHandleDiscoveryKey = Symbol('handle discovery key')
  * @extends {TypedEmitter<SyncEvents>}
  */
 export class SyncApi extends TypedEmitter {
-  #syncState
   #coreManager
   #capabilities
   /** @type {Map<import('protomux'), PeerSyncController>} */
@@ -64,9 +64,9 @@ export class SyncApi extends TypedEmitter {
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
     this.#capabilities = capabilities
-    this.#syncState = new SyncState({ coreManager, throttleMs })
-    this.#syncState.setMaxListeners(0)
-    this.#syncState.on('state', (namespaceSyncState) => {
+    this[kSyncState] = new SyncState({ coreManager, throttleMs })
+    this[kSyncState].setMaxListeners(0)
+    this[kSyncState].on('state', (namespaceSyncState) => {
       const state = reduceSyncState(namespaceSyncState)
       state.full.syncing = this.#dataSyncEnabled.has('local')
       this.emit('sync-state', state)
@@ -109,7 +109,7 @@ export class SyncApi extends TypedEmitter {
    * @returns {State}
    */
   getState() {
-    const state = reduceSyncState(this.#syncState.getState())
+    const state = reduceSyncState(this[kSyncState].getState())
     state.full.syncing = this.#dataSyncEnabled.has('local')
     return state
   }
@@ -142,13 +142,14 @@ export class SyncApi extends TypedEmitter {
    * @param {SyncType} type
    */
   async waitForSync(type) {
-    const state = this.#syncState.getState()
+    const state = this[kSyncState].getState()
     const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
     if (isSynced(state, namespaces, this.#peerSyncControllers)) return
     return new Promise((res) => {
-      this.#syncState.on('state', function onState(state) {
-        if (!isSynced(state, namespaces, this.#peerSyncControllers)) return
-        this.syncState.off('state', onState)
+      const _this = this
+      this[kSyncState].on('state', function onState(state) {
+        if (!isSynced(state, namespaces, _this.#peerSyncControllers)) return
+        _this[kSyncState].off('state', onState)
         res(null)
       })
     })
@@ -176,7 +177,7 @@ export class SyncApi extends TypedEmitter {
     const peerSyncController = new PeerSyncController({
       protomux,
       coreManager: this.#coreManager,
-      syncState: this.#syncState,
+      syncState: this[kSyncState],
       capabilities: this.#capabilities,
       logger: this.#l,
     })

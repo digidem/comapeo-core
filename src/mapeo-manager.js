@@ -33,6 +33,7 @@ import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Capabilities } from './capabilities.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { Logger } from './logger.js'
+import { kSyncState } from './sync/sync-api.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -562,7 +563,7 @@ export class MapeoManager extends TypedEmitter {
     const {
       auth: { localState: authState },
       config: { localState: configState },
-    } = project.$sync.getState()
+    } = project.$sync[kSyncState].getState()
     const isCapabilitySynced = capability !== Capabilities.NO_ROLE_CAPABILITIES
     const isProjectSettingsSynced =
       projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
@@ -589,15 +590,15 @@ export class MapeoManager extends TypedEmitter {
           timeoutId = setTimeout(onTimeout, timeoutMs)
           return
         }
-        project.$sync.off('sync-state', onSyncState)
+        project.$sync[kSyncState].off('state', onSyncState)
         resolve(this.#waitForInitialSync(project, { timeoutMs }))
       }
       const onTimeout = () => {
-        project.$sync.off('sync-state', onSyncState)
+        project.$sync[kSyncState].off('state', onSyncState)
         reject(new Error('Sync timeout'))
       }
       let timeoutId = setTimeout(onTimeout, timeoutMs)
-      project.$sync.on('sync-state', onSyncState)
+      project.$sync[kSyncState].on('state', onSyncState)
     })
   }
 
