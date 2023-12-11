@@ -22,6 +22,7 @@ export const kHandleDiscoveryKey = Symbol('handle discovery key')
  * @property {number} wanted Number of blocks that connected peers want from us
  * @property {number} missing Number of blocks missing (we don't have them, but connected peers don't have them either)
  * @property {boolean} dataToSync Is there data available to sync? (want > 0 || wanted > 0)
+ * @property {boolean} syncing Are we currently syncing?
  */
 
 /**
@@ -65,8 +66,10 @@ export class SyncApi extends TypedEmitter {
     this.#capabilities = capabilities
     this.#syncState = new SyncState({ coreManager, throttleMs })
     this.#syncState.setMaxListeners(0)
-    this.#syncState.on('state', (state) => {
-      this.emit('sync-state', reduceSyncState(state))
+    this.#syncState.on('state', (namespaceSyncState) => {
+      const state = reduceSyncState(namespaceSyncState)
+      state.full.syncing = this.#dataSyncEnabled.has('local')
+      this.emit('sync-state', state)
     })
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
@@ -106,7 +109,9 @@ export class SyncApi extends TypedEmitter {
    * @returns {State}
    */
   getState() {
-    return reduceSyncState(this.#syncState.getState())
+    const state = reduceSyncState(this.#syncState.getState())
+    state.full.syncing = this.#dataSyncEnabled.has('local')
+    return state
   }
 
   /**
@@ -278,5 +283,6 @@ function createInitialSyncTypeState() {
     wanted: 0,
     missing: 0,
     dataToSync: false,
+    syncing: true,
   }
 }
