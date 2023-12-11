@@ -27,7 +27,10 @@ export const kSyncState = Symbol('sync state')
  */
 
 /**
- * @typedef {Record<SyncType, SyncTypeState>} State
+ * @typedef {object} State
+ * @property {SyncTypeState} initial State of initial sync (sync of auth, metadata and project config)
+ * @property {SyncTypeState} data State of data sync (observations, map data, photos, audio, video etc.)
+ * @property {number} connectedPeers Number of connected peers
  */
 
 /**
@@ -68,7 +71,7 @@ export class SyncApi extends TypedEmitter {
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
       const state = reduceSyncState(namespaceSyncState)
-      state.full.syncing = this.#dataSyncEnabled.has('local')
+      state.data.syncing = this.#dataSyncEnabled.has('local')
       this.emit('sync-state', state)
     })
 
@@ -110,7 +113,7 @@ export class SyncApi extends TypedEmitter {
    */
   getState() {
     const state = reduceSyncState(this[kSyncState].getState())
-    state.full.syncing = this.#dataSyncEnabled.has('local')
+    state.data.syncing = this.#dataSyncEnabled.has('local')
     return state
   }
 
@@ -247,9 +250,13 @@ function isSynced(state, namespaces, peerSyncControllers) {
  * @returns {State}
  */
 function reduceSyncState(namespaceSyncState) {
+  const connectedPeers = Object.values(
+    namespaceSyncState.auth.remoteStates
+  ).filter((remoteState) => remoteState.status === 'connected').length
   const state = {
     initial: createInitialSyncTypeState(),
-    full: createInitialSyncTypeState(),
+    data: createInitialSyncTypeState(),
+    connectedPeers,
   }
   for (const ns of PRESYNC_NAMESPACES) {
     const nsState = namespaceSyncState[ns]
@@ -257,7 +264,7 @@ function reduceSyncState(namespaceSyncState) {
   }
   for (const ns of DATA_NAMESPACES) {
     const nsState = namespaceSyncState[ns]
-    mutatingAddNamespaceState(state.full, nsState)
+    mutatingAddNamespaceState(state.data, nsState)
   }
   return state
 }
