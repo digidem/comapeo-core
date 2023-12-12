@@ -135,10 +135,14 @@ export class DataType extends TypedEmitter {
       // TODO: pass through errors from validate functions
       throw new Error('Invalid value ' + value)
     }
+    const existing = await this.getByDocId(docId).catch(noop)
+    if (existing) {
+      throw new Error('Doc with docId ' + docId + ' already exists')
+    }
     const nowDateString = generateDate()
-    const discoveryId = crypto
-      .discoveryKey(this.#dataStore.writerCore.key)
-      .toString('hex')
+    const discoveryId =
+      this.#dataStore.writerCore.discoveryKey?.toString('hex') ||
+      crypto.discoveryKey(this.#dataStore.writerCore.key).toString('hex')
 
     /** @type {OmitUnion<MapeoDoc, 'versionId'>} */
     const doc = {
@@ -274,3 +278,5 @@ export class DataType extends TypedEmitter {
     this.emit('updated-docs', updatedDocs)
   }
 }
+
+function noop() {}
