@@ -603,12 +603,16 @@ export class MapeoProject extends TypedEmitter {
     // clear data from cores
     // TODO: only clear synced data
     const namespacePromises = []
-    for (const namespace of /** @type {import('./core-manager/core-index.js').Namespace[]} */ ([
-      'config',
-      'data',
-      'blobs',
-      'blobIndex',
-    ])) {
+
+    const namespacesWithoutAuth =
+      /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
+        'config',
+        'data',
+        'blob',
+        'blobIndex',
+      ])
+
+    for (const namespace of namespacesWithoutAuth) {
       const deletionPromises = []
       const coreRecords = this.#coreManager.getCores(namespace)
 
