@@ -3,23 +3,45 @@ import { SyncState } from './sync-state.js'
 import {
   PeerSyncController,
   PRESYNC_NAMESPACES,
+  DATA_NAMESPACES,
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../core-manager/index.js'
 import { keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
+export const kSyncState = Symbol('sync state')
+
+/**
+ * @typedef {'initial' | 'full'} SyncType
+ */
+
+/**
+ * @typedef {object} SyncTypeState
+ * @property {number} have Number of blocks we have locally
+ * @property {number} want Number of blocks we want from connected peers
+ * @property {number} wanted Number of blocks that connected peers want from us
+ * @property {number} missing Number of blocks missing (we don't have them, but connected peers don't have them either)
+ * @property {boolean} dataToSync Is there data available to sync? (want > 0 || wanted > 0)
+ * @property {boolean} syncing Are we currently syncing?
+ */
+
+/**
+ * @typedef {object} State
+ * @property {SyncTypeState} initial State of initial sync (sync of auth, metadata and project config)
+ * @property {SyncTypeState} data State of data sync (observations, map data, photos, audio, video etc.)
+ * @property {number} connectedPeers Number of connected peers
+ */
 
 /**
  * @typedef {object} SyncEvents
- * @property {(syncState: import('./sync-state.js').State) => void} sync-state
+ * @property {(syncState: State) => void} sync-state
  */
 
 /**
  * @extends {TypedEmitter<SyncEvents>}
  */
 export class SyncApi extends TypedEmitter {
-  syncState
   #coreManager
   #capabilities
   /** @type {Map<import('protomux'), PeerSyncController>} */
@@ -45,9 +67,13 @@ export class SyncApi extends TypedEmitter {
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
     this.#capabilities = capabilities
-    this.syncState = new SyncState({ coreManager, throttleMs })
-    this.syncState.setMaxListeners(0)
-    this.syncState.on('state', this.emit.bind(this, 'sync-state'))
+    this[kSyncState] = new SyncState({ coreManager, throttleMs })
+    this[kSyncState].setMaxListeners(0)
+    this[kSyncState].on('state', (namespaceSyncState) => {
+      const state = reduceSyncState(namespaceSyncState)
+      state.data.syncing = this.#dataSyncEnabled.has('local')
+      this.emit('sync-state', state)
+    })
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
     this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
@@ -81,8 +107,14 @@ export class SyncApi extends TypedEmitter {
     }, 500)
   }
 
+  /**
+   * Get the current sync state (initial and full). Also emitted via the 'sync-state' event
+   * @returns {State}
+   */
   getState() {
-    return this.syncState.getState()
+    const state = reduceSyncState(this[kSyncState].getState())
+    state.data.syncing = this.#dataSyncEnabled.has('local')
+    return state
   }
 
   /**
@@ -110,16 +142,17 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
-   * @param {'initial' | 'full'} type
+   * @param {SyncType} type
    */
   async waitForSync(type) {
-    const state = this.getState()
+    const state = this[kSyncState].getState()
     const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
     if (isSynced(state, namespaces, this.#peerSyncControllers)) return
     return new Promise((res) => {
-      this.on('sync-state', function onState(state) {
-        if (!isSynced(state, namespaces, this.#peerSyncControllers)) return
-        this.off('sync-state', onState)
+      const _this = this
+      this[kSyncState].on('state', function onState(state) {
+        if (!isSynced(state, namespaces, _this.#peerSyncControllers)) return
+        _this[kSyncState].off('state', onState)
         res(null)
       })
     })
@@ -147,7 +180,7 @@ export class SyncApi extends TypedEmitter {
     const peerSyncController = new PeerSyncController({
       protomux,
       coreManager: this.#coreManager,
-      syncState: this.syncState,
+      syncState: this[kSyncState],
       capabilities: this.#capabilities,
       logger: this.#l,
     })
@@ -208,4 +241,56 @@ function isSynced(state, namespaces, peerSyncControllers) {
     }
   }
   return true
+}
+
+/**
+ * Reduce the more detailed sync state we use internally to the public sync
+ * state that sums namespaces into an 'initial' and 'full' sync state
+ * @param {import('./sync-state.js').State} namespaceSyncState
+ * @returns {State}
+ */
+function reduceSyncState(namespaceSyncState) {
+  const connectedPeers = Object.values(
+    namespaceSyncState.auth.remoteStates
+  ).filter((remoteState) => remoteState.status === 'connected').length
+  const state = {
+    initial: createInitialSyncTypeState(),
+    data: createInitialSyncTypeState(),
+    connectedPeers,
+  }
+  for (const ns of PRESYNC_NAMESPACES) {
+    const nsState = namespaceSyncState[ns]
+    mutatingAddNamespaceState(state.initial, nsState)
+  }
+  for (const ns of DATA_NAMESPACES) {
+    const nsState = namespaceSyncState[ns]
+    mutatingAddNamespaceState(state.data, nsState)
+  }
+  return state
+}
+
+/**
+ * @param {SyncTypeState} accumulator
+ * @param {import('./namespace-sync-state.js').SyncState} currentValue
+ */
+function mutatingAddNamespaceState(accumulator, currentValue) {
+  accumulator.have += currentValue.localState.have
+  accumulator.want += currentValue.localState.want
+  accumulator.wanted += currentValue.localState.wanted
+  accumulator.missing += currentValue.localState.missing
+  accumulator.dataToSync ||= currentValue.dataToSync
+}
+
+/**
+ * @returns {SyncTypeState}
+ */
+function createInitialSyncTypeState() {
+  return {
+    have: 0,
+    want: 0,
+    wanted: 0,
+    missing: 0,
+    dataToSync: false,
+    syncing: true,
+  }
 }
