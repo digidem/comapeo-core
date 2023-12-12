@@ -12,6 +12,9 @@ import { createMap } from '../utils.js'
 
 /** @type {Namespace[]} */
 export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
+export const DATA_NAMESPACES = NAMESPACES.filter(
+  (ns) => !PRESYNC_NAMESPACES.includes(ns)
+)
 
 export class PeerSyncController {
   #replicatingCores = new Set()
