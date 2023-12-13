@@ -1,7 +1,5 @@
-import path from 'path'
-
 /**
- * @param {import('fs').ReadStream} fileStream
+ * @param {import('stream').Readable} fileStream
  * @returns {Promise<{fields:Object, presets: Object}>}
  * */
 export function readPresets(fileStream) {
@@ -25,7 +23,7 @@ export function readPresets(fileStream) {
  * @param {any} opts.field
  * @param {any} opts.fieldDb
  */
-export async function addFields({ fieldName, field, fieldDb }) {
+export async function addField({ fieldName, field, fieldDb }) {
   const fieldDoc = {
     // shouldn't schemaName be derived when calling .create?
     schemaName: 'field',
@@ -38,22 +36,29 @@ export async function addFields({ fieldName, field, fieldDb }) {
 }
 
 /**
- * @param {String} filename
+ * @param {string} filename
+ * @param {import('stream').Readable} fileStream
  *
  */
-export function parseIconFile(filename) {
-  const [size, pixelDensity] = filename.split('-').slice(-1)[0].split('@')
-  const name = filename.split('-').slice(0, -1).join('-')
-  let obj = {
-    name,
-    variants: [
-      {
-        size,
-        mimeType:
-          path.extname(filename) === '.png' ? 'image/png' : 'image/svg+xml',
-        pixelDensity: Number(pixelDensity.split('.')[0].replace('x', '')),
-      },
-    ],
+export async function parseIcon(filename, fileStream) {
+  const bufs = []
+  for await (const chunk of fileStream) {
+    bufs.push(chunk)
   }
-  return obj
+  const matches = filename.match(
+    /^([a-zA-Z0-9-]+)-([a-zA-Z0-9]+)@(\d+x)\.(png|jpg|jpeg)$/
+  )
+  if (matches) {
+    /* eslint-disable no-unused-vars */
+    const [_, name, size, pixelDensity, extension] = matches
+    return {
+      name,
+      variant: {
+        size,
+        mimeType: extension === 'png' ? 'image/png' : 'image/svg+xml',
+        pixelDensity: Number(pixelDensity.replace('x', '')),
+        blob: Buffer.concat(bufs),
+      },
+    }
+  }
 }

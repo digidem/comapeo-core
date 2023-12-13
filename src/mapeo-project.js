@@ -40,7 +40,7 @@ import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
-import { readPresets, addFields, parseIconFile } from './config-import.js'
+import { readPresets, addField, parseIcon } from './config-import.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -509,71 +509,96 @@ export class MapeoProject {
    *  @param {string} opts.configPath
    */
   async importConfig({ configPath }) {
-    // console.log(path.resolve(configPath))
     try {
       await fs.stat(path.resolve(configPath))
     } catch (e) {
       console.log(`error loading config file ${configPath}`, e)
     }
     const zip = await yauzl.open(configPath)
+    // check for already present presets and delete them if exists
+    // TODO: do the same for fields and icons?
     const ids = (await this.preset.getMany()).map((doc) => doc.versionId)
-    if (ids.length !== 0) await this.preset.delete(ids)
+    if (ids.length !== 0) {
+      console.log('already present', ids)
+      await this.preset.delete(ids)
+    }
+    /** @type {Object<string,{name:string,
+     * variants:Array<{
+     * size:string,
+     * mimeType: string,
+     * pixelDensity: number,
+     * blob: Buffer
+     * }>}>}
+     * */
+    const icons = {}
+    let presets = {}
+    /** @type {Object<String,String>} */
+    let fieldIds = {}
+    /** @type {Object<String,String>} */
+    let iconIds = {}
     try {
-      for await (const entry of zip) {
-        if (entry.filename === 'presets.json') {
-          // 1. get fields and add them to db
-          /* eslint-disable no-unused-vars */
-          const { fields, presets } = await readPresets(
+      const entries = await zip.readEntries()
+      for await (const entry of entries) {
+        // 1. for each icon, get the variant object and add it to icons
+        if (entry.filename.match(/icons\/[aA-zZ]/)) {
+          const icon = await parseIcon(
+            entry.filename.split('/')[1],
             await zip.openReadStream(entry)
           )
-          /** @type {Object<String,String>} */
-          let fieldIds = {}
-          for (let [fieldName, field] of Object.entries(fields)) {
-            const { docId, tagKey } = await addFields({
+          if (icon) {
+            if (!icons[icon.name]) {
+              icons[icon.name] = { name: icon.name, variants: [icon.variant] }
+            } else {
+              // icon already exists, so we push the variants
+              icons[icon.name].variants.push(icon.variant)
+            }
+          }
+        }
+        if (entry.filename === 'presets.json') {
+          // 2. read fields and presets from file
+          const presetsFile = await readPresets(await zip.openReadStream(entry))
+          presets = presetsFile.presets
+
+          // 3. For each field, add it to the fields db and get the id
+          for (let [fieldName, field] of Object.entries(presetsFile.fields)) {
+            const { docId, tagKey } = await addField({
               fieldName,
               field,
               fieldDb: this.field,
             })
             fieldIds[tagKey] = docId
-            console.log(docId, tagKey)
           }
-          // for (let [presetName, preset] of Object.entries(presets)) {
-          //   // console.log(presetName, preset.fields)
-          //   preset.fieldIds = []
-          //   for (let field of preset.fields || []) {
-          //     preset.fieldIds.push(fieldIds[field])
-          //   }
-          //   preset.name = presetName
-          //   preset.schemaName = 'preset'
-          //   preset.addTags = {}
-          //   preset.removeTags = {}
-          //   delete preset.fields
-          //   // this.preset.create(preset)
-          //   // console.log(preset)
-          // }
-          // this.preset.create()
         }
-        if (entry.filename.match(/icons\/[aA-zZ]/)) {
-          const icon = parseIconFile(entry.filename.split('/')[1])
-          const file = await zip.openReadStream(entry)
-          let bufs = []
-          for await (const chunk of file) {
-            bufs.push(chunk)
-          }
-          icon.variants[0].blob = Buffer.concat(bufs)
-          console.log(icon)
-          // console.log(path.extname(entry.filename))
-          console.log(await this.#iconApi.create(icon))
-        }
-        // const file = await zip.openReadStream(entry)
-        // file.pipe(process.stdout)
-        // console.log(entry.filename, entry.createReadStream())
-        // await pipeline(entry.createReadStream(), process.stdout)
-        // await entry.createReadStream().pipe(process.stdout)
       }
     } catch (e) {
-      console.log('error', e)
+      console.log('error parsing file on config zip', e)
     } finally {
+      // 4. iterate over icons and add them to the db
+      /* eslint-disable no-unused-vars */
+      for (let [_, icon] of Object.entries(icons)) {
+        iconIds[icon.name] = await this.#iconApi.create(icon)
+      }
+      // 5. for each preset get the corresponding fieldId and iconId, add them to the db
+      for (let [presetName, preset] of Object.entries(presets)) {
+        preset.schemaName = 'preset'
+        preset.fieldIds = []
+        for (let field of preset.fields || []) {
+          preset.fieldIds.push(fieldIds[field])
+        }
+        delete preset.fields
+        preset.iconId = iconIds[preset.icon]
+        delete preset.icon
+        preset.name = presetName
+        // TODO: this is ugly
+        preset.addTags = {}
+        preset.removeTags = {}
+        if (!preset.terms) preset.terms = []
+        if (preset.sort) delete preset.sort
+        if (preset.matchScore) delete preset.matchScore
+
+        const pr = await this.preset.create(preset)
+        console.log('created preset', pr)
+      }
       await zip.close()
     }
   }
