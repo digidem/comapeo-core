@@ -514,14 +514,35 @@ export class MapeoProject {
     } catch (e) {
       console.log(`error loading config file ${configPath}`, e)
     }
-    const zip = await yauzl.open(configPath)
-    // check for already present presets and delete them if exists
-    // TODO: do the same for fields and icons?
-    const ids = (await this.preset.getMany()).map((doc) => doc.versionId)
-    if (ids.length !== 0) {
-      console.log('already present', ids)
-      await this.preset.delete(ids)
+    // check for already present fields, icons and presets and delete them if exist
+    const alreadyPresets = await this.preset.getMany()
+    if (alreadyPresets.length !== 0) {
+      for (const preset of alreadyPresets) {
+        const { fieldIds, iconId, versionId: presetVersionId } = preset
+        // delete fields
+        for (const fieldId of fieldIds) {
+          const field = await this.field.getByDocId(fieldId)
+          const { deleted } = await this.field.delete(field.versionId, field)
+          if (!deleted) throw new Error('error deleting field from db')
+        }
+        // delete icon
+        const icon = await this.#iconApi.dataType.getByDocId(iconId)
+        const { deleted: deletedIcon } = await this.#iconApi.dataType.delete(
+          icon.versionId,
+          icon
+        )
+        if (!deletedIcon) throw new Error('error deleting icon from db')
+
+        // delete preset
+        const { deleted: deletedPreset } = await this.preset.delete(
+          presetVersionId,
+          preset
+        )
+        if (!deletedPreset) throw new Error('error deleting preset from db')
+      }
     }
+
+    const zip = await yauzl.open(configPath)
     /** @type {Object<string,{name:string,
      * variants:Array<{
      * size:string,
@@ -597,7 +618,7 @@ export class MapeoProject {
         if (preset.matchScore) delete preset.matchScore
 
         const pr = await this.preset.create(preset)
-        console.log('created preset', pr)
+        // console.log('created preset', pr)
       }
       await zip.close()
     }
