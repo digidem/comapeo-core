@@ -38,6 +38,11 @@ export async function addField({ fieldName, field, fieldDb }) {
 /**
  * @param {string} filename
  * @param {import('stream').Readable} fileStream
+ * @returns {Promise<{
+ * name: import('@mapeo/schema').IconValue['name']
+ * variant:
+ * (import('./icon-api.js').BitmapOpts | import('./icon-api.js').SvgOpts) & { blob: Buffer }
+ * }| undefined>}
  *
  */
 export async function parseIcon(filename, fileStream) {
@@ -51,12 +56,19 @@ export async function parseIcon(filename, fileStream) {
   if (matches) {
     /* eslint-disable no-unused-vars */
     const [_, name, size, pixelDensity, extension] = matches
+    const density = Number(pixelDensity.replace('x', ''))
+    if (!(density === 1 || density === 2 || density === 3)) {
+      throw new Error('Error loading icon. invalid pixel density')
+    }
+    if (!(size === 'small' || size === 'medium' || size === 'large')) {
+      throw new Error('Error loading icon. invalid size')
+    }
     return {
       name,
       variant: {
         size,
         mimeType: extension === 'png' ? 'image/png' : 'image/svg+xml',
-        pixelDensity: Number(pixelDensity.replace('x', '')),
+        pixelDensity: density,
         blob: Buffer.concat(bufs),
       },
     }

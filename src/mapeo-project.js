@@ -514,42 +514,41 @@ export class MapeoProject {
     } catch (e) {
       console.log(`error loading config file ${configPath}`, e)
     }
-    // check for already present fields, icons and presets and delete them if exist
-    const alreadyPresets = await this.preset.getMany()
-    if (alreadyPresets.length !== 0) {
-      for (const preset of alreadyPresets) {
-        const { fieldIds, iconId, versionId: presetVersionId } = preset
-        // delete fields
-        for (const fieldId of fieldIds) {
-          const field = await this.field.getByDocId(fieldId)
-          const { deleted } = await this.field.delete(field.versionId, field)
-          if (!deleted) throw new Error('error deleting field from db')
-        }
-        // delete icon
-        const icon = await this.#iconApi.dataType.getByDocId(iconId)
-        const { deleted: deletedIcon } = await this.#iconApi.dataType.delete(
-          icon.versionId,
-          icon
-        )
-        if (!deletedIcon) throw new Error('error deleting icon from db')
 
-        // delete preset
-        const { deleted: deletedPreset } = await this.preset.delete(
-          presetVersionId,
-          preset
-        )
-        if (!deletedPreset) throw new Error('error deleting preset from db')
-      }
-    }
+    // Commenting until #417 and #418 get merged
+    // // check for already present fields, icons and presets and delete them if exist
+    // const alreadyPresets = await this.preset.getMany()
+    // if (alreadyPresets.length !== 0) {
+    //   for (const preset of alreadyPresets) {
+    //     const { fieldIds, iconId, versionId: presetVersionId } = preset
+    //     // delete fields
+    //     for (const fieldId of fieldIds) {
+    //       const field = await this.field.getByDocId(fieldId)
+    //       const { deleted } = await this.field.delete(field.versionId, field)
+    //       if (!deleted) throw new Error('error deleting field from db')
+    //     }
+    //     // delete icon
+    //     const icon = await this.#iconApi.dataType.getByDocId(iconId)
+    //     const { deleted: deletedIcon } = await this.#iconApi.dataType.delete(
+    //       icon.versionId,
+    //       icon
+    //     )
+    //     if (!deletedIcon) throw new Error('error deleting icon from db')
 
-    const zip = await yauzl.open(configPath)
+    //     // delete preset
+    //     const { deleted: deletedPreset } = await this.preset.delete(
+    //       presetVersionId,
+    //       preset
+    //     )
+    //     if (!deletedPreset) throw new Error('error deleting preset from db')
+    //   }
+    // }
+
     /** @type {Object<string,{name:string,
-     * variants:Array<{
-     * size:string,
-     * mimeType: string,
-     * pixelDensity: number,
-     * blob: Buffer
-     * }>}>}
+     * variants:Array<
+     * (import('./icon-api.js').BitmapOpts
+     * | import('./icon-api.js').SvgOpts)
+     * & { blob: Buffer }>}>}
      * */
     const icons = {}
     let presets = {}
@@ -557,9 +556,10 @@ export class MapeoProject {
     let fieldIds = {}
     /** @type {Object<String,String>} */
     let iconIds = {}
+    const zip = await yauzl.open(configPath)
     try {
-      const entries = await zip.readEntries()
-      for await (const entry of entries) {
+      // const entries = await zip.readEntries()
+      for await (const entry of zip) {
         // 1. for each icon, get the variant object and add it to icons
         if (entry.filename.match(/icons\/[aA-zZ]/)) {
           const icon = await parseIcon(
