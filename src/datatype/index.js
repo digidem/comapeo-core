@@ -3,7 +3,7 @@ import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, placeholder } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
-import { deNullify } from '../utils.js'
+import { deNullify, valueOf } from '../utils.js'
 import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
@@ -203,15 +203,17 @@ export class DataType extends TypedEmitter {
   /**
    * Not yet implemented
    * @param {string | string[]} versionId
-   * @param {T} value
    */
-  async delete(versionId, value) {
+  async delete(versionId) {
     await this.#dataStore.indexer.idle()
     const links = Array.isArray(versionId) ? versionId : [versionId]
     const { docId, createdAt, createdBy } = await this.#validateLinks(links)
+
+    const existingDoc = await this.getByVersionId(links[links.length - 1])
+
     /** @type {any} */
     const doc = {
-      ...value,
+      ...valueOf(existingDoc),
       docId,
       createdAt,
       updatedAt: new Date().toISOString(),
