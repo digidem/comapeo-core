@@ -203,13 +203,15 @@ export class DataType extends TypedEmitter {
   /**
    * Not yet implemented
    * @param {string | string[]} versionId
+   * @param {T} value
    */
-  async delete(versionId) {
+  async delete(versionId, value) {
     await this.#dataStore.indexer.idle()
     const links = Array.isArray(versionId) ? versionId : [versionId]
     const { docId, createdAt, createdBy } = await this.#validateLinks(links)
     /** @type {any} */
     const doc = {
+      ...value,
       docId,
       createdAt,
       updatedAt: new Date().toISOString(),
