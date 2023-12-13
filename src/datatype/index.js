@@ -123,22 +123,29 @@ export class DataType extends TypedEmitter {
   async create(value) {
     const docId = generateId()
     // @ts-expect-error - can't figure this one out, types in index.d.ts override this
-    return this[kCreateWithDocId](docId, value)
+    return this[kCreateWithDocId](docId, value, { checkExisting: false })
   }
 
   /**
    * @param {string} docId
    * @param {TValue | import('../types.js').CoreOwnershipWithSignaturesValue} value
+   * @param {{ checkExisting?: boolean }} [opts] - only used internally to skip the checkExisting check when creating a document with a random ID (collisions should be too small probability to be worth checking for)
    */
-  async [kCreateWithDocId](docId, value) {
+  async [kCreateWithDocId](docId, value, { checkExisting = true } = {}) {
     if (!validate(this.#schemaName, value)) {
       // TODO: pass through errors from validate functions
       throw new Error('Invalid value ' + value)
     }
+    if (checkExisting) {
+      const existing = await this.getByDocId(docId).catch(noop)
+      if (existing) {
+        throw new Error('Doc with docId ' + docId + ' already exists')
+      }
+    }
     const nowDateString = generateDate()
-    const discoveryId = crypto
-      .discoveryKey(this.#dataStore.writerCore.key)
-      .toString('hex')
+    const discoveryId =
+      this.#dataStore.writerCore.discoveryKey?.toString('hex') ||
+      crypto.discoveryKey(this.#dataStore.writerCore.key).toString('hex')
 
     /** @type {OmitUnion<MapeoDoc, 'versionId'>} */
     const doc = {
@@ -274,3 +281,5 @@ export class DataType extends TypedEmitter {
     this.emit('updated-docs', updatedDocs)
   }
 }
+
+function noop() {}

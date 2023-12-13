@@ -15,6 +15,7 @@ import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/capabilities.js'
+import { kSyncState } from '../src/sync/sync-api.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
@@ -226,8 +227,9 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
 
   await waitForSync([inviteeProject, invitorProject], 'full')
 
+  // Reaching into internals here, but only to validate the result of the test, so not fully e2e
   const [invitorState, inviteeState, blockedState] = projects.map((p) =>
-    p.$sync.getState()
+    p.$sync[kSyncState].getState()
   )
 
   t.is(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
