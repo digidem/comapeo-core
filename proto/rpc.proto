@@ -10,6 +10,9 @@ message Invite {
   bytes projectKey = 1;
   EncryptionKeys encryptionKeys = 2;
   optional ProjectInfo projectInfo = 3;
+  string roleName = 4;
+  optional string roleDescription = 5;
+  string invitorName = 6;
 }
 message InviteResponse {
   enum Decision {

@@ -1,5 +1,4 @@
 import { test, skip } from 'brittle'
-import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'
 import {
@@ -8,6 +7,7 @@ import {
   disconnectPeers,
   waitForPeers,
 } from './utils.js'
+import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/capabilities.js'
 
 test('member invite accepted', async (t) => {
   const [creator, joiner] = await createManagers(2, t)

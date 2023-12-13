@@ -94,7 +94,7 @@ test('getting invited member after invite rejected', async (t) => {
   connectPeers(managers)
   await waitForPeers(managers)
 
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   const project = await invitor.getProject(projectId)
 
   await invite({
@@ -126,7 +126,7 @@ test('getting invited member after invite accepted', async (t) => {
   await waitForPeers(managers)
 
   const { name: inviteeName } = await invitee.getDeviceInfo()
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   const project = await invitor.getProject(projectId)
 
   await invite({
@@ -153,5 +153,56 @@ test('getting invited member after invite accepted', async (t) => {
   )
 
   // TODO: Test that device info of invited member can be read from invitor after syncing
+  await disconnectPeers(managers)
+})
+
+test('invite uses custom role name when provided', async (t) => {
+  t.plan(1)
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  invitee.invite.on('invite-received', ({ roleName }) => {
+    t.is(roleName, 'friend', 'roleName should be equal')
+  })
+  
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+    roleName: 'friend',
+    reject: true,
+  })
+
+  await disconnectPeers(managers)
+})
+
+test('invite uses default role name when not provided', async (t) => {
+  t.plan(1)
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  invitee.invite.on('invite-received', ({ roleName }) => {
+    t.is(
+      roleName,
+      DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      '`roleName` should use the fallback by deriving `roleId`'
+    )
+  })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+    reject: true,
+  })
+
   await disconnectPeers(managers)
 })
