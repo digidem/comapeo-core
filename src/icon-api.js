@@ -127,6 +127,10 @@ export class IconApi {
       })
     )
   }
+
+  get dataType() {
+    return this.#dataType
+  }
 }
 
 /**
