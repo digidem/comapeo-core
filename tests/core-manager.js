@@ -1,4 +1,3 @@
-// @ts-check
 import test from 'brittle'
 import { access, constants } from 'node:fs/promises'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
