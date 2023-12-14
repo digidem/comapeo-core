@@ -678,6 +678,39 @@ test('constructIconPath() - good inputs', (t) => {
   }
 })
 
+test('delete()', async (t) => {
+  const { iconApi } = setup()
+
+  const bitmapBlob = randomBytes(128)
+  const svgBlob = randomBytes(128)
+
+  /** @type {Parameters<import('../src/icon-api.js').IconApi['create']>[0]['variants']} */
+  const expectedVariants = [
+    {
+      size: 'small',
+      pixelDensity: 1,
+      mimeType: 'image/png',
+      blob: bitmapBlob,
+    },
+    {
+      size: 'small',
+      mimeType: 'image/svg+xml',
+      blob: svgBlob,
+    },
+  ]
+  const iconDocId = await iconApi.create({
+    name: 'myIcon',
+    variants: expectedVariants,
+  })
+  const { deleted, docId: deletedDocId } = await iconApi.delete(iconDocId)
+  t.is(
+    deletedDocId,
+    iconDocId,
+    `deleted icon docId should be equal to created one`
+  )
+  t.is(deleted, true, `'deleted' field is true after deletion`)
+})
+
 /**
  *
  * @param {{ getMediaBaseUrl?: () => Promise<string> }} [opts]

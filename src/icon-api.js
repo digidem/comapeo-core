@@ -97,17 +97,11 @@ export class IconApi {
   }
 
   /**
-   * @param {string | string[]} versionId
+   * @param {string} iconId
    */
-  async [kIconDelete](versionId) {
-    return this.#dataType.delete(versionId)
-  }
-
-  /**
-   * @param {string} versionId
-   */
-  async [kIconGetByVersionId](versionId) {
-    return this.#dataType.getByVersionId(versionId)
+  async delete(docId) {
+    const { versionId } = await this.#dataType.getByDocId(docId)
+    return await this.#dataType.delete(versionId)
   }
 
   /**
