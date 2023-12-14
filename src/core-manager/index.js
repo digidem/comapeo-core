@@ -483,6 +483,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Exclude<typeof NAMESPACES[number], 'auth'>} namespace
    * @param {Object} [opts]
    * @param {boolean} [opts.deleteOwn=false]
+   * @returns {Promise<void>}
    */
   async deleteData(namespace, { deleteOwn = false } = {}) {
     const coreRecords = this.getCores(namespace)
