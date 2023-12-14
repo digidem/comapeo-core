@@ -495,7 +495,7 @@ export class CoreManager extends TypedEmitter {
       deletionPromises.push(core.purge())
     }
 
-    return Promise.all(deletionPromises)
+    await Promise.all(deletionPromises)
   }
 }
 
