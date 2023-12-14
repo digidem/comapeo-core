@@ -1,4 +1,6 @@
 export const kGetIconBlob = Symbol('getIcon')
+export const kIconDelete = Symbol('delete')
+export const kIconGetByVersionId = Symbol('getByVersionId')
 
 /** @typedef {import('@mapeo/schema').IconValue['variants']} IconVariants */
 /** @typedef {IconVariants[number]} IconVariant */
@@ -92,6 +94,20 @@ export class IconApi {
     const iconVariant = getBestVariant(iconRecord.variants, opts)
     const blob = await this.#dataStore.readRaw(iconVariant.blobVersionId)
     return blob
+  }
+
+  /**
+   * @param {string | string[]} versionId
+   */
+  async [kIconDelete](versionId) {
+    this.#dataType.delete(versionId)
+  }
+
+  /**
+   * @param {string} versionId
+   */
+  async [kIconGetByVersionId](versionId) {
+    this.#dataType.getByVersionId(versionId)
   }
 
   /**
