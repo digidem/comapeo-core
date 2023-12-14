@@ -15,6 +15,7 @@ import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/capabilities.js'
+import { kSyncState } from '../src/sync/sync-api.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
@@ -23,7 +24,7 @@ test('Create and sync data', { timeout: 100_000 }, async function (t) {
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
   await disconnect()
 
@@ -91,7 +92,7 @@ test('start and stop sync', async function (t) {
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
 
   const projects = await Promise.all(
@@ -157,7 +158,7 @@ test('shares cores', async function (t) {
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   connectPeers(managers, { discovery: false })
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
 
   const projects = await Promise.all(
@@ -195,7 +196,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const managers = await createManagers(COUNT, t)
   const [invitor, invitee, blocked] = managers
   const disconnect1 = connectPeers(managers, { discovery: false })
-  const projectId = await invitor.createProject()
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({
     invitor,
     invitees: [blocked],
@@ -226,8 +227,9 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
 
   await waitForSync([inviteeProject, invitorProject], 'full')
 
+  // Reaching into internals here, but only to validate the result of the test, so not fully e2e
   const [invitorState, inviteeState, blockedState] = projects.map((p) =>
-    p.$sync.getState()
+    p.$sync[kSyncState].getState()
   )
 
   t.is(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
@@ -254,7 +256,5 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
 
   await disconnect1()
 
-  // Temp fix until we have .close() method - waits for indexing idle to ensure
-  // we don't close storage in teardown while index is still being written.
-  await Promise.all(projects.map((p) => p.$getProjectSettings()))
+  await Promise.all(projects.map((p) => p.close()))
 })

@@ -14,6 +14,7 @@ import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Protomux from 'protomux'
 import { setTimeout as delay } from 'timers/promises'
+import { DEFAULT_CAPABILITIES, MEMBER_ROLE_ID } from '../src/capabilities.js'
 
 test('Send invite and accept', async (t) => {
   t.plan(3)
@@ -27,6 +28,8 @@ test('Send invite and accept', async (t) => {
     const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
     })
     t.is(response, LocalPeers.InviteResponse.ACCEPT)
   })
@@ -56,6 +59,8 @@ test('Send invite immediately', async (t) => {
   const responsePromise = r1.invite(kp2.publicKey.toString('hex'), {
     projectKey,
     encryptionKeys: { auth: randomBytes(32) },
+    roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+    invitorName: 'device0',
   })
 
   const [peerId, invite] = await once(r2, 'invite')
@@ -77,6 +82,8 @@ test('Send invite, duplicate connections', async (t) => {
   const invite = {
     projectKey: Buffer.allocUnsafe(32).fill(0),
     encryptionKeys: { auth: randomBytes(32) },
+    roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+    invitorName: 'device0',
   }
 
   const kp1 = NoiseSecretStream.keyPair()
@@ -142,6 +149,8 @@ test('Duplicate connections with immediate disconnect', async (t) => {
   const invite = {
     projectKey: Buffer.allocUnsafe(32).fill(0),
     encryptionKeys: { auth: randomBytes(32) },
+    roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+    invitorName: 'device0',
   }
 
   const kp1 = NoiseSecretStream.keyPair()
@@ -175,6 +184,8 @@ test('Send invite and reject', async (t) => {
     const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
     })
     t.is(response, LocalPeers.InviteResponse.REJECT)
   })
@@ -203,6 +214,8 @@ test('Invite to unknown peer', async (t) => {
     r1.invite(unknownPeerId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
     }),
     UnknownPeerError
   )
@@ -228,6 +241,8 @@ test('Send invite and already on project', async (t) => {
     const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
     })
     t.is(response, LocalPeers.InviteResponse.ALREADY)
   })
@@ -259,6 +274,8 @@ test('Send invite with encryption key', async (t) => {
     const response = await r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys,
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
     })
     t.is(response, LocalPeers.InviteResponse.ACCEPT)
   })
@@ -293,6 +310,8 @@ test('Send invite with project info', async (t) => {
       projectKey,
       projectInfo,
       encryptionKeys: { auth: randomBytes(32) },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
     })
     t.is(response, LocalPeers.InviteResponse.ACCEPT)
   })
@@ -352,6 +371,8 @@ test('Disconnect results in rejected invite', async (t) => {
       const invite = r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys: { auth: randomBytes(32) },
+        roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+        invitorName: 'device0',
       })
       await t.exception(
         invite,
@@ -387,6 +408,8 @@ test('Invite to multiple peers', async (t) => {
         r1.invite(peer.deviceId, {
           projectKey,
           encryptionKeys: { auth: randomBytes(32) },
+          roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+          invitorName: 'device0',
         })
       )
     )
@@ -423,20 +446,26 @@ test('Multiple invites to a peer, only one response', async (t) => {
   const r2 = new LocalPeers()
 
   const projectKey = Buffer.allocUnsafe(32).fill(0)
-
+  const inviteFields = {
+    roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+    invitorName: 'device0',
+  }
   r1.on('peers', async (peers) => {
     const responses = await Promise.all([
       r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys: { auth: randomBytes(32) },
+        ...inviteFields,
       }),
       r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys: { auth: randomBytes(32) },
+        ...inviteFields,
       }),
       r1.invite(peers[0].deviceId, {
         projectKey,
         encryptionKeys: { auth: randomBytes(32) },
+        ...inviteFields,
       }),
     ])
     const expected = Array(3).fill(LocalPeers.InviteResponse.ACCEPT)
@@ -470,6 +499,8 @@ test('Default: invites do not timeout', async (t) => {
     r1.invite(peers[0].deviceId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
     }).then(
       () => t.fail('invite promise should not resolve'),
       () => t.fail('invite promise should not reject')
@@ -498,6 +529,8 @@ test('Invite timeout', async (t) => {
           projectKey,
           timeout: 5000,
           encryptionKeys: { auth: randomBytes(32) },
+          roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+          invitorName: 'device0',
         }),
       TimeoutError
     )
@@ -518,6 +551,8 @@ test('Send invite to non-existent peer', async (t) => {
         projectKey,
         timeout: 1000,
         encryptionKeys: { auth: randomBytes(32) },
+        roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+        invitorName: 'device0',
       }),
     UnknownPeerError
   )
@@ -551,6 +586,8 @@ test('Reconnect peer and send invite', async (t) => {
   const response = await r1.invite(peers[0].deviceId, {
     projectKey,
     encryptionKeys: { auth: randomBytes(32) },
+    roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+    invitorName: 'device0',
   })
   t.is(response, LocalPeers.InviteResponse.ACCEPT)
 })

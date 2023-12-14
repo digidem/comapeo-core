@@ -58,6 +58,39 @@ test('private createWithDocId() method', async (t) => {
   t.is(read.docId, customId)
 })
 
+test('private createWithDocId() method throws when doc exists', async (t) => {
+  const sqlite = new Database(':memory:')
+  const db = drizzle(sqlite)
+  migrate(db, {
+    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+  })
+
+  const coreManager = createCoreManager()
+  const indexWriter = new IndexWriter({
+    tables: [observationTable],
+    sqlite,
+  })
+  const dataStore = new DataStore({
+    coreManager,
+    namespace: 'data',
+    batch: async (entries) => {
+      return indexWriter.batch(entries)
+    },
+    storage: () => new RAM(),
+  })
+  const dataType = new DataType({
+    dataStore,
+    table: observationTable,
+    db,
+  })
+  const customId = randomBytes(8).toString('hex')
+  await dataType[kCreateWithDocId](customId, obsFixture)
+  await t.exception(
+    () => dataType[kCreateWithDocId](customId, obsFixture),
+    'Throws with error creating a doc with an id that already exists'
+  )
+})
+
 test('test validity of `createdBy` field', async (t) => {
   const projectKey = randomBytes(32)
   const { dataType: dt1, dataStore: ds1 } = await testenv({ projectKey })
@@ -106,6 +139,26 @@ test('test validity of `createdBy` field from another peer', async (t) => {
   const updatedObservation = await dt2.getByVersionId(updatedDoc.versionId)
   t.is(updatedObservation.createdBy, createdBy)
   await destroy()
+})
+
+test('delete()', async (t) => {
+  const projectKey = randomBytes(32)
+  const { dataType } = await testenv({ projectKey })
+  const doc = await dataType.create(obsFixture)
+  t.is(doc.deleted, false, `'deleted' field is false before deletion`)
+  const deletedDoc = await dataType.delete(doc.versionId)
+  t.is(deletedDoc.deleted, true, `'deleted' field is true after deletion`)
+  t.alike(
+    deletedDoc.links,
+    [doc.versionId],
+    `deleted doc links back to created doc`
+  )
+  const retrievedDocByDocId = await dataType.getByDocId(deletedDoc.docId)
+  t.alike(
+    retrievedDocByDocId,
+    deletedDoc,
+    `retrieving by docId returns deleted doc`
+  )
 })
 
 async function testenv(opts) {

@@ -33,6 +33,7 @@ import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Capabilities } from './capabilities.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { Logger } from './logger.js'
+import { kSyncState } from './sync/sync-api.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 
@@ -314,6 +315,10 @@ export class MapeoManager extends TypedEmitter {
       projectSecretKey: projectKeypair.secretKey,
     })
 
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+    })
+
     // 5. Write project name and any other relevant metadata to project instance
     await project.$setProjectSettings(settings)
 
@@ -368,6 +373,10 @@ export class MapeoManager extends TypedEmitter {
     )
 
     const project = this.#createProjectInstance(projectKeys)
+
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+    })
 
     // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectPublicId, project)
@@ -449,7 +458,7 @@ export class MapeoManager extends TypedEmitter {
    * await `project.$waitForInitialSync()` to ensure that the device has
    * downloaded their proof of project membership and the project config.
    *
-   * @param {import('./generated/rpc.js').Invite} invite
+   * @param {Pick<import('./generated/rpc.js').Invite, 'projectKey' | 'encryptionKeys' | 'projectInfo'>} invite
    * @param {{ waitForSync?: boolean }} [opts] For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject()
    * @returns {Promise<string>}
    */
@@ -554,7 +563,7 @@ export class MapeoManager extends TypedEmitter {
     const {
       auth: { localState: authState },
       config: { localState: configState },
-    } = project.$sync.getState()
+    } = project.$sync[kSyncState].getState()
     const isCapabilitySynced = capability !== Capabilities.NO_ROLE_CAPABILITIES
     const isProjectSettingsSynced =
       projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
@@ -581,15 +590,15 @@ export class MapeoManager extends TypedEmitter {
           timeoutId = setTimeout(onTimeout, timeoutMs)
           return
         }
-        project.$sync.off('sync-state', onSyncState)
+        project.$sync[kSyncState].off('state', onSyncState)
         resolve(this.#waitForInitialSync(project, { timeoutMs }))
       }
       const onTimeout = () => {
-        project.$sync.off('sync-state', onSyncState)
+        project.$sync[kSyncState].off('state', onSyncState)
         reject(new Error('Sync timeout'))
       }
       let timeoutId = setTimeout(onTimeout, timeoutMs)
-      project.$sync.on('sync-state', onSyncState)
+      project.$sync[kSyncState].on('state', onSyncState)
     })
   }
 

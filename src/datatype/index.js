@@ -3,7 +3,7 @@ import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, placeholder } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
-import { deNullify } from '../utils.js'
+import { deNullify, valueOf } from '../utils.js'
 import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
@@ -123,22 +123,29 @@ export class DataType extends TypedEmitter {
   async create(value) {
     const docId = generateId()
     // @ts-expect-error - can't figure this one out, types in index.d.ts override this
-    return this[kCreateWithDocId](docId, value)
+    return this[kCreateWithDocId](docId, value, { checkExisting: false })
   }
 
   /**
    * @param {string} docId
    * @param {TValue | import('../types.js').CoreOwnershipWithSignaturesValue} value
+   * @param {{ checkExisting?: boolean }} [opts] - only used internally to skip the checkExisting check when creating a document with a random ID (collisions should be too small probability to be worth checking for)
    */
-  async [kCreateWithDocId](docId, value) {
+  async [kCreateWithDocId](docId, value, { checkExisting = true } = {}) {
     if (!validate(this.#schemaName, value)) {
       // TODO: pass through errors from validate functions
       throw new Error('Invalid value ' + value)
     }
+    if (checkExisting) {
+      const existing = await this.getByDocId(docId).catch(noop)
+      if (existing) {
+        throw new Error('Doc with docId ' + docId + ' already exists')
+      }
+    }
     const nowDateString = generateDate()
-    const discoveryId = crypto
-      .discoveryKey(this.#dataStore.writerCore.key)
-      .toString('hex')
+    const discoveryId =
+      this.#dataStore.writerCore.discoveryKey?.toString('hex') ||
+      crypto.discoveryKey(this.#dataStore.writerCore.key).toString('hex')
 
     /** @type {OmitUnion<MapeoDoc, 'versionId'>} */
     const doc = {
@@ -208,8 +215,12 @@ export class DataType extends TypedEmitter {
     await this.#dataStore.indexer.idle()
     const links = Array.isArray(versionId) ? versionId : [versionId]
     const { docId, createdAt, createdBy } = await this.#validateLinks(links)
+
+    const existingDoc = await this.getByVersionId(links[links.length - 1])
+
     /** @type {any} */
     const doc = {
+      ...valueOf(existingDoc),
       docId,
       createdAt,
       updatedAt: new Date().toISOString(),
@@ -274,3 +285,5 @@ export class DataType extends TypedEmitter {
     this.emit('updated-docs', updatedDocs)
   }
 }
+
+function noop() {}

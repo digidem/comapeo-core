@@ -7,9 +7,10 @@ import { projectKeyToPublicId } from '../src/utils.js'
 import { replicate } from './helpers/local-peers.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import pDefer from 'p-defer'
+import { DEFAULT_CAPABILITIES, MEMBER_ROLE_ID } from '../src/capabilities.js'
 
 test('invite-received event has expected payload', async (t) => {
-  t.plan(5)
+  t.plan(7)
 
   const { rpc: r1, projectKey, encryptionKeys } = setup()
 
@@ -38,20 +39,24 @@ test('invite-received event has expected payload', async (t) => {
 
   r1.on('peers', (peers) => {
     t.is(peers.length, 1)
-
-    r1.invite(peers[0].deviceId, {
+    const invite = {
       projectKey,
       encryptionKeys,
       projectInfo: { name: 'Mapeo' },
-    })
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
+    }
+    r1.invite(peers[0].deviceId, invite)
   })
 
   inviteApi.on(
     'invite-received',
-    async ({ peerId, projectId, projectName }) => {
+    async ({ peerId, projectId, projectName, roleName, invitorName }) => {
       t.is(peerId, expectedInvitorPeerId)
       t.is(projectName, 'Mapeo')
       t.is(projectId, projectKeyToPublicId(projectKey))
+      t.is(roleName, DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name)
+      t.is(invitorName, 'device0')
     }
   )
 
@@ -83,10 +88,14 @@ test('Accept invite', async (t) => {
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
 
-    const response = await r1.invite(peers[0].deviceId, {
+    const invite = {
       projectKey,
       encryptionKeys,
-    })
+      projectInfo: { name: 'Mapeo' },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
+    }
+    const response = await r1.invite(peers[0].deviceId, invite)
 
     t.is(response, LocalPeers.InviteResponse.ACCEPT)
   })
@@ -127,10 +136,14 @@ test('Reject invite', async (t) => {
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
 
-    const response = await r1.invite(peers[0].deviceId, {
+    const invite = {
       projectKey,
       encryptionKeys,
-    })
+      projectInfo: { name: 'Mapeo' },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
+    }
+    const response = await r1.invite(peers[0].deviceId, invite)
 
     t.is(response, LocalPeers.InviteResponse.REJECT)
   })
@@ -169,10 +182,14 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     r1.on('peers', async (peers) => {
       t.is(peers.length, 1)
 
-      const response = await r1.invite(peers[0].deviceId, {
+      const invite = {
         projectKey,
         encryptionKeys,
-      })
+        projectInfo: { name: 'Mapeo' },
+        roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+        invitorName: 'device0',
+      }
+      const response = await r1.invite(peers[0].deviceId, invite)
 
       t.is(
         response,
@@ -212,11 +229,15 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
       r1.on('peers', async (peers) => {
         t.is(peers.length, 1)
-
-        const response = await r1.invite(peers[0].deviceId, {
+        const invite = {
           projectKey,
           encryptionKeys,
-        })
+          projectInfo: { name: 'Mapeo' },
+          roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+          invitorName: 'device0',
+        }
+
+        const response = await r1.invite(peers[0].deviceId, invite)
 
         t.is(
           response,
@@ -257,17 +278,18 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     })
 
     r1.on('peers', async (peers) => {
-      const response1 = await r1.invite(peers[0].deviceId, {
+      const invite = {
         projectKey,
         encryptionKeys,
-      })
+        projectInfo: { name: 'Mapeo' },
+        roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+        invitorName: 'device0',
+      }
+      const response1 = await r1.invite(peers[0].deviceId, invite)
 
       t.is(response1, LocalPeers.InviteResponse.ACCEPT)
 
-      const response2 = await r1.invite(peers[0].deviceId, {
-        projectKey,
-        encryptionKeys,
-      })
+      const response2 = await r1.invite(peers[0].deviceId, invite)
 
       t.is(response2, LocalPeers.InviteResponse.ALREADY)
     })
@@ -322,10 +344,14 @@ test('invitor disconnecting results in accept throwing', async (t) => {
   r1.on('peers', async (peers) => {
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
     await t.exception(() => {
-      return r1.invite(peers[0].deviceId, {
+      const invite = {
         projectKey,
         encryptionKeys,
-      })
+        projectInfo: { name: 'Mapeo' },
+        roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+        invitorName: 'device0',
+      }
+      return r1.invite(peers[0].deviceId, invite)
     }, 'Invite fails')
   })
 
@@ -359,10 +385,14 @@ test('invitor disconnecting results in invite reject response not throwing', asy
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
 
     await t.exception(() => {
-      return r1.invite(peers[0].deviceId, {
+      const invite = {
         projectKey,
         encryptionKeys,
-      })
+        projectInfo: { name: 'Mapeo' },
+        roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+        invitorName: 'device0',
+      }
+      return r1.invite(peers[0].deviceId, invite)
     }, 'invite fails')
   })
 
@@ -399,10 +429,14 @@ test('invitor disconnecting results in invite already response not throwing', as
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
 
     await t.exception(() => {
-      return r1.invite(peers[0].deviceId, {
+      const invite = {
         projectKey,
         encryptionKeys,
-      })
+        projectInfo: { name: 'Mapeo' },
+        roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+        invitorName: 'device0',
+      }
+      return r1.invite(peers[0].deviceId, invite)
     }, 'invite fails')
   })
 
@@ -435,10 +469,14 @@ test('addProject throwing results in invite accept throwing', async (t) => {
   })
 
   r1.on('peers', (peers) => {
-    r1.invite(peers[0].deviceId, {
+    const invite = {
       projectKey,
       encryptionKeys,
-    })
+      projectInfo: { name: 'Mapeo' },
+      roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      invitorName: 'device0',
+    }
+    r1.invite(peers[0].deviceId, invite)
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
@@ -496,10 +534,14 @@ test('Invite from multiple peers', async (t) => {
     const keyPair = NoiseSecretStream.keyPair()
     invitor.on('peers', async (peers) => {
       if (++connected === invitorCount) deferred.resolve()
-      const response = await invitor.invite(peers[0].deviceId, {
+      const invite = {
         projectKey,
         encryptionKeys,
-      })
+        projectInfo: { name: 'Mapeo' },
+        roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+        invitorName: 'device0',
+      }
+      const response = await invitor.invite(peers[0].deviceId, invite)
       if (first === keyPair.publicKey.toString('hex')) {
         t.pass('One invitor did receive accept response')
         t.is(response, LocalPeers.InviteResponse.ACCEPT, 'accept response')
@@ -569,10 +611,14 @@ test.skip('Invite from multiple peers, first disconnects before accepted, receiv
       if (peers[0].status !== 'connected') return
       if (++connected === invitorCount) deferred.resolve()
       try {
-        const response = await invitor.invite(peers[0].deviceId, {
+        const invite = {
           projectKey,
           encryptionKeys,
-        })
+          projectInfo: { name: 'Mapeo' },
+          roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+          invitorName: 'device0',
+        }
+        const response = await invitor.invite(peers[0].deviceId, invite)
         if (invitorId === invitesReceived[1]) {
           t.pass('One invitor did receive accept response')
           t.is(response, LocalPeers.InviteResponse.ACCEPT, 'accept response')

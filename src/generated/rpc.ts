@@ -6,6 +6,9 @@ export interface Invite {
   projectKey: Buffer;
   encryptionKeys: EncryptionKeys | undefined;
   projectInfo?: Invite_ProjectInfo | undefined;
+  roleName: string;
+  roleDescription?: string | undefined;
+  invitorName: string;
 }
 
 /** Project info that is displayed to the user receiving the invite */
@@ -64,7 +67,7 @@ export interface DeviceInfo {
 }
 
 function createBaseInvite(): Invite {
-  return { projectKey: Buffer.alloc(0), encryptionKeys: undefined };
+  return { projectKey: Buffer.alloc(0), encryptionKeys: undefined, roleName: "", invitorName: "" };
 }
 
 export const Invite = {
@@ -77,6 +80,15 @@ export const Invite = {
     }
     if (message.projectInfo !== undefined) {
       Invite_ProjectInfo.encode(message.projectInfo, writer.uint32(26).fork()).ldelim();
+    }
+    if (message.roleName !== "") {
+      writer.uint32(34).string(message.roleName);
+    }
+    if (message.roleDescription !== undefined) {
+      writer.uint32(42).string(message.roleDescription);
+    }
+    if (message.invitorName !== "") {
+      writer.uint32(50).string(message.invitorName);
     }
     return writer;
   },
@@ -109,6 +121,27 @@ export const Invite = {
 
           message.projectInfo = Invite_ProjectInfo.decode(reader, reader.uint32());
           continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.roleName = reader.string();
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.roleDescription = reader.string();
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.invitorName = reader.string();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -130,6 +163,9 @@ export const Invite = {
     message.projectInfo = (object.projectInfo !== undefined && object.projectInfo !== null)
       ? Invite_ProjectInfo.fromPartial(object.projectInfo)
       : undefined;
+    message.roleName = object.roleName ?? "";
+    message.roleDescription = object.roleDescription ?? undefined;
+    message.invitorName = object.invitorName ?? "";
     return message;
   },
 };

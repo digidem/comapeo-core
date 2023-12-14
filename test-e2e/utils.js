@@ -4,13 +4,14 @@ import RAM from 'random-access-memory'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
-import { MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { once } from 'node:events'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import { randomInt } from 'node:crypto'
 import { temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
+import { MEMBER_ROLE_ID } from '../src/capabilities.js'
+import { kSyncState } from '../src/sync/sync-api.js'
 
 const FAST_TESTS = !!process.env.FAST_TESTS
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -77,6 +78,7 @@ export function connectPeers(managers, { discovery = true } = {}) {
  *   projectId: string,
  *   invitees: MapeoManager[],
  *   roleId?: import('../src/capabilities.js').RoleId,
+ *   roleName?: string
  *   reject?: boolean
  * }} opts
  */
@@ -85,6 +87,7 @@ export async function invite({
   projectId,
   invitees,
   roleId = MEMBER_ROLE_ID,
+  roleName,
   reject = false,
 }) {
   const invitorProject = await invitor.getProject(projectId)
@@ -94,6 +97,7 @@ export async function invite({
     promises.push(
       invitorProject.$member.invite(invitee.deviceId, {
         roleId,
+        roleName,
       })
     )
     promises.push(
@@ -228,14 +232,14 @@ export function round(value, decimalPlaces) {
  * @param {'initial' | 'full'} [type]
  */
 async function waitForProjectSync(project, peerIds, type = 'initial') {
-  const state = await project.$sync.getState()
+  const state = await project.$sync[kSyncState].getState()
   if (hasPeerIds(state.auth.remoteStates, peerIds)) {
     return project.$sync.waitForSync(type)
   }
   return new Promise((res) => {
-    project.$sync.on('sync-state', function onState(state) {
+    project.$sync[kSyncState].on('state', function onState(state) {
       if (!hasPeerIds(state.auth.remoteStates, peerIds)) return
-      project.$sync.off('sync-state', onState)
+      project.$sync[kSyncState].off('state', onState)
       res(project.$sync.waitForSync(type))
     })
   })

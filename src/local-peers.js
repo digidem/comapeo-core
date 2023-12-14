@@ -251,6 +251,9 @@ export class LocalPeers extends TypedEmitter {
    * @param {InviteWithKeys['projectKey']} options.projectKey project key
    * @param {InviteWithKeys['encryptionKeys']} options.encryptionKeys project encryption key
    * @param {InviteWithKeys['projectInfo']} [options.projectInfo] project info - currently name
+   * @param {InviteWithKeys['roleName']} options.roleName
+   * @param {InviteWithKeys['invitorName']} options.invitorName
+   * @param {InviteWithKeys['roleDescription']} [options.roleDescription]
    * @param {number} [options.timeout] timeout waiting for invite response before rejecting (default 1 minute)
    * @returns {Promise<InviteResponse['decision']>}
    */
