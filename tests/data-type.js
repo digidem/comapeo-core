@@ -141,6 +141,14 @@ test('test validity of `createdBy` field from another peer', async (t) => {
   await destroy()
 })
 
+test('test deletion of doc', async (t) => {
+  t.plan(1)
+  const projectKey = randomBytes(32)
+  const { dataType } = await testenv({ projectKey })
+  const { versionId } = await dataType.create(obsFixture)
+  t.execution(async () => await dataType.delete(versionId), `deletion failed`)
+})
+
 async function testenv(opts) {
   const coreManager = createCoreManager(opts)
   const sqlite = new Database(':memory:')
