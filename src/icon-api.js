@@ -97,7 +97,7 @@ export class IconApi {
   }
 
   /**
-   * @param {string} iconId
+   * @param {string} docId
    */
   async delete(docId) {
     const { versionId } = await this.#dataType.getByDocId(docId)
