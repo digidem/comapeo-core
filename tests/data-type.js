@@ -142,13 +142,24 @@ test('test validity of `createdBy` field from another peer', async (t) => {
 })
 
 test('delete()', async (t) => {
-  t.plan(2)
+  t.plan(4)
   const projectKey = randomBytes(32)
   const { dataType } = await testenv({ projectKey })
   const doc = await dataType.create(obsFixture)
   t.is(doc.deleted, false, `'deleted' field is false before deletion`)
   const deletedDoc = await dataType.delete(doc.versionId)
   t.is(deletedDoc.deleted, true, `'deleted field is true after deletion`)
+  t.alike(
+    deletedDoc.links,
+    [doc.versionId],
+    `deleted doc links back to created doc`
+  )
+  const retrievedDocByDocId = await dataType.getByDocId(deletedDoc.docId)
+  t.alike(
+    retrievedDocByDocId,
+    deletedDoc,
+    `retrieving by docId returns deleted doc`
+  )
 })
 
 async function testenv(opts) {
