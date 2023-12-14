@@ -491,7 +491,7 @@ export class CoreManager extends TypedEmitter {
     const deletionPromises = []
 
     for (const { core, key } of coreRecords) {
-      if (!deleteOwn && key === ownWriterCore.key) continue
+      if (!deleteOwn && key.equals(ownWriterCore.key)) continue
       deletionPromises.push(core.purge())
     }
 
