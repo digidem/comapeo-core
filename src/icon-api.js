@@ -100,14 +100,14 @@ export class IconApi {
    * @param {string | string[]} versionId
    */
   async [kIconDelete](versionId) {
-    this.#dataType.delete(versionId)
+    return this.#dataType.delete(versionId)
   }
 
   /**
    * @param {string} versionId
    */
   async [kIconGetByVersionId](versionId) {
-    this.#dataType.getByVersionId(versionId)
+    return this.#dataType.getByVersionId(versionId)
   }
 
   /**
