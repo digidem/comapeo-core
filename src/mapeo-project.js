@@ -608,15 +608,6 @@ export class MapeoProject extends TypedEmitter {
 
     const presetsWithRefs = []
     for (const { fieldNames, iconName, value } of config.presets()) {
-      let iconId
-      if (iconName) {
-        iconId = iconNameToId.get(iconName)
-        if (!iconId) {
-          throw new Error(
-            `icon ${iconName} not found (referenced by preset ${value.name})})`
-          )
-        }
-      }
       const fieldIds = fieldNames.map((fieldName) => {
         const id = fieldNameToId.get(fieldName)
         if (!id) {
@@ -628,7 +619,7 @@ export class MapeoProject extends TypedEmitter {
       })
       presetsWithRefs.push({
         ...value,
-        iconId,
+        iconId: iconName && iconNameToId.get(iconName),
         fieldIds,
       })
     }
