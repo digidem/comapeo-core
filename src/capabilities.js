@@ -1,6 +1,7 @@
 import { currentSchemaVersions } from '@mapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId } from './datatype/index.js'
+import { valueOf } from './utils.js'
 
 // Randomly generated 8-byte encoded as hex
 export const COORDINATOR_ROLE_ID = 'f7c150f5a3a9a855'
@@ -280,11 +281,23 @@ export class Capabilities {
     if (!ownCapabilities.roleAssignment.includes(roleId)) {
       throw new Error('No capability to assign role ' + roleId)
     }
-    await this.#dataType[kCreateWithDocId](deviceId, {
-      schemaName: 'role',
-      roleId,
-      fromIndex,
-    })
+
+    const existingRoleDoc = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(() => null)
+
+    if (existingRoleDoc) {
+      await this.#dataType.update(existingRoleDoc.versionId, {
+        ...valueOf(existingRoleDoc),
+        roleId,
+      })
+    } else {
+      await this.#dataType[kCreateWithDocId](deviceId, {
+        schemaName: 'role',
+        roleId,
+        fromIndex,
+      })
+    }
   }
 
   async #isProjectCreator() {

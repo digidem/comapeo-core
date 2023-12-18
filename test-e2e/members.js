@@ -3,6 +3,7 @@ import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 
 import {
+  COORDINATOR_ROLE_ID,
   CREATOR_CAPABILITIES,
   DEFAULT_CAPABILITIES,
   MEMBER_ROLE_ID,
@@ -168,7 +169,7 @@ test('invite uses custom role name when provided', async (t) => {
   invitee.invite.on('invite-received', ({ roleName }) => {
     t.is(roleName, 'friend', 'roleName should be equal')
   })
-  
+
   await invite({
     invitor,
     projectId,
@@ -205,4 +206,127 @@ test('invite uses default role name when not provided', async (t) => {
   })
 
   await disconnectPeers(managers)
+})
+
+test('capabilities - creator capabilities and role assignment', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+  const ownCapabilities = await project.$getOwnCapabilities()
+
+  t.alike(
+    ownCapabilities,
+    CREATOR_CAPABILITIES,
+    'Project creator has creator capabilities'
+  )
+
+  const deviceId = randomBytes(32).toString('hex')
+  await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
+
+  const member = await project.$member.getById(deviceId)
+
+  t.alike(
+    member.capabilities,
+    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    'Can assign capabilities to device'
+  )
+})
+
+test('capabilities - new device without capabilities', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const projectId = await manager.addProject(
+    {
+      projectKey: randomBytes(32),
+      encryptionKeys: { auth: randomBytes(32) },
+    },
+    { waitForSync: false }
+  )
+
+  const project = await manager.getProject(projectId)
+
+  const ownCapabilities = await project.$getOwnCapabilities()
+
+  t.alike(
+    ownCapabilities.sync,
+    {
+      auth: 'allowed',
+      config: 'allowed',
+      data: 'blocked',
+      blobIndex: 'blocked',
+      blob: 'blocked',
+    },
+    'A new device before sync can sync auth and config namespaces, but not other namespaces'
+  )
+  await t.exception(async () => {
+    const deviceId = randomBytes(32).toString('hex')
+    await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
+  }, 'Trying to assign a role without capabilities throws an error')
+})
+
+test('capabilities - getMany() on invitor device', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const creatorDeviceId = manager.deviceId
+
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+  const ownCapabilities = await project.$getOwnCapabilities()
+
+  t.alike(
+    ownCapabilities,
+    CREATOR_CAPABILITIES,
+    'Project creator has creator capabilities'
+  )
+
+  const deviceId1 = randomBytes(32).toString('hex')
+  const deviceId2 = randomBytes(32).toString('hex')
+  await project.$member.assignRole(deviceId1, MEMBER_ROLE_ID)
+  await project.$member.assignRole(deviceId2, COORDINATOR_ROLE_ID)
+
+  const expected = {
+    [deviceId1]: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    [deviceId2]: DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
+    [creatorDeviceId]: CREATOR_CAPABILITIES,
+  }
+
+  const allMembers = await project.$member.getMany()
+
+  /** @type {Record<string, import('../src/capabilities.js').Capability>} */
+  const allMembersCapabilities = {}
+
+  for (const member of allMembers) {
+    allMembersCapabilities[member.deviceId] = member.capabilities
+  }
+
+  t.alike(allMembersCapabilities, expected, 'expected capabilities')
+})
+
+test('capabilities - getMany() on newly invited device before sync', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const deviceId = manager.deviceId
+
+  const projectId = await manager.addProject(
+    {
+      projectKey: randomBytes(32),
+      encryptionKeys: { auth: randomBytes(32) },
+    },
+    { waitForSync: false }
+  )
+  const project = await manager.getProject(projectId)
+
+  const expected = { [deviceId]: NO_ROLE_CAPABILITIES }
+
+  const allMembers = await project.$member.getMany()
+
+  /** @type {Record<string, import('../src/capabilities.js').Capability>} */
+  const allMembersCapabilities = {}
+
+  for (const member of allMembers) {
+    allMembersCapabilities[member.deviceId] = member.capabilities
+  }
+
+  t.alike(allMembersCapabilities, expected, 'expected capabilities')
 })

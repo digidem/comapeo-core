@@ -46,7 +46,6 @@ const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreManager = Symbol('coreManager')
 export const kCoreOwnership = Symbol('coreOwnership')
-export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
@@ -346,13 +345,6 @@ export class MapeoProject extends TypedEmitter {
    */
   get [kCoreOwnership]() {
     return this.#coreOwnership
-  }
-
-  /**
-   * Capabilities instance, used for tests
-   */
-  get [kCapabilities]() {
-    return this.#capabilities
   }
 
   get [kBlobStore]() {
