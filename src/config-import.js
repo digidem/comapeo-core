@@ -121,7 +121,7 @@ export async function readConfig(configPath) {
     },
 
     /**
-     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@mapeo/schema').PresetValue }>}
+     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@mapeo/schema').PresetValue, sortValue: number }>}
      */
     *presets() {
       const { presets } = presetsFile
@@ -159,6 +159,8 @@ export async function readConfig(configPath) {
               ? preset.icon
               : undefined,
           value: presetValue,
+          //@ts-ignore TODO: remove this
+          sortValue: preset['sort'],
         }
       }
     },

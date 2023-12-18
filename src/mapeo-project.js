@@ -554,34 +554,24 @@ export class MapeoProject extends TypedEmitter {
    *  @param {string} opts.configPath
    */
   async importConfig({ configPath }) {
-    // Commenting until #417 and #418 get merged
-    // // check for already present fields, icons and presets and delete them if exist
-    // const alreadyPresets = await this.preset.getMany()
-    // if (alreadyPresets.length !== 0) {
-    //   for (const preset of alreadyPresets) {
-    //     const { fieldIds, iconId, versionId: presetVersionId } = preset
-    //     // delete fields
-    //     for (const fieldId of fieldIds) {
-    //       const field = await this.field.getByDocId(fieldId)
-    //       const { deleted } = await this.field.delete(field.versionId, field)
-    //       if (!deleted) throw new Error('error deleting field from db')
-    //     }
-    //     // delete icon
-    //     const icon = await this.#iconApi.dataType.getByDocId(iconId)
-    //     const { deleted: deletedIcon } = await this.#iconApi.dataType.delete(
-    //       icon.versionId,
-    //       icon
-    //     )
-    //     if (!deletedIcon) throw new Error('error deleting icon from db')
-
-    //     // delete preset
-    //     const { deleted: deletedPreset } = await this.preset.delete(
-    //       presetVersionId,
-    //       preset
-    //     )
-    //     if (!deletedPreset) throw new Error('error deleting preset from db')
-    //   }
-    // }
+    // check for already present fields and presets and delete them if exist
+    const presets = await this.preset.getMany()
+    if (presets.length !== 0) {
+      for (const preset of presets) {
+        const { fieldIds, versionId: presetVersionId } = preset
+        // delete fields
+        for (const fieldId of fieldIds) {
+          const field = await this.field.getByDocId(fieldId)
+          const { deleted } = await this.field.delete(field.versionId)
+          if (!deleted) throw new Error('error deleting field from db')
+        }
+        // delete preset
+        const { deleted: deletedPreset } = await this.preset.delete(
+          presetVersionId
+        )
+        if (!deletedPreset) throw new Error('error deleting preset from db')
+      }
+    }
 
     const config = await readConfig(configPath)
     /** @type {Map<string, string>} */
@@ -607,7 +597,9 @@ export class MapeoProject extends TypedEmitter {
     await Promise.all(fieldPromises)
 
     const presetsWithRefs = []
-    for (const { fieldNames, iconName, value } of config.presets()) {
+    /** @type {Map<string,number>} */
+    const presetNameToSortValue = new Map()
+    for (const { fieldNames, iconName, value, sortValue } of config.presets()) {
       const fieldIds = fieldNames.map((fieldName) => {
         const id = fieldNameToId.get(fieldName)
         if (!id) {
@@ -617,6 +609,7 @@ export class MapeoProject extends TypedEmitter {
         }
         return id
       })
+      presetNameToSortValue.set(value.name, sortValue)
       presetsWithRefs.push({
         ...value,
         iconId: iconName && iconNameToId.get(iconName),
@@ -627,10 +620,20 @@ export class MapeoProject extends TypedEmitter {
       this.preset.create(preset)
     )
     const createdPresets = await Promise.all(presetPromises)
-    const presetIds = createdPresets.map(({ docId }) => docId)
+    const sortedPresetIds = createdPresets
+      .sort((preset, nextPreset) => {
+        const sortValue = presetNameToSortValue.get(preset.name)
+        const nextSortValue = presetNameToSortValue.get(nextPreset.name)
+        if (!sortValue || !nextSortValue) {
+          throw new Error(`invalid sort value`)
+        }
+        return sortValue - nextSortValue
+      })
+      .map(({ docId }) => docId)
+
     await this.$setProjectSettings({
       defaultPresets: {
-        point: presetIds,
+        point: sortedPresetIds,
         line: [],
         area: [],
         vertex: [],
