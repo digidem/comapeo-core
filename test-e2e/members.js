@@ -15,6 +15,7 @@ import {
   disconnectPeers,
   invite,
   waitForPeers,
+  waitForSync,
 } from './utils.js'
 
 test('getting yourself after creating project', async (t) => {
@@ -329,4 +330,81 @@ test('capabilities - getMany() on newly invited device before sync', async (t) =
   }
 
   t.alike(allMembersCapabilities, expected, 'expected capabilities')
+})
+
+test('capabilities - assignRole()', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const [invitorProject, inviteeProject] = projects
+
+  t.alike(
+    (await invitorProject.$member.getById(invitee.deviceId)).capabilities,
+    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    'invitee has member capabilities from invitor perspective'
+  )
+
+  t.alike(
+    await inviteeProject.$getOwnCapabilities(),
+    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    'invitee has member capabilities from invitee perspective'
+  )
+
+  await t.test('invitor updates invitee role to coordinator', async (st) => {
+    await invitorProject.$member.assignRole(
+      invitee.deviceId,
+      COORDINATOR_ROLE_ID
+    )
+
+    await waitForSync(projects, 'initial')
+
+    st.alike(
+      (await invitorProject.$member.getById(invitee.deviceId)).capabilities,
+      DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
+      'invitee now has coordinator capabilities from invitor perspective'
+    )
+
+    st.alike(
+      await inviteeProject.$getOwnCapabilities(),
+      DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
+      'invitee now has coordinator capabilities from invitee perspective'
+    )
+  })
+
+  await t.test('invitee updates own role to member', async (st) => {
+    await inviteeProject.$member.assignRole(invitee.deviceId, MEMBER_ROLE_ID)
+
+    await waitForSync(projects, 'initial')
+
+    st.alike(
+      (await invitorProject.$member.getById(invitee.deviceId)).capabilities,
+      DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+      'invitee now has member capabilities from invitor perspective'
+    )
+
+    st.alike(
+      await inviteeProject.$getOwnCapabilities(),
+      DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+      'invitee now has member capabilities from invitee perspective'
+    )
+  })
+
+  // TODO: add test for both updating invitee role first and then syncing
+
+  await disconnectPeers(managers)
 })
