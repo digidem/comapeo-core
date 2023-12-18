@@ -606,8 +606,17 @@ export class MapeoProject extends TypedEmitter {
     }
     await Promise.all(fieldPromises)
 
-    const presetPromises = []
+    const presetsWithRefs = []
     for (const { fieldNames, iconName, value } of config.presets()) {
+      let iconId
+      if (iconName) {
+        iconId = iconNameToId.get(iconName)
+        if (!iconId) {
+          throw new Error(
+            `icon ${iconName} not found (referenced by preset ${value.name})})`
+          )
+        }
+      }
       const fieldIds = fieldNames.map((fieldName) => {
         const id = fieldNameToId.get(fieldName)
         if (!id) {
@@ -617,15 +626,26 @@ export class MapeoProject extends TypedEmitter {
         }
         return id
       })
-      presetPromises.push(
-        this.#dataTypes.preset.create({
-          ...value,
-          iconId: iconName && iconNameToId.get(iconName),
-          fieldIds,
-        })
-      )
+      presetsWithRefs.push({
+        ...value,
+        iconId,
+        fieldIds,
+      })
     }
-    await Promise.all(presetPromises)
+    const presetPromises = presetsWithRefs.map((preset) =>
+      this.preset.create(preset)
+    )
+    const createdPresets = await Promise.all(presetPromises)
+    const presetIds = createdPresets.map(({ docId }) => docId)
+    await this.$setProjectSettings({
+      defaultPresets: {
+        point: presetIds,
+        line: [],
+        area: [],
+        vertex: [],
+        relation: [],
+      },
+    })
 
     await config.close()
   }
