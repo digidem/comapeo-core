@@ -121,14 +121,27 @@ export async function readConfig(configPath) {
     },
 
     /**
-     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@mapeo/schema').PresetValue, sortValue: number }>}
+     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@mapeo/schema').PresetValue }>}
      */
     *presets() {
       const { presets } = presetsFile
+      // sort presets using the sort field, turn them into an array
+      const sortedPresets = Object.keys(presets)
+        .map((presetName) => {
+          /** @type {any} */
+          const preset = presets[presetName]
+          if (!preset.sort) {
+            // if there's no sort field, put a big value - puts the field at the end -
+            preset.sort = 100
+          }
+          return preset
+        })
+        .sort((preset, nextPreset) => nextPreset.sort - preset.sort)
+
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
-      for (let [presetName, preset] of Object.entries(presets)) {
+      for (let preset of sortedPresets) {
         if (typeof preset !== 'object' || preset === null) {
-          warnings.push(new Error(`Invalid preset ${presetName}`))
+          warnings.push(new Error(`Invalid preset ${preset.name}`))
           continue
         }
         /** @type {any} */
@@ -146,7 +159,7 @@ export async function readConfig(configPath) {
           }
         }
         if (!validate('preset', presetValue)) {
-          warnings.push(new Error(`Invalid preset ${presetName}`))
+          warnings.push(new Error(`Invalid preset ${preset.name}`))
           continue
         }
         yield {
@@ -159,8 +172,6 @@ export async function readConfig(configPath) {
               ? preset.icon
               : undefined,
           value: presetValue,
-          //@ts-ignore TODO: remove this
-          sortValue: preset['sort'],
         }
       }
     },

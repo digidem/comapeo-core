@@ -555,23 +555,8 @@ export class MapeoProject extends TypedEmitter {
    */
   async importConfig({ configPath }) {
     // check for already present fields and presets and delete them if exist
-    const presets = await this.preset.getMany()
-    if (presets.length !== 0) {
-      for (const preset of presets) {
-        const { fieldIds, versionId: presetVersionId } = preset
-        // delete fields
-        for (const fieldId of fieldIds) {
-          const field = await this.field.getByDocId(fieldId)
-          const { deleted } = await this.field.delete(field.versionId)
-          if (!deleted) throw new Error('error deleting field from db')
-        }
-        // delete preset
-        const { deleted: deletedPreset } = await this.preset.delete(
-          presetVersionId
-        )
-        if (!deletedPreset) throw new Error('error deleting preset from db')
-      }
-    }
+    await deleteAll(this.preset)
+    await deleteAll(this.field)
 
     const config = await readConfig(configPath)
     /** @type {Map<string, string>} */
@@ -597,9 +582,7 @@ export class MapeoProject extends TypedEmitter {
     await Promise.all(fieldPromises)
 
     const presetsWithRefs = []
-    /** @type {Map<string,number>} */
-    const presetNameToSortValue = new Map()
-    for (const { fieldNames, iconName, value, sortValue } of config.presets()) {
+    for (const { fieldNames, iconName, value } of config.presets()) {
       const fieldIds = fieldNames.map((fieldName) => {
         const id = fieldNameToId.get(fieldName)
         if (!id) {
@@ -609,7 +592,6 @@ export class MapeoProject extends TypedEmitter {
         }
         return id
       })
-      presetNameToSortValue.set(value.name, sortValue)
       presetsWithRefs.push({
         ...value,
         iconId: iconName && iconNameToId.get(iconName),
@@ -620,20 +602,11 @@ export class MapeoProject extends TypedEmitter {
       this.preset.create(preset)
     )
     const createdPresets = await Promise.all(presetPromises)
-    const sortedPresetIds = createdPresets
-      .sort((preset, nextPreset) => {
-        const sortValue = presetNameToSortValue.get(preset.name)
-        const nextSortValue = presetNameToSortValue.get(nextPreset.name)
-        if (!sortValue || !nextSortValue) {
-          throw new Error(`invalid sort value`)
-        }
-        return sortValue - nextSortValue
-      })
-      .map(({ docId }) => docId)
+    const presetIds = createdPresets.map(({ docId }) => docId)
 
     await this.$setProjectSettings({
       defaultPresets: {
-        point: sortedPresetIds,
+        point: presetIds,
         line: [],
         area: [],
         vertex: [],
@@ -653,6 +626,16 @@ function extractEditableProjectSettings(projectDoc) {
   // eslint-disable-next-line no-unused-vars
   const { schemaName, ...result } = valueOf(projectDoc)
   return result
+}
+
+// TODO: maybe a better signature than a bunch of any?
+/** @param {DataType<any,any,any,any,any>} dataType */
+async function deleteAll(dataType) {
+  const deletions = []
+  for (const { versionId } of await dataType.getMany()) {
+    deletions.push(dataType.delete(versionId))
+  }
+  return Promise.all(deletions)
 }
 
 /**
