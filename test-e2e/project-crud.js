@@ -207,5 +207,66 @@ test('CRUD operations', async (t) => {
         'expected values returned before closing and after re-opening'
       )
     })
+
+    await t.test(`create and delete ${schemaName}`, async (st) => {
+      const projectId = await manager.createProject()
+      const project = await manager.getProject(projectId)
+      const writePromises = []
+      let i = 0
+      while (i++ < CREATE_COUNT) {
+        const value = valueOf(generate(schemaName)[0])
+        writePromises.push(
+          // @ts-ignore
+          project[schemaName].create(value)
+        )
+      }
+      const written = await Promise.all(writePromises)
+      const deleted = await Promise.all(
+        written.map((doc) => project[schemaName].delete(doc.docId))
+      )
+      const read = await Promise.all(
+        written.map((doc) => project[schemaName].getByDocId(doc.docId))
+      )
+      st.ok(
+        deleted.every((doc) => doc.deleted),
+        'all docs are deleted'
+      )
+      st.alike(
+        sortById(deleted),
+        sortById(read),
+        'return create() matches return of getByDocId()'
+      )
+    })
+
+    await t.test('delete forks', async (st) => {
+      const projectId = await manager.createProject()
+      const project = await manager.getProject(projectId)
+      // @ts-ignore
+      const written = await project[schemaName].create(value)
+      const updateValue = getUpdateFixture(value)
+      // @ts-ignore
+      const updatedFork1 = await project[schemaName].update(
+        written.versionId,
+        updateValue
+      )
+      // @ts-ignore
+      const updatedFork2 = await project[schemaName].update(
+        written.versionId,
+        updateValue
+      )
+      const updatedReRead = await project[schemaName].getByDocId(written.docId)
+      st.alike(
+        updatedFork2,
+        updatedReRead,
+        'return of update() matched return of getByDocId()'
+      )
+      st.alike(updatedReRead.forks, [updatedFork1.versionId], 'doc is forked')
+      const deleted = await project[schemaName].delete(written.docId)
+      st.ok(deleted.deleted, 'doc is deleted')
+      st.is(deleted.forks.length, 0, 'forks are deleted')
+      const deletedReRead = await project[schemaName].getByDocId(written.docId)
+      st.ok(deletedReRead.deleted, 'doc is deleted')
+      st.is(deletedReRead.forks.length, 0, 'forks are deleted')
+    })
   }
 })
