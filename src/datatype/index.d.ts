@@ -95,5 +95,5 @@ export class DataType<
     >
   >(versionId: string | string[], value: T): Promise<TDoc & { forks: string[] }>
 
-  delete(versionId: string | string[]): Promise<TDoc & { forks: string[] }>
+  delete(docId: string): Promise<TDoc & { forks: string[] }>
 }

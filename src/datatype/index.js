@@ -3,7 +3,7 @@ import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, placeholder } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
-import { deNullify, valueOf } from '../utils.js'
+import { deNullify } from '../utils.js'
 import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
@@ -209,24 +209,22 @@ export class DataType extends TypedEmitter {
 
   /**
    * Not yet implemented
-   * @param {string | string[]} versionId
+   * @param {string} docId
    */
-  async delete(versionId) {
+  async delete(docId) {
     await this.#dataStore.indexer.idle()
-    const links = Array.isArray(versionId) ? versionId : [versionId]
-    const { docId, createdAt, createdBy } = await this.#validateLinks(links)
+    const existingDoc = await this.getByDocId(docId)
 
-    const existingDoc = await this.getByVersionId(links[links.length - 1])
+    if ('deleted' in existingDoc && existingDoc.deleted) {
+      throw new Error('Doc already deleted')
+    }
 
     /** @type {any} */
     const doc = {
-      ...valueOf(existingDoc),
-      docId,
-      createdAt,
+      ...existingDoc,
       updatedAt: new Date().toISOString(),
-      createdBy,
-      links,
-      schemaName: this.#schemaName,
+      // @ts-expect-error - TS just doesn't work in this class
+      links: [existingDoc.versionId, ...existingDoc.forks],
       deleted: true,
     }
     await this.#dataStore.write(doc)

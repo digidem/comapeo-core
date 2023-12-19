@@ -146,7 +146,7 @@ test('delete()', async (t) => {
   const { dataType } = await testenv({ projectKey })
   const doc = await dataType.create(obsFixture)
   t.is(doc.deleted, false, `'deleted' field is false before deletion`)
-  const deletedDoc = await dataType.delete(doc.versionId)
+  const deletedDoc = await dataType.delete(doc.docId)
   t.is(deletedDoc.deleted, true, `'deleted' field is true after deletion`)
   t.alike(
     deletedDoc.links,
