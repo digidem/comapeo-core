@@ -71,6 +71,9 @@ mapeoProject.observation.on('updated-docs', (docs) => {
   Expect<Equal<Observation[], typeof docs>>
 })
 
+const deletedObservation = await mapeoProject.observation.delete('abc')
+Expect<Equal<Observation & { forks: string[] }, typeof deletedObservation>>
+
 ///// Presets
 
 const createdPreset = await mapeoProject.preset.create({} as PresetValue)
