@@ -208,7 +208,6 @@ export class DataType extends TypedEmitter {
   }
 
   /**
-   * Not yet implemented
    * @param {string} docId
    */
   async delete(docId) {
