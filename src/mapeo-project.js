@@ -49,6 +49,7 @@ export const kCoreOwnership = Symbol('coreOwnership')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
+export const kDataTypes = Symbol('dataTypes')
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
 /**
@@ -345,6 +346,13 @@ export class MapeoProject extends TypedEmitter {
    */
   get [kCoreOwnership]() {
     return this.#coreOwnership
+  }
+
+  /**
+   * DataTypes object mappings, used for tests
+   */
+  get [kDataTypes]() {
+    return this.#dataTypes
   }
 
   get [kBlobStore]() {

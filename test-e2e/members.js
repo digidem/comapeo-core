@@ -17,6 +17,7 @@ import {
   waitForPeers,
   waitForSync,
 } from './utils.js'
+import { kDataTypes } from '../src/mapeo-project.js'
 
 test('getting yourself after creating project', async (t) => {
   const [manager] = await createManagers(1, t)
@@ -366,10 +367,25 @@ test('capabilities - assignRole()', async (t) => {
   )
 
   await t.test('invitor updates invitee role to coordinator', async (st) => {
+    const roleRecordBefore = await invitorProject[kDataTypes].role.getByDocId(
+      invitee.deviceId
+    )
+
     await invitorProject.$member.assignRole(
       invitee.deviceId,
       COORDINATOR_ROLE_ID
     )
+
+    const roleRecordAfter = await invitorProject[kDataTypes].role.getByDocId(
+      invitee.deviceId
+    )
+
+    t.alike(
+      roleRecordAfter.links,
+      [roleRecordBefore.versionId],
+      'role record links to record before role assignment'
+    )
+    t.is(roleRecordAfter.forks.length, 0, 'role record has no forks')
 
     await waitForSync(projects, 'initial')
 
@@ -387,7 +403,26 @@ test('capabilities - assignRole()', async (t) => {
   })
 
   await t.test('invitee updates own role to member', async (st) => {
+    const roleRecordBefore = await inviteeProject[kDataTypes].role.getByDocId(
+      invitee.deviceId
+    )
+
     await inviteeProject.$member.assignRole(invitee.deviceId, MEMBER_ROLE_ID)
+
+    const roleRecordAfter = await inviteeProject[kDataTypes].role.getByDocId(
+      invitee.deviceId
+    )
+
+    t.alike(
+      roleRecordAfter.links,
+      [roleRecordBefore.versionId],
+      'role record from invitee links to record before role assignment'
+    )
+    t.is(
+      roleRecordAfter.forks.length,
+      0,
+      'role record from invitee record has no forks'
+    )
 
     await waitForSync(projects, 'initial')
 
@@ -403,8 +438,6 @@ test('capabilities - assignRole()', async (t) => {
       'invitee now has member capabilities from invitee perspective'
     )
   })
-
-  // TODO: add test for both updating invitee role first and then syncing
 
   await disconnectPeers(managers)
 })
