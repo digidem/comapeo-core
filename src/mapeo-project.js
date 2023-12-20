@@ -602,8 +602,6 @@ export class MapeoProject extends TypedEmitter {
 
     // clear data from cores
     // TODO: only clear synced data
-    const namespacePromises = []
-
     const namespacesWithoutAuth =
       /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
         'config',
@@ -612,18 +610,11 @@ export class MapeoProject extends TypedEmitter {
         'blobIndex',
       ])
 
-    for (const namespace of namespacesWithoutAuth) {
-      const deletionPromises = []
-      const coreRecords = this.#coreManager.getCores(namespace)
-
-      for (const { core } of coreRecords) {
-        deletionPromises.push(core.purge())
-      }
-
-      namespacePromises.push(Promise.all(deletionPromises))
-    }
-
-    await Promise.all(namespacePromises)
+    await Promise.all(
+      namespacesWithoutAuth.map((namespace) =>
+        this.#coreManager.deleteData(namespace, { deleteOwn: true })
+      )
+    )
 
     // TODO: update sync mode to "unsynced-data-background-sync"?
 
