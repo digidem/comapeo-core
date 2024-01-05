@@ -441,3 +441,58 @@ test('capabilities - assignRole()', async (t) => {
 
   await disconnectPeers(managers)
 })
+
+test('capabilities - assignRole() with forked role', async (t) => {
+  const managers = await createManagers(3, t)
+  const [invitor, invitee1, invitee2] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  // 1. Invite both as coordinators
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee1, invitee2],
+    roleId: COORDINATOR_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const [invitorProject, invitee1Project] = projects
+
+  await disconnectPeers(managers)
+
+  // 2. Create fork by two devices assigning a role to invitee2 while disconnected
+  // TODO: Assign different roles and test fork resolution prefers the role with least capability (code for this is not written yet)
+
+  await invitorProject.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
+  await invitee1Project.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
+
+  await connectPeers(managers)
+  await waitForSync(projects, 'initial')
+
+  // 3. Verify that invitee2 role is now forked
+
+  const invitee2RoleForked = await invitee1Project[kDataTypes].role.getByDocId(
+    invitee2.deviceId
+  )
+  t.is(invitee2RoleForked.forks.length, 1, 'invitee2 role has one fork')
+
+  // 4. Assign role again, which should merge forked records
+
+  await invitorProject.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
+
+  await waitForSync(projects, 'initial')
+
+  const invitee2RoleMerged = await invitee1Project[kDataTypes].role.getByDocId(
+    invitee2.deviceId
+  )
+  t.is(invitee2RoleMerged.forks.length, 0, 'invitee2 role has no forks')
+
+  await disconnectPeers(managers)
+})
