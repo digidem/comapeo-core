@@ -280,11 +280,27 @@ export class Capabilities {
     if (!ownCapabilities.roleAssignment.includes(roleId)) {
       throw new Error('No capability to assign role ' + roleId)
     }
-    await this.#dataType[kCreateWithDocId](deviceId, {
-      schemaName: 'role',
-      roleId,
-      fromIndex,
-    })
+
+    const existingRoleDoc = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(() => null)
+
+    if (existingRoleDoc) {
+      await this.#dataType.update(
+        [existingRoleDoc.versionId, ...existingRoleDoc.forks],
+        {
+          schemaName: 'role',
+          roleId,
+          fromIndex,
+        }
+      )
+    } else {
+      await this.#dataType[kCreateWithDocId](deviceId, {
+        schemaName: 'role',
+        roleId,
+        fromIndex,
+      })
+    }
   }
 
   async #isProjectCreator() {
