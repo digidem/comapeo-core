@@ -578,6 +578,7 @@ export class MapeoProject extends TypedEmitter {
 
     const nonce = projectIdToNonce(this.#projectId)
 
+    // 1. Update relevant shared database tables
     this.#sharedDb
       .update(projectKeysTable)
       .set({
@@ -589,10 +590,12 @@ export class MapeoProject extends TypedEmitter {
       .where(eq(projectKeysTable.projectId, this.#projectId))
       .run()
 
-    // stop indexers? (multi-core and sqlite)
-    // clear data from project database
+    this.#sharedDb
+      .delete(projectSettingsTable)
+      .where(eq(projectSettingsTable.docId, this.#projectId))
+      .run()
 
-    // clear data from cores
+    // 2. Clear data from cores
     // TODO: only clear synced data
     const namespacesWithoutAuth =
       /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
@@ -608,8 +611,11 @@ export class MapeoProject extends TypedEmitter {
       )
     )
 
+    // 3. Clear data from project database
+
     // TODO: update sync mode to "unsynced-data-background-sync"?
 
+    // 4. Assign LEFT role for device
     await this.#capabilities.assignRole(this.#deviceId, LEFT_ROLE_ID)
   }
 }
