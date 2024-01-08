@@ -67,7 +67,7 @@ test('Creator cannot leave project if no other coordinators exist', async (t) =>
   await disconnectPeers(managers)
 })
 
-test('Blocked member cannot leave project', { solo: true }, async (t) => {
+test('Blocked member cannot leave project', async (t) => {
   const managers = await createManagers(2, t)
 
   connectPeers(managers)
