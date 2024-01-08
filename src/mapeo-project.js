@@ -55,10 +55,10 @@ const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreManager = Symbol('coreManager')
 export const kCoreOwnership = Symbol('coreOwnership')
-export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
+export const kDataTypes = Symbol('dataTypes')
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
 /**
@@ -365,10 +365,10 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * Capabilities instance, used for tests
+   * DataTypes object mappings, used for tests
    */
-  get [kCapabilities]() {
-    return this.#capabilities
+  get [kDataTypes]() {
+    return this.#dataTypes
   }
 
   get [kBlobStore]() {

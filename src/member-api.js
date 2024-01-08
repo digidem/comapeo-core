@@ -160,4 +160,13 @@ export class MemberApi extends TypedEmitter {
       })
     )
   }
+
+  /**
+   * @param {string} deviceId
+   * @param {import('./capabilities.js').RoleId} roleId
+   * @returns {Promise<void>}
+   */
+  async assignRole(deviceId, roleId) {
+    return this.#capabilities.assignRole(deviceId, roleId)
+  }
 }
