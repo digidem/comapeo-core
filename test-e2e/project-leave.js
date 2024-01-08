@@ -52,11 +52,13 @@ test('Creator cannot leave project if no other coordinators exist', async (t) =>
   const [creatorProject, memberProject] = projects
 
   t.ok(
-    await Promise.all([
-      creatorProject.$member.getById(member.deviceId),
-      memberProject.$member.getById(creator.deviceId),
-    ]),
-    'member successfully added'
+    await creatorProject.$member.getById(member.deviceId),
+    'member successfully added from creator perspective'
+  )
+
+  t.ok(
+    await memberProject.$member.getById(creator.deviceId),
+    'creator successfully added from member perspective'
   )
 
   await t.exception(async () => {
@@ -134,11 +136,13 @@ test('Creator can leave project if another coordinator exists', async (t) => {
   const [creatorProject, coordinatorProject] = projects
 
   t.ok(
-    await Promise.all([
-      creatorProject.$member.getById(coordinator.deviceId),
-      coordinatorProject.$member.getById(creator.deviceId),
-    ]),
-    'coordinator successfully added'
+    await creatorProject.$member.getById(coordinator.deviceId),
+    'coordinator successfully added from creator perspective'
+  )
+
+  t.ok(
+    await coordinatorProject.$member.getById(coordinator.deviceId),
+    'creator successfully added from creator perspective'
   )
 
   await creatorProject.$leave()
@@ -183,11 +187,13 @@ test('Member can leave project if creator exists', async (t) => {
   const [creatorProject, memberProject] = projects
 
   t.ok(
-    await Promise.all([
-      creatorProject.$member.getById(member.deviceId),
-      memberProject.$member.getById(creator.deviceId),
-    ]),
-    'member successfully added'
+    await creatorProject.$member.getById(member.deviceId),
+    'member successfully added from creator perspective'
+  )
+
+  t.ok(
+    memberProject.$member.getById(creator.deviceId),
+    'creator successfully added from member perspective'
   )
 
   await memberProject.$leave()
@@ -256,13 +262,13 @@ test('Data access after leaving project', async (t) => {
   t.alike(
     await memberProject.$getProjectSettings(),
     MapeoProject.EMPTY_PROJECT_SETTINGS,
-    'Member getting project settings return empty value'
+    'member getting project settings returns empty settings'
   )
 
   t.alike(
     await coordinatorProject.$getProjectSettings(),
     MapeoProject.EMPTY_PROJECT_SETTINGS,
-    'Coordinator getting project settings return empty value'
+    'coordinator getting project settings returns empty settings'
   )
 
   await t.exception(async () => {
