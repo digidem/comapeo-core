@@ -9,7 +9,11 @@ import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
 import { IndexWriter } from './index-writer/index.js'
-import { MapeoProject, kSetOwnDeviceInfo } from './mapeo-project.js'
+import {
+  MapeoProject,
+  kProjectLeave,
+  kSetOwnDeviceInfo,
+} from './mapeo-project.js'
 import {
   localDeviceInfoTable,
   projectKeysTable,
@@ -259,16 +263,22 @@ export class MapeoManager extends TypedEmitter {
     const encoded = ProjectKeys.encode(projectKeys).finish()
     const nonce = projectIdToNonce(projectId)
 
+    const valueToUpsert = {
+      projectId,
+      projectPublicId,
+      keysCipher: this.#keyManager.encryptLocalMessage(
+        Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
+        nonce
+      ),
+      projectInfo,
+    }
+
     this.#db
       .insert(projectKeysTable)
-      .values({
-        projectId,
-        projectPublicId,
-        keysCipher: this.#keyManager.encryptLocalMessage(
-          Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
-          nonce
-        ),
-        projectInfo,
+      .values(valueToUpsert)
+      .onConflictDoUpdate({
+        target: projectKeysTable.projectId,
+        set: valueToUpsert,
       })
       .run()
   }
@@ -674,6 +684,57 @@ export class MapeoManager extends TypedEmitter {
    */
   async listLocalPeers() {
     return omitPeerProtomux(this.#localPeers.peers)
+  }
+
+  /**
+   * @param {string} projectPublicId
+   */
+  #getProjectKeys(projectPublicId) {
+    const result = this.#db
+      .select()
+      .from(projectKeysTable)
+      .where(eq(projectKeysTable.projectPublicId, projectPublicId))
+      .get()
+
+    if (!result) {
+      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
+    }
+
+    return result
+  }
+
+  /**
+   * @param {string} projectPublicId
+   */
+  async leaveProject(projectPublicId) {
+    const project = await this.getProject(projectPublicId)
+
+    await project[kProjectLeave]()
+
+    const { keysCipher, projectId, projectInfo } =
+      this.#getProjectKeys(projectPublicId)
+
+    const projectKeys = this.#decodeProjectKeysCipher(keysCipher, projectId)
+
+    const updatedEncryptionKeys = projectKeys.encryptionKeys
+      ? // Delete all encryption keys except for auth
+        { auth: projectKeys.encryptionKeys.auth }
+      : undefined
+
+    this.#saveToProjectKeysTable({
+      projectId,
+      projectPublicId,
+      projectInfo,
+      projectKeys: {
+        ...projectKeys,
+        encryptionKeys: updatedEncryptionKeys,
+      },
+    })
+
+    this.#db
+      .delete(projectSettingsTable)
+      .where(eq(projectSettingsTable.docId, projectId))
+      .run()
   }
 }
 

@@ -22,10 +22,8 @@ test('Creator cannot leave project if they are the only member', async (t) => {
 
   const projectId = await creatorManager.createProject({ name: 'mapeo' })
 
-  const project = await creatorManager.getProject(projectId)
-
   await t.exception(async () => {
-    await project.$leave()
+    await creatorManager.leaveProject(projectId)
   }, 'attempting to leave fails')
 })
 
@@ -62,7 +60,7 @@ test('Creator cannot leave project if no other coordinators exist', async (t) =>
   )
 
   await t.exception(async () => {
-    await creatorProject.$leave()
+    await creator.leaveProject(projectId)
   }, 'creator attempting to leave project with no other coordinators fails')
 
   await disconnectPeers(managers)
@@ -107,7 +105,7 @@ test('Blocked member cannot leave project', async (t) => {
   )
 
   await t.exception(async () => {
-    await memberProject.$leave()
+    await member.leaveProject(projectId)
   }, 'Member attempting to leave project fails')
 
   await disconnectPeers(managers)
@@ -145,7 +143,7 @@ test('Creator can leave project if another coordinator exists', async (t) => {
     'creator successfully added from creator perspective'
   )
 
-  await creatorProject.$leave()
+  await creator.leaveProject(projectId)
 
   t.alike(
     await creatorProject.$getOwnCapabilities(),
@@ -196,7 +194,7 @@ test('Member can leave project if creator exists', async (t) => {
     'creator successfully added from member perspective'
   )
 
-  await memberProject.$leave()
+  await member.leaveProject(projectId)
 
   t.alike(
     await memberProject.$getOwnCapabilities(),
@@ -245,7 +243,10 @@ test('Data access after leaving project', async (t) => {
 
   const [, coordinatorProject, memberProject] = projects
 
-  await Promise.all([coordinatorProject.$leave(), memberProject.$leave()])
+  await Promise.all([
+    coordinator.leaveProject(projectId),
+    member.leaveProject(projectId),
+  ])
 
   await waitForSync(projects, 'initial')
 

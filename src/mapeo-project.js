@@ -6,7 +6,6 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
-import { eq } from 'drizzle-orm'
 
 import { CoreManager, NAMESPACES } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
@@ -14,7 +13,7 @@ import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
-import { projectKeysTable, projectSettingsTable } from './schema/client.js'
+import { projectSettingsTable } from './schema/client.js'
 import {
   coreOwnershipTable,
   deviceInfoTable,
@@ -39,7 +38,6 @@ import {
 } from './capabilities.js'
 import {
   getDeviceId,
-  projectIdToNonce,
   projectKeyToId,
   projectKeyToPublicId,
   valueOf,
@@ -48,7 +46,6 @@ import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
-import { ProjectKeys } from './generated/keys.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -60,6 +57,8 @@ export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
+export const kProjectLeave = Symbol('leave project')
+
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
 /**
@@ -81,10 +80,6 @@ export class MapeoProject extends TypedEmitter {
   #iconApi
   #syncApi
   #l
-  #sharedDb
-  #keyManager
-  #projectSecretKey
-  #encryptionKeys
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
@@ -122,11 +117,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
-    this.#keyManager = keyManager
     this.#projectId = projectKeyToId(projectKey)
-    this.#projectSecretKey = projectSecretKey
-    this.#encryptionKeys = encryptionKeys
-    this.#sharedDb = sharedDb
 
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
@@ -566,34 +557,9 @@ export class MapeoProject extends TypedEmitter {
     return this.#iconApi
   }
 
-  async $leave() {
+  async [kProjectLeave]() {
+    // 1. Check that the device can leave the project
     await assertDeviceCanLeaveProject(this.#deviceId, this.#capabilities)
-
-    // update client database (delete all encryption keys except auth)
-    const encoded = ProjectKeys.encode({
-      projectKey: Buffer.from(this.#projectId, 'hex'),
-      projectSecretKey: this.#projectSecretKey,
-      encryptionKeys: { auth: this.#encryptionKeys.auth },
-    }).finish()
-
-    const nonce = projectIdToNonce(this.#projectId)
-
-    // 1. Update relevant shared database tables
-    this.#sharedDb
-      .update(projectKeysTable)
-      .set({
-        keysCipher: this.#keyManager.encryptLocalMessage(
-          Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
-          nonce
-        ),
-      })
-      .where(eq(projectKeysTable.projectId, this.#projectId))
-      .run()
-
-    this.#sharedDb
-      .delete(projectSettingsTable)
-      .where(eq(projectSettingsTable.docId, this.#projectId))
-      .run()
 
     // 2. Clear data from cores
     // TODO: only clear synced data
