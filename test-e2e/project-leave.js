@@ -199,7 +199,6 @@ test('Member can leave project if creator exists', async (t) => {
     'member now has LEFT role id and capabilities'
   )
 
-  // TODO: Seems like changing this to 'full' causes test to hang. Is that expected?
   await waitForSync(projects, 'initial')
 
   t.is(
