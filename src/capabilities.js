@@ -43,12 +43,7 @@ export const CREATOR_CAPABILITIES = {
       { readOwn: true, writeOwn: true, readOthers: true, writeOthers: true },
     ]
   }),
-  roleAssignment: [
-    COORDINATOR_ROLE_ID,
-    MEMBER_ROLE_ID,
-    BLOCKED_ROLE_ID,
-    LEFT_ROLE_ID,
-  ],
+  roleAssignment: [COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID],
   sync: {
     auth: 'allowed',
     config: 'allowed',
@@ -76,8 +71,7 @@ export const NO_ROLE_CAPABILITIES = {
       { readOwn: true, writeOwn: true, readOthers: false, writeOthers: false },
     ]
   }),
-  // TODO: Does this make sense?
-  roleAssignment: [LEFT_ROLE_ID],
+  roleAssignment: [],
   sync: {
     auth: 'allowed',
     config: 'allowed',
@@ -97,7 +91,7 @@ export const DEFAULT_CAPABILITIES = {
         { readOwn: true, writeOwn: true, readOthers: true, writeOthers: false },
       ]
     }),
-    roleAssignment: [LEFT_ROLE_ID],
+    roleAssignment: [],
     sync: {
       auth: 'allowed',
       config: 'allowed',
@@ -114,12 +108,7 @@ export const DEFAULT_CAPABILITIES = {
         { readOwn: true, writeOwn: true, readOthers: true, writeOthers: true },
       ]
     }),
-    roleAssignment: [
-      COORDINATOR_ROLE_ID,
-      MEMBER_ROLE_ID,
-      BLOCKED_ROLE_ID,
-      LEFT_ROLE_ID,
-    ],
+    roleAssignment: [COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID],
     sync: {
       auth: 'allowed',
       config: 'allowed',
@@ -288,10 +277,6 @@ export class Capabilities {
    * @param {keyof typeof DEFAULT_CAPABILITIES} roleId
    */
   async assignRole(deviceId, roleId) {
-    if (deviceId !== this.#ownDeviceId && roleId === LEFT_ROLE_ID) {
-      throw new Error('Can only assign LEFT role to your own device')
-    }
-
     let fromIndex = 0
     let authCoreId
     try {
@@ -315,8 +300,15 @@ export class Capabilities {
       )
     }
     const ownCapabilities = await this.getCapabilities(this.#ownDeviceId)
-    if (!ownCapabilities.roleAssignment.includes(roleId)) {
-      throw new Error('No capability to assign role ' + roleId)
+
+    if (roleId === LEFT_ROLE_ID) {
+      if (deviceId !== this.#ownDeviceId) {
+        throw new Error('Cannot assign LEFT role to another device')
+      }
+    } else {
+      if (!ownCapabilities.roleAssignment.includes(roleId)) {
+        throw new Error('No capability to assign role ' + roleId)
+      }
     }
 
     const existingRoleDoc = await this.#dataType
