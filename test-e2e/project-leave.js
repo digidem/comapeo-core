@@ -209,7 +209,7 @@ test('Member can leave project if creator exists', async (t) => {
   await disconnectPeers(managers)
 })
 
-test('Data access after leaving project', { solo: true }, async (t) => {
+test('Data access after leaving project', async (t) => {
   const managers = await createManagers(3, t)
 
   connectPeers(managers)
