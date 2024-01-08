@@ -1,6 +1,7 @@
 import { test } from 'brittle'
 
 import {
+  BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
   DEFAULT_CAPABILITIES,
   LEFT_ROLE_ID,
@@ -66,6 +67,51 @@ test('Creator cannot leave project if no other coordinators exist', async (t) =>
   await disconnectPeers(managers)
 })
 
+test('Blocked member cannot leave project', { solo: true }, async (t) => {
+  const managers = await createManagers(2, t)
+
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const [creator, member] = managers
+  const projectId = await creator.createProject({ name: 'mapeo' })
+
+  await invite({
+    invitor: creator,
+    invitees: [member],
+    projectId,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const [creatorProject, memberProject] = projects
+
+  t.alike(
+    await memberProject.$getOwnCapabilities(),
+    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    'Member is initially a member'
+  )
+
+  await creatorProject.$member.assignRole(member.deviceId, BLOCKED_ROLE_ID)
+
+  await waitForSync(projects, 'initial')
+
+  t.alike(
+    await memberProject.$getOwnCapabilities(),
+    DEFAULT_CAPABILITIES[BLOCKED_ROLE_ID],
+    'Member is now blocked'
+  )
+
+  await t.exception(async () => {
+    await memberProject.$leave()
+  }, 'Member attempting to leave project fails')
+
+  await disconnectPeers(managers)
+})
+
 test('Creator can leave project if another coordinator exists', async (t) => {
   const managers = await createManagers(2, t)
 
@@ -104,7 +150,6 @@ test('Creator can leave project if another coordinator exists', async (t) => {
     'creator now has LEFT role id and capabilities'
   )
 
-  // TODO: Seems like changing this to 'full' causes issues. Is that expected?
   await waitForSync(projects, 'initial')
 
   t.is(
