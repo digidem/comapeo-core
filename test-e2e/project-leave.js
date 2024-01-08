@@ -7,6 +7,7 @@ import {
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
 } from '../src/capabilities.js'
+import { MapeoProject } from '../src/mapeo-project.js'
 import {
   connectPeers,
   createManagers,
@@ -15,8 +16,6 @@ import {
   waitForPeers,
   waitForSync,
 } from './utils.js'
-
-// TODO: Add assertions for not being able to read or write data once a peer has left
 
 test('Creator cannot leave project if they are the only member', async (t) => {
   const [creatorManager] = await createManagers(1, t)
@@ -206,6 +205,69 @@ test('Member can leave project if creator exists', async (t) => {
     DEFAULT_CAPABILITIES[LEFT_ROLE_ID],
     'creator can still retrieve info about member who left'
   )
+
+  await disconnectPeers(managers)
+})
+
+test('Data access after leaving project', { solo: true }, async (t) => {
+  const managers = await createManagers(3, t)
+
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const [creator, coordinator, member] = managers
+  const projectId = await creator.createProject({ name: 'mapeo' })
+
+  await Promise.all([
+    invite({
+      invitor: creator,
+      invitees: [coordinator],
+      projectId,
+      roleId: COORDINATOR_ROLE_ID,
+    }),
+    invite({
+      invitor: creator,
+      invitees: [member],
+      projectId,
+      roleId: MEMBER_ROLE_ID,
+    }),
+  ])
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const [, coordinatorProject, memberProject] = projects
+
+  await Promise.all([coordinatorProject.$leave(), memberProject.$leave()])
+
+  await waitForSync(projects, 'initial')
+
+  await t.exception(async () => {
+    await memberProject.observation.create({
+      schemaName: 'observation',
+      attachments: [],
+      tags: {},
+      refs: [],
+      metadata: {},
+    })
+  }, 'member cannot create new data after leaving')
+
+  t.alike(
+    await memberProject.$getProjectSettings(),
+    MapeoProject.EMPTY_PROJECT_SETTINGS,
+    'Member getting project settings return empty value'
+  )
+
+  t.alike(
+    await coordinatorProject.$getProjectSettings(),
+    MapeoProject.EMPTY_PROJECT_SETTINGS,
+    'Coordinator getting project settings return empty value'
+  )
+
+  await t.exception(async () => {
+    await coordinatorProject.$setProjectSettings({ name: 'foo' })
+  }, 'coordinator cannot update project settings after leaving')
 
   await disconnectPeers(managers)
 })
