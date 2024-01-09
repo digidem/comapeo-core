@@ -689,30 +689,26 @@ export class MapeoManager extends TypedEmitter {
   /**
    * @param {string} projectPublicId
    */
-  #getProjectKeys(projectPublicId) {
-    const result = this.#db
-      .select()
-      .from(projectKeysTable)
-      .where(eq(projectKeysTable.projectPublicId, projectPublicId))
-      .get()
-
-    if (!result) {
-      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
-    }
-
-    return result
-  }
-
-  /**
-   * @param {string} projectPublicId
-   */
   async leaveProject(projectPublicId) {
     const project = await this.getProject(projectPublicId)
 
     await project[kProjectLeave]()
 
-    const { keysCipher, projectId, projectInfo } =
-      this.#getProjectKeys(projectPublicId)
+    const row = this.#db
+      .select({
+        keysCipher: projectKeysTable.keysCipher,
+        projectId: projectKeysTable.projectId,
+        projectInfo: projectKeysTable.projectInfo,
+      })
+      .from(projectKeysTable)
+      .where(eq(projectKeysTable.projectPublicId, projectPublicId))
+      .get()
+
+    if (!row) {
+      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
+    }
+
+    const { keysCipher, projectId, projectInfo } = row
 
     const projectKeys = this.#decodeProjectKeysCipher(keysCipher, projectId)
 
