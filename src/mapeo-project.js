@@ -31,9 +31,7 @@ import {
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
-  CREATOR_CAPABILITIES,
   Capabilities,
-  DEFAULT_CAPABILITIES,
   LEFT_ROLE_ID,
 } from './capabilities.js'
 import {
@@ -559,7 +557,55 @@ export class MapeoProject extends TypedEmitter {
 
   async [kProjectLeave]() {
     // 1. Check that the device can leave the project
-    await assertDeviceCanLeaveProject(this.#deviceId, this.#capabilities)
+    const roleDocs = await this.#dataTypes.role.getMany()
+
+    // 1.1 Check that we are not blocked in the project
+    const ownRole = roleDocs.find(({ docId }) => this.#deviceId === docId)
+
+    if (ownRole?.roleId === BLOCKED_ROLE_ID) {
+      throw new Error('Cannot leave a project as a blocked device')
+    }
+
+    const knownDevices = Object.keys(await this.#capabilities.getAll())
+    const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
+      this.#projectId
+    )
+
+    // 1.2 Check that we are not the only device in the project
+    if (knownDevices.length === 1) {
+      throw new Error('Cannot leave a project as the only device')
+    }
+
+    // 1.3 Check if there are other known devices that are either the project creator or a coordinator
+    let otherCreatorOrCoordinatorExists = false
+
+    for (const deviceId of knownDevices) {
+      // Skip self (see 1.1 and 1.2 for relevant checks)
+      if (deviceId === this.#deviceId) continue
+
+      // Check if the device is the project creator first because
+      // it is a derived role that is not stored in the role docs explicitly
+      if (deviceId === projectCreatorDeviceId) {
+        otherCreatorOrCoordinatorExists = true
+        break
+      }
+
+      // Determine if the the device is a coordinator based on the role docs
+      const isCoordinator = roleDocs.some(
+        (doc) => doc.docId === deviceId && doc.roleId == COORDINATOR_ROLE_ID
+      )
+
+      if (isCoordinator) {
+        otherCreatorOrCoordinatorExists = true
+        break
+      }
+    }
+
+    if (!otherCreatorOrCoordinatorExists) {
+      throw new Error(
+        'Cannot leave a project that does not have an external creator or another coordinator'
+      )
+    }
 
     // 2. Clear data from cores
     // TODO: only clear synced data
@@ -638,44 +684,4 @@ function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
     )
   }
   return doc
-}
-
-/**
- * @param {string} deviceId
- * @param {import('./capabilities.js').Capabilities} capabilities
- */
-async function assertDeviceCanLeaveProject(deviceId, capabilities) {
-  const deviceIdToCaps = await capabilities.getAll()
-
-  const deviceIdToCapsList = Object.entries(deviceIdToCaps)
-
-  if (deviceId in deviceIdToCaps) {
-    if (deviceIdToCapsList.length === 1) {
-      throw new Error('Cannot leave a project as the only device')
-    }
-
-    if (
-      deviceIdToCaps[deviceId].name ===
-      DEFAULT_CAPABILITIES[BLOCKED_ROLE_ID].name
-    ) {
-      throw new Error('Cannot leave a project as a blocked device')
-    }
-  }
-
-  for (const [id, cap] of deviceIdToCapsList) {
-    // Skip check for device of interest, which is done prior to this loop
-    if (id === deviceId) continue
-
-    // Device is only allowed to leave a project
-    // if some other known creator or coordinator exists
-    const isCoordinator =
-      cap.name === DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID].name
-    const isCreator = cap.name === CREATOR_CAPABILITIES.name
-
-    if (isCoordinator || isCreator) return
-  }
-
-  throw new Error(
-    'Cannot leave a project that does not have an external creator or another coordinator'
-  )
 }
