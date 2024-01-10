@@ -459,6 +459,10 @@ test('blobStore.getEntryReadStream(driveId, entry) should not wait', async (t) =
   }
 })
 
+/**
+ * @param {object} opts
+ * @param {Buffer} [opts.projectKey]
+ */
 async function testenv(opts) {
   const coreManager = createCoreManager(opts)
   const blobStore = new BlobStore({ coreManager })

@@ -6,14 +6,10 @@ import { readFile } from 'fs/promises'
 import path from 'path'
 import fastify from 'fastify'
 
-import { BlobStore } from '../../src/blob-store/index.js'
 import BlobServerPlugin from '../../src/fastify-plugins/blobs.js'
 import { projectKeyToPublicId } from '../../src/utils.js'
-import {
-  createCoreManager,
-  waitForCores,
-  replicate,
-} from '../helpers/core-manager.js'
+import { createBlobStore } from '../helpers/blob-store.js'
+import { waitForCores, replicate } from '../helpers/core-manager.js'
 
 test('Plugin throws error if missing getBlobStore option', async (t) => {
   const server = fastify()
@@ -291,12 +287,6 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
     t.is(res.statusCode, 404)
   }
 })
-
-function createBlobStore(opts) {
-  const coreManager = createCoreManager(opts)
-  const blobStore = new BlobStore({ coreManager })
-  return { blobStore, coreManager }
-}
 
 /**
  * @param {object} opts
