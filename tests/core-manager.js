@@ -22,6 +22,8 @@ import path from 'path'
 import { Transform } from 'streamx'
 import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { coresTable } from '../src/schema/project.js'
+import { eq } from 'drizzle-orm'
 
 async function createCore(key) {
   const core = new Hypercore(RAM, key)
@@ -456,7 +458,7 @@ test('unreplicate', async (t) => {
   })
 })
 
-test('deleteData() deletes relevant core storage files', async (t) => {
+test('deleteData()', async (t) => {
   await temporaryDirectoryTask(async (tempPath) => {
     const projectKey = randomBytes(32)
 
@@ -465,8 +467,11 @@ test('deleteData() deletes relevant core storage files', async (t) => {
 
     const peer1TempPath = path.join(tempPath, 'peer1')
 
+    const db1 = drizzle(new Sqlite(':memory:'))
+
     /// Set up core managers
     const cm1 = createCoreManager({
+      db: db1,
       projectKey,
       storage: (name) => {
         storageNames.push(name)
@@ -581,6 +586,16 @@ test('deleteData() deletes relevant core storage files', async (t) => {
       st.ok(
         peer2DataStorageDeletedForPeer1,
         'peer 1 no longer has `data` storage for peer 2'
+      )
+
+      t.is(
+        db1
+          .select()
+          .from(coresTable)
+          .where(eq(coresTable.namespace, 'data'))
+          .all().length,
+        0,
+        'peer 1 `cores` table has no info about `data` core from peer 2'
       )
     })
 

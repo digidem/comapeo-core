@@ -2,7 +2,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
 import assert from 'node:assert'
-import { placeholder } from 'drizzle-orm'
+import { placeholder, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import Hypercore from 'hypercore'
 
@@ -43,7 +43,7 @@ export class CoreManager extends TypedEmitter {
   /** @type {Core} */
   #creatorCore
   #projectKey
-  #addCoreSqlStmt
+  #queries
   #encryptionKeys
   #projectExtension
   /** @type {'opened' | 'closing' | 'closed'} */
@@ -104,14 +104,20 @@ export class CoreManager extends TypedEmitter {
     this.#autoDownload = autoDownload
 
     // Pre-prepare SQL statement for better performance
-    this.#addCoreSqlStmt = db
-      .insert(coresTable)
-      .values({
-        publicKey: placeholder('publicKey'),
-        namespace: placeholder('namespace'),
-      })
-      .onConflictDoNothing()
-      .prepare()
+    this.#queries = {
+      addCore: db
+        .insert(coresTable)
+        .values({
+          publicKey: placeholder('publicKey'),
+          namespace: placeholder('namespace'),
+        })
+        .onConflictDoNothing()
+        .prepare(),
+      removeCores: db
+        .delete(coresTable)
+        .where(eq(coresTable.namespace, placeholder('namespace')))
+        .prepare(),
+    }
 
     // Note: the primary key here should not be used, because we do not rely on
     // corestore for key storage (i.e. we do not get cores from corestore via a
@@ -328,7 +334,7 @@ export class CoreManager extends TypedEmitter {
     }
 
     if (persist) {
-      this.#addCoreSqlStmt.run({ publicKey: key, namespace })
+      this.#queries.addCore.run({ publicKey: key, namespace })
     }
 
     this.#l.log(
@@ -498,6 +504,8 @@ export class CoreManager extends TypedEmitter {
     }
 
     await Promise.all(deletionPromises)
+
+    this.#queries.removeCores.run({ namespace })
   }
 }
 
