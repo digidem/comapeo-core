@@ -623,9 +623,9 @@ export class MapeoProject extends TypedEmitter {
       )
     )
 
-    // 3. Clear data from project database
-
-    // TODO: update sync mode to "unsynced-data-background-sync"?
+    // TODO: 3. Clear data from indexes
+    // 3.1 Reset multi-core indexer state
+    // 3.2 Clear indexed data
 
     // 4. Assign LEFT role for device
     await this.#capabilities.assignRole(this.#deviceId, LEFT_ROLE_ID)
