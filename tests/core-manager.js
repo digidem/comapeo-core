@@ -21,6 +21,7 @@ import RandomAccessFile from 'random-access-file'
 import path from 'path'
 import { Transform } from 'streamx'
 import { waitForCores } from './helpers/core-manager.js'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
 
 async function createCore(key) {
   const core = new Hypercore(RAM, key)
@@ -29,12 +30,11 @@ async function createCore(key) {
 }
 
 test('project creator auth core has project key', async function (t) {
-  const sqlite = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
-  const cm = new CoreManager({
-    sqlite,
+
+  const cm = createCoreManager({
     keyManager,
     storage: RAM,
     projectKey,
@@ -206,11 +206,13 @@ test('close()', async (t) => {
 })
 
 test('Added cores are persisted', async (t) => {
-  const sqlite = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
   const projectKey = randomBytes(32)
-  const cm1 = new CoreManager({
-    sqlite,
+
+  const db = drizzle(new Sqlite(':memory:'))
+
+  const cm1 = createCoreManager({
+    db,
     keyManager,
     storage: RAM,
     projectKey,
@@ -220,8 +222,8 @@ test('Added cores are persisted', async (t) => {
 
   await cm1.close()
 
-  const cm2 = new CoreManager({
-    sqlite,
+  const cm2 = createCoreManager({
+    db,
     keyManager,
     storage: RAM,
     projectKey,
@@ -261,10 +263,8 @@ test('poolSize limits number of open file descriptors', async function (t) {
 
   const CORE_COUNT = 500
   await temporaryDirectoryTask(async (tempPath) => {
-    const sqlite = new Sqlite(':memory:')
     const storage = (name) => new RandomAccessFile(path.join(tempPath, name))
-    const cm = new CoreManager({
-      sqlite,
+    const cm = createCoreManager({
       keyManager,
       storage,
       projectKey,
@@ -284,12 +284,10 @@ test('poolSize limits number of open file descriptors', async function (t) {
 
   await temporaryDirectoryTask(async (tempPath) => {
     const POOL_SIZE = 100
-    const sqlite = new Sqlite(':memory:')
     const pool = new RandomAccessFilePool(POOL_SIZE)
     const storage = (name) =>
       new RandomAccessFile(path.join(tempPath, name), { pool })
-    const cm = new CoreManager({
-      sqlite,
+    const cm = createCoreManager({
       keyManager,
       storage,
       projectKey,
@@ -461,7 +459,6 @@ test('unreplicate', async (t) => {
 test('deleteData() deletes relevant core storage files', async (t) => {
   await temporaryDirectoryTask(async (tempPath) => {
     const projectKey = randomBytes(32)
-    const sqlite = new Sqlite(':memory:')
 
     /** @type {Array<string>} */
     const storageNames = []
@@ -471,7 +468,6 @@ test('deleteData() deletes relevant core storage files', async (t) => {
     /// Set up core managers
     const cm1 = createCoreManager({
       projectKey,
-      sqlite,
       storage: (name) => {
         storageNames.push(name)
         return new RandomAccessFile(path.join(peer1TempPath, name))
@@ -481,7 +477,6 @@ test('deleteData() deletes relevant core storage files', async (t) => {
 
     const cm2 = createCoreManager({
       projectKey,
-      sqlite,
       storage: (name) => {
         return new RandomAccessFile(path.join(tempPath, 'peer2', name))
       },

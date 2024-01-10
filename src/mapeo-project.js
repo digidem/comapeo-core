@@ -133,7 +133,7 @@ export class MapeoProject extends TypedEmitter {
       projectKey,
       keyManager,
       storage: coreManagerStorage,
-      sqlite: this.#sqlite,
+      db,
       logger: this.#l,
     })
 

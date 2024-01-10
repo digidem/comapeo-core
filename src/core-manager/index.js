@@ -2,13 +2,16 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
 import assert from 'node:assert'
-import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
-import { CoreIndex } from './core-index.js'
-import * as rle from './bitfield-rle.js'
-import { Logger } from '../logger.js'
-import { keyToId } from '../utils.js'
+import { placeholder } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import Hypercore from 'hypercore'
+
+import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
+import { Logger } from '../logger.js'
+import { keyToId } from '../utils.js'
+import { coresTable } from '../schema/project.js'
+import * as rle from './bitfield-rle.js'
+import { CoreIndex } from './core-index.js'
 
 export const kCoreManagerReplicate = Symbol('replicate core manager')
 // WARNING: Changing these will break things for existing apps, since namespaces
@@ -20,12 +23,6 @@ export const NAMESPACES = /** @type {const} */ ([
   'blobIndex',
   'blob',
 ])
-// WARNING: If changed once in production then we need a migration strategy
-const TABLE = 'cores'
-const CREATE_SQL = `CREATE TABLE IF NOT EXISTS ${TABLE} (
-  publicKey BLOB NOT NULL,
-  namespace TEXT NOT NULL
-)`
 
 /** @typedef {import('hypercore')<'binary', Buffer>} Core */
 /** @typedef {(typeof NAMESPACES)[number]} Namespace */
@@ -69,7 +66,7 @@ export class CoreManager extends TypedEmitter {
 
   /**
    * @param {Object} options
-   * @param {import('better-sqlite3').Database} options.sqlite better-sqlite3 database instance
+   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} options.db Drizzle better-sqlite3 database instance
    * @param {import('@mapeo/crypto').KeyManager} options.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} options.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
@@ -79,7 +76,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Logger} [options.logger]
    */
   constructor({
-    sqlite,
+    db,
     keyManager,
     projectKey,
     projectSecretKey,
@@ -106,12 +103,15 @@ export class CoreManager extends TypedEmitter {
     this.#encryptionKeys = encryptionKeys
     this.#autoDownload = autoDownload
 
-    // Make sure table exists for persisting known cores
-    sqlite.prepare(CREATE_SQL).run()
     // Pre-prepare SQL statement for better performance
-    this.#addCoreSqlStmt = sqlite.prepare(
-      `INSERT OR IGNORE INTO ${TABLE} VALUES (@publicKey, @namespace)`
-    )
+    this.#addCoreSqlStmt = db
+      .insert(coresTable)
+      .values({
+        publicKey: placeholder('publicKey'),
+        namespace: placeholder('namespace'),
+      })
+      .onConflictDoNothing()
+      .prepare()
 
     // Note: the primary key here should not be used, because we do not rely on
     // corestore for key storage (i.e. we do not get cores from corestore via a
@@ -145,9 +145,10 @@ export class CoreManager extends TypedEmitter {
     }
 
     // Load persisted cores
-    const stmt = sqlite.prepare(`SELECT publicKey, namespace FROM ${TABLE}`)
-    // @ts-ignore - don't know types returned from sqlite here
-    for (const { publicKey, namespace } of stmt.all()) {
+    const rows = db.select().from(coresTable).all()
+    for (const { publicKey, namespace } of rows) {
+      // TODO: Does it make sense to just ignore here or should we throw an error?
+      if (!isKnownNamespace(namespace)) continue
       this.#addCore({ publicKey }, namespace)
     }
 
@@ -632,4 +633,16 @@ function findPeer(core, publicKey, { timeout = 200 } = {}) {
       }
     }
   })
+}
+
+/**
+ *
+ * @param {string} value
+ * @returns {value is typeof NAMESPACES[number]}
+ */
+function isKnownNamespace(value) {
+  return NAMESPACES.includes(
+    // @ts-expect-error
+    value
+  )
 }
