@@ -263,22 +263,17 @@ export class MapeoManager extends TypedEmitter {
     const encoded = ProjectKeys.encode(projectKeys).finish()
     const nonce = projectIdToNonce(projectId)
 
-    const valueToUpsert = {
-      projectId,
-      projectPublicId,
-      keysCipher: this.#keyManager.encryptLocalMessage(
-        Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
-        nonce
-      ),
-      projectInfo,
-    }
+    const keysCipher = this.#keyManager.encryptLocalMessage(
+      Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
+      nonce
+    )
 
     this.#db
       .insert(projectKeysTable)
-      .values(valueToUpsert)
+      .values({ projectId, projectPublicId, keysCipher, projectInfo })
       .onConflictDoUpdate({
         target: projectKeysTable.projectId,
-        set: valueToUpsert,
+        set: { projectPublicId, keysCipher, projectInfo },
       })
       .run()
   }
