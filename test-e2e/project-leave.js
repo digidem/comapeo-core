@@ -278,3 +278,5 @@ test('Data access after leaving project', async (t) => {
 
   await disconnectPeers(managers)
 })
+
+// TODO: Add test for leaving and rejoining a project
