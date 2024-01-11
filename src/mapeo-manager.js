@@ -9,7 +9,11 @@ import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
 import { IndexWriter } from './index-writer/index.js'
-import { MapeoProject, kSetOwnDeviceInfo } from './mapeo-project.js'
+import {
+  MapeoProject,
+  kProjectLeave,
+  kSetOwnDeviceInfo,
+} from './mapeo-project.js'
 import {
   localDeviceInfoTable,
   projectKeysTable,
@@ -36,6 +40,7 @@ import { Logger } from './logger.js'
 import { kSyncState } from './sync/sync-api.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
+/** @typedef {import('type-fest').SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -258,16 +263,17 @@ export class MapeoManager extends TypedEmitter {
     const encoded = ProjectKeys.encode(projectKeys).finish()
     const nonce = projectIdToNonce(projectId)
 
+    const keysCipher = this.#keyManager.encryptLocalMessage(
+      Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
+      nonce
+    )
+
     this.#db
       .insert(projectKeysTable)
-      .values({
-        projectId,
-        projectPublicId,
-        keysCipher: this.#keyManager.encryptLocalMessage(
-          Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
-          nonce
-        ),
-        projectInfo,
+      .values({ projectId, projectPublicId, keysCipher, projectInfo })
+      .onConflictDoUpdate({
+        target: projectKeysTable.projectId,
+        set: { projectPublicId, keysCipher, projectInfo },
       })
       .run()
   }
@@ -386,6 +392,7 @@ export class MapeoManager extends TypedEmitter {
 
   /** @param {ProjectKeys} projectKeys */
   #createProjectInstance(projectKeys) {
+    validateProjectKeys(projectKeys)
     const projectId = keyToId(projectKeys.projectKey)
     return new MapeoProject({
       ...this.#projectStorage(projectId),
@@ -673,6 +680,53 @@ export class MapeoManager extends TypedEmitter {
   async listLocalPeers() {
     return omitPeerProtomux(this.#localPeers.peers)
   }
+
+  /**
+   * @param {string} projectPublicId
+   */
+  async leaveProject(projectPublicId) {
+    const project = await this.getProject(projectPublicId)
+
+    await project[kProjectLeave]()
+
+    const row = this.#db
+      .select({
+        keysCipher: projectKeysTable.keysCipher,
+        projectId: projectKeysTable.projectId,
+        projectInfo: projectKeysTable.projectInfo,
+      })
+      .from(projectKeysTable)
+      .where(eq(projectKeysTable.projectPublicId, projectPublicId))
+      .get()
+
+    if (!row) {
+      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
+    }
+
+    const { keysCipher, projectId, projectInfo } = row
+
+    const projectKeys = this.#decodeProjectKeysCipher(keysCipher, projectId)
+
+    const updatedEncryptionKeys = projectKeys.encryptionKeys
+      ? // Delete all encryption keys except for auth
+        { auth: projectKeys.encryptionKeys.auth }
+      : undefined
+
+    this.#saveToProjectKeysTable({
+      projectId,
+      projectPublicId,
+      projectInfo,
+      projectKeys: {
+        ...projectKeys,
+        encryptionKeys: updatedEncryptionKeys,
+      },
+    })
+
+    this.#db
+      .delete(projectSettingsTable)
+      .where(eq(projectSettingsTable.docId, projectId))
+      .run()
+  }
 }
 
 // We use the `protomux` property of connected peers internally, but we don't
@@ -698,4 +752,14 @@ function omitPeerProtomux(peers) {
       return publicPeerInfo
     }
   )
+}
+
+/**
+ * @param {ProjectKeys} projectKeys
+ * @returns {asserts projectKeys is ValidatedProjectKeys}
+ */
+function validateProjectKeys(projectKeys) {
+  if (!projectKeys.encryptionKeys) {
+    throw new Error('encryptionKeys should not be undefined')
+  }
 }
