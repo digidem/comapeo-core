@@ -8,21 +8,13 @@ import Hypercore from 'hypercore'
 
 import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
+import { NAMESPACES } from '../constants.js'
 import { keyToId } from '../utils.js'
 import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 
 export const kCoreManagerReplicate = Symbol('replicate core manager')
-// WARNING: Changing these will break things for existing apps, since namespaces
-// are used for key derivation
-export const NAMESPACES = /** @type {const} */ ([
-  'auth',
-  'config',
-  'data',
-  'blobIndex',
-  'blob',
-])
 
 /** @typedef {import('hypercore')<'binary', Buffer>} Core */
 /** @typedef {(typeof NAMESPACES)[number]} Namespace */
@@ -153,8 +145,6 @@ export class CoreManager extends TypedEmitter {
     // Load persisted cores
     const rows = db.select().from(coresTable).all()
     for (const { publicKey, namespace } of rows) {
-      // TODO: Does it make sense to just ignore here or should we throw an error?
-      if (!isKnownNamespace(namespace)) continue
       this.#addCore({ publicKey }, namespace)
     }
 
@@ -641,16 +631,4 @@ function findPeer(core, publicKey, { timeout = 200 } = {}) {
       }
     }
   })
-}
-
-/**
- *
- * @param {string} value
- * @returns {value is typeof NAMESPACES[number]}
- */
-function isKnownNamespace(value) {
-  return NAMESPACES.includes(
-    // @ts-expect-error
-    value
-  )
 }

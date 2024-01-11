@@ -2,6 +2,7 @@
 // independent "project" database.
 import { blob, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { dereferencedDocSchemas as schemas } from '@mapeo/schema'
+import { NAMESPACES } from '../constants.js'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable } from './utils.js'
 
@@ -32,5 +33,5 @@ export const iconBacklinkTable = backlinkTable(iconTable)
 
 export const coresTable = sqliteTable('cores', {
   publicKey: blob('publicKey', { mode: 'buffer' }).notNull(),
-  namespace: text('namespace').notNull(),
+  namespace: text('namespace', { enum: NAMESPACES }).notNull(),
 })
