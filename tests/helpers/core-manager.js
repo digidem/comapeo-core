@@ -8,6 +8,8 @@ import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 /**
  *
  * @param {Partial<ConstructorParameters<typeof CoreManager>[0]> & { rootKey?: Buffer }} param0
@@ -16,12 +18,18 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 export function createCoreManager({
   rootKey = randomBytes(16),
   projectKey = randomBytes(32),
+  db = drizzle(new Sqlite(':memory:')),
   ...opts
 } = {}) {
-  const sqlite = new Sqlite(':memory:')
+  migrate(db, {
+    migrationsFolder: new URL('../../drizzle/project', import.meta.url)
+      .pathname,
+  })
+
   const keyManager = new KeyManager(rootKey)
+
   return new CoreManager({
-    sqlite,
+    db,
     keyManager,
     storage: RAM,
     projectKey,

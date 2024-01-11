@@ -5,12 +5,11 @@ import { BlobStore } from '../../src/blob-store/index.js'
 import { createCoreManager } from './core-manager.js'
 
 /**
- *
- * @param {Object} options
- * @returns
+ * @param {Object} [opts]
+ * @param {Buffer} [opts.projectKey]
  */
-export function createBlobStore(options = {}) {
-  const coreManager = createCoreManager(options)
+export function createBlobStore(opts) {
+  const coreManager = createCoreManager(opts)
   const blobStore = new BlobStore({ coreManager })
   return { blobStore, coreManager }
 }

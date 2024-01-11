@@ -1,5 +1,5 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
-import { NAMESPACES } from '../core-manager/index.js'
+import { NAMESPACES } from '../constants.js'
 import { NamespaceSyncState } from './namespace-sync-state.js'
 import { throttle } from 'throttle-debounce'
 import mapObject from 'map-obj'

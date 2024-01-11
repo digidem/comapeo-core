@@ -6,7 +6,7 @@ import {
   DATA_NAMESPACES,
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
-import { NAMESPACES } from '../core-manager/index.js'
+import { NAMESPACES } from '../constants.js'
 import { keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')

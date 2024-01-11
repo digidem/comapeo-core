@@ -7,7 +7,8 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
-import { CoreManager, NAMESPACES } from './core-manager/index.js'
+import { NAMESPACES } from './constants.js'
+import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
@@ -133,7 +134,7 @@ export class MapeoProject extends TypedEmitter {
       projectKey,
       keyManager,
       storage: coreManagerStorage,
-      sqlite: this.#sqlite,
+      db,
       logger: this.#l,
     })
 

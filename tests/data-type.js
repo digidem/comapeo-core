@@ -161,13 +161,18 @@ test('delete()', async (t) => {
   )
 })
 
+/**
+ * @param {object} opts
+ * @param {Buffer} [opts.projectKey]
+ */
 async function testenv(opts) {
-  const coreManager = createCoreManager(opts)
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
+
+  const coreManager = createCoreManager({ ...opts, db })
 
   const indexWriter = new IndexWriter({
     tables: [observationTable],

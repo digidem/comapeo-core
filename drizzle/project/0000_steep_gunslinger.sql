@@ -19,6 +19,11 @@ CREATE TABLE `coreOwnership` (
 	`forks` text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `cores` (
+	`publicKey` blob NOT NULL,
+	`namespace` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `deviceInfo_backlink` (
 	`versionId` text PRIMARY KEY NOT NULL
 );
