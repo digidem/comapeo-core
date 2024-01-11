@@ -467,9 +467,8 @@ test('deleteData()', async (t) => {
 
     const peer1TempPath = path.join(tempPath, 'peer1')
 
-    const db1 = drizzle(new Sqlite(':memory:'))
-
     /// Set up core managers
+    const db1 = drizzle(new Sqlite(':memory:'))
     const cm1 = createCoreManager({
       db: db1,
       projectKey,
@@ -480,7 +479,9 @@ test('deleteData()', async (t) => {
       autoDownload: true,
     })
 
+    const db2 = drizzle(new Sqlite(':memory:'))
     const cm2 = createCoreManager({
+      db: db2,
       projectKey,
       storage: (name) => {
         return new RandomAccessFile(path.join(tempPath, 'peer2', name))
@@ -552,6 +553,26 @@ test('deleteData()', async (t) => {
       dataCoreStorageNames.length,
       8,
       'peer 1 has expected number of data core storage files after replication'
+    )
+
+    t.is(
+      db1
+        .select()
+        .from(coresTable)
+        .where(eq(coresTable.namespace, 'data'))
+        .all().length,
+      1,
+      'peer 1 `cores` table has info about `data` core from peer 2'
+    )
+
+    t.is(
+      db2
+        .select()
+        .from(coresTable)
+        .where(eq(coresTable.namespace, 'data'))
+        .all().length,
+      1,
+      'peer 2 `cores` table has info about `data` core from peer 1'
     )
 
     /// Delete data (not their own)
