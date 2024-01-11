@@ -21,6 +21,9 @@ import RandomAccessFile from 'random-access-file'
 import path from 'path'
 import { Transform } from 'streamx'
 import { waitForCores } from './helpers/core-manager.js'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { coresTable } from '../src/schema/project.js'
+import { eq } from 'drizzle-orm'
 
 async function createCore(key) {
   const core = new Hypercore(RAM, key)
@@ -29,12 +32,11 @@ async function createCore(key) {
 }
 
 test('project creator auth core has project key', async function (t) {
-  const sqlite = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
-  const cm = new CoreManager({
-    sqlite,
+
+  const cm = createCoreManager({
     keyManager,
     storage: RAM,
     projectKey,
@@ -206,11 +208,13 @@ test('close()', async (t) => {
 })
 
 test('Added cores are persisted', async (t) => {
-  const sqlite = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
   const projectKey = randomBytes(32)
-  const cm1 = new CoreManager({
-    sqlite,
+
+  const db = drizzle(new Sqlite(':memory:'))
+
+  const cm1 = createCoreManager({
+    db,
     keyManager,
     storage: RAM,
     projectKey,
@@ -220,8 +224,8 @@ test('Added cores are persisted', async (t) => {
 
   await cm1.close()
 
-  const cm2 = new CoreManager({
-    sqlite,
+  const cm2 = createCoreManager({
+    db,
     keyManager,
     storage: RAM,
     projectKey,
@@ -261,10 +265,8 @@ test('poolSize limits number of open file descriptors', async function (t) {
 
   const CORE_COUNT = 500
   await temporaryDirectoryTask(async (tempPath) => {
-    const sqlite = new Sqlite(':memory:')
     const storage = (name) => new RandomAccessFile(path.join(tempPath, name))
-    const cm = new CoreManager({
-      sqlite,
+    const cm = createCoreManager({
       keyManager,
       storage,
       projectKey,
@@ -284,12 +286,10 @@ test('poolSize limits number of open file descriptors', async function (t) {
 
   await temporaryDirectoryTask(async (tempPath) => {
     const POOL_SIZE = 100
-    const sqlite = new Sqlite(':memory:')
     const pool = new RandomAccessFilePool(POOL_SIZE)
     const storage = (name) =>
       new RandomAccessFile(path.join(tempPath, name), { pool })
-    const cm = new CoreManager({
-      sqlite,
+    const cm = createCoreManager({
       keyManager,
       storage,
       projectKey,
@@ -458,10 +458,9 @@ test('unreplicate', async (t) => {
   })
 })
 
-test('deleteData() deletes relevant core storage files', async (t) => {
+test('deleteData()', async (t) => {
   await temporaryDirectoryTask(async (tempPath) => {
     const projectKey = randomBytes(32)
-    const sqlite = new Sqlite(':memory:')
 
     /** @type {Array<string>} */
     const storageNames = []
@@ -469,9 +468,10 @@ test('deleteData() deletes relevant core storage files', async (t) => {
     const peer1TempPath = path.join(tempPath, 'peer1')
 
     /// Set up core managers
+    const db1 = drizzle(new Sqlite(':memory:'))
     const cm1 = createCoreManager({
+      db: db1,
       projectKey,
-      sqlite,
       storage: (name) => {
         storageNames.push(name)
         return new RandomAccessFile(path.join(peer1TempPath, name))
@@ -479,9 +479,10 @@ test('deleteData() deletes relevant core storage files', async (t) => {
       autoDownload: true,
     })
 
+    const db2 = drizzle(new Sqlite(':memory:'))
     const cm2 = createCoreManager({
+      db: db2,
       projectKey,
-      sqlite,
       storage: (name) => {
         return new RandomAccessFile(path.join(tempPath, 'peer2', name))
       },
@@ -554,6 +555,26 @@ test('deleteData() deletes relevant core storage files', async (t) => {
       'peer 1 has expected number of data core storage files after replication'
     )
 
+    t.is(
+      db1
+        .select()
+        .from(coresTable)
+        .where(eq(coresTable.namespace, 'data'))
+        .all().length,
+      1,
+      'peer 1 `cores` table has info about `data` core from peer 2'
+    )
+
+    t.is(
+      db2
+        .select()
+        .from(coresTable)
+        .where(eq(coresTable.namespace, 'data'))
+        .all().length,
+      1,
+      'peer 2 `cores` table has info about `data` core from peer 1'
+    )
+
     /// Delete data (not their own)
     await t.test('with deleteOwn=false or omitted', async (st) => {
       await cm1.deleteData('data')
@@ -586,6 +607,16 @@ test('deleteData() deletes relevant core storage files', async (t) => {
       st.ok(
         peer2DataStorageDeletedForPeer1,
         'peer 1 no longer has `data` storage for peer 2'
+      )
+
+      t.is(
+        db1
+          .select()
+          .from(coresTable)
+          .where(eq(coresTable.namespace, 'data'))
+          .all().length,
+        0,
+        'peer 1 `cores` table has no info about `data` core from peer 2'
       )
     })
 

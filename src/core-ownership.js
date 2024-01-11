@@ -1,5 +1,4 @@
 import { verifySignature, sign } from '@mapeo/crypto'
-import { NAMESPACES } from './core-manager/index.js'
 import { parseVersionId } from '@mapeo/schema'
 import { defaultGetWinner } from '@mapeo/sqlite-indexer'
 import assert from 'node:assert'
@@ -9,6 +8,7 @@ import { eq, or } from 'drizzle-orm'
 import mapObject from 'map-obj'
 import { discoveryKey } from 'hypercore-crypto'
 import pDefer from 'p-defer'
+import { NAMESPACES } from './constants.js'
 
 /**
  * @typedef {import('./types.js').CoreOwnershipWithSignatures} CoreOwnershipWithSignatures
