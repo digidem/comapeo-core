@@ -726,6 +726,8 @@ export class MapeoManager extends TypedEmitter {
       .delete(projectSettingsTable)
       .where(eq(projectSettingsTable.docId, projectId))
       .run()
+
+    this.#activeProjects.delete(projectPublicId)
   }
 }
 
