@@ -10,6 +10,7 @@ import fs from 'fs/promises'
 import RAM from 'random-access-memory'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
+import { MediaServer } from '../src/media-server.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../tests/fixtures/blob-api/', import.meta.url)
@@ -21,12 +22,15 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
 test('start/stop lifecycle', async (t) => {
+  const mediaServer = new MediaServer()
+
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    mediaServer,
   })
 
   const project = await manager.getProject(await manager.createProject())
@@ -84,12 +88,14 @@ test('retrieving blobs using url', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.teardown(() => clock.uninstall())
 
+  const mediaServer = new MediaServer()
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    mediaServer,
   })
 
   const project = await manager.getProject(await manager.createProject())
@@ -175,12 +181,14 @@ test('retrieving icons using url', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.teardown(() => clock.uninstall())
 
+  const mediaServer = new MediaServer()
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    mediaServer,
   })
 
   const project = await manager.getProject(await manager.createProject())

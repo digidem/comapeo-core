@@ -5,10 +5,12 @@ import { kCoreOwnership } from '../src/mapeo-project.js'
 import { parseVersionId } from '@mapeo/schema'
 import RAM from 'random-access-memory'
 import { discoveryKey } from 'hypercore-crypto'
+import { MediaServer } from '../src/media-server.js'
 
 test('CoreOwnership', async (t) => {
   const rootKey = KeyManager.generateRootKey()
   const km = new KeyManager(rootKey)
+  const mediaServer = new MediaServer()
   const manager = new MapeoManager({
     rootKey,
     projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
@@ -17,6 +19,7 @@ test('CoreOwnership', async (t) => {
       .pathname,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    mediaServer,
   })
 
   const projectId = await manager.createProject()

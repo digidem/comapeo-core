@@ -11,6 +11,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { IndexWriter } from './index-writer/index.js'
 import {
   MapeoProject,
+  kBlobStore,
   kProjectLeave,
   kSetOwnDeviceInfo,
 } from './mapeo-project.js'
@@ -30,9 +31,11 @@ import {
   projectKeyToPublicId,
 } from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
+import BlobServerPlugin from './fastify-plugins/blobs.js'
+import IconServerPlugin from './fastify-plugins/icons.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
-import { MediaServer } from './media-server.js'
+import { BLOBS_PREFIX, ICONS_PREFIX } from './media-server.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Capabilities } from './capabilities.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
@@ -92,7 +95,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.projectMigrationsFolder path for drizzle migrations folder for project database
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
-   * @param {{ port?: number, logger: import('fastify').FastifyServerOptions['logger'] }} [opts.mediaServerOpts]
+   * @param {import('./media-server.js').MediaServer} opts.mediaServer Media server instance
    */
   constructor({
     rootKey,
@@ -100,7 +103,7 @@ export class MapeoManager extends TypedEmitter {
     projectMigrationsFolder,
     clientMigrationsFolder,
     coreStorage,
-    mediaServerOpts,
+    mediaServer,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
@@ -160,8 +163,16 @@ export class MapeoManager extends TypedEmitter {
       this.#coreStorage = coreStorage
     }
 
-    this.#mediaServer = new MediaServer({
-      logger: mediaServerOpts?.logger,
+    this.#mediaServer = mediaServer
+    this.#mediaServer.registerPlugin(BlobServerPlugin, {
+      prefix: BLOBS_PREFIX,
+      getBlobStore: async (projectPublicId) => {
+        const project = await this.getProject(projectPublicId)
+        return project[kBlobStore]
+      },
+    })
+    this.#mediaServer.registerPlugin(IconServerPlugin, {
+      prefix: ICONS_PREFIX,
       getProject: this.getProject.bind(this),
     })
 
@@ -654,6 +665,7 @@ export class MapeoManager extends TypedEmitter {
     return this.#invite
   }
 
+  // TODO: Can we remove this?
   /**
    * @param {import('./media-server.js').StartOpts} [opts]
    */
@@ -661,6 +673,7 @@ export class MapeoManager extends TypedEmitter {
     await this.#mediaServer.start(opts)
   }
 
+  // TODO: Can we remove this?
   async stopMediaServer() {
     await this.#mediaServer.stop()
   }

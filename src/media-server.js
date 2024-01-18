@@ -1,16 +1,13 @@
 import { once } from 'events'
 import { promisify } from 'util'
-import fastify from 'fastify'
+import Fastify from 'fastify'
 import pTimeout from 'p-timeout'
 import StateMachine from 'start-stop-state-machine'
 
-import BlobServerPlugin from './fastify-plugins/blobs.js'
-import IconServerPlugin from './fastify-plugins/icons.js'
-
-import { kBlobStore } from './mapeo-project.js'
-
 export const BLOBS_PREFIX = 'blobs'
 export const ICONS_PREFIX = 'icons'
+
+export const kFastify = Symbol('fastify')
 
 /**
  * @typedef {Object} StartOpts
@@ -27,34 +24,33 @@ export class MediaServer {
   #serverState
 
   /**
-   * @param {object} params
-   * @param {(projectPublicId: string) => Promise<import('./mapeo-project.js').MapeoProject>} params.getProject
+   * @param {Object} params
    * @param {import('fastify').FastifyServerOptions['logger']} [params.logger]
    */
-  constructor({ getProject, logger }) {
+  constructor({ logger } = {}) {
     this.#fastifyStarted = false
     this.#host = '127.0.0.1'
     this.#port = 0
 
-    this.#fastify = fastify({ logger })
-
-    this.#fastify.register(BlobServerPlugin, {
-      prefix: BLOBS_PREFIX,
-      getBlobStore: async (projectPublicId) => {
-        const project = await getProject(projectPublicId)
-        return project[kBlobStore]
-      },
-    })
-
-    this.#fastify.register(IconServerPlugin, {
-      prefix: ICONS_PREFIX,
-      getProject,
-    })
+    this.#fastify = Fastify({ logger })
 
     this.#serverState = new StateMachine({
       start: this.#startServer.bind(this),
       stop: this.#stopServer.bind(this),
     })
+  }
+
+  get [kFastify]() {
+    return this.#fastify
+  }
+
+  /**
+   * @template {import('fastify').FastifyPluginOptions} Options
+   * @param {import('fastify').FastifyPluginAsync<Options>} plugin
+   * @param {Options} opts
+   */
+  registerPlugin(plugin, opts) {
+    return this.#fastify.register(plugin, opts)
   }
 
   /**
@@ -123,7 +119,7 @@ export class MediaServer {
   }
 
   /**
-   * @param {'blobs' | 'icons'} mediaType
+   * @param {'blobs' | 'icons' | 'maps'} mediaType
    * @returns {Promise<string>}
    */
   async getMediaAddress(mediaType) {

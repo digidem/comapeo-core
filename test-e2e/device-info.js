@@ -4,6 +4,7 @@ import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
+import { MediaServer } from '../src/media-server.js'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -12,12 +13,14 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
 
 test('write and read deviceInfo', async (t) => {
   const rootKey = KeyManager.generateRootKey()
+  const mediaServer = new MediaServer()
   const manager = new MapeoManager({
     rootKey,
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    mediaServer,
   })
 
   const info1 = { name: 'my device' }
@@ -32,12 +35,14 @@ test('write and read deviceInfo', async (t) => {
 
 test('device info written to projects', (t) => {
   t.test('when creating project', async (st) => {
+    const mediaServer = new MediaServer()
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
       projectMigrationsFolder,
       clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
+      mediaServer,
     })
 
     await manager.setDeviceInfo({ name: 'mapeo' })
@@ -52,12 +57,14 @@ test('device info written to projects', (t) => {
   })
 
   t.test('when adding project', async (st) => {
+    const mediaServer = new MediaServer()
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
       projectMigrationsFolder,
       clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
+      mediaServer,
     })
 
     await manager.setDeviceInfo({ name: 'mapeo' })
@@ -78,12 +85,14 @@ test('device info written to projects', (t) => {
   })
 
   t.test('after updating global device info', async (st) => {
+    const mediaServer = new MediaServer()
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
       projectMigrationsFolder,
       clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
+      mediaServer,
     })
 
     await manager.setDeviceInfo({ name: 'before' })
