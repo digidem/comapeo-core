@@ -1,21 +1,30 @@
-# Mapeo's Media Server
+# Mapeo's HTTP Server
 
-Each Mapeo manager instance includes an embedded HTTP server that is responsible for serving media assets over HTTP. Each server is responsible for handling requests for assets that can live in any Mapeo project (the URL structure reflects this, as we will show later on).
+Each Mapeo manager instance requires an adjacent Fastify server instance that is responsible for serving assets over HTTP. Each Fastify instance is responsible for handling requests for assets that can live in any Mapeo project (the URL structure reflects this, as we will show later on).
 
 Some boilerplate for getting started with a Mapeo project:
 
 ```js
-// Create the manager instance (truncated for brevity)
-const manager = new MapeoManager({...})
+// Create Fastify instance
+const fastify = Fastify()
 
-// Start the media server (no need to await in most cases, unless you need to immediately access the HTTP endpoints)
-manager.startMediaServer()
+// Create FastifyController instance for managing the starting and stopping the Fastify server (handles it more gracefully and allows pausing and restarting)
+const fastifyController = new FastifyController({ fastify })
+
+// Create the manager instance (truncated for brevity)
+const manager = new MapeoManager({ fastify, ... })
+
+// Start the HTTP server using the controller (awaitable but no need to await in most cases, unless you need to immediately access the HTTP endpoints)
+fastifyController.start()
 
 // Create a project
 const projectPublicId = await manager.createProject()
 
 // Get the project instance
 const project = await manager.getProject(projectPublicId)
+
+// Whenever you need to stop the HTTP server, use the controller
+await fastifyController.stop()
 ```
 
 The example code in the following sections assume that some variation of the above has been done already.
