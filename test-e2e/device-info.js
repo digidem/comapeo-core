@@ -2,9 +2,9 @@ import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
+import Fastify from 'fastify'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
-import { MediaServer } from '../src/media-server.js'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -12,15 +12,15 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
 test('write and read deviceInfo', async (t) => {
+  const fastify = Fastify()
   const rootKey = KeyManager.generateRootKey()
-  const mediaServer = new MediaServer()
   const manager = new MapeoManager({
     rootKey,
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
-    mediaServer,
+    fastify,
   })
 
   const info1 = { name: 'my device' }
@@ -35,14 +35,14 @@ test('write and read deviceInfo', async (t) => {
 
 test('device info written to projects', (t) => {
   t.test('when creating project', async (st) => {
-    const mediaServer = new MediaServer()
+    const fastify = Fastify()
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
       projectMigrationsFolder,
       clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
-      mediaServer,
+      fastify,
     })
 
     await manager.setDeviceInfo({ name: 'mapeo' })
@@ -57,14 +57,14 @@ test('device info written to projects', (t) => {
   })
 
   t.test('when adding project', async (st) => {
-    const mediaServer = new MediaServer()
+    const fastify = Fastify()
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
       projectMigrationsFolder,
       clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
-      mediaServer,
+      fastify,
     })
 
     await manager.setDeviceInfo({ name: 'mapeo' })
@@ -85,14 +85,14 @@ test('device info written to projects', (t) => {
   })
 
   t.test('after updating global device info', async (st) => {
-    const mediaServer = new MediaServer()
+    const fastify = Fastify()
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
       projectMigrationsFolder,
       clientMigrationsFolder,
       dbFolder: ':memory:',
       coreStorage: () => new RAM(),
-      mediaServer,
+      fastify,
     })
 
     await manager.setDeviceInfo({ name: 'before' })

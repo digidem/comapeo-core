@@ -1,13 +1,15 @@
 import { test } from 'brittle'
 import { KeyManager } from '@mapeo/crypto'
+import RAM from 'random-access-memory'
+import Fastify from 'fastify'
+
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { MapeoProject } from '../src/mapeo-project.js'
 import { removeUndefinedFields } from './utils.js'
-import RAM from 'random-access-memory'
-import { MediaServer } from '../src/media-server.js'
 
 test('Project settings create, read, and update operations', async (t) => {
-  const mediaServer = new MediaServer()
+  const fastify = Fastify()
+
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
@@ -16,7 +18,7 @@ test('Project settings create, read, and update operations', async (t) => {
       .pathname,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
-    mediaServer,
+    fastify,
   })
 
   const projectId = await manager.createProject()

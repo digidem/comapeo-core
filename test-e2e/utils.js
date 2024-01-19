@@ -1,6 +1,7 @@
 // @ts-check
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
+import Fastify from 'fastify'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
@@ -12,7 +13,6 @@ import { temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import { MEMBER_ROLE_ID } from '../src/capabilities.js'
 import { kSyncState } from '../src/sync/sync-api.js'
-import { MediaServer } from '../src/media-server.js'
 
 const FAST_TESTS = !!process.env.FAST_TESTS
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -176,8 +176,6 @@ export function createManager(seed, t) {
   const dbFolder = FAST_TESTS ? ':memory:' : temporaryDirectory()
   const coreStorage = FAST_TESTS ? () => new RAM() : temporaryDirectory()
 
-  const mediaServer = new MediaServer()
-
   t.teardown(async () => {
     if (FAST_TESTS) return
     await Promise.all([
@@ -196,7 +194,7 @@ export function createManager(seed, t) {
     clientMigrationsFolder,
     dbFolder,
     coreStorage,
-    mediaServer,
+    fastify: Fastify(),
   })
 }
 

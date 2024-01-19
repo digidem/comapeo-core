@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
+import pTimeout from 'p-timeout'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
 import { IndexWriter } from './index-writer/index.js'
@@ -33,9 +34,9 @@ import {
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
 import IconServerPlugin from './fastify-plugins/icons.js'
+import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
-import { BLOBS_PREFIX, ICONS_PREFIX } from './media-server.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Capabilities } from './capabilities.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
@@ -52,6 +53,10 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 // limit of 1024 per process, so choosing 768 to leave 256 descriptors free for
 // other things e.g. SQLite and other parts of the app.
 const MAX_FILE_DESCRIPTORS = 768
+
+// Prefix names for routes registered with http server
+const BLOBS_PREFIX = 'blobs'
+const ICONS_PREFIX = 'icons'
 
 export const kRPC = Symbol('rpc')
 export const kManagerReplicate = Symbol('replicate manager')
@@ -83,7 +88,7 @@ export class MapeoManager extends TypedEmitter {
   #deviceId
   #localPeers
   #invite
-  #mediaServer
+  #fastify
   #localDiscovery
   #loggerBase
   #l
@@ -95,7 +100,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.projectMigrationsFolder path for drizzle migrations folder for project database
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
-   * @param {import('./media-server.js').MediaServer} opts.mediaServer Media server instance
+   * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
    */
   constructor({
     rootKey,
@@ -103,7 +108,7 @@ export class MapeoManager extends TypedEmitter {
     projectMigrationsFolder,
     clientMigrationsFolder,
     coreStorage,
-    mediaServer,
+    fastify,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
@@ -163,15 +168,15 @@ export class MapeoManager extends TypedEmitter {
       this.#coreStorage = coreStorage
     }
 
-    this.#mediaServer = mediaServer
-    this.#mediaServer.registerPlugin(BlobServerPlugin, {
+    this.#fastify = fastify
+    this.#fastify.register(BlobServerPlugin, {
       prefix: BLOBS_PREFIX,
       getBlobStore: async (projectPublicId) => {
         const project = await this.getProject(projectPublicId)
         return project[kBlobStore]
       },
     })
-    this.#mediaServer.registerPlugin(IconServerPlugin, {
+    this.#fastify.register(IconServerPlugin, {
       prefix: ICONS_PREFIX,
       getProject: this.getProject.bind(this),
     })
@@ -208,6 +213,35 @@ export class MapeoManager extends TypedEmitter {
       keyPair: this.#keyManager.getIdentityKeypair(),
     })
     return this.#replicate(noiseStream)
+  }
+
+  /**
+   * @param {'blobs' | 'icons' | 'maps'} mediaType
+   * @returns {Promise<string>}
+   */
+  async #getMediaAddress(mediaType) {
+    /** @type {string | null} */
+    let prefix = null
+
+    switch (mediaType) {
+      case 'blobs': {
+        prefix = BLOBS_PREFIX
+        break
+      }
+      case 'icons': {
+        prefix = ICONS_PREFIX
+        break
+      }
+      default: {
+        throw new Error(`Unsupported media type ${mediaType}`)
+      }
+    }
+
+    const base = await pTimeout(getFastifyServerAddress(this.#fastify.server), {
+      milliseconds: 1000,
+    })
+
+    return base + '/' + prefix
   }
 
   /**
@@ -414,9 +448,7 @@ export class MapeoManager extends TypedEmitter {
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
       logger: this.#loggerBase,
-      getMediaBaseUrl: this.#mediaServer.getMediaAddress.bind(
-        this.#mediaServer
-      ),
+      getMediaBaseUrl: this.#getMediaAddress.bind(this),
     })
   }
 
@@ -663,19 +695,6 @@ export class MapeoManager extends TypedEmitter {
    */
   get invite() {
     return this.#invite
-  }
-
-  // TODO: Can we remove this?
-  /**
-   * @param {import('./media-server.js').StartOpts} [opts]
-   */
-  async startMediaServer(opts) {
-    await this.#mediaServer.start(opts)
-  }
-
-  // TODO: Can we remove this?
-  async stopMediaServer() {
-    await this.#mediaServer.stop()
   }
 
   async startLocalPeerDiscovery() {
