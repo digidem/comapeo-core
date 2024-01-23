@@ -56,6 +56,7 @@ const MAX_FILE_DESCRIPTORS = 768
 // Prefix names for routes registered with http server
 const BLOBS_PREFIX = 'blobs'
 const ICONS_PREFIX = 'icons'
+const MAPS_PREFIX = 'maps'
 
 export const kRPC = Symbol('rpc')
 export const kManagerReplicate = Symbol('replicate manager')
@@ -229,6 +230,10 @@ export class MapeoManager extends TypedEmitter {
       }
       case 'icons': {
         prefix = ICONS_PREFIX
+        break
+      }
+      case 'maps': {
+        prefix = MAPS_PREFIX
         break
       }
       default: {
@@ -759,6 +764,11 @@ export class MapeoManager extends TypedEmitter {
       .run()
 
     this.#activeProjects.delete(projectPublicId)
+  }
+
+  async getMapStyleJsonUrl() {
+    const mapsAddress = await this.#getMediaBaseUrl('maps')
+    return mapsAddress + '/style.json'
   }
 }
 

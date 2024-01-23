@@ -281,6 +281,46 @@ test('retrieving icons using url', async (t) => {
   await exceptionPromise2
 })
 
+test('retrieving style.json using url', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.teardown(() => clock.uninstall())
+
+  const fastify = Fastify()
+  const fastifyController = new FastifyController({ fastify })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+    fastify,
+  })
+
+  const exceptionPromise1 = t.exception(async () => {
+    await manager.getMapStyleJsonUrl()
+  }, 'cannot retrieve style json url before HTTP server starts')
+
+  clock.tick(100_000)
+  await exceptionPromise1
+
+  fastifyController.start({ port: 1234 })
+
+  const styleJsonUrl = await manager.getMapStyleJsonUrl()
+
+  t.ok(styleJsonUrl.endsWith(`:1234/maps/style.json`))
+
+  // TODO: Fetch style json using url and check response
+
+  await fastifyController.stop()
+
+  const exceptionPromise2 = t.exception(async () => {
+    await manager.getMapStyleJsonUrl()
+  }, 'cannot retrieve style json url after HTTP server closes')
+
+  clock.tick(100_000)
+  await exceptionPromise2
+})
+
 /**
  * @param {string} url
  */
