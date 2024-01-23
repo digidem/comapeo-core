@@ -39,7 +39,7 @@ export class DnsSd extends TypedEmitter {
       this.#log(`Ignoring service up from self`)
       return
     }
-    const address = service.addresses?.filter(isIpv4)[0]
+    const address = service.addresses?.find(isIpv4)
     /* c8 ignore start */
     if (!address) {
       this.#log(`service up (${service.name}) with no ipv4 addresses`)
@@ -56,7 +56,7 @@ export class DnsSd extends TypedEmitter {
       this.#log(`Ignoring service down from self`)
       return
     }
-    const address = service.addresses?.filter(isIpv4)[0]
+    const address = service.addresses?.find(isIpv4)
     /* c8 ignore start */
     if (!address) {
       this.#log(`service down (${service.name}) with no ipv4 addresses`)
