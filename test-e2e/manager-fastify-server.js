@@ -110,7 +110,7 @@ test('retrieving blobs using url', async (t) => {
       type: 'photo',
       variant: 'original',
     })
-  }, 'getting blob url fails if manager.startMediaServer() has not been called yet')
+  }, 'getting blob url fails if fastifyController.start() has not been called yet')
 
   clock.tick(100_000)
   await exceptionPromise1
@@ -128,7 +128,7 @@ test('retrieving blobs using url', async (t) => {
 
     st.ok(
       new URL(blobUrl),
-      'retrieving url based on media server resolves after starting it'
+      'retrieving url based on HTTP server resolves after starting it'
     )
 
     const response = await fetch(blobUrl)
@@ -149,7 +149,7 @@ test('retrieving blobs using url', async (t) => {
 
     st.ok(
       new URL(blobUrl),
-      'retrieving url based on media server resolves after starting it'
+      'retrieving url based on HTTP server resolves after starting it'
     )
 
     const response = await fetch(blobUrl)
@@ -176,7 +176,7 @@ test('retrieving blobs using url', async (t) => {
       type: 'photo',
       variant: 'original',
     })
-  }, 'getting url after manager.stop() has been called fails')
+  }, 'getting url after fastifyController.stop() has been called fails')
   clock.tick(100_000)
   await exceptionPromise2
 })
@@ -204,7 +204,7 @@ test('retrieving icons using url', async (t) => {
       pixelDensity: 1,
       size: 'small',
     })
-  }, 'getting icon url fails if manager.startMediaServer() has not been called yet')
+  }, 'getting icon url fails if fastifyController.start() has not been called yet')
 
   clock.tick(100_000)
   await exceptionPromise1
@@ -222,7 +222,7 @@ test('retrieving icons using url', async (t) => {
 
     st.ok(
       new URL(iconUrl),
-      'retrieving url based on media server resolves after starting it'
+      'retrieving url based on HTTP server resolves after starting it'
     )
 
     const response = await fetch(iconUrl)
@@ -253,7 +253,7 @@ test('retrieving icons using url', async (t) => {
 
     st.ok(
       new URL(iconUrl),
-      'retrieving url based on media server resolves after starting it'
+      'retrieving url based on HTTP server resolves after starting it'
     )
 
     const response = await fetch(iconUrl)
@@ -276,7 +276,7 @@ test('retrieving icons using url', async (t) => {
       pixelDensity: 1,
       size: 'small',
     })
-  }, 'getting url after manager.stop() has been called fails')
+  }, 'getting url after fastifyController.stop() has been called fails')
   clock.tick(100_000)
   await exceptionPromise2
 })
