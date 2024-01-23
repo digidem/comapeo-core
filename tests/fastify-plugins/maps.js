@@ -1,10 +1,17 @@
 import { test } from 'brittle'
+import path from 'node:path'
 import Fastify from 'fastify'
 
 import { plugin as MapServerPlugin } from '../../src/fastify-plugins/maps/index.js'
 import { plugin as StaticMapsPlugin } from '../../src/fastify-plugins/maps/static-maps.js'
+import { plugin as OfflineFallbackMapPlugin } from '../../src/fastify-plugins/maps/offline-fallback-map.js'
 
 const MAP_FIXTURES_PATH = new URL('../fixtures/maps', import.meta.url).pathname
+
+const MAPEO_FALLBACK_MAP_PATH = new URL(
+  '../../node_modules/mapeo-offline-map',
+  import.meta.url
+).pathname
 
 test('fails to register when dependent plugins are not registered', async (t) => {
   const server = setup(t)
@@ -20,6 +27,11 @@ test('prefix opt is handled correctly', async (t) => {
   server.register(StaticMapsPlugin, {
     prefix: 'static',
     staticRootDir: MAP_FIXTURES_PATH,
+  })
+  server.register(OfflineFallbackMapPlugin, {
+    prefix: 'fallback',
+    styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
+    sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
   })
 
   server.register(MapServerPlugin, { prefix: 'maps' })
@@ -47,13 +59,17 @@ test('prefix opt is handled correctly', async (t) => {
   }
 })
 
-// TODO: Add similar tests/fixtures for proxied online style and offline fallback style
 test('/style.json resolves style.json of local "default" static map when available', async (t) => {
   const server = setup(t)
 
   server.register(StaticMapsPlugin, {
     prefix: 'static',
     staticRootDir: MAP_FIXTURES_PATH,
+  })
+  server.register(OfflineFallbackMapPlugin, {
+    prefix: 'fallback',
+    styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
+    sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
   })
   server.register(MapServerPlugin)
 
@@ -66,6 +82,34 @@ test('/style.json resolves style.json of local "default" static map when availab
 
   t.is(response.statusCode, 200)
 })
+
+test('/style.json resolves style.json of offline fallback map when static and online are not available', async (t) => {
+  const server = setup(t)
+
+  server.register(StaticMapsPlugin, {
+    prefix: 'static',
+    // Need to choose a directory that doesn't have any map fixtures
+    staticRootDir: path.resolve(MAP_FIXTURES_PATH, '../does-not-exist'),
+  })
+  server.register(OfflineFallbackMapPlugin, {
+    prefix: 'fallback',
+    styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
+    sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
+  })
+  server.register(MapServerPlugin)
+
+  await server.listen()
+
+  const response = await server.inject({
+    method: 'GET',
+    url: '/style.json',
+  })
+
+  t.is(response.json().id, 'blank', 'gets fallback style.json')
+  t.is(response.statusCode, 200)
+})
+
+// TODO: add test for proxying online map style.json
 
 /**
  * @param {import('brittle').TestInstance} t

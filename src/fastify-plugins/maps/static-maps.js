@@ -7,7 +7,11 @@ import asar from '@electron/asar'
 import { Mime } from 'mime/lite'
 import standardTypes from 'mime/types/standard.js'
 
-import { NotFoundError, getFastifyServerAddress } from '../utils.js'
+import {
+  NotFoundError,
+  createStyleJsonResponseHeaders,
+  getFastifyServerAddress,
+} from '../utils.js'
 
 export const PLUGIN_NAME = 'mapeo-static-maps'
 
@@ -186,19 +190,9 @@ async function routes(fastify, opts) {
         throw new NotFoundError(`id = ${styleId}, style.json`)
       }
 
-      const styleJsonBytes = Buffer.from(styleJson)
+      rep.headers(createStyleJsonResponseHeaders(stats.mtime))
 
-      rep.headers({
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'max-age=' + 5 * 60, // 5 minutes
-        'Access-Control-Allow-Headers':
-          'Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since',
-        'Access-Control-Allow-Origin': '*',
-        'Last-Modified': new Date(stats.mtime).toUTCString(),
-        'Content-Length': styleJsonBytes.length,
-      })
-
-      return styleJsonBytes
+      return styleJson
     }
   )
 

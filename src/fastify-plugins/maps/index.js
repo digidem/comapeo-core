@@ -1,15 +1,20 @@
 import fp from 'fastify-plugin'
 
+import {
+  NotFoundError,
+  createStyleJsonResponseHeaders,
+  getFastifyServerAddress,
+} from '../utils.js'
 import { PLUGIN_NAME as MAPEO_STATIC_MAPS } from './static-maps.js'
-import { NotFoundError, getFastifyServerAddress } from '../utils.js'
+import { PLUGIN_NAME as MAPEO_OFFLINE_FALLBACK } from './offline-fallback-map.js'
 
 export const PLUGIN_NAME = 'mapeo-maps'
 
 export const plugin = fp(mapsPlugin, {
   fastify: '4.x',
   name: PLUGIN_NAME,
-  decorators: { fastify: ['mapeoStaticMaps'] },
-  dependencies: [MAPEO_STATIC_MAPS],
+  decorators: { fastify: ['mapeoStaticMaps', 'mapeoFallbackMap'] },
+  dependencies: [MAPEO_STATIC_MAPS, MAPEO_OFFLINE_FALLBACK],
 })
 
 /**
@@ -33,32 +38,39 @@ async function routes(fastify) {
     {
       const styleId = 'default'
 
-      let stats, styleJson
-      try {
-        const results = await Promise.all([
-          fastify.mapeoStaticMaps.getStyleJsonStats(styleId),
-          fastify.mapeoStaticMaps.getResolvedStyleJson(styleId, serverAddress),
-        ])
-
-        stats = results[0]
-        styleJson = results[1]
-      } catch (err) {
-        throw new NotFoundError(`id = ${styleId}, style.json`)
-      }
-
-      rep.headers({
-        'Cache-Control': 'max-age=' + 5 * 60, // 5 minutes
-        'Access-Control-Allow-Headers':
-          'Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since',
-        'Access-Control-Allow-Origin': '*',
-        'Last-Modified': new Date(stats.mtime).toUTCString(),
+      const results = await Promise.all([
+        fastify.mapeoStaticMaps.getStyleJsonStats(styleId),
+        fastify.mapeoStaticMaps.getResolvedStyleJson(styleId, serverAddress),
+      ]).catch(() => {
+        fastify.log.warn('Cannot read default static map')
+        return null
       })
 
-      return styleJson
+      if (results) {
+        const [stats, styleJson] = results
+        rep.headers(createStyleJsonResponseHeaders(stats.mtime))
+        return styleJson
+      }
     }
 
     // TODO: 2. Attempt to get map's style.json from online source
 
-    // TODO: 3. Provide offline fallback map's style.json
+    // 3. Provide offline fallback map's style.json
+    {
+      let results = null
+
+      try {
+        results = await Promise.all([
+          fastify.mapeoFallbackMap.getStyleJsonStats(),
+          fastify.mapeoFallbackMap.getResolvedStyleJson(serverAddress),
+        ])
+      } catch (err) {
+        throw new NotFoundError(`id = fallback, style.json`)
+      }
+
+      const [stats, styleJson] = results
+      rep.headers(createStyleJsonResponseHeaders(stats.mtime))
+      return styleJson
+    }
   })
 }
