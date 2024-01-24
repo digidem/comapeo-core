@@ -12,8 +12,6 @@ import StateMachine from 'start-stop-state-machine'
 export class FastifyController {
   #fastify
   #fastifyStarted
-  #host
-  #port
   #serverState
 
   /**
@@ -22,8 +20,6 @@ export class FastifyController {
    */
   constructor({ fastify }) {
     this.#fastifyStarted = false
-    this.#host = '127.0.0.1'
-    this.#port = 0
 
     this.#fastify = fastify
 
@@ -37,11 +33,8 @@ export class FastifyController {
    * @param {StartOpts} [opts]
    */
   async #startServer({ host = '127.0.0.1', port = 0 } = {}) {
-    this.#host = host
-    this.#port = port
-
     if (!this.#fastifyStarted) {
-      await this.#fastify.listen({ host: this.#host, port: this.#port })
+      await this.#fastify.listen({ host, port })
       this.#fastifyStarted = true
       return
     }
@@ -49,7 +42,7 @@ export class FastifyController {
     const { server } = this.#fastify
 
     await new Promise((res, rej) => {
-      server.listen.call(server, { port: this.#port, host: this.#host })
+      server.listen.call(server, { host, port })
 
       server.once('listening', onListening)
       server.once('error', onError)
