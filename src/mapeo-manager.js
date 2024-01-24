@@ -218,7 +218,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {'blobs' | 'icons' | 'maps'} mediaType
    * @returns {Promise<string>}
    */
-  async #getMediaAddress(mediaType) {
+  async #getMediaBaseUrl(mediaType) {
     /** @type {string | null} */
     let prefix = null
 
@@ -447,7 +447,7 @@ export class MapeoManager extends TypedEmitter {
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
       logger: this.#loggerBase,
-      getMediaBaseUrl: this.#getMediaAddress.bind(this),
+      getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
     })
   }
 
