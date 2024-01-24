@@ -34,8 +34,8 @@ export class FastifyController {
    */
   async #startServer({ host = '127.0.0.1', port = 0 } = {}) {
     if (!this.#fastifyStarted) {
-      await this.#fastify.listen({ host, port })
       this.#fastifyStarted = true
+      await this.#fastify.listen({ host, port })
       return
     }
 
