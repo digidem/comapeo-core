@@ -2,13 +2,16 @@ import { once } from 'node:events'
 
 /**
  * @param {import('node:http').Server} server
+ * @param {{ timeout?: number }} [options]
  * @returns {Promise<string>}
  */
-export async function getFastifyServerAddress(server) {
+export async function getFastifyServerAddress(server, { timeout } = {}) {
   const address = server.address()
 
   if (!address) {
-    await once(server, 'listening')
+    await once(server, 'listening', {
+      signal: timeout ? AbortSignal.timeout(timeout) : undefined,
+    })
     return getFastifyServerAddress(server)
   }
 

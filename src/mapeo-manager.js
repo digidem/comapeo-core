@@ -6,7 +6,6 @@ import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
-import pTimeout from 'p-timeout'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
 import { IndexWriter } from './index-writer/index.js'
@@ -237,8 +236,8 @@ export class MapeoManager extends TypedEmitter {
       }
     }
 
-    const base = await pTimeout(getFastifyServerAddress(this.#fastify.server), {
-      milliseconds: 1000,
+    const base = await getFastifyServerAddress(this.#fastify.server, {
+      timeout: 5000,
     })
 
     return base + '/' + prefix
