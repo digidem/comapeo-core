@@ -8,14 +8,17 @@ Some boilerplate for getting started with a Mapeo project:
 // Create Fastify instance
 const fastify = Fastify()
 
-// Create FastifyController instance for managing the starting and stopping the Fastify server (handles it more gracefully and allows pausing and restarting)
-const fastifyController = new FastifyController({ fastify })
-
 // Create the manager instance (truncated for brevity)
 const manager = new MapeoManager({ fastify, ... })
 
-// Start the HTTP server using the controller (awaitable but no need to await in most cases, unless you need to immediately access the HTTP endpoints)
-fastifyController.start()
+// Start the HTTP server (awaitable but no need to await in most cases, unless you need to immediately access the HTTP endpoints)
+fastify.listen()
+
+// (optional) Create FastifyController instance for managing the starting and stopping the Fastify server (handles it more gracefully and allows pausing and restarting)
+// This is useful if you are working in a context that needs to pause or restart the server frequently.
+// e.g.
+//   const fastifyController = new FastifyController({ fastify })
+//   fastifyController.start()
 
 // Create a project
 const projectPublicId = await manager.createProject()
