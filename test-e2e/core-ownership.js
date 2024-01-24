@@ -1,14 +1,17 @@
 import { test } from 'brittle'
 import { KeyManager } from '@mapeo/crypto'
-import { MapeoManager } from '../src/mapeo-manager.js'
-import { kCoreOwnership } from '../src/mapeo-project.js'
 import { parseVersionId } from '@mapeo/schema'
 import RAM from 'random-access-memory'
 import { discoveryKey } from 'hypercore-crypto'
+import Fastify from 'fastify'
+
+import { kCoreOwnership } from '../src/mapeo-project.js'
+import { MapeoManager } from '../src/mapeo-manager.js'
 
 test('CoreOwnership', async (t) => {
   const rootKey = KeyManager.generateRootKey()
   const km = new KeyManager(rootKey)
+  const fastify = Fastify()
   const manager = new MapeoManager({
     rootKey,
     projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
@@ -17,6 +20,7 @@ test('CoreOwnership', async (t) => {
       .pathname,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    fastify,
   })
 
   const projectId = await manager.createProject()

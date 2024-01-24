@@ -4,6 +4,7 @@ import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
+import Fastify from 'fastify'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -17,6 +18,7 @@ test('Managing created projects', async (t) => {
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    fastify: Fastify(),
   })
 
   const project1Id = await manager.createProject()
@@ -121,6 +123,7 @@ test('Managing added projects', async (t) => {
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    fastify: Fastify(),
   })
 
   const project1Id = await manager.addProject(
@@ -195,6 +198,7 @@ test('Managing both created and added projects', async (t) => {
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    fastify: Fastify(),
   })
 
   const createdProjectId = await manager.createProject({
@@ -238,6 +242,7 @@ test('Manager cannot add project that already exists', async (t) => {
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    fastify: Fastify(),
   })
 
   const existingProjectId = await manager.createProject()
@@ -266,6 +271,7 @@ test('Consistent storage folders', async (t) => {
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder: ':memory:',
+    fastify: Fastify(),
     coreStorage: (name) => {
       storageNames.push(name)
       return new RAM()
