@@ -22,40 +22,29 @@ export const plugin = fp(staticMapsPlugin, {
  * @property {string} staticRootDir
  */
 
+/**
+ * @typedef {object} StaticMapsPluginDecorator
+ * @property {(styleId: string, serverAddress: string) => Promise<string>} getResolvedStyleJson
+ * @property {(styleId: string) => Promise<import('node:fs').Stats>} getStyleJsonStats
+ */
+
 /** @type {import('fastify').FastifyPluginAsync<StaticMapsPluginOpts>} */
 async function staticMapsPlugin(fastify, opts) {
   fastify.decorate('mapeoStaticMaps', {
-    /**
-     * @param {string} styleId
-     * @param {string} serverAddress
-     * @returns {Promise<{ data: Buffer, headers: { [key: string]: any } }>}
-     */
-    async getStyleJsonInfo(styleId, serverAddress) {
-      try {
-        const filePath = path.join(opts.staticRootDir, styleId, 'style.json')
-        const stat = await fs.stat(filePath)
-        const data = await fs.readFile(filePath, 'utf-8')
+    async getResolvedStyleJson(styleId, serverAddress) {
+      const filePath = path.join(opts.staticRootDir, styleId, 'style.json')
 
-        return {
-          data: Buffer.from(
-            data.replace(
-              /\{host\}/gm,
-              new URL(`${opts.prefix || ''}/${styleId}`, serverAddress).href
-            )
-          ),
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Cache-Control': 'max-age=' + 5 * 60, // 5 minutes
-            'Access-Control-Allow-Headers':
-              'Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since',
-            'Access-Control-Allow-Origin': '*',
-            'Last-Modified': new Date(stat.mtime).toUTCString(),
-            'Content-Length': data.length,
-          },
-        }
-      } catch (err) {
-        throw new NotFoundError(`id = ${styleId}, style.json`)
-      }
+      const data = await fs.readFile(filePath, 'utf-8')
+
+      return data.replace(
+        /\{host\}/gm,
+        new URL(`${opts.prefix || ''}/${styleId}`, serverAddress).href
+      )
+    },
+    async getStyleJsonStats(styleId) {
+      const filePath = path.join(opts.staticRootDir, styleId, 'style.json')
+      const stats = await fs.stat(filePath)
+      return stats
     },
   })
 
@@ -189,15 +178,31 @@ async function routes(fastify, opts) {
 
       const serverAddress = await getFastifyServerAddress(req.server.server)
 
-      // TODO: Figure out how to do interface merging: https://fastify.dev/docs/latest/Reference/TypeScript/#plugins
-      // @ts-expect-error
-      const { data, headers } = await fastify.mapeoStaticMaps.getStyleJsonInfo(
-        styleId,
-        serverAddress
-      )
+      let stats, styleJson
 
-      rep.headers(headers)
-      rep.send(data)
+      try {
+        const results = await Promise.all([
+          fastify.mapeoStaticMaps.getStyleJsonStats(styleId),
+          fastify.mapeoStaticMaps.getResolvedStyleJson(styleId, serverAddress),
+        ])
+
+        stats = results[0]
+        styleJson = results[1]
+      } catch (err) {
+        throw new NotFoundError(`id = ${styleId}, style.json`)
+      }
+
+      rep.headers({
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'max-age=' + 5 * 60, // 5 minutes
+        'Access-Control-Allow-Headers':
+          'Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since',
+        'Access-Control-Allow-Origin': '*',
+        'Last-Modified': new Date(stats.mtime).toUTCString(),
+        'Content-Length': Buffer.from(styleJson).length,
+      })
+
+      return styleJson
     }
   )
 

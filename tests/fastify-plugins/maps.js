@@ -1,4 +1,4 @@
-import { test, skip } from 'brittle'
+import { test } from 'brittle'
 import Fastify from 'fastify'
 
 import { plugin as MapsPlugin } from '../../src/fastify-plugins/maps/index.js'
@@ -47,9 +47,8 @@ test('prefix opt is handled correctly', async (t) => {
   }
 })
 
-// TODO: Currently fails
-// Requires fixture setup that has default/ in static directory, online proxy, then offline fallback map
-skip('/style.json resolves with expected style.json', async (t) => {
+// TODO: Add similar tests/fixtures for proxied online style and offline fallback style
+test('/style.json resolves style.json of local "default" static map when available', async (t) => {
   const server = setup(t)
 
   server.register(StaticMapsPlugin, {

@@ -25,9 +25,9 @@ test('list map styles', async (t) => {
     data,
     [
       {
-        id: 'sat-style',
+        id: 'default',
         name: 'Satellite',
-        styleUrl: `${address}/sat-style/style.json`,
+        styleUrl: `${address}/default/style.json`,
       },
       {
         id: 'streets-sat-style',
