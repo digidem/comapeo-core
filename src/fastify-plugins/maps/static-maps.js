@@ -150,7 +150,7 @@ async function routes(fastify, opts) {
               id: filename,
               name: typeof styleJson.name === 'string' ? styleJson.name : null,
               styleUrl: new URL(
-                `${fastify.prefix}/${filename}/style.json`,
+                `${req.server.prefix || ''}/${filename}/style.json`,
                 serverAddress
               ).href,
             }
