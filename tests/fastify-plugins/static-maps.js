@@ -7,6 +7,12 @@ import { plugin } from '../../src/fastify-plugins/maps/static-maps.js'
 
 const MAP_FIXTURES_PATH = new URL('../fixtures/maps', import.meta.url).pathname
 
+test('decorator', async (t) => {
+  const server = setup(t)
+  await server.ready()
+  t.ok(server.hasDecorator('mapeoStaticMaps'), 'decorator is set up')
+})
+
 test('list map styles', async (t) => {
   const server = setup(t)
   const address = await server.listen()
