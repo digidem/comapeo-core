@@ -112,6 +112,14 @@ export class DataType extends TypedEmitter {
     return this.#table
   }
 
+  get schemaName() {
+    return this.#schemaName;
+  }
+
+  get namespace() {
+    return this.#dataStore.namespace
+  }
+
   get writerCore() {
     return this.#dataStore.writerCore
   }

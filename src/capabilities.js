@@ -299,13 +299,13 @@ export class Capabilities {
         "Only the project creator can assign the project creator's role"
       )
     }
-    const ownCapabilities = await this.getCapabilities(this.#ownDeviceId)
 
     if (roleId === LEFT_ROLE_ID) {
       if (deviceId !== this.#ownDeviceId) {
         throw new Error('Cannot assign LEFT role to another device')
       }
     } else {
+      const ownCapabilities = await this.getCapabilities(this.#ownDeviceId)
       if (!ownCapabilities.roleAssignment.includes(roleId)) {
         throw new Error('No capability to assign role ' + roleId)
       }
