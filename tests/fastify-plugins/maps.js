@@ -71,6 +71,26 @@ test('prefix opt is handled correctly', async (t) => {
   }
 })
 
+test('mapeoMaps decorator context', async (t) => {
+  const server = setup(t)
+
+  server.register(StaticMapsPlugin, {
+    prefix: 'static',
+    staticRootDir: MAP_FIXTURES_PATH,
+  })
+
+  server.register(MapServerPlugin, { prefix: 'maps' })
+
+  const address = await server.listen()
+
+  t.ok(server.hasDecorator('mapeoMaps'), 'decorator added')
+
+  t.test('mapeoMaps.getStyleJsonUrl()', async (st) => {
+    const styleJsonUrl = await server.mapeoMaps.getStyleJsonUrl()
+    st.is(styleJsonUrl, new URL('/maps/style.json', address).href)
+  })
+})
+
 test('/style.json resolves style.json of local "default" static map when available', async (t) => {
   const server = setup(t)
 
