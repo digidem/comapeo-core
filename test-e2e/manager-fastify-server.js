@@ -12,10 +12,15 @@ import Fastify from 'fastify'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { FastifyController } from '../src/fastify-controller.js'
+import { plugin as StaticMapsPlugin } from '../src/fastify-plugins/maps/static-maps.js'
+import { plugin as MapServerPlugin } from '../src/fastify-plugins/maps/index.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../tests/fixtures/blob-api/', import.meta.url)
 )
+
+const MAP_FIXTURES_PATH = new URL('../tests/fixtures/maps', import.meta.url)
+  .pathname
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -277,6 +282,57 @@ test('retrieving icons using url', async (t) => {
       size: 'small',
     })
   }, 'getting url after fastifyController.stop() has been called fails')
+  clock.tick(100_000)
+  await exceptionPromise2
+})
+
+test('retrieving style.json using stable url', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.teardown(() => clock.uninstall())
+
+  const fastify = Fastify()
+
+  fastify.register(StaticMapsPlugin, {
+    prefix: 'static',
+    staticRootDir: MAP_FIXTURES_PATH,
+  })
+  fastify.register(MapServerPlugin, {
+    prefix: 'maps',
+  })
+
+  const fastifyController = new FastifyController({ fastify })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+    fastify,
+  })
+
+  const exceptionPromise1 = t.exception(async () => {
+    await manager.getMapStyleJsonUrl()
+  }, 'cannot retrieve style json url before HTTP server starts')
+
+  clock.tick(100_000)
+  await exceptionPromise1
+
+  fastifyController.start({ port: 1234 })
+
+  const styleJsonUrl = await manager.getMapStyleJsonUrl()
+
+  t.ok(new URL(styleJsonUrl))
+
+  const response = await fetch(styleJsonUrl)
+
+  t.is(response.status, 200, 'response status ok')
+
+  await fastifyController.stop()
+
+  const exceptionPromise2 = t.exception(async () => {
+    await manager.getMapStyleJsonUrl()
+  }, 'cannot retrieve style json url after HTTP server closes')
+
   clock.tick(100_000)
   await exceptionPromise2
 })
