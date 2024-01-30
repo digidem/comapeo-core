@@ -13,7 +13,8 @@ export const plugin = fp(mapsPlugin, {
 })
 
 /**
- * @typedef {{ prefix?: string }} MapsPluginOpts
+ * @typedef {object} MapsPluginOpts
+ * @property {string} [prefix]
  */
 
 /** @type {import('fastify').FastifyPluginAsync<MapsPluginOpts>} */
