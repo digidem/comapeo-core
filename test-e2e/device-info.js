@@ -26,11 +26,13 @@ test('write and read deviceInfo', async (t) => {
   const info1 = { name: 'my device' }
   await manager.setDeviceInfo(info1)
   const readInfo1 = await manager.getDeviceInfo()
-  t.alike(readInfo1, info1)
+  const expected1 = { ...info1, deviceId: manager.deviceId }
+  t.alike(readInfo1, expected1)
   const info2 = { name: 'new name' }
   await manager.setDeviceInfo(info2)
   const readInfo2 = await manager.getDeviceInfo()
-  t.alike(readInfo2, info2)
+  const expected2 = { ...info2, deviceId: manager.deviceId }
+  t.alike(readInfo2, expected2)
 })
 
 test('device info written to projects', (t) => {

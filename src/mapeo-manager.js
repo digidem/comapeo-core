@@ -678,7 +678,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @returns {Promise<Partial<import('./schema/client.js').DeviceInfoParam>>}
+   * @returns {Promise<{ deviceId: string } & Partial<import('./schema/client.js').DeviceInfoParam>>}
    */
   async getDeviceInfo() {
     const row = this.#db
@@ -686,7 +686,7 @@ export class MapeoManager extends TypedEmitter {
       .from(localDeviceInfoTable)
       .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
       .get()
-    return row ? row.deviceInfo : {}
+    return { deviceId: this.#deviceId, ...row?.deviceInfo }
   }
 
   /**
