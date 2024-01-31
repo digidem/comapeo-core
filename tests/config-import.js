@@ -2,8 +2,8 @@ import { test } from 'brittle'
 import { readConfig } from '../src/config-import.js'
 
 test('reading config file', async (t) => {
-  // t.plan(7)
   t.exception(async () => await readConfig(''), /ENOENT/, 'file not found')
+
   t.exception(
     async () => await readConfig('./tests/fixtures/config/notAZip.txt'),
     /End of Central Directory Record not found/,
@@ -65,5 +65,71 @@ test('reading config file', async (t) => {
     'fields field in presets.json is not an object'
   )
 
-  t.ok(await readConfig('./tests/fixtures/config/config.zip'), 'valid zip')
+  t.ok(await readConfig('./tests/fixtures/config/validConfig.zip'), 'valid zip')
 })
+
+test('icons', async (t) => {
+  // filename
+  let config = await readConfig(
+    './tests/fixtures/config/invalidIconFilename.zip'
+  )
+  /* eslint-disable-next-line */
+  for await (const icon of config.icons()) {
+  }
+  t.is(
+    config.errors?.length,
+    1,
+    'we got one error when reading icon with wrong filename'
+  )
+  t.not(
+    config.errors && config.errors[0].message.match(/Unexpected icon filename/),
+    null,
+    'the error message is about badly formed icon name'
+  )
+
+  // pixel density
+  config = await readConfig(
+    './tests/fixtures/config/invalidIconPixelDensity.zip'
+  )
+
+  /* eslint-disable-next-line */
+  for await (const icon of config.icons()) {
+  }
+
+  t.is(
+    config.errors?.length,
+    1,
+    'we got one error when reading icon with wrong pixel density'
+  )
+  t.not(
+    config.errors && config.errors[0].message.match(/invalid pixel density/),
+    null,
+    'the error message is about invalid pixel density'
+  )
+
+  // size
+  config = await readConfig('./tests/fixtures/config/invalidIconSize.zip')
+
+  /* eslint-disable-next-line */
+  for await (const icon of config.icons()) {
+  }
+
+  t.is(
+    config.errors?.length,
+    1,
+    'we got one error when reading icon with wrong size'
+  )
+  t.not(
+    config.errors && config.errors[0].message.match(/invalid size/),
+    null,
+    'the error message is about invalid size'
+  )
+})
+
+// test('fields', async (t) => {
+//   t.pass()
+// })
+
+// test('presets', async (t) => {
+//   t.pass()
+// })

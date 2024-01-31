@@ -56,13 +56,17 @@ export async function readConfig(configPath) {
      */
     async *icons() {
       const iconEntries = entries
-        .filter((e) => e.filename.startsWith('/icons/'))
+        .filter(
+          (e) =>
+            // omit the icons directory itself
+            e.filename.startsWith('icons/') && !e.filename.endsWith('icons/')
+        )
         .sort()
       /** @type {IconData | undefined} */
       let icon
       for (const entry of iconEntries) {
         const buf = await buffer(await entry.openReadStream())
-        const iconFilename = entry.filename.replace(/^\/icons\//, '')
+        const iconFilename = entry.filename.replace(/^icons\//, '')
         try {
           const { name, variant } = parseIcon(iconFilename, buf)
           if (!icon) {
