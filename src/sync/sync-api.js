@@ -43,7 +43,7 @@ export const kSyncState = Symbol('sync state')
  */
 export class SyncApi extends TypedEmitter {
   #coreManager
-  #capabilities
+  #roles
   /** @type {Map<import('protomux'), PeerSyncController>} */
   #peerSyncControllers = new Map()
   /** @type {Set<string>} */
@@ -58,15 +58,15 @@ export class SyncApi extends TypedEmitter {
    *
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
-   * @param {import("../capabilities.js").Capabilities} opts.capabilities
+   * @param {import('../roles.js').Roles} opts.roles
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
    */
-  constructor({ coreManager, throttleMs = 200, capabilities, logger }) {
+  constructor({ coreManager, throttleMs = 200, roles, logger }) {
     super()
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
-    this.#capabilities = capabilities
+    this.#roles = roles
     this[kSyncState] = new SyncState({ coreManager, throttleMs })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
@@ -181,7 +181,7 @@ export class SyncApi extends TypedEmitter {
       protomux,
       coreManager: this.#coreManager,
       syncState: this[kSyncState],
-      capabilities: this.#capabilities,
+      roles: this.#roles,
       logger: this.#l,
     })
     this.#peerSyncControllers.set(protomux, peerSyncController)

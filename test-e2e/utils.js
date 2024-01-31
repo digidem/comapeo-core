@@ -11,7 +11,7 @@ import { valueOf } from '../src/utils.js'
 import { randomInt } from 'node:crypto'
 import { temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
-import { MEMBER_ROLE_ID } from '../src/capabilities.js'
+import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
 
 const FAST_TESTS = !!process.env.FAST_TESTS
@@ -78,7 +78,7 @@ export function connectPeers(managers, { discovery = true } = {}) {
  *   invitor: MapeoManager,
  *   projectId: string,
  *   invitees: MapeoManager[],
- *   roleId?: import('../src/capabilities.js').RoleId,
+ *   roleId?: import('../src/roles.js').RoleIdAssignableToOthers,
  *   roleName?: string
  *   reject?: boolean
  * }} opts
