@@ -98,7 +98,9 @@ async function routes(fastify, opts) {
         }
 
         try {
-          const upstreamResponse = await fetch(upstreamUrlObj.href)
+          const upstreamResponse = await fetch(upstreamUrlObj.href, {
+            signal: AbortSignal.timeout(3000),
+          })
 
           if (upstreamResponse.ok) {
             // Set up headers to forward
