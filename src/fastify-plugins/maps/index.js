@@ -99,7 +99,7 @@ async function routes(fastify, opts) {
 
         try {
           const upstreamResponse = await fetch(upstreamUrlObj.href, {
-            signal: AbortSignal.timeout(3000),
+            signal: AbortSignal.timeout(30_000),
           })
 
           if (upstreamResponse.ok) {
