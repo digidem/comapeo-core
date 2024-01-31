@@ -103,8 +103,7 @@ async function routes(fastify, opts) {
           if (upstreamResponse.ok) {
             // Set up headers to forward
             for (const [name, value] of upstreamResponse.headers) {
-              // TODO: Typically Mapbox gzips the content but we'd need to make sure
-              // something like https://github.com/fastify/fastify-compress/ is registered
+              // We do our own content encoding
               if (name.toLowerCase() === 'content-encoding') continue
               rep.header(name, value)
             }
@@ -121,7 +120,7 @@ async function routes(fastify, opts) {
             )
           }
         } catch (err) {
-          fastify.log.warn('Upstream style.json request totally failed')
+          fastify.log.warn('Upstream style.json request totally failed', err)
         }
       }
 
