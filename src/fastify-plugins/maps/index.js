@@ -75,12 +75,9 @@ async function routes(fastify, opts) {
           ? styleUrlWithApiKey(defaultOnlineStyleUrl, apiKey)
           : defaultOnlineStyleUrl
 
-        const upstreamResponse = await fetch(upstreamUrl).catch((err) => {
-          fastify.log.error(err)
-          return null
-        })
+        try {
+          const upstreamResponse = await fetch(upstreamUrl)
 
-        if (upstreamResponse) {
           if (upstreamResponse.ok) {
             // Set up headers to forward
             for (const [key, value] of upstreamResponse.headers) {
@@ -101,6 +98,8 @@ async function routes(fastify, opts) {
               `Upstream style.json request failed: ${upstreamResponse.statusText}`
             )
           }
+        } catch (err) {
+          fastify.log.error(err)
         }
       }
 
