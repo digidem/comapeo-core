@@ -6,6 +6,7 @@ import { kCreateWithDocId } from './datatype/index.js'
 export const COORDINATOR_ROLE_ID = 'f7c150f5a3a9a855'
 export const MEMBER_ROLE_ID = '012fd2d431c0bf60'
 export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
+export const LEFT_ROLE_ID = '8ced989b1904606b'
 
 /**
  * @typedef {object} DocCapability
@@ -24,7 +25,7 @@ export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
  */
 
 /**
- * @typedef {typeof COORDINATOR_ROLE_ID | typeof MEMBER_ROLE_ID | typeof BLOCKED_ROLE_ID} RoleId
+ * @typedef {typeof COORDINATOR_ROLE_ID | typeof MEMBER_ROLE_ID | typeof BLOCKED_ROLE_ID | typeof LEFT_ROLE_ID} RoleId
  */
 
 /**
@@ -132,6 +133,28 @@ export const DEFAULT_CAPABILITIES = {
     roleAssignment: [],
     sync: {
       auth: 'blocked',
+      config: 'blocked',
+      data: 'blocked',
+      blobIndex: 'blocked',
+      blob: 'blocked',
+    },
+  },
+  [LEFT_ROLE_ID]: {
+    name: 'Left',
+    docs: mapObject(currentSchemaVersions, (key) => {
+      return [
+        key,
+        {
+          readOwn: false,
+          writeOwn: false,
+          readOthers: false,
+          writeOthers: false,
+        },
+      ]
+    }),
+    roleAssignment: [],
+    sync: {
+      auth: 'allowed',
       config: 'blocked',
       data: 'blocked',
       blobIndex: 'blocked',
@@ -277,14 +300,37 @@ export class Capabilities {
       )
     }
     const ownCapabilities = await this.getCapabilities(this.#ownDeviceId)
-    if (!ownCapabilities.roleAssignment.includes(roleId)) {
-      throw new Error('No capability to assign role ' + roleId)
+
+    if (roleId === LEFT_ROLE_ID) {
+      if (deviceId !== this.#ownDeviceId) {
+        throw new Error('Cannot assign LEFT role to another device')
+      }
+    } else {
+      if (!ownCapabilities.roleAssignment.includes(roleId)) {
+        throw new Error('No capability to assign role ' + roleId)
+      }
     }
-    await this.#dataType[kCreateWithDocId](deviceId, {
-      schemaName: 'role',
-      roleId,
-      fromIndex,
-    })
+
+    const existingRoleDoc = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(() => null)
+
+    if (existingRoleDoc) {
+      await this.#dataType.update(
+        [existingRoleDoc.versionId, ...existingRoleDoc.forks],
+        {
+          schemaName: 'role',
+          roleId,
+          fromIndex,
+        }
+      )
+    } else {
+      await this.#dataType[kCreateWithDocId](deviceId, {
+        schemaName: 'role',
+        roleId,
+        fromIndex,
+      })
+    }
   }
 
   async #isProjectCreator() {

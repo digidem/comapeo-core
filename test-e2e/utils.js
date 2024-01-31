@@ -1,6 +1,7 @@
 // @ts-check
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
+import Fastify from 'fastify'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
@@ -174,6 +175,7 @@ export async function createManagers(count, t) {
 export function createManager(seed, t) {
   const dbFolder = FAST_TESTS ? ':memory:' : temporaryDirectory()
   const coreStorage = FAST_TESTS ? () => new RAM() : temporaryDirectory()
+
   t.teardown(async () => {
     if (FAST_TESTS) return
     await Promise.all([
@@ -192,6 +194,7 @@ export function createManager(seed, t) {
     clientMigrationsFolder,
     dbFolder,
     coreStorage,
+    fastify: Fastify(),
   })
 }
 

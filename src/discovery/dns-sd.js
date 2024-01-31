@@ -1,6 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { Bonjour } from 'bonjour-service'
 import pTimeout from 'p-timeout'
+import { isIPv4 } from 'node:net'
 import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
 import { Logger } from '../logger.js'
@@ -39,7 +40,7 @@ export class DnsSd extends TypedEmitter {
       this.#log(`Ignoring service up from self`)
       return
     }
-    const address = service.addresses?.filter(isIpv4)[0]
+    const address = service.addresses?.find(isIPv4)
     /* c8 ignore start */
     if (!address) {
       this.#log(`service up (${service.name}) with no ipv4 addresses`)
@@ -56,7 +57,7 @@ export class DnsSd extends TypedEmitter {
       this.#log(`Ignoring service down from self`)
       return
     }
-    const address = service.addresses?.filter(isIpv4)[0]
+    const address = service.addresses?.find(isIPv4)
     /* c8 ignore start */
     if (!address) {
       this.#log(`service down (${service.name}) with no ipv4 addresses`)
@@ -227,13 +228,4 @@ export class DnsSd extends TypedEmitter {
     )
     return this.#bonjour
   }
-}
-
-/**
- * Returns true if the given ip is an ipv4 address
- * @param {string} ip
- * @returns {boolean}
- */
-function isIpv4(ip) {
-  return ip.split('.').length === 4
 }

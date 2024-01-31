@@ -2,30 +2,19 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
 import assert from 'node:assert'
-import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
-import { CoreIndex } from './core-index.js'
-import * as rle from './bitfield-rle.js'
-import { Logger } from '../logger.js'
-import { keyToId } from '../utils.js'
+import { placeholder, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import Hypercore from 'hypercore'
 
+import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
+import { Logger } from '../logger.js'
+import { NAMESPACES } from '../constants.js'
+import { keyToId } from '../utils.js'
+import { coresTable } from '../schema/project.js'
+import * as rle from './bitfield-rle.js'
+import { CoreIndex } from './core-index.js'
+
 export const kCoreManagerReplicate = Symbol('replicate core manager')
-// WARNING: Changing these will break things for existing apps, since namespaces
-// are used for key derivation
-export const NAMESPACES = /** @type {const} */ ([
-  'auth',
-  'config',
-  'data',
-  'blobIndex',
-  'blob',
-])
-// WARNING: If changed once in production then we need a migration strategy
-const TABLE = 'cores'
-const CREATE_SQL = `CREATE TABLE IF NOT EXISTS ${TABLE} (
-  publicKey BLOB NOT NULL,
-  namespace TEXT NOT NULL
-)`
 
 /** @typedef {import('hypercore')<'binary', Buffer>} Core */
 /** @typedef {(typeof NAMESPACES)[number]} Namespace */
@@ -46,7 +35,7 @@ export class CoreManager extends TypedEmitter {
   /** @type {Core} */
   #creatorCore
   #projectKey
-  #addCoreSqlStmt
+  #queries
   #encryptionKeys
   #projectExtension
   /** @type {'opened' | 'closing' | 'closed'} */
@@ -69,7 +58,7 @@ export class CoreManager extends TypedEmitter {
 
   /**
    * @param {Object} options
-   * @param {import('better-sqlite3').Database} options.sqlite better-sqlite3 database instance
+   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} options.db Drizzle better-sqlite3 database instance
    * @param {import('@mapeo/crypto').KeyManager} options.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} options.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
@@ -79,7 +68,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Logger} [options.logger]
    */
   constructor({
-    sqlite,
+    db,
     keyManager,
     projectKey,
     projectSecretKey,
@@ -106,12 +95,21 @@ export class CoreManager extends TypedEmitter {
     this.#encryptionKeys = encryptionKeys
     this.#autoDownload = autoDownload
 
-    // Make sure table exists for persisting known cores
-    sqlite.prepare(CREATE_SQL).run()
     // Pre-prepare SQL statement for better performance
-    this.#addCoreSqlStmt = sqlite.prepare(
-      `INSERT OR IGNORE INTO ${TABLE} VALUES (@publicKey, @namespace)`
-    )
+    this.#queries = {
+      addCore: db
+        .insert(coresTable)
+        .values({
+          publicKey: placeholder('publicKey'),
+          namespace: placeholder('namespace'),
+        })
+        .onConflictDoNothing()
+        .prepare(),
+      removeCores: db
+        .delete(coresTable)
+        .where(eq(coresTable.namespace, placeholder('namespace')))
+        .prepare(),
+    }
 
     // Note: the primary key here should not be used, because we do not rely on
     // corestore for key storage (i.e. we do not get cores from corestore via a
@@ -145,9 +143,8 @@ export class CoreManager extends TypedEmitter {
     }
 
     // Load persisted cores
-    const stmt = sqlite.prepare(`SELECT publicKey, namespace FROM ${TABLE}`)
-    // @ts-ignore - don't know types returned from sqlite here
-    for (const { publicKey, namespace } of stmt.all()) {
+    const rows = db.select().from(coresTable).all()
+    for (const { publicKey, namespace } of rows) {
       this.#addCore({ publicKey }, namespace)
     }
 
@@ -217,7 +214,6 @@ export class CoreManager extends TypedEmitter {
    * Get an array of all cores in the given namespace
    *
    * @param {Namespace} namespace
-   * @returns
    */
   getCores(namespace) {
     return this.#coreIndex.getByNamespace(namespace)
@@ -327,7 +323,7 @@ export class CoreManager extends TypedEmitter {
     }
 
     if (persist) {
-      this.#addCoreSqlStmt.run({ publicKey: key, namespace })
+      this.#queries.addCore.run({ publicKey: key, namespace })
     }
 
     this.#l.log(
@@ -477,6 +473,28 @@ export class CoreManager extends TypedEmitter {
       },
     })
     return this.#corestore.replicate(stream)
+  }
+
+  /**
+   * @param {Exclude<typeof NAMESPACES[number], 'auth'>} namespace
+   * @param {Object} [opts]
+   * @param {boolean} [opts.deleteOwn=false]
+   * @returns {Promise<void>}
+   */
+  async deleteData(namespace, { deleteOwn = false } = {}) {
+    const coreRecords = this.getCores(namespace)
+    const ownWriterCore = this.getWriterCore(namespace)
+
+    const deletionPromises = []
+
+    for (const { core, key } of coreRecords) {
+      if (!deleteOwn && key.equals(ownWriterCore.key)) continue
+      deletionPromises.push(core.purge())
+    }
+
+    await Promise.all(deletionPromises)
+
+    this.#queries.removeCores.run({ namespace })
   }
 }
 

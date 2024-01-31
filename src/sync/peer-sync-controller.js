@@ -1,5 +1,5 @@
 import mapObject from 'map-obj'
-import { NAMESPACES } from '../core-manager/index.js'
+import { NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
 import { createMap } from '../utils.js'
 

@@ -9,7 +9,7 @@ import {
 } from './utils.js'
 import { kCoreManager } from '../src/mapeo-project.js'
 import { getKeys } from '../tests/helpers/core-manager.js'
-import { NAMESPACES } from '../src/core-manager/index.js'
+import { NAMESPACES } from '../src/constants.js'
 import { PRESYNC_NAMESPACES } from '../src/sync/peer-sync-controller.js'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'

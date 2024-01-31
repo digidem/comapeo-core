@@ -1,28 +1,40 @@
-# Mapeo's Media Server
+# Mapeo's HTTP Server
 
-Each Mapeo manager instance includes an embedded HTTP server that is responsible for serving media assets over HTTP. Each server is responsible for handling requests for assets that can live in any Mapeo project (the URL structure reflects this, as we will show later on).
+Each Mapeo manager instance requires an adjacent Fastify server instance that is responsible for serving assets over HTTP. Each Fastify instance is responsible for handling requests for assets that can live in any Mapeo project (the URL structure reflects this, as we will show later on).
 
 Some boilerplate for getting started with a Mapeo project:
 
 ```js
-// Create the manager instance (truncated for brevity)
-const manager = new MapeoManager({...})
+// Create Fastify instance
+const fastify = Fastify()
 
-// Start the media server (no need to await in most cases, unless you need to immediately access the HTTP endpoints)
-manager.startMediaServer()
+// Create the manager instance (truncated for brevity)
+const manager = new MapeoManager({ fastify, ... })
+
+// Start the HTTP server (awaitable but no need to await in most cases, unless you need to immediately access the HTTP endpoints)
+fastify.listen()
+
+// (optional) Create FastifyController instance for managing the starting and stopping the Fastify server (handles it more gracefully and allows pausing and restarting)
+// This is useful if you are working in a context that needs to pause or restart the server frequently.
+// e.g.
+//   const fastifyController = new FastifyController({ fastify })
+//   fastifyController.start()
 
 // Create a project
 const projectPublicId = await manager.createProject()
 
 // Get the project instance
 const project = await manager.getProject(projectPublicId)
+
+// Whenever you need to stop the HTTP server, use the controller
+await fastifyController.stop()
 ```
 
 The example code in the following sections assume that some variation of the above has been done already.
 
 ## Working with blobs
 
-Blobs represent any binary objects. In the case of Mapeo, that will most likely be media assets such as photos, videos, and audio files. Mapeo provides a project-scoped API that is used for creating and retrieving blobs. Combined with the media server, applications can access them using HTTP requests.
+Blobs represent any binary objects. In the case of Mapeo, that will most likely be media assets such as photos, videos, and audio files. Mapeo provides a project-scoped API that is used for creating and retrieving blobs. Combined with the HTTP server, applications can access them using HTTP requests.
 
 In the case of an observation record, there can be any number of references to "attachments" (in most cases, an image). In order to create these attachments we need to work with a project's blob API, which can be accessed using `project.$blobs`.
 
@@ -54,7 +66,7 @@ const observation = await project.observation.create({
 })
 ```
 
-The attachment provides the information that is needed to create a HTTP URL that can be used to access the asset from the media server:
+The attachment provides the information that is needed to create a HTTP URL that can be used to access the asset from the HTTP server:
 
 ```js
 // If you don't already have the observation record, you may need to retrieve it by doing the following
@@ -81,7 +93,7 @@ http://{HOST_NAME}:{PORT}/blobs/{PROJECT_PUBLIC_ID}/{DRIVE_DISCOVERY_ID}/{TYPE}/
 Explanation of the different parts of this URL:
 
 - `HOST_NAME`: Hostname of the server. Defaults to `127.0.0.1` (localhost)
-- `PORT`: Port that's being listened on. A random available port is used when the media server is started.
+- `PORT`: Port that's being listened on. A random available port is used when the HTTP server is started.
 - `PROJECT_PUBLIC_ID`: The public ID used to identify the project of interest.
 - `DRIVE_DISCOVERY_ID`: The discovery ID of the Hyperdrive instance where the blob of interest is located.
 - `TYPE`: The asset type. Can be `'photo'`, `'video'`, or `'audio'`.
@@ -104,7 +116,7 @@ You can then use this URL with anything that uses HTTP to fetch media. Some exam
 
 ## Working with icons
 
-Icons are primarily used in the context of project presets, where they are displayed as visual representations of a particular category when recording observations. Mapeo provides a project-scoped API for creating and retrieving icons. Combined with the media server, applications can access them using HTTP requests.
+Icons are primarily used in the context of project presets, where they are displayed as visual representations of a particular category when recording observations. Mapeo provides a project-scoped API for creating and retrieving icons. Combined with the HTTP server, applications can access them using HTTP requests.
 
 In order to create an icon we need to work with a project's icon API, which can be accessed using `project.$icons`:
 
@@ -183,7 +195,7 @@ http://{HOST_NAME}:{PORT}/icons/{PROJECT_PUBLIC_ID}/{ICON_ID}/{SIZE}{PIXEL_DENSI
 Explanation of the different parts of this URL:
 
 - `HOST_NAME`: Hostname of the server. Defaults to `127.0.0.1` (localhost)
-- `PORT`: Port that's being listened on. A random available port is used when the media server is started.
+- `PORT`: Port that's being listened on. A random available port is used when the HTTP server is started.
 - `PROJECT_PUBLIC_ID`: The public ID used to identify the project of interest.
 - `ICON_ID`: The ID of the icon record associated with the asset.
 - `SIZE`: The denoted size of the asset. Can be `'small'`, `'medium'`, or `'large'`.

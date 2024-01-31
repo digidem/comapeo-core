@@ -73,6 +73,7 @@
     "@types/b4a": "^1.6.0",
     "@types/debug": "^4.1.8",
     "@types/json-schema": "^7.0.11",
+    "@types/nanobench": "^3.0.0",
     "@types/node": "^18.16.3",
     "@types/sinonjs__fake-timers": "^8.1.2",
     "@types/streamx": "^2.9.1",

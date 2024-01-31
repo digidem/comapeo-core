@@ -8,8 +8,10 @@ import FakeTimers from '@sinonjs/fake-timers'
 import { Agent, fetch as uFetch } from 'undici'
 import fs from 'fs/promises'
 import RAM from 'random-access-memory'
+import Fastify from 'fastify'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
+import { FastifyController } from '../src/fastify-controller.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../tests/fixtures/blob-api/', import.meta.url)
@@ -21,17 +23,22 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
 test('start/stop lifecycle', async (t) => {
+  const fastify = Fastify()
+  const fastifyController = new FastifyController({ fastify })
+
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    fastify,
   })
 
-  const project = await manager.getProject(await manager.createProject())
+  // Manager should await for the server to start internally
+  fastifyController.start()
 
-  await manager.startMediaServer()
+  const project = await manager.getProject(await manager.createProject())
 
   const blobUrl1 = await project.$blobs.getUrl({
     driveId: randomBytes(32).toString('hex'),
@@ -41,8 +48,6 @@ test('start/stop lifecycle', async (t) => {
   })
   const response1 = await fetch(blobUrl1)
   t.is(response1.status, 404, 'server started and listening')
-
-  await manager.startMediaServer()
 
   const blobUrl2 = await project.$blobs.getUrl({
     driveId: randomBytes(32).toString('hex'),
@@ -56,13 +61,14 @@ test('start/stop lifecycle', async (t) => {
     'server port is the same'
   )
 
-  await manager.stopMediaServer()
+  await fastifyController.stop()
 
   await t.exception.all(async () => {
     await fetch(blobUrl2)
   }, 'failed to fetch due to connection error')
 
-  await manager.startMediaServer()
+  // Manager should await for the server to start internally
+  fastifyController.start()
 
   const blobUrl3 = await project.$blobs.getUrl({
     driveId: randomBytes(32).toString('hex'),
@@ -73,7 +79,7 @@ test('start/stop lifecycle', async (t) => {
   const response3 = await fetch(blobUrl3)
   t.is(response3.status, 404, 'server started and listening')
 
-  await manager.stopMediaServer()
+  await fastifyController.stop()
 
   await t.exception.all(async () => {
     await fetch(blobUrl3)
@@ -84,12 +90,15 @@ test('retrieving blobs using url', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.teardown(() => clock.uninstall())
 
+  const fastify = Fastify()
+  const fastifyController = new FastifyController({ fastify })
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    fastify,
   })
 
   const project = await manager.getProject(await manager.createProject())
@@ -101,12 +110,13 @@ test('retrieving blobs using url', async (t) => {
       type: 'photo',
       variant: 'original',
     })
-  }, 'getting blob url fails if manager.startMediaServer() has not been called yet')
+  }, 'getting blob url fails if fastifyController.start() has not been called yet')
 
   clock.tick(100_000)
   await exceptionPromise1
 
-  await manager.startMediaServer()
+  // Manager should await for the server to start internally
+  fastifyController.start()
 
   await t.test('blob does not exist', async (st) => {
     const blobUrl = await project.$blobs.getUrl({
@@ -118,7 +128,7 @@ test('retrieving blobs using url', async (t) => {
 
     st.ok(
       new URL(blobUrl),
-      'retrieving url based on media server resolves after starting it'
+      'retrieving url based on HTTP server resolves after starting it'
     )
 
     const response = await fetch(blobUrl)
@@ -139,7 +149,7 @@ test('retrieving blobs using url', async (t) => {
 
     st.ok(
       new URL(blobUrl),
-      'retrieving url based on media server resolves after starting it'
+      'retrieving url based on HTTP server resolves after starting it'
     )
 
     const response = await fetch(blobUrl)
@@ -157,7 +167,7 @@ test('retrieving blobs using url', async (t) => {
     st.alike(body, expected, 'matching reponse body')
   })
 
-  await manager.stopMediaServer()
+  await fastifyController.stop()
 
   const exceptionPromise2 = t.exception(async () => {
     await project.$blobs.getUrl({
@@ -166,7 +176,7 @@ test('retrieving blobs using url', async (t) => {
       type: 'photo',
       variant: 'original',
     })
-  }, 'getting url after manager.stop() has been called fails')
+  }, 'getting url after fastifyController.stop() has been called fails')
   clock.tick(100_000)
   await exceptionPromise2
 })
@@ -175,12 +185,15 @@ test('retrieving icons using url', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.teardown(() => clock.uninstall())
 
+  const fastify = Fastify()
+  const fastifyController = new FastifyController({ fastify })
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
+    fastify,
   })
 
   const project = await manager.getProject(await manager.createProject())
@@ -191,12 +204,12 @@ test('retrieving icons using url', async (t) => {
       pixelDensity: 1,
       size: 'small',
     })
-  }, 'getting icon url fails if manager.startMediaServer() has not been called yet')
+  }, 'getting icon url fails if fastifyController.start() has not been called yet')
 
   clock.tick(100_000)
   await exceptionPromise1
 
-  await manager.startMediaServer()
+  await fastifyController.start()
 
   await t.test('icon does not exist', async (st) => {
     const nonExistentIconId = randomBytes(32).toString('hex')
@@ -209,7 +222,7 @@ test('retrieving icons using url', async (t) => {
 
     st.ok(
       new URL(iconUrl),
-      'retrieving url based on media server resolves after starting it'
+      'retrieving url based on HTTP server resolves after starting it'
     )
 
     const response = await fetch(iconUrl)
@@ -240,7 +253,7 @@ test('retrieving icons using url', async (t) => {
 
     st.ok(
       new URL(iconUrl),
-      'retrieving url based on media server resolves after starting it'
+      'retrieving url based on HTTP server resolves after starting it'
     )
 
     const response = await fetch(iconUrl)
@@ -255,7 +268,7 @@ test('retrieving icons using url', async (t) => {
     st.alike(body, iconBuffer, 'matching response body')
   })
 
-  await manager.stopMediaServer()
+  await fastifyController.stop()
 
   const exceptionPromise2 = t.exception(async () => {
     await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {
@@ -263,7 +276,7 @@ test('retrieving icons using url', async (t) => {
       pixelDensity: 1,
       size: 'small',
     })
-  }, 'getting url after manager.stop() has been called fails')
+  }, 'getting url after fastifyController.stop() has been called fails')
   clock.tick(100_000)
   await exceptionPromise2
 })

@@ -4,7 +4,6 @@
 // - KeyPair
 // - DhtNode
 
-declare module 'nanobench'
 declare module 'sodium-universal'
 declare module 'sub-encoder'
 

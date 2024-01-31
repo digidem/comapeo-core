@@ -1,4 +1,5 @@
 import test from 'brittle'
+import { access, constants } from 'node:fs/promises'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Hypercore from 'hypercore'
 import RAM from 'random-access-memory'
@@ -20,6 +21,9 @@ import RandomAccessFile from 'random-access-file'
 import path from 'path'
 import { Transform } from 'streamx'
 import { waitForCores } from './helpers/core-manager.js'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { coresTable } from '../src/schema/project.js'
+import { eq } from 'drizzle-orm'
 
 async function createCore(key) {
   const core = new Hypercore(RAM, key)
@@ -28,12 +32,11 @@ async function createCore(key) {
 }
 
 test('project creator auth core has project key', async function (t) {
-  const sqlite = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
-  const cm = new CoreManager({
-    sqlite,
+
+  const cm = createCoreManager({
     keyManager,
     storage: RAM,
     projectKey,
@@ -205,11 +208,13 @@ test('close()', async (t) => {
 })
 
 test('Added cores are persisted', async (t) => {
-  const sqlite = new Sqlite(':memory:')
   const keyManager = new KeyManager(randomBytes(16))
   const projectKey = randomBytes(32)
-  const cm1 = new CoreManager({
-    sqlite,
+
+  const db = drizzle(new Sqlite(':memory:'))
+
+  const cm1 = createCoreManager({
+    db,
     keyManager,
     storage: RAM,
     projectKey,
@@ -219,8 +224,8 @@ test('Added cores are persisted', async (t) => {
 
   await cm1.close()
 
-  const cm2 = new CoreManager({
-    sqlite,
+  const cm2 = createCoreManager({
+    db,
     keyManager,
     storage: RAM,
     projectKey,
@@ -260,10 +265,8 @@ test('poolSize limits number of open file descriptors', async function (t) {
 
   const CORE_COUNT = 500
   await temporaryDirectoryTask(async (tempPath) => {
-    const sqlite = new Sqlite(':memory:')
     const storage = (name) => new RandomAccessFile(path.join(tempPath, name))
-    const cm = new CoreManager({
-      sqlite,
+    const cm = createCoreManager({
       keyManager,
       storage,
       projectKey,
@@ -283,12 +286,10 @@ test('poolSize limits number of open file descriptors', async function (t) {
 
   await temporaryDirectoryTask(async (tempPath) => {
     const POOL_SIZE = 100
-    const sqlite = new Sqlite(':memory:')
     const pool = new RandomAccessFilePool(POOL_SIZE)
     const storage = (name) =>
       new RandomAccessFile(path.join(tempPath, name), { pool })
-    const cm = new CoreManager({
-      sqlite,
+    const cm = createCoreManager({
       keyManager,
       storage,
       projectKey,
@@ -457,6 +458,194 @@ test('unreplicate', async (t) => {
   })
 })
 
+test('deleteData()', async (t) => {
+  await temporaryDirectoryTask(async (tempPath) => {
+    const projectKey = randomBytes(32)
+
+    /** @type {Array<string>} */
+    const storageNames = []
+
+    const peer1TempPath = path.join(tempPath, 'peer1')
+
+    /// Set up core managers
+    const db1 = drizzle(new Sqlite(':memory:'))
+    const cm1 = createCoreManager({
+      db: db1,
+      projectKey,
+      storage: (name) => {
+        storageNames.push(name)
+        return new RandomAccessFile(path.join(peer1TempPath, name))
+      },
+      autoDownload: true,
+    })
+
+    const db2 = drizzle(new Sqlite(':memory:'))
+    const cm2 = createCoreManager({
+      db: db2,
+      projectKey,
+      storage: (name) => {
+        return new RandomAccessFile(path.join(tempPath, 'peer2', name))
+      },
+      // We're only checking the filesystem for peer 1 so can avoid downloading for peer 2
+      autoDownload: false,
+    })
+
+    /// Write data
+    const dataWriter1 = cm1.getWriterCore('data')
+    const dataWriter2 = cm2.getWriterCore('data')
+
+    await dataWriter1.core.ready()
+    await dataWriter2.core.ready()
+
+    await dataWriter1.core.append(
+      Array(100)
+        .fill(null)
+        .map((_, i) => 'block' + i)
+    )
+
+    await dataWriter2.core.append(
+      Array(50)
+        .fill(null)
+        .map((_, i) => 'block' + i)
+    )
+
+    /// Replicate
+    const n1 = new NoiseSecretStream(true)
+    const n2 = new NoiseSecretStream(false)
+    n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
+    cm1[kCoreManagerReplicate](
+      // @ts-expect-error
+      n1
+    )
+    cm2[kCoreManagerReplicate](
+      // @ts-expect-error
+      n2
+    )
+
+    // This delay is needed in order for replication to finish properly
+    await new Promise((res) => setTimeout(res, 200))
+
+    /// Confirmation to ensure that replication worked
+    t.is(
+      cm1.getCores('data').length,
+      2,
+      'peer 1 has expected number of data cores after replication'
+    )
+
+    const peer1DataCoreStoragePath = getCoreStoragePath(
+      // @ts-expect-error
+      dataWriter1.core.discoveryKey.toString('hex')
+    )
+
+    const peer2DataCoreStoragePath = getCoreStoragePath(
+      // @ts-expect-error
+      dataWriter2.core.discoveryKey.toString('hex')
+    )
+
+    const dataCoreStorageNames = storageNames.filter(
+      (name) =>
+        name.startsWith(peer1DataCoreStoragePath) ||
+        name.startsWith(peer2DataCoreStoragePath)
+    )
+
+    // Hypercore uses 4 files per core (oplog, tree, bitfield, data)
+    t.is(
+      dataCoreStorageNames.length,
+      8,
+      'peer 1 has expected number of data core storage files after replication'
+    )
+
+    t.is(
+      db1
+        .select()
+        .from(coresTable)
+        .where(eq(coresTable.namespace, 'data'))
+        .all().length,
+      1,
+      'peer 1 `cores` table has info about `data` core from peer 2'
+    )
+
+    t.is(
+      db2
+        .select()
+        .from(coresTable)
+        .where(eq(coresTable.namespace, 'data'))
+        .all().length,
+      1,
+      'peer 2 `cores` table has info about `data` core from peer 1'
+    )
+
+    /// Delete data (not their own)
+    await t.test('with deleteOwn=false or omitted', async (st) => {
+      await cm1.deleteData('data')
+
+      const peer1DataStoragePreservedForPeer1 = (
+        await checkExistenceForFiles(
+          dataCoreStorageNames
+            .filter((storageName) =>
+              storageName.startsWith(peer1DataCoreStoragePath)
+            )
+            .map((storageName) => path.join(peer1TempPath, storageName))
+        )
+      ).every((exists) => exists === true)
+
+      const peer2DataStorageDeletedForPeer1 = (
+        await checkExistenceForFiles(
+          dataCoreStorageNames
+            .filter((storageName) =>
+              storageName.startsWith(peer2DataCoreStoragePath)
+            )
+            .map((storageName) => path.join(peer1TempPath, storageName))
+        )
+      ).every((exists) => exists === false)
+
+      st.ok(
+        peer1DataStoragePreservedForPeer1,
+        'peer 1 still has `data` storage for itself'
+      )
+
+      st.ok(
+        peer2DataStorageDeletedForPeer1,
+        'peer 1 no longer has `data` storage for peer 2'
+      )
+
+      t.is(
+        db1
+          .select()
+          .from(coresTable)
+          .where(eq(coresTable.namespace, 'data'))
+          .all().length,
+        0,
+        'peer 1 `cores` table has no info about `data` core from peer 2'
+      )
+    })
+
+    /// Delete their own data
+    await t.test('with deleteOwn=true', async (st) => {
+      await cm1.deleteData('data', { deleteOwn: true })
+
+      const peer1DataStorageDeletedForPeer1 = (
+        await checkExistenceForFiles(
+          dataCoreStorageNames
+            .filter((storageName) =>
+              storageName.startsWith(peer1DataCoreStoragePath)
+            )
+            .map((storageName) => path.join(peer1TempPath, storageName))
+        )
+      ).every((exists) => exists === false)
+
+      st.ok(
+        peer1DataStorageDeletedForPeer1,
+        'peer 1 no longer has `data` storage for itself'
+      )
+    })
+
+    n1.destroy()
+    n2.destroy()
+    await Promise.all([once(n1, 'close'), once(n2, 'close')])
+  })
+})
+
 const DEBUG = process.env.DEBUG
 
 // Compare two bitfields (instance of core.core.bitfield or peer.remoteBitfield)
@@ -542,4 +731,27 @@ export function unreplicate(core, protomux) {
   if (!peerToUnreplicate) return
   peerToUnreplicate.channel.close()
   return
+}
+
+/**
+ * From https://github.com/holepunchto/corestore/blob/v6.8.4/index.js#L240
+ *
+ * @param {string} id Core discovery key as hex string
+ */
+function getCoreStoragePath(id) {
+  return ['cores', id.slice(0, 2), id.slice(2, 4), id].join('/')
+}
+
+/**
+ * @param {Array<string>} files
+ * @returns {Promise<Array<boolean>>} Promise that resolves with array of results, where `true` means the file exists and `false` means it does not exist
+ */
+async function checkExistenceForFiles(files) {
+  return Promise.all(
+    files.map((filePath) =>
+      access(filePath, constants.F_OK)
+        .then(() => true)
+        .catch(() => false)
+    )
+  )
 }

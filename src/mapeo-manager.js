@@ -9,7 +9,12 @@ import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
 import { IndexWriter } from './index-writer/index.js'
-import { MapeoProject, kSetOwnDeviceInfo } from './mapeo-project.js'
+import {
+  MapeoProject,
+  kBlobStore,
+  kProjectLeave,
+  kSetOwnDeviceInfo,
+} from './mapeo-project.js'
 import {
   localDeviceInfoTable,
   projectKeysTable,
@@ -26,9 +31,11 @@ import {
   projectKeyToPublicId,
 } from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
+import BlobServerPlugin from './fastify-plugins/blobs.js'
+import IconServerPlugin from './fastify-plugins/icons.js'
+import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
-import { MediaServer } from './media-server.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Capabilities } from './capabilities.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
@@ -36,6 +43,7 @@ import { Logger } from './logger.js'
 import { kSyncState } from './sync/sync-api.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
+/** @typedef {import('type-fest').SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -44,6 +52,10 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 // limit of 1024 per process, so choosing 768 to leave 256 descriptors free for
 // other things e.g. SQLite and other parts of the app.
 const MAX_FILE_DESCRIPTORS = 768
+
+// Prefix names for routes registered with http server
+const BLOBS_PREFIX = 'blobs'
+const ICONS_PREFIX = 'icons'
 
 export const kRPC = Symbol('rpc')
 export const kManagerReplicate = Symbol('replicate manager')
@@ -75,7 +87,7 @@ export class MapeoManager extends TypedEmitter {
   #deviceId
   #localPeers
   #invite
-  #mediaServer
+  #fastify
   #localDiscovery
   #loggerBase
   #l
@@ -87,7 +99,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.projectMigrationsFolder path for drizzle migrations folder for project database
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
-   * @param {{ port?: number, logger: import('fastify').FastifyServerOptions['logger'] }} [opts.mediaServerOpts]
+   * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
    */
   constructor({
     rootKey,
@@ -95,7 +107,7 @@ export class MapeoManager extends TypedEmitter {
     projectMigrationsFolder,
     clientMigrationsFolder,
     coreStorage,
-    mediaServerOpts,
+    fastify,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
@@ -155,8 +167,16 @@ export class MapeoManager extends TypedEmitter {
       this.#coreStorage = coreStorage
     }
 
-    this.#mediaServer = new MediaServer({
-      logger: mediaServerOpts?.logger,
+    this.#fastify = fastify
+    this.#fastify.register(BlobServerPlugin, {
+      prefix: BLOBS_PREFIX,
+      getBlobStore: async (projectPublicId) => {
+        const project = await this.getProject(projectPublicId)
+        return project[kBlobStore]
+      },
+    })
+    this.#fastify.register(IconServerPlugin, {
+      prefix: ICONS_PREFIX,
       getProject: this.getProject.bind(this),
     })
 
@@ -192,6 +212,35 @@ export class MapeoManager extends TypedEmitter {
       keyPair: this.#keyManager.getIdentityKeypair(),
     })
     return this.#replicate(noiseStream)
+  }
+
+  /**
+   * @param {'blobs' | 'icons' | 'maps'} mediaType
+   * @returns {Promise<string>}
+   */
+  async #getMediaBaseUrl(mediaType) {
+    /** @type {string | null} */
+    let prefix = null
+
+    switch (mediaType) {
+      case 'blobs': {
+        prefix = BLOBS_PREFIX
+        break
+      }
+      case 'icons': {
+        prefix = ICONS_PREFIX
+        break
+      }
+      default: {
+        throw new Error(`Unsupported media type ${mediaType}`)
+      }
+    }
+
+    const base = await getFastifyServerAddress(this.#fastify.server, {
+      timeout: 5000,
+    })
+
+    return base + '/' + prefix
   }
 
   /**
@@ -258,16 +307,17 @@ export class MapeoManager extends TypedEmitter {
     const encoded = ProjectKeys.encode(projectKeys).finish()
     const nonce = projectIdToNonce(projectId)
 
+    const keysCipher = this.#keyManager.encryptLocalMessage(
+      Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
+      nonce
+    )
+
     this.#db
       .insert(projectKeysTable)
-      .values({
-        projectId,
-        projectPublicId,
-        keysCipher: this.#keyManager.encryptLocalMessage(
-          Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
-          nonce
-        ),
-        projectInfo,
+      .values({ projectId, projectPublicId, keysCipher, projectInfo })
+      .onConflictDoUpdate({
+        target: projectKeysTable.projectId,
+        set: { projectPublicId, keysCipher, projectInfo },
       })
       .run()
   }
@@ -386,6 +436,7 @@ export class MapeoManager extends TypedEmitter {
 
   /** @param {ProjectKeys} projectKeys */
   #createProjectInstance(projectKeys) {
+    validateProjectKeys(projectKeys)
     const projectId = keyToId(projectKeys.projectKey)
     return new MapeoProject({
       ...this.#projectStorage(projectId),
@@ -396,9 +447,7 @@ export class MapeoManager extends TypedEmitter {
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
       logger: this.#loggerBase,
-      getMediaBaseUrl: this.#mediaServer.getMediaAddress.bind(
-        this.#mediaServer
-      ),
+      getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
     })
   }
 
@@ -629,7 +678,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @returns {Promise<Partial<import('./schema/client.js').DeviceInfoParam>>}
+   * @returns {Promise<{ deviceId: string } & Partial<import('./schema/client.js').DeviceInfoParam>>}
    */
   async getDeviceInfo() {
     const row = this.#db
@@ -637,7 +686,7 @@ export class MapeoManager extends TypedEmitter {
       .from(localDeviceInfoTable)
       .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
       .get()
-    return row ? row.deviceInfo : {}
+    return { deviceId: this.#deviceId, ...row?.deviceInfo }
   }
 
   /**
@@ -645,17 +694,6 @@ export class MapeoManager extends TypedEmitter {
    */
   get invite() {
     return this.#invite
-  }
-
-  /**
-   * @param {import('./media-server.js').StartOpts} [opts]
-   */
-  async startMediaServer(opts) {
-    await this.#mediaServer.start(opts)
-  }
-
-  async stopMediaServer() {
-    await this.#mediaServer.stop()
   }
 
   async startLocalPeerDiscovery() {
@@ -672,6 +710,55 @@ export class MapeoManager extends TypedEmitter {
    */
   async listLocalPeers() {
     return omitPeerProtomux(this.#localPeers.peers)
+  }
+
+  /**
+   * @param {string} projectPublicId
+   */
+  async leaveProject(projectPublicId) {
+    const project = await this.getProject(projectPublicId)
+
+    await project[kProjectLeave]()
+
+    const row = this.#db
+      .select({
+        keysCipher: projectKeysTable.keysCipher,
+        projectId: projectKeysTable.projectId,
+        projectInfo: projectKeysTable.projectInfo,
+      })
+      .from(projectKeysTable)
+      .where(eq(projectKeysTable.projectPublicId, projectPublicId))
+      .get()
+
+    if (!row) {
+      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
+    }
+
+    const { keysCipher, projectId, projectInfo } = row
+
+    const projectKeys = this.#decodeProjectKeysCipher(keysCipher, projectId)
+
+    const updatedEncryptionKeys = projectKeys.encryptionKeys
+      ? // Delete all encryption keys except for auth
+        { auth: projectKeys.encryptionKeys.auth }
+      : undefined
+
+    this.#saveToProjectKeysTable({
+      projectId,
+      projectPublicId,
+      projectInfo,
+      projectKeys: {
+        ...projectKeys,
+        encryptionKeys: updatedEncryptionKeys,
+      },
+    })
+
+    this.#db
+      .delete(projectSettingsTable)
+      .where(eq(projectSettingsTable.docId, projectId))
+      .run()
+
+    this.#activeProjects.delete(projectPublicId)
   }
 }
 
@@ -698,4 +785,14 @@ function omitPeerProtomux(peers) {
       return publicPeerInfo
     }
   )
+}
+
+/**
+ * @param {ProjectKeys} projectKeys
+ * @returns {asserts projectKeys is ValidatedProjectKeys}
+ */
+function validateProjectKeys(projectKeys) {
+  if (!projectKeys.encryptionKeys) {
+    throw new Error('encryptionKeys should not be undefined')
+  }
 }

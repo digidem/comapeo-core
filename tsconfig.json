@@ -22,7 +22,6 @@
       "*": ["./types", "./node_modules/@digidem/types/vendor/*/index.d.ts"]
     }
   },
-  "files": ["tests/schema.js"],
   "include": ["src/**/*", "types/**/*.d.ts", "test-e2e/**/*"],
   "exclude": ["node_modules", "src/generated/*.js"]
 }

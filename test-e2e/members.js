@@ -3,6 +3,7 @@ import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 
 import {
+  COORDINATOR_ROLE_ID,
   CREATOR_CAPABILITIES,
   DEFAULT_CAPABILITIES,
   MEMBER_ROLE_ID,
@@ -14,7 +15,9 @@ import {
   disconnectPeers,
   invite,
   waitForPeers,
+  waitForSync,
 } from './utils.js'
+import { kDataTypes } from '../src/mapeo-project.js'
 
 test('getting yourself after creating project', async (t) => {
   const [manager] = await createManagers(1, t)
@@ -168,7 +171,7 @@ test('invite uses custom role name when provided', async (t) => {
   invitee.invite.on('invite-received', ({ roleName }) => {
     t.is(roleName, 'friend', 'roleName should be equal')
   })
-  
+
   await invite({
     invitor,
     projectId,
@@ -203,6 +206,293 @@ test('invite uses default role name when not provided', async (t) => {
     invitees: [invitee],
     reject: true,
   })
+
+  await disconnectPeers(managers)
+})
+
+test('capabilities - creator capabilities and role assignment', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+  const ownCapabilities = await project.$getOwnCapabilities()
+
+  t.alike(
+    ownCapabilities,
+    CREATOR_CAPABILITIES,
+    'Project creator has creator capabilities'
+  )
+
+  const deviceId = randomBytes(32).toString('hex')
+  await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
+
+  const member = await project.$member.getById(deviceId)
+
+  t.alike(
+    member.capabilities,
+    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    'Can assign capabilities to device'
+  )
+})
+
+test('capabilities - new device without capabilities', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const projectId = await manager.addProject(
+    {
+      projectKey: randomBytes(32),
+      encryptionKeys: { auth: randomBytes(32) },
+    },
+    { waitForSync: false }
+  )
+
+  const project = await manager.getProject(projectId)
+
+  const ownCapabilities = await project.$getOwnCapabilities()
+
+  t.alike(
+    ownCapabilities.sync,
+    {
+      auth: 'allowed',
+      config: 'allowed',
+      data: 'blocked',
+      blobIndex: 'blocked',
+      blob: 'blocked',
+    },
+    'A new device before sync can sync auth and config namespaces, but not other namespaces'
+  )
+  await t.exception(async () => {
+    const deviceId = randomBytes(32).toString('hex')
+    await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
+  }, 'Trying to assign a role without capabilities throws an error')
+})
+
+test('capabilities - getMany() on invitor device', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const creatorDeviceId = manager.deviceId
+
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+  const ownCapabilities = await project.$getOwnCapabilities()
+
+  t.alike(
+    ownCapabilities,
+    CREATOR_CAPABILITIES,
+    'Project creator has creator capabilities'
+  )
+
+  const deviceId1 = randomBytes(32).toString('hex')
+  const deviceId2 = randomBytes(32).toString('hex')
+  await project.$member.assignRole(deviceId1, MEMBER_ROLE_ID)
+  await project.$member.assignRole(deviceId2, COORDINATOR_ROLE_ID)
+
+  const expected = {
+    [deviceId1]: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    [deviceId2]: DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
+    [creatorDeviceId]: CREATOR_CAPABILITIES,
+  }
+
+  const allMembers = await project.$member.getMany()
+
+  /** @type {Record<string, import('../src/capabilities.js').Capability>} */
+  const allMembersCapabilities = {}
+
+  for (const member of allMembers) {
+    allMembersCapabilities[member.deviceId] = member.capabilities
+  }
+
+  t.alike(allMembersCapabilities, expected, 'expected capabilities')
+})
+
+test('capabilities - getMany() on newly invited device before sync', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const deviceId = manager.deviceId
+
+  const projectId = await manager.addProject(
+    {
+      projectKey: randomBytes(32),
+      encryptionKeys: { auth: randomBytes(32) },
+    },
+    { waitForSync: false }
+  )
+  const project = await manager.getProject(projectId)
+
+  const expected = { [deviceId]: NO_ROLE_CAPABILITIES }
+
+  const allMembers = await project.$member.getMany()
+
+  /** @type {Record<string, import('../src/capabilities.js').Capability>} */
+  const allMembersCapabilities = {}
+
+  for (const member of allMembers) {
+    allMembersCapabilities[member.deviceId] = member.capabilities
+  }
+
+  t.alike(allMembersCapabilities, expected, 'expected capabilities')
+})
+
+test('capabilities - assignRole()', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const [invitorProject, inviteeProject] = projects
+
+  t.alike(
+    (await invitorProject.$member.getById(invitee.deviceId)).capabilities,
+    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    'invitee has member capabilities from invitor perspective'
+  )
+
+  t.alike(
+    await inviteeProject.$getOwnCapabilities(),
+    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    'invitee has member capabilities from invitee perspective'
+  )
+
+  await t.test('invitor updates invitee role to coordinator', async (st) => {
+    const roleRecordBefore = await invitorProject[kDataTypes].role.getByDocId(
+      invitee.deviceId
+    )
+
+    await invitorProject.$member.assignRole(
+      invitee.deviceId,
+      COORDINATOR_ROLE_ID
+    )
+
+    const roleRecordAfter = await invitorProject[kDataTypes].role.getByDocId(
+      invitee.deviceId
+    )
+
+    t.alike(
+      roleRecordAfter.links,
+      [roleRecordBefore.versionId],
+      'role record links to record before role assignment'
+    )
+    t.is(roleRecordAfter.forks.length, 0, 'role record has no forks')
+
+    await waitForSync(projects, 'initial')
+
+    st.alike(
+      (await invitorProject.$member.getById(invitee.deviceId)).capabilities,
+      DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
+      'invitee now has coordinator capabilities from invitor perspective'
+    )
+
+    st.alike(
+      await inviteeProject.$getOwnCapabilities(),
+      DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
+      'invitee now has coordinator capabilities from invitee perspective'
+    )
+  })
+
+  await t.test('invitee updates own role to member', async (st) => {
+    const roleRecordBefore = await inviteeProject[kDataTypes].role.getByDocId(
+      invitee.deviceId
+    )
+
+    await inviteeProject.$member.assignRole(invitee.deviceId, MEMBER_ROLE_ID)
+
+    const roleRecordAfter = await inviteeProject[kDataTypes].role.getByDocId(
+      invitee.deviceId
+    )
+
+    t.alike(
+      roleRecordAfter.links,
+      [roleRecordBefore.versionId],
+      'role record from invitee links to record before role assignment'
+    )
+    t.is(
+      roleRecordAfter.forks.length,
+      0,
+      'role record from invitee record has no forks'
+    )
+
+    await waitForSync(projects, 'initial')
+
+    st.alike(
+      (await invitorProject.$member.getById(invitee.deviceId)).capabilities,
+      DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+      'invitee now has member capabilities from invitor perspective'
+    )
+
+    st.alike(
+      await inviteeProject.$getOwnCapabilities(),
+      DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+      'invitee now has member capabilities from invitee perspective'
+    )
+  })
+
+  await disconnectPeers(managers)
+})
+
+test('capabilities - assignRole() with forked role', async (t) => {
+  const managers = await createManagers(3, t)
+  const [invitor, invitee1, invitee2] = managers
+  connectPeers(managers)
+  await waitForPeers(managers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  // 1. Invite both as coordinators
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee1, invitee2],
+    roleId: COORDINATOR_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const [invitorProject, invitee1Project] = projects
+
+  await disconnectPeers(managers)
+
+  // 2. Create fork by two devices assigning a role to invitee2 while disconnected
+  // TODO: Assign different roles and test fork resolution prefers the role with least capability (code for this is not written yet)
+
+  await invitorProject.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
+  await invitee1Project.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
+
+  await connectPeers(managers)
+  await waitForSync(projects, 'initial')
+
+  // 3. Verify that invitee2 role is now forked
+
+  const invitee2RoleForked = await invitee1Project[kDataTypes].role.getByDocId(
+    invitee2.deviceId
+  )
+  t.is(invitee2RoleForked.forks.length, 1, 'invitee2 role has one fork')
+
+  // 4. Assign role again, which should merge forked records
+
+  await invitorProject.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
+
+  await waitForSync(projects, 'initial')
+
+  const invitee2RoleMerged = await invitee1Project[kDataTypes].role.getByDocId(
+    invitee2.deviceId
+  )
+  t.is(invitee2RoleMerged.forks.length, 0, 'invitee2 role has no forks')
 
   await disconnectPeers(managers)
 })

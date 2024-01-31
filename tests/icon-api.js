@@ -685,13 +685,14 @@ test('constructIconPath() - good inputs', (t) => {
 function setup({
   getMediaBaseUrl = async () => 'http://127.0.0.1:8080/icons',
 } = {}) {
-  const cm = createCoreManager()
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
 
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
+
+  const cm = createCoreManager({ db })
 
   const indexWriter = new IndexWriter({
     tables: [iconTable],

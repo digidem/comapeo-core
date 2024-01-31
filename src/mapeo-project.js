@@ -7,7 +7,8 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
-import { CoreManager, NAMESPACES } from './core-manager/index.js'
+import { NAMESPACES } from './constants.js'
+import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
@@ -28,7 +29,12 @@ import {
   getWinner,
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
-import { Capabilities } from './capabilities.js'
+import {
+  BLOCKED_ROLE_ID,
+  COORDINATOR_ROLE_ID,
+  Capabilities,
+  LEFT_ROLE_ID,
+} from './capabilities.js'
 import {
   getDeviceId,
   projectKeyToId,
@@ -47,10 +53,12 @@ const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreManager = Symbol('coreManager')
 export const kCoreOwnership = Symbol('coreOwnership')
-export const kCapabilities = Symbol('capabilities')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
 export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
+export const kDataTypes = Symbol('dataTypes')
+export const kProjectLeave = Symbol('leave project')
+
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
 /**
@@ -82,7 +90,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
-   * @param {Partial<Record<import('./core-manager/index.js').Namespace, Buffer>>} [opts.encryptionKeys] Encryption keys for each namespace
+   * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
@@ -134,7 +142,7 @@ export class MapeoProject extends TypedEmitter {
       projectKey,
       keyManager,
       storage: coreManagerStorage,
-      sqlite: this.#sqlite,
+      db,
       logger: this.#l,
     })
 
@@ -251,7 +259,6 @@ export class MapeoProject extends TypedEmitter {
       deviceId: this.#deviceId,
       capabilities: this.#capabilities,
       coreOwnership: this.#coreOwnership,
-      // @ts-expect-error
       encryptionKeys,
       projectKey,
       rpc: localPeers,
@@ -350,10 +357,10 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * Capabilities instance, used for tests
+   * DataTypes object mappings, used for tests
    */
-  get [kCapabilities]() {
-    return this.#capabilities
+  get [kDataTypes]() {
+    return this.#dataTypes
   }
 
   get [kBlobStore]() {
@@ -548,6 +555,82 @@ export class MapeoProject extends TypedEmitter {
    */
   get $icons() {
     return this.#iconApi
+  }
+
+  async [kProjectLeave]() {
+    // 1. Check that the device can leave the project
+    const roleDocs = await this.#dataTypes.role.getMany()
+
+    // 1.1 Check that we are not blocked in the project
+    const ownRole = roleDocs.find(({ docId }) => this.#deviceId === docId)
+
+    if (ownRole?.roleId === BLOCKED_ROLE_ID) {
+      throw new Error('Cannot leave a project as a blocked device')
+    }
+
+    const knownDevices = Object.keys(await this.#capabilities.getAll())
+    const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
+      this.#projectId
+    )
+
+    // 1.2 Check that we are not the only device in the project
+    if (knownDevices.length === 1) {
+      throw new Error('Cannot leave a project as the only device')
+    }
+
+    // 1.3 Check if there are other known devices that are either the project creator or a coordinator
+    let otherCreatorOrCoordinatorExists = false
+
+    for (const deviceId of knownDevices) {
+      // Skip self (see 1.1 and 1.2 for relevant checks)
+      if (deviceId === this.#deviceId) continue
+
+      // Check if the device is the project creator first because
+      // it is a derived role that is not stored in the role docs explicitly
+      if (deviceId === projectCreatorDeviceId) {
+        otherCreatorOrCoordinatorExists = true
+        break
+      }
+
+      // Determine if the the device is a coordinator based on the role docs
+      const isCoordinator = roleDocs.some(
+        (doc) => doc.docId === deviceId && doc.roleId == COORDINATOR_ROLE_ID
+      )
+
+      if (isCoordinator) {
+        otherCreatorOrCoordinatorExists = true
+        break
+      }
+    }
+
+    if (!otherCreatorOrCoordinatorExists) {
+      throw new Error(
+        'Cannot leave a project that does not have an external creator or another coordinator'
+      )
+    }
+
+    // 2. Clear data from cores
+    // TODO: only clear synced data
+    const namespacesWithoutAuth =
+      /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
+        'config',
+        'data',
+        'blob',
+        'blobIndex',
+      ])
+
+    await Promise.all(
+      namespacesWithoutAuth.map((namespace) =>
+        this.#coreManager.deleteData(namespace, { deleteOwn: true })
+      )
+    )
+
+    // TODO: 3. Clear data from indexes
+    // 3.1 Reset multi-core indexer state
+    // 3.2 Clear indexed data
+
+    // 4. Assign LEFT role for device
+    await this.#capabilities.assignRole(this.#deviceId, LEFT_ROLE_ID)
   }
 
   /** @param {Object} opts
