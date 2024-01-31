@@ -102,6 +102,7 @@ async function routes(fastify, opts) {
 
           if (upstreamResponse.ok) {
             // Set up headers to forward
+            // TODO: Change this to an allow-list of headers instead of a block-list
             for (const [name, value] of upstreamResponse.headers) {
               // We do our own content encoding
               if (name.toLowerCase() === 'content-encoding') continue
