@@ -115,8 +115,8 @@ test('/style.json resolves online style.json when local static is not available'
   const response = await server.inject({
     method: 'GET',
     url: '/style.json',
-    // Including the api_key query param here to simulate successfully getting an online style.json
-    query: `?api_key=pk.abc-123`,
+    // Including the `key` query param here to simulate successfully getting an online style.json
+    query: `?key=pk.abc-123`,
   })
 
   t.is(response.statusCode, 200)
@@ -152,8 +152,8 @@ test('defaultOnlineStyleUrl opt works', async (t) => {
   const response = await server.inject({
     method: 'GET',
     url: '/style.json',
-    // Including the api_key query param here to simulate successfully getting an online style.json
-    query: `?api_key=abc-123`,
+    // Including the `key` query param here to simulate successfully getting an online style.json
+    query: `?key=abc-123`,
   })
 
   t.is(response.statusCode, 200)
@@ -185,7 +185,7 @@ test('/style.json resolves style.json of offline fallback map when static and on
   const response = await server.inject({
     method: 'GET',
     url: '/style.json',
-    // Omitting the api_key query param here to simulate not being able to get the online style.json
+    // Omitting the `key` query param here to simulate not being able to get the online style.json
   })
 
   t.is(response.json().id, 'blank', 'gets fallback style.json')

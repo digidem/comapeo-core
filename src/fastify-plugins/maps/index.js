@@ -36,7 +36,7 @@ async function mapsPlugin(fastify, opts) {
 }
 
 const GetStyleJsonQueryStringSchema = T.Object({
-  api_key: T.Optional(T.String()),
+  key: T.Optional(T.String()),
 })
 
 /** @type {import('fastify').FastifyPluginAsync<MapsPluginOpts, import('fastify').RawServerDefault, import('@fastify/type-provider-typebox').TypeBoxTypeProvider>} */
@@ -70,9 +70,9 @@ async function routes(fastify, opts) {
 
       // 2. Attempt to get a default style.json from online source
       {
-        const apiKey = req.query.api_key
-        const upstreamUrl = apiKey
-          ? styleUrlWithApiKey(defaultOnlineStyleUrl, apiKey)
+        const { key } = req.query
+        const upstreamUrl = key
+          ? styleUrlWithApiKey(defaultOnlineStyleUrl, key)
           : defaultOnlineStyleUrl
 
         try {
@@ -80,11 +80,11 @@ async function routes(fastify, opts) {
 
           if (upstreamResponse.ok) {
             // Set up headers to forward
-            for (const [key, value] of upstreamResponse.headers) {
+            for (const [name, value] of upstreamResponse.headers) {
               // TODO: Typically Mapbox gzips the content but we'd need to make sure
               // something like https://github.com/fastify/fastify-compress/ is registered
-              if (key.toLowerCase() === 'content-encoding') continue
-              rep.header(key, value)
+              if (name.toLowerCase() === 'content-encoding') continue
+              rep.header(name, value)
             }
             // Some upstream providers will not set the 'application/json' content-type header despite the body being JSON e.g. Protomaps
             // TODO: Should we forward the upstream 'content-type' header?
@@ -128,10 +128,10 @@ async function routes(fastify, opts) {
  * If `url` already contains a relevant api key query param, this function will overwrite it with `apiKey`.
  *
  * @param {string} url
- * @param {string} apiKey
+ * @param {string} key
  * @returns {string}
  */
-function styleUrlWithApiKey(url, apiKey) {
+function styleUrlWithApiKey(url, key) {
   const u = new URL(url)
 
   const existingSearchParams = new URLSearchParams(u.search)
@@ -168,7 +168,7 @@ function styleUrlWithApiKey(url, apiKey) {
   }
 
   if (paramToUpsert) {
-    existingSearchParams.set(paramToUpsert, apiKey)
+    existingSearchParams.set(paramToUpsert, key)
     u.search = existingSearchParams.toString()
   }
 
