@@ -117,15 +117,25 @@ export async function invite({
  * Waits for all manager instances to be connected to each other
  *
  * @param {readonly MapeoManager[]} managers
+ * @param {{ waitForDeviceInfo?: boolean }} [opts] Optionally wait for device names to be set
  */
-export async function waitForPeers(managers) {
+export async function waitForPeers(
+  managers,
+  { waitForDeviceInfo = false } = {}
+) {
   const peerCounts = managers.map((manager) => {
     return manager[kRPC].peers.filter(({ status }) => status === 'connected')
       .length
   })
+  const peersHaveNames = managers.map((manager) => {
+    return manager[kRPC].peers.every(({ name }) => !!name)
+  })
   const expectedCount = managers.length - 1
   return new Promise((res) => {
-    if (peerCounts.every((v) => v === expectedCount)) {
+    if (
+      peerCounts.every((v) => v === expectedCount) &&
+      (!waitForDeviceInfo || peersHaveNames.every((v) => v))
+    ) {
       return res(null)
     }
     for (const [idx, manager] of managers.entries()) {
@@ -133,11 +143,19 @@ export async function waitForPeers(managers) {
         const connectedPeerCount = peers.filter(
           ({ status }) => status === 'connected'
         ).length
+        const allHaveNames = peers.every(({ name }) => !!name)
         peerCounts[idx] = connectedPeerCount
-        if (connectedPeerCount === expectedCount) {
+        peersHaveNames[idx] = allHaveNames
+        if (
+          connectedPeerCount === expectedCount &&
+          (!waitForDeviceInfo || allHaveNames)
+        ) {
           manager.off('local-peers', onPeers)
         }
-        if (peerCounts.every((v) => v === expectedCount)) {
+        if (
+          peerCounts.every((v) => v === expectedCount) &&
+          (!waitForDeviceInfo || peersHaveNames.every((v) => v))
+        ) {
           res(null)
         }
       })
@@ -152,16 +170,17 @@ export async function waitForPeers(managers) {
  * @template {number} T
  * @param {T} count
  * @param {import('brittle').TestInstance} t
+ * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
-export async function createManagers(count, t) {
+export async function createManagers(count, t, deviceType) {
   // @ts-ignore
   return Promise.all(
     Array(count)
       .fill(null)
       .map(async (_, i) => {
-        const name = 'device' + i
-        const manager = createManager(name, t)
+        const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
+        const manager = createManager(name, t, deviceType)
         await manager.setDeviceInfo({ name })
         return manager
       })
@@ -171,8 +190,9 @@ export async function createManagers(count, t) {
 /**
  * @param {string} seed
  * @param {import('brittle').TestInstance} t
+ * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
  */
-export function createManager(seed, t) {
+export function createManager(seed, t, deviceType) {
   const dbFolder = FAST_TESTS ? ':memory:' : temporaryDirectory()
   const coreStorage = FAST_TESTS ? () => new RAM() : temporaryDirectory()
 
@@ -195,6 +215,7 @@ export function createManager(seed, t) {
     dbFolder,
     coreStorage,
     fastify: Fastify(),
+    deviceType,
   })
 }
 
