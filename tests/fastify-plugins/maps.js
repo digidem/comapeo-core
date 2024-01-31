@@ -4,7 +4,7 @@ import Fastify from 'fastify'
 import { MockAgent, setGlobalDispatcher } from 'undici'
 
 import {
-  UPSTREAM_MAP_STYLE_URL,
+  DEFAULT_MAPBOX_STYLE_URL,
   plugin as MapServerPlugin,
 } from '../../src/fastify-plugins/maps/index.js'
 import { plugin as StaticMapsPlugin } from '../../src/fastify-plugins/maps/static-maps.js'
@@ -109,8 +109,8 @@ test('/style.json resolves online style.json when local static is not available'
   const response = await server.inject({
     method: 'GET',
     url: '/style.json',
-    // Including the access_token query param here to simulate successfully getting an online style.json
-    query: `?access_token=pk.abc-123`,
+    // Including the api_key query param here to simulate successfully getting an online style.json
+    query: `?api_key=pk.abc-123`,
   })
 
   t.is(response.statusCode, 200)
@@ -137,7 +137,7 @@ test('/style.json resolves style.json of offline fallback map when static and on
   const response = await server.inject({
     method: 'GET',
     url: '/style.json',
-    // Omitting the access_token query param here to simulate not being able to get the online style.json
+    // Omitting the api_key query param here to simulate not being able to get the online style.json
   })
 
   t.is(response.json().id, 'blank', 'gets fallback style.json')
@@ -169,7 +169,7 @@ function setupFetch() {
 
   setGlobalDispatcher(mockAgent)
 
-  const upstreamUrlObj = new URL(UPSTREAM_MAP_STYLE_URL)
+  const upstreamUrlObj = new URL(DEFAULT_MAPBOX_STYLE_URL)
 
   const mockPool = mockAgent.get(upstreamUrlObj.origin)
 
