@@ -111,7 +111,7 @@ async function routes(fastify, opts) {
             // Some upstream providers will not set the 'application/json' content-type header despite the body being JSON e.g. Protomaps
             // TODO: Should we forward the upstream 'content-type' header?
             // We kind of assume that a Style Spec-compatible JSON payload will always be used by a provider
-            // Tehcnically, there could be cases where a provider doesn't use the Mapbox Style Spec and has their own format,
+            // Technically, there could be cases where a provider doesn't use the Mapbox Style Spec and has their own format,
             // which may be delivered as some other content type
             rep.header('content-type', 'application/json; charset=utf-8')
             return upstreamResponse.json()
