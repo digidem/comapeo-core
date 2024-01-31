@@ -9,15 +9,21 @@ import {
 } from '../../src/fastify-plugins/maps/index.js'
 import { plugin as StaticMapsPlugin } from '../../src/fastify-plugins/maps/static-maps.js'
 import { plugin as OfflineFallbackMapPlugin } from '../../src/fastify-plugins/maps/offline-fallback-map.js'
+import { readFileSync } from 'node:fs'
 
 const MAP_FIXTURES_PATH = new URL('../fixtures/maps', import.meta.url).pathname
+
+const MAP_STYLE_FIXTURES_PATH = new URL(
+  '../fixtures/map-style-definitions',
+  import.meta.url
+).pathname
 
 const MAPEO_FALLBACK_MAP_PATH = new URL(
   '../../node_modules/mapeo-offline-map',
   import.meta.url
 ).pathname
 
-setupFetch()
+setupFetchMock()
 
 test('fails to register when dependent plugins are not registered', async (t) => {
   const server = setup(t)
@@ -114,7 +120,49 @@ test('/style.json resolves online style.json when local static is not available'
   })
 
   t.is(response.statusCode, 200)
-  t.is(response.json().name, 'Mapbox Streets', 'gets online style.json')
+
+  t.is(
+    response.json().name,
+    // Based on the mapbox-outdoors-v12.json fixture
+    'Mapbox Outdoors',
+    'gets online style.json'
+  )
+})
+
+test('defaultOnlineStyleUrl opt works', async (t) => {
+  const server = setup(t)
+
+  server.register(StaticMapsPlugin, {
+    prefix: 'static',
+    // Need to choose a directory that doesn't have any map fixtures
+    staticRootDir: path.resolve(MAP_FIXTURES_PATH, '../does-not-exist'),
+  })
+  server.register(OfflineFallbackMapPlugin, {
+    prefix: 'fallback',
+    styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
+    sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
+  })
+  server.register(MapServerPlugin, {
+    // Note that we're specifying a different option than the default
+    defaultOnlineStyleUrl: 'https://api.protomaps.com/styles/v2/dark.json',
+  })
+
+  await server.listen()
+
+  const response = await server.inject({
+    method: 'GET',
+    url: '/style.json',
+    // Including the api_key query param here to simulate successfully getting an online style.json
+    query: `?api_key=abc-123`,
+  })
+
+  t.is(response.statusCode, 200)
+  t.is(
+    response.json().name,
+    // Based on the protomaps-dark.v2.json fixture
+    'style@2.0.0-alpha.4 theme@dark',
+    'gets online style.json'
+  )
 })
 
 test('/style.json resolves style.json of offline fallback map when static and online are not available', async (t) => {
@@ -144,8 +192,6 @@ test('/style.json resolves style.json of offline fallback map when static and on
   t.is(response.statusCode, 200)
 })
 
-// TODO: add test for proxying online map style.json
-
 /**
  * @param {import('brittle').TestInstance} t
  */
@@ -159,7 +205,7 @@ function setup(t) {
   return server
 }
 
-function setupFetch() {
+function setupFetchMock() {
   const mockAgent = new MockAgent({
     keepAliveMaxTimeout: 10,
     keepAliveTimeout: 10,
@@ -169,50 +215,91 @@ function setupFetch() {
 
   setGlobalDispatcher(mockAgent)
 
-  const upstreamUrlObj = new URL(DEFAULT_MAPBOX_STYLE_URL)
+  // Default map style provider (Mapbox)
+  {
+    const upstreamUrl = new URL(DEFAULT_MAPBOX_STYLE_URL)
+    const mockPool = mockAgent.get(upstreamUrl.origin)
 
-  const mockPool = mockAgent.get(upstreamUrlObj.origin)
+    /** @type {any} */
+    let cachedStyle = null
 
-  mockPool
-    .intercept({
-      method: 'GET',
-      path: (path) => {
-        return path.startsWith(upstreamUrlObj.pathname)
-      },
-    })
-    .reply(
-      // @ts-expect-error
-      (req) => {
+    mockPool
+      .intercept({
+        method: 'GET',
+        path: (path) => {
+          return path.startsWith(upstreamUrl.pathname)
+        },
+      })
+      .reply((req) => {
         const searchParams = new URL(req.path, req.origin).searchParams
 
-        // Return a very basic (valid) style spec if there's any access token param specified at all
-        return searchParams.has('access_token')
-          ? {
-              statusCode: 200,
-              data: {
-                version: 8,
-                name: 'Mapbox Streets', // Technically an optional property
-                sources: {
-                  'mapbox-streets': {
-                    type: 'vector',
-                    url: 'mapbox://mapbox.mapbox-streets-v6',
-                  },
-                },
-                layers: [
-                  {
-                    id: 'water',
-                    source: 'mapbox-streets',
-                    'source-layer': 'water',
-                    type: 'fill',
-                    paint: {
-                      'fill-color': '#00ffff',
-                    },
-                  },
-                ],
+        if (searchParams.has('access_token')) {
+          if (!cachedStyle) {
+            cachedStyle = readStyleFixture('mapbox-outdoors-v12.json')
+          }
+
+          return {
+            statusCode: 200,
+            responseOptions: {
+              headers: {
+                'Content-Type': 'application/json;charset=UTF-8',
               },
-            }
-          : { statusCode: 401, data: { message: 'Unauthorized' } }
-      }
-    )
-    .persist()
+            },
+            data: cachedStyle,
+          }
+        } else {
+          return { statusCode: 401, data: { message: 'Unauthorized' } }
+        }
+      })
+      .persist()
+  }
+
+  // Some alternative map style provider (Protomaps)
+  {
+    const upstreamUrl = new URL('https://api.protomaps.com/styles/v2/dark.json')
+
+    const mockPool = mockAgent.get(upstreamUrl.origin)
+
+    /** @type {any} */
+    let cachedStyle = null
+
+    mockPool
+      .intercept({
+        method: 'GET',
+        path: (path) => {
+          return path.startsWith(upstreamUrl.pathname)
+        },
+      })
+      .reply((req) => {
+        const searchParams = new URL(req.path, req.origin).searchParams
+
+        if (searchParams.has('key')) {
+          if (!cachedStyle) {
+            cachedStyle = readStyleFixture('protomaps-dark-v2.json')
+          }
+
+          return {
+            statusCode: 200,
+            responseOptions: {
+              headers: {
+                'Content-Type': 'text/plain;charset=UTF-8',
+              },
+            },
+            data: cachedStyle,
+          }
+        } else {
+          return { statusCode: 403, data: { message: 'Forbidden' } }
+        }
+      })
+      .persist()
+  }
+}
+
+/**
+ * @param {string} name
+ */
+function readStyleFixture(name) {
+  return JSON.parse(
+    readFileSync(path.join(MAP_STYLE_FIXTURES_PATH, name), 'utf-8')
+  )
 }
