@@ -99,7 +99,7 @@ async function routes(fastify, opts) {
             )
           }
         } catch (err) {
-          fastify.log.error(err)
+          fastify.log.warn('Upstream style.json request totally failed')
         }
       }
 
@@ -158,7 +158,7 @@ function styleUrlWithApiKey(url, key) {
       break
     }
     case 'basemapstyles-api.arcgis.com': {
-      // ArcGIS expects `token`: https://docs.maptiler.com/cloud/api/maps/
+      // ArcGIS expects `token`: https://developers.arcgis.com/documentation/mapping-apis-and-services/security/api-keys/
       paramToUpsert = 'token'
       break
     }
