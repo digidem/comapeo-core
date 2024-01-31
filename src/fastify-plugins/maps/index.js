@@ -95,7 +95,7 @@ async function routes(fastify, opts) {
             return upstreamResponse.json()
           } else {
             fastify.log.error(
-              `Upstream style.json request failed: ${upstreamResponse.statusText}`
+              `Upstream style.json request failed: ${upstreamResponse.status} ${upstreamResponse.statusText}`
             )
           }
         } catch (err) {
