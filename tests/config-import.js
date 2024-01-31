@@ -1,7 +1,7 @@
 import { test } from 'brittle'
 import { readConfig } from '../src/config-import.js'
 
-test('reading config file', async (t) => {
+test('config import - loading', async (t) => {
   t.exception(async () => await readConfig(''), /ENOENT/, 'file not found')
 
   t.exception(
@@ -68,7 +68,7 @@ test('reading config file', async (t) => {
   t.ok(await readConfig('./tests/fixtures/config/validConfig.zip'), 'valid zip')
 })
 
-test('icons', async (t) => {
+test('config import - icons', async (t) => {
   // filename
   let config = await readConfig(
     './tests/fixtures/config/invalidIconFilename.zip'
