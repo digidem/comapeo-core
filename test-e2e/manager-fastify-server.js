@@ -5,7 +5,7 @@ import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { KeyManager } from '@mapeo/crypto'
 import FakeTimers from '@sinonjs/fake-timers'
-import { Agent, fetch, setGlobalDispatcher } from 'undici'
+import { Agent, fetch as uFetch } from 'undici'
 import fs from 'fs/promises'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
@@ -21,8 +21,6 @@ const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
-
-setupFetch()
 
 test('start/stop lifecycle', async (t) => {
   const fastify = Fastify()
@@ -283,13 +281,16 @@ test('retrieving icons using url', async (t) => {
   await exceptionPromise2
 })
 
-async function setupFetch() {
-  // Prevents tests from hanging caused by Undici's default behavior
-  // https://undici.nodejs.org/#/docs/best-practices/writing-tests
-  setGlobalDispatcher(
-    new Agent({
+/**
+ * @param {Parameters<typeof uFetch>} args
+ */
+async function fetch(...args) {
+  return uFetch(args[0], {
+    ...args[1],
+    // Prevents tests from hanging caused by Undici's default behavior
+    dispatcher: new Agent({
       keepAliveMaxTimeout: 10,
       keepAliveTimeout: 10,
-    })
-  )
+    }),
+  })
 }
