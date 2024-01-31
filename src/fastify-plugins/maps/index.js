@@ -14,6 +14,14 @@ export const PLUGIN_NAME = 'mapeo-maps'
 export const DEFAULT_MAPBOX_STYLE_URL =
   'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12'
 
+const RECOGNIZED_MAP_PROVIDERS = /** @type {const} */ ([
+  'api.mapbox.com',
+  'api.protomaps.com',
+  'api.maptiler.com',
+  'tiles.stadiamaps.com',
+  'basemapstyles-api.arcgis.com',
+])
+
 export const plugin = fp(mapsPlugin, {
   fastify: '4.x',
   name: PLUGIN_NAME,
@@ -71,12 +79,26 @@ async function routes(fastify, opts) {
       // 2. Attempt to get a default style.json from online source
       {
         const { key } = req.query
-        const upstreamUrl = key
-          ? styleUrlWithApiKey(defaultOnlineStyleUrl, key)
-          : defaultOnlineStyleUrl
+
+        const upstreamUrlObj = new URL(defaultOnlineStyleUrl)
+        const { hostname } = upstreamUrlObj
+
+        if (key) {
+          if (isRecognizedMapProvider(hostname)) {
+            const paramToUpsert = getMapProviderApiKeyQueryParamName(hostname)
+
+            // Note that even if the search param of interest already exists in the url
+            // it is overwritten by the key provided in the request's search params
+            upstreamUrlObj.searchParams.set(paramToUpsert, key)
+          } else {
+            fastify.log.warn(
+              `Provided API key will not be applied to unrecognized provider: ${hostname}`
+            )
+          }
+        }
 
         try {
-          const upstreamResponse = await fetch(upstreamUrl)
+          const upstreamResponse = await fetch(upstreamUrlObj.href)
 
           if (upstreamResponse.ok) {
             // Set up headers to forward
@@ -125,52 +147,41 @@ async function routes(fastify, opts) {
 }
 
 /**
- * If `url` already contains a relevant api key query param, this function will overwrite it with `apiKey`.
- *
- * @param {string} url
- * @param {string} key
- * @returns {string}
+ * @param {string} hostname URL hostname
+ * @returns {hostname is typeof RECOGNIZED_MAP_PROVIDERS[number]}
  */
-function styleUrlWithApiKey(url, key) {
-  const u = new URL(url)
+function isRecognizedMapProvider(hostname) {
+  return RECOGNIZED_MAP_PROVIDERS.includes(
+    /** @type {typeof RECOGNIZED_MAP_PROVIDERS[number]} */ (hostname)
+  )
+}
 
-  const existingSearchParams = new URLSearchParams(u.search)
-
-  /** @type {string | null} */
-  let paramToUpsert = null
-
-  switch (u.hostname) {
+/**
+ * @param {typeof RECOGNIZED_MAP_PROVIDERS[number]} hostname
+ * @returns {string} The name of the URL search param used by a provider to specify an auth-related API key or token
+ */
+function getMapProviderApiKeyQueryParamName(hostname) {
+  switch (hostname) {
+    // Mapbox expects `access_token`: https://docs.mapbox.com/api/maps/styles/
     case 'api.mapbox.com': {
-      // Mapbox expects `access_token`: https://docs.mapbox.com/api/maps/styles/
-      paramToUpsert = 'access_token'
-      break
+      return 'access_token'
     }
+    // Protomaps expects `key` (no docs link yet)
+    // MapTiler expects `key`: https://docs.maptiler.com/cloud/api/maps/
     case 'api.protomaps.com':
     case 'api.maptiler.com': {
-      // Protomaps expects `key` (no docs link yet)
-      // MapTiler expects `key`: https://docs.maptiler.com/cloud/api/maps/
-      paramToUpsert = 'key'
-      break
+      return 'key'
     }
+    // Stadia expects `api_key`: https://docs.stadiamaps.com/themes/
     case 'tiles.stadiamaps.com': {
-      // Stadia expects `api_key`: https://docs.stadiamaps.com/themes/
-      paramToUpsert = 'api_key'
-      break
+      return 'api_key'
     }
+    // ArcGIS expects `token`: https://developers.arcgis.com/documentation/mapping-apis-and-services/security/api-keys/
     case 'basemapstyles-api.arcgis.com': {
-      // ArcGIS expects `token`: https://developers.arcgis.com/documentation/mapping-apis-and-services/security/api-keys/
-      paramToUpsert = 'token'
-      break
+      return 'token'
     }
     default: {
-      // TODO: Should there be a default? (e.g. self-hosted instances using something like https://openmaptiles.org/)
+      throw new Error(`Invalid value provided ${hostname}`)
     }
   }
-
-  if (paramToUpsert) {
-    existingSearchParams.set(paramToUpsert, key)
-    u.search = existingSearchParams.toString()
-  }
-
-  return u.href
 }
