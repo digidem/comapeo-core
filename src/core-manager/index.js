@@ -477,18 +477,16 @@ export class CoreManager extends TypedEmitter {
 
   /**
    * @param {Exclude<typeof NAMESPACES[number], 'auth'>} namespace
-   * @param {Object} [opts]
-   * @param {boolean} [opts.deleteOwn=false]
    * @returns {Promise<void>}
    */
-  async deleteData(namespace, { deleteOwn = false } = {}) {
+  async deleteOthersData(namespace) {
     const coreRecords = this.getCores(namespace)
     const ownWriterCore = this.getWriterCore(namespace)
 
     const deletionPromises = []
 
     for (const { core, key } of coreRecords) {
-      if (!deleteOwn && key.equals(ownWriterCore.key)) continue
+      if (key.equals(ownWriterCore.key)) continue
       deletionPromises.push(core.purge())
     }
 

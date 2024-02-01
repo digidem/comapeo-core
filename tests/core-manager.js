@@ -458,7 +458,7 @@ test('unreplicate', async (t) => {
   })
 })
 
-test('deleteData()', async (t) => {
+test('deleteOthersData()', async (t) => {
   await temporaryDirectoryTask(async (tempPath) => {
     const projectKey = randomBytes(32)
 
@@ -576,69 +576,47 @@ test('deleteData()', async (t) => {
     )
 
     /// Delete data (not their own)
-    await t.test('with deleteOwn=false or omitted', async (st) => {
-      await cm1.deleteData('data')
+    await cm1.deleteOthersData('data')
 
-      const peer1DataStoragePreservedForPeer1 = (
-        await checkExistenceForFiles(
-          dataCoreStorageNames
-            .filter((storageName) =>
-              storageName.startsWith(peer1DataCoreStoragePath)
-            )
-            .map((storageName) => path.join(peer1TempPath, storageName))
-        )
-      ).every((exists) => exists === true)
-
-      const peer2DataStorageDeletedForPeer1 = (
-        await checkExistenceForFiles(
-          dataCoreStorageNames
-            .filter((storageName) =>
-              storageName.startsWith(peer2DataCoreStoragePath)
-            )
-            .map((storageName) => path.join(peer1TempPath, storageName))
-        )
-      ).every((exists) => exists === false)
-
-      st.ok(
-        peer1DataStoragePreservedForPeer1,
-        'peer 1 still has `data` storage for itself'
+    const peer1DataStoragePreservedForPeer1 = (
+      await checkExistenceForFiles(
+        dataCoreStorageNames
+          .filter((storageName) =>
+            storageName.startsWith(peer1DataCoreStoragePath)
+          )
+          .map((storageName) => path.join(peer1TempPath, storageName))
       )
+    ).every((exists) => exists === true)
 
-      st.ok(
-        peer2DataStorageDeletedForPeer1,
-        'peer 1 no longer has `data` storage for peer 2'
+    const peer2DataStorageDeletedForPeer1 = (
+      await checkExistenceForFiles(
+        dataCoreStorageNames
+          .filter((storageName) =>
+            storageName.startsWith(peer2DataCoreStoragePath)
+          )
+          .map((storageName) => path.join(peer1TempPath, storageName))
       )
+    ).every((exists) => exists === false)
 
-      t.is(
-        db1
-          .select()
-          .from(coresTable)
-          .where(eq(coresTable.namespace, 'data'))
-          .all().length,
-        0,
-        'peer 1 `cores` table has no info about `data` core from peer 2'
-      )
-    })
+    t.ok(
+      peer1DataStoragePreservedForPeer1,
+      'peer 1 still has `data` storage for itself'
+    )
 
-    /// Delete their own data
-    await t.test('with deleteOwn=true', async (st) => {
-      await cm1.deleteData('data', { deleteOwn: true })
+    t.ok(
+      peer2DataStorageDeletedForPeer1,
+      'peer 1 no longer has `data` storage for peer 2'
+    )
 
-      const peer1DataStorageDeletedForPeer1 = (
-        await checkExistenceForFiles(
-          dataCoreStorageNames
-            .filter((storageName) =>
-              storageName.startsWith(peer1DataCoreStoragePath)
-            )
-            .map((storageName) => path.join(peer1TempPath, storageName))
-        )
-      ).every((exists) => exists === false)
-
-      st.ok(
-        peer1DataStorageDeletedForPeer1,
-        'peer 1 no longer has `data` storage for itself'
-      )
-    })
+    t.is(
+      db1
+        .select()
+        .from(coresTable)
+        .where(eq(coresTable.namespace, 'data'))
+        .all().length,
+      0,
+      'peer 1 `cores` table has no info about `data` core from peer 2'
+    )
 
     n1.destroy()
     n2.destroy()
