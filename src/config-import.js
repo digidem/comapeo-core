@@ -131,6 +131,15 @@ export async function readConfig(configPath) {
       const { presets } = presetsFile
       // sort presets using the sort field, turn them into an array
       const sortedPresets = Object.keys(presets)
+        .filter((presetName) => {
+          /** @type {any} */
+          const preset = presets[presetName]
+          const isInvalidPreset = typeof preset !== 'object' || preset === null
+          if (isInvalidPreset) {
+            warnings.push(new Error(`invalid preset ${presetName}`))
+          }
+          return !isInvalidPreset
+        })
         .map((presetName) => {
           /** @type {any} */
           const preset = presets[presetName]
@@ -144,10 +153,6 @@ export async function readConfig(configPath) {
 
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
       for (let preset of sortedPresets) {
-        if (typeof preset !== 'object' || preset === null) {
-          warnings.push(new Error(`Invalid preset ${preset.name}`))
-          continue
-        }
         /** @type {any} */
         const presetValue = {
           schemaName: 'preset',

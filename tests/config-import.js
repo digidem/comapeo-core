@@ -127,12 +127,12 @@ test('config import - icons', async (t) => {
 })
 
 test('config import - fields', async (t) => {
-  let config = await readConfig('./tests/fixtures/config/invalidField.zip')
+  const config = await readConfig('./tests/fixtures/config/invalidField.zip')
 
   /* eslint-disable-next-line */
   for (const field of config.fields()) {
   }
-  t.is(config.errors?.length, 3)
+  t.is(config.errors?.length, 3, 'we got 3 errors when reading fields')
   t.not(
     config.errors && config.errors[0].message.match(/Invalid field noKeyField/),
     null,
@@ -151,6 +151,23 @@ test('config import - fields', async (t) => {
   )
 })
 
-// test('presets', async (t) => {
-//   t.pass()
-// })
+test('config import - presets', async (t) => {
+  const config = await readConfig('./tests/fixtures/config/invalidPreset.zip')
+
+  /* eslint-disable-next-line */
+  for (const field of config.presets()) {
+  }
+  t.is(config.errors?.length, 2, 'we got two errors when reading presets')
+  t.not(
+    config.errors &&
+      config.errors[0].message.match(/invalid preset noObjectPreset/),
+    null,
+    'the first error is because the preset is not an object'
+  )
+  t.not(
+    config.errors &&
+      config.errors[1].message.match(/invalid preset nullPreset/),
+    null,
+    'the second error is because the preset is null'
+  )
+})
