@@ -1,6 +1,7 @@
 import yauzl from 'yauzl-promise'
 import { validate, valueSchemas } from '@mapeo/schema'
 import { json, buffer } from 'node:stream/consumers'
+import path from 'node:path'
 
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
@@ -194,17 +195,18 @@ export async function readConfig(configPath) {
  * @returns {{ name: string, variant: IconData['variants'][Number] }}}
  */
 function parseIcon(filename, buf) {
-  const matches = filename.match(
-    /^([a-zA-Z0-9-]+)-([a-zA-Z0-9]+)@(\d+x)\.(png|jpg|jpeg)$/
+  const parsedFilename = path.parse(filename)
+  const matches = parsedFilename.base.match(
+    /([a-zA-Z0-9-]+)-([a-zA-Z]+)@(\d+)x\.(png|svg)$/
   )
   if (!matches) {
     throw new Error(`Unexpected icon filename ${filename}`)
   }
   /* eslint-disable no-unused-vars */
-  const [_, name, size, pixelDensity, extension] = matches
-  const density = Number(pixelDensity.replace('x', ''))
-  if (!(density === 1 || density === 2 || density === 3)) {
-    throw new Error(`Error loading icon. invalid pixel density ${density}`)
+  const [_, name, size, pixelDensityStr, extension] = matches
+  const pixelDensity = Number(pixelDensityStr)
+  if (!(pixelDensity === 1 || pixelDensity === 2 || pixelDensity === 3)) {
+    throw new Error(`Error loading icon. invalid pixel density ${pixelDensity}`)
   }
   if (!(size === 'small' || size === 'medium' || size === 'large')) {
     throw new Error(`Error loading icon. invalid size ${size}`)
@@ -212,12 +214,24 @@ function parseIcon(filename, buf) {
   if (!name) {
     throw new Error('Error loading icon. missing name')
   }
+  /** @type {'image/png' | 'image/svg+xml'} */
+  let mimeType
+  switch (parsedFilename.ext.toLowerCase()) {
+    case '.png':
+      mimeType = 'image/png'
+      break
+    case '.svg':
+      mimeType = 'image/svg+xml'
+      break
+    default:
+      throw new Error(`Unexpected icon extension ${parsedFilename.ext}`)
+  }
   return {
     name,
     variant: {
       size,
-      mimeType: extension === 'png' ? 'image/png' : 'image/svg+xml',
-      pixelDensity: density,
+      mimeType,
+      pixelDensity,
       blob: buf,
     },
   }
