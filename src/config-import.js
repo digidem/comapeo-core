@@ -1,6 +1,6 @@
 import yauzl from 'yauzl-promise'
 import { validate, valueSchemas } from '@mapeo/schema'
-import { text, buffer } from 'node:stream/consumers'
+import { json, buffer } from 'node:stream/consumers'
 
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
@@ -34,7 +34,7 @@ export async function readConfig(configPath) {
   /** @type {undefined | Entry} */
   let presetsEntry
   for await (const entry of zip) {
-    if (entry.filename === 'presents.json') {
+    if (entry.filename === 'presets.json') {
       presetsEntry = entry
       break
     }
@@ -42,9 +42,7 @@ export async function readConfig(configPath) {
   if (!presetsEntry) {
     throw new Error('Zip file does not contain presets.json')
   }
-  const presetsFile = JSON.parse(
-    await text(await presetsEntry.openReadStream())
-  )
+  const presetsFile = await json(await presetsEntry.openReadStream())
   validatePresetsFile(presetsFile)
 
   return {
@@ -61,16 +59,13 @@ export async function readConfig(configPath) {
      * @returns {AsyncIterable<IconData>}
      */
     async *icons() {
-      const iconEntries = entries
-        .filter(
-          (e) =>
-            // omit the icons directory itself
-            e.filename.startsWith('icons/') && !e.filename.endsWith('icons/')
-        )
-        .sort()
       /** @type {IconData | undefined} */
       let icon
-      for (const entry of iconEntries) {
+
+      const zip = await yauzl.open(configPath)
+      const entries = await zip.readEntries(MAX_ENTRIES)
+      for (const entry of entries) {
+        if (!entry.filename.match(/^icons\/([^/]+)$/)) continue
         const buf = await buffer(await entry.openReadStream())
         const iconFilename = entry.filename.replace(/^icons\//, '')
         try {
