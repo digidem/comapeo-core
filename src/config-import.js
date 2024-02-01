@@ -7,6 +7,8 @@ const MAX_ENTRIES = 10_000
 
 /**
  * @typedef {Omit<yauzl.Entry, 'fileName'> & { filename: string }} Entry
+ * `@types/yauzl-promise` has the wrong name for this key. We should
+ * eventually submit this patch upstream.
  */
 /**
  * @typedef {{
@@ -29,10 +31,14 @@ export async function readConfig(configPath) {
   if (zip.entryCount > MAX_ENTRIES) {
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
-  /** @type {Entry[]} */
-  const entries = /** @type {any} */ (await zip.readEntries(MAX_ENTRIES))
-
-  const presetsEntry = entries.find((e) => e.filename === 'presets.json')
+  /** @type {undefined | Entry} */
+  let presetsEntry
+  for await (const entry of zip) {
+    if (entry.filename === 'presents.json') {
+      presetsEntry = entry
+      break
+    }
+  }
   if (!presetsEntry) {
     throw new Error('Zip file does not contain presets.json')
   }
