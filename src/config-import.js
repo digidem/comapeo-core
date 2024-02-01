@@ -100,11 +100,11 @@ export async function readConfig(configPath) {
     *fields() {
       const { fields } = presetsFile
       for (const [name, field] of Object.entries(fields)) {
-        if (typeof field !== 'object' || field === null || !('key' in field)) {
+        if (!isRecord(field) && !hasOwn(field, 'key')) {
           warnings.push(new Error(`Invalid field ${name}`))
           continue
         }
-        /** @type {any} */
+        /** @type {Record<string,unknown>} */
         const fieldValue = {
           schemaName: 'field',
           tagKey: field.key,
@@ -136,7 +136,7 @@ export async function readConfig(configPath) {
         .filter((presetName) => {
           /** @type {any} */
           const preset = presets[presetName]
-          const isInvalidPreset = typeof preset !== 'object' || preset === null
+          const isInvalidPreset = !isRecord(preset)
           if (isInvalidPreset) {
             warnings.push(new Error(`invalid preset ${presetName}`))
           }
@@ -243,8 +243,7 @@ function parseIcon(filename, buf) {
  */
 function validatePresetsFile(presetsFile) {
   if (
-    typeof presetsFile !== 'object' ||
-    presetsFile === null ||
+    !isRecord(presetsFile) ||
     !('presets' in presetsFile) ||
     typeof presetsFile.presets !== 'object' ||
     !('fields' in presetsFile) ||
@@ -252,4 +251,21 @@ function validatePresetsFile(presetsFile) {
   ) {
     throw new Error('Invalid presets.json file')
   }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+/**
+ * @param {Record<string | symbol, unknown>} obj
+ * @param {string | symbol} prop
+ */
+function hasOwn(obj, prop) {
+  if (!isRecord(obj)) return
+  return Object.prototype.hasOwnProperty.call(obj, prop)
 }
