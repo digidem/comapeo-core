@@ -126,9 +126,30 @@ test('config import - icons', async (t) => {
   )
 })
 
-// test('fields', async (t) => {
-//   t.pass()
-// })
+test('config import - fields', async (t) => {
+  let config = await readConfig('./tests/fixtures/config/invalidField.zip')
+
+  /* eslint-disable-next-line */
+  for (const field of config.fields()) {
+  }
+  t.is(config.errors?.length, 3)
+  t.not(
+    config.errors && config.errors[0].message.match(/Invalid field noKeyField/),
+    null,
+    'the first error is because the field has no "key" field'
+  )
+  t.not(
+    config.errors && config.errors[1].message.match(/Invalid field nullField/),
+    null,
+    'the second error is because the field is null'
+  )
+  t.not(
+    config.errors &&
+      config.errors[2].message.match(/Invalid field noObjectField/),
+    null,
+    'the third error is because the field is not an object'
+  )
+})
 
 // test('presets', async (t) => {
 //   t.pass()
