@@ -77,12 +77,12 @@ test('config import - icons', async (t) => {
   for await (const icon of config.icons()) {
   }
   t.is(
-    config.errors?.length,
+    config.warnings.length,
     1,
     'we got one error when reading icon with wrong filename'
   )
   t.not(
-    config.errors && config.errors[0].message.match(/Unexpected icon filename/),
+    config.warnings[0].message.match(/Unexpected icon filename/),
     null,
     'the error message is about badly formed icon name'
   )
@@ -97,12 +97,12 @@ test('config import - icons', async (t) => {
   }
 
   t.is(
-    config.errors?.length,
+    config.warnings.length,
     1,
     'we got one error when reading icon with wrong pixel density'
   )
   t.not(
-    config.errors && config.errors[0].message.match(/invalid pixel density/),
+    config.warnings[0].message.match(/invalid pixel density/),
     null,
     'the error message is about invalid pixel density'
   )
@@ -115,12 +115,12 @@ test('config import - icons', async (t) => {
   }
 
   t.is(
-    config.errors?.length,
+    config.warnings.length,
     1,
     'we got one error when reading icon with wrong size'
   )
   t.not(
-    config.errors && config.errors[0].message.match(/invalid size/),
+    config.warnings[0].message.match(/invalid size/),
     null,
     'the error message is about invalid size'
   )
@@ -132,20 +132,19 @@ test('config import - fields', async (t) => {
   /* eslint-disable-next-line */
   for (const field of config.fields()) {
   }
-  t.is(config.errors?.length, 3, 'we got 3 errors when reading fields')
+  t.is(config.warnings.length, 3, 'we got 3 errors when reading fields')
   t.not(
-    config.errors && config.errors[0].message.match(/Invalid field noKeyField/),
+    config.warnings[0].message.match(/Invalid field noKeyField/),
     null,
     'the first error is because the field has no "key" field'
   )
   t.not(
-    config.errors && config.errors[1].message.match(/Invalid field nullField/),
+    config.warnings[1].message.match(/Invalid field nullField/),
     null,
     'the second error is because the field is null'
   )
   t.not(
-    config.errors &&
-      config.errors[2].message.match(/Invalid field noObjectField/),
+    config.warnings[2].message.match(/Invalid field noObjectField/),
     null,
     'the third error is because the field is not an object'
   )
@@ -157,16 +156,14 @@ test('config import - presets', async (t) => {
   /* eslint-disable-next-line */
   for (const field of config.presets()) {
   }
-  t.is(config.errors?.length, 2, 'we got two errors when reading presets')
+  t.is(config.warnings.length, 2, 'we got two errors when reading presets')
   t.not(
-    config.errors &&
-      config.errors[0].message.match(/invalid preset noObjectPreset/),
+    config.warnings[0].message.match(/invalid preset noObjectPreset/),
     null,
     'the first error is because the preset is not an object'
   )
   t.not(
-    config.errors &&
-      config.errors[1].message.match(/invalid preset nullPreset/),
+    config.warnings[1].message.match(/invalid preset nullPreset/),
     null,
     'the second error is because the preset is null'
   )
