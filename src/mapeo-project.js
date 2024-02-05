@@ -620,9 +620,10 @@ export class MapeoProject extends TypedEmitter {
       ])
 
     await Promise.all(
-      namespacesWithoutAuth.map((namespace) =>
-        this.#coreManager.deleteData(namespace, { deleteOwn: true })
-      )
+      namespacesWithoutAuth.flatMap((namespace) => [
+        this.#coreManager.getWriterCore(namespace).core.close(),
+        this.#coreManager.deleteOthersData(namespace),
+      ])
     )
 
     // TODO: 3. Clear data from indexes
