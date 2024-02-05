@@ -110,11 +110,15 @@ async function routes(fastify, opts) {
 
           if (upstreamResponse.ok) {
             // Set up headers to forward
-            // TODO: Change this to an allow-list of headers instead of a block-list
             for (const [name, value] of upstreamResponse.headers) {
-              // We do our own content encoding
-              if (name.toLowerCase() === 'content-encoding') continue
-              rep.header(name, value)
+              // Only forward headers related to caching
+              // https://www.rfc-editor.org/rfc/rfc9111#name-field-definitions
+              // e.g. usage from map renderer: https://github.com/maplibre/maplibre-gl-js/blob/26a7a6c2c142ef2e26db89f5fdf2338769494902/src/util/ajax.ts#L205
+              if (
+                ['age', 'cache-control', 'expires'].includes(name.toLowerCase())
+              ) {
+                rep.header(name, value)
+              }
             }
             // Some upstream providers will not set the 'application/json' content-type header despite the body being JSON e.g. Protomaps
             // TODO: Should we forward the upstream 'content-type' header?
