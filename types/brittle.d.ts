@@ -43,7 +43,7 @@ declare module 'brittle' {
 
   export interface TestInstance extends Assertion {
     plan(n: number): void
-    teardown(fn: () => void | Promise<void>, options?: { order?: number }): void
+    teardown(fn: () => unknown | Promise<unknown>, options?: { order?: number }): void
     timeout(ms: number): void
     comment(message: string): void
     end(): void
