@@ -155,6 +155,10 @@ export async function readConfig(configPath) {
           let nextSort = nextPreset.sort || Infinity
           return sort - nextSort
         })
+        .map((preset) => {
+          delete preset.sort
+          return preset
+        })
 
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
       for (let preset of sortedPresets) {
