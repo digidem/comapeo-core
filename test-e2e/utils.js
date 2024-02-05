@@ -24,7 +24,7 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
  * @param {readonly MapeoManager[]} managers
  */
 export async function disconnectPeers(managers) {
-  return Promise.all(
+  await Promise.all(
     managers.map(async (manager) => {
       return manager.stopLocalPeerDiscovery({ force: true })
     })
