@@ -14,12 +14,17 @@ export const PLUGIN_NAME = 'mapeo-maps'
 export const DEFAULT_MAPBOX_STYLE_URL =
   'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12'
 
-const RECOGNIZED_MAP_PROVIDERS = /** @type {const} */ ([
-  'api.mapbox.com',
-  'api.protomaps.com',
-  'api.maptiler.com',
-  'tiles.stadiamaps.com',
-  'basemapstyles-api.arcgis.com',
+const MAP_PROVIDER_API_KEY_QUERY_PARAM_BY_HOSTNAME = new Map([
+  // Mapbox expects `access_token`: https://docs.mapbox.com/api/maps/styles/
+  ['api.mapbox.com', 'access_token'],
+  // Protomaps expects `key` (no docs link yet)
+  ['api.protomaps.com', 'key'],
+  // MapTiler expects `key`: https://docs.maptiler.com/cloud/api/maps/
+  ['api.maptiler.com', 'key'],
+  // Stadia expects `api_key`: https://docs.stadiamaps.com/themes/
+  ['tiles.stadiamaps.com', 'api_key'],
+  // ArcGIS expects `token`: https://developers.arcgis.com/documentation/mapping-apis-and-services/security/api-keys/
+  ['basemapstyles-api.arcgis.com', 'token'],
 ])
 
 export const plugin = fp(mapsPlugin, {
@@ -84,9 +89,10 @@ async function routes(fastify, opts) {
         const { hostname } = upstreamUrlObj
 
         if (key) {
-          if (isRecognizedMapProvider(hostname)) {
-            const paramToUpsert = getMapProviderApiKeyQueryParamName(hostname)
+          const paramToUpsert =
+            MAP_PROVIDER_API_KEY_QUERY_PARAM_BY_HOSTNAME.get(hostname)
 
+          if (paramToUpsert) {
             // Note that even if the search param of interest already exists in the url
             // it is overwritten by the key provided in the request's search params
             upstreamUrlObj.searchParams.set(paramToUpsert, key)
@@ -146,44 +152,4 @@ async function routes(fastify, opts) {
       }
     }
   )
-}
-
-/**
- * @param {string} hostname URL hostname
- * @returns {hostname is typeof RECOGNIZED_MAP_PROVIDERS[number]}
- */
-function isRecognizedMapProvider(hostname) {
-  return RECOGNIZED_MAP_PROVIDERS.includes(
-    /** @type {typeof RECOGNIZED_MAP_PROVIDERS[number]} */ (hostname)
-  )
-}
-
-/**
- * @param {typeof RECOGNIZED_MAP_PROVIDERS[number]} hostname
- * @returns {string} The name of the URL search param used by a provider to specify an auth-related API key or token
- */
-function getMapProviderApiKeyQueryParamName(hostname) {
-  switch (hostname) {
-    // Mapbox expects `access_token`: https://docs.mapbox.com/api/maps/styles/
-    case 'api.mapbox.com': {
-      return 'access_token'
-    }
-    // Protomaps expects `key` (no docs link yet)
-    // MapTiler expects `key`: https://docs.maptiler.com/cloud/api/maps/
-    case 'api.protomaps.com':
-    case 'api.maptiler.com': {
-      return 'key'
-    }
-    // Stadia expects `api_key`: https://docs.stadiamaps.com/themes/
-    case 'tiles.stadiamaps.com': {
-      return 'api_key'
-    }
-    // ArcGIS expects `token`: https://developers.arcgis.com/documentation/mapping-apis-and-services/security/api-keys/
-    case 'basemapstyles-api.arcgis.com': {
-      return 'token'
-    }
-    default: {
-      throw new Error(`Invalid value provided ${hostname}`)
-    }
-  }
 }
