@@ -635,6 +635,7 @@ export class MapeoProject extends TypedEmitter {
 
   /** @param {Object} opts
    *  @param {string} opts.configPath
+   *  @returns {Promise<Error[]>}
    */
   async importConfig({ configPath }) {
     // check for already present fields and presets and delete them if exist
@@ -698,6 +699,7 @@ export class MapeoProject extends TypedEmitter {
     })
 
     await config.close()
+    return config.warnings
   }
 }
 

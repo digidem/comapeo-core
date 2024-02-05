@@ -7,7 +7,7 @@ import path from 'node:path'
 const MAX_ENTRIES = 10_000
 
 /**
- * @typedef {Omit<yauzl.Entry, 'fileName'> & { filename: string }} Entry
+ * @typedef {yauzl.Entry} Entry
  * `@types/yauzl-promise` has the wrong name for this key. We should
  * eventually submit this patch upstream.
  */
@@ -27,14 +27,16 @@ const MAX_ENTRIES = 10_000
 export async function readConfig(configPath) {
   /** @type {Error[]} */
   const warnings = []
+  /** @type {yauzl.ZipFile} */
+  let iconsZip
 
-  const zip = await yauzl.open(configPath)
-  if (zip.entryCount > MAX_ENTRIES) {
+  const presetsZip = await yauzl.open(configPath)
+  if (presetsZip.entryCount > MAX_ENTRIES) {
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
   /** @type {undefined | Entry} */
   let presetsEntry
-  for await (const entry of zip) {
+  for await (const entry of presetsZip) {
     if (entry.filename === 'presets.json') {
       presetsEntry = entry
       break
@@ -47,13 +49,14 @@ export async function readConfig(configPath) {
   validatePresetsFile(presetsFile)
 
   return {
-    get errors() {
-      if (warnings.length === 0) return null
+    get warnings() {
+      if (warnings.length === 0) return []
       return warnings
     },
 
     async close() {
-      zip.close()
+      presetsZip.close()
+      iconsZip.close()
     },
 
     /**
@@ -63,8 +66,8 @@ export async function readConfig(configPath) {
       /** @type {IconData | undefined} */
       let icon
 
-      const zip = await yauzl.open(configPath)
-      const entries = await zip.readEntries(MAX_ENTRIES)
+      iconsZip = await yauzl.open(configPath)
+      const entries = await iconsZip.readEntries(MAX_ENTRIES)
       for (const entry of entries) {
         if (!entry.filename.match(/^icons\/([^/]+)$/)) continue
         const buf = await buffer(await entry.openReadStream())
@@ -104,13 +107,13 @@ export async function readConfig(configPath) {
           warnings.push(new Error(`Invalid field ${name}`))
           continue
         }
-        /** @type {Record<string,unknown>} */
+        /** @type {Record<string, unknown>} */
         const fieldValue = {
           schemaName: 'field',
           tagKey: field.key,
         }
         for (const key of Object.keys(valueSchemas.field.properties)) {
-          if (key in field) {
+          if (hasOwn(field, key)) {
             // @ts-ignore - we validate below
             fieldValue[key] = field[key]
           }
@@ -203,7 +206,7 @@ function parseIcon(filename, buf) {
     throw new Error(`Unexpected icon filename ${filename}`)
   }
   /* eslint-disable no-unused-vars */
-  const [_, name, size, pixelDensityStr, extension] = matches
+  const [_, name, size, pixelDensityStr] = matches
   const pixelDensity = Number(pixelDensityStr)
   if (!(pixelDensity === 1 || pixelDensity === 2 || pixelDensity === 3)) {
     throw new Error(`Error loading icon. invalid pixel density ${pixelDensity}`)
@@ -244,10 +247,8 @@ function parseIcon(filename, buf) {
 function validatePresetsFile(presetsFile) {
   if (
     !isRecord(presetsFile) ||
-    !('presets' in presetsFile) ||
-    typeof presetsFile.presets !== 'object' ||
-    !('fields' in presetsFile) ||
-    typeof presetsFile.fields !== 'object'
+    !isRecord(presetsFile.presets) ||
+    !isRecord(presetsFile.fields)
   ) {
     throw new Error('Invalid presets.json file')
   }
