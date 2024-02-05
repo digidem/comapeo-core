@@ -682,6 +682,10 @@ export class MapeoProject extends TypedEmitter {
         fieldIds,
       })
     }
+
+    // close the zip handles after we know we won't be needing them anymore
+    await config.close()
+
     const presetPromises = presetsWithRefs.map((preset) =>
       this.preset.create(preset)
     )
@@ -698,7 +702,6 @@ export class MapeoProject extends TypedEmitter {
       },
     })
 
-    await config.close()
     return config.warnings
   }
 }
