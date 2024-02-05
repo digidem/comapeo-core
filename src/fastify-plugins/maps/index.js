@@ -124,7 +124,7 @@ async function routes(fastify, opts) {
             rep.header('content-type', 'application/json; charset=utf-8')
             return upstreamResponse.json()
           } else {
-            fastify.log.error(
+            fastify.log.warn(
               `Upstream style.json request returned non-2xx status: ${upstreamResponse.status} ${upstreamResponse.statusText}`
             )
           }
