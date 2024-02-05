@@ -91,6 +91,7 @@ export class MapeoManager extends TypedEmitter {
   #localDiscovery
   #loggerBase
   #l
+  /** @readonly */
   #deviceType
 
   /**

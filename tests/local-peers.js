@@ -217,7 +217,6 @@ test('Invite to unknown peer', async (t) => {
       roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
       invitorName: 'device0',
     }),
-    // @ts-ignore
     UnknownPeerError
   )
   await t.exception(
@@ -226,7 +225,6 @@ test('Invite to unknown peer', async (t) => {
         projectKey,
         decision: LocalPeers.InviteResponse.ACCEPT,
       }),
-    // @ts-ignore
     UnknownPeerError
   )
 })
@@ -378,7 +376,6 @@ test('Disconnect results in rejected invite', async (t) => {
       })
       await t.exception(
         invite,
-        // @ts-ignore
         PeerDisconnectedError,
         'invite rejected with PeerDisconnectedError'
       )
@@ -535,7 +532,6 @@ test('Invite timeout', async (t) => {
           roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
           invitorName: 'device0',
         }),
-      // @ts-ignore
       TimeoutError
     )
     clock.tickAsync(5005)
@@ -558,7 +554,6 @@ test('Send invite to non-existent peer', async (t) => {
         roleName: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
         invitorName: 'device0',
       }),
-    // @ts-ignore
     UnknownPeerError
   )
 })
