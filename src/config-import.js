@@ -103,7 +103,7 @@ export async function readConfig(configPath) {
     *fields() {
       const { fields } = presetsFile
       for (const [name, field] of Object.entries(fields)) {
-        if (!isRecord(field) && !hasOwn(field, 'key')) {
+        if (!isRecord(field) || !hasOwn(field, 'key')) {
           warnings.push(new Error(`Invalid field ${name}`))
           continue
         }
@@ -148,13 +148,13 @@ export async function readConfig(configPath) {
         .map((presetName) => {
           /** @type {any} */
           const preset = presets[presetName]
-          if (!preset.sort) {
-            // if there's no sort field, put a big value - puts the field at the end -
-            preset.sort = 100
-          }
           return preset
         })
-        .sort((preset, nextPreset) => nextPreset.sort - preset.sort)
+        .sort((preset, nextPreset) => {
+          let sort = preset.sort || Infinity
+          let nextSort = nextPreset.sort || Infinity
+          return sort - nextSort
+        })
 
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
       for (let preset of sortedPresets) {
