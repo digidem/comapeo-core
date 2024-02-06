@@ -32,6 +32,7 @@ export async function readConfig(configPath) {
 
   const presetsZip = await yauzl.open(configPath)
   if (presetsZip.entryCount > MAX_ENTRIES) {
+    // MAX_ENTRIES in MAC can be inacurrate
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
   /** @type {undefined | Entry} */
