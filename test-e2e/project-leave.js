@@ -190,7 +190,7 @@ test('Member can leave project if creator exists', async (t) => {
   )
 
   t.ok(
-    memberProject.$member.getById(creator.deviceId),
+    await memberProject.$member.getById(creator.deviceId),
     'creator successfully added from member perspective'
   )
 
