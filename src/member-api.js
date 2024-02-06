@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { projectKeyToId } from './utils.js'
-import { ROLES } from './roles.js'
+import { assert, projectKeyToId } from './utils.js'
+import { ROLES, isRoleIdForNewInvite } from './roles.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
@@ -49,9 +49,8 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * @param {string} deviceId
-   *
    * @param {Object} opts
-   * @param {import('./roles.js').RoleIdAssignableToOthers} opts.roleId
+   * @param {import('./roles.js').RoleIdForNewInvite} opts.roleId
    * @param {string} [opts.roleName]
    * @param {string} [opts.roleDescription]
    * @param {number} [opts.timeout]
@@ -59,9 +58,7 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
    */
   async invite(deviceId, { roleId, roleName, roleDescription, timeout }) {
-    if (!ROLES[roleId]) {
-      throw new Error('Invalid role id')
-    }
+    assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
 
     const { name: deviceName } = await this.getById(this.#ownDeviceId)
 

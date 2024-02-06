@@ -1,6 +1,7 @@
 import { currentSchemaVersions } from '@mapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId } from './datatype/index.js'
+import { assert, setHas } from './utils.js'
 
 // Randomly generated 8-byte encoded as hex
 export const CREATOR_ROLE_ID = 'a12a6702b93bd7ff'
@@ -9,6 +10,47 @@ export const MEMBER_ROLE_ID = '012fd2d431c0bf60'
 export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
+
+/**
+ * @typedef {T extends Iterable<infer U> ? U : never} ElementOf
+ * @template T
+ */
+
+/** @typedef {ElementOf<typeof ROLE_IDS>} RoleId */
+const ROLE_IDS = new Set(
+  /** @type {const} */ ([
+    CREATOR_ROLE_ID,
+    COORDINATOR_ROLE_ID,
+    MEMBER_ROLE_ID,
+    BLOCKED_ROLE_ID,
+    LEFT_ROLE_ID,
+    NO_ROLE_ID,
+  ])
+)
+const isRoleId = setHas(ROLE_IDS)
+
+/** @typedef {ElementOf<typeof ROLE_IDS_FOR_NEW_INVITE>} RoleIdForNewInvite */
+const ROLE_IDS_FOR_NEW_INVITE = new Set(
+  /** @type {const} */ ([COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID])
+)
+export const isRoleIdForNewInvite = setHas(ROLE_IDS_FOR_NEW_INVITE)
+
+/** @typedef {ElementOf<typeof ROLE_IDS_ASSIGNABLE_TO_OTHERS>} RoleIdAssignableToOthers */
+const ROLE_IDS_ASSIGNABLE_TO_OTHERS = new Set(
+  /** @type {const} */ ([COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID])
+)
+export const isRoleIdAssignableToOthers = setHas(ROLE_IDS_ASSIGNABLE_TO_OTHERS)
+
+/** @typedef {ElementOf<typeof ROLE_IDS_ASSIGNABLE_TO_ANYONE>} RoleIdAssignableToAnyone */
+const ROLE_IDS_ASSIGNABLE_TO_ANYONE = new Set(
+  /** @type {const} */ ([
+    COORDINATOR_ROLE_ID,
+    MEMBER_ROLE_ID,
+    BLOCKED_ROLE_ID,
+    LEFT_ROLE_ID,
+  ])
+)
+const isRoleIdAssignableToAnyone = setHas(ROLE_IDS_ASSIGNABLE_TO_ANYONE)
 
 /**
  * @typedef {object} DocCapability
@@ -26,34 +68,6 @@ export const NO_ROLE_ID = '08e4251e36f6e7ed'
  * @property {Record<import('@mapeo/schema').MapeoDoc['schemaName'], DocCapability>} docs
  * @property {RoleIdAssignableToOthers[]} roleAssignment
  * @property {Record<import('./core-manager/core-index.js').Namespace, 'allowed' | 'blocked'>} sync
- */
-
-/**
- * @typedef {(
- *   typeof CREATOR_ROLE_ID |
- *   typeof COORDINATOR_ROLE_ID |
- *   typeof MEMBER_ROLE_ID |
- *   typeof BLOCKED_ROLE_ID |
- *   typeof LEFT_ROLE_ID |
- *   typeof NO_ROLE_ID
- * )} RoleId
- */
-
-/**
- * @typedef {Extract<RoleId,
- *   typeof COORDINATOR_ROLE_ID |
- *   typeof MEMBER_ROLE_ID |
- *   typeof BLOCKED_ROLE_ID
- * >} RoleIdAssignableToOthers
- */
-
-/**
- * @typedef {Extract<RoleId,
- *   typeof COORDINATOR_ROLE_ID |
- *   typeof MEMBER_ROLE_ID |
- *   typeof BLOCKED_ROLE_ID |
- *   typeof LEFT_ROLE_ID
- * >} RoleIdAssignableToAnyone
  */
 
 /**
@@ -238,6 +252,7 @@ export class Roles {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
+    /** @type {string} */
     let roleId
     try {
       const roleAssignment = await this.#dataType.getByDocId(deviceId)
@@ -253,7 +268,7 @@ export class Roles {
         return NO_ROLE
       }
     }
-    if (!isKnownRoleId(roleId)) {
+    if (!isRoleId(roleId)) {
       return ROLES[BLOCKED_ROLE_ID]
     }
     return ROLES[roleId]
@@ -271,6 +286,7 @@ export class Roles {
     const roles = await this.#dataType.getMany()
     /** @type {Record<string, Role>} */
     const result = {}
+    /** @type {undefined | string} */
     let projectCreatorDeviceId
     try {
       projectCreatorDeviceId = await this.#coreOwnership.getOwner(
@@ -285,8 +301,15 @@ export class Roles {
     }
 
     for (const role of roles) {
+      if (!isRoleId(role.roleId)) {
+        console.error("Found a value that wasn't a role ID")
+        continue
+      }
+      if (role.roleId === CREATOR_ROLE_ID) {
+        console.error('Unexpected creator role')
+        continue
+      }
       const deviceId = role.docId
-      if (!isKnownRoleId(role.roleId)) continue
       result[deviceId] = ROLES[role.roleId]
     }
     const includesSelf = Boolean(result[this.#ownDeviceId])
@@ -311,6 +334,11 @@ export class Roles {
    * @param {RoleIdAssignableToAnyone} roleId
    */
   async assignRole(deviceId, roleId) {
+    assert(
+      isRoleIdAssignableToAnyone(roleId),
+      `Role ID should be assignable to anyone but got ${roleId}`
+    )
+
     let fromIndex = 0
     let authCoreId
     try {
@@ -373,13 +401,4 @@ export class Roles {
       .key.toString('hex')
     return ownAuthCoreId === this.#projectCreatorAuthCoreId
   }
-}
-
-/**
- *
- * @param {string} roleId
- * @returns {roleId is keyof ROLES}
- */
-function isKnownRoleId(roleId) {
-  return roleId in ROLES
 }
