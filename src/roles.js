@@ -61,7 +61,7 @@ export const NO_ROLE_ID = '08e4251e36f6e7ed'
  * because the creator should always have ALL powers, but we could edit the
  * 'Coordinator' powers in the future.
  *
- * @type {Role}
+ * @type {Role<typeof CREATOR_ROLE_ID>}
  */
 export const CREATOR_ROLE = {
   roleId: CREATOR_ROLE_ID,
@@ -90,7 +90,7 @@ export const CREATOR_ROLE = {
  * receive their role record, and they can get the project config so that they
  * can start collecting data.
  *
- * @type {Role}
+ * @type {Role<typeof NO_ROLE_ID>}
  */
 export const NO_ROLE = {
   roleId: NO_ROLE_ID,
