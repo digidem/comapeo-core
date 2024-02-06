@@ -19,8 +19,9 @@ export const NO_ROLE_ID = '08e4251e36f6e7ed'
  */
 
 /**
+ * @template {RoleId} [T=RoleId]
  * @typedef {object} Role
- * @property {RoleId} roleId
+ * @property {T} roleId
  * @property {string} name
  * @property {Record<import('@mapeo/schema').MapeoDoc['schemaName'], DocCapability>} docs
  * @property {RoleIdAssignableToOthers[]} roleAssignment
@@ -110,7 +111,7 @@ export const NO_ROLE = {
   },
 }
 
-/** @type {Record<RoleId, Role>} */
+/** @type {{ [K in RoleId]: Role<K> }} */
 export const ROLES = {
   [CREATOR_ROLE_ID]: CREATOR_ROLE,
   [MEMBER_ROLE_ID]: {
