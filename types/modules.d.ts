@@ -5,7 +5,6 @@
 // - DhtNode
 
 declare module 'sodium-universal'
-declare module 'sub-encoder'
 
 declare module 'kademlia-routing-table' {
   import { TypedEmitter } from 'tiny-typed-emitter'
