@@ -124,10 +124,25 @@ test('config import - icons', async (t) => {
     null,
     'the error message is about invalid size'
   )
+
+  config = await readConfig('./tests/fixtures/config/validIcons.zip')
+  for await (const icon of config.icons()) {
+    t.is(icon.name, 'plant', 'icon name is `plant`')
+    t.is(
+      icon.variants.length,
+      9,
+      '9 variants of icons (dot product of density and size)'
+    )
+    for (let variant of icon.variants) {
+      t.is(variant.mimeType, 'image/png', 'variant is a png')
+    }
+  }
+
+  t.is(config.warnings.length, 0, 'no warnings on the file')
 })
 
 test('config import - fields', async (t) => {
-  const config = await readConfig('./tests/fixtures/config/invalidField.zip')
+  let config = await readConfig('./tests/fixtures/config/invalidField.zip')
 
   /* eslint-disable-next-line */
   for (const field of config.fields()) {
@@ -148,10 +163,22 @@ test('config import - fields', async (t) => {
     null,
     'the third error is because the field is not an object'
   )
+
+  config = await readConfig('./tests/fixtures/config/validField.zip')
+  for (let field of config.fields()) {
+    t.is(field.name, 'nombre-monitor', `field.name is 'nombre-monitor'`)
+    t.is(
+      field.value.tagKey,
+      'nombre-monitor',
+      `tagKey of field is 'nombre-monitor'`
+    )
+    t.is(field.value.schemaName, 'field', `schemaName is 'field'`)
+  }
+  t.is(config.warnings.length, 0, 'no warnings on the file')
 })
 
 test('config import - presets', async (t) => {
-  const config = await readConfig('./tests/fixtures/config/invalidPreset.zip')
+  let config = await readConfig('./tests/fixtures/config/invalidPreset.zip')
 
   /* eslint-disable-next-line */
   for (const field of config.presets()) {
@@ -167,4 +194,14 @@ test('config import - presets', async (t) => {
     null,
     'the second error is because the preset is null'
   )
+
+  config = await readConfig('./tests/fixtures/config/validPreset.zip')
+  for (const preset of config.presets()) {
+    t.is(preset.value.schemaName, 'preset', `schemaName is 'preset'`)
+    t.ok(
+      preset.value.name === 'Planta' || 'Punto de Entrada',
+      `the preset name is what is expected`
+    )
+  }
+  t.is(config.warnings.length, 0, `no warnings on the file`)
 })
