@@ -57,6 +57,8 @@ const MAX_FILE_DESCRIPTORS = 768
 const BLOBS_PREFIX = 'blobs'
 const ICONS_PREFIX = 'icons'
 
+const DEFAULT_CONFIG_PATH = 'config/defaultConfig.zip'
+
 export const kRPC = Symbol('rpc')
 export const kManagerReplicate = Symbol('replicate manager')
 
@@ -380,6 +382,13 @@ export class MapeoManager extends TypedEmitter {
 
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
+
+    // load default config
+    // TODO: see how to expose warnings to frontend
+    /* eslint-disable no-unused-vars */
+    const warnings = await project.importConfig({
+      configPath: path.resolve(DEFAULT_CONFIG_PATH),
+    })
 
     this.#l.log(
       'created project %h, public id: %S',
