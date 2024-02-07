@@ -69,7 +69,7 @@ export async function readConfig(configPath) {
       const entries = await iconsZip.readEntries(MAX_ENTRIES)
       for (const entry of entries) {
         if (!entry.filename.match(/^icons\/([^/]+)$/)) continue
-        if (!entry.uncompressedSize > MAX_ICON_SIZE) {
+        if (entry.uncompressedSize > MAX_ICON_SIZE) {
           warnings.push(
             new Error(
               `icon ${entry.filename} is bigger than maximum allowed size (10MB) `
