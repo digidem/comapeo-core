@@ -126,19 +126,40 @@ test('CRUD operations', async (t) => {
     await t.test('getMany', async (st) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
-      const values = new Array(5).fill(null).map(() => {
-        return getUpdateFixture(value)
-      })
-      for (const value of values) {
-        // @ts-ignore
-        await project[schemaName].create(value)
+      const writePromises = []
+      for (let i = 0; i < CREATE_COUNT; i++) {
+        const value = valueOf(generate(schemaName)[0])
+        writePromises.push(
+          // @ts-ignore
+          project[schemaName].create(value)
+        )
       }
-      const many = await project[schemaName].getMany()
-      const manyValues = many.map((doc) => valueOf(doc))
+      const written = await Promise.all(writePromises)
+      const expectedWithoutDeleted = []
+      const deletePromises = []
+      for (const [i, doc] of written.entries()) {
+        // delete every 3rd doc
+        if (i % 3 === 0) {
+          deletePromises.push(project[schemaName].delete(doc.docId))
+        } else {
+          expectedWithoutDeleted.push(doc)
+        }
+      }
+      const deleted = await Promise.all(deletePromises)
+      const expectedWithDeleted = [...expectedWithoutDeleted, ...deleted]
+      const manyWithoutDeleted = await project[schemaName].getMany()
       st.alike(
-        stripUndef(manyValues),
-        values,
+        sortById(manyWithoutDeleted),
+        sortById(expectedWithoutDeleted),
         'expected values returns from getMany()'
+      )
+      const manyWithDeleted = await project[schemaName].getMany({
+        includeDeleted: true,
+      })
+      st.alike(
+        sortById(manyWithDeleted),
+        sortById(expectedWithDeleted),
+        'expected values returns from getMany({ includeDeleted: true })'
       )
     })
 

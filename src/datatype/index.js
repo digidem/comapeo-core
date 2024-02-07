@@ -91,7 +91,12 @@ export class DataType extends TypedEmitter {
         .from(table)
         .where(eq(table.docId, placeholder('docId')))
         .prepare(),
-      getMany: db.select().from(table).prepare(),
+      getMany: db
+        .select()
+        .from(table)
+        .where(eq(table.deleted, false))
+        .prepare(),
+      getManyWithDeleted: db.select().from(table).prepare(),
     }
     this.on('newListener', (eventName) => {
       if (eventName !== 'updated-docs') return
@@ -179,9 +184,13 @@ export class DataType extends TypedEmitter {
     return this.#dataStore.read(versionId)
   }
 
-  async getMany() {
+  /** @param {{ includeDeleted?: boolean }} [opts] */
+  async getMany({ includeDeleted = false } = {}) {
     await this.#dataStore.indexer.idle()
-    return this.#sql.getMany.all().map((doc) => deNullify(doc))
+    const rows = includeDeleted
+      ? this.#sql.getManyWithDeleted.all()
+      : this.#sql.getMany.all()
+    return rows.map((doc) => deNullify(doc))
   }
 
   /**
