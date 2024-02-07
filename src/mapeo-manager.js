@@ -37,7 +37,7 @@ import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
-import { Capabilities } from './capabilities.js'
+import { Roles } from './roles.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { Logger } from './logger.js'
 import { kSyncState } from './sync/sync-api.js'
@@ -590,7 +590,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * Sync initial data: the `auth` cores which contain the capability messages,
+   * Sync initial data: the `auth` cores which contain the role messages,
    * and the `config` cores which contain the project name & custom config (if
    * it exists). The API consumer should await this after `client.addProject()`
    * to ensure that the device is fully added to the project.
@@ -605,26 +605,26 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<boolean>}
    */
   async #waitForInitialSync(project, { timeoutMs = 5000 } = {}) {
-    const [capability, projectSettings] = await Promise.all([
-      project.$getOwnCapabilities(),
+    const [ownRole, projectSettings] = await Promise.all([
+      project.$getOwnRole(),
       project.$getProjectSettings(),
     ])
     const {
       auth: { localState: authState },
       config: { localState: configState },
     } = project.$sync[kSyncState].getState()
-    const isCapabilitySynced = capability !== Capabilities.NO_ROLE_CAPABILITIES
+    const isRoleSynced = ownRole !== Roles.NO_ROLE
     const isProjectSettingsSynced =
       projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
     // Assumes every project that someone is invited to has at least one record
-    // in the auth store - the capability record for the invited device
+    // in the auth store - the row record for the invited device
     const isAuthSynced = authState.want === 0 && authState.have > 0
     // Assumes every project that someone is invited to has at least one record
     // in the config store - defining the name of the project.
     // TODO: Enforce adding a project name in the invite method
     const isConfigSynced = configState.want === 0 && configState.have > 0
     if (
-      isCapabilitySynced &&
+      isRoleSynced &&
       isProjectSettingsSynced &&
       isAuthSynced &&
       isConfigSynced

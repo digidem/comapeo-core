@@ -32,9 +32,9 @@ import {
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
-  Capabilities,
+  Roles,
   LEFT_ROLE_ID,
-} from './capabilities.js'
+} from './roles.js'
 import {
   getDeviceId,
   projectKeyToId,
@@ -71,7 +71,7 @@ export class MapeoProject extends TypedEmitter {
   #dataTypes
   #blobStore
   #coreOwnership
-  #capabilities
+  #roles
   /** @ts-ignore */
   #ownershipWriteDone
   #sqlite
@@ -246,7 +246,7 @@ export class MapeoProject extends TypedEmitter {
       coreKeypairs,
       identityKeypair,
     })
-    this.#capabilities = new Capabilities({
+    this.#roles = new Roles({
       dataType: this.#dataTypes.role,
       coreOwnership: this.#coreOwnership,
       coreManager: this.#coreManager,
@@ -256,7 +256,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#memberApi = new MemberApi({
       deviceId: this.#deviceId,
-      capabilities: this.#capabilities,
+      roles: this.#roles,
       coreOwnership: this.#coreOwnership,
       encryptionKeys,
       projectKey,
@@ -298,7 +298,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#syncApi = new SyncApi({
       coreManager: this.#coreManager,
-      capabilities: this.#capabilities,
+      roles: this.#roles,
       logger: this.#l,
     })
 
@@ -325,7 +325,7 @@ export class MapeoProject extends TypedEmitter {
     }
 
     // When a new peer is found, try to replicate (if it is not a member of the
-    // project it will fail the capability check and be ignored)
+    // project it will fail the role check and be ignored)
     localPeers.on('peer-add', onPeerAdd)
 
     // This happens whenever a peer replicates a core to the stream. SyncApi
@@ -494,8 +494,8 @@ export class MapeoProject extends TypedEmitter {
     }
   }
 
-  async $getOwnCapabilities() {
-    return this.#capabilities.getCapabilities(this.#deviceId)
+  async $getOwnRole() {
+    return this.#roles.getRole(this.#deviceId)
   }
 
   /**
@@ -567,7 +567,7 @@ export class MapeoProject extends TypedEmitter {
       throw new Error('Cannot leave a project as a blocked device')
     }
 
-    const knownDevices = Object.keys(await this.#capabilities.getAll())
+    const knownDevices = Object.keys(await this.#roles.getAll())
     const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
       this.#projectId
     )
@@ -630,7 +630,7 @@ export class MapeoProject extends TypedEmitter {
     // 3.2 Clear indexed data
 
     // 4. Assign LEFT role for device
-    await this.#capabilities.assignRole(this.#deviceId, LEFT_ROLE_ID)
+    await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
   }
 }
 

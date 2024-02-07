@@ -1,12 +1,56 @@
 import { currentSchemaVersions } from '@mapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId } from './datatype/index.js'
+import { assert, setHas } from './utils.js'
 
 // Randomly generated 8-byte encoded as hex
+export const CREATOR_ROLE_ID = 'a12a6702b93bd7ff'
 export const COORDINATOR_ROLE_ID = 'f7c150f5a3a9a855'
 export const MEMBER_ROLE_ID = '012fd2d431c0bf60'
 export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
+export const NO_ROLE_ID = '08e4251e36f6e7ed'
+
+/**
+ * @typedef {T extends Iterable<infer U> ? U : never} ElementOf
+ * @template T
+ */
+
+/** @typedef {ElementOf<typeof ROLE_IDS>} RoleId */
+const ROLE_IDS = new Set(
+  /** @type {const} */ ([
+    CREATOR_ROLE_ID,
+    COORDINATOR_ROLE_ID,
+    MEMBER_ROLE_ID,
+    BLOCKED_ROLE_ID,
+    LEFT_ROLE_ID,
+    NO_ROLE_ID,
+  ])
+)
+const isRoleId = setHas(ROLE_IDS)
+
+/** @typedef {ElementOf<typeof ROLE_IDS_FOR_NEW_INVITE>} RoleIdForNewInvite */
+const ROLE_IDS_FOR_NEW_INVITE = new Set(
+  /** @type {const} */ ([COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID])
+)
+export const isRoleIdForNewInvite = setHas(ROLE_IDS_FOR_NEW_INVITE)
+
+/** @typedef {ElementOf<typeof ROLE_IDS_ASSIGNABLE_TO_OTHERS>} RoleIdAssignableToOthers */
+const ROLE_IDS_ASSIGNABLE_TO_OTHERS = new Set(
+  /** @type {const} */ ([COORDINATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID])
+)
+export const isRoleIdAssignableToOthers = setHas(ROLE_IDS_ASSIGNABLE_TO_OTHERS)
+
+/** @typedef {ElementOf<typeof ROLE_IDS_ASSIGNABLE_TO_ANYONE>} RoleIdAssignableToAnyone */
+const ROLE_IDS_ASSIGNABLE_TO_ANYONE = new Set(
+  /** @type {const} */ ([
+    COORDINATOR_ROLE_ID,
+    MEMBER_ROLE_ID,
+    BLOCKED_ROLE_ID,
+    LEFT_ROLE_ID,
+  ])
+)
+const isRoleIdAssignableToAnyone = setHas(ROLE_IDS_ASSIGNABLE_TO_ANYONE)
 
 /**
  * @typedef {object} DocCapability
@@ -17,25 +61,24 @@ export const LEFT_ROLE_ID = '8ced989b1904606b'
  */
 
 /**
- * @typedef {object} Capability
+ * @template {RoleId} [T=RoleId]
+ * @typedef {object} Role
+ * @property {T} roleId
  * @property {string} name
  * @property {Record<import('@mapeo/schema').MapeoDoc['schemaName'], DocCapability>} docs
- * @property {RoleId[]} roleAssignment
+ * @property {RoleIdAssignableToOthers[]} roleAssignment
  * @property {Record<import('./core-manager/core-index.js').Namespace, 'allowed' | 'blocked'>} sync
  */
 
 /**
- * @typedef {typeof COORDINATOR_ROLE_ID | typeof MEMBER_ROLE_ID | typeof BLOCKED_ROLE_ID | typeof LEFT_ROLE_ID} RoleId
- */
-
-/**
- * This is currently the same as 'Coordinator' capabilities, but defined
- * separately because the creator should always have ALL capabilities, but we
- * could edit 'Coordinator' capabilities in the future
+ * This is currently the same as 'Coordinator' role, but defined separately
+ * because the creator should always have ALL powers, but we could edit the
+ * 'Coordinator' powers in the future.
  *
- * @type {Capability}
+ * @type {Role<typeof CREATOR_ROLE_ID>}
  */
-export const CREATOR_CAPABILITIES = {
+export const CREATOR_ROLE = {
+  roleId: CREATOR_ROLE_ID,
   name: 'Project Creator',
   docs: mapObject(currentSchemaVersions, (key) => {
     return [
@@ -54,16 +97,17 @@ export const CREATOR_CAPABILITIES = {
 }
 
 /**
- * These are the capabilities assumed for a device when no capability record can
- * be found. This can happen when an invited device did not manage to sync with
- * the device that invited them, and they then try to sync with someone else. We
- * want them to be able to sync the auth and config store, because that way they
- * may be able to receive their role record, and they can get the project config
- * so that they can start collecting data.
+ * This is the role assumed for a device when no role record can be found. This
+ * can happen when an invited device did not manage to sync with the device that
+ * invited them, and they then try to sync with someone else. We want them to be
+ * able to sync the auth and config store, because that way they may be able to
+ * receive their role record, and they can get the project config so that they
+ * can start collecting data.
  *
- * @type {Capability}
+ * @type {Role<typeof NO_ROLE_ID>}
  */
-export const NO_ROLE_CAPABILITIES = {
+export const NO_ROLE = {
+  roleId: NO_ROLE_ID,
   name: 'No Role',
   docs: mapObject(currentSchemaVersions, (key) => {
     return [
@@ -81,9 +125,11 @@ export const NO_ROLE_CAPABILITIES = {
   },
 }
 
-/** @type {Record<RoleId, Capability>} */
-export const DEFAULT_CAPABILITIES = {
+/** @type {{ [K in RoleId]: Role<K> }} */
+export const ROLES = {
+  [CREATOR_ROLE_ID]: CREATOR_ROLE,
   [MEMBER_ROLE_ID]: {
+    roleId: MEMBER_ROLE_ID,
     name: 'Member',
     docs: mapObject(currentSchemaVersions, (key) => {
       return [
@@ -101,6 +147,7 @@ export const DEFAULT_CAPABILITIES = {
     },
   },
   [COORDINATOR_ROLE_ID]: {
+    roleId: COORDINATOR_ROLE_ID,
     name: 'Coordinator',
     docs: mapObject(currentSchemaVersions, (key) => {
       return [
@@ -118,6 +165,7 @@ export const DEFAULT_CAPABILITIES = {
     },
   },
   [BLOCKED_ROLE_ID]: {
+    roleId: BLOCKED_ROLE_ID,
     name: 'Blocked',
     docs: mapObject(currentSchemaVersions, (key) => {
       return [
@@ -140,6 +188,7 @@ export const DEFAULT_CAPABILITIES = {
     },
   },
   [LEFT_ROLE_ID]: {
+    roleId: LEFT_ROLE_ID,
     name: 'Left',
     docs: mapObject(currentSchemaVersions, (key) => {
       return [
@@ -161,16 +210,17 @@ export const DEFAULT_CAPABILITIES = {
       blob: 'blocked',
     },
   },
+  [NO_ROLE_ID]: NO_ROLE,
 }
 
-export class Capabilities {
+export class Roles {
   #dataType
   #coreOwnership
   #coreManager
   #projectCreatorAuthCoreId
   #ownDeviceId
 
-  static NO_ROLE_CAPABILITIES = NO_ROLE_CAPABILITIES
+  static NO_ROLE = NO_ROLE
 
   /**
    *
@@ -196,87 +246,99 @@ export class Capabilities {
   }
 
   /**
-   * Get the capabilities for device `deviceId`.
+   * Get the role for device `deviceId`.
    *
    * @param {string} deviceId
-   * @returns {Promise<Capability>}
+   * @returns {Promise<Role>}
    */
-  async getCapabilities(deviceId) {
+  async getRole(deviceId) {
+    /** @type {string} */
     let roleId
     try {
       const roleAssignment = await this.#dataType.getByDocId(deviceId)
       roleId = roleAssignment.roleId
     } catch (e) {
-      // The project creator will have all capabilities
+      // The project creator will have the creator role
       const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
       if (authCoreId === this.#projectCreatorAuthCoreId) {
-        return CREATOR_CAPABILITIES
+        return CREATOR_ROLE
       } else {
         // When no role assignment exists, e.g. a newly added device which has
         // not yet synced role records.
-        return NO_ROLE_CAPABILITIES
+        return NO_ROLE
       }
     }
-    if (!isKnownRoleId(roleId)) {
-      return DEFAULT_CAPABILITIES[BLOCKED_ROLE_ID]
+    if (!isRoleId(roleId)) {
+      return ROLES[BLOCKED_ROLE_ID]
     }
-    const capabilities = DEFAULT_CAPABILITIES[roleId]
-    return capabilities
+    return ROLES[roleId]
   }
 
   /**
-   * Get capabilities of all devices in the project. For your own device, if you
-   * have not yet synced your own role record, the "no role" capabilties is
-   * returned. The project creator will have `CREATOR_CAPABILITIES` unless a
-   * different role has been assigned.
+   * Get roles of all devices in the project. For your own device, if you have
+   * not yet synced your own role record, the "no role" capabilties is
+   * returned. The project creator will have the creator role unless a
+   * different one has been assigned.
    *
-   * @returns {Promise<Record<string, Capability>>} Map of deviceId to Capability
+   * @returns {Promise<Record<string, Role>>} Map of deviceId to Role
    */
   async getAll() {
     const roles = await this.#dataType.getMany()
-    /** @type {Record<string, Capability>} */
-    const capabilities = {}
+    /** @type {Record<string, Role>} */
+    const result = {}
+    /** @type {undefined | string} */
     let projectCreatorDeviceId
     try {
       projectCreatorDeviceId = await this.#coreOwnership.getOwner(
         this.#projectCreatorAuthCoreId
       )
-      // Default to creator capabilities, but can be overwritten if a different
-      // role is set below
-      capabilities[projectCreatorDeviceId] = CREATOR_CAPABILITIES
+      // Default to creator role, but can be overwritten if a different role is
+      // set below
+      result[projectCreatorDeviceId] = CREATOR_ROLE
     } catch (e) {
       // Not found, we don't know who the project creator is so we can't include
       // them in the returned map
     }
 
     for (const role of roles) {
+      if (!isRoleId(role.roleId)) {
+        console.error("Found a value that wasn't a role ID")
+        continue
+      }
+      if (role.roleId === CREATOR_ROLE_ID) {
+        console.error('Unexpected creator role')
+        continue
+      }
       const deviceId = role.docId
-      if (!isKnownRoleId(role.roleId)) continue
-      capabilities[deviceId] = DEFAULT_CAPABILITIES[role.roleId]
+      result[deviceId] = ROLES[role.roleId]
     }
-    const includesSelf = Boolean(capabilities[this.#ownDeviceId])
+    const includesSelf = Boolean(result[this.#ownDeviceId])
     if (!includesSelf) {
       const isProjectCreator = this.#ownDeviceId === projectCreatorDeviceId
       if (isProjectCreator) {
-        capabilities[this.#ownDeviceId] = CREATOR_CAPABILITIES
+        result[this.#ownDeviceId] = CREATOR_ROLE
       } else {
-        capabilities[this.#ownDeviceId] = NO_ROLE_CAPABILITIES
+        result[this.#ownDeviceId] = NO_ROLE
       }
     }
-    return capabilities
+    return result
   }
 
   /**
    * Assign a role to the specified `deviceId`. Devices without an assigned role
-   * are unable to sync, except the project creator that defaults to having all
-   * capabilities. Only the project creator can assign their own role. Will
-   * throw if the device trying to assign the role lacks the `roleAssignment`
-   * capability for the given roleId
+   * are unable to sync, except the project creator who can do anything. Only
+   * the project creator can assign their own role. Will throw if the device's
+   * role cannot assign the role by consulting `roleAssignment`.
    *
    * @param {string} deviceId
-   * @param {keyof typeof DEFAULT_CAPABILITIES} roleId
+   * @param {RoleIdAssignableToAnyone} roleId
    */
   async assignRole(deviceId, roleId) {
+    assert(
+      isRoleIdAssignableToAnyone(roleId),
+      `Role ID should be assignable to anyone but got ${roleId}`
+    )
+
     let fromIndex = 0
     let authCoreId
     try {
@@ -299,15 +361,15 @@ export class Capabilities {
         "Only the project creator can assign the project creator's role"
       )
     }
-    const ownCapabilities = await this.getCapabilities(this.#ownDeviceId)
+    const ownRole = await this.getRole(this.#ownDeviceId)
 
     if (roleId === LEFT_ROLE_ID) {
       if (deviceId !== this.#ownDeviceId) {
         throw new Error('Cannot assign LEFT role to another device')
       }
     } else {
-      if (!ownCapabilities.roleAssignment.includes(roleId)) {
-        throw new Error('No capability to assign role ' + roleId)
+      if (!ownRole.roleAssignment.includes(roleId)) {
+        throw new Error('Lacks permission to assign role ' + roleId)
       }
     }
 
@@ -339,13 +401,4 @@ export class Capabilities {
       .key.toString('hex')
     return ownAuthCoreId === this.#projectCreatorAuthCoreId
   }
-}
-
-/**
- *
- * @param {string} roleId
- * @returns {roleId is keyof DEFAULT_CAPABILITIES}
- */
-function isKnownRoleId(roleId) {
-  return roleId in DEFAULT_CAPABILITIES
 }
