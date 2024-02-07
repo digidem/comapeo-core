@@ -4,11 +4,11 @@ import { randomBytes } from 'crypto'
 
 import {
   COORDINATOR_ROLE_ID,
-  CREATOR_CAPABILITIES,
-  DEFAULT_CAPABILITIES,
+  CREATOR_ROLE,
+  ROLES,
   MEMBER_ROLE_ID,
-  NO_ROLE_CAPABILITIES,
-} from '../src/capabilities.js'
+  NO_ROLE,
+} from '../src/roles.js'
 import {
   connectPeers,
   createManagers,
@@ -32,9 +32,9 @@ test('getting yourself after creating project', async (t) => {
     {
       deviceId: project.deviceId,
       name: deviceInfo.name,
-      capabilities: CREATOR_CAPABILITIES,
+      role: CREATOR_ROLE,
     },
-    'has expected member info with creator capabilities'
+    'has expected member info with creator role'
   )
 
   const members = await project.$member.getMany()
@@ -45,9 +45,9 @@ test('getting yourself after creating project', async (t) => {
     {
       deviceId: project.deviceId,
       name: deviceInfo.name,
-      capabilities: CREATOR_CAPABILITIES,
+      role: CREATOR_ROLE,
     },
-    'has expected member info with creator capabilities'
+    'has expected member info with creator role'
   )
 })
 
@@ -72,9 +72,9 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
     {
       deviceId: project.deviceId,
       name: deviceInfo.name,
-      capabilities: NO_ROLE_CAPABILITIES,
+      role: NO_ROLE,
     },
-    'has expected member info with no role capabilities'
+    'has expected member info with no role'
   )
 
   const members = await project.$member.getMany()
@@ -85,9 +85,9 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
     {
       deviceId: project.deviceId,
       name: deviceInfo.name,
-      capabilities: NO_ROLE_CAPABILITIES,
+      role: NO_ROLE,
     },
-    'has expected member info with no role capabilities'
+    'has expected member info with no role'
   )
 })
 
@@ -150,9 +150,9 @@ test('getting invited member after invite accepted', async (t) => {
     {
       deviceId: invitee.deviceId,
       name: inviteeName,
-      capabilities: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+      role: ROLES[MEMBER_ROLE_ID],
     },
-    'has expected member info with member capabilities'
+    'has expected member info with member role'
   )
 
   // TODO: Test that device info of invited member can be read from invitor after syncing
@@ -195,7 +195,7 @@ test('invite uses default role name when not provided', async (t) => {
   invitee.invite.on('invite-received', ({ roleName }) => {
     t.is(
       roleName,
-      DEFAULT_CAPABILITIES[MEMBER_ROLE_ID].name,
+      ROLES[MEMBER_ROLE_ID].name,
       '`roleName` should use the fallback by deriving `roleId`'
     )
   })
@@ -210,32 +210,24 @@ test('invite uses default role name when not provided', async (t) => {
   await disconnectPeers(managers)
 })
 
-test('capabilities - creator capabilities and role assignment', async (t) => {
+test('roles - creator role and role assignment', async (t) => {
   const [manager] = await createManagers(1, t)
 
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
-  const ownCapabilities = await project.$getOwnCapabilities()
+  const ownRole = await project.$getOwnRole()
 
-  t.alike(
-    ownCapabilities,
-    CREATOR_CAPABILITIES,
-    'Project creator has creator capabilities'
-  )
+  t.alike(ownRole, CREATOR_ROLE, 'Project creator has creator role')
 
   const deviceId = randomBytes(32).toString('hex')
   await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
 
   const member = await project.$member.getById(deviceId)
 
-  t.alike(
-    member.capabilities,
-    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
-    'Can assign capabilities to device'
-  )
+  t.alike(member.role, ROLES[MEMBER_ROLE_ID], 'Can assign role to device')
 })
 
-test('capabilities - new device without capabilities', async (t) => {
+test('roles - new device without role', async (t) => {
   const [manager] = await createManagers(1, t)
 
   const projectId = await manager.addProject(
@@ -248,10 +240,10 @@ test('capabilities - new device without capabilities', async (t) => {
 
   const project = await manager.getProject(projectId)
 
-  const ownCapabilities = await project.$getOwnCapabilities()
+  const ownRole = await project.$getOwnRole()
 
   t.alike(
-    ownCapabilities.sync,
+    ownRole.sync,
     {
       auth: 'allowed',
       config: 'allowed',
@@ -264,23 +256,19 @@ test('capabilities - new device without capabilities', async (t) => {
   await t.exception(async () => {
     const deviceId = randomBytes(32).toString('hex')
     await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
-  }, 'Trying to assign a role without capabilities throws an error')
+  }, 'Trying to assign a role without the permission throws an error')
 })
 
-test('capabilities - getMany() on invitor device', async (t) => {
+test('roles - getMany() on invitor device', async (t) => {
   const [manager] = await createManagers(1, t)
 
   const creatorDeviceId = manager.deviceId
 
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
-  const ownCapabilities = await project.$getOwnCapabilities()
+  const ownRole = await project.$getOwnRole()
 
-  t.alike(
-    ownCapabilities,
-    CREATOR_CAPABILITIES,
-    'Project creator has creator capabilities'
-  )
+  t.alike(ownRole, CREATOR_ROLE, 'Project creator has creator role')
 
   const deviceId1 = randomBytes(32).toString('hex')
   const deviceId2 = randomBytes(32).toString('hex')
@@ -288,24 +276,24 @@ test('capabilities - getMany() on invitor device', async (t) => {
   await project.$member.assignRole(deviceId2, COORDINATOR_ROLE_ID)
 
   const expected = {
-    [deviceId1]: DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
-    [deviceId2]: DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
-    [creatorDeviceId]: CREATOR_CAPABILITIES,
+    [deviceId1]: ROLES[MEMBER_ROLE_ID],
+    [deviceId2]: ROLES[COORDINATOR_ROLE_ID],
+    [creatorDeviceId]: CREATOR_ROLE,
   }
 
   const allMembers = await project.$member.getMany()
 
-  /** @type {Record<string, import('../src/capabilities.js').Capability>} */
-  const allMembersCapabilities = {}
+  /** @type {Record<string, import('../src/roles.js').Role>} */
+  const actual = {}
 
   for (const member of allMembers) {
-    allMembersCapabilities[member.deviceId] = member.capabilities
+    actual[member.deviceId] = member.role
   }
 
-  t.alike(allMembersCapabilities, expected, 'expected capabilities')
+  t.alike(actual, expected, 'expected roles')
 })
 
-test('capabilities - getMany() on newly invited device before sync', async (t) => {
+test('roles - getMany() on newly invited device before sync', async (t) => {
   const [manager] = await createManagers(1, t)
 
   const deviceId = manager.deviceId
@@ -319,21 +307,21 @@ test('capabilities - getMany() on newly invited device before sync', async (t) =
   )
   const project = await manager.getProject(projectId)
 
-  const expected = { [deviceId]: NO_ROLE_CAPABILITIES }
+  const expected = { [deviceId]: NO_ROLE }
 
   const allMembers = await project.$member.getMany()
 
-  /** @type {Record<string, import('../src/capabilities.js').Capability>} */
-  const allMembersCapabilities = {}
+  /** @type {Record<string, import('../src/roles.js').Role>} */
+  const actual = {}
 
   for (const member of allMembers) {
-    allMembersCapabilities[member.deviceId] = member.capabilities
+    actual[member.deviceId] = member.role
   }
 
-  t.alike(allMembersCapabilities, expected, 'expected capabilities')
+  t.alike(actual, expected, 'expected role')
 })
 
-test('capabilities - assignRole()', async (t) => {
+test('roles - assignRole()', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
   connectPeers(managers)
@@ -355,15 +343,15 @@ test('capabilities - assignRole()', async (t) => {
   const [invitorProject, inviteeProject] = projects
 
   t.alike(
-    (await invitorProject.$member.getById(invitee.deviceId)).capabilities,
-    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
-    'invitee has member capabilities from invitor perspective'
+    (await invitorProject.$member.getById(invitee.deviceId)).role,
+    ROLES[MEMBER_ROLE_ID],
+    'invitee has member role from invitor perspective'
   )
 
   t.alike(
-    await inviteeProject.$getOwnCapabilities(),
-    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
-    'invitee has member capabilities from invitee perspective'
+    await inviteeProject.$getOwnRole(),
+    ROLES[MEMBER_ROLE_ID],
+    'invitee has member role from invitee perspective'
   )
 
   await t.test('invitor updates invitee role to coordinator', async (st) => {
@@ -390,15 +378,15 @@ test('capabilities - assignRole()', async (t) => {
     await waitForSync(projects, 'initial')
 
     st.alike(
-      (await invitorProject.$member.getById(invitee.deviceId)).capabilities,
-      DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
-      'invitee now has coordinator capabilities from invitor perspective'
+      (await invitorProject.$member.getById(invitee.deviceId)).role,
+      ROLES[COORDINATOR_ROLE_ID],
+      'invitee now has coordinator role from invitor perspective'
     )
 
     st.alike(
-      await inviteeProject.$getOwnCapabilities(),
-      DEFAULT_CAPABILITIES[COORDINATOR_ROLE_ID],
-      'invitee now has coordinator capabilities from invitee perspective'
+      await inviteeProject.$getOwnRole(),
+      ROLES[COORDINATOR_ROLE_ID],
+      'invitee now has coordinator role from invitee perspective'
     )
   })
 
@@ -427,22 +415,22 @@ test('capabilities - assignRole()', async (t) => {
     await waitForSync(projects, 'initial')
 
     st.alike(
-      (await invitorProject.$member.getById(invitee.deviceId)).capabilities,
-      DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
-      'invitee now has member capabilities from invitor perspective'
+      (await invitorProject.$member.getById(invitee.deviceId)).role,
+      ROLES[MEMBER_ROLE_ID],
+      'invitee now has member role from invitor perspective'
     )
 
     st.alike(
-      await inviteeProject.$getOwnCapabilities(),
-      DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
-      'invitee now has member capabilities from invitee perspective'
+      await inviteeProject.$getOwnRole(),
+      ROLES[MEMBER_ROLE_ID],
+      'invitee now has member role from invitee perspective'
     )
   })
 
   await disconnectPeers(managers)
 })
 
-test('capabilities - assignRole() with forked role', async (t) => {
+test('roles - assignRole() with forked role', async (t) => {
   const managers = await createManagers(3, t)
   const [invitor, invitee1, invitee2] = managers
   connectPeers(managers)
@@ -468,7 +456,7 @@ test('capabilities - assignRole() with forked role', async (t) => {
   await disconnectPeers(managers)
 
   // 2. Create fork by two devices assigning a role to invitee2 while disconnected
-  // TODO: Assign different roles and test fork resolution prefers the role with least capability (code for this is not written yet)
+  // TODO: Assign different roles and test fork resolution prefers the role with least power (code for this is not written yet)
 
   await invitorProject.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
   await invitee1Project.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)

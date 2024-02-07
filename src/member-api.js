@@ -1,15 +1,15 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { projectKeyToId } from './utils.js'
-import { DEFAULT_CAPABILITIES } from './capabilities.js'
+import { assert, projectKeyToId } from './utils.js'
+import { ROLES, isRoleIdForNewInvite } from './roles.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
-/** @typedef {{ deviceId: string, name?: import('@mapeo/schema').DeviceInfo['name'], capabilities: import('./capabilities.js').Capability }} MemberInfo */
+/** @typedef {{ deviceId: string, name?: import('@mapeo/schema').DeviceInfo['name'], role: import('./roles.js').Role }} MemberInfo */
 
 export class MemberApi extends TypedEmitter {
   #ownDeviceId
-  #capabilities
+  #roles
   #coreOwnership
   #encryptionKeys
   #projectKey
@@ -19,7 +19,7 @@ export class MemberApi extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {string} opts.deviceId public key of this device as hex string
-   * @param {import('./capabilities.js').Capabilities} opts.capabilities
+   * @param {import('./roles.js').Roles} opts.roles
    * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
@@ -30,7 +30,7 @@ export class MemberApi extends TypedEmitter {
    */
   constructor({
     deviceId,
-    capabilities,
+    roles,
     coreOwnership,
     encryptionKeys,
     projectKey,
@@ -39,7 +39,7 @@ export class MemberApi extends TypedEmitter {
   }) {
     super()
     this.#ownDeviceId = deviceId
-    this.#capabilities = capabilities
+    this.#roles = roles
     this.#coreOwnership = coreOwnership
     this.#encryptionKeys = encryptionKeys
     this.#projectKey = projectKey
@@ -49,9 +49,8 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * @param {string} deviceId
-   *
    * @param {Object} opts
-   * @param {import('./capabilities.js').RoleId} opts.roleId
+   * @param {import('./roles.js').RoleIdForNewInvite} opts.roleId
    * @param {string} [opts.roleName]
    * @param {string} [opts.roleDescription]
    * @param {number} [opts.timeout]
@@ -59,9 +58,7 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
    */
   async invite(deviceId, { roleId, roleName, roleDescription, timeout }) {
-    if (!DEFAULT_CAPABILITIES[roleId]) {
-      throw new Error('Invalid role id')
-    }
+    assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
 
     const { name: deviceName } = await this.getById(this.#ownDeviceId)
 
@@ -82,14 +79,14 @@ export class MemberApi extends TypedEmitter {
       projectKey: this.#projectKey,
       encryptionKeys: this.#encryptionKeys,
       projectInfo: { name: project.name },
-      roleName: roleName || DEFAULT_CAPABILITIES[roleId].name,
+      roleName: roleName || ROLES[roleId].name,
       roleDescription,
       invitorName: deviceName,
       timeout,
     })
 
     if (response === InviteResponse_Decision.ACCEPT) {
-      await this.#capabilities.assignRole(deviceId, roleId)
+      await this.#roles.assignRole(deviceId, roleId)
     }
 
     return response
@@ -100,10 +97,10 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<MemberInfo>}
    */
   async getById(deviceId) {
-    const capabilities = await this.#capabilities.getCapabilities(deviceId)
+    const role = await this.#roles.getRole(deviceId)
 
     /** @type {MemberInfo} */
-    const result = { deviceId, capabilities }
+    const result = { deviceId, role }
 
     try {
       const configCoreId = await this.#coreOwnership.getCoreId(
@@ -129,15 +126,15 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<Array<MemberInfo>>}
    */
   async getMany() {
-    const [allCapabilities, allDeviceInfo] = await Promise.all([
-      this.#capabilities.getAll(),
+    const [allRoles, allDeviceInfo] = await Promise.all([
+      this.#roles.getAll(),
       this.#dataTypes.deviceInfo.getMany(),
     ])
 
     return Promise.all(
-      Object.entries(allCapabilities).map(async ([deviceId, capabilities]) => {
+      Object.entries(allRoles).map(async ([deviceId, role]) => {
         /** @type {MemberInfo} */
-        const memberInfo = { deviceId, capabilities }
+        const memberInfo = { deviceId, role }
 
         try {
           const configCoreId = await this.#coreOwnership.getCoreId(
@@ -163,10 +160,10 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * @param {string} deviceId
-   * @param {import('./capabilities.js').RoleId} roleId
+   * @param {import('./roles.js').RoleIdAssignableToOthers} roleId
    * @returns {Promise<void>}
    */
   async assignRole(deviceId, roleId) {
-    return this.#capabilities.assignRole(deviceId, roleId)
+    return this.#roles.assignRole(deviceId, roleId)
   }
 }

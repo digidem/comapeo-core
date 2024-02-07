@@ -3,10 +3,10 @@ import { test } from 'brittle'
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
-  DEFAULT_CAPABILITIES,
+  ROLES,
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
-} from '../src/capabilities.js'
+} from '../src/roles.js'
 import { MapeoProject } from '../src/mapeo-project.js'
 import {
   connectPeers,
@@ -89,8 +89,8 @@ test('Blocked member cannot leave project', async (t) => {
   const [creatorProject, memberProject] = projects
 
   t.alike(
-    await memberProject.$getOwnCapabilities(),
-    DEFAULT_CAPABILITIES[MEMBER_ROLE_ID],
+    await memberProject.$getOwnRole(),
+    ROLES[MEMBER_ROLE_ID],
     'Member is initially a member'
   )
 
@@ -99,8 +99,8 @@ test('Blocked member cannot leave project', async (t) => {
   await waitForSync(projects, 'initial')
 
   t.alike(
-    await memberProject.$getOwnCapabilities(),
-    DEFAULT_CAPABILITIES[BLOCKED_ROLE_ID],
+    await memberProject.$getOwnRole(),
+    ROLES[BLOCKED_ROLE_ID],
     'Member is now blocked'
   )
 
@@ -146,16 +146,16 @@ test('Creator can leave project if another coordinator exists', async (t) => {
   await creator.leaveProject(projectId)
 
   t.alike(
-    await creatorProject.$getOwnCapabilities(),
-    DEFAULT_CAPABILITIES[LEFT_ROLE_ID],
-    'creator now has LEFT role id and capabilities'
+    await creatorProject.$getOwnRole(),
+    ROLES[LEFT_ROLE_ID],
+    'creator now has LEFT role'
   )
 
   await waitForSync(projects, 'initial')
 
   t.is(
-    (await coordinatorProject.$member.getById(creator.deviceId)).capabilities,
-    DEFAULT_CAPABILITIES[LEFT_ROLE_ID],
+    (await coordinatorProject.$member.getById(creator.deviceId)).role,
+    ROLES[LEFT_ROLE_ID],
     'coordinator can still retrieve info about creator who left'
   )
 
@@ -190,23 +190,23 @@ test('Member can leave project if creator exists', async (t) => {
   )
 
   t.ok(
-    memberProject.$member.getById(creator.deviceId),
+    await memberProject.$member.getById(creator.deviceId),
     'creator successfully added from member perspective'
   )
 
   await member.leaveProject(projectId)
 
   t.alike(
-    await memberProject.$getOwnCapabilities(),
-    DEFAULT_CAPABILITIES[LEFT_ROLE_ID],
-    'member now has LEFT role id and capabilities'
+    await memberProject.$getOwnRole(),
+    ROLES[LEFT_ROLE_ID],
+    'member now has LEFT role'
   )
 
   await waitForSync(projects, 'initial')
 
   t.is(
-    (await creatorProject.$member.getById(member.deviceId)).capabilities,
-    DEFAULT_CAPABILITIES[LEFT_ROLE_ID],
+    (await creatorProject.$member.getById(member.deviceId)).role,
+    ROLES[LEFT_ROLE_ID],
     'creator can still retrieve info about member who left'
   )
 

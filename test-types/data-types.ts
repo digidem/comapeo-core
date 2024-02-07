@@ -22,8 +22,6 @@ type ObservationWithForks = Observation & Forks
 type PresetWithForks = Preset & Forks
 type FieldWithForks = Field & Forks
 
-const projectKey = randomBytes(32)
-const keyManager = new KeyManager(randomBytes(32))
 const sqlite = new Database(':memory:')
 
 const mapeoProject = new MapeoProject({
@@ -60,6 +58,11 @@ Expect<Equal<ObservationWithForks, typeof updatedObservation>>
 const manyObservations = await mapeoProject.observation.getMany()
 Expect<Equal<ObservationWithForks[], typeof manyObservations>>
 
+const manyObservationsWithDeleted = await mapeoProject.observation.getMany({
+  includeDeleted: true,
+})
+Expect<Equal<ObservationWithForks[], typeof manyObservationsWithDeleted>>
+
 const observationByDocId = await mapeoProject.observation.getByDocId('abc')
 Expect<Equal<Observation & { forks: string[] }, typeof observationByDocId>>
 
@@ -86,6 +89,11 @@ Expect<Equal<PresetWithForks, typeof updatedPreset>>
 const manyPresets = await mapeoProject.preset.getMany()
 Expect<Equal<PresetWithForks[], typeof manyPresets>>
 
+const manyPresetsWithDeleted = await mapeoProject.preset.getMany({
+  includeDeleted: true,
+})
+Expect<Equal<PresetWithForks[], typeof manyPresetsWithDeleted>>
+
 const presetByDocId = await mapeoProject.preset.getByDocId('abc')
 Expect<Equal<Preset & { forks: string[] }, typeof presetByDocId>>
 
@@ -106,6 +114,11 @@ Expect<Equal<FieldWithForks, typeof updatedField>>
 
 const manyFields = await mapeoProject.field.getMany()
 Expect<Equal<FieldWithForks[], typeof manyFields>>
+
+const manyFieldsWithDeleted = await mapeoProject.field.getMany({
+  includeDeleted: true,
+})
+Expect<Equal<FieldWithForks[], typeof manyFieldsWithDeleted>>
 
 const fieldByDocId = await mapeoProject.field.getByDocId('abc')
 Expect<Equal<Field & { forks: string[] }, typeof fieldByDocId>>
