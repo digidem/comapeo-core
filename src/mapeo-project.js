@@ -45,6 +45,7 @@ import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
+import { readConfig } from './config-import.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -632,6 +633,78 @@ export class MapeoProject extends TypedEmitter {
     // 4. Assign LEFT role for device
     await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
   }
+
+  /** @param {Object} opts
+   *  @param {string} opts.configPath
+   *  @returns {Promise<Error[]>}
+   */
+  async importConfig({ configPath }) {
+    // check for already present fields and presets and delete them if exist
+    await deleteAll(this.preset)
+    await deleteAll(this.field)
+
+    const config = await readConfig(configPath)
+    /** @type {Map<string, string>} */
+    const iconNameToId = new Map()
+    /** @type {Map<string, string>} */
+    const fieldNameToId = new Map()
+
+    // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
+    for await (const icon of config.icons()) {
+      const iconId = await this.#iconApi.create(icon)
+      iconNameToId.set(icon.name, iconId)
+    }
+
+    // Ok to create fields and presets in parallel
+    const fieldPromises = []
+    for (const { name, value } of config.fields()) {
+      fieldPromises.push(
+        this.#dataTypes.field.create(value).then(({ docId }) => {
+          fieldNameToId.set(name, docId)
+        })
+      )
+    }
+    await Promise.all(fieldPromises)
+
+    const presetsWithRefs = []
+    for (const { fieldNames, iconName, value } of config.presets()) {
+      const fieldIds = fieldNames.map((fieldName) => {
+        const id = fieldNameToId.get(fieldName)
+        if (!id) {
+          throw new Error(
+            `field ${fieldName} not found (referenced by preset ${value.name})})`
+          )
+        }
+        return id
+      })
+      presetsWithRefs.push({
+        ...value,
+        iconId: iconName && iconNameToId.get(iconName),
+        fieldIds,
+      })
+    }
+
+    // close the zip handles after we know we won't be needing them anymore
+    await config.close()
+
+    const presetPromises = presetsWithRefs.map((preset) =>
+      this.preset.create(preset)
+    )
+    const createdPresets = await Promise.all(presetPromises)
+    const presetIds = createdPresets.map(({ docId }) => docId)
+
+    await this.$setProjectSettings({
+      defaultPresets: {
+        point: presetIds,
+        line: [],
+        area: [],
+        vertex: [],
+        relation: [],
+      },
+    })
+
+    return config.warnings
+  }
 }
 
 /**
@@ -642,6 +715,16 @@ function extractEditableProjectSettings(projectDoc) {
   // eslint-disable-next-line no-unused-vars
   const { schemaName, ...result } = valueOf(projectDoc)
   return result
+}
+
+// TODO: maybe a better signature than a bunch of any?
+/** @param {DataType<any,any,any,any,any>} dataType */
+async function deleteAll(dataType) {
+  const deletions = []
+  for (const { versionId } of await dataType.getMany()) {
+    deletions.push(dataType.delete(versionId))
+  }
+  return Promise.all(deletions)
 }
 
 /**
