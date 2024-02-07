@@ -127,8 +127,7 @@ test('CRUD operations', async (t) => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       const writePromises = []
-      let i = 0
-      while (i++ < CREATE_COUNT) {
+      for (let i = 0; i < CREATE_COUNT; i++) {
         const value = valueOf(generate(schemaName)[0])
         writePromises.push(
           // @ts-ignore
