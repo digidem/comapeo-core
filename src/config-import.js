@@ -5,6 +5,7 @@ import path from 'node:path'
 
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
+const MAX_ICON_SIZE = 10_000_000
 
 /**
  * @typedef {yauzl.Entry} Entry
@@ -68,6 +69,14 @@ export async function readConfig(configPath) {
       const entries = await iconsZip.readEntries(MAX_ENTRIES)
       for (const entry of entries) {
         if (!entry.filename.match(/^icons\/([^/]+)$/)) continue
+        if (!entry.uncompressedSize > MAX_ICON_SIZE) {
+          warnings.push(
+            new Error(
+              `icon ${entry.filename} is bigger than maximum allowed size (10MB) `
+            )
+          )
+          continue
+        }
         const buf = await buffer(await entry.openReadStream())
         const iconFilename = entry.filename.replace(/^icons\//, '')
         try {
