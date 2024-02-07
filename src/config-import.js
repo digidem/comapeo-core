@@ -8,8 +8,6 @@ const MAX_ENTRIES = 10_000
 
 /**
  * @typedef {yauzl.Entry} Entry
- * `@types/yauzl-promise` has the wrong name for this key. We should
- * eventually submit this patch upstream.
  */
 /**
  * @typedef {{
@@ -51,7 +49,6 @@ export async function readConfig(configPath) {
 
   return {
     get warnings() {
-      if (warnings.length === 0) return []
       return warnings
     },
 
@@ -115,7 +112,6 @@ export async function readConfig(configPath) {
         }
         for (const key of Object.keys(valueSchemas.field.properties)) {
           if (hasOwn(field, key)) {
-            // @ts-ignore - we validate below
             fieldValue[key] = field[key]
           }
         }
@@ -136,34 +132,25 @@ export async function readConfig(configPath) {
     *presets() {
       const { presets } = presetsFile
       // sort presets using the sort field, turn them into an array
-      const sortedPresets = Object.keys(presets)
-        .filter((presetName) => {
-          /** @type {any} */
-          const preset = presets[presetName]
-          const isInvalidPreset = !isRecord(preset)
-          if (isInvalidPreset) {
-            warnings.push(new Error(`invalid preset ${presetName}`))
-          }
-          return !isInvalidPreset
-        })
-        .map((presetName) => {
-          /** @type {any} */
-          const preset = presets[presetName]
-          return preset
-        })
-        .sort((preset, nextPreset) => {
-          let sort = preset.sort || Infinity
-          let nextSort = nextPreset.sort || Infinity
-          return sort - nextSort
-        })
-        .map((preset) => {
-          delete preset.sort
-          return preset
-        })
+      /** @type {Array<Record<string, unknown>>} */
+      const sortedPresets = []
+      for (const [presetName, preset] of Object.entries(presets)) {
+        if (isRecord(preset)) {
+          sortedPresets.push(preset)
+        } else {
+          warnings.push(new Error(`invalid preset ${presetName}`))
+        }
+      }
+      sortedPresets.sort((preset, nextPreset) => {
+        const sort = typeof preset.sort === 'number' ? preset.sort : Infinity
+        const nextSort =
+          typeof nextPreset.sort === 'number' ? nextPreset.sort : Infinity
+        return sort - nextSort
+      })
 
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
       for (let preset of sortedPresets) {
-        /** @type {any} */
+        /** @type {Record<string, unknown>} */
         const presetValue = {
           schemaName: 'preset',
           fieldIds: [],
@@ -172,8 +159,7 @@ export async function readConfig(configPath) {
           terms: [],
         }
         for (const key of Object.keys(valueSchemas.preset.properties)) {
-          if (key in preset) {
-            // @ts-ignore - we validate below
+          if (hasOwn(preset, key)) {
             presetValue[key] = preset[key]
           }
         }
@@ -205,7 +191,7 @@ export async function readConfig(configPath) {
 function parseIcon(filename, buf) {
   const parsedFilename = path.parse(filename)
   const matches = parsedFilename.base.match(
-    /([a-zA-Z0-9-]+)-([a-zA-Z]+)@(\d+)x\.(png|svg)$/
+    /([a-zA-Z0-9-]+)-([a-zA-Z]+)@(\d+)x\.[a-zA-Z]+$/
   )
   if (!matches) {
     throw new Error(`Unexpected icon filename ${filename}`)
@@ -272,6 +258,5 @@ function isRecord(value) {
  * @param {string | symbol} prop
  */
 function hasOwn(obj, prop) {
-  if (!isRecord(obj)) return
   return Object.prototype.hasOwnProperty.call(obj, prop)
 }
