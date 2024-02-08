@@ -6,17 +6,31 @@ declare module 'brittle' {
     coercively(actual: any, expected: any, message?: string): void
   }
 
+  type AnyErrorConstructor = new () => Error
+
   interface ExceptionAssertion {
-    <T>(
-      fn: T | Promise<T>,
-      error?: RegExp | Error,
+    (fn: () => unknown, message?: string): void
+    (
+      fn: () => unknown,
+      error?: RegExp | AnyErrorConstructor,
+      message?: string
+    ): void
+    (fn: Promise<unknown>, message?: string): Promise<void>
+    (
+      fn: Promise<unknown>,
+      error?: RegExp | AnyErrorConstructor,
       message?: string
     ): Promise<void>
-    <T>(fn: T | Promise<T>, message?: string): Promise<void>
-    all<T>(fn: T | Promise<T>, message?: string): Promise<void>
-    all<T>(
-      fn: T | Promise<T>,
-      error?: RegExp | Error,
+    all(fn: () => unknown, message?: string): void
+    all(
+      fn: () => unknown,
+      error?: RegExp | AnyErrorConstructor,
+      message?: string
+    ): void
+    all(fn: Promise<unknown>, message?: string): Promise<void>
+    all(
+      fn: Promise<unknown>,
+      error?: RegExp | AnyErrorConstructor,
       message?: string
     ): Promise<void>
   }

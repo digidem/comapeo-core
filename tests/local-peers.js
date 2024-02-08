@@ -595,7 +595,12 @@ test('Reconnect peer and send invite', async (t) => {
 test('invalid stream', (t) => {
   const r1 = new LocalPeers()
   const regularStream = new Duplex()
-  t.exception(() => r1.connect(regularStream), 'Invalid stream')
+  t.exception(
+    () =>
+      // @ts-expect-error
+      r1.connect(regularStream),
+    'Invalid stream'
+  )
 })
 
 test('Send device info', async (t) => {
@@ -603,7 +608,7 @@ test('Send device info', async (t) => {
   const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
-  const expectedDeviceInfo = { name: 'mapeo' }
+  const expectedDeviceInfo = { name: 'mapeo', deviceType: 'mobile' }
 
   r1.on('peers', async (peers) => {
     t.is(peers.length, 1)
@@ -616,6 +621,7 @@ test('Send device info', async (t) => {
     r2.on('peers', (peers) => {
       if (!(peers.length === 1 && peers[0].name)) return
       t.is(peers[0].name, expectedDeviceInfo.name)
+      t.is(peers[0].deviceType, expectedDeviceInfo.deviceType)
       res(true)
     })
   })
@@ -626,7 +632,7 @@ test('Send device info immediately', async (t) => {
   const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
-  const expectedDeviceInfo = { name: 'mapeo' }
+  const expectedDeviceInfo = { name: 'mapeo', deviceType: 'mobile' }
 
   const kp1 = NoiseSecretStream.keyPair()
   const kp2 = NoiseSecretStream.keyPair()
@@ -639,6 +645,7 @@ test('Send device info immediately', async (t) => {
     r2.on('peers', (peers) => {
       if (!(peers.length === 1 && peers[0].name)) return
       t.is(peers[0].name, expectedDeviceInfo.name)
+      t.is(peers[0].deviceType, expectedDeviceInfo.deviceType)
       res(true)
     })
   })
@@ -649,7 +656,7 @@ test('Reconnect peer and send device info', async (t) => {
   const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
-  const expectedDeviceInfo = { name: 'mapeo' }
+  const expectedDeviceInfo = { name: 'mapeo', deviceType: 'mobile' }
 
   const destroy = replicate(r1, r2)
   await once(r1, 'peers')
@@ -668,6 +675,7 @@ test('Reconnect peer and send device info', async (t) => {
 
   const [r2Peers] = await once(r2, 'peers')
   t.is(r2Peers[0].name, expectedDeviceInfo.name)
+  t.is(r2Peers[0].deviceType, expectedDeviceInfo.deviceType)
 })
 
 test('connected peer has protomux instance', async (t) => {

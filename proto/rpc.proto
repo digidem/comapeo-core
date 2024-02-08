@@ -25,5 +25,11 @@ message InviteResponse {
 }
 
 message DeviceInfo {
+  enum DeviceType {
+    mobile = 0;
+    tablet = 1;
+    desktop = 2;
+  }
   string name = 1;
+  optional DeviceType deviceType = 2;
 }

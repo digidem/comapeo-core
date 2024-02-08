@@ -35,6 +35,7 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
  * @typedef {object} PeerInfoBase
  * @property {string} deviceId
  * @property {string | undefined} name
+ * @property {import('./generated/rpc.js').DeviceInfo['deviceType']} deviceType
  */
 /** @typedef {PeerInfoBase & { status: 'connecting' }} PeerInfoConnecting */
 /** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: Protomux<import('@hyperswarm/secret-stream')> }} PeerInfoConnected */
@@ -62,6 +63,8 @@ class Peer {
   pendingInvites = new Map()
   /** @type {string | undefined} */
   #name
+  /** @type {DeviceInfo['deviceType']} */
+  #deviceType
   #connectedAt = 0
   #disconnectedAt = 0
   #protomux
@@ -95,12 +98,14 @@ class Peer {
           status: this.#state,
           deviceId: this.#deviceId,
           name: this.#name,
+          deviceType: this.#deviceType,
         }
       case 'connected':
         return {
           status: this.#state,
           deviceId: this.#deviceId,
           name: this.#name,
+          deviceType: this.#deviceType,
           connectedAt: this.#connectedAt,
           protomux: this.#protomux,
         }
@@ -109,6 +114,7 @@ class Peer {
           status: this.#state,
           deviceId: this.#deviceId,
           name: this.#name,
+          deviceType: this.#deviceType,
           disconnectedAt: this.#disconnectedAt,
         }
       /* c8 ignore next 4 */
@@ -193,6 +199,7 @@ class Peer {
   /** @param {DeviceInfo} deviceInfo */
   receiveDeviceInfo(deviceInfo) {
     this.#name = deviceInfo.name
+    this.#deviceType = deviceInfo.deviceType
     this.#log('received deviceInfo %o', deviceInfo)
   }
   #assertConnected() {
