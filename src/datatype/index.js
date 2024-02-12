@@ -245,13 +245,19 @@ export class DataType extends TypedEmitter {
     return translatedDoc
   }
 
-  /** @param {{ includeDeleted?: boolean }} [opts] */
-  async getMany({ includeDeleted = false } = {}) {
+  /** @param {{ includeDeleted?: boolean, lang?: string }} [opts] */
+  async getMany({ includeDeleted = false, lang } = {}) {
     await this.#dataStore.indexer.idle()
     const rows = includeDeleted
       ? this.#sql.getManyWithDeleted.all()
       : this.#sql.getMany.all()
-    return rows.map((doc) => deNullify(doc))
+    return rows.map((doc) =>
+      this.#translate(
+        // @ts-ignore - too complicated to type this
+        deNullify(doc),
+        { lang }
+      )
+    )
   }
 
   /**
