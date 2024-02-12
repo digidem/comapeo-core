@@ -212,11 +212,11 @@ test('config import - presets', async (t) => {
 
 test('config import - load default config', async (t) => {
   t.ok(
-    await readConfig('./config/defaultConfig.mapeosettings'),
+    await readConfig('./config/defaultConfig.mapeoconfig'),
     'valid config file'
   )
 
-  let config = await readConfig('./config/defaultConfig.mapeosettings')
+  let config = await readConfig('./config/defaultConfig.mapeoconfig')
   let nFields = 0
   /* eslint-disable-next-line */
   for (const field of config.fields()) {

@@ -57,7 +57,7 @@ const MAX_FILE_DESCRIPTORS = 768
 const BLOBS_PREFIX = 'blobs'
 const ICONS_PREFIX = 'icons'
 
-const DEFAULT_CONFIG_PATH = '../config/defaultConfig.zip'
+const DEFAULT_CONFIG_PATH = '../config/defaultConfig.mapeoconfig'
 
 export const kRPC = Symbol('rpc')
 export const kManagerReplicate = Symbol('replicate manager')
