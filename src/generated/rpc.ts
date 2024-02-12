@@ -64,6 +64,48 @@ export function inviteResponse_DecisionToNumber(object: InviteResponse_Decision)
 
 export interface DeviceInfo {
   name: string;
+  deviceType?: DeviceInfo_DeviceType | undefined;
+}
+
+export const DeviceInfo_DeviceType = {
+  mobile: "mobile",
+  tablet: "tablet",
+  desktop: "desktop",
+  UNRECOGNIZED: "UNRECOGNIZED",
+} as const;
+
+export type DeviceInfo_DeviceType = typeof DeviceInfo_DeviceType[keyof typeof DeviceInfo_DeviceType];
+
+export function deviceInfo_DeviceTypeFromJSON(object: any): DeviceInfo_DeviceType {
+  switch (object) {
+    case 0:
+    case "mobile":
+      return DeviceInfo_DeviceType.mobile;
+    case 1:
+    case "tablet":
+      return DeviceInfo_DeviceType.tablet;
+    case 2:
+    case "desktop":
+      return DeviceInfo_DeviceType.desktop;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return DeviceInfo_DeviceType.UNRECOGNIZED;
+  }
+}
+
+export function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceType): number {
+  switch (object) {
+    case DeviceInfo_DeviceType.mobile:
+      return 0;
+    case DeviceInfo_DeviceType.tablet:
+      return 1;
+    case DeviceInfo_DeviceType.desktop:
+      return 2;
+    case DeviceInfo_DeviceType.UNRECOGNIZED:
+    default:
+      return -1;
+  }
 }
 
 function createBaseInvite(): Invite {
@@ -280,6 +322,9 @@ export const DeviceInfo = {
     if (message.name !== "") {
       writer.uint32(10).string(message.name);
     }
+    if (message.deviceType !== undefined) {
+      writer.uint32(16).int32(deviceInfo_DeviceTypeToNumber(message.deviceType));
+    }
     return writer;
   },
 
@@ -297,6 +342,13 @@ export const DeviceInfo = {
 
           message.name = reader.string();
           continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.deviceType = deviceInfo_DeviceTypeFromJSON(reader.int32());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -312,6 +364,7 @@ export const DeviceInfo = {
   fromPartial<I extends Exact<DeepPartial<DeviceInfo>, I>>(object: I): DeviceInfo {
     const message = createBaseDeviceInfo();
     message.name = object.name ?? "";
+    message.deviceType = object.deviceType ?? undefined;
     return message;
   },
 };

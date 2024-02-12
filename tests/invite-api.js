@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { LocalPeers } from '../src/local-peers.js'
 import { InviteApi } from '../src/invite-api.js'
-import { projectKeyToPublicId } from '../src/utils.js'
+import { keyToId, projectKeyToPublicId } from '../src/utils.js'
 import { replicate } from './helpers/local-peers.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import pDefer from 'p-defer'
@@ -30,6 +30,7 @@ test('invite-received event has expected payload', async (t) => {
     },
   })
 
+  /** @type {undefined | string} */
   let expectedInvitorPeerId
 
   r2.on('peers', (peers) => {
@@ -312,15 +313,15 @@ test('trying to accept or reject non-existent invite throws', async (t) => {
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: async () => {},
+      isMember: async () => true,
       addProject: async () => {},
     },
   })
   await t.exception(() => {
-    return inviteApi.accept(randomBytes(32))
+    return inviteApi.accept(keyToId(randomBytes(32)))
   })
   await t.exception(() => {
-    return inviteApi.reject(randomBytes(32))
+    return inviteApi.reject(keyToId(randomBytes(32)))
   })
 })
 
@@ -376,7 +377,7 @@ test('invitor disconnecting results in invite reject response not throwing', asy
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async () => {},
+      isMember: async () => false,
       addProject: async () => {},
     },
   })
@@ -461,7 +462,7 @@ test('addProject throwing results in invite accept throwing', async (t) => {
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async () => {},
+      isMember: async () => false,
       addProject: async () => {
         throw new Error('Failed to add project')
       },
@@ -513,6 +514,7 @@ test('Invite from multiple peers', async (t) => {
     },
   })
 
+  /** @type {undefined | string} */
   let first
   let connected = 0
   const deferred = pDefer()
@@ -578,6 +580,7 @@ test.skip('Invite from multiple peers, first disconnects before accepted, receiv
     },
   })
 
+  /** @type {string[]} */
   let invitesReceived = []
   let connected = 0
   const disconnects = new Map()
