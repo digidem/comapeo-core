@@ -258,13 +258,11 @@ export class MapeoManager extends TypedEmitter {
   #replicate(noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
     Promise.all([this.getDeviceInfo(), openedNoiseSecretStream(noiseStream)])
-      .then(([{ name }, openedNoiseStream]) => {
-        if (openedNoiseStream.destroyed || !name) return
+      .then(([deviceInfo, openedNoiseStream]) => {
+        if (openedNoiseStream.destroyed || !hasSavedDeviceInfo(deviceInfo))
+          return
         const peerId = keyToId(openedNoiseStream.remotePublicKey)
-        return this.#localPeers.sendDeviceInfo(peerId, {
-          name,
-          deviceType: this.#deviceType,
-        })
+        return this.#localPeers.sendDeviceInfo(peerId, deviceInfo)
       })
       .catch((e) => {
         // Ignore error but log
@@ -386,8 +384,8 @@ export class MapeoManager extends TypedEmitter {
 
     // 6. Write device info into project
     const deviceInfo = await this.getDeviceInfo()
-    if (deviceInfo.name) {
-      await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
+    if (hasSavedDeviceInfo(deviceInfo)) {
+      await project[kSetOwnDeviceInfo](deviceInfo)
     }
 
     // TODO: Close the project instance instead of keeping it around
@@ -581,8 +579,8 @@ export class MapeoManager extends TypedEmitter {
 
       try {
         const deviceInfo = await this.getDeviceInfo()
-        if (deviceInfo.name) {
-          await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
+        if (hasSavedDeviceInfo(deviceInfo)) {
+          await project[kSetOwnDeviceInfo](deviceInfo)
         }
       } catch (e) {
         // Can ignore an error trying to write device info
@@ -817,4 +815,12 @@ function validateProjectKeys(projectKeys) {
   if (!projectKeys.encryptionKeys) {
     throw new Error('encryptionKeys should not be undefined')
   }
+}
+
+/**
+ * @param {Awaited<ReturnType<typeof MapeoManager.prototype.getDeviceInfo>>} partialDeviceInfo
+ * @returns {partialDeviceInfo is import('./generated/rpc.js').DeviceInfo}
+ */
+function hasSavedDeviceInfo(partialDeviceInfo) {
+  return Boolean(partialDeviceInfo.name)
 }

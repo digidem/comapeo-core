@@ -524,7 +524,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {Pick<import('@mapeo/schema').DeviceInfoValue, 'name'>} value
+   * @param {Pick<import('@mapeo/schema').DeviceInfoValue, 'name' | 'deviceType'>} value
    * @returns {Promise<import('@mapeo/schema').DeviceInfo>}
    */
   async [kSetOwnDeviceInfo](value) {
@@ -534,20 +534,20 @@ export class MapeoProject extends TypedEmitter {
       .getWriterCore('config')
       .key.toString('hex')
 
+    const doc = {
+      name: value.name,
+      deviceType: value.deviceType,
+      schemaName: /** @type {const} */ ('deviceInfo'),
+    }
+
     let existingDoc
     try {
       existingDoc = await deviceInfo.getByDocId(configCoreId)
     } catch (err) {
-      return await deviceInfo[kCreateWithDocId](configCoreId, {
-        ...value,
-        schemaName: 'deviceInfo',
-      })
+      return await deviceInfo[kCreateWithDocId](configCoreId, doc)
     }
 
-    return deviceInfo.update(existingDoc.versionId, {
-      ...value,
-      schemaName: 'deviceInfo',
-    })
+    return deviceInfo.update(existingDoc.versionId, doc)
   }
 
   /**

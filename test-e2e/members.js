@@ -20,7 +20,7 @@ import {
 import { kDataTypes } from '../src/mapeo-project.js'
 
 test('getting yourself after creating project', async (t) => {
-  const [manager] = await createManagers(1, t)
+  const [manager] = await createManagers(1, t, 'tablet')
 
   const deviceInfo = await manager.getDeviceInfo()
   const project = await manager.getProject(await manager.createProject())
@@ -31,6 +31,7 @@ test('getting yourself after creating project', async (t) => {
     me,
     {
       deviceId: project.deviceId,
+      deviceType: 'tablet',
       name: deviceInfo.name,
       role: CREATOR_ROLE,
     },
@@ -44,6 +45,7 @@ test('getting yourself after creating project', async (t) => {
     members[0],
     {
       deviceId: project.deviceId,
+      deviceType: 'tablet',
       name: deviceInfo.name,
       role: CREATOR_ROLE,
     },
@@ -52,7 +54,7 @@ test('getting yourself after creating project', async (t) => {
 })
 
 test('getting yourself after adding project (but not yet synced)', async (t) => {
-  const [manager] = await createManagers(1, t)
+  const [manager] = await createManagers(1, t, 'tablet')
 
   const deviceInfo = await manager.getDeviceInfo()
   const project = await manager.getProject(
@@ -71,6 +73,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
     me,
     {
       deviceId: project.deviceId,
+      deviceType: 'tablet',
       name: deviceInfo.name,
       role: NO_ROLE,
     },
@@ -84,6 +87,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
     members[0],
     {
       deviceId: project.deviceId,
+      deviceType: 'tablet',
       name: deviceInfo.name,
       role: NO_ROLE,
     },
@@ -149,6 +153,7 @@ test('getting invited member after invite accepted', async (t) => {
     invitedMember,
     {
       deviceId: invitee.deviceId,
+      deviceType: undefined,
       name: inviteeName,
       role: ROLES[MEMBER_ROLE_ID],
     },
