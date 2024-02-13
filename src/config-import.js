@@ -26,22 +26,15 @@ const MAX_ICON_SIZE = 10_000_000
 export async function readConfig(configPath) {
   /** @type {Error[]} */
   const warnings = []
-  /** @type {yauzl.ZipFile} */
-  let iconsZip
 
-  const presetsZip = await yauzl.open(configPath)
-  if (presetsZip.entryCount > MAX_ENTRIES) {
+  const zip = await yauzl.open(configPath)
+  if (zip.entryCount > MAX_ENTRIES) {
     // MAX_ENTRIES in MAC can be inacurrate
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
+  const entries = await zip.readEntries(MAX_ENTRIES)
   /** @type {undefined | Entry} */
-  let presetsEntry
-  for await (const entry of presetsZip) {
-    if (entry.filename === 'presets.json') {
-      presetsEntry = entry
-      break
-    }
-  }
+  let presetsEntry = entries.find((entry) => entry.filename === 'presets.json')
   if (!presetsEntry) {
     throw new Error('Zip file does not contain presets.json')
   }
@@ -54,8 +47,7 @@ export async function readConfig(configPath) {
     },
 
     async close() {
-      presetsZip.close()
-      iconsZip.close()
+      zip.close()
     },
 
     /**
@@ -65,10 +57,12 @@ export async function readConfig(configPath) {
       /** @type {IconData | undefined} */
       let icon
 
-      iconsZip = await yauzl.open(configPath)
-      const entries = await iconsZip.readEntries(MAX_ENTRIES)
-      for (const entry of entries) {
-        if (!entry.filename.match(/^icons\/([^/]+)$/)) continue
+      // we sort the icons by filename so we can group variants together
+      const iconEntries = entries
+        .filter((entry) => entry.filename.match(/^icons\/([^/]+)$/))
+        .sort((icon, nextIcon) => (icon.filename > nextIcon.filename ? 1 : -1))
+
+      for (const entry of iconEntries) {
         if (entry.uncompressedSize > MAX_ICON_SIZE) {
           warnings.push(
             new Error(
@@ -81,14 +75,17 @@ export async function readConfig(configPath) {
         const iconFilename = entry.filename.replace(/^icons\//, '')
         try {
           const { name, variant } = parseIcon(iconFilename, buf)
+          // new icon (first pass)
           if (!icon) {
             icon = {
               name,
               variants: [variant],
             }
+            // icon already exists, push new variant
           } else if (icon.name === name) {
             icon.variants.push(variant)
           } else {
+            // icon has change
             yield icon
             icon = {
               name,
