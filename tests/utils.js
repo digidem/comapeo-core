@@ -7,7 +7,7 @@ test('assert()', (t) => {
   t.exception(() => assert(false, 'uh oh'), /uh oh/)
 })
 
-test('exhaustivenessError', (t) => {
+test('ExhaustivenessError', (t) => {
   const bools = [true, false]
   t.execution(() => {
     bools.forEach((bool) => {
