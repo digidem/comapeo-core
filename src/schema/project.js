@@ -6,6 +6,10 @@ import { NAMESPACES } from '../constants.js'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable } from './utils.js'
 
+export const translationTable = sqliteTable(
+  'translation',
+  toColumns(schemas.translation)
+)
 export const observationTable = sqliteTable(
   'observation',
   toColumns(schemas.observation)
