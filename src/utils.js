@@ -67,6 +67,13 @@ export async function openedNoiseSecretStream(stream) {
 }
 
 /**
+ * @param {never} value
+ * @returns {Error}
+ */
+export const exhaustivenessError = (value) =>
+  new Error(`Exhaustiveness check failed. ${value} should be impossible`)
+
+/**
  * @param {boolean} condition
  * @param {string} message
  * @returns {asserts condition}
