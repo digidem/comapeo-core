@@ -1,6 +1,6 @@
 // @ts-check
 import test from 'brittle'
-import { assert, exhaustivenessError, setHas } from '../src/utils.js'
+import { assert, ExhaustivenessError, setHas } from '../src/utils.js'
 
 test('assert()', (t) => {
   t.execution(() => assert(true, 'should work'))
@@ -15,7 +15,7 @@ test('exhaustivenessError', () => {
       case false:
         break
       default:
-        throw exhaustivenessError(bool)
+        throw new ExhaustivenessError(bool)
     }
   })
 })

@@ -1,5 +1,5 @@
 import { text, integer, real } from 'drizzle-orm/sqlite-core'
-import { exhaustivenessError } from '../utils.js'
+import { ExhaustivenessError } from '../utils.js'
 import { customJson } from './utils.js'
 
 /**
@@ -63,7 +63,7 @@ export function jsonSchemaToDrizzleColumns(schema) {
         // Skip handling this right now
         continue
       default:
-        throw exhaustivenessError(value.type)
+        throw new ExhaustivenessError(value.type)
     }
     if (isRequired(schema, key)) {
       columns[key] = columns[key].notNull()

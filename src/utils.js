@@ -66,12 +66,13 @@ export async function openedNoiseSecretStream(stream) {
   return /** @type {OpenedNoiseStream | DestroyedNoiseStream} */ (stream)
 }
 
-/**
- * @param {never} value
- * @returns {Error}
- */
-export const exhaustivenessError = (value) =>
-  new Error(`Exhaustiveness check failed. ${value} should be impossible`)
+export class ExhaustivenessError extends Error {
+  /** @param {never} value */
+  constructor(value) {
+    super(`Exhaustiveness check failed. ${value} should be impossible`)
+    this.name = 'ExhaustivenessError'
+  }
+}
 
 /**
  * @param {boolean} condition

@@ -1,7 +1,7 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
-import { exhaustivenessError, keyToId } from './utils.js'
+import { ExhaustivenessError, keyToId } from './utils.js'
 import cenc from 'compact-encoding'
 import {
   DeviceInfo,
@@ -119,7 +119,7 @@ class Peer {
         }
       /* c8 ignore next 2 */
       default:
-        throw exhaustivenessError(this.#state)
+        throw new ExhaustivenessError(this.#state)
     }
   }
   /**
@@ -547,7 +547,7 @@ export class LocalPeers extends TypedEmitter {
       }
       /* c8 ignore next 2 */
       default:
-        throw exhaustivenessError(type)
+        throw new ExhaustivenessError(type)
     }
   }
 
