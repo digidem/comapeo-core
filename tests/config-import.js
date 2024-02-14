@@ -223,11 +223,18 @@ test('config import - load default config', async (t) => {
   }
   t.is(nFields, 2, 'correct number of fields in default config')
   let nIcons = 0
+  let nVariants = 0
   /* eslint-disable-next-line */
   for await (const icon of config.icons()) {
     nIcons++
+    /* eslint-disable-next-line */
+    for (let variant of icon.variants) {
+      nVariants++
+    }
   }
-  t.is(nIcons, 359, 'correct number of icons in default config')
+  t.is(nIcons, 41, 'correct number of icons in default config')
+  t.is(nVariants, 369, 'correct number of icon variants in default config')
+
   let nPresets = 0
   /* eslint-disable-next-line */
   for (const preset of config.presets()) {
