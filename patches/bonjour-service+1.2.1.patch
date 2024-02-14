@@ -1,0 +1,77 @@
+diff --git a/node_modules/bonjour-service/dist/lib/registry.js b/node_modules/bonjour-service/dist/lib/registry.js
+index 5462ca2..662486d 100644
+--- a/node_modules/bonjour-service/dist/lib/registry.js
++++ b/node_modules/bonjour-service/dist/lib/registry.js
+@@ -15,14 +15,18 @@ class Registry {
+         this.server = server;
+     }
+     publish(config) {
+-        function start(service, registry, opts) {
++        const configProbe = config.probe !== false;
++
++        const service = new service_1.default(config, start.bind(null, this), stop.bind(null, this));
++
++        function start(registry, { probe = configProbe } = {}) {
+             if (service.activated)
+                 return;
+             service.activated = true;
+             registry.services.push(service);
+             if (!(service instanceof service_1.default))
+                 return;
+-            if (opts === null || opts === void 0 ? void 0 : opts.probe) {
++            if (probe) {
+                 registry.probe(registry.server.mdns, service, (exists) => {
+                     if (exists) {
+                         if (service.stop !== undefined)
+@@ -37,7 +41,7 @@ class Registry {
+                 registry.announce(registry.server, service);
+             }
+         }
+-        function stop(service, registry, callback) {
++        function stop(registry, callback) {
+             if (!callback)
+                 callback = noop;
+             if (!service.activated)
+@@ -49,10 +53,7 @@ class Registry {
+             if (index !== -1)
+                 registry.services.splice(index, 1);
+         }
+-        const service = new service_1.default(config);
+-        service.start = start.bind(null, service, this);
+-        service.stop = stop.bind(null, service, this);
+-        service.start({ probe: config.probe !== false });
++        service.start();
+         return service;
+     }
+     unpublishAll(callback) {
+diff --git a/node_modules/bonjour-service/dist/lib/service.d.ts b/node_modules/bonjour-service/dist/lib/service.d.ts
+index 2c711f9..c459a07 100644
+--- a/node_modules/bonjour-service/dist/lib/service.d.ts
++++ b/node_modules/bonjour-service/dist/lib/service.d.ts
+@@ -41,8 +41,8 @@ export declare class Service extends EventEmitter {
+     published: boolean;
+     activated: boolean;
+     destroyed: boolean;
+-    start?: CallableFunction;
+-    stop?: CallableFunction;
++    start: CallableFunction;
++    stop: CallableFunction;
+     private txtService;
+     constructor(config: ServiceConfig);
+     records(): Array<ServiceRecord>;
+diff --git a/node_modules/bonjour-service/dist/lib/service.js b/node_modules/bonjour-service/dist/lib/service.js
+index 41da95a..ac71665 100644
+--- a/node_modules/bonjour-service/dist/lib/service.js
++++ b/node_modules/bonjour-service/dist/lib/service.js
+@@ -10,8 +10,10 @@ const events_1 = require("events");
+ const service_types_1 = require("./service-types");
+ const TLD = '.local';
+ class Service extends events_1.EventEmitter {
+-    constructor(config) {
++    constructor(config, start, stop) {
+         super();
++        this.start = start;
++        this.stop = stop;
+         this.probe = true;
+         this.published = false;
+         this.activated = false;

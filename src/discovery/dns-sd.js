@@ -119,7 +119,7 @@ export class DnsSd extends TypedEmitter {
         host: this.#name + '.local',
         port,
         type: SERVICE_NAME,
-        disableIpv6: this.#disableIpv6,
+        disableIPv6: this.#disableIpv6,
       })
     }
     this.#advertisingStarting = once(this.#service, 'up')
