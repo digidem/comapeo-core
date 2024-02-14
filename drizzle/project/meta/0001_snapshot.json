@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "81a3d2bc-dbbf-49f4-a609-c1c9b8eba353",
+  "id": "a4a90688-b027-44b4-a0e6-d69a20335d40",
   "prevId": "1df09db6-316f-496d-a39a-89a99cca1ad9",
   "tables": {
     "coreOwnership_backlink": {
@@ -872,6 +872,22 @@
           "name": "forks",
           "type": "text",
           "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "translation_backlink": {
+      "name": "translation_backlink",
+      "columns": {
+        "versionId": {
+          "name": "versionId",
+          "type": "text",
+          "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         }

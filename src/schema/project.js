@@ -27,6 +27,7 @@ export const deviceInfoTable = sqliteTable(
 )
 export const iconTable = sqliteTable('icon', toColumns(schemas.icon))
 
+export const translationBacklinkTable = backlinkTable(translationTable)
 export const observationBacklinkTable = backlinkTable(observationTable)
 export const presetBacklinkTable = backlinkTable(presetTable)
 export const fieldBacklinkTable = backlinkTable(fieldTable)

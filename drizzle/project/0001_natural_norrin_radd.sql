@@ -1,3 +1,7 @@
+CREATE TABLE `translation_backlink` (
+	`versionId` text PRIMARY KEY NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `translation` (
 	`docId` text PRIMARY KEY NOT NULL,
 	`versionId` text NOT NULL,
