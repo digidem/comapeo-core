@@ -130,8 +130,8 @@ test('config import - icons', async (t) => {
   )
 
   config = await readConfig('./tests/fixtures/config/validIcons.zip')
+  t.plan(15) // 2 icon assertions + (3+9) variant assertions + 1 no warnings
   for await (const icon of config.icons()) {
-    // t.is(icon.name, 'plant', 'icon name is `plant`')
     if (icon.name === 'plant') {
       t.is(icon.variants.length, 3, '3 variants of plant icons')
     } else if (icon.name === 'tree') {
@@ -141,7 +141,6 @@ test('config import - icons', async (t) => {
       t.is(variant.mimeType, 'image/png', 'variant is a png')
     }
   }
-
   t.is(config.warnings.length, 0, 'no warnings on the file')
 })
 
