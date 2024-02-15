@@ -58,7 +58,7 @@ test('Managing created projects', async (t) => {
   t.ok(project1)
   t.ok(project2)
 
-  t.test(
+  await t.test(
     'initial settings and default config from project instances',
     async (st) => {
       const settings1 = await project1.$getProjectSettings()
@@ -106,39 +106,42 @@ test('Managing created projects', async (t) => {
     }
   )
 
-  t.test('load different config and check if correctly loaded', async (st) => {
-    const configPath = new URL(
-      '../tests/fixtures/config/completeConfig.zip',
-      import.meta.url
-    ).pathname
-    const {
-      presets: loadedPresets,
-      fields: loadedFields,
-      // icons: loadedIcons,
-    } = await getExpectedConfig(configPath)
+  await t.test(
+    'load different config and check if correctly loaded',
+    async (st) => {
+      const configPath = new URL(
+        '../tests/fixtures/config/completeConfig.zip',
+        import.meta.url
+      ).pathname
+      const {
+        presets: loadedPresets,
+        fields: loadedFields,
+        // icons: loadedIcons,
+      } = await getExpectedConfig(configPath)
 
-    await project1.importConfig({ configPath })
-    const projectPresets = await project1.preset.getMany()
-    st.alike(
-      projectPresets.map((preset) => preset.name),
-      loadedPresets.map((preset) => preset.value.name),
-      'project presets explicitly loaded match expected config'
-    )
+      await project1.importConfig({ configPath })
+      const projectPresets = await project1.preset.getMany()
+      st.alike(
+        projectPresets.map((preset) => preset.name),
+        loadedPresets.map((preset) => preset.value.name),
+        'project presets explicitly loaded match expected config'
+      )
 
-    const projectFields = await project1.field.getMany()
-    st.alike(
-      projectFields.map((field) => field.tagKey),
-      loadedFields.map((field) => field.value.tagKey),
-      'project fields explicitly loaded match expected config'
-    )
+      const projectFields = await project1.field.getMany()
+      st.alike(
+        projectFields.map((field) => field.tagKey),
+        loadedFields.map((field) => field.value.tagKey),
+        'project fields explicitly loaded match expected config'
+      )
 
-    // TODO: since we don't delete icons, this wouldn't match
-    // const projectIcons = await project1[kDataTypes].icon.getMany()
-    // st.alike(
-    //   projectIcons.map((icon) => icon.name),
-    //   loadedIcons.map((icon) => icon.name)
-    // )
-  })
+      // TODO: since we don't delete icons, this wouldn't match
+      // const projectIcons = await project1[kDataTypes].icon.getMany()
+      // st.alike(
+      //   projectIcons.map((icon) => icon.name),
+      //   loadedIcons.map((icon) => icon.name)
+      // )
+    }
+  )
 
   t.test('after updating project settings', async (st) => {
     await project1.$setProjectSettings({
