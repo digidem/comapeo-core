@@ -66,6 +66,14 @@ export async function openedNoiseSecretStream(stream) {
   return /** @type {OpenedNoiseStream | DestroyedNoiseStream} */ (stream)
 }
 
+export class ExhaustivenessError extends Error {
+  /** @param {never} value */
+  constructor(value) {
+    super(`Exhaustiveness check failed. ${value} should be impossible`)
+    this.name = 'ExhaustivenessError'
+  }
+}
+
 /**
  * @param {boolean} condition
  * @param {string} message

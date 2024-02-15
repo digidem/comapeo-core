@@ -1,4 +1,5 @@
 import { text, integer, real } from 'drizzle-orm/sqlite-core'
+import { ExhaustivenessError } from '../utils.js'
 import { customJson } from './utils.js'
 
 /**
@@ -61,12 +62,8 @@ export function jsonSchemaToDrizzleColumns(schema) {
       case 'null':
         // Skip handling this right now
         continue
-      default: {
-        /** @type {never} */
-        // eslint-disable-next-line no-unused-vars
-        const _exhaustiveCheck = value.type
-        continue
-      }
+      default:
+        throw new ExhaustivenessError(value.type)
     }
     if (isRequired(schema, key)) {
       columns[key] = columns[key].notNull()
