@@ -5,6 +5,8 @@ import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import Fastify from 'fastify'
+import { readConfig } from '../src/config-import.js'
+import { kDataTypes } from '../src/mapeo-project.js'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -56,20 +58,62 @@ test('Managing created projects', async (t) => {
   t.ok(project1)
   t.ok(project2)
 
-  t.test('initial settings from project instances', async (st) => {
-    const settings1 = await project1.$getProjectSettings()
-    const settings2 = await project2.$getProjectSettings()
+  t.test(
+    'initial settings and default config from project instances',
+    async (st) => {
+      const settings1 = await project1.$getProjectSettings()
+      const settings2 = await project2.$getProjectSettings()
 
-    st.alike(settings1, {
-      name: undefined,
-      defaultPresets: undefined,
-    })
+      // read default config
+      const config = await readConfig(
+        new URL('../config/defaultConfig.mapeoconfig', import.meta.url).pathname
+      )
 
-    st.alike(settings2, {
-      name: 'project 2',
-      defaultPresets: undefined,
-    })
-  })
+      st.is(settings1.name, undefined, 'undefined name for project1')
+      st.is(settings2.name, 'project 2', 'matched name for project2')
+
+      let defaultPresets = []
+      for (let preset of config.presets()) {
+        defaultPresets.push(preset)
+      }
+      const projectPresets = await project1.preset.getMany()
+
+      st.is(
+        settings1.defaultPresets?.point.length,
+        defaultPresets.length,
+        'the default presets loaded is equal to the number of presets in the default config'
+      )
+
+      st.alike(
+        projectPresets.map((preset) => preset.name),
+        defaultPresets.map((preset) => preset.value.name),
+        'project is loading the default presets correctly'
+      )
+
+      let defaultFields = []
+      for (let field of config.fields()) {
+        defaultFields.push(field)
+      }
+      const projectFields = await project1.field.getMany()
+
+      st.alike(
+        projectFields.map((field) => field.tagKey),
+        defaultFields.map((field) => field.value.tagKey),
+        'project is loading the default fields correctly'
+      )
+
+      const projectIcons = await project1[kDataTypes].icon.getMany()
+      let defaultIcons = []
+      for await (let icon of config.icons()) {
+        defaultIcons.push(icon)
+      }
+      st.alike(
+        projectIcons.map((icon) => icon.name),
+        defaultIcons.map((icon) => icon.name),
+        'project is loading the default icons correctly'
+      )
+    }
+  )
 
   t.test('after updating project settings', async (st) => {
     await project1.$setProjectSettings({
@@ -82,15 +126,9 @@ test('Managing created projects', async (t) => {
     const settings1 = await project1.$getProjectSettings()
     const settings2 = await project2.$getProjectSettings()
 
-    st.alike(settings1, {
-      name: 'project 1',
-      defaultPresets: undefined,
-    })
+    st.is(settings1.name, 'project 1')
 
-    st.alike(settings2, {
-      name: 'project 2 updated',
-      defaultPresets: undefined,
-    })
+    st.is(settings2.name, 'project 2 updated')
 
     const listedProjects = await manager.listProjects()
 
