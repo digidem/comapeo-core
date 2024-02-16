@@ -149,7 +149,7 @@ export class MapeoManager extends TypedEmitter {
     this.#invite = new InviteApi({
       rpc: this.#localPeers,
       queries: {
-        isMember: async (projectId) => {
+        isMember: (projectId) => {
           const projectExists = this.#db
             .select()
             .from(projectKeysTable)
