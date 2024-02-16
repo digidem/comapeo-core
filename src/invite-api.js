@@ -75,7 +75,7 @@ export class InviteApi extends TypedEmitter {
     const isAlreadyMember = await this.#isMember(projectId)
 
     if (isAlreadyMember) {
-      this.#sendAlreadyResponse({ peerId, projectId })
+      this.#sendRejectResponse({ peerId, projectId })
       return
     }
 
@@ -112,7 +112,7 @@ export class InviteApi extends TypedEmitter {
 
     if (isAlreadyMember) {
       for (const peerId of peersToRespondTo) {
-        await this.#sendAlreadyResponse({ peerId, projectId })
+        await this.#sendRejectResponse({ peerId, projectId })
       }
       return
     }
@@ -145,10 +145,10 @@ export class InviteApi extends TypedEmitter {
       throw new Error('Failed to join project')
     }
 
-    // Respond to the remaining peers with ALREADY
+    // Reject the remaining peers
     for (const peerId of peersToRespondTo) {
       if (peerId === pendingInvite.fromPeerId) continue
-      this.#sendAlreadyResponse({ peerId, projectId })
+      this.#sendRejectResponse({ peerId, projectId })
     }
   }
 
@@ -180,24 +180,6 @@ export class InviteApi extends TypedEmitter {
       projectKey,
       decision: InviteResponse_Decision.ACCEPT,
     })
-  }
-
-  /**
-   * Will not throw, will silently fail if the response fails to send.
-   *
-   * @param {{ peerId: string, projectId: string }} opts
-   */
-  async #sendAlreadyResponse({ peerId, projectId }) {
-    const projectKey = Buffer.from(projectId, 'hex')
-    try {
-      await this.rpc.inviteResponse(peerId, {
-        projectKey,
-        decision: InviteResponse_Decision.ALREADY,
-      })
-    } catch (e) {
-      // Ignore errors trying to send an already response because the invitor
-      // will consider the invite failed anyway
-    }
   }
 
   /**

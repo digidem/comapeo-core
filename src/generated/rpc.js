@@ -1,12 +1,7 @@
 /* eslint-disable */
 import _m0 from "protobufjs/minimal.js";
 import { EncryptionKeys } from "./keys.js";
-export var InviteResponse_Decision = {
-    REJECT: "REJECT",
-    ACCEPT: "ACCEPT",
-    ALREADY: "ALREADY",
-    UNRECOGNIZED: "UNRECOGNIZED",
-};
+export var InviteResponse_Decision = { REJECT: "REJECT", ACCEPT: "ACCEPT", UNRECOGNIZED: "UNRECOGNIZED" };
 export function inviteResponse_DecisionFromJSON(object) {
     switch (object) {
         case 0:
@@ -15,9 +10,6 @@ export function inviteResponse_DecisionFromJSON(object) {
         case 1:
         case "ACCEPT":
             return InviteResponse_Decision.ACCEPT;
-        case 2:
-        case "ALREADY":
-            return InviteResponse_Decision.ALREADY;
         case -1:
         case "UNRECOGNIZED":
         default:
@@ -30,8 +22,6 @@ export function inviteResponse_DecisionToNumber(object) {
             return 0;
         case InviteResponse_Decision.ACCEPT:
             return 1;
-        case InviteResponse_Decision.ALREADY:
-            return 2;
         case InviteResponse_Decision.UNRECOGNIZED:
         default:
             return -1;

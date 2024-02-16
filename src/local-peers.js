@@ -248,7 +248,7 @@ export class LocalPeers extends TypedEmitter {
 
   /**
    * Invite a peer to a project. Resolves with the response from the invitee:
-   * one of "ACCEPT", "REJECT", or "ALREADY" (already on project)
+   * "ACCEPT" or "REJECT"
    *
    * @param {string} peerId
    * @param {object} options
@@ -309,7 +309,7 @@ export class LocalPeers extends TypedEmitter {
    * @param {string} peerId id of the peer you want to respond to (publicKey of peer as hex string)
    * @param {object} options
    * @param {InviteResponse['projectKey']} options.projectKey project key of the invite you are responding to
-   * @param {InviteResponse['decision']} options.decision response to invite, one of "ACCEPT", "REJECT", or "ALREADY" (already on project)
+   * @param {InviteResponse['decision']} options.decision response to invite, either "ACCEPT" or "REJECT"
    */
   async inviteResponse(peerId, options) {
     await this.#waitForPendingConnections()

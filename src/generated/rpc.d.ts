@@ -20,7 +20,6 @@ export interface InviteResponse {
 export declare const InviteResponse_Decision: {
     readonly REJECT: "REJECT";
     readonly ACCEPT: "ACCEPT";
-    readonly ALREADY: "ALREADY";
     readonly UNRECOGNIZED: "UNRECOGNIZED";
 };
 export type InviteResponse_Decision = typeof InviteResponse_Decision[keyof typeof InviteResponse_Decision];

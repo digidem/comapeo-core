@@ -21,12 +21,7 @@ export interface InviteResponse {
   decision: InviteResponse_Decision;
 }
 
-export const InviteResponse_Decision = {
-  REJECT: "REJECT",
-  ACCEPT: "ACCEPT",
-  ALREADY: "ALREADY",
-  UNRECOGNIZED: "UNRECOGNIZED",
-} as const;
+export const InviteResponse_Decision = { REJECT: "REJECT", ACCEPT: "ACCEPT", UNRECOGNIZED: "UNRECOGNIZED" } as const;
 
 export type InviteResponse_Decision = typeof InviteResponse_Decision[keyof typeof InviteResponse_Decision];
 
@@ -38,9 +33,6 @@ export function inviteResponse_DecisionFromJSON(object: any): InviteResponse_Dec
     case 1:
     case "ACCEPT":
       return InviteResponse_Decision.ACCEPT;
-    case 2:
-    case "ALREADY":
-      return InviteResponse_Decision.ALREADY;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -54,8 +46,6 @@ export function inviteResponse_DecisionToNumber(object: InviteResponse_Decision)
       return 0;
     case InviteResponse_Decision.ACCEPT:
       return 1;
-    case InviteResponse_Decision.ALREADY:
-      return 2;
     case InviteResponse_Decision.UNRECOGNIZED:
     default:
       return -1;

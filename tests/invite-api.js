@@ -194,8 +194,8 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
       t.is(
         response,
-        LocalPeers.InviteResponse.ALREADY,
-        'invited peer automatically responds with "ALREADY"'
+        LocalPeers.InviteResponse.REJECT,
+        'invited peer automatically responds with "REJECT"'
       )
     })
 
@@ -242,8 +242,8 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
         t.is(
           response,
-          LocalPeers.InviteResponse.ALREADY,
-          'invited peer automatically responds with "ALREADY"'
+          LocalPeers.InviteResponse.REJECT,
+          'invited peer automatically responds with "REJECT"'
         )
       })
 
@@ -292,7 +292,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
       const response2 = await r1.invite(peers[0].deviceId, invite)
 
-      t.is(response2, LocalPeers.InviteResponse.ALREADY)
+      t.is(response2, LocalPeers.InviteResponse.REJECT)
     })
 
     let inviteReceivedEventCount = 0
@@ -407,51 +407,6 @@ test('invitor disconnecting results in invite reject response not throwing', asy
   const disconnect = replicate(r1, r2)
 })
 
-test('invitor disconnecting results in invite already response not throwing', async (t) => {
-  t.plan(3)
-
-  const { rpc: r1, projectKey, encryptionKeys } = setup()
-
-  const r2 = new LocalPeers()
-
-  let isMember = false
-
-  const inviteApi = new InviteApi({
-    rpc: r2,
-    queries: {
-      isMember: async () => {
-        return isMember
-      },
-      addProject: async () => {},
-    },
-  })
-
-  r1.on('peers', async (peers) => {
-    if (peers.length !== 1 || peers[0].status === 'disconnected') return
-
-    await t.exception(() => {
-      const invite = {
-        projectKey,
-        encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
-      }
-      return r1.invite(peers[0].deviceId, invite)
-    }, 'invite fails')
-  })
-
-  inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKeyToPublicId(projectKey), 'received invite')
-    await disconnect()
-    isMember = true
-    await inviteApi.accept(projectId)
-    t.pass()
-  })
-
-  const disconnect = replicate(r1, r2)
-})
-
 test('addProject throwing results in invite accept throwing', async (t) => {
   t.plan(1)
 
@@ -548,7 +503,7 @@ test('Invite from multiple peers', async (t) => {
         t.pass('One invitor did receive accept response')
         t.is(response, LocalPeers.InviteResponse.ACCEPT, 'accept response')
       } else {
-        t.is(response, LocalPeers.InviteResponse.ALREADY, 'already response')
+        t.is(response, LocalPeers.InviteResponse.REJECT, 'reject response')
       }
     })
     replicate(invitee, invitor, { kp1: inviteeKeyPair, kp2: keyPair })
@@ -626,7 +581,7 @@ test.skip('Invite from multiple peers, first disconnects before accepted, receiv
           t.pass('One invitor did receive accept response')
           t.is(response, LocalPeers.InviteResponse.ACCEPT, 'accept response')
         } else {
-          t.is(response, LocalPeers.InviteResponse.ALREADY, 'already response')
+          t.is(response, LocalPeers.InviteResponse.REJECT, 'reject response')
         }
       } catch (e) {
         t.is(

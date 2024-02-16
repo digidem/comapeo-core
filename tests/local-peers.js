@@ -229,35 +229,6 @@ test('Invite to unknown peer', async (t) => {
   )
 })
 
-test('Send invite and already on project', async (t) => {
-  t.plan(3)
-  const r1 = new LocalPeers()
-  const r2 = new LocalPeers()
-
-  const projectKey = Buffer.allocUnsafe(32).fill(0)
-
-  r1.on('peers', async (peers) => {
-    t.is(peers.length, 1)
-    const response = await r1.invite(peers[0].deviceId, {
-      projectKey,
-      encryptionKeys: { auth: randomBytes(32) },
-      roleName: ROLES[MEMBER_ROLE_ID].name,
-      invitorName: 'device0',
-    })
-    t.is(response, LocalPeers.InviteResponse.ALREADY)
-  })
-
-  r2.on('invite', (peerId, invite) => {
-    t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
-    r2.inviteResponse(peerId, {
-      projectKey: invite.projectKey,
-      decision: LocalPeers.InviteResponse.ALREADY,
-    })
-  })
-
-  replicate(r1, r2)
-})
-
 test('Send invite with encryption key', async (t) => {
   t.plan(4)
   const r1 = new LocalPeers()
