@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'brittle'
 import { readConfig } from '../src/config-import.js'
 

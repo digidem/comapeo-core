@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'brittle'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
