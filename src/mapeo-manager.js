@@ -149,17 +149,14 @@ export class MapeoManager extends TypedEmitter {
     this.#invite = new InviteApi({
       rpc: this.#localPeers,
       queries: {
-        isMember: async (projectId) => {
-          const projectExists = this.#db
+        isMember: (projectPublicId) =>
+          !!this.#db
             .select()
             .from(projectKeysTable)
-            .where(eq(projectKeysTable.projectId, projectId))
-            .get()
-
-          return !!projectExists
-        },
-        addProject: async (invite) => {
-          await this.addProject(invite)
+            .where(eq(projectKeysTable.projectPublicId, projectPublicId))
+            .get(),
+        addProject: async (projectDetails) => {
+          await this.addProject(projectDetails)
         },
       },
     })
@@ -304,7 +301,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.projectId
    * @param {string} opts.projectPublicId
    * @param {ProjectKeys} opts.projectKeys
-   * @param {import('./generated/rpc.js').Invite_ProjectInfo} [opts.projectInfo]
+   * @param {Readonly<{ name?: string }>} [opts.projectInfo]
    */
   #saveToProjectKeysTable({
     projectId,
@@ -364,6 +361,7 @@ export class MapeoManager extends TypedEmitter {
       projectId,
       projectPublicId,
       projectKeys: keys,
+      projectInfo: { name: settings.name },
     })
 
     // 4. Create MapeoProject instance
@@ -515,12 +513,12 @@ export class MapeoManager extends TypedEmitter {
    * await `project.$waitForInitialSync()` to ensure that the device has
    * downloaded their proof of project membership and the project config.
    *
-   * @param {Pick<import('./generated/rpc.js').Invite, 'projectKey' | 'encryptionKeys' | 'projectInfo'>} invite
+   * @param {Pick<import('./generated/rpc.js').ProjectJoinDetails, 'projectKey' | 'encryptionKeys' | 'projectName'>} projectJoinDetails
    * @param {{ waitForSync?: boolean }} [opts] For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject()
    * @returns {Promise<string>}
    */
   async addProject(
-    { projectKey, encryptionKeys, projectInfo },
+    { projectKey, encryptionKeys, projectName },
     { waitForSync = true } = {}
   ) {
     const projectPublicId = projectKeyToPublicId(projectKey)
@@ -556,7 +554,7 @@ export class MapeoManager extends TypedEmitter {
         projectKey,
         encryptionKeys,
       },
-      projectInfo,
+      projectInfo: { name: projectName },
     })
 
     // Any errors from here we need to remove project from db because it has not

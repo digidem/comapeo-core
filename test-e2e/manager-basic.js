@@ -130,7 +130,7 @@ test('Managing added projects', async (t) => {
     {
       projectKey: KeyManager.generateProjectKeypair().publicKey,
       encryptionKeys: { auth: randomBytes(32) },
-      projectInfo: { name: 'project 1' },
+      projectName: 'project 1',
     },
     { waitForSync: false }
   )
@@ -139,7 +139,7 @@ test('Managing added projects', async (t) => {
     {
       projectKey: KeyManager.generateProjectKeypair().publicKey,
       encryptionKeys: { auth: randomBytes(32) },
-      projectInfo: { name: 'project 2' },
+      projectName: 'project 2',
     },
     { waitForSync: false }
   )
@@ -209,7 +209,7 @@ test('Managing both created and added projects', async (t) => {
     {
       projectKey: KeyManager.generateProjectKeypair().publicKey,
       encryptionKeys: { auth: randomBytes(32) },
-      projectInfo: { name: 'added project' },
+      projectName: 'added project',
     },
     { waitForSync: false }
   )
@@ -254,6 +254,7 @@ test('Manager cannot add project that already exists', async (t) => {
       manager.addProject({
         projectKey: Buffer.from(existingProjectId, 'hex'),
         encryptionKeys: { auth: randomBytes(32) },
+        projectName: 'Mapeo Project',
       }),
     'attempting to add project that already exists throws'
   )
@@ -283,7 +284,7 @@ test('Consistent storage folders', async (t) => {
       {
         projectKey: randomBytesSeed('test' + i),
         encryptionKeys: { auth: randomBytes(32) },
-        projectInfo: {},
+        projectName: 'Mapeo Project',
       },
       { waitForSync: false }
     )

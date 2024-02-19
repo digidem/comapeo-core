@@ -3,21 +3,16 @@ import _m0 from "protobufjs/minimal.js";
 import { EncryptionKeys } from "./keys.js";
 
 export interface Invite {
-  projectKey: Buffer;
-  encryptionKeys: EncryptionKeys | undefined;
-  projectInfo?: Invite_ProjectInfo | undefined;
-  roleName: string;
+  inviteId: Buffer;
+  projectPublicId: string;
+  projectName: string;
+  roleName?: string | undefined;
   roleDescription?: string | undefined;
-  invitorName: string;
-}
-
-/** Project info that is displayed to the user receiving the invite */
-export interface Invite_ProjectInfo {
-  name?: string | undefined;
+  invitorName?: string | undefined;
 }
 
 export interface InviteResponse {
-  projectKey: Buffer;
+  inviteId: Buffer;
   decision: InviteResponse_Decision;
 }
 
@@ -60,6 +55,13 @@ export function inviteResponse_DecisionToNumber(object: InviteResponse_Decision)
     default:
       return -1;
   }
+}
+
+export interface ProjectJoinDetails {
+  inviteId: Buffer;
+  projectKey: Buffer;
+  encryptionKeys: EncryptionKeys | undefined;
+  projectName: string;
 }
 
 export interface DeviceInfo {
@@ -109,27 +111,27 @@ export function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceType): nu
 }
 
 function createBaseInvite(): Invite {
-  return { projectKey: Buffer.alloc(0), encryptionKeys: undefined, roleName: "", invitorName: "" };
+  return { inviteId: Buffer.alloc(0), projectPublicId: "", projectName: "" };
 }
 
 export const Invite = {
   encode(message: Invite, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.projectKey.length !== 0) {
-      writer.uint32(10).bytes(message.projectKey);
+    if (message.inviteId.length !== 0) {
+      writer.uint32(10).bytes(message.inviteId);
     }
-    if (message.encryptionKeys !== undefined) {
-      EncryptionKeys.encode(message.encryptionKeys, writer.uint32(18).fork()).ldelim();
+    if (message.projectPublicId !== "") {
+      writer.uint32(18).string(message.projectPublicId);
     }
-    if (message.projectInfo !== undefined) {
-      Invite_ProjectInfo.encode(message.projectInfo, writer.uint32(26).fork()).ldelim();
+    if (message.projectName !== "") {
+      writer.uint32(26).string(message.projectName);
     }
-    if (message.roleName !== "") {
+    if (message.roleName !== undefined) {
       writer.uint32(34).string(message.roleName);
     }
     if (message.roleDescription !== undefined) {
       writer.uint32(42).string(message.roleDescription);
     }
-    if (message.invitorName !== "") {
+    if (message.invitorName !== undefined) {
       writer.uint32(50).string(message.invitorName);
     }
     return writer;
@@ -147,21 +149,21 @@ export const Invite = {
             break;
           }
 
-          message.projectKey = reader.bytes() as Buffer;
+          message.inviteId = reader.bytes() as Buffer;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.encryptionKeys = EncryptionKeys.decode(reader, reader.uint32());
+          message.projectPublicId = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
             break;
           }
 
-          message.projectInfo = Invite_ProjectInfo.decode(reader, reader.uint32());
+          message.projectName = reader.string();
           continue;
         case 4:
           if (tag !== 34) {
@@ -198,73 +200,24 @@ export const Invite = {
   },
   fromPartial<I extends Exact<DeepPartial<Invite>, I>>(object: I): Invite {
     const message = createBaseInvite();
-    message.projectKey = object.projectKey ?? Buffer.alloc(0);
-    message.encryptionKeys = (object.encryptionKeys !== undefined && object.encryptionKeys !== null)
-      ? EncryptionKeys.fromPartial(object.encryptionKeys)
-      : undefined;
-    message.projectInfo = (object.projectInfo !== undefined && object.projectInfo !== null)
-      ? Invite_ProjectInfo.fromPartial(object.projectInfo)
-      : undefined;
-    message.roleName = object.roleName ?? "";
+    message.inviteId = object.inviteId ?? Buffer.alloc(0);
+    message.projectPublicId = object.projectPublicId ?? "";
+    message.projectName = object.projectName ?? "";
+    message.roleName = object.roleName ?? undefined;
     message.roleDescription = object.roleDescription ?? undefined;
-    message.invitorName = object.invitorName ?? "";
-    return message;
-  },
-};
-
-function createBaseInvite_ProjectInfo(): Invite_ProjectInfo {
-  return {};
-}
-
-export const Invite_ProjectInfo = {
-  encode(message: Invite_ProjectInfo, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.name !== undefined) {
-      writer.uint32(10).string(message.name);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): Invite_ProjectInfo {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseInvite_ProjectInfo();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 10) {
-            break;
-          }
-
-          message.name = reader.string();
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  create<I extends Exact<DeepPartial<Invite_ProjectInfo>, I>>(base?: I): Invite_ProjectInfo {
-    return Invite_ProjectInfo.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<Invite_ProjectInfo>, I>>(object: I): Invite_ProjectInfo {
-    const message = createBaseInvite_ProjectInfo();
-    message.name = object.name ?? undefined;
+    message.invitorName = object.invitorName ?? undefined;
     return message;
   },
 };
 
 function createBaseInviteResponse(): InviteResponse {
-  return { projectKey: Buffer.alloc(0), decision: InviteResponse_Decision.REJECT };
+  return { inviteId: Buffer.alloc(0), decision: InviteResponse_Decision.REJECT };
 }
 
 export const InviteResponse = {
   encode(message: InviteResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.projectKey.length !== 0) {
-      writer.uint32(10).bytes(message.projectKey);
+    if (message.inviteId.length !== 0) {
+      writer.uint32(10).bytes(message.inviteId);
     }
     if (message.decision !== InviteResponse_Decision.REJECT) {
       writer.uint32(16).int32(inviteResponse_DecisionToNumber(message.decision));
@@ -284,7 +237,7 @@ export const InviteResponse = {
             break;
           }
 
-          message.projectKey = reader.bytes() as Buffer;
+          message.inviteId = reader.bytes() as Buffer;
           continue;
         case 2:
           if (tag !== 16) {
@@ -307,8 +260,88 @@ export const InviteResponse = {
   },
   fromPartial<I extends Exact<DeepPartial<InviteResponse>, I>>(object: I): InviteResponse {
     const message = createBaseInviteResponse();
-    message.projectKey = object.projectKey ?? Buffer.alloc(0);
+    message.inviteId = object.inviteId ?? Buffer.alloc(0);
     message.decision = object.decision ?? InviteResponse_Decision.REJECT;
+    return message;
+  },
+};
+
+function createBaseProjectJoinDetails(): ProjectJoinDetails {
+  return { inviteId: Buffer.alloc(0), projectKey: Buffer.alloc(0), encryptionKeys: undefined, projectName: "" };
+}
+
+export const ProjectJoinDetails = {
+  encode(message: ProjectJoinDetails, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.inviteId.length !== 0) {
+      writer.uint32(10).bytes(message.inviteId);
+    }
+    if (message.projectKey.length !== 0) {
+      writer.uint32(18).bytes(message.projectKey);
+    }
+    if (message.encryptionKeys !== undefined) {
+      EncryptionKeys.encode(message.encryptionKeys, writer.uint32(26).fork()).ldelim();
+    }
+    if (message.projectName !== "") {
+      writer.uint32(34).string(message.projectName);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): ProjectJoinDetails {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseProjectJoinDetails();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.inviteId = reader.bytes() as Buffer;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.projectKey = reader.bytes() as Buffer;
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.encryptionKeys = EncryptionKeys.decode(reader, reader.uint32());
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.projectName = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<ProjectJoinDetails>, I>>(base?: I): ProjectJoinDetails {
+    return ProjectJoinDetails.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ProjectJoinDetails>, I>>(object: I): ProjectJoinDetails {
+    const message = createBaseProjectJoinDetails();
+    message.inviteId = object.inviteId ?? Buffer.alloc(0);
+    message.projectKey = object.projectKey ?? Buffer.alloc(0);
+    message.encryptionKeys = (object.encryptionKeys !== undefined && object.encryptionKeys !== null)
+      ? EncryptionKeys.fromPartial(object.encryptionKeys)
+      : undefined;
+    message.projectName = object.projectName ?? "";
     return message;
   },
 };

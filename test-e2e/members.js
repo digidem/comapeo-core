@@ -58,6 +58,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
   const project = await manager.getProject(
     await manager.addProject(
       {
+        projectName: 'Mapeo Project',
         projectKey: randomBytes(32),
         encryptionKeys: { auth: randomBytes(32) },
       },
@@ -232,6 +233,7 @@ test('roles - new device without role', async (t) => {
 
   const projectId = await manager.addProject(
     {
+      projectName: 'Mapeo Project',
       projectKey: randomBytes(32),
       encryptionKeys: { auth: randomBytes(32) },
     },
@@ -300,6 +302,7 @@ test('roles - getMany() on newly invited device before sync', async (t) => {
 
   const projectId = await manager.addProject(
     {
+      projectName: 'Mapeo Project',
       projectKey: randomBytes(32),
       encryptionKeys: { auth: randomBytes(32) },
     },

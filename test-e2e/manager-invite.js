@@ -1,4 +1,6 @@
+// @ts-check
 import { test, skip } from 'brittle'
+import FakeTimers from '@sinonjs/fake-timers'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'
 import {
@@ -8,6 +10,8 @@ import {
   waitForPeers,
 } from './utils.js'
 import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
+
+/** @typedef {import('../src/generated/rpc.js').Invite} Invite */
 
 test('member invite accepted', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
@@ -26,11 +30,14 @@ test('member invite accepted', async (t) => {
     roleId: MEMBER_ROLE_ID,
   })
   const [invite] = await once(joiner.invite, 'invite-received')
-  t.is(invite.projectId, createdProjectId, 'projectId of invite matches')
-  t.is(invite.peerId, creator.deviceId, 'deviceId of invite matches')
+  t.is(typeof invite.inviteId, 'string', 'inviteId is string')
+  t.ok(
+    Buffer.from(invite.inviteId, 'hex').byteLength >= 32,
+    'inviteId has at least 256 bits of entropy'
+  )
   t.is(invite.projectName, 'Mapeo', 'project name of invite matches')
 
-  await joiner.invite.accept(invite.projectId)
+  await joiner.invite.accept(invite)
 
   t.is(
     await responsePromise,
@@ -78,7 +85,7 @@ test('chain of invites', async (t) => {
       roleId: COORDINATOR_ROLE_ID,
     })
     const [invite] = await once(joiner.invite, 'invite-received')
-    await joiner.invite.accept(invite.projectId)
+    await joiner.invite.accept(invite)
     t.is(
       await responsePromise,
       InviteResponse_Decision.ACCEPT,
@@ -112,6 +119,38 @@ test('chain of invites', async (t) => {
   await disconnectPeers(managers)
 })
 
+test('generates new invite IDs for each invite', async (t) => {
+  const inviteCount = 10
+
+  const [creator, joiner] = await createManagers(2, t)
+  connectPeers([creator, joiner])
+  t.teardown(() => disconnectPeers([creator, joiner]))
+  await waitForPeers([creator, joiner])
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+
+  /** @type {Array<string>} */
+  const inviteIds = []
+
+  for (let i = 0; i < inviteCount; i++) {
+    const inviteReceivedPromise = once(joiner.invite, 'invite-received')
+    const invitePromise = creatorProject.$member.invite(joiner.deviceId, {
+      roleId: MEMBER_ROLE_ID,
+    })
+    const [invite] = await inviteReceivedPromise
+    inviteIds.push(invite.inviteId)
+    await joiner.invite.reject(invite)
+    await invitePromise
+  }
+
+  t.is(
+    new Set(inviteIds).size,
+    inviteCount,
+    `got ${inviteCount} unique invite IDs`
+  )
+})
+
 // TODO: Needs fix to inviteApi to check role before sending invite
 skip("member can't invite", async (t) => {
   const managers = await createManagers(3, t)
@@ -126,7 +165,7 @@ skip("member can't invite", async (t) => {
     roleId: MEMBER_ROLE_ID,
   })
   const [invite] = await once(member.invite, 'invite-received')
-  await member.invite.accept(invite.projectId)
+  await member.invite.accept(invite)
   await responsePromise
 
   /// After invite flow has completed...
@@ -140,7 +179,9 @@ skip("member can't invite", async (t) => {
   )
 
   const exceptionPromise = t.exception(() =>
-    memberProject.$member.invite(joiner.deviceId, { roleId: MEMBER_ROLE_ID })
+    memberProject.$member.invite(joiner.deviceId, {
+      roleId: MEMBER_ROLE_ID,
+    })
   )
   joiner.invite.once('invite-received', () => t.fail('should not send invite'))
   await exceptionPromise
@@ -165,11 +206,8 @@ test('member invite rejected', async (t) => {
     roleId: MEMBER_ROLE_ID,
   })
   const [invite] = await once(joiner.invite, 'invite-received')
-  t.is(invite.projectId, createdProjectId, 'projectId of invite matches')
-  t.is(invite.peerId, creator.deviceId, 'deviceId of invite matches')
-  t.is(invite.projectName, 'Mapeo', 'project name of invite matches')
 
-  await joiner.invite.reject(invite.projectId)
+  await joiner.invite.reject(invite)
 
   t.is(
     await responsePromise,
@@ -195,6 +233,36 @@ test('member invite rejected', async (t) => {
   )
 
   await disconnectPeers([creator, joiner])
+})
+
+test('times out', async (t) => {
+  const clock = FakeTimers.install({
+    shouldAdvanceTime: true,
+    shouldClearNativeTimers: true,
+  })
+  t.teardown(() => clock.uninstall())
+
+  const [creator, joiner] = await createManagers(2, t)
+  connectPeers([creator, joiner])
+  t.teardown(() => disconnectPeers([creator, joiner]))
+  await waitForPeers([creator, joiner])
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+
+  const inviteReceivedPromise = once(joiner.invite, 'invite-received')
+
+  const responsePromise = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+    timeout: 1234,
+  })
+
+  await clock.tickAsync(1235)
+
+  const [invite] = await inviteReceivedPromise
+  joiner.invite.accept(invite)
+
+  await t.exception(responsePromise, 'should time out')
 })
 
 /**
