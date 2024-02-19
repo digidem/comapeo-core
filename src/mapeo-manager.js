@@ -57,8 +57,6 @@ const MAX_FILE_DESCRIPTORS = 768
 const BLOBS_PREFIX = 'blobs'
 const ICONS_PREFIX = 'icons'
 
-const DEFAULT_CONFIG_PATH = '../config/defaultConfig.mapeoconfig'
-
 export const kRPC = Symbol('rpc')
 export const kManagerReplicate = Symbol('replicate manager')
 
@@ -93,6 +91,7 @@ export class MapeoManager extends TypedEmitter {
   #localDiscovery
   #loggerBase
   #l
+  #defaultConfigPath
   /** @readonly */
   #deviceType
 
@@ -105,6 +104,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
    * @param {import('./generated/rpc.js').DeviceInfo['deviceType']} [opts.deviceType] Device type, shared with local peers and project members
+   * @param {String} [opts.defaultConfigPath]
    */
   constructor({
     rootKey,
@@ -114,11 +114,13 @@ export class MapeoManager extends TypedEmitter {
     coreStorage,
     fastify,
     deviceType,
+    defaultConfigPath,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#deviceType = deviceType
+    this.#defaultConfigPath = defaultConfigPath
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
@@ -394,9 +396,12 @@ export class MapeoManager extends TypedEmitter {
     // load default config
     // TODO: see how to expose warnings to frontend
     /* eslint-disable no-unused-vars */
-    const warnings = await project.importConfig({
-      configPath: new URL(DEFAULT_CONFIG_PATH, import.meta.url).pathname,
-    })
+    let warnings
+    if (this.#defaultConfigPath) {
+      warnings = await project.importConfig({
+        configPath: new URL(this.#defaultConfigPath, import.meta.url).pathname,
+      })
+    }
 
     this.#l.log(
       'created project %h, public id: %S',

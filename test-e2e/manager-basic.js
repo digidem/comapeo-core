@@ -5,7 +5,7 @@ import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import Fastify from 'fastify'
-import { readConfig } from '../src/config-import.js'
+import { getExpectedConfig } from './utils.js'
 import { kDataTypes } from '../src/mapeo-project.js'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -21,6 +21,7 @@ test('Managing created projects', async (t) => {
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
     fastify: Fastify(),
+    defaultConfigPath: '../config/defaultConfig.mapeoconfig',
   })
 
   const project1Id = await manager.createProject()
@@ -369,27 +370,4 @@ test('Consistent storage folders', async (t) => {
  */
 function randomBytesSeed(seed) {
   return createHash('sha256').update(seed).digest()
-}
-
-/** @param {String} path */
-async function getExpectedConfig(path) {
-  const config = await readConfig(path)
-  let presets = []
-  let fields = []
-  let icons = []
-  for (let preset of config.presets()) {
-    presets.push(preset)
-  }
-  for (let field of config.fields()) {
-    fields.push(field)
-  }
-  for await (let icon of config.icons()) {
-    icons.push(icon)
-  }
-
-  return {
-    presets,
-    fields,
-    icons,
-  }
 }
