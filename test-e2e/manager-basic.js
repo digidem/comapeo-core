@@ -91,15 +91,7 @@ test('Managing created projects', async (t) => {
       )
 
       const projectFields = await project1.field.getMany()
-      // const icons = Promise.all(
-      //   (await project1.preset.getMany())
-      //     .map(async (preset) => preset.iconId)
-      //     .filter((iconId) => iconId !== undefined)
-      //     .map(async (iconId) => await project1.preset.getByDocId(iconId))
-      //     .map(console.log)
-      // )
 
-      // console.log('icons', icons)
       st.alike(
         projectFields.map((field) => field.tagKey),
         expectedDefault.fields.map((field) => field.value.tagKey),
