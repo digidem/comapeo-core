@@ -399,7 +399,7 @@ export class MapeoManager extends TypedEmitter {
     let warnings
     if (this.#defaultConfigPath) {
       warnings = await project.importConfig({
-        configPath: new URL(this.#defaultConfigPath, import.meta.url).pathname,
+        configPath: this.#defaultConfigPath,
       })
     }
 

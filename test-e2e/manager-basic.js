@@ -13,6 +13,13 @@ const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
+const expectedDefault = await getExpectedConfig(
+  'config/defaultConfig.mapeoconfig'
+)
+const expectedMinimal = await getExpectedConfig(
+  'tests/fixtures/config/completeConfig.zip'
+)
+
 test('Managing created projects', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
@@ -21,7 +28,7 @@ test('Managing created projects', async (t) => {
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
     fastify: Fastify(),
-    defaultConfigPath: '../config/defaultConfig.mapeoconfig',
+    defaultConfigPath: 'config/defaultConfig.mapeoconfig',
   })
 
   const project1Id = await manager.createProject()
@@ -65,43 +72,43 @@ test('Managing created projects', async (t) => {
       const settings1 = await project1.$getProjectSettings()
       const settings2 = await project2.$getProjectSettings()
 
-      const {
-        presets: defaultPresets,
-        fields: defaultFields,
-        icons: defaultIcons,
-      } = await getExpectedConfig(
-        new URL('../config/defaultConfig.mapeoconfig', import.meta.url).pathname
-      )
-
       st.is(settings1.name, undefined, 'undefined name for project1')
       st.is(settings2.name, 'project 2', 'matched name for project2')
 
       const projectPresets = await project1.preset.getMany()
 
       st.is(
-        settings1.defaultPresets?.point.length,
-        defaultPresets.length,
+        //@ts-ignore
+        settings1.defaultPresets.point.length,
+        expectedDefault.presets.length,
         'the default presets loaded is equal to the number of presets in the default config'
       )
 
       st.alike(
         projectPresets.map((preset) => preset.name),
-        defaultPresets.map((preset) => preset.value.name),
+        expectedDefault.presets.map((preset) => preset.value.name),
         'project is loading the default presets correctly'
       )
 
       const projectFields = await project1.field.getMany()
+      // const icons = Promise.all(
+      //   (await project1.preset.getMany())
+      //     .map(async (preset) => preset.iconId)
+      //     .filter((iconId) => iconId !== undefined)
+      //     .map(async (iconId) => await project1.preset.getByDocId(iconId))
+      //     .map(console.log)
+      // )
 
+      // console.log('icons', icons)
       st.alike(
         projectFields.map((field) => field.tagKey),
-        defaultFields.map((field) => field.value.tagKey),
+        expectedDefault.fields.map((field) => field.value.tagKey),
         'project is loading the default fields correctly'
       )
-
       const projectIcons = await project1[kDataTypes].icon.getMany()
       st.alike(
         projectIcons.map((icon) => icon.name),
-        defaultIcons.map((icon) => icon.name),
+        expectedDefault.icons.map((icon) => icon.name),
         'project is loading the default icons correctly'
       )
     }
@@ -110,28 +117,19 @@ test('Managing created projects', async (t) => {
   await t.test(
     'load different config and check if correctly loaded',
     async (st) => {
-      const configPath = new URL(
-        '../tests/fixtures/config/completeConfig.zip',
-        import.meta.url
-      ).pathname
-      const {
-        presets: loadedPresets,
-        fields: loadedFields,
-        // icons: loadedIcons,
-      } = await getExpectedConfig(configPath)
-
+      const configPath = 'tests/fixtures/config/completeConfig.zip'
       await project1.importConfig({ configPath })
       const projectPresets = await project1.preset.getMany()
       st.alike(
         projectPresets.map((preset) => preset.name),
-        loadedPresets.map((preset) => preset.value.name),
+        expectedMinimal.presets.map((preset) => preset.value.name),
         'project presets explicitly loaded match expected config'
       )
 
       const projectFields = await project1.field.getMany()
       st.alike(
         projectFields.map((field) => field.tagKey),
-        loadedFields.map((field) => field.value.tagKey),
+        expectedMinimal.fields.map((field) => field.value.tagKey),
         'project fields explicitly loaded match expected config'
       )
 
@@ -144,7 +142,7 @@ test('Managing created projects', async (t) => {
     }
   )
 
-  t.test('after updating project settings', async (st) => {
+  await t.test('after updating project settings', async (st) => {
     await project1.$setProjectSettings({
       name: 'project 1',
     })

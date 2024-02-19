@@ -210,12 +210,9 @@ test('config import - presets', async (t) => {
 })
 
 test('config import - load default config', async (t) => {
-  t.ok(
-    await readConfig('./config/defaultConfig.mapeoconfig'),
-    'valid config file'
-  )
-
   let config = await readConfig('./config/defaultConfig.mapeoconfig')
+  t.ok(config, 'valid config file')
+
   let nFields = 0
   /* eslint-disable-next-line */
   for (const field of config.fields()) {
