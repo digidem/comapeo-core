@@ -36,7 +36,7 @@ test('Managing created projects', async (t) => {
     name: 'project 2',
   })
 
-  t.test('initial information from listed projects', async (st) => {
+  await t.test('initial information from listed projects', async (st) => {
     const listedProjects = await manager.listProjects()
 
     st.is(listedProjects.length, 2)
@@ -209,7 +209,7 @@ test('Managing added projects', async (t) => {
     { waitForSync: false }
   )
 
-  t.test('initial information from listed projects', async (st) => {
+  await t.test('initial information from listed projects', async (st) => {
     const listedProjects = await manager.listProjects()
 
     st.is(listedProjects.length, 2)
