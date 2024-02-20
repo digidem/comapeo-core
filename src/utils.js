@@ -66,6 +66,45 @@ export async function openedNoiseSecretStream(stream) {
   return /** @type {OpenedNoiseStream | DestroyedNoiseStream} */ (stream)
 }
 
+export class ExhaustivenessError extends Error {
+  /** @param {never} value */
+  constructor(value) {
+    super(`Exhaustiveness check failed. ${value} should be impossible`)
+    this.name = 'ExhaustivenessError'
+  }
+}
+
+/**
+ * @param {boolean} condition
+ * @param {string} message
+ * @returns {asserts condition}
+ */
+export function assert(condition, message) {
+  if (!condition) throw new Error(message)
+}
+
+/**
+ * Return a function that itself returns whether a value is part of the set.
+ *
+ * Similar to binding `Set.prototype.has`, but (1) is shorter (2) refines the type.
+ *
+ * @template T
+ * @param {Readonly<Set<T>>} set
+ * @example
+ * const mySet = new Set([1, 2, 3])
+ * const isInMySet = setHas(mySet)
+ *
+ * console.log(isInMySet(2))
+ * // => true
+ */
+export function setHas(set) {
+  /**
+   * @param {unknown} value
+   * @returns {value is T}
+   */
+  return (value) => set.has(/** @type {*} */ (value))
+}
+
 /**
  * Return a function that itself returns whether a value is part of the set.
  *

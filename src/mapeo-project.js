@@ -32,9 +32,9 @@ import {
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
-  Capabilities,
+  Roles,
   LEFT_ROLE_ID,
-} from './capabilities.js'
+} from './roles.js'
 import {
   getDeviceId,
   projectKeyToId,
@@ -46,6 +46,7 @@ import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
+import { readConfig } from './config-import.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -73,7 +74,7 @@ export class MapeoProject extends TypedEmitter {
   #dataTypes
   #blobStore
   #coreOwnership
-  #capabilities
+  #roles
   /** @ts-ignore */
   #ownershipWriteDone
   #sqlite
@@ -248,7 +249,7 @@ export class MapeoProject extends TypedEmitter {
       coreKeypairs,
       identityKeypair,
     })
-    this.#capabilities = new Capabilities({
+    this.#roles = new Roles({
       dataType: this.#dataTypes.role,
       coreOwnership: this.#coreOwnership,
       coreManager: this.#coreManager,
@@ -258,7 +259,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#memberApi = new MemberApi({
       deviceId: this.#deviceId,
-      capabilities: this.#capabilities,
+      roles: this.#roles,
       coreOwnership: this.#coreOwnership,
       encryptionKeys,
       projectKey,
@@ -300,7 +301,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#syncApi = new SyncApi({
       coreManager: this.#coreManager,
-      capabilities: this.#capabilities,
+      roles: this.#roles,
       logger: this.#l,
     })
 
@@ -327,7 +328,7 @@ export class MapeoProject extends TypedEmitter {
     }
 
     // When a new peer is found, try to replicate (if it is not a member of the
-    // project it will fail the capability check and be ignored)
+    // project it will fail the role check and be ignored)
     localPeers.on('peer-add', onPeerAdd)
 
     // This happens whenever a peer replicates a core to the stream. SyncApi
@@ -496,8 +497,8 @@ export class MapeoProject extends TypedEmitter {
     }
   }
 
-  async $getOwnCapabilities() {
-    return this.#capabilities.getCapabilities(this.#deviceId)
+  async $getOwnRole() {
+    return this.#roles.getRole(this.#deviceId)
   }
 
   /**
@@ -569,7 +570,7 @@ export class MapeoProject extends TypedEmitter {
       throw new Error('Cannot leave a project as a blocked device')
     }
 
-    const knownDevices = Object.keys(await this.#capabilities.getAll())
+    const knownDevices = Object.keys(await this.#roles.getAll())
     const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
       this.#projectId
     )
@@ -651,7 +652,79 @@ export class MapeoProject extends TypedEmitter {
     )
 
     // 4. Assign LEFT role for device
-    await this.#capabilities.assignRole(this.#deviceId, LEFT_ROLE_ID)
+    await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+  }
+
+  /** @param {Object} opts
+   *  @param {string} opts.configPath
+   *  @returns {Promise<Error[]>}
+   */
+  async importConfig({ configPath }) {
+    // check for already present fields and presets and delete them if exist
+    await deleteAll(this.preset)
+    await deleteAll(this.field)
+
+    const config = await readConfig(configPath)
+    /** @type {Map<string, string>} */
+    const iconNameToId = new Map()
+    /** @type {Map<string, string>} */
+    const fieldNameToId = new Map()
+
+    // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
+    for await (const icon of config.icons()) {
+      const iconId = await this.#iconApi.create(icon)
+      iconNameToId.set(icon.name, iconId)
+    }
+
+    // Ok to create fields and presets in parallel
+    const fieldPromises = []
+    for (const { name, value } of config.fields()) {
+      fieldPromises.push(
+        this.#dataTypes.field.create(value).then(({ docId }) => {
+          fieldNameToId.set(name, docId)
+        })
+      )
+    }
+    await Promise.all(fieldPromises)
+
+    const presetsWithRefs = []
+    for (const { fieldNames, iconName, value } of config.presets()) {
+      const fieldIds = fieldNames.map((fieldName) => {
+        const id = fieldNameToId.get(fieldName)
+        if (!id) {
+          throw new Error(
+            `field ${fieldName} not found (referenced by preset ${value.name})})`
+          )
+        }
+        return id
+      })
+      presetsWithRefs.push({
+        ...value,
+        iconId: iconName && iconNameToId.get(iconName),
+        fieldIds,
+      })
+    }
+
+    // close the zip handles after we know we won't be needing them anymore
+    await config.close()
+
+    const presetPromises = presetsWithRefs.map((preset) =>
+      this.preset.create(preset)
+    )
+    const createdPresets = await Promise.all(presetPromises)
+    const presetIds = createdPresets.map(({ docId }) => docId)
+
+    await this.$setProjectSettings({
+      defaultPresets: {
+        point: presetIds,
+        line: [],
+        area: [],
+        vertex: [],
+        relation: [],
+      },
+    })
+
+    return config.warnings
   }
 }
 
@@ -663,6 +736,16 @@ function extractEditableProjectSettings(projectDoc) {
   // eslint-disable-next-line no-unused-vars
   const { schemaName, ...result } = valueOf(projectDoc)
   return result
+}
+
+// TODO: maybe a better signature than a bunch of any?
+/** @param {DataType<any,any,any,any,any>} dataType */
+async function deleteAll(dataType) {
+  const deletions = []
+  for (const { versionId } of await dataType.getMany()) {
+    deletions.push(dataType.delete(versionId))
+  }
+  return Promise.all(deletions)
 }
 
 /**

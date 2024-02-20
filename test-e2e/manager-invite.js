@@ -7,7 +7,7 @@ import {
   disconnectPeers,
   waitForPeers,
 } from './utils.js'
-import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/capabilities.js'
+import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
 
 test('member invite accepted', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
@@ -112,7 +112,7 @@ test('chain of invites', async (t) => {
   await disconnectPeers(managers)
 })
 
-// TODO: Needs fix to inviteApi to check capabilities before sending invite
+// TODO: Needs fix to inviteApi to check role before sending invite
 skip("member can't invite", async (t) => {
   const managers = await createManagers(3, t)
   const [creator, member, joiner] = managers

@@ -90,7 +90,9 @@ export class DataType<
 
   getByVersionId(versionId: string): Promise<TDoc>
 
-  getMany(): Promise<Array<TDoc & { forks: string[] }>>
+  getMany(opts?: {
+    includeDeleted?: boolean
+  }): Promise<Array<TDoc & { forks: string[] }>>
 
   update<
     T extends import('type-fest').Exact<

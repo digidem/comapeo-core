@@ -7,7 +7,7 @@ import { createMap } from '../utils.js'
  * @typedef {import('../core-manager/index.js').Namespace} Namespace
  */
 /**
- * @typedef {import('../capabilities.js').Capability['sync'][Namespace] | 'unknown'} SyncCapability
+ * @typedef {import('../roles.js').Role['sync'][Namespace] | 'unknown'} SyncCapability
  */
 
 /** @type {Namespace[]} */
@@ -22,7 +22,7 @@ export class PeerSyncController {
   #enabledNamespaces = new Set()
   #coreManager
   #protomux
-  #capabilities
+  #roles
   /** @type {Record<Namespace, SyncCapability>} */
   #syncCapability = createNamespaceMap('unknown')
   #isDataSyncEnabled = false
@@ -41,10 +41,10 @@ export class PeerSyncController {
    * @param {import("protomux")<import('../utils.js').OpenedNoiseStream>} opts.protomux
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    * @param {import("./sync-state.js").SyncState} opts.syncState
-   * @param {import("../capabilities.js").Capabilities} opts.capabilities
+   * @param {import('../roles.js').Roles} opts.roles
    * @param {Logger} [opts.logger]
    */
-  constructor({ protomux, coreManager, syncState, capabilities, logger }) {
+  constructor({ protomux, coreManager, syncState, roles, logger }) {
     // @ts-ignore
     this.#log = (formatter, ...args) => {
       const log = Logger.create('peer', logger).log
@@ -56,7 +56,7 @@ export class PeerSyncController {
     }
     this.#coreManager = coreManager
     this.#protomux = protomux
-    this.#capabilities = capabilities
+    this.#roles = roles
 
     // Always need to replicate the project creator core
     this.#replicateCore(coreManager.creatorCore)
@@ -170,10 +170,10 @@ export class PeerSyncController {
 
     if (didUpdate.auth) {
       try {
-        const cap = await this.#capabilities.getCapabilities(this.peerId)
+        const cap = await this.#roles.getRole(this.peerId)
         this.#syncCapability = cap.sync
       } catch (e) {
-        this.#log('Error reading capability', e)
+        this.#log('Error reading role', e)
         // Any error, consider sync unknown
         this.#syncCapability = createNamespaceMap('unknown')
       }

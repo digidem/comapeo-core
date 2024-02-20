@@ -104,11 +104,6 @@ export type KeyPair = {
   publicKey: PublicKey
   secretKey: SecretKey
 }
-export type RoleDetails = {
-  name: string
-  capabilities: string[]
-}
-export type AvailableRoles = RoleDetails[]
 
 export type Statement = {
   id: string

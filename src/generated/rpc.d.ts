@@ -28,7 +28,17 @@ export declare function inviteResponse_DecisionFromJSON(object: any): InviteResp
 export declare function inviteResponse_DecisionToNumber(object: InviteResponse_Decision): number;
 export interface DeviceInfo {
     name: string;
+    deviceType?: DeviceInfo_DeviceType | undefined;
 }
+export declare const DeviceInfo_DeviceType: {
+    readonly mobile: "mobile";
+    readonly tablet: "tablet";
+    readonly desktop: "desktop";
+    readonly UNRECOGNIZED: "UNRECOGNIZED";
+};
+export type DeviceInfo_DeviceType = typeof DeviceInfo_DeviceType[keyof typeof DeviceInfo_DeviceType];
+export declare function deviceInfo_DeviceTypeFromJSON(object: any): DeviceInfo_DeviceType;
+export declare function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceType): number;
 export declare const Invite: {
     encode(message: Invite, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): Invite;
@@ -148,12 +158,16 @@ export declare const DeviceInfo: {
     decode(input: _m0.Reader | Uint8Array, length?: number): DeviceInfo;
     create<I extends {
         name?: string;
+        deviceType?: DeviceInfo_DeviceType | undefined;
     } & {
         name?: string;
-    } & { [K in Exclude<keyof I, "name">]: never; }>(base?: I): DeviceInfo;
+        deviceType?: DeviceInfo_DeviceType | undefined;
+    } & { [K in Exclude<keyof I, keyof DeviceInfo>]: never; }>(base?: I): DeviceInfo;
     fromPartial<I_1 extends {
         name?: string;
+        deviceType?: DeviceInfo_DeviceType | undefined;
     } & {
         name?: string;
-    } & { [K_1 in Exclude<keyof I_1, "name">]: never; }>(object: I_1): DeviceInfo;
+        deviceType?: DeviceInfo_DeviceType | undefined;
+    } & { [K_1 in Exclude<keyof I_1, keyof DeviceInfo>]: never; }>(object: I_1): DeviceInfo;
 };
