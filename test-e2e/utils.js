@@ -118,50 +118,37 @@ export async function invite({
  *
  * @param {readonly MapeoManager[]} managers
  * @param {{ waitForDeviceInfo?: boolean }} [opts] Optionally wait for device names to be set
+ * @returns {Promise<void>}
  */
-export async function waitForPeers(
-  managers,
-  { waitForDeviceInfo = false } = {}
-) {
-  const peerCounts = managers.map((manager) => {
-    return manager[kRPC].peers.filter(({ status }) => status === 'connected')
-      .length
-  })
-  const peersHaveNames = managers.map((manager) => {
-    return manager[kRPC].peers.every(({ name }) => !!name)
-  })
-  const expectedCount = managers.length - 1
-  return new Promise((res) => {
-    if (
-      peerCounts.every((v) => v === expectedCount) &&
-      (!waitForDeviceInfo || peersHaveNames.every((v) => v))
-    ) {
-      return res(null)
-    }
-    for (const [idx, manager] of managers.entries()) {
-      manager.on('local-peers', function onPeers(peers) {
-        const connectedPeerCount = peers.filter(
+export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
+  new Promise((res) => {
+    const expectedCount = managers.length - 1
+    const isDone = () =>
+      managers.every((manager) => {
+        const { peers } = manager[kRPC]
+        const connectedPeers = peers.filter(
           ({ status }) => status === 'connected'
-        ).length
-        const allHaveNames = peers.every(({ name }) => !!name)
-        peerCounts[idx] = connectedPeerCount
-        peersHaveNames[idx] = allHaveNames
-        if (
-          connectedPeerCount === expectedCount &&
-          (!waitForDeviceInfo || allHaveNames)
-        ) {
-          manager.off('local-peers', onPeers)
-        }
-        if (
-          peerCounts.every((v) => v === expectedCount) &&
-          (!waitForDeviceInfo || peersHaveNames.every((v) => v))
-        ) {
-          res(null)
-        }
+        )
+        return (
+          connectedPeers.length === expectedCount &&
+          (!waitForDeviceInfo || connectedPeers.every(({ name }) => !!name))
+        )
       })
+
+    if (isDone()) {
+      res()
+      return
     }
+
+    const onLocalPeers = () => {
+      if (isDone()) {
+        for (const manager of managers) manager.off('local-peers', onLocalPeers)
+        res()
+      }
+    }
+
+    for (const manager of managers) manager.on('local-peers', onLocalPeers)
   })
-}
 
 /**
  * Create `count` manager instances. Each instance has a deterministic identity
