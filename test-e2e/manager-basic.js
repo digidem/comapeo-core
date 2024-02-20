@@ -13,13 +13,6 @@ const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
-const expectedDefault = await getExpectedConfig(
-  'config/defaultConfig.mapeoconfig'
-)
-const expectedMinimal = await getExpectedConfig(
-  'tests/fixtures/config/completeConfig.zip'
-)
-
 test('Managing created projects', async (t) => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
@@ -65,24 +58,21 @@ test('Managing created projects', async (t) => {
   t.ok(project1)
   t.ok(project2)
 
-  await t.test(
-    'initial settings and default config from project instances',
-    async (st) => {
-      const settings1 = await project1.$getProjectSettings()
-      const settings2 = await project2.$getProjectSettings()
+  await t.test('initial settings from project instances', async (st) => {
+    const settings1 = await project1.$getProjectSettings()
+    const settings2 = await project2.$getProjectSettings()
 
-      st.alike(
-        settings1,
-        { name: undefined, defaultPresets: undefined },
-        'undefined name and default presets for project1'
-      )
-      st.alike(
-        settings2,
-        { name: 'project 2', defaultPresets: undefined },
-        'matched name for project2 with undefined default presets'
-      )
-    }
-  )
+    st.alike(
+      settings1,
+      { name: undefined, defaultPresets: undefined },
+      'undefined name and default presets for project1'
+    )
+    st.alike(
+      settings2,
+      { name: 'project 2', defaultPresets: undefined },
+      'matched name for project2 with undefined default presets'
+    )
+  })
 
   await t.test('after updating project settings', async (st) => {
     await project1.$setProjectSettings({
@@ -133,6 +123,13 @@ test('Consistent loading of config', async (t) => {
     fastify: Fastify(),
     defaultConfigPath: 'config/defaultConfig.mapeoconfig',
   })
+
+  const expectedDefault = await getExpectedConfig(
+    'config/defaultConfig.mapeoconfig'
+  )
+  const expectedMinimal = await getExpectedConfig(
+    'tests/fixtures/config/completeConfig.zip'
+  )
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
   const projectSettings = await project.$getProjectSettings()
