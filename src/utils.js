@@ -106,28 +106,6 @@ export function setHas(set) {
 }
 
 /**
- * Return a function that itself returns whether a value is part of the set.
- *
- * Similar to binding `Set.prototype.has`, but (1) is shorter (2) refines the type.
- *
- * @template T
- * @param {Readonly<Set<T>>} set
- * @example
- * const mySet = new Set([1, 2, 3])
- * const isInMySet = setHas(mySet)
- *
- * console.log(isInMySet(2))
- * // => true
- */
-export function setHas(set) {
-  /**
-   * @param {unknown} value
-   * @returns {value is T}
-   */
-  return (value) => set.has(/** @type {*} */ (value))
-}
-
-/**
  * When reading from SQLite, any optional properties are set to `null`. This
  * converts `null` back to `undefined` to match the input types (e.g. the types
  * defined in @mapeo/schema)
