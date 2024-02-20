@@ -28,7 +28,6 @@ test('Managing created projects', async (t) => {
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
     fastify: Fastify(),
-    defaultConfigPath: 'config/defaultConfig.mapeoconfig',
   })
 
   const project1Id = await manager.createProject()
@@ -72,65 +71,16 @@ test('Managing created projects', async (t) => {
       const settings1 = await project1.$getProjectSettings()
       const settings2 = await project2.$getProjectSettings()
 
-      st.is(settings1.name, undefined, 'undefined name for project1')
-      st.is(settings2.name, 'project 2', 'matched name for project2')
-
-      const projectPresets = await project1.preset.getMany()
-
-      st.is(
-        //@ts-ignore
-        settings1.defaultPresets.point.length,
-        expectedDefault.presets.length,
-        'the default presets loaded is equal to the number of presets in the default config'
-      )
-
       st.alike(
-        projectPresets.map((preset) => preset.name),
-        expectedDefault.presets.map((preset) => preset.value.name),
-        'project is loading the default presets correctly'
+        settings1,
+        { name: undefined, defaultPresets: undefined },
+        'undefined name and default presets for project1'
       )
-
-      const projectFields = await project1.field.getMany()
-
       st.alike(
-        projectFields.map((field) => field.tagKey),
-        expectedDefault.fields.map((field) => field.value.tagKey),
-        'project is loading the default fields correctly'
+        settings2,
+        { name: 'project 2', defaultPresets: undefined },
+        'matched name for project2 with undefined default presets'
       )
-      const projectIcons = await project1[kDataTypes].icon.getMany()
-      st.alike(
-        projectIcons.map((icon) => icon.name),
-        expectedDefault.icons.map((icon) => icon.name),
-        'project is loading the default icons correctly'
-      )
-    }
-  )
-
-  await t.test(
-    'load different config and check if correctly loaded',
-    async (st) => {
-      const configPath = 'tests/fixtures/config/completeConfig.zip'
-      await project1.importConfig({ configPath })
-      const projectPresets = await project1.preset.getMany()
-      st.alike(
-        projectPresets.map((preset) => preset.name),
-        expectedMinimal.presets.map((preset) => preset.value.name),
-        'project presets explicitly loaded match expected config'
-      )
-
-      const projectFields = await project1.field.getMany()
-      st.alike(
-        projectFields.map((field) => field.tagKey),
-        expectedMinimal.fields.map((field) => field.value.tagKey),
-        'project fields explicitly loaded match expected config'
-      )
-
-      // TODO: since we don't delete icons, this wouldn't match
-      // const projectIcons = await project1[kDataTypes].icon.getMany()
-      // st.alike(
-      //   projectIcons.map((icon) => icon.name),
-      //   loadedIcons.map((icon) => icon.name)
-      // )
     }
   )
 
@@ -171,6 +121,82 @@ test('Managing created projects', async (t) => {
     st.ok(project2FromListed?.createdAt)
     st.ok(project2FromListed?.updatedAt)
   })
+})
+
+test('Consistent loading of config', async (t) => {
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+    fastify: Fastify(),
+    defaultConfigPath: 'config/defaultConfig.mapeoconfig',
+  })
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+  const projectSettings = await project.$getProjectSettings()
+
+  const projectPresets = await project.preset.getMany()
+  await t.test(
+    'load default config and check if correctly loaded',
+    async (st) => {
+      st.is(
+        //@ts-ignore
+        projectSettings.defaultPresets.point.length,
+        expectedDefault.presets.length,
+        'the default presets loaded is equal to the number of presets in the default config'
+      )
+
+      st.alike(
+        projectPresets.map((preset) => preset.name),
+        expectedDefault.presets.map((preset) => preset.value.name),
+        'project is loading the default presets correctly'
+      )
+
+      const projectFields = await project.field.getMany()
+      st.alike(
+        projectFields.map((field) => field.tagKey),
+        expectedDefault.fields.map((field) => field.value.tagKey),
+        'project is loading the default fields correctly'
+      )
+
+      const projectIcons = await project[kDataTypes].icon.getMany()
+      st.alike(
+        projectIcons.map((icon) => icon.name),
+        expectedDefault.icons.map((icon) => icon.name),
+        'project is loading the default icons correctly'
+      )
+    }
+  )
+
+  await t.test(
+    'load different config and check if correctly loaded',
+    async (st) => {
+      const configPath = 'tests/fixtures/config/completeConfig.zip'
+      await project.importConfig({ configPath })
+      const projectPresets = await project.preset.getMany()
+      st.alike(
+        projectPresets.map((preset) => preset.name),
+        expectedMinimal.presets.map((preset) => preset.value.name),
+        'project presets explicitly loaded match expected config'
+      )
+
+      const projectFields = await project.field.getMany()
+      st.alike(
+        projectFields.map((field) => field.tagKey),
+        expectedMinimal.fields.map((field) => field.value.tagKey),
+        'project fields explicitly loaded match expected config'
+      )
+
+      // TODO: since we don't delete icons, this wouldn't match
+      // const projectIcons = await project1[kDataTypes].icon.getMany()
+      // st.alike(
+      //   projectIcons.map((icon) => icon.name),
+      //   loadedIcons.map((icon) => icon.name)
+      // )
+    }
+  )
 })
 
 test('Managing added projects', async (t) => {
