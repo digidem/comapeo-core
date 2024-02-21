@@ -3,6 +3,7 @@
     "target": "es2019",
     "lib": ["es2020"],
     "noImplicitAny": true,
+    "noImplicitThis": true,
     "strictNullChecks": true,
     "strictBindCallApply": true,
     "allowSyntheticDefaultImports": true,
