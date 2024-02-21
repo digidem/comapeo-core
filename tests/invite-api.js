@@ -81,11 +81,13 @@ test('invite-received event has expected payload', async (t) => {
     {
       inviteId: bareInvite.inviteId.toString('hex'),
       projectName,
+      invitorName: 'Your Friend',
     },
     {
       inviteId: partialInvite.inviteId.toString('hex'),
       projectName,
       roleDescription: 'Cool Role',
+      invitorName: 'Your Friend',
     },
     {
       inviteId: fullInvite.inviteId.toString('hex'),
