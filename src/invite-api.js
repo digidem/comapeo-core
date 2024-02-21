@@ -43,9 +43,6 @@ class PendingInvites {
   /** @type {HashMap<Buffer, PendingInvite>} */
   #byInviteId = new HashMap(keyToId)
 
-  /** @type {Map<string, PendingInvite[]>} */
-  #byProjectPublicId = new Map()
-
   /**
    * @returns {Iterable<PendingInvite>} the pending invites, in insertion order
    */
@@ -59,18 +56,11 @@ class PendingInvites {
    * @returns {void}
    */
   add(pendingInvite) {
-    const { invite } = pendingInvite
-    const { inviteId, projectPublicId } = invite
-
+    const {
+      invite: { inviteId },
+    } = pendingInvite
     assert(!this.#byInviteId.has(inviteId), 'Added duplicate invite')
     this.#byInviteId.set(inviteId, pendingInvite)
-
-    const existingForProject = this.#byProjectPublicId.get(projectPublicId)
-    if (existingForProject) {
-      existingForProject.push(pendingInvite)
-    } else {
-      this.#byProjectPublicId.set(projectPublicId, [pendingInvite])
-    }
   }
 
   /**
@@ -78,30 +68,12 @@ class PendingInvites {
    * @returns {void}
    */
   markAccepting(inviteId) {
-    const oldPendingInvite = this.#byInviteId.get(inviteId)
+    const pendingInvite = this.#byInviteId.get(inviteId)
     assert(
-      !!oldPendingInvite,
+      !!pendingInvite,
       `Couldn't find invite for ${inviteId.toString('hex')}`
     )
-
-    const newPendingInvite = { ...oldPendingInvite, isAccepting: true }
-
-    this.#byInviteId.set(inviteId, newPendingInvite)
-
-    const {
-      invite: { projectPublicId },
-    } = newPendingInvite
-    const newPendingInvitesForThisProject = (
-      this.#byProjectPublicId.get(projectPublicId) ?? []
-    ).map((pendingInvite) =>
-      pendingInvite.invite.inviteId.equals(inviteId)
-        ? newPendingInvite
-        : pendingInvite
-    )
-    this.#byProjectPublicId.set(
-      projectPublicId,
-      newPendingInvitesForThisProject
-    )
+    this.#byInviteId.set(inviteId, { ...pendingInvite, isAccepting: true })
   }
 
   /**
@@ -117,9 +89,10 @@ class PendingInvites {
    * @returns {boolean}
    */
   isAcceptingForProject(projectPublicId) {
-    return (this.#byProjectPublicId.get(projectPublicId) ?? []).some(
-      (pendingInvite) => pendingInvite.isAccepting
-    )
+    for (const { invite, isAccepting } of this.invites()) {
+      if (isAccepting && invite.projectPublicId === projectPublicId) return true
+    }
+    return false
   }
 
   /**
@@ -135,27 +108,7 @@ class PendingInvites {
    * @returns {boolean} `true` if an invite existed and was deleted, `false` otherwise
    */
   deleteByInviteId(inviteId) {
-    const pendingInvite = this.#byInviteId.get(inviteId)
-    if (!pendingInvite) return false
-
-    this.#byInviteId.delete(inviteId)
-
-    const {
-      invite: { projectPublicId },
-    } = pendingInvite
-    const newPendingInvitesForThisProject = (
-      this.#byProjectPublicId.get(projectPublicId) ?? []
-    ).filter((pendingInvite) => pendingInvite.invite.inviteId.equals(inviteId))
-    if (newPendingInvitesForThisProject.length) {
-      this.#byProjectPublicId.set(
-        projectPublicId,
-        newPendingInvitesForThisProject
-      )
-    } else {
-      this.#byProjectPublicId.delete(projectPublicId)
-    }
-
-    return true
+    return this.#byInviteId.delete(inviteId)
   }
 
   /**
@@ -163,16 +116,18 @@ class PendingInvites {
    * @returns {PendingInvite[]} the pending invites that were deleted
    */
   deleteByProjectPublicId(projectPublicId) {
-    const pendingInvitesDeleted =
-      this.#byProjectPublicId.get(projectPublicId) ?? []
+    /** @type {PendingInvite[]} */
+    const result = []
 
-    for (const { invite } of pendingInvitesDeleted) {
-      this.#byInviteId.delete(invite.inviteId)
+    for (const pendingInvite of this.invites()) {
+      if (pendingInvite.invite.projectPublicId === projectPublicId) {
+        result.push(pendingInvite)
+      }
     }
 
-    this.#byProjectPublicId.delete(projectPublicId)
+    for (const { invite } of result) this.deleteByInviteId(invite.inviteId)
 
-    return pendingInvitesDeleted
+    return result
   }
 }
 
