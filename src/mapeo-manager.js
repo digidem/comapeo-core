@@ -91,6 +91,7 @@ export class MapeoManager extends TypedEmitter {
   #localDiscovery
   #loggerBase
   #l
+  #defaultConfigPath
   /** @readonly */
   #deviceType
 
@@ -103,6 +104,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
    * @param {import('./generated/rpc.js').DeviceInfo['deviceType']} [opts.deviceType] Device type, shared with local peers and project members
+   * @param {String} [opts.defaultConfigPath]
    */
   constructor({
     rootKey,
@@ -112,11 +114,13 @@ export class MapeoManager extends TypedEmitter {
     coreStorage,
     fastify,
     deviceType,
+    defaultConfigPath,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#deviceType = deviceType
+    this.#defaultConfigPath = defaultConfigPath
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
@@ -386,6 +390,16 @@ export class MapeoManager extends TypedEmitter {
 
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
+
+    // load default config
+    // TODO: see how to expose warnings to frontend
+    /* eslint-disable no-unused-vars */
+    let warnings
+    if (this.#defaultConfigPath) {
+      warnings = await project.importConfig({
+        configPath: this.#defaultConfigPath,
+      })
+    }
 
     this.#l.log(
       'created project %h, public id: %S',
