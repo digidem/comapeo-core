@@ -203,7 +203,13 @@ export class InviteApi extends TypedEmitter {
     this.#isMember = queries.isMember
     this.#addProject = queries.addProject
 
-    this.rpc.on('invite', this.#handleInvite)
+    this.rpc.on('invite', (...args) => {
+      try {
+        this.#handleInvite(...args)
+      } catch (err) {
+        console.error('Error handling invite', err)
+      }
+    })
 
     this.#pendingInvites = new PendingInvites()
   }
