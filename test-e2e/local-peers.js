@@ -39,8 +39,10 @@ test('Local peers discovery each other and share device info', async (t) => {
 })
 
 /**
- * @param {any[]} array
+ * @template T
+ * @param {ReadonlyArray<T>} array
  * @param {number} i
+ * @returns {Array<T>}
  */
 function removeElementAt(array, i) {
   return array.slice(0, i).concat(array.slice(i + 1))

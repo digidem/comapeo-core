@@ -185,7 +185,7 @@ test('config import - presets', async (t) => {
   let config = await readConfig('./tests/fixtures/config/invalidPreset.zip')
 
   /* eslint-disable-next-line */
-  for (const field of config.presets()) {
+  for (const preset of config.presets()) {
   }
   t.is(config.warnings.length, 2, 'we got two errors when reading presets')
   t.not(
@@ -208,4 +208,36 @@ test('config import - presets', async (t) => {
     )
   }
   t.is(config.warnings.length, 0, `no warnings on the file`)
+})
+
+test('config import - load default config', async (t) => {
+  let config = await readConfig('./config/defaultConfig.mapeoconfig')
+  t.ok(config, 'valid config file')
+
+  let nFields = 0
+  /* eslint-disable-next-line */
+  for (const field of config.fields()) {
+    nFields++
+  }
+  t.is(nFields, 2, 'correct number of fields in default config')
+  let nIcons = 0
+  let nVariants = 0
+  /* eslint-disable-next-line */
+  for await (const icon of config.icons()) {
+    nIcons++
+    /* eslint-disable-next-line */
+    for (let variant of icon.variants) {
+      nVariants++
+    }
+  }
+  t.is(nIcons, 41, 'correct number of icons in default config')
+  t.is(nVariants, 369, 'correct number of icon variants in default config')
+
+  let nPresets = 0
+  /* eslint-disable-next-line */
+  for (const preset of config.presets()) {
+    nPresets++
+  }
+  t.is(nPresets, 43, 'correct number of presets in default config')
+  t.is(config.warnings.length, 0, 'no warnings on config file')
 })
