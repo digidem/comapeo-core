@@ -5,6 +5,7 @@
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "module": "Node16",
