@@ -410,7 +410,11 @@ export class LocalPeers extends TypedEmitter {
     for (const [type, id] of Object.entries(MESSAGE_TYPES)) {
       messages[id] = {
         encoding: cenc.raw,
-        onmessage: this.#handleMessage.bind(this, protomux, type),
+        onmessage: this.#handleMessage.bind(
+          this,
+          protomux,
+          /** @type {keyof typeof MESSAGE_TYPES} */ (type)
+        ),
       }
     }
 
