@@ -317,6 +317,7 @@ export class InviteApi extends TypedEmitter {
     try {
       await this.#sendAcceptResponse({ peerId, inviteId })
     } catch (e) {
+      this.rpc.off('got-project-details', onProjectDetails)
       removePendingInvite()
       throw new Error('Could not accept invite: Peer disconnected')
     }
