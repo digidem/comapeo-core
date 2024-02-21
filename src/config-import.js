@@ -2,6 +2,7 @@ import yauzl from 'yauzl-promise'
 import { validate, valueSchemas } from '@mapeo/schema'
 import { json, buffer } from 'node:stream/consumers'
 import path from 'node:path'
+import { isRecord } from './lib/object.js'
 
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
@@ -95,7 +96,7 @@ export async function readConfig(configPath) {
             }
           }
         } catch (err) {
-          warnings.push(err)
+          warnings.push(errify(err))
         }
       }
       if (icon) {
@@ -254,17 +255,22 @@ function validatePresetsFile(presetsFile) {
 }
 
 /**
- * @param {unknown} value
- * @returns {value is Record<string, unknown>}
- */
-function isRecord(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
-/**
  * @param {Record<string | symbol, unknown>} obj
  * @param {string | symbol} prop
  */
 function hasOwn(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop)
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Error}
+ */
+function errify(value) {
+  if (value instanceof Error) return value
+  if (typeof value === 'string') return new Error(value)
+  if (isRecord(value) && typeof value.message === 'string') {
+    return new Error(value.message)
+  }
+  return new Error('Unknown error')
 }

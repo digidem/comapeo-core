@@ -2,6 +2,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { once } from 'node:events'
 import SubEncoder from 'sub-encoder'
+import { isRecord } from '../lib/object.js'
 
 const keyEncoding = new SubEncoder('files', 'utf-8')
 
@@ -241,7 +242,7 @@ export class DriveLiveDownload extends TypedEmitter {
       const [blobs] = await once(this.#drive, 'blobs', { signal: this.#signal })
       return blobs.core
     } catch (e) {
-      if (e.name === 'AbortError') return
+      if (isRecord(e) && e.name === 'AbortError') return
       throw e
     }
   }
