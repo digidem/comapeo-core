@@ -13,6 +13,7 @@ import { temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
+import { readConfig } from '../src/config-import.js'
 
 const FAST_TESTS = !!process.env.FAST_TESTS
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -330,6 +331,29 @@ export function sortBy(arr, key) {
     if (a[key] > b[key]) return 1
     return 0
   })
+}
+
+/** @param {String} path */
+export async function getExpectedConfig(path) {
+  const config = await readConfig(path)
+  let presets = []
+  let fields = []
+  let icons = []
+  for (let preset of config.presets()) {
+    presets.push(preset)
+  }
+  for (let field of config.fields()) {
+    fields.push(field)
+  }
+  for await (let icon of config.icons()) {
+    icons.push(icon)
+  }
+
+  return {
+    presets,
+    fields,
+    icons,
+  }
 }
 
 /** @param {import('@mapeo/schema').MapeoDoc[]} docs */
