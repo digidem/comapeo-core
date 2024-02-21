@@ -2,6 +2,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import { assert, keyToId } from './utils.js'
+import HashMap from './lib/hashmap.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { promiseWithResolvers } from './ponyfills.js'
 
@@ -39,8 +40,8 @@ class PendingInvites {
    * @prop {boolean} isAccepting
    */
 
-  /** @type {Map<string, PendingInvite>} */
-  #byInviteId = new Map()
+  /** @type {HashMap<Buffer, PendingInvite>} */
+  #byInviteId = new HashMap(keyToId)
 
   /** @type {Map<string, PendingInvite[]>} */
   #byProjectPublicId = new Map()
@@ -61,9 +62,8 @@ class PendingInvites {
     const { invite } = pendingInvite
     const { inviteId, projectPublicId } = invite
 
-    const inviteIdString = keyToId(inviteId)
-    assert(!this.#byInviteId.has(inviteIdString), 'Added duplicate invite')
-    this.#byInviteId.set(inviteIdString, pendingInvite)
+    assert(!this.#byInviteId.has(inviteId), 'Added duplicate invite')
+    this.#byInviteId.set(inviteId, pendingInvite)
 
     const existingForProject = this.#byProjectPublicId.get(projectPublicId)
     if (existingForProject) {
@@ -78,14 +78,15 @@ class PendingInvites {
    * @returns {void}
    */
   markAccepting(inviteId) {
-    const inviteIdString = keyToId(inviteId)
-
-    const oldPendingInvite = this.#byInviteId.get(inviteIdString)
-    assert(!!oldPendingInvite, `Couldn't find invite for ${inviteIdString}`)
+    const oldPendingInvite = this.#byInviteId.get(inviteId)
+    assert(
+      !!oldPendingInvite,
+      `Couldn't find invite for ${inviteId.toString('hex')}`
+    )
 
     const newPendingInvite = { ...oldPendingInvite, isAccepting: true }
 
-    this.#byInviteId.set(inviteIdString, newPendingInvite)
+    this.#byInviteId.set(inviteId, newPendingInvite)
 
     const {
       invite: { projectPublicId },
@@ -108,8 +109,7 @@ class PendingInvites {
    * @returns {boolean}
    */
   hasInviteId(inviteId) {
-    const inviteIdString = keyToId(inviteId)
-    return this.#byInviteId.has(inviteIdString)
+    return this.#byInviteId.has(inviteId)
   }
 
   /**
@@ -127,8 +127,7 @@ class PendingInvites {
    * @returns {undefined | PendingInvite}
    */
   getByInviteId(inviteId) {
-    const inviteIdString = keyToId(inviteId)
-    return this.#byInviteId.get(inviteIdString)
+    return this.#byInviteId.get(inviteId)
   }
 
   /**
@@ -136,12 +135,10 @@ class PendingInvites {
    * @returns {boolean} `true` if an invite existed and was deleted, `false` otherwise
    */
   deleteByInviteId(inviteId) {
-    const inviteIdString = keyToId(inviteId)
-
-    const pendingInvite = this.#byInviteId.get(inviteIdString)
+    const pendingInvite = this.#byInviteId.get(inviteId)
     if (!pendingInvite) return false
 
-    this.#byInviteId.delete(inviteIdString)
+    this.#byInviteId.delete(inviteId)
 
     const {
       invite: { projectPublicId },
@@ -170,8 +167,7 @@ class PendingInvites {
       this.#byProjectPublicId.get(projectPublicId) ?? []
 
     for (const { invite } of pendingInvitesDeleted) {
-      const inviteIdString = keyToId(invite.inviteId)
-      this.#byInviteId.delete(inviteIdString)
+      this.#byInviteId.delete(invite.inviteId)
     }
 
     this.#byProjectPublicId.delete(projectPublicId)
