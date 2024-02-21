@@ -2,6 +2,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import { ExhaustivenessError, keyToId } from './utils.js'
+import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
   DeviceInfo,
@@ -592,7 +593,8 @@ function isInviteValid(invite) {
   return (
     isInviteIdValid(invite.inviteId) &&
     invite.projectPublicId.length > 0 &&
-    invite.projectName.length > 0
+    !isBlank(invite.projectName) &&
+    !isBlank(invite.invitorName)
   )
 }
 

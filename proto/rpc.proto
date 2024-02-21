@@ -8,7 +8,7 @@ message Invite {
   string projectName = 3;
   optional string roleName = 4;
   optional string roleDescription = 5;
-  optional string invitorName = 6;
+  string invitorName = 6;
 }
 
 message InviteResponse {

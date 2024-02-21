@@ -54,7 +54,12 @@ test('invite-received event has expected payload', async (t) => {
   const invitesReceivedPromise = onTimes(inviteApi, 'invite-received', 3)
 
   const projectName = 'My Project'
-  const bareInvite = { inviteId: randomBytes(32), projectPublicId, projectName }
+  const bareInvite = {
+    inviteId: randomBytes(32),
+    projectPublicId,
+    projectName,
+    invitorName: 'Your Friend',
+  }
   rpc.emit('invite', invitorPeerId, bareInvite)
 
   const partialInvite = {
@@ -69,7 +74,6 @@ test('invite-received event has expected payload', async (t) => {
     inviteId: randomBytes(32),
     roleName: 'Superfan',
     roleDescription: 'This Cool Role',
-    invitorName: 'Your Friend',
   }
   rpc.emit('invite', invitorPeerId, fullInvite)
 

@@ -7,7 +7,7 @@ export interface Invite {
     projectName: string;
     roleName?: string | undefined;
     roleDescription?: string | undefined;
-    invitorName?: string | undefined;
+    invitorName: string;
 }
 export interface InviteResponse {
     inviteId: Buffer;
@@ -50,14 +50,14 @@ export declare const Invite: {
         projectName?: string;
         roleName?: string | undefined;
         roleDescription?: string | undefined;
-        invitorName?: string | undefined;
+        invitorName?: string;
     } & {
         inviteId?: Buffer;
         projectPublicId?: string;
         projectName?: string;
         roleName?: string | undefined;
         roleDescription?: string | undefined;
-        invitorName?: string | undefined;
+        invitorName?: string;
     } & { [K in Exclude<keyof I, keyof Invite>]: never; }>(base?: I): Invite;
     fromPartial<I_1 extends {
         inviteId?: Buffer;
@@ -65,14 +65,14 @@ export declare const Invite: {
         projectName?: string;
         roleName?: string | undefined;
         roleDescription?: string | undefined;
-        invitorName?: string | undefined;
+        invitorName?: string;
     } & {
         inviteId?: Buffer;
         projectPublicId?: string;
         projectName?: string;
         roleName?: string | undefined;
         roleDescription?: string | undefined;
-        invitorName?: string | undefined;
+        invitorName?: string;
     } & { [K_1 in Exclude<keyof I_1, keyof Invite>]: never; }>(object: I_1): Invite;
 };
 export declare const InviteResponse: {

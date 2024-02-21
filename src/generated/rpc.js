@@ -74,7 +74,7 @@ export function deviceInfo_DeviceTypeToNumber(object) {
     }
 }
 function createBaseInvite() {
-    return { inviteId: Buffer.alloc(0), projectPublicId: "", projectName: "" };
+    return { inviteId: Buffer.alloc(0), projectPublicId: "", projectName: "", invitorName: "" };
 }
 export var Invite = {
     encode: function (message, writer) {
@@ -94,7 +94,7 @@ export var Invite = {
         if (message.roleDescription !== undefined) {
             writer.uint32(42).string(message.roleDescription);
         }
-        if (message.invitorName !== undefined) {
+        if (message.invitorName !== "") {
             writer.uint32(50).string(message.invitorName);
         }
         return writer;
@@ -161,7 +161,7 @@ export var Invite = {
         message.projectName = (_c = object.projectName) !== null && _c !== void 0 ? _c : "";
         message.roleName = (_d = object.roleName) !== null && _d !== void 0 ? _d : undefined;
         message.roleDescription = (_e = object.roleDescription) !== null && _e !== void 0 ? _e : undefined;
-        message.invitorName = (_f = object.invitorName) !== null && _f !== void 0 ? _f : undefined;
+        message.invitorName = (_f = object.invitorName) !== null && _f !== void 0 ? _f : "";
         return message;
     },
 };

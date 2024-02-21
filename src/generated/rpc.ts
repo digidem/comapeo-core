@@ -8,7 +8,7 @@ export interface Invite {
   projectName: string;
   roleName?: string | undefined;
   roleDescription?: string | undefined;
-  invitorName?: string | undefined;
+  invitorName: string;
 }
 
 export interface InviteResponse {
@@ -111,7 +111,7 @@ export function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceType): nu
 }
 
 function createBaseInvite(): Invite {
-  return { inviteId: Buffer.alloc(0), projectPublicId: "", projectName: "" };
+  return { inviteId: Buffer.alloc(0), projectPublicId: "", projectName: "", invitorName: "" };
 }
 
 export const Invite = {
@@ -131,7 +131,7 @@ export const Invite = {
     if (message.roleDescription !== undefined) {
       writer.uint32(42).string(message.roleDescription);
     }
-    if (message.invitorName !== undefined) {
+    if (message.invitorName !== "") {
       writer.uint32(50).string(message.invitorName);
     }
     return writer;
@@ -205,7 +205,7 @@ export const Invite = {
     message.projectName = object.projectName ?? "";
     message.roleName = object.roleName ?? undefined;
     message.roleDescription = object.roleDescription ?? undefined;
-    message.invitorName = object.invitorName ?? undefined;
+    message.invitorName = object.invitorName ?? "";
     return message;
   },
 };
