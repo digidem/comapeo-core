@@ -188,7 +188,7 @@ class PendingInvites {
 export class InviteApi extends TypedEmitter {
   #isMember
   #addProject
-  #pendingInvites
+  #pendingInvites = new PendingInvites()
 
   /**
    * @param {Object} options
@@ -210,8 +210,6 @@ export class InviteApi extends TypedEmitter {
         console.error('Error handling invite', err)
       }
     })
-
-    this.#pendingInvites = new PendingInvites()
   }
 
   /**
