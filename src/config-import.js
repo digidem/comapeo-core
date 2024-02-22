@@ -2,7 +2,6 @@ import yauzl from 'yauzl-promise'
 import { validate, valueSchemas } from '@mapeo/schema'
 import { json, buffer } from 'node:stream/consumers'
 import path from 'node:path'
-import { isRecord } from './lib/object.js'
 
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
@@ -256,6 +255,14 @@ function validatePresetsFile(presetsFile) {
   ) {
     throw new Error('Invalid presets.json file')
   }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 /**
