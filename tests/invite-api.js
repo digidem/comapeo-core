@@ -1,3 +1,4 @@
+// @ts-check
 import test from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'

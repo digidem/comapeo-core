@@ -1,3 +1,4 @@
+// @ts-check
 /* eslint-disable no-unused-vars */
 import { test } from 'brittle'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'

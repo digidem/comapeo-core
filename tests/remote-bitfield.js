@@ -1,3 +1,4 @@
+// @ts-check
 import test from 'brittle'
 import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
 
