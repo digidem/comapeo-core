@@ -242,7 +242,7 @@ export class DriveLiveDownload extends TypedEmitter {
       const [blobs] = await once(this.#drive, 'blobs', { signal: this.#signal })
       return blobs.core
     } catch (e) {
-      if (isRecord(e) && e.name === 'AbortError') return
+      if (e instanceof Error && e.name === 'AbortError') return
       throw e
     }
   }
