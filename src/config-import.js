@@ -96,7 +96,11 @@ export async function readConfig(configPath) {
             }
           }
         } catch (err) {
-          warnings.push(errify(err))
+          warnings.push(
+            err instanceof Error
+              ? err
+              : new Error('Unknown error importing icon')
+          )
         }
       }
       if (icon) {
@@ -260,17 +264,4 @@ function validatePresetsFile(presetsFile) {
  */
 function hasOwn(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop)
-}
-
-/**
- * @param {unknown} value
- * @returns {Error}
- */
-function errify(value) {
-  if (value instanceof Error) return value
-  if (typeof value === 'string') return new Error(value)
-  if (isRecord(value) && typeof value.message === 'string') {
-    return new Error(value.message)
-  }
-  return new Error('Unknown error')
 }
