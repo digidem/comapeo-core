@@ -2,7 +2,6 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { once } from 'node:events'
 import SubEncoder from 'sub-encoder'
-import { isRecord } from '../lib/object.js'
 
 const keyEncoding = new SubEncoder('files', 'utf-8')
 
