@@ -137,10 +137,8 @@ export class CoreManager extends TypedEmitter {
       }
     }
 
-    if (!this.#creatorCore) {
-      // For anyone other than the project creator, creatorCore is readonly
-      this.#creatorCore = this.#addCore({ publicKey: projectKey }, 'auth').core
-    }
+    // For anyone other than the project creator, creatorCore is readonly
+    this.#creatorCore ??= this.#addCore({ publicKey: projectKey }, 'auth').core
 
     // Load persisted cores
     const rows = db.select().from(coresTable).all()
