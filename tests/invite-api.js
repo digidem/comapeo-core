@@ -1,7 +1,7 @@
 // @ts-check
+import test from 'brittle'
 import { once } from 'node:events'
 import { onTimes } from './helpers/events.js'
-import test from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { LocalPeers } from '../src/local-peers.js'

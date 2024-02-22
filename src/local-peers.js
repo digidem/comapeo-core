@@ -361,7 +361,11 @@ export class LocalPeers extends TypedEmitter {
     for (const [type, id] of Object.entries(MESSAGE_TYPES)) {
       messages[id] = {
         encoding: cenc.raw,
-        onmessage: this.#handleMessage.bind(this, protomux, type),
+        onmessage: this.#handleMessage.bind(
+          this,
+          protomux,
+          /** @type {keyof typeof MESSAGE_TYPES} */ (type)
+        ),
       }
     }
 
@@ -537,9 +541,7 @@ export class LocalPeers extends TypedEmitter {
         reject(new UnknownPeerError('Unknown peer ' + deviceId.slice(0, 7)))
       }, DEDUPE_TIMEOUT)
 
-      this.on('peers', onPeers)
-
-      function onPeers() {
+      const onPeers = () => {
         if (!devicePeers) return // Not possible, but let's keep TS happy
         const peer = chooseDevicePeer(devicePeers)
         if (!peer) return
@@ -547,6 +549,8 @@ export class LocalPeers extends TypedEmitter {
         this.off('peers', onPeers)
         resolve(peer)
       }
+
+      this.on('peers', onPeers)
     })
   }
 }
