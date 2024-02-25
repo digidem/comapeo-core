@@ -27,9 +27,11 @@ const DEDUPE_TIMEOUT = 1000
 /** @satisfies {{ [k in keyof typeof import('./generated/rpc.js')]?: number }} */
 const MESSAGE_TYPES = {
   Invite: 0,
-  InviteResponse: 1,
+  // TODO: Add invite cancelations.
+  // InviteCancel: 1,
+  InviteResponse: 2,
   ProjectJoinDetails: 3,
-  DeviceInfo: 2,
+  DeviceInfo: 4,
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
