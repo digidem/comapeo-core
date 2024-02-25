@@ -171,7 +171,7 @@ export class InviteApi extends TypedEmitter {
    * @param {string} peerId
    * @param {InviteInternal} invite
    */
-  #handleInvite = (peerId, invite) => {
+  #handleInvite(peerId, invite) {
     const isAlreadyMember = this.#isMember(invite.projectPublicId)
     if (isAlreadyMember) {
       this.#sendAlreadyResponse({ peerId, inviteId: invite.inviteId })

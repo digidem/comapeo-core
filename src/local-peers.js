@@ -209,7 +209,7 @@ export class LocalPeers extends TypedEmitter {
   /** @type {Map<string, Set<Peer>>} */
   #peers = new Map()
   /** @type {Set<Peer>} */
-  #lastEmitterPeers = new Set()
+  #lastEmittedPeers = new Set()
   /** @type {Set<Promise<any>>} */
   #opening = new Set()
 
@@ -440,7 +440,7 @@ export class LocalPeers extends TypedEmitter {
     const connectedPeerInfos = []
     for (const peer of currentPeers) {
       if (
-        !this.#lastEmitterPeers.has(peer) &&
+        !this.#lastEmittedPeers.has(peer) &&
         peer.info.status === 'connected'
       ) {
         // Any new peers that have 'connected' status
@@ -448,11 +448,11 @@ export class LocalPeers extends TypedEmitter {
       }
       connectedPeerInfos.push(peer.info)
     }
-    if (currentPeers.size > 0 || this.#lastEmitterPeers.size > 0) {
+    if (currentPeers.size > 0 || this.#lastEmittedPeers.size > 0) {
       // Don't emit empty array unless somehow it was not empty before
       this.emit('peers', connectedPeerInfos)
     }
-    this.#lastEmitterPeers = currentPeers
+    this.#lastEmittedPeers = currentPeers
   }
 
   /**
