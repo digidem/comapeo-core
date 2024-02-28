@@ -14,11 +14,26 @@ const rewriteImports = (j: JSCodeshift, root: Collection<any>) => {
     })
 }
 
+const rewriteMemberExpressions = (
+  j: JSCodeshift,
+  root: Collection<any>,
+  oldPropertyName: string,
+  newPropertyName: string
+) => {
+  root
+    .find(j.MemberExpression, { property: { name: oldPropertyName } })
+    .forEach((memberExpression) => {
+      memberExpression.value.property = j.identifier(newPropertyName)
+    })
+}
+
 const transform: Transform = (fileInfo, api) => {
   const { j } = api
   const root = j(fileInfo.source)
 
   rewriteImports(j, root)
+
+  rewriteMemberExpressions(j, root, 'alike', 'deepEqual')
 
   return root.toSource()
 }
