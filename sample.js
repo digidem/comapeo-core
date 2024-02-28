@@ -38,7 +38,7 @@ test('with options', { skip: true }, (t) => {
 test('subtests', (t) => {
   t.test('subtest', (st) => {
     st.alike(1, 1)
-    st.unalike(1, 2, 'subtest message')
+    st.unlike(1, 2, 'subtest message')
   })
 })
 

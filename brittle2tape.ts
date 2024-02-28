@@ -34,6 +34,8 @@ const transform: Transform = (fileInfo, api) => {
   rewriteImports(j, root)
 
   rewriteMemberExpressions(j, root, 'alike', 'deepEqual')
+  rewriteMemberExpressions(j, root, 'unlike', 'notDeepEqual')
+  rewriteMemberExpressions(j, root, 'absent', 'notOk')
 
   return root.toSource()
 }
