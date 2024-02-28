@@ -1,6 +1,5 @@
 // @ts-check
 import { test } from 'brittle'
-
 test('basic test', (t) => {
   t.alike(1, 1)
   t.alike(1, 1, 'msg')
@@ -15,8 +14,8 @@ test('basic test', (t) => {
   t.exception(() => {}, 'msg')
   t.exception(() => {}, Error, 'msg')
 
-  t.doesNotThrow(() => {})
-  t.doesNotThrow(() => {}, 'msg')
+  t.execution(() => {})
+  t.execution(() => {}, 'msg')
 })
 
 test('async test', async (t) => {
@@ -26,9 +25,6 @@ test('async test', async (t) => {
   await t.exception(async () => {})
   await t.exception.all(Promise.reject('err'))
   await t.exception.all(async () => {})
-
-  await t.doesNotThrow(Promise.resolve())
-  await t.doesNotThrow(async () => {})
 })
 
 test('with options', { skip: true }, (t) => {
@@ -36,9 +32,15 @@ test('with options', { skip: true }, (t) => {
 })
 
 test('subtests', (t) => {
-  t.test('subtest', (st) => {
+  t.test('subtest', async (st) => {
     st.alike(1, 1)
     st.unlike(1, 2, 'subtest message')
+
+    st.exception(() => {})
+    await st.exception(Promise.reject('err'))
+    await st.exception(async () => {})
+    await st.exception.all(Promise.reject('err'))
+    await st.exception.all(async () => {})
   })
 })
 
