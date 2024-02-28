@@ -36,6 +36,7 @@ const transform: Transform = (fileInfo, api) => {
   rewriteMemberExpressions(j, root, 'alike', 'deepEqual')
   rewriteMemberExpressions(j, root, 'unlike', 'notDeepEqual')
   rewriteMemberExpressions(j, root, 'absent', 'notOk')
+  rewriteMemberExpressions(j, root, 'execution', 'doesNotThrow')
 
   return root.toSource()
 }
