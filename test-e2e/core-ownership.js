@@ -1,5 +1,5 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
 import { KeyManager } from '@mapeo/crypto'
 import { parseVersionId } from '@mapeo/schema'
 import RAM from 'random-access-memory'

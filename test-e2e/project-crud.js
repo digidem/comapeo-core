@@ -1,5 +1,6 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
+import { rejects } from '../tests/helpers/assertions.js'
 import { randomBytes } from 'crypto'
 import { valueOf } from '../src/utils.js'
 import { createManager, sortById, stripUndef } from './utils.js'
@@ -90,12 +91,12 @@ test('CRUD operations', async (t) => {
       const read = await Promise.all(
         written.map((doc) => project[schemaName].getByDocId(doc.docId))
       )
-      st.alike(
+      st.deepEqual(
         sortById(written),
         sortById(read),
         'return create() matches return of getByDocId()'
       )
-      st.alike(sortById(updates), sortById(written), 'updated-docs emitted')
+      st.deepEqual(sortById(updates), sortById(written), 'updated-docs emitted')
     })
     await t.test('update', async (st) => {
       const projectId = await manager.createProject()
@@ -110,12 +111,12 @@ test('CRUD operations', async (t) => {
         updateValue
       )
       const updatedReRead = await project[schemaName].getByDocId(written.docId)
-      st.alike(
+      st.deepEqual(
         updated,
         updatedReRead,
         'return of update() matched return of getByDocId()'
       )
-      st.alike(
+      st.deepEqual(
         valueOf(stripUndef(updated)),
         updateValue,
         'expected value is updated'
@@ -149,7 +150,7 @@ test('CRUD operations', async (t) => {
       const deleted = await Promise.all(deletePromises)
       const expectedWithDeleted = [...expectedWithoutDeleted, ...deleted]
       const manyWithoutDeleted = await project[schemaName].getMany()
-      st.alike(
+      st.deepEqual(
         sortById(manyWithoutDeleted),
         sortById(expectedWithoutDeleted),
         'expected values returns from getMany()'
@@ -157,7 +158,7 @@ test('CRUD operations', async (t) => {
       const manyWithDeleted = await project[schemaName].getMany({
         includeDeleted: true,
       })
-      st.alike(
+      st.deepEqual(
         sortById(manyWithDeleted),
         sortById(expectedWithDeleted),
         'expected values returns from getMany({ includeDeleted: true })'
@@ -178,23 +179,35 @@ test('CRUD operations', async (t) => {
       const written = await project[schemaName].create(value)
       await project.close()
 
-      await st.exception(async () => {
-        const updateValue = getUpdateFixture(value)
-        // @ts-ignore
-        await project[schemaName].update(written.versionId, updateValue)
-      }, 'should fail updating since the project is already closed')
-
-      await st.exception(async () => {
-        for (const value of values) {
+      await rejects(
+        st,
+        async () => {
+          const updateValue = getUpdateFixture(value)
           // @ts-ignore
-          await project[schemaName].create(value)
-        }
-      }, 'should fail creating since the project is already closed')
+          await project[schemaName].update(written.versionId, updateValue)
+        },
+        'should fail updating since the project is already closed'
+      )
+
+      await rejects(
+        st,
+        async () => {
+          for (const value of values) {
+            // @ts-ignore
+            await project[schemaName].create(value)
+          }
+        },
+        'should fail creating since the project is already closed'
+      )
 
       // @ts-ignore
-      await st.exception.all(async () => {
-        await project[schemaName].getMany()
-      }, 'should fail getting since the project is already closed')
+      await rejects(
+        st,
+        async () => {
+          await project[schemaName].getMany()
+        },
+        'should fail getting since the project is already closed'
+      )
     })
 
     t.test('create, read, close, re-open, read', async (st) => {
@@ -223,7 +236,7 @@ test('CRUD operations', async (t) => {
       const many2 = await project[schemaName].getMany()
       const manyValues2 = many2.map((doc) => valueOf(doc))
 
-      st.alike(
+      st.deepEqual(
         stripUndef(manyValues1),
         stripUndef(manyValues2),
         'expected values returned before closing and after re-opening'
@@ -253,7 +266,7 @@ test('CRUD operations', async (t) => {
         deleted.every((doc) => doc.deleted),
         'all docs are deleted'
       )
-      st.alike(
+      st.deepEqual(
         sortById(deleted),
         sortById(read),
         'return create() matches return of getByDocId()'
@@ -277,12 +290,16 @@ test('CRUD operations', async (t) => {
         updateValue
       )
       const updatedReRead = await project[schemaName].getByDocId(written.docId)
-      st.alike(
+      st.deepEqual(
         updatedFork2,
         updatedReRead,
         'return of update() matched return of getByDocId()'
       )
-      st.alike(updatedReRead.forks, [updatedFork1.versionId], 'doc is forked')
+      st.deepEqual(
+        updatedReRead.forks,
+        [updatedFork1.versionId],
+        'doc is forked'
+      )
       const deleted = await project[schemaName].delete(written.docId)
       st.ok(deleted.deleted, 'doc is deleted')
       st.is(deleted.forks.length, 0, 'forks are deleted')

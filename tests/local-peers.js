@@ -1,5 +1,6 @@
 // @ts-check
-import test from 'brittle'
+import test from 'tape'
+import { rejects } from './helpers/assertions.js'
 import {
   LocalPeers,
   PeerDisconnectedError,
@@ -102,7 +103,7 @@ test('Send invite, duplicate connections', async (t) => {
   {
     const responsePromise = r1.invite(peers1[0].deviceId, invite)
     const [peerId, receivedInvite] = await once(r2, 'invite')
-    t.alike(receivedInvite, invite)
+    t.deepEqual(receivedInvite, invite)
 
     r2.inviteResponse(peerId, {
       projectKey: receivedInvite.projectKey,
@@ -124,7 +125,7 @@ test('Send invite, duplicate connections', async (t) => {
   {
     const responsePromise = r1.invite(peers1[0].deviceId, invite)
     const [peerId, receivedInvite] = await once(r2, 'invite')
-    t.alike(receivedInvite, invite)
+    t.deepEqual(receivedInvite, invite)
 
     r2.inviteResponse(peerId, {
       projectKey: receivedInvite.projectKey,
@@ -162,7 +163,7 @@ test('Duplicate connections with immediate disconnect', async (t) => {
 
   const responsePromise = r1.invite(kp2.publicKey.toString('hex'), invite)
   const [peerId, receivedInvite] = await once(r2, 'invite')
-  t.alike(receivedInvite, invite)
+  t.deepEqual(receivedInvite, invite)
 
   r2.inviteResponse(peerId, {
     projectKey: receivedInvite.projectKey,
@@ -210,7 +211,8 @@ test('Invite to unknown peer', async (t) => {
   replicate(r1, r2)
 
   await once(r1, 'peers')
-  await t.exception(
+  await rejects(
+    t,
     r1.invite(unknownPeerId, {
       projectKey,
       encryptionKeys: { auth: randomBytes(32) },
@@ -219,7 +221,8 @@ test('Invite to unknown peer', async (t) => {
     }),
     UnknownPeerError
   )
-  await t.exception(
+  await rejects(
+    t,
     () =>
       r2.inviteResponse(unknownPeerId, {
         projectKey,
@@ -282,7 +285,7 @@ test('Send invite with encryption key', async (t) => {
 
   r2.on('invite', (peerId, invite) => {
     t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
-    t.alike(
+    t.deepEqual(
       invite.encryptionKeys,
       encryptionKeys,
       'invite encryption keys correct'
@@ -318,7 +321,11 @@ test('Send invite with project info', async (t) => {
 
   r2.on('invite', (peerId, invite) => {
     t.ok(invite.projectKey.equals(projectKey), 'invite project key correct')
-    t.alike(invite.projectInfo, projectInfo, 'project info is sent with invite')
+    t.deepEqual(
+      invite.projectInfo,
+      projectInfo,
+      'project info is sent with invite'
+    )
     r2.inviteResponse(peerId, {
       projectKey: invite.projectKey,
       decision: LocalPeers.InviteResponse.ACCEPT,
@@ -374,7 +381,8 @@ test('Disconnect results in rejected invite', async (t) => {
         roleName: ROLES[MEMBER_ROLE_ID].name,
         invitorName: 'device0',
       })
-      await t.exception(
+      await rejects(
+        t,
         invite,
         PeerDisconnectedError,
         'invite rejected with PeerDisconnectedError'
@@ -413,7 +421,7 @@ test('Invite to multiple peers', async (t) => {
         })
       )
     )
-    t.alike(
+    t.deepEqual(
       responses.sort(),
       [LocalPeers.InviteResponse.ACCEPT, LocalPeers.InviteResponse.REJECT],
       'One peer accepted, one rejected'
@@ -469,7 +477,7 @@ test('Multiple invites to a peer, only one response', async (t) => {
       }),
     ])
     const expected = Array(3).fill(LocalPeers.InviteResponse.ACCEPT)
-    t.alike(responses, expected)
+    t.deepEqual(responses, expected)
   })
 
   r2.on('invite', (peerId, invite) => {
@@ -523,7 +531,8 @@ test('Invite timeout', async (t) => {
   const projectKey = Buffer.allocUnsafe(32).fill(0)
 
   r1.once('peers', async (peers) => {
-    t.exception(
+    rejects(
+      t,
       () =>
         r1.invite(peers[0].deviceId, {
           projectKey,
@@ -545,7 +554,8 @@ test('Send invite to non-existent peer', async (t) => {
   const projectKey = Buffer.allocUnsafe(32).fill(0)
   const deviceId = Buffer.allocUnsafe(32).fill(0).toString('hex')
 
-  await t.exception(
+  await rejects(
+    t,
     () =>
       r1.invite(deviceId, {
         projectKey,
@@ -595,7 +605,8 @@ test('Reconnect peer and send invite', async (t) => {
 test('invalid stream', (t) => {
   const r1 = new LocalPeers()
   const regularStream = new Duplex()
-  t.exception(
+  rejects(
+    t,
     () =>
       // @ts-expect-error
       r1.connect(regularStream),

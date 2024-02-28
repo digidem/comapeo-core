@@ -1,5 +1,6 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
+import { rejects } from '../tests/helpers/assertions.js'
 import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
@@ -42,7 +43,7 @@ test('Managing created projects', async (t) => {
     )
 
     st.ok(listedProject1)
-    st.absent(listedProject1?.name)
+    st.notOk(listedProject1?.name)
     st.ok(listedProject1?.createdAt)
     st.ok(listedProject1?.updatedAt)
 
@@ -62,12 +63,12 @@ test('Managing created projects', async (t) => {
     const settings1 = await project1.$getProjectSettings()
     const settings2 = await project2.$getProjectSettings()
 
-    st.alike(
+    st.deepEqual(
       settings1,
       { name: undefined, defaultPresets: undefined },
       'undefined name and default presets for project1'
     )
-    st.alike(
+    st.deepEqual(
       settings2,
       { name: 'project 2', defaultPresets: undefined },
       'matched name for project2 with undefined default presets'
@@ -145,21 +146,21 @@ test('Consistent loading of config', async (t) => {
         'the default presets loaded is equal to the number of presets in the default config'
       )
 
-      st.alike(
+      st.deepEqual(
         projectPresets.map((preset) => preset.name),
         expectedDefault.presets.map((preset) => preset.value.name),
         'project is loading the default presets correctly'
       )
 
       const projectFields = await project.field.getMany()
-      st.alike(
+      st.deepEqual(
         projectFields.map((field) => field.tagKey),
         expectedDefault.fields.map((field) => field.value.tagKey),
         'project is loading the default fields correctly'
       )
 
       const projectIcons = await project[kDataTypes].icon.getMany()
-      st.alike(
+      st.deepEqual(
         projectIcons.map((icon) => icon.name),
         expectedDefault.icons.map((icon) => icon.name),
         'project is loading the default icons correctly'
@@ -173,14 +174,14 @@ test('Consistent loading of config', async (t) => {
       const configPath = 'tests/fixtures/config/completeConfig.zip'
       await project.importConfig({ configPath })
       const projectPresets = await project.preset.getMany()
-      st.alike(
+      st.deepEqual(
         projectPresets.map((preset) => preset.name),
         expectedMinimal.presets.map((preset) => preset.value.name),
         'project presets explicitly loaded match expected config'
       )
 
       const projectFields = await project.field.getMany()
-      st.alike(
+      st.deepEqual(
         projectFields.map((field) => field.tagKey),
         expectedMinimal.fields.map((field) => field.value.tagKey),
         'project fields explicitly loaded match expected config'
@@ -239,13 +240,13 @@ test('Managing added projects', async (t) => {
 
     st.ok(listedProject1)
     st.is(listedProject1?.name, 'project 1')
-    st.absent(listedProject1?.createdAt)
-    st.absent(listedProject1?.updatedAt)
+    st.notOk(listedProject1?.createdAt)
+    st.notOk(listedProject1?.updatedAt)
 
     st.ok(listedProject2)
     st.is(listedProject2?.name, 'project 2')
-    st.absent(listedProject2?.createdAt)
-    st.absent(listedProject2?.updatedAt)
+    st.notOk(listedProject2?.createdAt)
+    st.notOk(listedProject2?.updatedAt)
   })
 
   // TODO: Ideally would use the todo opt but usage in a subtest doesn't work:  https://github.com/holepunchto/brittle/issues/39
@@ -329,7 +330,8 @@ test('Manager cannot add project that already exists', async (t) => {
 
   const existingProjectsCountBefore = (await manager.listProjects()).length
 
-  await t.exception(
+  await rejects(
+    t,
     async () =>
       manager.addProject({
         projectKey: Buffer.from(existingProjectId, 'hex'),

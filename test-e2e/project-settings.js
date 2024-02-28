@@ -1,5 +1,5 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
@@ -38,7 +38,7 @@ test('Project settings create, read, and update operations', async (t) => {
 
   const initialSettings = await project.$getProjectSettings()
 
-  t.alike(
+  t.deepEqual(
     removeUndefinedFields(initialSettings),
     {},
     'project has no settings when initially created'
@@ -54,7 +54,7 @@ test('Project settings create, read, and update operations', async (t) => {
 
   const settings = await project.$getProjectSettings()
 
-  t.alike(
+  t.deepEqual(
     settings,
     updatedSettings,
     'retrieved settings are equivalent to most recently updated'

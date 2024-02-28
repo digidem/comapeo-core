@@ -3,7 +3,8 @@ import { DriveLiveDownload } from '../../src/blob-store/live-download.js'
 import Hyperdrive from 'hyperdrive'
 import Corestore from 'corestore'
 import RAM from 'random-access-memory'
-import test from 'brittle'
+import test from 'tape'
+import { rejects } from '../helpers/assertions.js'
 import { setTimeout } from 'node:timers/promises'
 import { once } from 'node:events'
 import { randomBytes } from 'node:crypto'
@@ -42,7 +43,7 @@ test('live download', async (t) => {
   stream.destroy()
   await once(stream, 'close')
 
-  t.alike(await drive2.get('/bar'), expected, 'Second blob is downloaded')
+  t.deepEqual(await drive2.get('/bar'), expected, 'Second blob is downloaded')
 })
 
 test('sparse live download', async (t) => {
@@ -68,15 +69,17 @@ test('sparse live download', async (t) => {
   stream.destroy()
   await once(stream, 'close')
 
-  t.alike(await drive2.get('photo/original/one'), buf1)
-  t.alike(await drive2.get('photo/original/two'), buf2)
+  t.deepEqual(await drive2.get('photo/original/one'), buf1)
+  t.deepEqual(await drive2.get('photo/original/two'), buf2)
 
-  await t.exception(
+  await rejects(
+    t,
     drive2.get('video/original/one', { wait: false }),
     /BLOCK_NOT_AVAILABLE/,
     'Block not available'
   )
-  await t.exception(
+  await rejects(
+    t,
     drive2.get('video/original/two', { wait: false }),
     /BLOCK_NOT_AVAILABLE/,
     'Block not available'
@@ -92,7 +95,7 @@ test('Abort download (same tick)', async (t) => {
   controller.abort()
   stream.destroy()
   await once(stream, 'close')
-  t.alike(download.state, {
+  t.deepEqual(download.state, {
     haveCount: 0,
     haveBytes: 0,
     wantCount: 0,
@@ -114,7 +117,7 @@ test('Abort download (next event loop)', async (t) => {
   controller.abort()
   stream.destroy()
   await once(stream, 'close')
-  t.alike(download.state, {
+  t.deepEqual(download.state, {
     haveCount: 0,
     haveBytes: 0,
     wantCount: 0,
@@ -122,7 +125,8 @@ test('Abort download (next event loop)', async (t) => {
     error: null,
     status: 'aborted',
   })
-  await t.exception(
+  await rejects(
+    t,
     drive2.get('/foo', { wait: false }),
     /Block not available locally/,
     'Block not available locally'
@@ -150,8 +154,9 @@ test('Abort download (after initial download)', async (t) => {
   stream.destroy()
   await once(stream, 'close')
 
-  t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
-  await t.exception(
+  t.deepEqual(await drive2.get('/one'), buf1, 'First blob is downloaded')
+  await rejects(
+    t,
     drive2.get('/two', { wait: false }),
     /BLOCK_NOT_AVAILABLE/,
     'Second blob is not downloaded'
@@ -168,7 +173,7 @@ test('Live download when data is already downloaded', async (t) => {
 
   await drive2.db.core.update({ wait: true })
   await drive2.download()
-  t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
+  t.deepEqual(await drive2.get('/one'), buf1, 'First blob is downloaded')
 
   stream1.destroy()
   await once(stream1, 'close')
@@ -176,7 +181,7 @@ test('Live download when data is already downloaded', async (t) => {
   const stream2 = replicate()
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
-  t.alike(
+  t.deepEqual(
     download.state,
     {
       haveCount: 1,
@@ -196,7 +201,7 @@ test('Live download when data is already downloaded', async (t) => {
   stream2.destroy()
   await once(stream2, 'close')
 
-  t.alike(await drive2.get('/two'), buf2, 'Second blob is downloaded')
+  t.deepEqual(await drive2.get('/two'), buf2, 'Second blob is downloaded')
 })
 
 test('Live download continues across disconnection and reconnect', async (t) => {
@@ -210,7 +215,7 @@ test('Live download continues across disconnection and reconnect', async (t) => 
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
 
-  t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
+  t.deepEqual(await drive2.get('/one'), buf1, 'First blob is downloaded')
 
   stream1.destroy()
   await once(stream1, 'close')
@@ -224,7 +229,7 @@ test('Live download continues across disconnection and reconnect', async (t) => 
   stream2.destroy()
   await once(stream2, 'close')
 
-  t.alike(await drive2.get('/two'), buf2, 'Second blob is downloaded')
+  t.deepEqual(await drive2.get('/two'), buf2, 'Second blob is downloaded')
 })
 
 test('Initial status', async (t) => {
@@ -285,7 +290,7 @@ test('live download started before initial replication', async (t) => {
   stream.destroy()
   await once(stream, 'close')
 
-  t.alike(await drive2.get('/bar'), expected, 'Second blob is downloaded')
+  t.deepEqual(await drive2.get('/bar'), expected, 'Second blob is downloaded')
 })
 
 /** @returns {Promise<void>} */

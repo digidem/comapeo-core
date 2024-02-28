@@ -1,5 +1,6 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
+import { rejects } from '../tests/helpers/assertions.js'
 import { randomBytes } from 'crypto'
 
 import {
@@ -27,7 +28,7 @@ test('getting yourself after creating project', async (t) => {
 
   const me = await project.$member.getById(project.deviceId)
 
-  t.alike(
+  t.deepEqual(
     me,
     {
       deviceId: project.deviceId,
@@ -40,7 +41,7 @@ test('getting yourself after creating project', async (t) => {
   const members = await project.$member.getMany()
 
   t.is(members.length, 1)
-  t.alike(
+  t.deepEqual(
     members[0],
     {
       deviceId: project.deviceId,
@@ -67,7 +68,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
 
   const me = await project.$member.getById(project.deviceId)
 
-  t.alike(
+  t.deepEqual(
     me,
     {
       deviceId: project.deviceId,
@@ -80,7 +81,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
   const members = await project.$member.getMany()
 
   t.is(members.length, 1)
-  t.alike(
+  t.deepEqual(
     members[0],
     {
       deviceId: project.deviceId,
@@ -107,7 +108,8 @@ test('getting invited member after invite rejected', async (t) => {
     reject: true,
   })
 
-  await t.exception(
+  await rejects(
+    t,
     () => project.$member.getById(invitee.deviceId),
     'invited member cannot be retrieved'
   )
@@ -115,7 +117,7 @@ test('getting invited member after invite rejected', async (t) => {
   const members = await project.$member.getMany()
 
   t.is(members.length, 1)
-  t.absent(
+  t.notOk(
     members.find((m) => m.deviceId === invitee.deviceId),
     'invited member not found'
   )
@@ -145,7 +147,7 @@ test('getting invited member after invite accepted', async (t) => {
 
   const invitedMember = members.find((m) => m.deviceId === invitee.deviceId)
 
-  t.alike(
+  t.deepEqual(
     invitedMember,
     {
       deviceId: invitee.deviceId,
@@ -217,14 +219,14 @@ test('roles - creator role and role assignment', async (t) => {
   const project = await manager.getProject(projectId)
   const ownRole = await project.$getOwnRole()
 
-  t.alike(ownRole, CREATOR_ROLE, 'Project creator has creator role')
+  t.deepEqual(ownRole, CREATOR_ROLE, 'Project creator has creator role')
 
   const deviceId = randomBytes(32).toString('hex')
   await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
 
   const member = await project.$member.getById(deviceId)
 
-  t.alike(member.role, ROLES[MEMBER_ROLE_ID], 'Can assign role to device')
+  t.deepEqual(member.role, ROLES[MEMBER_ROLE_ID], 'Can assign role to device')
 })
 
 test('roles - new device without role', async (t) => {
@@ -242,7 +244,7 @@ test('roles - new device without role', async (t) => {
 
   const ownRole = await project.$getOwnRole()
 
-  t.alike(
+  t.deepEqual(
     ownRole.sync,
     {
       auth: 'allowed',
@@ -253,10 +255,14 @@ test('roles - new device without role', async (t) => {
     },
     'A new device before sync can sync auth and config namespaces, but not other namespaces'
   )
-  await t.exception(async () => {
-    const deviceId = randomBytes(32).toString('hex')
-    await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
-  }, 'Trying to assign a role without the permission throws an error')
+  await rejects(
+    t,
+    async () => {
+      const deviceId = randomBytes(32).toString('hex')
+      await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
+    },
+    'Trying to assign a role without the permission throws an error'
+  )
 })
 
 test('roles - getMany() on invitor device', async (t) => {
@@ -268,7 +274,7 @@ test('roles - getMany() on invitor device', async (t) => {
   const project = await manager.getProject(projectId)
   const ownRole = await project.$getOwnRole()
 
-  t.alike(ownRole, CREATOR_ROLE, 'Project creator has creator role')
+  t.deepEqual(ownRole, CREATOR_ROLE, 'Project creator has creator role')
 
   const deviceId1 = randomBytes(32).toString('hex')
   const deviceId2 = randomBytes(32).toString('hex')
@@ -290,7 +296,7 @@ test('roles - getMany() on invitor device', async (t) => {
     actual[member.deviceId] = member.role
   }
 
-  t.alike(actual, expected, 'expected roles')
+  t.deepEqual(actual, expected, 'expected roles')
 })
 
 test('roles - getMany() on newly invited device before sync', async (t) => {
@@ -318,7 +324,7 @@ test('roles - getMany() on newly invited device before sync', async (t) => {
     actual[member.deviceId] = member.role
   }
 
-  t.alike(actual, expected, 'expected role')
+  t.deepEqual(actual, expected, 'expected role')
 })
 
 test('roles - assignRole()', async (t) => {
@@ -342,13 +348,13 @@ test('roles - assignRole()', async (t) => {
 
   const [invitorProject, inviteeProject] = projects
 
-  t.alike(
+  t.deepEqual(
     (await invitorProject.$member.getById(invitee.deviceId)).role,
     ROLES[MEMBER_ROLE_ID],
     'invitee has member role from invitor perspective'
   )
 
-  t.alike(
+  t.deepEqual(
     await inviteeProject.$getOwnRole(),
     ROLES[MEMBER_ROLE_ID],
     'invitee has member role from invitee perspective'
@@ -368,7 +374,7 @@ test('roles - assignRole()', async (t) => {
       invitee.deviceId
     )
 
-    t.alike(
+    t.deepEqual(
       roleRecordAfter.links,
       [roleRecordBefore.versionId],
       'role record links to record before role assignment'
@@ -377,13 +383,13 @@ test('roles - assignRole()', async (t) => {
 
     await waitForSync(projects, 'initial')
 
-    st.alike(
+    st.deepEqual(
       (await invitorProject.$member.getById(invitee.deviceId)).role,
       ROLES[COORDINATOR_ROLE_ID],
       'invitee now has coordinator role from invitor perspective'
     )
 
-    st.alike(
+    st.deepEqual(
       await inviteeProject.$getOwnRole(),
       ROLES[COORDINATOR_ROLE_ID],
       'invitee now has coordinator role from invitee perspective'
@@ -401,7 +407,7 @@ test('roles - assignRole()', async (t) => {
       invitee.deviceId
     )
 
-    t.alike(
+    t.deepEqual(
       roleRecordAfter.links,
       [roleRecordBefore.versionId],
       'role record from invitee links to record before role assignment'
@@ -414,13 +420,13 @@ test('roles - assignRole()', async (t) => {
 
     await waitForSync(projects, 'initial')
 
-    st.alike(
+    st.deepEqual(
       (await invitorProject.$member.getById(invitee.deviceId)).role,
       ROLES[MEMBER_ROLE_ID],
       'invitee now has member role from invitor perspective'
     )
 
-    st.alike(
+    st.deepEqual(
       await inviteeProject.$getOwnRole(),
       ROLES[MEMBER_ROLE_ID],
       'invitee now has member role from invitee perspective'

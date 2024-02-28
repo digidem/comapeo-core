@@ -1,5 +1,5 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
@@ -28,12 +28,12 @@ test('write and read deviceInfo', async (t) => {
   await manager.setDeviceInfo(info1)
   const readInfo1 = await manager.getDeviceInfo()
   const expected1 = { ...info1, deviceId: manager.deviceId }
-  t.alike(readInfo1, expected1)
+  t.deepEqual(readInfo1, expected1)
   const info2 = { name: 'new name' }
   await manager.setDeviceInfo(info2)
   const readInfo2 = await manager.getDeviceInfo()
   const expected2 = { ...info2, deviceId: manager.deviceId }
-  t.alike(readInfo2, expected2)
+  t.deepEqual(readInfo2, expected2)
 })
 
 test('device info written to projects', (t) => {
@@ -56,7 +56,7 @@ test('device info written to projects', (t) => {
     const me = await project.$member.getById(project.deviceId)
 
     st.is(me.deviceId, project.deviceId)
-    st.alike({ name: me.name }, { name: 'mapeo' })
+    st.deepEqual({ name: me.name }, { name: 'mapeo' })
   })
 
   t.test('when adding project', async (st) => {
@@ -84,7 +84,7 @@ test('device info written to projects', (t) => {
 
     const me = await project.$member.getById(project.deviceId)
 
-    st.alike({ name: me.name }, { name: 'mapeo' })
+    st.deepEqual({ name: me.name }, { name: 'mapeo' })
   })
 
   t.test('after updating global device info', async (st) => {
@@ -119,7 +119,7 @@ test('device info written to projects', (t) => {
       )
 
       for (const info of ownMemberInfos) {
-        st.alike({ name: info.name }, { name: 'before' })
+        st.deepEqual({ name: info.name }, { name: 'before' })
       }
     }
 
@@ -131,7 +131,7 @@ test('device info written to projects', (t) => {
       )
 
       for (const info of ownMemberInfos) {
-        st.alike({ name: info.name }, { name: 'after' })
+        st.deepEqual({ name: info.name }, { name: 'after' })
       }
     }
   })

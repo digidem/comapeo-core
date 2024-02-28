@@ -1,5 +1,7 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
+
+import { rejects } from '../tests/helpers/assertions.js'
 
 import {
   BLOCKED_ROLE_ID,
@@ -23,9 +25,13 @@ test('Creator cannot leave project if they are the only member', async (t) => {
 
   const projectId = await creatorManager.createProject({ name: 'mapeo' })
 
-  await t.exception(async () => {
-    await creatorManager.leaveProject(projectId)
-  }, 'attempting to leave fails')
+  await rejects(
+    t,
+    async () => {
+      await creatorManager.leaveProject(projectId)
+    },
+    'attempting to leave fails'
+  )
 })
 
 test('Creator cannot leave project if no other coordinators exist', async (t) => {
@@ -60,9 +66,13 @@ test('Creator cannot leave project if no other coordinators exist', async (t) =>
     'creator successfully added from member perspective'
   )
 
-  await t.exception(async () => {
-    await creator.leaveProject(projectId)
-  }, 'creator attempting to leave project with no other coordinators fails')
+  await rejects(
+    t,
+    async () => {
+      await creator.leaveProject(projectId)
+    },
+    'creator attempting to leave project with no other coordinators fails'
+  )
 
   await disconnectPeers(managers)
 })
@@ -89,7 +99,7 @@ test('Blocked member cannot leave project', async (t) => {
 
   const [creatorProject, memberProject] = projects
 
-  t.alike(
+  t.deepEqual(
     await memberProject.$getOwnRole(),
     ROLES[MEMBER_ROLE_ID],
     'Member is initially a member'
@@ -99,15 +109,19 @@ test('Blocked member cannot leave project', async (t) => {
 
   await waitForSync(projects, 'initial')
 
-  t.alike(
+  t.deepEqual(
     await memberProject.$getOwnRole(),
     ROLES[BLOCKED_ROLE_ID],
     'Member is now blocked'
   )
 
-  await t.exception(async () => {
-    await member.leaveProject(projectId)
-  }, 'Member attempting to leave project fails')
+  await rejects(
+    t,
+    async () => {
+      await member.leaveProject(projectId)
+    },
+    'Member attempting to leave project fails'
+  )
 
   await disconnectPeers(managers)
 })
@@ -146,7 +160,7 @@ test('Creator can leave project if another coordinator exists', async (t) => {
 
   await creator.leaveProject(projectId)
 
-  t.alike(
+  t.deepEqual(
     await creatorProject.$getOwnRole(),
     ROLES[LEFT_ROLE_ID],
     'creator now has LEFT role'
@@ -197,7 +211,7 @@ test('Member can leave project if creator exists', async (t) => {
 
   await member.leaveProject(projectId)
 
-  t.alike(
+  t.deepEqual(
     await memberProject.$getOwnRole(),
     ROLES[LEFT_ROLE_ID],
     'member now has LEFT role'
@@ -251,31 +265,39 @@ test('Data access after leaving project', async (t) => {
 
   await waitForSync(projects, 'initial')
 
-  await t.exception(async () => {
-    await memberProject.observation.create({
-      schemaName: 'observation',
-      attachments: [],
-      tags: {},
-      refs: [],
-      metadata: {},
-    })
-  }, 'member cannot create new data after leaving')
+  await rejects(
+    t,
+    async () => {
+      await memberProject.observation.create({
+        schemaName: 'observation',
+        attachments: [],
+        tags: {},
+        refs: [],
+        metadata: {},
+      })
+    },
+    'member cannot create new data after leaving'
+  )
 
-  t.alike(
+  t.deepEqual(
     await memberProject.$getProjectSettings(),
     MapeoProject.EMPTY_PROJECT_SETTINGS,
     'member getting project settings returns empty settings'
   )
 
-  t.alike(
+  t.deepEqual(
     await coordinatorProject.$getProjectSettings(),
     MapeoProject.EMPTY_PROJECT_SETTINGS,
     'coordinator getting project settings returns empty settings'
   )
 
-  await t.exception(async () => {
-    await coordinatorProject.$setProjectSettings({ name: 'foo' })
-  }, 'coordinator cannot update project settings after leaving')
+  await rejects(
+    t,
+    async () => {
+      await coordinatorProject.$setProjectSettings({ name: 'foo' })
+    },
+    'coordinator cannot update project settings after leaving'
+  )
 
   await disconnectPeers(managers)
 })

@@ -1,5 +1,5 @@
 // @ts-check
-import test from 'brittle'
+import test from 'tape'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
 import { getVersionId } from '@mapeo/schema'
@@ -49,12 +49,12 @@ test('read and write', async (t) => {
     'versionId is set to expected value'
   )
   const read = await dataStore.read(written.versionId)
-  t.alike(
+  t.deepEqual(
     read,
     written,
     'data returned from write matches data returned from read'
   )
-  t.alike(
+  t.deepEqual(
     indexedVersionIds,
     [written.versionId],
     'The indexEntries function is called with all data that is added'
@@ -77,7 +77,7 @@ test('writeRaw and read', async (t) => {
   const buf = Buffer.from('myblob')
   const versionId = await dataStore.writeRaw(buf)
   const expectedBuf = await dataStore.readRaw(versionId)
-  t.alike(buf, expectedBuf)
+  t.deepEqual(buf, expectedBuf)
 })
 
 test('index events', async (t) => {
@@ -112,5 +112,5 @@ test('index events', async (t) => {
       remaining: 0,
     },
   ]
-  t.alike(indexStates, expectedStates, 'expected index states emitted')
+  t.deepEqual(indexStates, expectedStates, 'expected index states emitted')
 })

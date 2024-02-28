@@ -1,5 +1,6 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
+import { rejects } from '../tests/helpers/assertions.js'
 import { randomBytes } from 'crypto'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
@@ -63,9 +64,13 @@ test('start/stop lifecycle', async (t) => {
 
   await fastifyController.stop()
 
-  await t.exception.all(async () => {
-    await fetch(blobUrl2)
-  }, 'failed to fetch due to connection error')
+  await rejects(
+    t,
+    async () => {
+      await fetch(blobUrl2)
+    },
+    'failed to fetch due to connection error'
+  )
 
   // Manager should await for the server to start internally
   fastifyController.start()
@@ -81,9 +86,13 @@ test('start/stop lifecycle', async (t) => {
 
   await fastifyController.stop()
 
-  await t.exception.all(async () => {
-    await fetch(blobUrl3)
-  }, 'failed to fetch due to connection error')
+  await rejects(
+    t,
+    async () => {
+      await fetch(blobUrl3)
+    },
+    'failed to fetch due to connection error'
+  )
 })
 
 test('retrieving blobs using url', async (t) => {
@@ -103,14 +112,18 @@ test('retrieving blobs using url', async (t) => {
 
   const project = await manager.getProject(await manager.createProject())
 
-  const exceptionPromise1 = t.exception(async () => {
-    await project.$blobs.getUrl({
-      driveId: randomBytes(32).toString('hex'),
-      name: 'foo',
-      type: 'photo',
-      variant: 'original',
-    })
-  }, 'getting blob url fails if fastifyController.start() has not been called yet')
+  const exceptionPromise1 = rejects(
+    t,
+    async () => {
+      await project.$blobs.getUrl({
+        driveId: randomBytes(32).toString('hex'),
+        name: 'foo',
+        type: 'photo',
+        variant: 'original',
+      })
+    },
+    'getting blob url fails if fastifyController.start() has not been called yet'
+  )
 
   clock.tick(100_000)
   await exceptionPromise1
@@ -164,19 +177,23 @@ test('retrieving blobs using url', async (t) => {
     const expected = await fs.readFile(join(BLOB_FIXTURES_DIR, 'original.png'))
     const body = Buffer.from(await response.arrayBuffer())
 
-    st.alike(body, expected, 'matching reponse body')
+    st.deepEqual(body, expected, 'matching reponse body')
   })
 
   await fastifyController.stop()
 
-  const exceptionPromise2 = t.exception(async () => {
-    await project.$blobs.getUrl({
-      driveId: randomBytes(32).toString('hex'),
-      name: 'foo',
-      type: 'photo',
-      variant: 'original',
-    })
-  }, 'getting url after fastifyController.stop() has been called fails')
+  const exceptionPromise2 = rejects(
+    t,
+    async () => {
+      await project.$blobs.getUrl({
+        driveId: randomBytes(32).toString('hex'),
+        name: 'foo',
+        type: 'photo',
+        variant: 'original',
+      })
+    },
+    'getting url after fastifyController.stop() has been called fails'
+  )
   clock.tick(100_000)
   await exceptionPromise2
 })
@@ -198,13 +215,17 @@ test('retrieving icons using url', async (t) => {
 
   const project = await manager.getProject(await manager.createProject())
 
-  const exceptionPromise1 = t.exception(async () => {
-    await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {
-      mimeType: 'image/png',
-      pixelDensity: 1,
-      size: 'small',
-    })
-  }, 'getting icon url fails if fastifyController.start() has not been called yet')
+  const exceptionPromise1 = rejects(
+    t,
+    async () => {
+      await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {
+        mimeType: 'image/png',
+        pixelDensity: 1,
+        size: 'small',
+      })
+    },
+    'getting icon url fails if fastifyController.start() has not been called yet'
+  )
 
   clock.tick(100_000)
   await exceptionPromise1
@@ -265,18 +286,22 @@ test('retrieving icons using url', async (t) => {
       'matching content type header'
     )
     const body = Buffer.from(await response.arrayBuffer())
-    st.alike(body, iconBuffer, 'matching response body')
+    st.deepEqual(body, iconBuffer, 'matching response body')
   })
 
   await fastifyController.stop()
 
-  const exceptionPromise2 = t.exception(async () => {
-    await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {
-      mimeType: 'image/png',
-      pixelDensity: 1,
-      size: 'small',
-    })
-  }, 'getting url after fastifyController.stop() has been called fails')
+  const exceptionPromise2 = rejects(
+    t,
+    async () => {
+      await project.$icons.getIconUrl(randomBytes(32).toString('hex'), {
+        mimeType: 'image/png',
+        pixelDensity: 1,
+        size: 'small',
+      })
+    },
+    'getting url after fastifyController.stop() has been called fails'
+  )
   clock.tick(100_000)
   await exceptionPromise2
 })

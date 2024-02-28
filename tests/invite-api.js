@@ -1,5 +1,6 @@
 // @ts-check
-import test from 'brittle'
+import test from 'tape'
+import { rejects } from './helpers/assertions.js'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { LocalPeers } from '../src/local-peers.js'
@@ -318,10 +319,10 @@ test('trying to accept or reject non-existent invite throws', async (t) => {
       addProject: async () => {},
     },
   })
-  await t.exception(() => {
+  await rejects(t, () => {
     return inviteApi.accept(keyToId(randomBytes(32)))
   })
-  await t.exception(() => {
+  await rejects(t, () => {
     return inviteApi.reject(keyToId(randomBytes(32)))
   })
 })
@@ -345,22 +346,26 @@ test('invitor disconnecting results in accept throwing', async (t) => {
 
   r1.on('peers', async (peers) => {
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
-    await t.exception(() => {
-      const invite = {
-        projectKey,
-        encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
-      }
-      return r1.invite(peers[0].deviceId, invite)
-    }, 'Invite fails')
+    await rejects(
+      t,
+      () => {
+        const invite = {
+          projectKey,
+          encryptionKeys,
+          projectInfo: { name: 'Mapeo' },
+          roleName: ROLES[MEMBER_ROLE_ID].name,
+          invitorName: 'device0',
+        }
+        return r1.invite(peers[0].deviceId, invite)
+      },
+      'Invite fails'
+    )
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
     t.is(projectId, projectKeyToPublicId(projectKey), 'received invite')
     await disconnect()
-    await t.exception(() => {
+    await rejects(t, () => {
       return inviteApi.accept(projectId)
     })
   })
@@ -386,16 +391,20 @@ test('invitor disconnecting results in invite reject response not throwing', asy
   r1.on('peers', async (peers) => {
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
 
-    await t.exception(() => {
-      const invite = {
-        projectKey,
-        encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
-      }
-      return r1.invite(peers[0].deviceId, invite)
-    }, 'invite fails')
+    await rejects(
+      t,
+      () => {
+        const invite = {
+          projectKey,
+          encryptionKeys,
+          projectInfo: { name: 'Mapeo' },
+          roleName: ROLES[MEMBER_ROLE_ID].name,
+          invitorName: 'device0',
+        }
+        return r1.invite(peers[0].deviceId, invite)
+      },
+      'invite fails'
+    )
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
@@ -430,16 +439,20 @@ test('invitor disconnecting results in invite already response not throwing', as
   r1.on('peers', async (peers) => {
     if (peers.length !== 1 || peers[0].status === 'disconnected') return
 
-    await t.exception(() => {
-      const invite = {
-        projectKey,
-        encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
-      }
-      return r1.invite(peers[0].deviceId, invite)
-    }, 'invite fails')
+    await rejects(
+      t,
+      () => {
+        const invite = {
+          projectKey,
+          encryptionKeys,
+          projectInfo: { name: 'Mapeo' },
+          roleName: ROLES[MEMBER_ROLE_ID].name,
+          invitorName: 'device0',
+        }
+        return r1.invite(peers[0].deviceId, invite)
+      },
+      'invite fails'
+    )
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
@@ -482,7 +495,7 @@ test('addProject throwing results in invite accept throwing', async (t) => {
   })
 
   inviteApi.on('invite-received', async ({ projectId }) => {
-    t.exception(async () => {
+    rejects(t, async () => {
       return inviteApi.accept(projectId)
     })
   })
@@ -509,7 +522,7 @@ test('Invite from multiple peers', async (t) => {
       },
       addProject: async (invite) => {
         const projectPublicId = projectKeyToPublicId(invite.projectKey)
-        t.absent(projects.has(projectPublicId), 'add project called only once')
+        t.notOk(projects.has(projectPublicId), 'add project called only once')
         projects.set(projectPublicId, invite)
       },
     },
@@ -522,7 +535,7 @@ test('Invite from multiple peers', async (t) => {
 
   inviteApi.on('invite-received', async ({ projectId, peerId }) => {
     t.is(projectId, projectKeyToPublicId(projectKey), 'expected project id')
-    t.absent(first, 'should only receive invite once')
+    t.notOk(first, 'should only receive invite once')
     first = peerId
 
     // Wait for all the invites to be sent before we accept
@@ -575,7 +588,7 @@ test.skip('Invite from multiple peers, first disconnects before accepted, receiv
       },
       addProject: async (invite) => {
         const projectId = invite.projectKey.toString('hex')
-        t.absent(projects.has(projectId), 'add project called only once')
+        t.notOk(projects.has(projectId), 'add project called only once')
         projects.set(projectId, invite)
       },
     },
@@ -598,9 +611,13 @@ test.skip('Invite from multiple peers, first disconnects before accepted, receiv
     if (isFirst) {
       await disconnects.get(peerId)()
 
-      await t.exception(() => {
-        return inviteApi.accept(projectId)
-      }, 'accept throws')
+      await rejects(
+        t,
+        () => {
+          return inviteApi.accept(projectId)
+        },
+        'accept throws'
+      )
     } else {
       await inviteApi.accept(projectId)
       t.ok(projects.has(projectId), 'project successfully added')

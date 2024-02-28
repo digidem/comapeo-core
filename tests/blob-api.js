@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import * as fs from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'url'
-import test from 'brittle'
+import test from 'tape'
 import { BlobApi } from '../src/blob-api.js'
 
 import { createBlobStore } from './helpers/blob-store.js'
@@ -36,7 +36,7 @@ test('create blobs', async (t) => {
 
   t.is(attachment.driveId, blobStore.writerDriveId)
   t.is(attachment.type, 'photo')
-  t.alike(attachment.hash, hash.digest('hex'))
+  t.deepEqual(attachment.hash, hash.digest('hex'))
 })
 
 test('get url from blobId', async (t) => {

@@ -1,6 +1,6 @@
 // @ts-check
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-import test from 'brittle'
+import test from 'tape'
 import Hypercore from 'hypercore'
 import RAM from 'random-access-memory'
 import {
@@ -247,7 +247,7 @@ test('deriveState() scenarios', (t) => {
         state.remoteStates.map((s, i) => ['peer' + i, createState(s)])
       ),
     })
-    t.alike(derivedState, expected, message)
+    t.deepEqual(derivedState, expected, message)
   }
 })
 
@@ -280,7 +280,7 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
       },
     },
   }
-  t.alike(deriveState(state), expected)
+  t.deepEqual(deriveState(state), expected)
 })
 
 test('CoreReplicationState', async (t) => {
@@ -331,7 +331,7 @@ test('CoreReplicationState', async (t) => {
       }
     }
     await updateWithTimeout(emitter, 100)
-    t.alike(
+    t.deepEqual(
       crs.getState(),
       { ...expected, remoteStates: expectedRemoteStates },
       message

@@ -1,5 +1,6 @@
 // @ts-check
-import test from 'brittle'
+import test from 'tape'
+import { rejects } from './helpers/assertions.js'
 import { DataStore } from '../src/datastore/index.js'
 import {
   createCoreManager,
@@ -85,7 +86,8 @@ test('private createWithDocId() method throws when doc exists', async (t) => {
   })
   const customId = randomBytes(8).toString('hex')
   await dataType[kCreateWithDocId](customId, obsFixture)
-  await t.exception(
+  await rejects(
+    t,
     () => dataType[kCreateWithDocId](customId, obsFixture),
     'Throws with error creating a doc with an id that already exists'
   )
@@ -148,13 +150,13 @@ test('delete()', async (t) => {
   t.is(doc.deleted, false, `'deleted' field is false before deletion`)
   const deletedDoc = await dataType.delete(doc.docId)
   t.is(deletedDoc.deleted, true, `'deleted' field is true after deletion`)
-  t.alike(
+  t.deepEqual(
     deletedDoc.links,
     [doc.versionId],
     `deleted doc links back to created doc`
   )
   const retrievedDocByDocId = await dataType.getByDocId(deletedDoc.docId)
-  t.alike(
+  t.deepEqual(
     retrievedDocByDocId,
     deletedDoc,
     `retrieving by docId returns deleted doc`

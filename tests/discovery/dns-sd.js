@@ -1,5 +1,5 @@
 import { DnsSd } from '../../src/discovery/dns-sd.js'
-import test from 'brittle'
+import test from 'tape'
 import { setTimeout as delay } from 'node:timers/promises'
 
 // Time in ms to wait for mdns messages to propogate
@@ -24,7 +24,7 @@ test('Calling advertise() multiple times with same port is a noop', async (t) =>
   await delay(500)
   await dnssd2.advertise(5001)
   await delay(500)
-  t.alike(ups, [dnssd2.name])
+  t.deepEqual(ups, [dnssd2.name])
   await Promise.all([dnssd1.destroy(), dnssd2.destroy()])
 })
 
@@ -38,7 +38,7 @@ test('Calling browse() multiple times is a noop', async (t) => {
   await delay(500)
   dnssd1.browse(5001)
   await delay(500)
-  t.alike(ups, [dnssd2.name])
+  t.deepEqual(ups, [dnssd2.name])
   await Promise.all([dnssd1.destroy(), dnssd2.destroy()])
 })
 
@@ -55,8 +55,8 @@ test('Calling advertise() multiple times with a different port republishes the s
   await delay(500)
   await dnssd2.advertise(5002)
   await delay(500)
-  t.alike(ups, [5001, 5002])
-  t.alike(downs, [5001])
+  t.deepEqual(ups, [5001, 5002])
+  t.deepEqual(downs, [5001])
   await Promise.all([dnssd1.destroy(), dnssd2.destroy()])
 })
 
@@ -73,7 +73,7 @@ test('Can stop and start advertising and browsing (change advertise port)', asyn
   dnssd1.browse()
   await dnssd2.advertise(5002)
   await delay(500)
-  t.alike(ups, [5001, 5002])
+  t.deepEqual(ups, [5001, 5002])
   await Promise.all([dnssd1.destroy(), dnssd2.destroy()])
 })
 
@@ -94,8 +94,8 @@ test('Can stop and start advertising on same port', async (t) => {
   await delay(500)
   await dnssd2.stopAdvertising()
   await delay(500)
-  t.alike(ups, [5001, 5001])
-  t.alike(downs, [5001, 5001])
+  t.deepEqual(ups, [5001, 5001])
+  t.deepEqual(downs, [5001, 5001])
   await Promise.all([dnssd1.destroy(), dnssd2.destroy()])
 })
 
@@ -111,7 +111,7 @@ test('After destroy, can advertise and browse', async (t) => {
   dnssd1.browse()
   await dnssd2.advertise(5002)
   await delay(500)
-  t.alike(ups, [5001, 5002])
+  t.deepEqual(ups, [5001, 5002])
   await Promise.all([dnssd1.destroy(), dnssd2.destroy()])
 })
 
@@ -137,7 +137,7 @@ test('can call advertise() immediately after stopAdvertise()', async (t) => {
   await dnssd2.advertise(5001)
   await stopAdvertising
   await delay(500)
-  t.alike(ups, [5001, 5001])
+  t.deepEqual(ups, [5001, 5001])
   await Promise.all([dnssd1.destroy(), dnssd2.destroy()])
 })
 
@@ -182,12 +182,12 @@ async function testMultiple(t, { period, count = 20 }) {
   const instanceNames = [...instances.keys()]
   for (const name of instanceNames) {
     const expected = instanceNames.filter((n) => n !== name).sort()
-    t.alike(
+    t.deepEqual(
       serviceUps.get(name).sort(),
       expected,
       `${name} received 'up' from all ${expected.length} other instances`
     )
-    t.alike(
+    t.deepEqual(
       serviceDowns.get(name).sort(),
       expected,
       `${name} received 'down' from all ${expected.length} other instances`

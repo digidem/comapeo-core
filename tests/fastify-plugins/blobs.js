@@ -1,6 +1,7 @@
 // @ts-check
 import { randomBytes } from 'node:crypto'
-import test from 'brittle'
+import test from 'tape'
+import { rejects } from '../helpers/assertions.js'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -13,7 +14,7 @@ import { waitForCores, replicate } from '../helpers/core-manager.js'
 
 test('Plugin throws error if missing getBlobStore option', async (t) => {
   const server = fastify()
-  await t.exception(() => server.register(BlobServerPlugin))
+  await rejects(t, () => server.register(BlobServerPlugin))
 })
 
 test('Plugin handles prefix option properly', async (t) => {
@@ -157,7 +158,7 @@ test('GET photo returns correct blob payload', async (t) => {
       }),
     })
 
-    t.alike(res.rawPayload, image.data, 'should be equal')
+    t.deepEqual(res.rawPayload, image.data, 'should be equal')
   }
 })
 

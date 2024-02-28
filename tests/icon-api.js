@@ -1,5 +1,6 @@
 // @ts-check
-import test from 'brittle'
+import test from 'tape'
+import { rejects } from './helpers/assertions.js'
 import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
@@ -26,9 +27,13 @@ test('create()', async (t) => {
   const bitmapBlob = randomBytes(128)
   const svgBlob = randomBytes(128)
 
-  await t.exception(async () => {
-    return iconApi.create({ name: expectedName, variants: [] })
-  }, 'throws when no variants are provided')
+  await rejects(
+    t,
+    async () => {
+      return iconApi.create({ name: expectedName, variants: [] })
+    },
+    'throws when no variants are provided'
+  )
 
   /** @type {Parameters<import('../src/icon-api.js').IconApi['create']>[0]['variants']} */
   const expectedVariants = [
@@ -117,7 +122,7 @@ test('[kGetIconBlob]()', async (t) => {
       mimeType: 'image/png',
     })
 
-    t.alike(result, bitmapBlob, 'returns expected bitmap blob')
+    t.deepEqual(result, bitmapBlob, 'returns expected bitmap blob')
   }
 
   // SVG exact
@@ -127,7 +132,7 @@ test('[kGetIconBlob]()', async (t) => {
       mimeType: 'image/svg+xml',
     })
 
-    t.alike(result, svgBlob, 'returns expected svg blob')
+    t.deepEqual(result, svgBlob, 'returns expected svg blob')
   }
 
   /// See more extensive non-exact testing in getBestVariant() tests further down
@@ -140,7 +145,7 @@ test('[kGetIconBlob]()', async (t) => {
       mimeType: 'image/png',
     })
 
-    t.alike(result, bitmapBlob, 'returns expected bitmap blob')
+    t.deepEqual(result, bitmapBlob, 'returns expected bitmap blob')
   }
 
   // SVG non-exact
@@ -150,7 +155,7 @@ test('[kGetIconBlob]()', async (t) => {
       mimeType: 'image/svg+xml',
     })
 
-    t.alike(result, svgBlob, 'returns expected svg blob')
+    t.deepEqual(result, svgBlob, 'returns expected svg blob')
   }
 })
 
@@ -222,13 +227,17 @@ test(`getIconUrl()`, async (t) => {
 })
 
 test('getBestVariant() - no variants exist', (t) => {
-  t.exception(() => {
-    return getBestVariant([], {
-      mimeType: 'image/png',
-      size: 'small',
-      pixelDensity: 1,
-    })
-  }, 'throws when no variants exist')
+  rejects(
+    t,
+    () => {
+      return getBestVariant([], {
+        mimeType: 'image/png',
+        size: 'small',
+        pixelDensity: 1,
+      })
+    },
+    'throws when no variants exist'
+  )
 })
 
 test('getBestVariant() - specify mimeType', (t) => {
@@ -258,7 +267,7 @@ test('getBestVariant() - specify mimeType', (t) => {
         mimeType,
       })
 
-      st.alike(
+      st.deepEqual(
         result,
         getBestVariant([pngVariant, svgVariant].reverse(), {
           ...common,
@@ -267,7 +276,7 @@ test('getBestVariant() - specify mimeType', (t) => {
         'same result regardless of variants order'
       )
 
-      st.alike(
+      st.deepEqual(
         result,
         expectedVariant,
         `returns variant with desired mime type (${mimeType})`
@@ -276,19 +285,27 @@ test('getBestVariant() - specify mimeType', (t) => {
   })
 
   t.test('request a mime type with no match present', (st) => {
-    st.exception(() => {
-      getBestVariant([pngVariant], {
-        ...common,
-        mimeType: 'image/svg+xml',
-      })
-    }, 'throws when no match for svg exists')
+    rejects(
+      st,
+      () => {
+        getBestVariant([pngVariant], {
+          ...common,
+          mimeType: 'image/svg+xml',
+        })
+      },
+      'throws when no match for svg exists'
+    )
 
-    st.exception(() => {
-      getBestVariant([svgVariant], {
-        ...common,
-        mimeType: 'image/png',
-      })
-    }, 'throws when no match for png exists')
+    rejects(
+      st,
+      () => {
+        getBestVariant([svgVariant], {
+          ...common,
+          mimeType: 'image/png',
+        })
+      },
+      'throws when no match for png exists'
+    )
   })
 })
 
@@ -324,7 +341,7 @@ test('getBestVariant() - specify size', (t) => {
         { ...common, size }
       )
 
-      st.alike(
+      st.deepEqual(
         result,
         getBestVariant([smallVariant, mediumVariant, largeVariant].reverse(), {
           ...common,
@@ -333,7 +350,7 @@ test('getBestVariant() - specify size', (t) => {
         'same result regardless of variants order'
       )
 
-      st.alike(
+      st.deepEqual(
         result,
         expectedVariant,
         `returns variant with desired size (${size})`
@@ -347,7 +364,7 @@ test('getBestVariant() - specify size', (t) => {
       size: 'large',
     })
 
-    st.alike(
+    st.deepEqual(
       result,
       getBestVariant([smallVariant, mediumVariant].reverse(), {
         ...common,
@@ -356,7 +373,7 @@ test('getBestVariant() - specify size', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, mediumVariant, 'returns closest smaller size')
+    st.deepEqual(result, mediumVariant, 'returns closest smaller size')
   })
 
   t.test('request size with both larger and smaller existing', (st) => {
@@ -365,7 +382,7 @@ test('getBestVariant() - specify size', (t) => {
       size: 'medium',
     })
 
-    st.alike(
+    st.deepEqual(
       result,
       getBestVariant([smallVariant, largeVariant].reverse(), {
         ...common,
@@ -374,7 +391,7 @@ test('getBestVariant() - specify size', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, smallVariant, 'returns smaller size')
+    st.deepEqual(result, smallVariant, 'returns smaller size')
   })
 
   t.test('request size with only larger existing', (st) => {
@@ -383,7 +400,7 @@ test('getBestVariant() - specify size', (t) => {
       size: 'small',
     })
 
-    st.alike(
+    st.deepEqual(
       result,
       getBestVariant([mediumVariant, largeVariant].reverse(), {
         ...common,
@@ -392,7 +409,7 @@ test('getBestVariant() - specify size', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, mediumVariant, 'returns closest larger size')
+    st.deepEqual(result, mediumVariant, 'returns closest larger size')
   })
 })
 
@@ -428,7 +445,7 @@ test('getBestVariant() - specify pixel density', (t) => {
         { ...common, pixelDensity }
       )
 
-      st.alike(
+      st.deepEqual(
         result,
         getBestVariant(
           [density1Variant, density2Variant, density3Variant].reverse(),
@@ -437,7 +454,7 @@ test('getBestVariant() - specify pixel density', (t) => {
         'same result regardless of variants order'
       )
 
-      st.alike(
+      st.deepEqual(
         result,
         expectedVariant,
         `returns variant with desired pixel density (${pixelDensity})`
@@ -451,7 +468,7 @@ test('getBestVariant() - specify pixel density', (t) => {
       pixelDensity: 3,
     })
 
-    st.alike(
+    st.deepEqual(
       result,
       getBestVariant([density1Variant, density2Variant].reverse(), {
         ...common,
@@ -460,7 +477,7 @@ test('getBestVariant() - specify pixel density', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, density2Variant, 'returns closest smaller density')
+    st.deepEqual(result, density2Variant, 'returns closest smaller density')
   })
 
   t.test(
@@ -471,7 +488,7 @@ test('getBestVariant() - specify pixel density', (t) => {
         pixelDensity: 2,
       })
 
-      st.alike(
+      st.deepEqual(
         result,
         getBestVariant([density1Variant, density3Variant].reverse(), {
           ...common,
@@ -480,7 +497,7 @@ test('getBestVariant() - specify pixel density', (t) => {
         'same result regardless of variants order'
       )
 
-      st.alike(result, density1Variant, 'returns smaller density')
+      st.deepEqual(result, density1Variant, 'returns smaller density')
     }
   )
 
@@ -490,7 +507,7 @@ test('getBestVariant() - specify pixel density', (t) => {
       pixelDensity: 1,
     })
 
-    st.alike(
+    st.deepEqual(
       result,
       getBestVariant([density2Variant, density3Variant].reverse(), {
         ...common,
@@ -499,7 +516,7 @@ test('getBestVariant() - specify pixel density', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, density2Variant, 'returns closest larger density')
+    st.deepEqual(result, density2Variant, 'returns closest larger density')
   })
 })
 
@@ -541,7 +558,7 @@ test('getBestVariant() - params prioritization', (t) => {
     }
   )
 
-  t.alike(
+  t.deepEqual(
     result,
     getBestVariant(
       [
@@ -558,7 +575,7 @@ test('getBestVariant() - params prioritization', (t) => {
     'same result regardless of variants order'
   )
 
-  t.alike(result, wantedSizeSvgVariant, 'mime type > size > pixel density')
+  t.deepEqual(result, wantedSizeSvgVariant, 'mime type > size > pixel density')
 })
 
 // TODO: The IconApi doesn't allow creating svg variants with a custom pixel density, so maybe can remove this test?
@@ -575,7 +592,7 @@ test('getBestVariant() - svg requests are not affected by pixel density', (t) =>
     mimeType: 'image/svg+xml',
   })
 
-  t.alike(
+  t.deepEqual(
     result,
     getBestVariant([variant1, variant2, variant3].reverse(), {
       mimeType: 'image/svg+xml',
@@ -584,7 +601,7 @@ test('getBestVariant() - svg requests are not affected by pixel density', (t) =>
     'same result regardless of variants order'
   )
 
-  t.alike(result, variant1)
+  t.deepEqual(result, variant1)
 })
 
 // TODO: Currently fails. Not sure if we'd run into this situation often in reality
@@ -608,7 +625,7 @@ test(
       mimeType: 'image/svg+xml',
     })
 
-    t.alike(
+    t.deepEqual(
       result,
       getBestVariant([variantA, variantB].reverse(), {
         mimeType: 'image/svg+xml',
@@ -617,7 +634,7 @@ test(
       'same result regardless of variants order'
     )
 
-    t.alike(result, variantA)
+    t.deepEqual(result, variantA)
   }
 )
 
@@ -648,7 +665,7 @@ test('constructIconPath() - bad inputs', (t) => {
   ]
 
   for (const [input, message] of fixtures) {
-    t.exception(() => constructIconPath(input), message)
+    rejects(t, () => constructIconPath(input), message)
   }
 })
 

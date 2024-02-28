@@ -1,5 +1,5 @@
 import { combineStates } from '../../src/blob-store/live-download.js'
-import test from 'brittle'
+import test from 'tape'
 
 const partial = {
   haveCount: 0,
@@ -37,7 +37,7 @@ test('expected combined state, no error or abort', (t) => {
     const inputs = statuses.map((status) => ({ state: { ...partial, status } }))
     const expectedState = { ...partial, status: expected }
     for (const permuted of permute(inputs)) {
-      t.alike(combineStates(permuted), expectedState)
+      t.deepEqual(combineStates(permuted), expectedState)
     }
   }
 })
@@ -48,7 +48,7 @@ test('expected combined state, with error', (t) => {
     inputs.push({ state: { ...partial, error: new Error(), status: 'error' } })
     const expectedState = { ...partial, error: new Error(), status: 'error' }
     for (const permuted of permute(inputs)) {
-      t.alike(combineStates(permuted), expectedState)
+      t.deepEqual(combineStates(permuted), expectedState)
     }
   }
 })
@@ -61,7 +61,7 @@ test('expected combined state, with abort', (t) => {
     const inputs = statuses.map((status) => ({ state: { ...partial, status } }))
     const expectedState = { ...partial, status: 'aborted' }
     for (const permuted of permute(inputs)) {
-      t.alike(combineStates(permuted, { signal }), expectedState)
+      t.deepEqual(combineStates(permuted, { signal }), expectedState)
     }
   }
 })
@@ -92,7 +92,7 @@ test('arithmetic test', (t) => {
       },
     }
   })
-  t.alike(combineStates(inputs), expected)
+  t.deepEqual(combineStates(inputs), expected)
 })
 
 /**

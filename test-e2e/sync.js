@@ -1,5 +1,6 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
+import { rejects } from '../tests/helpers/assertions.js'
 import {
   connectPeers,
   createManagers,
@@ -50,7 +51,7 @@ test('Create and sync data', { timeout: 100_000 }, async function (t) {
       const docs = await project[schemaName].getMany()
       const expected = generatedDocs.filter((v) => v.schemaName === schemaName)
       if (SCHEMAS_INITIAL_SYNC.includes(schemaName)) {
-        t.alike(
+        t.deepEqual(
           sortById(docs),
           sortById(expected),
           `All ${schemaName} docs synced to ${deviceId}`
@@ -77,7 +78,7 @@ test('Create and sync data', { timeout: 100_000 }, async function (t) {
       // @ts-ignore - to complex to narrow `schemaName` to valid values
       const docs = await project[schemaName].getMany()
       const expected = generatedDocs.filter((v) => v.schemaName === schemaName)
-      t.alike(
+      t.deepEqual(
         sortById(docs),
         sortById(expected),
         `All ${schemaName} docs synced to ${deviceId}`
@@ -107,12 +108,14 @@ test('start and stop sync', async function (t) {
   await waitForSync(projects, 'initial')
   inviteeProject.$sync.start()
 
-  await t.exception(
+  await rejects(
+    t,
     () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
     'wait for sync times out'
   )
 
-  await t.exception(
+  await rejects(
+    t,
     () => inviteeProject.observation.getByDocId(obs1.docId),
     'before both peers have started sync, doc does not sync'
   )
@@ -124,7 +127,7 @@ test('start and stop sync', async function (t) {
 
   const obs1Synced = await inviteeProject.observation.getByDocId(obs1.docId)
 
-  t.alike(obs1Synced, obs1, 'observation is synced')
+  t.deepEqual(obs1Synced, obs1, 'observation is synced')
 
   inviteeProject.$sync.stop()
 
@@ -133,12 +136,14 @@ test('start and stop sync', async function (t) {
   )
   await waitForSync(projects, 'initial')
 
-  await t.exception(
+  await rejects(
+    t,
     () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
     'wait for sync times out'
   )
 
-  await t.exception(
+  await rejects(
+    t,
     () => invitorProject.observation.getByDocId(obs2.docId),
     'after stopping sync, data does not sync'
   )
@@ -149,7 +154,7 @@ test('start and stop sync', async function (t) {
 
   const obs2Synced = await invitorProject.observation.getByDocId(obs2.docId)
 
-  t.alike(obs2Synced, obs2, 'observation is synced')
+  t.deepEqual(obs2Synced, obs2, 'observation is synced')
 
   await disconnect()
 })
@@ -252,7 +257,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
       t.is(inviteeState[ns].coreCount, 2)
       t.is(blockedState[ns].coreCount, 1)
     }
-    t.alike(invitorState[ns].localState, inviteeState[ns].localState)
+    t.deepEqual(invitorState[ns].localState, inviteeState[ns].localState)
   }
 
   await disconnect1()

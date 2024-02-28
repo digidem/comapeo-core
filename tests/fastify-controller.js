@@ -1,5 +1,5 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
 import Fastify from 'fastify'
 
 import { FastifyController } from '../src/fastify-controller.js'

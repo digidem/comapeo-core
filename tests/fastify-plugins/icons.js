@@ -1,5 +1,6 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'tape'
+import { rejects } from '../helpers/assertions.js'
 import { randomBytes } from 'crypto'
 import fastify from 'fastify'
 
@@ -8,7 +9,7 @@ import { projectKeyToPublicId } from '../../src/utils.js'
 
 test('Plugin throws error if missing getProject option', async (t) => {
   const server = fastify()
-  await t.exception(() => server.register(IconServerPlugin))
+  await rejects(t, () => server.register(IconServerPlugin))
 })
 
 test('Plugin handles prefix option properly', async (t) => {

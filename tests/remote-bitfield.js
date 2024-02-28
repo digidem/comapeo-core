@@ -1,5 +1,5 @@
 // @ts-check
-import test from 'brittle'
+import test from 'tape'
 import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
 
 test('remote bitfield - findFirst', function (t) {

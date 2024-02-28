@@ -1,4 +1,4 @@
-import test from 'brittle'
+import test from 'tape'
 import { randomBytes } from 'node:crypto'
 import net from 'node:net'
 import { KeyManager } from '@mapeo/crypto'
@@ -76,7 +76,7 @@ test('deduplicate incoming connections', async (t) => {
   await delay(1000)
   t.is(localConnections.size, 1)
   t.is(remoteConnections.size, 1)
-  t.alike(
+  t.deepEqual(
     localConnections.values().next().value.handshakeHash,
     remoteConnections.values().next().value.handshakeHash
   )
@@ -150,7 +150,7 @@ async function testMultiple(t, { period, nPeers = 20 }) {
       .filter((conn) => !conn.destroyed)
       .map((conn) => keyToPublicId(conn.remotePublicKey))
       .sort()
-    t.alike(
+    t.deepEqual(
       actual,
       expected,
       `peer ${peerId.slice(0, 7)} connected to all ${

@@ -1,5 +1,5 @@
 //@ts-check
-import test from 'brittle'
+import test from 'tape'
 import { KeyManager } from '@mapeo/crypto'
 import { NamespaceSyncState } from '../../src/sync/namespace-sync-state.js'
 import {
@@ -62,7 +62,7 @@ test('sync cores in a namespace', async function (t) {
             status: 'connected',
           },
         }
-        t.alike(state.remoteStates, expected, 'syncState1 is synced')
+        t.deepEqual(state.remoteStates, expected, 'syncState1 is synced')
         syncState1Synced = true
       }
     },
@@ -89,7 +89,7 @@ test('sync cores in a namespace', async function (t) {
             status: 'connected',
           },
         }
-        t.alike(state.remoteStates, expected, 'syncState2 is synced')
+        t.deepEqual(state.remoteStates, expected, 'syncState2 is synced')
         syncState2Synced = true
       }
     },

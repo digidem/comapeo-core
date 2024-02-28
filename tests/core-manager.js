@@ -1,4 +1,5 @@
-import test from 'brittle'
+import test from 'tape'
+import { rejects } from './helpers/assertions.js'
 import { access, constants } from 'node:fs/promises'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Hypercore from 'hypercore'
@@ -130,7 +131,7 @@ test('eagerly updates remote bitfields', async function (t) {
     await new Promise((res) => setTimeout(res, 200))
 
     const cm3Core = cm3.getCoreByKey(cm1Core.key)
-    t.alike(cm3Core.length, cm1Core.length)
+    t.deepEqual(cm3Core.length, cm1Core.length)
 
     t.ok(
       bitfieldEquals(
@@ -147,7 +148,7 @@ test('eagerly updates remote bitfields', async function (t) {
 
     await new Promise((res) => setTimeout(res, 200))
 
-    t.alike(cm3Core.length, cm1Core.length)
+    t.deepEqual(cm3Core.length, cm1Core.length)
     t.ok(
       bitfieldEquals(
         cm3Core.peers[0].remoteBitfield,
@@ -189,8 +190,8 @@ test('multiplexing waits for cores to be added', async function (t) {
     b2.replicate(stream2, { keepAlive: false })
   }, 7000)
 
-  t.alike(await b1.get(0), Buffer.from('hi'))
-  t.alike(await b2.get(0), Buffer.from('ho'))
+  t.deepEqual(await b1.get(0), Buffer.from('hi'))
+  t.deepEqual(await b2.get(0), Buffer.from('ho'))
 })
 
 test('close()', async (t) => {
@@ -253,8 +254,8 @@ test('encryption', async function (t) {
     const { core: coreReplica3 } = cm3.addCore(key, ns)
     const value = Buffer.from(ns)
     await core.append(value)
-    t.unlike(await coreReplica2.get(0), value)
-    t.alike(await coreReplica3.get(0), value)
+    t.notDeepEqual(await coreReplica2.get(0), value)
+    t.deepEqual(await coreReplica3.get(0), value)
   }
 })
 
@@ -399,7 +400,8 @@ test('unreplicate', async (t) => {
 
     await unreplicate(a, s1.noiseStream.userData)
 
-    await st.exception(
+    await rejects(
+      st,
       () => b.get(1, { timeout: WAIT_TIMEOUT }),
       'Throws with timeout error'
     )
@@ -423,7 +425,8 @@ test('unreplicate', async (t) => {
 
       await unreplicate(a, s1.noiseStream.userData)
 
-      await st.exception(
+      await rejects(
+        st,
         () => b.get(1, { timeout: 200 }),
         'Throws with timeout error'
       )
@@ -446,7 +449,8 @@ test('unreplicate', async (t) => {
 
     await unreplicate(b, s2.noiseStream.userData)
 
-    await st.exception(
+    await rejects(
+      st,
       () => b.get(1, { timeout: WAIT_TIMEOUT }),
       'Throws with timeout error'
     )

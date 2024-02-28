@@ -1,5 +1,6 @@
 // @ts-check
-import test from 'brittle'
+import test from 'tape'
+import { rejects } from '../helpers/assertions.js'
 // @ts-ignore
 import { pipelinePromise as pipeline } from 'streamx'
 import { randomBytes } from 'node:crypto'
@@ -28,12 +29,13 @@ test('blobStore.put(blobId, buf) and blobStore.get(blobId)', async (t) => {
   })
   const driveId = await blobStore.put(blobId, diskbuf)
   const bndlbuf = await blobStore.get({ ...blobId, driveId })
-  t.alike(bndlbuf, diskbuf, 'should be equal')
+  t.deepEqual(bndlbuf, diskbuf, 'should be equal')
 })
 
 test('get(), driveId not found', async (t) => {
   const { blobStore } = await testenv()
-  await t.exception(
+  await rejects(
+    t,
     async () =>
       await blobStore.get({
         type: 'photo',
@@ -50,7 +52,8 @@ test('get(), valid driveId, missing file', async (t) => {
     coreManager.getWriterCore('blobIndex').key
   ).toString('hex')
 
-  await t.exception(
+  await rejects(
+    t,
     async () =>
       await blobStore.get({
         type: 'photo',
@@ -66,7 +69,8 @@ test('get(), uninitialized drive', async (t) => {
   const driveKey = randomBytes(32)
   const driveId = discoveryKey(driveKey).toString('hex')
   coreManager.addCore(driveKey, 'blobIndex')
-  await t.exception(
+  await rejects(
+    t,
     async () =>
       await blobStore.get({
         type: 'photo',
@@ -101,7 +105,7 @@ test('get(), initialized but unreplicated drive', async (t) => {
   await destroy()
   t.is(replicatedCore.contiguousLength, 0, 'data is not downloaded')
   t.ok(replicatedCore.length > 0, 'proof of length has updated')
-  await t.exception(async () => await bs2.get({ ...blob1Id, driveId }))
+  await rejects(t, async () => await bs2.get({ ...blob1Id, driveId }))
 })
 
 test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
@@ -133,7 +137,7 @@ test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
     'blobIndex has downloaded'
   )
   t.ok(replicatedCore.length > 0)
-  await t.exception(async () => await bs2.get({ ...blob1Id, driveId }))
+  await rejects(t, async () => await bs2.get({ ...blob1Id, driveId }))
 })
 
 test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)', async (t) => {
@@ -150,7 +154,7 @@ test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)
   const bndlbuf = await concat(
     blobStore.createReadStream({ ...blobId, driveId })
   )
-  t.alike(bndlbuf, diskbuf, 'should be equal')
+  t.deepEqual(bndlbuf, diskbuf, 'should be equal')
 })
 
 test('blobStore.createReadStream should not wait', async (t) => {
@@ -184,7 +188,7 @@ test('blobStore.createReadStream should not wait', async (t) => {
       driveId: blobStore.writerDriveId,
     })
     const blob = await concat(stream)
-    t.alike(blob, expected, 'should be equal')
+    t.deepEqual(blob, expected, 'should be equal')
   }
 
   try {
@@ -206,7 +210,7 @@ test('blobStore.createReadStream should not wait', async (t) => {
       driveId: blobStore2.writerDriveId,
     })
     const blob = await concat(stream)
-    t.alike(blob, expected, 'should be equal')
+    t.deepEqual(blob, expected, 'should be equal')
 
     await blobStore2.clear({
       ...blobId,
@@ -296,12 +300,12 @@ test('live download', async function (t) {
   await Promise.all([destroy1(), destroy2()])
 
   // Both blob1 and blob2 (from CM1 and CM2) should have been downloaded to CM3
-  t.alike(
+  t.deepEqual(
     await bs3.get({ ...blob1Id, driveId: driveId1 }),
     blob1,
     'blob1 was downloaded'
   )
-  t.alike(
+  t.deepEqual(
     await bs3.get({ ...blob2Id, driveId: driveId2 }),
     blob2,
     'blob2 was downloaded'
@@ -343,9 +347,18 @@ test('sparse live download', async function (t) {
 
   await destroy()
 
-  t.alike(await bs2.get({ ...blob1Id, driveId }), blob1, 'blob1 was downloaded')
-  t.alike(await bs2.get({ ...blob2Id, driveId }), blob2, 'blob2 was downloaded')
-  await t.exception(
+  t.deepEqual(
+    await bs2.get({ ...blob1Id, driveId }),
+    blob1,
+    'blob1 was downloaded'
+  )
+  t.deepEqual(
+    await bs2.get({ ...blob2Id, driveId }),
+    blob2,
+    'blob2 was downloaded'
+  )
+  await rejects(
+    t,
     () => bs2.get({ ...blob3Id, driveId }),
     'blob3 was not downloaded'
   )
@@ -391,12 +404,13 @@ test('cancelled live download', async function (t) {
   await Promise.all([destroy1(), destroy2()])
 
   // Both blob1 and blob2 (from CM1 and CM2) should have been downloaded to CM3
-  t.alike(
+  t.deepEqual(
     await bs3.get({ ...blob1Id, driveId: driveId1 }),
     blob1,
     'blob1 was downloaded'
   )
-  await t.exception(
+  await rejects(
+    t,
     async () => bs3.get({ ...blob2Id, driveId: driveId2 }),
     'blob2 was not downloaded'
   )
@@ -415,7 +429,7 @@ test('blobStore.getEntryBlob(driveId, entry)', async (t) => {
 
   const buf = await blobStore.getEntryBlob(driveId, entry)
 
-  t.alike(buf, diskbuf, 'should be equal')
+  t.deepEqual(buf, diskbuf, 'should be equal')
 })
 
 test('blobStore.getEntryReadStream(driveId, entry)', async (t) => {
@@ -433,7 +447,7 @@ test('blobStore.getEntryReadStream(driveId, entry)', async (t) => {
     await blobStore.createEntryReadStream(driveId, entry)
   )
 
-  t.alike(buf, diskbuf, 'should be equal')
+  t.deepEqual(buf, diskbuf, 'should be equal')
 })
 
 test('blobStore.getEntryReadStream(driveId, entry) should not wait', async (t) => {

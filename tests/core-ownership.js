@@ -1,5 +1,6 @@
 // @ts-check
-import test from 'brittle'
+import test from 'tape'
+import { rejects } from './helpers/assertions.js'
 import { KeyManager, sign } from '@mapeo/crypto'
 import sodium from 'sodium-universal'
 import {
@@ -17,12 +18,12 @@ test('Valid coreOwnership record', (t) => {
   const mappedDoc = mapAndValidateCoreOwnership(validDoc, version)
 
   t.ok(validDoc.links.length > 0, 'original doc has links')
-  t.alike(mappedDoc.links, [], 'links are stripped from mapped doc')
-  t.absent(
+  t.deepEqual(mappedDoc.links, [], 'links are stripped from mapped doc')
+  t.notOk(
     'coreSignatures' in mappedDoc,
     'coreSignatures are stripped from mapped doc'
   )
-  t.absent(
+  t.notOk(
     'identitySignature' in mappedDoc,
     'identitySignature is stripped from mapped doc'
   )
@@ -40,14 +41,14 @@ test('Invalid coreOwnership signatures', (t) => {
         [key]: randomBytes(sodium.crypto_sign_BYTES),
       },
     }
-    t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+    rejects(t, () => mapAndValidateCoreOwnership(invalidDoc, version))
   }
 
   const invalidDoc = {
     ...validDoc,
     identitySignature: randomBytes(sodium.crypto_sign_BYTES),
   }
-  t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+  rejects(t, () => mapAndValidateCoreOwnership(invalidDoc, version))
 })
 
 test('Invalid coreOwnership docId and coreIds', (t) => {
@@ -59,14 +60,14 @@ test('Invalid coreOwnership docId and coreIds', (t) => {
       ...validDoc,
       [`${key}CoreId`]: randomBytes(32).toString('hex'),
     }
-    t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+    rejects(t, () => mapAndValidateCoreOwnership(invalidDoc, version))
   }
 
   const invalidDoc = {
     ...validDoc,
     docId: randomBytes(32).toString('hex'),
   }
-  t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+  rejects(t, () => mapAndValidateCoreOwnership(invalidDoc, version))
 })
 
 test('Invalid coreOwnership docId and coreIds (wrong length)', (t) => {
@@ -78,14 +79,14 @@ test('Invalid coreOwnership docId and coreIds (wrong length)', (t) => {
       ...validDoc,
       [`${key}CoreId`]: validDoc[`${key}CoreId`].slice(0, -1),
     }
-    t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+    rejects(t, () => mapAndValidateCoreOwnership(invalidDoc, version))
   }
 
   const invalidDoc = {
     ...validDoc,
     docId: validDoc.docId.slice(0, -1),
   }
-  t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+  rejects(t, () => mapAndValidateCoreOwnership(invalidDoc, version))
 })
 
 test('Invalid - different coreKey', (t) => {
@@ -94,7 +95,7 @@ test('Invalid - different coreKey', (t) => {
     ...parseVersionId(validDoc.versionId),
     coreDiscoveryKey: discoveryKey(randomBytes(32)),
   }
-  t.exception(() => mapAndValidateCoreOwnership(validDoc, version))
+  rejects(t, () => mapAndValidateCoreOwnership(validDoc, version))
 })
 
 test('getWinner (coreOwnership)', (t) => {

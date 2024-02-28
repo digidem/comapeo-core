@@ -1,6 +1,6 @@
 // @ts-check
 /* eslint-disable no-unused-vars */
-import { test } from 'brittle'
+import test from 'tape'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import * as clientTableSchemas from '../src/schema/client.js'
 import * as projectTableSchemas from '../src/schema/project.js'

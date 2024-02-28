@@ -1,5 +1,6 @@
 // @ts-check
-import { test, skip } from 'brittle'
+import test from 'tape'
+import { rejects } from '../tests/helpers/assertions.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'
 import {
@@ -18,7 +19,8 @@ test('member invite accepted', async (t) => {
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
 
-  await t.exception(
+  await rejects(
+    t,
     async () => joiner.getProject(createdProjectId),
     'joiner cannot get project instance before being invited and added to project'
   )
@@ -41,7 +43,7 @@ test('member invite accepted', async (t) => {
 
   /// After invite flow has completed...
 
-  t.alike(
+  t.deepEqual(
     await joiner.listProjects(),
     await creator.listProjects(),
     'project info recorded in joiner successfully'
@@ -49,13 +51,13 @@ test('member invite accepted', async (t) => {
 
   const joinerProject = await joiner.getProject(createdProjectId)
 
-  t.alike(
+  t.deepEqual(
     await joinerProject.$getProjectSettings(),
     await creatorProject.$getProjectSettings(),
     'Project settings match'
   )
 
-  t.alike(
+  t.deepEqual(
     await creatorProject.$member.getMany(),
     await joinerProject.$member.getMany(),
     'Project members match'
@@ -96,14 +98,14 @@ test('chain of invites', async (t) => {
   for (const joiner of joiners) {
     const joinerProject = await joiner.getProject(createdProjectId)
 
-    t.alike(
+    t.deepEqual(
       await joinerProject.$getProjectSettings(),
       expectedProjectSettings,
       'Project settings match'
     )
 
     const joinerMembers = await joinerProject.$member.getMany()
-    t.alike(
+    t.deepEqual(
       joinerMembers.sort(memberSort),
       expectedMembers.sort(memberSort),
       'Project members match'
@@ -114,7 +116,7 @@ test('chain of invites', async (t) => {
 })
 
 // TODO: Needs fix to inviteApi to check role before sending invite
-skip("member can't invite", async (t) => {
+test.skip("member can't invite", async (t) => {
   const managers = await createManagers(3, t)
   const [creator, member, joiner] = managers
   connectPeers(managers)
@@ -134,13 +136,13 @@ skip("member can't invite", async (t) => {
 
   const memberProject = await member.getProject(createdProjectId)
 
-  t.alike(
+  t.deepEqual(
     await memberProject.$getProjectSettings(),
     await creatorProject.$getProjectSettings(),
     'Project settings match'
   )
 
-  const exceptionPromise = t.exception(() =>
+  const exceptionPromise = rejects(t, () =>
     memberProject.$member.invite(joiner.deviceId, { roleId: MEMBER_ROLE_ID })
   )
   joiner.invite.once('invite-received', () => t.fail('should not send invite'))
@@ -157,7 +159,8 @@ test('member invite rejected', async (t) => {
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
 
-  await t.exception(
+  await rejects(
+    t,
     async () => joiner.getProject(createdProjectId),
     'joiner cannot get project instance before being invited and added to project'
   )
@@ -184,7 +187,8 @@ test('member invite rejected', async (t) => {
 
   t.is(joinerListedProjects.length, 0, 'project not added to joiner')
 
-  await t.exception(
+  await rejects(
+    t,
     async () => joiner.getProject(createdProjectId),
     'joiner cannot get project instance'
   )
