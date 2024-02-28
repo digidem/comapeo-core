@@ -612,6 +612,7 @@ test('invalid stream', (t) => {
       r1.connect(regularStream),
     'Invalid stream'
   )
+  t.end()
 })
 
 test('Send device info', async (t) => {

@@ -238,6 +238,7 @@ test('getBestVariant() - no variants exist', (t) => {
     },
     'throws when no variants exist'
   )
+  t.end()
 })
 
 test('getBestVariant() - specify mimeType', (t) => {
@@ -282,6 +283,7 @@ test('getBestVariant() - specify mimeType', (t) => {
         `returns variant with desired mime type (${mimeType})`
       )
     }
+    st.end()
   })
 
   t.test('request a mime type with no match present', (st) => {
@@ -306,7 +308,9 @@ test('getBestVariant() - specify mimeType', (t) => {
       },
       'throws when no match for png exists'
     )
+    st.end()
   })
+  t.end()
 })
 
 test('getBestVariant() - specify size', (t) => {
@@ -356,6 +360,7 @@ test('getBestVariant() - specify size', (t) => {
         `returns variant with desired size (${size})`
       )
     }
+    st.end()
   })
 
   t.test('request size with only smaller existing', (st) => {
@@ -374,6 +379,7 @@ test('getBestVariant() - specify size', (t) => {
     )
 
     st.deepEqual(result, mediumVariant, 'returns closest smaller size')
+    st.end()
   })
 
   t.test('request size with both larger and smaller existing', (st) => {
@@ -392,6 +398,7 @@ test('getBestVariant() - specify size', (t) => {
     )
 
     st.deepEqual(result, smallVariant, 'returns smaller size')
+    st.end()
   })
 
   t.test('request size with only larger existing', (st) => {
@@ -410,7 +417,9 @@ test('getBestVariant() - specify size', (t) => {
     )
 
     st.deepEqual(result, mediumVariant, 'returns closest larger size')
+    st.end()
   })
+  t.end()
 })
 
 test('getBestVariant() - specify pixel density', (t) => {
@@ -460,6 +469,7 @@ test('getBestVariant() - specify pixel density', (t) => {
         `returns variant with desired pixel density (${pixelDensity})`
       )
     }
+    st.end()
   })
 
   t.test('request pixel density with only smaller existing', (st) => {
@@ -478,6 +488,7 @@ test('getBestVariant() - specify pixel density', (t) => {
     )
 
     st.deepEqual(result, density2Variant, 'returns closest smaller density')
+    st.end()
   })
 
   t.test(
@@ -498,6 +509,7 @@ test('getBestVariant() - specify pixel density', (t) => {
       )
 
       st.deepEqual(result, density1Variant, 'returns smaller density')
+      st.end()
     }
   )
 
@@ -517,7 +529,9 @@ test('getBestVariant() - specify pixel density', (t) => {
     )
 
     st.deepEqual(result, density2Variant, 'returns closest larger density')
+    st.end()
   })
+  t.end()
 })
 
 test('getBestVariant() - params prioritization', (t) => {
@@ -576,6 +590,7 @@ test('getBestVariant() - params prioritization', (t) => {
   )
 
   t.deepEqual(result, wantedSizeSvgVariant, 'mime type > size > pixel density')
+  t.end()
 })
 
 // TODO: The IconApi doesn't allow creating svg variants with a custom pixel density, so maybe can remove this test?
@@ -602,6 +617,7 @@ test('getBestVariant() - svg requests are not affected by pixel density', (t) =>
   )
 
   t.deepEqual(result, variant1)
+  t.end()
 })
 
 // TODO: Currently fails. Not sure if we'd run into this situation often in reality
@@ -635,6 +651,7 @@ test(
     )
 
     t.deepEqual(result, variantA)
+    t.end()
   }
 )
 
@@ -667,6 +684,7 @@ test('constructIconPath() - bad inputs', (t) => {
   for (const [input, message] of fixtures) {
     rejects(t, () => constructIconPath(input), message)
   }
+  t.end()
 })
 
 test('constructIconPath() - good inputs', (t) => {
@@ -693,6 +711,7 @@ test('constructIconPath() - good inputs', (t) => {
   for (const [input, expected, message] of fixtures) {
     t.is(constructIconPath(input), expected, message)
   }
+  t.end()
 })
 
 /**

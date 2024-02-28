@@ -8,4 +8,5 @@ test('remote bitfield - findFirst', function (t) {
   b.set(1000000, true)
 
   t.is(b.findFirst(true, 0), 1000000)
+  t.end()
 })

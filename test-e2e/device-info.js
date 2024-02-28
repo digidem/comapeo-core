@@ -137,4 +137,5 @@ test('device info written to projects', (t) => {
   })
 
   // TODO: Test closing project, changing name, and getting project to see if device info for project is updated
+  t.end()
 })

@@ -249,6 +249,7 @@ test('deriveState() scenarios', (t) => {
     })
     t.deepEqual(derivedState, expected, message)
   }
+  t.end()
 })
 
 test('deriveState() have at index beyond bitfield page size', (t) => {
@@ -281,6 +282,7 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
     },
   }
   t.deepEqual(deriveState(state), expected)
+  t.end()
 })
 
 test('CoreReplicationState', async (t) => {
@@ -354,6 +356,7 @@ test('bitCount32', (t) => {
     const expected = slowBitCount(n)
     t.is(actual, expected, `${n.toString(2)} has ${expected} bit(s) set`)
   }
+  t.end()
 })
 
 // This takes several hours to run on my M2 Macbook Pro (it's the slowBitCount

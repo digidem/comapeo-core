@@ -58,6 +58,7 @@ test('Expected table config', (t) => {
       t.is(columnConfig.default, expectedDefault, 'Default is correct')
     }
   }
+  t.end()
 })
 
 /**
@@ -100,6 +101,7 @@ test('Types match', { skip: true }, (t) => {
   const f = deNullify(fResult)
 
   t.pass()
+  t.end()
 })
 
 test('backlink table exists for every indexed data type', (t) => {
@@ -125,4 +127,5 @@ test('backlink table exists for every indexed data type', (t) => {
       `backlink table for ${name}`
     )
   }
+  t.end()
 })

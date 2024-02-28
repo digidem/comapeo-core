@@ -27,6 +27,7 @@ test('Valid coreOwnership record', (t) => {
     'identitySignature' in mappedDoc,
     'identitySignature is stripped from mapped doc'
   )
+  t.end()
 })
 
 test('Invalid coreOwnership signatures', (t) => {
@@ -49,6 +50,7 @@ test('Invalid coreOwnership signatures', (t) => {
     identitySignature: randomBytes(sodium.crypto_sign_BYTES),
   }
   rejects(t, () => mapAndValidateCoreOwnership(invalidDoc, version))
+  t.end()
 })
 
 test('Invalid coreOwnership docId and coreIds', (t) => {
@@ -68,6 +70,7 @@ test('Invalid coreOwnership docId and coreIds', (t) => {
     docId: randomBytes(32).toString('hex'),
   }
   rejects(t, () => mapAndValidateCoreOwnership(invalidDoc, version))
+  t.end()
 })
 
 test('Invalid coreOwnership docId and coreIds (wrong length)', (t) => {
@@ -87,6 +90,7 @@ test('Invalid coreOwnership docId and coreIds (wrong length)', (t) => {
     docId: validDoc.docId.slice(0, -1),
   }
   rejects(t, () => mapAndValidateCoreOwnership(invalidDoc, version))
+  t.end()
 })
 
 test('Invalid - different coreKey', (t) => {
@@ -96,6 +100,7 @@ test('Invalid - different coreKey', (t) => {
     coreDiscoveryKey: discoveryKey(randomBytes(32)),
   }
   rejects(t, () => mapAndValidateCoreOwnership(validDoc, version))
+  t.end()
 })
 
 test('getWinner (coreOwnership)', (t) => {
@@ -113,6 +118,7 @@ test('getWinner (coreOwnership)', (t) => {
 
   t.is(getWinner(docA, docB), docA, 'Doc with lowest index picked as winner')
   t.is(getWinner(docB, docA), docA, 'Doc with lowest index picked as winner')
+  t.end()
 })
 
 test('getWinner (default)', (t) => {
@@ -137,6 +143,7 @@ test('getWinner (default)', (t) => {
 
   t.is(getWinner(docA, docB), docA, 'Deterministic winner if same updatedAt')
   t.is(getWinner(docB, docA), docA, 'Deterministic winner if same updatedAt')
+  t.end()
 })
 
 function generateValidDoc() {

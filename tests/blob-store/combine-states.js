@@ -40,6 +40,7 @@ test('expected combined state, no error or abort', (t) => {
       t.deepEqual(combineStates(permuted), expectedState)
     }
   }
+  t.end()
 })
 
 test('expected combined state, with error', (t) => {
@@ -51,6 +52,7 @@ test('expected combined state, with error', (t) => {
       t.deepEqual(combineStates(permuted), expectedState)
     }
   }
+  t.end()
 })
 
 test('expected combined state, with abort', (t) => {
@@ -64,6 +66,7 @@ test('expected combined state, with abort', (t) => {
       t.deepEqual(combineStates(permuted, { signal }), expectedState)
     }
   }
+  t.end()
 })
 
 test('arithmetic test', (t) => {
@@ -93,6 +96,7 @@ test('arithmetic test', (t) => {
     }
   })
   t.deepEqual(combineStates(inputs), expected)
+  t.end()
 })
 
 /**

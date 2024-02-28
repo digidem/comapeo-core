@@ -6,6 +6,7 @@ import { assert, ExhaustivenessError, setHas } from '../src/utils.js'
 test('assert()', (t) => {
   t.doesNotThrow(() => assert(true, 'should work'))
   rejects(t, () => assert(false, 'uh oh'), /uh oh/)
+  t.end()
 })
 
 test('ExhaustivenessError', (t) => {
@@ -21,10 +22,12 @@ test('ExhaustivenessError', (t) => {
       }
     })
   })
+  t.end()
 })
 
 test('setHas()', (t) => {
   const set = new Set([1, 2, 3])
   t.ok(setHas(set)(1))
   t.notOk(setHas(set)(9))
+  t.end()
 })

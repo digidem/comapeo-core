@@ -31,8 +31,20 @@ test('with options', { skip: true }, (t) => {
   t.alike(1, 1)
 })
 
+test('has plan', (t) => {
+  t.plan(2)
+})
+
+test('already ended', (t) => {
+  t.end()
+})
+
 test('subtests', (t) => {
-  t.test('subtest', async (st) => {
+  t.test('sync subtest', (st) => {
+    st.alike(1, 1)
+  })
+
+  t.test('async subtest', async (st) => {
     st.alike(1, 1)
     st.unlike(1, 2, 'subtest message')
 
@@ -43,12 +55,3 @@ test('subtests', (t) => {
     await st.exception.all(async () => {})
   })
 })
-
-/*
-t.alike ~> t.deepEqual
-t.unlike ~> t.notDeepEqual
-t.absent -> t.notOk
-t.exception ~> t.throws (doesn't work for promises)
-t.exception.all ~> t.throws (doesn't work for promises)
-t.execution ~> t.doesNotThrow
-*/
