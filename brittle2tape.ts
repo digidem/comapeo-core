@@ -23,12 +23,6 @@ const TEST_HELPER_ASSERTIONS_JS_PATH = path.join(
   'assertions.js'
 )
 
-// TODO: Remove this?
-// TODO: can we make this an arrow function?
-// function assert(condition: boolean): asserts condition is true {
-//   if (!condition) throw new Error('assertion error')
-// }
-
 const isFunctionExpression = (
   value: undefined | Expression
 ): value is FunctionExpression | ArrowFunctionExpression =>

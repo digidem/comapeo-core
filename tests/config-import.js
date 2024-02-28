@@ -137,6 +137,7 @@ test('config import - icons', async (t) => {
   )
 
   config = await readConfig('./tests/fixtures/config/validIcons.zip')
+  // TODO(evanhahn): fix this plan
   t.plan(15) // 2 icon assertions + (3+9) variant assertions + 1 no warnings
   for await (const icon of config.icons()) {
     if (icon.name === 'plant') {

@@ -10,6 +10,8 @@ import {
 } from '../helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 
+// TODO(evanhahn) Fix this file
+
 test('sync cores in a namespace', async function (t) {
   t.plan(2)
   const projectKeyPair = KeyManager.generateProjectKeypair()
