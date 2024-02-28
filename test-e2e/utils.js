@@ -157,7 +157,7 @@ export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
  *
  * @template {number} T
  * @param {T} count
- * @param {import('brittle').TestInstance} t
+ * @param {import('tape').Test} t
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
@@ -177,7 +177,7 @@ export async function createManagers(count, t, deviceType) {
 
 /**
  * @param {string} seed
- * @param {import('brittle').TestInstance} t
+ * @param {import('tape').Test} t
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
  */
 export function createManager(seed, t, deviceType) {
