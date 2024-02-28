@@ -73,7 +73,7 @@ test('Expected table config', (t) => {
  */
 
 test('Types match', { skip: true }, (t) => {
-  // No brittle tests here, it's the typescript that must pass
+  // No tests here, it's the typescript that must pass
   // This fails at runtime anyway because we don't create tables in the db
 
   const sqlite = new Database(':memory:')

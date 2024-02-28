@@ -249,27 +249,30 @@ test('Managing added projects', async (t) => {
     st.notOk(listedProject2?.updatedAt)
   })
 
-  // TODO: Ideally would use the todo opt but usage in a subtest doesn't work:  https://github.com/holepunchto/brittle/issues/39
-  // t.test('initial settings from project instances', async (t) => {
-  //   const project1 = await manager.getProject(project1Id)
-  //   const project2 = await manager.getProject(project2Id)
+  t.test(
+    'initial settings from project instances',
+    { skip: true },
+    async (t) => {
+      const project1 = await manager.getProject(project1Id)
+      const project2 = await manager.getProject(project2Id)
 
-  //   t.ok(project1)
-  //   t.ok(project2)
+      t.ok(project1)
+      t.ok(project2)
 
-  //   const settings1 = await project1.$getProjectSettings()
-  //   const settings2 = await project2.$getProjectSettings()
+      const settings1 = await project1.$getProjectSettings()
+      const settings2 = await project2.$getProjectSettings()
 
-  //   t.alike(settings1, {
-  //     name: 'project 1',
-  //     defaultPresets: undefined,
-  //   })
+      t.deepEqual(settings1, {
+        name: 'project 1',
+        defaultPresets: undefined,
+      })
 
-  //   t.alike(settings2, {
-  //     name: 'project 2',
-  //     defaultPresets: undefined,
-  //   })
-  // })
+      t.deepEqual(settings2, {
+        name: 'project 2',
+        defaultPresets: undefined,
+      })
+    }
+  )
 })
 
 test('Managing both created and added projects', async (t) => {
