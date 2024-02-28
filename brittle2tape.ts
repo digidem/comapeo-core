@@ -5,6 +5,11 @@ import type {
   MemberExpression,
 } from 'jscodeshift'
 
+// TODO: can we make this an arrow function?
+function assert(condition: boolean): asserts condition is true {
+  if (!condition) throw new Error('assertion error')
+}
+
 /**
  * Convert all `brittle` imports to `tape` imports.
  */
@@ -60,6 +65,7 @@ const rewriteExceptionAll = (j: JSCodeshift, root: Collection<any>) => {
       property: { name: 'all' },
     })
     .forEach((memberExpression) => {
+      assert(memberExpression.value.object.type === 'MemberExpression')
       memberExpression.value.object = (
         memberExpression.value.object as MemberExpression
       ).object
@@ -76,6 +82,28 @@ const rewriteExceptionAll = (j: JSCodeshift, root: Collection<any>) => {
  */
 const rewriteExceptions = (j: JSCodeshift, root: Collection<any>) => {
   rewriteExceptionAll(j, root)
+
+  root
+    .find(j.CallExpression, {
+      callee: {
+        type: 'MemberExpression',
+        property: { name: 'exception' },
+      },
+    })
+    .forEach((callExpression) => {
+      switch (callExpression.value.arguments[0]?.type) {
+        case undefined:
+        case 'FunctionExpression':
+        case 'ArrowFunctionExpression':
+          assert(callExpression.value.callee.type === 'MemberExpression')
+          ;(callExpression.value.callee as MemberExpression).property =
+            j.identifier('throws')
+          break
+        default:
+          // TODO
+          break
+      }
+    })
 }
 
 const transform: Transform = (fileInfo, api) => {
