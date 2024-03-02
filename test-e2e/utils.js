@@ -244,7 +244,7 @@ export function round(value, decimalPlaces) {
  * @param {'initial' | 'full'} [type]
  */
 async function waitForProjectSync(project, peerIds, type = 'initial') {
-  const state = await project.$sync[kSyncState].getState()
+  const state = project.$sync[kSyncState].getState()
   if (hasPeerIds(state.auth.remoteStates, peerIds)) {
     return project.$sync.waitForSync(type)
   }

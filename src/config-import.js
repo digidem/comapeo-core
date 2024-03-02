@@ -95,7 +95,11 @@ export async function readConfig(configPath) {
             }
           }
         } catch (err) {
-          warnings.push(err)
+          warnings.push(
+            err instanceof Error
+              ? err
+              : new Error('Unknown error importing icon')
+          )
         }
       }
       if (icon) {
