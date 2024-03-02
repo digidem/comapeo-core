@@ -1,3 +1,4 @@
+// @ts-check
 import test from 'brittle'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
@@ -21,7 +22,7 @@ test('invite-received event has expected payload', async (t) => {
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async (projectId) => {
+      isMember: (projectId) => {
         return projects.has(projectId)
       },
       addProject: async (invite) => {
@@ -76,7 +77,7 @@ test('Accept invite', async (t) => {
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async (projectId) => {
+      isMember: (projectId) => {
         const projectKey = Buffer.from(projectId, 'hex')
         return projects.has(projectKeyToPublicId(projectKey))
       },
@@ -124,7 +125,7 @@ test('Reject invite', async (t) => {
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async (projectId) => {
+      isMember: (projectId) => {
         const projectKey = Buffer.from(projectId, 'hex')
         return projects.has(projectKeyToPublicId(projectKey))
       },
@@ -171,7 +172,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     const inviteApi = new InviteApi({
       rpc: r2,
       queries: {
-        isMember: async () => {
+        isMember: () => {
           return true
         },
         addProject: async () => {
@@ -219,7 +220,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       const inviteApi = new InviteApi({
         rpc: r2,
         queries: {
-          isMember: async () => {
+          isMember: () => {
             return isMember
           },
           addProject: async () => {
@@ -269,7 +270,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     const inviteApi = new InviteApi({
       rpc: r2,
       queries: {
-        isMember: async (projectId) => {
+        isMember: (projectId) => {
           return projects.has(projectId)
         },
         addProject: async (invite) => {
@@ -313,7 +314,7 @@ test('trying to accept or reject non-existent invite throws', async (t) => {
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: async () => true,
+      isMember: () => true,
       addProject: async () => {},
     },
   })
@@ -335,7 +336,7 @@ test('invitor disconnecting results in accept throwing', async (t) => {
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async () => false,
+      isMember: () => false,
       addProject: async () => {
         t.fail('should not try to add project if could not accept')
       },
@@ -377,7 +378,7 @@ test('invitor disconnecting results in invite reject response not throwing', asy
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async () => false,
+      isMember: () => false,
       addProject: async () => {},
     },
   })
@@ -419,7 +420,7 @@ test('invitor disconnecting results in invite already response not throwing', as
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async () => {
+      isMember: () => {
         return isMember
       },
       addProject: async () => {},
@@ -462,7 +463,7 @@ test('addProject throwing results in invite accept throwing', async (t) => {
   const inviteApi = new InviteApi({
     rpc: r2,
     queries: {
-      isMember: async () => false,
+      isMember: () => false,
       addProject: async () => {
         throw new Error('Failed to add project')
       },
@@ -502,7 +503,7 @@ test('Invite from multiple peers', async (t) => {
   const inviteApi = new InviteApi({
     rpc: invitee,
     queries: {
-      isMember: async (projectId) => {
+      isMember: (projectId) => {
         const projectKey = Buffer.from(projectId, 'hex')
         return projects.has(projectKeyToPublicId(projectKey))
       },
@@ -569,7 +570,7 @@ test.skip('Invite from multiple peers, first disconnects before accepted, receiv
   const inviteApi = new InviteApi({
     rpc: invitee,
     queries: {
-      isMember: async (projectId) => {
+      isMember: (projectId) => {
         return projects.has(projectId)
       },
       addProject: async (invite) => {

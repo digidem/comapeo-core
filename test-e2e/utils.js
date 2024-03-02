@@ -13,6 +13,7 @@ import { temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
+import { readConfig } from '../src/config-import.js'
 
 const FAST_TESTS = !!process.env.FAST_TESTS
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -118,50 +119,37 @@ export async function invite({
  *
  * @param {readonly MapeoManager[]} managers
  * @param {{ waitForDeviceInfo?: boolean }} [opts] Optionally wait for device names to be set
+ * @returns {Promise<void>}
  */
-export async function waitForPeers(
-  managers,
-  { waitForDeviceInfo = false } = {}
-) {
-  const peerCounts = managers.map((manager) => {
-    return manager[kRPC].peers.filter(({ status }) => status === 'connected')
-      .length
-  })
-  const peersHaveNames = managers.map((manager) => {
-    return manager[kRPC].peers.every(({ name }) => !!name)
-  })
-  const expectedCount = managers.length - 1
-  return new Promise((res) => {
-    if (
-      peerCounts.every((v) => v === expectedCount) &&
-      (!waitForDeviceInfo || peersHaveNames.every((v) => v))
-    ) {
-      return res(null)
-    }
-    for (const [idx, manager] of managers.entries()) {
-      manager.on('local-peers', function onPeers(peers) {
-        const connectedPeerCount = peers.filter(
+export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
+  new Promise((res) => {
+    const expectedCount = managers.length - 1
+    const isDone = () =>
+      managers.every((manager) => {
+        const { peers } = manager[kRPC]
+        const connectedPeers = peers.filter(
           ({ status }) => status === 'connected'
-        ).length
-        const allHaveNames = peers.every(({ name }) => !!name)
-        peerCounts[idx] = connectedPeerCount
-        peersHaveNames[idx] = allHaveNames
-        if (
-          connectedPeerCount === expectedCount &&
-          (!waitForDeviceInfo || allHaveNames)
-        ) {
-          manager.off('local-peers', onPeers)
-        }
-        if (
-          peerCounts.every((v) => v === expectedCount) &&
-          (!waitForDeviceInfo || peersHaveNames.every((v) => v))
-        ) {
-          res(null)
-        }
+        )
+        return (
+          connectedPeers.length === expectedCount &&
+          (!waitForDeviceInfo || connectedPeers.every(({ name }) => !!name))
+        )
       })
+
+    if (isDone()) {
+      res()
+      return
     }
+
+    const onLocalPeers = () => {
+      if (isDone()) {
+        for (const manager of managers) manager.off('local-peers', onLocalPeers)
+        res()
+      }
+    }
+
+    for (const manager of managers) manager.on('local-peers', onLocalPeers)
   })
-}
 
 /**
  * Create `count` manager instances. Each instance has a deterministic identity
@@ -256,7 +244,7 @@ export function round(value, decimalPlaces) {
  * @param {'initial' | 'full'} [type]
  */
 async function waitForProjectSync(project, peerIds, type = 'initial') {
-  const state = await project.$sync[kSyncState].getState()
+  const state = project.$sync[kSyncState].getState()
   if (hasPeerIds(state.auth.remoteStates, peerIds)) {
     return project.$sync.waitForSync(type)
   }
@@ -343,6 +331,29 @@ export function sortBy(arr, key) {
     if (a[key] > b[key]) return 1
     return 0
   })
+}
+
+/** @param {String} path */
+export async function getExpectedConfig(path) {
+  const config = await readConfig(path)
+  let presets = []
+  let fields = []
+  let icons = []
+  for (let preset of config.presets()) {
+    presets.push(preset)
+  }
+  for (let field of config.fields()) {
+    fields.push(field)
+  }
+  for await (let icon of config.icons()) {
+    icons.push(icon)
+  }
+
+  return {
+    presets,
+    fields,
+    icons,
+  }
 }
 
 /** @param {import('@mapeo/schema').MapeoDoc[]} docs */

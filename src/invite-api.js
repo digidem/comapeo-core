@@ -49,7 +49,7 @@ export class InviteApi extends TypedEmitter {
    * @param {Object} options
    * @param {import('./local-peers.js').LocalPeers} options.rpc
    * @param {object} options.queries
-   * @param {(projectId: string) => Promise<boolean>} options.queries.isMember
+   * @param {(projectId: string) => boolean} options.queries.isMember
    * @param {(invite: import('./generated/rpc.js').Invite) => Promise<void>} options.queries.addProject
    */
   constructor({ rpc, queries }) {
@@ -58,21 +58,16 @@ export class InviteApi extends TypedEmitter {
     this.#isMember = queries.isMember
     this.#addProject = queries.addProject
 
-    this.rpc.on('invite', (peerId, invite) => {
-      this.#handleInvite(peerId, invite).catch(() => {
-        /* c8 ignore next */
-        // TODO: Log errors, but otherwise ignore them, but can't think of a reason there would be an error here
-      })
-    })
+    this.rpc.on('invite', this.#handleInvite)
   }
 
   /**
    * @param {string} peerId
    * @param {import('./generated/rpc.js').Invite} invite
    */
-  async #handleInvite(peerId, invite) {
+  #handleInvite = (peerId, invite) => {
     const projectId = projectKeyToId(invite.projectKey)
-    const isAlreadyMember = await this.#isMember(projectId)
+    const isAlreadyMember = this.#isMember(projectId)
 
     if (isAlreadyMember) {
       this.#sendAlreadyResponse({ peerId, projectId })
@@ -107,7 +102,7 @@ export class InviteApi extends TypedEmitter {
   async accept(projectPublicId) {
     const projectId = this.#getProjectIdFromPublicId(projectPublicId)
 
-    const isAlreadyMember = await this.#isMember(projectId)
+    const isAlreadyMember = this.#isMember(projectId)
     const peersToRespondTo = this.#peersToRespondTo.get(projectId)
 
     if (isAlreadyMember) {

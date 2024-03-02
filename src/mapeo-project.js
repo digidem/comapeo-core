@@ -742,8 +742,8 @@ function extractEditableProjectSettings(projectDoc) {
 /** @param {DataType<any,any,any,any,any>} dataType */
 async function deleteAll(dataType) {
   const deletions = []
-  for (const { versionId } of await dataType.getMany()) {
-    deletions.push(dataType.delete(versionId))
+  for (const { docId } of await dataType.getMany()) {
+    deletions.push(dataType.delete(docId))
   }
   return Promise.all(deletions)
 }

@@ -143,6 +143,7 @@ export class SyncApi extends TypedEmitter {
 
   /**
    * @param {SyncType} type
+   * @returns {Promise<void>}
    */
   async waitForSync(type) {
     const state = this[kSyncState].getState()
@@ -153,7 +154,7 @@ export class SyncApi extends TypedEmitter {
       this[kSyncState].on('state', function onState(state) {
         if (!isSynced(state, namespaces, _this.#peerSyncControllers)) return
         _this[kSyncState].off('state', onState)
-        res(null)
+        res()
       })
     })
   }
