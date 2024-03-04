@@ -86,7 +86,7 @@
     "cpy": "^10.1.0",
     "cpy-cli": "^5.0.0",
     "drizzle-kit": "^0.19.12",
-    "eslint": "^8.39.0",
+    "eslint": "^8.57.0",
     "husky": "^8.0.0",
     "light-my-request": "^5.10.0",
     "lint-staged": "^14.0.1",
