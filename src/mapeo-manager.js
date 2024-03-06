@@ -695,26 +695,21 @@ export class MapeoManager extends TypedEmitter {
       })
       .run()
 
-    const updateOwnDeviceInfo = async () => {
-      const listedProjects = await this.listProjects()
-      await Promise.all(
-        listedProjects.map(async ({ projectId }) => {
-          const project = await this.getProject(projectId)
-          await project[kSetOwnDeviceInfo](deviceInfo)
-        })
-      )
-    }
+    const listedProjects = await this.listProjects()
+    await Promise.all(
+      listedProjects.map(async ({ projectId }) => {
+        const project = await this.getProject(projectId)
+        await project[kSetOwnDeviceInfo](deviceInfo)
+      })
+    )
 
-    const tellLocalPeersAboutDeviceInfo = () =>
-      Promise.all(
-        this.#localPeers.peers
-          .filter(({ status }) => status === 'connected')
-          .map((peer) =>
-            this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfo)
-          )
-      )
-
-    await Promise.all([updateOwnDeviceInfo(), tellLocalPeersAboutDeviceInfo()])
+    await Promise.all(
+      this.#localPeers.peers
+        .filter(({ status }) => status === 'connected')
+        .map((peer) =>
+          this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfo)
+        )
+    )
 
     this.#l.log('set device info %o', deviceInfo)
   }
