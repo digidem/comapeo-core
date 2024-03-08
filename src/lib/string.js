@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Returns `true` if the string only contains whitespace, `false` otherwise.
+ * Returns `true` if the string is empty or only contains whitespace, `false` otherwise.
  *
  * @param {string} str
  * @returns {boolean}
