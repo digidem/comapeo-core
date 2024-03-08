@@ -150,7 +150,7 @@ export class InviteApi extends TypedEmitter {
    * @param {import('./local-peers.js').LocalPeers} options.rpc
    * @param {object} options.queries
    * @param {(projectId: string) => boolean} options.queries.isMember
-   * @param {(projectDetails: Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys' | 'projectName'>) => Promise<unknown>} options.queries.addProject
+   * @param {(projectDetails: Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string }) => Promise<unknown>} options.queries.addProject
    */
   constructor({ rpc, queries }) {
     super()
@@ -220,7 +220,7 @@ export class InviteApi extends TypedEmitter {
     }
 
     const { peerId, invite } = pendingInvite
-    const { projectPublicId } = invite
+    const { projectName, projectPublicId } = invite
 
     const removePendingInvite = () => {
       const didDelete = this.#pendingInvites.deleteByInviteId(inviteId)
@@ -280,7 +280,7 @@ export class InviteApi extends TypedEmitter {
     const details = await projectDetailsPromise
 
     try {
-      await this.#addProject(details)
+      await this.#addProject({ ...details, projectName })
     } catch (e) {
       removePendingInvite()
       // TODO: Add a reason for the user

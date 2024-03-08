@@ -218,7 +218,7 @@ export var InviteResponse = {
     },
 };
 function createBaseProjectJoinDetails() {
-    return { inviteId: Buffer.alloc(0), projectKey: Buffer.alloc(0), encryptionKeys: undefined, projectName: "" };
+    return { inviteId: Buffer.alloc(0), projectKey: Buffer.alloc(0), encryptionKeys: undefined };
 }
 export var ProjectJoinDetails = {
     encode: function (message, writer) {
@@ -231,9 +231,6 @@ export var ProjectJoinDetails = {
         }
         if (message.encryptionKeys !== undefined) {
             EncryptionKeys.encode(message.encryptionKeys, writer.uint32(26).fork()).ldelim();
-        }
-        if (message.projectName !== "") {
-            writer.uint32(34).string(message.projectName);
         }
         return writer;
     },
@@ -262,12 +259,6 @@ export var ProjectJoinDetails = {
                     }
                     message.encryptionKeys = EncryptionKeys.decode(reader, reader.uint32());
                     continue;
-                case 4:
-                    if (tag !== 34) {
-                        break;
-                    }
-                    message.projectName = reader.string();
-                    continue;
             }
             if ((tag & 7) === 4 || tag === 0) {
                 break;
@@ -280,14 +271,13 @@ export var ProjectJoinDetails = {
         return ProjectJoinDetails.fromPartial(base !== null && base !== void 0 ? base : {});
     },
     fromPartial: function (object) {
-        var _a, _b, _c;
+        var _a, _b;
         var message = createBaseProjectJoinDetails();
         message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
         message.projectKey = (_b = object.projectKey) !== null && _b !== void 0 ? _b : Buffer.alloc(0);
         message.encryptionKeys = (object.encryptionKeys !== undefined && object.encryptionKeys !== null)
             ? EncryptionKeys.fromPartial(object.encryptionKeys)
             : undefined;
-        message.projectName = (_c = object.projectName) !== null && _c !== void 0 ? _c : "";
         return message;
     },
 };

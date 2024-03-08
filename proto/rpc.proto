@@ -25,7 +25,6 @@ message ProjectJoinDetails {
   bytes inviteId = 1;
   bytes projectKey = 2;
   EncryptionKeys encryptionKeys = 3;
-  string projectName = 4;
 }
 
 message DeviceInfo {

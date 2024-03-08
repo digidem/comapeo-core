@@ -26,7 +26,6 @@ export interface ProjectJoinDetails {
     inviteId: Buffer;
     projectKey: Buffer;
     encryptionKeys: EncryptionKeys | undefined;
-    projectName: string;
 }
 export interface DeviceInfo {
     name: string;
@@ -106,7 +105,6 @@ export declare const ProjectJoinDetails: {
             blobIndex?: Buffer;
             blob?: Buffer;
         };
-        projectName?: string;
     } & {
         inviteId?: Buffer;
         projectKey?: Buffer;
@@ -123,7 +121,6 @@ export declare const ProjectJoinDetails: {
             blobIndex?: Buffer;
             blob?: Buffer;
         } & { [K in Exclude<keyof I["encryptionKeys"], keyof EncryptionKeys>]: never; };
-        projectName?: string;
     } & { [K_1 in Exclude<keyof I, keyof ProjectJoinDetails>]: never; }>(base?: I): ProjectJoinDetails;
     fromPartial<I_1 extends {
         inviteId?: Buffer;
@@ -135,7 +132,6 @@ export declare const ProjectJoinDetails: {
             blobIndex?: Buffer;
             blob?: Buffer;
         };
-        projectName?: string;
     } & {
         inviteId?: Buffer;
         projectKey?: Buffer;
@@ -152,7 +148,6 @@ export declare const ProjectJoinDetails: {
             blobIndex?: Buffer;
             blob?: Buffer;
         } & { [K_2 in Exclude<keyof I_1["encryptionKeys"], keyof EncryptionKeys>]: never; };
-        projectName?: string;
     } & { [K_3 in Exclude<keyof I_1, keyof ProjectJoinDetails>]: never; }>(object: I_1): ProjectJoinDetails;
 };
 export declare const DeviceInfo: {

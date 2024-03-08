@@ -82,13 +82,11 @@ test('sending and receiving project join details', async (t) => {
     inviteId: testInviteId(),
     projectKey: testProjectKey(),
     encryptionKeys: { auth: randomBytes(16) },
-    projectName: 'Mapeo Project',
   }
   const invalidProjectJoinDetails = [
     { ...validProjectJoinDetails, inviteId: testInviteId().slice(0, 31) },
     { ...validProjectJoinDetails, projectKey: Buffer.alloc(0) },
     { ...validProjectJoinDetails, encryptionKeys: { auth: Buffer.alloc(0) } },
-    { ...validProjectJoinDetails, projectName: '' },
   ]
 
   r1.on('peers', async (peers) => {
@@ -141,7 +139,6 @@ test('messages to unknown peers', async (t) => {
       inviteId: testInviteId(),
       projectKey: testProjectKey(),
       encryptionKeys: { auth: randomBytes(16) },
-      projectName: 'Mapeo Project',
     }),
     UnknownPeerError
   )

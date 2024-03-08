@@ -207,7 +207,6 @@ export class MemberApi extends TypedEmitter {
             inviteId,
             projectKey: this.#projectKey,
             encryptionKeys: this.#encryptionKeys,
-            projectName,
           })
 
           return inviteResponse.decision

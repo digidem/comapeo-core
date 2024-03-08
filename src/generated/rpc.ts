@@ -61,7 +61,6 @@ export interface ProjectJoinDetails {
   inviteId: Buffer;
   projectKey: Buffer;
   encryptionKeys: EncryptionKeys | undefined;
-  projectName: string;
 }
 
 export interface DeviceInfo {
@@ -267,7 +266,7 @@ export const InviteResponse = {
 };
 
 function createBaseProjectJoinDetails(): ProjectJoinDetails {
-  return { inviteId: Buffer.alloc(0), projectKey: Buffer.alloc(0), encryptionKeys: undefined, projectName: "" };
+  return { inviteId: Buffer.alloc(0), projectKey: Buffer.alloc(0), encryptionKeys: undefined };
 }
 
 export const ProjectJoinDetails = {
@@ -280,9 +279,6 @@ export const ProjectJoinDetails = {
     }
     if (message.encryptionKeys !== undefined) {
       EncryptionKeys.encode(message.encryptionKeys, writer.uint32(26).fork()).ldelim();
-    }
-    if (message.projectName !== "") {
-      writer.uint32(34).string(message.projectName);
     }
     return writer;
   },
@@ -315,13 +311,6 @@ export const ProjectJoinDetails = {
 
           message.encryptionKeys = EncryptionKeys.decode(reader, reader.uint32());
           continue;
-        case 4:
-          if (tag !== 34) {
-            break;
-          }
-
-          message.projectName = reader.string();
-          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -341,7 +330,6 @@ export const ProjectJoinDetails = {
     message.encryptionKeys = (object.encryptionKeys !== undefined && object.encryptionKeys !== null)
       ? EncryptionKeys.fromPartial(object.encryptionKeys)
       : undefined;
-    message.projectName = object.projectName ?? "";
     return message;
   },
 };

@@ -164,7 +164,6 @@ test('Accept invite', async (t) => {
     rpc.emit('got-project-details', invitorPeerId, {
       inviteId: invite.inviteId,
       projectKey,
-      projectName: invite.projectName,
       encryptionKeys,
     })
   })
@@ -181,55 +180,6 @@ test('Accept invite', async (t) => {
   const [removedInvite] = await inviteRemovedPromise
   t.alike(removedInvite, inviteExternal, 'invite was removed')
   t.alike(inviteApi.getPending(), [], 'no invites remain')
-})
-
-test('can receive a different project name at the final step of the invite', async (t) => {
-  const {
-    rpc,
-    invitorPeerId,
-    invite,
-    inviteExternal,
-    projectKey,
-    encryptionKeys,
-  } = setup()
-
-  let finalProjectName = 'unset'
-  const inviteApi = new InviteApi({
-    rpc,
-    queries: {
-      isMember: () => false,
-      addProject: async ({ projectName }) => {
-        finalProjectName = projectName
-      },
-    },
-  })
-
-  const inviteReceivedPromise = once(inviteApi, 'invite-received')
-
-  // Invitor: send the invite
-
-  rpc.emit('invite', invitorPeerId, invite)
-
-  // Invitee: receive the invite
-
-  await inviteReceivedPromise
-
-  // Invitor: prepare to share project join details upon acceptance
-
-  rpc.once('invite-response', () => {
-    rpc.emit('got-project-details', invitorPeerId, {
-      inviteId: invite.inviteId,
-      projectKey,
-      projectName: 'NEW project name!',
-      encryptionKeys,
-    })
-  })
-
-  // Invitee: accept
-
-  await inviteApi.accept(inviteExternal)
-
-  t.is(finalProjectName, 'NEW project name!')
 })
 
 test('Reject invite', async (t) => {
@@ -484,7 +434,6 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
         rpc.emit('got-project-details', invitor1PeerId, {
           inviteId: invite.inviteId,
           projectKey,
-          projectName: invite.projectName,
           encryptionKeys,
         })
       } else {
@@ -637,7 +586,6 @@ test('throws when quickly double-accepting the same invite', async (t) => {
     rpc.emit('got-project-details', invitorPeerId, {
       inviteId: invite.inviteId,
       projectKey,
-      projectName: invite.projectName,
       encryptionKeys,
     })
   })
@@ -707,7 +655,6 @@ test('throws when quickly accepting two invites for the same project', async (t)
     rpc.emit('got-project-details', invitorPeerId, {
       inviteId: invite1.inviteId,
       projectKey,
-      projectName: invite1.projectName,
       encryptionKeys,
     })
   })
@@ -765,7 +712,6 @@ test('receiving project join details from an unknown peer is a no-op', async (t)
     rpc.emit('got-project-details', bogusPeerId, {
       inviteId: invite.inviteId,
       projectKey,
-      projectName: invite.projectName,
       encryptionKeys,
     })
   })
@@ -831,7 +777,6 @@ test('receiving project join details for an unknown invite ID is a no-op', async
     rpc.emit('got-project-details', invitorPeerId, {
       inviteId: randomBytes(32),
       projectKey,
-      projectName: invite.projectName,
       encryptionKeys,
     })
   })
@@ -1007,7 +952,6 @@ test('failures to add project cause accept() to reject and invite to be removed'
       rpc.emit('got-project-details', invitorPeerId, {
         inviteId: invite.inviteId,
         projectKey,
-        projectName: invite.projectName,
         encryptionKeys,
       })
     }

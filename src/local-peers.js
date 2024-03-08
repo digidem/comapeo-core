@@ -620,7 +620,6 @@ function isProjectJoinDetailsValid(details) {
   return (
     isInviteIdValid(details.inviteId) &&
     details.projectKey.length > 0 &&
-    details.projectName.length > 0 &&
     Boolean(details.encryptionKeys?.auth?.byteLength)
   )
 }
