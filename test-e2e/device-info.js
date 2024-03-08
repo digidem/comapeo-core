@@ -1,9 +1,11 @@
 // @ts-check
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
+import { once } from 'node:events'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
+import { connectPeers, createManagers, waitForPeers } from './utils.js'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
 
@@ -26,12 +28,12 @@ test('write and read deviceInfo', async (t) => {
 
   const info1 = { name: 'my device' }
   await manager.setDeviceInfo(info1)
-  const readInfo1 = await manager.getDeviceInfo()
+  const readInfo1 = manager.getDeviceInfo()
   const expected1 = { ...info1, deviceId: manager.deviceId }
   t.alike(readInfo1, expected1)
   const info2 = { name: 'new name' }
   await manager.setDeviceInfo(info2)
-  const readInfo2 = await manager.getDeviceInfo()
+  const readInfo2 = manager.getDeviceInfo()
   const expected2 = { ...info2, deviceId: manager.deviceId }
   t.alike(readInfo2, expected2)
 })
@@ -138,4 +140,32 @@ test('device info written to projects', (t) => {
   })
 
   // TODO: Test closing project, changing name, and getting project to see if device info for project is updated
+})
+
+test('device info sent to peers', async (t) => {
+  const managers = await createManagers(3, t)
+  const disconnectPeers = connectPeers(managers, { discovery: true })
+  t.teardown(disconnectPeers)
+  await waitForPeers(managers, { waitForDeviceInfo: true })
+
+  const managerThatChangesName = managers[0]
+  const otherManagers = managers.slice(1)
+
+  /** @param {{ deviceId: string }} peer */
+  const isChangedPeer = (peer) =>
+    peer.deviceId === managerThatChangesName.deviceId
+
+  const otherManagersReceivedNameChangePromise = Promise.all(
+    otherManagers.map(async (manager) => {
+      const [peersFromEvent] = await once(manager, 'local-peers')
+      t.is(peersFromEvent.find(isChangedPeer)?.name, 'new name')
+
+      const updatedLocalPeers = await manager.listLocalPeers()
+      t.is(updatedLocalPeers.find(isChangedPeer)?.name, 'new name')
+    })
+  )
+
+  await managerThatChangesName.setDeviceInfo({ name: 'new name' })
+
+  await otherManagersReceivedNameChangePromise
 })
