@@ -243,6 +243,12 @@ export class InviteApi extends TypedEmitter {
       return
     }
 
+    assert(
+      !this.#pendingInvites.isAcceptingForProject(projectPublicId),
+      `Cannot double-accept invite for project ${projectPublicId}`
+    )
+    this.#pendingInvites.markAccepting(inviteId)
+
     const { promise: projectDetailsPromise, resolve: gotProjectDetails } =
       /** @type {typeof promiseWithResolvers<ProjectJoinDetails>} */
       (promiseWithResolvers)()
@@ -262,12 +268,6 @@ export class InviteApi extends TypedEmitter {
       this.rpc.off('got-project-details', onProjectDetails)
     }
     this.rpc.on('got-project-details', onProjectDetails)
-
-    assert(
-      !this.#pendingInvites.isAcceptingForProject(projectPublicId),
-      `Cannot double-accept invite for project ${projectPublicId}`
-    )
-    this.#pendingInvites.markAccepting(inviteId)
 
     try {
       await this.#sendAcceptResponse({ peerId, inviteId })
