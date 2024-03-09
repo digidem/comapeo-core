@@ -568,7 +568,7 @@ export class MapeoProject extends TypedEmitter {
       throw new Error('Cannot leave a project as a blocked device')
     }
 
-    const knownDevices = Object.keys(await this.#roles.getAll())
+    const knownDevices = Array.from((await this.#roles.getAll()).keys())
     const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
       this.#projectId
     )
