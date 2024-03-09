@@ -1,19 +1,40 @@
 // @ts-check
-import { promiseWithResolvers } from '../../src/ponyfills.js'
-import { assert } from '../../src/utils.js'
+import { assert, onceSatisfied } from '../../src/utils.js'
 
 /**
  * @internal
- * @typedef {import('node:events').EventEmitter} EventEmitter
+ * @template {import('tiny-typed-emitter').ListenerSignature<L>} L
+ * @typedef {import('tiny-typed-emitter').TypedEmitter<L>} TypedEmitter
+ */
+
+/**
+ * @internal
+ * @template {TypedEmitter<any>} T
+ * @typedef {import('../../src/utils_types.d.ts').TypedEvents<T>} TypedEvents
+ */
+
+/**
+ * @internal
+ * @template {TypedEmitter<any>} T
+ * @typedef {import('../../src/utils_types.d.ts').TypedEventsFor<T>} TypedEventsFor
+ */
+
+/**
+ * @internal
+ * @template {TypedEmitter<any>} Emitter
+ * @template {TypedEventsFor<Emitter>} Event
+ * @typedef {import('../../src/utils_types.d.ts').TypedEventArgs<Emitter, Event>} TypedEventArgs
  */
 
 /**
  * Like `once`, but listens to events up to a certain number of times.
  *
- * @param {EventEmitter} emitter
- * @param {string | symbol} eventName
+ * @template {TypedEmitter<any>} Emitter
+ * @template {TypedEventsFor<Emitter>} Event
+ * @param {Emitter} emitter
+ * @param {Event} eventName
  * @param {number} count
- * @returns {Promise<any[][]>}
+ * @returns {Promise<TypedEventArgs<Emitter, Event>[]>}
  */
 export async function onTimes(emitter, eventName, count) {
   assert(
@@ -21,27 +42,15 @@ export async function onTimes(emitter, eventName, count) {
     'onTimes called with an invalid count'
   )
 
-  /** @type {any[][]} */
+  /** @type {TypedEventArgs<Emitter, Event>[]} */
   const result = []
 
   if (count === 0) return result
 
-  const { promise, resolve } = promiseWithResolvers()
-
-  let remaining = count
-
-  /** @param {any[]} args */
-  const listener = (...args) => {
+  await onceSatisfied(emitter, eventName, (...args) => {
     result.push(args)
+    return result.length === count
+  })
 
-    remaining--
-    if (!remaining) {
-      emitter.off(eventName, listener)
-      resolve()
-    }
-  }
-  emitter.on(eventName, listener)
-
-  await promise
   return result
 }

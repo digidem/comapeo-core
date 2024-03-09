@@ -5,11 +5,11 @@ import {
   assert,
   noop,
   ExhaustivenessError,
+  onceSatisfied,
   projectKeyToId,
   projectKeyToPublicId,
 } from './utils.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
-import { promiseWithResolvers } from './ponyfills.js'
 import { ROLES, isRoleIdForNewInvite } from './roles.js'
 
 /**
@@ -149,29 +149,21 @@ export class MemberApi extends TypedEmitter {
 
       const inviteId = crypto.randomBytes(32)
 
-      const {
-        promise: receiveInviteResponsePromise,
-        resolve: gotInviteResponse,
-      } = /** @type {typeof promiseWithResolvers<InviteResponse>} */ (
-        promiseWithResolvers
-      )()
-      /**
-       * @param {string} peerId
-       * @param {InviteResponse} inviteResponse
-       */
-      const onInviteResponse = (peerId, inviteResponse) => {
-        const isResponseToThisInvite =
-          timingSafeEqual(peerId, deviceId) &&
-          timingSafeEqual(inviteId, inviteResponse.inviteId)
-        if (!isResponseToThisInvite) return
-
-        gotInviteResponse(inviteResponse)
-        this.#rpc.off('invite-response', onInviteResponse)
-      }
-      this.#rpc.on('invite-response', onInviteResponse)
+      const receiveInviteAbortController = new AbortController()
       cleanupFns.push(() => {
-        this.#rpc.off('invite-response', onInviteResponse)
+        receiveInviteAbortController.abort()
       })
+      const receiveInviteResponsePromise =
+        /** @type {typeof onceSatisfied<TypedEmitter<import('./local-peers.js').LocalPeersEvents>, 'invite-response'>} */ (
+          onceSatisfied
+        )(
+          this.#rpc,
+          'invite-response',
+          (peerId, inviteResponse) =>
+            timingSafeEqual(peerId, deviceId) &&
+            timingSafeEqual(inviteId, inviteResponse.inviteId),
+          { signal: receiveInviteAbortController.signal }
+        ).then((args) => args?.[1])
 
       await this.#rpc.sendInvite(deviceId, {
         inviteId,
@@ -185,6 +177,7 @@ export class MemberApi extends TypedEmitter {
       handleAborted()
 
       const inviteResponse = await receiveInviteResponsePromise
+      assert(inviteResponse, 'Expected an invite response to be received')
 
       handleAborted()
 

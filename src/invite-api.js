@@ -1,10 +1,9 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { assert, keyToId } from './utils.js'
+import { assert, keyToId, onceSatisfied } from './utils.js'
 import HashMap from './lib/hashmap.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
-import { promiseWithResolvers } from './ponyfills.js'
 
 /**
  * Internally, we typically use the `Invite` type from the protobuf. We also use
@@ -249,37 +248,33 @@ export class InviteApi extends TypedEmitter {
     )
     this.#pendingInvites.markAccepting(inviteId)
 
-    const { promise: projectDetailsPromise, resolve: gotProjectDetails } =
-      /** @type {typeof promiseWithResolvers<ProjectJoinDetails>} */
-      (promiseWithResolvers)()
-    /**
-     * @param {string} projectDetailsPeerId
-     * @param {ProjectJoinDetails} details
-     */
-    const onProjectDetails = (projectDetailsPeerId, details) => {
-      const isDetailsForThisInvite =
-        // This peer ID check is probably superfluous because the invite ID
-        // should be impossible to guess, but is easy to add for correctness.
-        timingSafeEqual(projectDetailsPeerId, peerId) &&
-        timingSafeEqual(inviteId, details.inviteId)
-      if (!isDetailsForThisInvite) return
+    const projectDetailsAbortController = new AbortController()
 
-      gotProjectDetails(details)
-      this.rpc.off('got-project-details', onProjectDetails)
-    }
-    this.rpc.on('got-project-details', onProjectDetails)
+    const projectDetailsPromise =
+      /** @type {typeof onceSatisfied<TypedEmitter<import('./local-peers.js').LocalPeersEvents>, 'got-project-details'>} */ (
+        onceSatisfied
+      )(
+        this.rpc,
+        'got-project-details',
+        (projectDetailsPeerId, details) =>
+          // This peer ID check is probably superfluous because the invite ID
+          // should be impossible to guess, but is easy to add for correctness.
+          timingSafeEqual(projectDetailsPeerId, peerId) &&
+          timingSafeEqual(inviteId, details.inviteId),
+        { signal: projectDetailsAbortController.signal }
+      ).then((args) => args?.[1])
 
     try {
       await this.#sendAcceptResponse({ peerId, inviteId })
     } catch (e) {
-      this.rpc.off('got-project-details', onProjectDetails)
+      projectDetailsAbortController.abort()
       removePendingInvite()
       throw new Error('Could not accept invite: Peer disconnected')
     }
 
-    const details = await projectDetailsPromise
-
     try {
+      const details = await projectDetailsPromise
+      assert(details, 'Expected project details')
       await this.#addProject({ ...details, projectName })
     } catch (e) {
       removePendingInvite()
