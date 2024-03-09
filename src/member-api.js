@@ -12,6 +12,8 @@ import {
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { ROLES, isRoleIdForNewInvite } from './roles.js'
 
+const DEFAULT_INVITE_TIMEOUT = 5 * (1000 * 60)
+
 /**
  * @internal
  * @typedef {import('./generated/rpc.js').Invite} Invite
@@ -87,7 +89,7 @@ export class MemberApi extends TypedEmitter {
       roleId,
       roleName = ROLES[roleId]?.name,
       roleDescription,
-      timeout = 1_800_000,
+      timeout = DEFAULT_INVITE_TIMEOUT,
     }
   ) {
     assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
