@@ -71,7 +71,7 @@ async function offlineFallbackMapPlugin(fastify, opts) {
 
         return styleJson
       },
-      async getStyleJsonStats() {
+      getStyleJsonStats() {
         return fs.stat(styleJsonPath)
       },
     })
