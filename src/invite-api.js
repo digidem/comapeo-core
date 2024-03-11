@@ -258,7 +258,8 @@ export class InviteApi extends TypedEmitter {
         'got-project-details',
         (projectDetailsPeerId, details) =>
           // This peer ID check is probably superfluous because the invite ID
-          // should be impossible to guess, but is easy to add for correctness.
+          // should be unguessable, but might be useful if someone forwards an
+          // invite message (or if there's an unforeseen bug).
           timingSafeEqual(projectDetailsPeerId, peerId) &&
           timingSafeEqual(inviteId, details.inviteId),
         { signal: projectDetailsAbortController.signal }
