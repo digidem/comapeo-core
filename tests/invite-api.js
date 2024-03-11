@@ -80,17 +80,20 @@ test('invite-received event has expected payload', async (t) => {
   const expectedInvites = [
     {
       inviteId: bareInvite.inviteId.toString('hex'),
+      projectPublicId,
       projectName,
       invitorName: 'Your Friend',
     },
     {
       inviteId: partialInvite.inviteId.toString('hex'),
+      projectPublicId,
       projectName,
       roleDescription: 'Cool Role',
       invitorName: 'Your Friend',
     },
     {
       inviteId: fullInvite.inviteId.toString('hex'),
+      projectPublicId,
       projectName,
       roleName: 'Superfan',
       roleDescription: 'This Cool Role',
@@ -980,10 +983,8 @@ function setup() {
     invitorName: 'Host',
   }
   const inviteExternal = {
+    ...invite,
     inviteId: invite.inviteId.toString('hex'),
-    projectName: invite.projectName,
-    roleName: invite.roleName,
-    invitorName: invite.invitorName,
   }
 
   const invitorPeerId = keyToId(randomBytes(16))

@@ -13,18 +13,11 @@ import timingSafeEqual from './lib/timing-safe-equal.js'
  * @typedef {import('./generated/rpc.js').Invite} InviteInternal
  */
 
+/** @typedef {import('./types.js').MapBuffers<InviteInternal>} Invite */
+
 /**
  * @internal
  * @typedef {import('./generated/rpc.js').ProjectJoinDetails} ProjectJoinDetails
- */
-
-/**
- * @typedef {object} Invite
- * @prop {string} inviteId
- * @prop {string} projectName
- * @prop {string} [roleName]
- * @prop {string} [roleDescription]
- * @prop {string} [invitorName]
  */
 
 /**
@@ -373,19 +366,9 @@ export class InviteApi extends TypedEmitter {
  * @returns {Invite}
  */
 function internalToExternal(internal) {
-  /** @type {Invite} */
-  const result = {
-    inviteId: internal.inviteId.toString('hex'),
-    projectName: internal.projectName,
+  const { inviteId, ...rest } = internal
+  return {
+    inviteId: inviteId.toString('hex'),
+    ...rest,
   }
-  if (internal.roleName) {
-    result.roleName = internal.roleName
-  }
-  if (internal.roleDescription) {
-    result.roleDescription = internal.roleDescription
-  }
-  if (internal.invitorName) {
-    result.invitorName = internal.invitorName
-  }
-  return result
 }
