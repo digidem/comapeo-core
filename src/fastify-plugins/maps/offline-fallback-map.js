@@ -52,8 +52,7 @@ async function offlineFallbackMapPlugin(fastify, opts) {
 
           if (file.name === 'style.json') continue
 
-          // Only work with json or geojson files
-          const extension = path.extname(file.name)
+          const extension = path.extname(file.name).toLowerCase()
           if (!(extension === '.json' || extension === '.geojson')) continue
 
           const sourceName = path.basename(file.name, extension) + '-source'
