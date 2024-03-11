@@ -48,10 +48,8 @@ async function offlineFallbackMapPlugin(fastify, opts) {
         })
 
         for (const file of sourcesDirFiles) {
-          // Only work with files
           if (file.isDirectory()) continue
 
-          // Ignore the style.json file if it exists
           if (file.name === 'style.json') continue
 
           // Only work with json or geojson files
