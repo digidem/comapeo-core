@@ -26,7 +26,6 @@ test('list map styles', async (t) => {
 
   const data = response.json()
 
-  t.is(data.length, 2, 'data has expected number of items')
   t.alike(
     data,
     [
@@ -66,15 +65,10 @@ test('get style.json', async (t) => {
 
       const data = response.json()
 
-      t.not(
-        data,
-        JSON.parse(rawStyleJson),
-        'response data is different from raw style file content'
-      )
       t.alike(
         data,
         JSON.parse(rawStyleJson.replace(/\{host\}/gm, `${address}/${styleId}`)),
-        'response data has correct'
+        'response data is correct'
       )
     })
   )
