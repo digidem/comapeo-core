@@ -257,11 +257,16 @@ export class MapeoManager extends TypedEmitter {
    */
   #replicate(noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
-    Promise.all([this.getDeviceInfo(), openedNoiseSecretStream(noiseStream)])
-      .then(([deviceInfo, openedNoiseStream]) => {
-        if (openedNoiseStream.destroyed || !hasSavedDeviceInfo(deviceInfo))
-          return
+
+    openedNoiseSecretStream(noiseStream)
+      .then((openedNoiseStream) => {
+        if (openedNoiseStream.destroyed) return
+
+        const deviceInfo = this.getDeviceInfo()
+        if (!hasSavedDeviceInfo(deviceInfo)) return
+
         const peerId = keyToId(openedNoiseStream.remotePublicKey)
+
         return this.#localPeers.sendDeviceInfo(peerId, deviceInfo)
       })
       .catch((e) => {
@@ -272,6 +277,7 @@ export class MapeoManager extends TypedEmitter {
           e
         )
       })
+
     return replicationStream
   }
 
@@ -383,7 +389,7 @@ export class MapeoManager extends TypedEmitter {
     await project.$setProjectSettings(settings)
 
     // 6. Write device info into project
-    const deviceInfo = await this.getDeviceInfo()
+    const deviceInfo = this.getDeviceInfo()
     if (hasSavedDeviceInfo(deviceInfo)) {
       await project[kSetOwnDeviceInfo](deviceInfo)
     }
@@ -578,7 +584,7 @@ export class MapeoManager extends TypedEmitter {
       const project = await this.getProject(projectPublicId)
 
       try {
-        const deviceInfo = await this.getDeviceInfo()
+        const deviceInfo = this.getDeviceInfo()
         if (hasSavedDeviceInfo(deviceInfo)) {
           await project[kSetOwnDeviceInfo](deviceInfo)
         }
@@ -687,20 +693,28 @@ export class MapeoManager extends TypedEmitter {
       .run()
 
     const listedProjects = await this.listProjects()
-
     await Promise.all(
       listedProjects.map(async ({ projectId }) => {
         const project = await this.getProject(projectId)
         await project[kSetOwnDeviceInfo](deviceInfo)
       })
     )
+
+    await Promise.all(
+      this.#localPeers.peers
+        .filter(({ status }) => status === 'connected')
+        .map((peer) =>
+          this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfo)
+        )
+    )
+
     this.#l.log('set device info %o', deviceInfo)
   }
 
   /**
-   * @returns {Promise<{ deviceId: string } & Partial<import('./schema/client.js').DeviceInfoParam>>}
+   * @returns {{ deviceId: string } & Partial<import('./schema/client.js').DeviceInfoParam>}
    */
-  async getDeviceInfo() {
+  getDeviceInfo() {
     const row = this.#db
       .select()
       .from(localDeviceInfoTable)

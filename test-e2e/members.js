@@ -22,7 +22,7 @@ import { kDataTypes } from '../src/mapeo-project.js'
 test('getting yourself after creating project', async (t) => {
   const [manager] = await createManagers(1, t, 'tablet')
 
-  const deviceInfo = await manager.getDeviceInfo()
+  const deviceInfo = manager.getDeviceInfo()
   const project = await manager.getProject(await manager.createProject())
 
   const me = await project.$member.getById(project.deviceId)
@@ -56,7 +56,7 @@ test('getting yourself after creating project', async (t) => {
 test('getting yourself after adding project (but not yet synced)', async (t) => {
   const [manager] = await createManagers(1, t, 'tablet')
 
-  const deviceInfo = await manager.getDeviceInfo()
+  const deviceInfo = manager.getDeviceInfo()
   const project = await manager.getProject(
     await manager.addProject(
       {
@@ -132,7 +132,7 @@ test('getting invited member after invite accepted', async (t) => {
   connectPeers(managers)
   await waitForPeers(managers)
 
-  const { name: inviteeName } = await invitee.getDeviceInfo()
+  const { name: inviteeName } = invitee.getDeviceInfo()
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   const project = await invitor.getProject(projectId)
 
