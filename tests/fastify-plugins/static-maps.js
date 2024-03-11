@@ -201,7 +201,6 @@ test('get tile (pbf)', async (t) => {
     'content type correct'
   )
 
-  t.is(response.headers['content-encoding'], 'gzip', 'gzip encoding enabled')
   t.is(getContentLength(response.headers), 49229, 'correct file length')
 })
 

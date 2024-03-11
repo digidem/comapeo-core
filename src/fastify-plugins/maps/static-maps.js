@@ -93,14 +93,10 @@ async function routes(fastify, opts) {
       )
     }
 
-    const { data, mimeType, shouldGzip } = result
+    const { data, mimeType } = result
 
     if (mimeType) {
       rep.header('Content-Type', mimeType)
-    }
-
-    if (shouldGzip) {
-      rep.header('Content-Encoding', 'gzip')
     }
 
     rep.send(data)
@@ -190,6 +186,8 @@ async function routes(fastify, opts) {
         throw new NotFoundError(`id = ${styleId}, style.json`)
       }
 
+      const styleJsonBytes = Buffer.from(styleJson)
+
       rep.headers({
         'Content-Type': 'application/json; charset=utf-8',
         'Cache-Control': 'max-age=' + 5 * 60, // 5 minutes
@@ -197,10 +195,10 @@ async function routes(fastify, opts) {
           'Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since',
         'Access-Control-Allow-Origin': '*',
         'Last-Modified': new Date(stats.mtime).toUTCString(),
-        'Content-Length': Buffer.from(styleJson).length,
+        'Content-Length': styleJsonBytes.length,
       })
 
-      return styleJson
+      return styleJsonBytes
     }
   )
 
