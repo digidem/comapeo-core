@@ -1,7 +1,7 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { assert, keyToId, onceSatisfied } from './utils.js'
+import { assert, keyToId, onceSatisfied, noop } from './utils.js'
 import HashMap from './lib/hashmap.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 
@@ -166,7 +166,12 @@ export class InviteApi extends TypedEmitter {
   #handleInvite(peerId, invite) {
     const isAlreadyMember = this.#isMember(invite.projectPublicId)
     if (isAlreadyMember) {
-      this.#sendAlreadyResponse({ peerId, inviteId: invite.inviteId })
+      this.rpc
+        .sendInviteResponse(peerId, {
+          decision: InviteResponse_Decision.ALREADY,
+          inviteId: invite.inviteId,
+        })
+        .catch(noop)
       return
     }
 
@@ -226,10 +231,12 @@ export class InviteApi extends TypedEmitter {
       const pendingInvitesDeleted =
         this.#pendingInvites.deleteByProjectPublicId(projectPublicId)
       for (const pendingInvite of pendingInvitesDeleted) {
-        this.#sendAlreadyResponse({
-          peerId: pendingInvite.peerId,
-          inviteId: pendingInvite.invite.inviteId,
-        })
+        this.rpc
+          .sendInviteResponse(pendingInvite.peerId, {
+            decision: InviteResponse_Decision.ALREADY,
+            inviteId: pendingInvite.invite.inviteId,
+          })
+          .catch(noop)
         this.emit('invite-removed', internalToExternal(pendingInvite.invite))
       }
       return
@@ -258,7 +265,10 @@ export class InviteApi extends TypedEmitter {
       ).then((args) => args?.[1])
 
     try {
-      await this.#sendAcceptResponse({ peerId, inviteId })
+      await this.rpc.sendInviteResponse(peerId, {
+        decision: InviteResponse_Decision.ACCEPT,
+        inviteId,
+      })
     } catch (e) {
       projectDetailsAbortController.abort()
       removePendingInvite()
@@ -286,10 +296,12 @@ export class InviteApi extends TypedEmitter {
         inviteId.equals(pendingInvite.invite.inviteId)
       if (isPendingInviteWeJustAccepted) continue
 
-      this.#sendAlreadyResponse({
-        peerId: pendingInvite.peerId,
-        inviteId: pendingInvite.invite.inviteId,
-      })
+      this.rpc
+        .sendInviteResponse(pendingInvite.peerId, {
+          decision: InviteResponse_Decision.ALREADY,
+          inviteId: pendingInvite.invite.inviteId,
+        })
+        .catch(noop)
       this.emit('invite-removed', internalToExternal(pendingInvite.invite))
     }
 
@@ -308,56 +320,15 @@ export class InviteApi extends TypedEmitter {
 
     const { peerId, invite } = pendingInvite
 
-    this.#sendRejectResponse({ peerId, inviteId: invite.inviteId })
+    this.rpc
+      .sendInviteResponse(peerId, {
+        decision: InviteResponse_Decision.REJECT,
+        inviteId: invite.inviteId,
+      })
+      .catch(noop)
 
     this.#pendingInvites.deleteByInviteId(inviteId)
     this.emit('invite-removed', internalToExternal(invite))
-  }
-
-  /**
-   * Will reject if the response fails to be sent
-   *
-   * @param {{ peerId: string, inviteId: Buffer }} opts
-   */
-  async #sendAcceptResponse({ peerId, inviteId }) {
-    await this.rpc.sendInviteResponse(peerId, {
-      inviteId,
-      decision: InviteResponse_Decision.ACCEPT,
-    })
-  }
-
-  /**
-   * Will not reject, will silently fail if the response fails to send.
-   *
-   * @param {{ peerId: string, inviteId: Buffer }} opts
-   */
-  async #sendAlreadyResponse({ peerId, inviteId }) {
-    try {
-      await this.rpc.sendInviteResponse(peerId, {
-        inviteId,
-        decision: InviteResponse_Decision.ALREADY,
-      })
-    } catch (e) {
-      // Ignore errors trying to send an reject response because the invitor
-      // will consider the invite failed anyway
-    }
-  }
-
-  /**
-   * Will not reject, will silently fail if the response fails to send.
-   *
-   * @param {{ peerId: string, inviteId: Buffer }} opts
-   */
-  async #sendRejectResponse({ peerId, inviteId }) {
-    try {
-      await this.rpc.sendInviteResponse(peerId, {
-        inviteId,
-        decision: InviteResponse_Decision.REJECT,
-      })
-    } catch (e) {
-      // Ignore errors trying to send an reject response because the invitor
-      // will consider the invite failed anyway
-    }
   }
 }
 
