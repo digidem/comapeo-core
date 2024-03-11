@@ -372,7 +372,6 @@ export class MapeoManager extends TypedEmitter {
       projectId,
       projectPublicId,
       projectKeys: keys,
-      projectInfo: { name: settings.name },
     })
 
     // 4. Create MapeoProject instance
