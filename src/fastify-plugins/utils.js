@@ -39,7 +39,7 @@ export async function getFastifyServerAddress(server, { timeout } = {}) {
 }
 
 /**
- * @param {Date} lastModified
+ * @param {Readonly<Date>} lastModified
  */
 export function createStyleJsonResponseHeaders(lastModified) {
   return {
@@ -47,6 +47,6 @@ export function createStyleJsonResponseHeaders(lastModified) {
     'Access-Control-Allow-Headers':
       'Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since',
     'Access-Control-Allow-Origin': '*',
-    'Last-Modified': new Date(lastModified).toUTCString(),
+    'Last-Modified': lastModified.toUTCString(),
   }
 }
