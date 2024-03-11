@@ -61,13 +61,24 @@ export class SyncApi extends TypedEmitter {
    * @param {import('../roles.js').Roles} opts.roles
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
+   * @param {string} [opts.deviceIdForDebugging]
    */
-  constructor({ coreManager, throttleMs = 200, roles, logger }) {
+  constructor({
+    coreManager,
+    throttleMs = 200,
+    roles,
+    logger,
+    deviceIdForDebugging,
+  }) {
     super()
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
     this.#roles = roles
-    this[kSyncState] = new SyncState({ coreManager, throttleMs })
+    this[kSyncState] = new SyncState({
+      coreManager,
+      throttleMs,
+      deviceIdForDebugging,
+    })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
       const state = reduceSyncState(namespaceSyncState)
@@ -143,17 +154,52 @@ export class SyncApi extends TypedEmitter {
 
   /**
    * @param {SyncType} type
+   * @param {string} [deviceIdForDebugging]
    * @returns {Promise<void>}
    */
-  async waitForSync(type) {
+  async waitForSync(type, deviceIdForDebugging) {
     const state = this[kSyncState].getState()
     const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
-    if (isSynced(state, namespaces, this.#peerSyncControllers)) return
+    console.log(
+      `@@@@ $sync.waitForSync (${deviceIdForDebugging}): namespaces ${JSON.stringify(
+        namespaces
+      )}`
+    )
+    if (
+      isSynced(
+        state,
+        namespaces,
+        this.#peerSyncControllers,
+        deviceIdForDebugging
+      )
+    ) {
+      console.log(
+        `@@@@ $sync.waitForSync (${deviceIdForDebugging}): initially synced`
+      )
+      return
+    }
     return new Promise((res) => {
+      console.log(
+        `@@@@ $sync.waitForSync (${deviceIdForDebugging}): not initially synced`
+      )
       const _this = this
       this[kSyncState].on('state', function onState(state) {
-        if (!isSynced(state, namespaces, _this.#peerSyncControllers)) return
+        console.log(
+          `@@@@ $sync.waitForSync (${deviceIdForDebugging}): got "state" event`
+        )
+        if (
+          !isSynced(
+            state,
+            namespaces,
+            _this.#peerSyncControllers,
+            deviceIdForDebugging
+          )
+        )
+          return
         _this[kSyncState].off('state', onState)
+        console.log(
+          `@@@@ $sync.waitForSync (${deviceIdForDebugging}): done syncing`
+        )
         res()
       })
     })
@@ -230,15 +276,35 @@ export class SyncApi extends TypedEmitter {
  * @param {import('./sync-state.js').State} state
  * @param {readonly import('../core-manager/index.js').Namespace[]} namespaces
  * @param {Map<import('protomux'), PeerSyncController>} peerSyncControllers
+ * @param {undefined | string} deviceIdForDebugging
+ * @returns {boolean}
  */
-function isSynced(state, namespaces, peerSyncControllers) {
+function isSynced(
+  state,
+  namespaces,
+  peerSyncControllers,
+  deviceIdForDebugging
+) {
+  /** @param {*} s */
+  const log = (s) => {
+    console.log(`@@@@ isSynced (${deviceIdForDebugging}):`, s)
+  }
+
   for (const ns of namespaces) {
-    if (state[ns].dataToSync) return false
+    if (state[ns].dataToSync) {
+      log(`${ns} has data to sync`)
+      return false
+    }
     for (const psc of peerSyncControllers.values()) {
       const { peerId } = psc
       if (psc.syncCapability[ns] === 'blocked') continue
-      if (!(peerId in state[ns].remoteStates)) return false
-      if (state[ns].remoteStates[peerId].status === 'connecting') return false
+      if (!(peerId in state[ns].remoteStates)) {
+        log(`${ns} has peer ${peerId} not in remote states`)
+        return false
+      }
+      if (state[ns].remoteStates[peerId].status === 'connecting') {
+        log(`${ns} has peer ${peerId} who is connecting`)
+      }
     }
   }
   return true

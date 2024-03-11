@@ -16,30 +16,27 @@ import mapObject from 'map-obj'
  * @extends {TypedEmitter<{ state: (state: State) => void}>}
  */
 export class SyncState extends TypedEmitter {
-  /** @type {State | null} */
-  #cachedState = null
   #syncStates =
     /** @type {Record<import('../core-manager/index.js').Namespace, NamespaceSyncState> } */ ({})
-  /** @type {Set<import('../core-manager/index.js').Namespace>} */
-  #updated = new Set()
   /**
    *
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {number} [opts.throttleMs]
+   * @param {string} [opts.deviceIdForDebugging]
    */
-  constructor({ coreManager, throttleMs = 200 }) {
+  constructor({ coreManager, throttleMs = 200, deviceIdForDebugging }) {
     super()
     const throttledHandleUpdate = throttle(throttleMs, this.#handleUpdate)
     for (const namespace of NAMESPACES) {
       this.#syncStates[namespace] = new NamespaceSyncState({
         namespace,
         coreManager,
+        deviceIdForDebugging,
         onUpdate: () => {
-          // Track which namespaces have updated to improve performance
-          this.#updated.add(namespace)
+          console.log(`@@@@ SyncState (${deviceIdForDebugging}) got onUpdate from ` + namespace)
           throttledHandleUpdate()
-        },
+        }
       })
     }
   }
@@ -48,16 +45,10 @@ export class SyncState extends TypedEmitter {
    * @returns {State}
    */
   getState() {
-    const state = mapObject(this.#syncStates, (namespace, nss) => {
-      // Only re-calculate state if state has updated for that namespace
-      const namespaceState =
-        this.#cachedState && !this.#updated.has(namespace)
-          ? this.#cachedState[namespace]
-          : nss.getState()
-      return [namespace, namespaceState]
-    })
-    this.#updated.clear()
-    return state
+    return mapObject(this.#syncStates, (namespace, nss) => [
+      namespace,
+      nss.getState(),
+    ])
   }
 
   #handleUpdate = () => {

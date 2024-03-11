@@ -242,17 +242,27 @@ export function round(value, decimalPlaces) {
  * @param {import('../src/mapeo-project.js').MapeoProject} project
  * @param {string[]} peerIds
  * @param {'initial' | 'full'} [type]
+ * @returns {Promise<void>}
  */
 async function waitForProjectSync(project, peerIds, type = 'initial') {
   const state = project.$sync[kSyncState].getState()
   if (hasPeerIds(state.auth.remoteStates, peerIds)) {
-    return project.$sync.waitForSync(type)
+    console.log(
+      `@@@@ waitForProjectSync (${project.deviceId}) started with full peer IDs`
+    )
+    return project.$sync.waitForSync(type, project.deviceId)
   }
   return new Promise((res) => {
     project.$sync[kSyncState].on('state', function onState(state) {
+      console.log(
+        `@@@@ waitForProjectSync (${project.deviceId}) got state event`
+      )
       if (!hasPeerIds(state.auth.remoteStates, peerIds)) return
+      console.log(
+        `@@@@ waitForProjectSync (${project.deviceId}) got state event and we are now waiting`
+      )
       project.$sync[kSyncState].off('state', onState)
-      res(project.$sync.waitForSync(type))
+      res(project.$sync.waitForSync(type, project.deviceId))
     })
   })
 }
@@ -281,6 +291,9 @@ export function waitForSync(projects, type = 'initial') {
       const peerIds = projects
         .filter((p) => p !== project)
         .map((p) => p.deviceId)
+      console.log(
+        `@@@@ waitForSync (${project.deviceId}): ${JSON.stringify({ peerIds })}`
+      )
       return waitForProjectSync(project, peerIds, type)
     })
   )

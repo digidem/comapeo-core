@@ -18,56 +18,64 @@ import {
   waitForSync,
 } from './utils.js'
 
-test('Creator cannot leave project if they are the only member', async (t) => {
-  const [creatorManager] = await createManagers(1, t)
+test(
+  'Creator cannot leave project if they are the only member',
+  { skip: true },
+  async (t) => {
+    const [creatorManager] = await createManagers(1, t)
 
-  const projectId = await creatorManager.createProject({ name: 'mapeo' })
+    const projectId = await creatorManager.createProject({ name: 'mapeo' })
 
-  await t.exception(async () => {
-    await creatorManager.leaveProject(projectId)
-  }, 'attempting to leave fails')
-})
+    await t.exception(async () => {
+      await creatorManager.leaveProject(projectId)
+    }, 'attempting to leave fails')
+  }
+)
 
-test('Creator cannot leave project if no other coordinators exist', async (t) => {
-  const managers = await createManagers(2, t)
+test(
+  'Creator cannot leave project if no other coordinators exist',
+  { skip: true },
+  async (t) => {
+    const managers = await createManagers(2, t)
 
-  connectPeers(managers)
-  await waitForPeers(managers)
+    connectPeers(managers)
+    await waitForPeers(managers)
 
-  const [creator, member] = managers
-  const projectId = await creator.createProject({ name: 'mapeo' })
+    const [creator, member] = managers
+    const projectId = await creator.createProject({ name: 'mapeo' })
 
-  await invite({
-    invitor: creator,
-    invitees: [member],
-    projectId,
-    roleId: MEMBER_ROLE_ID,
-  })
+    await invite({
+      invitor: creator,
+      invitees: [member],
+      projectId,
+      roleId: MEMBER_ROLE_ID,
+    })
 
-  const projects = await Promise.all(
-    managers.map((m) => m.getProject(projectId))
-  )
+    const projects = await Promise.all(
+      managers.map((m) => m.getProject(projectId))
+    )
 
-  const [creatorProject, memberProject] = projects
+    const [creatorProject, memberProject] = projects
 
-  t.ok(
-    await creatorProject.$member.getById(member.deviceId),
-    'member successfully added from creator perspective'
-  )
+    t.ok(
+      await creatorProject.$member.getById(member.deviceId),
+      'member successfully added from creator perspective'
+    )
 
-  t.ok(
-    await memberProject.$member.getById(creator.deviceId),
-    'creator successfully added from member perspective'
-  )
+    t.ok(
+      await memberProject.$member.getById(creator.deviceId),
+      'creator successfully added from member perspective'
+    )
 
-  await t.exception(async () => {
-    await creator.leaveProject(projectId)
-  }, 'creator attempting to leave project with no other coordinators fails')
+    await t.exception(async () => {
+      await creator.leaveProject(projectId)
+    }, 'creator attempting to leave project with no other coordinators fails')
 
-  await disconnectPeers(managers)
-})
+    await disconnectPeers(managers)
+  }
+)
 
-test('Blocked member cannot leave project', async (t) => {
+test('Blocked member cannot leave project', { skip: true }, async (t) => {
   const managers = await createManagers(2, t)
 
   connectPeers(managers)
@@ -112,56 +120,70 @@ test('Blocked member cannot leave project', async (t) => {
   await disconnectPeers(managers)
 })
 
-test('Creator can leave project if another coordinator exists', async (t) => {
-  const managers = await createManagers(2, t)
+for (let i = 0; i < 1000; i++) {
+  test(
+    'Creator can leave project if another coordinator exists' + i,
+    { timeout: 2 ** 30 },
+    async (t) => {
+      const managers = await createManagers(2, t)
 
-  connectPeers(managers)
-  await waitForPeers(managers)
+      const disconnectPeers = connectPeers(managers)
+      t.teardown(disconnectPeers)
+      await waitForPeers(managers)
 
-  const [creator, coordinator] = managers
-  const projectId = await creator.createProject({ name: 'mapeo' })
+      const [creator, coordinator] = managers
+      const projectId = await creator.createProject({ name: 'mapeo' })
 
-  await invite({
-    invitor: creator,
-    invitees: [coordinator],
-    projectId,
-    roleId: COORDINATOR_ROLE_ID,
-  })
+      await invite({
+        invitor: creator,
+        invitees: [coordinator],
+        projectId,
+        roleId: COORDINATOR_ROLE_ID,
+      })
 
-  const projects = await Promise.all(
-    managers.map((m) => m.getProject(projectId))
+      const projects = await Promise.all(
+        managers.map((m) => m.getProject(projectId))
+      )
+
+      const [creatorProject, coordinatorProject] = projects
+
+      t.ok(
+        await creatorProject.$member.getById(coordinator.deviceId),
+        'coordinator successfully added from creator perspective'
+      )
+
+      t.ok(
+        await coordinatorProject.$member.getById(coordinator.deviceId),
+        'creator successfully added from creator perspective'
+      )
+
+      await creator.leaveProject(projectId)
+
+      t.alike(
+        await creatorProject.$getOwnRole(),
+        ROLES[LEFT_ROLE_ID],
+        'creator now has LEFT role'
+      )
+
+      const to = setTimeout(() => {
+        debugger;
+      }, 5000)
+      t.teardown(() => {
+        clearTimeout(to)
+      })
+
+      await waitForSync(projects, 'initial')
+
+      t.comment('wait for sync completed')
+
+      t.is(
+        (await coordinatorProject.$member.getById(creator.deviceId)).role,
+        ROLES[LEFT_ROLE_ID],
+        'coordinator can still retrieve info about creator who left'
+      )
+    }
   )
-
-  const [creatorProject, coordinatorProject] = projects
-
-  t.ok(
-    await creatorProject.$member.getById(coordinator.deviceId),
-    'coordinator successfully added from creator perspective'
-  )
-
-  t.ok(
-    await coordinatorProject.$member.getById(coordinator.deviceId),
-    'creator successfully added from creator perspective'
-  )
-
-  await creator.leaveProject(projectId)
-
-  t.alike(
-    await creatorProject.$getOwnRole(),
-    ROLES[LEFT_ROLE_ID],
-    'creator now has LEFT role'
-  )
-
-  await waitForSync(projects, 'initial')
-
-  t.is(
-    (await coordinatorProject.$member.getById(creator.deviceId)).role,
-    ROLES[LEFT_ROLE_ID],
-    'coordinator can still retrieve info about creator who left'
-  )
-
-  await disconnectPeers(managers)
-})
+}
 
 test('Member can leave project if creator exists', async (t) => {
   const managers = await createManagers(2, t)

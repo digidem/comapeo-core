@@ -21,13 +21,15 @@ export class NamespaceSyncState {
    * @param {object} opts
    * @param {TNamespace} opts.namespace
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
+   * @param {string} [opts.deviceIdForDebugging]
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    */
-  constructor({ namespace, coreManager, onUpdate }) {
+  constructor({ namespace, coreManager,deviceIdForDebugging, onUpdate }) {
     this.#namespace = namespace
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#handleUpdate = () => {
+      console.log(`@@@@ NamespaceSyncState#handleUpdate ${(deviceIdForDebugging)}: ${namespace}`)
       this.#cachedState = null
       process.nextTick(onUpdate)
     }

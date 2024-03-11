@@ -301,6 +301,7 @@ export class MapeoProject extends TypedEmitter {
       coreManager: this.#coreManager,
       roles: this.#roles,
       logger: this.#l,
+      deviceIdForDebugging: this.deviceId,
     })
 
     ///////// 4. Replicate local peers automatically
