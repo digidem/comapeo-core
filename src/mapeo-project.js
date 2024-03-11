@@ -568,20 +568,20 @@ export class MapeoProject extends TypedEmitter {
       throw new Error('Cannot leave a project as a blocked device')
     }
 
-    const knownDevices = Array.from((await this.#roles.getAll()).keys())
-    const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
-      this.#projectId
-    )
+    const allRoles = await this.#roles.getAll()
 
     // 1.2 Check that we are not the only device in the project
-    if (knownDevices.length === 1) {
+    if (allRoles.size <= 1) {
       throw new Error('Cannot leave a project as the only device')
     }
 
     // 1.3 Check if there are other known devices that are either the project creator or a coordinator
+    const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
+      this.#projectId
+    )
     let otherCreatorOrCoordinatorExists = false
 
-    for (const deviceId of knownDevices) {
+    for (const deviceId of allRoles.keys()) {
       // Skip self (see 1.1 and 1.2 for relevant checks)
       if (deviceId === this.#deviceId) continue
 
