@@ -123,6 +123,8 @@ async function routes(fastify, opts) {
     async (req) => {
       const styleDirFiles = await fs.readdir(staticRootDir)
 
+      const serverAddress = await getFastifyServerAddress(req.server.server)
+
       const result = (
         await Promise.all(
           styleDirFiles.map(async (filename) => {
@@ -141,10 +143,6 @@ async function routes(fastify, opts) {
             } catch (err) {
               return null
             }
-
-            const serverAddress = await getFastifyServerAddress(
-              req.server.server
-            )
 
             return {
               id: filename,
