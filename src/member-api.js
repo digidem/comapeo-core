@@ -253,7 +253,7 @@ export class MemberApi extends TypedEmitter {
     ])
 
     return Promise.all(
-      Object.entries(allRoles).map(async ([deviceId, role]) => {
+      [...allRoles.entries()].map(async ([deviceId, role]) => {
         /** @type {MemberInfo} */
         const memberInfo = { deviceId, role }
 
