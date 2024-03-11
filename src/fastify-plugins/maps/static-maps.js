@@ -275,8 +275,7 @@ function getStyleTileInfo(baseDirectory, params) {
 
   const mimeType = mime.getType(ext)
 
-  // Set gzip encoding on {mvt,pbf} tiles.
-  const shouldGzip = /mvt|pbf$/.test(ext)
+  const shouldGzip = ext === 'mvt' || ext === 'pbf'
 
   return { data, mimeType, shouldGzip }
 }
