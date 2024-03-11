@@ -1,7 +1,7 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
-import { ExhaustivenessError, keyToId } from './utils.js'
+import { assert, ExhaustivenessError, keyToId } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
@@ -363,11 +363,17 @@ export class LocalPeers extends TypedEmitter {
     for (const [type, id] of Object.entries(MESSAGE_TYPES)) {
       messages[id] = {
         encoding: cenc.raw,
-        onmessage: this.#handleMessage.bind(
-          this,
-          protomux,
-          /** @type {keyof typeof MESSAGE_TYPES} */ (type)
-        ),
+        onmessage: (message) => {
+          try {
+            this.#handleMessage(
+              protomux,
+              /** @type {keyof typeof MESSAGE_TYPES} */ (type),
+              message
+            )
+          } catch (err) {
+            this.#l.log(`Error handling ${type} message: ${String(err)}`)
+          }
+        },
       }
     }
 
@@ -469,11 +475,7 @@ export class LocalPeers extends TypedEmitter {
     if (!peer) return // TODO: report error - this should not happen
     switch (type) {
       case 'Invite': {
-        const invite = Invite.decode(value)
-        if (!isInviteValid(invite)) {
-          this.#l.log('Received invalid invite')
-          return
-        }
+        const invite = parseInvite(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite', peerId, invite)
         this.#l.log(
@@ -485,21 +487,13 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'InviteResponse': {
-        const inviteResponse = InviteResponse.decode(value)
-        if (!isInviteResponseValid(inviteResponse)) {
-          this.#l.log('Received invalid invite response')
-          return
-        }
+        const inviteResponse = parseInviteResponse(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-response', peerId, inviteResponse)
         break
       }
       case 'ProjectJoinDetails': {
-        const details = ProjectJoinDetails.decode(value)
-        if (!isProjectJoinDetailsValid(details)) {
-          this.#l.log('Received invalid project join details')
-          return
-        }
+        const details = parseProjectJoinDetails(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('got-project-details', peerId, details)
         break
@@ -585,43 +579,51 @@ export class PeerFailedConnectionError extends Error {
 
 /**
  * @param {Readonly<Uint8Array>} id
- * @returns {boolean}
+ * @throws if the invite ID is too short
  */
-function isInviteIdValid(id) {
-  return id.byteLength >= 32
+function assertInviteIdIsValid(id) {
+  assert(id.byteLength >= 32, 'Invite ID must be >= 32 bytes')
 }
 
 /**
- * @param {Invite} invite
- * @returns {boolean}
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {Invite}
  */
-function isInviteValid(invite) {
-  return (
-    isInviteIdValid(invite.inviteId) &&
-    invite.projectPublicId.length > 0 &&
-    !isBlank(invite.projectName) &&
-    !isBlank(invite.invitorName)
+function parseInvite(data) {
+  const result = Invite.decode(data)
+  assertInviteIdIsValid(result.inviteId)
+  assert(result.projectPublicId.length, 'Invite must have project public ID')
+  assert(!isBlank(result.projectName), 'Invite project name cannot be blank')
+  assert(!isBlank(result.invitorName), 'Invite invitor name cannot be blank')
+  return result
+}
+
+/**
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {InviteResponse}
+ */
+function parseInviteResponse(data) {
+  const result = InviteResponse.decode(data)
+  assertInviteIdIsValid(result.inviteId)
+  return result
+}
+
+/**
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {ProjectJoinDetails}
+ */
+function parseProjectJoinDetails(data) {
+  const result = ProjectJoinDetails.decode(data)
+  assertInviteIdIsValid(result.inviteId)
+  assert(result.projectKey.length, 'Project join details must have project key')
+  assert(
+    result.encryptionKeys?.auth?.byteLength,
+    'Project join details must have auth encryption keys'
   )
-}
-
-/**
- * @param {InviteResponse} inviteResponse
- * @returns {boolean}
- */
-function isInviteResponseValid(inviteResponse) {
-  return isInviteIdValid(inviteResponse.inviteId)
-}
-
-/**
- * @param {ProjectJoinDetails} details
- * @returns {boolean}
- */
-function isProjectJoinDetailsValid(details) {
-  return (
-    isInviteIdValid(details.inviteId) &&
-    details.projectKey.length > 0 &&
-    Boolean(details.encryptionKeys?.auth?.byteLength)
-  )
+  return result
 }
 
 function noop() {}
