@@ -28,12 +28,16 @@ export default class TranslationApi {
   async put(value) {
     // const { message, ...identifiers } = value
     const docId = hashObject(value)
-    const existing = await this.dataType.getByDocId(docId)
-    if (!existing) {
-      await this.dataType[kCreateWithDocId](docId, value)
-    } else {
+    let existing
+    try {
+      existing = await this.dataType.getByDocId(docId)
+    } catch (e) {
+      existing = await this.dataType[kCreateWithDocId](docId, value)
+    }
+    if (existing) {
       await this.dataType.update(existing.versionId, value)
     }
+    return existing.docId
   }
 
   /**
@@ -44,8 +48,8 @@ export default class TranslationApi {
    * @param {String} value.languageCode
    * @param {String} value.regionCode
    */
-  get(value) {
-    return this.dataType[kSelect]()
+  async get(value) {
+    return (await this.dataType[kSelect]())
       .where(
         and(
           eq(this.table.docIdRef, value.docIdRef),
@@ -56,7 +60,8 @@ export default class TranslationApi {
           eq(this.table.regionCode, value.regionCode)
         )
       )
-      .run()
+      .prepare()
+      .all()
   }
 
   /**
