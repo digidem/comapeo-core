@@ -2,6 +2,9 @@ import { and, eq } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
 
+export const ktranslatedLanguageCodeToSchemaNames = Symbol(
+  'translatedLanguageCodeToSchemaNames'
+)
 export default class TranslationApi {
   /** @type {Map<
    * import('@mapeo/schema').TranslationValue['languageCode'],
@@ -28,6 +31,7 @@ export default class TranslationApi {
    * @param {import('@mapeo/schema').TranslationValue} value
    */
   async put(value) {
+    this.#index(value)
     /* eslint-disable no-unused-vars */
     const { message, ...identifiers } = value
     const docId = hashObject(identifiers)
@@ -44,7 +48,9 @@ export default class TranslationApi {
   }
 
   /**
-   * @param {Omit<import('@mapeo/schema').TranslationValue,'schemaName'>} value
+   * @param {import('type-fest').SetOptional<
+   * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message'>,
+   * 'fieldRef' | 'regionCode'>} value - We omit the schemaName and message, and we make fieldRef and RegionCode optional
    */
   async get(value) {
     const docTypeIsTranslatedToLanguage =
@@ -79,7 +85,7 @@ export default class TranslationApi {
   /**
    * @param {import('@mapeo/schema').TranslationValue} doc
    */
-  index(doc) {
+  #index(doc) {
     let translatedSchemas = this.#translatedLanguageCodeToSchemaNames.get(
       doc.languageCode
     )
@@ -95,5 +101,8 @@ export default class TranslationApi {
         doc.schemaNameRef
       )
     )
+  }
+  get [ktranslatedLanguageCodeToSchemaNames]() {
+    return this.#translatedLanguageCodeToSchemaNames
   }
 }
