@@ -432,7 +432,7 @@ export class MapeoProject extends TypedEmitter {
             index: entry.index,
           })
 
-          // TODO: this is so that I can cast the doc as a `TranslationValue`
+          // this is so that I can cast the doc as a `TranslationValue`
           // without needing to decode the doc beforehand
           if (doc.schemaName === 'translation') {
             this.#translationApi.index(doc)

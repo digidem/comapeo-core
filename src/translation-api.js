@@ -26,40 +26,40 @@ export default class TranslationApi {
    * @param {import('@mapeo/schema').TranslationValue} value
    */
   async put(value) {
-    // const { message, ...identifiers } = value
-    const docId = hashObject(value)
+    /* eslint-disable no-unused-vars */
+    const { message, ...identifiers } = value
+    const docId = hashObject(identifiers)
     let existing
     try {
       existing = await this.dataType.getByDocId(docId)
+      if (existing) {
+        await this.dataType.update(existing.versionId, value)
+      }
     } catch (e) {
       existing = await this.dataType[kCreateWithDocId](docId, value)
-    }
-    if (existing) {
-      await this.dataType.update(existing.versionId, value)
     }
     return existing.docId
   }
 
   /**
-   * @param {Object} value
-   * @param {String} value.docIdRef
-   * @param {String} value.fieldRef
-   * @param {String} value.schemaNameRef
-   * @param {String} value.languageCode
-   * @param {String} value.regionCode
+   * @param {Omit<import('@mapeo/schema').TranslationValue,'schemaName'>} value
    */
   async get(value) {
+    const filters = [
+      eq(this.table.docIdRef, value.docIdRef),
+      eq(this.table.schemaNameRef, value.schemaNameRef),
+      eq(this.table.languageCode, value.languageCode),
+    ]
+    if (value.fieldRef) {
+      filters.push(eq(this.table.fieldRef, value.fieldRef))
+    }
+
+    if (value.regionCode) {
+      filters.push(eq(this.table.regionCode, value.regionCode))
+    }
+
     return (await this.dataType[kSelect]())
-      .where(
-        and(
-          eq(this.table.docIdRef, value.docIdRef),
-          eq(this.table.fieldRef, value.fieldRef),
-          eq(this.table.schemaNameRef, value.schemaNameRef),
-          eq(this.table.languageCode, value.languageCode),
-          // TODO: should we fallback to the first matching languageCode if regionCode doesn't match?
-          eq(this.table.regionCode, value.regionCode)
-        )
-      )
+      .where(and.apply(null, filters))
       .prepare()
       .all()
   }
@@ -71,6 +71,13 @@ export default class TranslationApi {
     let translatedSchemas = this.#translatedLanguageCodeToSchemaNames.get(
       doc.languageCode
     )
+    if (!translatedSchemas) {
+      translatedSchemas = new Set()
+      this.#translatedLanguageCodeToSchemaNames.set(
+        doc.languageCode,
+        translatedSchemas
+      )
+    }
     translatedSchemas?.add(
       /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
         doc.schemaNameRef

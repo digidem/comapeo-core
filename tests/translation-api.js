@@ -24,7 +24,10 @@ test('put() and get()', async (t) => {
     regionCode: 'ar',
     message: 'Nombre Monitor',
   }
-  const expectedDocId = hashObject(doc)
+
+  /* eslint-disable no-unused-vars */
+  const { message, ...identifiers } = doc
+  const expectedDocId = hashObject(identifiers)
   const docId = await api.put(doc)
   t.ok(docId, `putting a translation doc works`)
   t.is(
