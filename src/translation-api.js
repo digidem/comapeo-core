@@ -3,7 +3,9 @@ import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
 
 export default class TranslationApi {
-  /** @type {Map<String,Set<import('@mapeo/schema/dist/types.js').SchemaName>>} */
+  /** @type {Map<
+   * import('@mapeo/schema').TranslationValue['languageCode'],
+   * Set<import('@mapeo/schema/dist/types.js').SchemaName>>} */
   #translatedLanguageCodeToSchemaNames = new Map()
 
   /**
@@ -45,6 +47,16 @@ export default class TranslationApi {
    * @param {Omit<import('@mapeo/schema').TranslationValue,'schemaName'>} value
    */
   async get(value) {
+    const docTypeIsTranslatedToLanguage =
+      this.#translatedLanguageCodeToSchemaNames
+        .get(value.languageCode)
+        ?.has(
+          /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
+            value.schemaNameRef
+          )
+        )
+    if (!docTypeIsTranslatedToLanguage) return []
+
     const filters = [
       eq(this.table.docIdRef, value.docIdRef),
       eq(this.table.schemaNameRef, value.schemaNameRef),
