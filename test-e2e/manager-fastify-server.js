@@ -282,13 +282,15 @@ test('retrieving icons using url', async (t) => {
 })
 
 /**
- * @param {string} url
+ * @param {Parameters<typeof uFetch>} args
  */
-async function fetch(url) {
-  return uFetch(url, {
-    // Noticed that the process was hanging (on Node 18, at least) after calling manager.stop() further below
-    // Probably related to https://github.com/nodejs/undici/issues/2348
-    // Adding the below seems to fix it
-    dispatcher: new Agent({ keepAliveMaxTimeout: 100 }),
+async function fetch(...args) {
+  return uFetch(args[0], {
+    ...args[1],
+    // Prevents tests from hanging caused by Undici's default behavior
+    dispatcher: new Agent({
+      keepAliveMaxTimeout: 10,
+      keepAliveTimeout: 10,
+    }),
   })
 }
