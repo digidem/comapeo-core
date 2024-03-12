@@ -1,4 +1,11 @@
 import { once } from 'node:events'
+import createError from '@fastify/error'
+
+export const NotFoundError = createError(
+  'FST_RESOURCE_NOT_FOUND',
+  'Resource `%s` not found',
+  404
+)
 
 /**
  * @param {import('node:http').Server} server
