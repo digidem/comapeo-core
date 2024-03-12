@@ -79,6 +79,12 @@ test('mapeoMaps decorator context', async (t) => {
     staticRootDir: MAP_FIXTURES_PATH,
   })
 
+  server.register(OfflineFallbackMapPlugin, {
+    prefix: 'fallback',
+    styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
+    sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
+  })
+
   server.register(MapServerPlugin, { prefix: 'maps' })
 
   const address = await server.listen()
