@@ -157,33 +157,62 @@ export function setHas(set) {
  * @template {TypedEventsFor<Emitter>} Event
  * @param {Emitter} emitter A `tiny-typed-emitter` event emitter.
  * @param {Event} eventName The event to listen to.
- * @param {(...args: Readonly<TypedEventArgs<Emitter, Event>>) => boolean} check
+ * @param {(...args: TypedEventArgs<Emitter, Event>) => boolean} check
  *   Called with the event's arguments. If this function returns `false`, the
  *   event will be ignored. If this function returns `true`, the promise will
  *   resolve with these arguments and the event listener will be cleaned up.
  * @param {object} [options]
  * @param {AbortSignal} [options.signal] An `AbortSignal`. If this signal is
  *   aborted, the promise will resolve with `null`.
- * @returns {Promise<null | TypedEventArgs<Emitter, Event>>} Resolves with the
+ * @returns {Promise<TypedEventArgs<Emitter, Event>>} Resolves with the
  *   event arguments that satisfy `check`, or `null` if the aborted.
  */
 export const onceSatisfied = (emitter, eventName, check, { signal } = {}) =>
-  new Promise((res) => {
-    /** @param {TypedEventArgs<Emitter, Event>} args */
-    const onEvent = (...args) => {
-      if (!check(...args)) return
-      emitter.off(eventName, onEvent)
-      signal?.removeEventListener('abort', onAbort)
-      res(args)
+  new Promise((res, rej) => {
+    /** @type {() => void} */
+    let cleanup
+    if (signal) {
+      if (signal.aborted) {
+        rej(signal.reason)
+        return
+      }
+
+      const onAbort = () => {
+        cleanup()
+        rej(signal.reason)
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
+
+      cleanup = () => {
+        emitter.off(eventName, onEvent)
+        signal.removeEventListener('abort', onAbort)
+      }
+    } else {
+      cleanup = () => {
+        emitter.off(eventName, onEvent)
+      }
     }
 
-    const onAbort = () => {
-      emitter.off(eventName, onEvent)
-      res(null)
+    /** @param {TypedEventArgs<Emitter, Event>} args */
+    const onEvent = (...args) => {
+      /** @type {unknown} */
+      let err
+
+      try {
+        if (!check(...args)) return
+      } catch (e) {
+        err = e
+      }
+
+      cleanup()
+      if (err) {
+        rej(err)
+      } else {
+        res(args)
+      }
     }
 
     emitter.on(eventName, onEvent)
-    signal?.addEventListener('abort', onAbort, { once: true })
   })
 
 /**

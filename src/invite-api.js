@@ -263,7 +263,9 @@ export class InviteApi extends TypedEmitter {
           timingSafeEqual(projectDetailsPeerId, peerId) &&
           timingSafeEqual(inviteId, details.inviteId),
         { signal: projectDetailsAbortController.signal }
-      ).then((args) => args?.[1])
+      )
+        .then((args) => args?.[1])
+        .catch(noop)
 
     try {
       await this.rpc.sendInviteResponse(peerId, {

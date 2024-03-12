@@ -171,7 +171,9 @@ export class MemberApi extends TypedEmitter {
             timingSafeEqual(peerId, deviceId) &&
             timingSafeEqual(inviteId, inviteResponse.inviteId),
           { signal: receiveInviteAbortController.signal }
-        ).then((args) => args?.[1])
+        )
+          .then((args) => args?.[1])
+          .catch(noop)
 
       await this.#rpc.sendInvite(deviceId, {
         inviteId,
