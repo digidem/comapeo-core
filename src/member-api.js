@@ -122,10 +122,13 @@ export class MemberApi extends TypedEmitter {
       }
     }
 
+    const receiveInviteAbortController = new AbortController()
+
     try {
       let handleAborted = noop
       const timeoutId = setTimeout(() => {
         handleAborted = () => {
+          receiveInviteAbortController.abort()
           throw new Error('Invite timed out')
         }
       }, timeout)
@@ -157,7 +160,6 @@ export class MemberApi extends TypedEmitter {
 
       const inviteId = crypto.randomBytes(32)
 
-      const receiveInviteAbortController = new AbortController()
       cleanupFns.push(() => {
         receiveInviteAbortController.abort()
       })
