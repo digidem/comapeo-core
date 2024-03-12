@@ -26,16 +26,18 @@ test('write and read deviceInfo', async (t) => {
     fastify,
   })
 
-  const info1 = { name: 'my device' }
-  await manager.setDeviceInfo(info1)
-  const readInfo1 = manager.getDeviceInfo()
-  const expected1 = { ...info1, deviceId: manager.deviceId }
-  t.alike(readInfo1, expected1)
-  const info2 = { name: 'new name' }
-  await manager.setDeviceInfo(info2)
-  const readInfo2 = manager.getDeviceInfo()
-  const expected2 = { ...info2, deviceId: manager.deviceId }
-  t.alike(readInfo2, expected2)
+  await manager.setDeviceInfo({ name: 'my device', deviceType: 'tablet' })
+  t.alike(manager.getDeviceInfo(), {
+    name: 'my device',
+    deviceType: 'tablet',
+    deviceId: manager.deviceId,
+  })
+
+  await manager.setDeviceInfo({ name: 'new name' })
+  t.alike(manager.getDeviceInfo(), {
+    name: 'new name',
+    deviceId: manager.deviceId,
+  })
 })
 
 test('device info written to projects', (t) => {
@@ -50,7 +52,7 @@ test('device info written to projects', (t) => {
       fastify,
     })
 
-    await manager.setDeviceInfo({ name: 'mapeo' })
+    await manager.setDeviceInfo({ name: 'mapeo', deviceType: 'tablet' })
 
     const projectId = await manager.createProject()
     const project = await manager.getProject(projectId)
@@ -58,7 +60,8 @@ test('device info written to projects', (t) => {
     const me = await project.$member.getById(project.deviceId)
 
     st.is(me.deviceId, project.deviceId)
-    st.alike({ name: me.name }, { name: 'mapeo' })
+    st.is(me.name, 'mapeo')
+    st.is(me.deviceType, 'tablet')
   })
 
   t.test('when adding project', async (st) => {
@@ -72,7 +75,7 @@ test('device info written to projects', (t) => {
       fastify,
     })
 
-    await manager.setDeviceInfo({ name: 'mapeo' })
+    await manager.setDeviceInfo({ name: 'mapeo', deviceType: 'tablet' })
 
     const projectId = await manager.addProject(
       {
@@ -86,7 +89,8 @@ test('device info written to projects', (t) => {
 
     const me = await project.$member.getById(project.deviceId)
 
-    st.alike({ name: me.name }, { name: 'mapeo' })
+    st.is(me.name, 'mapeo')
+    st.is(me.deviceType, 'tablet')
   })
 
   t.test('after updating global device info', async (st) => {
@@ -100,7 +104,7 @@ test('device info written to projects', (t) => {
       fastify,
     })
 
-    await manager.setDeviceInfo({ name: 'before' })
+    await manager.setDeviceInfo({ name: 'before', deviceType: 'tablet' })
 
     const projectIds = await Promise.all([
       manager.createProject(),
@@ -121,11 +125,12 @@ test('device info written to projects', (t) => {
       )
 
       for (const info of ownMemberInfos) {
-        st.alike({ name: info.name }, { name: 'before' })
+        st.is(info.name, 'before')
+        st.is(info.deviceType, 'tablet')
       }
     }
 
-    await manager.setDeviceInfo({ name: 'after' })
+    await manager.setDeviceInfo({ name: 'after', deviceType: 'desktop' })
 
     {
       const ownMemberInfos = await Promise.all(
@@ -133,7 +138,8 @@ test('device info written to projects', (t) => {
       )
 
       for (const info of ownMemberInfos) {
-        st.alike({ name: info.name }, { name: 'after' })
+        st.is(info.name, 'after')
+        st.is(info.deviceType, 'desktop')
       }
     }
   })
