@@ -14,6 +14,7 @@ import { MapeoManager } from '../src/mapeo-manager.js'
 import { FastifyController } from '../src/fastify-controller.js'
 import { plugin as StaticMapsPlugin } from '../src/fastify-plugins/maps/static-maps.js'
 import { plugin as MapServerPlugin } from '../src/fastify-plugins/maps/index.js'
+import { plugin as OfflineFallbackMapPlugin } from '../src/fastify-plugins/maps/offline-fallback-map.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../tests/fixtures/blob-api/', import.meta.url)
@@ -21,6 +22,11 @@ const BLOB_FIXTURES_DIR = fileURLToPath(
 
 const MAP_FIXTURES_PATH = new URL('../tests/fixtures/maps', import.meta.url)
   .pathname
+
+const MAPEO_FALLBACK_MAP_PATH = new URL(
+  '../../node_modules/mapeo-offline-map',
+  import.meta.url
+).pathname
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -296,6 +302,12 @@ test('retrieving style.json using stable url', async (t) => {
     prefix: 'static',
     staticRootDir: MAP_FIXTURES_PATH,
   })
+  fastify.register(OfflineFallbackMapPlugin, {
+    prefix: 'fallback',
+    styleJsonPath: join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
+    sourcesDir: join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
+  })
+
   fastify.register(MapServerPlugin, {
     prefix: 'maps',
   })
