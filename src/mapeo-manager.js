@@ -7,6 +7,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import pTimeout from 'p-timeout'
 
 import { IndexWriter } from './index-writer/index.js'
 import {
@@ -259,15 +260,12 @@ export class MapeoManager extends TypedEmitter {
       .then((openedNoiseStream) => {
         if (openedNoiseStream.destroyed) return
 
-        const { name } = this.getDeviceInfo()
-        if (!name) return
+        const deviceInfo = this.getDeviceInfo()
+        if (!hasSavedDeviceInfo(deviceInfo)) return
 
         const peerId = keyToId(openedNoiseStream.remotePublicKey)
 
-        return this.#localPeers.sendDeviceInfo(peerId, {
-          name,
-          deviceType: this.#deviceType,
-        })
+        return this.#localPeers.sendDeviceInfo(peerId, deviceInfo)
       })
       .catch((e) => {
         // Ignore error but log
@@ -390,8 +388,8 @@ export class MapeoManager extends TypedEmitter {
 
     // 6. Write device info into project
     const deviceInfo = this.getDeviceInfo()
-    if (deviceInfo.name) {
-      await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
+    if (hasSavedDeviceInfo(deviceInfo)) {
+      await project[kSetOwnDeviceInfo](deviceInfo)
     }
 
     // TODO: Close the project instance instead of keeping it around
@@ -585,8 +583,8 @@ export class MapeoManager extends TypedEmitter {
 
       try {
         const deviceInfo = this.getDeviceInfo()
-        if (deviceInfo.name) {
-          await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
+        if (hasSavedDeviceInfo(deviceInfo)) {
+          await project[kSetOwnDeviceInfo](deviceInfo)
         }
       } catch (e) {
         // Can ignore an error trying to write device info
@@ -794,6 +792,11 @@ export class MapeoManager extends TypedEmitter {
 
     this.#activeProjects.delete(projectPublicId)
   }
+
+  async getMapStyleJsonUrl() {
+    await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
+    return this.#fastify.mapeoMaps.getStyleJsonUrl()
+  }
 }
 
 // We use the `protomux` property of connected peers internally, but we don't
@@ -829,4 +832,12 @@ function validateProjectKeys(projectKeys) {
   if (!projectKeys.encryptionKeys) {
     throw new Error('encryptionKeys should not be undefined')
   }
+}
+
+/**
+ * @param {Awaited<ReturnType<typeof MapeoManager.prototype.getDeviceInfo>>} partialDeviceInfo
+ * @returns {partialDeviceInfo is import('./generated/rpc.js').DeviceInfo}
+ */
+function hasSavedDeviceInfo(partialDeviceInfo) {
+  return Boolean(partialDeviceInfo.name)
 }
