@@ -233,7 +233,7 @@ const mime = new Mime(standardTypes, { 'application/x-protobuf': ['pbf'] })
 /**
  * @param {string} baseDirectory
  * @param {import('@sinclair/typebox').Static<typeof GetStaticMapTileParamsSchema>} params
- * @returns {null | { data: Buffer, mimeType: string | null, shouldGzip: boolean}}
+ * @returns {null | { data: Buffer, mimeType: string | null }}
  */
 function getStyleTileInfo(baseDirectory, params) {
   const { styleId, tileId, z, x, y } = params
@@ -273,7 +273,5 @@ function getStyleTileInfo(baseDirectory, params) {
 
   const mimeType = mime.getType(ext)
 
-  const shouldGzip = ext === 'mvt' || ext === 'pbf'
-
-  return { data, mimeType, shouldGzip }
+  return { data, mimeType }
 }
