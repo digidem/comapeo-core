@@ -67,14 +67,14 @@ export class CoreSyncState {
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#update = () => {
-      this.#cachedState = null
+      // this.#cachedState = null
       process.nextTick(onUpdate)
     }
   }
 
   /** @type {() => DerivedState} */
   getState() {
-    if (this.#cachedState) return this.#cachedState
+    // if (this.#cachedState) return this.#cachedState
     return deriveState({
       length: this.#core?.length,
       localState: this.#localState,
