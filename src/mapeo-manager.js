@@ -7,6 +7,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import pTimeout from 'p-timeout'
 
 import { IndexWriter } from './index-writer/index.js'
 import {
@@ -793,6 +794,11 @@ export class MapeoManager extends TypedEmitter {
       .run()
 
     this.#activeProjects.delete(projectPublicId)
+  }
+
+  async getMapStyleJsonUrl() {
+    await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
+    return this.#fastify.mapeoMaps.getStyleJsonUrl()
   }
 }
 

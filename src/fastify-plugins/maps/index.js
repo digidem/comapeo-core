@@ -40,8 +40,22 @@ export const plugin = fp(mapsPlugin, {
  * @property {string} [defaultOnlineStyleUrl]
  */
 
+/**
+ * @typedef {object} MapsPluginContext
+ * @property {() => Promise<string>} getStyleJsonUrl
+ */
+
 /** @type {import('fastify').FastifyPluginAsync<MapsPluginOpts>} */
 async function mapsPlugin(fastify, opts) {
+  fastify.decorate('mapeoMaps', {
+    async getStyleJsonUrl() {
+      const base = await getFastifyServerAddress(fastify.server, {
+        timeout: 5000,
+      })
+
+      return new URL(`${opts.prefix || ''}/style.json`, base).href
+    },
+  })
   fastify.register(routes, {
     prefix: opts.prefix,
     defaultOnlineStyleUrl: opts.defaultOnlineStyleUrl,
