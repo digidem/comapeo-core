@@ -94,6 +94,13 @@ type NullKeys<Base> = NonNullable<
 >
 
 /**
+ * Replace an object's `Buffer` values with `string`s. Useful for serialization.
+ */
+export type MapBuffers<T> = {
+  [K in keyof T]: T[K] extends Buffer ? string : T[K]
+}
+
+/**
  * Make any properties whose value include `null` optional, and remove `null`
  * from the type. This converts the types returned from SQLite (which have all
  * top-level optional props set to `null`) to the original types in

@@ -105,8 +105,8 @@ export async function invite({
     promises.push(
       once(invitee.invite, 'invite-received').then(([invite]) => {
         return reject
-          ? invitee.invite.reject(invite.projectId)
-          : invitee.invite.accept(invite.projectId)
+          ? invitee.invite.reject(invite)
+          : invitee.invite.accept(invite)
       })
     )
   }
