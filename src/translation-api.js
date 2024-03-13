@@ -31,7 +31,6 @@ export default class TranslationApi {
    * @param {import('@mapeo/schema').TranslationValue} value
    */
   async put(value) {
-    this.#index(value)
     /* eslint-disable no-unused-vars */
     const { message, ...identifiers } = value
     const docId = hashObject(identifiers)
@@ -85,7 +84,7 @@ export default class TranslationApi {
   /**
    * @param {import('@mapeo/schema').TranslationValue} doc
    */
-  #index(doc) {
+  index(doc) {
     let translatedSchemas = this.#translatedLanguageCodeToSchemaNames.get(
       doc.languageCode
     )

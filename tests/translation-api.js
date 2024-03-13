@@ -42,6 +42,7 @@ test(`put() and get()`, async (t) => {
   const { message, ...identifiers } = doc
   const expectedDocId = hashObject(identifiers)
   const docId = await api.put(doc)
+  api.index(doc)
 
   t.ok(docId, `putting a translation doc works`)
   t.is(
