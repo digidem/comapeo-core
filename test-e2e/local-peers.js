@@ -14,14 +14,9 @@ test('Local peers discovery each other and share device info', async (t) => {
   connectPeers(managers, { discovery: true })
   t.teardown(() => disconnectPeers(managers))
   await waitForPeers(managers, { waitForDeviceInfo: true })
-  const deviceInfos = [
-    ...mobileManagers
-      .map((m) => m.getDeviceInfo())
-      .map((deviceInfo) => ({ ...deviceInfo, deviceType: 'mobile' })),
-    ...desktopManagers
-      .map((m) => m.getDeviceInfo())
-      .map((deviceInfo) => ({ ...deviceInfo, deviceType: 'desktop' })),
-  ]
+  const deviceInfos = [...mobileManagers, ...desktopManagers].map((m) =>
+    m.getDeviceInfo()
+  )
   const mPeers = await Promise.all(managers.map((m) => m.listLocalPeers()))
   for (const [i, peers] of mPeers.entries()) {
     const expectedDeviceInfos = removeElementAt(deviceInfos, i)

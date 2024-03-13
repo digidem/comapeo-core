@@ -169,7 +169,7 @@ export async function createManagers(count, t, deviceType) {
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
         const manager = createManager(name, t, deviceType)
-        await manager.setDeviceInfo({ name })
+        await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
   )

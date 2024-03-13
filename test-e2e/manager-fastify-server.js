@@ -12,10 +12,21 @@ import Fastify from 'fastify'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { FastifyController } from '../src/fastify-controller.js'
+import { plugin as StaticMapsPlugin } from '../src/fastify-plugins/maps/static-maps.js'
+import { plugin as MapServerPlugin } from '../src/fastify-plugins/maps/index.js'
+import { plugin as OfflineFallbackMapPlugin } from '../src/fastify-plugins/maps/offline-fallback-map.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../tests/fixtures/blob-api/', import.meta.url)
 )
+
+const MAP_FIXTURES_PATH = new URL('../tests/fixtures/maps', import.meta.url)
+  .pathname
+
+const MAPEO_FALLBACK_MAP_PATH = new URL(
+  '../../node_modules/mapeo-offline-map',
+  import.meta.url
+).pathname
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -281,14 +292,73 @@ test('retrieving icons using url', async (t) => {
   await exceptionPromise2
 })
 
+test('retrieving style.json using stable url', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.teardown(() => clock.uninstall())
+
+  const fastify = Fastify()
+
+  fastify.register(StaticMapsPlugin, {
+    prefix: 'static',
+    staticRootDir: MAP_FIXTURES_PATH,
+  })
+  fastify.register(OfflineFallbackMapPlugin, {
+    prefix: 'fallback',
+    styleJsonPath: join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
+    sourcesDir: join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
+  })
+
+  fastify.register(MapServerPlugin, {
+    prefix: 'maps',
+  })
+
+  const fastifyController = new FastifyController({ fastify })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+    fastify,
+  })
+
+  const exceptionPromise1 = t.exception(async () => {
+    await manager.getMapStyleJsonUrl()
+  }, 'cannot retrieve style json url before HTTP server starts')
+
+  clock.tick(100_000)
+  await exceptionPromise1
+
+  fastifyController.start({ port: 1234 })
+
+  const styleJsonUrl = await manager.getMapStyleJsonUrl()
+
+  t.ok(new URL(styleJsonUrl))
+
+  const response = await fetch(styleJsonUrl)
+
+  t.is(response.status, 200, 'response status ok')
+
+  await fastifyController.stop()
+
+  const exceptionPromise2 = t.exception(async () => {
+    await manager.getMapStyleJsonUrl()
+  }, 'cannot retrieve style json url after HTTP server closes')
+
+  clock.tick(100_000)
+  await exceptionPromise2
+})
+
 /**
- * @param {string} url
+ * @param {Parameters<typeof uFetch>} args
  */
-async function fetch(url) {
-  return uFetch(url, {
-    // Noticed that the process was hanging (on Node 18, at least) after calling manager.stop() further below
-    // Probably related to https://github.com/nodejs/undici/issues/2348
-    // Adding the below seems to fix it
-    dispatcher: new Agent({ keepAliveMaxTimeout: 100 }),
+async function fetch(...args) {
+  return uFetch(args[0], {
+    ...args[1],
+    // Prevents tests from hanging caused by Undici's default behavior
+    dispatcher: new Agent({
+      keepAliveMaxTimeout: 10,
+      keepAliveTimeout: 10,
+    }),
   })
 }

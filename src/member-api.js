@@ -5,7 +5,13 @@ import { ROLES, isRoleIdForNewInvite } from './roles.js'
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
-/** @typedef {{ deviceId: string, name?: import('@mapeo/schema').DeviceInfo['name'], role: import('./roles.js').Role }} MemberInfo */
+/**
+ * @typedef {object} MemberInfo
+ * @prop {string} deviceId
+ * @prop {import('./roles.js').Role} role
+ * @prop {import('@mapeo/schema').DeviceInfo['name']} [name]
+ * @prop {import('@mapeo/schema').DeviceInfo['deviceType']} [deviceType]
+ */
 
 export class MemberApi extends TypedEmitter {
   #ownDeviceId
@@ -113,6 +119,7 @@ export class MemberApi extends TypedEmitter {
       )
 
       result.name = deviceInfo.name
+      result.deviceType = deviceInfo.deviceType
     } catch (err) {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
@@ -147,6 +154,7 @@ export class MemberApi extends TypedEmitter {
           )
 
           memberInfo.name = deviceInfo?.name
+          memberInfo.deviceType = deviceInfo?.deviceType
         } catch (err) {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available
