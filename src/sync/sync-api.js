@@ -70,8 +70,7 @@ export class SyncApi extends TypedEmitter {
     this[kSyncState] = new SyncState({ coreManager, throttleMs })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
-      const state = reduceSyncState(namespaceSyncState)
-      state.data.syncing = this.#dataSyncEnabled.has('local')
+      const state = this.#getState(namespaceSyncState)
       this.emit('sync-state', state)
     })
 
@@ -112,7 +111,15 @@ export class SyncApi extends TypedEmitter {
    * @returns {State}
    */
   getState() {
-    const state = reduceSyncState(this[kSyncState].getState())
+    return this.#getState(this[kSyncState].getState())
+  }
+
+  /**
+   * @param {import('./sync-state.js').State} namespaceSyncState
+   * @returns {State}
+   */
+  #getState(namespaceSyncState) {
+    const state = reduceSyncState(namespaceSyncState)
     state.data.syncing = this.#dataSyncEnabled.has('local')
     return state
   }
@@ -127,6 +134,7 @@ export class SyncApi extends TypedEmitter {
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.enableDataSync()
     }
+    this.emit('sync-state', this.getState())
   }
 
   /**
@@ -139,6 +147,7 @@ export class SyncApi extends TypedEmitter {
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.disableDataSync()
     }
+    this.emit('sync-state', this.getState())
   }
 
   /**
