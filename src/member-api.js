@@ -106,92 +106,37 @@ export class MemberApi extends TypedEmitter {
     assert(timeout > 0, 'Timeout should be a positive number')
     assert(timeout < 2 ** 32, 'Timeout is too large')
 
-    /**
-     * These cleanup functions should be synchronous so we don't have to
-     * `await` calls to `handleAborted`.
-     * @type {Array<() => void>}
-     */
-    const cleanupFns = []
-    const cleanup = () => {
-      for (const fn of cleanupFns) {
-        try {
-          fn()
-        } catch (_err) {
-          console.error('Cleanup function failed')
-        }
-      }
-    }
-
-    const receiveInviteAbortController = new AbortController()
-
     try {
-      let handleAborted = noop
-      const timeoutId = setTimeout(() => {
-        handleAborted = () => {
-          receiveInviteAbortController.abort()
-          throw new Error('Invite timed out')
-        }
-      }, timeout)
-      cleanupFns.push(() => {
-        clearTimeout(timeoutId)
-      })
-
       this.#deviceIdsWithPendingInvites.add(deviceId)
-      cleanupFns.push(() => {
-        this.#deviceIdsWithPendingInvites.delete(deviceId)
-      })
-
       const { name: invitorName } = await this.getById(this.#ownDeviceId)
       // since we are always getting #ownDeviceId,
       // this should never throw (see comment on getById), but it pleases ts
-      if (!invitorName)
-        throw new Error(
-          'Internal error trying to read own device name for this invite'
-        )
-      handleAborted()
+      assert(
+        invitorName,
+        'Internal error trying to read own device name for this invite'
+      )
 
+      const inviteId = crypto.randomBytes(32)
       const projectId = projectKeyToId(this.#projectKey)
       const projectPublicId = projectKeyToPublicId(this.#projectKey)
       const project = await this.#dataTypes.project.getByDocId(projectId)
       const projectName = project.name
-      if (!projectName)
-        throw new Error('Project must have a name to invite people')
-      handleAborted()
+      assert(projectName, 'Project must have a name to invite people')
 
-      const inviteId = crypto.randomBytes(32)
-
-      cleanupFns.push(() => {
-        receiveInviteAbortController.abort()
-      })
-      const receiveInviteResponsePromise =
-        /** @type {typeof onceSatisfied<TypedEmitter<import('./local-peers.js').LocalPeersEvents>, 'invite-response'>} */ (
-          onceSatisfied
-        )(
-          this.#rpc,
-          'invite-response',
-          (peerId, inviteResponse) =>
-            timingSafeEqual(peerId, deviceId) &&
-            timingSafeEqual(inviteId, inviteResponse.inviteId),
-          { signal: receiveInviteAbortController.signal }
-        )
-          .then((args) => args?.[1])
-          .catch(noop)
-
-      await this.#rpc.sendInvite(deviceId, {
+      const invite = {
         inviteId,
         projectPublicId,
         projectName,
         roleName,
         roleDescription,
         invitorName,
-      })
+      }
 
-      handleAborted()
-
-      const inviteResponse = await receiveInviteResponsePromise
-      assert(inviteResponse, 'Expected an invite response to be received')
-
-      handleAborted()
+      const inviteResponse = await this.#sendInviteAndGetResponse(
+        deviceId,
+        invite,
+        { timeout }
+      )
 
       switch (inviteResponse.decision) {
         case InviteResponse_Decision.ALREADY:
@@ -200,8 +145,6 @@ export class MemberApi extends TypedEmitter {
         case InviteResponse_Decision.UNRECOGNIZED:
           return InviteResponse_Decision.REJECT
         case InviteResponse_Decision.ACCEPT:
-          handleAborted()
-
           // We should assign the role locally *before* sharing the project details
           // so that they're part of the project even if they don't receive the
           // project details message.
@@ -219,7 +162,49 @@ export class MemberApi extends TypedEmitter {
           throw new ExhaustivenessError(inviteResponse.decision)
       }
     } finally {
-      cleanup()
+      this.#deviceIdsWithPendingInvites.delete(deviceId)
+    }
+  }
+
+  /**
+   * Send an invite and return the response. Will throw if no response is
+   * received within the timeout.
+   *
+   * @param {string} deviceId
+   * @param {Invite} invite
+   * @param {object} options
+   * @param {number} options.timeout
+   */
+  async #sendInviteAndGetResponse(deviceId, invite, { timeout }) {
+    const abortController = new AbortController()
+    const timeoutId = setTimeout(() => abortController.abort(), timeout)
+
+    const responsePromise =
+      /** @type {typeof onceSatisfied<TypedEmitter<import('./local-peers.js').LocalPeersEvents>, 'invite-response'>} */ (
+        onceSatisfied
+      )(
+        this.#rpc,
+        'invite-response',
+        (peerId, inviteResponse) =>
+          timingSafeEqual(peerId, deviceId) &&
+          timingSafeEqual(invite.inviteId, inviteResponse.inviteId),
+        { signal: abortController.signal }
+      ).then((args) => args?.[1])
+
+    responsePromise.catch(noop)
+
+    try {
+      await this.#rpc.sendInvite(deviceId, invite)
+      return await responsePromise
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('Invite timed out')
+      } else {
+        throw err
+      }
+    } finally {
+      clearTimeout(timeoutId)
+      abortController.abort()
     }
   }
 
