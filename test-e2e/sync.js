@@ -1,5 +1,6 @@
 // @ts-check
 import { test } from 'brittle'
+import { setTimeout as delay } from 'timers/promises'
 import {
   connectPeers,
   createManagers,
@@ -257,5 +258,42 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
 
   await disconnect1()
 
+  await Promise.all(projects.map((p) => p.close()))
+})
+
+test('Create and sync data', async function (t) {
+  const COUNT = 2
+  const managers = await createManagers(COUNT, t)
+  const [invitor, ...invitees] = managers
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  const disconnect = connectPeers(managers, { discovery: false })
+
+  await invite({ invitor, invitees, projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const stateEvents = []
+
+  projects[0].$sync.on('sync-state', (state) => {
+    const timestamp = Date.now()
+    stateEvents.push({ state, timestamp })
+  })
+
+  projects[0].$sync.start()
+  t.ok(stateEvents.length === 1, 'sync-state event emitted after start')
+
+  await delay(500)
+
+  const eventCountBeforeStop = stateEvents.length
+  projects[0].$sync.stop()
+  t.ok(
+    stateEvents.length > eventCountBeforeStop,
+    'sync-state event emitted after stop'
+  )
+
+  await disconnect()
   await Promise.all(projects.map((p) => p.close()))
 })
