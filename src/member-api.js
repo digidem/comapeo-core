@@ -1,11 +1,11 @@
 import * as crypto from 'node:crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import {
   assert,
   noop,
   ExhaustivenessError,
-  onceSatisfied,
   projectKeyToId,
   projectKeyToPublicId,
 } from './utils.js'
@@ -180,16 +180,15 @@ export class MemberApi extends TypedEmitter {
     const timeoutId = setTimeout(() => abortController.abort(), timeout)
 
     const responsePromise =
-      /** @type {typeof onceSatisfied<TypedEmitter<import('./local-peers.js').LocalPeersEvents>, 'invite-response'>} */ (
-        onceSatisfied
-      )(
-        this.#rpc,
-        'invite-response',
-        (peerId, inviteResponse) =>
+      /** @type {typeof pEvent<'invite-response', [string, InviteResponse]>} */ (
+        pEvent
+      )(this.#rpc, 'invite-response', {
+        multiArgs: true,
+        filter: ([peerId, inviteResponse]) =>
           timingSafeEqual(peerId, deviceId) &&
           timingSafeEqual(invite.inviteId, inviteResponse.inviteId),
-        { signal: abortController.signal }
-      ).then((args) => args?.[1])
+        signal: abortController.signal,
+      }).then((args) => args?.[1])
 
     responsePromise.catch(noop)
 
