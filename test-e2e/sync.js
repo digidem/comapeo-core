@@ -261,7 +261,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   await Promise.all(projects.map((p) => p.close()))
 })
 
-test('Create and sync data', async function (t) {
+test('Sync state emitted when starting and stopping sync', async function (t) {
   const COUNT = 2
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
