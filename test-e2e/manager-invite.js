@@ -256,13 +256,18 @@ test('times out', async (t) => {
     roleId: MEMBER_ROLE_ID,
     timeout: 1234,
   })
+  const timeoutAssertionPromise = t.exception(
+    responsePromise,
+    /Invite timed out/,
+    'should time out'
+  )
 
   await clock.tickAsync(1235)
 
   const [invite] = await inviteReceivedPromise
   joiner.invite.accept(invite)
 
-  await t.exception(responsePromise, 'should time out')
+  await timeoutAssertionPromise
 })
 
 /**
