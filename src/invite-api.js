@@ -1,7 +1,8 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { assert, keyToId, onceSatisfied, noop } from './utils.js'
+import { assert, keyToId, noop } from './utils.js'
 import HashMap from './lib/hashmap.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 
@@ -251,19 +252,18 @@ export class InviteApi extends TypedEmitter {
     const projectDetailsAbortController = new AbortController()
 
     const projectDetailsPromise =
-      /** @type {typeof onceSatisfied<TypedEmitter<import('./local-peers.js').LocalPeersEvents>, 'got-project-details'>} */ (
-        onceSatisfied
-      )(
-        this.rpc,
-        'got-project-details',
-        (projectDetailsPeerId, details) =>
+      /** @type {typeof pEvent<'got-project-details', [string, ProjectJoinDetails]>} */ (
+        pEvent
+      )(this.rpc, 'got-project-details', {
+        multiArgs: true,
+        filter: ([projectDetailsPeerId, details]) =>
           // This peer ID check is probably superfluous because the invite ID
           // should be unguessable, but might be useful if someone forwards an
           // invite message (or if there's an unforeseen bug).
           timingSafeEqual(projectDetailsPeerId, peerId) &&
           timingSafeEqual(inviteId, details.inviteId),
-        { signal: projectDetailsAbortController.signal }
-      )
+        signal: projectDetailsAbortController.signal,
+      })
         .then((args) => args?.[1])
         .catch(noop)
 

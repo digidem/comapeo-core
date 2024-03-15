@@ -101,11 +101,7 @@ test('invite-received event has expected payload', async (t) => {
     },
   ]
   const receivedInvitesArgs = await invitesReceivedPromise
-  t.alike(
-    receivedInvitesArgs,
-    expectedInvites.map((i) => [i]),
-    'received expected invites'
-  )
+  t.alike(receivedInvitesArgs, expectedInvites, 'received expected invites')
   t.alike(inviteApi.getPending(), expectedInvites)
 })
 
@@ -492,7 +488,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       'got expected responses'
     )
 
-    const removedInvites = (await invitesRemovedPromise).map((args) => args[0])
+    const removedInvites = await invitesRemovedPromise
     const allButLastRemoved = removedInvites.slice(0, -1)
     const lastRemoved = removedInvites[removedInvites.length - 1]
     t.alike(
