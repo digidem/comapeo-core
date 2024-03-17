@@ -65,10 +65,10 @@ class RemoteBitfieldPage {
   setRange(start, length, val) {
     quickbit.fill(this.bitfield, val, start, start + length)
 
-    let i = Math.floor(start / 32)
-    const n = i + Math.ceil(length / 32)
+    let i = Math.floor(start / 128)
+    const n = i + Math.ceil(length / 128)
 
-    while (i < n) this.tree.update(this.offset * 8 + i++ * 32)
+    while (i <= n) this.tree.update(this.offset * 8 + i++ * 128)
   }
   /**
    *
@@ -93,6 +93,7 @@ class RemoteBitfieldPage {
    */
   insert(start, bitfield) {
     this.bitfield.set(bitfield, start / 32)
+    this.segment.refresh()
   }
 }
 
@@ -108,17 +109,27 @@ class RemoteBitfieldSegment {
       quickbit.Index.from([], BYTES_PER_SEGMENT)
     )
     this.pages = new Array(PAGES_PER_SEGMENT)
+    this.pagesLength = 0
   }
 
   get chunks() {
     return this.tree.chunks
   }
 
+  refresh() {
+    this.tree = /** @type {import('quickbit-universal').SparseIndex} */ (
+      quickbit.Index.from(this.tree.chunks, BYTES_PER_SEGMENT)
+    )
+  }
+
   /**
    * @param {RemoteBitfieldPage} page
    */
   add(page) {
-    this.pages[page.index - this.index * PAGES_PER_SEGMENT] = page
+    const pageIndex = page.index - this.index * PAGES_PER_SEGMENT
+    if (pageIndex >= this.pagesLength) this.pagesLength = pageIndex + 1
+
+    this.pages[pageIndex] = page
 
     const chunk = { field: page.bitfield, offset: page.offset }
 
@@ -145,7 +156,7 @@ class RemoteBitfieldSegment {
 
     if (i >= PAGES_PER_SEGMENT) return -1
 
-    while (i < this.pages.length) {
+    while (i < this.pagesLength) {
       const p = this.pages[i]
 
       let index = -1
@@ -198,6 +209,7 @@ export default class RemoteBitfield {
     this._pages = new BigSparseArray()
     /** @type {BigSparseArray<RemoteBitfieldSegment>} */
     this._segments = new BigSparseArray()
+    this._maxSegments = 0
   }
 
   /**
@@ -210,6 +222,14 @@ export default class RemoteBitfield {
     const p = this._pages.get(i)
 
     return p ? p.get(j) : false
+  }
+
+  getBitfield(index) {
+    const j = index & (BITS_PER_PAGE - 1)
+    const i = (index - j) / BITS_PER_PAGE
+
+    const p = this._pages.get(i)
+    return p || null
   }
 
   /**
@@ -227,6 +247,7 @@ export default class RemoteBitfield {
       const s =
         this._segments.get(k) ||
         this._segments.set(k, new RemoteBitfieldSegment(k))
+      if (this._maxSegments <= k) this._maxSegments = k + 1
 
       p = this._pages.set(
         i,
@@ -254,6 +275,7 @@ export default class RemoteBitfield {
         const s =
           this._segments.get(k) ||
           this._segments.set(k, new RemoteBitfieldSegment(k))
+        if (this._maxSegments <= k) this._maxSegments = k + 1
 
         p = this._pages.set(
           i,
@@ -280,7 +302,7 @@ export default class RemoteBitfield {
     let j = position & (BITS_PER_SEGMENT - 1)
     let i = (position - j) / BITS_PER_SEGMENT
 
-    while (i < this._segments.maxLength) {
+    while (i < this._maxSegments) {
       const s = this._segments.get(i)
 
       let index = -1
@@ -366,6 +388,7 @@ export default class RemoteBitfield {
         const s =
           this._segments.get(k) ||
           this._segments.set(k, new RemoteBitfieldSegment(k))
+        if (this._maxSegments <= k) this._maxSegments = k + 1
 
         p = this._pages.set(
           i,
