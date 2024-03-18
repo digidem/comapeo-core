@@ -58,6 +58,7 @@ export class CoreSyncState {
   #localState = new PeerState()
   /** @type {DerivedState | null} */
   #cachedState = null
+  #preHavesLength = 0
   #update
 
   /**
@@ -75,8 +76,9 @@ export class CoreSyncState {
   /** @type {() => DerivedState} */
   getState() {
     if (this.#cachedState) return this.#cachedState
+    const localCoreLength = this.#core?.length || 0
     return deriveState({
-      length: this.#core?.length,
+      length: Math.max(localCoreLength, this.#preHavesLength),
       localState: this.#localState,
       remoteStates: this.#remoteStates,
     })
@@ -134,6 +136,17 @@ export class CoreSyncState {
   insertPreHaves(peerId, start, bitfield) {
     const peerState = this.#getPeerState(peerId)
     peerState.insertPreHaves(start, bitfield)
+    this.#preHavesLength = Math.max(
+      this.#preHavesLength,
+      peerState.preHavesBitfield.lastSet(start + bitfield.length * 32) + 1
+    )
+    console.log(
+      'insertPreHaves',
+      peerId.slice(0, 5),
+      this.#core?.discoveryKey?.toString('hex').slice(0, 5),
+      bitfield.slice(0, 5),
+      this.#preHavesLength
+    )
     this.#update()
   }
 
@@ -188,6 +201,12 @@ export class CoreSyncState {
     // A peer can have a pre-emptive "have" bitfield received via an extension
     // message, but when the peer actually connects then we switch to the actual
     // bitfield from the peer object
+    // console.log(
+    //   'setting haves',
+    //   peerId.slice(0, 5),
+    //   this.#core?.discoveryKey?.toString('hex').slice(0, 5),
+    //   peer.remoteBitfield.firstUnset(0)
+    // )
     peerState.setHavesBitfield(peer.remoteBitfield)
     this.#update()
 
@@ -241,6 +260,9 @@ export class PeerState {
   constructor({ wantAll = true } = {}) {
     this.#wantAll = wantAll
   }
+  get preHavesBitfield() {
+    return this.#preHaves
+  }
   /**
    * @param {number} start
    * @param {Uint32Array} bitfield
@@ -274,7 +296,7 @@ export class PeerState {
    * @param {number} index
    */
   have(index) {
-    return this.#haves ? this.#haves.get(index) : this.#preHaves.get(index)
+    return this.#haves?.get(index) || this.#preHaves.get(index)
   }
   /**
    * Return the "haves" for the 32 blocks from `index`, as a 32-bit integer
@@ -284,8 +306,9 @@ export class PeerState {
    * the 32 blocks from `index`
    */
   haveWord(index) {
-    if (this.#haves) return getBitfieldWord(this.#haves, index)
-    return getBitfieldWord(this.#preHaves, index)
+    const preHaveWord = getBitfieldWord(this.#preHaves, index)
+    if (!this.#haves) return preHaveWord
+    return preHaveWord | getBitfieldWord(this.#haves, index)
   }
   /**
    * Returns whether this peer wants block at `index`. Defaults to `true` for

@@ -164,9 +164,11 @@ export class CoreManager extends TypedEmitter {
     })
 
     this.#creatorCore.on('peer-add', (peer) => {
+      console.log('PEER-ADD', peer.remotePublicKey.toString('hex'))
       this.#sendHaves(peer)
     })
     this.#creatorCore.on('peer-remove', (peer) => {
+      console.log('PEER-REMOVE', peer.remotePublicKey.toString('hex'))
       // When a peer is removed we clean up any unanswered key requests, so that
       // we will request from a different peer, and to avoid the tracking of key
       // requests growing without bounds.
@@ -435,7 +437,7 @@ export class CoreManager extends TypedEmitter {
     for (const { core, namespace } of this.#coreIndex) {
       // We want ready() rather than update() because we are only interested in local data
       await core.ready()
-      if (core.length === 0) continue
+      // if (core.length === 0) continue
       const { discoveryKey } = core
       // This will always be defined after ready(), but need to let TS know
       if (!discoveryKey) continue
