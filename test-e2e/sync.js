@@ -7,6 +7,7 @@ import {
   invite,
   seedDatabases,
   sortById,
+  waitForPeers,
   waitForSync,
 } from './utils.js'
 import { kCoreManager } from '../src/mapeo-project.js'
@@ -295,5 +296,55 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
   )
 
   await disconnect()
+  await Promise.all(projects.map((p) => p.close()))
+})
+
+test('Correct sync state prior to data sync', async function (t) {
+  const COUNT = 2
+  const managers = await createManagers(COUNT, t)
+  const [invitor, ...invitees] = managers
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  const disconnect1 = connectPeers(managers, { discovery: false })
+
+  await invite({ invitor, invitees, projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const generated = await seedDatabases(projects, { schemas: ['observation'] })
+  await waitForSync(projects, 'initial')
+
+  const initialSyncState = await Promise.all(
+    projects.map((p) => p.$sync.getState())
+  )
+
+  // Disconnect and reconnect, because currently pre-have messages about data
+  // sync state are only shared on first connection
+  await disconnect1()
+  const disconnect2 = connectPeers(managers, { discovery: false })
+  await waitForPeers(managers)
+
+  const expected = generated.map((docs, i) => {
+    return {
+      initial: initialSyncState[i].initial,
+      data: {
+        have: docs.length,
+        want: generated.filter((d) => d !== docs).flat().length,
+        wanted: docs.length,
+        missing: 0,
+        dataToSync: true,
+        syncing: false,
+      },
+      connectedPeers: managers.length - 1,
+    }
+  })
+
+  const syncState = await Promise.all(projects.map((p) => p.$sync.getState()))
+
+  t.alike(syncState, expected)
+
+  await disconnect2()
   await Promise.all(projects.map((p) => p.close()))
 })
