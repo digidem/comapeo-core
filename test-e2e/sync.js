@@ -300,7 +300,7 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
 })
 
 test('Correct sync state prior to data sync', async function (t) {
-  const COUNT = 2
+  const COUNT = 6
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -340,6 +340,9 @@ test('Correct sync state prior to data sync', async function (t) {
       connectedPeers: managers.length - 1,
     }
   })
+
+  // Wait for initial sharing of sync state
+  await delay(200)
 
   const syncState = await Promise.all(projects.map((p) => p.$sync.getState()))
 

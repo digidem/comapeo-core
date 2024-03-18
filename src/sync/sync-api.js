@@ -197,6 +197,9 @@ export class SyncApi extends TypedEmitter {
     this.#peerSyncControllers.set(protomux, peerSyncController)
     if (peerSyncController.peerId) this.#peerIds.add(peerSyncController.peerId)
 
+    // Add peer to all core states (via namespace sync states)
+    this[kSyncState].addPeer(peerSyncController.peerId)
+
     if (this.#dataSyncEnabled.has('local')) {
       peerSyncController.enableDataSync()
     }

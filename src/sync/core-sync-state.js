@@ -140,13 +140,6 @@ export class CoreSyncState {
       this.#preHavesLength,
       peerState.preHavesBitfield.lastSet(start + bitfield.length * 32) + 1
     )
-    console.log(
-      'insertPreHaves',
-      peerId.slice(0, 5),
-      this.#core?.discoveryKey?.toString('hex').slice(0, 5),
-      bitfield.slice(0, 5),
-      this.#preHavesLength
-    )
     this.#update()
   }
 
@@ -164,6 +157,14 @@ export class CoreSyncState {
       peerState.setWantRange({ start, length })
     }
     this.#update()
+  }
+
+  /**
+   * @param {PeerId} peerId
+   */
+  addPeer(peerId) {
+    if (this.#remoteStates.has(peerId)) return
+    this.#remoteStates.set(peerId, new PeerState())
   }
 
   /**
@@ -201,12 +202,6 @@ export class CoreSyncState {
     // A peer can have a pre-emptive "have" bitfield received via an extension
     // message, but when the peer actually connects then we switch to the actual
     // bitfield from the peer object
-    // console.log(
-    //   'setting haves',
-    //   peerId.slice(0, 5),
-    //   this.#core?.discoveryKey?.toString('hex').slice(0, 5),
-    //   peer.remoteBitfield.firstUnset(0)
-    // )
     peerState.setHavesBitfield(peer.remoteBitfield)
     this.#update()
 

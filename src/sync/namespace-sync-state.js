@@ -82,6 +82,15 @@ export class NamespaceSyncState {
   }
 
   /**
+   * @param {string} peerId
+   */
+  addPeer(peerId) {
+    for (const css of this.#coreStates.values()) {
+      css.addPeer(peerId)
+    }
+  }
+
+  /**
    * @param {import('hypercore')<"binary", Buffer>} core
    * @param {Buffer} coreKey
    */

@@ -45,6 +45,15 @@ export class SyncState extends TypedEmitter {
   }
 
   /**
+   * @param {string} peerId
+   */
+  addPeer(peerId) {
+    for (const nss of Object.values(this.#syncStates)) {
+      nss.addPeer(peerId)
+    }
+  }
+
+  /**
    * @returns {State}
    */
   getState() {
