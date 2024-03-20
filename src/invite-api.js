@@ -143,7 +143,7 @@ class PendingInvites {
 /**
  * @typedef {Object} InviteApiEvents
  * @property {(invite: Invite) => void} invite-received
- * @property {(invite: Invite, reason: InviteRemovalReason) => void} invite-removed
+ * @property {(invite: Invite, removalReason: InviteRemovalReason) => void} invite-removed
  */
 
 /**
@@ -264,11 +264,11 @@ export class InviteApi extends TypedEmitter {
     const { peerId, invite } = pendingInvite
     const { projectName, projectPublicId } = invite
 
-    /** @param {InviteRemovalReason} reason */
-    const removePendingInvite = (reason) => {
+    /** @param {InviteRemovalReason} removalReason */
+    const removePendingInvite = (removalReason) => {
       const didDelete = this.#pendingInvites.deleteByInviteId(inviteId)
       if (didDelete) {
-        this.emit('invite-removed', internalToExternal(invite), reason)
+        this.emit('invite-removed', internalToExternal(invite), removalReason)
       }
     }
 
@@ -335,7 +335,6 @@ export class InviteApi extends TypedEmitter {
       await this.#addProject({ ...details, projectName })
     } catch (e) {
       removePendingInvite('internal error')
-      // TODO: Add a reason for the user
       throw new Error('Failed to join project')
     }
 
