@@ -3,6 +3,7 @@ import { NAMESPACES } from '../constants.js'
 import { NamespaceSyncState } from './namespace-sync-state.js'
 import { throttle } from 'throttle-debounce'
 import mapObject from 'map-obj'
+import { createMap } from '../utils.js'
 
 /**
  * @typedef {Record<
@@ -16,8 +17,8 @@ import mapObject from 'map-obj'
  * @extends {TypedEmitter<{ state: (state: State) => void}>}
  */
 export class SyncState extends TypedEmitter {
-  /** @type {State | null} */
-  #cachedState = null
+  /** @type {{ [K in keyof State]: null | State[K] }} */
+  #cachedState = createMap(NAMESPACES, () => null)
   #syncStates =
     /** @type {Record<import('../core-manager/index.js').Namespace, NamespaceSyncState> } */ ({})
   /** @type {Set<import('../core-manager/index.js').Namespace>} */
@@ -49,11 +50,11 @@ export class SyncState extends TypedEmitter {
    */
   getState() {
     const state = mapObject(this.#syncStates, (namespace, nss) => {
+      const cached = this.#cachedState[namespace]
       // Only re-calculate state if state has updated for that namespace
       const namespaceState =
-        this.#cachedState && !this.#updated.has(namespace)
-          ? this.#cachedState[namespace]
-          : nss.getState()
+        cached && !this.#updated.has(namespace) ? cached : nss.getState()
+      this.#cachedState[namespace] = namespaceState
       return [namespace, namespaceState]
     })
     this.#updated.clear()
