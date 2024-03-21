@@ -105,8 +105,8 @@ export async function invite({
     promises.push(
       once(invitee.invite, 'invite-received').then(([invite]) => {
         return reject
-          ? invitee.invite.reject(invite.projectId)
-          : invitee.invite.accept(invite.projectId)
+          ? invitee.invite.reject(invite)
+          : invitee.invite.accept(invite)
       })
     )
   }
@@ -169,7 +169,7 @@ export async function createManagers(count, t, deviceType) {
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
         const manager = createManager(name, t, deviceType)
-        await manager.setDeviceInfo({ name })
+        await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
   )
@@ -244,7 +244,7 @@ export function round(value, decimalPlaces) {
  * @param {'initial' | 'full'} [type]
  */
 async function waitForProjectSync(project, peerIds, type = 'initial') {
-  const state = await project.$sync[kSyncState].getState()
+  const state = project.$sync[kSyncState].getState()
   if (hasPeerIds(state.auth.remoteStates, peerIds)) {
     return project.$sync.waitForSync(type)
   }

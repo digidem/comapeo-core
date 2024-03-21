@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'brittle'
 import { readConfig } from '../src/config-import.js'
 
@@ -27,10 +28,10 @@ test('config import - loading', async (t) => {
     'missing presets.json'
   )
 
-  await t.exception.all(
+  await t.exception(
     async () =>
       await readConfig('./tests/fixtures/config/invalidPresetsJSON.zip'),
-    /SyntaxError: Unexpected string in JSON/,
+    /Error: Could not parse presets.json/,
     'JSON.parse error of presets.json'
   )
 

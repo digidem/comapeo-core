@@ -9,15 +9,28 @@ declare module 'brittle' {
   type AnyErrorConstructor = new () => Error
 
   interface ExceptionAssertion {
+    (
+      fn: Promise<unknown> | (() => Promise<unknown>),
+      message?: string
+    ): Promise<void>
+    (
+      fn: Promise<unknown> | (() => Promise<unknown>),
+      error?: RegExp | AnyErrorConstructor,
+      message?: string
+    ): Promise<void>
     (fn: () => unknown, message?: string): void
     (
       fn: () => unknown,
       error?: RegExp | AnyErrorConstructor,
       message?: string
     ): void
-    (fn: Promise<unknown>, message?: string): Promise<void>
-    (
-      fn: Promise<unknown>,
+
+    all(
+      fn: Promise<unknown> | (() => Promise<unknown>),
+      message?: string
+    ): Promise<void>
+    all(
+      fn: Promise<unknown> | (() => Promise<unknown>),
       error?: RegExp | AnyErrorConstructor,
       message?: string
     ): Promise<void>
@@ -27,12 +40,6 @@ declare module 'brittle' {
       error?: RegExp | AnyErrorConstructor,
       message?: string
     ): void
-    all(fn: Promise<unknown>, message?: string): Promise<void>
-    all(
-      fn: Promise<unknown>,
-      error?: RegExp | AnyErrorConstructor,
-      message?: string
-    ): Promise<void>
   }
 
   interface Assertion {
@@ -57,7 +64,10 @@ declare module 'brittle' {
 
   export interface TestInstance extends Assertion {
     plan(n: number): void
-    teardown(fn: () => unknown | Promise<unknown>, options?: { order?: number }): void
+    teardown(
+      fn: () => unknown | Promise<unknown>,
+      options?: { order?: number }
+    ): void
     timeout(ms: number): void
     comment(message: string): void
     end(): void

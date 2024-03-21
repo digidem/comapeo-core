@@ -1,656 +1,997 @@
+// @ts-check
 import test from 'brittle'
+import { once } from 'node:events'
+import { onTimes } from './helpers/events.js'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { LocalPeers } from '../src/local-peers.js'
 import { InviteApi } from '../src/invite-api.js'
 import { keyToId, projectKeyToPublicId } from '../src/utils.js'
-import { replicate } from './helpers/local-peers.js'
-import NoiseSecretStream from '@hyperswarm/secret-stream'
-import pDefer from 'p-defer'
-import { ROLES, MEMBER_ROLE_ID } from '../src/roles.js'
+import { InviteResponse_Decision } from '../src/generated/rpc.js'
 
-test('invite-received event has expected payload', async (t) => {
-  t.plan(7)
+/** @typedef {import('../src/generated/rpc.js').Invite} Invite */
+/** @typedef {import('../src/generated/rpc.js').InviteResponse} InviteResponse */
 
-  const { rpc: r1, projectKey, encryptionKeys } = setup()
+class MockLocalPeers extends LocalPeers {
+  /**
+   * @param {string} deviceId
+   * @param {InviteResponse} inviteResponse
+   */
+  async sendInviteResponse(deviceId, inviteResponse) {
+    this.emit('invite-response', deviceId, inviteResponse)
+  }
+}
 
-  const projects = new Map()
-
-  const r2 = new LocalPeers()
+test('has no invites to start', (t) => {
+  const { rpc } = setup()
 
   const inviteApi = new InviteApi({
-    rpc: r2,
+    rpc,
     queries: {
-      isMember: async (projectId) => {
-        return projects.has(projectId)
-      },
-      addProject: async (invite) => {
-        projects.set(invite.projectKey.toString('hex'), invite)
+      isMember: () => false,
+      addProject: async () => {
+        t.fail('should not be called')
       },
     },
   })
 
-  /** @type {undefined | string} */
-  let expectedInvitorPeerId
+  t.alike(inviteApi.getPending(), [])
+})
 
-  r2.on('peers', (peers) => {
-    t.is(peers.length, 1)
-    expectedInvitorPeerId = peers[0].deviceId
+test('invite-received event has expected payload', async (t) => {
+  const { rpc, invitorPeerId, projectPublicId } = setup()
+
+  const inviteApi = new InviteApi({
+    rpc,
+    queries: {
+      isMember: () => false,
+      addProject: async () => {
+        t.fail('should not be called')
+      },
+    },
   })
 
-  r1.on('peers', (peers) => {
-    t.is(peers.length, 1)
-    const invite = {
-      projectKey,
-      encryptionKeys,
-      projectInfo: { name: 'Mapeo' },
-      roleName: ROLES[MEMBER_ROLE_ID].name,
-      invitorName: 'device0',
-    }
-    r1.invite(peers[0].deviceId, invite)
-  })
+  const invitesReceivedPromise = onTimes(inviteApi, 'invite-received', 3)
 
-  inviteApi.on(
-    'invite-received',
-    async ({ peerId, projectId, projectName, roleName, invitorName }) => {
-      t.is(peerId, expectedInvitorPeerId)
-      t.is(projectName, 'Mapeo')
-      t.is(projectId, projectKeyToPublicId(projectKey))
-      t.is(roleName, ROLES[MEMBER_ROLE_ID].name)
-      t.is(invitorName, 'device0')
-    }
-  )
+  const projectName = 'My Project'
+  const bareInvite = {
+    inviteId: randomBytes(32),
+    projectPublicId,
+    projectName,
+    invitorName: 'Your Friend',
+  }
+  rpc.emit('invite', invitorPeerId, bareInvite)
 
-  replicate(r1, r2)
+  const partialInvite = {
+    ...bareInvite,
+    inviteId: randomBytes(32),
+    roleDescription: 'Cool Role',
+  }
+  rpc.emit('invite', invitorPeerId, partialInvite)
+
+  const fullInvite = {
+    ...bareInvite,
+    inviteId: randomBytes(32),
+    roleName: 'Superfan',
+    roleDescription: 'This Cool Role',
+  }
+  rpc.emit('invite', invitorPeerId, fullInvite)
+
+  const expectedInvites = [
+    {
+      inviteId: bareInvite.inviteId.toString('hex'),
+      projectPublicId,
+      projectName,
+      invitorName: 'Your Friend',
+    },
+    {
+      inviteId: partialInvite.inviteId.toString('hex'),
+      projectPublicId,
+      projectName,
+      roleDescription: 'Cool Role',
+      invitorName: 'Your Friend',
+    },
+    {
+      inviteId: fullInvite.inviteId.toString('hex'),
+      projectPublicId,
+      projectName,
+      roleName: 'Superfan',
+      roleDescription: 'This Cool Role',
+      invitorName: 'Your Friend',
+    },
+  ]
+  const receivedInvitesArgs = await invitesReceivedPromise
+  t.alike(receivedInvitesArgs, expectedInvites, 'received expected invites')
+  t.alike(inviteApi.getPending(), expectedInvites)
 })
 
 test('Accept invite', async (t) => {
-  t.plan(4)
+  const {
+    rpc,
+    invitorPeerId,
+    invite,
+    inviteExternal,
+    projectKey,
+    encryptionKeys,
+  } = setup()
 
-  const { rpc: r1, projectKey, encryptionKeys } = setup()
-
-  const projects = new Map()
-
-  const r2 = new LocalPeers()
+  /** @type {Array<Buffer>} */
+  const projectKeysFound = []
 
   const inviteApi = new InviteApi({
-    rpc: r2,
+    rpc,
     queries: {
-      isMember: async (projectId) => {
-        const projectKey = Buffer.from(projectId, 'hex')
-        return projects.has(projectKeyToPublicId(projectKey))
-      },
-      addProject: async (invite) => {
-        projects.set(projectKeyToPublicId(invite.projectKey), invite)
+      isMember: () => false,
+      addProject: async ({ projectKey }) => {
+        projectKeysFound.push(projectKey)
       },
     },
   })
 
-  r1.on('peers', async (peers) => {
-    t.is(peers.length, 1)
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
+  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
 
-    const invite = {
+  // Invitor: send the invite
+
+  rpc.emit('invite', invitorPeerId, invite)
+
+  // Invitee: receive the invite
+
+  await inviteReceivedPromise
+
+  t.alike(inviteApi.getPending(), [inviteExternal], 'has one pending invite')
+
+  // Invitor: prepare to share project join details upon acceptance
+
+  rpc.once('invite-response', (peerId, inviteResponse) => {
+    t.is(
+      peerId,
+      invitorPeerId,
+      'received an invite response from the correct peer'
+    )
+    t.alike(
+      inviteResponse.inviteId,
+      invite.inviteId,
+      'received an invite response to this invite'
+    )
+    t.is(
+      inviteResponse.decision,
+      InviteResponse_Decision.ACCEPT,
+      'received an accept'
+    )
+
+    rpc.emit('got-project-details', invitorPeerId, {
+      inviteId: invite.inviteId,
       projectKey,
       encryptionKeys,
-      projectInfo: { name: 'Mapeo' },
-      roleName: ROLES[MEMBER_ROLE_ID].name,
-      invitorName: 'device0',
-    }
-    const response = await r1.invite(peers[0].deviceId, invite)
-
-    t.is(response, LocalPeers.InviteResponse.ACCEPT)
+    })
   })
 
-  inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKeyToPublicId(projectKey))
+  // Invitee: accept
 
-    await inviteApi.accept(projectId)
+  await inviteApi.accept(inviteExternal)
 
-    t.ok(projects.has(projectId), 'project successfully added')
-  })
+  t.ok(
+    projectKeysFound.some((k) => k.equals(projectKey)),
+    'added to project'
+  )
 
-  replicate(r1, r2)
+  const [removedInvite] = await inviteRemovedPromise
+  t.alike(removedInvite, inviteExternal, 'invite was removed')
+  t.alike(inviteApi.getPending(), [], 'no invites remain')
 })
 
 test('Reject invite', async (t) => {
-  t.plan(4)
-
-  const { rpc: r1, projectKey, encryptionKeys } = setup()
-
-  const projects = new Map()
-
-  const r2 = new LocalPeers()
+  const { rpc, invitorPeerId, invite, inviteExternal } = setup()
 
   const inviteApi = new InviteApi({
-    rpc: r2,
+    rpc,
     queries: {
-      isMember: async (projectId) => {
-        const projectKey = Buffer.from(projectId, 'hex')
-        return projects.has(projectKeyToPublicId(projectKey))
-      },
-      addProject: async (invite) => {
-        projects.set(projectKeyToPublicId(invite.projectKey), invite)
+      isMember: () => false,
+      addProject: async () => {
+        t.fail('should not add project')
       },
     },
   })
 
-  r1.on('peers', async (peers) => {
-    t.is(peers.length, 1)
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
 
-    const invite = {
-      projectKey,
-      encryptionKeys,
-      projectInfo: { name: 'Mapeo' },
-      roleName: ROLES[MEMBER_ROLE_ID].name,
-      invitorName: 'device0',
-    }
-    const response = await r1.invite(peers[0].deviceId, invite)
+  // Invitor: send the invite
 
-    t.is(response, LocalPeers.InviteResponse.REJECT)
-  })
+  rpc.emit('invite', invitorPeerId, invite)
 
-  inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKeyToPublicId(projectKey))
+  // Invitee: receive the invite
 
-    await inviteApi.reject(projectId)
+  await inviteReceivedPromise
 
-    t.is(projects.has(projectId), false, 'project not added')
-  })
+  t.alike(inviteApi.getPending(), [inviteExternal], 'has one pending invite')
 
-  replicate(r1, r2)
+  // Invitor: prepare to receive response
+
+  const inviteResponseEventPromise = once(rpc, 'invite-response')
+
+  // Invitee: reject
+
+  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+
+  inviteApi.reject(inviteExternal)
+
+  const [removedInvite] = await inviteRemovedPromise
+  t.alike(removedInvite, inviteExternal, 'invite was removed')
+  t.alike(inviteApi.getPending(), [], 'pending invites removed')
+
+  // Invitor: check rejection
+
+  const [inviteResponsePeerId, inviteResponse] =
+    await inviteResponseEventPromise
+  t.is(inviteResponsePeerId, invitorPeerId, 'got response from right peer')
+  t.alike(
+    inviteResponse.inviteId,
+    invite.inviteId,
+    'got response for the right invite'
+  )
+  t.is(inviteResponse.decision, InviteResponse_Decision.REJECT, 'got rejection')
 })
 
 test('Receiving invite for project that peer already belongs to', async (t) => {
   t.test('was member prior to connection', async (t) => {
-    t.plan(2)
-
-    const { rpc: r1, projectKey, encryptionKeys } = setup()
-
-    const r2 = new LocalPeers()
+    const { rpc, invitorPeerId, projectPublicId, invite } = setup()
 
     const inviteApi = new InviteApi({
-      rpc: r2,
+      rpc,
       queries: {
-        isMember: async () => {
-          return true
-        },
+        isMember: (p) => p === projectPublicId,
         addProject: async () => {
           t.fail('should not add project')
         },
       },
     })
 
-    r1.on('peers', async (peers) => {
-      t.is(peers.length, 1)
-
-      const invite = {
-        projectKey,
-        encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
-      }
-      const response = await r1.invite(peers[0].deviceId, invite)
-
-      t.is(
-        response,
-        LocalPeers.InviteResponse.ALREADY,
-        'invited peer automatically responds with "ALREADY"'
-      )
-    })
-
     inviteApi.on('invite-received', () => {
-      t.fail('invite-received event should not have been emitted')
+      t.fail('should not emit a received invite')
     })
 
-    replicate(r1, r2)
+    // Invitor: prepare to receive response
+
+    const inviteResponseEventPromise = once(rpc, 'invite-response')
+
+    // Invitor: send the invite
+
+    rpc.emit('invite', invitorPeerId, invite)
+
+    t.alike(inviteApi.getPending(), [], 'has no pending invites')
+
+    // Invitor: check invite response
+
+    const [inviteResponsePeerId, inviteResponse] =
+      await inviteResponseEventPromise
+    t.is(inviteResponsePeerId, invitorPeerId, 'got response from right peer')
+    t.alike(
+      inviteResponse.inviteId,
+      invite.inviteId,
+      'got response to right invite'
+    )
+    t.is(
+      inviteResponse.decision,
+      InviteResponse_Decision.ALREADY,
+      'got "already" response'
+    )
+
+    t.alike(inviteApi.getPending(), [], 'has no pending invites')
   })
 
   t.test(
     'became member (somehow!) between receiving invite and accepting',
     async (t) => {
-      t.plan(3)
+      const { rpc, invitorPeerId, invite, inviteExternal } = setup()
 
-      const { rpc: r1, projectKey, encryptionKeys } = setup()
-
-      const r2 = new LocalPeers()
       let isMember = false
 
       const inviteApi = new InviteApi({
-        rpc: r2,
+        rpc,
         queries: {
-          isMember: async () => {
-            return isMember
-          },
+          isMember: () => isMember,
           addProject: async () => {
             t.fail('should not add project')
           },
         },
       })
 
-      r1.on('peers', async (peers) => {
-        t.is(peers.length, 1)
-        const invite = {
-          projectKey,
-          encryptionKeys,
-          projectInfo: { name: 'Mapeo' },
-          roleName: ROLES[MEMBER_ROLE_ID].name,
-          invitorName: 'device0',
-        }
+      const inviteReceivedPromise = once(inviteApi, 'invite-received')
 
-        const response = await r1.invite(peers[0].deviceId, invite)
+      // Invitor: send the invite
 
-        t.is(
-          response,
-          LocalPeers.InviteResponse.ALREADY,
-          'invited peer automatically responds with "ALREADY"'
-        )
-      })
+      rpc.emit('invite', invitorPeerId, invite)
 
-      inviteApi.on('invite-received', async ({ projectId }) => {
-        isMember = true
-        await inviteApi.accept(projectId)
-        t.pass('sending accept does not throw')
-      })
+      // Invitee: receive the invite, then get (somehow) added
 
-      replicate(r1, r2)
+      await inviteReceivedPromise
+
+      t.alike(inviteApi.getPending(), [inviteExternal], 'has a pending invite')
+
+      isMember = true
+
+      // Invitor: prepare to receive response
+
+      const inviteResponseEventPromise = once(rpc, 'invite-response')
+
+      // Invitee: attempt accept, which should send a rejection
+
+      const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+
+      await inviteApi.accept(inviteExternal)
+
+      const [removedInvite] = await inviteRemovedPromise
+      t.alike(removedInvite, inviteExternal, 'invite was removed')
+      t.alike(inviteApi.getPending(), [], 'has no pending invites')
+
+      // Invitor: check invite response
+
+      const [inviteResponsePeerId, inviteResponse] =
+        await inviteResponseEventPromise
+      t.is(inviteResponsePeerId, invitorPeerId)
+      t.alike(inviteResponse.inviteId, invite.inviteId)
+      t.is(inviteResponse.decision, InviteResponse_Decision.ALREADY)
     }
   )
 
-  t.test('became member from accepting prior invite', async (t) => {
-    t.plan(3)
+  t.test('became member from accepting another invite', async (t) => {
+    const {
+      rpc,
+      invitorPeerId: invitor1PeerId,
+      invite,
+      inviteExternal,
+      projectKey,
+      encryptionKeys,
+    } = setup()
 
-    const { rpc: r1, projectKey, encryptionKeys } = setup()
-
-    const projects = new Map()
-
-    const r2 = new LocalPeers()
-
+    /** @type {undefined | Buffer} */
+    let projectKeyAdded
     const inviteApi = new InviteApi({
-      rpc: r2,
+      rpc,
       queries: {
-        isMember: async (projectId) => {
-          return projects.has(projectId)
-        },
-        addProject: async (invite) => {
-          projects.set(invite.projectKey.toString('hex'), invite)
+        isMember: () => false,
+        addProject: async ({ projectKey }) => {
+          t.absent(projectKeyAdded, 'only adds one project')
+          projectKeyAdded = projectKey
         },
       },
     })
 
-    r1.on('peers', async (peers) => {
-      const invite = {
-        projectKey,
-        encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
+    const invitesReceivedPromise = onTimes(inviteApi, 'invite-received', 6)
+
+    // Invitor 1: send two invites to the project
+
+    rpc.emit('invite', invitor1PeerId, invite)
+
+    const secondInviteFromPeer1 = { ...invite, inviteId: randomBytes(32) }
+    const secondInviteExternalFromPeer1 = {
+      ...inviteExternal,
+      inviteId: secondInviteFromPeer1.inviteId.toString('hex'),
+    }
+    rpc.emit('invite', invitor1PeerId, secondInviteFromPeer1)
+
+    // Invitor 2: send two invites to the project
+
+    const { invitorPeerId: invitor2PeerId } = setup()
+    const firstInviteFromPeer2 = { ...invite, inviteId: randomBytes(32) }
+    const firstInviteExternalFromPeer2 = {
+      ...inviteExternal,
+      inviteId: firstInviteFromPeer2.inviteId.toString('hex'),
+    }
+    const secondInviteFromPeer2 = { ...invite, inviteId: randomBytes(32) }
+    const secondInviteExternalFromPeer2 = {
+      ...inviteExternal,
+      inviteId: secondInviteFromPeer2.inviteId.toString('hex'),
+    }
+    rpc.emit('invite', invitor2PeerId, firstInviteFromPeer2)
+    rpc.emit('invite', invitor2PeerId, secondInviteFromPeer2)
+
+    // Invitor 3: send one invite to the project and another to a different project
+
+    const {
+      invitorPeerId: invitor3PeerId,
+      invite: unrelatedInvite,
+      inviteExternal: unrelatedInviteExternal,
+    } = setup()
+    const firstInviteFromPeer3 = { ...invite, inviteId: randomBytes(32) }
+    const firstInviteExternalFromPeer3 = {
+      ...inviteExternal,
+      inviteId: firstInviteFromPeer3.inviteId.toString('hex'),
+    }
+    rpc.emit('invite', invitor3PeerId, firstInviteFromPeer3)
+    rpc.emit('invite', invitor3PeerId, unrelatedInvite)
+
+    // Invitee: receive the invites
+
+    await invitesReceivedPromise
+
+    t.alike(
+      inviteApi.getPending(),
+      [
+        inviteExternal,
+        secondInviteExternalFromPeer1,
+        firstInviteExternalFromPeer2,
+        secondInviteExternalFromPeer2,
+        firstInviteExternalFromPeer3,
+        unrelatedInviteExternal,
+      ],
+      'has six pending invites'
+    )
+
+    // Invitors: handle invite responses
+
+    /** @type {Set<{ peerId: string, inviteResponse: InviteResponse }>} */
+    const responses = new Set()
+    rpc.on('invite-response', (peerId, inviteResponse) => {
+      responses.add({ peerId, inviteResponse })
+      if (
+        peerId === invitor1PeerId &&
+        inviteResponse.inviteId.equals(invite.inviteId)
+      ) {
+        t.is(inviteResponse.decision, InviteResponse_Decision.ACCEPT)
+        rpc.emit('got-project-details', invitor1PeerId, {
+          inviteId: invite.inviteId,
+          projectKey,
+          encryptionKeys,
+        })
+      } else {
+        t.is(inviteResponse.decision, InviteResponse_Decision.ALREADY)
       }
-      const response1 = await r1.invite(peers[0].deviceId, invite)
-
-      t.is(response1, LocalPeers.InviteResponse.ACCEPT)
-
-      const response2 = await r1.invite(peers[0].deviceId, invite)
-
-      t.is(response2, LocalPeers.InviteResponse.ALREADY)
     })
 
-    let inviteReceivedEventCount = 0
+    // Invitee: accept an invite
 
-    inviteApi.on('invite-received', ({ projectId }) => {
-      inviteReceivedEventCount += 1
-      t.is(inviteReceivedEventCount, 1)
+    const invitesRemovedPromise = onTimes(inviteApi, 'invite-removed', 5)
 
-      inviteApi.accept(projectId)
-    })
+    await inviteApi.accept(inviteExternal)
 
-    replicate(r1, r2)
+    t.alike(
+      responses,
+      new Set([
+        {
+          peerId: invitor1PeerId,
+          inviteResponse: {
+            inviteId: invite.inviteId,
+            decision: InviteResponse_Decision.ACCEPT,
+          },
+        },
+        {
+          peerId: invitor1PeerId,
+          inviteResponse: {
+            inviteId: secondInviteFromPeer1.inviteId,
+            decision: InviteResponse_Decision.ALREADY,
+          },
+        },
+        {
+          peerId: invitor2PeerId,
+          inviteResponse: {
+            inviteId: firstInviteFromPeer2.inviteId,
+            decision: InviteResponse_Decision.ALREADY,
+          },
+        },
+        {
+          peerId: invitor2PeerId,
+          inviteResponse: {
+            inviteId: secondInviteFromPeer2.inviteId,
+            decision: InviteResponse_Decision.ALREADY,
+          },
+        },
+        {
+          peerId: invitor3PeerId,
+          inviteResponse: {
+            inviteId: firstInviteFromPeer3.inviteId,
+            decision: InviteResponse_Decision.ALREADY,
+          },
+        },
+      ]),
+      'got expected responses'
+    )
+
+    const removedInvites = await invitesRemovedPromise
+    const allButLastRemoved = removedInvites.slice(0, -1)
+    const lastRemoved = removedInvites[removedInvites.length - 1]
+    t.alike(
+      new Set(allButLastRemoved),
+      new Set([
+        secondInviteExternalFromPeer1,
+        firstInviteExternalFromPeer2,
+        secondInviteExternalFromPeer2,
+        firstInviteExternalFromPeer3,
+      ]),
+      'other invites are removed first, to avoid UI jitter'
+    )
+    t.alike(
+      lastRemoved,
+      inviteExternal,
+      'accepted invite was removed last, to avoid UI jitter'
+    )
+    t.alike(
+      inviteApi.getPending(),
+      [unrelatedInviteExternal],
+      'unaffected invites stick around'
+    )
   })
 })
 
 test('trying to accept or reject non-existent invite throws', async (t) => {
-  const rpc = new LocalPeers()
+  const { rpc, inviteExternal } = setup()
+
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: async () => true,
+      isMember: () => false,
       addProject: async () => {},
     },
   })
-  await t.exception(() => {
-    return inviteApi.accept(keyToId(randomBytes(32)))
+
+  inviteApi.on('invite-received', () => {
+    t.fail('should not emit an "added" event')
   })
-  await t.exception(() => {
-    return inviteApi.reject(keyToId(randomBytes(32)))
+  inviteApi.on('invite-removed', () => {
+    t.fail('should not emit an "removed" event')
   })
+
+  await t.exception(inviteApi.accept(inviteExternal))
+  t.exception(() => inviteApi.reject(inviteExternal))
+
+  t.alike(inviteApi.getPending(), [], 'has no pending invites')
 })
 
-test('invitor disconnecting results in accept throwing', async (t) => {
-  t.plan(3)
+test('throws when quickly double-accepting the same invite', async (t) => {
+  const {
+    rpc,
+    invitorPeerId,
+    invite,
+    inviteExternal,
+    projectKey,
+    encryptionKeys,
+  } = setup()
 
-  const { rpc: r1, projectKey, encryptionKeys } = setup()
+  /** @type {Array<Buffer>} */
+  const projectKeysFound = []
+  const inviteApi = new InviteApi({
+    rpc,
+    queries: {
+      isMember: () => false,
+      addProject: async ({ projectKey }) => {
+        projectKeysFound.push(projectKey)
+      },
+    },
+  })
 
-  const r2 = new LocalPeers()
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
+
+  // Invitor: send the invite
+
+  rpc.emit('invite', invitorPeerId, invite)
+
+  // Invitee: receive the invite
+
+  await inviteReceivedPromise
+
+  // Invitor: prepare to share project join details upon acceptance
+
+  let inviteResponseCount = 0
+  rpc.on('invite-response', (_peerId, inviteResponse) => {
+    inviteResponseCount++
+
+    t.alike(
+      inviteResponse.inviteId,
+      invite.inviteId,
+      'responds to the correct invite'
+    )
+
+    rpc.emit('got-project-details', invitorPeerId, {
+      inviteId: invite.inviteId,
+      projectKey,
+      encryptionKeys,
+    })
+  })
+
+  // Invitee: accept twice
+
+  const firstAcceptPromise = inviteApi.accept(inviteExternal)
+
+  await t.exception(inviteApi.accept(inviteExternal), 'second accept fails')
+
+  await firstAcceptPromise
+  t.ok(
+    projectKeysFound.some((k) => k.equals(projectKey)),
+    'added to project'
+  )
+  t.is(inviteResponseCount, 1, 'only sent one invite response')
+})
+
+test('throws when quickly accepting two invites for the same project', async (t) => {
+  const {
+    rpc,
+    invitorPeerId,
+    invite: invite1,
+    inviteExternal: invite1External,
+    projectKey,
+    encryptionKeys,
+  } = setup()
+  const invite2External = {
+    ...invite1External,
+    inviteId: randomBytes(32).toString('hex'),
+  }
+
+  /** @type {Array<Buffer>} */
+  const projectKeysFound = []
+  const inviteApi = new InviteApi({
+    rpc,
+    queries: {
+      isMember: () => false,
+      addProject: async ({ projectKey }) => {
+        projectKeysFound.push(projectKey)
+      },
+    },
+  })
+
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
+
+  // Invitor: send the invite
+
+  rpc.emit('invite', invitorPeerId, invite1)
+
+  // Invitee: receive the invite
+
+  await inviteReceivedPromise
+
+  // Invitor: prepare to share project join details upon acceptance
+
+  let inviteResponseCount = 0
+  rpc.on('invite-response', (_peerId, inviteResponse) => {
+    inviteResponseCount++
+
+    t.alike(
+      inviteResponse.inviteId,
+      invite1.inviteId,
+      'responds to the correct invite'
+    )
+
+    rpc.emit('got-project-details', invitorPeerId, {
+      inviteId: invite1.inviteId,
+      projectKey,
+      encryptionKeys,
+    })
+  })
+
+  // Invitee: accept twice
+
+  const firstAcceptPromise = inviteApi.accept(invite1External)
+
+  await t.exception(inviteApi.accept(invite2External), 'second accept fails')
+
+  await firstAcceptPromise
+  t.ok(
+    projectKeysFound.some((k) => k.equals(projectKey)),
+    'added to project'
+  )
+  t.is(inviteResponseCount, 1, 'only sent one invite response')
+})
+
+test('receiving project join details from an unknown peer is a no-op', async (t) => {
+  const {
+    rpc,
+    invitorPeerId,
+    invite,
+    inviteExternal,
+    projectKey,
+    encryptionKeys,
+  } = setup()
 
   const inviteApi = new InviteApi({
-    rpc: r2,
+    rpc,
     queries: {
-      isMember: async () => false,
+      isMember: () => false,
+      addProject: async () => {
+        t.fail('should not be called')
+      },
+    },
+  })
+
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
+
+  // Invitor: send the invite
+
+  rpc.emit('invite', invitorPeerId, invite)
+
+  // Invitee: receive the invite
+
+  await inviteReceivedPromise
+
+  t.alike(inviteApi.getPending(), [inviteExternal], 'has one pending invite')
+
+  // Invitor: prepare to share project join details with the wrong invite ID
+
+  rpc.once('invite-response', () => {
+    const { invitorPeerId: bogusPeerId } = setup()
+    rpc.emit('got-project-details', bogusPeerId, {
+      inviteId: invite.inviteId,
+      projectKey,
+      encryptionKeys,
+    })
+  })
+
+  // Invitee: try to accept
+
+  inviteApi.accept(inviteExternal)
+
+  // Send and reject another invite
+
+  const { invite: invite2, inviteExternal: invite2External } = setup()
+  const invite2ReceivedPromise = once(inviteApi, 'invite-received')
+  rpc.emit('invite', invitorPeerId, invite2)
+  await invite2ReceivedPromise
+  const invite2RemovedPromise = once(inviteApi, 'invite-removed')
+  inviteApi.reject(invite2External)
+  await invite2RemovedPromise
+
+  // The original invite should still be around
+
+  t.alike(
+    inviteApi.getPending(),
+    [inviteExternal],
+    'has original pending invite'
+  )
+})
+
+test('receiving project join details for an unknown invite ID is a no-op', async (t) => {
+  const {
+    rpc,
+    invitorPeerId,
+    invite,
+    inviteExternal,
+    projectKey,
+    encryptionKeys,
+  } = setup()
+
+  const inviteApi = new InviteApi({
+    rpc,
+    queries: {
+      isMember: () => false,
+      addProject: async () => {
+        t.fail('should not be called')
+      },
+    },
+  })
+
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
+
+  // Invitor: send the invite
+
+  rpc.emit('invite', invitorPeerId, invite)
+
+  // Invitee: receive the invite
+
+  await inviteReceivedPromise
+
+  t.alike(inviteApi.getPending(), [inviteExternal], 'has one pending invite')
+
+  // Invitor: prepare to share project join details with the wrong invite ID
+
+  rpc.once('invite-response', () => {
+    rpc.emit('got-project-details', invitorPeerId, {
+      inviteId: randomBytes(32),
+      projectKey,
+      encryptionKeys,
+    })
+  })
+
+  // Invitee: try to accept
+
+  inviteApi.accept(inviteExternal)
+
+  // Send and reject another invite
+
+  const { invite: invite2, inviteExternal: invite2External } = setup()
+  const invite2ReceivedPromise = once(inviteApi, 'invite-received')
+  rpc.emit('invite', invitorPeerId, invite2)
+  await invite2ReceivedPromise
+  const invite2RemovedPromise = once(inviteApi, 'invite-removed')
+  inviteApi.reject(invite2External)
+  await invite2RemovedPromise
+
+  // The original invite should still be around
+
+  t.alike(
+    inviteApi.getPending(),
+    [inviteExternal],
+    'has original pending invite'
+  )
+})
+
+test('ignores duplicate invite IDs', async (t) => {
+  const { rpc, invitorPeerId, invite } = setup()
+  const { invite: invite2 } = setup()
+
+  const inviteApi = new InviteApi({
+    rpc,
+    queries: {
+      isMember: () => false,
+      addProject: async () => {},
+    },
+  })
+
+  const twoInvitesPromise = onTimes(inviteApi, 'invite-received', 2)
+
+  for (let i = 0; i < 100; i++) rpc.emit('invite', invitorPeerId, invite)
+  rpc.emit('invite', invitorPeerId, invite2)
+
+  await twoInvitesPromise
+
+  const invites = inviteApi.getPending()
+  t.is(invites.length, 2, 'two invites')
+  const inviteIds = invites.map((i) => i.inviteId)
+  t.unlike(inviteIds[0], inviteIds[1], 'got different invite IDs')
+})
+
+test('failures to send acceptances cause accept to reject, no project to be added, and invite to be removed', async (t) => {
+  const { rpc, invitorPeerId, invite, inviteExternal } = setup()
+
+  const inviteApi = new InviteApi({
+    rpc,
+    queries: {
+      isMember: () => false,
       addProject: async () => {
         t.fail('should not try to add project if could not accept')
       },
     },
   })
 
-  r1.on('peers', async (peers) => {
-    if (peers.length !== 1 || peers[0].status === 'disconnected') return
-    await t.exception(() => {
-      const invite = {
-        projectKey,
-        encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
-      }
-      return r1.invite(peers[0].deviceId, invite)
-    }, 'Invite fails')
-  })
+  let acceptsAttempted = 0
+  rpc.sendInviteResponse = async (deviceId, inviteResponse) => {
+    t.is(deviceId, invitorPeerId)
+    t.is(inviteResponse.decision, InviteResponse_Decision.ACCEPT)
+    acceptsAttempted++
+    throw new Error('Failed to accept invite')
+  }
 
-  inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKeyToPublicId(projectKey), 'received invite')
-    await disconnect()
-    await t.exception(() => {
-      return inviteApi.accept(projectId)
-    })
-  })
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
 
-  const disconnect = replicate(r1, r2)
+  // Invitor: send the invite
+
+  rpc.emit('invite', invitorPeerId, invite)
+
+  // Invitee: receive and try to accept the invite
+
+  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+
+  await inviteReceivedPromise
+
+  t.alike(inviteApi.getPending(), [inviteExternal], 'has a pending invite')
+
+  await t.exception(inviteApi.accept(inviteExternal), 'fails to accept')
+
+  t.is(acceptsAttempted, 1)
+  const [removedInvite] = await inviteRemovedPromise
+  t.alike(removedInvite, inviteExternal, 'invite was removed')
+  t.alike(inviteApi.getPending(), [], 'has no pending invites')
 })
 
-test('invitor disconnecting results in invite reject response not throwing', async (t) => {
-  t.plan(3)
-
-  const { rpc: r1, projectKey, encryptionKeys } = setup()
-
-  const r2 = new LocalPeers()
+test('failures to send rejections are ignored, but invite is still removed', async (t) => {
+  const { rpc, invitorPeerId, invite, inviteExternal } = setup()
 
   const inviteApi = new InviteApi({
-    rpc: r2,
+    rpc,
     queries: {
-      isMember: async () => false,
-      addProject: async () => {},
-    },
-  })
-
-  r1.on('peers', async (peers) => {
-    if (peers.length !== 1 || peers[0].status === 'disconnected') return
-
-    await t.exception(() => {
-      const invite = {
-        projectKey,
-        encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
-      }
-      return r1.invite(peers[0].deviceId, invite)
-    }, 'invite fails')
-  })
-
-  inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKeyToPublicId(projectKey), 'received invite')
-    await disconnect()
-    await inviteApi.reject(projectId)
-    t.pass()
-  })
-
-  const disconnect = replicate(r1, r2)
-})
-
-test('invitor disconnecting results in invite already response not throwing', async (t) => {
-  t.plan(3)
-
-  const { rpc: r1, projectKey, encryptionKeys } = setup()
-
-  const r2 = new LocalPeers()
-
-  let isMember = false
-
-  const inviteApi = new InviteApi({
-    rpc: r2,
-    queries: {
-      isMember: async () => {
-        return isMember
+      isMember: () => false,
+      addProject: async () => {
+        t.fail('should not add project')
       },
-      addProject: async () => {},
     },
   })
 
-  r1.on('peers', async (peers) => {
-    if (peers.length !== 1 || peers[0].status === 'disconnected') return
+  let rejectionsAttempted = 0
+  rpc.sendInviteResponse = async (deviceId, inviteResponse) => {
+    t.is(deviceId, invitorPeerId)
+    t.is(inviteResponse.decision, InviteResponse_Decision.REJECT)
+    rejectionsAttempted++
+    throw new Error('Failed to reject invite')
+  }
 
-    await t.exception(() => {
-      const invite = {
-        projectKey,
-        encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
-      }
-      return r1.invite(peers[0].deviceId, invite)
-    }, 'invite fails')
-  })
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
 
-  inviteApi.on('invite-received', async ({ projectId }) => {
-    t.is(projectId, projectKeyToPublicId(projectKey), 'received invite')
-    await disconnect()
-    isMember = true
-    await inviteApi.accept(projectId)
-    t.pass()
-  })
+  // Invitor: send the invite
 
-  const disconnect = replicate(r1, r2)
+  rpc.emit('invite', invitorPeerId, invite)
+
+  // Invitee: receive and reject the invite
+
+  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+
+  await inviteReceivedPromise
+  t.execution(() => inviteApi.reject(inviteExternal))
+
+  t.is(rejectionsAttempted, 1)
+  const [removedInvite] = await inviteRemovedPromise
+  t.alike(removedInvite, inviteExternal, 'invite was removed')
 })
 
-test('addProject throwing results in invite accept throwing', async (t) => {
-  t.plan(1)
-
-  const { rpc: r1, projectKey, encryptionKeys } = setup()
-
-  const r2 = new LocalPeers()
+test('failures to add project cause accept() to reject and invite to be removed', async (t) => {
+  const {
+    rpc,
+    invitorPeerId,
+    invite,
+    inviteExternal,
+    projectKey,
+    encryptionKeys,
+  } = setup()
 
   const inviteApi = new InviteApi({
-    rpc: r2,
+    rpc,
     queries: {
-      isMember: async () => false,
+      isMember: () => false,
       addProject: async () => {
         throw new Error('Failed to add project')
       },
     },
   })
 
-  r1.on('peers', (peers) => {
-    const invite = {
-      projectKey,
-      encryptionKeys,
-      projectInfo: { name: 'Mapeo' },
-      roleName: ROLES[MEMBER_ROLE_ID].name,
-      invitorName: 'device0',
-    }
-    r1.invite(peers[0].deviceId, invite)
-  })
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
 
-  inviteApi.on('invite-received', async ({ projectId }) => {
-    t.exception(async () => {
-      return inviteApi.accept(projectId)
-    })
-  })
+  // Invitor: send the invite
 
-  replicate(r1, r2)
-})
+  rpc.emit('invite', invitorPeerId, invite)
 
-test('Invite from multiple peers', async (t) => {
-  const invitorCount = 10
-  t.plan(5 + invitorCount)
+  // Invitee: receive the invite
 
-  const { projectKey, encryptionKeys } = setup()
-  const invitee = new LocalPeers()
-  const inviteeKeyPair = NoiseSecretStream.keyPair()
+  await inviteReceivedPromise
 
-  const projects = new Map()
+  // Invitor: prepare to share project join details upon acceptance
 
-  const inviteApi = new InviteApi({
-    rpc: invitee,
-    queries: {
-      isMember: async (projectId) => {
-        const projectKey = Buffer.from(projectId, 'hex')
-        return projects.has(projectKeyToPublicId(projectKey))
-      },
-      addProject: async (invite) => {
-        const projectPublicId = projectKeyToPublicId(invite.projectKey)
-        t.absent(projects.has(projectPublicId), 'add project called only once')
-        projects.set(projectPublicId, invite)
-      },
-    },
-  })
-
-  /** @type {undefined | string} */
-  let first
-  let connected = 0
-  const deferred = pDefer()
-
-  inviteApi.on('invite-received', async ({ projectId, peerId }) => {
-    t.is(projectId, projectKeyToPublicId(projectKey), 'expected project id')
-    t.absent(first, 'should only receive invite once')
-    first = peerId
-
-    // Wait for all the invites to be sent before we accept
-    await deferred.promise
-    await inviteApi.accept(projectId)
-
-    t.ok(projects.has(projectId), 'project successfully added')
-  })
-
-  for (let i = 0; i < invitorCount; i++) {
-    const invitor = new LocalPeers()
-    const keyPair = NoiseSecretStream.keyPair()
-    invitor.on('peers', async (peers) => {
-      if (++connected === invitorCount) deferred.resolve()
-      const invite = {
+  rpc.once('invite-response', (peerId, inviteResponse) => {
+    if (
+      peerId === invitorPeerId &&
+      inviteResponse.inviteId.equals(invite.inviteId) &&
+      inviteResponse.decision === InviteResponse_Decision.ACCEPT
+    ) {
+      rpc.emit('got-project-details', invitorPeerId, {
+        inviteId: invite.inviteId,
         projectKey,
         encryptionKeys,
-        projectInfo: { name: 'Mapeo' },
-        roleName: ROLES[MEMBER_ROLE_ID].name,
-        invitorName: 'device0',
-      }
-      const response = await invitor.invite(peers[0].deviceId, invite)
-      if (first === keyPair.publicKey.toString('hex')) {
-        t.pass('One invitor did receive accept response')
-        t.is(response, LocalPeers.InviteResponse.ACCEPT, 'accept response')
-      } else {
-        t.is(response, LocalPeers.InviteResponse.ALREADY, 'already response')
-      }
-    })
-    replicate(invitee, invitor, { kp1: inviteeKeyPair, kp2: keyPair })
-  }
-})
-
-// TODO: for now this is not handled
-test.skip('Invite from multiple peers, first disconnects before accepted, receives invite from next in queue', async (t) => {
-  const invitorCount = 10
-  t.plan(8 + invitorCount)
-
-  const { projectKey, encryptionKeys } = setup()
-  const invitee = new LocalPeers()
-  const inviteeKeyPair = NoiseSecretStream.keyPair()
-
-  const projects = new Map()
-
-  const inviteApi = new InviteApi({
-    rpc: invitee,
-    queries: {
-      isMember: async (projectId) => {
-        return projects.has(projectId)
-      },
-      addProject: async (invite) => {
-        const projectId = invite.projectKey.toString('hex')
-        t.absent(projects.has(projectId), 'add project called only once')
-        projects.set(projectId, invite)
-      },
-    },
-  })
-
-  /** @type {string[]} */
-  let invitesReceived = []
-  let connected = 0
-  const disconnects = new Map()
-  const deferred = pDefer()
-
-  inviteApi.on('invite-received', async ({ projectId, peerId }) => {
-    t.is(projectId, projectKey.toString('hex'), 'expected project id')
-    t.ok(invitesReceived.length < 2, 'should only receive two invites')
-    invitesReceived.push(peerId)
-    const isFirst = (invitesReceived.length = 1)
-
-    // Wait for all the invites to be sent before we accept
-    await deferred.promise
-    if (isFirst) {
-      await disconnects.get(peerId)()
-
-      await t.exception(() => {
-        return inviteApi.accept(projectId)
-      }, 'accept throws')
-    } else {
-      await inviteApi.accept(projectId)
-      t.ok(projects.has(projectId), 'project successfully added')
+      })
     }
   })
 
-  for (let i = 0; i < invitorCount; i++) {
-    const invitor = new LocalPeers()
-    const keyPair = NoiseSecretStream.keyPair()
-    const invitorId = keyPair.publicKey.toString('hex')
-    invitor.on('peers', async (peers) => {
-      if (peers[0].status !== 'connected') return
-      if (++connected === invitorCount) deferred.resolve()
-      try {
-        const invite = {
-          projectKey,
-          encryptionKeys,
-          projectInfo: { name: 'Mapeo' },
-          roleName: ROLES[MEMBER_ROLE_ID].name,
-          invitorName: 'device0',
-        }
-        const response = await invitor.invite(peers[0].deviceId, invite)
-        if (invitorId === invitesReceived[1]) {
-          t.pass('One invitor did receive accept response')
-          t.is(response, LocalPeers.InviteResponse.ACCEPT, 'accept response')
-        } else {
-          t.is(response, LocalPeers.InviteResponse.ALREADY, 'already response')
-        }
-      } catch (e) {
-        t.is(
-          invitorId,
-          invitesReceived[0],
-          'first invitor invite throws because disconnected'
-        )
-      }
-    })
-    const disconnect = replicate(invitee, invitor, {
-      kp1: inviteeKeyPair,
-      kp2: keyPair,
-    })
-    disconnects.set(invitorId, disconnect)
-  }
+  // Invitee: try to accept
+
+  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+
+  await t.exception(inviteApi.accept(inviteExternal), 'accept should fail')
+
+  const [removedInvite] = await inviteRemovedPromise
+  t.alike(removedInvite, inviteExternal, 'invite was removed')
 })
 
 function setup() {
   const encryptionKeys = { auth: randomBytes(32) }
   const projectKey = KeyManager.generateProjectKeypair().publicKey
-  const rpc = new LocalPeers()
+
+  const projectPublicId = projectKeyToPublicId(projectKey)
+  const invite = {
+    inviteId: randomBytes(32),
+    projectPublicId,
+    projectName: 'Mapeo Project',
+    roleName: 'Superfan',
+    invitorName: 'Host',
+  }
+  const inviteExternal = {
+    ...invite,
+    inviteId: invite.inviteId.toString('hex'),
+  }
+
+  const invitorPeerId = keyToId(randomBytes(16))
+  const rpc = new MockLocalPeers()
 
   return {
     rpc,
+    invitorPeerId,
+    projectPublicId,
+    invite,
+    inviteExternal,
     projectKey,
     encryptionKeys,
   }

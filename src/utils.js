@@ -75,7 +75,12 @@ export class ExhaustivenessError extends Error {
 }
 
 /**
- * @param {boolean} condition
+ * @returns {void}
+ */
+export function noop() {}
+
+/**
+ * @param {unknown} condition
  * @param {string} message
  * @returns {asserts condition}
  */

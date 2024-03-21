@@ -1,6 +1,7 @@
 import yauzl from 'yauzl-promise'
 import { validate, valueSchemas } from '@mapeo/schema'
 import { json, buffer } from 'node:stream/consumers'
+import { assert } from './utils.js'
 import path from 'node:path'
 
 // Throw error if a zipfile contains more than 10,000 entries
@@ -33,13 +34,7 @@ export async function readConfig(configPath) {
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
   const entries = await zip.readEntries(MAX_ENTRIES)
-  /** @type {undefined | Entry} */
-  let presetsEntry = entries.find((entry) => entry.filename === 'presets.json')
-  if (!presetsEntry) {
-    throw new Error('Zip file does not contain presets.json')
-  }
-  const presetsFile = await json(await presetsEntry.openReadStream())
-  validatePresetsFile(presetsFile)
+  const presetsFile = await findPresetsFile(entries)
 
   return {
     get warnings() {
@@ -95,7 +90,11 @@ export async function readConfig(configPath) {
             }
           }
         } catch (err) {
-          warnings.push(err)
+          warnings.push(
+            err instanceof Error
+              ? err
+              : new Error('Unknown error importing icon')
+          )
         }
       }
       if (icon) {
@@ -192,6 +191,32 @@ export async function readConfig(configPath) {
 }
 
 /**
+ * @param {ReadonlyArray<Entry>} entries
+ * @rejects if the presets file cannot be found or is invalid
+ * @returns {Promise<PresetsFile>}
+ */
+async function findPresetsFile(entries) {
+  const presetsEntry = entries.find(
+    (entry) => entry.filename === 'presets.json'
+  )
+  assert(presetsEntry, 'Zip file does not contain presets.json')
+
+  /** @type {unknown} */
+  let result
+  try {
+    result = await json(await presetsEntry.openReadStream())
+  } catch (err) {
+    throw new Error('Could not parse presets.json')
+  }
+
+  assert(isRecord(result), 'Invalid presets.json file')
+  const { presets, fields } = result
+  assert(isRecord(presets) && isRecord(fields), 'Invalid presets.json file')
+
+  return { presets, fields }
+}
+
+/**
  * @param {string} filename
  * @param {Buffer} buf
  * @returns {{ name: string, variant: IconData['variants'][Number] }}}
@@ -236,20 +261,6 @@ function parseIcon(filename, buf) {
       pixelDensity,
       blob: buf,
     },
-  }
-}
-
-/**
- * @param {unknown} presetsFile
- * @returns {asserts presetsFile is PresetsFile}
- */
-function validatePresetsFile(presetsFile) {
-  if (
-    !isRecord(presetsFile) ||
-    !isRecord(presetsFile.presets) ||
-    !isRecord(presetsFile.fields)
-  ) {
-    throw new Error('Invalid presets.json file')
   }
 }
 

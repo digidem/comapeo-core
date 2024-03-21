@@ -339,10 +339,27 @@ test('CoreReplicationState', async (t) => {
   }
 })
 
+test('bitCount32', (t) => {
+  const testCases = new Set([0, 2 ** 32 - 1])
+  for (let i = 0; i < 32; i++) {
+    testCases.add(2 ** i)
+    testCases.add(2 ** i - 1)
+  }
+  for (let i = 0; i < 100; i++) {
+    testCases.add(Math.floor(Math.random() * 2 ** 32))
+  }
+
+  for (const n of testCases) {
+    const actual = bitCount32(n)
+    const expected = slowBitCount(n)
+    t.is(actual, expected, `${n.toString(2)} has ${expected} bit(s) set`)
+  }
+})
+
 // This takes several hours to run on my M2 Macbook Pro (it's the slowBitCount
 // that takes a long time - bitCount32 takes about 23 seconds), so not running
 // this by default. The test did pass when I ran it though.
-test.skip('bitCount32', (t) => {
+test.skip('bitCount32 (full test)', (t) => {
   for (let n = 0; n < 2 ** 32; n++) {
     if (n % 2 ** 28 === 0) console.log(n)
     const bitCount = bitCount32(n)
@@ -362,7 +379,12 @@ async function createCore(key) {
  * @param {number} n
  */
 function slowBitCount(n) {
-  return n.toString(2).replace(/0/g, '').length
+  let result = 0
+  for (let i = 0, mask = 1; i < 32; i++) {
+    if (n & mask) result++
+    mask <<= 1
+  }
+  return result
 }
 
 /**
