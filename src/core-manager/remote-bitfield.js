@@ -224,6 +224,9 @@ export default class RemoteBitfield {
     return p ? p.get(j) : false
   }
 
+  /**
+   * @param {number} index
+   */
   getBitfield(index) {
     const j = index & (BITS_PER_PAGE - 1)
     const i = (index - j) / BITS_PER_PAGE
