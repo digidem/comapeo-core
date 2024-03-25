@@ -46,6 +46,8 @@ export class SyncApi extends TypedEmitter {
   #roles
   /** @type {Map<import('protomux'), PeerSyncController>} */
   #peerSyncControllers = new Map()
+  /** @type {Map<string, PeerSyncController>} */
+  #pscByPeerId = new Map()
   /** @type {Set<string>} */
   #peerIds = new Set()
   /** @type {Set<'local' | 'remote'>} */
@@ -67,7 +69,11 @@ export class SyncApi extends TypedEmitter {
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
     this.#roles = roles
-    this[kSyncState] = new SyncState({ coreManager, throttleMs })
+    this[kSyncState] = new SyncState({
+      coreManager,
+      throttleMs,
+      peerSyncControllers: this.#pscByPeerId,
+    })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
       const state = this.#getState(namespaceSyncState)
@@ -195,7 +201,8 @@ export class SyncApi extends TypedEmitter {
       logger: this.#l,
     })
     this.#peerSyncControllers.set(protomux, peerSyncController)
-    if (peerSyncController.peerId) this.#peerIds.add(peerSyncController.peerId)
+    this.#pscByPeerId.set(peerSyncController.peerId, peerSyncController)
+    this.#peerIds.add(peerSyncController.peerId)
 
     // Add peer to all core states (via namespace sync states)
     this[kSyncState].addPeer(peerSyncController.peerId)
@@ -231,7 +238,9 @@ export class SyncApi extends TypedEmitter {
       return
     }
     this.#peerSyncControllers.delete(protomux)
-    this.#peerIds.delete(keyToId(peer.remotePublicKey))
+    const peerId = keyToId(peer.remotePublicKey)
+    this.#pscByPeerId.delete(peerId)
+    this.#peerIds.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
   }
 }

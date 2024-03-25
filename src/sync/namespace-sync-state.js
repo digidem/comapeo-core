@@ -16,15 +16,18 @@ export class NamespaceSyncState {
   #namespace
   /** @type {SyncState | null} */
   #cachedState = null
+  #peerSyncControllers
 
   /**
    * @param {object} opts
    * @param {TNamespace} opts.namespace
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
+   * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
    */
-  constructor({ namespace, coreManager, onUpdate }) {
+  constructor({ namespace, coreManager, onUpdate, peerSyncControllers }) {
     this.#namespace = namespace
+    this.#peerSyncControllers = peerSyncControllers
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#handleUpdate = () => {
@@ -118,7 +121,11 @@ export class NamespaceSyncState {
   #getCoreState(discoveryId) {
     let coreState = this.#coreStates.get(discoveryId)
     if (!coreState) {
-      coreState = new CoreSyncState(this.#handleUpdate)
+      coreState = new CoreSyncState({
+        onUpdate: this.#handleUpdate,
+        peerSyncControllers: this.#peerSyncControllers,
+        namespace: this.#namespace,
+      })
       this.#coreStates.set(discoveryId, coreState)
     }
     return coreState

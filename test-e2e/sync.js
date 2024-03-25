@@ -1,6 +1,7 @@
 // @ts-check
 import { test } from 'brittle'
 import { setTimeout as delay } from 'timers/promises'
+import { excludeKeys } from 'filter-obj'
 import {
   connectPeers,
   createManagers,
@@ -254,7 +255,17 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
       t.is(inviteeState[ns].coreCount, 2)
       t.is(blockedState[ns].coreCount, 1)
     }
-    t.alike(invitorState[ns].localState, inviteeState[ns].localState)
+
+    // "Invitor" knows blocked peer is blocked from the start, so never connects
+    // and never creates a local copy of the blocked peer cores, but "Invitee"
+    // does connect initially, before it realized the peer is blocked, and
+    // creates a local copy of the blocked peers cores, but never downloads
+    // data, so it considers data to be "missing" which the Invitor does not
+    // register as missing.
+    t.alike(
+      excludeKeys(invitorState[ns].localState, ['missing']),
+      excludeKeys(inviteeState[ns].localState, ['missing'])
+    )
   }
 
   await disconnect1()

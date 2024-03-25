@@ -14,6 +14,8 @@ import RemoteBitfield, {
  * @property {number | undefined} length Core length, e.g. how many blocks in the core (including blocks that are not downloaded)
  * @property {PeerState} localState
  * @property {Map<PeerId, PeerState>} remoteStates
+ * @property {Map<string, import('./peer-sync-controller.js').PeerSyncController>} peerSyncControllers
+ * @property {import('../core-manager/index.js').Namespace} namespace
  */
 /**
  * @typedef {object} CoreState
@@ -60,11 +62,18 @@ export class CoreSyncState {
   #cachedState = null
   #preHavesLength = 0
   #update
+  #peerSyncControllers
+  #namespace
 
   /**
-   * @param {() => void} onUpdate Called when a state update is available (via getState())
+   * @param {object} opts
+   * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
+   * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
+   * @param {import('../core-manager/index.js').Namespace} opts.namespace
    */
-  constructor(onUpdate) {
+  constructor({ onUpdate, peerSyncControllers, namespace }) {
+    this.#peerSyncControllers = peerSyncControllers
+    this.#namespace = namespace
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#update = () => {
@@ -81,6 +90,8 @@ export class CoreSyncState {
       length: Math.max(localCoreLength, this.#preHavesLength),
       localState: this.#localState,
       remoteStates: this.#remoteStates,
+      peerSyncControllers: this.#peerSyncControllers,
+      namespace: this.#namespace,
     })
   }
 
@@ -341,8 +352,19 @@ export class PeerState {
  * Only exporteed for testing
  */
 export function deriveState(coreState) {
-  const peerIds = ['local', ...coreState.remoteStates.keys()]
-  const peers = [coreState.localState, ...coreState.remoteStates.values()]
+  const peerIds = ['local']
+  const peers = [coreState.localState]
+
+  for (const [peerId, peerState] of coreState.remoteStates.entries()) {
+    const psc = coreState.peerSyncControllers.get(peerId)
+    const isBlocked = psc?.syncCapability[coreState.namespace] === 'blocked'
+    // Currently we do not include blocked peers in sync state - it's unclear
+    // how to expose this state in a meaningful way for considering sync
+    // completion, because blocked peers do not sync.
+    if (isBlocked) continue
+    peerIds.push(peerId)
+    peers.push(peerState)
+  }
 
   /** @type {CoreState[]} */
   const peerStates = new Array(peers.length)
