@@ -259,7 +259,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     // "Invitor" knows blocked peer is blocked from the start, so never connects
     // and never creates a local copy of the blocked peer cores, but "Invitee"
     // does connect initially, before it realized the peer is blocked, and
-    // creates a local copy of the blocked peers cores, but never downloads
+    // creates a local copy of the blocked peer's cores, but never downloads
     // data, so it considers data to be "missing" which the Invitor does not
     // register as missing.
     t.alike(

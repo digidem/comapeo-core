@@ -17,7 +17,7 @@ test('remote bitfield - findLast, findFirst from insert', function (t) {
   const b = new RemoteBitfield()
 
   const size = 100
-  const arr = new Uint32Array(Array(size).fill(2 ** 32 - 1))
+  const arr = new Uint32Array(size).fill(2 ** 32 - 1)
   b.insert(0, arr)
 
   t.is(b.findFirst(false, 0), size * 32)
