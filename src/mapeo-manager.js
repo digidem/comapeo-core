@@ -728,13 +728,19 @@ export class MapeoManager extends TypedEmitter {
     return this.#invite
   }
 
-  async startLocalPeerDiscovery() {
+  /** @type {LocalDiscovery['start']} */
+  startLocalPeerDiscoveryServer() {
     return this.#localDiscovery.start()
   }
 
   /** @type {LocalDiscovery['stop']} */
-  async stopLocalPeerDiscovery(opts) {
+  stopLocalPeerDiscoveryServer(opts) {
     return this.#localDiscovery.stop(opts)
+  }
+
+  /** @type {LocalDiscovery['resolvedLocalPeer']} */
+  resolvedLocalPeer(...args) {
+    return this.#localDiscovery.resolvedLocalPeer(...args)
   }
 
   /**

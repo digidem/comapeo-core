@@ -3,7 +3,6 @@ import net from 'node:net'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
 import { noop } from '../utils.js'
-import { DnsSd } from './dns-sd.js'
 import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
@@ -28,7 +27,6 @@ export class LocalDiscovery extends TypedEmitter {
   #server
   /** @type {Map<string, OpenedNoiseStream>} */
   #noiseConnections = new Map()
-  #dnssd
   #sm
   #log
   /** @type {(e: Error) => void} */
@@ -38,20 +36,12 @@ export class LocalDiscovery extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {Keypair} opts.identityKeypair
-   * @param {DnsSd} [opts.dnssd] Optional DnsSd instance, used for testing
    * @param {Logger} [opts.logger]
    */
-  constructor({ identityKeypair, dnssd, logger }) {
+  constructor({ identityKeypair, logger }) {
     super()
     this.#l = Logger.create('mdns', logger)
     this.#log = this.#l.log.bind(this.#l)
-    this.#dnssd =
-      dnssd ||
-      new DnsSd({
-        name: keyToPublicId(identityKeypair.publicKey),
-        logger: this.#l,
-      })
-    this.#dnssd.on('up', this.#handleServiceUp.bind(this))
     this.#sm = new StartStopStateMachine({
       start: this.#start.bind(this),
       stop: this.#stop.bind(this),
@@ -74,30 +64,37 @@ export class LocalDiscovery extends TypedEmitter {
     return this.#server.address()
   }
 
+  /** @returns {Promise<{ name: string, port: number }>} */
   async start() {
-    return this.#sm.start()
+    await this.#sm.start()
+    return {
+      name: keyToPublicId(this.#identityKeypair.publicKey),
+      port: getAddress(this.#server).port,
+    }
   }
 
   async #start() {
-    // start browsing straight away
-    this.#dnssd.browse()
-
     // Let OS choose port, listen on ip4, all interfaces
     this.#server.listen(0, '0.0.0.0')
     await once(this.#server, 'listening')
     const addr = getAddress(this.#server)
     this.#log('server listening on port ' + addr.port)
-    await this.#dnssd.advertise(addr.port)
-    this.#log('advertising service on port ' + addr.port)
   }
 
   /**
-   *
-   * @param {import('./dns-sd.js').MapeoService} service
-   * @returns
+   * @param {object} service
+   * @param {string} service.name
+   * @param {string[]} service.addresses
+   * @param {number} service.port
+   * @returns {void}
    */
-  #handleServiceUp({ address, port, name }) {
-    this.#log('serviceUp', name.slice(0, 7), address, port)
+  resolvedLocalPeer({ name, addresses, port }) {
+    const address = addresses[0]
+    if (!address) {
+      this.#log(`No address for service ${name.slice(0, 7)}`)
+      return
+    }
+    this.#log('resolvedLocalPeer', name.slice(0, 7), address, port)
     if (this.#noiseConnections.has(name)) {
       this.#log(`Already connected to ${name.slice(0, 7)}`)
       return
@@ -266,12 +263,12 @@ export class LocalDiscovery extends TypedEmitter {
 
   /**
    * @type {LocalDiscovery['stop']}
+   * @returns {Promise<void>}
    */
   async #stop({ force = false, timeout = 0 } = {}) {
     this.#log('stopping')
     const { port } = getAddress(this.#server)
     this.#server.close()
-    const destroyPromise = this.#dnssd.destroy()
     const closePromise = once(this.#server, 'close')
     await pTimeout(closePromise, {
       milliseconds: force ? (timeout === 0 ? 1 : timeout) : Infinity,
@@ -282,7 +279,6 @@ export class LocalDiscovery extends TypedEmitter {
         return pTimeout(closePromise, { milliseconds: 500 })
       },
     })
-    await destroyPromise
     this.#log(`stopped for ${port}`)
   }
 }
