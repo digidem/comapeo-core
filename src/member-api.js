@@ -41,8 +41,8 @@ export class MemberApi extends TypedEmitter {
   #rpc
   #dataTypes
 
-  /** @type {Set<string>} */
-  #deviceIdsWithPendingInvites = new Set()
+  /** @type {Map<string, { abortController: AbortController }>} */
+  #outboundInvitesByDevice = new Map()
 
   /**
    * @param {Object} opts
@@ -76,12 +76,14 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
+   * Send an invite. Resolves when receiving a response. Rejects if the invite
+   * is canceled, or if something else goes wrong.
+   *
    * @param {string} deviceId
    * @param {Object} opts
    * @param {import('./roles.js').RoleIdForNewInvite} opts.roleId
    * @param {string} [opts.roleName]
    * @param {string} [opts.roleDescription]
-   * @param {AbortSignal} [opts.signal]
    * @returns {Promise<(
    *   typeof InviteResponse_Decision.ACCEPT |
    *   typeof InviteResponse_Decision.REJECT |
@@ -90,18 +92,19 @@ export class MemberApi extends TypedEmitter {
    */
   async invite(
     deviceId,
-    { roleId, roleName = ROLES[roleId]?.name, roleDescription, signal }
+    { roleId, roleName = ROLES[roleId]?.name, roleDescription }
   ) {
     assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
     assert(
-      !this.#deviceIdsWithPendingInvites.has(deviceId),
+      !this.#outboundInvitesByDevice.has(deviceId),
       'Already inviting this device ID'
     )
 
-    signal?.throwIfAborted()
+    const abortController = new AbortController()
+    const abortSignal = abortController.signal
+    this.#outboundInvitesByDevice.set(deviceId, { abortController })
 
     try {
-      this.#deviceIdsWithPendingInvites.add(deviceId)
       const { name: invitorName } = await this.getById(this.#ownDeviceId)
       // since we are always getting #ownDeviceId,
       // this should never throw (see comment on getById), but it pleases ts
@@ -110,7 +113,7 @@ export class MemberApi extends TypedEmitter {
         'Internal error trying to read own device name for this invite'
       )
 
-      signal?.throwIfAborted()
+      abortSignal.throwIfAborted()
 
       const inviteId = crypto.randomBytes(32)
       const projectId = projectKeyToId(this.#projectKey)
@@ -119,7 +122,7 @@ export class MemberApi extends TypedEmitter {
       const projectName = project.name
       assert(projectName, 'Project must have a name to invite people')
 
-      signal?.throwIfAborted()
+      abortSignal.throwIfAborted()
 
       const invite = {
         inviteId,
@@ -133,8 +136,12 @@ export class MemberApi extends TypedEmitter {
       const inviteResponse = await this.#sendInviteAndGetResponse(
         deviceId,
         invite,
-        { signal }
+        abortSignal
       )
+
+      // Though the invite is still arguably outgoing here, it can no longer
+      // be canceled.
+      this.#outboundInvitesByDevice.delete(deviceId)
 
       switch (inviteResponse.decision) {
         case InviteResponse_Decision.ALREADY:
@@ -160,20 +167,16 @@ export class MemberApi extends TypedEmitter {
           throw new ExhaustivenessError(inviteResponse.decision)
       }
     } finally {
-      this.#deviceIdsWithPendingInvites.delete(deviceId)
+      this.#outboundInvitesByDevice.delete(deviceId)
     }
   }
 
   /**
-   * Send an invite and return the response. Will throw if no response is
-   * received within the timeout.
-   *
    * @param {string} deviceId
    * @param {Invite} invite
-   * @param {object} options
-   * @param {AbortSignal} [options.signal]
+   * @param {AbortSignal} signal
    */
-  async #sendInviteAndGetResponse(deviceId, invite, { signal }) {
+  async #sendInviteAndGetResponse(deviceId, invite, signal) {
     const abortController = new AbortController()
 
     const responsePromise =
@@ -184,14 +187,12 @@ export class MemberApi extends TypedEmitter {
         filter: ([peerId, inviteResponse]) =>
           timingSafeEqual(peerId, deviceId) &&
           timingSafeEqual(invite.inviteId, inviteResponse.inviteId),
-        signal: signal
-          ? abortSignalAny([abortController.signal, signal])
-          : abortController.signal,
+        signal: abortSignalAny([abortController.signal, signal]),
       }).then((args) => args?.[1])
 
     responsePromise.catch(noop)
 
-    signal?.addEventListener(
+    signal.addEventListener(
       'abort',
       () => {
         this.#rpc
@@ -213,6 +214,17 @@ export class MemberApi extends TypedEmitter {
     } finally {
       abortController.abort()
     }
+  }
+
+  /**
+   * Cancel an outbound invite, if it exists. No-op if we weren't inviting this
+   * device.
+   *
+   * @param {string} deviceId
+   * @returns {void}
+   */
+  cancelInvite(deviceId) {
+    this.#outboundInvitesByDevice.get(deviceId)?.abortController.abort()
   }
 
   /**

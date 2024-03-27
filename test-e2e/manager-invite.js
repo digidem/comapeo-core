@@ -246,11 +246,8 @@ test('cancelation', async (t) => {
   const inviteReceivedPromise = once(joiner.invite, 'invite-received')
   const inviteRemovedPromise = once(joiner.invite, 'invite-removed')
 
-  const abortController = new AbortController()
-
   const invitePromise = creatorProject.$member.invite(joiner.deviceId, {
     roleId: MEMBER_ROLE_ID,
-    signal: abortController.signal,
   })
   const inviteAbortedAssertionPromise = t.exception(
     invitePromise,
@@ -260,7 +257,7 @@ test('cancelation', async (t) => {
 
   const [invite] = await inviteReceivedPromise
 
-  abortController.abort()
+  creatorProject.$member.cancelInvite(joiner.deviceId)
   await inviteAbortedAssertionPromise
 
   const [canceledInvite, removalReason] = await inviteRemovedPromise
@@ -271,6 +268,21 @@ test('cancelation', async (t) => {
     'removed invite has correct ID'
   )
   t.is(removalReason, 'canceled')
+})
+
+test('canceling nothing', async (t) => {
+  const [creator, joiner] = await createManagers(2, t)
+  connectPeers([creator, joiner])
+  t.teardown(() => disconnectPeers([creator, joiner]))
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+
+  t.execution(() => {
+    creatorProject.$member.cancelInvite(joiner.deviceId)
+    creatorProject.$member.cancelInvite(joiner.deviceId)
+    creatorProject.$member.cancelInvite(joiner.deviceId)
+  })
 })
 
 /**
