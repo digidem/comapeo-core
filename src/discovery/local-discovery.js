@@ -2,6 +2,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import net from 'node:net'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
+import { noop } from '../utils.js'
 import { DnsSd } from './dns-sd.js'
 import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
@@ -309,5 +310,3 @@ function getAddress(server) {
   }
   return addr
 }
-
-function noop() {}

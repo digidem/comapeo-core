@@ -321,7 +321,9 @@ export class InviteApi extends TypedEmitter {
     const pendingInvite = this.#pendingInvites.getByInviteId(inviteId)
     assert(!!pendingInvite, `Cannot find invite ${inviteId}`)
 
-    const { peerId, invite } = pendingInvite
+    const { peerId, invite, isAccepting } = pendingInvite
+
+    assert(!isAccepting, `Cannot reject ${inviteIdString}`)
 
     this.rpc
       .sendInviteResponse(peerId, {

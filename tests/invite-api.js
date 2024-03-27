@@ -603,6 +603,57 @@ test('throws when quickly double-accepting the same invite', async (t) => {
   t.is(inviteResponseCount, 1, 'only sent one invite response')
 })
 
+test('throws when quickly accepting and then rejecting an invite', async (t) => {
+  const {
+    rpc,
+    invitorPeerId,
+    invite,
+    inviteExternal,
+    projectKey,
+    encryptionKeys,
+  } = setup()
+
+  /** @type {Array<Buffer>} */
+  const projectKeysFound = []
+  const inviteApi = new InviteApi({
+    rpc,
+    queries: {
+      isMember: () => false,
+      addProject: async ({ projectKey }) => {
+        projectKeysFound.push(projectKey)
+      },
+    },
+  })
+
+  const inviteReceivedPromise = once(inviteApi, 'invite-received')
+
+  // Invitor: send the invite
+
+  rpc.emit('invite', invitorPeerId, invite)
+
+  // Invitee: receive the invite
+
+  await inviteReceivedPromise
+
+  // Invitor: prepare to share project join details upon acceptance
+
+  rpc.on('invite-response', () => {
+    rpc.emit('got-project-details', invitorPeerId, {
+      inviteId: invite.inviteId,
+      projectKey,
+      encryptionKeys,
+    })
+  })
+
+  // Invitee: accept then reject
+
+  const acceptPromise = inviteApi.accept(inviteExternal)
+
+  t.exception(() => inviteApi.reject(inviteExternal), 'reject fails')
+
+  await acceptPromise
+})
+
 test('throws when quickly accepting two invites for the same project', async (t) => {
   const {
     rpc,
