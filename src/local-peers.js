@@ -1,7 +1,7 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
-import { assert, ExhaustivenessError, keyToId } from './utils.js'
+import { assert, ExhaustivenessError, keyToId, noop } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
@@ -667,8 +667,6 @@ function parseProjectJoinDetails(data) {
   )
   return result
 }
-
-function noop() {}
 
 /**
  * We can temporarily have more than 1 peer for a device while connections are

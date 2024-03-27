@@ -14,6 +14,8 @@ import RemoteBitfield, {
  * @property {number | undefined} length Core length, e.g. how many blocks in the core (including blocks that are not downloaded)
  * @property {PeerState} localState
  * @property {Map<PeerId, PeerState>} remoteStates
+ * @property {Map<string, import('./peer-sync-controller.js').PeerSyncController>} peerSyncControllers
+ * @property {import('../core-manager/index.js').Namespace} namespace
  */
 /**
  * @typedef {object} CoreState
@@ -58,12 +60,20 @@ export class CoreSyncState {
   #localState = new PeerState()
   /** @type {DerivedState | null} */
   #cachedState = null
+  #preHavesLength = 0
   #update
+  #peerSyncControllers
+  #namespace
 
   /**
-   * @param {() => void} onUpdate Called when a state update is available (via getState())
+   * @param {object} opts
+   * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
+   * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
+   * @param {import('../core-manager/index.js').Namespace} opts.namespace
    */
-  constructor(onUpdate) {
+  constructor({ onUpdate, peerSyncControllers, namespace }) {
+    this.#peerSyncControllers = peerSyncControllers
+    this.#namespace = namespace
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#update = () => {
@@ -75,10 +85,13 @@ export class CoreSyncState {
   /** @type {() => DerivedState} */
   getState() {
     if (this.#cachedState) return this.#cachedState
+    const localCoreLength = this.#core?.length || 0
     return deriveState({
-      length: this.#core?.length,
+      length: Math.max(localCoreLength, this.#preHavesLength),
       localState: this.#localState,
       remoteStates: this.#remoteStates,
+      peerSyncControllers: this.#peerSyncControllers,
+      namespace: this.#namespace,
     })
   }
 
@@ -134,6 +147,10 @@ export class CoreSyncState {
   insertPreHaves(peerId, start, bitfield) {
     const peerState = this.#getPeerState(peerId)
     peerState.insertPreHaves(start, bitfield)
+    this.#preHavesLength = Math.max(
+      this.#preHavesLength,
+      peerState.preHavesBitfield.lastSet(start + bitfield.length * 32) + 1
+    )
     this.#update()
   }
 
@@ -151,6 +168,14 @@ export class CoreSyncState {
       peerState.setWantRange({ start, length })
     }
     this.#update()
+  }
+
+  /**
+   * @param {PeerId} peerId
+   */
+  addPeer(peerId) {
+    if (this.#remoteStates.has(peerId)) return
+    this.#remoteStates.set(peerId, new PeerState())
   }
 
   /**
@@ -241,6 +266,9 @@ export class PeerState {
   constructor({ wantAll = true } = {}) {
     this.#wantAll = wantAll
   }
+  get preHavesBitfield() {
+    return this.#preHaves
+  }
   /**
    * @param {number} start
    * @param {Uint32Array} bitfield
@@ -274,7 +302,7 @@ export class PeerState {
    * @param {number} index
    */
   have(index) {
-    return this.#haves ? this.#haves.get(index) : this.#preHaves.get(index)
+    return this.#haves?.get(index) || this.#preHaves.get(index)
   }
   /**
    * Return the "haves" for the 32 blocks from `index`, as a 32-bit integer
@@ -284,8 +312,9 @@ export class PeerState {
    * the 32 blocks from `index`
    */
   haveWord(index) {
-    if (this.#haves) return getBitfieldWord(this.#haves, index)
-    return getBitfieldWord(this.#preHaves, index)
+    const preHaveWord = getBitfieldWord(this.#preHaves, index)
+    if (!this.#haves) return preHaveWord
+    return preHaveWord | getBitfieldWord(this.#haves, index)
   }
   /**
    * Returns whether this peer wants block at `index`. Defaults to `true` for
@@ -323,8 +352,19 @@ export class PeerState {
  * Only exporteed for testing
  */
 export function deriveState(coreState) {
-  const peerIds = ['local', ...coreState.remoteStates.keys()]
-  const peers = [coreState.localState, ...coreState.remoteStates.values()]
+  const peerIds = ['local']
+  const peers = [coreState.localState]
+
+  for (const [peerId, peerState] of coreState.remoteStates.entries()) {
+    const psc = coreState.peerSyncControllers.get(peerId)
+    const isBlocked = psc?.syncCapability[coreState.namespace] === 'blocked'
+    // Currently we do not include blocked peers in sync state - it's unclear
+    // how to expose this state in a meaningful way for considering sync
+    // completion, because blocked peers do not sync.
+    if (isBlocked) continue
+    peerIds.push(peerId)
+    peers.push(peerState)
+  }
 
   /** @type {CoreState[]} */
   const peerStates = new Array(peers.length)

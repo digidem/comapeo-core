@@ -435,7 +435,6 @@ export class CoreManager extends TypedEmitter {
     for (const { core, namespace } of this.#coreIndex) {
       // We want ready() rather than update() because we are only interested in local data
       await core.ready()
-      if (core.length === 0) continue
       const { discoveryKey } = core
       // This will always be defined after ready(), but need to let TS know
       if (!discoveryKey) continue

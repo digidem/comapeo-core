@@ -6,12 +6,20 @@ import { assert, keyToId, noop } from './utils.js'
 import HashMap from './lib/hashmap.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 
+// There are three slightly different invite types:
+//
+// - InviteRpcMessage comes from the protobuf.
+// - InviteInternal adds a locally-generated receive timestamp.
+// - Invite is the externally-facing type.
+
 /**
- * Internally, we typically use the `Invite` type from the protobuf. We also use
- * an external type for public consumers.
- *
  * @internal
- * @typedef {import('./generated/rpc.js').Invite} InviteInternal
+ * @typedef {import('./generated/rpc.js').Invite} InviteRpcMessage
+ */
+
+/**
+ * @internal
+ * @typedef {InviteRpcMessage & { receivedAt: number }} InviteInternal
  */
 
 /** @typedef {import('./types.js').MapBuffers<InviteInternal>} Invite */
@@ -169,7 +177,7 @@ export class InviteApi extends TypedEmitter {
 
     this.rpc.on('invite', (...args) => {
       try {
-        this.#handleInvite(...args)
+        this.#handleInviteRpcMessage(...args)
       } catch (err) {
         console.error('Error handling invite', err)
       }
@@ -186,9 +194,11 @@ export class InviteApi extends TypedEmitter {
 
   /**
    * @param {string} peerId
-   * @param {InviteInternal} invite
+   * @param {InviteRpcMessage} inviteRpcMessage
    */
-  #handleInvite(peerId, invite) {
+  #handleInviteRpcMessage(peerId, inviteRpcMessage) {
+    const invite = { ...inviteRpcMessage, receivedAt: Date.now() }
+
     const isAlreadyMember = this.#isMember(invite.projectPublicId)
     if (isAlreadyMember) {
       this.rpc
@@ -375,7 +385,9 @@ export class InviteApi extends TypedEmitter {
     const pendingInvite = this.#pendingInvites.getByInviteId(inviteId)
     assert(!!pendingInvite, `Cannot find invite ${inviteId}`)
 
-    const { peerId, invite } = pendingInvite
+    const { peerId, invite, isAccepting } = pendingInvite
+
+    assert(!isAccepting, `Cannot reject ${inviteIdString}`)
 
     this.rpc
       .sendInviteResponse(peerId, {
