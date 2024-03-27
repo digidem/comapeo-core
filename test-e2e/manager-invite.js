@@ -257,7 +257,7 @@ test('cancelation', async (t) => {
 
   const [invite] = await inviteReceivedPromise
 
-  creatorProject.$member.cancelInvite(joiner.deviceId)
+  creatorProject.$member.requestCancelInvite(joiner.deviceId)
   await inviteAbortedAssertionPromise
 
   const [canceledInvite, removalReason] = await inviteRemovedPromise
@@ -279,9 +279,9 @@ test('canceling nothing', async (t) => {
   const creatorProject = await creator.getProject(createdProjectId)
 
   t.execution(() => {
-    creatorProject.$member.cancelInvite(joiner.deviceId)
-    creatorProject.$member.cancelInvite(joiner.deviceId)
-    creatorProject.$member.cancelInvite(joiner.deviceId)
+    creatorProject.$member.requestCancelInvite(joiner.deviceId)
+    creatorProject.$member.requestCancelInvite(joiner.deviceId)
+    creatorProject.$member.requestCancelInvite(joiner.deviceId)
   })
 })
 

@@ -217,13 +217,14 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
-   * Cancel an outbound invite, if it exists. No-op if we weren't inviting this
-   * device.
+   * Attempt to cancel an outbound invite, if it exists.
+   *
+   * No-op if we weren't inviting this device.
    *
    * @param {string} deviceId
    * @returns {void}
    */
-  cancelInvite(deviceId) {
+  requestCancelInvite(deviceId) {
     this.#outboundInvitesByDevice.get(deviceId)?.abortController.abort()
   }
 
