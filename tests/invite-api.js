@@ -1101,8 +1101,11 @@ function setup() {
 }
 
 /**
- * Assert that invites are alike, allowing for some wiggle room around
- * "received at" timestamps.
+ * Assert that invites are alike, with two special cases for "received at"
+ * timestamps:
+ *
+ * 1. They are are ignored during equality comparison
+ * 2. If present, the timestamps must be within the last 30 seconds
  *
  * @param {import('brittle').TestInstance} t
  * @param {unknown} actual
