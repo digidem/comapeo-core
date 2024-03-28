@@ -39,8 +39,10 @@ export function jsonSchemaToDrizzleColumns(schema) {
         columns[key] = integer(key, { mode: 'boolean' })
         break
       case 'number':
-      case 'integer':
         columns[key] = real(key)
+        break
+      case 'integer':
+        columns[key] = integer(key)
         break
       case 'string': {
         const enumValue = isStringArray(value.enum)

@@ -38,7 +38,7 @@ test('number', (t) => {
 
 test('integer', (t) => {
   const col = getColumn({ type: 'integer' })
-  t.is(col.getSQLType(), 'real', 'integers are stored in REAL columns')
+  t.is(col.getSQLType(), 'integer', 'integers are stored in INTEGER columns')
 })
 
 test('string', (t) => {
