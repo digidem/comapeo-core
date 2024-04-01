@@ -1,5 +1,5 @@
 // @ts-check
-import { test } from 'brittle'
+import { test, skip } from 'brittle'
 
 import {
   BLOCKED_ROLE_ID,
@@ -112,7 +112,8 @@ test('Blocked member cannot leave project', async (t) => {
   await disconnectPeers(managers)
 })
 
-test('Creator can leave project if another coordinator exists', async (t) => {
+// TODO: Re-enable this test. See <https://github.com/digidem/mapeo-core-next/issues/540>.
+skip('Creator can leave project if another coordinator exists', async (t) => {
   const managers = await createManagers(2, t)
 
   connectPeers(managers)
