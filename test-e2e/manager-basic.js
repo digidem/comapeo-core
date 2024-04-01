@@ -168,6 +168,44 @@ test('Consistent loading of config', async (t) => {
   )
 
   await t.test(
+    'loading non-default config when creating project',
+    async (st) => {
+      const configPath = 'tests/fixtures/config/completeConfig.zip'
+      const projectId = await manager.createProject({ configPath })
+
+      const project = await manager.getProject(projectId)
+
+      const projectSettings = await project.$getProjectSettings()
+      st.is(
+        projectSettings.defaultPresets?.point.length,
+        expectedMinimal.presets.length,
+        'the default presets loaded is equal to the number of presets in the default config'
+      )
+
+      const projectPresets = await project.preset.getMany()
+      st.alike(
+        projectPresets.map((preset) => preset.name),
+        expectedMinimal.presets.map((preset) => preset.value.name),
+        'project is loading the default presets correctly'
+      )
+
+      const projectFields = await project.field.getMany()
+      st.alike(
+        projectFields.map((field) => field.tagKey),
+        expectedMinimal.fields.map((field) => field.value.tagKey),
+        'project is loading the default fields correctly'
+      )
+
+      const projectIcons = await project[kDataTypes].icon.getMany()
+      st.alike(
+        projectIcons.map((icon) => icon.name),
+        expectedMinimal.icons.map((icon) => icon.name),
+        'project is loading the default icons correctly'
+      )
+    }
+  )
+
+  await t.test(
     'load different config and check if correctly loaded',
     async (st) => {
       const configPath = 'tests/fixtures/config/completeConfig.zip'
