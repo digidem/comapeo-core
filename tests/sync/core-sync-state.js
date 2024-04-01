@@ -246,6 +246,8 @@ test('deriveState() scenarios', (t) => {
       remoteStates: new Map(
         state.remoteStates.map((s, i) => ['peer' + i, createState(s)])
       ),
+      peerSyncControllers: new Map(),
+      namespace: 'auth',
     })
     t.alike(derivedState, expected, message)
   }
@@ -261,6 +263,8 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
     length: BITS_PER_PAGE + 10,
     localState,
     remoteStates: new Map([['peer0', remoteState]]),
+    peerSyncControllers: new Map(),
+    namespace: /** @type {const} */ 'auth',
   }
   const expected = {
     coreLength: BITS_PER_PAGE + 10,
@@ -288,7 +292,11 @@ test('CoreReplicationState', async (t) => {
     const localCore = await createCore()
     await localCore.ready()
     const emitter = new EventEmitter()
-    const crs = new CoreSyncState(() => emitter.emit('update'))
+    const crs = new CoreSyncState({
+      onUpdate: () => emitter.emit('update'),
+      peerSyncControllers: new Map(),
+      namespace: 'auth',
+    })
     crs.attachCore(localCore)
     const blocks = new Array(state.length).fill('block')
     await localCore.append(blocks)

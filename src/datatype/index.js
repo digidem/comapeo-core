@@ -3,7 +3,7 @@ import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, placeholder } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
-import { deNullify } from '../utils.js'
+import { noop, deNullify } from '../utils.js'
 import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
@@ -291,5 +291,3 @@ export class DataType extends TypedEmitter {
     this.emit('updated-docs', updatedDocs)
   }
 }
-
-function noop() {}

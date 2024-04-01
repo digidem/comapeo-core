@@ -282,9 +282,11 @@ export function waitForSync(projects, type = 'initial') {
 
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
+ * @param {object} [opts]
+ * @param {readonly import('@mapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
  */
-export function seedDatabases(projects) {
-  return Promise.all(projects.map((p) => seedProjectDatabase(p)))
+export function seedDatabases(projects, { schemas = SCHEMAS_TO_SEED } = {}) {
+  return Promise.all(projects.map((p) => seedProjectDatabase(p, { schemas })))
 }
 
 const SCHEMAS_TO_SEED = /** @type {const} */ ([
@@ -295,11 +297,16 @@ const SCHEMAS_TO_SEED = /** @type {const} */ ([
 
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject} project
+ * @param {object} [opts]
+ * @param {readonly import('@mapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
  * @returns {Promise<Array<import('@mapeo/schema').MapeoDoc & { forks: string[] }>>}
  */
-async function seedProjectDatabase(project) {
+async function seedProjectDatabase(
+  project,
+  { schemas = SCHEMAS_TO_SEED } = {}
+) {
   const promises = []
-  for (const schemaName of SCHEMAS_TO_SEED) {
+  for (const schemaName of schemas) {
     const count =
       schemaName === 'observation' ? randomInt(20, 100) : randomInt(0, 10)
     let i = 0
