@@ -219,13 +219,7 @@ function getRootKey(seed) {
   }
   return key
 }
-/**
- * Remove undefined properties from an object, to allow deep comparison
- * @param {object} obj
- */
-export function stripUndef(obj) {
-  return JSON.parse(JSON.stringify(obj))
-}
+
 /**
  *
  * @param {number} value
