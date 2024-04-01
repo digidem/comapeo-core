@@ -373,7 +373,6 @@ test('Consistent storage folders', async (t) => {
     await project.$getOwnRole()
   }
 
-  // @ts-ignore snapshot() is missing from typedefs
   t.snapshot(storageNames.sort())
 })
 
