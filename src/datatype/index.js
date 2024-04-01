@@ -239,12 +239,17 @@ export class DataType extends TypedEmitter {
     return this.getByDocId(docId)
   }
 
-  /**
-   * @param {Parameters<import('drizzle-orm/better-sqlite3').BetterSQLite3Database['select']>[0]} fields
-   */
-  async [kSelect](fields) {
+  async [kSelect]() {
     await this.#dataStore.indexer.idle()
-    return this.#db.select(fields).from(this.#table)
+    const result = this.#db.select().from(this.#table)
+    // [The result of `from()` is awaitable.][0] We don't want this because we
+    // want to be able to await the result of this method and then call
+    // `.where()` on the result.
+    //
+    // As a workaround, we remove `.then` from the result.
+    //
+    // [0]: https://github.com/drizzle-team/drizzle-orm/commit/c063144dc08726cc15323582fe377210329e579e
+    return removeThen(result)
   }
 
   /**
@@ -290,4 +295,13 @@ export class DataType extends TypedEmitter {
     )
     this.emit('updated-docs', updatedDocs)
   }
+}
+
+/**
+ * @template {object} T
+ * @param {T} value
+ * @returns {Omit<T, 'then'> & { then: undefined }}
+ */
+function removeThen(value) {
+  return Object.create(value, { then: { value: undefined } })
 }
