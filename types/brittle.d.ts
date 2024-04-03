@@ -53,6 +53,7 @@ declare module 'brittle' {
     fail(message?: string): void
     exception: ExceptionAssertion
     execution<T>(fn: T | Promise<T>, message?: string): Promise<number>
+    snapshot(actual: unknown, message?: string): void
   }
 
   interface TestOptions {
