@@ -1,7 +1,27 @@
+import * as crypto from 'node:crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { assert, projectKeyToId } from './utils.js'
+import {
+  assert,
+  noop,
+  ExhaustivenessError,
+  projectKeyToId,
+  projectKeyToPublicId,
+} from './utils.js'
+import timingSafeEqual from './lib/timing-safe-equal.js'
 import { ROLES, isRoleIdForNewInvite } from './roles.js'
+
+const DEFAULT_INVITE_TIMEOUT = 5 * (1000 * 60)
+
+/**
+ * @internal
+ * @typedef {import('./generated/rpc.js').Invite} Invite
+ */
+/**
+ * @internal
+ * @typedef {import('./generated/rpc.js').InviteResponse} InviteResponse
+ */
 
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
@@ -21,6 +41,9 @@ export class MemberApi extends TypedEmitter {
   #projectKey
   #rpc
   #dataTypes
+
+  /** @type {Set<string>} */
+  #deviceIdsWithPendingInvites = new Set()
 
   /**
    * @param {Object} opts
@@ -60,42 +83,128 @@ export class MemberApi extends TypedEmitter {
    * @param {string} [opts.roleName]
    * @param {string} [opts.roleDescription]
    * @param {number} [opts.timeout]
-   *
-   * @returns {Promise<import('./generated/rpc.js').InviteResponse_Decision>}
+   * @returns {Promise<(
+   *   typeof InviteResponse_Decision.ACCEPT |
+   *   typeof InviteResponse_Decision.REJECT |
+   *   typeof InviteResponse_Decision.ALREADY
+   * )>}
    */
-  async invite(deviceId, { roleId, roleName, roleDescription, timeout }) {
+  async invite(
+    deviceId,
+    {
+      roleId,
+      roleName = ROLES[roleId]?.name,
+      roleDescription,
+      timeout = DEFAULT_INVITE_TIMEOUT,
+    }
+  ) {
     assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
+    assert(
+      !this.#deviceIdsWithPendingInvites.has(deviceId),
+      'Already inviting this device ID'
+    )
+    assert(timeout > 0, 'Timeout should be a positive number')
+    assert(timeout < 2 ** 32, 'Timeout is too large')
 
-    const { name: deviceName } = await this.getById(this.#ownDeviceId)
-
-    // since we are always getting #ownDeviceId,
-    // this should never throw (see comment on getById), but it pleases ts
-    if (!deviceName)
-      throw new Error(
+    try {
+      this.#deviceIdsWithPendingInvites.add(deviceId)
+      const { name: invitorName } = await this.getById(this.#ownDeviceId)
+      // since we are always getting #ownDeviceId,
+      // this should never throw (see comment on getById), but it pleases ts
+      assert(
+        invitorName,
         'Internal error trying to read own device name for this invite'
       )
 
-    const projectId = projectKeyToId(this.#projectKey)
-    const project = await this.#dataTypes.project.getByDocId(projectId)
+      const inviteId = crypto.randomBytes(32)
+      const projectId = projectKeyToId(this.#projectKey)
+      const projectPublicId = projectKeyToPublicId(this.#projectKey)
+      const project = await this.#dataTypes.project.getByDocId(projectId)
+      const projectName = project.name
+      assert(projectName, 'Project must have a name to invite people')
 
-    if (!project.name)
-      throw new Error('Project must have a name to invite people')
+      const invite = {
+        inviteId,
+        projectPublicId,
+        projectName,
+        roleName,
+        roleDescription,
+        invitorName,
+      }
 
-    const response = await this.#rpc.invite(deviceId, {
-      projectKey: this.#projectKey,
-      encryptionKeys: this.#encryptionKeys,
-      projectInfo: { name: project.name },
-      roleName: roleName || ROLES[roleId].name,
-      roleDescription,
-      invitorName: deviceName,
-      timeout,
-    })
+      const inviteResponse = await this.#sendInviteAndGetResponse(
+        deviceId,
+        invite,
+        { timeout }
+      )
 
-    if (response === InviteResponse_Decision.ACCEPT) {
-      await this.#roles.assignRole(deviceId, roleId)
+      switch (inviteResponse.decision) {
+        case InviteResponse_Decision.ALREADY:
+        case InviteResponse_Decision.REJECT:
+          return inviteResponse.decision
+        case InviteResponse_Decision.UNRECOGNIZED:
+          return InviteResponse_Decision.REJECT
+        case InviteResponse_Decision.ACCEPT:
+          // We should assign the role locally *before* sharing the project details
+          // so that they're part of the project even if they don't receive the
+          // project details message.
+
+          await this.#roles.assignRole(deviceId, roleId)
+
+          await this.#rpc.sendProjectJoinDetails(deviceId, {
+            inviteId,
+            projectKey: this.#projectKey,
+            encryptionKeys: this.#encryptionKeys,
+          })
+
+          return inviteResponse.decision
+        default:
+          throw new ExhaustivenessError(inviteResponse.decision)
+      }
+    } finally {
+      this.#deviceIdsWithPendingInvites.delete(deviceId)
     }
+  }
 
-    return response
+  /**
+   * Send an invite and return the response. Will throw if no response is
+   * received within the timeout.
+   *
+   * @param {string} deviceId
+   * @param {Invite} invite
+   * @param {object} options
+   * @param {number} options.timeout
+   */
+  async #sendInviteAndGetResponse(deviceId, invite, { timeout }) {
+    const abortController = new AbortController()
+    const timeoutId = setTimeout(() => abortController.abort(), timeout)
+
+    const responsePromise =
+      /** @type {typeof pEvent<'invite-response', [string, InviteResponse]>} */ (
+        pEvent
+      )(this.#rpc, 'invite-response', {
+        multiArgs: true,
+        filter: ([peerId, inviteResponse]) =>
+          timingSafeEqual(peerId, deviceId) &&
+          timingSafeEqual(invite.inviteId, inviteResponse.inviteId),
+        signal: abortController.signal,
+      }).then((args) => args?.[1])
+
+    responsePromise.catch(noop)
+
+    try {
+      await this.#rpc.sendInvite(deviceId, invite)
+      return await responsePromise
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('Invite timed out')
+      } else {
+        throw err
+      }
+    } finally {
+      clearTimeout(timeoutId)
+      abortController.abort()
+    }
   }
 
   /**

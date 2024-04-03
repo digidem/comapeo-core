@@ -2,7 +2,7 @@
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { valueOf } from '../src/utils.js'
-import { createManager, sortById, stripUndef } from './utils.js'
+import { createManager, sortById, removeUndefinedFields } from './utils.js'
 import { round } from './utils.js'
 import { generate } from '@mapeo/mock-data'
 import { setTimeout as delay } from 'timers/promises'
@@ -116,7 +116,7 @@ test('CRUD operations', async (t) => {
         'return of update() matched return of getByDocId()'
       )
       st.alike(
-        valueOf(stripUndef(updated)),
+        valueOf(removeUndefinedFields(updated)),
         updateValue,
         'expected value is updated'
       )
@@ -224,8 +224,8 @@ test('CRUD operations', async (t) => {
       const manyValues2 = many2.map((doc) => valueOf(doc))
 
       st.alike(
-        stripUndef(manyValues1),
-        stripUndef(manyValues2),
+        removeUndefinedFields(manyValues1),
+        removeUndefinedFields(manyValues2),
         'expected values returned before closing and after re-opening'
       )
     })

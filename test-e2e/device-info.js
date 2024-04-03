@@ -81,6 +81,7 @@ test('device info written to projects', (t) => {
       {
         projectKey: randomBytes(32),
         encryptionKeys: { auth: randomBytes(32) },
+        projectName: 'Mapeo Project',
       },
       { waitForSync: false }
     )

@@ -1,13 +1,14 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
-import { ExhaustivenessError, keyToId } from './utils.js'
+import { assert, ExhaustivenessError, keyToId, noop } from './utils.js'
+import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
   DeviceInfo,
   Invite,
   InviteResponse,
-  InviteResponse_Decision,
+  ProjectJoinDetails,
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
@@ -26,8 +27,11 @@ const DEDUPE_TIMEOUT = 1000
 /** @satisfies {{ [k in keyof typeof import('./generated/rpc.js')]?: number }} */
 const MESSAGE_TYPES = {
   Invite: 0,
-  InviteResponse: 1,
-  DeviceInfo: 2,
+  // TODO: Add invite cancelations.
+  // InviteCancel: 1,
+  InviteResponse: 2,
+  ProjectJoinDetails: 3,
+  DeviceInfo: 4,
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
@@ -44,14 +48,6 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 /** @typedef {PeerInfoConnecting | PeerInfoConnected | PeerInfoDisconnected} PeerInfoInternal */
 /** @typedef {PeerInfoConnected | PeerInfoDisconnected} PeerInfo */
 /** @typedef {PeerInfoInternal['status']} PeerState */
-/** @typedef {import('type-fest').SetNonNullable<import('./generated/rpc.js').Invite, 'encryptionKeys'>} InviteWithKeys */
-
-/**
- * @template ValueType
- * @typedef {object} DeferredPromise
- * @property {(value?: ValueType | PromiseLike<ValueType>) => void} resolve
- * @property {(reason?: unknown) => void} reject
- */
 
 class Peer {
   /** @type {PeerState} */
@@ -59,8 +55,6 @@ class Peer {
   #deviceId
   #channel
   #connected
-  /** @type {Map<string, Array<DeferredPromise<InviteResponse['decision']>>>} */
-  pendingInvites = new Map()
   /** @type {string | undefined} */
   #name
   /** @type {DeviceInfo['deviceType']} */
@@ -156,23 +150,15 @@ class Peer {
     this.#disconnectedAt = Date.now()
     // This promise should have already resolved, but if the peer never connected then we reject here
     this.#connected.reject(new PeerFailedConnectionError())
-    let rejectCount = 0
-    for (const pending of this.pendingInvites.values()) {
-      for (const { reject } of pending) {
-        reject(new PeerDisconnectedError())
-        rejectCount++
-      }
-    }
-    this.#log('disconnected and rejected %d pending invites', rejectCount)
-    this.pendingInvites.clear()
+    this.#log('disconnected')
   }
-  /** @param {InviteWithKeys} invite */
+  /** @param {Invite} invite */
   sendInvite(invite) {
     this.#assertConnected()
     const buf = Buffer.from(Invite.encode(invite).finish())
     const messageType = MESSAGE_TYPES.Invite
     this.#channel.messages[messageType].send(buf)
-    this.#log('sent invite for %h', invite.projectKey)
+    this.#log('sent invite %h', invite.inviteId)
   }
   /** @param {InviteResponse} response */
   sendInviteResponse(response) {
@@ -180,11 +166,15 @@ class Peer {
     const buf = Buffer.from(InviteResponse.encode(response).finish())
     const messageType = MESSAGE_TYPES.InviteResponse
     this.#channel.messages[messageType].send(buf)
-    this.#log(
-      'sent response for %h: %s',
-      response.projectKey,
-      response.decision
-    )
+    this.#log('sent response for %h: %s', response.inviteId, response.decision)
+  }
+  /** @param {ProjectJoinDetails} details */
+  sendProjectJoinDetails(details) {
+    this.#assertConnected()
+    const buf = Buffer.from(ProjectJoinDetails.encode(details).finish())
+    const messageType = MESSAGE_TYPES.ProjectJoinDetails
+    this.#channel.messages[messageType].send(buf)
+    this.#log('sent project join details for %h', details.projectKey)
   }
   /** @param {DeviceInfo} deviceInfo */
   sendDeviceInfo(deviceInfo) {
@@ -210,7 +200,9 @@ class Peer {
  * @typedef {object} LocalPeersEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
  * @property {(peer: PeerInfoConnected) => void} peer-add Emitted when a new peer is connected
- * @property {(peerId: string, invite: InviteWithKeys) => void} invite Emitted when an invite is received
+ * @property {(peerId: string, invite: Invite) => void} invite Emitted when an invite is received
+ * @property {(peerId: string, inviteResponse: InviteResponse) => void} invite-response Emitted when an invite response is received
+ * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
  */
 
@@ -223,7 +215,6 @@ export class LocalPeers extends TypedEmitter {
   /** @type {Set<Promise<any>>} */
   #opening = new Set()
 
-  static InviteResponse = InviteResponse_Decision
   #l
   /** @type {Set<Protomux>} */
   #attached = new Set()
@@ -247,84 +238,46 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * Invite a peer to a project. Resolves with the response from the invitee:
-   * one of "ACCEPT", "REJECT", or "ALREADY" (already on project)
-   *
-   * @param {string} peerId
-   * @param {object} options
-   * @param {InviteWithKeys['projectKey']} options.projectKey project key
-   * @param {InviteWithKeys['encryptionKeys']} options.encryptionKeys project encryption key
-   * @param {InviteWithKeys['projectInfo']} [options.projectInfo] project info - currently name
-   * @param {InviteWithKeys['roleName']} options.roleName
-   * @param {InviteWithKeys['invitorName']} options.invitorName
-   * @param {InviteWithKeys['roleDescription']} [options.roleDescription]
-   * @param {number} [options.timeout] timeout waiting for invite response before rejecting (default 1 minute)
-   * @returns {Promise<InviteResponse['decision']>}
+   * @param {string} deviceId
+   * @param {Invite} invite
+   * @returns {Promise<void>}
    */
-  async invite(peerId, { timeout, ...invite }) {
+  async sendInvite(deviceId, invite) {
     await this.#waitForPendingConnections()
-    const peer = await this.#getPeerByDeviceId(peerId)
-    /** @type {Promise<InviteResponse['decision']>} */
-    return new Promise((origResolve, origReject) => {
-      const projectId = keyToId(invite.projectKey)
-
-      const pending = peer.pendingInvites.get(projectId) || []
-      peer.pendingInvites.set(projectId, pending)
-
-      const deferred = { resolve, reject }
-      pending.push(deferred)
-
-      const timeoutId =
-        timeout &&
-        setTimeout(() => {
-          const index = pending.indexOf(deferred)
-          if (index > -1) {
-            pending.splice(index, 1)
-          }
-          origReject(new TimeoutError(`No response after ${timeout}ms`))
-        }, timeout)
-
-      try {
-        peer.sendInvite(invite)
-      } catch (e) {
-        reject(e)
-      }
-
-      /** @type {typeof origResolve} */
-      function resolve(value) {
-        clearTimeout(timeoutId)
-        origResolve(value)
-      }
-      /** @type {typeof origReject} */
-      function reject(reason) {
-        clearTimeout(timeoutId)
-        origReject(reason)
-      }
-    })
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    peer.sendInvite(invite)
   }
 
   /**
    * Respond to an invite from a peer
    *
-   * @param {string} peerId id of the peer you want to respond to (publicKey of peer as hex string)
-   * @param {object} options
-   * @param {InviteResponse['projectKey']} options.projectKey project key of the invite you are responding to
-   * @param {InviteResponse['decision']} options.decision response to invite, one of "ACCEPT", "REJECT", or "ALREADY" (already on project)
+   * @param {string} deviceId id of the peer you want to respond to (publicKey of peer as hex string)
+   * @param {InviteResponse} inviteResponse
    */
-  async inviteResponse(peerId, options) {
+  async sendInviteResponse(deviceId, inviteResponse) {
     await this.#waitForPendingConnections()
-    const peer = await this.#getPeerByDeviceId(peerId)
-    peer.sendInviteResponse(options)
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    peer.sendInviteResponse(inviteResponse)
+  }
+
+  /**
+   * @param {string} deviceId
+   * @param {ProjectJoinDetails} details
+   */
+  async sendProjectJoinDetails(deviceId, details) {
+    await this.#waitForPendingConnections()
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    peer.sendProjectJoinDetails(details)
   }
 
   /**
    *
-   * @param {string} peerId id of the peer you want to send to (publicKey of peer as hex string)
+   * @param {string} deviceId id of the peer you want to send to (publicKey of peer as hex string)
    * @param {DeviceInfo} deviceInfo device info to send
    */
-  async sendDeviceInfo(peerId, deviceInfo) {
+  async sendDeviceInfo(deviceId, deviceInfo) {
     await this.#waitForPendingConnections()
-    const peer = await this.#getPeerByDeviceId(peerId)
+    const peer = await this.#getPeerByDeviceId(deviceId)
     peer.sendDeviceInfo(deviceInfo)
   }
 
@@ -410,11 +363,17 @@ export class LocalPeers extends TypedEmitter {
     for (const [type, id] of Object.entries(MESSAGE_TYPES)) {
       messages[id] = {
         encoding: cenc.raw,
-        onmessage: this.#handleMessage.bind(
-          this,
-          protomux,
-          /** @type {keyof typeof MESSAGE_TYPES} */ (type)
-        ),
+        onmessage: (message) => {
+          try {
+            this.#handleMessage(
+              protomux,
+              /** @type {keyof typeof MESSAGE_TYPES} */ (type),
+              message
+            )
+          } catch (err) {
+            this.#l.log(`Error handling ${type} message: ${String(err)}`)
+          }
+        },
       }
     }
 
@@ -516,31 +475,27 @@ export class LocalPeers extends TypedEmitter {
     if (!peer) return // TODO: report error - this should not happen
     switch (type) {
       case 'Invite': {
-        const invite = Invite.decode(value)
-        assertInviteHasKeys(invite)
+        const invite = parseInvite(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite', peerId, invite)
-        this.#l.log('Invite from %S for %h', peerId, invite.projectKey)
+        this.#l.log(
+          'Invite %h from %S for %h',
+          invite.inviteId,
+          peerId,
+          invite.projectPublicId
+        )
         break
       }
       case 'InviteResponse': {
-        const response = InviteResponse.decode(value)
-        const projectId = keyToId(response.projectKey)
-        const pending = peer.pendingInvites.get(projectId)
-        /* c8 ignore next 3 */
-        if (!pending) {
-          return // TODO: report error - this should not happen
-        }
-        for (const deferredPromise of pending) {
-          deferredPromise.resolve(response.decision)
-        }
-        this.#l.log(
-          'Invite response from %h for %h: %s',
-          protomux.stream.remotePublicKey,
-          response.projectKey,
-          response.decision
-        )
-        peer.pendingInvites.set(projectId, [])
+        const inviteResponse = parseInviteResponse(value)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('invite-response', peerId, inviteResponse)
+        break
+      }
+      case 'ProjectJoinDetails': {
+        const details = parseProjectJoinDetails(value)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('got-project-details', peerId, details)
         break
       }
       case 'DeviceInfo': {
@@ -623,17 +578,53 @@ export class PeerFailedConnectionError extends Error {
 }
 
 /**
- *
- * @param {Invite} invite
- * @returns {asserts invite is InviteWithKeys}
+ * @param {Readonly<Uint8Array>} id
+ * @throws if the invite ID is too short
  */
-function assertInviteHasKeys(invite) {
-  if (!invite.encryptionKeys || !invite.encryptionKeys.auth) {
-    throw new Error('Invite is missing auth core encryption key')
-  }
+function assertInviteIdIsValid(id) {
+  assert(id.byteLength >= 32, 'Invite ID must be >= 32 bytes')
 }
 
-function noop() {}
+/**
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {Invite}
+ */
+function parseInvite(data) {
+  const result = Invite.decode(data)
+  assertInviteIdIsValid(result.inviteId)
+  assert(result.projectPublicId.length, 'Invite must have project public ID')
+  assert(!isBlank(result.projectName), 'Invite project name cannot be blank')
+  assert(!isBlank(result.invitorName), 'Invite invitor name cannot be blank')
+  return result
+}
+
+/**
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {InviteResponse}
+ */
+function parseInviteResponse(data) {
+  const result = InviteResponse.decode(data)
+  assertInviteIdIsValid(result.inviteId)
+  return result
+}
+
+/**
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {ProjectJoinDetails}
+ */
+function parseProjectJoinDetails(data) {
+  const result = ProjectJoinDetails.decode(data)
+  assertInviteIdIsValid(result.inviteId)
+  assert(result.projectKey.length, 'Project join details must have project key')
+  assert(
+    result.encryptionKeys?.auth?.byteLength,
+    'Project join details must have auth encryption keys'
+  )
+  return result
+}
 
 /**
  * We can temporarily have more than 1 peer for a device while connections are

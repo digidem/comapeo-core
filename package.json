@@ -1,6 +1,6 @@
 {
   "name": "@mapeo/core",
-  "version": "9.0.0-alpha.4",
+  "version": "9.0.0-alpha.5",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier . --write",
     "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
-    "test:unit": "brittle \"tests/**/*.js\" \"vendor/**/*.test.js\"",
+    "test:unit": "brittle \"tests/**/*.js\"",
     "test:e2e": "brittle \"test-e2e/**/*.js\"",
     "test:types": "tsc -p test-types/tsconfig.json",
     "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
@@ -49,7 +49,15 @@
       "ecmaVersion": 13,
       "sourceType": "module"
     },
-    "rules": {}
+    "rules": {
+      "no-unused-vars": [
+        "error",
+        {
+          "varsIgnorePattern": "^_",
+          "argsIgnorePattern": "^_"
+        }
+      ]
+    }
   },
   "repository": {
     "type": "git",
@@ -84,12 +92,14 @@
     "@types/varint": "^6.0.1",
     "@types/yauzl-promise": "^4.0.0",
     "bitfield": "^4.1.0",
-    "brittle": "^3.2.1",
+    "brittle": "^3.5.0",
     "cpy": "^10.1.0",
     "cpy-cli": "^5.0.0",
     "drizzle-kit": "^0.19.12",
     "eslint": "^8.57.0",
+    "filter-obj": "^6.0.0",
     "husky": "^8.0.0",
+    "iterpal": "^0.4.0",
     "light-my-request": "^5.10.0",
     "lint-staged": "^14.0.1",
     "mapeo-offline-map": "^2.0.0",
@@ -141,6 +151,7 @@
     "mime": "^4.0.1",
     "multi-core-indexer": "^1.0.0-alpha.9",
     "p-defer": "^4.0.0",
+    "p-event": "^6.0.1",
     "p-timeout": "^6.1.2",
     "patch-package": "^8.0.0",
     "protobufjs": "^7.2.3",

@@ -46,6 +46,8 @@ export class SyncApi extends TypedEmitter {
   #roles
   /** @type {Map<import('protomux'), PeerSyncController>} */
   #peerSyncControllers = new Map()
+  /** @type {Map<string, PeerSyncController>} */
+  #pscByPeerId = new Map()
   /** @type {Set<string>} */
   #peerIds = new Set()
   /** @type {Set<'local' | 'remote'>} */
@@ -67,11 +69,14 @@ export class SyncApi extends TypedEmitter {
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
     this.#roles = roles
-    this[kSyncState] = new SyncState({ coreManager, throttleMs })
+    this[kSyncState] = new SyncState({
+      coreManager,
+      throttleMs,
+      peerSyncControllers: this.#pscByPeerId,
+    })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
-      const state = reduceSyncState(namespaceSyncState)
-      state.data.syncing = this.#dataSyncEnabled.has('local')
+      const state = this.#getState(namespaceSyncState)
       this.emit('sync-state', state)
     })
 
@@ -112,7 +117,15 @@ export class SyncApi extends TypedEmitter {
    * @returns {State}
    */
   getState() {
-    const state = reduceSyncState(this[kSyncState].getState())
+    return this.#getState(this[kSyncState].getState())
+  }
+
+  /**
+   * @param {import('./sync-state.js').State} namespaceSyncState
+   * @returns {State}
+   */
+  #getState(namespaceSyncState) {
+    const state = reduceSyncState(namespaceSyncState)
     state.data.syncing = this.#dataSyncEnabled.has('local')
     return state
   }
@@ -127,6 +140,7 @@ export class SyncApi extends TypedEmitter {
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.enableDataSync()
     }
+    this.emit('sync-state', this.getState())
   }
 
   /**
@@ -139,6 +153,7 @@ export class SyncApi extends TypedEmitter {
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.disableDataSync()
     }
+    this.emit('sync-state', this.getState())
   }
 
   /**
@@ -186,7 +201,11 @@ export class SyncApi extends TypedEmitter {
       logger: this.#l,
     })
     this.#peerSyncControllers.set(protomux, peerSyncController)
-    if (peerSyncController.peerId) this.#peerIds.add(peerSyncController.peerId)
+    this.#pscByPeerId.set(peerSyncController.peerId, peerSyncController)
+    this.#peerIds.add(peerSyncController.peerId)
+
+    // Add peer to all core states (via namespace sync states)
+    this[kSyncState].addPeer(peerSyncController.peerId)
 
     if (this.#dataSyncEnabled.has('local')) {
       peerSyncController.enableDataSync()
@@ -219,7 +238,9 @@ export class SyncApi extends TypedEmitter {
       return
     }
     this.#peerSyncControllers.delete(protomux)
-    this.#peerIds.delete(keyToId(peer.remotePublicKey))
+    const peerId = keyToId(peer.remotePublicKey)
+    this.#pscByPeerId.delete(peerId)
+    this.#peerIds.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
   }
 }
