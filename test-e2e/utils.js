@@ -2,6 +2,7 @@
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
+import { arrayFrom } from 'iterpal'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
@@ -337,23 +338,10 @@ export function sortBy(arr, key) {
 /** @param {String} path */
 export async function getExpectedConfig(path) {
   const config = await readConfig(path)
-  let presets = []
-  let fields = []
-  let icons = []
-  for (let preset of config.presets()) {
-    presets.push(preset)
-  }
-  for (let field of config.fields()) {
-    fields.push(field)
-  }
-  for await (let icon of config.icons()) {
-    icons.push(icon)
-  }
-
   return {
-    presets,
-    fields,
-    icons,
+    presets: arrayFrom(config.presets()),
+    fields: arrayFrom(config.fields()),
+    icons: await arrayFrom(config.icons()),
   }
 }
 
