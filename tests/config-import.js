@@ -211,7 +211,9 @@ test('config import - presets', async (t) => {
 })
 
 test('config import - load default config', async (t) => {
-  let config = await readConfig('./dist/mapeo-default-config.mapeoconfig')
+  let config = await readConfig(
+    './tests/fixtures/config/mapeo-default-config.mapeoconfig'
+  )
   t.ok(config, 'valid config file')
 
   let nFields = 0

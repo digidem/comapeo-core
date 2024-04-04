@@ -8,7 +8,7 @@
   "scripts": {
     "lint": "eslint .",
     "format": "prettier . --write",
-    "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
+    "test": "npm-run-all lint build:config build:types type test:unit test:e2e test:types",
     "test:unit": "brittle \"tests/**/*.js\"",
     "test:e2e": "brittle \"test-e2e/**/*.js\"",
     "test:types": "tsc -p test-types/tsconfig.json",
@@ -20,7 +20,7 @@
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
-    "prepack": "npm run build:types && npm run build:config",
+    "prepack": "npm run build:types",
     "postinstall": "patch-package",
     "prepare": "husky install"
   },
@@ -77,6 +77,7 @@
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
     "@hyperswarm/testnet": "^3.1.2",
+    "@mapeo/default-config": "^4.0.0-alpha.0",
     "@mapeo/mock-data": "^1.0.1",
     "@sinonjs/fake-timers": "^10.0.2",
     "@types/b4a": "^1.6.0",
@@ -126,7 +127,6 @@
     "@fastify/type-provider-typebox": "^3.3.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "1.0.0-alpha.10",
-    "@mapeo/default-config": "^4.0.0-alpha.0",
     "@mapeo/schema": "3.0.0-next.14",
     "@mapeo/sqlite-indexer": "1.0.0-alpha.8",
     "@sinclair/typebox": "^0.29.6",
