@@ -611,7 +611,10 @@ export class MapeoProject extends TypedEmitter {
       )
     }
 
-    // 2. Clear data from cores
+    // 2. Assign LEFT role for device
+    await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+
+    // 3. Clear data from cores
     // TODO: only clear synced data
     const namespacesWithoutAuth =
       /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
@@ -628,8 +631,8 @@ export class MapeoProject extends TypedEmitter {
       ])
     )
 
-    // 3. Clear data from indexes
-    // 3.1 Reset multi-core indexer state
+    // 4. Clear data from indexes
+    // 4.1 Reset multi-core indexer state
     await Promise.all(
       Object.values(this.#dataStores)
         .filter((dataStore) => dataStore.namespace !== 'auth')
@@ -639,7 +642,7 @@ export class MapeoProject extends TypedEmitter {
         })
     )
 
-    // 3.2 Clear indexed data
+    // 4.2 Clear indexed data
     const isIndexedSchema = setHas(new Set(this.#indexWriter.schemas))
     await Promise.all(
       Object.values(this.#dataTypes)
@@ -650,9 +653,6 @@ export class MapeoProject extends TypedEmitter {
         .filter(isIndexedSchema)
         .map((schemaName) => this.#indexWriter.deleteSchema(schemaName))
     )
-
-    // 4. Assign LEFT role for device
-    await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
   }
 
   /** @param {Object} opts
