@@ -338,10 +338,15 @@ export class MapeoManager extends TypedEmitter {
 
   /**
    * Create a new project.
-   * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
+   * @param {(
+   *   import('type-fest').Simplify<(
+   *     Partial<Pick<ProjectValue, 'name'>> &
+   *     { configPath?: string }
+   *   )>
+   * )} [options]
    * @returns {Promise<string>} Project public id
    */
-  async createProject(settings = {}) {
+  async createProject({ name, configPath = this.#defaultConfigPath } = {}) {
     // 1. Create project keypair
     const projectKeypair = KeyManager.generateProjectKeypair()
 
@@ -383,8 +388,8 @@ export class MapeoManager extends TypedEmitter {
       this.#activeProjects.delete(projectPublicId)
     })
 
-    // 5. Write project name and any other relevant metadata to project instance
-    await project.$setProjectSettings(settings)
+    // 5. Write project settings to project instance
+    await project.$setProjectSettings({ name })
 
     // 6. Write device info into project
     const deviceInfo = this.getDeviceInfo()
@@ -395,14 +400,12 @@ export class MapeoManager extends TypedEmitter {
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
 
-    // load default config
+    // 7. Load config, if relevant
     // TODO: see how to expose warnings to frontend
     /* eslint-disable no-unused-vars */
     let warnings
-    if (this.#defaultConfigPath) {
-      warnings = await project.importConfig({
-        configPath: this.#defaultConfigPath,
-      })
+    if (configPath) {
+      warnings = await project.importConfig({ configPath })
     }
 
     this.#l.log(
