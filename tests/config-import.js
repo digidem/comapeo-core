@@ -211,7 +211,7 @@ test('config import - presets', async (t) => {
 })
 
 test('config import - load default config', async (t) => {
-  let config = await readConfig('./config/defaultConfig.mapeoconfig')
+  let config = await readConfig('./dist/mapeo-default-config.mapeoconfig')
   t.ok(config, 'valid config file')
 
   let nFields = 0
@@ -219,7 +219,7 @@ test('config import - load default config', async (t) => {
   for (const field of config.fields()) {
     nFields++
   }
-  t.is(nFields, 2, 'correct number of fields in default config')
+  t.is(nFields, 11, 'correct number of fields in default config')
   let nIcons = 0
   let nVariants = 0
   /* eslint-disable-next-line */
@@ -230,14 +230,14 @@ test('config import - load default config', async (t) => {
       nVariants++
     }
   }
-  t.is(nIcons, 41, 'correct number of icons in default config')
-  t.is(nVariants, 369, 'correct number of icon variants in default config')
+  t.is(nIcons, 26, 'correct number of icons in default config')
+  t.is(nVariants, 234, 'correct number of icon variants in default config')
 
   let nPresets = 0
   /* eslint-disable-next-line */
   for (const preset of config.presets()) {
     nPresets++
   }
-  t.is(nPresets, 43, 'correct number of presets in default config')
+  t.is(nPresets, 28, 'correct number of presets in default config')
   t.is(config.warnings.length, 0, 'no warnings on config file')
 })

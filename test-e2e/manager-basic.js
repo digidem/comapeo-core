@@ -121,11 +121,11 @@ test('Consistent loading of config', async (t) => {
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
     fastify: Fastify(),
-    defaultConfigPath: 'config/defaultConfig.mapeoconfig',
+    defaultConfigPath: 'dist/mapeo-default-config.mapeoconfig',
   })
 
   const expectedDefault = await getExpectedConfig(
-    'config/defaultConfig.mapeoconfig'
+    'dist/mapeo-default-config.mapeoconfig'
   )
   const expectedMinimal = await getExpectedConfig(
     'tests/fixtures/config/completeConfig.zip'
