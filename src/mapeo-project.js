@@ -472,6 +472,10 @@ export class MapeoProject extends TypedEmitter {
     return this.#syncApi
   }
 
+  get $translation() {
+    return this.#translationApi
+  }
+
   /**
    * @param {Partial<EditableProjectSettings>} settings
    * @returns {Promise<EditableProjectSettings>}
