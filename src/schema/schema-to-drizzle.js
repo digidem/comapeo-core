@@ -15,8 +15,7 @@ Convert a JSONSchema definition to a Drizzle Columns Map (the parameter for
 
 **NOTE**: The return of this function is _not_ type-checked (it is coerced with
 `as`, because it's not possible to type-check what this function is doing), but
-the return type _should_ be correct when using this function. TODO: tests for
-the return type of this function.
+the return type _should_ be correct when using this function.
 @template {import('./types.js').JSONSchema7WithProps} TSchema
 NB: The inline typescript checker often marks this next line as an error, but this seems to be a bug with JSDoc parsing - running `tsc` does not show this as an error.
 @template {import('type-fest').Get<TSchema, 'properties.schemaName.const'>} TSchemaName
@@ -40,8 +39,10 @@ export function jsonSchemaToDrizzleColumns(schema) {
         columns[key] = integer(key, { mode: 'boolean' })
         break
       case 'number':
-      case 'integer':
         columns[key] = real(key)
+        break
+      case 'integer':
+        columns[key] = integer(key)
         break
       case 'string': {
         const enumValue = isStringArray(value.enum)
