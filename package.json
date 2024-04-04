@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier . --write",
     "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
-    "test:unit": "brittle \"tests/**/*.js\" \"vendor/**/*.test.js\"",
+    "test:unit": "brittle \"tests/**/*.js\"",
     "test:e2e": "brittle \"test-e2e/**/*.js\"",
     "test:types": "tsc -p test-types/tsconfig.json",
     "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
