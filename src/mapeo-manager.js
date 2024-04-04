@@ -7,6 +7,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import pTimeout from 'p-timeout'
 
 import { IndexWriter } from './index-writer/index.js'
 import {
@@ -153,17 +154,14 @@ export class MapeoManager extends TypedEmitter {
     this.#invite = new InviteApi({
       rpc: this.#localPeers,
       queries: {
-        isMember: (projectId) => {
-          const projectExists = this.#db
+        isMember: (projectPublicId) =>
+          !!this.#db
             .select()
             .from(projectKeysTable)
-            .where(eq(projectKeysTable.projectId, projectId))
-            .get()
-
-          return !!projectExists
-        },
-        addProject: async (invite) => {
-          await this.addProject(invite)
+            .where(eq(projectKeysTable.projectPublicId, projectPublicId))
+            .get(),
+        addProject: async (projectDetails) => {
+          await this.addProject(projectDetails)
         },
       },
     })
@@ -257,14 +255,17 @@ export class MapeoManager extends TypedEmitter {
    */
   #replicate(noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
-    Promise.all([this.getDeviceInfo(), openedNoiseSecretStream(noiseStream)])
-      .then(([{ name }, openedNoiseStream]) => {
-        if (openedNoiseStream.destroyed || !name) return
+
+    openedNoiseSecretStream(noiseStream)
+      .then((openedNoiseStream) => {
+        if (openedNoiseStream.destroyed) return
+
+        const deviceInfo = this.getDeviceInfo()
+        if (!hasSavedDeviceInfo(deviceInfo)) return
+
         const peerId = keyToId(openedNoiseStream.remotePublicKey)
-        return this.#localPeers.sendDeviceInfo(peerId, {
-          name,
-          deviceType: this.#deviceType,
-        })
+
+        return this.#localPeers.sendDeviceInfo(peerId, deviceInfo)
       })
       .catch((e) => {
         // Ignore error but log
@@ -274,6 +275,7 @@ export class MapeoManager extends TypedEmitter {
           e
         )
       })
+
     return replicationStream
   }
 
@@ -308,7 +310,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.projectId
    * @param {string} opts.projectPublicId
    * @param {ProjectKeys} opts.projectKeys
-   * @param {import('./generated/rpc.js').Invite_ProjectInfo} [opts.projectInfo]
+   * @param {Readonly<{ name?: string }>} [opts.projectInfo]
    */
   #saveToProjectKeysTable({
     projectId,
@@ -336,10 +338,15 @@ export class MapeoManager extends TypedEmitter {
 
   /**
    * Create a new project.
-   * @param {import('type-fest').Simplify<Partial<Pick<ProjectValue, 'name'>>>} [settings]
+   * @param {(
+   *   import('type-fest').Simplify<(
+   *     Partial<Pick<ProjectValue, 'name'>> &
+   *     { configPath?: string }
+   *   )>
+   * )} [options]
    * @returns {Promise<string>} Project public id
    */
-  async createProject(settings = {}) {
+  async createProject({ name, configPath = this.#defaultConfigPath } = {}) {
     // 1. Create project keypair
     const projectKeypair = KeyManager.generateProjectKeypair()
 
@@ -381,26 +388,24 @@ export class MapeoManager extends TypedEmitter {
       this.#activeProjects.delete(projectPublicId)
     })
 
-    // 5. Write project name and any other relevant metadata to project instance
-    await project.$setProjectSettings(settings)
+    // 5. Write project settings to project instance
+    await project.$setProjectSettings({ name })
 
     // 6. Write device info into project
-    const deviceInfo = await this.getDeviceInfo()
-    if (deviceInfo.name) {
-      await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
+    const deviceInfo = this.getDeviceInfo()
+    if (hasSavedDeviceInfo(deviceInfo)) {
+      await project[kSetOwnDeviceInfo](deviceInfo)
     }
 
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
 
-    // load default config
+    // 7. Load config, if relevant
     // TODO: see how to expose warnings to frontend
     /* eslint-disable no-unused-vars */
     let warnings
-    if (this.#defaultConfigPath) {
-      warnings = await project.importConfig({
-        configPath: this.#defaultConfigPath,
-      })
+    if (configPath) {
+      warnings = await project.importConfig({ configPath })
     }
 
     this.#l.log(
@@ -529,12 +534,12 @@ export class MapeoManager extends TypedEmitter {
    * await `project.$waitForInitialSync()` to ensure that the device has
    * downloaded their proof of project membership and the project config.
    *
-   * @param {Pick<import('./generated/rpc.js').Invite, 'projectKey' | 'encryptionKeys' | 'projectInfo'>} invite
+   * @param {Pick<import('./generated/rpc.js').ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string }} projectJoinDetails
    * @param {{ waitForSync?: boolean }} [opts] For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject()
    * @returns {Promise<string>}
    */
   async addProject(
-    { projectKey, encryptionKeys, projectInfo },
+    { projectKey, encryptionKeys, projectName },
     { waitForSync = true } = {}
   ) {
     const projectPublicId = projectKeyToPublicId(projectKey)
@@ -570,7 +575,7 @@ export class MapeoManager extends TypedEmitter {
         projectKey,
         encryptionKeys,
       },
-      projectInfo,
+      projectInfo: { name: projectName },
     })
 
     // Any errors from here we need to remove project from db because it has not
@@ -580,9 +585,9 @@ export class MapeoManager extends TypedEmitter {
       const project = await this.getProject(projectPublicId)
 
       try {
-        const deviceInfo = await this.getDeviceInfo()
-        if (deviceInfo.name) {
-          await project[kSetOwnDeviceInfo]({ name: deviceInfo.name })
+        const deviceInfo = this.getDeviceInfo()
+        if (hasSavedDeviceInfo(deviceInfo)) {
+          await project[kSetOwnDeviceInfo](deviceInfo)
         }
       } catch (e) {
         // Can ignore an error trying to write device info
@@ -689,20 +694,28 @@ export class MapeoManager extends TypedEmitter {
       .run()
 
     const listedProjects = await this.listProjects()
-
     await Promise.all(
       listedProjects.map(async ({ projectId }) => {
         const project = await this.getProject(projectId)
         await project[kSetOwnDeviceInfo](deviceInfo)
       })
     )
+
+    await Promise.all(
+      this.#localPeers.peers
+        .filter(({ status }) => status === 'connected')
+        .map((peer) =>
+          this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfo)
+        )
+    )
+
     this.#l.log('set device info %o', deviceInfo)
   }
 
   /**
-   * @returns {Promise<{ deviceId: string } & Partial<import('./schema/client.js').DeviceInfoParam>>}
+   * @returns {{ deviceId: string } & Partial<import('./schema/client.js').DeviceInfoParam>}
    */
-  async getDeviceInfo() {
+  getDeviceInfo() {
     const row = this.#db
       .select()
       .from(localDeviceInfoTable)
@@ -782,6 +795,11 @@ export class MapeoManager extends TypedEmitter {
 
     this.#activeProjects.delete(projectPublicId)
   }
+
+  async getMapStyleJsonUrl() {
+    await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
+    return this.#fastify.mapeoMaps.getStyleJsonUrl()
+  }
 }
 
 // We use the `protomux` property of connected peers internally, but we don't
@@ -817,4 +835,12 @@ function validateProjectKeys(projectKeys) {
   if (!projectKeys.encryptionKeys) {
     throw new Error('encryptionKeys should not be undefined')
   }
+}
+
+/**
+ * @param {Awaited<ReturnType<typeof MapeoManager.prototype.getDeviceInfo>>} partialDeviceInfo
+ * @returns {partialDeviceInfo is import('./generated/rpc.js').DeviceInfo}
+ */
+function hasSavedDeviceInfo(partialDeviceInfo) {
+  return Boolean(partialDeviceInfo.name)
 }

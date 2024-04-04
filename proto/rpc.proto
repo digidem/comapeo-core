@@ -3,25 +3,28 @@ syntax = "proto3";
 import "keys.proto";
 
 message Invite {
-  // Project info that is displayed to the user receiving the invite
-  message ProjectInfo {
-    optional string name = 1;
-  }
-  bytes projectKey = 1;
-  EncryptionKeys encryptionKeys = 2;
-  optional ProjectInfo projectInfo = 3;
-  string roleName = 4;
+  bytes inviteId = 1;
+  string projectPublicId = 2;
+  string projectName = 3;
+  optional string roleName = 4;
   optional string roleDescription = 5;
   string invitorName = 6;
 }
+
 message InviteResponse {
   enum Decision {
     REJECT = 0;
     ACCEPT = 1;
     ALREADY = 2;
   }
-  bytes projectKey = 1;
+  bytes inviteId = 1;
   Decision decision = 2;
+}
+
+message ProjectJoinDetails {
+  bytes inviteId = 1;
+  bytes projectKey = 2;
+  EncryptionKeys encryptionKeys = 3;
 }
 
 message DeviceInfo {

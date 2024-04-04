@@ -1,11 +1,14 @@
 // @ts-check
 import { test } from 'brittle'
+import { setTimeout as delay } from 'timers/promises'
+import { excludeKeys } from 'filter-obj'
 import {
   connectPeers,
   createManagers,
   invite,
   seedDatabases,
   sortById,
+  waitForPeers,
   waitForSync,
 } from './utils.js'
 import { kCoreManager } from '../src/mapeo-project.js'
@@ -252,10 +255,110 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
       t.is(inviteeState[ns].coreCount, 2)
       t.is(blockedState[ns].coreCount, 1)
     }
-    t.alike(invitorState[ns].localState, inviteeState[ns].localState)
+
+    // "Invitor" knows blocked peer is blocked from the start, so never connects
+    // and never creates a local copy of the blocked peer cores, but "Invitee"
+    // does connect initially, before it realized the peer is blocked, and
+    // creates a local copy of the blocked peer's cores, but never downloads
+    // data, so it considers data to be "missing" which the Invitor does not
+    // register as missing.
+    t.alike(
+      excludeKeys(invitorState[ns].localState, ['missing']),
+      excludeKeys(inviteeState[ns].localState, ['missing'])
+    )
   }
 
   await disconnect1()
 
+  await Promise.all(projects.map((p) => p.close()))
+})
+
+test('Sync state emitted when starting and stopping sync', async function (t) {
+  const COUNT = 2
+  const managers = await createManagers(COUNT, t)
+  const [invitor, ...invitees] = managers
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  const disconnect = connectPeers(managers, { discovery: false })
+
+  await invite({ invitor, invitees, projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const stateEvents = []
+
+  projects[0].$sync.on('sync-state', (state) => {
+    const timestamp = Date.now()
+    stateEvents.push({ state, timestamp })
+  })
+
+  projects[0].$sync.start()
+  t.ok(stateEvents.length === 1, 'sync-state event emitted after start')
+
+  await delay(500)
+
+  const eventCountBeforeStop = stateEvents.length
+  projects[0].$sync.stop()
+  t.ok(
+    stateEvents.length > eventCountBeforeStop,
+    'sync-state event emitted after stop'
+  )
+
+  await disconnect()
+  await Promise.all(projects.map((p) => p.close()))
+})
+
+test('Correct sync state prior to data sync', async function (t) {
+  const COUNT = 6
+  const managers = await createManagers(COUNT, t)
+  const [invitor, ...invitees] = managers
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  const disconnect1 = connectPeers(managers, { discovery: false })
+
+  await invite({ invitor, invitees, projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const generated = await seedDatabases(projects, { schemas: ['observation'] })
+  await waitForSync(projects, 'initial')
+
+  const initialSyncState = await Promise.all(
+    projects.map((p) => p.$sync.getState())
+  )
+
+  // Disconnect and reconnect, because currently pre-have messages about data
+  // sync state are only shared on first connection
+  await disconnect1()
+  const disconnect2 = connectPeers(managers, { discovery: false })
+  await waitForPeers(managers)
+
+  const expected = generated.map((docs, i) => {
+    return {
+      initial: initialSyncState[i].initial,
+      data: {
+        have: docs.length,
+        want: generated.filter((d) => d !== docs).flat().length,
+        wanted: docs.length,
+        missing: 0,
+        dataToSync: true,
+        syncing: false,
+      },
+      connectedPeers: managers.length - 1,
+    }
+  })
+
+  // Wait for initial sharing of sync state
+  await delay(200)
+
+  const syncState = await Promise.all(projects.map((p) => p.$sync.getState()))
+
+  t.alike(syncState, expected)
+
+  await disconnect2()
   await Promise.all(projects.map((p) => p.close()))
 })

@@ -280,12 +280,12 @@ export class Roles {
    * returned. The project creator will have the creator role unless a
    * different one has been assigned.
    *
-   * @returns {Promise<Record<string, Role>>} Map of deviceId to Role
+   * @returns {Promise<Map<string, Role>>} Map of deviceId to Role
    */
   async getAll() {
     const roles = await this.#dataType.getMany()
-    /** @type {Record<string, Role>} */
-    const result = {}
+    /** @type {Map<string, Role>} */
+    const result = new Map()
     /** @type {undefined | string} */
     let projectCreatorDeviceId
     try {
@@ -294,7 +294,7 @@ export class Roles {
       )
       // Default to creator role, but can be overwritten if a different role is
       // set below
-      result[projectCreatorDeviceId] = CREATOR_ROLE
+      result.set(projectCreatorDeviceId, CREATOR_ROLE)
     } catch (e) {
       // Not found, we don't know who the project creator is so we can't include
       // them in the returned map
@@ -310,16 +310,12 @@ export class Roles {
         continue
       }
       const deviceId = role.docId
-      result[deviceId] = ROLES[role.roleId]
+      result.set(deviceId, ROLES[role.roleId])
     }
-    const includesSelf = Boolean(result[this.#ownDeviceId])
+    const includesSelf = result.has(this.#ownDeviceId)
     if (!includesSelf) {
       const isProjectCreator = this.#ownDeviceId === projectCreatorDeviceId
-      if (isProjectCreator) {
-        result[this.#ownDeviceId] = CREATOR_ROLE
-      } else {
-        result[this.#ownDeviceId] = NO_ROLE
-      }
+      result.set(this.#ownDeviceId, isProjectCreator ? CREATOR_ROLE : NO_ROLE)
     }
     return result
   }

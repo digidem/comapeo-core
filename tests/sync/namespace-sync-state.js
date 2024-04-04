@@ -66,6 +66,7 @@ test('sync cores in a namespace', async function (t) {
         syncState1Synced = true
       }
     },
+    peerSyncControllers: new Map(),
   })
 
   const syncState2 = new NamespaceSyncState({
@@ -93,6 +94,7 @@ test('sync cores in a namespace', async function (t) {
         syncState2Synced = true
       }
     },
+    peerSyncControllers: new Map(),
   })
 
   const cm1Keys = getKeys(cm1, 'auth')
@@ -164,6 +166,7 @@ test('replicate with updating data', async function (t) {
         syncState1AlreadyDone = true
       }
     },
+    peerSyncControllers: new Map(),
   })
 
   const syncState2 = new NamespaceSyncState({
@@ -178,6 +181,7 @@ test('replicate with updating data', async function (t) {
         syncState2AlreadyDone = true
       }
     },
+    peerSyncControllers: new Map(),
   })
 
   const cm1Keys = getKeys(cm1, 'auth')

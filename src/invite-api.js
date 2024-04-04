@@ -1,56 +1,157 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
-import { projectKeyToId, projectKeyToPublicId } from './utils.js'
+import { assert, keyToId, noop } from './utils.js'
+import HashMap from './lib/hashmap.js'
+import timingSafeEqual from './lib/timing-safe-equal.js'
+
+// There are three slightly different invite types:
+//
+// - InviteRpcMessage comes from the protobuf.
+// - InviteInternal adds a locally-generated receive timestamp.
+// - Invite is the externally-facing type.
+
+/**
+ * @internal
+ * @typedef {import('./generated/rpc.js').Invite} InviteRpcMessage
+ */
+
+/**
+ * @internal
+ * @typedef {InviteRpcMessage & { receivedAt: number }} InviteInternal
+ */
+
+/** @typedef {import('./types.js').MapBuffers<InviteInternal>} Invite */
+
+/**
+ * @internal
+ * @typedef {import('./generated/rpc.js').ProjectJoinDetails} ProjectJoinDetails
+ */
+
+/**
+ * Manage pending invite state.
+ */
+class PendingInvites {
+  /**
+   * @internal
+   * @typedef {object} PendingInvite
+   * @prop {string} peerId
+   * @prop {InviteInternal} invite
+   * @prop {boolean} isAccepting
+   */
+
+  /** @type {HashMap<Buffer, PendingInvite>} */
+  #byInviteId = new HashMap(keyToId)
+
+  /**
+   * @returns {Iterable<PendingInvite>} the pending invites, in insertion order
+   */
+  invites() {
+    return this.#byInviteId.values()
+  }
+
+  /**
+   * @param {PendingInvite} pendingInvite
+   * @throws if adding a duplicate invite ID
+   * @returns {void}
+   */
+  add(pendingInvite) {
+    const {
+      invite: { inviteId },
+    } = pendingInvite
+    assert(!this.#byInviteId.has(inviteId), 'Added duplicate invite')
+    this.#byInviteId.set(inviteId, pendingInvite)
+  }
+
+  /**
+   * @param {Buffer} inviteId
+   * @returns {void}
+   */
+  markAccepting(inviteId) {
+    const pendingInvite = this.#byInviteId.get(inviteId)
+    assert(
+      !!pendingInvite,
+      `Couldn't find invite for ${inviteId.toString('hex')}`
+    )
+    this.#byInviteId.set(inviteId, { ...pendingInvite, isAccepting: true })
+  }
+
+  /**
+   * @param {Buffer} inviteId
+   * @returns {boolean}
+   */
+  hasInviteId(inviteId) {
+    return this.#byInviteId.has(inviteId)
+  }
+
+  /**
+   * @param {string} projectPublicId
+   * @returns {boolean}
+   */
+  isAcceptingForProject(projectPublicId) {
+    for (const { invite, isAccepting } of this.invites()) {
+      if (isAccepting && invite.projectPublicId === projectPublicId) return true
+    }
+    return false
+  }
+
+  /**
+   * @param {Buffer} inviteId
+   * @returns {undefined | PendingInvite}
+   */
+  getByInviteId(inviteId) {
+    return this.#byInviteId.get(inviteId)
+  }
+
+  /**
+   * @param {Buffer} inviteId
+   * @returns {boolean} `true` if an invite existed and was deleted, `false` otherwise
+   */
+  deleteByInviteId(inviteId) {
+    return this.#byInviteId.delete(inviteId)
+  }
+
+  /**
+   * @param {string} projectPublicId
+   * @returns {PendingInvite[]} the pending invites that were deleted
+   */
+  deleteByProjectPublicId(projectPublicId) {
+    /** @type {PendingInvite[]} */
+    const result = []
+
+    for (const pendingInvite of this.invites()) {
+      if (pendingInvite.invite.projectPublicId === projectPublicId) {
+        result.push(pendingInvite)
+      }
+    }
+
+    for (const { invite } of result) this.deleteByInviteId(invite.inviteId)
+
+    return result
+  }
+}
 
 /**
  * @typedef {Object} InviteApiEvents
- *
- * @property {(info: { projectId: string, projectName?: string, peerId: string, roleName: string, roleDescription: string | undefined, invitorName: string }) => void} invite-received
+ * @property {(invite: Invite) => void} invite-received
+ * @property {(invite: Invite) => void} invite-removed
  */
-
-/**
- * @template K
- * @template V
- * @extends {Map<K, Set<V>>}
- */
-class MapOfSets extends Map {
-  /** @param {K} key */
-  get(key) {
-    const existing = super.get(key)
-    if (existing) return existing
-    /** @type {Set<V>} */
-    const set = new Set()
-    super.set(key, set)
-    return set
-  }
-}
 
 /**
  * @extends {TypedEmitter<InviteApiEvents>}
  */
 export class InviteApi extends TypedEmitter {
-  // Maps project public id -> project id
-  /** @type {Map<string, string>} */
-  #projectIdsMapping = new Map()
-
-  // Maps project id -> set of device ids
-  /** @type {MapOfSets<string, string>} */
-  #peersToRespondTo = new MapOfSets()
-
-  // Maps project id -> { invite, fromPeerId }
-  /** @type {Map<string, { fromPeerId: string, invite: import('./generated/rpc.js').Invite }>} */
-  #pendingInvites = new Map()
-
   #isMember
   #addProject
+  #pendingInvites = new PendingInvites()
 
   /**
    * @param {Object} options
    * @param {import('./local-peers.js').LocalPeers} options.rpc
    * @param {object} options.queries
    * @param {(projectId: string) => boolean} options.queries.isMember
-   * @param {(invite: import('./generated/rpc.js').Invite) => Promise<void>} options.queries.addProject
+   * @param {(projectDetails: Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string }) => Promise<unknown>} options.queries.addProject
    */
   constructor({ rpc, queries }) {
     super()
@@ -58,174 +159,202 @@ export class InviteApi extends TypedEmitter {
     this.#isMember = queries.isMember
     this.#addProject = queries.addProject
 
-    this.rpc.on('invite', this.#handleInvite)
+    this.rpc.on('invite', (...args) => {
+      try {
+        this.#handleInviteRpcMessage(...args)
+      } catch (err) {
+        console.error('Error handling invite', err)
+      }
+    })
   }
 
   /**
    * @param {string} peerId
-   * @param {import('./generated/rpc.js').Invite} invite
+   * @param {InviteRpcMessage} inviteRpcMessage
    */
-  #handleInvite = (peerId, invite) => {
-    const projectId = projectKeyToId(invite.projectKey)
-    const isAlreadyMember = this.#isMember(projectId)
+  #handleInviteRpcMessage(peerId, inviteRpcMessage) {
+    const invite = { ...inviteRpcMessage, receivedAt: Date.now() }
 
+    const isAlreadyMember = this.#isMember(invite.projectPublicId)
     if (isAlreadyMember) {
-      this.#sendAlreadyResponse({ peerId, projectId })
+      this.rpc
+        .sendInviteResponse(peerId, {
+          decision: InviteResponse_Decision.ALREADY,
+          inviteId: invite.inviteId,
+        })
+        .catch(noop)
       return
     }
 
-    const projectPublicId = projectKeyToPublicId(invite.projectKey)
+    const hasAlreadyReceivedThisInvite = this.#pendingInvites.hasInviteId(
+      invite.inviteId
+    )
+    if (hasAlreadyReceivedThisInvite) {
+      return
+    }
 
-    this.#projectIdsMapping.set(projectPublicId, projectId)
-
-    const peerIds = this.#peersToRespondTo.get(projectId)
-    peerIds.add(peerId)
-
-    if (this.#pendingInvites.has(projectId)) return
-
-    this.#pendingInvites.set(projectId, { fromPeerId: peerId, invite })
-
-    this.emit('invite-received', {
-      peerId,
-      projectId: projectPublicId,
-      projectName: invite.projectInfo?.name,
-      roleName: invite.roleName,
-      roleDescription: invite.roleDescription,
-      invitorName: invite.invitorName,
-    })
+    this.#pendingInvites.add({ peerId, invite, isAccepting: false })
+    this.emit('invite-received', internalToExternal(invite))
   }
 
   /**
-   * @param {string} projectPublicId
+   * @returns {Array<Invite>}
+   */
+  getPending() {
+    return [...this.#pendingInvites.invites()].map(({ invite }) =>
+      internalToExternal(invite)
+    )
+  }
+
+  /**
+   * Attempt to accept the invite.
+   *
+   * This can fail if the invitor has canceled the invite or if you cannot
+   * connect to the invitor's device.
+   *
+   * If the invite is accepted and you had other invites to the same project,
+   * those invites are removed, and the invitors are told that you're already
+   * part of this project.
+   *
+   * @param {Pick<Invite, 'inviteId'>} invite
    * @returns {Promise<void>}
    */
-  async accept(projectPublicId) {
-    const projectId = this.#getProjectIdFromPublicId(projectPublicId)
+  async accept({ inviteId: inviteIdString }) {
+    const inviteId = Buffer.from(inviteIdString, 'hex')
 
-    const isAlreadyMember = this.#isMember(projectId)
-    const peersToRespondTo = this.#peersToRespondTo.get(projectId)
+    const pendingInvite = this.#pendingInvites.getByInviteId(inviteId)
+    if (!pendingInvite) {
+      throw new Error(`Cannot find invite ID ${inviteIdString}`)
+    }
 
+    const { peerId, invite } = pendingInvite
+    const { projectName, projectPublicId } = invite
+
+    const removePendingInvite = () => {
+      const didDelete = this.#pendingInvites.deleteByInviteId(inviteId)
+      if (didDelete) this.emit('invite-removed', internalToExternal(invite))
+    }
+
+    // This is probably impossible in the UI, but it's theoretically possible
+    // to join a project while an invite is pending, so we need to check this.
+    const isAlreadyMember = this.#isMember(projectPublicId)
     if (isAlreadyMember) {
-      for (const peerId of peersToRespondTo) {
-        await this.#sendAlreadyResponse({ peerId, projectId })
+      const pendingInvitesDeleted =
+        this.#pendingInvites.deleteByProjectPublicId(projectPublicId)
+      for (const pendingInvite of pendingInvitesDeleted) {
+        this.rpc
+          .sendInviteResponse(pendingInvite.peerId, {
+            decision: InviteResponse_Decision.ALREADY,
+            inviteId: pendingInvite.invite.inviteId,
+          })
+          .catch(noop)
+        this.emit('invite-removed', internalToExternal(pendingInvite.invite))
       }
       return
     }
 
-    const pendingInvite = this.#pendingInvites.get(projectId)
+    assert(
+      !this.#pendingInvites.isAcceptingForProject(projectPublicId),
+      `Cannot double-accept invite for project ${projectPublicId}`
+    )
+    this.#pendingInvites.markAccepting(inviteId)
 
-    if (!pendingInvite) {
-      throw new Error(
-        `Cannot find invite for project with ID ${projectPublicId}`
-      )
-    }
+    const projectDetailsAbortController = new AbortController()
+
+    const projectDetailsPromise =
+      /** @type {typeof pEvent<'got-project-details', [string, ProjectJoinDetails]>} */ (
+        pEvent
+      )(this.rpc, 'got-project-details', {
+        multiArgs: true,
+        filter: ([projectDetailsPeerId, details]) =>
+          // This peer ID check is probably superfluous because the invite ID
+          // should be unguessable, but might be useful if someone forwards an
+          // invite message (or if there's an unforeseen bug).
+          timingSafeEqual(projectDetailsPeerId, peerId) &&
+          timingSafeEqual(inviteId, details.inviteId),
+        signal: projectDetailsAbortController.signal,
+      })
+        .then((args) => args?.[1])
+        .catch(noop)
 
     try {
-      await this.#sendAcceptResponse({
-        peerId: pendingInvite.fromPeerId,
-        projectId,
+      await this.rpc.sendInviteResponse(peerId, {
+        decision: InviteResponse_Decision.ACCEPT,
+        inviteId,
       })
-      // TODO: Add another RPC message to confirm invitee is written into project after accepting
     } catch (e) {
-      // TODO: If can't accept invite because peer it was sent from has
-      // disconnected, and another still-connected peer has sent an invite, then
-      // emit another invite-received event
+      projectDetailsAbortController.abort()
+      removePendingInvite()
       throw new Error('Could not accept invite: Peer disconnected')
     }
 
     try {
-      await this.#addProject(pendingInvite.invite)
+      const details = await projectDetailsPromise
+      assert(details, 'Expected project details')
+      await this.#addProject({ ...details, projectName })
     } catch (e) {
+      removePendingInvite()
       // TODO: Add a reason for the user
       throw new Error('Failed to join project')
     }
 
-    // Respond to the remaining peers with ALREADY
-    for (const peerId of peersToRespondTo) {
-      if (peerId === pendingInvite.fromPeerId) continue
-      this.#sendAlreadyResponse({ peerId, projectId })
+    const pendingInvitesDeleted =
+      this.#pendingInvites.deleteByProjectPublicId(projectPublicId)
+
+    for (const pendingInvite of pendingInvitesDeleted) {
+      const isPendingInviteWeJustAccepted =
+        // Unlike the above, these don't need to be timing-safe, because
+        // it's unlikely this method is vulnerable to timing attacks.
+        peerId === pendingInvite.peerId &&
+        inviteId.equals(pendingInvite.invite.inviteId)
+      if (isPendingInviteWeJustAccepted) continue
+
+      this.rpc
+        .sendInviteResponse(pendingInvite.peerId, {
+          decision: InviteResponse_Decision.ALREADY,
+          inviteId: pendingInvite.invite.inviteId,
+        })
+        .catch(noop)
+      this.emit('invite-removed', internalToExternal(pendingInvite.invite))
     }
+
+    this.emit('invite-removed', internalToExternal(invite))
   }
 
   /**
-   * @param {string} projectPublicId
-   * @returns {Promise<void>}
+   * @param {Pick<Invite, 'inviteId'>} invite
+   * @returns {void}
    */
-  async reject(projectPublicId) {
-    const projectId = this.#getProjectIdFromPublicId(projectPublicId)
+  reject({ inviteId: inviteIdString }) {
+    const inviteId = Buffer.from(inviteIdString, 'hex')
 
-    if (!this.#pendingInvites.has(projectId)) {
-      throw new Error(
-        `Cannot find invite for project with ID ${projectPublicId}`
-      )
-    }
-    for (const peerId of this.#peersToRespondTo.get(projectId)) {
-      await this.#sendRejectResponse({ peerId, projectId })
-    }
-  }
+    const pendingInvite = this.#pendingInvites.getByInviteId(inviteId)
+    assert(!!pendingInvite, `Cannot find invite ${inviteId}`)
 
-  /**
-   * Will throw if the response fails to be sent
-   *
-   * @param {{ peerId: string, projectId: string }} opts
-   */
-  async #sendAcceptResponse({ peerId, projectId }) {
-    const projectKey = Buffer.from(projectId, 'hex')
-    await this.rpc.inviteResponse(peerId, {
-      projectKey,
-      decision: InviteResponse_Decision.ACCEPT,
-    })
-  }
+    const { peerId, invite, isAccepting } = pendingInvite
 
-  /**
-   * Will not throw, will silently fail if the response fails to send.
-   *
-   * @param {{ peerId: string, projectId: string }} opts
-   */
-  async #sendAlreadyResponse({ peerId, projectId }) {
-    const projectKey = Buffer.from(projectId, 'hex')
-    try {
-      await this.rpc.inviteResponse(peerId, {
-        projectKey,
-        decision: InviteResponse_Decision.ALREADY,
-      })
-    } catch (e) {
-      // Ignore errors trying to send an already response because the invitor
-      // will consider the invite failed anyway
-    }
-  }
+    assert(!isAccepting, `Cannot reject ${inviteIdString}`)
 
-  /**
-   * Will not throw, will silently fail if the response fails to send.
-   *
-   * @param {{ peerId: string, projectId: string }} opts
-   */
-  async #sendRejectResponse({ peerId, projectId }) {
-    const projectKey = Buffer.from(projectId, 'hex')
-    try {
-      await this.rpc.inviteResponse(peerId, {
-        projectKey,
+    this.rpc
+      .sendInviteResponse(peerId, {
         decision: InviteResponse_Decision.REJECT,
+        inviteId: invite.inviteId,
       })
-    } catch (e) {
-      // Ignore errors trying to send an reject response because the invitor
-      // will consider the invite failed anyway
-    }
+      .catch(noop)
+
+    this.#pendingInvites.deleteByInviteId(inviteId)
+    this.emit('invite-removed', internalToExternal(invite))
   }
+}
 
-  /**
-   * @param {string} projectPublicId
-   * @returns {string}
-   */
-  #getProjectIdFromPublicId(projectPublicId) {
-    const projectId = this.#projectIdsMapping.get(projectPublicId)
-
-    if (!projectId) {
-      throw new Error(
-        `Cannot find project internal ID for public ID ${projectPublicId}`
-      )
-    }
-
-    return projectId
+/**
+ * @param {InviteInternal} internal
+ * @returns {Invite}
+ */
+function internalToExternal(internal) {
+  const { inviteId, ...rest } = internal
+  return {
+    inviteId: inviteId.toString('hex'),
+    ...rest,
   }
 }

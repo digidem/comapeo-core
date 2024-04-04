@@ -2,6 +2,7 @@
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
+import { arrayFrom } from 'iterpal'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
@@ -105,8 +106,8 @@ export async function invite({
     promises.push(
       once(invitee.invite, 'invite-received').then(([invite]) => {
         return reject
-          ? invitee.invite.reject(invite.projectId)
-          : invitee.invite.accept(invite.projectId)
+          ? invitee.invite.reject(invite)
+          : invitee.invite.accept(invite)
       })
     )
   }
@@ -169,7 +170,7 @@ export async function createManagers(count, t, deviceType) {
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
         const manager = createManager(name, t, deviceType)
-        await manager.setDeviceInfo({ name })
+        await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
   )
@@ -219,13 +220,7 @@ function getRootKey(seed) {
   }
   return key
 }
-/**
- * Remove undefined properties from an object, to allow deep comparison
- * @param {object} obj
- */
-export function stripUndef(obj) {
-  return JSON.parse(JSON.stringify(obj))
-}
+
 /**
  *
  * @param {number} value
@@ -288,9 +283,11 @@ export function waitForSync(projects, type = 'initial') {
 
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
+ * @param {object} [opts]
+ * @param {readonly import('@mapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
  */
-export function seedDatabases(projects) {
-  return Promise.all(projects.map((p) => seedProjectDatabase(p)))
+export function seedDatabases(projects, { schemas = SCHEMAS_TO_SEED } = {}) {
+  return Promise.all(projects.map((p) => seedProjectDatabase(p, { schemas })))
 }
 
 const SCHEMAS_TO_SEED = /** @type {const} */ ([
@@ -301,11 +298,16 @@ const SCHEMAS_TO_SEED = /** @type {const} */ ([
 
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject} project
+ * @param {object} [opts]
+ * @param {readonly import('@mapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
  * @returns {Promise<Array<import('@mapeo/schema').MapeoDoc & { forks: string[] }>>}
  */
-async function seedProjectDatabase(project) {
+async function seedProjectDatabase(
+  project,
+  { schemas = SCHEMAS_TO_SEED } = {}
+) {
   const promises = []
-  for (const schemaName of SCHEMAS_TO_SEED) {
+  for (const schemaName of schemas) {
     const count =
       schemaName === 'observation' ? randomInt(20, 100) : randomInt(0, 10)
     let i = 0
@@ -336,23 +338,10 @@ export function sortBy(arr, key) {
 /** @param {String} path */
 export async function getExpectedConfig(path) {
   const config = await readConfig(path)
-  let presets = []
-  let fields = []
-  let icons = []
-  for (let preset of config.presets()) {
-    presets.push(preset)
-  }
-  for (let field of config.fields()) {
-    fields.push(field)
-  }
-  for await (let icon of config.icons()) {
-    icons.push(icon)
-  }
-
   return {
-    presets,
-    fields,
-    icons,
+    presets: arrayFrom(config.presets()),
+    fields: arrayFrom(config.fields()),
+    icons: await arrayFrom(config.icons()),
   }
 }
 
