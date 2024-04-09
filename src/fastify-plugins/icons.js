@@ -13,12 +13,14 @@ export default fp(iconServerPlugin, {
 const ICON_DOC_ID_STRING = T.String({ pattern: HEX_REGEX_32_BYTES })
 const PROJECT_PUBLIC_ID_STRING = T.String({ pattern: Z_BASE_32_REGEX_32_BYTES })
 
-const VALID_SIZES =
-  docSchemas.icon.properties.variants.items.properties.size.enum
-const VALID_MIME_TYPES =
-  docSchemas.icon.properties.variants.items.properties.mimeType.enum
-const VALID_PIXEL_DENSITIES =
-  docSchemas.icon.properties.variants.items.properties.pixelDensity.enum
+const VALID_SIZES = docSchemas.icon.definitions.size.enum
+const VALID_MIME_TYPES = docSchemas.icon.properties.variants.items.oneOf.map(
+  (iconType) => iconType.properties.mimeType.const
+)
+const VALID_PIXEL_DENSITIES = docSchemas.icon.properties.variants.items.oneOf
+  .filter((iconType) => iconType.properties.mimeType.const === 'image/png')
+  /** @ts-ignore using the array.filter as type guard? */
+  .map((pngIcon) => pngIcon.properties.pixelDensity.enum)
 
 const PARAMS_JSON_SCHEMA = T.Object({
   iconDocId: ICON_DOC_ID_STRING,
@@ -137,17 +139,15 @@ function assertValidSize(value) {
   }
 }
 
+/** @typedef {import('@mapeo/schema').Icon['variants']} IconVariants */
+/** @typedef {IconVariants[number]} IconVariant */
+
 /**
  * @param {number} value
- * @returns {asserts value is import('@mapeo/schema').Icon['variants'][number]['pixelDensity']}
+ * @returns {asserts value is Extract<IconVariant, {mimeType: 'image/png'}>['pixelDensity']}
  */
 function assertValidPixelDensity(value) {
-  if (
-    !VALID_PIXEL_DENSITIES.includes(
-      // @ts-expect-error
-      value
-    )
-  ) {
+  if (!VALID_PIXEL_DENSITIES.includes(value)) {
     throw new Error(`${value} is not a valid icon pixel density`)
   }
 }

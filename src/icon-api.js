@@ -6,7 +6,7 @@ export const kGetIconBlob = Symbol('getIcon')
 /**
  * @typedef {Object} BitmapOpts
  * @property {Extract<IconVariant['mimeType'], 'image/png'>} mimeType
- * @property {IconVariant['pixelDensity']} pixelDensity
+ * @property {Extract<IconVariant, {mimeType: 'image/png'}>['pixelDensity']} pixelDensity
  * @property {IconVariant['size']} size
  *
  * @typedef {Object} SvgOpts
