@@ -197,6 +197,28 @@ export function getBestVariant(variants, opts) {
           )
         }
       }
+
+      if (opts.mimeType === 'image/png') {
+        if (a.mimeType === 'image/png' && b.mimeType === 'image/svg+xml') {
+          return -1
+        } else if (
+          a.mimeType === 'image/svg+xml' &&
+          b.mimeType === 'image/png'
+        ) {
+          return 1
+        } else if (
+          a.mimeType === 'image/svg+xml' &&
+          b.mimeType === 'image/svg+xml'
+        ) {
+          return -1
+        } else if (a.mimeType === 'image/png' && b.mimeType === 'image/png') {
+          return determineSortValue(
+            wantedPixelDensity,
+            a.pixelDensity,
+            b.pixelDensity
+          )
+        }
+      }
     }
 
     return determineSortValue(wantedSizeNum, aSizeNum, bSizeNum)
