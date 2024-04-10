@@ -177,6 +177,10 @@ export class MemberApi extends TypedEmitter {
    * @param {AbortSignal} signal
    */
   async #sendInviteAndGetResponse(deviceId, invite, signal) {
+    const inviteAbortedError = new Error('Invite aborted')
+
+    if (signal.aborted) throw inviteAbortedError
+
     const abortController = new AbortController()
 
     const responsePromise =
@@ -207,7 +211,7 @@ export class MemberApi extends TypedEmitter {
       return await responsePromise
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        throw new Error('Invite aborted')
+        throw inviteAbortedError
       } else {
         throw err
       }
