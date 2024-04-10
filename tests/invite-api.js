@@ -1,7 +1,7 @@
 // @ts-check
 import test from 'brittle'
 import { once } from 'node:events'
-import { compact, concat, map, every } from 'iterpal'
+import { compact, concat, map, every, first } from 'iterpal'
 import { onTimes } from './helpers/events.js'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
@@ -101,7 +101,7 @@ test('invite-received event has expected payload', async (t) => {
       invitorName: 'Your Friend',
     },
   ]
-  const receivedInvitesArgs = await invitesReceivedPromise
+  const receivedInvitesArgs = (await invitesReceivedPromise).map(first)
   assertInvitesAlike(
     t,
     receivedInvitesArgs,
@@ -192,8 +192,9 @@ test('Accept invite', async (t) => {
     'added to project'
   )
 
-  const [removedInvite] = await inviteRemovedPromise
+  const [removedInvite, removalReason] = await inviteRemovedPromise
   assertInvitesAlike(t, removedInvite, inviteExternal, 'invite was removed')
+  t.is(removalReason, 'accepted')
   assertInvitesAlike(t, inviteApi.getPending(), [], 'no invites remain')
 })
 
@@ -237,8 +238,9 @@ test('Reject invite', async (t) => {
 
   inviteApi.reject(inviteExternal)
 
-  const [removedInvite] = await inviteRemovedPromise
+  const [removedInvite, removalReason] = await inviteRemovedPromise
   assertInvitesAlike(t, removedInvite, inviteExternal, 'invite was removed')
+  t.is(removalReason, 'rejected')
   assertInvitesAlike(t, inviteApi.getPending(), [], 'pending invites removed')
 
   // Invitor: check rejection
@@ -347,8 +349,9 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
       await inviteApi.accept(inviteExternal)
 
-      const [removedInvite] = await inviteRemovedPromise
+      const [removedInvite, removalReason] = await inviteRemovedPromise
       assertInvitesAlike(t, removedInvite, inviteExternal, 'invite was removed')
+      t.is(removalReason, 'accepted')
       assertInvitesAlike(
         t,
         inviteApi.getPending(),
@@ -520,7 +523,10 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       'got expected responses'
     )
 
-    const removedInvites = await invitesRemovedPromise
+    const invitesRemovedArgs = await invitesRemovedPromise
+
+    const removedInvites = invitesRemovedArgs.map((args) => args[0])
+    const removalReasons = invitesRemovedArgs.map((args) => args[1])
     const allButLastRemoved = removedInvites.slice(0, -1)
     const lastRemoved = removedInvites[removedInvites.length - 1]
     assertInvitesAlike(
@@ -545,6 +551,17 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       inviteApi.getPending(),
       [unrelatedInviteExternal],
       'unaffected invites stick around'
+    )
+    t.alike(
+      removalReasons,
+      [
+        'accepted other',
+        'accepted other',
+        'accepted other',
+        'accepted other',
+        'accepted',
+      ],
+      'invites are removed with the right reasons'
     )
   })
 })
@@ -969,8 +986,13 @@ test('failures to send acceptances cause accept to reject, no project to be adde
   await t.exception(inviteApi.accept(inviteExternal), 'fails to accept')
 
   t.is(acceptsAttempted, 1)
-  const [removedInvite] = await inviteRemovedPromise
+  const [removedInvite, removalReason] = await inviteRemovedPromise
   assertInvitesAlike(t, removedInvite, inviteExternal, 'invite was removed')
+  t.is(
+    removalReason,
+    'connection error',
+    'invite was removed with connection error reason'
+  )
   assertInvitesAlike(t, inviteApi.getPending(), [], 'has no pending invites')
 })
 
@@ -1009,8 +1031,9 @@ test('failures to send rejections are ignored, but invite is still removed', asy
   t.execution(() => inviteApi.reject(inviteExternal))
 
   t.is(rejectionsAttempted, 1)
-  const [removedInvite] = await inviteRemovedPromise
+  const [removedInvite, removalReason] = await inviteRemovedPromise
   assertInvitesAlike(t, removedInvite, inviteExternal, 'invite was removed')
+  t.is(removalReason, 'rejected', 'removal reason was "rejected"')
 })
 
 test('failures to add project cause accept() to reject and invite to be removed', async (t) => {
@@ -1065,8 +1088,13 @@ test('failures to add project cause accept() to reject and invite to be removed'
 
   await t.exception(inviteApi.accept(inviteExternal), 'accept should fail')
 
-  const [removedInvite] = await inviteRemovedPromise
+  const [removedInvite, removalReason] = await inviteRemovedPromise
   assertInvitesAlike(t, removedInvite, inviteExternal, 'invite was removed')
+  t.is(
+    removalReason,
+    'internal error',
+    'invite was removed with correct reason'
+  )
 })
 
 function setup() {
