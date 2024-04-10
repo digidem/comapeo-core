@@ -7,7 +7,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
-import { NAMESPACES } from './constants.js'
+import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
@@ -39,7 +39,6 @@ import {
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
-  setHas,
   valueOf,
 } from './utils.js'
 import { MemberApi } from './member-api.js'
@@ -643,16 +642,12 @@ export class MapeoProject extends TypedEmitter {
     )
 
     // 4.2 Clear indexed data
-    const isIndexedSchema = setHas(new Set(this.#indexWriter.schemas))
-    await Promise.all(
-      Object.values(this.#dataTypes)
-        .filter((dataType) =>
-          namespacesWithoutAuth.includes(dataType.namespace)
-        )
-        .map((dataType) => dataType.schemaName)
-        .filter(isIndexedSchema)
-        .map((schemaName) => this.#indexWriter.deleteSchema(schemaName))
-    )
+    /** @type {Set<string>} */
+    const authSchemas = new Set(NAMESPACE_SCHEMAS.auth)
+    for (const schemaName of this.#indexWriter.schemas) {
+      const isAuthSchema = authSchemas.has(schemaName)
+      if (!isAuthSchema) this.#indexWriter.deleteSchema(schemaName)
+    }
   }
 
   /** @param {Object} opts

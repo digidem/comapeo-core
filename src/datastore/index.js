@@ -3,6 +3,7 @@ import { encode, decode, getVersionId, parseVersionId } from '@mapeo/schema'
 import MultiCoreIndexer from 'multi-core-indexer'
 import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
+import { NAMESPACE_SCHEMAS } from '../constants.js'
 import { createMap } from '../utils.js'
 
 /**
@@ -26,19 +27,6 @@ import { createMap } from '../utils.js'
  * @template {keyof any} K
  * @typedef {T extends any ? Omit<T, K> : never} OmitUnion
  */
-
-const NAMESPACE_SCHEMAS = /** @type {const} */ ({
-  data: ['observation'],
-  config: [
-    'translation',
-    'preset',
-    'field',
-    'projectSettings',
-    'deviceInfo',
-    'icon',
-  ],
-  auth: ['coreOwnership', 'role'],
-})
 
 /**
  * @typedef {typeof NAMESPACE_SCHEMAS} NamespaceSchemas
