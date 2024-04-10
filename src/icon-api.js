@@ -58,17 +58,7 @@ export class IconApi {
     const savedVariants = await Promise.all(
       icon.variants.map(async ({ blob, ...variant }) => {
         const blobVersionId = await this.#dataStore.writeRaw(blob)
-
-        return {
-          ...variant,
-          blobVersionId,
-          pixelDensity:
-            // Pixel density does not apply to svg variants
-            // TODO: Ideally @mapeo/schema wouldn't require pixelDensity when the mime type is svg
-            variant.mimeType === 'image/svg+xml'
-              ? /** @type {const} */ (1)
-              : variant.pixelDensity,
-        }
+        return { ...variant, blobVersionId }
       })
     )
 
@@ -184,16 +174,29 @@ export function getBestVariant(variants, opts) {
 
     // Both variants match desired size, use pixel density to determine preferred match
     if (aSizeDiff === 0 && bSizeDiff === 0) {
-      // Pixel density doesn't matter for svg but prefer lower for consistent results
+      // What to do if asking for an svg and both (a and b) are svgs and have the same size, what criteria do we use?
+      // For now check a and b for mimeType, the only weird case being both svgs
       if (opts.mimeType === 'image/svg+xml') {
-        return a.pixelDensity <= b.pixelDensity ? -1 : 1
+        if (a.mimeType === 'image/svg+xml' && b.mimeType === 'image/png') {
+          return 1
+        } else if (
+          a.mimeType === 'image/png' &&
+          b.mimeType === 'image/svg+xml'
+        ) {
+          return -1
+        } else if (
+          a.mimeType === 'image/svg+xml' &&
+          b.mimeType === 'image/svg+xml'
+        ) {
+          return 1
+        } else if (a.mimeType === 'image/png' && b.mimeType === 'image/png') {
+          return determineSortValue(
+            wantedPixelDensity,
+            a.pixelDensity,
+            b.pixelDensity
+          )
+        }
       }
-
-      return determineSortValue(
-        wantedPixelDensity,
-        a.pixelDensity,
-        b.pixelDensity
-      )
     }
 
     return determineSortValue(wantedSizeNum, aSizeNum, bSizeNum)

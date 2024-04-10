@@ -103,7 +103,10 @@ const DENSITY_MATCH_REGEX = /@(\d+)x$/i
 /**
  * @param {string} input
  *
- * @return {Pick<import('@mapeo/schema').Icon['variants'][number], 'size' | 'pixelDensity'>}
+ * @return {{
+ * pixelDensity: import('../icon-api.js').BitmapOpts['pixelDensity'],
+ * size: import('../icon-api.js').IconVariant['size']
+ * }}
  */
 function extractSizeAndPixelDensity(input) {
   const result = DENSITY_MATCH_REGEX.exec(input)
@@ -139,12 +142,9 @@ function assertValidSize(value) {
   }
 }
 
-/** @typedef {import('@mapeo/schema').Icon['variants']} IconVariants */
-/** @typedef {IconVariants[number]} IconVariant */
-
 /**
  * @param {number} value
- * @returns {asserts value is Extract<IconVariant, {mimeType: 'image/png'}>['pixelDensity']}
+ * @returns {asserts value is import('../icon-api.js').BitmapOpts['pixelDensity']}
  */
 function assertValidPixelDensity(value) {
   if (!VALID_PIXEL_DENSITIES.includes(value)) {
