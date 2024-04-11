@@ -89,7 +89,7 @@ export class LocalDiscovery extends TypedEmitter {
    */
   connectPeer({ address, port, name }) {
     if (this.#name === name) return
-    this.#log('serviceUp', name.slice(0, 7), address, port)
+    this.#log('peer connected', name.slice(0, 7), address, port)
     if (this.#noiseConnections.has(name)) {
       this.#log(`Already connected to ${name.slice(0, 7)}`)
       return
