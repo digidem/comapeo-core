@@ -6,15 +6,15 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "lint": "eslint .",
     "format": "prettier . --write",
-    "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
+    "test": "run-p --print-label test:*",
+    "test:eslint": "eslint --cache .",
+    "test:prettier": "prettier --check .",
     "test:unit": "brittle \"tests/**/*.js\"",
     "test:e2e": "brittle \"test-e2e/**/*.js\"",
     "test:types": "tsc -p test-types/tsconfig.json",
     "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
     "bench": "nanobench benchmarks/*.js",
-    "type": "tsc",
     "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
@@ -34,9 +34,11 @@
   },
   "lint-staged": {
     "*.js": [
-      "eslint --cache --fix"
+      "eslint --cache"
     ],
-    "*.{js,css,md}": "prettier --write"
+    "*": [
+      "prettier --check"
+    ]
   },
   "eslintConfig": {
     "env": {
