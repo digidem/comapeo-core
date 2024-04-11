@@ -178,17 +178,17 @@ export function getBestVariant(variants, opts) {
       // For now check a and b for mimeType, the only weird case being both svgs
       if (opts.mimeType === 'image/svg+xml') {
         if (a.mimeType === 'image/svg+xml' && b.mimeType === 'image/png') {
-          return 1
+          return -1
         } else if (
           a.mimeType === 'image/png' &&
           b.mimeType === 'image/svg+xml'
         ) {
-          return -1
+          return 1
         } else if (
           a.mimeType === 'image/svg+xml' &&
           b.mimeType === 'image/svg+xml'
         ) {
-          return 1
+          return -1
         } else if (a.mimeType === 'image/png' && b.mimeType === 'image/png') {
           return determineSortValue(
             wantedPixelDensity,
@@ -200,17 +200,17 @@ export function getBestVariant(variants, opts) {
 
       if (opts.mimeType === 'image/png') {
         if (a.mimeType === 'image/png' && b.mimeType === 'image/svg+xml') {
-          return -1
+          return 1
         } else if (
           a.mimeType === 'image/svg+xml' &&
           b.mimeType === 'image/png'
         ) {
-          return 1
+          return -1
         } else if (
           a.mimeType === 'image/svg+xml' &&
           b.mimeType === 'image/svg+xml'
         ) {
-          return -1
+          return 1
         } else if (a.mimeType === 'image/png' && b.mimeType === 'image/png') {
           return determineSortValue(
             wantedPixelDensity,
