@@ -42,7 +42,7 @@ export class LocalDiscovery extends TypedEmitter {
    */
   constructor({ identityKeypair, logger }) {
     super()
-    this.#l = Logger.create('mdns', logger)
+    this.#l = Logger.create('LocalDiscovery', logger)
     this.#log = this.#l.log.bind(this.#l)
     this.#sm = new StartStopStateMachine({
       start: this.#start.bind(this),
