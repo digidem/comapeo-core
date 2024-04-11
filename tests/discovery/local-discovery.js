@@ -1,6 +1,7 @@
 import test from 'brittle'
 import { randomBytes } from 'node:crypto'
 import net from 'node:net'
+import { every } from 'iterpal'
 import { KeyManager } from '@mapeo/crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import pDefer from 'p-defer'
@@ -11,40 +12,45 @@ import {
 } from '../../src/discovery/local-discovery.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 
-test('mdns - discovery and sharing of data', (t) => {
+test('peer discovery - discovery and sharing of data', async (t) => {
   const deferred = pDefer()
   const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
 
-  const mdnsDiscovery1 = new LocalDiscovery({
+  const localDiscovery1 = new LocalDiscovery({
     identityKeypair: identityKeypair1,
   })
-  const mdnsDiscovery2 = new LocalDiscovery({
+  const localDiscovery2 = new LocalDiscovery({
     identityKeypair: identityKeypair2,
   })
   const str = 'hi'
 
-  mdnsDiscovery1.on('connection', (stream) => {
+  localDiscovery1.on('connection', (stream) => {
     stream.on('error', handleConnectionError.bind(null, t))
     stream.write(str)
   })
 
-  mdnsDiscovery2.on('connection', (stream) => {
+  localDiscovery2.on('connection', (stream) => {
     stream.on('error', handleConnectionError.bind(null, t))
     stream.on('data', (d) => {
       t.is(d.toString(), str, 'expected data written')
-      Promise.all([
-        mdnsDiscovery1.stop({ force: true }),
-        mdnsDiscovery2.stop({ force: true }),
-      ]).then(() => {
-        t.pass('teardown complete')
-        deferred.resolve()
-      })
+      deferred.resolve()
     })
   })
 
-  mdnsDiscovery1.start()
-  mdnsDiscovery2.start()
+  t.teardown(() =>
+    Promise.all([
+      localDiscovery1.stop({ force: true }),
+      localDiscovery2.stop({ force: true }),
+    ])
+  )
+  const [server1, server2] = await Promise.all([
+    localDiscovery1.start(),
+    localDiscovery2.start(),
+  ])
+
+  localDiscovery1.connectPeer({ address: '127.0.0.1', ...server2 })
+  localDiscovery2.connectPeer({ address: '127.0.0.1', ...server1 })
 
   return deferred.promise
 })
@@ -83,11 +89,11 @@ test('deduplicate incoming connections', async (t) => {
   await discovery.stop({ force: true })
 })
 
-test(`mdns - discovery of 30 peers with random time instantiation`, async (t) => {
+test(`peer discovery of 30 peers with random connection times`, async (t) => {
   await testMultiple(t, { period: 2000, nPeers: 30 })
 })
 
-test(`mdns - discovery of 30 peers instantiated at the same time`, async (t) => {
+test(`peer discovery of 30 peers connected at the same time`, async (t) => {
   await testMultiple(t, { period: 0, nPeers: 30 })
 })
 
@@ -111,10 +117,21 @@ async function noiseConnect({ port, address }, keyPair) {
 async function testMultiple(t, { period, nPeers = 20 }) {
   const peersById = new Map()
   const connsById = new Map()
-  const promises = []
   // t.plan(3 * nPeers + 1)
 
-  async function spawnPeer(onConnected) {
+  const { promise: fullyConnectedPromise, resolve: onFullyConnected } = pDefer()
+
+  const onConnection = () => {
+    const isFullyConnected = every(
+      connsById.values(),
+      (conns) => conns.length >= nPeers - 1
+    )
+    if (isFullyConnected) onFullyConnected()
+  }
+
+  /** @type {LocalDiscovery[]} */
+  const peers = []
+  for (let i = 0; i < nPeers; i++) {
     const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
     const discovery = new LocalDiscovery({ identityKeypair })
     const peerId = keyToPublicId(discovery.publicKey)
@@ -124,20 +141,30 @@ async function testMultiple(t, { period, nPeers = 20 }) {
     discovery.on('connection', (conn) => {
       conn.on('error', handleConnectionError.bind(null, t))
       conns.push(conn)
-      if (conns.length >= nPeers - 1) onConnected()
+      onConnection()
     })
-    await discovery.start()
-    return discovery
+    peers.push(discovery)
   }
 
-  for (let p = 0; p < nPeers; p++) {
-    const deferred = pDefer()
-    promises.push(deferred.promise)
-    setTimeout(spawnPeer, Math.floor(Math.random() * period), deferred.resolve)
+  const servers = await Promise.all(
+    peers.map(async (peer) => {
+      const result = await peer.start()
+      t.teardown(() => peer.stop({ force: true }))
+      return result
+    })
+  )
+
+  for (const [peerIndex, peer] of peers.entries()) {
+    for (const [serverIndex, server] of servers.entries()) {
+      if (peerIndex === serverIndex) continue
+      delay(Math.floor(Math.random() * period)).then(() => {
+        peer.connectPeer({ address: '127.0.0.1', ...server })
+      })
+    }
   }
 
   // Wait for all peers to connect to at least nPeers - 1 peers (every other peer)
-  await Promise.all(promises)
+  await fullyConnectedPromise
   // Wait another 1000ms for any deduplication
   await delay(1000)
 
@@ -158,13 +185,6 @@ async function testMultiple(t, { period, nPeers = 20 }) {
       } other peers`
     )
   }
-
-  const stopPromises = []
-  for (const discovery of peersById.values()) {
-    stopPromises.push(discovery.stop({ force: true }))
-  }
-  await Promise.all(stopPromises)
-  t.pass('teardown complete')
 }
 
 function handleConnectionError(t, e) {
