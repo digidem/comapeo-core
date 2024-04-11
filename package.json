@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint --cache .",
     "format": "prettier . --write",
     "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
     "test:unit": "brittle \"tests/**/*.js\"",
