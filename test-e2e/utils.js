@@ -28,7 +28,7 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
 export async function disconnectPeers(managers) {
   await Promise.all(
     managers.map(async (manager) => {
-      return manager.stopLocalPeerDiscovery({ force: true })
+      return manager.stopLocalPeerDiscoveryServer({ force: true })
     })
   )
 }
@@ -39,7 +39,12 @@ export async function disconnectPeers(managers) {
 export function connectPeers(managers, { discovery = true } = {}) {
   if (discovery) {
     for (const manager of managers) {
-      manager.startLocalPeerDiscovery()
+      manager.startLocalPeerDiscoveryServer().then(({ name, port }) => {
+        for (const otherManager of managers) {
+          if (otherManager === manager) continue
+          otherManager.connectPeer({ address: '127.0.0.1', name, port })
+        }
+      })
     }
     return function destroy() {
       return disconnectPeers(managers)
