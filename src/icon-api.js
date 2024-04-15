@@ -136,7 +136,7 @@ const SIZE_AS_NUMERIC = {
  * 2. Matching size. If no exact match:
  *     1. If smaller ones exist, prefer closest smaller size.
  *     2. Otherwise prefer closest larger size.
- * 3. Matching pixel density. If no exact match:
+ * 3. Matching pixel density (when asking for PNGs). If no exact match:
  *     1. If smaller ones exist, prefer closest smaller density.
  *     2. Otherwise prefer closest larger density.
  *
@@ -145,10 +145,11 @@ const SIZE_AS_NUMERIC = {
  */
 export function getBestVariant(variants, opts) {
   const { size: wantedSize, mimeType: wantedMimeType } = opts
-  // Pixel density doesn't matter for svg so default to 1
-  const wantedPixelDensity =
-    opts.mimeType === 'image/svg+xml' ? 1 : opts.pixelDensity
-
+  /** @type {BitmapOpts['pixelDensity']} */
+  let wantedPixelDensity
+  if (opts.mimeType === 'image/png') {
+    wantedPixelDensity = opts.pixelDensity
+  }
   if (variants.length === 0) {
     throw new Error('No variants exist')
   }
@@ -160,7 +161,6 @@ export function getBestVariant(variants, opts) {
       `No variants with desired mime type ${wantedMimeType} exist`
     )
   }
-
   const wantedSizeNum = SIZE_AS_NUMERIC[wantedSize]
 
   // Sort the relevant variants based on the desired size and pixel density, using the rules of the preference.
@@ -172,52 +172,22 @@ export function getBestVariant(variants, opts) {
     const aSizeDiff = aSizeNum - wantedSizeNum
     const bSizeDiff = bSizeNum - wantedSizeNum
 
-    // Both variants match desired size, use pixel density to determine preferred match
+    // Both variants match desired size, use pixel density (when png) to determine preferred match
     if (aSizeDiff === 0 && bSizeDiff === 0) {
       // What to do if asking for an svg and both (a and b) are svgs and have the same size, what criteria do we use?
-      // For now check a and b for mimeType, the only weird case being both svgs
-      if (opts.mimeType === 'image/svg+xml') {
-        if (a.mimeType === 'image/svg+xml' && b.mimeType === 'image/png') {
-          return -1
-        } else if (
-          a.mimeType === 'image/png' &&
-          b.mimeType === 'image/svg+xml'
-        ) {
-          return 1
-        } else if (
-          a.mimeType === 'image/svg+xml' &&
-          b.mimeType === 'image/svg+xml'
-        ) {
-          return -1
-        } else if (a.mimeType === 'image/png' && b.mimeType === 'image/png') {
-          return determineSortValue(
-            wantedPixelDensity,
-            a.pixelDensity,
-            b.pixelDensity
-          )
-        }
-      }
-
-      if (opts.mimeType === 'image/png') {
-        if (a.mimeType === 'image/png' && b.mimeType === 'image/svg+xml') {
-          return 1
-        } else if (
-          a.mimeType === 'image/svg+xml' &&
-          b.mimeType === 'image/png'
-        ) {
-          return -1
-        } else if (
-          a.mimeType === 'image/svg+xml' &&
-          b.mimeType === 'image/svg+xml'
-        ) {
-          return 1
-        } else if (a.mimeType === 'image/png' && b.mimeType === 'image/png') {
-          return determineSortValue(
-            wantedPixelDensity,
-            a.pixelDensity,
-            b.pixelDensity
-          )
-        }
+      // For now, we don't change sort order
+      if (wantedMimeType === 'image/svg+xml') {
+        return 0
+      } else if (
+        wantedMimeType === 'image/png' &&
+        a.mimeType === 'image/png' &&
+        b.mimeType === 'image/png'
+      ) {
+        return determineSortValue(
+          wantedPixelDensity,
+          a.pixelDensity,
+          b.pixelDensity
+        )
       }
     }
 
