@@ -562,36 +562,6 @@ test('getBestVariant() - params prioritization', (t) => {
   t.alike(result, wantedSizeSvgVariant, 'mime type > size > pixel density')
 })
 
-// TODO: The IconApi doesn't allow creating svg variants with a custom pixel density, so maybe can remove this test?
-test(
-  'getBestVariant() - svg requests are not affected by pixel density',
-  { skip: true },
-  (t) => {
-    /** @type {import('../src/icon-api.js').SvgOpts} */
-    const common = { size: 'small', mimeType: 'image/svg+xml' }
-
-    const variant1 = createIconVariant({ ...common })
-    const variant2 = createIconVariant({ ...common, size: 'large' })
-    const variant3 = createIconVariant({ ...common, size: 'medium' })
-
-    const result = getBestVariant([variant1, variant2, variant3], {
-      size: 'small',
-      mimeType: 'image/svg+xml',
-    })
-
-    t.alike(
-      result,
-      getBestVariant([variant1, variant2, variant3].reverse(), {
-        mimeType: 'image/svg+xml',
-        size: 'small',
-      }),
-      'same result regardless of variants order'
-    )
-
-    t.alike(result, variant1)
-  }
-)
-
 // TODO: Currently fails. Not sure if we'd run into this situation often in reality
 test(
   'getBestVariant - multiple exact matches return deterministic result',
