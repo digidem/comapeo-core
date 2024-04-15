@@ -149,6 +149,7 @@ const SIZE_AS_NUMERIC = {
  * 3. Matching pixel density. If no exact match:
  *     1. If smaller ones exist, prefer closest smaller density.
  *     2. Otherwise prefer closest larger density.
+ * 4. If everything else is the same, use the blob version ID as the tiebreaker.
  *
  * @param {IconVariants} variants
  * @param {BitmapOpts | SvgOpts} opts
@@ -179,24 +180,26 @@ export function getBestVariant(variants, opts) {
     const aSizeNum = SIZE_AS_NUMERIC[a.size]
     const bSizeNum = SIZE_AS_NUMERIC[b.size]
 
-    const aSizeDiff = aSizeNum - wantedSizeNum
-    const bSizeDiff = bSizeNum - wantedSizeNum
+    const bothMatchDesiredSize =
+      aSizeNum === wantedSizeNum && bSizeNum === wantedSizeNum
+    if (!bothMatchDesiredSize) {
+      return determineSortValue(wantedSizeNum, aSizeNum, bSizeNum)
+    }
 
-    // Both variants match desired size, use pixel density to determine preferred match
-    if (aSizeDiff === 0 && bSizeDiff === 0) {
-      // Pixel density doesn't matter for svg but prefer lower for consistent results
-      if (opts.mimeType === 'image/svg+xml') {
-        return a.pixelDensity <= b.pixelDensity ? -1 : 1
-      }
-
+    const aPixelDensity = 'pixelDensity' in a ? a.pixelDensity : 1
+    const bPixelDensity = 'pixelDensity' in b ? b.pixelDensity : 1
+    const bothMatchDesiredPixelDensity =
+      aPixelDensity === wantedPixelDensity &&
+      bPixelDensity === wantedPixelDensity
+    if (!bothMatchDesiredPixelDensity) {
       return determineSortValue(
         wantedPixelDensity,
-        a.pixelDensity,
-        b.pixelDensity
+        aPixelDensity,
+        bPixelDensity
       )
     }
 
-    return determineSortValue(wantedSizeNum, aSizeNum, bSizeNum)
+    return a.blobVersionId > b.blobVersionId ? -1 : 1
   })
 
   // Closest match will be first element
