@@ -38,14 +38,6 @@ export function parseVersion(version) {
   }
 }
 
-/**
- * Truncate a key or id to a string with a given length with a default of 3 characters.
- * @param {String|Buffer} keyOrId
- */
-export function truncateId(keyOrId, length = 3) {
-  return keyToId(keyOrId).slice(0, length)
-}
-
 /** @typedef {import('@hyperswarm/secret-stream')<any>} NoiseStream */
 /** @typedef {NoiseStream & { destroyed: true }} DestroyedNoiseStream */
 /**
