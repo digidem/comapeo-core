@@ -138,7 +138,7 @@
     "compact-encoding": "^2.12.0",
     "corestore": "^6.8.4",
     "debug": "^4.3.4",
-    "drizzle-orm": "^0.30.6",
+    "drizzle-orm": "^0.30.8",
     "fastify": ">= 4",
     "fastify-plugin": "^4.5.0",
     "hyperblobs": "2.3.0",
