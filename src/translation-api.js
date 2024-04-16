@@ -1,7 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
-import { decode } from '@mapeo/schema'
 
 export const ktranslatedLanguageCodeToSchemaNames = Symbol(
   'translatedLanguageCodeToSchemaNames'
@@ -83,17 +82,9 @@ export default class TranslationApi {
   }
 
   /**
-   * @param {import('multi-core-indexer').Entry} entry
+   * @param {import('@mapeo/schema').TranslationValue} doc
    */
-  index(entry) {
-    const doc = decode(entry.block, {
-      coreDiscoveryKey: entry.key,
-      index: entry.index,
-    })
-
-    if (doc.schemaName !== 'translation')
-      throw new Error('invalid translation doc')
-
+  index(doc) {
     let translatedSchemas = this.#translatedLanguageCodeToSchemaNames.get(
       doc.languageCode
     )
@@ -110,7 +101,6 @@ export default class TranslationApi {
       )
     )
   }
-
   get [ktranslatedLanguageCodeToSchemaNames]() {
     return this.#translatedLanguageCodeToSchemaNames
   }
