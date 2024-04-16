@@ -71,7 +71,8 @@ test('create()', async (t) => {
         return mimeTypeMatches && sizeMatches
       }
 
-      const pixelDensityMatches = v.pixelDensity === expected.pixelDensity
+      const pixelDensityMatches =
+        v.mimeType === 'image/png' && v.pixelDensity === expected.pixelDensity
       return mimeTypeMatches && sizeMatches && pixelDensityMatches
     })
 
@@ -247,24 +248,26 @@ test('getBestVariant() - specify mimeType', (t) => {
   })
 
   t.test('request mime type with match present', (st) => {
-    /** @type {Array<[import('@mapeo/schema').Icon['variants'][number]['mimeType'], import('@mapeo/schema').Icon['variants'][number]]>} */
+    /** @type {Array<[import('../src/icon-api.js').IconVariant['mimeType'], import('../src/icon-api.js').IconVariant]>} */
     const pairs = [
       ['image/png', pngVariant],
       ['image/svg+xml', svgVariant],
     ]
 
     for (const [mimeType, expectedVariant] of pairs) {
-      const result = getBestVariant([pngVariant, svgVariant], {
+      /** @type {any} */
+      let obj = {
         ...common,
         mimeType,
-      })
+      }
+      if (mimeType === 'image/png') {
+        obj.pixelDensity = 1
+      }
+      const result = getBestVariant([pngVariant, svgVariant], obj)
 
       st.alike(
         result,
-        getBestVariant([pngVariant, svgVariant].reverse(), {
-          ...common,
-          mimeType,
-        }),
+        getBestVariant([pngVariant, svgVariant].reverse(), obj),
         'same result regardless of variants order'
       )
 
@@ -285,6 +288,7 @@ test('getBestVariant() - specify mimeType', (t) => {
     }, 'throws when no match for svg exists')
 
     st.exception(() => {
+      // @ts-expect-error
       getBestVariant([svgVariant], {
         ...common,
         mimeType: 'image/png',
@@ -294,7 +298,7 @@ test('getBestVariant() - specify mimeType', (t) => {
 })
 
 test('getBestVariant() - specify size', (t) => {
-  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'pixelDensity' | 'mimeType'>} */
+  /** @type {Pick<import('../src/icon-api.js').BitmapOpts, 'pixelDensity' | 'mimeType'>} */
   const common = { pixelDensity: 1, mimeType: 'image/png' }
 
   const smallVariant = createIconVariant({
@@ -417,7 +421,7 @@ test('getBestVariant() - specify pixel density', (t) => {
   })
 
   t.test('request pixel density with match present', (st) => {
-    /** @type {Array<[import('@mapeo/schema').Icon['variants'][number]['pixelDensity'], import('@mapeo/schema').Icon['variants'][number]]>} */
+    /** @type {Array<[import('../src/icon-api.js').BitmapOpts['pixelDensity'], import('@mapeo/schema').Icon['variants'][number]]>} */
     const pairs = [
       [1, density1Variant],
       [2, density2Variant],
@@ -519,13 +523,11 @@ test('getBestVariant() - params prioritization', (t) => {
 
   const wantedSizeSvgVariant = createIconVariant({
     mimeType: 'image/svg+xml',
-    pixelDensity: 1,
     size: 'small',
   })
 
   const wantedPixelDensitySvgVariant = createIconVariant({
     mimeType: 'image/svg+xml',
-    pixelDensity: 2,
     size: 'medium',
   })
 

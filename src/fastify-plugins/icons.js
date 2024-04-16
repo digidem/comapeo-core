@@ -146,11 +146,11 @@ function assertValidSize(value) {
 }
 
 /**
- * @param {number} value
+ * @param {any} value
  * @returns {asserts value is import('../icon-api.js').BitmapOpts['pixelDensity']}
  */
 function assertValidPixelDensity(value) {
-  if (!VALID_PIXEL_DENSITIES.includes(value)) {
+  if (!VALID_PIXEL_DENSITIES.includes(/** @type {any} */ value)) {
     throw new Error(`${value} is not a valid icon pixel density`)
   }
 }
