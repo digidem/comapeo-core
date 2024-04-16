@@ -18,9 +18,12 @@ const VALID_MIME_TYPES = docSchemas.icon.properties.variants.items.oneOf.map(
   (iconType) => iconType.properties.mimeType.const
 )
 const VALID_PIXEL_DENSITIES = docSchemas.icon.properties.variants.items.oneOf
-  .filter((iconType) => iconType.properties.mimeType.const === 'image/png')
-  /** @ts-ignore using the array.filter as type guard? */
-  .map((pngIcon) => pngIcon.properties.pixelDensity.enum)
+  .map((iconType) =>
+    'pixelDensity' in iconType.properties
+      ? iconType.properties.pixelDensity.enum
+      : []
+  )
+  .flat()
 
 const PARAMS_JSON_SCHEMA = T.Object({
   iconDocId: ICON_DOC_ID_STRING,
