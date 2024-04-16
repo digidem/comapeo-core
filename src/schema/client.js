@@ -28,6 +28,7 @@ export const projectBacklinkTable = backlinkTable(projectSettingsTable)
 export const projectKeysTable = sqliteTable('projectKeys', {
   projectId: text('projectId').notNull().primaryKey(),
   projectPublicId: text('projectPublicId').notNull(),
+  projectInviteId: blob('projectInviteId').notNull(),
   keysCipher: blob('keysCipher', { mode: 'buffer' }).notNull(),
   projectInfo: projectInfoColumn('projectInfo')
     .default(

@@ -4,7 +4,7 @@ import "keys.proto";
 
 message Invite {
   bytes inviteId = 1;
-  string projectPublicId = 2;
+  bytes projectInviteId = 2;
   string projectName = 3;
   optional string roleName = 4;
   optional string roleDescription = 5;

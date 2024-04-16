@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { keyToId, projectKeyToPublicId } from '../src/utils.js'
+import { keyToId, projectKeyToProjectInviteId } from '../src/utils.js'
 import {
   LocalPeers,
   UnknownPeerError,
@@ -19,9 +19,10 @@ test('sending and receiving invites', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
+  /** @type {import('../src/generated/rpc.js').Invite} */
   const validInvite = {
     inviteId: testInviteId(),
-    projectPublicId: testProjectPublicId(),
+    projectInviteId: testProjectInviteId(),
     projectName: 'Mapeo Project',
     invitorName: 'device0',
   }
@@ -130,7 +131,7 @@ test('messages to unknown peers', async () => {
   await assert.rejects(
     r1.sendInvite(unknownPeerId, {
       inviteId: testInviteId(),
-      projectPublicId: testProjectPublicId(),
+      projectInviteId: testProjectInviteId(),
       projectName: 'Mapeo Project',
       invitorName: 'device0',
     }),
@@ -314,7 +315,7 @@ function testProjectKey() {
   return KeyManager.generateProjectKeypair().publicKey
 }
 
-function testProjectPublicId() {
+function testProjectInviteId() {
   const projectKey = testProjectKey()
-  return projectKeyToPublicId(projectKey)
+  return projectKeyToProjectInviteId(projectKey)
 }

@@ -29,6 +29,7 @@ import {
   openedNoiseSecretStream,
   projectIdToNonce,
   projectKeyToId,
+  projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
@@ -153,15 +154,13 @@ export class MapeoManager extends TypedEmitter {
     this.#invite = new InviteApi({
       rpc: this.#localPeers,
       queries: {
-        isMember: (projectPublicId) =>
-          !!this.#db
+        getProjectByInviteId: (projectInviteId) =>
+          this.#db
             .select()
             .from(projectKeysTable)
-            .where(eq(projectKeysTable.projectPublicId, projectPublicId))
+            .where(eq(projectKeysTable.projectInviteId, projectInviteId))
             .get(),
-        addProject: async (projectDetails) => {
-          await this.addProject(projectDetails)
-        },
+        addProject: this.addProject,
       },
       logger,
     })
@@ -309,12 +308,14 @@ export class MapeoManager extends TypedEmitter {
    * @param {Object} opts
    * @param {string} opts.projectId
    * @param {string} opts.projectPublicId
+   * @param {Readonly<Buffer>} opts.projectInviteId
    * @param {ProjectKeys} opts.projectKeys
    * @param {Readonly<{ name?: string }>} [opts.projectInfo]
    */
   #saveToProjectKeysTable({
     projectId,
     projectPublicId,
+    projectInviteId,
     projectKeys,
     projectInfo,
   }) {
@@ -328,10 +329,16 @@ export class MapeoManager extends TypedEmitter {
 
     this.#db
       .insert(projectKeysTable)
-      .values({ projectId, projectPublicId, keysCipher, projectInfo })
+      .values({
+        projectId,
+        projectPublicId,
+        projectInviteId,
+        keysCipher,
+        projectInfo,
+      })
       .onConflictDoUpdate({
         target: projectKeysTable.projectId,
-        set: { projectPublicId, keysCipher, projectInfo },
+        set: { projectPublicId, projectInviteId, keysCipher, projectInfo },
       })
       .run()
   }
@@ -370,10 +377,12 @@ export class MapeoManager extends TypedEmitter {
 
     const projectId = projectKeyToId(keys.projectKey)
     const projectPublicId = projectKeyToPublicId(keys.projectKey)
+    const projectInviteId = projectKeyToProjectInviteId(keys.projectKey)
 
     this.#saveToProjectKeysTable({
       projectId,
       projectPublicId,
+      projectInviteId,
       projectKeys: keys,
     })
 
@@ -538,10 +547,10 @@ export class MapeoManager extends TypedEmitter {
    * @param {{ waitForSync?: boolean }} [opts] For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject()
    * @returns {Promise<string>}
    */
-  async addProject(
+  addProject = async (
     { projectKey, encryptionKeys, projectName },
     { waitForSync = true } = {}
-  ) {
+  ) => {
     const projectPublicId = projectKeyToPublicId(projectKey)
 
     // 1. Check for an active project
@@ -554,6 +563,7 @@ export class MapeoManager extends TypedEmitter {
     // 2. Check if the project exists in the project keys table
     // If it does, that means the project has already been either created or added before
     const projectId = projectKeyToId(projectKey)
+    const projectInviteId = projectKeyToProjectInviteId(projectKey)
 
     const projectExists = this.#db
       .select()
@@ -571,6 +581,7 @@ export class MapeoManager extends TypedEmitter {
     this.#saveToProjectKeysTable({
       projectId,
       projectPublicId,
+      projectInviteId,
       projectKeys: {
         projectKey,
         encryptionKeys,
@@ -804,6 +815,7 @@ export class MapeoManager extends TypedEmitter {
     const { keysCipher, projectId, projectInfo } = row
 
     const projectKeys = this.#decodeProjectKeysCipher(keysCipher, projectId)
+    const projectInviteId = projectKeyToProjectInviteId(projectKeys.projectKey)
 
     const updatedEncryptionKeys = projectKeys.encryptionKeys
       ? // Delete all encryption keys except for auth
@@ -813,6 +825,7 @@ export class MapeoManager extends TypedEmitter {
     this.#saveToProjectKeysTable({
       projectId,
       projectPublicId,
+      projectInviteId,
       projectInfo,
       projectKeys: {
         ...projectKeys,

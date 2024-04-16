@@ -1,7 +1,14 @@
 import b4a from 'b4a'
+import sodium from 'sodium-universal'
 import { keyToPublicId } from '@mapeo/crypto'
 import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
+
+const PROJECT_INVITE_ID_SALT = Buffer.from(
+  // Generated with `crypto.randomBytes(32).toString('base64')`
+  'h5sCJPM49Lw/TTM7Z3lBqKfmEsoWqwopeZOG+KT1GWQ=',
+  'base64'
+)
 
 /**
  * @param {String|Buffer} id
@@ -160,6 +167,17 @@ export function projectKeyToId(projectKey) {
  */
 export function projectKeyToPublicId(projectKey) {
   return keyToPublicId(projectKey)
+}
+
+/**
+ * Generate an invite ID from a project key
+ * @param {Readonly<Buffer>} projectKey
+ * @returns {Buffer}
+ */
+export function projectKeyToProjectInviteId(projectKey) {
+  const result = Buffer.allocUnsafe(32)
+  sodium.crypto_generichash(result, PROJECT_INVITE_ID_SALT, projectKey)
+  return result
 }
 
 /**

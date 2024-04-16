@@ -4,7 +4,7 @@ import { EncryptionKeys } from "./keys.js";
 
 export interface Invite {
   inviteId: Buffer;
-  projectPublicId: string;
+  projectInviteId: Buffer;
   projectName: string;
   roleName?: string | undefined;
   roleDescription?: string | undefined;
@@ -114,7 +114,7 @@ export function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceType): nu
 }
 
 function createBaseInvite(): Invite {
-  return { inviteId: Buffer.alloc(0), projectPublicId: "", projectName: "", invitorName: "" };
+  return { inviteId: Buffer.alloc(0), projectInviteId: Buffer.alloc(0), projectName: "", invitorName: "" };
 }
 
 export const Invite = {
@@ -122,8 +122,8 @@ export const Invite = {
     if (message.inviteId.length !== 0) {
       writer.uint32(10).bytes(message.inviteId);
     }
-    if (message.projectPublicId !== "") {
-      writer.uint32(18).string(message.projectPublicId);
+    if (message.projectInviteId.length !== 0) {
+      writer.uint32(18).bytes(message.projectInviteId);
     }
     if (message.projectName !== "") {
       writer.uint32(26).string(message.projectName);
@@ -159,7 +159,7 @@ export const Invite = {
             break;
           }
 
-          message.projectPublicId = reader.string();
+          message.projectInviteId = reader.bytes() as Buffer;
           continue;
         case 3:
           if (tag !== 26) {
@@ -204,7 +204,7 @@ export const Invite = {
   fromPartial<I extends Exact<DeepPartial<Invite>, I>>(object: I): Invite {
     const message = createBaseInvite();
     message.inviteId = object.inviteId ?? Buffer.alloc(0);
-    message.projectPublicId = object.projectPublicId ?? "";
+    message.projectInviteId = object.projectInviteId ?? Buffer.alloc(0);
     message.projectName = object.projectName ?? "";
     message.roleName = object.roleName ?? undefined;
     message.roleDescription = object.roleDescription ?? undefined;

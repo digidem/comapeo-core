@@ -7,7 +7,7 @@ import {
   noop,
   ExhaustivenessError,
   projectKeyToId,
-  projectKeyToPublicId,
+  projectKeyToProjectInviteId,
 } from './utils.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
@@ -117,7 +117,7 @@ export class MemberApi extends TypedEmitter {
 
       const inviteId = crypto.randomBytes(32)
       const projectId = projectKeyToId(this.#projectKey)
-      const projectPublicId = projectKeyToPublicId(this.#projectKey)
+      const projectInviteId = projectKeyToProjectInviteId(this.#projectKey)
       const project = await this.#dataTypes.project.getByDocId(projectId)
       const projectName = project.name
       assert(projectName, 'Project must have a name to invite people')
@@ -126,7 +126,7 @@ export class MemberApi extends TypedEmitter {
 
       const invite = {
         inviteId,
-        projectPublicId,
+        projectInviteId,
         projectName,
         roleName,
         roleDescription,

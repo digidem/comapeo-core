@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "fb87fd88-8355-492e-9515-9aea8f994567",
+  "id": "08c3a557-a1c3-4b8f-acbc-a3ea6f43682f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "localDeviceInfo": {
@@ -64,6 +64,13 @@
         "projectPublicId": {
           "name": "projectPublicId",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "projectInviteId": {
+          "name": "projectInviteId",
+          "type": "blob",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
