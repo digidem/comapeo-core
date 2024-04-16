@@ -1,7 +1,7 @@
 // @ts-check
 import path from 'path'
 import Database from 'better-sqlite3'
-import { decodeBlockPrefix, decode } from '@mapeo/schema'
+import { decodeBlockPrefix } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
@@ -158,6 +158,7 @@ export class MapeoProject extends TypedEmitter {
         roleTable,
         deviceInfoTable,
         iconTable,
+        translationTable,
       ],
       sqlite: this.#sqlite,
       getWinner,
@@ -424,19 +425,12 @@ export class MapeoProject extends TypedEmitter {
       try {
         const { schemaName } = decodeBlockPrefix(entry.block)
 
+        if (schemaName === 'translation') {
+          this.#translationApi.index(entry)
+        }
+
         if (schemaName === 'projectSettings') {
           projectSettingsEntries.push(entry)
-        } else if (schemaName === 'translation') {
-          const doc = decode(entry.block, {
-            coreDiscoveryKey: entry.key,
-            index: entry.index,
-          })
-
-          // this is so that I can cast the doc as a `TranslationValue`
-          // without needing to decode the doc beforehand
-          if (doc.schemaName === 'translation') {
-            this.#translationApi.index(doc)
-          }
         } else {
           otherEntries.push(entry)
         }
