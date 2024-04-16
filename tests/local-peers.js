@@ -151,6 +151,28 @@ test('messages to unknown peers', async (t) => {
   )
 })
 
+test('handles invalid invites', async (t) => {
+  t.plan(1)
+
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  r1.once('peers', async ([peer]) => {
+    await r1.__sendRawInvite(peer.deviceId, Buffer.from([1, 2, 3]))
+  })
+
+  r2.on('invite', () => {
+    t.fail('should not receive invite')
+  })
+
+  r2.once('failed-to-handle-message', (messageType) => {
+    t.is(messageType, 'Invite')
+  })
+
+  const destroy = replicate(r1, r2)
+  t.teardown(destroy)
+})
+
 test('Disconnected peer shows in state', async (t) => {
   t.plan(6)
   const r1 = new LocalPeers()

@@ -152,6 +152,15 @@ class Peer {
     this.#connected.reject(new PeerFailedConnectionError())
     this.#log('disconnected')
   }
+  /**
+   * Exposed for tests.
+   * @param {Buffer} buf
+   */
+  __sendRawInvite(buf) {
+    this.#assertConnected()
+    const messageType = MESSAGE_TYPES.Invite
+    this.#channel.messages[messageType].send(buf)
+  }
   /** @param {Invite} invite */
   sendInvite(invite) {
     this.#assertConnected()
@@ -213,6 +222,7 @@ class Peer {
  * @property {(peerId: string, inviteResponse: InviteResponse) => void} invite-response Emitted when an invite response is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
+ * @property {(messageType: string, errorMessage?: string) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
  */
 
 /** @extends {TypedEmitter<LocalPeersEvents>} */
@@ -299,6 +309,17 @@ export class LocalPeers extends TypedEmitter {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
     peer.sendDeviceInfo(deviceInfo)
+  }
+
+  /**
+   * Used for tests.
+   * @param {string} deviceId
+   * @param {Buffer} buf
+   */
+  async __sendRawInvite(deviceId, buf) {
+    await this.#waitForPendingConnections()
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    peer.__sendRawInvite(buf)
   }
 
   /**
@@ -391,7 +412,9 @@ export class LocalPeers extends TypedEmitter {
               message
             )
           } catch (err) {
-            this.#l.log(`Error handling ${type} message: ${String(err)}`)
+            const errorMessage = String(err)
+            this.emit('failed-to-handle-message', type, errorMessage)
+            this.#l.log(`Error handling ${type} message: ${errorMessage}`)
           }
         },
       }
