@@ -246,10 +246,10 @@ export class DataType extends TypedEmitter {
     // want to be able to await the result of this method and then call
     // `.where()` on the result.
     //
-    // As a workaround, we remove `.then` from the result.
+    // As a workaround, we remove promise methods from the result.
     //
     // [0]: https://github.com/drizzle-team/drizzle-orm/commit/c063144dc08726cc15323582fe377210329e579e
-    return removeThen(result)
+    return removePromiseMethods(result)
   }
 
   /**
@@ -300,8 +300,12 @@ export class DataType extends TypedEmitter {
 /**
  * @template {object} T
  * @param {T} value
- * @returns {Omit<T, 'then'> & { then: undefined }}
+ * @returns {Omit<T, 'then' | 'catch' | 'finally'> & { then?: undefined, catch?: undefined, finally?: undefined }}
  */
-function removeThen(value) {
-  return Object.create(value, { then: { value: undefined } })
+function removePromiseMethods(value) {
+  return Object.create(value, {
+    then: { value: undefined },
+    catch: { value: undefined },
+    finally: { value: undefined },
+  })
 }
