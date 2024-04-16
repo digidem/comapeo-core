@@ -1,14 +1,15 @@
 {
   "name": "@mapeo/core",
-  "version": "9.0.0-alpha.5",
+  "version": "9.0.0-alpha.6",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint --cache .",
     "format": "prettier . --write",
-    "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
+    "test": "npm-run-all lint test:prettier build:types type test:unit test:e2e test:types",
+    "test:prettier": "prettier --check .",
     "test:unit": "brittle \"tests/**/*.js\"",
     "test:e2e": "brittle \"test-e2e/**/*.js\"",
     "test:types": "tsc -p test-types/tsconfig.json",
@@ -34,9 +35,11 @@
   },
   "lint-staged": {
     "*.js": [
-      "eslint --cache --fix"
+      "eslint --cache"
     ],
-    "*.{js,css,md}": "prettier --write"
+    "*": [
+      "prettier --check"
+    ]
   },
   "eslintConfig": {
     "env": {
@@ -133,7 +136,6 @@
     "better-sqlite3": "^8.7.0",
     "big-sparse-array": "^1.0.3",
     "bogon": "^1.1.0",
-    "bonjour-service": "^1.2.1",
     "compact-encoding": "^2.12.0",
     "corestore": "^6.8.4",
     "debug": "^4.3.4",
@@ -163,7 +165,7 @@
     "throttle-debounce": "^5.0.0",
     "tiny-typed-emitter": "^2.1.0",
     "type-fest": "^4.5.0",
-    "undici": "^6.7.0",
+    "undici": "^6.13.0",
     "varint": "^6.0.0",
     "yauzl-promise": "^4.0.0"
   }
