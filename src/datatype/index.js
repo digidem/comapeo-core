@@ -1,7 +1,7 @@
 // @ts-check
 import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
-import { eq, inArray, placeholder } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { noop, deNullify } from '../utils.js'
 import crypto from 'hypercore-crypto'
@@ -89,7 +89,7 @@ export class DataType extends TypedEmitter {
       getByDocId: db
         .select()
         .from(table)
-        .where(eq(table.docId, placeholder('docId')))
+        .where(eq(table.docId, sql.placeholder('docId')))
         .prepare(),
       getMany: db
         .select()
