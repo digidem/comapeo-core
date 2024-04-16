@@ -163,7 +163,7 @@
     "throttle-debounce": "^5.0.0",
     "tiny-typed-emitter": "^2.1.0",
     "type-fest": "^4.5.0",
-    "undici": "^6.7.0",
+    "undici": "^6.13.0",
     "varint": "^6.0.0",
     "yauzl-promise": "^4.0.0"
   }
