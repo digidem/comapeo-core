@@ -361,3 +361,20 @@ export function sortById(docs) {
 export function removeUndefinedFields(object) {
   return JSON.parse(JSON.stringify(object))
 }
+
+export function randomDate() {
+  return new Date(randomNum({ min: 0, max: Date.now() }))
+}
+
+export function randomBool() {
+  return Math.random() >= 0.5
+}
+
+/**
+ * @param {{ min?: number, max?: number, precision?: number }} [options]
+ */
+export function randomNum({ min = 0, max = 1, precision } = {}) {
+  const num = Math.random() * (max - min) + min
+  if (typeof precision === 'undefined') return num
+  return round(num, precision)
+}
