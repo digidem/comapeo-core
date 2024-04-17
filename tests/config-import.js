@@ -1,6 +1,7 @@
 // @ts-check
 import { test } from 'brittle'
 import { size } from 'iterpal'
+import { defaultConfigPath } from './helpers/default-config.js'
 import { readConfig } from '../src/config-import.js'
 
 test('config import - loading', async (t) => {
@@ -212,9 +213,7 @@ test('config import - presets', async (t) => {
 })
 
 test('config import - load default config', async (t) => {
-  let config = await readConfig(
-    './tests/fixtures/config/mapeo-default-config.mapeoconfig'
-  )
+  const config = await readConfig(defaultConfigPath)
   t.ok(config, 'valid config file')
 
   t.is(size(config.fields()), 11, 'correct number of fields in default config')
