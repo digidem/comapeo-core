@@ -20,6 +20,7 @@ import {
   deviceInfoTable,
   fieldTable,
   observationTable,
+  trackTable,
   presetTable,
   roleTable,
   iconTable,
@@ -152,6 +153,7 @@ export class MapeoProject extends TypedEmitter {
     const indexWriter = new IndexWriter({
       tables: [
         observationTable,
+        trackTable,
         presetTable,
         fieldTable,
         coreOwnershipTable,
@@ -202,6 +204,11 @@ export class MapeoProject extends TypedEmitter {
       observation: new DataType({
         dataStore: this.#dataStores.data,
         table: observationTable,
+        db,
+      }),
+      track: new DataType({
+        dataStore: this.#dataStores.data,
+        table: trackTable,
         db,
       }),
       preset: new DataType({
@@ -458,6 +465,9 @@ export class MapeoProject extends TypedEmitter {
 
   get observation() {
     return this.#dataTypes.observation
+  }
+  get track() {
+    return this.#dataTypes.track
   }
   get preset() {
     return this.#dataTypes.preset

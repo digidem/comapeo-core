@@ -1,7 +1,7 @@
 import { test } from 'brittle'
 import { createManagers } from './utils.js'
 
-test('', async (t) => {
+test('translation api - put() and get()', async (t) => {
   const [manager] = await createManagers(1, t, 'mobile')
   const project = await manager.getProject(await manager.createProject())
   await project.importConfig({
@@ -27,6 +27,7 @@ test('', async (t) => {
     schemaNameRef: 'preset',
     docIdRef: projectPreset.docId,
     languageCode: 'en',
+    regionCode: 'UK',
   })
 
   t.is(translations.length, 1, `we should only have one translated document`)
