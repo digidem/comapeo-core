@@ -1,5 +1,6 @@
 // @ts-check
 import { test } from 'brittle'
+import { size } from 'iterpal'
 import { readConfig } from '../src/config-import.js'
 
 test('config import - loading', async (t) => {
@@ -216,30 +217,22 @@ test('config import - load default config', async (t) => {
   )
   t.ok(config, 'valid config file')
 
-  let nFields = 0
-  /* eslint-disable-next-line */
-  for (const field of config.fields()) {
-    nFields++
-  }
-  t.is(nFields, 11, 'correct number of fields in default config')
+  t.is(size(config.fields()), 11, 'correct number of fields in default config')
   let nIcons = 0
   let nVariants = 0
   /* eslint-disable-next-line */
   for await (const icon of config.icons()) {
     nIcons++
-    /* eslint-disable-next-line */
-    for (let variant of icon.variants) {
-      nVariants++
-    }
+    nVariants += size(icon.variants)
   }
   t.is(nIcons, 26, 'correct number of icons in default config')
   t.is(nVariants, 234, 'correct number of icon variants in default config')
 
-  let nPresets = 0
-  /* eslint-disable-next-line */
-  for (const preset of config.presets()) {
-    nPresets++
-  }
-  t.is(nPresets, 28, 'correct number of presets in default config')
+  t.is(
+    size(config.presets()),
+    28,
+    'correct number of presets in default config'
+  )
+
   t.is(config.warnings.length, 0, 'no warnings on config file')
 })
