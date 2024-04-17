@@ -16,7 +16,6 @@
     "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
     "bench": "nanobench benchmarks/*.js",
     "type": "tsc",
-    "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
@@ -116,8 +115,6 @@
     "streamx": "^2.15.1",
     "tempy": "^3.1.0",
     "ts-proto": "^1.156.7",
-    "typedoc": "^0.25.13",
-    "typedoc-plugin-markdown": "^3.15.3",
     "typescript": "^5.4.5"
   },
   "dependencies": {
