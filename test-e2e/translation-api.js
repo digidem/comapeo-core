@@ -8,6 +8,7 @@ test('', async (t) => {
     configPath: 'tests/fixtures/config/completeConfig.zip',
   })
   const [projectPreset] = await project.preset.getMany()
+
   /**
    *
    * @type {import('@mapeo/schema').TranslationValue} value
@@ -21,17 +22,22 @@ test('', async (t) => {
     regionCode: 'US',
     message: 'Point of Entry',
   }
-  let translationDocId
-  try {
-    translationDocId = await project.$translation.put(translationDoc)
-    console.log(translationDocId)
-  } catch (e) {
-    console.log('e', e)
-  }
-  const d = await project.$translation.get({
+  const translationDocId = await project.$translation.put(translationDoc)
+  const translations = await project.$translation.get({
     schemaNameRef: 'preset',
     docIdRef: projectPreset.docId,
     languageCode: 'en',
   })
-  console.log('D', d)
+
+  t.is(translations.length, 1, `we should only have one translated document`)
+  t.is(
+    translations[0].docId,
+    translationDocId,
+    `the docId of added translation matches`
+  )
+  t.is(
+    translations[0].docIdRef,
+    projectPreset.docId,
+    `the docId of the preset we're translating matches`
+  )
 })

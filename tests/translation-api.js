@@ -14,7 +14,7 @@ import { IndexWriter } from '../src/index-writer/index.js'
 import RAM from 'random-access-memory'
 import { hashObject } from '../src/utils.js'
 
-test(`put() and get()`, async (t) => {
+test(`translation api - put() and get()`, async (t) => {
   const api = setup()
 
   const doc = {
