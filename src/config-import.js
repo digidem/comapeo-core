@@ -108,8 +108,7 @@ export async function readConfig(configPath) {
     *fields() {
       const { fields } = presetsFile
       for (const [name, field] of Object.entries(fields)) {
-        // is the hasOwn 'tagKey' check necessary?
-        if (!isRecord(field) || !hasOwn(field, 'tagKey')) {
+        if (!isRecord(field)) {
           warnings.push(new Error(`Invalid field ${name}`))
           continue
         }
