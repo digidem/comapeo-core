@@ -6,7 +6,7 @@ export const kGetIconBlob = Symbol('getIcon')
 /**
  * @typedef {Object} BitmapOpts
  * @property {Extract<IconVariant['mimeType'], 'image/png'>} mimeType
- * @property {IconVariant['pixelDensity']} pixelDensity
+ * @property {Extract<IconVariant, {mimeType: 'image/png'}>['pixelDensity']} pixelDensity
  * @property {IconVariant['size']} size
  *
  * @typedef {Object} SvgOpts
@@ -58,17 +58,7 @@ export class IconApi {
     const savedVariants = await Promise.all(
       icon.variants.map(async ({ blob, ...variant }) => {
         const blobVersionId = await this.#dataStore.writeRaw(blob)
-
-        return {
-          ...variant,
-          blobVersionId,
-          pixelDensity:
-            // Pixel density does not apply to svg variants
-            // TODO: Ideally @mapeo/schema wouldn't require pixelDensity when the mime type is svg
-            variant.mimeType === 'image/svg+xml'
-              ? /** @type {const} */ (1)
-              : variant.pixelDensity,
-        }
+        return { ...variant, blobVersionId }
       })
     )
 
@@ -146,7 +136,7 @@ const SIZE_AS_NUMERIC = {
  * 2. Matching size. If no exact match:
  *     1. If smaller ones exist, prefer closest smaller size.
  *     2. Otherwise prefer closest larger size.
- * 3. Matching pixel density. If no exact match:
+ * 3. Matching pixel density (when asking for PNGs). If no exact match:
  *     1. If smaller ones exist, prefer closest smaller density.
  *     2. Otherwise prefer closest larger density.
  *
@@ -155,10 +145,11 @@ const SIZE_AS_NUMERIC = {
  */
 export function getBestVariant(variants, opts) {
   const { size: wantedSize, mimeType: wantedMimeType } = opts
-  // Pixel density doesn't matter for svg so default to 1
-  const wantedPixelDensity =
-    opts.mimeType === 'image/svg+xml' ? 1 : opts.pixelDensity
-
+  /** @type {BitmapOpts['pixelDensity']} */
+  let wantedPixelDensity
+  if (opts.mimeType === 'image/png') {
+    wantedPixelDensity = opts.pixelDensity
+  }
   if (variants.length === 0) {
     throw new Error('No variants exist')
   }
@@ -170,7 +161,6 @@ export function getBestVariant(variants, opts) {
       `No variants with desired mime type ${wantedMimeType} exist`
     )
   }
-
   const wantedSizeNum = SIZE_AS_NUMERIC[wantedSize]
 
   // Sort the relevant variants based on the desired size and pixel density, using the rules of the preference.
@@ -182,18 +172,23 @@ export function getBestVariant(variants, opts) {
     const aSizeDiff = aSizeNum - wantedSizeNum
     const bSizeDiff = bSizeNum - wantedSizeNum
 
-    // Both variants match desired size, use pixel density to determine preferred match
+    // Both variants match desired size, use pixel density (when png) to determine preferred match
     if (aSizeDiff === 0 && bSizeDiff === 0) {
-      // Pixel density doesn't matter for svg but prefer lower for consistent results
-      if (opts.mimeType === 'image/svg+xml') {
-        return a.pixelDensity <= b.pixelDensity ? -1 : 1
+      // What to do if asking for an svg and both (a and b) are svgs and have the same size, what criteria do we use?
+      // For now, we don't change sort order
+      if (wantedMimeType === 'image/svg+xml') {
+        return 0
+      } else if (
+        wantedMimeType === 'image/png' &&
+        a.mimeType === 'image/png' &&
+        b.mimeType === 'image/png'
+      ) {
+        return determineSortValue(
+          wantedPixelDensity,
+          a.pixelDensity,
+          b.pixelDensity
+        )
       }
-
-      return determineSortValue(
-        wantedPixelDensity,
-        a.pixelDensity,
-        b.pixelDensity
-      )
     }
 
     return determineSortValue(wantedSizeNum, aSizeNum, bSizeNum)

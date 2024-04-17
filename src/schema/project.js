@@ -14,6 +14,7 @@ export const observationTable = sqliteTable(
   'observation',
   toColumns(schemas.observation)
 )
+export const trackTable = sqliteTable('track', toColumns(schemas.track))
 export const presetTable = sqliteTable('preset', toColumns(schemas.preset))
 export const fieldTable = sqliteTable('field', toColumns(schemas.field))
 export const coreOwnershipTable = sqliteTable(
@@ -29,6 +30,7 @@ export const iconTable = sqliteTable('icon', toColumns(schemas.icon))
 
 export const translationBacklinkTable = backlinkTable(translationTable)
 export const observationBacklinkTable = backlinkTable(observationTable)
+export const trackBacklinkTable = backlinkTable(trackTable)
 export const presetBacklinkTable = backlinkTable(presetTable)
 export const fieldBacklinkTable = backlinkTable(fieldTable)
 export const coreOwnershipBacklinkTable = backlinkTable(coreOwnershipTable)

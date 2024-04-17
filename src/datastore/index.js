@@ -28,7 +28,7 @@ import { createMap } from '../utils.js'
  */
 
 const NAMESPACE_SCHEMAS = /** @type {const} */ ({
-  data: ['observation'],
+  data: ['observation', 'track'],
   config: [
     'translation',
     'preset',
