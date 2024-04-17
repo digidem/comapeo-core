@@ -116,7 +116,6 @@ export async function readConfig(configPath) {
         /** @type {Record<string, unknown>} */
         const fieldValue = {
           schemaName: 'field',
-          // tagKey: field.key,
         }
         for (const key of Object.keys(valueSchemas.field.properties)) {
           if (hasOwn(field, key)) {
