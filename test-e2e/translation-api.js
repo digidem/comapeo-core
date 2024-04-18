@@ -21,11 +21,21 @@ test('translation api - put() and get()', async (t) => {
   for (const translationDoc of translationsDoc) {
     if (translationDoc !== undefined) {
       const translationDocId = await project.$translation.put(translationDoc)
+      const presetName = (
+        await project.preset.getByDocId(translationDoc.docIdRef)
+      ).name
       const translations = await project.$translation.get({
         schemaNameRef: 'preset',
         languageCode: 'es',
         docIdRef: translationDoc.docIdRef,
       })
+
+      t.is(
+        translationMap[presetName],
+        translations[0].message,
+        `the translated message matches what is expected`
+      )
+
       t.is(
         translations.length,
         1,
