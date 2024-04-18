@@ -24,7 +24,7 @@ test('translation api - put() and get()', async (t) => {
       const presetName = (
         await project.preset.getByDocId(translationDoc.docIdRef)
       ).name
-      const translations = await project.$translation.get({
+      const expectedTranslations = await project.$translation.get({
         schemaNameRef: 'preset',
         languageCode: 'es',
         docIdRef: translationDoc.docIdRef,
@@ -32,19 +32,19 @@ test('translation api - put() and get()', async (t) => {
 
       t.is(
         translationMap[presetName],
-        translations[0].message,
-        `the translated message matches what is expected`
+        expectedTranslations[0].message,
+        `the translated message matches what is expected ${presetName} -> ${expectedTranslations[0].message}`
       )
 
       t.is(
-        translations.length,
+        expectedTranslations.length,
         1,
         `we should only have one translated document`
       )
       t.is(
-        translations[0].docId,
+        expectedTranslations[0].docId,
         translationDocId,
-        `the docId of added translation for ${translations[0].message} matches`
+        `the docId of added translation for ${expectedTranslations[0].message} matches`
       )
       t.is(
         (
