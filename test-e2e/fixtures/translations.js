@@ -7,8 +7,17 @@ const commonPreset = {
   fieldRef: 'name',
 }
 
+const commonField = {
+  /** @type {'translation'} */
+  schemaName: 'translation',
+  schemaNameRef: 'field',
+  languageCode: 'es',
+  regionCode: 'AR',
+  fieldRef: 'label',
+}
+
 /** @type {Object.<string,string>} */
-export const translationMap = {
+export const presetsTranslationMap = {
   Airstrip: 'Pista de Aterrizaje',
   Boundry: 'Límite',
   Cave: 'Cueva',
@@ -37,7 +46,29 @@ export const translationMap = {
   Tree: 'Árbol',
 }
 
-export const presetTranslations = Object.keys(translationMap).map((key) => {
-  const translation = translationMap[key]
-  return { ...commonPreset, message: translation }
-})
+/** @type {Object.<string,string>} */
+export const fieldsTranslationMap = {
+  'Animal type': 'Tipo de animal',
+  'Building type': 'Tipo de edificio',
+  'What is gathered here?': '¿Qué se recolecta aquí?',
+  Note: 'Nota',
+  Owner: 'Dueño',
+  'Plant species': 'Especie de planta',
+  'What kind of path?': '¿Qué clase de camino?',
+  Name: 'Nombre',
+  'Tree species': 'Especie de árbol',
+}
+
+export const presetTranslations = Object.keys(presetsTranslationMap).map(
+  (key) => {
+    const translation = presetsTranslationMap[key]
+    return { ...commonPreset, message: translation }
+  }
+)
+
+export const fieldTranslations = Object.keys(fieldsTranslationMap).map(
+  (key) => {
+    const translation = fieldsTranslationMap[key]
+    return { ...commonField, message: translation }
+  }
+)
