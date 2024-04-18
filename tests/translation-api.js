@@ -54,7 +54,11 @@ test(`translation api - put() and get()`, async (t) => {
   mapEntriesLength = [...api[ktranslatedLanguageCodeToSchemaNames].entries()]
     .length
 
-  t.is(mapEntriesLength, 1, 'the map now has some elements in it')
+  t.is(
+    mapEntriesLength,
+    1,
+    'after calling api.index(), the map now has some elements in it'
+  )
   t.ok(
     api[ktranslatedLanguageCodeToSchemaNames].get('es')?.has('field'),
     `we've effectively have fields in spanish`
