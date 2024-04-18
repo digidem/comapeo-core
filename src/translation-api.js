@@ -71,22 +71,14 @@ export default class TranslationApi {
       filters.push(eq(this.table.fieldRef, value.fieldRef))
     }
 
-    // if (value.regionCode) {
-    //   filters.push(eq(this.table.regionCode, value.regionCode))
-    // }
+    if (value.regionCode) {
+      filters.push(eq(this.table.regionCode, value.regionCode))
+    }
 
-    const docs = (await this.dataType[kSelect]())
+    return (await this.dataType[kSelect]())
       .where(and.apply(null, filters))
       .prepare()
       .all()
-
-    const docsWithMatchingRegionCode = docs.filter(
-      (/** @type {any} */ doc) => doc.regionCode === value.regionCode
-    )
-
-    return docsWithMatchingRegionCode.length !== 0
-      ? docsWithMatchingRegionCode
-      : docs
   }
 
   /**

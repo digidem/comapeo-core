@@ -3,10 +3,11 @@ import { createManagers } from './utils.js'
 
 test('translation api - put() and get()', async (t) => {
   const [manager] = await createManagers(1, t, 'mobile')
-  const project = await manager.getProject(await manager.createProject())
-  await project.importConfig({
-    configPath: 'tests/fixtures/config/completeConfig.zip',
-  })
+  const project = await manager.getProject(
+    await manager.createProject({
+      configPath: 'tests/fixtures/config/completeConfig.zip',
+    })
+  )
   const [projectPreset] = await project.preset.getMany()
 
   /**
