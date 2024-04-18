@@ -1,6 +1,7 @@
 // @ts-check
 import { test } from 'brittle'
 import { size } from 'iterpal'
+import { defaultConfigPath } from './helpers/default-config.js'
 import { readConfig } from '../src/config-import.js'
 
 test('config import - loading', async (t) => {
@@ -212,10 +213,10 @@ test('config import - presets', async (t) => {
 })
 
 test('config import - load default config', async (t) => {
-  let config = await readConfig('./config/defaultConfig.mapeoconfig')
+  const config = await readConfig(defaultConfigPath)
   t.ok(config, 'valid config file')
 
-  t.is(size(config.fields()), 2, 'correct number of fields in default config')
+  t.is(size(config.fields()), 11, 'correct number of fields in default config')
   let nIcons = 0
   let nVariants = 0
   /* eslint-disable-next-line */
@@ -223,12 +224,12 @@ test('config import - load default config', async (t) => {
     nIcons++
     nVariants += size(icon.variants)
   }
-  t.is(nIcons, 41, 'correct number of icons in default config')
-  t.is(nVariants, 369, 'correct number of icon variants in default config')
+  t.is(nIcons, 26, 'correct number of icons in default config')
+  t.is(nVariants, 234, 'correct number of icon variants in default config')
 
   t.is(
     size(config.presets()),
-    43,
+    28,
     'correct number of presets in default config'
   )
 
