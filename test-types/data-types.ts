@@ -8,6 +8,8 @@ import {
   ObservationValue,
   Preset,
   PresetValue,
+  Track,
+  TrackValue,
 } from '@mapeo/schema'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
@@ -21,6 +23,7 @@ type Forks = { forks: string[] }
 type ObservationWithForks = Observation & Forks
 type PresetWithForks = Preset & Forks
 type FieldWithForks = Field & Forks
+type TrackWithForks = Track & Forks
 
 const sqlite = new Database(':memory:')
 
@@ -77,6 +80,35 @@ mapeoProject.observation.on('updated-docs', (docs) => {
 
 const deletedObservation = await mapeoProject.observation.delete('abc')
 Expect<Equal<Observation & { forks: string[] }, typeof deletedObservation>>
+
+///// Tracks
+
+const createdTrack = await mapeoProject.track.create({} as TrackValue)
+Expect<Equal<TrackWithForks, typeof createdTrack>>
+
+const updatedTrack = await mapeoProject.track.update('abc', {} as TrackValue)
+Expect<Equal<TrackWithForks, typeof updatedTrack>>
+
+const manyTracks = await mapeoProject.track.getMany()
+Expect<Equal<TrackWithForks[], typeof manyTracks>>
+
+const manyTracksWithDeleted = await mapeoProject.track.getMany({
+  includeDeleted: true,
+})
+Expect<Equal<TrackWithForks[], typeof manyTracksWithDeleted>>
+
+const trackByDocId = await mapeoProject.track.getByDocId('abc')
+Expect<Equal<Track & { forks: string[] }, typeof trackByDocId>>
+
+const trackByVersionId = await mapeoProject.track.getByVersionId('abc')
+Expect<Equal<Track, typeof trackByVersionId>>
+
+mapeoProject.track.on('updated-docs', (docs) => {
+  Expect<Equal<Track[], typeof docs>>
+})
+
+const deletedTrack = await mapeoProject.track.delete('abc')
+Expect<Equal<Track & { forks: string[] }, typeof deletedTrack>>
 
 ///// Presets
 

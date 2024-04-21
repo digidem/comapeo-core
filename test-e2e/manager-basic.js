@@ -6,6 +6,7 @@ import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import Fastify from 'fastify'
 import { getExpectedConfig } from './utils.js'
+import { defaultConfigPath } from '../tests/helpers/default-config.js'
 import { kDataTypes } from '../src/mapeo-project.js'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -121,12 +122,10 @@ test('Consistent loading of config', async (t) => {
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
     fastify: Fastify(),
-    defaultConfigPath: 'config/defaultConfig.mapeoconfig',
+    defaultConfigPath,
   })
 
-  const expectedDefault = await getExpectedConfig(
-    'config/defaultConfig.mapeoconfig'
-  )
+  const expectedDefault = await getExpectedConfig(defaultConfigPath)
   const expectedMinimal = await getExpectedConfig(
     'tests/fixtures/config/completeConfig.zip'
   )

@@ -108,14 +108,13 @@ export async function readConfig(configPath) {
     *fields() {
       const { fields } = presetsFile
       for (const [name, field] of Object.entries(fields)) {
-        if (!isRecord(field) || !hasOwn(field, 'key')) {
+        if (!isRecord(field)) {
           warnings.push(new Error(`Invalid field ${name}`))
           continue
         }
         /** @type {Record<string, unknown>} */
         const fieldValue = {
           schemaName: 'field',
-          tagKey: field.key,
         }
         for (const key of Object.keys(valueSchemas.field.properties)) {
           if (hasOwn(field, key)) {
