@@ -123,6 +123,7 @@ test('Accept invite', async (t) => {
     invite,
     inviteExternal,
     projectKey,
+    projectPublicId,
     encryptionKeys,
   } = setup()
 
@@ -185,8 +186,9 @@ test('Accept invite', async (t) => {
 
   // Invitee: accept
 
-  await inviteApi.accept(inviteExternal)
+  const acceptResult = await inviteApi.accept(inviteExternal)
 
+  t.is(acceptResult, projectPublicId, 'accept returns project public ID')
   t.ok(
     projectKeysFound.some((k) => k.equals(projectKey)),
     'added to project'
@@ -584,7 +586,7 @@ test('trying to accept or reject non-existent invite throws', async (t) => {
     t.fail('should not emit an "removed" event')
   })
 
-  await t.exception(inviteApi.accept(inviteExternal))
+  await t.exception(() => inviteApi.accept(inviteExternal))
   t.exception(() => inviteApi.reject(inviteExternal))
 
   assertInvitesAlike(t, inviteApi.getPending(), [], 'has no pending invites')
@@ -645,7 +647,10 @@ test('throws when quickly double-accepting the same invite', async (t) => {
 
   const firstAcceptPromise = inviteApi.accept(inviteExternal)
 
-  await t.exception(inviteApi.accept(inviteExternal), 'second accept fails')
+  await t.exception(
+    () => inviteApi.accept(inviteExternal),
+    'second accept fails'
+  )
 
   await firstAcceptPromise
   t.ok(
@@ -765,7 +770,10 @@ test('throws when quickly accepting two invites for the same project', async (t)
 
   const firstAcceptPromise = inviteApi.accept(invite1External)
 
-  await t.exception(inviteApi.accept(invite2External), 'second accept fails')
+  await t.exception(
+    () => inviteApi.accept(invite2External),
+    'second accept fails'
+  )
 
   await firstAcceptPromise
   t.ok(
@@ -983,7 +991,7 @@ test('failures to send acceptances cause accept to reject, no project to be adde
     'has a pending invite'
   )
 
-  await t.exception(inviteApi.accept(inviteExternal), 'fails to accept')
+  await t.exception(() => inviteApi.accept(inviteExternal), 'fails to accept')
 
   t.is(acceptsAttempted, 1)
   const [removedInvite, removalReason] = await inviteRemovedPromise
@@ -1086,7 +1094,10 @@ test('failures to add project cause accept() to reject and invite to be removed'
 
   const inviteRemovedPromise = once(inviteApi, 'invite-removed')
 
-  await t.exception(inviteApi.accept(inviteExternal), 'accept should fail')
+  await t.exception(
+    () => inviteApi.accept(inviteExternal),
+    'accept should fail'
+  )
 
   const [removedInvite, removalReason] = await inviteRemovedPromise
   assertInvitesAlike(t, removedInvite, inviteExternal, 'invite was removed')
