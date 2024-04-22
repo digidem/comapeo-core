@@ -99,6 +99,8 @@ export async function invite({
   reject = false,
 }) {
   const invitorProject = await invitor.getProject(projectId)
+
+  /** @type {Array<Promise<unknown>>} */
   const promises = []
 
   for (const invitee of invitees) {
@@ -109,10 +111,10 @@ export async function invite({
       })
     )
     promises.push(
-      once(invitee.invite, 'invite-received').then(([invite]) => {
-        return reject
+      once(invitee.invite, 'invite-received').then(async ([invite]) => {
+        await (reject
           ? invitee.invite.reject(invite)
-          : invitee.invite.accept(invite)
+          : invitee.invite.accept(invite))
       })
     )
   }

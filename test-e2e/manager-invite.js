@@ -36,13 +36,14 @@ test('member invite accepted', async (t) => {
   )
   t.is(invite.projectName, 'Mapeo', 'project name of invite matches')
 
-  await joiner.invite.accept(invite)
+  const acceptResult = await joiner.invite.accept(invite)
 
   t.is(
     await responsePromise,
     InviteResponse_Decision.ACCEPT,
     'correct invite response'
   )
+  t.is(acceptResult, createdProjectId, 'accept returns invite ID')
 
   /// After invite flow has completed...
 
@@ -84,7 +85,8 @@ test('chain of invites', async (t) => {
       roleId: COORDINATOR_ROLE_ID,
     })
     const [invite] = await once(joiner.invite, 'invite-received')
-    await joiner.invite.accept(invite)
+    const acceptResult = await joiner.invite.accept(invite)
+    t.is(acceptResult, createdProjectId, 'accept returns invite ID')
     t.is(
       await responsePromise,
       InviteResponse_Decision.ACCEPT,
