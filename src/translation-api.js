@@ -10,6 +10,8 @@ export default class TranslationApi {
    * import('@mapeo/schema').TranslationValue['languageCode'],
    * Set<import('@mapeo/schema/dist/types.js').SchemaName>>} */
   #translatedLanguageCodeToSchemaNames = new Map()
+  #dataType
+  #table
 
   /**
    * @param {Object} opts
@@ -23,8 +25,8 @@ export default class TranslationApi {
    * @param {typeof import('./schema/project.js').translationTable} opts.table
    */
   constructor({ dataType, table }) {
-    this.dataType = dataType
-    this.table = table
+    this.#dataType = dataType
+    this.#table = table
   }
 
   /**
@@ -36,12 +38,12 @@ export default class TranslationApi {
     const docId = hashObject(identifiers)
     let existing
     try {
-      existing = await this.dataType.getByDocId(docId)
+      existing = await this.#dataType.getByDocId(docId)
       if (existing) {
-        await this.dataType.update(existing.versionId, value)
+        await this.#dataType.update(existing.versionId, value)
       }
     } catch (e) {
-      existing = await this.dataType[kCreateWithDocId](docId, value)
+      existing = await this.#dataType[kCreateWithDocId](docId, value)
     }
     return existing.docId
   }
@@ -63,19 +65,19 @@ export default class TranslationApi {
     if (!docTypeIsTranslatedToLanguage) return []
 
     const filters = [
-      eq(this.table.docIdRef, value.docIdRef),
-      eq(this.table.schemaNameRef, value.schemaNameRef),
-      eq(this.table.languageCode, value.languageCode),
+      eq(this.#table.docIdRef, value.docIdRef),
+      eq(this.#table.schemaNameRef, value.schemaNameRef),
+      eq(this.#table.languageCode, value.languageCode),
     ]
     if (value.fieldRef) {
-      filters.push(eq(this.table.fieldRef, value.fieldRef))
+      filters.push(eq(this.#table.fieldRef, value.fieldRef))
     }
 
     if (value.regionCode) {
-      filters.push(eq(this.table.regionCode, value.regionCode))
+      filters.push(eq(this.#table.regionCode, value.regionCode))
     }
 
-    return (await this.dataType[kSelect]())
+    return (await this.#dataType[kSelect]())
       .where(and.apply(null, filters))
       .prepare()
       .all()
