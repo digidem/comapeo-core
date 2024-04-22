@@ -8,6 +8,7 @@ import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
 import { setProperty, hasProperty } from 'dot-prop'
+import { ktranslatedLanguageCodeToSchemaNames } from '../translation-api.js'
 
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -58,11 +59,6 @@ import { setProperty, hasProperty } from 'dot-prop'
  * @property {string} fieldRef
  * @property {string} message
  */
-/**
- * @typedef {object} TranslationApi
- * @property {Map<LanguageCode, Set<MapeoDoc['schemaName']>>} translatedRecords
- * @property {(opts: Pick<TranslationRow, 'docIdRef' | 'schemaNameRef' | 'languageCode' | 'regionCode'>) => TranslationRow[]} get
- */
 
 function generateId() {
   return randomBytes(32).toString('hex')
@@ -97,7 +93,7 @@ export class DataType extends TypedEmitter {
    * @param {TTable} opts.table
    * @param {TDataStore} opts.dataStore
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.db
-   * @param {TranslationApi} opts.translation
+   * @param {import('../translation-api.js').default} opts.translation
    * @param {() => any} [opts.getPermissions]
    */
   constructor({ dataStore, table, getPermissions, db, translation }) {
@@ -216,20 +212,22 @@ export class DataType extends TypedEmitter {
    * @param {MapeoDoc} doc
    * @param {{ lang?: string }} [opts]
    */
-  #translate(doc, { lang } = {}) {
+  async #translate(doc, { lang } = {}) {
     if (!lang) return doc
     const { language, region } = parseBCP47(lang)
     if (!language) return doc
-    const translatedRecords = this.#translation.translatedRecords.get(language)
+    const translatedRecords =
+      this.#translation[ktranslatedLanguageCodeToSchemaNames].get(language)
     // No translations indexed for this doc type, so don't try to translate
     if (!translatedRecords || !translatedRecords.has(this.#schemaName)) {
       return doc
     }
-    const translations = this.#translation.get({
+    const translations = await this.#translation.get({
       languageCode: language,
       schemaNameRef: doc.schemaName,
       docIdRef: doc.docId,
     })
+
     const indexedTranslations = indexTranslations(translations)
     const translatedDoc = JSON.parse(JSON.stringify(doc))
 

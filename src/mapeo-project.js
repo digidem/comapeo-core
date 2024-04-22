@@ -205,51 +205,61 @@ export class MapeoProject extends TypedEmitter {
         dataStore: this.#dataStores.data,
         table: observationTable,
         db,
+        translation: this.$translation,
       }),
       track: new DataType({
         dataStore: this.#dataStores.data,
         table: trackTable,
         db,
+        translation: this.$translation,
       }),
       preset: new DataType({
         dataStore: this.#dataStores.config,
         table: presetTable,
         db,
+        translation: this.$translation,
       }),
       field: new DataType({
         dataStore: this.#dataStores.config,
         table: fieldTable,
         db,
+        translation: this.$translation,
       }),
       projectSettings: new DataType({
         dataStore: this.#dataStores.config,
         table: projectSettingsTable,
         db: sharedDb,
+        translation: this.$translation,
       }),
       coreOwnership: new DataType({
         dataStore: this.#dataStores.auth,
         table: coreOwnershipTable,
         db,
+        translation: this.$translation,
       }),
       role: new DataType({
         dataStore: this.#dataStores.auth,
         table: roleTable,
         db,
+        translation: this.$translation,
       }),
       deviceInfo: new DataType({
         dataStore: this.#dataStores.config,
         table: deviceInfoTable,
         db,
+        translation: this.$translation,
       }),
       icon: new DataType({
         dataStore: this.#dataStores.config,
         table: iconTable,
         db,
+        translation: this.$translation,
       }),
       translation: new DataType({
         dataStore: this.#dataStores.config,
         table: translationTable,
         db,
+        translation: this.$translation,
       }),
     }
     const identityKeypair = keyManager.getIdentityKeypair()

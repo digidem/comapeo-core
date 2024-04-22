@@ -52,11 +52,13 @@ export class DataType<
     table,
     getPermissions,
     db,
+    translation,
   }: {
     table: TTable
     dataStore: TDataStore
     db: import('drizzle-orm/better-sqlite3').BetterSQLite3Database
     getPermissions?: () => any
+    translation: TranslationApi
   })
 
   get [kTable](): TTable
