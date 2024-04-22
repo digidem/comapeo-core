@@ -17,16 +17,22 @@ test('translation api - put() and get() presets', async (t) => {
   )
 
   const presets = await project.preset.getMany()
-  const presetTranslationsDoc = presets.map((preset) => {
-    const matchingTranslation = presetTranslations.find((translation) => {
-      return translation.message === presetsTranslationMap[preset.name]
+  const presetTranslationsDoc = presets
+    .map((preset) => {
+      const matchingTranslation = presetTranslations.find((translation) => {
+        return translation.message === presetsTranslationMap[preset.name]
+      })
+      if (matchingTranslation)
+        return { docIdRef: preset.docId, ...matchingTranslation }
     })
-    if (matchingTranslation)
-      return { docIdRef: preset.docId, ...matchingTranslation }
-  })
+    .filter(isDefined)
+
+  t.ok(
+    presetTranslationsDoc.length > 0,
+    'at least one preset translation doc exists'
+  )
 
   for (const translationDoc of presetTranslationsDoc) {
-    if (translationDoc == undefined) continue
     const translationDocId = await project.$translation.put(translationDoc)
     const { name: presetName, docId: presetDocId } =
       await project.preset.getByDocId(translationDoc.docIdRef)
@@ -81,16 +87,22 @@ test('translation api - put() and get() fields', async (t) => {
   )
 
   const fields = await project.field.getMany()
-  const fieldTranslationsDoc = fields.map((field) => {
-    const matchingTranslation = fieldTranslations.find((translation) => {
-      return translation.message === fieldsTranslationMap[field.label]
+  const fieldTranslationsDoc = fields
+    .map((field) => {
+      const matchingTranslation = fieldTranslations.find((translation) => {
+        return translation.message === fieldsTranslationMap[field.label]
+      })
+      if (matchingTranslation)
+        return { docIdRef: field.docId, ...matchingTranslation }
     })
-    if (matchingTranslation)
-      return { docIdRef: field.docId, ...matchingTranslation }
-  })
+    .filter(isDefined)
+
+  t.ok(
+    fieldTranslationsDoc.length > 0,
+    'at least one field translation doc exists'
+  )
 
   for (const translationDoc of fieldTranslationsDoc) {
-    if (translationDoc === undefined) continue
     const translationDocId = await project.$translation.put(translationDoc)
     const { label: fieldLabel, docId: fieldDocId } =
       await project.field.getByDocId(translationDoc.docIdRef)
@@ -125,3 +137,12 @@ test('translation api - put() and get() fields', async (t) => {
     )
   }
 })
+
+/**
+ * @template T
+ * @param {undefined | T} value
+ * @returns {value is T}
+ */
+function isDefined(value) {
+  return value !== undefined
+}
