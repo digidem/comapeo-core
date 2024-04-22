@@ -51,7 +51,7 @@ export default class TranslationApi {
   /**
    * @param {import('type-fest').SetOptional<
    * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message'>,
-   * 'fieldRef' | 'regionCode'>} value - We omit the schemaName and message, and we make fieldRef and RegionCode optional
+   * 'fieldRef' | 'regionCode'>} value
    */
   async get(value) {
     const docTypeIsTranslatedToLanguage =
@@ -97,12 +97,13 @@ export default class TranslationApi {
         translatedSchemas
       )
     }
-    translatedSchemas?.add(
+    translatedSchemas.add(
       /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
         doc.schemaNameRef
       )
     )
   }
+  // This should only be used by tests.
   get [ktranslatedLanguageCodeToSchemaNames]() {
     return this.#translatedLanguageCodeToSchemaNames
   }
