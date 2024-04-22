@@ -6,15 +6,39 @@ import { assert, keyToId, noop } from './utils.js'
 import HashMap from './lib/hashmap.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 
+// There are three slightly different invite types:
+//
+// - InviteRpcMessage comes from the protobuf.
+// - InviteInternal adds a locally-generated receive timestamp.
+// - Invite is the externally-facing type.
+
 /**
- * Internally, we typically use the `Invite` type from the protobuf. We also use
- * an external type for public consumers.
- *
  * @internal
- * @typedef {import('./generated/rpc.js').Invite} InviteInternal
+ * @typedef {import('./generated/rpc.js').Invite} InviteRpcMessage
+ */
+
+/**
+ * @internal
+ * @typedef {InviteRpcMessage & { receivedAt: number }} InviteInternal
  */
 
 /** @typedef {import('./types.js').MapBuffers<InviteInternal>} Invite */
+
+/**
+ * @typedef {(
+ *  'accepted' |
+ *  'rejected' |
+ *  'canceled' |
+ *  'accepted other' |
+ *  'connection error' |
+ *  'internal error'
+ * )} InviteRemovalReason
+ */
+
+/**
+ * @internal
+ * @typedef {import('./generated/rpc.js').InviteCancel} InviteCancel
+ */
 
 /**
  * @internal
@@ -127,7 +151,7 @@ class PendingInvites {
 /**
  * @typedef {Object} InviteApiEvents
  * @property {(invite: Invite) => void} invite-received
- * @property {(invite: Invite) => void} invite-removed
+ * @property {(invite: Invite, removalReason: InviteRemovalReason) => void} invite-removed
  */
 
 /**
@@ -153,18 +177,28 @@ export class InviteApi extends TypedEmitter {
 
     this.rpc.on('invite', (...args) => {
       try {
-        this.#handleInvite(...args)
+        this.#handleInviteRpcMessage(...args)
       } catch (err) {
         console.error('Error handling invite', err)
+      }
+    })
+
+    this.rpc.on('invite-cancel', (_peerId, inviteCancel) => {
+      try {
+        this.#handleInviteCancel(inviteCancel)
+      } catch (err) {
+        console.error('Error handling invite cancel', err)
       }
     })
   }
 
   /**
    * @param {string} peerId
-   * @param {InviteInternal} invite
+   * @param {InviteRpcMessage} inviteRpcMessage
    */
-  #handleInvite(peerId, invite) {
+  #handleInviteRpcMessage(peerId, inviteRpcMessage) {
+    const invite = { ...inviteRpcMessage, receivedAt: Date.now() }
+
     const isAlreadyMember = this.#isMember(invite.projectPublicId)
     if (isAlreadyMember) {
       this.rpc
@@ -185,6 +219,26 @@ export class InviteApi extends TypedEmitter {
 
     this.#pendingInvites.add({ peerId, invite, isAccepting: false })
     this.emit('invite-received', internalToExternal(invite))
+  }
+
+  /**
+   * @param {InviteCancel} inviteCancel
+   */
+  #handleInviteCancel(inviteCancel) {
+    const { inviteId } = inviteCancel
+
+    const pendingInvite = this.#pendingInvites.getByInviteId(inviteId)
+    if (!pendingInvite) {
+      return
+    }
+    const { invite, isAccepting } = pendingInvite
+
+    if (isAccepting) {
+      return
+    }
+
+    this.#pendingInvites.deleteByInviteId(inviteId)
+    this.emit('invite-removed', internalToExternal(invite), 'canceled')
   }
 
   /**
@@ -220,9 +274,12 @@ export class InviteApi extends TypedEmitter {
     const { peerId, invite } = pendingInvite
     const { projectName, projectPublicId } = invite
 
-    const removePendingInvite = () => {
+    /** @param {InviteRemovalReason} removalReason */
+    const removePendingInvite = (removalReason) => {
       const didDelete = this.#pendingInvites.deleteByInviteId(inviteId)
-      if (didDelete) this.emit('invite-removed', internalToExternal(invite))
+      if (didDelete) {
+        this.emit('invite-removed', internalToExternal(invite), removalReason)
+      }
     }
 
     // This is probably impossible in the UI, but it's theoretically possible
@@ -238,7 +295,11 @@ export class InviteApi extends TypedEmitter {
             inviteId: pendingInvite.invite.inviteId,
           })
           .catch(noop)
-        this.emit('invite-removed', internalToExternal(pendingInvite.invite))
+        this.emit(
+          'invite-removed',
+          internalToExternal(pendingInvite.invite),
+          'accepted'
+        )
       }
       return
     }
@@ -274,7 +335,7 @@ export class InviteApi extends TypedEmitter {
       })
     } catch (e) {
       projectDetailsAbortController.abort()
-      removePendingInvite()
+      removePendingInvite('connection error')
       throw new Error('Could not accept invite: Peer disconnected')
     }
 
@@ -283,8 +344,7 @@ export class InviteApi extends TypedEmitter {
       assert(details, 'Expected project details')
       await this.#addProject({ ...details, projectName })
     } catch (e) {
-      removePendingInvite()
-      // TODO: Add a reason for the user
+      removePendingInvite('internal error')
       throw new Error('Failed to join project')
     }
 
@@ -305,10 +365,14 @@ export class InviteApi extends TypedEmitter {
           inviteId: pendingInvite.invite.inviteId,
         })
         .catch(noop)
-      this.emit('invite-removed', internalToExternal(pendingInvite.invite))
+      this.emit(
+        'invite-removed',
+        internalToExternal(pendingInvite.invite),
+        'accepted other'
+      )
     }
 
-    this.emit('invite-removed', internalToExternal(invite))
+    this.emit('invite-removed', internalToExternal(invite), 'accepted')
   }
 
   /**
@@ -333,7 +397,7 @@ export class InviteApi extends TypedEmitter {
       .catch(noop)
 
     this.#pendingInvites.deleteByInviteId(inviteId)
-    this.emit('invite-removed', internalToExternal(invite))
+    this.emit('invite-removed', internalToExternal(invite), 'rejected')
   }
 }
 

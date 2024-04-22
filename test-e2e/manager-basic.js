@@ -6,6 +6,7 @@ import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import Fastify from 'fastify'
 import { getExpectedConfig } from './utils.js'
+import { defaultConfigPath } from '../tests/helpers/default-config.js'
 import { kDataTypes } from '../src/mapeo-project.js'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -121,12 +122,10 @@ test('Consistent loading of config', async (t) => {
     dbFolder: ':memory:',
     coreStorage: () => new RAM(),
     fastify: Fastify(),
-    defaultConfigPath: 'config/defaultConfig.mapeoconfig',
+    defaultConfigPath,
   })
 
-  const expectedDefault = await getExpectedConfig(
-    'config/defaultConfig.mapeoconfig'
-  )
+  const expectedDefault = await getExpectedConfig(defaultConfigPath)
   const expectedMinimal = await getExpectedConfig(
     'tests/fixtures/config/completeConfig.zip'
   )
@@ -162,6 +161,44 @@ test('Consistent loading of config', async (t) => {
       st.alike(
         projectIcons.map((icon) => icon.name),
         expectedDefault.icons.map((icon) => icon.name),
+        'project is loading the default icons correctly'
+      )
+    }
+  )
+
+  await t.test(
+    'loading non-default config when creating project',
+    async (st) => {
+      const configPath = 'tests/fixtures/config/completeConfig.zip'
+      const projectId = await manager.createProject({ configPath })
+
+      const project = await manager.getProject(projectId)
+
+      const projectSettings = await project.$getProjectSettings()
+      st.is(
+        projectSettings.defaultPresets?.point.length,
+        expectedMinimal.presets.length,
+        'the default presets loaded is equal to the number of presets in the default config'
+      )
+
+      const projectPresets = await project.preset.getMany()
+      st.alike(
+        projectPresets.map((preset) => preset.name),
+        expectedMinimal.presets.map((preset) => preset.value.name),
+        'project is loading the default presets correctly'
+      )
+
+      const projectFields = await project.field.getMany()
+      st.alike(
+        projectFields.map((field) => field.tagKey),
+        expectedMinimal.fields.map((field) => field.value.tagKey),
+        'project is loading the default fields correctly'
+      )
+
+      const projectIcons = await project[kDataTypes].icon.getMany()
+      st.alike(
+        projectIcons.map((icon) => icon.name),
+        expectedMinimal.icons.map((icon) => icon.name),
         'project is loading the default icons correctly'
       )
     }
@@ -373,7 +410,6 @@ test('Consistent storage folders', async (t) => {
     await project.$getOwnRole()
   }
 
-  // @ts-ignore snapshot() is missing from typedefs
   t.snapshot(storageNames.sort())
 })
 

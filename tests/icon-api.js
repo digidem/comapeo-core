@@ -71,7 +71,8 @@ test('create()', async (t) => {
         return mimeTypeMatches && sizeMatches
       }
 
-      const pixelDensityMatches = v.pixelDensity === expected.pixelDensity
+      const pixelDensityMatches =
+        v.mimeType === 'image/png' && v.pixelDensity === expected.pixelDensity
       return mimeTypeMatches && sizeMatches && pixelDensityMatches
     })
 
@@ -232,11 +233,12 @@ test('getBestVariant() - no variants exist', (t) => {
 })
 
 test('getBestVariant() - specify mimeType', (t) => {
-  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'pixelDensity' | 'size'>} */
-  const common = { pixelDensity: 1, size: 'small' }
+  /** @type {{size:import('../src/icon-api.js').IconVariant['size']}} */
+  const common = { size: 'small' }
 
   const pngVariant = createIconVariant({
     ...common,
+    pixelDensity: 1,
     mimeType: 'image/png',
   })
 
@@ -246,24 +248,26 @@ test('getBestVariant() - specify mimeType', (t) => {
   })
 
   t.test('request mime type with match present', (st) => {
-    /** @type {Array<[import('@mapeo/schema').Icon['variants'][number]['mimeType'], import('@mapeo/schema').Icon['variants'][number]]>} */
+    /** @type {Array<[import('../src/icon-api.js').IconVariant['mimeType'], import('../src/icon-api.js').IconVariant]>} */
     const pairs = [
       ['image/png', pngVariant],
       ['image/svg+xml', svgVariant],
     ]
 
     for (const [mimeType, expectedVariant] of pairs) {
-      const result = getBestVariant([pngVariant, svgVariant], {
+      /** @type {any} */
+      let obj = {
         ...common,
         mimeType,
-      })
+      }
+      if (mimeType === 'image/png') {
+        obj.pixelDensity = 1
+      }
+      const result = getBestVariant([pngVariant, svgVariant], obj)
 
       st.alike(
         result,
-        getBestVariant([pngVariant, svgVariant].reverse(), {
-          ...common,
-          mimeType,
-        }),
+        getBestVariant([pngVariant, svgVariant].reverse(), obj),
         'same result regardless of variants order'
       )
 
@@ -284,6 +288,7 @@ test('getBestVariant() - specify mimeType', (t) => {
     }, 'throws when no match for svg exists')
 
     st.exception(() => {
+      // @ts-expect-error
       getBestVariant([svgVariant], {
         ...common,
         mimeType: 'image/png',
@@ -293,7 +298,7 @@ test('getBestVariant() - specify mimeType', (t) => {
 })
 
 test('getBestVariant() - specify size', (t) => {
-  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'pixelDensity' | 'mimeType'>} */
+  /** @type {Pick<import('../src/icon-api.js').BitmapOpts, 'pixelDensity' | 'mimeType'>} */
   const common = { pixelDensity: 1, mimeType: 'image/png' }
 
   const smallVariant = createIconVariant({
@@ -416,7 +421,7 @@ test('getBestVariant() - specify pixel density', (t) => {
   })
 
   t.test('request pixel density with match present', (st) => {
-    /** @type {Array<[import('@mapeo/schema').Icon['variants'][number]['pixelDensity'], import('@mapeo/schema').Icon['variants'][number]]>} */
+    /** @type {Array<[import('../src/icon-api.js').BitmapOpts['pixelDensity'], import('@mapeo/schema').Icon['variants'][number]]>} */
     const pairs = [
       [1, density1Variant],
       [2, density2Variant],
@@ -518,13 +523,11 @@ test('getBestVariant() - params prioritization', (t) => {
 
   const wantedSizeSvgVariant = createIconVariant({
     mimeType: 'image/svg+xml',
-    pixelDensity: 1,
     size: 'small',
   })
 
   const wantedPixelDensitySvgVariant = createIconVariant({
     mimeType: 'image/svg+xml',
-    pixelDensity: 2,
     size: 'medium',
   })
 
@@ -561,32 +564,6 @@ test('getBestVariant() - params prioritization', (t) => {
   t.alike(result, wantedSizeSvgVariant, 'mime type > size > pixel density')
 })
 
-// TODO: The IconApi doesn't allow creating svg variants with a custom pixel density, so maybe can remove this test?
-test('getBestVariant() - svg requests are not affected by pixel density', (t) => {
-  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'size' | 'mimeType'>} */
-  const common = { size: 'small', mimeType: 'image/svg+xml' }
-
-  const variant1 = createIconVariant({ ...common, pixelDensity: 1 })
-  const variant2 = createIconVariant({ ...common, pixelDensity: 2 })
-  const variant3 = createIconVariant({ ...common, pixelDensity: 3 })
-
-  const result = getBestVariant([variant1, variant2, variant3], {
-    size: 'small',
-    mimeType: 'image/svg+xml',
-  })
-
-  t.alike(
-    result,
-    getBestVariant([variant1, variant2, variant3].reverse(), {
-      mimeType: 'image/svg+xml',
-      size: 'small',
-    }),
-    'same result regardless of variants order'
-  )
-
-  t.alike(result, variant1)
-})
-
 // TODO: Currently fails. Not sure if we'd run into this situation often in reality
 test(
   'getBestVariant - multiple exact matches return deterministic result',
@@ -594,12 +571,10 @@ test(
   (t) => {
     const variantA = createIconVariant({
       size: 'small',
-      pixelDensity: 1,
       mimeType: 'image/svg+xml',
     })
     const variantB = createIconVariant({
       size: 'small',
-      pixelDensity: 1,
       mimeType: 'image/svg+xml',
     })
 
@@ -729,11 +704,7 @@ function createRandomVersionId(index = 0) {
 }
 
 /**
- * @param {object} opts
- * @param {import('@mapeo/schema').Icon['variants'][number]['size']} opts.size
- * @param {import('@mapeo/schema').Icon['variants'][number]['mimeType']} opts.mimeType
- * @param {import('@mapeo/schema').Icon['variants'][number]['pixelDensity']} opts.pixelDensity
- *
+ * @param {import('../src/icon-api.js').BitmapOpts | import('../src/icon-api.js').SvgOpts} opts
  * @returns {import('@mapeo/schema').Icon['variants'][number]}
  */
 function createIconVariant(opts) {

@@ -2,6 +2,7 @@
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
+import { arrayFrom } from 'iterpal'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
@@ -27,7 +28,7 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
 export async function disconnectPeers(managers) {
   await Promise.all(
     managers.map(async (manager) => {
-      return manager.stopLocalPeerDiscovery({ force: true })
+      return manager.stopLocalPeerDiscoveryServer({ force: true })
     })
   )
 }
@@ -38,7 +39,12 @@ export async function disconnectPeers(managers) {
 export function connectPeers(managers, { discovery = true } = {}) {
   if (discovery) {
     for (const manager of managers) {
-      manager.startLocalPeerDiscovery()
+      manager.startLocalPeerDiscoveryServer().then(({ name, port }) => {
+        for (const otherManager of managers) {
+          if (otherManager === manager) continue
+          otherManager.connectPeer({ address: '127.0.0.1', name, port })
+        }
+      })
     }
     return function destroy() {
       return disconnectPeers(managers)
@@ -219,13 +225,7 @@ function getRootKey(seed) {
   }
   return key
 }
-/**
- * Remove undefined properties from an object, to allow deep comparison
- * @param {object} obj
- */
-export function stripUndef(obj) {
-  return JSON.parse(JSON.stringify(obj))
-}
+
 /**
  *
  * @param {number} value
@@ -343,23 +343,10 @@ export function sortBy(arr, key) {
 /** @param {String} path */
 export async function getExpectedConfig(path) {
   const config = await readConfig(path)
-  let presets = []
-  let fields = []
-  let icons = []
-  for (let preset of config.presets()) {
-    presets.push(preset)
-  }
-  for (let field of config.fields()) {
-    fields.push(field)
-  }
-  for await (let icon of config.icons()) {
-    icons.push(icon)
-  }
-
   return {
-    presets,
-    fields,
-    icons,
+    presets: arrayFrom(config.presets()),
+    fields: arrayFrom(config.fields()),
+    icons: await arrayFrom(config.icons()),
   }
 }
 
@@ -373,4 +360,21 @@ export function sortById(docs) {
  */
 export function removeUndefinedFields(object) {
   return JSON.parse(JSON.stringify(object))
+}
+
+export function randomDate() {
+  return new Date(randomNum({ min: 0, max: Date.now() }))
+}
+
+export function randomBool() {
+  return Math.random() >= 0.5
+}
+
+/**
+ * @param {{ min?: number, max?: number, precision?: number }} [options]
+ */
+export function randomNum({ min = 0, max = 1, precision } = {}) {
+  const num = Math.random() * (max - min) + min
+  if (typeof precision === 'undefined') return num
+  return round(num, precision)
 }
