@@ -38,6 +38,7 @@ import {
   LEFT_ROLE_ID,
 } from './roles.js'
 import {
+  assert,
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
