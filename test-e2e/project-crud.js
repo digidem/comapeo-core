@@ -1,7 +1,15 @@
+// @ts-check
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { valueOf } from '../src/utils.js'
-import { createManager, sortById, stripUndef } from './utils.js'
+import {
+  createManager,
+  sortById,
+  removeUndefinedFields,
+  randomBool,
+  randomDate,
+  randomNum,
+} from './utils.js'
 import { round } from './utils.js'
 import { generate } from '@mapeo/mock-data'
 import { setTimeout as delay } from 'timers/promises'
@@ -31,6 +39,13 @@ const fixtures = [
     tagKey: 'foo',
     label: 'my label',
   },
+  {
+    schemaName: 'track',
+    refs: [],
+    tags: {},
+    attachments: [],
+    locations: Array.from({ length: 10 }, trackPositionFixture),
+  },
 ]
 
 /**
@@ -58,6 +73,13 @@ function getUpdateFixture(value) {
         ...value,
         label: randomBytes(10).toString('hex'),
       }
+    case 'track':
+      return {
+        ...value,
+        tags: {
+          foo: 'bar',
+        },
+      }
     default:
       return { ...value }
   }
@@ -79,10 +101,12 @@ test('CRUD operations', async (t) => {
       project[schemaName].on('updated-docs', (docs) => updates.push(...docs))
       let i = 0
       while (i++ < CREATE_COUNT) {
-        const value = valueOf(generate(schemaName)[0])
+        const mocked =
+          // TODO: add tracks to @mapeo/mock-data
+          schemaName === 'track' ? value : valueOf(generate(schemaName)[0])
         writePromises.push(
           // @ts-ignore
-          project[schemaName].create(value)
+          project[schemaName].create(mocked)
         )
       }
       const written = await Promise.all(writePromises)
@@ -115,7 +139,7 @@ test('CRUD operations', async (t) => {
         'return of update() matched return of getByDocId()'
       )
       st.alike(
-        valueOf(stripUndef(updated)),
+        valueOf(removeUndefinedFields(updated)),
         updateValue,
         'expected value is updated'
       )
@@ -128,10 +152,12 @@ test('CRUD operations', async (t) => {
       const project = await manager.getProject(projectId)
       const writePromises = []
       for (let i = 0; i < CREATE_COUNT; i++) {
-        const value = valueOf(generate(schemaName)[0])
+        const mocked =
+          // TODO: add tracks to @mapeo/mock-data
+          schemaName === 'track' ? value : valueOf(generate(schemaName)[0])
         writePromises.push(
           // @ts-ignore
-          project[schemaName].create(value)
+          project[schemaName].create(mocked)
         )
       }
       const written = await Promise.all(writePromises)
@@ -223,8 +249,8 @@ test('CRUD operations', async (t) => {
       const manyValues2 = many2.map((doc) => valueOf(doc))
 
       st.alike(
-        stripUndef(manyValues1),
-        stripUndef(manyValues2),
+        removeUndefinedFields(manyValues1),
+        removeUndefinedFields(manyValues2),
         'expected values returned before closing and after re-opening'
       )
     })
@@ -235,10 +261,12 @@ test('CRUD operations', async (t) => {
       const writePromises = []
       let i = 0
       while (i++ < CREATE_COUNT) {
-        const value = valueOf(generate(schemaName)[0])
+        const mocked =
+          // TODO: add tracks to @mapeo/mock-data
+          schemaName === 'track' ? value : valueOf(generate(schemaName)[0])
         writePromises.push(
           // @ts-ignore
-          project[schemaName].create(value)
+          project[schemaName].create(mocked)
         )
       }
       const written = await Promise.all(writePromises)
@@ -291,3 +319,18 @@ test('CRUD operations', async (t) => {
     })
   }
 })
+
+function trackPositionFixture() {
+  return {
+    timestamp: randomDate().toISOString(),
+    mocked: randomBool(),
+    coords: {
+      latitude: randomNum({ min: -90, max: 90, precision: 6 }),
+      longitude: randomNum({ min: -180, max: 180, precision: 6 }),
+      altitude: randomNum({ min: 0, max: 5000 }),
+      accuracy: randomNum({ min: 0, max: 100, precision: 2 }),
+      heading: randomNum({ min: 0, max: 360, precision: 6 }),
+      speed: randomNum({ min: 0, max: 100, precision: 2 }),
+    },
+  }
+}

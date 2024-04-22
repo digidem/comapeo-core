@@ -20,6 +20,7 @@ import {
   deviceInfoTable,
   fieldTable,
   observationTable,
+  trackTable,
   presetTable,
   roleTable,
   iconTable,
@@ -149,6 +150,7 @@ export class MapeoProject extends TypedEmitter {
     const indexWriter = new IndexWriter({
       tables: [
         observationTable,
+        trackTable,
         presetTable,
         fieldTable,
         coreOwnershipTable,
@@ -198,6 +200,11 @@ export class MapeoProject extends TypedEmitter {
       observation: new DataType({
         dataStore: this.#dataStores.data,
         table: observationTable,
+        db,
+      }),
+      track: new DataType({
+        dataStore: this.#dataStores.data,
+        table: trackTable,
         db,
       }),
       preset: new DataType({
@@ -433,6 +440,9 @@ export class MapeoProject extends TypedEmitter {
   get observation() {
     return this.#dataTypes.observation
   }
+  get track() {
+    return this.#dataTypes.track
+  }
   get preset() {
     return this.#dataTypes.preset
   }
@@ -524,7 +534,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {Pick<import('@mapeo/schema').DeviceInfoValue, 'name'>} value
+   * @param {Pick<import('@mapeo/schema').DeviceInfoValue, 'name' | 'deviceType'>} value
    * @returns {Promise<import('@mapeo/schema').DeviceInfo>}
    */
   async [kSetOwnDeviceInfo](value) {
@@ -534,20 +544,20 @@ export class MapeoProject extends TypedEmitter {
       .getWriterCore('config')
       .key.toString('hex')
 
+    const doc = {
+      name: value.name,
+      deviceType: value.deviceType,
+      schemaName: /** @type {const} */ ('deviceInfo'),
+    }
+
     let existingDoc
     try {
       existingDoc = await deviceInfo.getByDocId(configCoreId)
     } catch (err) {
-      return await deviceInfo[kCreateWithDocId](configCoreId, {
-        ...value,
-        schemaName: 'deviceInfo',
-      })
+      return await deviceInfo[kCreateWithDocId](configCoreId, doc)
     }
 
-    return deviceInfo.update(existingDoc.versionId, {
-      ...value,
-      schemaName: 'deviceInfo',
-    })
+    return deviceInfo.update(existingDoc.versionId, doc)
   }
 
   /**
@@ -568,20 +578,20 @@ export class MapeoProject extends TypedEmitter {
       throw new Error('Cannot leave a project as a blocked device')
     }
 
-    const knownDevices = Object.keys(await this.#roles.getAll())
-    const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
-      this.#projectId
-    )
+    const allRoles = await this.#roles.getAll()
 
     // 1.2 Check that we are not the only device in the project
-    if (knownDevices.length === 1) {
+    if (allRoles.size <= 1) {
       throw new Error('Cannot leave a project as the only device')
     }
 
     // 1.3 Check if there are other known devices that are either the project creator or a coordinator
+    const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
+      this.#projectId
+    )
     let otherCreatorOrCoordinatorExists = false
 
-    for (const deviceId of knownDevices) {
+    for (const deviceId of allRoles.keys()) {
       // Skip self (see 1.1 and 1.2 for relevant checks)
       if (deviceId === this.#deviceId) continue
 
@@ -721,8 +731,8 @@ function extractEditableProjectSettings(projectDoc) {
 /** @param {DataType<any,any,any,any,any>} dataType */
 async function deleteAll(dataType) {
   const deletions = []
-  for (const { versionId } of await dataType.getMany()) {
-    deletions.push(dataType.delete(versionId))
+  for (const { docId } of await dataType.getMany()) {
+    deletions.push(dataType.delete(docId))
   }
   return Promise.all(deletions)
 }

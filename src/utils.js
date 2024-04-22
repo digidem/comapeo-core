@@ -38,14 +38,6 @@ export function parseVersion(version) {
   }
 }
 
-/**
- * Truncate a key or id to a string with a given length with a default of 3 characters.
- * @param {String|Buffer} keyOrId
- */
-export function truncateId(keyOrId, length = 3) {
-  return keyToId(keyOrId).slice(0, length)
-}
-
 /** @typedef {import('@hyperswarm/secret-stream')<any>} NoiseStream */
 /** @typedef {NoiseStream & { destroyed: true }} DestroyedNoiseStream */
 /**
@@ -66,8 +58,21 @@ export async function openedNoiseSecretStream(stream) {
   return /** @type {OpenedNoiseStream | DestroyedNoiseStream} */ (stream)
 }
 
+export class ExhaustivenessError extends Error {
+  /** @param {never} value */
+  constructor(value) {
+    super(`Exhaustiveness check failed. ${value} should be impossible`)
+    this.name = 'ExhaustivenessError'
+  }
+}
+
 /**
- * @param {boolean} condition
+ * @returns {void}
+ */
+export function noop() {}
+
+/**
+ * @param {unknown} condition
  * @param {string} message
  * @returns {asserts condition}
  */

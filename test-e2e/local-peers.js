@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'brittle'
 import {
   connectPeers,
@@ -13,14 +14,9 @@ test('Local peers discovery each other and share device info', async (t) => {
   connectPeers(managers, { discovery: true })
   t.teardown(() => disconnectPeers(managers))
   await waitForPeers(managers, { waitForDeviceInfo: true })
-  const deviceInfos = [
-    ...(await Promise.all(mobileManagers.map((m) => m.getDeviceInfo()))).map(
-      (deviceInfo) => ({ ...deviceInfo, deviceType: 'mobile' })
-    ),
-    ...(await Promise.all(desktopManagers.map((m) => m.getDeviceInfo()))).map(
-      (deviceInfo) => ({ ...deviceInfo, deviceType: 'desktop' })
-    ),
-  ]
+  const deviceInfos = [...mobileManagers, ...desktopManagers].map((m) =>
+    m.getDeviceInfo()
+  )
   const mPeers = await Promise.all(managers.map((m) => m.listLocalPeers()))
   for (const [i, peers] of mPeers.entries()) {
     const expectedDeviceInfos = removeElementAt(deviceInfos, i)
@@ -38,8 +34,10 @@ test('Local peers discovery each other and share device info', async (t) => {
 })
 
 /**
- * @param {any[]} array
+ * @template T
+ * @param {ReadonlyArray<T>} array
  * @param {number} i
+ * @returns {Array<T>}
  */
 function removeElementAt(array, i) {
   return array.slice(0, i).concat(array.slice(i + 1))

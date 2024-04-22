@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'brittle'
 
 import {
@@ -143,6 +144,8 @@ test('Creator can leave project if another coordinator exists', async (t) => {
     'creator successfully added from creator perspective'
   )
 
+  await waitForSync(projects, 'initial')
+
   await creator.leaveProject(projectId)
 
   t.alike(
@@ -193,6 +196,8 @@ test('Member can leave project if creator exists', async (t) => {
     await memberProject.$member.getById(creator.deviceId),
     'creator successfully added from member perspective'
   )
+
+  await waitForSync(projects, 'initial')
 
   await member.leaveProject(projectId)
 

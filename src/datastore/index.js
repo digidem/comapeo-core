@@ -28,8 +28,15 @@ import { createMap } from '../utils.js'
  */
 
 const NAMESPACE_SCHEMAS = /** @type {const} */ ({
-  data: ['observation'],
-  config: ['preset', 'field', 'projectSettings', 'deviceInfo', 'icon'],
+  data: ['observation', 'track'],
+  config: [
+    'translation',
+    'preset',
+    'field',
+    'projectSettings',
+    'deviceInfo',
+    'icon',
+  ],
   auth: ['coreOwnership', 'role'],
 })
 

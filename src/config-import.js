@@ -1,6 +1,7 @@
 import yauzl from 'yauzl-promise'
 import { validate, valueSchemas } from '@mapeo/schema'
 import { json, buffer } from 'node:stream/consumers'
+import { assert } from './utils.js'
 import path from 'node:path'
 
 // Throw error if a zipfile contains more than 10,000 entries
@@ -26,27 +27,14 @@ const MAX_ICON_SIZE = 10_000_000
 export async function readConfig(configPath) {
   /** @type {Error[]} */
   const warnings = []
-  /** @type {yauzl.ZipFile} */
-  let iconsZip
 
-  const presetsZip = await yauzl.open(configPath)
-  if (presetsZip.entryCount > MAX_ENTRIES) {
+  const zip = await yauzl.open(configPath)
+  if (zip.entryCount > MAX_ENTRIES) {
     // MAX_ENTRIES in MAC can be inacurrate
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
-  /** @type {undefined | Entry} */
-  let presetsEntry
-  for await (const entry of presetsZip) {
-    if (entry.filename === 'presets.json') {
-      presetsEntry = entry
-      break
-    }
-  }
-  if (!presetsEntry) {
-    throw new Error('Zip file does not contain presets.json')
-  }
-  const presetsFile = await json(await presetsEntry.openReadStream())
-  validatePresetsFile(presetsFile)
+  const entries = await zip.readEntries(MAX_ENTRIES)
+  const presetsFile = await findPresetsFile(entries)
 
   return {
     get warnings() {
@@ -54,8 +42,7 @@ export async function readConfig(configPath) {
     },
 
     async close() {
-      presetsZip.close()
-      iconsZip.close()
+      zip.close()
     },
 
     /**
@@ -65,10 +52,14 @@ export async function readConfig(configPath) {
       /** @type {IconData | undefined} */
       let icon
 
-      iconsZip = await yauzl.open(configPath)
-      const entries = await iconsZip.readEntries(MAX_ENTRIES)
-      for (const entry of entries) {
-        if (!entry.filename.match(/^icons\/([^/]+)$/)) continue
+      // we sort the icons by filename so we can group variants together
+      const iconEntries = entries
+        .filter((entry) => entry.filename.match(/^icons\/([^/]+)$/))
+        .sort((icon, nextIcon) =>
+          icon.filename.localeCompare(nextIcon.filename)
+        )
+
+      for (const entry of iconEntries) {
         if (entry.uncompressedSize > MAX_ICON_SIZE) {
           warnings.push(
             new Error(
@@ -81,14 +72,17 @@ export async function readConfig(configPath) {
         const iconFilename = entry.filename.replace(/^icons\//, '')
         try {
           const { name, variant } = parseIcon(iconFilename, buf)
+          // new icon (first pass)
           if (!icon) {
             icon = {
               name,
               variants: [variant],
             }
+            // icon already exists, push new variant
           } else if (icon.name === name) {
             icon.variants.push(variant)
           } else {
+            // icon has change
             yield icon
             icon = {
               name,
@@ -96,7 +90,11 @@ export async function readConfig(configPath) {
             }
           }
         } catch (err) {
-          warnings.push(err)
+          warnings.push(
+            err instanceof Error
+              ? err
+              : new Error('Unknown error importing icon')
+          )
         }
       }
       if (icon) {
@@ -110,14 +108,13 @@ export async function readConfig(configPath) {
     *fields() {
       const { fields } = presetsFile
       for (const [name, field] of Object.entries(fields)) {
-        if (!isRecord(field) || !hasOwn(field, 'key')) {
+        if (!isRecord(field)) {
           warnings.push(new Error(`Invalid field ${name}`))
           continue
         }
         /** @type {Record<string, unknown>} */
         const fieldValue = {
           schemaName: 'field',
-          tagKey: field.key,
         }
         for (const key of Object.keys(valueSchemas.field.properties)) {
           if (hasOwn(field, key)) {
@@ -193,6 +190,32 @@ export async function readConfig(configPath) {
 }
 
 /**
+ * @param {ReadonlyArray<Entry>} entries
+ * @rejects if the presets file cannot be found or is invalid
+ * @returns {Promise<PresetsFile>}
+ */
+async function findPresetsFile(entries) {
+  const presetsEntry = entries.find(
+    (entry) => entry.filename === 'presets.json'
+  )
+  assert(presetsEntry, 'Zip file does not contain presets.json')
+
+  /** @type {unknown} */
+  let result
+  try {
+    result = await json(await presetsEntry.openReadStream())
+  } catch (err) {
+    throw new Error('Could not parse presets.json')
+  }
+
+  assert(isRecord(result), 'Invalid presets.json file')
+  const { presets, fields } = result
+  assert(isRecord(presets) && isRecord(fields), 'Invalid presets.json file')
+
+  return { presets, fields }
+}
+
+/**
  * @param {string} filename
  * @param {Buffer} buf
  * @returns {{ name: string, variant: IconData['variants'][Number] }}}
@@ -237,20 +260,6 @@ function parseIcon(filename, buf) {
       pixelDensity,
       blob: buf,
     },
-  }
-}
-
-/**
- * @param {unknown} presetsFile
- * @returns {asserts presetsFile is PresetsFile}
- */
-function validatePresetsFile(presetsFile) {
-  if (
-    !isRecord(presetsFile) ||
-    !isRecord(presetsFile.presets) ||
-    !isRecord(presetsFile.fields)
-  ) {
-    throw new Error('Invalid presets.json file')
   }
 }
 

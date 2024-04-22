@@ -2,7 +2,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
 import assert from 'node:assert'
-import { placeholder, eq } from 'drizzle-orm'
+import { sql, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import Hypercore from 'hypercore'
 
@@ -100,14 +100,14 @@ export class CoreManager extends TypedEmitter {
       addCore: db
         .insert(coresTable)
         .values({
-          publicKey: placeholder('publicKey'),
-          namespace: placeholder('namespace'),
+          publicKey: sql.placeholder('publicKey'),
+          namespace: sql.placeholder('namespace'),
         })
         .onConflictDoNothing()
         .prepare(),
       removeCores: db
         .delete(coresTable)
-        .where(eq(coresTable.namespace, placeholder('namespace')))
+        .where(eq(coresTable.namespace, sql.placeholder('namespace')))
         .prepare(),
     }
 
@@ -137,10 +137,8 @@ export class CoreManager extends TypedEmitter {
       }
     }
 
-    if (!this.#creatorCore) {
-      // For anyone other than the project creator, creatorCore is readonly
-      this.#creatorCore = this.#addCore({ publicKey: projectKey }, 'auth').core
-    }
+    // For anyone other than the project creator, creatorCore is readonly
+    this.#creatorCore ??= this.#addCore({ publicKey: projectKey }, 'auth').core
 
     // Load persisted cores
     const rows = db.select().from(coresTable).all()
@@ -437,7 +435,6 @@ export class CoreManager extends TypedEmitter {
     for (const { core, namespace } of this.#coreIndex) {
       // We want ready() rather than update() because we are only interested in local data
       await core.ready()
-      if (core.length === 0) continue
       const { discoveryKey } = core
       // This will always be defined after ready(), but need to let TS know
       if (!discoveryKey) continue

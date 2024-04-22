@@ -43,6 +43,8 @@ export class BlobStore {
    * @param {import('../core-manager/index.js').CoreManager} options.coreManager
    */
   constructor({ coreManager }) {
+    /** @type {undefined | (Hyperdrive & { key: Buffer })} */
+    let writer
     const corestore = new PretendCorestore({ coreManager })
     const blobIndexCores = coreManager.getCores('blobIndex')
     const { key: writerKey } = coreManager.getWriterCore('blobIndex')
@@ -52,9 +54,14 @@ export class BlobStore {
       // We use the discovery key to derive the id for a drive
       this.#hyperdrives.set(getDiscoveryId(key), drive)
       if (key.equals(writerKey)) {
-        this.#writer = proxyProps(drive, { key: writerKey })
+        writer = proxyProps(drive, { key: writerKey })
       }
     }
+    if (!writer) {
+      throw new Error('Could not find a writer for the blobIndex namespace')
+    }
+    this.#writer = writer
+
     coreManager.on('add-core', ({ key, namespace }) => {
       if (namespace !== 'blobIndex') return
       // We use the discovery key to derive the id for a drive
@@ -65,9 +72,6 @@ export class BlobStore {
       this.#hyperdrives.set(driveId, drive)
       this.#driveEmitter.emit('add-drive', drive)
     })
-    // This shouldn't happen, but this check ensures this.#writer is typed to exist
-    if (!this.#writer)
-      throw new Error('Could not find a writer for the blobIndex namespace')
   }
 
   get writerDriveId() {

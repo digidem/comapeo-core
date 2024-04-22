@@ -2,6 +2,7 @@
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
+import { arrayFrom } from 'iterpal'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
@@ -13,6 +14,7 @@ import { temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
+import { readConfig } from '../src/config-import.js'
 
 const FAST_TESTS = !!process.env.FAST_TESTS
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -26,7 +28,7 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
 export async function disconnectPeers(managers) {
   await Promise.all(
     managers.map(async (manager) => {
-      return manager.stopLocalPeerDiscovery({ force: true })
+      return manager.stopLocalPeerDiscoveryServer({ force: true })
     })
   )
 }
@@ -37,7 +39,12 @@ export async function disconnectPeers(managers) {
 export function connectPeers(managers, { discovery = true } = {}) {
   if (discovery) {
     for (const manager of managers) {
-      manager.startLocalPeerDiscovery()
+      manager.startLocalPeerDiscoveryServer().then(({ name, port }) => {
+        for (const otherManager of managers) {
+          if (otherManager === manager) continue
+          otherManager.connectPeer({ address: '127.0.0.1', name, port })
+        }
+      })
     }
     return function destroy() {
       return disconnectPeers(managers)
@@ -104,8 +111,8 @@ export async function invite({
     promises.push(
       once(invitee.invite, 'invite-received').then(([invite]) => {
         return reject
-          ? invitee.invite.reject(invite.projectId)
-          : invitee.invite.accept(invite.projectId)
+          ? invitee.invite.reject(invite)
+          : invitee.invite.accept(invite)
       })
     )
   }
@@ -118,50 +125,37 @@ export async function invite({
  *
  * @param {readonly MapeoManager[]} managers
  * @param {{ waitForDeviceInfo?: boolean }} [opts] Optionally wait for device names to be set
+ * @returns {Promise<void>}
  */
-export async function waitForPeers(
-  managers,
-  { waitForDeviceInfo = false } = {}
-) {
-  const peerCounts = managers.map((manager) => {
-    return manager[kRPC].peers.filter(({ status }) => status === 'connected')
-      .length
-  })
-  const peersHaveNames = managers.map((manager) => {
-    return manager[kRPC].peers.every(({ name }) => !!name)
-  })
-  const expectedCount = managers.length - 1
-  return new Promise((res) => {
-    if (
-      peerCounts.every((v) => v === expectedCount) &&
-      (!waitForDeviceInfo || peersHaveNames.every((v) => v))
-    ) {
-      return res(null)
-    }
-    for (const [idx, manager] of managers.entries()) {
-      manager.on('local-peers', function onPeers(peers) {
-        const connectedPeerCount = peers.filter(
+export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
+  new Promise((res) => {
+    const expectedCount = managers.length - 1
+    const isDone = () =>
+      managers.every((manager) => {
+        const { peers } = manager[kRPC]
+        const connectedPeers = peers.filter(
           ({ status }) => status === 'connected'
-        ).length
-        const allHaveNames = peers.every(({ name }) => !!name)
-        peerCounts[idx] = connectedPeerCount
-        peersHaveNames[idx] = allHaveNames
-        if (
-          connectedPeerCount === expectedCount &&
-          (!waitForDeviceInfo || allHaveNames)
-        ) {
-          manager.off('local-peers', onPeers)
-        }
-        if (
-          peerCounts.every((v) => v === expectedCount) &&
-          (!waitForDeviceInfo || peersHaveNames.every((v) => v))
-        ) {
-          res(null)
-        }
+        )
+        return (
+          connectedPeers.length === expectedCount &&
+          (!waitForDeviceInfo || connectedPeers.every(({ name }) => !!name))
+        )
       })
+
+    if (isDone()) {
+      res()
+      return
     }
+
+    const onLocalPeers = () => {
+      if (isDone()) {
+        for (const manager of managers) manager.off('local-peers', onLocalPeers)
+        res()
+      }
+    }
+
+    for (const manager of managers) manager.on('local-peers', onLocalPeers)
   })
-}
 
 /**
  * Create `count` manager instances. Each instance has a deterministic identity
@@ -181,7 +175,7 @@ export async function createManagers(count, t, deviceType) {
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
         const manager = createManager(name, t, deviceType)
-        await manager.setDeviceInfo({ name })
+        await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
   )
@@ -231,13 +225,7 @@ function getRootKey(seed) {
   }
   return key
 }
-/**
- * Remove undefined properties from an object, to allow deep comparison
- * @param {object} obj
- */
-export function stripUndef(obj) {
-  return JSON.parse(JSON.stringify(obj))
-}
+
 /**
  *
  * @param {number} value
@@ -256,7 +244,7 @@ export function round(value, decimalPlaces) {
  * @param {'initial' | 'full'} [type]
  */
 async function waitForProjectSync(project, peerIds, type = 'initial') {
-  const state = await project.$sync[kSyncState].getState()
+  const state = project.$sync[kSyncState].getState()
   if (hasPeerIds(state.auth.remoteStates, peerIds)) {
     return project.$sync.waitForSync(type)
   }
@@ -300,9 +288,11 @@ export function waitForSync(projects, type = 'initial') {
 
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
+ * @param {object} [opts]
+ * @param {readonly import('@mapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
  */
-export function seedDatabases(projects) {
-  return Promise.all(projects.map((p) => seedProjectDatabase(p)))
+export function seedDatabases(projects, { schemas = SCHEMAS_TO_SEED } = {}) {
+  return Promise.all(projects.map((p) => seedProjectDatabase(p, { schemas })))
 }
 
 const SCHEMAS_TO_SEED = /** @type {const} */ ([
@@ -313,11 +303,16 @@ const SCHEMAS_TO_SEED = /** @type {const} */ ([
 
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject} project
+ * @param {object} [opts]
+ * @param {readonly import('@mapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
  * @returns {Promise<Array<import('@mapeo/schema').MapeoDoc & { forks: string[] }>>}
  */
-async function seedProjectDatabase(project) {
+async function seedProjectDatabase(
+  project,
+  { schemas = SCHEMAS_TO_SEED } = {}
+) {
   const promises = []
-  for (const schemaName of SCHEMAS_TO_SEED) {
+  for (const schemaName of schemas) {
     const count =
       schemaName === 'observation' ? randomInt(20, 100) : randomInt(0, 10)
     let i = 0
@@ -345,6 +340,16 @@ export function sortBy(arr, key) {
   })
 }
 
+/** @param {String} path */
+export async function getExpectedConfig(path) {
+  const config = await readConfig(path)
+  return {
+    presets: arrayFrom(config.presets()),
+    fields: arrayFrom(config.fields()),
+    icons: await arrayFrom(config.icons()),
+  }
+}
+
 /** @param {import('@mapeo/schema').MapeoDoc[]} docs */
 export function sortById(docs) {
   return sortBy(docs, 'docId')
@@ -355,4 +360,21 @@ export function sortById(docs) {
  */
 export function removeUndefinedFields(object) {
   return JSON.parse(JSON.stringify(object))
+}
+
+export function randomDate() {
+  return new Date(randomNum({ min: 0, max: Date.now() }))
+}
+
+export function randomBool() {
+  return Math.random() >= 0.5
+}
+
+/**
+ * @param {{ min?: number, max?: number, precision?: number }} [options]
+ */
+export function randomNum({ min = 0, max = 1, precision } = {}) {
+  const num = Math.random() * (max - min) + min
+  if (typeof precision === 'undefined') return num
+  return round(num, precision)
 }

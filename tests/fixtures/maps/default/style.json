@@ -1,0 +1,70 @@
+{
+  "version": 8,
+  "name": "Satellite",
+  "metadata": {
+    "mapbox:autocomposite": true,
+    "mapbox:type": "default"
+  },
+  "sources": {
+    "mapbox": {
+      "attribution": "<a href=\"https://www.mapbox.com/about/maps/\" target=\"_blank\">&copy; Mapbox</a> <a href=\"http://www.openstreetmap.org/about/\" target=\"_blank\">&copy; OpenStreetMap</a> <a class=\"mapbox-improve-map\" href=\"https://www.mapbox.com/map-feedback/\" target=\"_blank\">Improve this map</a> <a href=\"https://www.digitalglobe.com/\" target=\"_blank\">&copy; DigitalGlobe</a>",
+      "autoscale": true,
+      "bounds": [
+        -122.339973,
+        37.742214,
+        -122.150116,
+        37.856694
+      ],
+      "cacheControl": "max-age=43200,s-maxage=604800",
+      "center": [
+        0,
+        0,
+        3
+      ],
+      "created": 1358310600000,
+      "description": "",
+      "id": "mapbox.satellite",
+      "mapbox_logo": true,
+      "maxzoom": 22,
+      "minzoom": 0,
+      "modified": 1446150592060,
+      "name": "Mapbox Satellite",
+      "private": false,
+      "scheme": "xyz",
+      "tilejson": "2.2.0",
+      "tiles": [
+        "{host}/tiles/mapbox.satellite/{z}/{x}/{y}.png"
+      ],
+      "webpage": "https://a.tiles.mapbox.com/v4/mapbox.satellite/page.html?access_token=pk.eyJ1IjoiZ21hY2xlbm5hbiIsImEiOiJSaWVtd2lRIn0.ASYMZE2HhwkAw4Vt7SavEg",
+      "type": "raster"
+    }
+  },
+  "sprite": "{host}/sprites/sprite",
+  "glyphs": "{host}/fonts/{fontstack}/{range}.pbf",
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "rgb(4,7,14)"
+      }
+    },
+    {
+      "id": "satellite",
+      "type": "raster",
+      "source": "mapbox",
+      "source-layer": "mapbox_satellite_full"
+    }
+  ],
+  "created": 0,
+  "modified": 0,
+  "owner": "mapbox",
+  "id": "satellite-v9",
+  "draft": false,
+  "visibility": "public",
+  "zoom": 6,
+  "center": [
+    -122.2450445,
+    37.799454
+  ]
+}

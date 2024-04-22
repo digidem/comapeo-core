@@ -1,9 +1,9 @@
 // @ts-check
 import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
-import { eq, inArray, placeholder } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
-import { deNullify } from '../utils.js'
+import { noop, deNullify } from '../utils.js'
 import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
@@ -112,7 +112,7 @@ export class DataType extends TypedEmitter {
       getByDocId: db
         .select()
         .from(table)
-        .where(eq(table.docId, placeholder('docId')))
+        .where(eq(table.docId, sql.placeholder('docId')))
         .prepare(),
       getMany: db
         .select()
@@ -305,12 +305,17 @@ export class DataType extends TypedEmitter {
     return this.getByDocId(docId)
   }
 
-  /**
-   * @param {Parameters<import('drizzle-orm/better-sqlite3').BetterSQLite3Database['select']>[0]} fields
-   */
-  async [kSelect](fields) {
+  async [kSelect]() {
     await this.#dataStore.indexer.idle()
-    return this.#db.select(fields).from(this.#table)
+    const result = this.#db.select().from(this.#table)
+    // [The result of `from()` is awaitable.][0] We don't want this because we
+    // want to be able to await the result of this method and then call
+    // `.where()` on the result.
+    //
+    // As a workaround, we remove promise methods from the result.
+    //
+    // [0]: https://github.com/drizzle-team/drizzle-orm/commit/c063144dc08726cc15323582fe377210329e579e
+    return removePromiseMethods(result)
   }
 
   /**
@@ -358,8 +363,6 @@ export class DataType extends TypedEmitter {
   }
 }
 
-function noop() {}
-
 /**
  * @typedef {Map<TranslationRow['fieldRef'], Map<TranslationRow['regionCode'], TranslationRow>>} TranslationIndex
  */
@@ -382,4 +385,16 @@ function indexTranslations(translations) {
     byRegionCode.set(t.regionCode, t)
   }
   return index
+}
+/**
+ * @template {object} T
+ * @param {T} value
+ * @returns {Omit<T, 'then' | 'catch' | 'finally'> & { then?: undefined, catch?: undefined, finally?: undefined }}
+ */
+function removePromiseMethods(value) {
+  return Object.create(value, {
+    then: { value: undefined },
+    catch: { value: undefined },
+    finally: { value: undefined },
+  })
 }

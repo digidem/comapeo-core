@@ -1,4 +1,7 @@
+// @ts-check
 import { test } from 'brittle'
+import { size } from 'iterpal'
+import { defaultConfigPath } from './helpers/default-config.js'
 import { readConfig } from '../src/config-import.js'
 
 test('config import - loading', async (t) => {
@@ -27,10 +30,10 @@ test('config import - loading', async (t) => {
     'missing presets.json'
   )
 
-  await t.exception.all(
+  await t.exception(
     async () =>
       await readConfig('./tests/fixtures/config/invalidPresetsJSON.zip'),
-    /SyntaxError: Unexpected string in JSON/,
+    /Error: Could not parse presets.json/,
     'JSON.parse error of presets.json'
   )
 
@@ -130,18 +133,17 @@ test('config import - icons', async (t) => {
   )
 
   config = await readConfig('./tests/fixtures/config/validIcons.zip')
+  t.plan(15) // 2 icon assertions + (3+9) variant assertions + 1 no warnings
   for await (const icon of config.icons()) {
-    t.is(icon.name, 'plant', 'icon name is `plant`')
-    t.is(
-      icon.variants.length,
-      9,
-      '9 variants of icons (dot product of density and size)'
-    )
+    if (icon.name === 'plant') {
+      t.is(icon.variants.length, 3, '3 variants of plant icons')
+    } else if (icon.name === 'tree') {
+      t.is(icon.variants.length, 9, '9 - all - variants of tree icons')
+    }
     for (let variant of icon.variants) {
       t.is(variant.mimeType, 'image/png', 'variant is a png')
     }
   }
-
   t.is(config.warnings.length, 0, 'no warnings on the file')
 })
 
@@ -185,7 +187,7 @@ test('config import - presets', async (t) => {
   let config = await readConfig('./tests/fixtures/config/invalidPreset.zip')
 
   /* eslint-disable-next-line */
-  for (const field of config.presets()) {
+  for (const preset of config.presets()) {
   }
   t.is(config.warnings.length, 2, 'we got two errors when reading presets')
   t.not(
@@ -208,4 +210,28 @@ test('config import - presets', async (t) => {
     )
   }
   t.is(config.warnings.length, 0, `no warnings on the file`)
+})
+
+test('config import - load default config', async (t) => {
+  const config = await readConfig(defaultConfigPath)
+  t.ok(config, 'valid config file')
+
+  t.is(size(config.fields()), 11, 'correct number of fields in default config')
+  let nIcons = 0
+  let nVariants = 0
+  /* eslint-disable-next-line */
+  for await (const icon of config.icons()) {
+    nIcons++
+    nVariants += size(icon.variants)
+  }
+  t.is(nIcons, 26, 'correct number of icons in default config')
+  t.is(nVariants, 234, 'correct number of icon variants in default config')
+
+  t.is(
+    size(config.presets()),
+    28,
+    'correct number of presets in default config'
+  )
+
+  t.is(config.warnings.length, 0, 'no warnings on config file')
 })
