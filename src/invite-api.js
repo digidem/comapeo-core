@@ -261,7 +261,7 @@ export class InviteApi extends TypedEmitter {
    * part of this project.
    *
    * @param {Pick<Invite, 'inviteId'>} invite
-   * @returns {Promise<void>}
+   * @returns {Promise<string>}
    */
   async accept({ inviteId: inviteIdString }) {
     const inviteId = Buffer.from(inviteIdString, 'hex')
@@ -301,7 +301,7 @@ export class InviteApi extends TypedEmitter {
           'accepted'
         )
       }
-      return
+      return projectPublicId
     }
 
     assert(
@@ -373,6 +373,8 @@ export class InviteApi extends TypedEmitter {
     }
 
     this.emit('invite-removed', internalToExternal(invite), 'accepted')
+
+    return projectPublicId
   }
 
   /**
