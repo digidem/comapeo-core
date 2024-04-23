@@ -3,6 +3,8 @@ import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
 import { arrayFrom } from 'iterpal'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
@@ -181,6 +183,40 @@ export async function createManagers(count, t, deviceType) {
         return manager
       })
   )
+}
+
+/**
+ * @param {string} seed
+ * @param {string} storagePath
+ * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
+ */
+export async function createPersistentProject(seed, storagePath, deviceType) {
+  if (storagePath && !existsSync(storagePath)) {
+    await fsPromises.mkdir(storagePath)
+  }
+  const dbFolder = storagePath
+  const coreStorage = storagePath
+  const manager = new MapeoManager({
+    rootKey: getRootKey(seed),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder,
+    coreStorage,
+    fastify: Fastify(),
+    deviceType,
+  })
+  const projectKeyPath = resolve(storagePath, 'projectId')
+  let projectId
+  let project
+  if (!existsSync(projectKeyPath)) {
+    projectId = await manager.createProject()
+    await fsPromises.writeFile(projectKeyPath, projectId)
+    project = manager.getProject(projectId)
+  } else {
+    projectId = (await fsPromises.readFile(projectKeyPath)).toString()
+    project = await manager.getProject(projectId)
+  }
+  return project
 }
 
 /**
