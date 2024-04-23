@@ -34,7 +34,9 @@ test('translation api - put() and get() presets', async (t) => {
   )
 
   for (const translationDoc of presetTranslationsDoc) {
-    const translationDocId = await project.$translation.put(translationDoc)
+    const { docId: translationDocId } = await project.$translation.put(
+      translationDoc
+    )
     const { name: presetName, docId: presetDocId } =
       await project.preset.getByDocId(translationDoc.docIdRef)
     const expectedTranslations = await project.$translation.get({
@@ -104,7 +106,9 @@ test('translation api - put() and get() fields', async (t) => {
   )
 
   for (const translationDoc of fieldTranslationsDoc) {
-    const translationDocId = await project.$translation.put(translationDoc)
+    const { docId: translationDocId } = await project.$translation.put(
+      translationDoc
+    )
     const { label: fieldLabel, docId: fieldDocId } =
       await project.field.getByDocId(translationDoc.docIdRef)
     const expectedTranslations = await project.$translation.get({
@@ -138,7 +142,7 @@ test('translation api - put() and get() fields', async (t) => {
     )
   }
 })
-test('PERF TEST', { solo: true, timeout: 100_000 }, async (t) => {
+test('PERF TEST', { solo: false, timeout: 100_000 }, async (t) => {
   const [manager] = await createManagers(1, t, 'mobile')
   const randStr = (/** @type {string} */ prefix, /** @type {Number} */ n) =>
     `${prefix}_${randomBytes(n).toString('hex')}`

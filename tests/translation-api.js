@@ -41,7 +41,7 @@ test(`translation api - put() and get()`, async (t) => {
   /* eslint-disable no-unused-vars */
   const { message, ...identifiers } = doc
   const expectedDocId = hashObject(identifiers)
-  const docId = await api.put(doc)
+  const { docId } = await api.put(doc)
   api.index(doc)
 
   t.ok(docId, `putting a translation doc works`)
