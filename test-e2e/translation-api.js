@@ -7,6 +7,7 @@ import {
   presetsTranslationMap,
   presetTranslations,
 } from './fixtures/translations.js'
+import { randomBytes } from 'node:crypto'
 
 test('translation api - put() and get() presets', async (t) => {
   const [manager] = await createManagers(1, t, 'mobile')
@@ -135,6 +136,47 @@ test('translation api - put() and get() fields', async (t) => {
       translationDocId,
       `the docId of added translation for ${expectedTranslations[0].message} matches`
     )
+  }
+})
+test('PERF TEST', { solo: true, timeout: 100_000 }, async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const randStr = (/** @type {string} */ prefix, /** @type {Number} */ n) =>
+    `${prefix}_${randomBytes(n).toString('hex')}`
+  const project = await manager.getProject(
+    await manager.createProject({
+      configPath: defaultConfigPath,
+    })
+  )
+  const docIds = []
+  for (let i = 0; i < 10; i++) {
+    const code = randStr('', 2)
+    var tagKey = randStr('tagKey', 5)
+    const label = randStr('label', 5)
+    const doc = await project.field.create({
+      schemaName: 'field',
+      tagKey,
+      type: 'text',
+      label,
+    })
+    docIds.push(doc.docId)
+
+    await project.$translation.put({
+      schemaName: 'translation',
+      schemaNameRef: 'field',
+      docIdRef: doc.docId,
+      fieldRef: 'label',
+      languageCode: code,
+      regionCode: 'AR',
+      message: 'a',
+    })
+  }
+  for (let i = 0; i < 150_000; i++) {
+    const docId = docIds[i % 10]
+    await project.$translation.get({
+      schemaNameRef: 'field',
+      docIdRef: docId,
+      languageCode: randStr('', 2),
+    })
   }
 })
 

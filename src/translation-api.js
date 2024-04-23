@@ -36,16 +36,16 @@ export default class TranslationApi {
     /* eslint-disable no-unused-vars */
     const { message, ...identifiers } = value
     const docId = hashObject(identifiers)
-    let existing
+    let doc
     try {
-      existing = await this.#dataType.getByDocId(docId)
-      if (existing) {
-        await this.#dataType.update(existing.versionId, value)
+      doc = await this.#dataType.getByDocId(docId)
+      if (doc) {
+        await this.#dataType.update(doc.versionId, value)
       }
     } catch (e) {
-      existing = await this.#dataType[kCreateWithDocId](docId, value)
+      doc = await this.#dataType[kCreateWithDocId](docId, value)
     }
-    return existing.docId
+    return doc
   }
 
   /**
