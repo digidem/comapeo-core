@@ -195,22 +195,25 @@ export async function createManagers(count, t, deviceType) {
  * @param {string | (() => RAM)} [opts.coreStorage]
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [opts.deviceType]
  */
-export function createManager({ seed, t, deviceType, dbFolder, coreStorage }) {
-  const db = dbFolder || (FAST_TESTS ? ':memory:' : temporaryDirectory())
-  const core =
-    coreStorage || (FAST_TESTS ? () => new RAM() : temporaryDirectory())
+export function createManager({
+  seed,
+  t,
+  deviceType,
+  dbFolder = FAST_TESTS ? ':memory:' : temporaryDirectory(),
+  coreStorage = FAST_TESTS ? () => new RAM() : temporaryDirectory(),
+}) {
   t.teardown(async () => {
     if (FAST_TESTS) return
     await Promise.all([
-      fsPromises.rm(db, {
+      fsPromises.rm(dbFolder, {
         recursive: true,
         force: true,
         maxRetries: 2,
       }),
       // @ts-ignore
       () => {
-        if (typeof core === 'string') {
-          fsPromises.rm(core, {
+        if (typeof coreStorage === 'string') {
+          fsPromises.rm(coreStorage, {
             recursive: true,
             force: true,
             maxRetries: 2,
@@ -223,8 +226,8 @@ export function createManager({ seed, t, deviceType, dbFolder, coreStorage }) {
     rootKey: getRootKey(seed),
     projectMigrationsFolder,
     clientMigrationsFolder,
-    dbFolder: db,
-    coreStorage: core,
+    dbFolder,
+    coreStorage,
     fastify: Fastify(),
     deviceType,
   })
