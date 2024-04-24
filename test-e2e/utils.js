@@ -3,8 +3,6 @@ import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
 import { arrayFrom } from 'iterpal'
-import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
@@ -177,75 +175,56 @@ export async function createManagers(count, t, deviceType) {
     Array(count)
       .fill(null)
       .map(async (_, i) => {
-        const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
-        const manager = createManager(name, t, deviceType)
-        await manager.setDeviceInfo({ name, deviceType })
+        const seed = 'device' + i + (deviceType ? `-${deviceType}` : '')
+        const manager = createManager({
+          seed,
+          t,
+          deviceType,
+        })
+        await manager.setDeviceInfo({ name: seed, deviceType })
         return manager
       })
   )
 }
 
 /**
- * @param {string} seed
- * @param {string} storagePath
- * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
+ * @param {Object} opts
+ * @param {string} opts.seed
+ * @param {import('brittle').TestInstance} opts.t
+ * @param {string} [opts.dbFolder]
+ * @param {string | (() => RAM)} [opts.coreStorage]
+ * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [opts.deviceType]
  */
-export async function createPersistentProject(seed, storagePath, deviceType) {
-  if (storagePath && !existsSync(storagePath)) {
-    await fsPromises.mkdir(storagePath)
-  }
-  const dbFolder = storagePath
-  const coreStorage = storagePath
-  const manager = new MapeoManager({
-    rootKey: getRootKey(seed),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder,
-    coreStorage,
-    fastify: Fastify(),
-    deviceType,
-  })
-  const projectKeyPath = resolve(storagePath, 'projectId')
-  let projectId
-  let project
-  if (!existsSync(projectKeyPath)) {
-    projectId = await manager.createProject()
-    await fsPromises.writeFile(projectKeyPath, projectId)
-    project = manager.getProject(projectId)
-  } else {
-    projectId = (await fsPromises.readFile(projectKeyPath)).toString()
-    project = await manager.getProject(projectId)
-  }
-  return project
-}
-
-/**
- * @param {string} seed
- * @param {import('brittle').TestInstance} t
- * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
- */
-export function createManager(seed, t, deviceType) {
-  const dbFolder = FAST_TESTS ? ':memory:' : temporaryDirectory()
-  const coreStorage = FAST_TESTS ? () => new RAM() : temporaryDirectory()
-
+export function createManager({ seed, t, deviceType, dbFolder, coreStorage }) {
+  const db = dbFolder || (FAST_TESTS ? ':memory:' : temporaryDirectory())
+  const core =
+    coreStorage || (FAST_TESTS ? () => new RAM() : temporaryDirectory())
   t.teardown(async () => {
     if (FAST_TESTS) return
     await Promise.all([
-      fsPromises.rm(dbFolder, { recursive: true, force: true, maxRetries: 2 }),
-      // @ts-ignore
-      fsPromises.rm(coreStorage, {
+      fsPromises.rm(db, {
         recursive: true,
         force: true,
         maxRetries: 2,
       }),
+      // @ts-ignore
+      () => {
+        if (typeof core === 'string') {
+          fsPromises.rm(core, {
+            recursive: true,
+            force: true,
+            maxRetries: 2,
+          })
+        }
+      },
     ])
   })
   return new MapeoManager({
     rootKey: getRootKey(seed),
     projectMigrationsFolder,
     clientMigrationsFolder,
-    dbFolder,
-    coreStorage,
+    dbFolder: db,
+    coreStorage: core,
     fastify: Fastify(),
     deviceType,
   })

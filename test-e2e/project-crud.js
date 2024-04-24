@@ -88,7 +88,7 @@ function getUpdateFixture(value) {
 const CREATE_COUNT = 100
 
 test('CRUD operations', async (t) => {
-  const manager = createManager('device0', t)
+  const manager = createManager({ seed: 'device0', t })
 
   for (const value of fixtures) {
     const { schemaName } = value
