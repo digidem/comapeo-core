@@ -45,13 +45,14 @@ export default class TranslationApi {
     let doc
     try {
       doc = await this.#dataType.getByDocId(docId)
-      if (doc) {
-        await this.#dataType.update(doc.versionId, value)
-      }
+      return await this.#dataType.update(doc.versionId, value)
     } catch (e) {
-      doc = await this.#dataType[kCreateWithDocId](docId, value)
+      // @ts-ignore how can this be improved (we can maybe set "useUnknownInCatchVariables": false)
+      if (e.message !== 'Not found')
+        throw new Error(`Error on translation ${e}`)
+      // TODO: throw if the error is different from 'Not found'
+      return await this.#dataType[kCreateWithDocId](docId, value)
     }
-    return doc
   }
 
   /**
