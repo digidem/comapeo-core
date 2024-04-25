@@ -1,5 +1,6 @@
 {
   "entryPoints": ["src/**/*.js", "src/**/*.ts"],
+  "exclude": ["src/generated/*"],
   "out": "docs/api",
   "cleanOutputDir": false,
   "readme": "none",
