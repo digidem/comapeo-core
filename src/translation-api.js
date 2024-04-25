@@ -58,6 +58,7 @@ export default class TranslationApi {
    * @param {import('type-fest').SetOptional<
    * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message'>,
    * 'fieldRef' | 'regionCode'>} value
+   * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
   async get(value) {
     const docTypeIsTranslatedToLanguage =
