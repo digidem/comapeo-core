@@ -1,6 +1,6 @@
 {
-  "entryPoints": ["./index.js", "./src/**/*.js"],
-  "allReflectionsHaveOwnDocument": true,
+  "entryPoints": ["src/**/*.js", "src/**/*.ts"],
+  "out": "docs/api",
   "cleanOutputDir": false,
   "readme": "none",
   "name": "API",
