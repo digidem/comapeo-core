@@ -11,6 +11,8 @@ import { keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
+export const kPause = Symbol('pause')
+export const kResume = Symbol('resume')
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -153,6 +155,22 @@ export class SyncApi extends TypedEmitter {
       peerSyncController.disableDataSync()
     }
     this.emit('sync-state', this.getState())
+  }
+
+  /** @returns {void} */
+  [kPause]() {
+    const peerSyncControllers = this.#peerSyncControllers.values()
+    for (const peerSyncController of peerSyncControllers) {
+      peerSyncController.pause()
+    }
+  }
+
+  /** @returns {void} */
+  [kResume]() {
+    const peerSyncControllers = this.#peerSyncControllers.values()
+    for (const peerSyncController of peerSyncControllers) {
+      peerSyncController.resume()
+    }
   }
 
   /**

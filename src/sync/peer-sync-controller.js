@@ -1,7 +1,7 @@
 import mapObject from 'map-obj'
 import { NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
-import { createMap } from '../utils.js'
+import { ExhaustivenessError, createMap } from '../utils.js'
 
 /**
  * @typedef {import('../core-manager/index.js').Namespace} Namespace
@@ -30,6 +30,8 @@ export class PeerSyncController {
   #prevLocalState = createNamespaceMap(null)
   /** @type {SyncStatus} */
   #syncStatus = createNamespaceMap('unknown')
+  /** @type {Record<Namespace, 'unpaused' | 'pausing' | 'paused'>} */
+  #namespacePauseState = createNamespaceMap('unpaused')
   /** @type {Map<import('hypercore')<'binary', any>, ReturnType<import('hypercore')['download']>>} */
   #downloadingRanges = new Map()
   /** @type {SyncStatus} */
@@ -99,6 +101,59 @@ export class PeerSyncController {
   }
 
   /**
+   * @param {Namespace} ns
+   * @returns {void}
+   */
+  #pauseNamespace(ns) {
+    const previousState = this.#namespacePauseState[ns]
+    switch (previousState) {
+      case 'unpaused':
+      case 'pausing': {
+        const syncStatus = this.#syncStatus[ns]
+        switch (syncStatus) {
+          case 'syncing':
+          case 'unknown':
+            this.#namespacePauseState[ns] = 'pausing'
+            break
+          case 'synced':
+            this.#namespacePauseState[ns] = 'paused'
+            break
+          default:
+            throw new ExhaustivenessError(syncStatus)
+        }
+        break
+      }
+      case 'paused':
+        break
+      default:
+        throw new ExhaustivenessError(previousState)
+    }
+  }
+
+  /**
+   * Mark all namespaces as "paused". This will finish syncing and then close
+   * the namespace's cores.
+   *
+   * @see {@link resume}
+   * @returns {void}
+   */
+  pause() {
+    for (const ns of NAMESPACES) this.#pauseNamespace(ns)
+    this.#updateEnabledNamespaces()
+  }
+
+  /**
+   * Unpause syncing of all namespaces.
+   *
+   * @see {@link pause}
+   * @returns {void}
+   */
+  resume() {
+    this.#namespacePauseState = createNamespaceMap('unpaused')
+    this.#updateEnabledNamespaces()
+  }
+
+  /**
    * @param {Buffer} discoveryKey
    */
   handleDiscoveryKey(discoveryKey) {
@@ -152,6 +207,14 @@ export class PeerSyncController {
     })
     this.#log('state %X', state)
 
+    for (const ns of NAMESPACES) {
+      const syncStatus = this.#syncStatus[ns]
+      const previousPauseState = this.#namespacePauseState[ns]
+      if (previousPauseState === 'pausing' && syncStatus === 'synced') {
+        this.#namespacePauseState[ns] = 'paused'
+      }
+    }
+
     // Map of which namespaces have received new data since last sync change
     const didUpdate = mapObject(state, (ns) => {
       const nsDidSync =
@@ -180,10 +243,7 @@ export class PeerSyncController {
     }
     this.#log('capability %o', this.#syncCapability)
 
-    // If any namespace has new data, update what is enabled
-    if (Object.values(didUpdate).indexOf(true) > -1) {
-      this.#updateEnabledNamespaces()
-    }
+    this.#updateEnabledNamespaces()
   }
 
   #updateEnabledNamespaces() {
@@ -202,6 +262,18 @@ export class PeerSyncController {
           this.#disableNamespace(ns)
         }
       } else if (cap === 'allowed') {
+        const namespacePauseState = this.#namespacePauseState[ns]
+        switch (namespacePauseState) {
+          case 'unpaused':
+          case 'pausing':
+            break
+          case 'paused':
+            this.#disableNamespace(ns)
+            continue
+          default:
+            throw new ExhaustivenessError(namespacePauseState)
+        }
+
         if (PRESYNC_NAMESPACES.includes(ns)) {
           this.#enableNamespace(ns)
         } else if (this.#isDataSyncEnabled) {

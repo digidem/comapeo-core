@@ -160,6 +160,100 @@ test('start and stop sync', async function (t) {
   await disconnect()
 })
 
+test('gracefully shutting down sync for all projects when backgrounded', async function (t) {
+  const managers = await createManagers(2, t)
+  const [invitor, ...invitees] = managers
+
+  const disconnect = connectPeers(managers, { discovery: false })
+  t.teardown(disconnect)
+
+  const projectGroupsAfterFirstStep = await Promise.all(
+    [1, 2, 3].map(async (projectNumber) => {
+      const projectId = await invitor.createProject({
+        name: `Project ${projectNumber}`,
+      })
+
+      await invite({ invitor, invitees, projectId })
+
+      const projects = await Promise.all(
+        managers.map((m) => m.getProject(projectId))
+      )
+      const [invitorProject, inviteeProject] = projects
+
+      const observation1 = await invitorProject.observation.create(
+        valueOf(generate('observation')[0])
+      )
+
+      await t.exception(
+        () => inviteeProject.observation.getByDocId(observation1.docId),
+        'before peers have started sync, doc does not sync'
+      )
+
+      inviteeProject.$sync.start()
+      invitorProject.$sync.start()
+
+      await waitForSync(projects, 'full')
+
+      return { invitorProject, inviteeProject, observation1 }
+    })
+  )
+
+  invitor.onBackgrounded()
+
+  const projectGroupsAfterSecondStep = await Promise.all(
+    projectGroupsAfterFirstStep.map(
+      async ({ invitorProject, inviteeProject, observation1 }) => {
+        t.ok(
+          await inviteeProject.observation.getByDocId(observation1.docId),
+          'invitee receives doc'
+        )
+
+        const observation2 = await invitorProject.observation.create(
+          valueOf(generate('observation')[0])
+        )
+        const observation3 = await inviteeProject.observation.create(
+          valueOf(generate('observation')[0])
+        )
+        await delay(1000)
+        await t.exception(
+          () => inviteeProject.observation.getByDocId(observation2.docId),
+          "invitee doesn't receive second doc yet"
+        )
+        await t.exception(
+          () => invitorProject.observation.getByDocId(observation3.docId),
+          "invitor doesn't receive third doc yet"
+        )
+
+        return { invitorProject, inviteeProject, observation2, observation3 }
+      }
+    )
+  )
+
+  invitor.onForegrounded()
+
+  await Promise.all(
+    projectGroupsAfterSecondStep.map(
+      async ({
+        invitorProject,
+        inviteeProject,
+        observation2,
+        observation3,
+      }) => {
+        await waitForSync([invitorProject, inviteeProject], 'full')
+
+        t.ok(
+          await inviteeProject.observation.getByDocId(observation2.docId),
+          'invitee receives second doc'
+        )
+        t.ok(
+          await invitorProject.observation.getByDocId(observation3.docId),
+          'invitor receives third doc'
+        )
+      }
+    )
+  )
+})
+
 test('shares cores', async function (t) {
   const COUNT = 5
   const managers = await createManagers(COUNT, t)
