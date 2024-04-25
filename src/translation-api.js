@@ -12,6 +12,7 @@ export default class TranslationApi {
   #translatedLanguageCodeToSchemaNames = new Map()
   #dataType
   #table
+  #indexPromise
 
   /**
    * @param {Object} opts
@@ -27,12 +28,19 @@ export default class TranslationApi {
   constructor({ dataType, table }) {
     this.#dataType = dataType
     this.#table = table
-    this.#dataType
+    this.#indexPromise = this.#dataType
       .getMany()
-      .then((docs) => docs.map((doc) => this.index(doc)))
+      .then((docs) => {
+        docs.map((doc) => this.index(doc))
+      })
       .catch((err) => {
         throw new Error(`error loading Translation cache: ${err}`)
       })
+  }
+
+  /** @returns {Promise<void>} */
+  ready() {
+    return this.#indexPromise
   }
 
   /**
@@ -61,6 +69,8 @@ export default class TranslationApi {
    * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
   async get(value) {
+    await this.ready()
+
     const docTypeIsTranslatedToLanguage =
       this.#translatedLanguageCodeToSchemaNames
         .get(value.languageCode)
@@ -90,10 +100,6 @@ export default class TranslationApi {
       .all()
   }
 
-  get cache() {
-    return this.#translatedLanguageCodeToSchemaNames
-  }
-
   /**
    * @param {import('@mapeo/schema').TranslationValue} doc
    */
@@ -114,6 +120,7 @@ export default class TranslationApi {
       )
     )
   }
+
   // This should only be used by tests.
   get [ktranslatedLanguageCodeToSchemaNames]() {
     return this.#translatedLanguageCodeToSchemaNames
