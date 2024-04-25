@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
+import { NotFoundError } from './errors.js'
 
 export const ktranslatedLanguageCodeToSchemaNames = Symbol(
   'translatedLanguageCodeToSchemaNames'
@@ -54,11 +55,11 @@ export default class TranslationApi {
       const doc = await this.#dataType.getByDocId(docId)
       return await this.#dataType.update(doc.versionId, value)
     } catch (e) {
-      // @ts-ignore how can this be improved (we can maybe set "useUnknownInCatchVariables": false)
-      if (e.message !== 'Not found')
+      if (e instanceof NotFoundError) {
+        return await this.#dataType[kCreateWithDocId](docId, value)
+      } else {
         throw new Error(`Error on translation ${e}`)
-      // TODO: throw if the error is different from 'Not found'
-      return await this.#dataType[kCreateWithDocId](docId, value)
+      }
     }
   }
 
