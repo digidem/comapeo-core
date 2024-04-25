@@ -27,13 +27,12 @@ export default class TranslationApi {
   constructor({ dataType, table }) {
     this.#dataType = dataType
     this.#table = table
-    // this.#dataType
-    //   .getMany()
-    //   .then((docs) => docs.map((doc) => this.index(doc)))
-    //   .catch((err) => console.log('OOPS', err))
-    //   .finally(() => {
-    //     console.log(this.#translatedLanguageCodeToSchemaNames)
-    //   })
+    this.#dataType
+      .getMany()
+      .then((docs) => docs.map((doc) => this.index(doc)))
+      .catch((err) => {
+        throw new Error(`error loading Translation cache: ${err}`)
+      })
   }
 
   /**
@@ -88,6 +87,10 @@ export default class TranslationApi {
       .where(and.apply(null, filters))
       .prepare()
       .all()
+  }
+
+  get cache() {
+    return this.#translatedLanguageCodeToSchemaNames
   }
 
   /**

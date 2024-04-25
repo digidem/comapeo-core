@@ -1,5 +1,5 @@
 import { test } from 'brittle'
-import { createManagers } from './utils.js'
+import { createManagers, ManagerCustodian } from './utils.js'
 import { defaultConfigPath } from '../tests/helpers/default-config.js'
 import {
   fieldsTranslationMap,
@@ -142,45 +142,91 @@ test('translation api - put() and get() fields', async (t) => {
   }
 })
 
-// test('PERF TEST', { skip: true, solo: true, timeout: 100_000 }, async (t) => {
-// const randStr = (/** @type {string} */ prefix, /** @type {Number} */ n) =>
-//   `${prefix}_${randomBytes(n).toString('hex')}`
-//   const project = await createPersistentProject(
-//     'mySeed',
-//     '/tmp/mapeotest',
-//     'mobile'
-//   )
-//   const docIds = []
-//   for (let i = 0; i < 10; i++) {
-//     const code = randStr('', 2)
-//     var tagKey = randStr('tagKey', 5)
-//     const label = randStr('label', 5)
-//     const doc = await project.field.create({
-//       schemaName: 'field',
-//       tagKey,
-//       type: 'text',
-//       label,
-//     })
-//     docIds.push(doc.docId)
-//     await project.$translation.put({
-//       schemaName: 'translation',
-//       schemaNameRef: 'field',
-//       docIdRef: doc.docId,
-//       fieldRef: 'label',
-//       languageCode: code,
-//       regionCode: 'AR',
-//       message: 'a',
-//     })
-//   }
-//   for (let i = 0; i < 150_000; i++) {
-//     const docId = docIds[i % 10]
-//     await project.$translation.get({
-//       schemaNameRef: 'field',
-//       docIdRef: docId,
-//       languageCode: randStr('', 2),
-//     })
-//   }
-// })
+test('translation api - Cache', async (t) => {
+  const custodian = new ManagerCustodian(t)
+  const deps = {
+    defaultConfigPath,
+    presetsTranslationMap,
+    presetTranslations,
+    fieldsTranslationMap,
+    fieldTranslations,
+  }
+  const projectId = await custodian.withManagerInSeparateProcess(
+    async (
+      manager1,
+      {
+        defaultConfigPath,
+        presetsTranslationMap,
+        presetTranslations,
+        fieldsTranslationMap,
+        fieldTranslations,
+      }
+    ) => {
+      const projectId = await manager1.createProject({
+        configPath: defaultConfigPath,
+      })
+
+      /**
+       * @template T
+       * @param {undefined | T} value
+       * @returns {value is T}
+       */
+      function isDefined(value) {
+        return value !== undefined
+      }
+
+      const project = await manager1.getProject(projectId)
+
+      // translate presets
+      const presets = await project.preset.getMany()
+      const presetTranslationsDoc = presets
+        .map((preset) => {
+          const matchingTranslation = presetTranslations.find((translation) => {
+            return translation.message === presetsTranslationMap[preset.name]
+          })
+          if (matchingTranslation)
+            return { docIdRef: preset.docId, ...matchingTranslation }
+        })
+        .filter(isDefined)
+      for (const translationDoc of presetTranslationsDoc) {
+        await project.$translation.put(translationDoc)
+      }
+
+      // translate fields
+      const fields = await project.field.getMany()
+      const fieldTranslationsDoc = fields
+        .map((field) => {
+          const matchingTranslation = fieldTranslations.find((translation) => {
+            return translation.message === fieldsTranslationMap[field.label]
+          })
+          if (matchingTranslation)
+            return { docIdRef: field.docId, ...matchingTranslation }
+        })
+        .filter(isDefined)
+      for (const translationDoc of fieldTranslationsDoc) {
+        await project.$translation.put(translationDoc)
+      }
+      return projectId
+    },
+    deps
+  )
+
+  const cache = await custodian.withManagerInSeparateProcess(
+    async (manager2, projectId) => {
+      const project = await manager2.getProject(projectId)
+      await new Promise((r) => setTimeout(r, 500))
+      return project.$translation.cache
+    },
+    projectId
+  )
+  t.is(
+    cache.size,
+    1,
+    'the cache is populated after restarting, and its size is correct'
+  )
+  t.is([...cache.keys()][0], 'es', `the only language code translated is 'es'`)
+  t.is(cache.get('es')?.size, 2, 'only two record types translated')
+})
 
 /**
  * @template T
