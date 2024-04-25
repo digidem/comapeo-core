@@ -42,9 +42,8 @@ export default class TranslationApi {
     /* eslint-disable no-unused-vars */
     const { message, ...identifiers } = value
     const docId = hashObject(identifiers)
-    let doc
     try {
-      doc = await this.#dataType.getByDocId(docId)
+      const doc = await this.#dataType.getByDocId(docId)
       return await this.#dataType.update(doc.versionId, value)
     } catch (e) {
       // @ts-ignore how can this be improved (we can maybe set "useUnknownInCatchVariables": false)
