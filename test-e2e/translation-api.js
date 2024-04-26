@@ -142,7 +142,7 @@ test('translation api - put() and get() fields', async (t) => {
   }
 })
 
-test('translation api - Cache', async (t) => {
+test('translation api - re-loading from disk', async (t) => {
   const custodian = new ManagerCustodian(t)
   const deps = {
     defaultConfigPath,
@@ -151,81 +151,110 @@ test('translation api - Cache', async (t) => {
     fieldsTranslationMap,
     fieldTranslations,
   }
-  const projectId = await custodian.withManagerInSeparateProcess(
-    async (
-      manager1,
+  const { projectId, presetTranslationsDoc, fieldTranslationsDoc } =
+    await custodian.withManagerInSeparateProcess(
+      async (
+        manager1,
+        {
+          defaultConfigPath,
+          presetsTranslationMap,
+          presetTranslations,
+          fieldsTranslationMap,
+          fieldTranslations,
+        }
+      ) => {
+        const projectId = await manager1.createProject({
+          configPath: defaultConfigPath,
+        })
+
+        /**
+         * @template T
+         * @param {undefined | T} value
+         * @returns {value is T}
+         */
+        function isDefined(value) {
+          return value !== undefined
+        }
+
+        const project = await manager1.getProject(projectId)
+
+        // translate presets
+        const presets = await project.preset.getMany()
+        const presetTranslationsDoc = presets
+          .map((preset) => {
+            const matchingTranslation = presetTranslations.find(
+              (translation) => {
+                return (
+                  translation.message === presetsTranslationMap[preset.name]
+                )
+              }
+            )
+            if (matchingTranslation)
+              return { docIdRef: preset.docId, ...matchingTranslation }
+          })
+          .filter(isDefined)
+        for (const translationDoc of presetTranslationsDoc) {
+          await project.$translation.put(translationDoc)
+        }
+
+        // translate fields
+        const fields = await project.field.getMany()
+        const fieldTranslationsDoc = fields
+          .map((field) => {
+            const matchingTranslation = fieldTranslations.find(
+              (translation) => {
+                return translation.message === fieldsTranslationMap[field.label]
+              }
+            )
+            if (matchingTranslation)
+              return { docIdRef: field.docId, ...matchingTranslation }
+          })
+          .filter(isDefined)
+        for (const translationDoc of fieldTranslationsDoc) {
+          await project.$translation.put(translationDoc)
+        }
+
+        return { projectId, presetTranslationsDoc, fieldTranslationsDoc }
+      },
+      deps
+    )
+
+  const hasExpectedNumberOfTranslations =
+    await custodian.withManagerInSeparateProcess(
+      async (
+        manager2,
+        { projectId, presetTranslationsDoc, fieldTranslationsDoc }
+      ) => {
+        const project = await manager2.getProject(projectId)
+
+        for (const { docIdRef } of presetTranslationsDoc) {
+          const translations = await project.$translation.get({
+            docIdRef,
+            schemaNameRef: 'preset',
+            languageCode: 'es',
+          })
+          if (translations.length === 0) return false
+        }
+
+        for (const { docIdRef } of fieldTranslationsDoc) {
+          const translations = await project.$translation.get({
+            docIdRef,
+            schemaNameRef: 'field',
+            languageCode: 'es',
+          })
+          if (translations.length === 0) return false
+        }
+
+        return true
+      },
       {
-        defaultConfigPath,
-        presetsTranslationMap,
-        presetTranslations,
-        fieldsTranslationMap,
-        fieldTranslations,
+        projectId,
+        presetTranslationsDoc,
+        fieldTranslationsDoc,
       }
-    ) => {
-      const projectId = await manager1.createProject({
-        configPath: defaultConfigPath,
-      })
+    )
 
-      /**
-       * @template T
-       * @param {undefined | T} value
-       * @returns {value is T}
-       */
-      function isDefined(value) {
-        return value !== undefined
-      }
-
-      const project = await manager1.getProject(projectId)
-
-      // translate presets
-      const presets = await project.preset.getMany()
-      const presetTranslationsDoc = presets
-        .map((preset) => {
-          const matchingTranslation = presetTranslations.find((translation) => {
-            return translation.message === presetsTranslationMap[preset.name]
-          })
-          if (matchingTranslation)
-            return { docIdRef: preset.docId, ...matchingTranslation }
-        })
-        .filter(isDefined)
-      for (const translationDoc of presetTranslationsDoc) {
-        await project.$translation.put(translationDoc)
-      }
-
-      // translate fields
-      const fields = await project.field.getMany()
-      const fieldTranslationsDoc = fields
-        .map((field) => {
-          const matchingTranslation = fieldTranslations.find((translation) => {
-            return translation.message === fieldsTranslationMap[field.label]
-          })
-          if (matchingTranslation)
-            return { docIdRef: field.docId, ...matchingTranslation }
-        })
-        .filter(isDefined)
-      for (const translationDoc of fieldTranslationsDoc) {
-        await project.$translation.put(translationDoc)
-      }
-      return projectId
-    },
-    deps
-  )
-
-  const cache = await custodian.withManagerInSeparateProcess(
-    async (manager2, projectId) => {
-      const project = await manager2.getProject(projectId)
-      await new Promise((r) => setTimeout(r, 500))
-      return project.$translation.cache
-    },
-    projectId
-  )
-  t.is(
-    cache.size,
-    1,
-    'the cache is populated after restarting, and its size is correct'
-  )
-  t.is([...cache.keys()][0], 'es', `the only language code translated is 'es'`)
-  t.is(cache.get('es')?.size, 2, 'only two record types translated')
+  t.ok(hasExpectedNumberOfTranslations)
 })
 
 /**

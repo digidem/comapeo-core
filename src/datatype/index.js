@@ -4,6 +4,7 @@ import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { noop, deNullify } from '../utils.js'
+import { NotFoundError } from '../errors.js'
 import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
@@ -175,7 +176,7 @@ export class DataType extends TypedEmitter {
   async getByDocId(docId) {
     await this.#dataStore.indexer.idle()
     const result = this.#sql.getByDocId.get({ docId })
-    if (!result) throw new Error('Not found')
+    if (!result) throw new NotFoundError()
     return deNullify(result)
   }
 

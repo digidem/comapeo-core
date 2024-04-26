@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
+import { NotFoundError } from './errors.js'
 
 export const ktranslatedLanguageCodeToSchemaNames = Symbol(
   'translatedLanguageCodeToSchemaNames'
@@ -12,6 +13,7 @@ export default class TranslationApi {
   #translatedLanguageCodeToSchemaNames = new Map()
   #dataType
   #table
+  #indexPromise
 
   /**
    * @param {Object} opts
@@ -27,12 +29,19 @@ export default class TranslationApi {
   constructor({ dataType, table }) {
     this.#dataType = dataType
     this.#table = table
-    this.#dataType
+    this.#indexPromise = this.#dataType
       .getMany()
-      .then((docs) => docs.map((doc) => this.index(doc)))
+      .then((docs) => {
+        docs.map((doc) => this.index(doc))
+      })
       .catch((err) => {
         throw new Error(`error loading Translation cache: ${err}`)
       })
+  }
+
+  /** @returns {Promise<void>} */
+  ready() {
+    return this.#indexPromise
   }
 
   /**
@@ -46,11 +55,11 @@ export default class TranslationApi {
       const doc = await this.#dataType.getByDocId(docId)
       return await this.#dataType.update(doc.versionId, value)
     } catch (e) {
-      // @ts-ignore how can this be improved (we can maybe set "useUnknownInCatchVariables": false)
-      if (e.message !== 'Not found')
+      if (e instanceof NotFoundError) {
+        return await this.#dataType[kCreateWithDocId](docId, value)
+      } else {
         throw new Error(`Error on translation ${e}`)
-      // TODO: throw if the error is different from 'Not found'
-      return await this.#dataType[kCreateWithDocId](docId, value)
+      }
     }
   }
 
@@ -58,8 +67,11 @@ export default class TranslationApi {
    * @param {import('type-fest').SetOptional<
    * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message'>,
    * 'fieldRef' | 'regionCode'>} value
+   * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
   async get(value) {
+    await this.ready()
+
     const docTypeIsTranslatedToLanguage =
       this.#translatedLanguageCodeToSchemaNames
         .get(value.languageCode)
@@ -89,10 +101,6 @@ export default class TranslationApi {
       .all()
   }
 
-  get cache() {
-    return this.#translatedLanguageCodeToSchemaNames
-  }
-
   /**
    * @param {import('@mapeo/schema').TranslationValue} doc
    */
@@ -113,6 +121,7 @@ export default class TranslationApi {
       )
     )
   }
+
   // This should only be used by tests.
   get [ktranslatedLanguageCodeToSchemaNames]() {
     return this.#translatedLanguageCodeToSchemaNames
