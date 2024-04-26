@@ -1,5 +1,5 @@
 import { test } from 'brittle'
-import { createManagers } from './utils.js'
+import { createManagers, ManagerCustodian } from './utils.js'
 import { defaultConfigPath } from '../tests/helpers/default-config.js'
 import {
   fieldsTranslationMap,
@@ -17,17 +17,25 @@ test('translation api - put() and get() presets', async (t) => {
   )
 
   const presets = await project.preset.getMany()
-  const presetTranslationsDoc = presets.map((preset) => {
-    const matchingTranslation = presetTranslations.find((translation) => {
-      return translation.message === presetsTranslationMap[preset.name]
+  const presetTranslationsDoc = presets
+    .map((preset) => {
+      const matchingTranslation = presetTranslations.find((translation) => {
+        return translation.message === presetsTranslationMap[preset.name]
+      })
+      if (matchingTranslation)
+        return { docIdRef: preset.docId, ...matchingTranslation }
     })
-    if (matchingTranslation)
-      return { docIdRef: preset.docId, ...matchingTranslation }
-  })
+    .filter(isDefined)
+
+  t.ok(
+    presetTranslationsDoc.length > 0,
+    'at least one preset translation doc exists'
+  )
 
   for (const translationDoc of presetTranslationsDoc) {
-    if (translationDoc == undefined) continue
-    const translationDocId = await project.$translation.put(translationDoc)
+    const { docId: translationDocId } = await project.$translation.put(
+      translationDoc
+    )
     const { name: presetName, docId: presetDocId } =
       await project.preset.getByDocId(translationDoc.docIdRef)
     const expectedTranslations = await project.$translation.get({
@@ -81,17 +89,25 @@ test('translation api - put() and get() fields', async (t) => {
   )
 
   const fields = await project.field.getMany()
-  const fieldTranslationsDoc = fields.map((field) => {
-    const matchingTranslation = fieldTranslations.find((translation) => {
-      return translation.message === fieldsTranslationMap[field.label]
+  const fieldTranslationsDoc = fields
+    .map((field) => {
+      const matchingTranslation = fieldTranslations.find((translation) => {
+        return translation.message === fieldsTranslationMap[field.label]
+      })
+      if (matchingTranslation)
+        return { docIdRef: field.docId, ...matchingTranslation }
     })
-    if (matchingTranslation)
-      return { docIdRef: field.docId, ...matchingTranslation }
-  })
+    .filter(isDefined)
+
+  t.ok(
+    fieldTranslationsDoc.length > 0,
+    'at least one field translation doc exists'
+  )
 
   for (const translationDoc of fieldTranslationsDoc) {
-    if (translationDoc === undefined) continue
-    const translationDocId = await project.$translation.put(translationDoc)
+    const { docId: translationDocId } = await project.$translation.put(
+      translationDoc
+    )
     const { label: fieldLabel, docId: fieldDocId } =
       await project.field.getByDocId(translationDoc.docIdRef)
     const expectedTranslations = await project.$translation.get({
@@ -125,3 +141,127 @@ test('translation api - put() and get() fields', async (t) => {
     )
   }
 })
+
+test('translation api - re-loading from disk', async (t) => {
+  const custodian = new ManagerCustodian(t)
+  const deps = {
+    defaultConfigPath,
+    presetsTranslationMap,
+    presetTranslations,
+    fieldsTranslationMap,
+    fieldTranslations,
+  }
+  const { projectId, presetTranslationsDoc, fieldTranslationsDoc } =
+    await custodian.withManagerInSeparateProcess(
+      async (
+        manager1,
+        {
+          defaultConfigPath,
+          presetsTranslationMap,
+          presetTranslations,
+          fieldsTranslationMap,
+          fieldTranslations,
+        }
+      ) => {
+        const projectId = await manager1.createProject({
+          configPath: defaultConfigPath,
+        })
+
+        /**
+         * @template T
+         * @param {undefined | T} value
+         * @returns {value is T}
+         */
+        function isDefined(value) {
+          return value !== undefined
+        }
+
+        const project = await manager1.getProject(projectId)
+
+        // translate presets
+        const presets = await project.preset.getMany()
+        const presetTranslationsDoc = presets
+          .map((preset) => {
+            const matchingTranslation = presetTranslations.find(
+              (translation) => {
+                return (
+                  translation.message === presetsTranslationMap[preset.name]
+                )
+              }
+            )
+            if (matchingTranslation)
+              return { docIdRef: preset.docId, ...matchingTranslation }
+          })
+          .filter(isDefined)
+        for (const translationDoc of presetTranslationsDoc) {
+          await project.$translation.put(translationDoc)
+        }
+
+        // translate fields
+        const fields = await project.field.getMany()
+        const fieldTranslationsDoc = fields
+          .map((field) => {
+            const matchingTranslation = fieldTranslations.find(
+              (translation) => {
+                return translation.message === fieldsTranslationMap[field.label]
+              }
+            )
+            if (matchingTranslation)
+              return { docIdRef: field.docId, ...matchingTranslation }
+          })
+          .filter(isDefined)
+        for (const translationDoc of fieldTranslationsDoc) {
+          await project.$translation.put(translationDoc)
+        }
+
+        return { projectId, presetTranslationsDoc, fieldTranslationsDoc }
+      },
+      deps
+    )
+
+  const hasExpectedNumberOfTranslations =
+    await custodian.withManagerInSeparateProcess(
+      async (
+        manager2,
+        { projectId, presetTranslationsDoc, fieldTranslationsDoc }
+      ) => {
+        const project = await manager2.getProject(projectId)
+
+        for (const { docIdRef } of presetTranslationsDoc) {
+          const translations = await project.$translation.get({
+            docIdRef,
+            schemaNameRef: 'preset',
+            languageCode: 'es',
+          })
+          if (translations.length === 0) return false
+        }
+
+        for (const { docIdRef } of fieldTranslationsDoc) {
+          const translations = await project.$translation.get({
+            docIdRef,
+            schemaNameRef: 'field',
+            languageCode: 'es',
+          })
+          if (translations.length === 0) return false
+        }
+
+        return true
+      },
+      {
+        projectId,
+        presetTranslationsDoc,
+        fieldTranslationsDoc,
+      }
+    )
+
+  t.ok(hasExpectedNumberOfTranslations)
+})
+
+/**
+ * @template T
+ * @param {undefined | T} value
+ * @returns {value is T}
+ */
+function isDefined(value) {
+  return value !== undefined
+}

@@ -5,6 +5,7 @@ import { InviteResponse_Decision } from './generated/rpc.js'
 import { assert, keyToId, noop } from './utils.js'
 import HashMap from './lib/hashmap.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
+import { Logger } from './logger.js'
 
 // There are three slightly different invite types:
 //
@@ -161,6 +162,7 @@ export class InviteApi extends TypedEmitter {
   #isMember
   #addProject
   #pendingInvites = new PendingInvites()
+  #l
 
   /**
    * @param {Object} options
@@ -168,9 +170,13 @@ export class InviteApi extends TypedEmitter {
    * @param {object} options.queries
    * @param {(projectId: string) => boolean} options.queries.isMember
    * @param {(projectDetails: Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string }) => Promise<unknown>} options.queries.addProject
+   * @param {Logger} [options.logger]
    */
-  constructor({ rpc, queries }) {
+  constructor({ rpc, queries, logger }) {
     super()
+
+    this.#l = Logger.create('InviteApi', logger)
+
     this.rpc = rpc
     this.#isMember = queries.isMember
     this.#addProject = queries.addProject
@@ -199,8 +205,11 @@ export class InviteApi extends TypedEmitter {
   #handleInviteRpcMessage(peerId, inviteRpcMessage) {
     const invite = { ...inviteRpcMessage, receivedAt: Date.now() }
 
+    this.#l.log('Received invite %h from %S', invite.inviteId, peerId)
+
     const isAlreadyMember = this.#isMember(invite.projectPublicId)
     if (isAlreadyMember) {
+      this.#l.log('Invite %h: already in project', invite.inviteId)
       this.rpc
         .sendInviteResponse(peerId, {
           decision: InviteResponse_Decision.ALREADY,
@@ -214,6 +223,7 @@ export class InviteApi extends TypedEmitter {
       invite.inviteId
     )
     if (hasAlreadyReceivedThisInvite) {
+      this.#l.log('Invite %h: already received this invite', invite.inviteId)
       return
     }
 
@@ -227,13 +237,23 @@ export class InviteApi extends TypedEmitter {
   #handleInviteCancel(inviteCancel) {
     const { inviteId } = inviteCancel
 
+    this.#l.log('Received invite cancel for invite ID %h', inviteId)
+
     const pendingInvite = this.#pendingInvites.getByInviteId(inviteId)
     if (!pendingInvite) {
+      this.#l.log(
+        'Received invite cancel for %h but no such invite exists',
+        inviteId
+      )
       return
     }
     const { invite, isAccepting } = pendingInvite
 
     if (isAccepting) {
+      this.#l.log(
+        "Received invite cancel for %h but we're already accepting",
+        inviteId
+      )
       return
     }
 
@@ -261,7 +281,7 @@ export class InviteApi extends TypedEmitter {
    * part of this project.
    *
    * @param {Pick<Invite, 'inviteId'>} invite
-   * @returns {Promise<void>}
+   * @returns {Promise<string>}
    */
   async accept({ inviteId: inviteIdString }) {
     const inviteId = Buffer.from(inviteIdString, 'hex')
@@ -286,6 +306,10 @@ export class InviteApi extends TypedEmitter {
     // to join a project while an invite is pending, so we need to check this.
     const isAlreadyMember = this.#isMember(projectPublicId)
     if (isAlreadyMember) {
+      this.#l.log(
+        "Went to accept invite %h but we're already in the project",
+        inviteId
+      )
       const pendingInvitesDeleted =
         this.#pendingInvites.deleteByProjectPublicId(projectPublicId)
       for (const pendingInvite of pendingInvitesDeleted) {
@@ -301,7 +325,7 @@ export class InviteApi extends TypedEmitter {
           'accepted'
         )
       }
-      return
+      return projectPublicId
     }
 
     assert(
@@ -327,6 +351,8 @@ export class InviteApi extends TypedEmitter {
       })
         .then((args) => args?.[1])
         .catch(noop)
+
+    this.#l.log('Sending accept response for invite %h', inviteId)
 
     try {
       await this.rpc.sendInviteResponse(peerId, {
@@ -359,6 +385,12 @@ export class InviteApi extends TypedEmitter {
         inviteId.equals(pendingInvite.invite.inviteId)
       if (isPendingInviteWeJustAccepted) continue
 
+      this.#l.log(
+        'Sending "already" response for invite %h to %S',
+        inviteId,
+        pendingInvite.peerId
+      )
+
       this.rpc
         .sendInviteResponse(pendingInvite.peerId, {
           decision: InviteResponse_Decision.ALREADY,
@@ -373,6 +405,8 @@ export class InviteApi extends TypedEmitter {
     }
 
     this.emit('invite-removed', internalToExternal(invite), 'accepted')
+
+    return projectPublicId
   }
 
   /**
@@ -388,6 +422,8 @@ export class InviteApi extends TypedEmitter {
     const { peerId, invite, isAccepting } = pendingInvite
 
     assert(!isAccepting, `Cannot reject ${inviteIdString}`)
+
+    this.#l.log('Rejecting invite %h', inviteId)
 
     this.rpc
       .sendInviteResponse(peerId, {

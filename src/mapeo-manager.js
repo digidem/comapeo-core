@@ -164,6 +164,7 @@ export class MapeoManager extends TypedEmitter {
           await this.addProject(projectDetails)
         },
       },
+      logger,
     })
 
     if (typeof coreStorage === 'string') {

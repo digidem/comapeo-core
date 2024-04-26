@@ -4,11 +4,11 @@ import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { noop, deNullify } from '../utils.js'
+import { NotFoundError } from '../errors.js'
 import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
 import { setProperty, hasProperty } from 'dot-prop'
-import { ktranslatedLanguageCodeToSchemaNames } from '../translation-api.js'
 
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -45,19 +45,6 @@ import { ktranslatedLanguageCodeToSchemaNames } from '../translation-api.js'
  * @template {MapeoDoc} TDoc
  * @typedef {object} DataTypeEvents
  * @property {(docs: TDoc[]) => void} updated-docs
- */
-/**
- * @typedef {string} LanguageCode
- */
-/**
- * @typedef {object} TranslationRow
- * @property {LanguageCode} languageCode
- * @property {string} [regionCode]
- * @property {MapeoDoc['schemaName']} schemaNameRef
- * @property {string} docIdRef
- * @property {string} docId
- * @property {string} fieldRef
- * @property {string} message
  */
 
 function generateId() {
@@ -195,7 +182,7 @@ export class DataType extends TypedEmitter {
   async getByDocId(docId, { lang } = {}) {
     await this.#dataStore.indexer.idle()
     const result = /** @type {MapeoDoc} */ (this.#sql.getByDocId.get({ docId }))
-    if (!result) throw new Error('Not found')
+    if (!result) throw new NotFoundError()
     return this.#translate(deNullify(result), { lang })
   }
 
@@ -214,32 +201,22 @@ export class DataType extends TypedEmitter {
    */
   async #translate(doc, { lang } = {}) {
     if (!lang) return doc
+
     const { language, region } = parseBCP47(lang)
     if (!language) return doc
-    const translatedRecords =
-      this.#translation[ktranslatedLanguageCodeToSchemaNames].get(language)
-    // No translations indexed for this doc type, so don't try to translate
-    if (!translatedRecords || !translatedRecords.has(this.#schemaName)) {
-      return doc
-    }
-    const translations = await this.#translation.get({
+    const translatedDoc = JSON.parse(JSON.stringify(doc))
+    let value = {
       languageCode: language,
       schemaNameRef: doc.schemaName,
       docIdRef: doc.docId,
-    })
-
-    const indexedTranslations = indexTranslations(translations)
-    const translatedDoc = JSON.parse(JSON.stringify(doc))
-
-    for (const [fieldRef, byRegionCode] of indexedTranslations.entries()) {
-      if (!hasProperty(translatedDoc, fieldRef)) continue
-      const t =
-        byRegionCode.get(region === null ? undefined : region) ||
-        byRegionCode.values().next().value
-      if (!t) continue
-      setProperty(translatedDoc, fieldRef, t.message)
+      regionCode: region !== null ? region : undefined,
     }
-
+    const translations = await this.#translation.get(value)
+    for (let translation of translations) {
+      if (hasProperty(translatedDoc, translation.fieldRef)) {
+        setProperty(translatedDoc, translation.fieldRef, translation.message)
+      }
+    }
     return translatedDoc
   }
 
@@ -361,29 +338,6 @@ export class DataType extends TypedEmitter {
   }
 }
 
-/**
- * @typedef {Map<TranslationRow['fieldRef'], Map<TranslationRow['regionCode'], TranslationRow>>} TranslationIndex
- */
-
-/**
- * @param {TranslationRow[]} translations
- * @returns {TranslationIndex}
- */
-function indexTranslations(translations) {
-  /** @type {TranslationIndex} */
-  const index = new Map()
-  for (const t of translations) {
-    let byRegionCode = index.get(t.fieldRef)
-    if (!byRegionCode) {
-      byRegionCode = new Map()
-      index.set(t.fieldRef, byRegionCode)
-    }
-    // There should never be more than one entry here, due to constraints on how
-    // translation IDs are generated, and translations are then indexed
-    byRegionCode.set(t.regionCode, t)
-  }
-  return index
-}
 /**
  * @template {object} T
  * @param {T} value

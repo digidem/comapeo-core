@@ -8,14 +8,17 @@ import {
 } from './helpers/core-manager.js'
 import RAM from 'random-access-memory'
 import crypto from 'hypercore-crypto'
-import { observationTable } from '../src/schema/project.js'
+import { observationTable, translationTable } from '../src/schema/project.js'
 import { DataType, kCreateWithDocId } from '../src/datatype/index.js'
 import { IndexWriter } from '../src/index-writer/index.js'
+import { NotFoundError } from '../src/errors.js'
 
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'crypto'
+import TranslationApi from '../src/translation-api.js'
+import { getProperty } from 'dot-prop'
 
 /** @type {import('@mapeo/schema').ObservationValue} */
 const obsFixture = {
@@ -141,6 +144,11 @@ test('test validity of `createdBy` field from another peer', async (t) => {
   await destroy()
 })
 
+test('getByDocId() throws if no document exists with that ID', async (t) => {
+  const { dataType } = await testenv({ projectKey: randomBytes(32) })
+  await t.exception(() => dataType.getByDocId('foo bar'), NotFoundError)
+})
+
 test('delete()', async (t) => {
   const projectKey = randomBytes(32)
   const { dataType } = await testenv({ projectKey })
@@ -161,6 +169,42 @@ test('delete()', async (t) => {
   )
 })
 
+test('translation', async (t) => {
+  const projectKey = randomBytes(32)
+  const { dataType, translationApi } = await testenv({ projectKey })
+  /** @type {import('@mapeo/schema').ObservationValue} */
+  const observation = {
+    schemaName: 'observation',
+    refs: [],
+    tags: {
+      type: 'point',
+    },
+    attachments: [],
+    metadata: {},
+  }
+
+  const doc = await dataType.create(observation)
+  const translation = {
+    /** @type {'translation'} */
+    schemaName: 'translation',
+    schemaNameRef: 'observation',
+    docIdRef: doc.docId,
+    fieldRef: 'tags.type',
+    languageCode: 'es',
+    regionCode: 'AR',
+    message: 'punto',
+  }
+  await translationApi.put(translation)
+  translationApi.index(translation)
+
+  const translatedDoc = await dataType.getByDocId(doc.docId, { lang: 'es' })
+  t.is(
+    translation.message,
+    getProperty(translatedDoc, translation.fieldRef),
+    `we get a valid translated field`
+  )
+})
+
 /**
  * @param {object} opts
  * @param {Buffer} [opts.projectKey]
@@ -175,7 +219,7 @@ async function testenv(opts) {
   const coreManager = createCoreManager({ ...opts, db })
 
   const indexWriter = new IndexWriter({
-    tables: [observationTable],
+    tables: [observationTable, translationTable],
     sqlite,
   })
 
@@ -185,11 +229,31 @@ async function testenv(opts) {
     batch: async (entries) => indexWriter.batch(entries),
     storage: () => new RAM(),
   })
+  const configDataStore = new DataStore({
+    coreManager,
+    namespace: 'config',
+    batch: (entries) => indexWriter.batch(entries),
+    storage: () => new RAM(),
+  })
+  let translationApi
+  const translationDataType = new DataType({
+    dataStore: configDataStore,
+    table: translationTable,
+    db,
+    translation: translationApi,
+  })
+
+  translationApi = new TranslationApi({
+    dataType: translationDataType,
+    table: translationTable,
+  })
+
   const dataType = new DataType({
     dataStore,
     table: observationTable,
     db,
+    translation: translationApi,
   })
 
-  return { coreManager, dataType, dataStore }
+  return { coreManager, dataType, dataStore, translationApi }
 }
