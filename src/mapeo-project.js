@@ -83,6 +83,7 @@ export class MapeoProject extends TypedEmitter {
   #memberApi
   #iconApi
   #syncApi
+  /** @type {TranslationApi} */
   #translationApi
   #l
 
