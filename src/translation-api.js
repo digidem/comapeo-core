@@ -71,6 +71,7 @@ export default class TranslationApi {
    */
   async get(value) {
     await this.ready()
+
     const docTypeIsTranslatedToLanguage =
       this.#translatedLanguageCodeToSchemaNames
         .get(value.languageCode)

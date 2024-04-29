@@ -204,7 +204,7 @@ export class DataType extends TypedEmitter {
 
     const { language, region } = parseBCP47(lang)
     if (!language) return doc
-    const translatedDoc = JSON.parse(JSON.stringify(doc))
+    // const translatedDoc = JSON.parse(JSON.stringify(doc))
     let value = {
       languageCode: language,
       schemaNameRef: doc.schemaName,
@@ -213,11 +213,11 @@ export class DataType extends TypedEmitter {
     }
     const translations = await this.#translation.get(value)
     for (let translation of translations) {
-      if (hasProperty(translatedDoc, translation.fieldRef)) {
-        setProperty(translatedDoc, translation.fieldRef, translation.message)
+      if (hasProperty(doc, translation.fieldRef)) {
+        setProperty(doc, translation.fieldRef, translation.message)
       }
     }
-    return translatedDoc
+    return doc
   }
 
   /** @param {{ includeDeleted?: boolean, lang?: string }} [opts] */
