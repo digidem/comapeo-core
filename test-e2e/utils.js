@@ -3,6 +3,11 @@ import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
 import { arrayFrom } from 'iterpal'
+import * as path from 'node:path'
+import { fork } from 'node:child_process'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import * as v8 from 'node:v8'
 
 import { MapeoManager } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
@@ -10,7 +15,7 @@ import { once } from 'node:events'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import { randomInt } from 'node:crypto'
-import { temporaryDirectory } from 'tempy'
+import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
@@ -99,6 +104,8 @@ export async function invite({
   reject = false,
 }) {
   const invitorProject = await invitor.getProject(projectId)
+
+  /** @type {Array<Promise<unknown>>} */
   const promises = []
 
   for (const invitee of invitees) {
@@ -109,10 +116,10 @@ export async function invite({
       })
     )
     promises.push(
-      once(invitee.invite, 'invite-received').then(([invite]) => {
-        return reject
+      once(invitee.invite, 'invite-received').then(async ([invite]) => {
+        await (reject
           ? invitee.invite.reject(invite)
-          : invitee.invite.accept(invite)
+          : invitee.invite.accept(invite))
       })
     )
   }
@@ -211,6 +218,179 @@ export function createManager(seed, t, deviceType) {
     fastify: Fastify(),
     deviceType,
   })
+}
+
+/**
+ * `ManagerCustodian` helps you test the creation of multiple managers accessing
+ * the same underlying files.
+ *
+ * For example, you might want to write a test like this:
+ *
+ * ```
+ * const manager1 = createManager(persistedDataPath)
+ * const projectId = await manager1.createProject('Foo')
+ * manager1.close()
+ *
+ * const manager2 = createManager(persistedDataPath)
+ * const project = await manager2.getProject(projectId)
+ * assert(project, 'project can be loaded')
+ * ```
+ *
+ * Unfortunately, this doesn't work because the only way to close a manager is
+ * to close the process. `ManagerCustodian` makes it easier to create these
+ * processes. You would rewrite the test like this:
+ *
+ * ```
+ * const custodian = new ManagerCustodian(t)
+ *
+ * const projectId = custodian.withManagerInSeparateProcess((manager1) => (
+ *   manager1.createProject('Foo')
+ * ))
+ *
+ * const exists = custodian.withManagerInSeparateProcess(
+ *   (manager2, projectId) =>
+ *     Boolean(await manager2.getProject(projectId)),
+ *   projectId
+ * )
+ * assert(exists, 'project exists')
+ * ```
+ *
+ * If we ever offer a way to close a manager, we can remove this class.
+ *
+ * The name is deliberately a little obtuse because this class is a little
+ * weird, and we want people to read the documentation.
+ */
+export class ManagerCustodian {
+  #t
+  #rootKey = getRootKey()
+  #dbFolder = temporaryDirectory()
+  #coreStorage = temporaryDirectory()
+
+  /**
+   * @param {import('brittle').TestInstance} t
+   */
+  constructor(t) {
+    this.#t = t
+    for (const folder of [this.#dbFolder, this.#coreStorage]) {
+      t.teardown(() =>
+        fsPromises.rm(folder, { recursive: true, force: true, maxRetries: 2 })
+      )
+    }
+  }
+
+  /**
+   * Run a function on a new manager in a separate process.
+   *
+   * Because this function is serialized and run in a separate process, there
+   * are restrictions on the function:
+   *
+   * 1. Anything referenced outside the function must be passed as an argument.
+   * 2. Arguments and return values must be serializable using `v8.serialize`.
+   *
+   * @template ArgsT
+   * @template ResultT
+   * @param {(manager: MapeoManager, ...args: ArgsT[]) => Promise<ResultT>} fn
+   * @param {ArgsT[]} args
+   * @returns {Promise<ResultT>}
+   */
+  async withManagerInSeparateProcess(fn, ...args) {
+    const jsFile = await this.#createJsFile(fn, args)
+    return this.#runJsFile(jsFile)
+  }
+
+  /**
+   * @template ArgsT
+   * @template ResultT
+   * @param {(manager: MapeoManager, ...args: ArgsT[]) => Promise<ResultT>} fn
+   * @param {ArgsT[]} args
+   * @returns {Promise<string>}
+   */
+  async #createJsFile(fn, args) {
+    // JSON.stringify does a good job wrapping strings in quotes and escaping.
+    // This is a short alias.
+    const s = JSON.stringify
+
+    const require = createRequire(import.meta.url)
+    const fastifyPath = require.resolve('fastify')
+
+    const __filename = fileURLToPath(import.meta.url)
+    const mapeoManagerJsPath = path.resolve(
+      __filename,
+      '..',
+      '..',
+      'src',
+      'mapeo-manager.js'
+    )
+    const rootKeyHex = this.#rootKey.toString('hex')
+
+    const argsHex = v8.serialize(args).toString('hex')
+
+    const source = `
+    import * as v8 from 'node:v8'
+    import Fastify from ${s(fastifyPath)}
+    import { MapeoManager } from ${s(mapeoManagerJsPath)}
+
+    const manager = new MapeoManager({
+      rootKey: Buffer.from(${s(rootKeyHex)}, 'hex'),
+      projectMigrationsFolder: ${s(projectMigrationsFolder)},
+      clientMigrationsFolder: ${s(clientMigrationsFolder)},
+      dbFolder: ${s(this.#dbFolder)},
+      coreStorage: ${s(this.#coreStorage)},
+      fastify: Fastify(),
+    })
+
+    const fn = ${fn.toString()}
+
+    const argsBuffer = Buffer.from(${s(argsHex)}, 'hex')
+    const args = v8.deserialize(argsBuffer)
+
+    const result = await fn(manager, ...args)
+
+    process.send(result)
+    `
+
+    const result = temporaryFile({ extension: 'mjs' })
+    this.#t.teardown(() => fsPromises.rm(result, { maxRetries: 2 }))
+    await fsPromises.writeFile(result, source, 'utf8')
+    return result
+  }
+
+  /**
+   * @template ResultT
+   * @param {string} jsFile
+   * @returns {Promise<ResultT>}
+   */
+  #runJsFile(jsFile) {
+    return new Promise((resolve, reject) => {
+      /** @type {Error | ResultT} */
+      let result = new Error('Child process finished without returning')
+
+      const child = fork(jsFile, [], {
+        cwd: process.cwd(),
+        serialization: 'advanced',
+        timeout: 60_000,
+      })
+
+      child.on('close', (code) => {
+        if (code) {
+          result = new Error(`Child process exited with code ${code}`)
+        }
+        if (result instanceof Error) {
+          reject(result)
+        } else {
+          resolve(result)
+        }
+      })
+
+      child.on('error', (err) => {
+        result = err
+      })
+
+      child.on('message', (r) => {
+        result = /** @type {ResultT} */ (r)
+      })
+    })
+  }
 }
 
 /** @param {string} [seed] */
