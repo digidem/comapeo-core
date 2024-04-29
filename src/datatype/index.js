@@ -226,11 +226,14 @@ export class DataType extends TypedEmitter {
     const rows = includeDeleted
       ? this.#sql.getManyWithDeleted.all()
       : this.#sql.getMany.all()
-    return rows.map((doc) =>
-      this.#translate(
-        // @ts-ignore - too complicated to type this
-        deNullify(doc),
-        { lang }
+    return await Promise.all(
+      rows.map(
+        async (doc) =>
+          await this.#translate(
+            // @ts-ignore - too complicated to type this
+            deNullify(doc),
+            { lang }
+          )
       )
     )
   }

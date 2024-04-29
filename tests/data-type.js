@@ -19,6 +19,8 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'crypto'
 import TranslationApi from '../src/translation-api.js'
 import { getProperty } from 'dot-prop'
+import { decode, decodeBlockPrefix } from '@mapeo/schema'
+import { assert } from '../src/utils.js'
 
 /** @type {import('@mapeo/schema').ObservationValue} */
 const obsFixture = {
@@ -229,13 +231,40 @@ async function testenv(opts) {
     batch: async (entries) => indexWriter.batch(entries),
     storage: () => new RAM(),
   })
+  /** @type {TranslationApi} */
+  let translationApi
+
   const configDataStore = new DataStore({
     coreManager,
     namespace: 'config',
-    batch: (entries) => indexWriter.batch(entries),
+    batch: async (entries) => {
+      /** @type {import('multi-core-indexer').Entry[]} */
+      const entriesToIndex = []
+      for (const entry of entries) {
+        const { schemaName } = decodeBlockPrefix(entry.block)
+        try {
+          if (schemaName === 'translation') {
+            const doc = decode(entry.block, {
+              coreDiscoveryKey: entry.key,
+              index: entry.index,
+            })
+            assert(
+              doc.schemaName === 'translation',
+              'expected a translation doc'
+            )
+            translationApi.index(doc)
+          }
+          entriesToIndex.push(entry)
+        } catch {
+          // Ignore errors thrown by values that can't be decoded for now
+        }
+      }
+      const indexed = await indexWriter.batch(entriesToIndex)
+      return indexed
+    },
     storage: () => new RAM(),
   })
-  let translationApi
+
   const translationDataType = new DataType({
     dataStore: configDataStore,
     table: translationTable,
