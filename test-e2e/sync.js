@@ -1,5 +1,6 @@
 // @ts-check
 import { test } from 'brittle'
+import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'
 import { excludeKeys } from 'filter-obj'
 import {
@@ -20,6 +21,8 @@ import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
+/** @typedef {import('../src/mapeo-project.js').MapeoProject} MapeoProject */
+/** @typedef {import('../src/sync/sync-api.js').SyncTypeState} SyncState */
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
@@ -362,3 +365,90 @@ test('Correct sync state prior to data sync', async function (t) {
   await disconnect2()
   await Promise.all(projects.map((p) => p.close()))
 })
+
+test('pre-haves are updated', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, ...invitees] = managers
+
+  const disconnect = connectPeers(managers)
+  t.teardown(disconnect)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees, projectId })
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  for (const project of projects) t.teardown(() => project.close())
+  const [invitorProject, inviteeProject] = projects
+  await waitForSync(projects, 'initial')
+
+  assertDataSyncStateMatches(
+    t,
+    invitorProject,
+    { have: 0, wanted: 0, dataToSync: false },
+    'Invitor project should have nothing to sync at start'
+  )
+  assertDataSyncStateMatches(
+    t,
+    inviteeProject,
+    { have: 0, wanted: 0, dataToSync: false },
+    'Invitee project should see nothing to sync at start'
+  )
+
+  const invitorToSyncPromise = pEvent(
+    invitorProject.$sync,
+    'sync-state',
+    (syncState) =>
+      syncStateMatches(syncState.data, {
+        have: 1,
+        wanted: 1,
+        dataToSync: true,
+      })
+  )
+  const inviteeToSyncPromise = pEvent(
+    inviteeProject.$sync,
+    'sync-state',
+    (syncState) =>
+      syncStateMatches(syncState.data, {
+        have: 0,
+        want: 1,
+        dataToSync: true,
+      })
+  )
+
+  await invitorProject.observation.create(valueOf(generate('observation')[0]))
+
+  await Promise.all([invitorToSyncPromise, inviteeToSyncPromise])
+
+  assertDataSyncStateMatches(
+    t,
+    inviteeProject,
+    { have: 0, want: 1, dataToSync: true },
+    'Invitee project should learn about something to sync'
+  )
+})
+
+/**
+ * @param {import('brittle').TestInstance} t
+ * @param {MapeoProject} project
+ * @param {Partial<SyncState>} expected
+ * @param {string} message
+ * @returns {void}
+ */
+function assertDataSyncStateMatches(t, project, expected, message) {
+  const actual = project.$sync.getState().data
+  t.ok(syncStateMatches(actual, expected), message)
+}
+
+/**
+ * @param {SyncState} syncState
+ * @param {Partial<SyncState>} expected
+ * @returns {boolean}
+ */
+function syncStateMatches(syncState, expected) {
+  for (const [key, expectedValue] of Object.entries(expected)) {
+    const actualValue = /** @type {any} */ (syncState)[key]
+    if (actualValue !== expectedValue) return false
+  }
+  return true
+}
