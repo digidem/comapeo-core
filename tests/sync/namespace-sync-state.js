@@ -110,13 +110,13 @@ test('sync cores in a namespace', async function (t) {
   for (const key of cm1Keys) {
     if (key.equals(writer1.core.key)) continue
     const core = cm1.getCoreByKey(key)
-    core.download({ start: 0, end: -1 })
+    core?.download({ start: 0, end: -1 })
   }
 
   for (const key of cm2Keys) {
     if (key.equals(writer2.core.key)) continue
     const core = cm2.getCoreByKey(key)
-    core.download({ start: 0, end: -1 })
+    core?.download({ start: 0, end: -1 })
   }
 })
 
@@ -190,12 +190,12 @@ test('replicate with updating data', async function (t) {
   for (const key of cm1Keys) {
     if (key.equals(writer1.core.key)) continue
     const core = cm1.getCoreByKey(key)
-    core.download({ live: true, start: 0, end: -1 })
+    core?.download({ start: 0, end: -1 })
   }
 
   for (const key of cm2Keys) {
     if (key.equals(writer2.core.key)) continue
     const core = cm2.getCoreByKey(key)
-    core.download({ live: true, start: 0, end: -1 })
+    core?.download({ start: 0, end: -1 })
   }
 })
