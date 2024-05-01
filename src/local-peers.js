@@ -35,6 +35,8 @@ const MESSAGE_TYPES = {
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
+export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
+
 /**
  * @typedef {object} PeerInfoBase
  * @property {string} deviceId
@@ -153,10 +155,9 @@ class Peer {
     this.#log('disconnected')
   }
   /**
-   * Exposed for tests.
    * @param {Buffer} buf
    */
-  __sendRawInvite(buf) {
+  [kTestOnlySendRawInvite](buf) {
     this.#assertConnected()
     const messageType = MESSAGE_TYPES.Invite
     this.#channel.messages[messageType].send(buf)
@@ -312,14 +313,13 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * Used for tests.
    * @param {string} deviceId
    * @param {Buffer} buf
    */
-  async __sendRawInvite(deviceId, buf) {
+  async [kTestOnlySendRawInvite](deviceId, buf) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
-    peer.__sendRawInvite(buf)
+    peer[kTestOnlySendRawInvite](buf)
   }
 
   /**

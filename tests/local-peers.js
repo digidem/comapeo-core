@@ -1,7 +1,11 @@
 // @ts-check
 import test from 'brittle'
 import { keyToId, projectKeyToPublicId } from '../src/utils.js'
-import { LocalPeers, UnknownPeerError } from '../src/local-peers.js'
+import {
+  LocalPeers,
+  UnknownPeerError,
+  kTestOnlySendRawInvite,
+} from '../src/local-peers.js'
 import { once } from 'events'
 import { Duplex } from 'streamx'
 import { replicate } from './helpers/local-peers.js'
@@ -158,7 +162,7 @@ test('handles invalid invites', async (t) => {
   const r2 = new LocalPeers()
 
   r1.once('peers', async ([peer]) => {
-    await r1.__sendRawInvite(peer.deviceId, Buffer.from([1, 2, 3]))
+    await r1[kTestOnlySendRawInvite](peer.deviceId, Buffer.from([1, 2, 3]))
   })
 
   r2.on('invite', () => {
