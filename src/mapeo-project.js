@@ -1,7 +1,7 @@
 // @ts-check
 import path from 'path'
 import Database from 'better-sqlite3'
-import { decodeBlockPrefix } from '@mapeo/schema'
+import { decodeBlockPrefix, decode } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
@@ -20,9 +20,11 @@ import {
   deviceInfoTable,
   fieldTable,
   observationTable,
+  trackTable,
   presetTable,
   roleTable,
   iconTable,
+  translationTable,
 } from './schema/project.js'
 import {
   CoreOwnership,
@@ -36,6 +38,7 @@ import {
   LEFT_ROLE_ID,
 } from './roles.js'
 import {
+  assert,
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
@@ -46,6 +49,7 @@ import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
+import TranslationApi from './translation-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -80,6 +84,7 @@ export class MapeoProject extends TypedEmitter {
   #memberApi
   #iconApi
   #syncApi
+  #translationApi
   #l
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
@@ -150,12 +155,14 @@ export class MapeoProject extends TypedEmitter {
     this.#indexWriter = new IndexWriter({
       tables: [
         observationTable,
+        trackTable,
         presetTable,
         fieldTable,
         coreOwnershipTable,
         roleTable,
         deviceInfoTable,
         iconTable,
+        translationTable,
       ],
       sqlite: this.#sqlite,
       getWinner,
@@ -201,6 +208,11 @@ export class MapeoProject extends TypedEmitter {
         table: observationTable,
         db,
       }),
+      track: new DataType({
+        dataStore: this.#dataStores.data,
+        table: trackTable,
+        db,
+      }),
       preset: new DataType({
         dataStore: this.#dataStores.config,
         table: presetTable,
@@ -234,6 +246,11 @@ export class MapeoProject extends TypedEmitter {
       icon: new DataType({
         dataStore: this.#dataStores.config,
         table: iconTable,
+        db,
+      }),
+      translation: new DataType({
+        dataStore: this.#dataStores.config,
+        table: translationTable,
         db,
       }),
     }
@@ -302,6 +319,11 @@ export class MapeoProject extends TypedEmitter {
       coreManager: this.#coreManager,
       roles: this.#roles,
       logger: this.#l,
+    })
+
+    this.#translationApi = new TranslationApi({
+      dataType: this.#dataTypes.translation,
+      table: translationTable,
     })
 
     ///////// 4. Replicate local peers automatically
@@ -414,6 +436,15 @@ export class MapeoProject extends TypedEmitter {
 
         if (schemaName === 'projectSettings') {
           projectSettingsEntries.push(entry)
+        } else if (schemaName === 'translation') {
+          const doc = decode(entry.block, {
+            coreDiscoveryKey: entry.key,
+            index: entry.index,
+          })
+
+          assert(doc.schemaName === 'translation', 'expected a translation doc')
+          this.#translationApi.index(doc)
+          otherEntries.push(entry)
         } else {
           otherEntries.push(entry)
         }
@@ -434,6 +465,9 @@ export class MapeoProject extends TypedEmitter {
   get observation() {
     return this.#dataTypes.observation
   }
+  get track() {
+    return this.#dataTypes.track
+  }
   get preset() {
     return this.#dataTypes.preset
   }
@@ -447,6 +481,10 @@ export class MapeoProject extends TypedEmitter {
 
   get $sync() {
     return this.#syncApi
+  }
+
+  get $translation() {
+    return this.#translationApi
   }
 
   /**

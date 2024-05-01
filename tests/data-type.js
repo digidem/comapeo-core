@@ -11,6 +11,7 @@ import crypto from 'hypercore-crypto'
 import { observationTable } from '../src/schema/project.js'
 import { DataType, kCreateWithDocId } from '../src/datatype/index.js'
 import { IndexWriter } from '../src/index-writer/index.js'
+import { NotFoundError } from '../src/errors.js'
 
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
@@ -139,6 +140,11 @@ test('test validity of `createdBy` field from another peer', async (t) => {
   const updatedObservation = await dt2.getByVersionId(updatedDoc.versionId)
   t.is(updatedObservation.createdBy, createdBy)
   await destroy()
+})
+
+test('getByDocId() throws if no document exists with that ID', async (t) => {
+  const { dataType } = await testenv({ projectKey: randomBytes(32) })
+  await t.exception(() => dataType.getByDocId('foo bar'), NotFoundError)
 })
 
 test('delete()', async (t) => {

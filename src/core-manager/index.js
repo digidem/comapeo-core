@@ -2,7 +2,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
 import assert from 'node:assert'
-import { placeholder, eq } from 'drizzle-orm'
+import { sql, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import Hypercore from 'hypercore'
 
@@ -100,14 +100,14 @@ export class CoreManager extends TypedEmitter {
       addCore: db
         .insert(coresTable)
         .values({
-          publicKey: placeholder('publicKey'),
-          namespace: placeholder('namespace'),
+          publicKey: sql.placeholder('publicKey'),
+          namespace: sql.placeholder('namespace'),
         })
         .onConflictDoNothing()
         .prepare(),
       removeCores: db
         .delete(coresTable)
-        .where(eq(coresTable.namespace, placeholder('namespace')))
+        .where(eq(coresTable.namespace, sql.placeholder('namespace')))
         .prepare(),
     }
 

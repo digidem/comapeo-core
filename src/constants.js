@@ -9,7 +9,7 @@ export const NAMESPACES = /** @type {const} */ ([
 ])
 
 export const NAMESPACE_SCHEMAS = /** @type {const} */ ({
-  data: ['observation'],
+  data: ['observation', 'track'],
   config: [
     'translation',
     'preset',

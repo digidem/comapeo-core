@@ -9,7 +9,7 @@ import {
   type CoreOwnershipWithSignaturesValue,
 } from '../types.js'
 import { type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
-import { SQLiteSelectBuilder } from 'drizzle-orm/sqlite-core'
+import { SQLiteSelectBase } from 'drizzle-orm/sqlite-core'
 import { RunResult } from 'better-sqlite3'
 import type Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
@@ -39,9 +39,6 @@ type ExcludeSchema<
   T extends MapeoValue,
   S extends MapeoValue['schemaName']
 > = Exclude<T, { schemaName: S }>
-// We do this because we can't pass a generic to this (an "indexed access type")
-// https://stackoverflow.com/a/75792683/3794085
-declare const from: SQLiteSelectBuilder<undefined, 'sync', RunResult>['from']
 
 export class DataType<
   TDataStore extends import('../datastore/index.js').DataStore,
@@ -77,7 +74,7 @@ export class DataType<
       | CoreOwnershipWithSignaturesValue
   ): Promise<TDoc & { forks: string[] }>
 
-  [kSelect](): ReturnType<typeof from<TTable>>
+  [kSelect](): Promise<SQLiteSelectBase<TTable, 'sync', RunResult>>
 
   create<
     T extends import('type-fest').Exact<

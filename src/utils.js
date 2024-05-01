@@ -1,5 +1,7 @@
 import b4a from 'b4a'
 import { keyToPublicId } from '@mapeo/crypto'
+import { createHash } from 'node:crypto'
+import stableStringify from 'json-stable-stringify'
 
 /**
  * @param {String|Buffer} id
@@ -36,14 +38,6 @@ export function parseVersion(version) {
     coreId,
     blockIndex: Number(blockIndex),
   }
-}
-
-/**
- * Truncate a key or id to a string with a given length with a default of 3 characters.
- * @param {String|Buffer} keyOrId
- */
-export function truncateId(keyOrId, length = 3) {
-  return keyToId(keyOrId).slice(0, length)
 }
 
 /** @typedef {import('@hyperswarm/secret-stream')<any>} NoiseStream */
@@ -198,4 +192,16 @@ export function createMap(keys, value) {
     map[key] = typeof value === 'function' ? value() : value
   }
   return map
+}
+
+/**
+ * create a sha256 hash of an object using json-stable-stringify for deterministic results
+ * @param {Object} obj
+ * @returns {String} hash of the object
+ */
+export function hashObject(obj) {
+  return createHash('sha256')
+    .update(stableStringify(obj))
+    .digest()
+    .toString('hex')
 }

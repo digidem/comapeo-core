@@ -10,10 +10,6 @@ import { MapeoCommon, MapeoDoc, MapeoValue, decode } from '@mapeo/schema'
 import type Protomux from 'protomux'
 import type NoiseStream from '@hyperswarm/secret-stream'
 import { Duplex } from 'streamx'
-import { Socket } from 'net'
-import MultiCoreIndexer from 'multi-core-indexer'
-import Corestore from 'corestore'
-import Hypercore from 'hypercore'
 import RandomAccessStorage from 'random-access-storage'
 import { DefaultListener, ListenerSignature } from 'tiny-typed-emitter'
 
@@ -46,15 +42,6 @@ type ArrayAtLeastOne<T> = [T, ...T[]]
 export type BlobFilter = RequireAtLeastOne<{
   [KeyType in BlobType]: ArrayAtLeastOne<BlobVariant<KeyType>>
 }>
-
-export type OptionalKeysOf<BaseType extends object> = Exclude<
-  {
-    [Key in keyof BaseType]: BaseType extends Record<Key, BaseType[Key]>
-      ? never
-      : Key
-  }[keyof BaseType],
-  undefined
->
 
 export type MapeoDocMap = {
   [K in MapeoDoc['schemaName']]: Extract<MapeoDoc, { schemaName: K }>
@@ -112,79 +99,17 @@ export type KeyPair = {
   secretKey: SecretKey
 }
 
-export type Statement = {
-  id: string
-  type: string
-  version: string
-  signature: string
-  action: string
-  authorId: string
-  authorIndex: number
-  deviceIndex: number
-  created: number
-  timestamp: number
-  links: string[]
-  forks: string[]
-}
-
-export type CoreOwnershipStatement = Statement & { coreId: string }
-export type RoleStatement = Statement & { role: string }
-export type DeviceStatement = Statement
 /** 32 byte buffer */
 export type PublicKey = Buffer
 /** 32 byte buffer */
 export type SecretKey = Buffer
-export type PublicId = string
 export type IdentityKeyPair = KeyPair
-export type IdentityPublicKey = PublicKey
-export type IdentitySecretKey = SecretKey
-export type IdentityId = PublicId
-export type CoreId = PublicId
-export type TopicKey = Buffer
-/** hex string representation of `Topic` Buffer */
-export type TopicId = string
-/** 52 character base32 encoding of `Topic` Buffer */
-export type MdnsTopicId = string
-
-// TODO: Figure out where those extra fields come from and find more elegant way to represent this
-export type RawDhtConnectionStream = Duplex & {
-  remoteAddress: string
-  remotePort: number
-}
-export type RawConnectionStream = Socket | RawDhtConnectionStream
-export type DhtNode = { host: string; port: number }
-
-export type DhtOptions = {
-  server: boolean
-  client: boolean
-  /** Array of {host, port} objects provided by https://github.com/hyperswarm/testnet */
-  bootstrap?: DhtNode[]
-  keyPair?: IdentityKeyPair
-}
-
-export type MdnsOptions = {
-  identityKeyPair: IdentityKeyPair
-  port: number
-  name: string
-}
-
-export type Entry = MultiCoreIndexer.Entry
-export { Corestore }
-export type Core = Hypercore
-export { Duplex }
 
 export { NoiseStream }
-export type ProtocolStream = Omit<NoiseStream, 'userData'> & {
+type ProtocolStream = Omit<NoiseStream, 'userData'> & {
   userData: Protomux
 }
 export type ReplicationStream = Duplex & { noiseStream: ProtocolStream }
-
-// Unsafe type for Object.entries - you must be sure that the object does not
-// have additional properties that are not defined in the type, e.g. when using
-// a const value
-export type Entries<T> = {
-  [K in keyof T]: [K, T[K]]
-}[keyof T][]
 
 export type CoreStorage = (name: string) => RandomAccessStorage
 

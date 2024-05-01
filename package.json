@@ -1,21 +1,21 @@
 {
   "name": "@mapeo/core",
-  "version": "9.0.0-alpha.5",
+  "version": "9.0.0-alpha.8",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint --cache .",
     "format": "prettier . --write",
-    "test": "npm-run-all lint build:types type test:unit test:e2e test:types",
+    "test": "npm-run-all lint test:prettier build:types type test:unit test:e2e test:types",
+    "test:prettier": "prettier --check .",
     "test:unit": "brittle \"tests/**/*.js\"",
     "test:e2e": "brittle \"test-e2e/**/*.js\"",
     "test:types": "tsc -p test-types/tsconfig.json",
     "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
     "bench": "nanobench benchmarks/*.js",
     "type": "tsc",
-    "doc": "typedoc --plugin typedoc-plugin-markdown --out docs/api",
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
@@ -34,9 +34,11 @@
   },
   "lint-staged": {
     "*.js": [
-      "eslint --cache --fix"
+      "eslint --cache"
     ],
-    "*.{js,css,md}": "prettier --write"
+    "*": [
+      "prettier --check"
+    ]
   },
   "eslintConfig": {
     "env": {
@@ -76,12 +78,14 @@
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
     "@hyperswarm/testnet": "^3.1.2",
+    "@mapeo/default-config": "4.0.0-alpha.2",
     "@mapeo/mock-data": "^1.0.1",
     "@sinonjs/fake-timers": "^10.0.2",
     "@types/b4a": "^1.6.0",
     "@types/bogon": "^1.0.2",
     "@types/debug": "^4.1.8",
     "@types/json-schema": "^7.0.11",
+    "@types/json-stable-stringify": "^1.0.36",
     "@types/nanobench": "^3.0.0",
     "@types/node": "^18.16.3",
     "@types/sinonjs__fake-timers": "^8.1.2",
@@ -94,7 +98,7 @@
     "brittle": "^3.5.0",
     "cpy": "^10.1.0",
     "cpy-cli": "^5.0.0",
-    "drizzle-kit": "^0.19.12",
+    "drizzle-kit": "^0.20.14",
     "eslint": "^8.57.0",
     "filter-obj": "^6.0.0",
     "husky": "^8.0.0",
@@ -113,19 +117,17 @@
     "streamx": "^2.15.1",
     "tempy": "^3.1.0",
     "ts-proto": "^1.156.7",
-    "typedoc": "^0.24.8",
-    "typedoc-plugin-markdown": "^3.15.3",
-    "typescript": "^5.1.6"
+    "typescript": "^5.4.5"
   },
   "dependencies": {
     "@digidem/types": "^2.2.0",
     "@electron/asar": "^3.2.8",
     "@fastify/error": "^3.4.1",
-    "@fastify/static": "^6.12.0",
-    "@fastify/type-provider-typebox": "^3.3.0",
+    "@fastify/static": "^7.0.3",
+    "@fastify/type-provider-typebox": "^4.0.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "1.0.0-alpha.10",
-    "@mapeo/schema": "3.0.0-next.14",
+    "@mapeo/schema": "3.0.0-next.15",
     "@mapeo/sqlite-indexer": "file:mapeo-sqlite-indexer-1.0.0-alpha.8.tgz",
     "@sinclair/typebox": "^0.29.6",
     "b4a": "^1.6.3",
@@ -135,14 +137,15 @@
     "compact-encoding": "^2.12.0",
     "corestore": "^6.8.4",
     "debug": "^4.3.4",
-    "drizzle-orm": "0.28.2",
+    "drizzle-orm": "^0.30.8",
     "fastify": ">= 4",
-    "fastify-plugin": "^4.5.0",
+    "fastify-plugin": "^4.5.1",
     "hyperblobs": "2.3.0",
     "hypercore": "10.17.0",
     "hypercore-crypto": "3.4.0",
     "hyperdrive": "11.5.3",
     "hyperswarm": "4.4.1",
+    "json-stable-stringify": "^1.1.1",
     "magic-bytes.js": "^1.10.0",
     "map-obj": "^5.0.2",
     "mime": "^4.0.1",
@@ -160,7 +163,7 @@
     "throttle-debounce": "^5.0.0",
     "tiny-typed-emitter": "^2.1.0",
     "type-fest": "^4.5.0",
-    "undici": "^6.7.0",
+    "undici": "^6.13.0",
     "varint": "^6.0.0",
     "yauzl-promise": "^4.0.0"
   }
