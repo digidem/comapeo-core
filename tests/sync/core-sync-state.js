@@ -330,14 +330,18 @@ test('CoreReplicationState', async (t) => {
     }
     await Promise.all(downloadPromises)
     await clearCore(localCore, state.localState.have)
-    const expectedRemoteStates = {}
-    for (const [key, value] of Object.entries(expected.remoteStates)) {
-      const peerId = peerIds.get(key)
-      expectedRemoteStates[peerId] = {
-        ...value,
-        status: connectedState.get(peerId),
-      }
-    }
+    const expectedRemoteStates = Object.fromEntries(
+      Object.entries(expected.remoteStates).map(([key, value]) => {
+        const peerId = peerIds.get(key)
+        return [
+          peerId,
+          {
+            ...value,
+            status: connectedState.get(peerId),
+          },
+        ]
+      })
+    )
     await updateWithTimeout(emitter, 100)
     t.alike(
       crs.getState(),
@@ -376,8 +380,9 @@ test.skip('bitCount32 (full test)', (t) => {
   }
 })
 
+/** @param {any} [key] */
 async function createCore(key) {
-  const core = new Hypercore(RAM, key)
+  const core = new Hypercore(() => new RAM(), key)
   await core.ready()
   return core
 }
@@ -536,7 +541,9 @@ export function replicate(
     keyPair: kp2,
   })
 
-  n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
+  const n1RawStream = /** @type {import('streamx').Duplex} */ (n1.rawStream)
+  const n2RawStream = /** @type {import('streamx').Duplex} */ (n2.rawStream)
+  n1RawStream.pipe(n2RawStream).pipe(n1RawStream)
 
   core1.replicate(n1)
   core2.replicate(n2)
