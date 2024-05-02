@@ -413,7 +413,7 @@ function createState({ have, prehave, want, status }) {
     const bigInt = BigInt(want)
     // 53 because the max safe integer in JS is 53 bits
     for (let i = 0; i < 53; i++) {
-      if ((bigInt >> BigInt(i)) & 1n) {
+      if ((bigInt >> BigInt(i)) & BigInt(1)) {
         peerState.setWantRange({ start: i, length: 1 })
       }
     }
@@ -433,7 +433,7 @@ function createBitfield(bits) {
   const bigInt = BigInt(bits)
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < 53; i++) {
-    bitfield.set(i, !!((bigInt >> BigInt(i)) & 1n))
+    bitfield.set(i, !!((bigInt >> BigInt(i)) & BigInt(1)))
   }
   return bitfield
 }
@@ -451,7 +451,7 @@ async function clearCore(core, bits) {
   const promises = []
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < core.length; i++) {
-    if ((bigInt >> BigInt(i)) & 1n) continue
+    if ((bigInt >> BigInt(i)) & BigInt(1)) continue
     promises.push(core.clear(i))
   }
   await Promise.all(promises)
@@ -470,7 +470,7 @@ async function downloadCore(core, bits) {
   const blocks = []
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < core.length; i++) {
-    if ((bigInt >> BigInt(i)) & 1n) {
+    if ((bigInt >> BigInt(i)) & BigInt(1)) {
       blocks.push(i)
     }
   }
@@ -491,7 +491,7 @@ function setPeerWants(state, peerId, bits) {
   const ranges = []
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < 53; i++) {
-    if ((bigInt >> BigInt(i)) & 1n) {
+    if ((bigInt >> BigInt(i)) & BigInt(1)) {
       ranges.push({ start: i, length: 1 })
     }
   }
