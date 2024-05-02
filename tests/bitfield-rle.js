@@ -8,7 +8,6 @@ test('encodes and decodes', function (t) {
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
   t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
-  t.end()
 })
 
 test('encodingLength', function (t) {
@@ -21,7 +20,6 @@ test('encodingLength', function (t) {
     deflated.length,
     'encoding length is similar to encoded buffers length'
   )
-  t.end()
 })
 
 test('encodes and decodes with all bits set', function (t) {
@@ -33,7 +31,6 @@ test('encodes and decodes with all bits set', function (t) {
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
   t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
-  t.end()
 })
 
 test('encodes and decodes with some bits set', function (t) {
@@ -51,7 +48,6 @@ test('encodes and decodes with some bits set', function (t) {
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
   t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
-  t.end()
 })
 
 test('encodes and decodes with random bits set', function (t) {
@@ -65,7 +61,6 @@ test('encodes and decodes with random bits set', function (t) {
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
   t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
-  t.end()
 })
 
 test('encodes and decodes with random bits set (not power of two)', function (t) {
@@ -79,14 +74,12 @@ test('encodes and decodes with random bits set (not power of two)', function (t)
   t.ok(deflated.length < bits.buffer.length, 'is smaller')
   var inflated = rle.decode(deflated)
   t.alike(inflated, toUint32Array(bits.buffer), 'decodes to same buffer')
-  t.end()
 })
 
 test('encodes empty bitfield', function (t) {
   var deflated = rle.encode(new Uint32Array())
   var inflated = rle.decode(deflated)
   t.alike(inflated, new Uint32Array(), 'still empty')
-  t.end()
 })
 
 test('throws on bad input', function (t) {
@@ -102,7 +95,6 @@ test('throws on bad input', function (t) {
       ])
     )
   }, 'missing delta')
-  t.end()
 })
 
 test('not power of two', function (t) {
@@ -113,7 +105,6 @@ test('not power of two', function (t) {
     toUint32Array([255, 255, 255, 240]),
     'output equal to input'
   )
-  t.end()
 })
 
 /** @param {Bitfield | Buffer | Array<number>} b */
