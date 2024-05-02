@@ -736,31 +736,18 @@ export class MapeoProject extends TypedEmitter {
     await Promise.all(presetPromises)
 
     const translationPromises = []
-    for (let {
-      docName,
-      fieldRef,
-      message,
-      languageCode,
-      regionCode,
-      schemaNameRef,
-    } of config.translations()) {
+    for (let { name, value } of config.translations()) {
       let docIdRef
-
-      if (schemaNameRef === 'fields') {
-        docIdRef = fieldNameToId.get(docName)
-      } else if (schemaNameRef === 'presets') {
-        docIdRef = presetNameToId.get(docName)
+      if (value.schemaNameRef === 'fields') {
+        docIdRef = fieldNameToId.get(name)
+      } else if (value.schemaNameRef === 'presets') {
+        docIdRef = presetNameToId.get(name)
       }
       if (docIdRef) {
         translationPromises.push(
           this.$translation.put({
-            schemaName: 'translation',
-            schemaNameRef,
+            ...value,
             docIdRef,
-            fieldRef: fieldRef,
-            message: message,
-            languageCode,
-            regionCode: regionCode || '',
           })
         )
       }

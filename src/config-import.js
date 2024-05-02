@@ -25,6 +25,13 @@ const MAX_ICON_SIZE = 10_000_000
  * }} TranslationsFile
  */
 
+/** @typedef {('presets' | 'fields')} ValidDocTypes */
+/** @typedef
+ *{{
+ *  [lang: string]: Record<ValidDocTypes,unknown>
+ * }} Translations
+ */
+
 /**
  * @typedef {Parameters<import('./icon-api.js').IconApi['create']>[0]} IconData
  */
@@ -196,7 +203,7 @@ export async function readConfig(configPath) {
       }
     },
     /**
-     * @returns {Iterable<{ languageCode: string, regionCode: string | undefined | null, schemaNameRef: string, fieldRef: string, message: string, docName: string}>}
+     * @returns {Iterable<{name: string,value:import('@mapeo/schema').TranslationValue}>}
      */
     *translations() {
       if (!translationsFile) return
@@ -205,42 +212,46 @@ export async function readConfig(configPath) {
       )) {
         const { language: languageCode, region: regionCode } = parseBCP47(lang)
         if (!languageCode) throw new Error(`invalid translation language`)
-        if (!isRecord(languageTranslations))
-          throw new Error(`invalid translation language`)
+        // if (!isRecord(languageTranslations))
+        //   throw new Error(`invalid translation language object`)
         for (let [
           schemaNameRef,
           languageTranslationsForDocType,
         ] of Object.entries(languageTranslations)) {
-          // we skip categories for now?
-          if (schemaNameRef === 'categories') continue
           if (!isRecord(languageTranslationsForDocType))
             throw new Error(`invalid translation docType`)
-          // en fields, el key es el label
-          // en presets, el key es el name
           for (let [docName, fieldsToTranslate] of Object.entries(
             languageTranslationsForDocType
           )) {
             if (!isRecord(fieldsToTranslate))
               throw new Error(`invalid translation field`)
             for (let [fieldRef, message] of Object.entries(fieldsToTranslate)) {
+              // we skip messages that aren't strings, for now
               if (isRecord(message)) continue
               if (typeof message !== 'string')
                 throw new Error(`invalid translation message`)
-              // message can also be an object, we turn it into an array of strings
-              // message = Object.values(message).map((msg) => msg)
-              // }
-              // if (!Array.isArray(message) && typeof message !== 'string') {
-              // throw new Error(`invalid translation message ${message}`)
-              // }
-              let doc = {
+              let translationValue = {
+                /** @type {'translation'} */
+                schemaName: 'translation',
                 languageCode,
-                regionCode,
+                regionCode: regionCode || '',
                 schemaNameRef,
                 fieldRef,
                 message,
-                docName,
+                docIdRef: '',
               }
-              yield doc
+
+              if (!validate('translation', { ...translationValue })) {
+                warnings.push(
+                  new Error(`Invalid translation ${translationValue.message}`)
+                )
+                continue
+              }
+
+              yield {
+                name: docName,
+                value: translationValue,
+              }
             }
           }
         }
@@ -293,31 +304,31 @@ async function findTranslationsFile(entries) {
     throw new Error('Could not parse translation.json')
   }
   assert(isRecord(result), 'Invalid translations.json file')
-  return filterTranslatedLanguages(result)
+  return parseTranslations(result)
 }
 
 /**
  * @param {TranslationsFile} translations
- * @returns {TranslationsFile}
+ * @returns {Translations}
  */
-function filterTranslatedLanguages(translations) {
-  /** @type {TranslationsFile} */
+function parseTranslations(translations) {
+  /** @type {Translations} */
   const translatedLangs = {}
-  for (let [lang, translation] of Object.entries(translations)) {
-    let translatedLang = false
-    if (!isRecord(translation))
+  for (let [lang, translationByLang] of Object.entries(translations)) {
+    const langTranslation = { presets: {}, fields: {} }
+    if (!isRecord(translationByLang))
       throw new Error('invalid translation lang object')
-    for (let [_, docType] of Object.entries(translation)) {
-      if (!isRecord(docType))
+    for (let [docType, translationByDocType] of Object.entries(
+      translationByLang
+    )) {
+      if (!isRecord(translationByDocType))
         throw new Error('invalid translation docType object')
-      if (Object.keys(docType).length !== 0) {
-        translatedLang = true
-      }
+      if (!(docType === 'presets' || docType === 'fields')) continue
+
+      langTranslation[docType] = translationByDocType
     }
-    if (translatedLang) {
-      translatedLangs[lang] = translations[lang]
-      translatedLang = false
-    }
+    if (Object.keys(langTranslation).length === 0) continue
+    translatedLangs[lang] = langTranslation
   }
   return translatedLangs
 }
