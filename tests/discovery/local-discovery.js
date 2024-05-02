@@ -62,7 +62,7 @@ test('deduplicate incoming connections', async (t) => {
   const localKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const remoteKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const discovery = new LocalDiscovery({ identityKeypair: localKp })
-  await discovery.start()
+  const { port } = await discovery.start()
 
   discovery.on('connection', (conn) => {
     conn.on('error', handleConnectionError.bind(null, t))
@@ -70,9 +70,8 @@ test('deduplicate incoming connections', async (t) => {
     conn.on('close', () => localConnections.delete(conn))
   })
 
-  const addrInfo = discovery.address()
   for (let i = 0; i < 20; i++) {
-    noiseConnect(addrInfo, remoteKp).then((conn) => {
+    noiseConnect(port, '127.0.0.1', remoteKp).then((conn) => {
       conn.on('error', handleConnectionError.bind(null, t))
       conn.on('connect', () => remoteConnections.add(conn))
       conn.on('close', () => remoteConnections.delete(conn))
@@ -98,13 +97,12 @@ test(`peer discovery of 30 peers connected at the same time`, async (t) => {
 })
 
 /**
- *
- * @param {net.AddressInfo} addrInfo
+ * @param {number} port
+ * @param {string} host
  * @param {{ publicKey: Buffer, secretKey: Buffer }} keyPair
- * @returns
  */
-async function noiseConnect({ port, address }, keyPair) {
-  const socket = net.connect(port, address)
+async function noiseConnect(port, host, keyPair) {
+  const socket = net.connect(port, host)
   return new NoiseSecretStream(true, socket, { keyPair })
 }
 
