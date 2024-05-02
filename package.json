@@ -131,6 +131,7 @@
     "@mapeo/sqlite-indexer": "1.0.0-alpha.8",
     "@sinclair/typebox": "^0.29.6",
     "b4a": "^1.6.3",
+    "bcp-47": "^2.1.0",
     "better-sqlite3": "^8.7.0",
     "big-sparse-array": "^1.0.3",
     "bogon": "^1.1.0",

@@ -3,6 +3,7 @@ import { validate, valueSchemas } from '@mapeo/schema'
 import { json, buffer } from 'node:stream/consumers'
 import { assert } from './utils.js'
 import path from 'node:path'
+import { parse as parseBCP47 } from 'bcp-47'
 
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
@@ -195,25 +196,45 @@ export async function readConfig(configPath) {
       }
     },
     /**
-     * @returns {Iterable<>}
+     * @returns {Iterable<{ languageCode: string, regionCode: string | undefined | null, schemaNameRef: string, fieldRef: string, message: string, docName: string}>}
      */
     *translations() {
       if (!translationsFile) return
-      for (let lang of Object.keys(translationsFile)) {
-        const languageTranslations = translationsFile[lang]
-        // console.log(`lang ${lang}`, languageTranslations)
-        for (let schemaNameRef of Object.keys(languageTranslations)) {
+      for (let [lang, languageTranslations] of Object.entries(
+        translationsFile
+      )) {
+        const { language: languageCode, region: regionCode } = parseBCP47(lang)
+        if (!languageCode) throw new Error(`invalid translation language`)
+        if (!isRecord(languageTranslations))
+          throw new Error(`invalid translation language`)
+        for (let [
+          schemaNameRef,
+          languageTranslationsForDocType,
+        ] of Object.entries(languageTranslations)) {
+          // we skip categories for now?
           if (schemaNameRef === 'categories') continue
-          const languageTranslationsForDocType =
-            languageTranslations[schemaNameRef]
+          if (!isRecord(languageTranslationsForDocType))
+            throw new Error(`invalid translation docType`)
           // en fields, el key es el label
           // en presets, el key es el name
-          for (let docName of Object.keys(languageTranslationsForDocType)) {
-            let fieldsToTranslate = languageTranslationsForDocType[docName]
-            for (let fieldRef of Object.keys(fieldsToTranslate)) {
-              const message = fieldsToTranslate[fieldRef]
+          for (let [docName, fieldsToTranslate] of Object.entries(
+            languageTranslationsForDocType
+          )) {
+            if (!isRecord(fieldsToTranslate))
+              throw new Error(`invalid translation field`)
+            for (let [fieldRef, message] of Object.entries(fieldsToTranslate)) {
+              if (isRecord(message)) continue
+              if (typeof message !== 'string')
+                throw new Error(`invalid translation message`)
+              // message can also be an object, we turn it into an array of strings
+              // message = Object.values(message).map((msg) => msg)
+              // }
+              // if (!Array.isArray(message) && typeof message !== 'string') {
+              // throw new Error(`invalid translation message ${message}`)
+              // }
               let doc = {
-                languageCode: lang,
+                languageCode,
+                regionCode,
                 schemaNameRef,
                 fieldRef,
                 message,

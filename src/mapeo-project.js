@@ -686,6 +686,8 @@ export class MapeoProject extends TypedEmitter {
     const iconNameToId = new Map()
     /** @type {Map<string, string>} */
     const fieldNameToId = new Map()
+    /** @type {Map<string,string>} */
+    const presetNameToId = new Map()
 
     // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
     for await (const icon of config.icons()) {
@@ -722,18 +724,55 @@ export class MapeoProject extends TypedEmitter {
       })
     }
 
+    let presetPromises = []
+    for (let preset of presetsWithRefs) {
+      presetPromises.push(
+        this.preset.create(preset).then(({ docId, name }) => {
+          presetNameToId.set(name, docId)
+        })
+      )
+    }
+
+    await Promise.all(presetPromises)
+
+    const translationPromises = []
+    for (let {
+      docName,
+      fieldRef,
+      message,
+      languageCode,
+      regionCode,
+      schemaNameRef,
+    } of config.translations()) {
+      let docIdRef
+
+      if (schemaNameRef === 'fields') {
+        docIdRef = fieldNameToId.get(docName)
+      } else if (schemaNameRef === 'presets') {
+        docIdRef = presetNameToId.get(docName)
+      }
+      if (docIdRef) {
+        translationPromises.push(
+          this.$translation.put({
+            schemaName: 'translation',
+            schemaNameRef,
+            docIdRef,
+            fieldRef: fieldRef,
+            message: message,
+            languageCode,
+            regionCode: regionCode || '',
+          })
+        )
+      }
+    }
+    await Promise.all(translationPromises)
+
     // close the zip handles after we know we won't be needing them anymore
     await config.close()
 
-    const presetPromises = presetsWithRefs.map((preset) =>
-      this.preset.create(preset)
-    )
-    const createdPresets = await Promise.all(presetPromises)
-    const presetIds = createdPresets.map(({ docId }) => docId)
-
     await this.$setProjectSettings({
       defaultPresets: {
-        point: presetIds,
+        point: [...presetNameToId.values()],
         line: [],
         area: [],
         vertex: [],
