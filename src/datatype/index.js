@@ -284,6 +284,7 @@ export class DataType extends TypedEmitter {
     const doc = {
       ...existingDoc,
       updatedAt: new Date().toISOString(),
+      // @ts-expect-error - TS just doesn't work in this class
       links: [existingDoc.versionId, ...existingDoc.forks],
       deleted: true,
     }
