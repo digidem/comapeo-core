@@ -292,7 +292,7 @@ async function findTranslationsFile(entries) {
   } catch (err) {
     throw new Error('Could not parse translation.json')
   }
-  assert(isRecord(result), 'Invalid presets.json file')
+  assert(isRecord(result), 'Invalid translations.json file')
   return filterTranslatedLanguages(result)
 }
 
@@ -303,10 +303,14 @@ async function findTranslationsFile(entries) {
 function filterTranslatedLanguages(translations) {
   /** @type {TranslationsFile} */
   const translatedLangs = {}
-  for (let lang of Object.keys(translations)) {
+  for (let [lang, translation] of Object.entries(translations)) {
     let translatedLang = false
-    for (let key of Object.keys(translations[lang])) {
-      if (Object.keys(translations[lang][key]).length !== 0) {
+    if (!isRecord(translation))
+      throw new Error('invalid translation lang object')
+    for (let [_, docType] of Object.entries(translation)) {
+      if (!isRecord(docType))
+        throw new Error('invalid translation docType object')
+      if (Object.keys(docType).length !== 0) {
         translatedLang = true
       }
     }
