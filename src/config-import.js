@@ -17,6 +17,13 @@ const MAX_ICON_SIZE = 10_000_000
  *   fields:  { [id: string]: unknown }
  * }} PresetsFile
  */
+
+/**
+ * @typedef {{
+ *  [lang: string] : unknown
+ * }} TranslationsFile
+ */
+
 /**
  * @typedef {Parameters<import('./icon-api.js').IconApi['create']>[0]} IconData
  */
@@ -35,6 +42,7 @@ export async function readConfig(configPath) {
   }
   const entries = await zip.readEntries(MAX_ENTRIES)
   const presetsFile = await findPresetsFile(entries)
+  const translationsFile = await findTranslationsFile(entries)
 
   return {
     get warnings() {
@@ -186,6 +194,37 @@ export async function readConfig(configPath) {
         }
       }
     },
+    /**
+     * @returns {Iterable<>}
+     */
+    *translations() {
+      if (!translationsFile) return
+      for (let lang of Object.keys(translationsFile)) {
+        const languageTranslations = translationsFile[lang]
+        // console.log(`lang ${lang}`, languageTranslations)
+        for (let schemaNameRef of Object.keys(languageTranslations)) {
+          if (schemaNameRef === 'categories') continue
+          const languageTranslationsForDocType =
+            languageTranslations[schemaNameRef]
+          // en fields, el key es el label
+          // en presets, el key es el name
+          for (let docName of Object.keys(languageTranslationsForDocType)) {
+            let fieldsToTranslate = languageTranslationsForDocType[docName]
+            for (let fieldRef of Object.keys(fieldsToTranslate)) {
+              const message = fieldsToTranslate[fieldRef]
+              let doc = {
+                languageCode: lang,
+                schemaNameRef,
+                fieldRef,
+                message,
+                docName,
+              }
+              yield doc
+            }
+          }
+        }
+      }
+    },
   }
 }
 
@@ -213,6 +252,49 @@ async function findPresetsFile(entries) {
   assert(isRecord(presets) && isRecord(fields), 'Invalid presets.json file')
 
   return { presets, fields }
+}
+
+/**
+ * @param {ReadonlyArray<Entry>} entries
+ */
+async function findTranslationsFile(entries) {
+  const translationEntry = entries.find(
+    (entry) => entry.filename === 'translations.json'
+  )
+
+  if (!translationEntry) return
+
+  /** @type {unknown} */
+  let result
+  try {
+    result = await json(await translationEntry.openReadStream())
+  } catch (err) {
+    throw new Error('Could not parse translation.json')
+  }
+  assert(isRecord(result), 'Invalid presets.json file')
+  return filterTranslatedLanguages(result)
+}
+
+/**
+ * @param {TranslationsFile} translations
+ * @returns {TranslationsFile}
+ */
+function filterTranslatedLanguages(translations) {
+  /** @type {TranslationsFile} */
+  const translatedLangs = {}
+  for (let lang of Object.keys(translations)) {
+    let translatedLang = false
+    for (let key of Object.keys(translations[lang])) {
+      if (Object.keys(translations[lang][key]).length !== 0) {
+        translatedLang = true
+      }
+    }
+    if (translatedLang) {
+      translatedLangs[lang] = translations[lang]
+      translatedLang = false
+    }
+  }
+  return translatedLangs
 }
 
 /**
