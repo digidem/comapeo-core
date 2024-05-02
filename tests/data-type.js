@@ -199,11 +199,36 @@ test('translation', async (t) => {
   await translationApi.put(translation)
   translationApi.index(translation)
 
-  const translatedDoc = await dataType.getByDocId(doc.docId, { lang: 'es' })
   t.is(
     translation.message,
-    getProperty(translatedDoc, translation.fieldRef),
+    getProperty(
+      await dataType.getByDocId(doc.docId, { lang: 'es' }),
+      translation.fieldRef
+    ),
     `we get a valid translated field`
+  )
+  t.is(
+    translation.message,
+    getProperty(
+      await dataType.getByDocId(doc.docId, { lang: 'es-ES' }),
+      translation.fieldRef
+    ),
+    `passing an untranslated regionCode, still returns a translated field, since we fallback to only matching languageCode`
+  )
+
+  t.is(
+    getProperty(observation, 'tags.type'),
+    getProperty(
+      await dataType.getByDocId(doc.docId, { lang: 'de' }),
+      'tags.type'
+    ),
+    `passing an untranslated language code returns the untranslated message`
+  )
+
+  t.is(
+    getProperty(observation, 'tags.type'),
+    getProperty(await dataType.getByDocId(doc.docId), 'tags.type'),
+    `not passing a a language code returns the untranslated message`
   )
 })
 

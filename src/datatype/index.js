@@ -205,13 +205,21 @@ export class DataType extends TypedEmitter {
     const { language, region } = parseBCP47(lang)
     if (!language) return doc
     // const translatedDoc = JSON.parse(JSON.stringify(doc))
+
     let value = {
       languageCode: language,
       schemaNameRef: doc.schemaName,
       docIdRef: doc.docId,
       regionCode: region !== null ? region : undefined,
     }
-    const translations = await this.#translation.get(value)
+    let translations = await this.#translation.get(value)
+    // if passing a region code returns no matches,
+    // fallback to matching only languageCode
+    if (translations.length === 0) {
+      value.regionCode = undefined
+    }
+    translations = await this.#translation.get(value)
+
     for (let translation of translations) {
       if (hasProperty(doc, translation.fieldRef)) {
         setProperty(doc, translation.fieldRef, translation.message)
