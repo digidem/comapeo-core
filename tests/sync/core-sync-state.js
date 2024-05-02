@@ -264,7 +264,7 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
     localState,
     remoteStates: new Map([['peer0', remoteState]]),
     peerSyncControllers: new Map(),
-    namespace: /** @type {const} */ 'auth',
+    namespace: /** @type {const} */ ('auth'),
   }
   const expected = {
     coreLength: BITS_PER_PAGE + 10,
