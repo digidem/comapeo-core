@@ -181,7 +181,9 @@ export class DataType extends TypedEmitter {
    */
   async getByDocId(docId, { lang } = {}) {
     await this.#dataStore.indexer.idle()
-    const result = /** @type {MapeoDoc} */ (this.#sql.getByDocId.get({ docId }))
+    const result = /** @type {undefined | MapeoDoc} */ (
+      this.#sql.getByDocId.get({ docId })
+    )
     if (!result) throw new NotFoundError()
     return this.#translate(deNullify(result), { lang })
   }
@@ -215,10 +217,10 @@ export class DataType extends TypedEmitter {
     let translations = await this.#translation.get(value)
     // if passing a region code returns no matches,
     // fallback to matching only languageCode
-    if (translations.length === 0) {
+    if (translations.length === 0 && value.regionCode) {
       value.regionCode = undefined
+      translations = await this.#translation.get(value)
     }
-    translations = await this.#translation.get(value)
 
     for (let translation of translations) {
       if (hasProperty(doc, translation.fieldRef)) {
@@ -238,8 +240,7 @@ export class DataType extends TypedEmitter {
       rows.map(
         async (doc) =>
           await this.#translate(
-            // @ts-ignore - too complicated to type this
-            deNullify(doc),
+            deNullify(/** @type {MapeoDoc} */ (doc)),
             { lang }
           )
       )
