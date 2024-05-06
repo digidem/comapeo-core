@@ -50,13 +50,11 @@ export class DataType<
   constructor({
     dataStore,
     table,
-    getPermissions,
     db,
   }: {
     table: TTable
     dataStore: TDataStore
     db: import('drizzle-orm/better-sqlite3').BetterSQLite3Database
-    getPermissions?: () => any
   })
 
   get [kTable](): TTable
