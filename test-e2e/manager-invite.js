@@ -78,7 +78,7 @@ test('chain of invites', async (t) => {
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
 
-  let invitor = creator
+  const invitor = creator
   for (const joiner of joiners) {
     const invitorProject = await invitor.getProject(createdProjectId)
     const responsePromise = invitorProject.$member.invite(joiner.deviceId, {

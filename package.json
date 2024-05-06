@@ -55,6 +55,7 @@
       "eqeqeq": "error",
       "default-case": "error",
       "default-case-last": "error",
+      "prefer-const": "error",
       "no-unused-vars": [
         "error",
         {

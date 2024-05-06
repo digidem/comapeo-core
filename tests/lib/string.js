@@ -33,7 +33,7 @@ test('isBlank()', () => {
 /** @param {string} str */
 function formatCodePoints(str) {
   /** @type {string[]} */
-  let result = []
+  const result = []
   for (const c of str) {
     const codePoint = c.codePointAt(0) ?? 0
     result.push(formatCodePoint(codePoint))

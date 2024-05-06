@@ -216,7 +216,7 @@ export class DataType extends TypedEmitter {
     if (!language) return doc
     const translatedDoc = JSON.parse(JSON.stringify(doc))
 
-    let value = {
+    const value = {
       languageCode: language,
       schemaNameRef: translatedDoc.schemaName,
       docIdRef: translatedDoc.docId,
@@ -230,7 +230,7 @@ export class DataType extends TypedEmitter {
       translations = await this.#getTranslations(value)
     }
 
-    for (let translation of translations) {
+    for (const translation of translations) {
       if (typeof getProperty(doc, translation.fieldRef) === 'string') {
         setProperty(doc, translation.fieldRef, translation.message)
       }

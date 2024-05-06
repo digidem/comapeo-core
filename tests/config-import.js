@@ -142,7 +142,7 @@ test('config import - icons', async () => {
     } else if (icon.name === 'tree') {
       assert.equal(icon.variants.length, 9, '9 - all - variants of tree icons')
     }
-    for (let variant of icon.variants) {
+    for (const variant of icon.variants) {
       assert.equal(variant.mimeType, 'image/png', 'variant is a png')
     }
   }
@@ -170,7 +170,7 @@ test('config import - fields', async () => {
   )
 
   config = await readConfig('./tests/fixtures/config/validField.zip')
-  for (let field of config.fields()) {
+  for (const field of config.fields()) {
     assert.equal(field.name, 'nombre-monitor', `field.name is 'nombre-monitor'`)
     assert.equal(
       field.value.tagKey,
