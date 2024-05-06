@@ -52,6 +52,7 @@
       "sourceType": "module"
     },
     "rules": {
+      "eqeqeq": "error",
       "no-unused-vars": [
         "error",
         {
