@@ -206,12 +206,12 @@ export class DataType extends TypedEmitter {
 
     const { language, region } = parseBCP47(lang)
     if (!language) return doc
-    // const translatedDoc = JSON.parse(JSON.stringify(doc))
+    const translatedDoc = JSON.parse(JSON.stringify(doc))
 
     let value = {
       languageCode: language,
-      schemaNameRef: doc.schemaName,
-      docIdRef: doc.docId,
+      schemaNameRef: translatedDoc.schemaName,
+      docIdRef: translatedDoc.docId,
       regionCode: region !== null ? region : undefined,
     }
     let translations = await this.#translation.get(value)
@@ -239,10 +239,9 @@ export class DataType extends TypedEmitter {
     return await Promise.all(
       rows.map(
         async (doc) =>
-          await this.#translate(
-            deNullify(/** @type {MapeoDoc} */ (doc)),
-            { lang }
-          )
+          await this.#translate(deNullify(/** @type {MapeoDoc} */ (doc)), {
+            lang,
+          })
       )
     )
   }
