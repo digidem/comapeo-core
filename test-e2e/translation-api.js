@@ -142,6 +142,57 @@ test('translation api - put() and get() fields', async (t) => {
   }
 })
 
+test('translation api - passing `lang` to dataType', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(
+    await manager.createProject({
+      configPath: defaultConfigPath,
+    })
+  )
+
+  const fields = await project.field.getMany()
+  const fieldTranslationsDoc = fields
+    .map((field) => {
+      const matchingTranslation = fieldTranslations.find((translation) => {
+        return translation.message === fieldsTranslationMap[field.label]
+      })
+      if (matchingTranslation)
+        return { docIdRef: field.docId, ...matchingTranslation }
+    })
+    .filter(isDefined)
+  for (const translationDoc of fieldTranslationsDoc) {
+    const { docIdRef, message, fieldRef } = await project.$translation.put(
+      translationDoc
+    )
+    const translatedField = await project.field.getByDocId(docIdRef, {
+      lang: 'es',
+    })
+
+    t.is(
+      translatedField[fieldRef],
+      message,
+      `passing 'lang' returns the correct translated 'fieldRef'`
+    )
+    const untranslatedField = await project.field.getByDocId(docIdRef)
+    t.not(
+      untranslatedField[fieldRef],
+      message,
+      `not passing 'lang' won't give a translated field`
+    )
+    const fallbackRegionCodeTranslatedField = await project.field.getByDocId(
+      docIdRef,
+      { lang: 'es-CO' }
+    )
+    t.is(
+      fallbackRegionCodeTranslatedField[fieldRef],
+      message,
+      `passing 'lang' with untranslated 'regionCode' returns a fallback translated 'fieldRef' matching 'languageCode'`
+    )
+    // console.log(fieldRef, message)
+    // const fields = await project.field.getMany({ lang: 'en' })
+  }
+})
+
 test('translation api - re-loading from disk', async (t) => {
   const custodian = new ManagerCustodian(t)
   const deps = {

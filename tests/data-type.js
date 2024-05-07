@@ -216,6 +216,14 @@ test('translation', async (t) => {
   t.is(
     translation.message,
     getProperty(
+      await dataType.getByDocId(doc.docId, { lang: 'es-AR' }),
+      translation.fieldRef
+    ),
+    `we get a valid translated field`
+  )
+  t.is(
+    translation.message,
+    getProperty(
       await dataType.getByDocId(doc.docId, { lang: 'es-ES' }),
       translation.fieldRef
     ),
