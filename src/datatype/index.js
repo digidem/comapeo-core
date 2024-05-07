@@ -72,7 +72,7 @@ export class DataType extends TypedEmitter {
   #schemaName
   #sql
   #db
-  #translation
+  #getTranslations
 
   /**
    *
@@ -80,17 +80,17 @@ export class DataType extends TypedEmitter {
    * @param {TTable} opts.table
    * @param {TDataStore} opts.dataStore
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.db
-   * @param {import('../translation-api.js').default} opts.translation
+   * @param {import('../translation-api.js').default['get']} opts.getTranslations
    * @param {() => any} [opts.getPermissions]
    */
-  constructor({ dataStore, table, getPermissions, db, translation }) {
+  constructor({ dataStore, table, getPermissions, db, getTranslations }) {
     super()
     this.#dataStore = dataStore
     this.#table = table
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
     this.#getPermissions = getPermissions
     this.#db = db
-    this.#translation = translation
+    this.#getTranslations = getTranslations
     this.#sql = {
       getByDocId: db
         .select()
@@ -214,12 +214,12 @@ export class DataType extends TypedEmitter {
       docIdRef: translatedDoc.docId,
       regionCode: region !== null ? region : undefined,
     }
-    let translations = await this.#translation.get(value)
+    let translations = await this.#getTranslations(value)
     // if passing a region code returns no matches,
     // fallback to matching only languageCode
     if (translations.length === 0 && value.regionCode) {
       value.regionCode = undefined
-      translations = await this.#translation.get(value)
+      translations = await this.#getTranslations(value)
     }
 
     for (let translation of translations) {

@@ -55,6 +55,9 @@ test('private createWithDocId() method', async (t) => {
     dataStore,
     table: observationTable,
     db,
+    getTranslations() {
+      throw new Error('Translations should not be fetched in this test')
+    },
   })
   const customId = randomBytes(8).toString('hex')
   const obs = await dataType[kCreateWithDocId](customId, obsFixture)
@@ -87,6 +90,9 @@ test('private createWithDocId() method throws when doc exists', async (t) => {
     dataStore,
     table: observationTable,
     db,
+    getTranslations() {
+      throw new Error('Translations should not be fetched in this test')
+    },
   })
   const customId = randomBytes(8).toString('hex')
   await dataType[kCreateWithDocId](customId, obsFixture)
@@ -256,8 +262,6 @@ async function testenv(opts) {
     batch: async (entries) => indexWriter.batch(entries),
     storage: () => new RAM(),
   })
-  /** @type {TranslationApi} */
-  let translationApi
 
   const configDataStore = new DataStore({
     coreManager,
@@ -294,10 +298,12 @@ async function testenv(opts) {
     dataStore: configDataStore,
     table: translationTable,
     db,
-    translation: translationApi,
+    getTranslations: () => {
+      throw new Error('Cannot get translations for translations')
+    },
   })
 
-  translationApi = new TranslationApi({
+  const translationApi = new TranslationApi({
     dataType: translationDataType,
     table: translationTable,
   })
@@ -306,7 +312,7 @@ async function testenv(opts) {
     dataStore,
     table: observationTable,
     db,
-    translation: translationApi,
+    getTranslations: translationApi.get.bind(translationApi),
   })
 
   return { coreManager, dataType, dataStore, translationApi }

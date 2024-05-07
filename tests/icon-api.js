@@ -685,6 +685,9 @@ function setup({
     dataStore: iconDataStore,
     table: iconTable,
     db,
+    getTranslations() {
+      throw new Error('Translations should not be fetched in this test')
+    },
   })
 
   const iconApi = new IconApi({
