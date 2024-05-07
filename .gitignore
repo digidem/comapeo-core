@@ -7,4 +7,4 @@ proto/build
 /dist
 !/drizzle/**/*.sql
 .eslintcache
-!/docs/html/*
+docs/api/html/*
