@@ -102,8 +102,6 @@ test(`translation api - put() and get()`, async (t) => {
 function setup() {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
-  /** @type {TranslationApi} */
-  let translationApi
 
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
@@ -127,13 +125,13 @@ function setup() {
     dataStore,
     table,
     db,
-    translation: translationApi,
+    getTranslations() {
+      throw new Error('Cannot get translations from translations')
+    },
   })
 
-  translationApi = new TranslationApi({
+  return new TranslationApi({
     dataType,
     table,
   })
-
-  return translationApi
 }
