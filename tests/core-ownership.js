@@ -74,9 +74,10 @@ test('Invalid coreOwnership docId and coreIds (wrong length)', (t) => {
   const version = parseVersionId(validDoc.versionId)
 
   for (const key of Object.keys(validDoc.coreSignatures)) {
+    const namespace = /** @type {import('./core-manager.js').Namespace} */ (key)
     const invalidDoc = {
       ...validDoc,
-      [`${key}CoreId`]: validDoc[`${key}CoreId`].slice(0, -1),
+      [`${namespace}CoreId`]: validDoc[`${namespace}CoreId`].slice(0, -1),
     }
     t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
   }
