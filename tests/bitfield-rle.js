@@ -84,12 +84,12 @@ test('encodes empty bitfield', function (t) {
 
 test('throws on bad input', function (t) {
   t.exception(function () {
-    rle.decode(toUint32Array([100, 0, 0, 0]))
+    rle.decode(new Uint8Array([100, 0, 0, 0]))
   }, 'invalid delta count')
   // t.exception.all also catches RangeErrors, which is what we expect from this
   t.exception.all(function () {
     rle.decode(
-      toUint32Array([
+      new Uint8Array([
         10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0,
         10, 0,
       ])
@@ -107,7 +107,7 @@ test('not power of two', function (t) {
   )
 })
 
-/** @param {Bitfield | Buffer | Array<number>} b */
+/** @param {Bitfield | Uint8Array | Array<number>} b */
 function toUint32Array(b) {
   if (Array.isArray(b)) {
     b = Buffer.from(b)
