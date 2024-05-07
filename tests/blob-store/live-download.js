@@ -1,4 +1,5 @@
 // @ts-check
+import assert from 'node:assert/strict'
 import { DriveLiveDownload } from '../../src/blob-store/live-download.js'
 import Hyperdrive from 'hyperdrive'
 import Corestore from 'corestore'
@@ -7,6 +8,8 @@ import test from 'brittle'
 import { setTimeout } from 'node:timers/promises'
 import { once } from 'node:events'
 import { randomBytes } from 'node:crypto'
+/** @typedef {import('../../src/blob-store/live-download.js').BlobDownloadState} BlobDownloadState */
+/** @typedef {import('../../src/blob-store/live-download.js').BlobDownloadStateError} BlobDownloadStateError */
 
 // Test with buffers that are 3 times the default blockSize for hyperblobs
 const TEST_BUF_SIZE = 3 * 64 * 1024
@@ -15,12 +18,15 @@ test('live download', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
 
   await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
+  const drive1Entry = await drive1.entry('/foo')
+  assert(drive1Entry)
   const {
     value: { blob: blob1 },
-  } = await drive1.entry('/foo')
+  } = drive1Entry
 
   const stream = replicate()
-  const blobCore2 = (await drive2.getBlobs()).core
+  const blobCore2 = (await drive2.getBlobs())?.core
+  assert(blobCore2)
 
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
@@ -254,9 +260,11 @@ test('live download started before initial replication', async (t) => {
   const { drive1, drive2, replicate } = await testEnv()
 
   await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
+  const drive1Entry = await drive1.entry('/foo')
+  assert(drive1Entry)
   const {
     value: { blob: blob1 },
-  } = await drive1.entry('/foo')
+  } = drive1Entry
 
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
@@ -264,7 +272,8 @@ test('live download started before initial replication', async (t) => {
   t.is(download.state.status, 'downloaded')
 
   const stream = replicate()
-  const blobCore2 = (await drive2.getBlobs()).core
+  const blobCore2 = (await drive2.getBlobs())?.core
+  assert(blobCore2)
   await waitForState(download, 'downloaded')
 
   // Can't use `drive2.get()` here because connected to replication stream, so
@@ -288,7 +297,11 @@ test('live download started before initial replication', async (t) => {
   t.alike(await drive2.get('/bar'), expected, 'Second blob is downloaded')
 })
 
-/** @returns {Promise<void>} */
+/**
+ * @param {DriveLiveDownload} download
+ * @param {(BlobDownloadState | BlobDownloadStateError)['status']} status
+ * @returns {Promise<void>}
+ */
 async function waitForState(download, status) {
   return new Promise((res) => {
     download.on('state', function onState(state) {
@@ -301,8 +314,8 @@ async function waitForState(download, status) {
 }
 
 async function testEnv() {
-  const store1 = new Corestore(RAM)
-  const store2 = new Corestore(RAM)
+  const store1 = new Corestore(() => new RAM())
+  const store2 = new Corestore(() => new RAM())
   const drive1 = new Hyperdrive(store1)
   await drive1.ready()
   const drive2 = new Hyperdrive(store2, drive1.key)
