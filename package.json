@@ -53,6 +53,8 @@
     },
     "rules": {
       "eqeqeq": "error",
+      "default-case": "error",
+      "default-case-last": "error",
       "no-unused-vars": [
         "error",
         {
