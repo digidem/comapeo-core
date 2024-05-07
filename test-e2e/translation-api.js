@@ -165,21 +165,26 @@ test('translation api - passing `lang` to dataType', async (t) => {
     const { docIdRef, message, fieldRef } = await project.$translation.put(
       translationDoc
     )
+
+    /** @type {Record<string, unknown>} */
     const translatedField = await project.field.getByDocId(docIdRef, {
       lang: 'es',
     })
-
     t.is(
       translatedField[fieldRef],
       message,
       `passing 'lang' returns the correct translated field`
     )
+
+    /** @type {Record<string, unknown>} */
     const untranslatedField = await project.field.getByDocId(docIdRef)
     t.not(
       untranslatedField[fieldRef],
       message,
       `not passing 'lang' won't give a translated field`
     )
+
+    /** @type {Record<string, unknown>} */
     const fallbackRegionCodeTranslatedField = await project.field.getByDocId(
       docIdRef,
       { lang: 'es-CO' }
@@ -207,6 +212,7 @@ test('translation api - passing `lang` to dataType', async (t) => {
       translationDoc
     )
 
+    /** @type {Record<string, unknown>} */
     const translatedPreset = await project.preset.getByDocId(docIdRef, {
       lang: 'es',
     })
@@ -215,12 +221,16 @@ test('translation api - passing `lang` to dataType', async (t) => {
       message,
       `passing 'lang' returns the correct translated preset`
     )
+
+    /** @type {Record<string, unknown>} */
     const untranslatedPreset = await project.preset.getByDocId(docIdRef)
     t.not(
       untranslatedPreset[fieldRef],
       message,
       `not passing 'lang' won't give a translated preset`
     )
+
+    /** @type {Record<string, unknown>} */
     const fallbackRegionCodeTranslatedPreset = await project.preset.getByDocId(
       docIdRef,
       { lang: 'es-CO' }
