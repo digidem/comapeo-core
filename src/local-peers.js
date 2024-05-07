@@ -80,7 +80,11 @@ class Peer {
     this.#connected = pDefer()
     // Avoid unhandled rejections
     this.#connected.promise.catch(noop)
-    // @ts-ignore
+    /**
+     * @param {string} formatter
+     * @param {unknown[]} args
+     * @returns {void}
+     */
     this.#log = (formatter, ...args) => {
       const log = Logger.create('peer', logger).log
       return log.apply(null, [`[%S] ${formatter}`, peerId, ...args])
