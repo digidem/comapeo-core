@@ -9,7 +9,7 @@ const partial = {
   error: null,
 }
 
-const fixtures = [
+const fixtures = /** @type {const} */ ([
   {
     statuses: ['checking', 'downloading', 'downloaded'],
     expected: 'checking',
@@ -30,7 +30,7 @@ const fixtures = [
     statuses: ['checking', 'checking', 'checking'],
     expected: 'checking',
   },
-]
+])
 
 test('expected combined state, no error or abort', (t) => {
   for (const { statuses, expected } of fixtures) {
@@ -44,8 +44,16 @@ test('expected combined state, no error or abort', (t) => {
 
 test('expected combined state, with error', (t) => {
   for (const { statuses } of fixtures) {
-    const inputs = statuses.map((status) => ({ state: { ...partial, status } }))
-    inputs.push({ state: { ...partial, error: new Error(), status: 'error' } })
+    const inputs = [
+      ...statuses.map((status) => ({ state: { ...partial, status } })),
+      {
+        state: {
+          ...partial,
+          error: new Error(),
+          status: /** @type {const} */ ('error'),
+        },
+      },
+    ]
     const expectedState = { ...partial, error: new Error(), status: 'error' }
     for (const permuted of permute(inputs)) {
       t.alike(combineStates(permuted), expectedState)
@@ -88,7 +96,7 @@ test('arithmetic test', (t) => {
         wantCount,
         wantBytes,
         error: null,
-        status: 'downloaded',
+        status: /** @type {const} */ ('downloaded'),
       },
     }
   })
