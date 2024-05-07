@@ -62,10 +62,6 @@ export class LocalDiscovery extends TypedEmitter {
     return this.#identityKeypair.publicKey
   }
 
-  address() {
-    return this.#server.address()
-  }
-
   /** @returns {Promise<{ name: string, port: number }>} */
   async start() {
     await this.#sm.start()
@@ -291,7 +287,7 @@ export class LocalDiscovery extends TypedEmitter {
  * Get the address of a server, will throw if the server is not yet listening or
  * if it is listening on a socket
  * @param {import('node:net').Server} server
- * @returns
+ * @returns {import('node:net').AddressInfo}
  */
 function getAddress(server) {
   const addr = server.address()

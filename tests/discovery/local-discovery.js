@@ -11,6 +11,7 @@ import {
   LocalDiscovery,
 } from '../../src/discovery/local-discovery.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
+/** @typedef {import('../../src/utils.js').OpenedNoiseStream} OpenedNoiseStream */
 
 test('peer discovery - discovery and sharing of data', async (t) => {
   const deferred = pDefer()
@@ -62,7 +63,7 @@ test('deduplicate incoming connections', async (t) => {
   const localKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const remoteKp = new KeyManager(randomBytes(16)).getIdentityKeypair()
   const discovery = new LocalDiscovery({ identityKeypair: localKp })
-  await discovery.start()
+  const { port } = await discovery.start()
 
   discovery.on('connection', (conn) => {
     conn.on('error', handleConnectionError.bind(null, t))
@@ -70,9 +71,8 @@ test('deduplicate incoming connections', async (t) => {
     conn.on('close', () => localConnections.delete(conn))
   })
 
-  const addrInfo = discovery.address()
   for (let i = 0; i < 20; i++) {
-    noiseConnect(addrInfo, remoteKp).then((conn) => {
+    noiseConnect(port, '127.0.0.1', remoteKp).then((conn) => {
       conn.on('error', handleConnectionError.bind(null, t))
       conn.on('connect', () => remoteConnections.add(conn))
       conn.on('close', () => remoteConnections.delete(conn))
@@ -98,13 +98,12 @@ test(`peer discovery of 30 peers connected at the same time`, async (t) => {
 })
 
 /**
- *
- * @param {net.AddressInfo} addrInfo
+ * @param {number} port
+ * @param {string} host
  * @param {{ publicKey: Buffer, secretKey: Buffer }} keyPair
- * @returns
  */
-async function noiseConnect({ port, address }, keyPair) {
-  const socket = net.connect(port, address)
+async function noiseConnect(port, host, keyPair) {
+  const socket = net.connect(port, host)
   return new NoiseSecretStream(true, socket, { keyPair })
 }
 
@@ -115,7 +114,9 @@ async function noiseConnect({ port, address }, keyPair) {
  * @param {number} [opts.nPeers] Number of peers to spawn (default 20)
  */
 async function testMultiple(t, { period, nPeers = 20 }) {
+  /** @type {Map<string, LocalDiscovery>} */
   const peersById = new Map()
+  /** @type {Map<string, OpenedNoiseStream[]>} */
   const connsById = new Map()
   // t.plan(3 * nPeers + 1)
 
@@ -136,6 +137,7 @@ async function testMultiple(t, { period, nPeers = 20 }) {
     const discovery = new LocalDiscovery({ identityKeypair })
     const peerId = keyToPublicId(discovery.publicKey)
     peersById.set(peerId, discovery)
+    /** @type {OpenedNoiseStream[]} */
     const conns = []
     connsById.set(peerId, conns)
     discovery.on('connection', (conn) => {
@@ -172,8 +174,9 @@ async function testMultiple(t, { period, nPeers = 20 }) {
 
   for (const peerId of peerIds) {
     const expected = peerIds.filter((id) => id !== peerId).sort()
-    const actual = connsById
-      .get(peerId)
+    const conns = connsById.get(peerId)
+    if (!conns) throw new Error('Expected connections for peer ID ' + peerId)
+    const actual = conns
       .filter((conn) => !conn.destroyed)
       .map((conn) => keyToPublicId(conn.remotePublicKey))
       .sort()
@@ -187,11 +190,16 @@ async function testMultiple(t, { period, nPeers = 20 }) {
   }
 }
 
+/**
+ * @param {import('brittle').TestInstance} t
+ * @param {Error} e
+ */
 function handleConnectionError(t, e) {
   // We expected connections to be closed when duplicates happen. On the
   // closing side the error will be ERR_DUPLICATE, but on the other side
   // the error will be an ECONNRESET - the error is not sent over the
   // connection
-  const expectedError = e.message === ERR_DUPLICATE || e.code === 'ECONNRESET'
+  const expectedError =
+    e.message === ERR_DUPLICATE || ('code' in e && e.code === 'ECONNRESET')
   t.ok(expectedError, 'connection closed with expected error')
 }

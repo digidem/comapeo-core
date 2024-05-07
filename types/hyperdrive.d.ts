@@ -45,8 +45,12 @@ declare module 'hyperdrive' {
   }
 
   class Hyperdrive extends TypedEmitter<HyperdriveEvents> {
-    constructor(corestore: Corestore, key: Buffer, opts: HyperdriveOptions)
-    constructor(corestore: Corestore, opts: HyperdriveOptions)
+    constructor(
+      corestore: Corestore,
+      key?: null | Buffer,
+      opts?: HyperdriveOptions
+    )
+    constructor(corestore: Corestore, opts?: HyperdriveOptions)
     readonly id: null | string // String containing the id (z-base-32 of the public key) identifying this drive.
     readonly core: Hypercore // Hypercore used for drive.db
     readonly blobs: null | Hyperblobs
@@ -89,7 +93,7 @@ declare module 'hyperdrive' {
       blobRanges: Range
     ): { done: Promise<void>; destroy: () => void }
     list(folder: string, opts?: { recursive?: boolean }): Readable
-    download(folder: string, opts?: { recursive?: boolean }): Readable
+    download(folder?: string, opts?: { recursive?: boolean }): Readable
     readdir(folder: string): Readable
     mirror(): any
     batch(): any

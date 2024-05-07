@@ -643,7 +643,7 @@ export class MapeoProject extends TypedEmitter {
 
       // Determine if the the device is a coordinator based on the role docs
       const isCoordinator = roleDocs.some(
-        (doc) => doc.docId === deviceId && doc.roleId == COORDINATOR_ROLE_ID
+        (doc) => doc.docId === deviceId && doc.roleId === COORDINATOR_ROLE_ID
       )
 
       if (isCoordinator) {

@@ -50,8 +50,7 @@ export class SyncApi extends TypedEmitter {
   #pscByPeerId = new Map()
   /** @type {Set<string>} */
   #peerIds = new Set()
-  /** @type {Set<'local' | 'remote'>} */
-  #dataSyncEnabled = new Set()
+  #isSyncing = false
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
@@ -126,7 +125,7 @@ export class SyncApi extends TypedEmitter {
    */
   #getState(namespaceSyncState) {
     const state = reduceSyncState(namespaceSyncState)
-    state.data.syncing = this.#dataSyncEnabled.has('local')
+    state.data.syncing = this.#isSyncing
     return state
   }
 
@@ -134,8 +133,8 @@ export class SyncApi extends TypedEmitter {
    * Start syncing data cores
    */
   start() {
-    if (this.#dataSyncEnabled.has('local')) return
-    this.#dataSyncEnabled.add('local')
+    if (this.#isSyncing) return
+    this.#isSyncing = true
     this.#l.log('Starting data sync')
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.enableDataSync()
@@ -147,8 +146,8 @@ export class SyncApi extends TypedEmitter {
    * Stop syncing data cores (metadata cores will continue syncing in the background)
    */
   stop() {
-    if (!this.#dataSyncEnabled.has('local')) return
-    this.#dataSyncEnabled.delete('local')
+    if (!this.#isSyncing) return
+    this.#isSyncing = false
     this.#l.log('Stopping data sync')
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.disableDataSync()
@@ -207,7 +206,7 @@ export class SyncApi extends TypedEmitter {
     // Add peer to all core states (via namespace sync states)
     this[kSyncState].addPeer(peerSyncController.peerId)
 
-    if (this.#dataSyncEnabled.has('local')) {
+    if (this.#isSyncing) {
       peerSyncController.enableDataSync()
     }
 

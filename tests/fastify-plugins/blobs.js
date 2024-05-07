@@ -329,10 +329,10 @@ const IMAGE_FIXTURES_PATH = new URL('../fixtures/images', import.meta.url)
 const IMAGE_FIXTURES = readdirSync(IMAGE_FIXTURES_PATH)
 
 /**
- * @param {import('../../src/blob-store').BlobStore} blobStore
+ * @param {import('../../src/blob-store/index.js').BlobStore} blobStore
  */
 async function populateStore(blobStore) {
-  /** @type {{blobId: import('../../src/types').BlobId, image: {data: Buffer, ext: string}}[]} */
+  /** @type {{blobId: import('../../src/types.js').BlobId, image: {data: Buffer, ext: string}}[]} */
   const data = []
 
   for (const fixture of IMAGE_FIXTURES) {
@@ -357,6 +357,10 @@ async function populateStore(blobStore) {
   return data
 }
 
+/**
+ * @param {string} extension
+ * @returns {null | string}
+ */
 function getImageMimeType(extension) {
   if (extension.startsWith('.')) extension = extension.substring(1)
 
