@@ -212,6 +212,22 @@ test('config import - presets', async (t) => {
   t.is(config.warnings.length, 0, `no warnings on the file`)
 })
 
+test('config import - translations', { solo: true }, async (t) => {
+  const config = await readConfig(defaultConfigPath)
+  for (let { _, value: translationValue } of config.translations()) {
+    t.is(
+      translationValue.schemaName,
+      'translation',
+      `schemaName is 'translation'`
+    )
+    t.ok(
+      translationValue.schemaNameRef === 'presets' || 'fields',
+      `Config translates only 'fields' or 'presets`
+    )
+  }
+  t.is(config.warnings.length, 0, `no warnings on the file`)
+})
+
 test('config import - load default config', async (t) => {
   const config = await readConfig(defaultConfigPath)
   t.ok(config, 'valid config file')
