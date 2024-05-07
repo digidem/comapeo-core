@@ -62,10 +62,6 @@ export class LocalDiscovery extends TypedEmitter {
     return this.#identityKeypair.publicKey
   }
 
-  address() {
-    return this.#server.address()
-  }
-
   /** @returns {Promise<{ name: string, port: number }>} */
   async start() {
     await this.#sm.start()
@@ -226,6 +222,16 @@ export class LocalDiscovery extends TypedEmitter {
         return
       }
     }
+
+    // Bail if the server has already stopped by this point. This should be
+    // rare but can happen during connection swaps if the new connection is
+    // "promoted" after the server's doors have already been closed.
+    if (!this.#server.listening) {
+      this.#log('server stopped, destroying connection %h', remotePublicKey)
+      conn.destroy()
+      return
+    }
+
     this.#noiseConnections.set(remoteId, conn)
 
     conn.on('close', () => {
@@ -281,7 +287,7 @@ export class LocalDiscovery extends TypedEmitter {
  * Get the address of a server, will throw if the server is not yet listening or
  * if it is listening on a socket
  * @param {import('node:net').Server} server
- * @returns
+ * @returns {import('node:net').AddressInfo}
  */
 function getAddress(server) {
   const addr = server.address()

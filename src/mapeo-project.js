@@ -1,7 +1,7 @@
 // @ts-check
 import path from 'path'
 import Database from 'better-sqlite3'
-import { decodeBlockPrefix } from '@mapeo/schema'
+import { decodeBlockPrefix, decode } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
@@ -24,6 +24,7 @@ import {
   presetTable,
   roleTable,
   iconTable,
+  translationTable,
 } from './schema/project.js'
 import {
   CoreOwnership,
@@ -37,6 +38,7 @@ import {
   LEFT_ROLE_ID,
 } from './roles.js'
 import {
+  assert,
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
@@ -47,6 +49,7 @@ import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
+import TranslationApi from './translation-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 
@@ -80,6 +83,8 @@ export class MapeoProject extends TypedEmitter {
   #memberApi
   #iconApi
   #syncApi
+  /** @type {TranslationApi} */
+  #translationApi
   #l
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
@@ -157,6 +162,7 @@ export class MapeoProject extends TypedEmitter {
         roleTable,
         deviceInfoTable,
         iconTable,
+        translationTable,
       ],
       sqlite: this.#sqlite,
       getWinner,
@@ -172,6 +178,7 @@ export class MapeoProject extends TypedEmitter {
       },
       logger: this.#l,
     })
+
     this.#dataStores = {
       auth: new DataStore({
         coreManager: this.#coreManager,
@@ -196,51 +203,71 @@ export class MapeoProject extends TypedEmitter {
         storage: indexerStorage,
       }),
     }
+
+    /** @type {typeof TranslationApi.prototype.get} */
+    const getTranslations = (...args) => this.$translation.get(...args)
     this.#dataTypes = {
       observation: new DataType({
         dataStore: this.#dataStores.data,
         table: observationTable,
         db,
+        getTranslations,
       }),
       track: new DataType({
         dataStore: this.#dataStores.data,
         table: trackTable,
         db,
+        getTranslations,
       }),
       preset: new DataType({
         dataStore: this.#dataStores.config,
         table: presetTable,
         db,
+        getTranslations,
       }),
       field: new DataType({
         dataStore: this.#dataStores.config,
         table: fieldTable,
         db,
+        getTranslations,
       }),
       projectSettings: new DataType({
         dataStore: this.#dataStores.config,
         table: projectSettingsTable,
         db: sharedDb,
+        getTranslations,
       }),
       coreOwnership: new DataType({
         dataStore: this.#dataStores.auth,
         table: coreOwnershipTable,
         db,
+        getTranslations,
       }),
       role: new DataType({
         dataStore: this.#dataStores.auth,
         table: roleTable,
         db,
+        getTranslations,
       }),
       deviceInfo: new DataType({
         dataStore: this.#dataStores.config,
         table: deviceInfoTable,
         db,
+        getTranslations,
       }),
       icon: new DataType({
         dataStore: this.#dataStores.config,
         table: iconTable,
         db,
+        getTranslations,
+      }),
+      translation: new DataType({
+        dataStore: this.#dataStores.config,
+        table: translationTable,
+        db,
+        getTranslations: () => {
+          throw new Error('Cannot get translation for translations')
+        },
       }),
     }
     const identityKeypair = keyManager.getIdentityKeypair()
@@ -308,6 +335,11 @@ export class MapeoProject extends TypedEmitter {
       coreManager: this.#coreManager,
       roles: this.#roles,
       logger: this.#l,
+    })
+
+    this.#translationApi = new TranslationApi({
+      dataType: this.#dataTypes.translation,
+      table: translationTable,
     })
 
     ///////// 4. Replicate local peers automatically
@@ -420,6 +452,15 @@ export class MapeoProject extends TypedEmitter {
 
         if (schemaName === 'projectSettings') {
           projectSettingsEntries.push(entry)
+        } else if (schemaName === 'translation') {
+          const doc = decode(entry.block, {
+            coreDiscoveryKey: entry.key,
+            index: entry.index,
+          })
+
+          assert(doc.schemaName === 'translation', 'expected a translation doc')
+          this.#translationApi.index(doc)
+          otherEntries.push(entry)
         } else {
           otherEntries.push(entry)
         }
@@ -456,6 +497,10 @@ export class MapeoProject extends TypedEmitter {
 
   get $sync() {
     return this.#syncApi
+  }
+
+  get $translation() {
+    return this.#translationApi
   }
 
   /**
@@ -604,7 +649,7 @@ export class MapeoProject extends TypedEmitter {
 
       // Determine if the the device is a coordinator based on the role docs
       const isCoordinator = roleDocs.some(
-        (doc) => doc.docId === deviceId && doc.roleId == COORDINATOR_ROLE_ID
+        (doc) => doc.docId === deviceId && doc.roleId === COORDINATOR_ROLE_ID
       )
 
       if (isCoordinator) {
