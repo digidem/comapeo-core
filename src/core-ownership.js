@@ -1,7 +1,7 @@
 import { verifySignature, sign } from '@mapeo/crypto'
 import { parseVersionId } from '@mapeo/schema'
 import { defaultGetWinner } from '@mapeo/sqlite-indexer'
-import assert from 'node:assert'
+import assert from 'node:assert/strict'
 import sodium from 'sodium-universal'
 import { kTable, kSelect, kCreateWithDocId } from './datatype/index.js'
 import { eq, or } from 'drizzle-orm'

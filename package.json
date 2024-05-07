@@ -59,6 +59,21 @@
           "varsIgnorePattern": "^_",
           "argsIgnorePattern": "^_"
         }
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          "paths": [
+            {
+              "name": "assert",
+              "message": "Prefer importing node:assert/strict."
+            },
+            {
+              "name": "node:assert",
+              "message": "Prefer importing node:assert/strict."
+            }
+          ]
+        }
       ]
     }
   },

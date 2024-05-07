@@ -1,7 +1,7 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
-import assert from 'node:assert'
+import assert from 'node:assert/strict'
 import { sql, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import Hypercore from 'hypercore'
