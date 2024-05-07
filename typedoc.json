@@ -1,7 +1,6 @@
 {
-  "entryPoints": ["src/**/*.js", "src/**/*.ts"],
+  "entryPoints": ["src/index.js"],
   "exclude": ["src/generated/*"],
-  "out": "docs/api",
   "cleanOutputDir": false,
   "readme": "none",
   "name": "API",
