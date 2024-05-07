@@ -8,7 +8,7 @@ import { NotFoundError } from '../errors.js'
 import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
-import { setProperty, hasProperty } from 'dot-prop'
+import { setProperty, getProperty } from 'dot-prop'
 
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -223,7 +223,7 @@ export class DataType extends TypedEmitter {
     }
 
     for (let translation of translations) {
-      if (hasProperty(doc, translation.fieldRef)) {
+      if (typeof getProperty(doc, translation.fieldRef) === 'string') {
         setProperty(doc, translation.fieldRef, translation.message)
       }
     }
