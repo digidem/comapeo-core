@@ -47,7 +47,11 @@ export class PeerSyncController {
    * @param {Logger} [opts.logger]
    */
   constructor({ protomux, coreManager, syncState, roles, logger }) {
-    // @ts-ignore
+    /**
+     * @param {string} formatter
+     * @param {unknown[]} args
+     * @returns {void}
+     */
     this.#log = (formatter, ...args) => {
       const log = Logger.create('peer', logger).log
       return log.apply(null, [
@@ -288,9 +292,7 @@ export class PeerSyncController {
           this.#disableNamespace(ns)
         }
       } else {
-        /** @type {never} */
-        const _exhastiveCheck = cap
-        return _exhastiveCheck
+        throw new ExhaustivenessError(cap)
       }
     }
   }
