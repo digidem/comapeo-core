@@ -1,5 +1,6 @@
 // @ts-check
 import test from 'brittle'
+import assert from 'node:assert/strict'
 import { DataStore } from '../src/datastore/index.js'
 import {
   createCoreManager,
@@ -20,7 +21,6 @@ import { randomBytes } from 'crypto'
 import TranslationApi from '../src/translation-api.js'
 import { getProperty } from 'dot-prop'
 import { decode, decodeBlockPrefix } from '@mapeo/schema'
-import { assert } from '../src/utils.js'
 
 /** @type {import('@mapeo/schema').ObservationValue} */
 const obsFixture = {
@@ -131,6 +131,7 @@ test('test validity of `createdBy` field from another peer', async (t) => {
   const { destroy } = replicate(cm1, cm2)
   await waitForCores(cm2, [driveId])
   const replicatedCore = cm2.getCoreByKey(driveId)
+  assert(replicatedCore, 'Replicated core should exist')
   await replicatedCore.update({ wait: true })
   await replicatedCore.download({ end: replicatedCore.length }).done()
   const replicatedObservation = await dt2.getByVersionId(obs.versionId)
