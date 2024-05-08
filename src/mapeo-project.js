@@ -83,6 +83,7 @@ export class MapeoProject extends TypedEmitter {
   #memberApi
   #iconApi
   #syncApi
+  /** @type {TranslationApi} */
   #translationApi
   #l
 
@@ -177,6 +178,7 @@ export class MapeoProject extends TypedEmitter {
       },
       logger: this.#l,
     })
+
     this.#dataStores = {
       auth: new DataStore({
         coreManager: this.#coreManager,
@@ -201,56 +203,71 @@ export class MapeoProject extends TypedEmitter {
         storage: indexerStorage,
       }),
     }
+
+    /** @type {typeof TranslationApi.prototype.get} */
+    const getTranslations = (...args) => this.$translation.get(...args)
     this.#dataTypes = {
       observation: new DataType({
         dataStore: this.#dataStores.data,
         table: observationTable,
         db,
+        getTranslations,
       }),
       track: new DataType({
         dataStore: this.#dataStores.data,
         table: trackTable,
         db,
+        getTranslations,
       }),
       preset: new DataType({
         dataStore: this.#dataStores.config,
         table: presetTable,
         db,
+        getTranslations,
       }),
       field: new DataType({
         dataStore: this.#dataStores.config,
         table: fieldTable,
         db,
+        getTranslations,
       }),
       projectSettings: new DataType({
         dataStore: this.#dataStores.config,
         table: projectSettingsTable,
         db: sharedDb,
+        getTranslations,
       }),
       coreOwnership: new DataType({
         dataStore: this.#dataStores.auth,
         table: coreOwnershipTable,
         db,
+        getTranslations,
       }),
       role: new DataType({
         dataStore: this.#dataStores.auth,
         table: roleTable,
         db,
+        getTranslations,
       }),
       deviceInfo: new DataType({
         dataStore: this.#dataStores.config,
         table: deviceInfoTable,
         db,
+        getTranslations,
       }),
       icon: new DataType({
         dataStore: this.#dataStores.config,
         table: iconTable,
         db,
+        getTranslations,
       }),
       translation: new DataType({
         dataStore: this.#dataStores.config,
         table: translationTable,
         db,
+        getTranslations: () => {
+          throw new Error('Cannot get translation for translations')
+        },
       }),
     }
     const identityKeypair = keyManager.getIdentityKeypair()

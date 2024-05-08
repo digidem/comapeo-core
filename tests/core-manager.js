@@ -12,7 +12,7 @@ import {
   kCoreManagerReplicate,
 } from '../src/core-manager/index.js'
 import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
-import assert from 'assert'
+import assert from 'node:assert/strict'
 import { once } from 'node:events'
 import { temporaryDirectoryTask } from 'tempy'
 import { exec } from 'child_process'
