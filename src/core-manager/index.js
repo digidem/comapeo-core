@@ -9,7 +9,7 @@ import Hypercore from 'hypercore'
 import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { keyToId } from '../utils.js'
+import { keyToId, noop } from '../utils.js'
 import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
@@ -164,7 +164,9 @@ export class CoreManager extends TypedEmitter {
     })
 
     this.#creatorCore.on('peer-add', (peer) => {
-      this.#sendHaves(peer, this.#coreIndex)
+      this.#sendHaves(peer, this.#coreIndex).catch(() => {
+        this.#l.log('Failed to send pre-haves to newly-connected peer')
+      })
     })
     this.#creatorCore.on('peer-remove', (peer) => {
       // When a peer is removed we clean up any unanswered key requests, so that
@@ -307,7 +309,9 @@ export class CoreManager extends TypedEmitter {
     if (writer) {
       const sendHaves = () => {
         for (const peer of this.#creatorCore.peers) {
-          this.#sendHaves(peer, [{ core, namespace }])
+          this.#sendHaves(peer, [{ core, namespace }]).catch(() => {
+            this.#l.log('Failed to send new pre-haves to other peers')
+          })
         }
       }
 
@@ -318,7 +322,7 @@ export class CoreManager extends TypedEmitter {
       const originalClear = core.clear
       core.clear = function clear() {
         const result = originalClear.apply(this, /** @type {any} */ (arguments))
-        result.then(sendHaves)
+        result.then(sendHaves).catch(noop)
         return result
       }
     } else {
