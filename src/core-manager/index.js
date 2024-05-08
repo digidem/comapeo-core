@@ -1,6 +1,7 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
+import { throttle } from 'throttle-debounce'
 import assert from 'node:assert/strict'
 import { sql, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
@@ -13,6 +14,8 @@ import { keyToId, noop } from '../utils.js'
 import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
+
+const WRITER_CORE_PREHAVES_DEBOUNCE_DELAY = 3000
 
 export const kCoreManagerReplicate = Symbol('replicate core manager')
 
@@ -307,13 +310,13 @@ export class CoreManager extends TypedEmitter {
     })
 
     if (writer) {
-      const sendHaves = () => {
+      const sendHaves = throttle(WRITER_CORE_PREHAVES_DEBOUNCE_DELAY, () => {
         for (const peer of this.#creatorCore.peers) {
           this.#sendHaves(peer, [{ core, namespace }]).catch(() => {
             this.#l.log('Failed to send new pre-haves to other peers')
           })
         }
-      }
+      })
 
       // Tell connected peers, who we aren't necessarily syncing with, about
       // what we just added or cleared. Hypercore doesn't emit anything when
