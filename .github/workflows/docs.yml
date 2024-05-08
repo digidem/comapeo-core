@@ -27,10 +27,6 @@ jobs:
         uses: actions/upload-pages-artifact@v2
         with:
           path: docs/api/html
-      - uses: rossjrw/pr-preview-action@v1.4.3
-        with:
-          preview-branch: feat/typedoc
-          source-dir: docs/api/html
       - id: deployment
         name: Deploy documentation to GitHub Pages
         uses: actions/deploy-pages@v2
