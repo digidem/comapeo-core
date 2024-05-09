@@ -138,7 +138,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "@digidem/types": "^2.2.0",
+    "@digidem/types": "^2.3.0",
     "@electron/asar": "^3.2.8",
     "@fastify/error": "^3.4.1",
     "@fastify/static": "^7.0.3",
