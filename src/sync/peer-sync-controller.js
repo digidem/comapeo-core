@@ -301,6 +301,7 @@ export class PeerSyncController {
    * @param {import('hypercore')<'binary', any>} core
    */
   #replicateCore(core) {
+    if (core.closed) return
     if (this.#replicatingCores.has(core)) return
     this.#log('replicating core %k', core.key)
     core.replicate(this.#protomux)
