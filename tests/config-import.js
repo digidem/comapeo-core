@@ -225,7 +225,7 @@ test('config import - translations', { solo: true }, async (t) => {
       `Config translates only 'fields' or 'presets`
     )
   }
-  t.is(config.warnings.length, 0, `no warnings on the file`)
+  t.is(config.warnings.length, 0, `no warnings when loading the default config`)
 })
 
 test('config import - load default config', async (t) => {

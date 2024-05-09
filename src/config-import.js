@@ -149,21 +149,21 @@ export async function readConfig(configPath) {
     },
 
     /**
-     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@mapeo/schema').PresetValue }>}
+     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@mapeo/schema').PresetValue, name: String}>}
      */
     *presets() {
       const { presets } = presetsFile
       // sort presets using the sort field, turn them into an array
-      /** @type {Array<Record<string, unknown>>} */
+      /** @type {Array<{preset:Record<string, unknown>, name: String}>} */
       const sortedPresets = []
       for (const [presetName, preset] of Object.entries(presets)) {
         if (isRecord(preset)) {
-          sortedPresets.push(preset)
+          sortedPresets.push({ name: presetName, preset })
         } else {
           warnings.push(new Error(`invalid preset ${presetName}`))
         }
       }
-      sortedPresets.sort((preset, nextPreset) => {
+      sortedPresets.sort(({ preset }, { preset: nextPreset }) => {
         const sort = typeof preset.sort === 'number' ? preset.sort : Infinity
         const nextSort =
           typeof nextPreset.sort === 'number' ? nextPreset.sort : Infinity
@@ -171,7 +171,7 @@ export async function readConfig(configPath) {
       })
 
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
-      for (let preset of sortedPresets) {
+      for (let { preset, name } of sortedPresets) {
         /** @type {Record<string, unknown>} */
         const presetValue = {
           schemaName: 'preset',
@@ -199,6 +199,7 @@ export async function readConfig(configPath) {
               ? preset.icon
               : undefined,
           value: presetValue,
+          name,
         }
       }
     },
@@ -212,8 +213,6 @@ export async function readConfig(configPath) {
       )) {
         const { language: languageCode, region: regionCode } = parseBCP47(lang)
         if (!languageCode) throw new Error(`invalid translation language`)
-        // if (!isRecord(languageTranslations))
-        //   throw new Error(`invalid translation language object`)
         for (let [
           schemaNameRef,
           languageTranslationsForDocType,
@@ -223,6 +222,7 @@ export async function readConfig(configPath) {
           for (let [docName, fieldsToTranslate] of Object.entries(
             languageTranslationsForDocType
           )) {
+            console.log('docName', docName)
             if (!isRecord(fieldsToTranslate))
               throw new Error(`invalid translation field`)
             for (let [fieldRef, message] of Object.entries(fieldsToTranslate)) {

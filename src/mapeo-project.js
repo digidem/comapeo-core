@@ -724,7 +724,7 @@ export class MapeoProject extends TypedEmitter {
     await Promise.all(fieldPromises)
 
     const presetsWithRefs = []
-    for (const { fieldNames, iconName, value } of config.presets()) {
+    for (const { fieldNames, iconName, value, name } of config.presets()) {
       const fieldIds = fieldNames.map((fieldName) => {
         const id = fieldNameToId.get(fieldName)
         if (!id) {
@@ -735,16 +735,19 @@ export class MapeoProject extends TypedEmitter {
         return id
       })
       presetsWithRefs.push({
-        ...value,
-        iconId: iconName && iconNameToId.get(iconName),
-        fieldIds,
+        preset: {
+          ...value,
+          iconId: iconName && iconNameToId.get(iconName),
+          fieldIds,
+        },
+        name,
       })
     }
 
     let presetPromises = []
-    for (let preset of presetsWithRefs) {
+    for (let { preset, name } of presetsWithRefs) {
       presetPromises.push(
-        this.preset.create(preset).then(({ docId, name }) => {
+        this.preset.create(preset).then(({ docId }) => {
           presetNameToId.set(name, docId)
         })
       )
@@ -766,6 +769,10 @@ export class MapeoProject extends TypedEmitter {
             ...value,
             docIdRef,
           })
+        )
+      } else {
+        throw new Error(
+          `docIdRef for preset or field with name ${name} not found`
         )
       }
     }
