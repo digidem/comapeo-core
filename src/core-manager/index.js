@@ -15,7 +15,7 @@ import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 
-const WRITER_CORE_PREHAVES_DEBOUNCE_DELAY = 3000
+const WRITER_CORE_PREHAVES_DEBOUNCE_DELAY = 1000
 
 export const kCoreManagerReplicate = Symbol('replicate core manager')
 
