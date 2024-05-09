@@ -4,6 +4,10 @@ API
 
 ## Table of contents
 
+### Modules
+
+- [\<internal\>](modules/internal_.md)
+
 ### Classes
 
 - [FastifyController](classes/FastifyController.md)
@@ -26,7 +30,7 @@ API
 | Name | Type |
 | :------ | :------ |
 | `instance` | `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\> |
-| `opts` | `MapsPluginOpts` |
+| `opts` | [`MapsPluginOpts`](interfaces/internal_.MapsPluginOpts.md) |
 
 #### Returns
 
@@ -34,7 +38,7 @@ API
 
 #### Defined in
 
-[src/fastify-plugins/maps/index.js:30](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/fastify-plugins/maps/index.js#L30)
+[src/fastify-plugins/maps/index.js:30](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-plugins/maps/index.js#L30)
 
 ___
 
@@ -47,7 +51,7 @@ ___
 | Name | Type |
 | :------ | :------ |
 | `instance` | `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\> |
-| `opts` | `OfflineFallbackMapPluginOpts` |
+| `opts` | [`OfflineFallbackMapPluginOpts`](interfaces/internal_.OfflineFallbackMapPluginOpts.md) |
 
 #### Returns
 
@@ -55,7 +59,7 @@ ___
 
 #### Defined in
 
-[src/fastify-plugins/maps/offline-fallback-map.js:14](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/fastify-plugins/maps/offline-fallback-map.js#L14)
+[src/fastify-plugins/maps/offline-fallback-map.js:14](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-plugins/maps/offline-fallback-map.js#L14)
 
 ___
 
@@ -68,7 +72,7 @@ ___
 | Name | Type |
 | :------ | :------ |
 | `instance` | `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\> |
-| `opts` | `StaticMapsPluginOpts` |
+| `opts` | [`StaticMapsPluginOpts`](interfaces/internal_.StaticMapsPluginOpts.md) |
 
 #### Returns
 
@@ -76,4 +80,4 @@ ___
 
 #### Defined in
 
-[src/fastify-plugins/maps/static-maps.js:18](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/fastify-plugins/maps/static-maps.js#L18)
+[src/fastify-plugins/maps/static-maps.js:18](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-plugins/maps/static-maps.js#L18)

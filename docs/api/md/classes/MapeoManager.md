@@ -48,7 +48,7 @@
 | :------ | :------ | :------ |
 | `opts` | `Object` |  |
 | `opts.clientMigrationsFolder` | `string` | path for drizzle migrations folder for client database |
-| `opts.coreStorage` | `string` \| `CoreStorage` | Folder for hypercore storage or a function that returns a RandomAccessStorage instance |
+| `opts.coreStorage` | `string` \| [`CoreStorage`](../modules/internal_.md#corestorage) | Folder for hypercore storage or a function that returns a RandomAccessStorage instance |
 | `opts.dbFolder` | `string` | Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory |
 | `opts.defaultConfigPath` | `undefined` \| `string` |  |
 | `opts.deviceType` | `undefined` \| `DeviceInfo_DeviceType` | Device type, shared with local peers and project members |
@@ -66,23 +66,23 @@ TypedEmitter.constructor
 
 #### Defined in
 
-[src/mapeo-manager.js:110](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L110)
+[src/mapeo-manager.js:110](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L110)
 
 ## Accessors
 
 ### [kRPC]
 
-• `get` **[kRPC]**(): `LocalPeers`
+• `get` **[kRPC]**(): [`LocalPeers`](internal_.LocalPeers.md)
 
 MapeoRPC instance, used for tests
 
 #### Returns
 
-`LocalPeers`
+[`LocalPeers`](internal_.LocalPeers.md)
 
 #### Defined in
 
-[src/mapeo-manager.js:201](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L201)
+[src/mapeo-manager.js:201](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L201)
 
 ___
 
@@ -96,27 +96,27 @@ ___
 
 #### Defined in
 
-[src/mapeo-manager.js:205](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L205)
+[src/mapeo-manager.js:205](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L205)
 
 ___
 
 ### invite
 
-• `get` **invite**(): `InviteApi`
+• `get` **invite**(): [`InviteApi`](internal_.InviteApi.md)
 
 #### Returns
 
-`InviteApi`
+[`InviteApi`](internal_.InviteApi.md)
 
 #### Defined in
 
-[src/mapeo-manager.js:731](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L731)
+[src/mapeo-manager.js:731](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L731)
 
 ## Methods
 
 ### [kManagerReplicate]
 
-▸ **[kManagerReplicate]**(`isInitiator`): `ReplicationStream`
+▸ **[kManagerReplicate]**(`isInitiator`): [`ReplicationStream`](../modules/internal_.md#replicationstream)
 
 Create a Mapeo replication stream. This replication connects the Mapeo RPC
 channel and allows invites. All active projects will sync automatically to
@@ -132,11 +132,11 @@ connecting RPC, use project[kProjectReplication].
 
 #### Returns
 
-`ReplicationStream`
+[`ReplicationStream`](../modules/internal_.md#replicationstream)
 
 #### Defined in
 
-[src/mapeo-manager.js:218](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L218)
+[src/mapeo-manager.js:218](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L218)
 
 ___
 
@@ -162,7 +162,7 @@ downloaded their proof of project membership and the project config.
 
 #### Defined in
 
-[src/mapeo-manager.js:542](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L542)
+[src/mapeo-manager.js:542](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L542)
 
 ___
 
@@ -185,7 +185,7 @@ ___
 
 #### Defined in
 
-[src/mapeo-manager.js:746](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L746)
+[src/mapeo-manager.js:746](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L746)
 
 ___
 
@@ -210,21 +210,21 @@ Project public id
 
 #### Defined in
 
-[src/mapeo-manager.js:350](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L350)
+[src/mapeo-manager.js:350](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L350)
 
 ___
 
 ### getDeviceInfo
 
-▸ **getDeviceInfo**(): \{ `deviceId`: `string`  } & `Partial`\<`DeviceInfoParam`\>
+▸ **getDeviceInfo**(): \{ `deviceId`: `string`  } & `Partial`\<[`DeviceInfoParam`](../modules/internal_.md#deviceinfoparam)\>
 
 #### Returns
 
-\{ `deviceId`: `string`  } & `Partial`\<`DeviceInfoParam`\>
+\{ `deviceId`: `string`  } & `Partial`\<[`DeviceInfoParam`](../modules/internal_.md#deviceinfoparam)\>
 
 #### Defined in
 
-[src/mapeo-manager.js:719](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L719)
+[src/mapeo-manager.js:719](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L719)
 
 ___
 
@@ -238,13 +238,13 @@ ___
 
 #### Defined in
 
-[src/mapeo-manager.js:806](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L806)
+[src/mapeo-manager.js:806](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L806)
 
 ___
 
 ### getProject
 
-▸ **getProject**(`projectPublicId`): `Promise`\<`MapeoProject`\>
+▸ **getProject**(`projectPublicId`): `Promise`\<[`MapeoProject`](internal_.MapeoProject.md)\>
 
 #### Parameters
 
@@ -254,11 +254,11 @@ ___
 
 #### Returns
 
-`Promise`\<`MapeoProject`\>
+`Promise`\<[`MapeoProject`](internal_.MapeoProject.md)\>
 
 #### Defined in
 
-[src/mapeo-manager.js:426](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L426)
+[src/mapeo-manager.js:426](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L426)
 
 ___
 
@@ -278,21 +278,21 @@ ___
 
 #### Defined in
 
-[src/mapeo-manager.js:760](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L760)
+[src/mapeo-manager.js:760](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L760)
 
 ___
 
 ### listLocalPeers
 
-▸ **listLocalPeers**(): `Promise`\<`PublicPeerInfo`[]\>
+▸ **listLocalPeers**(): `Promise`\<[`PublicPeerInfo`](../modules/internal_.md#publicpeerinfo)[]\>
 
 #### Returns
 
-`Promise`\<`PublicPeerInfo`[]\>
+`Promise`\<[`PublicPeerInfo`](../modules/internal_.md#publicpeerinfo)[]\>
 
 #### Defined in
 
-[src/mapeo-manager.js:753](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L753)
+[src/mapeo-manager.js:753](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L753)
 
 ___
 
@@ -306,7 +306,7 @@ ___
 
 #### Defined in
 
-[src/mapeo-manager.js:485](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L485)
+[src/mapeo-manager.js:485](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L485)
 
 ___
 
@@ -318,7 +318,7 @@ ___
 
 | Name | Type |
 | :------ | :------ |
-| `T` | extends `DeviceInfoParam` \| `ExactObject`\<`DeviceInfoParam`, `T`\> |
+| `T` | extends [`DeviceInfoParam`](../modules/internal_.md#deviceinfoparam) \| `ExactObject`\<[`DeviceInfoParam`](../modules/internal_.md#deviceinfoparam), `T`\> |
 
 #### Parameters
 
@@ -332,7 +332,7 @@ ___
 
 #### Defined in
 
-[src/mapeo-manager.js:686](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L686)
+[src/mapeo-manager.js:686](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L686)
 
 ___
 
@@ -346,7 +346,7 @@ ___
 
 #### Defined in
 
-[src/mapeo-manager.js:736](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L736)
+[src/mapeo-manager.js:736](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L736)
 
 ___
 
@@ -372,4 +372,4 @@ are force-closed after opts.timeout milliseconds
 
 #### Defined in
 
-[src/mapeo-manager.js:741](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/mapeo-manager.js#L741)
+[src/mapeo-manager.js:741](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L741)

@@ -33,7 +33,7 @@
 
 #### Defined in
 
-[src/fastify-controller.js:21](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/fastify-controller.js#L21)
+[src/fastify-controller.js:21](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-controller.js#L21)
 
 ## Methods
 
@@ -45,7 +45,7 @@
 
 | Name | Type |
 | :------ | :------ |
-| `opts?` | `StartOpts` |
+| `opts?` | [`StartOpts`](../interfaces/internal_.StartOpts.md) |
 
 #### Returns
 
@@ -53,7 +53,7 @@
 
 #### Defined in
 
-[src/fastify-controller.js:73](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/fastify-controller.js#L73)
+[src/fastify-controller.js:73](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-controller.js#L73)
 
 ___
 
@@ -67,7 +67,7 @@ ___
 
 #### Defined in
 
-[src/fastify-controller.js:77](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/fastify-controller.js#L77)
+[src/fastify-controller.js:77](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-controller.js#L77)
 
 ___
 
@@ -81,4 +81,4 @@ ___
 
 #### Defined in
 
-[src/fastify-controller.js:81](https://github.com/digidem/mapeo-core-next/blob/9222af401663318d26533372ca2e130753329c39/src/fastify-controller.js#L81)
+[src/fastify-controller.js:81](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-controller.js#L81)
