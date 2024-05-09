@@ -194,21 +194,28 @@ export async function createManagers(count, t, deviceType) {
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
  */
 export function createManager(seed, t, deviceType) {
-  const dbFolder = FAST_TESTS ? ':memory:' : temporaryDirectory()
-  const coreStorage = FAST_TESTS ? () => new RAM() : temporaryDirectory()
+  /** @type {string} */ let dbFolder
+  /** @type {string | import('../src/types.js').CoreStorage} */ let coreStorage
 
-  t.teardown(async () => {
-    if (FAST_TESTS) return
-    await Promise.all([
-      fsPromises.rm(dbFolder, { recursive: true, force: true, maxRetries: 2 }),
-      // @ts-ignore
-      fsPromises.rm(coreStorage, {
-        recursive: true,
-        force: true,
-        maxRetries: 2,
-      }),
-    ])
-  })
+  if (FAST_TESTS) {
+    dbFolder = ':memory:'
+    coreStorage = () => new RAM()
+  } else {
+    const directories = [temporaryDirectory(), temporaryDirectory()]
+    ;[dbFolder, coreStorage] = directories
+    t.teardown(() =>
+      Promise.all(
+        directories.map((dir) =>
+          fsPromises.rm(dir, {
+            recursive: true,
+            force: true,
+            maxRetries: 2,
+          })
+        )
+      )
+    )
+  }
+
   return new MapeoManager({
     rootKey: getRootKey(seed),
     projectMigrationsFolder,
