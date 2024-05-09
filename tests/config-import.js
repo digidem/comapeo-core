@@ -212,7 +212,7 @@ test('config import - presets', async (t) => {
   t.is(config.warnings.length, 0, `no warnings on the file`)
 })
 
-test('config import - translations', { solo: true }, async (t) => {
+test('config import - translations', async (t) => {
   const config = await readConfig(defaultConfigPath)
   for (let { _, value: translationValue } of config.translations()) {
     t.is(

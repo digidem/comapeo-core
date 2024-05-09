@@ -222,7 +222,6 @@ export async function readConfig(configPath) {
           for (let [docName, fieldsToTranslate] of Object.entries(
             languageTranslationsForDocType
           )) {
-            console.log('docName', docName)
             if (!isRecord(fieldsToTranslate))
               throw new Error(`invalid translation field`)
             for (let [fieldRef, message] of Object.entries(fieldsToTranslate)) {
