@@ -304,4 +304,48 @@ test('Data access after leaving project', async (t) => {
   await disconnectPeers(managers)
 })
 
+test('leaving a project while disconnected', async (t) => {
+  const managers = await createManagers(2, t)
+
+  let disconnectPeers = connectPeers(managers)
+  t.teardown(() => disconnectPeers())
+
+  await waitForPeers(managers)
+
+  const [creator, member] = managers
+  const projectId = await creator.createProject({ name: 'mapeo' })
+
+  await invite({
+    invitor: creator,
+    invitees: [member],
+    projectId,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  const [creatorProject] = projects
+
+  await disconnectPeers()
+
+  await member.leaveProject(projectId)
+
+  t.ok(
+    await creatorProject.$member.getById(member.deviceId),
+    'creator still thinks member is part of project'
+  )
+
+  disconnectPeers = connectPeers(managers)
+  await waitForPeers(managers)
+
+  await waitForSync(projects, 'initial')
+
+  t.is(
+    (await creatorProject.$member.getById(member.deviceId)).role.roleId,
+    LEFT_ROLE_ID,
+    'creator no longer thinks member is part of project'
+  )
+})
+
 // TODO: Add test for leaving and rejoining a project

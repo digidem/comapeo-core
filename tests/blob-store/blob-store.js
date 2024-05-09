@@ -1,5 +1,6 @@
 // @ts-check
 import test from 'brittle'
+import assert from 'node:assert/strict'
 // @ts-ignore
 import { pipelinePromise as pipeline } from 'streamx'
 import { randomBytes } from 'node:crypto'
@@ -163,15 +164,13 @@ test('blobStore.createReadStream should not wait', async (t) => {
     name: 'test-file',
   })
 
-  try {
+  await t.exception(async () => {
     const result = blobStore.createReadStream({
       ...blobId,
       driveId: blobStore.writerDriveId,
     })
     await concat(result)
-  } catch (error) {
-    t.is(error.message, 'Blob does not exist')
-  }
+  }, 'Blob does not exist')
 
   const { blobStore: blobStore2 } = await testenv()
 
@@ -187,15 +186,13 @@ test('blobStore.createReadStream should not wait', async (t) => {
     t.alike(blob, expected, 'should be equal')
   }
 
-  try {
+  await t.exception(async () => {
     const stream = blobStore2.createReadStream({
       ...blobId,
       driveId: blobStore2.writerDriveId,
     })
     await concat(stream)
-  } catch (error) {
-    t.is(error.message, 'Blob does not exist')
-  }
+  }, 'Blob does not exist')
 
   const ws2 = blobStore2.createWriteStream(blobId)
   await pipeline(fs.createReadStream(new URL(import.meta.url)), ws2)
@@ -213,15 +210,13 @@ test('blobStore.createReadStream should not wait', async (t) => {
       driveId: blobStore2.writerDriveId,
     })
 
-    try {
+    await t.exception(async () => {
       const stream = blobStore2.createReadStream({
         ...blobId,
         driveId: blobStore2.writerDriveId,
       })
       await concat(stream)
-    } catch (error) {
-      t.is(error.message, 'Block not available')
-    }
+    }, 'Block not available')
   }
 })
 
@@ -412,6 +407,7 @@ test('blobStore.getEntryBlob(driveId, entry)', async (t) => {
   })
   const driveId = await blobStore.put(blobId, diskbuf)
   const entry = await blobStore.entry({ ...blobId, driveId })
+  assert(entry)
 
   const buf = await blobStore.getEntryBlob(driveId, entry)
 
@@ -428,6 +424,7 @@ test('blobStore.getEntryReadStream(driveId, entry)', async (t) => {
   })
   const driveId = await blobStore.put(blobId, diskbuf)
   const entry = await blobStore.entry({ ...blobId, driveId })
+  assert(entry)
 
   const buf = await concat(
     await blobStore.createEntryReadStream(driveId, entry)
@@ -449,22 +446,20 @@ test('blobStore.getEntryReadStream(driveId, entry) should not wait', async (t) =
 
   const driveId = await blobStore.put(blobId, expected)
   const entry = await blobStore.entry({ ...blobId, driveId })
+  assert(entry)
   await blobStore.clear({ ...blobId, driveId: blobStore.writerDriveId })
 
-  try {
+  await t.exception(async () => {
     const stream = await blobStore.createEntryReadStream(driveId, entry)
     await concat(stream)
-  } catch (error) {
-    t.is(error.message, 'Block not available', 'Block not available')
-  }
+  }, 'Block not available')
 })
 
 /**
- * @param {object} opts
- * @param {Buffer} [opts.projectKey]
+ * @param {Parameters<typeof createCoreManager>} args
  */
-async function testenv(opts) {
-  const coreManager = createCoreManager(opts)
+async function testenv(...args) {
+  const coreManager = createCoreManager(...args)
   const blobStore = new BlobStore({ coreManager })
   return { blobStore, coreManager }
 }

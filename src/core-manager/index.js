@@ -1,7 +1,7 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
-import assert from 'node:assert'
+import assert from 'node:assert/strict'
 import { sql, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import Hypercore from 'hypercore'
@@ -9,7 +9,7 @@ import Hypercore from 'hypercore'
 import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { keyToId } from '../utils.js'
+import { keyToId, noop } from '../utils.js'
 import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
@@ -164,7 +164,9 @@ export class CoreManager extends TypedEmitter {
     })
 
     this.#creatorCore.on('peer-add', (peer) => {
-      this.#sendHaves(peer)
+      this.#sendHaves(peer, this.#coreIndex).catch(() => {
+        this.#l.log('Failed to send pre-haves to newly-connected peer')
+      })
     })
     this.#creatorCore.on('peer-remove', (peer) => {
       // When a peer is removed we clean up any unanswered key requests, so that
@@ -304,12 +306,31 @@ export class CoreManager extends TypedEmitter {
       peer._maybeWant(0, core.length)
     })
 
-    // A non-writer core will emit 'append' when its length is updated from the
-    // initial sync with a peer, and we will not have sent a "maybe want" for
-    // this range, so we need to do it now. Subsequent appends are propogated
-    // (more efficiently) via range broadcasts, so we only need to listen to the
-    // first append.
-    if (!writer) {
+    if (writer) {
+      const sendHaves = () => {
+        for (const peer of this.#creatorCore.peers) {
+          this.#sendHaves(peer, [{ core, namespace }]).catch(() => {
+            this.#l.log('Failed to send new pre-haves to other peers')
+          })
+        }
+      }
+
+      // Tell connected peers, who we aren't necessarily syncing with, about
+      // what we just added or cleared. Hypercore doesn't emit anything when
+      // clearing, so we patch it in.
+      core.on('append', sendHaves)
+      const originalClear = core.clear
+      core.clear = function clear() {
+        const result = originalClear.apply(this, /** @type {any} */ (arguments))
+        result.then(sendHaves).catch(noop)
+        return result
+      }
+    } else {
+      // A non-writer core will emit 'append' when its length is updated from
+      // the initial sync with a peer, and we will not have sent a "maybe want"
+      // for this range, so we need to do it now. Subsequent appends are
+      // propagated (more efficiently) via range broadcasts, so we only need to
+      // listen to the first append.
       core.once('append', () => {
         for (const peer of core.peers) {
           // TODO: It would be more efficient (in terms of network traffic) to
@@ -422,8 +443,9 @@ export class CoreManager extends TypedEmitter {
   /**
    *
    * @param {any} peer
+   * @param {Iterable<{ core: Hypercore<Hypercore.ValueEncoding, Buffer>, namespace: Namespace }>} cores
    */
-  async #sendHaves(peer) {
+  async #sendHaves(peer, cores) {
     if (!peer) {
       console.warn('sendHaves no peer', peer.remotePublicKey)
       // TODO: How to handle this and when does it happen?
@@ -432,7 +454,7 @@ export class CoreManager extends TypedEmitter {
 
     peer.protomux.cork()
 
-    for (const { core, namespace } of this.#coreIndex) {
+    for (const { core, namespace } of cores) {
       // We want ready() rather than update() because we are only interested in local data
       await core.ready()
       const { discoveryKey } = core

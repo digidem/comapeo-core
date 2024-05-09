@@ -1,7 +1,7 @@
 import mapObject from 'map-obj'
 import { NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
-import { createMap } from '../utils.js'
+import { ExhaustivenessError, createMap } from '../utils.js'
 
 /**
  * @typedef {import('../core-manager/index.js').Namespace} Namespace
@@ -45,7 +45,11 @@ export class PeerSyncController {
    * @param {Logger} [opts.logger]
    */
   constructor({ protomux, coreManager, syncState, roles, logger }) {
-    // @ts-ignore
+    /**
+     * @param {string} formatter
+     * @param {unknown[]} args
+     * @returns {void}
+     */
     this.#log = (formatter, ...args) => {
       const log = Logger.create('peer', logger).log
       return log.apply(null, [
@@ -216,9 +220,7 @@ export class PeerSyncController {
           this.#disableNamespace(ns)
         }
       } else {
-        /** @type {never} */
-        const _exhastiveCheck = cap
-        return _exhastiveCheck
+        throw new ExhaustivenessError(cap)
       }
     }
   }
@@ -227,6 +229,7 @@ export class PeerSyncController {
    * @param {import('hypercore')<'binary', any>} core
    */
   #replicateCore(core) {
+    if (core.closed) return
     if (this.#replicatingCores.has(core)) return
     this.#log('replicating core %k', core.key)
     core.replicate(this.#protomux)

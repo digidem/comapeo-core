@@ -13,6 +13,7 @@ import { SQLiteSelectBase } from 'drizzle-orm/sqlite-core'
 import { RunResult } from 'better-sqlite3'
 import type Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import TranslationApi from '../translation-api.js'
 
 type MapeoDocTableName = `${MapeoDoc['schemaName']}Table`
 type GetMapeoDocTables<T> = T[keyof T & MapeoDocTableName]
@@ -52,11 +53,13 @@ export class DataType<
     table,
     getPermissions,
     db,
+    getTranslations,
   }: {
     table: TTable
     dataStore: TDataStore
     db: import('drizzle-orm/better-sqlite3').BetterSQLite3Database
     getPermissions?: () => any
+    getTranslations: TranslationApi['get']
   })
 
   get [kTable](): TTable
@@ -83,12 +86,16 @@ export class DataType<
     >
   >(value: T): Promise<TDoc & { forks: string[] }>
 
-  getByDocId(docId: string): Promise<TDoc & { forks: string[] }>
+  getByDocId(
+    docId: string,
+    opts?: { lang?: string }
+  ): Promise<TDoc & { forks: string[] }>
 
-  getByVersionId(versionId: string): Promise<TDoc>
+  getByVersionId(versionId: string, opts?: { lang?: string }): Promise<TDoc>
 
   getMany(opts?: {
     includeDeleted?: boolean
+    lang?: string
   }): Promise<Array<TDoc & { forks: string[] }>>
 
   update<
