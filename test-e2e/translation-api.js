@@ -142,6 +142,107 @@ test('translation api - put() and get() fields', async (t) => {
   }
 })
 
+test('translation api - passing `lang` to dataType', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(
+    await manager.createProject({
+      configPath: defaultConfigPath,
+    })
+  )
+
+  // fields
+  const fields = await project.field.getMany()
+  const fieldTranslationsDoc = fields
+    .map((field) => {
+      const matchingTranslation = fieldTranslations.find((translation) => {
+        return translation.message === fieldsTranslationMap[field.label]
+      })
+      if (matchingTranslation)
+        return { docIdRef: field.docId, ...matchingTranslation }
+    })
+    .filter(isDefined)
+  for (const translationDoc of fieldTranslationsDoc) {
+    const { docIdRef, message, fieldRef } = await project.$translation.put(
+      translationDoc
+    )
+
+    /** @type {Record<string, unknown>} */
+    const translatedField = await project.field.getByDocId(docIdRef, {
+      lang: 'es',
+    })
+    t.is(
+      translatedField[fieldRef],
+      message,
+      `passing 'lang' returns the correct translated field`
+    )
+
+    /** @type {Record<string, unknown>} */
+    const untranslatedField = await project.field.getByDocId(docIdRef)
+    t.not(
+      untranslatedField[fieldRef],
+      message,
+      `not passing 'lang' won't give a translated field`
+    )
+
+    /** @type {Record<string, unknown>} */
+    const fallbackRegionCodeTranslatedField = await project.field.getByDocId(
+      docIdRef,
+      { lang: 'es-CO' }
+    )
+    t.is(
+      fallbackRegionCodeTranslatedField[fieldRef],
+      message,
+      `passing 'lang' with untranslated 'regionCode' returns a fallback translated field matching 'languageCode'`
+    )
+  }
+
+  // presets
+  const presets = await project.preset.getMany()
+  const presetTranslationsDoc = presets
+    .map((preset) => {
+      const matchingTranslation = presetTranslations.find((translation) => {
+        return translation.message === presetsTranslationMap[preset.name]
+      })
+      if (matchingTranslation)
+        return { docIdRef: preset.docId, ...matchingTranslation }
+    })
+    .filter(isDefined)
+  for (let translationDoc of presetTranslationsDoc) {
+    const { docIdRef, message, fieldRef } = await project.$translation.put(
+      translationDoc
+    )
+
+    /** @type {Record<string, unknown>} */
+    const translatedPreset = await project.preset.getByDocId(docIdRef, {
+      lang: 'es',
+    })
+    t.is(
+      translatedPreset[fieldRef],
+      message,
+      `passing 'lang' returns the correct translated preset`
+    )
+
+    /** @type {Record<string, unknown>} */
+    const untranslatedPreset = await project.preset.getByDocId(docIdRef)
+    t.not(
+      untranslatedPreset[fieldRef],
+      message,
+      `not passing 'lang' won't give a translated preset`
+    )
+
+    /** @type {Record<string, unknown>} */
+    const fallbackRegionCodeTranslatedPreset = await project.preset.getByDocId(
+      docIdRef,
+      { lang: 'es-CO' }
+    )
+    t.is(
+      fallbackRegionCodeTranslatedPreset[fieldRef],
+      message,
+      `passing 'lang' with untranslated 'regionCode' returns a fallback translated preset matching 'languageCode'`
+    )
+  }
+})
+
 test('translation api - re-loading from disk', async (t) => {
   const custodian = new ManagerCustodian(t)
   const deps = {

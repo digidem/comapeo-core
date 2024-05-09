@@ -264,7 +264,7 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
     localState,
     remoteStates: new Map([['peer0', remoteState]]),
     peerSyncControllers: new Map(),
-    namespace: /** @type {const} */ 'auth',
+    namespace: /** @type {const} */ ('auth'),
   }
   const expected = {
     coreLength: BITS_PER_PAGE + 10,
@@ -330,14 +330,18 @@ test('CoreReplicationState', async (t) => {
     }
     await Promise.all(downloadPromises)
     await clearCore(localCore, state.localState.have)
-    const expectedRemoteStates = {}
-    for (const [key, value] of Object.entries(expected.remoteStates)) {
-      const peerId = peerIds.get(key)
-      expectedRemoteStates[peerId] = {
-        ...value,
-        status: connectedState.get(peerId),
-      }
-    }
+    const expectedRemoteStates = Object.fromEntries(
+      Object.entries(expected.remoteStates).map(([key, value]) => {
+        const peerId = peerIds.get(key)
+        return [
+          peerId,
+          {
+            ...value,
+            status: connectedState.get(peerId),
+          },
+        ]
+      })
+    )
     await updateWithTimeout(emitter, 100)
     t.alike(
       crs.getState(),
@@ -376,8 +380,9 @@ test.skip('bitCount32 (full test)', (t) => {
   }
 })
 
+/** @param {any} [key] */
 async function createCore(key) {
-  const core = new Hypercore(RAM, key)
+  const core = new Hypercore(() => new RAM(), key)
   await core.ready()
   return core
 }
@@ -413,7 +418,7 @@ function createState({ have, prehave, want, status }) {
     const bigInt = BigInt(want)
     // 53 because the max safe integer in JS is 53 bits
     for (let i = 0; i < 53; i++) {
-      if ((bigInt >> BigInt(i)) & 1n) {
+      if ((bigInt >> BigInt(i)) & BigInt(1)) {
         peerState.setWantRange({ start: i, length: 1 })
       }
     }
@@ -433,7 +438,7 @@ function createBitfield(bits) {
   const bigInt = BigInt(bits)
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < 53; i++) {
-    bitfield.set(i, !!((bigInt >> BigInt(i)) & 1n))
+    bitfield.set(i, !!((bigInt >> BigInt(i)) & BigInt(1)))
   }
   return bitfield
 }
@@ -451,7 +456,7 @@ async function clearCore(core, bits) {
   const promises = []
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < core.length; i++) {
-    if ((bigInt >> BigInt(i)) & 1n) continue
+    if ((bigInt >> BigInt(i)) & BigInt(1)) continue
     promises.push(core.clear(i))
   }
   await Promise.all(promises)
@@ -470,7 +475,7 @@ async function downloadCore(core, bits) {
   const blocks = []
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < core.length; i++) {
-    if ((bigInt >> BigInt(i)) & 1n) {
+    if ((bigInt >> BigInt(i)) & BigInt(1)) {
       blocks.push(i)
     }
   }
@@ -491,7 +496,7 @@ function setPeerWants(state, peerId, bits) {
   const ranges = []
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < 53; i++) {
-    if ((bigInt >> BigInt(i)) & 1n) {
+    if ((bigInt >> BigInt(i)) & BigInt(1)) {
       ranges.push({ start: i, length: 1 })
     }
   }
@@ -536,7 +541,9 @@ export function replicate(
     keyPair: kp2,
   })
 
-  n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
+  const n1RawStream = /** @type {import('streamx').Duplex} */ (n1.rawStream)
+  const n2RawStream = /** @type {import('streamx').Duplex} */ (n2.rawStream)
+  n1RawStream.pipe(n2RawStream).pipe(n1RawStream)
 
   core1.replicate(n1)
   core2.replicate(n2)
