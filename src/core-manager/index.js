@@ -1,7 +1,7 @@
 // @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
-import { throttle } from 'throttle-debounce'
+import { debounce } from 'throttle-debounce'
 import assert from 'node:assert/strict'
 import { sql, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
@@ -310,7 +310,7 @@ export class CoreManager extends TypedEmitter {
     })
 
     if (writer) {
-      const sendHaves = throttle(WRITER_CORE_PREHAVES_DEBOUNCE_DELAY, () => {
+      const sendHaves = debounce(WRITER_CORE_PREHAVES_DEBOUNCE_DELAY, () => {
         for (const peer of this.#creatorCore.peers) {
           this.#sendHaves(peer, [{ core, namespace }]).catch(() => {
             this.#l.log('Failed to send new pre-haves to other peers')
