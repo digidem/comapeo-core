@@ -1,78 +1,89 @@
 // @ts-check
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { jsonSchemaToDrizzleColumns } from '../../src/schema/schema-to-drizzle.js'
 import { sqliteTable } from 'drizzle-orm/sqlite-core'
 
-test('throws if not passed an object schema', (t) => {
-  t.exception(() => {
+test('throws if not passed an object schema', () => {
+  assert.throws(() => {
     jsonSchemaToDrizzleColumns({ type: 'number', properties: {} })
   })
 })
 
-test('always adds "forks" column', (t) => {
-  t.ok(
+test('always adds "forks" column', () => {
+  assert(
     'forks' in jsonSchemaToDrizzleColumns({ type: 'object', properties: {} }),
     'forks column is added'
   )
 })
 
-test('skips null', (t) => {
-  t.absent(
-    'foo' in
+test('skips null', () => {
+  assert(
+    !(
+      'foo' in
       jsonSchemaToDrizzleColumns({
         type: 'object',
         properties: { foo: { type: 'null' } },
       })
+    )
   )
 })
 
-test('boolean', (t) => {
+test('boolean', () => {
   const col = getColumn({ type: 'boolean' })
-  t.is(col.getSQLType(), 'integer', 'booleans are stored in INTEGER columns')
+  assert.equal(
+    col.getSQLType(),
+    'integer',
+    'booleans are stored in INTEGER columns'
+  )
 })
 
-test('number', (t) => {
+test('number', () => {
   const col = getColumn({ type: 'number' })
-  t.is(col.getSQLType(), 'real', 'numbers are stored in REAL columns')
+  assert.equal(col.getSQLType(), 'real', 'numbers are stored in REAL columns')
 })
 
-test('integer', (t) => {
+test('integer', () => {
   const col = getColumn({ type: 'integer' })
-  t.is(col.getSQLType(), 'integer', 'integers are stored in INTEGER columns')
+  assert.equal(
+    col.getSQLType(),
+    'integer',
+    'integers are stored in INTEGER columns'
+  )
 })
 
-test('string', (t) => {
+test('string', () => {
   const col = getColumn({ type: 'string' })
-  t.is(col.getSQLType(), 'text', 'strings are stored in TEXT columns')
+  assert.equal(col.getSQLType(), 'text', 'strings are stored in TEXT columns')
 })
 
-test('string with enum', (t) => {
+test('string with enum', () => {
   const col = getColumn({ type: 'string', enum: ['foo', 'bar'] })
-  t.is(col.getSQLType(), 'text', 'strings are stored in TEXT columns')
-  t.alike(col.enumValues, ['foo', 'bar'], 'enums are saved')
+  assert.equal(col.getSQLType(), 'text', 'strings are stored in TEXT columns')
+  assert.deepEqual(col.enumValues, ['foo', 'bar'], 'enums are saved')
 })
 
-test('array', (t) => {
+test('array', () => {
   const col = getColumn({ type: 'array' })
-  t.is(col.getSQLType(), 'text', 'arrays are stored in TEXT columns')
+  assert.equal(col.getSQLType(), 'text', 'arrays are stored in TEXT columns')
 })
 
-test('object', (t) => {
+test('object', () => {
   const col = getColumn({ type: 'object' })
-  t.is(col.getSQLType(), 'text', 'objects are stored in TEXT columns')
+  assert.equal(col.getSQLType(), 'text', 'objects are stored in TEXT columns')
 })
 
-test('required columns', (t) => {
+test('required columns', () => {
   const col = getColumn({ type: 'number' }, { required: ['property'] })
-  t.ok(col.notNull, 'required columns are NOT NULL')
+  assert(col.notNull, 'required columns are NOT NULL')
 })
 
-test('default values', (t) => {
+test('default values', () => {
   const col = getColumn(
     { type: 'number', default: 123 },
     { required: ['property'] }
   )
-  t.is(col.default, 123, 'sets default value')
+  assert.equal(col.default, 123, 'sets default value')
 })
 
 /**
