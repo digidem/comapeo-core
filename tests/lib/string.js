@@ -1,8 +1,9 @@
 // @ts-check
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { isBlank } from '../../src/lib/string.js'
 
-test('isBlank()', (t) => {
+test('isBlank()', () => {
   // See [what JavaScript considers white space][0].
   // [0]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#white_space
   const unicodeWhitespace = [
@@ -16,7 +17,7 @@ test('isBlank()', (t) => {
     ...unicodeWhitespace.flatMap((a) => unicodeWhitespace.map((b) => a + b)),
   ]
   for (const str of blanks) {
-    t.ok(isBlank(str), `${formatCodePoints(str)} is blank`)
+    assert(isBlank(str), `${formatCodePoints(str)} is blank`)
   }
 
   const notBlanks = [
@@ -25,7 +26,7 @@ test('isBlank()', (t) => {
     ...unicodeWhitespace.map((c) => 'x' + c),
   ]
   for (const str of notBlanks) {
-    t.absent(isBlank(str), `${formatCodePoints(str)} is not blank`)
+    assert(!isBlank(str), `${formatCodePoints(str)} is not blank`)
   }
 })
 
