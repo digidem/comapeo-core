@@ -1,15 +1,20 @@
 // @ts-check
-import test from 'brittle'
-import { assert, ExhaustivenessError, setHas } from '../src/utils.js'
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {
+  assert as utilsAssert,
+  ExhaustivenessError,
+  setHas,
+} from '../src/utils.js'
 
-test('assert()', (t) => {
-  t.execution(() => assert(true, 'should work'))
-  t.exception(() => assert(false, 'uh oh'), /uh oh/)
+test('assert()', () => {
+  assert.doesNotThrow(() => utilsAssert(true, 'should work'))
+  assert.throws(() => utilsAssert(false, 'uh oh'), { message: 'uh oh' })
 })
 
-test('ExhaustivenessError', (t) => {
+test('ExhaustivenessError', () => {
   const bools = [true, false]
-  t.execution(() => {
+  assert.doesNotThrow(() => {
     bools.forEach((bool) => {
       switch (bool) {
         case true:
@@ -22,8 +27,8 @@ test('ExhaustivenessError', (t) => {
   })
 })
 
-test('setHas()', (t) => {
+test('setHas()', () => {
   const set = new Set([1, 2, 3])
-  t.ok(setHas(set)(1))
-  t.absent(setHas(set)(9))
+  assert(setHas(set)(1))
+  assert(!setHas(set)(9))
 })
