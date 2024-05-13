@@ -1,6 +1,7 @@
 // @ts-check
 import { randomBytes } from 'node:crypto'
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { readdirSync } from 'fs'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -11,12 +12,14 @@ import { projectKeyToPublicId } from '../../src/utils.js'
 import { createBlobStore } from '../helpers/blob-store.js'
 import { waitForCores, replicate } from '../helpers/core-manager.js'
 
-test('Plugin throws error if missing getBlobStore option', async (t) => {
+test('Plugin throws error if missing getBlobStore option', async () => {
   const server = fastify()
-  await t.exception(() => server.register(BlobServerPlugin))
+  await assert.rejects(async () => {
+    await server.register(BlobServerPlugin)
+  })
 })
 
-test('Plugin handles prefix option properly', async (t) => {
+test('Plugin handles prefix option properly', async () => {
   const prefix = '/blobs'
   const { data, server, projectPublicId } = await setup({ prefix })
 
@@ -30,11 +33,11 @@ test('Plugin handles prefix option properly', async (t) => {
       }),
     })
 
-    t.is(res.statusCode, 200, 'request successful')
+    assert.equal(res.statusCode, 200, 'request successful')
   }
 })
 
-test('Unsupported blob type and variant params are handled properly', async (t) => {
+test('Unsupported blob type and variant params are handled properly', async () => {
   const { data, server, projectPublicId } = await setup()
 
   for (const { blobId } of data) {
@@ -47,8 +50,8 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
       }),
     })
 
-    t.is(unsupportedVariantRes.statusCode, 400)
-    t.is(unsupportedVariantRes.json().code, 'FST_ERR_VALIDATION')
+    assert.equal(unsupportedVariantRes.statusCode, 400)
+    assert.equal(unsupportedVariantRes.json().code, 'FST_ERR_VALIDATION')
 
     const unsupportedTypeRes = await server.inject({
       method: 'GET',
@@ -59,12 +62,12 @@ test('Unsupported blob type and variant params are handled properly', async (t) 
       }),
     })
 
-    t.is(unsupportedTypeRes.statusCode, 400)
-    t.is(unsupportedTypeRes.json().code, 'FST_ERR_VALIDATION')
+    assert.equal(unsupportedTypeRes.statusCode, 400)
+    assert.equal(unsupportedTypeRes.json().code, 'FST_ERR_VALIDATION')
   }
 })
 
-test('Invalid variant-type combination returns error', async (t) => {
+test('Invalid variant-type combination returns error', async () => {
   const { server, projectPublicId } = await setup()
 
   const url = buildRouteUrl({
@@ -77,11 +80,11 @@ test('Invalid variant-type combination returns error', async (t) => {
 
   const response = await server.inject({ method: 'GET', url })
 
-  t.is(response.statusCode, 400)
-  t.ok(response.json().message.startsWith('Unsupported variant'))
+  assert.equal(response.statusCode, 400)
+  assert(response.json().message.startsWith('Unsupported variant'))
 })
 
-test('Incorrect project public id returns 404', async (t) => {
+test('Incorrect project public id returns 404', async () => {
   const { data, server } = await setup()
 
   const incorrectProjectPublicId = projectKeyToPublicId(randomBytes(32))
@@ -95,11 +98,11 @@ test('Incorrect project public id returns 404', async (t) => {
       }),
     })
 
-    t.is(incorrectProjectPublicIdRes.statusCode, 404)
+    assert.equal(incorrectProjectPublicIdRes.statusCode, 404)
   }
 })
 
-test('Incorrectly formatted project public id returns 400', async (t) => {
+test('Incorrectly formatted project public id returns 400', async () => {
   const { data, server } = await setup()
 
   const hexString = randomBytes(32).toString('hex')
@@ -113,11 +116,11 @@ test('Incorrectly formatted project public id returns 400', async (t) => {
       }),
     })
 
-    t.is(incorrectProjectPublicIdRes.statusCode, 400)
+    assert.equal(incorrectProjectPublicIdRes.statusCode, 400)
   }
 })
 
-test('Missing blob name or variant returns 404', async (t) => {
+test('Missing blob name or variant returns 404', async () => {
   const { data, server, projectPublicId } = await setup()
 
   for (const { blobId } of data) {
@@ -130,7 +133,7 @@ test('Missing blob name or variant returns 404', async (t) => {
       }),
     })
 
-    t.is(nameMismatchRes.statusCode, 404)
+    assert.equal(nameMismatchRes.statusCode, 404)
 
     const variantMismatchRes = await server.inject({
       method: 'GET',
@@ -141,11 +144,11 @@ test('Missing blob name or variant returns 404', async (t) => {
       }),
     })
 
-    t.is(variantMismatchRes.statusCode, 404)
+    assert.equal(variantMismatchRes.statusCode, 404)
   }
 })
 
-test('GET photo returns correct blob payload', async (t) => {
+test('GET photo returns correct blob payload', async () => {
   const { data, server, projectPublicId } = await setup()
 
   for (const { blobId, image } of data) {
@@ -157,11 +160,11 @@ test('GET photo returns correct blob payload', async (t) => {
       }),
     })
 
-    t.alike(res.rawPayload, image.data, 'should be equal')
+    assert.deepEqual(res.rawPayload, image.data, 'should be equal')
   }
 })
 
-test('GET photo returns inferred content header if metadata is not found', async (t) => {
+test('GET photo returns inferred content header if metadata is not found', async () => {
   const { data, server, projectPublicId } = await setup()
 
   for (const { blobId, image } of data) {
@@ -176,11 +179,15 @@ test('GET photo returns inferred content header if metadata is not found', async
     const expectedContentHeader =
       getImageMimeType(image.ext) || 'application/octet-stream'
 
-    t.is(res.headers['content-type'], expectedContentHeader, 'should be equal')
+    assert.equal(
+      res.headers['content-type'],
+      expectedContentHeader,
+      'should be equal'
+    )
   }
 })
 
-test('GET photo uses mime type from metadata if found', async (t) => {
+test('GET photo uses mime type from metadata if found', async () => {
   const { data, server, projectPublicId, blobStore } = await setup()
 
   for (const { blobId, image } of data) {
@@ -204,11 +211,15 @@ test('GET photo uses mime type from metadata if found', async (t) => {
       ? metadata.mimeType
       : 'application/octet-stream'
 
-    t.is(res.headers['content-type'], expectedContentHeader, 'should be equal')
+    assert.equal(
+      res.headers['content-type'],
+      expectedContentHeader,
+      'should be equal'
+    )
   }
 })
 
-test('GET photo returns 404 when trying to get non-replicated blob', async (t) => {
+test('GET photo returns 404 when trying to get non-replicated blob', async () => {
   const projectKey = randomBytes(32)
 
   const {
@@ -242,10 +253,10 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
     url: buildRouteUrl({ ...blobId, projectPublicId }),
   })
 
-  t.is(res.statusCode, 404)
+  assert.equal(res.statusCode, 404)
 })
 
-test('GET photo returns 404 when trying to get non-existent blob', async (t) => {
+test('GET photo returns 404 when trying to get non-existent blob', async () => {
   const projectKey = randomBytes(32)
 
   const { projectPublicId, blobStore } = await setup({ projectKey })
@@ -271,7 +282,7 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
       }),
     })
 
-    t.is(res.statusCode, 404)
+    assert.equal(res.statusCode, 404)
   }
 
   const driveId = await blobStore.put(blobId, expected)
@@ -284,7 +295,7 @@ test('GET photo returns 404 when trying to get non-existent blob', async (t) => 
       url: buildRouteUrl({ ...blobId, projectPublicId, driveId }),
     })
 
-    t.is(res.statusCode, 404)
+    assert.equal(res.statusCode, 404)
   }
 })
 
