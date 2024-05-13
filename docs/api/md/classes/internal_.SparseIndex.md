@@ -49,10 +49,6 @@
 
 [Index](internal_.Index.md).[constructor](internal_.Index.md#constructor)
 
-#### Defined in
-
-[types/quickbit-universal.d.ts:40](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L40)
-
 ## Properties
 
 ### byteLength
@@ -63,19 +59,11 @@
 
 [Index](internal_.Index.md).[byteLength](internal_.Index.md#bytelength)
 
-#### Defined in
-
-[types/quickbit-universal.d.ts:51](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L51)
-
 ___
 
 ### chunks
 
 • `Readonly` **chunks**: [`Chunk`](../modules/internal_.md#chunk)[]
-
-#### Defined in
-
-[types/quickbit-universal.d.ts:41](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L41)
 
 ## Methods
 
@@ -98,10 +86,6 @@ ___
 
 [Index](internal_.Index.md).[skipFirst](internal_.Index.md#skipfirst)
 
-#### Defined in
-
-[types/quickbit-universal.d.ts:55](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L55)
-
 ___
 
 ### skipLast
@@ -123,10 +107,6 @@ ___
 
 [Index](internal_.Index.md).[skipLast](internal_.Index.md#skiplast)
 
-#### Defined in
-
-[types/quickbit-universal.d.ts:57](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L57)
-
 ___
 
 ### update
@@ -146,10 +126,6 @@ ___
 #### Overrides
 
 [Index](internal_.Index.md).[update](internal_.Index.md#update)
-
-#### Defined in
-
-[types/quickbit-universal.d.ts:42](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L42)
 
 ___
 
@@ -172,10 +148,6 @@ ___
 
 [Index](internal_.Index.md).[from](internal_.Index.md#from)
 
-#### Defined in
-
-[types/quickbit-universal.d.ts:46](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L46)
-
 ▸ **from**(`chunks`, `byteLength`): [`SparseIndex`](internal_.SparseIndex.md)
 
 #### Parameters
@@ -192,7 +164,3 @@ ___
 #### Inherited from
 
 [Index](internal_.Index.md).[from](internal_.Index.md#from)
-
-#### Defined in
-
-[types/quickbit-universal.d.ts:47](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L47)

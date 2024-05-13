@@ -73,19 +73,11 @@ Re-exports [Roles](../classes/internal_.Roles.md)
 
 Ƭ **RoleIdAssignableToAnyone**\<\>: [`ElementOf`](internal_.md#elementof)\<typeof [`ROLE_IDS_ASSIGNABLE_TO_ANYONE`](internal_.md#role_ids_assignable_to_anyone)\>
 
-#### Defined in
-
-[src/roles.js:44](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L44)
-
 ___
 
 ### RoleIdAssignableToOthers
 
 Ƭ **RoleIdAssignableToOthers**\<\>: [`ElementOf`](internal_.md#elementof)\<typeof [`ROLE_IDS_ASSIGNABLE_TO_OTHERS`](internal_.md#role_ids_assignable_to_others)\>
-
-#### Defined in
-
-[src/roles.js:38](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L38)
 
 ___
 
@@ -93,29 +85,17 @@ ___
 
 Ƭ **RoleIdForNewInvite**\<\>: [`ElementOf`](internal_.md#elementof)\<typeof [`ROLE_IDS_FOR_NEW_INVITE`](internal_.md#role_ids_for_new_invite)\>
 
-#### Defined in
-
-[src/roles.js:32](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L32)
-
 ## Variables
 
 ### BLOCKED\_ROLE\_ID
 
 • `Const` **BLOCKED\_ROLE\_ID**: ``"9e6d29263cba36c9"``
 
-#### Defined in
-
-[src/roles.js:10](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L10)
-
 ___
 
 ### COORDINATOR\_ROLE\_ID
 
 • `Const` **COORDINATOR\_ROLE\_ID**: ``"f7c150f5a3a9a855"``
-
-#### Defined in
-
-[src/roles.js:8](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L8)
 
 ___
 
@@ -127,19 +107,11 @@ This is currently the same as 'Coordinator' role, but defined separately
 because the creator should always have ALL powers, but we could edit the
 'Coordinator' powers in the future.
 
-#### Defined in
-
-[src/roles.js:80](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L80)
-
 ___
 
 ### CREATOR\_ROLE\_ID
 
 • `Const` **CREATOR\_ROLE\_ID**: ``"a12a6702b93bd7ff"``
-
-#### Defined in
-
-[src/roles.js:7](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L7)
 
 ___
 
@@ -147,19 +119,11 @@ ___
 
 • `Const` **LEFT\_ROLE\_ID**: ``"8ced989b1904606b"``
 
-#### Defined in
-
-[src/roles.js:11](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L11)
-
 ___
 
 ### MEMBER\_ROLE\_ID
 
 • `Const` **MEMBER\_ROLE\_ID**: ``"012fd2d431c0bf60"``
-
-#### Defined in
-
-[src/roles.js:9](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L9)
 
 ___
 
@@ -174,19 +138,11 @@ able to sync the auth and config store, because that way they may be able to
 receive their role record, and they can get the project config so that they
 can start collecting data.
 
-#### Defined in
-
-[src/roles.js:109](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L109)
-
 ___
 
 ### NO\_ROLE\_ID
 
 • `Const` **NO\_ROLE\_ID**: ``"08e4251e36f6e7ed"``
-
-#### Defined in
-
-[src/roles.js:12](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L12)
 
 ___
 
@@ -205,10 +161,6 @@ ___
 | `a12a6702b93bd7ff` | [`Role`](../interfaces/internal_.Role.md)\<``"a12a6702b93bd7ff"``\> |
 | `f7c150f5a3a9a855` | [`Role`](../interfaces/internal_.Role.md)\<``"f7c150f5a3a9a855"``\> |
 
-#### Defined in
-
-[src/roles.js:129](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L129)
-
 ## Functions
 
 ### isRoleIdAssignableToOthers
@@ -225,10 +177,6 @@ ___
 
 value is "f7c150f5a3a9a855" \| "012fd2d431c0bf60" \| "9e6d29263cba36c9"
 
-#### Defined in
-
-[src/roles.js:42](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L42)
-
 ___
 
 ### isRoleIdForNewInvite
@@ -244,7 +192,3 @@ ___
 #### Returns
 
 value is "f7c150f5a3a9a855" \| "012fd2d431c0bf60" \| "9e6d29263cba36c9"
-
-#### Defined in
-
-[src/roles.js:36](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L36)

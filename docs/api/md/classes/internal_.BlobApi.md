@@ -33,10 +33,6 @@
 
 [`BlobApi`](internal_.BlobApi.md)
 
-#### Defined in
-
-[src/blob-api.js:18](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-api.js#L18)
-
 ## Methods
 
 ### create
@@ -60,10 +56,6 @@ Write blobs for provided variants of a file
 
 `Promise`\<\{ `driveId`: `string` ; `hash`: `string` ; `name`: `string` ; `type`: ``"photo"`` \| ``"audio"`` \| ``"video"``  }\>
 
-#### Defined in
-
-[src/blob-api.js:46](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-api.js#L46)
-
 ___
 
 ### getUrl
@@ -81,7 +73,3 @@ Get a url for a blob based on its BlobId
 #### Returns
 
 `Promise`\<`string`\>
-
-#### Defined in
-
-[src/blob-api.js:28](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-api.js#L28)

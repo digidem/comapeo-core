@@ -21,10 +21,6 @@
 
 can read other's data
 
-#### Defined in
-
-[src/roles.js:59](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L59)
-
 ___
 
 ### readOwn
@@ -32,10 +28,6 @@ ___
 • **readOwn**: `boolean`
 
 can read own data
-
-#### Defined in
-
-[src/roles.js:57](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L57)
 
 ___
 
@@ -45,10 +37,6 @@ ___
 
 can edit or delete other's data
 
-#### Defined in
-
-[src/roles.js:60](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L60)
-
 ___
 
 ### writeOwn
@@ -56,7 +44,3 @@ ___
 • **writeOwn**: `boolean`
 
 can write own data
-
-#### Defined in
-
-[src/roles.js:58](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L58)

@@ -55,29 +55,17 @@
 
 [`Protomux`](internal_.Protomux.md)\<`TStream`\>
 
-#### Defined in
-
-[types/protomux.d.ts:48](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L48)
-
 ## Properties
 
 ### isProtomux
 
 • **isProtomux**: ``true``
 
-#### Defined in
-
-[types/protomux.d.ts:49](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L49)
-
 ___
 
 ### stream
 
 • **stream**: `TStream`
-
-#### Defined in
-
-[types/protomux.d.ts:50](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L50)
 
 ## Methods
 
@@ -88,10 +76,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[types/protomux.d.ts:53](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L53)
 
 ___
 
@@ -119,10 +103,6 @@ ___
 
 [`Channel`](../interfaces/internal_.Channel.md)
 
-#### Defined in
-
-[types/protomux.d.ts:61](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L61)
-
 ___
 
 ### destroy
@@ -138,10 +118,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[types/protomux.d.ts:73](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L73)
 
 ___
 
@@ -160,10 +136,6 @@ ___
 #### Returns
 
 `boolean`
-
-#### Defined in
-
-[types/protomux.d.ts:60](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L60)
 
 ___
 
@@ -184,10 +156,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[types/protomux.d.ts:55](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L55)
-
 ___
 
 ### uncork
@@ -197,10 +165,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[types/protomux.d.ts:54](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L54)
 
 ___
 
@@ -220,10 +184,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[types/protomux.d.ts:59](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L59)
-
 ___
 
 ### from
@@ -240,10 +200,6 @@ ___
 
 [`Protomux`](internal_.Protomux.md)\<`TStream`\>
 
-#### Defined in
-
-[types/protomux.d.ts:51](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L51)
-
 ___
 
 ### isProtomux
@@ -259,7 +215,3 @@ ___
 #### Returns
 
 mux is Protomux\<Duplex\<any, any, any, any, true, true, DuplexEvents\<any, any\>\>\>
-
-#### Defined in
-
-[types/protomux.d.ts:52](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L52)

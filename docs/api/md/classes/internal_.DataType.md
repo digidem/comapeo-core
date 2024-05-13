@@ -77,10 +77,6 @@
 
 TypedEmitter\&lt;DataTypeEvents\&lt;TDoc\&gt;\&gt;.constructor
 
-#### Defined in
-
-[src/datatype/index.d.ts:51](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L51)
-
 ## Accessors
 
 ### [kTable]
@@ -91,10 +87,6 @@ TypedEmitter\&lt;DataTypeEvents\&lt;TDoc\&gt;\&gt;.constructor
 
 `TTable`
 
-#### Defined in
-
-[src/datatype/index.d.ts:65](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L65)
-
 ___
 
 ### writerCore
@@ -104,10 +96,6 @@ ___
 #### Returns
 
 `Hypercore`\<``"binary"``, `Buffer`\>
-
-#### Defined in
-
-[src/datatype/index.d.ts:67](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L67)
 
 ## Methods
 
@@ -126,10 +114,6 @@ ___
 
 `Promise`\<`TDoc` & \{ `forks`: `string`[]  }\>
 
-#### Defined in
-
-[src/datatype/index.d.ts:69](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L69)
-
 ___
 
 ### [kSelect]
@@ -139,10 +123,6 @@ ___
 #### Returns
 
 `Promise`\<`any`\>
-
-#### Defined in
-
-[src/datatype/index.d.ts:76](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L76)
 
 ___
 
@@ -166,10 +146,6 @@ ___
 
 `Promise`\<`TDoc` & \{ `forks`: `string`[]  }\>
 
-#### Defined in
-
-[src/datatype/index.d.ts:78](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L78)
-
 ___
 
 ### delete
@@ -185,10 +161,6 @@ ___
 #### Returns
 
 `Promise`\<`TDoc` & \{ `forks`: `string`[]  }\>
-
-#### Defined in
-
-[src/datatype/index.d.ts:104](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L104)
 
 ___
 
@@ -208,10 +180,6 @@ ___
 
 `Promise`\<`TDoc` & \{ `forks`: `string`[]  }\>
 
-#### Defined in
-
-[src/datatype/index.d.ts:85](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L85)
-
 ___
 
 ### getByVersionId
@@ -230,10 +198,6 @@ ___
 
 `Promise`\<`TDoc`\>
 
-#### Defined in
-
-[src/datatype/index.d.ts:90](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L90)
-
 ___
 
 ### getMany
@@ -251,10 +215,6 @@ ___
 #### Returns
 
 `Promise`\<`TDoc` & \{ `forks`: `string`[]  }[]\>
-
-#### Defined in
-
-[src/datatype/index.d.ts:92](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L92)
 
 ___
 
@@ -278,7 +238,3 @@ ___
 #### Returns
 
 `Promise`\<`TDoc` & \{ `forks`: `string`[]  }\>
-
-#### Defined in
-
-[src/datatype/index.d.ts:97](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L97)

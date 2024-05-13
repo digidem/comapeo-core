@@ -63,10 +63,6 @@
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/core-manager/index.js:70](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L70)
-
 ## Accessors
 
 ### creatorCore
@@ -76,10 +72,6 @@ TypedEmitter.constructor
 #### Returns
 
 `Hypercore`\<``"binary"``, `Buffer`\>
-
-#### Defined in
-
-[src/core-manager/index.js:191](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L191)
 
 ___
 
@@ -91,10 +83,6 @@ ___
 
 `string`
 
-#### Defined in
-
-[src/core-manager/index.js:187](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L187)
-
 ___
 
 ### namespaces
@@ -104,10 +92,6 @@ ___
 #### Returns
 
 readonly [``"auth"``, ``"config"``, ``"data"``, ``"blobIndex"``, ``"blob"``]
-
-#### Defined in
-
-[src/core-manager/index.js:55](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L55)
 
 ## Methods
 
@@ -128,10 +112,6 @@ Replicate all cores in core manager
 
 [`Protomux`](internal_.Protomux.md)\<`Duplex`\<`any`, `any`, `any`, `any`, ``true``, ``true``, `DuplexEvents`\<`any`, `any`\>\>\>
 
-#### Defined in
-
-[src/core-manager/index.js:482](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L482)
-
 ___
 
 ### addCore
@@ -151,10 +131,6 @@ Add a core to the manager (will be persisted across restarts)
 
 [`CoreRecord`](../modules/internal_.md#corerecord)
 
-#### Defined in
-
-[src/core-manager/index.js:268](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L268)
-
 ___
 
 ### close
@@ -167,10 +143,6 @@ TODO: gracefully close replication streams
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/core-manager/index.js:250](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L250)
 
 ___
 
@@ -187,10 +159,6 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/core-manager/index.js:501](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L501)
 
 ___
 
@@ -210,10 +178,6 @@ Get a core by its discovery key
 
 `undefined` \| [`CoreRecord`](../modules/internal_.md#corerecord)
 
-#### Defined in
-
-[src/core-manager/index.js:239](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L239)
-
 ___
 
 ### getCoreByKey
@@ -231,10 +195,6 @@ Get a core by its public key
 #### Returns
 
 `undefined` \| `Hypercore`\<``"binary"``, `Buffer`\>
-
-#### Defined in
-
-[src/core-manager/index.js:228](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L228)
 
 ___
 
@@ -254,10 +214,6 @@ Get an array of all cores in the given namespace
 
 [`CoreRecord`](../modules/internal_.md#corerecord)[]
 
-#### Defined in
-
-[src/core-manager/index.js:218](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L218)
-
 ___
 
 ### getWriterCore
@@ -276,10 +232,6 @@ Get the writer core for the given namespace
 
 [`CoreRecord`](../modules/internal_.md#corerecord)
 
-#### Defined in
-
-[src/core-manager/index.js:209](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L209)
-
 ___
 
 ### ready
@@ -291,10 +243,6 @@ Resolves when all cores have finished loading
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/core-manager/index.js:200](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L200)
 
 ___
 
@@ -315,7 +263,3 @@ requesting a core key for the given discovery key.
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/core-manager/index.js:366](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L366)

@@ -81,29 +81,17 @@
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/mapeo-project.js:108](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L108)
-
 ## Properties
 
 ### $blobs
 
 • **$blobs**: [`BlobApi`](internal_.BlobApi.md)
 
-#### Defined in
-
-[src/mapeo-project.js:311](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L311)
-
 ___
 
 ### EMPTY\_PROJECT\_SETTINGS
 
 ▪ `Static` **EMPTY\_PROJECT\_SETTINGS**: `Readonly`\<{}\> = `EMPTY_PROJECT_SETTINGS`
-
-#### Defined in
-
-[src/mapeo-project.js:90](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L90)
 
 ## Accessors
 
@@ -115,10 +103,6 @@ ___
 
 [`IconApi`](internal_.IconApi.md)
 
-#### Defined in
-
-[src/mapeo-project.js:611](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L611)
-
 ___
 
 ### $member
@@ -128,10 +112,6 @@ ___
 #### Returns
 
 [`MemberApi`](internal_.MemberApi.md)
-
-#### Defined in
-
-[src/mapeo-project.js:494](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L494)
 
 ___
 
@@ -143,10 +123,6 @@ ___
 
 [`SyncApi`](internal_.SyncApi.md)
 
-#### Defined in
-
-[src/mapeo-project.js:498](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L498)
-
 ___
 
 ### $translation
@@ -157,10 +133,6 @@ ___
 
 [`default`](internal_.default.md)
 
-#### Defined in
-
-[src/mapeo-project.js:502](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L502)
-
 ___
 
 ### [kBlobStore]
@@ -170,10 +142,6 @@ ___
 #### Returns
 
 [`BlobStore`](internal_.BlobStore.md)
-
-#### Defined in
-
-[src/mapeo-project.js:405](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L405)
 
 ___
 
@@ -187,10 +155,6 @@ CoreManager instance, used for tests
 
 [`CoreManager`](internal_.CoreManager.md)
 
-#### Defined in
-
-[src/mapeo-project.js:387](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L387)
-
 ___
 
 ### [kCoreOwnership]
@@ -202,10 +166,6 @@ CoreOwnership instance, used for tests
 #### Returns
 
 [`CoreOwnership`](internal_.CoreOwnership.md)
-
-#### Defined in
-
-[src/mapeo-project.js:394](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L394)
 
 ___
 
@@ -232,10 +192,6 @@ DataTypes object mappings, used for tests
 | `track` | [`DataType`](internal_.DataType.md)\<[`DataStore`](internal_.DataStore.md)\<``"data"``, ``"track"`` \| ``"observation"``\>, `SQLiteTableWithColumns`\<{}\>, ``"track"``, {}, {}\> |
 | `translation` | [`DataType`](internal_.DataType.md)\<[`DataStore`](internal_.DataStore.md)\<``"config"``, ``"translation"`` \| ``"projectSettings"`` \| ``"preset"`` \| ``"icon"`` \| ``"field"`` \| ``"deviceInfo"``\>, `SQLiteTableWithColumns`\<{}\>, ``"translation"``, {}, {}\> |
 
-#### Defined in
-
-[src/mapeo-project.js:401](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L401)
-
 ___
 
 ### deviceId
@@ -245,10 +201,6 @@ ___
 #### Returns
 
 `string`
-
-#### Defined in
-
-[src/mapeo-project.js:409](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L409)
 
 ___
 
@@ -260,10 +212,6 @@ ___
 
 [`DataType`](internal_.DataType.md)\<[`DataStore`](internal_.DataStore.md)\<``"config"``, ``"translation"`` \| ``"projectSettings"`` \| ``"preset"`` \| ``"icon"`` \| ``"field"`` \| ``"deviceInfo"``\>, `SQLiteTableWithColumns`\<{}\>, ``"field"``, {}, {}\>
 
-#### Defined in
-
-[src/mapeo-project.js:490](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L490)
-
 ___
 
 ### observation
@@ -273,10 +221,6 @@ ___
 #### Returns
 
 [`DataType`](internal_.DataType.md)\<[`DataStore`](internal_.DataStore.md)\<``"data"``, ``"track"`` \| ``"observation"``\>, `SQLiteTableWithColumns`\<{}\>, ``"observation"``, {}, {}\>
-
-#### Defined in
-
-[src/mapeo-project.js:481](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L481)
 
 ___
 
@@ -288,10 +232,6 @@ ___
 
 [`DataType`](internal_.DataType.md)\<[`DataStore`](internal_.DataStore.md)\<``"config"``, ``"translation"`` \| ``"projectSettings"`` \| ``"preset"`` \| ``"icon"`` \| ``"field"`` \| ``"deviceInfo"``\>, `SQLiteTableWithColumns`\<{}\>, ``"preset"``, {}, {}\>
 
-#### Defined in
-
-[src/mapeo-project.js:487](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L487)
-
 ___
 
 ### track
@@ -301,10 +241,6 @@ ___
 #### Returns
 
 [`DataType`](internal_.DataType.md)\<[`DataStore`](internal_.DataStore.md)\<``"data"``, ``"track"`` \| ``"observation"``\>, `SQLiteTableWithColumns`\<{}\>, ``"track"``, {}, {}\>
-
-#### Defined in
-
-[src/mapeo-project.js:484](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L484)
 
 ## Methods
 
@@ -316,10 +252,6 @@ ___
 
 `Promise`\<[`Role`](../interfaces/internal_.Role.md)\<``"a12a6702b93bd7ff"`` \| ``"f7c150f5a3a9a855"`` \| ``"012fd2d431c0bf60"`` \| ``"9e6d29263cba36c9"`` \| ``"8ced989b1904606b"`` \| ``"08e4251e36f6e7ed"``\>\>
 
-#### Defined in
-
-[src/mapeo-project.js:553](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L553)
-
 ___
 
 ### $getProjectSettings
@@ -329,10 +261,6 @@ ___
 #### Returns
 
 `Promise`\<[`EditableProjectSettings`](../modules/internal_.md#editableprojectsettings)\>
-
-#### Defined in
-
-[src/mapeo-project.js:542](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L542)
 
 ___
 
@@ -350,10 +278,6 @@ ___
 
 `Promise`\<[`EditableProjectSettings`](../modules/internal_.md#editableprojectsettings)\>
 
-#### Defined in
-
-[src/mapeo-project.js:510](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L510)
-
 ___
 
 ### [kProjectLeave]
@@ -363,10 +287,6 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/mapeo-project.js:615](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L615)
 
 ___
 
@@ -389,10 +309,6 @@ need to replicate the manager instance via manager[kManagerReplicate])
 
 `Duplex`\<`any`, `any`, `any`, `any`, ``true``, ``true``, `DuplexEvents`\<`any`, `any`\>\> & {} & [`Protomux`](internal_.Protomux.md)\<`Duplex`\<`any`, `any`, `any`, `any`, ``true``, ``true``, `DuplexEvents`\<`any`, `any`\>\>\>
 
-#### Defined in
-
-[src/mapeo-project.js:566](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L566)
-
 ___
 
 ### [kSetOwnDeviceInfo]
@@ -409,10 +325,6 @@ ___
 
 `Promise`\<{}\>
 
-#### Defined in
-
-[src/mapeo-project.js:585](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L585)
-
 ___
 
 ### close
@@ -422,10 +334,6 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/mapeo-project.js:422](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L422)
 
 ___
 
@@ -444,10 +352,6 @@ ___
 
 `Promise`\<`Error`[]\>
 
-#### Defined in
-
-[src/mapeo-project.js:696](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L696)
-
 ___
 
 ### ready
@@ -459,7 +363,3 @@ Resolves when hypercores have all loaded
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/mapeo-project.js:416](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L416)

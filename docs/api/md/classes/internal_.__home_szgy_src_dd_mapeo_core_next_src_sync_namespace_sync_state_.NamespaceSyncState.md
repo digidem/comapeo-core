@@ -51,10 +51,6 @@
 
 [`NamespaceSyncState`](internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_namespace_sync_state_.NamespaceSyncState.md)\<`TNamespace`\>
 
-#### Defined in
-
-[src/sync/namespace-sync-state.js:28](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/namespace-sync-state.js#L28)
-
 ## Accessors
 
 ### namespace
@@ -64,10 +60,6 @@
 #### Returns
 
 `TNamespace`
-
-#### Defined in
-
-[src/sync/namespace-sync-state.js:53](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/namespace-sync-state.js#L53)
 
 ## Methods
 
@@ -85,10 +77,6 @@
 
 `void`
 
-#### Defined in
-
-[src/sync/namespace-sync-state.js:90](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/namespace-sync-state.js#L90)
-
 ___
 
 ### getState
@@ -98,7 +86,3 @@ ___
 #### Returns
 
 [`SyncState`](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_namespace_sync_state_.md#syncstate)
-
-#### Defined in
-
-[src/sync/namespace-sync-state.js:58](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/namespace-sync-state.js#L58)

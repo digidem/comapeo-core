@@ -35,7 +35,3 @@
 ##### Returns
 
 `void`
-
-#### Defined in
-
-[src/datatype/index.d.ts:31](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L31)

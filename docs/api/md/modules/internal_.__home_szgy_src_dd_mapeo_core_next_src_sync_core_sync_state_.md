@@ -50,19 +50,11 @@ Re-exports [PeerCoreState](internal_.md#peercorestate)
 
 Ƭ **Bitfield**\<\>: [`default`](../classes/internal_.default-2.md)
 
-#### Defined in
-
-[src/sync/core-sync-state.js:7](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L7)
-
 ___
 
 ### PeerId
 
 Ƭ **PeerId**\<\>: `string`
-
-#### Defined in
-
-[src/sync/core-sync-state.js:10](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L10)
 
 ## Functions
 
@@ -82,7 +74,3 @@ https://stackoverflow.com/a/109025/903300
 #### Returns
 
 `number`
-
-#### Defined in
-
-[src/sync/core-sync-state.js:431](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L431)

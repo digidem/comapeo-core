@@ -22,10 +22,6 @@
 
 • **encoding**: [`Encoding`](internal_.Encoding.md)
 
-#### Defined in
-
-[types/protomux.d.ts:27](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L27)
-
 ___
 
 ### onmessage
@@ -46,19 +42,11 @@ ___
 
 `void`
 
-#### Defined in
-
-[types/protomux.d.ts:26](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L26)
-
 ___
 
 ### type
 
 • **type**: `number`
-
-#### Defined in
-
-[types/protomux.d.ts:24](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L24)
 
 ## Methods
 
@@ -75,7 +63,3 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[types/protomux.d.ts:25](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L25)

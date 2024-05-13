@@ -46,29 +46,17 @@
 
 [`Hyperblobs`](internal_.Hyperblobs-1.md)
 
-#### Defined in
-
-[types/hyperblobs.d.ts:33](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L33)
-
 ## Properties
 
 ### blockSize
 
 • `Readonly` **blockSize**: `number`
 
-#### Defined in
-
-[types/hyperblobs.d.ts:31](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L31)
-
 ___
 
 ### core
 
 • `Readonly` **core**: `Hypercore`\<``"binary"``, `undefined`\>
-
-#### Defined in
-
-[types/hyperblobs.d.ts:30](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L30)
 
 ## Accessors
 
@@ -80,10 +68,6 @@ ___
 
 `Hypercore`\<``"binary"``, `undefined`\>
 
-#### Defined in
-
-[types/hyperblobs.d.ts:35](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L35)
-
 ___
 
 ### locked
@@ -93,10 +77,6 @@ ___
 #### Returns
 
 `boolean`
-
-#### Defined in
-
-[types/hyperblobs.d.ts:37](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L37)
 
 ## Methods
 
@@ -116,10 +96,6 @@ ___
 
 `Promise`\<``null`` \| \{ `blocks`: `number`  }\>
 
-#### Defined in
-
-[types/hyperblobs.d.ts:59](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L59)
-
 ___
 
 ### createReadStream
@@ -137,10 +113,6 @@ ___
 
 [`BlobReadStream`](internal_.BlobReadStream.md)
 
-#### Defined in
-
-[types/hyperblobs.d.ts:65](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L65)
-
 ___
 
 ### createWriteStream
@@ -156,10 +128,6 @@ ___
 #### Returns
 
 [`BlobWriteStream`](internal_.BlobWriteStream.md)
-
-#### Defined in
-
-[types/hyperblobs.d.ts:64](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L64)
 
 ___
 
@@ -177,10 +145,6 @@ ___
 #### Returns
 
 `Promise`\<``null`` \| `Buffer`\>
-
-#### Defined in
-
-[types/hyperblobs.d.ts:50](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L50)
 
 ___
 
@@ -203,7 +167,3 @@ ___
 #### Returns
 
 `Promise`\<[`BlobId`](../interfaces/internal_.Hyperblobs.BlobId.md)\>
-
-#### Defined in
-
-[types/hyperblobs.d.ts:39](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L39)

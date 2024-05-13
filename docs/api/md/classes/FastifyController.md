@@ -31,10 +31,6 @@
 
 [`FastifyController`](FastifyController.md)
 
-#### Defined in
-
-[src/fastify-controller.js:21](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-controller.js#L21)
-
 ## Methods
 
 ### start
@@ -51,10 +47,6 @@
 
 `Promise`\<`void`\>
 
-#### Defined in
-
-[src/fastify-controller.js:73](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-controller.js#L73)
-
 ___
 
 ### started
@@ -65,10 +57,6 @@ ___
 
 `Promise`\<`void`\>
 
-#### Defined in
-
-[src/fastify-controller.js:77](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-controller.js#L77)
-
 ___
 
 ### stop
@@ -78,7 +66,3 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/fastify-controller.js:81](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-controller.js#L81)

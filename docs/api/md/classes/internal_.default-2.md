@@ -40,25 +40,11 @@
 
 [`default`](internal_.default-2.md)
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:207](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L207)
-
 ## Properties
 
 ### \_maxSegments
 
 • **\_maxSegments**: `number`
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:212](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L212)
-
-[src/core-manager/remote-bitfield.js:253](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L253)
-
-[src/core-manager/remote-bitfield.js:281](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L281)
-
-[src/core-manager/remote-bitfield.js:394](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L394)
 
 ___
 
@@ -66,19 +52,11 @@ ___
 
 • **\_pages**: [`BigSparseArray`](internal_.BigSparseArray.md)\<[`RemoteBitfieldPage`](internal_.RemoteBitfieldPage.md)\>
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:209](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L209)
-
 ___
 
 ### \_segments
 
 • **\_segments**: [`BigSparseArray`](internal_.BigSparseArray.md)\<[`RemoteBitfieldSegment`](internal_.RemoteBitfieldSegment.md)\>
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:211](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L211)
 
 ## Methods
 
@@ -97,10 +75,6 @@ ___
 
 `number`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:304](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L304)
-
 ___
 
 ### findLast
@@ -118,10 +92,6 @@ ___
 
 `number`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:340](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L340)
-
 ___
 
 ### firstSet
@@ -137,10 +107,6 @@ ___
 #### Returns
 
 `number`
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:327](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L327)
 
 ___
 
@@ -158,10 +124,6 @@ ___
 
 `number`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:333](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L333)
-
 ___
 
 ### get
@@ -178,10 +140,6 @@ ___
 
 `boolean`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:218](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L218)
-
 ___
 
 ### getBitfield
@@ -197,10 +155,6 @@ ___
 #### Returns
 
 ``null`` \| [`RemoteBitfieldPage`](internal_.RemoteBitfieldPage.md)
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:230](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L230)
 
 ___
 
@@ -219,10 +173,6 @@ ___
 
 `boolean`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:378](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L378)
-
 ___
 
 ### lastSet
@@ -239,10 +189,6 @@ ___
 
 `number`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:364](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L364)
-
 ___
 
 ### lastUnset
@@ -258,10 +204,6 @@ ___
 #### Returns
 
 `number`
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:370](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L370)
 
 ___
 
@@ -280,10 +222,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:242](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L242)
-
 ___
 
 ### setRange
@@ -301,7 +239,3 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:269](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L269)

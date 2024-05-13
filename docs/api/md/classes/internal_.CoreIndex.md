@@ -41,10 +41,6 @@ An in-memory index of open cores.
 
 `IterableIterator`\<[`CoreRecord`](../modules/internal_.md#corerecord)\>
 
-#### Defined in
-
-[src/core-manager/core-index.js:15](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/core-index.js#L15)
-
 ___
 
 ### add
@@ -68,10 +64,6 @@ core is ready, but we know it beforehand.
 
 `void`
 
-#### Defined in
-
-[src/core-manager/core-index.js:29](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/core-index.js#L29)
-
 ___
 
 ### getByCoreKey
@@ -89,10 +81,6 @@ Get a core by its public key
 #### Returns
 
 `undefined` \| [`CoreRecord`](../modules/internal_.md#corerecord)
-
-#### Defined in
-
-[src/core-manager/core-index.js:83](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/core-index.js#L83)
 
 ___
 
@@ -112,10 +100,6 @@ Get a core by its discoveryId (discover key as hex string)
 
 `undefined` \| [`CoreRecord`](../modules/internal_.md#corerecord)
 
-#### Defined in
-
-[src/core-manager/core-index.js:73](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/core-index.js#L73)
-
 ___
 
 ### getByNamespace
@@ -134,10 +118,6 @@ Get all known cores in a namespace
 
 [`CoreRecord`](../modules/internal_.md#corerecord)[]
 
-#### Defined in
-
-[src/core-manager/core-index.js:45](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/core-index.js#L45)
-
 ___
 
 ### getWriter
@@ -155,7 +135,3 @@ Get the write core for the given namespace
 #### Returns
 
 [`CoreRecord`](../modules/internal_.md#corerecord)
-
-#### Defined in
-
-[src/core-manager/core-index.js:59](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/core-index.js#L59)

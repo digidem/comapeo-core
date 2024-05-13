@@ -35,10 +35,6 @@
 
 [`IconApi`](internal_.IconApi.md)
 
-#### Defined in
-
-[src/icon-api.js:40](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/icon-api.js#L40)
-
 ## Methods
 
 ### [kGetIconBlob]
@@ -55,10 +51,6 @@
 #### Returns
 
 `Promise`\<`Buffer`\>
-
-#### Defined in
-
-[src/icon-api.js:80](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/icon-api.js#L80)
 
 ___
 
@@ -78,10 +70,6 @@ ___
 
 `Promise`\<`string`\>
 
-#### Defined in
-
-[src/icon-api.js:53](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/icon-api.js#L53)
-
 ___
 
 ### getIconUrl
@@ -98,7 +86,3 @@ ___
 #### Returns
 
 `Promise`\<`string`\>
-
-#### Defined in
-
-[src/icon-api.js:93](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/icon-api.js#L93)

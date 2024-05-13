@@ -18,19 +18,11 @@
 
 • **key**: `string`
 
-#### Defined in
-
-[types/hyperdrive.d.ts:37](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L37)
-
 ___
 
 ### seq
 
 • **seq**: `number`
-
-#### Defined in
-
-[types/hyperdrive.d.ts:36](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L36)
 
 ___
 
@@ -46,7 +38,3 @@ ___
 | `executable` | `boolean` |
 | `linkname` | ``null`` \| `string` |
 | `metadata` | ``null`` \| `object` |
-
-#### Defined in
-
-[types/hyperdrive.d.ts:38](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L38)

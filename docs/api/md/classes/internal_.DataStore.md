@@ -70,10 +70,6 @@
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/datastore/index.js:72](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L72)
-
 ## Accessors
 
 ### indexer
@@ -83,10 +79,6 @@ TypedEmitter.constructor
 #### Returns
 
 `MultiCoreIndexer`\<``"binary"``\>
-
-#### Defined in
-
-[src/datastore/index.js:94](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L94)
 
 ___
 
@@ -98,10 +90,6 @@ ___
 
 `TNamespace`
 
-#### Defined in
-
-[src/datastore/index.js:98](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L98)
-
 ___
 
 ### schemas
@@ -111,10 +99,6 @@ ___
 #### Returns
 
 (``"track"`` \| ``"observation"``)[] \| (``"translation"`` \| ``"projectSettings"`` \| ``"preset"`` \| ``"icon"`` \| ``"field"`` \| ``"deviceInfo"``)[] \| (``"role"`` \| ``"coreOwnership"``)[]
-
-#### Defined in
-
-[src/datastore/index.js:102](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L102)
 
 ___
 
@@ -126,10 +110,6 @@ ___
 
 `Hypercore`\<``"binary"``, `Buffer`\>
 
-#### Defined in
-
-[src/datastore/index.js:107](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L107)
-
 ## Methods
 
 ### close
@@ -140,10 +120,6 @@ ___
 
 `Promise`\<`void`\>
 
-#### Defined in
-
-[src/datastore/index.js:229](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L229)
-
 ___
 
 ### getIndexState
@@ -153,10 +129,6 @@ ___
 #### Returns
 
 `IndexState`
-
-#### Defined in
-
-[src/datastore/index.js:111](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L111)
 
 ___
 
@@ -174,10 +146,6 @@ ___
 
 `Promise`\<`MapeoDoc`\>
 
-#### Defined in
-
-[src/datastore/index.js:198](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L198)
-
 ___
 
 ### readRaw
@@ -193,10 +161,6 @@ ___
 #### Returns
 
 `Promise`\<`Buffer`\>
-
-#### Defined in
-
-[src/datastore/index.js:220](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L220)
 
 ___
 
@@ -226,10 +190,6 @@ this DataStore.
 
 `Promise`\<`Extract`\<{}, `TDoc`\> \| `Extract`\<{}, `TDoc`\> \| `Extract`\<{}, `TDoc`\> \| `Extract`\<{}, `TDoc`\> \| `Extract`\<{}, `TDoc`\> \| `Extract`\<{}, `TDoc`\> \| `Extract`\<{}, `TDoc`\> \| `Extract`\<{}, `TDoc`\> \| `Extract`\<{}, `TDoc`\> \| `Extract`\<{}, `TDoc`\>\>
 
-#### Defined in
-
-[src/datastore/index.js:157](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L157)
-
 ___
 
 ### writeRaw
@@ -245,7 +205,3 @@ ___
 #### Returns
 
 `Promise`\<`string`\>
-
-#### Defined in
-
-[src/datastore/index.js:208](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L208)

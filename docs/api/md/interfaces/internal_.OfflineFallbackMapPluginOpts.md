@@ -18,26 +18,14 @@
 
 • **prefix**: `undefined` \| `string`
 
-#### Defined in
-
-[src/fastify-plugins/maps/offline-fallback-map.js:21](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-plugins/maps/offline-fallback-map.js#L21)
-
 ___
 
 ### sourcesDir
 
 • **sourcesDir**: `string`
 
-#### Defined in
-
-[src/fastify-plugins/maps/offline-fallback-map.js:23](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-plugins/maps/offline-fallback-map.js#L23)
-
 ___
 
 ### styleJsonPath
 
 • **styleJsonPath**: `string`
-
-#### Defined in
-
-[src/fastify-plugins/maps/offline-fallback-map.js:22](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/fastify-plugins/maps/offline-fallback-map.js#L22)

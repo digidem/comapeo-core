@@ -19,19 +19,11 @@
 
 • **blockLength**: `number`
 
-#### Defined in
-
-[types/hyperblobs.d.ts:23](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L23)
-
 ___
 
 ### blockOffset
 
 • **blockOffset**: `number`
-
-#### Defined in
-
-[types/hyperblobs.d.ts:22](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L22)
 
 ___
 
@@ -39,16 +31,8 @@ ___
 
 • **byteLength**: `number`
 
-#### Defined in
-
-[types/hyperblobs.d.ts:25](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L25)
-
 ___
 
 ### byteOffset
 
 • **byteOffset**: `number`
-
-#### Defined in
-
-[types/hyperblobs.d.ts:24](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L24)

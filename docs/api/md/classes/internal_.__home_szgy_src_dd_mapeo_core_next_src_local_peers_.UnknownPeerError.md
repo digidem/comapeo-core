@@ -40,10 +40,6 @@
 
 Error.constructor
 
-#### Defined in
-
-[src/local-peers.js:616](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L616)
-
 ## Properties
 
 ### name
@@ -53,7 +49,3 @@ Error.constructor
 #### Inherited from
 
 Error.name
-
-#### Defined in
-
-[src/local-peers.js:618](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L618)

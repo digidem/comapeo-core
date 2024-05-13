@@ -24,10 +24,6 @@
 
 Ƭ **SyncState**\<\>: `Omit`\<[`"/home/szgy/src/dd/mapeo-core-next/src/sync/core-sync-state"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_core_sync_state_.md), ``"coreLength"``\> & \{ `coreCount`: `number` ; `dataToSync`: `boolean`  }
 
-#### Defined in
-
-[src/sync/namespace-sync-state.js:5](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/namespace-sync-state.js#L5)
-
 ## Functions
 
 ### createState
@@ -37,10 +33,6 @@
 #### Returns
 
 [`CoreState`](../interfaces/internal_.CoreState.md)
-
-#### Defined in
-
-[src/sync/namespace-sync-state.js:136](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/namespace-sync-state.js#L136)
 
 ▸ **createState**(`status`): [`PeerCoreState`](internal_.md#peercorestate)
 
@@ -53,7 +45,3 @@
 #### Returns
 
 [`PeerCoreState`](internal_.md#peercorestate)
-
-#### Defined in
-
-[src/sync/namespace-sync-state.js:141](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/namespace-sync-state.js#L141)

@@ -53,10 +53,6 @@
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/member-api.js:59](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/member-api.js#L59)
-
 ## Methods
 
 ### assignRole
@@ -74,10 +70,6 @@ TypedEmitter.constructor
 
 `Promise`\<`void`\>
 
-#### Defined in
-
-[src/member-api.js:308](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/member-api.js#L308)
-
 ___
 
 ### getById
@@ -94,10 +86,6 @@ ___
 
 `Promise`\<[`MemberInfo`](../interfaces/internal_.MemberInfo.md)\>
 
-#### Defined in
-
-[src/member-api.js:239](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/member-api.js#L239)
-
 ___
 
 ### getMany
@@ -107,10 +95,6 @@ ___
 #### Returns
 
 `Promise`\<[`MemberInfo`](../interfaces/internal_.MemberInfo.md)[]\>
-
-#### Defined in
-
-[src/member-api.js:269](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/member-api.js#L269)
 
 ___
 
@@ -135,10 +119,6 @@ is canceled, or if something else goes wrong.
 
 `Promise`\<``"REJECT"`` \| ``"ACCEPT"`` \| ``"ALREADY"``\>
 
-#### Defined in
-
-[src/member-api.js:93](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/member-api.js#L93)
-
 ___
 
 ### requestCancelInvite
@@ -158,7 +138,3 @@ No-op if we weren't inviting this device.
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/member-api.js:231](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/member-api.js#L231)

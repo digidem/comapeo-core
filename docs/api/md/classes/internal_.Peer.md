@@ -48,10 +48,6 @@
 
 [`Peer`](internal_.Peer.md)
 
-#### Defined in
-
-[src/local-peers.js:76](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L76)
-
 ## Accessors
 
 ### connected
@@ -65,10 +61,6 @@ fails to connect
 
 `Promise`\<`any`\>
 
-#### Defined in
-
-[src/local-peers.js:129](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L129)
-
 ___
 
 ### info
@@ -79,10 +71,6 @@ ___
 
 [`PeerInfoInternal`](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md#peerinfointernal)
 
-#### Defined in
-
-[src/local-peers.js:94](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L94)
-
 ___
 
 ### protomux
@@ -92,10 +80,6 @@ ___
 #### Returns
 
 [`Protomux`](internal_.Protomux.md)\<`any`\>
-
-#### Defined in
-
-[src/local-peers.js:132](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L132)
 
 ## Methods
 
@@ -113,10 +97,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:164](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L164)
-
 ___
 
 ### connect
@@ -127,10 +107,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:136](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L136)
-
 ___
 
 ### disconnect
@@ -140,10 +116,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/local-peers.js:147](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L147)
 
 ___
 
@@ -161,10 +133,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:209](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L209)
-
 ___
 
 ### sendDeviceInfo
@@ -180,10 +148,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/local-peers.js:202](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L202)
 
 ___
 
@@ -201,10 +165,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:170](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L170)
-
 ___
 
 ### sendInviteCancel
@@ -220,10 +180,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/local-peers.js:178](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L178)
 
 ___
 
@@ -241,10 +197,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:186](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L186)
-
 ___
 
 ### sendProjectJoinDetails
@@ -260,7 +212,3 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/local-peers.js:194](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L194)

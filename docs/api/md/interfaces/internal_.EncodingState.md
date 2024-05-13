@@ -18,26 +18,14 @@
 
 • **buffer**: ``null`` \| `Buffer`
 
-#### Defined in
-
-[types/protomux.d.ts:12](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L12)
-
 ___
 
 ### end
 
 • **end**: `number`
 
-#### Defined in
-
-[types/protomux.d.ts:14](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L14)
-
 ___
 
 ### start
 
 • **start**: `number`
-
-#### Defined in
-
-[types/protomux.d.ts:13](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/protomux.d.ts#L13)

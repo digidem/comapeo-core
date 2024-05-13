@@ -39,10 +39,6 @@
 
 [`default`](internal_.default.md)
 
-#### Defined in
-
-[src/translation-api.js:29](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/translation-api.js#L29)
-
 ## Accessors
 
 ### [ktranslatedLanguageCodeToSchemaNames]
@@ -52,10 +48,6 @@
 #### Returns
 
 `Map`\<`string`, `Set`\<`SchemaName`\>\>
-
-#### Defined in
-
-[src/translation-api.js:126](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/translation-api.js#L126)
 
 ## Methods
 
@@ -73,10 +65,6 @@
 
 `Promise`\<{}[]\>
 
-#### Defined in
-
-[src/translation-api.js:72](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/translation-api.js#L72)
-
 ___
 
 ### index
@@ -92,10 +80,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/translation-api.js:107](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/translation-api.js#L107)
 
 ___
 
@@ -113,10 +97,6 @@ ___
 
 `Promise`\<{} & \{ `forks`: `string`[]  }\>
 
-#### Defined in
-
-[src/translation-api.js:50](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/translation-api.js#L50)
-
 ___
 
 ### ready
@@ -126,7 +106,3 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/translation-api.js:43](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/translation-api.js#L43)

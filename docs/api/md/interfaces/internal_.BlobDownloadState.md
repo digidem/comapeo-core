@@ -23,10 +23,6 @@
 
 If status = 'error' then this will be an Error object
 
-#### Defined in
-
-[src/blob-store/live-download.js:14](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/live-download.js#L14)
-
 ___
 
 ### haveBytes
@@ -34,10 +30,6 @@ ___
 • **haveBytes**: `number`
 
 The bytes already downloaded
-
-#### Defined in
-
-[src/blob-store/live-download.js:11](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/live-download.js#L11)
 
 ___
 
@@ -47,19 +39,11 @@ ___
 
 The number of files already downloaded
 
-#### Defined in
-
-[src/blob-store/live-download.js:10](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/live-download.js#L10)
-
 ___
 
 ### status
 
 • **status**: ``"checking"`` \| ``"downloading"`` \| ``"downloaded"`` \| ``"aborted"``
-
-#### Defined in
-
-[src/blob-store/live-download.js:15](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/live-download.js#L15)
 
 ___
 
@@ -69,10 +53,6 @@ ___
 
 The bytes pending download
 
-#### Defined in
-
-[src/blob-store/live-download.js:13](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/live-download.js#L13)
-
 ___
 
 ### wantCount
@@ -80,7 +60,3 @@ ___
 • **wantCount**: `number`
 
 The number of files pending download
-
-#### Defined in
-
-[src/blob-store/live-download.js:12](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/live-download.js#L12)

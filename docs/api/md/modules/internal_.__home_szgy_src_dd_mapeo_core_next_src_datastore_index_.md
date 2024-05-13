@@ -41,19 +41,11 @@ Re-exports [NamespaceSchemas](internal_.md#namespaceschemas)
 | :------ | :------ |
 | `TSchemaName` | extends `MapeoDoc`[``"schemaName"``] |
 
-#### Defined in
-
-[src/datastore/index.js:22](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L22)
-
 ___
 
 ### MapeoDocTablesMap
 
 Ƭ **MapeoDocTablesMap**: \{ [K in MapeoDocTables["\_"]["name"]]: Extract\<MapeoDocTables, Object\> }
-
-#### Defined in
-
-[src/datatype/index.d.ts:24](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L24)
 
 ___
 
@@ -67,7 +59,3 @@ ___
 | :------ | :------ |
 | `T` | `T` |
 | `K` | extends keyof `any` |
-
-#### Defined in
-
-[src/datastore/index.js:27](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L27)

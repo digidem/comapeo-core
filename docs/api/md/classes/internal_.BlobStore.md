@@ -43,10 +43,6 @@
 
 [`BlobStore`](internal_.BlobStore.md)
 
-#### Defined in
-
-[src/blob-store/index.js:45](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L45)
-
 ## Accessors
 
 ### writerDriveId
@@ -56,10 +52,6 @@
 #### Returns
 
 `string`
-
-#### Defined in
-
-[src/blob-store/index.js:77](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L77)
 
 ## Methods
 
@@ -78,10 +70,6 @@
 #### Returns
 
 `Promise`\<``null`` \| \{ `blocks`: `number`  }\>
-
-#### Defined in
-
-[src/blob-store/index.js:234](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L234)
 
 ___
 
@@ -105,10 +93,6 @@ previously read the entry from Hyperdrive using `drive.entry`
 
 `Promise`\<[`BlobReadStream`](internal_.BlobReadStream.md)\>
 
-#### Defined in
-
-[src/blob-store/index.js:150](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L150)
-
 ___
 
 ### createReadStream
@@ -128,10 +112,6 @@ ___
 
 `Readable`\<`any`, `any`, `any`, ``true``, ``false``, `ReadableEvents`\<`any`\>\>
 
-#### Defined in
-
-[src/blob-store/index.js:130](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L130)
-
 ___
 
 ### createWriteStream
@@ -149,10 +129,6 @@ ___
 #### Returns
 
 `Writable`\<`any`, `any`, `any`, ``false``, ``true``, `WritableEvents`\<`any`\>\> & \{ `driveId`: `string`  }
-
-#### Defined in
-
-[src/blob-store/index.js:201](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L201)
 
 ___
 
@@ -181,10 +157,6 @@ specified, then _only_ blobs that match the filter will be downloaded.
 
 EventEmitter with `.state` propery, emits `state` with new state when it updates
 
-#### Defined in
-
-[src/blob-store/index.js:117](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L117)
-
 ___
 
 ### entry
@@ -205,10 +177,6 @@ ___
 
 `Promise`\<``null`` \| [`HyperdriveEntry`](../interfaces/internal_.Hyperdrive.HyperdriveEntry.md)\>
 
-#### Defined in
-
-[src/blob-store/index.js:217](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L217)
-
 ___
 
 ### get
@@ -228,10 +196,6 @@ ___
 
 `Promise`\<`Buffer`\>
 
-#### Defined in
-
-[src/blob-store/index.js:96](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L96)
-
 ___
 
 ### getEntryBlob
@@ -250,10 +214,6 @@ ___
 #### Returns
 
 `Promise`\<``null`` \| `Buffer`\>
-
-#### Defined in
-
-[src/blob-store/index.js:170](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L170)
 
 ___
 
@@ -275,7 +235,3 @@ ___
 `Promise`\<`string`\>
 
 discovery key as hex string of hyperdrive where blob is stored
-
-#### Defined in
-
-[src/blob-store/index.js:190](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L190)

@@ -51,10 +51,6 @@
 
 [`IndexWriter`](internal_.IndexWriter.md)\<`TTables`\>
 
-#### Defined in
-
-[src/index-writer/index.js:38](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/index-writer/index.js#L38)
-
 ## Accessors
 
 ### schemas
@@ -64,10 +60,6 @@
 #### Returns
 
 `TTables`[``"_"``][``"name"``][]
-
-#### Defined in
-
-[src/index-writer/index.js:55](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/index-writer/index.js#L55)
 
 ## Methods
 
@@ -86,7 +78,3 @@
 `Promise`\<[`IndexedDocIds`](../modules/internal_.md#indexeddocids)\>
 
 map of indexed docIds by schemaName
-
-#### Defined in
-
-[src/index-writer/index.js:63](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/index-writer/index.js#L63)

@@ -34,10 +34,6 @@
 
 [`CoreOwnership`](internal_.CoreOwnership.md)
 
-#### Defined in
-
-[src/core-ownership.js:33](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-ownership.js#L33)
-
 ## Methods
 
 ### getCoreId
@@ -57,10 +53,6 @@
 
 coreId of core belonging to `deviceId` for `namespace`
 
-#### Defined in
-
-[src/core-ownership.js:83](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-ownership.js#L83)
-
 ___
 
 ### getOwner
@@ -78,7 +70,3 @@ ___
 `Promise`\<`string`\>
 
 deviceId of device that owns the core
-
-#### Defined in
-
-[src/core-ownership.js:60](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-ownership.js#L60)

@@ -35,7 +35,3 @@
 #### Overrides
 
 Readable.constructor
-
-#### Defined in
-
-[types/hyperblobs.d.ts:17](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperblobs.d.ts#L17)

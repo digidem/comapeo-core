@@ -51,19 +51,11 @@
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/invite-api.js:175](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L175)
-
 ## Properties
 
 ### rpc
 
 • **rpc**: [`LocalPeers`](internal_.LocalPeers.md)
-
-#### Defined in
-
-[src/invite-api.js:180](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L180)
 
 ## Methods
 
@@ -90,10 +82,6 @@ part of this project.
 
 `Promise`\<`string`\>
 
-#### Defined in
-
-[src/invite-api.js:286](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L286)
-
 ___
 
 ### getPending
@@ -103,10 +91,6 @@ ___
 #### Returns
 
 [`MapBuffers`](../modules/internal_.md#mapbuffers)\<[`InviteInternal`](../modules/internal_.md#inviteinternal)\>[]
-
-#### Defined in
-
-[src/invite-api.js:267](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L267)
 
 ___
 
@@ -123,7 +107,3 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/invite-api.js:416](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L416)

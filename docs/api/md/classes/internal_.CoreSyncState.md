@@ -52,10 +52,6 @@ Each peer (including the local peer) has a state of:
 
 [`CoreSyncState`](internal_.CoreSyncState.md)
 
-#### Defined in
-
-[src/sync/core-sync-state.js:74](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L74)
-
 ## Methods
 
 ### addPeer
@@ -71,10 +67,6 @@ Each peer (including the local peer) has a state of:
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/sync/core-sync-state.js:176](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L176)
 
 ___
 
@@ -96,10 +88,6 @@ before we have the core key that allows us to create a core instance.
 
 `void`
 
-#### Defined in
-
-[src/sync/core-sync-state.js:105](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L105)
-
 ___
 
 ### getState
@@ -109,10 +97,6 @@ ___
 #### Returns
 
 [`DerivedState`](../interfaces/internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_core_sync_state_.DerivedState.md)
-
-#### Defined in
-
-[src/sync/core-sync-state.js:85](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L85)
 
 ___
 
@@ -136,10 +120,6 @@ peer before the peer actually starts syncing this core
 
 `void`
 
-#### Defined in
-
-[src/sync/core-sync-state.js:147](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L147)
-
 ___
 
 ### setPeerWants
@@ -160,7 +140,3 @@ blocks/ranges that are added here
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/sync/core-sync-state.js:165](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L165)

@@ -45,19 +45,11 @@
 
 [`RemoteBitfieldSegment`](internal_.RemoteBitfieldSegment.md)
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:105](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L105)
-
 ## Properties
 
 ### index
 
 • **index**: `number`
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:106](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L106)
 
 ___
 
@@ -65,19 +57,11 @@ ___
 
 • **offset**: `number`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:107](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L107)
-
 ___
 
 ### pages
 
 • **pages**: `any`[]
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:111](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L111)
 
 ___
 
@@ -85,23 +69,11 @@ ___
 
 • **pagesLength**: `number`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:112](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L112)
-
-[src/core-manager/remote-bitfield.js:130](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L130)
-
 ___
 
 ### tree
 
 • **tree**: [`SparseIndex`](internal_.SparseIndex.md)
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:108](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L108)
-
-[src/core-manager/remote-bitfield.js:120](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L120)
 
 ## Accessors
 
@@ -112,10 +84,6 @@ ___
 #### Returns
 
 [`Chunk`](../modules/internal_.md#chunk)[]
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:115](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L115)
 
 ## Methods
 
@@ -132,10 +100,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:128](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L128)
 
 ___
 
@@ -154,10 +118,6 @@ ___
 
 `number`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:151](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L151)
-
 ___
 
 ### findLast
@@ -175,10 +135,6 @@ ___
 
 `number`
 
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:180](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L180)
-
 ___
 
 ### refresh
@@ -188,7 +144,3 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/core-manager/remote-bitfield.js:119](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/remote-bitfield.js#L119)

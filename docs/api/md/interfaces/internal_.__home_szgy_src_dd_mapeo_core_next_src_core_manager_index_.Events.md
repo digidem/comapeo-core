@@ -31,10 +31,6 @@
 
 `void`
 
-#### Defined in
-
-[src/core-manager/index.js:25](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L25)
-
 ___
 
 ### peer-have
@@ -59,7 +55,3 @@ ___
 ##### Returns
 
 `void`
-
-#### Defined in
-
-[src/core-manager/index.js:26](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L26)

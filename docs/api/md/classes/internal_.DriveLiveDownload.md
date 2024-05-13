@@ -47,10 +47,6 @@ Like drive.download() but 'live',
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/blob-store/live-download.js:107](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/live-download.js#L107)
-
 ## Accessors
 
 ### state
@@ -60,7 +56,3 @@ TypedEmitter.constructor
 #### Returns
 
 [`BlobDownloadState`](../interfaces/internal_.BlobDownloadState.md) \| [`BlobDownloadStateError`](../modules/internal_.md#blobdownloadstateerror)
-
-#### Defined in
-
-[src/blob-store/live-download.js:129](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/live-download.js#L129)

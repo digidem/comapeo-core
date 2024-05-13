@@ -72,10 +72,6 @@
 
 TypedEmitter\&lt;HyperdriveEvents\&gt;.constructor
 
-#### Defined in
-
-[types/hyperdrive.d.ts:48](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L48)
-
 • **new Hyperdrive**(`corestore`, `opts?`): [`Hyperdrive`](internal_.Hyperdrive-1.md)
 
 #### Parameters
@@ -93,19 +89,11 @@ TypedEmitter\&lt;HyperdriveEvents\&gt;.constructor
 
 TypedEmitter\&lt;HyperdriveEvents\&gt;.constructor
 
-#### Defined in
-
-[types/hyperdrive.d.ts:53](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L53)
-
 ## Properties
 
 ### blobs
 
 • `Readonly` **blobs**: ``null`` \| [`Hyperblobs`](internal_.Hyperblobs-1.md)
-
-#### Defined in
-
-[types/hyperdrive.d.ts:56](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L56)
 
 ___
 
@@ -113,19 +101,11 @@ ___
 
 • `Readonly` **contentKey**: ``null`` \| `Buffer`
 
-#### Defined in
-
-[types/hyperdrive.d.ts:59](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L59)
-
 ___
 
 ### core
 
 • `Readonly` **core**: `Hypercore`\<``"binary"``, `undefined`\>
-
-#### Defined in
-
-[types/hyperdrive.d.ts:55](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L55)
 
 ___
 
@@ -133,19 +113,11 @@ ___
 
 • `Readonly` **db**: `any`
 
-#### Defined in
-
-[types/hyperdrive.d.ts:60](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L60)
-
 ___
 
 ### discoveryKey
 
 • `Readonly` **discoveryKey**: ``null`` \| `Buffer`
-
-#### Defined in
-
-[types/hyperdrive.d.ts:58](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L58)
 
 ___
 
@@ -153,29 +125,17 @@ ___
 
 • `Readonly` **id**: ``null`` \| `string`
 
-#### Defined in
-
-[types/hyperdrive.d.ts:54](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L54)
-
 ___
 
 ### key
 
 • `Readonly` **key**: ``null`` \| `Buffer`
 
-#### Defined in
-
-[types/hyperdrive.d.ts:57](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L57)
-
 ___
 
 ### version
 
 • `Readonly` **version**: `number`
-
-#### Defined in
-
-[types/hyperdrive.d.ts:61](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L61)
 
 ## Methods
 
@@ -186,10 +146,6 @@ ___
 #### Returns
 
 `any`
-
-#### Defined in
-
-[types/hyperdrive.d.ts:99](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L99)
 
 ___
 
@@ -206,10 +162,6 @@ ___
 #### Returns
 
 [`Hyperdrive`](internal_.Hyperdrive-1.md)
-
-#### Defined in
-
-[types/hyperdrive.d.ts:88](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L88)
 
 ___
 
@@ -228,10 +180,6 @@ ___
 #### Returns
 
 `Promise`\<``null`` \| \{ `blocks`: `number`  }\>
-
-#### Defined in
-
-[types/hyperdrive.d.ts:100](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L100)
 
 ___
 
@@ -254,10 +202,6 @@ ___
 
 `Readable`\<`any`, `any`, `any`, ``true``, ``false``, `ReadableEvents`\<`any`\>\>
 
-#### Defined in
-
-[types/hyperdrive.d.ts:64](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L64)
-
 ___
 
 ### createWriteStream
@@ -277,10 +221,6 @@ ___
 
 `Writable`\<`any`, `any`, `any`, ``false``, ``true``, `WritableEvents`\<`any`\>\>
 
-#### Defined in
-
-[types/hyperdrive.d.ts:83](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L83)
-
 ___
 
 ### del
@@ -296,10 +236,6 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[types/hyperdrive.d.ts:87](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L87)
 
 ___
 
@@ -319,10 +255,6 @@ ___
 
 `Readable`\<`any`, `any`, `any`, ``true``, ``false``, `ReadableEvents`\<`any`\>\>
 
-#### Defined in
-
-[types/hyperdrive.d.ts:89](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L89)
-
 ___
 
 ### download
@@ -341,10 +273,6 @@ ___
 
 `Readable`\<`any`, `any`, `any`, ``true``, ``false``, `ReadableEvents`\<`any`\>\>
 
-#### Defined in
-
-[types/hyperdrive.d.ts:96](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L96)
-
 ___
 
 ### downloadDiff
@@ -362,10 +290,6 @@ ___
 #### Returns
 
 `Readable`\<`any`, `any`, `any`, ``true``, ``false``, `ReadableEvents`\<`any`\>\>
-
-#### Defined in
-
-[types/hyperdrive.d.ts:90](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L90)
 
 ___
 
@@ -389,10 +313,6 @@ ___
 | `destroy` | () => `void` |
 | `done` | `Promise`\<`void`\> |
 
-#### Defined in
-
-[types/hyperdrive.d.ts:91](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L91)
-
 ___
 
 ### entries
@@ -408,10 +328,6 @@ ___
 #### Returns
 
 `Readable`\<`any`, `any`, `any`, ``true``, ``false``, `ReadableEvents`\<`any`\>\>
-
-#### Defined in
-
-[types/hyperdrive.d.ts:77](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L77)
 
 ___
 
@@ -430,10 +346,6 @@ ___
 
 `Promise`\<``null`` \| [`HyperdriveEntry`](../interfaces/internal_.Hyperdrive.HyperdriveEntry.md)\>
 
-#### Defined in
-
-[types/hyperdrive.d.ts:68](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L68)
-
 ___
 
 ### get
@@ -451,10 +363,6 @@ ___
 
 `Promise`\<``null`` \| `Buffer`\>
 
-#### Defined in
-
-[types/hyperdrive.d.ts:73](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L73)
-
 ___
 
 ### getBlobs
@@ -464,10 +372,6 @@ ___
 #### Returns
 
 `Promise`\<``null`` \| [`Hyperblobs`](internal_.Hyperblobs-1.md)\>
-
-#### Defined in
-
-[types/hyperdrive.d.ts:72](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L72)
 
 ___
 
@@ -487,10 +391,6 @@ ___
 
 `Readable`\<`any`, `any`, `any`, ``true``, ``false``, `ReadableEvents`\<`any`\>\>
 
-#### Defined in
-
-[types/hyperdrive.d.ts:95](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L95)
-
 ___
 
 ### mirror
@@ -500,10 +400,6 @@ ___
 #### Returns
 
 `any`
-
-#### Defined in
-
-[types/hyperdrive.d.ts:98](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L98)
 
 ___
 
@@ -525,10 +421,6 @@ ___
 
 `Promise`\<`void`\>
 
-#### Defined in
-
-[types/hyperdrive.d.ts:78](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L78)
-
 ___
 
 ### readdir
@@ -545,10 +437,6 @@ ___
 
 `Readable`\<`any`, `any`, `any`, ``true``, ``false``, `ReadableEvents`\<`any`\>\>
 
-#### Defined in
-
-[types/hyperdrive.d.ts:97](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L97)
-
 ___
 
 ### ready
@@ -558,10 +446,6 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[types/hyperdrive.d.ts:62](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L62)
 
 ___
 
@@ -579,7 +463,3 @@ ___
 #### Returns
 
 `Promise`\<`Boolean`\>
-
-#### Defined in
-
-[types/hyperdrive.d.ts:63](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L63)

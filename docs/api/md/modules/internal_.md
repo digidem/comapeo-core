@@ -209,19 +209,11 @@ Re-exports [SyncState](internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_nam
 | :------ |
 | `T` |
 
-#### Defined in
-
-[src/types.ts:40](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L40)
-
 ___
 
 ### BitField
 
 Ƭ **BitField**: `TypedArray`
-
-#### Defined in
-
-[types/quickbit-universal.d.ts:2](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L2)
 
 ___
 
@@ -229,29 +221,17 @@ ___
 
 Ƭ **BlobDownloadStateError**\<\>: `Omit`\<[`BlobDownloadState`](../interfaces/internal_.BlobDownloadState.md), ``"error"`` \| ``"status"``\> & \{ `error`: `Error` ; `status`: ``"error"``  }
 
-#### Defined in
-
-[src/blob-store/live-download.js:18](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/live-download.js#L18)
-
 ___
 
 ### BlobFilter
 
 Ƭ **BlobFilter**: `RequireAtLeastOne`\<\{ [KeyType in BlobType]: ArrayAtLeastOne\<BlobVariant\<KeyType\>\> }\>
 
-#### Defined in
-
-[src/types.ts:42](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L42)
-
 ___
 
 ### BlobId
 
 Ƭ **BlobId**: `Simplify`\<`ValueOf`\<\{ [KeyType in BlobType]: BlobIdBase\<KeyType\> }\>\>
-
-#### Defined in
-
-[src/types.ts:34](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L34)
 
 ___
 
@@ -274,19 +254,11 @@ ___
 | `type` | `T` | Type of blob |
 | `variant` | [`BlobVariant`](internal_.md#blobvariant)\<`T`\> | Blob variant (some blob types have smaller previews and thumbnails available) |
 
-#### Defined in
-
-[src/types.ts:22](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L22)
-
 ___
 
 ### BlobType
 
 Ƭ **BlobType**: keyof [`SupportedBlobVariants`](internal_.md#supportedblobvariants)
-
-#### Defined in
-
-[src/types.ts:17](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L17)
 
 ___
 
@@ -299,10 +271,6 @@ ___
 | Name | Type |
 | :------ | :------ |
 | `TBlobType` | extends [`BlobType`](internal_.md#blobtype) |
-
-#### Defined in
-
-[src/types.ts:18](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L18)
 
 ___
 
@@ -317,19 +285,11 @@ ___
 | `field` | [`BitField`](internal_.md#bitfield) |
 | `offset` | `number` |
 
-#### Defined in
-
-[types/quickbit-universal.d.ts:37](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/quickbit-universal.d.ts#L37)
-
 ___
 
 ### Core
 
 Ƭ **Core**\<\>: `__module`
-
-#### Defined in
-
-[src/core-manager/index.js:19](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L19)
 
 ___
 
@@ -337,19 +297,11 @@ ___
 
 Ƭ **CoreOwnershipWithSignatures**: `Extract`\<`ReturnType`\<typeof `decode`\>, \{ `schemaName`: ``"coreOwnership"``  }\>
 
-#### Defined in
-
-[src/types.ts:55](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L55)
-
 ___
 
 ### CoreOwnershipWithSignaturesValue
 
 Ƭ **CoreOwnershipWithSignaturesValue**: `Omit`\<[`CoreOwnershipWithSignatures`](internal_.md#coreownershipwithsignatures), `Exclude`\<keyof `MapeoCommon`, ``"schemaName"``\>\>
-
-#### Defined in
-
-[src/types.ts:59](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L59)
 
 ___
 
@@ -364,10 +316,6 @@ ___
 | `core` | [`Core`](internal_.md#core) |
 | `key` | `Buffer` |
 | `namespace` | [`Namespace`](internal_.md#namespace-1) |
-
-#### Defined in
-
-[src/core-manager/index.js:21](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L21)
 
 ___
 
@@ -389,29 +337,17 @@ ___
 
 `RandomAccessStorage`
 
-#### Defined in
-
-[src/types.ts:114](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L114)
-
 ___
 
 ### DeviceInfoParam
 
 Ƭ **DeviceInfoParam**\<\>: `Omit`\<`DeviceInfoValue`, ``"schemaName"``\>
 
-#### Defined in
-
-[src/schema/client.js:42](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/client.js#L42)
-
 ___
 
 ### EditableProjectSettings
 
 Ƭ **EditableProjectSettings**\<\>: `Omit`\<`ProjectSettingsValue`, ``"schemaName"``\>
-
-#### Defined in
-
-[src/mapeo-project.js:54](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-project.js#L54)
 
 ___
 
@@ -425,10 +361,6 @@ ___
 | :------ |
 | `T` |
 
-#### Defined in
-
-[src/roles.js:15](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L15)
-
 ___
 
 ### GetMapeoDocTables
@@ -441,19 +373,11 @@ ___
 | :------ |
 | `T` |
 
-#### Defined in
-
-[src/datatype/index.d.ts:19](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L19)
-
 ___
 
 ### IndexedDocIds
 
 Ƭ **IndexedDocIds**\<\>: \{ [K in MapeoDoc["schemaName"]]?: string[] }
-
-#### Defined in
-
-[src/index-writer/index.js:15](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/index-writer/index.js#L15)
 
 ___
 
@@ -461,19 +385,11 @@ ___
 
 Ƭ **InternalDriveEmitter**\<\>: `TypedEmitter`\<\{ `add-drive`: (`drive`: [`"hyperdrive"`](internal_._hyperdrive_.md)) => `void`  }\>
 
-#### Defined in
-
-[src/blob-store/index.js:8](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L8)
-
 ___
 
 ### InviteInternal
 
 Ƭ **InviteInternal**\<\>: `InviteRpcMessage` & \{ `receivedAt`: `number`  }
-
-#### Defined in
-
-[src/invite-api.js:23](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L23)
 
 ___
 
@@ -488,10 +404,6 @@ ___
 | `publicKey` | [`PublicKey`](internal_.md#publickey) |
 | `secretKey` | [`SecretKey`](internal_.md#secretkey) |
 
-#### Defined in
-
-[src/types.ts:97](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L97)
-
 ___
 
 ### Keypair
@@ -504,10 +416,6 @@ ___
 | :------ | :------ |
 | `publicKey` | `Buffer` |
 | `secretKey` | `Buffer` |
-
-#### Defined in
-
-[src/discovery/local-discovery.js:13](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/discovery/local-discovery.js#L13)
 
 ___
 
@@ -523,29 +431,17 @@ Replace an object's `Buffer` values with `string`s. Useful for serialization.
 | :------ |
 | `T` |
 
-#### Defined in
-
-[src/types.ts:86](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L86)
-
 ___
 
 ### MapeoDocMap
 
 Ƭ **MapeoDocMap**: \{ [K in MapeoDoc["schemaName"]]: Extract\<MapeoDoc, Object\> }
 
-#### Defined in
-
-[src/types.ts:46](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L46)
-
 ___
 
 ### MapeoDocTableName
 
 Ƭ **MapeoDocTableName**: \`$\{MapeoDoc["schemaName"]}Table\`
-
-#### Defined in
-
-[src/datatype/index.d.ts:18](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L18)
 
 ___
 
@@ -555,19 +451,11 @@ ___
 
 Union of Drizzle schema tables that correspond to MapeoDoc types (e.g. excluding backlink tables and other utility tables)
 
-#### Defined in
-
-[src/datatype/index.d.ts:21](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datatype/index.d.ts#L21)
-
 ___
 
 ### MapeoValueMap
 
 Ƭ **MapeoValueMap**: \{ [K in MapeoValue["schemaName"]]: Extract\<MapeoValue, Object\> }
-
-#### Defined in
-
-[src/types.ts:50](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L50)
 
 ___
 
@@ -575,19 +463,11 @@ ___
 
 Ƭ **Namespace**\<\>: typeof [`NAMESPACES`](internal_.md#namespaces)[`number`]
 
-#### Defined in
-
-[src/core-manager/index.js:20](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L20)
-
 ___
 
 ### NamespaceSchemas
 
 Ƭ **NamespaceSchemas**\<\>: typeof [`NAMESPACE_SCHEMAS`](internal_.md#namespace_schemas)
-
-#### Defined in
-
-[src/datastore/index.js:44](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L44)
 
 ___
 
@@ -601,19 +481,11 @@ ___
 | :------ | :------ |
 | `T` | extends `Duplex` \| `Duplex` = `Duplex` \| `Duplex` |
 
-#### Defined in
-
-[src/utils.js:47](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L47)
-
 ___
 
 ### OpenedNoiseStream
 
 Ƭ **OpenedNoiseStream**\<\>: [`"/home/szgy/src/dd/mapeo-core-next/src/utils"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md)
-
-#### Defined in
-
-[src/discovery/local-discovery.js:14](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/discovery/local-discovery.js#L14)
 
 ___
 
@@ -621,19 +493,11 @@ ___
 
 Ƭ **PeerCoreState**\<\>: [`CoreState`](../interfaces/internal_.CoreState.md) & \{ `status`: ``"disconnected"`` \| ``"connecting"`` \| ``"connected"``  }
 
-#### Defined in
-
-[src/sync/core-sync-state.js:28](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L28)
-
 ___
 
 ### PeerInfoConnected
 
 Ƭ **PeerInfoConnected**\<\>: [`PeerInfoBase`](../interfaces/internal_.PeerInfoBase.md) & \{ `connectedAt`: `number` ; `protomux`: [`Protomux`](../classes/internal_.Protomux.md)\<`__module`\> ; `status`: ``"connected"``  }
-
-#### Defined in
-
-[src/local-peers.js:47](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L47)
 
 ___
 
@@ -641,29 +505,17 @@ ___
 
 Ƭ **PeerInfoDisconnected**\<\>: [`PeerInfoBase`](../interfaces/internal_.PeerInfoBase.md) & \{ `disconnectedAt`: `number` ; `status`: ``"disconnected"``  }
 
-#### Defined in
-
-[src/local-peers.js:48](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L48)
-
 ___
 
 ### Primitive
 
 Ƭ **Primitive**\<\>: `string` \| `number` \| `bigint` \| `boolean` \| `undefined` \| `symbol` \| ``null``
 
-#### Defined in
-
-[src/lib/hashmap.js:3](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/lib/hashmap.js#L3)
-
 ___
 
 ### ProtocolStream
 
 Ƭ **ProtocolStream**: `Omit`\<`NoiseStream`, ``"userData"``\> & \{ `userData`: [`Protomux`](../classes/internal_.Protomux.md)  }
-
-#### Defined in
-
-[src/types.ts:109](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L109)
 
 ___
 
@@ -673,29 +525,17 @@ ___
 
 32 byte buffer
 
-#### Defined in
-
-[src/types.ts:103](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L103)
-
 ___
 
 ### PublicPeerInfo
 
 Ƭ **PublicPeerInfo**\<\>: `Omit`\<[`"/home/szgy/src/dd/mapeo-core-next/src/local-peers"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md), ``"protomux"``\>
 
-#### Defined in
-
-[src/mapeo-manager.js:65](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L65)
-
 ___
 
 ### Range
 
 Ƭ **Range**: \{ `end`: `number` ; `linear`: `boolean` ; `start`: `number`  } \| \{ `blocks`: `number`[]  }
-
-#### Defined in
-
-[types/hyperdrive.d.ts:12](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/hyperdrive.d.ts#L12)
 
 ___
 
@@ -709,29 +549,17 @@ ___
 | :------ |
 | `T` |
 
-#### Defined in
-
-[src/types.ts:65](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L65)
-
 ___
 
 ### ReplicationStream
 
 Ƭ **ReplicationStream**: `Duplex` & \{ `noiseStream`: [`ProtocolStream`](internal_.md#protocolstream)  }
 
-#### Defined in
-
-[src/types.ts:112](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L112)
-
 ___
 
 ### RoleId
 
 Ƭ **RoleId**\<\>: [`ElementOf`](internal_.md#elementof)\<typeof [`ROLE_IDS`](internal_.md#role_ids)\>
-
-#### Defined in
-
-[src/roles.js:19](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L19)
 
 ___
 
@@ -741,19 +569,11 @@ ___
 
 32 byte buffer
 
-#### Defined in
-
-[src/types.ts:105](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L105)
-
 ___
 
 ### State
 
 Ƭ **State**\<\>: `Record`\<[`"/home/szgy/src/dd/mapeo-core-next/src/core-manager/index"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_core_manager_index_.md), [`"/home/szgy/src/dd/mapeo-core-next/src/sync/namespace-sync-state"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_namespace_sync_state_.md)\>
-
-#### Defined in
-
-[src/sync/sync-state.js:12](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-state.js#L12)
 
 ___
 
@@ -761,19 +581,11 @@ ___
 
 Ƭ **SupportedBlobVariants**: typeof [`SUPPORTED_BLOB_VARIANTS`](internal_.md#supported_blob_variants)
 
-#### Defined in
-
-[src/types.ts:16](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/types.ts#L16)
-
 ___
 
 ### SyncCapability
 
 Ƭ **SyncCapability**\<\>: [`"/home/szgy/src/dd/mapeo-core-next/src/roles"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md)[``"sync"``][[`Namespace`](internal_.md#namespace)] \| ``"unknown"``
-
-#### Defined in
-
-[src/sync/peer-sync-controller.js:10](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/peer-sync-controller.js#L10)
 
 ___
 
@@ -781,19 +593,11 @@ ___
 
 Ƭ **SyncType**\<\>: ``"initial"`` \| ``"full"``
 
-#### Defined in
-
-[src/sync/sync-api.js:16](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-api.js#L16)
-
 ## Variables
 
 ### NAMESPACES
 
 • `Const` **NAMESPACES**: readonly [``"auth"``, ``"config"``, ``"data"``, ``"blobIndex"``, ``"blob"``]
-
-#### Defined in
-
-[src/constants.js:3](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/constants.js#L3)
 
 ___
 
@@ -813,19 +617,11 @@ ___
 | `config` | readonly [``"translation"``, ``"preset"``, ``"field"``, ``"projectSettings"``, ``"deviceInfo"``, ``"icon"``] |
 | `data` | readonly [``"observation"``, ``"track"``] |
 
-#### Defined in
-
-[src/datastore/index.js:30](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/datastore/index.js#L30)
-
 ___
 
 ### ROLE\_IDS
 
 • `Const` **ROLE\_IDS**: `Set`\<``"a12a6702b93bd7ff"`` \| ``"f7c150f5a3a9a855"`` \| ``"012fd2d431c0bf60"`` \| ``"9e6d29263cba36c9"`` \| ``"8ced989b1904606b"`` \| ``"08e4251e36f6e7ed"``\>
-
-#### Defined in
-
-[src/roles.js:20](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L20)
 
 ___
 
@@ -833,29 +629,17 @@ ___
 
 • `Const` **ROLE\_IDS\_ASSIGNABLE\_TO\_ANYONE**: `Set`\<``"f7c150f5a3a9a855"`` \| ``"012fd2d431c0bf60"`` \| ``"9e6d29263cba36c9"`` \| ``"8ced989b1904606b"``\>
 
-#### Defined in
-
-[src/roles.js:45](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L45)
-
 ___
 
 ### ROLE\_IDS\_ASSIGNABLE\_TO\_OTHERS
 
 • `Const` **ROLE\_IDS\_ASSIGNABLE\_TO\_OTHERS**: `Set`\<``"f7c150f5a3a9a855"`` \| ``"012fd2d431c0bf60"`` \| ``"9e6d29263cba36c9"``\>
 
-#### Defined in
-
-[src/roles.js:39](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L39)
-
 ___
 
 ### ROLE\_IDS\_FOR\_NEW\_INVITE
 
 • `Const` **ROLE\_IDS\_FOR\_NEW\_INVITE**: `Set`\<``"f7c150f5a3a9a855"`` \| ``"012fd2d431c0bf60"`` \| ``"9e6d29263cba36c9"``\>
-
-#### Defined in
-
-[src/roles.js:33](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/roles.js#L33)
 
 ___
 
@@ -870,7 +654,3 @@ ___
 | `audio` | readonly [``"original"``] |
 | `photo` | readonly [``"original"``, ``"preview"``, ``"thumbnail"``] |
 | `video` | readonly [``"original"``] |
-
-#### Defined in
-
-[src/blob-store/index.js:13](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/blob-store/index.js#L13)

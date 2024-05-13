@@ -43,19 +43,11 @@
 
 [`Logger`](internal_.Logger.md)
 
-#### Defined in
-
-[src/logger.js:72](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/logger.js#L72)
-
 ## Properties
 
 ### deviceId
 
 • **deviceId**: `string`
-
-#### Defined in
-
-[src/logger.js:73](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/logger.js#L73)
 
 ## Accessors
 
@@ -66,10 +58,6 @@
 #### Returns
 
 `boolean`
-
-#### Defined in
-
-[src/logger.js:77](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/logger.js#L77)
 
 ## Methods
 
@@ -87,10 +75,6 @@
 
 [`Logger`](internal_.Logger.md)
 
-#### Defined in
-
-[src/logger.js:91](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/logger.js#L91)
-
 ___
 
 ### log
@@ -106,10 +90,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/logger.js:84](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/logger.js#L84)
 
 ___
 
@@ -127,7 +107,3 @@ ___
 #### Returns
 
 [`Logger`](internal_.Logger.md)
-
-#### Defined in
-
-[src/logger.js:59](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/logger.js#L59)

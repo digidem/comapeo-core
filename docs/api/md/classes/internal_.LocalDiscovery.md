@@ -49,10 +49,6 @@
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/discovery/local-discovery.js:43](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/discovery/local-discovery.js#L43)
-
 ## Accessors
 
 ### connections
@@ -63,10 +59,6 @@ TypedEmitter.constructor
 
 `IterableIterator`\<[`OpenedNoiseStream`](../modules/internal_.md#openednoisestream-1)\>
 
-#### Defined in
-
-[src/discovery/local-discovery.js:247](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/discovery/local-discovery.js#L247)
-
 ___
 
 ### publicKey
@@ -76,10 +68,6 @@ ___
 #### Returns
 
 `Buffer`
-
-#### Defined in
-
-[src/discovery/local-discovery.js:61](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/discovery/local-discovery.js#L61)
 
 ## Methods
 
@@ -100,10 +88,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[src/discovery/local-discovery.js:86](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/discovery/local-discovery.js#L86)
-
 ___
 
 ### start
@@ -113,10 +97,6 @@ ___
 #### Returns
 
 `Promise`\<\{ `name`: `string` ; `port`: `number`  }\>
-
-#### Defined in
-
-[src/discovery/local-discovery.js:66](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/discovery/local-discovery.js#L66)
 
 ___
 
@@ -139,7 +119,3 @@ are force-closed after opts.timeout milliseconds
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/discovery/local-discovery.js:261](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/discovery/local-discovery.js#L261)

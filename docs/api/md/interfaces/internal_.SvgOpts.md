@@ -17,16 +17,8 @@
 
 • **mimeType**: ``"image/svg+xml"``
 
-#### Defined in
-
-[src/icon-api.js:13](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/icon-api.js#L13)
-
 ___
 
 ### size
 
 • **size**: `Size`
-
-#### Defined in
-
-[src/icon-api.js:14](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/icon-api.js#L14)

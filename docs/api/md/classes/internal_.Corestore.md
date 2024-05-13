@@ -51,19 +51,11 @@
 
 TypedEmitter\&lt;CorestoreEvents\&gt;.constructor
 
-#### Defined in
-
-[types/corestore.d.ts:15](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L15)
-
 ## Properties
 
 ### cores
 
 • **cores**: `Map`\<`string`, `Hypercore`\<`ValueEncoding`, `Buffer`\>\>
-
-#### Defined in
-
-[types/corestore.d.ts:37](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L37)
 
 ___
 
@@ -99,10 +91,6 @@ ___
 
 [`Protomux`](internal_.Protomux.md)\<`Duplex`\<`any`, `any`, `any`, `any`, ``true``, ``true``, `DuplexEvents`\<`any`, `any`\>\>\>
 
-#### Defined in
-
-[types/corestore.d.ts:33](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L33)
-
 ## Methods
 
 ### close
@@ -112,10 +100,6 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[types/corestore.d.ts:36](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L36)
 
 ___
 
@@ -133,10 +117,6 @@ ___
 
 `Hypercore`\<`ValueEncoding`, `Buffer`\>
 
-#### Defined in
-
-[types/corestore.d.ts:19](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L19)
-
 ▸ **get**(`options`): `Hypercore`\<`ValueEncoding`, `Buffer`\>
 
 #### Parameters
@@ -148,10 +128,6 @@ ___
 #### Returns
 
 `Hypercore`\<`ValueEncoding`, `Buffer`\>
-
-#### Defined in
-
-[types/corestore.d.ts:20](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L20)
 
 ▸ **get**(`options`): `Hypercore`\<`ValueEncoding`, `Buffer`\>
 
@@ -165,10 +141,6 @@ ___
 
 `Hypercore`\<`ValueEncoding`, `Buffer`\>
 
-#### Defined in
-
-[types/corestore.d.ts:23](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L23)
-
 ▸ **get**(`options`): `Hypercore`\<`ValueEncoding`, `Buffer`\>
 
 #### Parameters
@@ -180,10 +152,6 @@ ___
 #### Returns
 
 `Hypercore`\<`ValueEncoding`, `Buffer`\>
-
-#### Defined in
-
-[types/corestore.d.ts:26](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L26)
 
 ___
 
@@ -201,10 +169,6 @@ ___
 
 [`Corestore`](internal_.Corestore.md)
 
-#### Defined in
-
-[types/corestore.d.ts:34](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L34)
-
 ___
 
 ### ready
@@ -214,7 +178,3 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[types/corestore.d.ts:35](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/types/corestore.d.ts#L35)

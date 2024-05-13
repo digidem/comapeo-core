@@ -46,10 +46,6 @@ Emit sync state when it changes
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/sync/sync-state.js:33](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-state.js#L33)
-
 ## Methods
 
 ### addPeer
@@ -66,10 +62,6 @@ TypedEmitter.constructor
 
 `void`
 
-#### Defined in
-
-[src/sync/sync-state.js:53](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-state.js#L53)
-
 ___
 
 ### getState
@@ -79,7 +71,3 @@ ___
 #### Returns
 
 [`State`](../modules/internal_.md#state)
-
-#### Defined in
-
-[src/sync/sync-state.js:62](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-state.js#L62)

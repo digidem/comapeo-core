@@ -43,10 +43,6 @@
 
 [`PeerSyncController`](internal_.PeerSyncController.md)
 
-#### Defined in
-
-[src/sync/peer-sync-controller.js:47](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/peer-sync-controller.js#L47)
-
 ## Accessors
 
 ### peerId
@@ -56,10 +52,6 @@
 #### Returns
 
 `string`
-
-#### Defined in
-
-[src/sync/peer-sync-controller.js:78](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/peer-sync-controller.js#L78)
 
 ___
 
@@ -71,10 +63,6 @@ ___
 
 `Buffer`
 
-#### Defined in
-
-[src/sync/peer-sync-controller.js:74](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/peer-sync-controller.js#L74)
-
 ___
 
 ### syncCapability
@@ -84,10 +72,6 @@ ___
 #### Returns
 
 `Record`\<``"blob"`` \| ``"auth"`` \| ``"config"`` \| ``"data"`` \| ``"blobIndex"``, [`SyncCapability`](../modules/internal_.md#synccapability)\>
-
-#### Defined in
-
-[src/sync/peer-sync-controller.js:82](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/peer-sync-controller.js#L82)
 
 ## Methods
 
@@ -104,10 +88,6 @@ in the background without user interaction.
 
 `void`
 
-#### Defined in
-
-[src/sync/peer-sync-controller.js:100](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/peer-sync-controller.js#L100)
-
 ___
 
 ### enableDataSync
@@ -119,10 +99,6 @@ Enable syncing of data (in the data and blob namespaces)
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/sync/peer-sync-controller.js:89](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/peer-sync-controller.js#L89)
 
 ___
 
@@ -139,7 +115,3 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/sync/peer-sync-controller.js:108](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/peer-sync-controller.js#L108)

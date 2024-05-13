@@ -49,19 +49,11 @@ Re-exports [OpenedNoiseStream](internal_.md#openednoisestream)
 
 Ƭ **DestroyedNoiseStream**\<\>: [`NoiseStream`](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#noisestream) & \{ `destroyed`: ``true``  }
 
-#### Defined in
-
-[src/utils.js:44](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L44)
-
 ___
 
 ### NoiseStream
 
 Ƭ **NoiseStream**\<\>: `__module`
-
-#### Defined in
-
-[src/utils.js:43](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L43)
 
 ## Functions
 
@@ -79,10 +71,6 @@ ___
 #### Returns
 
 asserts condition
-
-#### Defined in
-
-[src/utils.js:81](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L81)
 
 ___
 
@@ -110,10 +98,6 @@ Small helper to create a typed map
 
 `Record`\<`K`, `V` extends () => `T` ? `T` : `V`\>
 
-#### Defined in
-
-[src/utils.js:189](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L189)
-
 ___
 
 ### deNullify
@@ -140,10 +124,6 @@ defined in @mapeo/schema)
 
 \{ [KeyType in string \| number \| symbol]: RemoveNull\<\{ [KeyType in string \| number \| symbol]: (\{ [KeyType in string \| number \| symbol as Filter\<KeyType, \{ [Key in (...) \| (...) \| (...)]: (...) extends (...) ? (...) : (...) }[keyof T]\>]: T[KeyType] } & Partial\<Pick\<T, \{ [Key in (...) \| (...) \| (...)]: (...) extends (...) ? (...) : (...) }[keyof T]\>\>)[KeyType] }\>[KeyType] }
 
-#### Defined in
-
-[src/utils.js:116](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L116)
-
 ___
 
 ### getDeviceId
@@ -159,10 +139,6 @@ ___
 #### Returns
 
 `string`
-
-#### Defined in
-
-[src/utils.js:177](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L177)
 
 ___
 
@@ -184,10 +160,6 @@ create a sha256 hash of an object using json-stable-stringify for deterministic 
 
 hash of the object
 
-#### Defined in
-
-[src/utils.js:202](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L202)
-
 ___
 
 ### idToKey
@@ -203,10 +175,6 @@ ___
 #### Returns
 
 `Buffer` \| `Uint8Array`
-
-#### Defined in
-
-[src/utils.js:10](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L10)
 
 ___
 
@@ -224,10 +192,6 @@ ___
 
 `string`
 
-#### Defined in
-
-[src/utils.js:23](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L23)
-
 ___
 
 ### noop
@@ -237,10 +201,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/utils.js:74](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L74)
 
 ___
 
@@ -261,10 +221,6 @@ stream is opened)
 #### Returns
 
 `Promise`\<[`DestroyedNoiseStream`](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#destroyednoisestream) \| [`OpenedNoiseStream`](internal_.md#openednoisestream)\<`Duplex` \| `Duplex`\<`any`, `any`, `any`, `any`, ``true``, ``true``, `DuplexEvents`\<`any`, `any`\>\>\>\>
-
-#### Defined in
-
-[src/utils.js:58](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L58)
 
 ___
 
@@ -287,10 +243,6 @@ ___
 | `blockIndex` | `number` |
 | `coreId` | `string` |
 
-#### Defined in
-
-[src/utils.js:35](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L35)
-
 ___
 
 ### projectIdToNonce
@@ -308,10 +260,6 @@ ___
 `Buffer`
 
 24-byte nonce (same length as sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
-
-#### Defined in
-
-[src/utils.js:169](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L169)
 
 ___
 
@@ -331,10 +279,6 @@ Create an internal ID from a project key
 
 `string`
 
-#### Defined in
-
-[src/utils.js:152](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L152)
-
 ___
 
 ### projectKeyToPublicId
@@ -352,10 +296,6 @@ Create a public ID from a project key
 #### Returns
 
 `string`
-
-#### Defined in
-
-[src/utils.js:161](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L161)
 
 ___
 
@@ -405,10 +345,6 @@ console.log(isInMySet(2))
 // => true
 ```
 
-#### Defined in
-
-[src/utils.js:99](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L99)
-
 ___
 
 ### valueOf
@@ -430,7 +366,3 @@ ___
 #### Returns
 
 `Omit`\<`T`, ``"docId"`` \| ``"versionId"`` \| ``"links"`` \| ``"forks"`` \| ``"createdAt"`` \| ``"updatedAt"`` \| ``"createdBy"`` \| ``"deleted"``\>
-
-#### Defined in
-
-[src/utils.js:130](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/utils.js#L130)

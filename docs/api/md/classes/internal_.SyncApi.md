@@ -52,19 +52,11 @@
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/sync/sync-api.js:66](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-api.js#L66)
-
 ## Properties
 
 ### [kSyncState]
 
 • **[kSyncState]**: [`SyncState`](internal_.SyncState.md)
-
-#### Defined in
-
-[src/sync/sync-api.js:71](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-api.js#L71)
 
 ## Methods
 
@@ -83,10 +75,6 @@ TypedEmitter.constructor
 
 `void`
 
-#### Defined in
-
-[src/sync/sync-api.js:87](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-api.js#L87)
-
 ___
 
 ### getState
@@ -98,10 +86,6 @@ Get the current sync state (initial and full). Also emitted via the 'sync-state'
 #### Returns
 
 [`State`](../interfaces/internal_.State.md)
-
-#### Defined in
-
-[src/sync/sync-api.js:118](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-api.js#L118)
 
 ___
 
@@ -115,10 +99,6 @@ Start syncing data cores
 
 `void`
 
-#### Defined in
-
-[src/sync/sync-api.js:135](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-api.js#L135)
-
 ___
 
 ### stop
@@ -130,10 +110,6 @@ Stop syncing data cores (metadata cores will continue syncing in the background)
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/sync/sync-api.js:148](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-api.js#L148)
 
 ___
 
@@ -150,7 +126,3 @@ ___
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/sync/sync-api.js:162](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/sync-api.js#L162)

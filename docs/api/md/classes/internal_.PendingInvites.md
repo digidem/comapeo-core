@@ -53,10 +53,6 @@ Manage pending invite state.
 
 if adding a duplicate invite ID
 
-#### Defined in
-
-[src/invite-api.js:76](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L76)
-
 ___
 
 ### deleteByInviteId
@@ -74,10 +70,6 @@ ___
 `boolean`
 
 `true` if an invite existed and was deleted, `false` otherwise
-
-#### Defined in
-
-[src/invite-api.js:128](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L128)
 
 ___
 
@@ -97,10 +89,6 @@ ___
 
 the pending invites that were deleted
 
-#### Defined in
-
-[src/invite-api.js:136](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L136)
-
 ___
 
 ### getByInviteId
@@ -116,10 +104,6 @@ ___
 #### Returns
 
 `undefined` \| [`PendingInvite`](../interfaces/internal_.PendingInvite.md)
-
-#### Defined in
-
-[src/invite-api.js:120](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L120)
 
 ___
 
@@ -137,10 +121,6 @@ ___
 
 `boolean`
 
-#### Defined in
-
-[src/invite-api.js:101](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L101)
-
 ___
 
 ### invites
@@ -152,10 +132,6 @@ ___
 `Iterable`\<[`PendingInvite`](../interfaces/internal_.PendingInvite.md)\>
 
 the pending invites, in insertion order
-
-#### Defined in
-
-[src/invite-api.js:67](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L67)
 
 ___
 
@@ -173,10 +149,6 @@ ___
 
 `boolean`
 
-#### Defined in
-
-[src/invite-api.js:109](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L109)
-
 ___
 
 ### markAccepting
@@ -192,7 +164,3 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/invite-api.js:88](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/invite-api.js#L88)

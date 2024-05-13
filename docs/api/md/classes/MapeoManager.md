@@ -64,10 +64,6 @@
 
 TypedEmitter.constructor
 
-#### Defined in
-
-[src/mapeo-manager.js:110](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L110)
-
 ## Accessors
 
 ### [kRPC]
@@ -80,10 +76,6 @@ MapeoRPC instance, used for tests
 
 [`LocalPeers`](internal_.LocalPeers.md)
 
-#### Defined in
-
-[src/mapeo-manager.js:201](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L201)
-
 ___
 
 ### deviceId
@@ -94,10 +86,6 @@ ___
 
 `string`
 
-#### Defined in
-
-[src/mapeo-manager.js:205](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L205)
-
 ___
 
 ### invite
@@ -107,10 +95,6 @@ ___
 #### Returns
 
 [`InviteApi`](internal_.InviteApi.md)
-
-#### Defined in
-
-[src/mapeo-manager.js:731](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L731)
 
 ## Methods
 
@@ -134,10 +118,6 @@ connecting RPC, use project[kProjectReplication].
 
 [`ReplicationStream`](../modules/internal_.md#replicationstream)
 
-#### Defined in
-
-[src/mapeo-manager.js:218](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L218)
-
 ___
 
 ### addProject
@@ -160,10 +140,6 @@ downloaded their proof of project membership and the project config.
 
 `Promise`\<`string`\>
 
-#### Defined in
-
-[src/mapeo-manager.js:542](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L542)
-
 ___
 
 ### connectPeer
@@ -182,10 +158,6 @@ ___
 #### Returns
 
 `void`
-
-#### Defined in
-
-[src/mapeo-manager.js:746](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L746)
 
 ___
 
@@ -208,10 +180,6 @@ Create a new project.
 
 Project public id
 
-#### Defined in
-
-[src/mapeo-manager.js:350](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L350)
-
 ___
 
 ### getDeviceInfo
@@ -222,10 +190,6 @@ ___
 
 \{ `deviceId`: `string`  } & `Partial`\<[`DeviceInfoParam`](../modules/internal_.md#deviceinfoparam)\>
 
-#### Defined in
-
-[src/mapeo-manager.js:719](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L719)
-
 ___
 
 ### getMapStyleJsonUrl
@@ -235,10 +199,6 @@ ___
 #### Returns
 
 `Promise`\<`string`\>
-
-#### Defined in
-
-[src/mapeo-manager.js:806](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L806)
 
 ___
 
@@ -256,10 +216,6 @@ ___
 
 `Promise`\<[`MapeoProject`](internal_.MapeoProject.md)\>
 
-#### Defined in
-
-[src/mapeo-manager.js:426](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L426)
-
 ___
 
 ### leaveProject
@@ -276,10 +232,6 @@ ___
 
 `Promise`\<`void`\>
 
-#### Defined in
-
-[src/mapeo-manager.js:760](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L760)
-
 ___
 
 ### listLocalPeers
@@ -290,10 +242,6 @@ ___
 
 `Promise`\<[`PublicPeerInfo`](../modules/internal_.md#publicpeerinfo)[]\>
 
-#### Defined in
-
-[src/mapeo-manager.js:753](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L753)
-
 ___
 
 ### listProjects
@@ -303,10 +251,6 @@ ___
 #### Returns
 
 `Promise`\<`Pick`\<{}, ``"name"``\> & \{ `createdAt?`: `string` ; `projectId`: `string` ; `updatedAt?`: `string`  }[]\>
-
-#### Defined in
-
-[src/mapeo-manager.js:485](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L485)
 
 ___
 
@@ -330,10 +274,6 @@ ___
 
 `Promise`\<`void`\>
 
-#### Defined in
-
-[src/mapeo-manager.js:686](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L686)
-
 ___
 
 ### startLocalPeerDiscoveryServer
@@ -343,10 +283,6 @@ ___
 #### Returns
 
 `Promise`\<\{ `name`: `string` ; `port`: `number`  }\>
-
-#### Defined in
-
-[src/mapeo-manager.js:736](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L736)
 
 ___
 
@@ -369,7 +305,3 @@ are force-closed after opts.timeout milliseconds
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Defined in
-
-[src/mapeo-manager.js:741](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/mapeo-manager.js#L741)

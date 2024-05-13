@@ -38,10 +38,6 @@
 
 `void`
 
-#### Defined in
-
-[src/core-manager/index.js:614](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L614)
-
 ___
 
 ### deleteByDiscoveryKey
@@ -57,10 +53,6 @@ ___
 #### Returns
 
 `boolean`
-
-#### Defined in
-
-[src/core-manager/index.js:591](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L591)
 
 ___
 
@@ -78,10 +70,6 @@ ___
 
 `void`
 
-#### Defined in
-
-[src/core-manager/index.js:605](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L605)
-
 ___
 
 ### has
@@ -97,10 +85,6 @@ ___
 #### Returns
 
 `boolean`
-
-#### Defined in
-
-[src/core-manager/index.js:584](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L584)
 
 ___
 
@@ -118,7 +102,3 @@ ___
 #### Returns
 
 [`TrackedKeyRequests`](internal_.TrackedKeyRequests.md)
-
-#### Defined in
-
-[src/core-manager/index.js:572](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/core-manager/index.js#L572)

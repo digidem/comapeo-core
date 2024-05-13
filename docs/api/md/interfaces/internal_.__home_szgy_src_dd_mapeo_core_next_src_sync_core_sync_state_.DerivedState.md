@@ -20,10 +20,6 @@
 
 known (sparse) length of the core
 
-#### Defined in
-
-[src/sync/core-sync-state.js:32](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L32)
-
 ___
 
 ### localState
@@ -32,10 +28,6 @@ ___
 
 local state
 
-#### Defined in
-
-[src/sync/core-sync-state.js:33](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L33)
-
 ___
 
 ### remoteStates
@@ -43,7 +35,3 @@ ___
 • **remoteStates**: `Object`
 
 map of state of all known peers
-
-#### Defined in
-
-[src/sync/core-sync-state.js:34](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/sync/core-sync-state.js#L34)

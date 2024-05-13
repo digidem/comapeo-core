@@ -75,10 +75,6 @@ map.get([1, 2])
 
 [`default`](internal_.default-1.md)\<`K`, `V`\>
 
-#### Defined in
-
-[src/lib/hashmap.js:37](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/lib/hashmap.js#L37)
-
 ## Accessors
 
 ### size
@@ -88,10 +84,6 @@ map.get([1, 2])
 #### Returns
 
 `number`
-
-#### Defined in
-
-[src/lib/hashmap.js:45](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/lib/hashmap.js#L45)
 
 ## Methods
 
@@ -111,10 +103,6 @@ map.get([1, 2])
 
 `true` if the key was present and removed, `false` otherwise.
 
-#### Defined in
-
-[src/lib/hashmap.js:53](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/lib/hashmap.js#L53)
-
 ___
 
 ### get
@@ -133,10 +121,6 @@ ___
 
 The element associated with `key`, or `undefined` if it's not present.
 
-#### Defined in
-
-[src/lib/hashmap.js:62](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/lib/hashmap.js#L62)
-
 ___
 
 ### has
@@ -154,10 +138,6 @@ ___
 `boolean`
 
 `true` if `key` is present in the map, `false` otherwise.
-
-#### Defined in
-
-[src/lib/hashmap.js:71](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/lib/hashmap.js#L71)
 
 ___
 
@@ -178,10 +158,6 @@ ___
 
 The map.
 
-#### Defined in
-
-[src/lib/hashmap.js:81](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/lib/hashmap.js#L81)
-
 ___
 
 ### values
@@ -191,7 +167,3 @@ ___
 #### Returns
 
 `IterableIterator`\<`V`\>
-
-#### Defined in
-
-[src/lib/hashmap.js:90](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/lib/hashmap.js#L90)

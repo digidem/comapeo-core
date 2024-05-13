@@ -40,10 +40,6 @@ Emitted when a new hypercore is replicated (by a peer) to a peer protomux instan
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:229](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L229)
-
 ___
 
 ### failed-to-handle-message
@@ -66,10 +62,6 @@ Emitted when we received a message we couldn't handle for some reason. Primarily
 ##### Returns
 
 `void`
-
-#### Defined in
-
-[src/local-peers.js:230](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L230)
 
 ___
 
@@ -94,10 +86,6 @@ Emitted when project details are received
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:228](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L228)
-
 ___
 
 ### invite
@@ -120,10 +108,6 @@ Emitted when an invite is received
 ##### Returns
 
 `void`
-
-#### Defined in
-
-[src/local-peers.js:225](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L225)
 
 ___
 
@@ -148,10 +132,6 @@ Emitted when we receive a cancelation for an invite
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:226](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L226)
-
 ___
 
 ### invite-response
@@ -175,10 +155,6 @@ Emitted when an invite response is received
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:227](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L227)
-
 ___
 
 ### peer-add
@@ -201,10 +177,6 @@ Emitted when a new peer is connected
 
 `void`
 
-#### Defined in
-
-[src/local-peers.js:224](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L224)
-
 ___
 
 ### peers
@@ -226,7 +198,3 @@ Emitted whenever the connection status of peers changes. An array of peerInfo ob
 ##### Returns
 
 `void`
-
-#### Defined in
-
-[src/local-peers.js:223](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/local-peers.js#L223)

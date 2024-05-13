@@ -34,19 +34,11 @@
 
 • `Const` **coreOwnershipBacklinkTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:36](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L36)
-
 ___
 
 ### coreOwnershipTable
 
 • `Const` **coreOwnershipTable**: `SQLiteTableWithColumns`\<{}\>
-
-#### Defined in
-
-[src/schema/project.js:20](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L20)
 
 ___
 
@@ -54,19 +46,11 @@ ___
 
 • `Const` **coresTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:41](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L41)
-
 ___
 
 ### deviceInfoBacklinkTable
 
 • `Const` **deviceInfoBacklinkTable**: `SQLiteTableWithColumns`\<{}\>
-
-#### Defined in
-
-[src/schema/project.js:38](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L38)
 
 ___
 
@@ -74,19 +58,11 @@ ___
 
 • `Const` **deviceInfoTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:25](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L25)
-
 ___
 
 ### fieldBacklinkTable
 
 • `Const` **fieldBacklinkTable**: `SQLiteTableWithColumns`\<{}\>
-
-#### Defined in
-
-[src/schema/project.js:35](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L35)
 
 ___
 
@@ -94,19 +70,11 @@ ___
 
 • `Const` **fieldTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:19](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L19)
-
 ___
 
 ### iconBacklinkTable
 
 • `Const` **iconBacklinkTable**: `SQLiteTableWithColumns`\<{}\>
-
-#### Defined in
-
-[src/schema/project.js:39](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L39)
 
 ___
 
@@ -114,19 +82,11 @@ ___
 
 • `Const` **iconTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:29](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L29)
-
 ___
 
 ### observationBacklinkTable
 
 • `Const` **observationBacklinkTable**: `SQLiteTableWithColumns`\<{}\>
-
-#### Defined in
-
-[src/schema/project.js:32](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L32)
 
 ___
 
@@ -134,19 +94,11 @@ ___
 
 • `Const` **observationTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:13](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L13)
-
 ___
 
 ### presetBacklinkTable
 
 • `Const` **presetBacklinkTable**: `SQLiteTableWithColumns`\<{}\>
-
-#### Defined in
-
-[src/schema/project.js:34](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L34)
 
 ___
 
@@ -154,19 +106,11 @@ ___
 
 • `Const` **presetTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:18](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L18)
-
 ___
 
 ### roleBacklinkTable
 
 • `Const` **roleBacklinkTable**: `SQLiteTableWithColumns`\<{}\>
-
-#### Defined in
-
-[src/schema/project.js:37](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L37)
 
 ___
 
@@ -174,19 +118,11 @@ ___
 
 • `Const` **roleTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:24](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L24)
-
 ___
 
 ### trackBacklinkTable
 
 • `Const` **trackBacklinkTable**: `SQLiteTableWithColumns`\<{}\>
-
-#### Defined in
-
-[src/schema/project.js:33](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L33)
 
 ___
 
@@ -194,26 +130,14 @@ ___
 
 • `Const` **trackTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:17](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L17)
-
 ___
 
 ### translationBacklinkTable
 
 • `Const` **translationBacklinkTable**: `SQLiteTableWithColumns`\<{}\>
 
-#### Defined in
-
-[src/schema/project.js:31](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L31)
-
 ___
 
 ### translationTable
 
 • `Const` **translationTable**: `SQLiteTableWithColumns`\<{}\>
-
-#### Defined in
-
-[src/schema/project.js:9](https://github.com/digidem/mapeo-core-next/blob/315dc9781d8d2f74f17b1fd651a3ae81272b7fac/src/schema/project.js#L9)
