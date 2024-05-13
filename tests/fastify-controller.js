@@ -1,10 +1,11 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import Fastify from 'fastify'
 
 import { FastifyController } from '../src/fastify-controller.js'
 
-test('lifecycle', async (t) => {
+test('lifecycle', async () => {
   const fastify = Fastify()
   const fastifyController = new FastifyController({ fastify })
 
@@ -15,17 +16,17 @@ test('lifecycle', async (t) => {
     { host: '0.0.0.0' },
   ]
 
-  for (const opts of startOptsFixtures) {
-    await fastifyController.start(opts)
-    await fastifyController.start(opts)
-    await fastifyController.stop()
-    await fastifyController.stop()
+  assert.doesNotReject(async () => {
+    for (const opts of startOptsFixtures) {
+      await fastifyController.start(opts)
+      await fastifyController.start(opts)
+      await fastifyController.stop()
+      await fastifyController.stop()
 
-    fastifyController.start(opts)
-    await fastifyController.started()
-    await fastifyController.started()
-    await fastifyController.stop()
-
-    t.pass('server lifecycle works with valid opts')
-  }
+      fastifyController.start(opts)
+      await fastifyController.started()
+      await fastifyController.started()
+      await fastifyController.stop()
+    }
+  })
 })
