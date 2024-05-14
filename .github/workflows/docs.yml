@@ -17,11 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js ${{ matrix.node-version }}
-      - uses: actions/setup-node@v3
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
       - name: Publish docs api to repo
-        uses: actions/checkout@v4
         run: |
           npm ci
           npm run doc
