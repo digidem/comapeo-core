@@ -16,22 +16,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: fregante/setup-git-user@v1
+      - name: Set git user
+        uses: fregante/setup-git-user@v1
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Publish docs api to repo
+      - name: Generate Api docs
         run: |
           npm ci
           npm run doc
-          git status
-          git add -f docs/api/md
-          git commit -am "updated api docs"
-          git push origin main
-      - run: npm run doc:publish
+      - name: Push updated markdown docs
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'Update api markdown docs'
+          file_pattern: 'docs/api/md/*'
+      - name: Generate HTML documentation
+        run: npm run doc:publish
       - id: upload-documentation
-        name: Upload Pages artifact
+        name: Upload documentation to Pages
         uses: actions/upload-pages-artifact@v2
         with:
           path: docs/api/html
