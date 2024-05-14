@@ -214,14 +214,10 @@ test('config import - presets', async (t) => {
 
 test('config import - translations', async (t) => {
   const config = await readConfig(defaultConfigPath)
-  for (let { _, value: translationValue } of config.translations()) {
-    t.is(
-      translationValue.schemaName,
-      'translation',
-      `schemaName is 'translation'`
-    )
+  for (let { value } of config.translations()) {
+    t.is(value.schemaName, 'translation', `schemaName is 'translation'`)
     t.ok(
-      translationValue.schemaNameRef === 'presets' || 'fields',
+      value.schemaNameRef === 'presets' || value.schemaNameRef === 'fields',
       `Config translates only 'fields' or 'presets`
     )
   }

@@ -762,6 +762,8 @@ export class MapeoProject extends TypedEmitter {
         docIdRef = fieldNameToId.get(name)
       } else if (value.schemaNameRef === 'presets') {
         docIdRef = presetNameToId.get(name)
+      } else {
+        throw new Error(`invalid schemaNameRef ${value.schemaNameRef}`)
       }
       if (docIdRef) {
         translationPromises.push(

@@ -19,30 +19,24 @@ const MAX_ICON_SIZE = 10_000_000
  * }} PresetsFile
  */
 
+/** @typedef {('presets' | 'fields')} ValidDocTypes */
 /**
  * @typedef {{
  *  [lang: string] : unknown
  * }} TranslationsFile
  */
 
-/** @typedef {('presets' | 'fields')} ValidDocTypes */
-/** @typedef
- *{{
- *  [lang: string]: Record<ValidDocTypes,unknown>
- * }} Translations
- */
-
 /**
  * @typedef {Parameters<import('./icon-api.js').IconApi['create']>[0]} IconData
  */
+
+/** @type {Error[]} */
+const warnings = []
 
 /**
  * @param {string} configPath
  */
 export async function readConfig(configPath) {
-  /** @type {Error[]} */
-  const warnings = []
-
   const zip = await yauzl.open(configPath)
   if (zip.entryCount > MAX_ENTRIES) {
     // MAX_ENTRIES in MAC can be inacurrate
@@ -204,56 +198,28 @@ export async function readConfig(configPath) {
       }
     },
     /**
-     * @returns {Iterable<{name: string,value:import('@mapeo/schema').TranslationValue}>}
+     * @returns {Iterable<{
+     * name: string,
+     * value:Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>}>}
      */
     *translations() {
       if (!translationsFile) return
-      for (let [lang, languageTranslations] of Object.entries(
+      for (const [lang, languageTranslations] of Object.entries(
         translationsFile
       )) {
-        const { language: languageCode, region: regionCode } = parseBCP47(lang)
-        if (!languageCode) throw new Error(`invalid translation language`)
-        for (let [
-          schemaNameRef,
-          languageTranslationsForDocType,
-        ] of Object.entries(languageTranslations)) {
-          if (!isRecord(languageTranslationsForDocType))
-            throw new Error(`invalid translation docType`)
-          for (let [docName, fieldsToTranslate] of Object.entries(
-            languageTranslationsForDocType
-          )) {
-            if (!isRecord(fieldsToTranslate))
-              throw new Error(`invalid translation field`)
-            for (let [fieldRef, message] of Object.entries(fieldsToTranslate)) {
-              // we skip messages that aren't strings, for now
-              if (isRecord(message)) continue
-              if (typeof message !== 'string')
-                throw new Error(`invalid translation message`)
-              let translationValue = {
-                /** @type {'translation'} */
-                schemaName: 'translation',
-                languageCode,
-                regionCode: regionCode || '',
-                schemaNameRef,
-                fieldRef,
-                message,
-                docIdRef: '',
-              }
-
-              if (!validate('translation', { ...translationValue })) {
-                warnings.push(
-                  new Error(`Invalid translation ${translationValue.message}`)
-                )
-                continue
-              }
-
-              yield {
-                name: docName,
-                value: translationValue,
-              }
-            }
-          }
+        if (!isRecord(languageTranslations))
+          throw new Error('invalid language translations object')
+        const translationObject = translationsForLanguage(
+          lang,
+          languageTranslations
+        )
+        if (!translationObject) continue
+        const { value, name } = translationObject
+        if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
+          warnings.push(new Error(`Invalid translation ${value.message}`))
+          continue
         }
+        yield { name, value }
       }
     },
   }
@@ -287,12 +253,12 @@ async function findPresetsFile(entries) {
 
 /**
  * @param {ReadonlyArray<Entry>} entries
+ * @returns {Promise<TranslationsFile | undefined>}
  */
 async function findTranslationsFile(entries) {
   const translationEntry = entries.find(
     (entry) => entry.filename === 'translations.json'
   )
-
   if (!translationEntry) return
 
   /** @type {unknown} */
@@ -300,36 +266,90 @@ async function findTranslationsFile(entries) {
   try {
     result = await json(await translationEntry.openReadStream())
   } catch (err) {
-    throw new Error('Could not parse translation.json')
+    throw new Error('Could not parse translations.json')
   }
   assert(isRecord(result), 'Invalid translations.json file')
-  return parseTranslations(result)
+  return result
 }
 
 /**
- * @param {TranslationsFile} translations
- * @returns {Translations}
+ * @param {string} lang
+ * @param {Record<string, unknown>} languageTranslations
+ * @returns {{
+ * name: string,
+ * value:Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>} | undefined}
+ *
  */
-function parseTranslations(translations) {
-  /** @type {Translations} */
-  const translatedLangs = {}
-  for (let [lang, translationByLang] of Object.entries(translations)) {
-    const langTranslation = { presets: {}, fields: {} }
-    if (!isRecord(translationByLang))
-      throw new Error('invalid translation lang object')
-    for (let [docType, translationByDocType] of Object.entries(
-      translationByLang
-    )) {
-      if (!isRecord(translationByDocType))
-        throw new Error('invalid translation docType object')
-      if (!(docType === 'presets' || docType === 'fields')) continue
-
-      langTranslation[docType] = translationByDocType
-    }
-    if (Object.keys(langTranslation).length === 0) continue
-    translatedLangs[lang] = langTranslation
+function translationsForLanguage(lang, languageTranslations) {
+  const { language: languageCode, region: regionCode } = parseBCP47(lang)
+  if (!languageCode) {
+    warnings.push(new Error(`invalid translation language ${lang}`))
+    return
   }
-  return translatedLangs
+  for (const [schemaNameRef, languageTranslationsForDocType] of Object.entries(
+    languageTranslations
+  )) {
+    // TODO: push to warnings when removing categories from
+    if (!(schemaNameRef === 'fields' || schemaNameRef === 'presets')) {
+      // warnings.push(new Error(`invalid schemaNameRef ${schemaNameRef}`))
+      continue
+    }
+    if (!isRecord(languageTranslationsForDocType)) {
+      warnings.push(new Error('invalid translation for docType object'))
+      continue
+    }
+    return translationsForDocType({
+      languageCode,
+      regionCode,
+      schemaNameRef,
+      languageTranslationsForDocType,
+    })
+  }
+}
+
+/** @param {Object} opts
+ * @param {string} opts.languageCode
+ * @param {string | null | undefined} opts.regionCode
+ * @param {ValidDocTypes} opts.schemaNameRef
+ * @param {Record<ValidDocTypes, unknown>} opts.languageTranslationsForDocType
+ */
+function translationsForDocType({
+  languageCode,
+  regionCode,
+  schemaNameRef,
+  languageTranslationsForDocType,
+}) {
+  for (const [docName, fieldsToTranslate] of Object.entries(
+    languageTranslationsForDocType
+  )) {
+    if (!isRecord(fieldsToTranslate)) {
+      warnings.push(new Error(`invalid translation field`))
+      return
+    }
+    for (const [fieldRef, message] of Object.entries(fieldsToTranslate)) {
+      if (typeof message !== 'string') {
+        warnings.push(
+          new Error(
+            `invalid translation message type ${typeof message}, message must be string`
+          )
+        )
+        continue
+      }
+      const translationValue = {
+        /** @type {'translation'} */
+        schemaName: 'translation',
+        languageCode,
+        regionCode: regionCode || '',
+        schemaNameRef,
+        fieldRef,
+        message,
+      }
+      return {
+        name: docName,
+        value: translationValue,
+      }
+    }
+  }
 }
 
 /**
