@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Publish docs api to repo
+        uses: actions/checkout@v4
         run: |
           npm ci
           npm run doc
