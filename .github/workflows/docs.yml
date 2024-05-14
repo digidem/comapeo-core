@@ -28,9 +28,7 @@ jobs:
           git status
           git add -f docs/api/md
           git commit -am "updated api docs"
-          git fetch origin main
           git push origin main
-      - run: npm ci
       - run: npm run doc:publish
       - id: upload-documentation
         name: Upload Pages artifact
