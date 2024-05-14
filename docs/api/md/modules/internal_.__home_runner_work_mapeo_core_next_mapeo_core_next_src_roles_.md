@@ -1,41 +1,41 @@
-[API](../README.md) / [\<internal\>](internal_.md) / "/home/szgy/src/dd/mapeo-core-next/src/roles"
+[API](../README.md) / [\<internal\>](internal_.md) / "/home/runner/work/mapeo-core-next/mapeo-core-next/src/roles"
 
-# Namespace: "/home/szgy/src/dd/mapeo-core-next/src/roles"
+# Namespace: "/home/runner/work/mapeo-core-next/mapeo-core-next/src/roles"
 
-[\<internal\>](internal_.md)."/home/szgy/src/dd/mapeo-core-next/src/roles"
+[\<internal\>](internal_.md)."/home/runner/work/mapeo-core-next/mapeo-core-next/src/roles"
 
 ## Table of contents
 
 ### References
 
-- [DocCapability](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#doccapability)
-- [ElementOf](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#elementof)
-- [Role](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#role)
-- [RoleId](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#roleid)
-- [Roles](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#roles)
+- [DocCapability](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#doccapability)
+- [ElementOf](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#elementof)
+- [Role](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#role)
+- [RoleId](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#roleid)
+- [Roles](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#roles)
 
 ### Type Aliases
 
-- [RoleIdAssignableToAnyone](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#roleidassignabletoanyone)
-- [RoleIdAssignableToOthers](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#roleidassignabletoothers)
-- [RoleIdForNewInvite](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#roleidfornewinvite)
+- [RoleIdAssignableToAnyone](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#roleidassignabletoanyone)
+- [RoleIdAssignableToOthers](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#roleidassignabletoothers)
+- [RoleIdForNewInvite](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#roleidfornewinvite)
 
 ### Variables
 
-- [BLOCKED\_ROLE\_ID](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#blocked_role_id)
-- [COORDINATOR\_ROLE\_ID](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#coordinator_role_id)
-- [CREATOR\_ROLE](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#creator_role)
-- [CREATOR\_ROLE\_ID](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#creator_role_id)
-- [LEFT\_ROLE\_ID](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#left_role_id)
-- [MEMBER\_ROLE\_ID](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#member_role_id)
-- [NO\_ROLE](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#no_role)
-- [NO\_ROLE\_ID](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#no_role_id)
-- [ROLES](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#roles-1)
+- [BLOCKED\_ROLE\_ID](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#blocked_role_id)
+- [COORDINATOR\_ROLE\_ID](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#coordinator_role_id)
+- [CREATOR\_ROLE](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#creator_role)
+- [CREATOR\_ROLE\_ID](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#creator_role_id)
+- [LEFT\_ROLE\_ID](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#left_role_id)
+- [MEMBER\_ROLE\_ID](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#member_role_id)
+- [NO\_ROLE](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#no_role)
+- [NO\_ROLE\_ID](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#no_role_id)
+- [ROLES](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#roles-1)
 
 ### Functions
 
-- [isRoleIdAssignableToOthers](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#isroleidassignabletoothers)
-- [isRoleIdForNewInvite](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md#isroleidfornewinvite)
+- [isRoleIdAssignableToOthers](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#isroleidassignabletoothers)
+- [isRoleIdForNewInvite](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md#isroleidfornewinvite)
 
 ## References
 

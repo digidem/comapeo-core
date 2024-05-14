@@ -1,15 +1,15 @@
-[API](../README.md) / [\<internal\>](../modules/internal_.md) / ["/home/szgy/src/dd/mapeo-core-next/src/core-manager/index"](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_core_manager_index_.md) / Events
+[API](../README.md) / [\<internal\>](../modules/internal_.md) / ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/core-manager/index"](../modules/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_core_manager_index_.md) / Events
 
 # Interface: Events\<\>
 
-[\<internal\>](../modules/internal_.md).["/home/szgy/src/dd/mapeo-core-next/src/core-manager/index"](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_core_manager_index_.md).Events
+[\<internal\>](../modules/internal_.md).["/home/runner/work/mapeo-core-next/mapeo-core-next/src/core-manager/index"](../modules/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_core_manager_index_.md).Events
 
 ## Table of contents
 
 ### Properties
 
-- [add-core](internal_.__home_szgy_src_dd_mapeo_core_next_src_core_manager_index_.Events.md#add-core)
-- [peer-have](internal_.__home_szgy_src_dd_mapeo_core_next_src_core_manager_index_.Events.md#peer-have)
+- [add-core](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_core_manager_index_.Events.md#add-core)
+- [peer-have](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_core_manager_index_.Events.md#peer-have)
 
 ## Properties
 
