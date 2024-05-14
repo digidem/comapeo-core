@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: fregante/setup-git-user@v1
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
@@ -25,7 +26,7 @@ jobs:
           npm ci
           npm run doc
           git status
-          git add docs/api/md
+          git add -f docs/api/md
           git commit -am "updated api docs"
           git fetch origin main
           git push origin main
