@@ -15,15 +15,15 @@
 
 ### Namespaces
 
-- ["/home/szgy/src/dd/mapeo-core-next/src/core-manager/index"](internal_.__home_szgy_src_dd_mapeo_core_next_src_core_manager_index_.md)
-- ["/home/szgy/src/dd/mapeo-core-next/src/datastore/index"](internal_.__home_szgy_src_dd_mapeo_core_next_src_datastore_index_.md)
-- ["/home/szgy/src/dd/mapeo-core-next/src/local-peers"](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md)
-- ["/home/szgy/src/dd/mapeo-core-next/src/roles"](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md)
-- ["/home/szgy/src/dd/mapeo-core-next/src/schema/client"](internal_.__home_szgy_src_dd_mapeo_core_next_src_schema_client_.md)
-- ["/home/szgy/src/dd/mapeo-core-next/src/schema/project"](internal_.__home_szgy_src_dd_mapeo_core_next_src_schema_project_.md)
-- ["/home/szgy/src/dd/mapeo-core-next/src/sync/core-sync-state"](internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_core_sync_state_.md)
-- ["/home/szgy/src/dd/mapeo-core-next/src/sync/namespace-sync-state"](internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_namespace_sync_state_.md)
-- ["/home/szgy/src/dd/mapeo-core-next/src/utils"](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md)
+- ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/core-manager/index"](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_core_manager_index_.md)
+- ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/datastore/index"](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_datastore_index_.md)
+- ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/local-peers"](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.md)
+- ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/roles"](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md)
+- ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/schema/client"](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_schema_client_.md)
+- ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/schema/project"](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_schema_project_.md)
+- ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/sync/core-sync-state"](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_sync_core_sync_state_.md)
+- ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/sync/namespace-sync-state"](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_sync_namespace_sync_state_.md)
+- ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/utils"](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md)
 - ["hyperdrive"](internal_._hyperdrive_.md)
 - [Hyperblobs](internal_.Hyperblobs.md)
 - [Hyperdrive](internal_.Hyperdrive.md)
@@ -189,13 +189,13 @@ ___
 
 ### NamespaceSyncState
 
-Re-exports [NamespaceSyncState](../classes/internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_namespace_sync_state_.NamespaceSyncState.md)
+Re-exports [NamespaceSyncState](../classes/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_sync_namespace_sync_state_.NamespaceSyncState.md)
 
 ___
 
 ### SyncState
 
-Re-exports [SyncState](internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_namespace_sync_state_.md#syncstate)
+Re-exports [SyncState](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_sync_namespace_sync_state_.md#syncstate)
 
 ## Type Aliases
 
@@ -447,7 +447,7 @@ ___
 
 ### MapeoDocTables
 
-Ƭ **MapeoDocTables**: [`GetMapeoDocTables`](internal_.md#getmapeodoctables)\<[`"/home/szgy/src/dd/mapeo-core-next/src/schema/project"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_schema_project_.md)\> \| [`GetMapeoDocTables`](internal_.md#getmapeodoctables)\<[`"/home/szgy/src/dd/mapeo-core-next/src/schema/client"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_schema_client_.md)\>
+Ƭ **MapeoDocTables**: [`GetMapeoDocTables`](internal_.md#getmapeodoctables)\<[`"/home/runner/work/mapeo-core-next/mapeo-core-next/src/schema/project"`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_schema_project_.md)\> \| [`GetMapeoDocTables`](internal_.md#getmapeodoctables)\<[`"/home/runner/work/mapeo-core-next/mapeo-core-next/src/schema/client"`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_schema_client_.md)\>
 
 Union of Drizzle schema tables that correspond to MapeoDoc types (e.g. excluding backlink tables and other utility tables)
 
@@ -485,7 +485,7 @@ ___
 
 ### OpenedNoiseStream
 
-Ƭ **OpenedNoiseStream**\<\>: [`"/home/szgy/src/dd/mapeo-core-next/src/utils"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md)
+Ƭ **OpenedNoiseStream**\<\>: [`"/home/runner/work/mapeo-core-next/mapeo-core-next/src/utils"`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md)
 
 ___
 
@@ -529,7 +529,7 @@ ___
 
 ### PublicPeerInfo
 
-Ƭ **PublicPeerInfo**\<\>: `Omit`\<[`"/home/szgy/src/dd/mapeo-core-next/src/local-peers"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md), ``"protomux"``\>
+Ƭ **PublicPeerInfo**\<\>: `Omit`\<[`"/home/runner/work/mapeo-core-next/mapeo-core-next/src/local-peers"`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.md), ``"protomux"``\>
 
 ___
 
@@ -573,7 +573,7 @@ ___
 
 ### State
 
-Ƭ **State**\<\>: `Record`\<[`"/home/szgy/src/dd/mapeo-core-next/src/core-manager/index"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_core_manager_index_.md), [`"/home/szgy/src/dd/mapeo-core-next/src/sync/namespace-sync-state"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_namespace_sync_state_.md)\>
+Ƭ **State**\<\>: `Record`\<[`"/home/runner/work/mapeo-core-next/mapeo-core-next/src/core-manager/index"`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_core_manager_index_.md), [`"/home/runner/work/mapeo-core-next/mapeo-core-next/src/sync/namespace-sync-state"`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_sync_namespace_sync_state_.md)\>
 
 ___
 
@@ -585,7 +585,7 @@ ___
 
 ### SyncCapability
 
-Ƭ **SyncCapability**\<\>: [`"/home/szgy/src/dd/mapeo-core-next/src/roles"`](internal_.__home_szgy_src_dd_mapeo_core_next_src_roles_.md)[``"sync"``][[`Namespace`](internal_.md#namespace)] \| ``"unknown"``
+Ƭ **SyncCapability**\<\>: [`"/home/runner/work/mapeo-core-next/mapeo-core-next/src/roles"`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_roles_.md)[``"sync"``][[`Namespace`](internal_.md#namespace)] \| ``"unknown"``
 
 ___
 

@@ -8,7 +8,7 @@
 
 | Name | Type |
 | :------ | :------ |
-| `TDataStore` | extends [`"/home/szgy/src/dd/mapeo-core-next/src/datastore/index"`](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_datastore_index_.md) |
+| `TDataStore` | extends [`"/home/runner/work/mapeo-core-next/mapeo-core-next/src/datastore/index"`](../modules/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_datastore_index_.md) |
 | `TTable` | extends [`MapeoDocTables`](../modules/internal_.md#mapeodoctables-1) |
 | `TSchemaName` | extends `TTable`[``"_"``][``"name"``] |
 | `TDoc` | extends [`MapeoDocMap`](../modules/internal_.md#mapeodocmap)[`TSchemaName`] |

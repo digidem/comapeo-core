@@ -1,41 +1,41 @@
-[API](../README.md) / [\<internal\>](internal_.md) / "/home/szgy/src/dd/mapeo-core-next/src/utils"
+[API](../README.md) / [\<internal\>](internal_.md) / "/home/runner/work/mapeo-core-next/mapeo-core-next/src/utils"
 
-# Namespace: "/home/szgy/src/dd/mapeo-core-next/src/utils"
+# Namespace: "/home/runner/work/mapeo-core-next/mapeo-core-next/src/utils"
 
-[\<internal\>](internal_.md)."/home/szgy/src/dd/mapeo-core-next/src/utils"
+[\<internal\>](internal_.md)."/home/runner/work/mapeo-core-next/mapeo-core-next/src/utils"
 
 ## Table of contents
 
 ### References
 
-- [OpenedNoiseStream](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#openednoisestream)
+- [OpenedNoiseStream](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#openednoisestream)
 
 ### Classes
 
-- [ExhaustivenessError](../classes/internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.ExhaustivenessError.md)
+- [ExhaustivenessError](../classes/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.ExhaustivenessError.md)
 
 ### Type Aliases
 
-- [DestroyedNoiseStream](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#destroyednoisestream)
-- [NoiseStream](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#noisestream)
+- [DestroyedNoiseStream](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#destroyednoisestream)
+- [NoiseStream](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#noisestream)
 
 ### Functions
 
-- [assert](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#assert)
-- [createMap](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#createmap)
-- [deNullify](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#denullify)
-- [getDeviceId](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#getdeviceid)
-- [hashObject](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#hashobject)
-- [idToKey](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#idtokey)
-- [keyToId](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#keytoid)
-- [noop](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#noop)
-- [openedNoiseSecretStream](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#openednoisesecretstream)
-- [parseVersion](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#parseversion)
-- [projectIdToNonce](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#projectidtononce)
-- [projectKeyToId](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#projectkeytoid)
-- [projectKeyToPublicId](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#projectkeytopublicid)
-- [setHas](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#sethas)
-- [valueOf](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#valueof)
+- [assert](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#assert)
+- [createMap](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#createmap)
+- [deNullify](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#denullify)
+- [getDeviceId](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#getdeviceid)
+- [hashObject](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#hashobject)
+- [idToKey](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#idtokey)
+- [keyToId](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#keytoid)
+- [noop](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#noop)
+- [openedNoiseSecretStream](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#openednoisesecretstream)
+- [parseVersion](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#parseversion)
+- [projectIdToNonce](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#projectidtononce)
+- [projectKeyToId](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#projectkeytoid)
+- [projectKeyToPublicId](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#projectkeytopublicid)
+- [setHas](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#sethas)
+- [valueOf](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#valueof)
 
 ## References
 
@@ -47,7 +47,7 @@ Re-exports [OpenedNoiseStream](internal_.md#openednoisestream)
 
 ### DestroyedNoiseStream
 
-Ƭ **DestroyedNoiseStream**\<\>: [`NoiseStream`](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#noisestream) & \{ `destroyed`: ``true``  }
+Ƭ **DestroyedNoiseStream**\<\>: [`NoiseStream`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#noisestream) & \{ `destroyed`: ``true``  }
 
 ___
 
@@ -206,7 +206,7 @@ ___
 
 ### openedNoiseSecretStream
 
-▸ **openedNoiseSecretStream**(`stream`): `Promise`\<[`DestroyedNoiseStream`](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#destroyednoisestream) \| [`OpenedNoiseStream`](internal_.md#openednoisestream)\<`Duplex` \| `Duplex`\<`any`, `any`, `any`, `any`, ``true``, ``true``, `DuplexEvents`\<`any`, `any`\>\>\>\>
+▸ **openedNoiseSecretStream**(`stream`): `Promise`\<[`DestroyedNoiseStream`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#destroyednoisestream) \| [`OpenedNoiseStream`](internal_.md#openednoisestream)\<`Duplex` \| `Duplex`\<`any`, `any`, `any`, `any`, ``true``, ``true``, `DuplexEvents`\<`any`, `any`\>\>\>\>
 
 Utility to await a NoiseSecretStream to open, that returns a stream with the
 correct types for publicKey and remotePublicKey (which can be null before
@@ -220,7 +220,7 @@ stream is opened)
 
 #### Returns
 
-`Promise`\<[`DestroyedNoiseStream`](internal_.__home_szgy_src_dd_mapeo_core_next_src_utils_.md#destroyednoisestream) \| [`OpenedNoiseStream`](internal_.md#openednoisestream)\<`Duplex` \| `Duplex`\<`any`, `any`, `any`, `any`, ``true``, ``true``, `DuplexEvents`\<`any`, `any`\>\>\>\>
+`Promise`\<[`DestroyedNoiseStream`](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_utils_.md#destroyednoisestream) \| [`OpenedNoiseStream`](internal_.md#openednoisestream)\<`Duplex` \| `Duplex`\<`any`, `any`, `any`, `any`, ``true``, ``true``, `DuplexEvents`\<`any`, `any`\>\>\>\>
 
 ___
 

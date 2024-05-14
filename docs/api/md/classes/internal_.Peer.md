@@ -65,11 +65,11 @@ ___
 
 ### info
 
-• `get` **info**(): [`PeerInfoInternal`](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md#peerinfointernal)
+• `get` **info**(): [`PeerInfoInternal`](../modules/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.md#peerinfointernal)
 
 #### Returns
 
-[`PeerInfoInternal`](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md#peerinfointernal)
+[`PeerInfoInternal`](../modules/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.md#peerinfointernal)
 
 ___
 

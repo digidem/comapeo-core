@@ -1,21 +1,21 @@
-[API](../README.md) / [\<internal\>](../modules/internal_.md) / ["/home/szgy/src/dd/mapeo-core-next/src/local-peers"](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md) / LocalPeersEvents
+[API](../README.md) / [\<internal\>](../modules/internal_.md) / ["/home/runner/work/mapeo-core-next/mapeo-core-next/src/local-peers"](../modules/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.md) / LocalPeersEvents
 
 # Interface: LocalPeersEvents\<\>
 
-[\<internal\>](../modules/internal_.md).["/home/szgy/src/dd/mapeo-core-next/src/local-peers"](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md).LocalPeersEvents
+[\<internal\>](../modules/internal_.md).["/home/runner/work/mapeo-core-next/mapeo-core-next/src/local-peers"](../modules/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.md).LocalPeersEvents
 
 ## Table of contents
 
 ### Properties
 
-- [discovery-key](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#discovery-key)
-- [failed-to-handle-message](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#failed-to-handle-message)
-- [got-project-details](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#got-project-details)
-- [invite](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#invite)
-- [invite-cancel](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#invite-cancel)
-- [invite-response](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#invite-response)
-- [peer-add](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#peer-add)
-- [peers](internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#peers)
+- [discovery-key](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#discovery-key)
+- [failed-to-handle-message](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#failed-to-handle-message)
+- [got-project-details](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#got-project-details)
+- [invite](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#invite)
+- [invite-cancel](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#invite-cancel)
+- [invite-response](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#invite-response)
+- [peer-add](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#peer-add)
+- [peers](internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.LocalPeersEvents.md#peers)
 
 ## Properties
 
@@ -181,7 +181,7 @@ ___
 
 ### peers
 
-• **peers**: (`peers`: [`PeerInfo`](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md#peerinfo)[]) => `void`
+• **peers**: (`peers`: [`PeerInfo`](../modules/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.md#peerinfo)[]) => `void`
 
 Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
 
@@ -193,7 +193,7 @@ Emitted whenever the connection status of peers changes. An array of peerInfo ob
 
 | Name | Type |
 | :------ | :------ |
-| `peers` | [`PeerInfo`](../modules/internal_.__home_szgy_src_dd_mapeo_core_next_src_local_peers_.md#peerinfo)[] |
+| `peers` | [`PeerInfo`](../modules/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_local_peers_.md#peerinfo)[] |
 
 ##### Returns
 

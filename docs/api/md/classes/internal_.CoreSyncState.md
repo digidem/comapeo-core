@@ -92,11 +92,11 @@ ___
 
 ### getState
 
-▸ **getState**(): [`DerivedState`](../interfaces/internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_core_sync_state_.DerivedState.md)
+▸ **getState**(): [`DerivedState`](../interfaces/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_sync_core_sync_state_.DerivedState.md)
 
 #### Returns
 
-[`DerivedState`](../interfaces/internal_.__home_szgy_src_dd_mapeo_core_next_src_sync_core_sync_state_.DerivedState.md)
+[`DerivedState`](../interfaces/internal_.__home_runner_work_mapeo_core_next_mapeo_core_next_src_sync_core_sync_state_.DerivedState.md)
 
 ___
 
