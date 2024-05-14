@@ -15,6 +15,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
+      - name: Publish docs api to repo
+        run: |
+          npm ci
+          npm run doc
+          git status
+          git add docs/api/md
+          git commit -am "updated api docs"
+          git fetch origin main
+          git push origin main
       - uses: actions/checkout@v4
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
