@@ -31,12 +31,13 @@ const MAX_ICON_SIZE = 10_000_000
  */
 
 /** @type {Error[]} */
-const warnings = []
+let warnings = []
 
 /**
  * @param {string} configPath
  */
 export async function readConfig(configPath) {
+  warnings = []
   const zip = await yauzl.open(configPath)
   if (zip.entryCount > MAX_ENTRIES) {
     // MAX_ENTRIES in MAC can be inacurrate
