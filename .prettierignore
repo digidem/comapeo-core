@@ -4,3 +4,5 @@
 *.snapshot.cjs
 /tests/fixtures/
 /docs/
+/coverage/
+/proto/build/
