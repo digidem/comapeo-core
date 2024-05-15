@@ -251,33 +251,6 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
-   * @param {'data' | 'all'} toStop
-   * @returns {void}
-   */
-  #disableSync(toStop) {
-    /** @type {'initial only' | 'none'} */
-    let enabledNamespaces
-    switch (toStop) {
-      case 'data':
-        enabledNamespaces = 'initial only'
-        break
-      case 'all':
-        enabledNamespaces = 'none'
-        break
-      default:
-        throw new ExhaustivenessError(toStop)
-    }
-
-    this.#l.log(`Stopping ${toStop} sync`)
-
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.setNamespaceGroupToReplicate(enabledNamespaces)
-    }
-
-    this.emit('sync-state', this.getState())
-  }
-
-  /**
    * @param {SyncType} type
    * @returns {Promise<void>}
    */
@@ -296,10 +269,12 @@ export class SyncApi extends TypedEmitter {
   }
 
   #autostop() {
-    if ('stateToReturnToAfterPause' in this.#internalSyncState) {
-      this.#disableSync('all')
-    } else {
-      this.#disableSync('data')
+    const namespaceGroupToReplicate =
+      'stateToReturnToAfterPause' in this.#internalSyncState
+        ? 'none'
+        : 'initial only'
+    for (const peerSyncController of this.#peerSyncControllers.values()) {
+      peerSyncController.setNamespaceGroupToReplicate(namespaceGroupToReplicate)
     }
   }
 
