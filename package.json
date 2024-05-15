@@ -77,7 +77,10 @@
           ]
         }
       ]
-    }
+    },
+    "ignorePatterns": [
+      "docs/*"
+    ]
   },
   "repository": {
     "type": "git",
