@@ -1,5 +1,6 @@
 // @ts-check
 import { test } from 'brittle'
+import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'
 import { excludeKeys } from 'filter-obj'
@@ -161,6 +162,10 @@ test('start and stop sync', async function (t) {
 })
 
 test('gracefully shutting down sync for all projects when backgrounded', async function (t) {
+  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
+  // of `t` to ease our transition away from Brittle. We can remove this comment
+  // when Brittle is removed.
+
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
 
@@ -184,7 +189,7 @@ test('gracefully shutting down sync for all projects when backgrounded', async f
         valueOf(generate('observation')[0])
       )
 
-      await t.exception(
+      await assert.rejects(
         () => inviteeProject.observation.getByDocId(observation1.docId),
         'before peers have started sync, doc does not sync'
       )
@@ -203,7 +208,7 @@ test('gracefully shutting down sync for all projects when backgrounded', async f
   const projectGroupsAfterSecondStep = await Promise.all(
     projectGroupsAfterFirstStep.map(
       async ({ invitorProject, inviteeProject, observation1 }) => {
-        t.ok(
+        assert(
           await inviteeProject.observation.getByDocId(observation1.docId),
           'invitee receives doc'
         )
@@ -215,11 +220,11 @@ test('gracefully shutting down sync for all projects when backgrounded', async f
           valueOf(generate('observation')[0])
         )
         await delay(1000)
-        await t.exception(
+        await assert.rejects(
           () => inviteeProject.observation.getByDocId(observation2.docId),
           "invitee doesn't receive second doc yet"
         )
-        await t.exception(
+        await assert.rejects(
           () => invitorProject.observation.getByDocId(observation3.docId),
           "invitor doesn't receive third doc yet"
         )
@@ -241,11 +246,11 @@ test('gracefully shutting down sync for all projects when backgrounded', async f
       }) => {
         await waitForSync([invitorProject, inviteeProject], 'full')
 
-        t.ok(
+        assert(
           await inviteeProject.observation.getByDocId(observation2.docId),
           'invitee receives second doc'
         )
-        t.ok(
+        assert(
           await invitorProject.observation.getByDocId(observation3.docId),
           'invitor receives third doc'
         )

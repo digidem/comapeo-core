@@ -7,7 +7,8 @@ import {
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { keyToId } from '../utils.js'
+import { ExhaustivenessError, keyToId } from '../utils.js'
+import Autostopper from './autostopper.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
@@ -41,6 +42,24 @@ export const kResume = Symbol('resume')
  */
 
 /**
+ * @internal
+ * @typedef {object} InternalSyncStateUnpaused
+ * @prop {'initial only' | 'all'} enabledNamespaceGroups
+ * @prop {number} autostopAfter
+ */
+
+/**
+ * @internal
+ * @typedef {object} InternalSyncStatePaused
+ * @prop {InternalSyncStateUnpaused} stateToReturnToAfterPause
+ */
+
+/**
+ * @internal
+ * @typedef {InternalSyncStateUnpaused | InternalSyncStatePaused} InternalSyncState
+ */
+
+/**
  * @extends {TypedEmitter<SyncEvents>}
  */
 export class SyncApi extends TypedEmitter {
@@ -52,10 +71,59 @@ export class SyncApi extends TypedEmitter {
   #pscByPeerId = new Map()
   /** @type {Set<string>} */
   #peerIds = new Set()
-  #isSyncing = false
+  #autostopper = new Autostopper(this.#autostop.bind(this))
+  /** @type {InternalSyncState} */
+  #internalSyncState = {
+    enabledNamespaceGroups: 'initial only',
+    autostopAfter: Infinity,
+  }
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
+
+  /** @returns {'none' | 'initial only' | 'all'} */
+  get #enabledNamespaceGroups() {
+    return 'enabledNamespaceGroups' in this.#internalSyncState
+      ? this.#internalSyncState.enabledNamespaceGroups
+      : 'none'
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  get #isSyncingData() {
+    const enabledNamespaceGroups = this.#enabledNamespaceGroups
+    switch (enabledNamespaceGroups) {
+      case 'none':
+      case 'initial only':
+        return false
+      case 'all':
+        return true
+      default:
+        throw new ExhaustivenessError(enabledNamespaceGroups)
+    }
+  }
+
+  #update() {
+    const enabledNamespaceGroups = this.#enabledNamespaceGroups
+    for (const peerSyncController of this.#peerSyncControllers.values()) {
+      peerSyncController.setNamespaceGroupToReplicate(enabledNamespaceGroups)
+    }
+
+    this.#autostopper.update({
+      autostopAfter:
+        'stateToReturnToAfterPause' in this.#internalSyncState
+          ? 0
+          : this.#internalSyncState.autostopAfter,
+      isDone: isSynced(
+        this[kSyncState].getState(),
+        this.#isSyncingData ? NAMESPACES : PRESYNC_NAMESPACES,
+        this.#peerSyncControllers
+      ),
+    })
+
+    this.emit('sync-state', this.getState())
+  }
 
   /**
    *
@@ -79,6 +147,7 @@ export class SyncApi extends TypedEmitter {
     this[kSyncState].on('state', (namespaceSyncState) => {
       const state = this.#getState(namespaceSyncState)
       this.emit('sync-state', state)
+      this.#update()
     })
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
@@ -127,7 +196,7 @@ export class SyncApi extends TypedEmitter {
    */
   #getState(namespaceSyncState) {
     const state = reduceSyncState(namespaceSyncState)
-    state.data.syncing = this.#isSyncing
+    state.data.syncing = this.#isSyncingData
     return state
   }
 
@@ -135,42 +204,77 @@ export class SyncApi extends TypedEmitter {
    * Start syncing data cores
    */
   start() {
-    if (this.#isSyncing) return
-    this.#isSyncing = true
-    this.#l.log('Starting data sync')
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.enableDataSync()
+    this.#internalSyncState = {
+      enabledNamespaceGroups: 'all',
+      // TODO: Make this configurable. Should be trivial to add.
+      // See <https://github.com/digidem/mapeo-core-next/issues/627>.
+      autostopAfter: Infinity,
     }
-    this.emit('sync-state', this.getState())
+    this.#update()
   }
 
   /**
    * Stop syncing data cores (metadata cores will continue syncing in the background)
    */
   stop() {
-    if (!this.#isSyncing) return
-    this.#isSyncing = false
-    this.#l.log('Stopping data sync')
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.disableDataSync()
+    if ('stateToReturnToAfterPause' in this.#internalSyncState) {
+      this.#internalSyncState = {
+        stateToReturnToAfterPause: {
+          ...this.#internalSyncState.stateToReturnToAfterPause,
+          enabledNamespaceGroups: 'initial only',
+        },
+      }
+    } else {
+      this.#internalSyncState = {
+        ...this.#internalSyncState,
+        enabledNamespaceGroups: 'initial only',
+      }
     }
-    this.emit('sync-state', this.getState())
+    this.#update()
   }
 
-  /** @returns {void} */
   [kPause]() {
-    const peerSyncControllers = this.#peerSyncControllers.values()
-    for (const peerSyncController of peerSyncControllers) {
-      peerSyncController.pause()
+    if (!('stateToReturnToAfterPause' in this.#internalSyncState)) {
+      this.#internalSyncState = {
+        stateToReturnToAfterPause: this.#internalSyncState,
+      }
+      this.#update()
     }
   }
 
-  /** @returns {void} */
   [kResume]() {
-    const peerSyncControllers = this.#peerSyncControllers.values()
-    for (const peerSyncController of peerSyncControllers) {
-      peerSyncController.resume()
+    if ('stateToReturnToAfterPause' in this.#internalSyncState) {
+      this.#internalSyncState =
+        this.#internalSyncState.stateToReturnToAfterPause
+      this.#update()
     }
+  }
+
+  /**
+   * @param {'data' | 'all'} toStop
+   * @returns {void}
+   */
+  #disableSync(toStop) {
+    /** @type {'initial only' | 'none'} */
+    let enabledNamespaces
+    switch (toStop) {
+      case 'data':
+        enabledNamespaces = 'initial only'
+        break
+      case 'all':
+        enabledNamespaces = 'none'
+        break
+      default:
+        throw new ExhaustivenessError(toStop)
+    }
+
+    this.#l.log(`Stopping ${toStop} sync`)
+
+    for (const peerSyncController of this.#peerSyncControllers.values()) {
+      peerSyncController.setNamespaceGroupToReplicate(enabledNamespaces)
+    }
+
+    this.emit('sync-state', this.getState())
   }
 
   /**
@@ -189,6 +293,14 @@ export class SyncApi extends TypedEmitter {
         res()
       })
     })
+  }
+
+  #autostop() {
+    if ('stateToReturnToAfterPause' in this.#internalSyncState) {
+      this.#disableSync('all')
+    } else {
+      this.#disableSync('data')
+    }
   }
 
   /**
@@ -224,9 +336,9 @@ export class SyncApi extends TypedEmitter {
     // Add peer to all core states (via namespace sync states)
     this[kSyncState].addPeer(peerSyncController.peerId)
 
-    if (this.#isSyncing) {
-      peerSyncController.enableDataSync()
-    }
+    peerSyncController.setNamespaceGroupToReplicate(
+      this.#enabledNamespaceGroups
+    )
 
     const peerQueue = this.#pendingDiscoveryKeys.get(protomux)
     if (peerQueue) {

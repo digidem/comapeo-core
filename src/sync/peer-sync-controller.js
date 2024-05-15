@@ -16,6 +16,11 @@ export const DATA_NAMESPACES = NAMESPACES.filter(
   (ns) => !PRESYNC_NAMESPACES.includes(ns)
 )
 
+/**
+ * @internal
+ * @typedef {'none' | 'initial only' | 'all'} NamespaceGroup
+ */
+
 export class PeerSyncController {
   #replicatingCores = new Set()
   /** @type {Set<Namespace>} */
@@ -25,13 +30,12 @@ export class PeerSyncController {
   #roles
   /** @type {Record<Namespace, SyncCapability>} */
   #syncCapability = createNamespaceMap('unknown')
-  #isDataSyncEnabled = false
+  /** @type {NamespaceGroup} */
+  #namespaceGroupToReplicate = 'none'
   /** @type {Record<Namespace, import('./core-sync-state.js').CoreState | null>} */
   #prevLocalState = createNamespaceMap(null)
   /** @type {SyncStatus} */
   #syncStatus = createNamespaceMap('unknown')
-  /** @type {Record<Namespace, 'unpaused' | 'pausing' | 'paused'>} */
-  #namespacePauseState = createNamespaceMap('unpaused')
   /** @type {Map<import('hypercore')<'binary', any>, ReturnType<import('hypercore')['download']>>} */
   #downloadingRanges = new Map()
   /** @type {SyncStatus} */
@@ -85,75 +89,13 @@ export class PeerSyncController {
     return this.#syncCapability
   }
 
-  /**
-   * Enable syncing of data (in the data and blob namespaces)
-   */
-  enableDataSync() {
-    this.#isDataSyncEnabled = true
-    this.#updateEnabledNamespaces()
+  get namespaceGroupToReplicate() {
+    return this.#namespaceGroupToReplicate
   }
 
-  /**
-   * Disable syncing of data (in the data and blob namespaces).
-   *
-   * Syncing of metadata (auth, config and blobIndex namespaces) will continue
-   * in the background without user interaction.
-   */
-  disableDataSync() {
-    this.#isDataSyncEnabled = false
-    this.#updateEnabledNamespaces()
-  }
-
-  /**
-   * @param {Namespace} ns
-   * @returns {void}
-   */
-  #pauseNamespace(ns) {
-    const previousState = this.#namespacePauseState[ns]
-    switch (previousState) {
-      case 'unpaused':
-      case 'pausing': {
-        const syncStatus = this.#syncStatus[ns]
-        switch (syncStatus) {
-          case 'syncing':
-          case 'unknown':
-            this.#namespacePauseState[ns] = 'pausing'
-            break
-          case 'synced':
-            this.#namespacePauseState[ns] = 'paused'
-            break
-          default:
-            throw new ExhaustivenessError(syncStatus)
-        }
-        break
-      }
-      case 'paused':
-        break
-      default:
-        throw new ExhaustivenessError(previousState)
-    }
-  }
-
-  /**
-   * Mark all namespaces as "paused". This will finish syncing and then close
-   * the namespace's cores.
-   *
-   * @see {@link resume}
-   * @returns {void}
-   */
-  pause() {
-    for (const ns of NAMESPACES) this.#pauseNamespace(ns)
-    this.#updateEnabledNamespaces()
-  }
-
-  /**
-   * Unpause syncing of all namespaces.
-   *
-   * @see {@link pause}
-   * @returns {void}
-   */
-  resume() {
-    this.#namespacePauseState = createNamespaceMap('unpaused')
+  /** @param {NamespaceGroup} group */
+  setNamespaceGroupToReplicate(group) {
+    this.#namespaceGroupToReplicate = group
     this.#updateEnabledNamespaces()
   }
 
@@ -211,14 +153,6 @@ export class PeerSyncController {
     })
     this.#log('state %X', state)
 
-    for (const ns of NAMESPACES) {
-      const syncStatus = this.#syncStatus[ns]
-      const previousPauseState = this.#namespacePauseState[ns]
-      if (previousPauseState === 'pausing' && syncStatus === 'synced') {
-        this.#namespacePauseState[ns] = 'paused'
-      }
-    }
-
     // Map of which namespaces have received new data since last sync change
     const didUpdate = mapObject(state, (ns) => {
       const nsDidSync =
@@ -250,12 +184,42 @@ export class PeerSyncController {
     this.#updateEnabledNamespaces()
   }
 
+  /**
+   * Enable and disable the appropriate namespaces.
+   *
+   * If replicating no namespace groups, all namespaces are disabled.
+   *
+   * If only replicating the initial namespace groups, only the initial
+   * namespaces are replicated, assuming the capability permits.
+   *
+   * If replicating all namespaces, everything is replicated. However, data
+   * namespaces are only enabled after the initial namespaces have synced. And
+   * again, capabilities are checked.
+   */
   #updateEnabledNamespaces() {
-    // - If the sync capability is unknown, then the namespace is disabled,
-    //   apart from the auth namespace.
-    // - If sync capability is allowed, the "pre-sync" namespaces are enabled,
-    //   and if data sync is enabled, then all namespaces are enabled
+    /** @type {boolean} */ let isAnySyncEnabled
+    /** @type {boolean} */ let isDataSyncEnabled
+    switch (this.#namespaceGroupToReplicate) {
+      case 'none':
+        isAnySyncEnabled = isDataSyncEnabled = false
+        break
+      case 'initial only':
+        isAnySyncEnabled = true
+        isDataSyncEnabled = false
+        break
+      case 'all':
+        isAnySyncEnabled = isDataSyncEnabled = true
+        break
+      default:
+        throw new ExhaustivenessError(this.#namespaceGroupToReplicate)
+    }
+
     for (const ns of NAMESPACES) {
+      if (!isAnySyncEnabled) {
+        this.#disableNamespace(ns)
+        continue
+      }
+
       const cap = this.#syncCapability[ns]
       if (cap === 'blocked') {
         this.#disableNamespace(ns)
@@ -266,21 +230,9 @@ export class PeerSyncController {
           this.#disableNamespace(ns)
         }
       } else if (cap === 'allowed') {
-        const namespacePauseState = this.#namespacePauseState[ns]
-        switch (namespacePauseState) {
-          case 'unpaused':
-          case 'pausing':
-            break
-          case 'paused':
-            this.#disableNamespace(ns)
-            continue
-          default:
-            throw new ExhaustivenessError(namespacePauseState)
-        }
-
         if (PRESYNC_NAMESPACES.includes(ns)) {
           this.#enableNamespace(ns)
-        } else if (this.#isDataSyncEnabled) {
+        } else if (isDataSyncEnabled) {
           const arePresyncNamespacesSynced = PRESYNC_NAMESPACES.every(
             (ns) => this.#syncStatus[ns] === 'synced'
           )
