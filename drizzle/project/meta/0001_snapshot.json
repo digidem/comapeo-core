@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "6f1659f1-038f-4705-8059-b075a5a2c82d",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "bc58fed0-287e-49fe-ac52-1e91f38208e7",
+  "prevId": "6f1659f1-038f-4705-8059-b075a5a2c82d",
   "tables": {
     "coreOwnership_backlink": {
       "name": "coreOwnership_backlink",
@@ -761,6 +761,13 @@
         },
         "terms": {
           "name": "terms",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

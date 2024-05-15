@@ -8,6 +8,13 @@
       "when": 1713301821225,
       "tag": "0000_burly_network",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1715797117302,
+      "tag": "0001_even_firebrand",
+      "breakpoints": true
     }
   ]
 }
