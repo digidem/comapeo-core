@@ -32,6 +32,7 @@ const fixtures = [
     removeTags: {},
     fieldIds: [],
     terms: [],
+    color: '#ff00ff',
   },
   {
     schemaName: 'field',
