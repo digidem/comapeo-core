@@ -64,7 +64,6 @@ declare module 'brittle' {
   }
 
   export interface TestInstance extends Assertion {
-    plan(n: number): void
     teardown(
       fn: () => unknown | Promise<unknown>,
       options?: { order?: number }
@@ -73,6 +72,10 @@ declare module 'brittle' {
     comment(message: string): void
     end(): void
     test: TestFn
+
+    // We plan to replace Brittle with `node:test` which doesn't support `plan`.
+    // Disable it to prevent new code from being written with `t.plan`.
+    // plan(n: number): void
   }
 
   type TestCallback = (t: TestInstance) => void | Promise<void>
