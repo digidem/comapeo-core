@@ -20,7 +20,7 @@ export const kResume = Symbol('resume')
  */
 
 /**
- * @typedef {'none' | 'initial' | 'all'} SyncEnabledState
+ * @typedef {'none' | 'presync' | 'all'} SyncEnabledState
  */
 
 /**
@@ -48,7 +48,7 @@ export const kResume = Symbol('resume')
 /**
  * @internal
  * @typedef {object} InternalSyncStateUnpaused
- * @prop {'initial' | 'all'} syncEnabledState
+ * @prop {'presync' | 'all'} syncEnabledState
  * @prop {number} autostopAfter
  */
 
@@ -78,7 +78,7 @@ export class SyncApi extends TypedEmitter {
   #autostopper = new Autostopper(this.#autostop.bind(this))
   /** @type {InternalSyncState} */
   #internalSyncState = {
-    syncEnabledState: 'initial',
+    syncEnabledState: 'presync',
     autostopAfter: Infinity,
   }
   /** @type {Map<import('protomux'), Set<Buffer>>} */
@@ -99,7 +99,7 @@ export class SyncApi extends TypedEmitter {
     const syncEnabledState = this.#syncEnabledState
     switch (syncEnabledState) {
       case 'none':
-      case 'initial':
+      case 'presync':
         return false
       case 'all':
         return true
@@ -225,13 +225,13 @@ export class SyncApi extends TypedEmitter {
       this.#internalSyncState = {
         stateToReturnToAfterPause: {
           ...this.#internalSyncState.stateToReturnToAfterPause,
-          syncEnabledState: 'initial',
+          syncEnabledState: 'presync',
         },
       }
     } else {
       this.#internalSyncState = {
         ...this.#internalSyncState,
-        syncEnabledState: 'initial',
+        syncEnabledState: 'presync',
       }
     }
     this.#update()
@@ -276,7 +276,7 @@ export class SyncApi extends TypedEmitter {
     const syncEnabledState =
       'stateToReturnToAfterPause' in this.#internalSyncState
         ? 'none'
-        : 'initial'
+        : 'presync'
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.setSyncEnabledState(syncEnabledState)
     }

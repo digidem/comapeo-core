@@ -203,7 +203,7 @@ export class PeerSyncController {
       case 'none':
         isAnySyncEnabled = isDataSyncEnabled = false
         break
-      case 'initial':
+      case 'presync':
         isAnySyncEnabled = true
         isDataSyncEnabled = false
         break
