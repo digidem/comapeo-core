@@ -1,4 +1,5 @@
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import net from 'node:net'
 import { every } from 'iterpal'
@@ -27,19 +28,19 @@ test('peer discovery - discovery and sharing of data', async (t) => {
   const str = 'hi'
 
   localDiscovery1.on('connection', (stream) => {
-    stream.on('error', handleConnectionError.bind(null, t))
+    stream.on('error', handleConnectionError)
     stream.write(str)
   })
 
   localDiscovery2.on('connection', (stream) => {
-    stream.on('error', handleConnectionError.bind(null, t))
+    stream.on('error', handleConnectionError)
     stream.on('data', (d) => {
-      t.is(d.toString(), str, 'expected data written')
+      assert.equal(d.toString(), str, 'expected data written')
       deferred.resolve()
     })
   })
 
-  t.teardown(() =>
+  t.after(() =>
     Promise.all([
       localDiscovery1.stop({ force: true }),
       localDiscovery2.stop({ force: true }),
@@ -56,7 +57,7 @@ test('peer discovery - discovery and sharing of data', async (t) => {
   return deferred.promise
 })
 
-test('deduplicate incoming connections', async (t) => {
+test('deduplicate incoming connections', async () => {
   const localConnections = new Set()
   const remoteConnections = new Set()
 
@@ -66,23 +67,23 @@ test('deduplicate incoming connections', async (t) => {
   const { port } = await discovery.start()
 
   discovery.on('connection', (conn) => {
-    conn.on('error', handleConnectionError.bind(null, t))
+    conn.on('error', handleConnectionError)
     localConnections.add(conn)
     conn.on('close', () => localConnections.delete(conn))
   })
 
   for (let i = 0; i < 20; i++) {
     noiseConnect(port, '127.0.0.1', remoteKp).then((conn) => {
-      conn.on('error', handleConnectionError.bind(null, t))
+      conn.on('error', handleConnectionError)
       conn.on('connect', () => remoteConnections.add(conn))
       conn.on('close', () => remoteConnections.delete(conn))
     })
   }
 
   await delay(1000)
-  t.is(localConnections.size, 1)
-  t.is(remoteConnections.size, 1)
-  t.alike(
+  assert.equal(localConnections.size, 1)
+  assert.equal(remoteConnections.size, 1)
+  assert.deepEqual(
     localConnections.values().next().value.handshakeHash,
     remoteConnections.values().next().value.handshakeHash
   )
@@ -108,7 +109,7 @@ async function noiseConnect(port, host, keyPair) {
 }
 
 /**
- * @param {any} t
+ * @param {import('node:test').TestContext} t
  * @param {object} opts
  * @param {number} opts.period Randomly spawn peers within this period
  * @param {number} [opts.nPeers] Number of peers to spawn (default 20)
@@ -141,7 +142,7 @@ async function testMultiple(t, { period, nPeers = 20 }) {
     const conns = []
     connsById.set(peerId, conns)
     discovery.on('connection', (conn) => {
-      conn.on('error', handleConnectionError.bind(null, t))
+      conn.on('error', handleConnectionError)
       conns.push(conn)
       onConnection()
     })
@@ -151,7 +152,7 @@ async function testMultiple(t, { period, nPeers = 20 }) {
   const servers = await Promise.all(
     peers.map(async (peer) => {
       const result = await peer.start()
-      t.teardown(() => peer.stop({ force: true }))
+      t.after(() => peer.stop({ force: true }))
       return result
     })
   )
@@ -180,7 +181,7 @@ async function testMultiple(t, { period, nPeers = 20 }) {
       .filter((conn) => !conn.destroyed)
       .map((conn) => keyToPublicId(conn.remotePublicKey))
       .sort()
-    t.alike(
+    assert.deepEqual(
       actual,
       expected,
       `peer ${peerId.slice(0, 7)} connected to all ${
@@ -191,15 +192,14 @@ async function testMultiple(t, { period, nPeers = 20 }) {
 }
 
 /**
- * @param {import('brittle').TestInstance} t
  * @param {Error} e
  */
-function handleConnectionError(t, e) {
+function handleConnectionError(e) {
   // We expected connections to be closed when duplicates happen. On the
   // closing side the error will be ERR_DUPLICATE, but on the other side
   // the error will be an ECONNRESET - the error is not sent over the
   // connection
   const expectedError =
     e.message === ERR_DUPLICATE || ('code' in e && e.code === 'ECONNRESET')
-  t.ok(expectedError, 'connection closed with expected error')
+  assert(expectedError, 'connection closed with expected error')
 }

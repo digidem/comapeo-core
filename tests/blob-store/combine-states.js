@@ -1,5 +1,6 @@
 import { combineStates } from '../../src/blob-store/live-download.js'
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 
 const partial = {
   haveCount: 0,
@@ -32,17 +33,17 @@ const fixtures = /** @type {const} */ ([
   },
 ])
 
-test('expected combined state, no error or abort', (t) => {
+test('expected combined state, no error or abort', () => {
   for (const { statuses, expected } of fixtures) {
     const inputs = statuses.map((status) => ({ state: { ...partial, status } }))
     const expectedState = { ...partial, status: expected }
     for (const permuted of permute(inputs)) {
-      t.alike(combineStates(permuted), expectedState)
+      assert.deepEqual(combineStates(permuted), expectedState)
     }
   }
 })
 
-test('expected combined state, with error', (t) => {
+test('expected combined state, with error', () => {
   for (const { statuses } of fixtures) {
     const inputs = [
       ...statuses.map((status) => ({ state: { ...partial, status } })),
@@ -56,12 +57,12 @@ test('expected combined state, with error', (t) => {
     ]
     const expectedState = { ...partial, error: new Error(), status: 'error' }
     for (const permuted of permute(inputs)) {
-      t.alike(combineStates(permuted), expectedState)
+      assert.deepEqual(combineStates(permuted), expectedState)
     }
   }
 })
 
-test('expected combined state, with abort', (t) => {
+test('expected combined state, with abort', () => {
   const controller = new AbortController()
   controller.abort()
   const { signal } = controller
@@ -69,12 +70,12 @@ test('expected combined state, with abort', (t) => {
     const inputs = statuses.map((status) => ({ state: { ...partial, status } }))
     const expectedState = { ...partial, status: 'aborted' }
     for (const permuted of permute(inputs)) {
-      t.alike(combineStates(permuted, { signal }), expectedState)
+      assert.deepEqual(combineStates(permuted, { signal }), expectedState)
     }
   }
 })
 
-test('arithmetic test', (t) => {
+test('arithmetic test', () => {
   const counts = [
     [1, 2, 3, 4],
     [1, 2, 3, 4],
@@ -100,7 +101,7 @@ test('arithmetic test', (t) => {
       },
     }
   })
-  t.alike(combineStates(inputs), expected)
+  assert.deepEqual(combineStates(inputs), expected)
 })
 
 /**
