@@ -7,16 +7,30 @@ import {
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { ExhaustivenessError, keyToId } from '../utils.js'
-import Autostopper from './autostopper.js'
+import { keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
-export const kPause = Symbol('pause')
-export const kResume = Symbol('resume')
+export const kStart = Symbol('start')
+export const kStop = Symbol('stop')
 
 /**
  * @typedef {'initial' | 'full'} SyncType
+ */
+
+/**
+ * @typedef {'none' | 'initial' | 'all'} SyncEnabledState
+ */
+
+/**
+ * A queued stop action, with 2 variants:
+ * 1. Stop has been scheduled with a timeout, e.g. start was called with autostop and sync completed, and is waiting to ensure no new syncs start
+ * 2. Start has been called with an autostop option, but sync has not yet completed (waitMs)
+ * @typedef {{
+ *   type: 'scheduledAutostop', targetState: Exclude<SyncEnabledState, 'all'>, timeoutId: NodeJS.Timeout
+ * } | {
+ *   type: 'pendingAutostop', targetState: Exclude<SyncEnabledState, 'all'>, waitMs: number
+ * }} QueuedStop
  */
 
 /**
@@ -42,24 +56,6 @@ export const kResume = Symbol('resume')
  */
 
 /**
- * @internal
- * @typedef {object} InternalSyncStateUnpaused
- * @prop {'initial only' | 'all'} enabledNamespaceGroups
- * @prop {number} autostopAfter
- */
-
-/**
- * @internal
- * @typedef {object} InternalSyncStatePaused
- * @prop {InternalSyncStateUnpaused} stateToReturnToAfterPause
- */
-
-/**
- * @internal
- * @typedef {InternalSyncStateUnpaused | InternalSyncStatePaused} InternalSyncState
- */
-
-/**
  * @extends {TypedEmitter<SyncEvents>}
  */
 export class SyncApi extends TypedEmitter {
@@ -71,59 +67,16 @@ export class SyncApi extends TypedEmitter {
   #pscByPeerId = new Map()
   /** @type {Set<string>} */
   #peerIds = new Set()
-  #autostopper = new Autostopper(this.#autostop.bind(this))
-  /** @type {InternalSyncState} */
-  #internalSyncState = {
-    enabledNamespaceGroups: 'initial only',
-    autostopAfter: Infinity,
-  }
+  /** @type {SyncEnabledState} */
+  #syncEnabledState = 'none'
+  /**
+   * If set, this is called when sync is complete.
+   * @type {null | QueuedStop}
+   */
+  #queuedStop = null
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
-
-  /** @returns {'none' | 'initial only' | 'all'} */
-  get #enabledNamespaceGroups() {
-    return 'enabledNamespaceGroups' in this.#internalSyncState
-      ? this.#internalSyncState.enabledNamespaceGroups
-      : 'none'
-  }
-
-  /**
-   * @returns {boolean}
-   */
-  get #isSyncingData() {
-    const enabledNamespaceGroups = this.#enabledNamespaceGroups
-    switch (enabledNamespaceGroups) {
-      case 'none':
-      case 'initial only':
-        return false
-      case 'all':
-        return true
-      default:
-        throw new ExhaustivenessError(enabledNamespaceGroups)
-    }
-  }
-
-  #update() {
-    const enabledNamespaceGroups = this.#enabledNamespaceGroups
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.setNamespaceGroupToReplicate(enabledNamespaceGroups)
-    }
-
-    this.#autostopper.update({
-      autostopAfter:
-        'stateToReturnToAfterPause' in this.#internalSyncState
-          ? 0
-          : this.#internalSyncState.autostopAfter,
-      isDone: isSynced(
-        this[kSyncState].getState(),
-        this.#isSyncingData ? NAMESPACES : PRESYNC_NAMESPACES,
-        this.#peerSyncControllers
-      ),
-    })
-
-    this.emit('sync-state', this.getState())
-  }
 
   /**
    *
@@ -144,10 +97,31 @@ export class SyncApi extends TypedEmitter {
       peerSyncControllers: this.#pscByPeerId,
     })
     this[kSyncState].setMaxListeners(0)
+    this[kStart]('initial')
     this[kSyncState].on('state', (namespaceSyncState) => {
+      // TODO: move this into a `#handle...` method
+
       const state = this.#getState(namespaceSyncState)
+
+      const isDone =
+        this.#syncEnabledState !== 'none' &&
+        isSynced(
+          namespaceSyncState,
+          this.#syncEnabledState === 'initial' ? 'initial' : 'full',
+          this.#peerSyncControllers
+        )
+
+      // 1. sync completes at T=1, we start a timeout
+      // 2. sync state updates and is still completed at T=2, don't cancel the timeout
+
+      if (isDone && this.#queuedStop) {
+        if ('waitMs' in this.#queuedStop) {
+          setTimeout(this.#queuedStop.action, this.#queuedStop.waitMs)
+        }
+        this.#queuedStop = null
+      }
+
       this.emit('sync-state', state)
-      this.#update()
     })
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
@@ -196,57 +170,77 @@ export class SyncApi extends TypedEmitter {
    */
   #getState(namespaceSyncState) {
     const state = reduceSyncState(namespaceSyncState)
-    state.data.syncing = this.#isSyncingData
+    state.data.syncing = this.#syncEnabledState === 'all'
     return state
+  }
+
+  /**
+   * @param {SyncEnabledState} state
+   */
+  #setSyncEnabledState(state) {
+    if (state === this.#syncEnabledState) return
+    this.#l.log('Setting sync enabled state to %s', state)
+    this.#syncEnabledState = state
+    for (const peerSyncController of this.#peerSyncControllers.values()) {
+      peerSyncController.setSyncEnabledState(state)
+    }
+    this.emit('sync-state', this.getState())
   }
 
   /**
    * Start syncing data cores
    */
   start() {
-    this.#internalSyncState = {
-      enabledNamespaceGroups: 'all',
-      // TODO: Make this configurable. Should be trivial to add.
-      // See <https://github.com/digidem/mapeo-core-next/issues/627>.
-      autostopAfter: Infinity,
+    this[kStart]('data')
+  }
+
+  /**
+   * @param {'data' | 'initial'} what
+   * @param {object} options
+   * @param {number} [options.autostop]
+   */
+  [kStart](what, { autostop } = {}) {
+    if (this.#queuedStop && 'timeoutId' in this.#queuedStop) {
+      clearTimeout(this.#queuedStop.timeoutId)
     }
-    this.#update()
+    this.#queuedStop = null
+    if (autostop) {
+      const action = () => this[kStop](what, { force: true })
+      this.#queuedStop = {
+        action,
+        waitMs: autostop,
+      }
+    }
+    this.#setSyncEnabledState(what === 'data' ? 'all' : 'initial')
   }
 
   /**
    * Stop syncing data cores (metadata cores will continue syncing in the background)
    */
   stop() {
-    if ('stateToReturnToAfterPause' in this.#internalSyncState) {
-      this.#internalSyncState = {
-        stateToReturnToAfterPause: {
-          ...this.#internalSyncState.stateToReturnToAfterPause,
-          enabledNamespaceGroups: 'initial only',
-        },
-      }
-    } else {
-      this.#internalSyncState = {
-        ...this.#internalSyncState,
-        enabledNamespaceGroups: 'initial only',
-      }
-    }
-    this.#update()
+    this[kStop]('data')
   }
 
-  [kPause]() {
-    if (!('stateToReturnToAfterPause' in this.#internalSyncState)) {
-      this.#internalSyncState = {
-        stateToReturnToAfterPause: this.#internalSyncState,
-      }
-      this.#update()
-    }
-  }
+  /**
+   * @param {'data' | 'initial'} what
+   */
+  [kStop](what, { force = true } = {}) {
+    const targetState = what === 'data' ? 'initial' : 'none'
+    if (this.#syncEnabledState === targetState) return
 
-  [kResume]() {
-    if ('stateToReturnToAfterPause' in this.#internalSyncState) {
-      this.#internalSyncState =
-        this.#internalSyncState.stateToReturnToAfterPause
-      this.#update()
+    if (force) {
+      if (what === 'data') {
+        this.#setSyncEnabledState('initial')
+        if (this.#queuedStop && this.#queuedStop.targetState === 'initial') {
+          clearTimeout(this.#queuedStop.timeoutId)
+        }
+      } else {
+        this.#setSyncEnabledState('none')
+        if (this.#queuedStop) {
+          clearTimeout(this.#queuedStop.timeoutId)
+        }
+      }
+      this.#queuedStop = null
     }
   }
 
@@ -256,26 +250,15 @@ export class SyncApi extends TypedEmitter {
    */
   async waitForSync(type) {
     const state = this[kSyncState].getState()
-    const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
-    if (isSynced(state, namespaces, this.#peerSyncControllers)) return
+    if (isSynced(state, type, this.#peerSyncControllers)) return
     return new Promise((res) => {
       const _this = this
       this[kSyncState].on('state', function onState(state) {
-        if (!isSynced(state, namespaces, _this.#peerSyncControllers)) return
+        if (!isSynced(state, type, _this.#peerSyncControllers)) return
         _this[kSyncState].off('state', onState)
         res()
       })
     })
-  }
-
-  #autostop() {
-    const namespaceGroupToReplicate =
-      'stateToReturnToAfterPause' in this.#internalSyncState
-        ? 'none'
-        : 'initial only'
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.setNamespaceGroupToReplicate(namespaceGroupToReplicate)
-    }
   }
 
   /**
@@ -311,9 +294,9 @@ export class SyncApi extends TypedEmitter {
     // Add peer to all core states (via namespace sync states)
     this[kSyncState].addPeer(peerSyncController.peerId)
 
-    peerSyncController.setNamespaceGroupToReplicate(
-      this.#enabledNamespaceGroups
-    )
+    if (this.#isSyncing) {
+      peerSyncController.enableDataSync()
+    }
 
     const peerQueue = this.#pendingDiscoveryKeys.get(protomux)
     if (peerQueue) {
@@ -353,10 +336,11 @@ export class SyncApi extends TypedEmitter {
  * Is the sync state "synced", e.g. is there nothing left to sync
  *
  * @param {import('./sync-state.js').State} state
- * @param {readonly import('../core-manager/index.js').Namespace[]} namespaces
+ * @param {'initial' | 'full'} type
  * @param {Map<import('protomux'), PeerSyncController>} peerSyncControllers
  */
-function isSynced(state, namespaces, peerSyncControllers) {
+function isSynced(state, type, peerSyncControllers) {
+  const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
   for (const ns of namespaces) {
     if (state[ns].dataToSync) return false
     for (const psc of peerSyncControllers.values()) {
