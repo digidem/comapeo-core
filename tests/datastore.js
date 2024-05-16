@@ -1,5 +1,6 @@
 // @ts-check
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
 import { getVersionId } from '@mapeo/schema'
@@ -22,7 +23,7 @@ const obs = {
   deleted: false,
 }
 
-test('read and write', async (t) => {
+test('read and write', async () => {
   const cm = createCoreManager()
   const writerCore = cm.getWriterCore('data').core
   await writerCore.ready()
@@ -44,25 +45,25 @@ test('read and write', async (t) => {
   const written = await dataStore.write(obs)
   const coreDiscoveryKey = discoveryKey(writerCore.key)
   const expectedVersionId = getVersionId({ coreDiscoveryKey, index: 0 })
-  t.is(
+  assert.equal(
     written.versionId,
     expectedVersionId,
     'versionId is set to expected value'
   )
   const read = await dataStore.read(written.versionId)
-  t.alike(
+  assert.deepEqual(
     read,
     written,
     'data returned from write matches data returned from read'
   )
-  t.alike(
+  assert.deepEqual(
     indexedVersionIds,
     [written.versionId],
     'The indexEntries function is called with all data that is added'
   )
 })
 
-test('writeRaw and read', async (t) => {
+test('writeRaw and read', async () => {
   const cm = createCoreManager()
   const writerCore = cm.getWriterCore('config').core
   await writerCore.ready()
@@ -78,10 +79,10 @@ test('writeRaw and read', async (t) => {
   const buf = Buffer.from('myblob')
   const versionId = await dataStore.writeRaw(buf)
   const expectedBuf = await dataStore.readRaw(versionId)
-  t.alike(buf, expectedBuf)
+  assert.deepEqual(buf, expectedBuf)
 })
 
-test('index events', async (t) => {
+test('index events', async () => {
   const cm = createCoreManager()
   const writerCore = cm.getWriterCore('data').core
   await writerCore.ready()
@@ -114,5 +115,5 @@ test('index events', async (t) => {
       remaining: 0,
     },
   ]
-  t.alike(indexStates, expectedStates, 'expected index states emitted')
+  assert.deepEqual(indexStates, expectedStates, 'expected index states emitted')
 })
