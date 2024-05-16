@@ -5,13 +5,10 @@ import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import * as clientTableSchemas from '../src/schema/client.js'
 import * as projectTableSchemas from '../src/schema/project.js'
 import { dereferencedDocSchemas as jsonSchemas } from '@mapeo/schema'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import Database from 'better-sqlite3'
 import {
   BACKLINK_TABLE_POSTFIX,
   getBacklinkTableName,
 } from '../src/schema/utils.js'
-import { deNullify } from '../src/utils.js'
 
 const MAPEO_DATATYPE_NAMES = Object.keys(jsonSchemas)
 
@@ -52,45 +49,6 @@ test('Expected table config', () => {
       assert.equal(columnConfig.default, expectedDefault, 'Default is correct')
     }
   }
-})
-
-/**
- * @template {object} T
- * @typedef {import('../src/schema/types.js').OptionalToNull<T>} OptionalToNull
- */
-/**
- * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
- */
-/**
- * @template {MapeoDoc['schemaName']} T
- * @typedef {Extract<MapeoDoc, { schemaName: T }>} MapeoType
- */
-
-test('Types match', { skip: true }, () => {
-  // No brittle tests here, it's the typescript that must pass
-  // This fails at runtime anyway because we don't create tables in the db
-
-  const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite)
-
-  const { observationTable, presetTable, fieldTable } = projectTableSchemas
-
-  const oResult = db.select().from(observationTable).get()
-  const pResult = db.select().from(presetTable).get()
-  const fResult = db.select().from(fieldTable).get()
-
-  if (!(oResult && pResult && fResult)) {
-    assert.fail()
-  }
-
-  /** @type {MapeoType<'observation'>} */
-  const _o = deNullify(oResult)
-
-  /** @type {MapeoType<'preset'>} */
-  const _p = deNullify(pResult)
-
-  /** @type {MapeoType<'field'>} */
-  const _f = deNullify(fResult)
 })
 
 test('backlink table exists for every indexed data type', () => {

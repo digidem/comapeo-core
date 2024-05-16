@@ -5,5 +5,5 @@
     "rootDir": ".."
   },
   "files": [],
-  "include": ["../dist", "."]
+  "include": ["../dist", "../types/**/*.d.ts", "."]
 }
