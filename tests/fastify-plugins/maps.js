@@ -1,4 +1,5 @@
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import path from 'node:path'
 import Fastify from 'fastify'
 import { MockAgent, setGlobalDispatcher } from 'undici'
@@ -28,7 +29,7 @@ setupFetchMock()
 test('fails to register when dependent plugins are not registered', async (t) => {
   const server = setup(t)
 
-  await t.exception(async () => {
+  await assert.rejects(async () => {
     await server.register(MapServerPlugin)
   }, 'fails to register if dependencies are not registered')
 })
@@ -56,12 +57,12 @@ test('prefix opt is handled correctly', async (t) => {
       url: '/style.json',
     })
 
-    t.is(response.statusCode, 404, 'endpoint missing at root prefix')
+    assert.equal(response.statusCode, 404, 'endpoint missing at root prefix')
   }
 
   {
     // TODO: Use inject approach when necessary fixtures are set up
-    t.ok(
+    assert(
       server.hasRoute({
         method: 'GET',
         url: '/maps/style.json',
@@ -89,11 +90,11 @@ test('mapeoMaps decorator context', async (t) => {
 
   const address = await server.listen()
 
-  t.ok(server.hasDecorator('mapeoMaps'), 'decorator added')
+  assert(server.hasDecorator('mapeoMaps'), 'decorator added')
 
-  t.test('mapeoMaps.getStyleJsonUrl()', async (st) => {
+  t.test('mapeoMaps.getStyleJsonUrl()', async () => {
     const styleJsonUrl = await server.mapeoMaps.getStyleJsonUrl()
-    st.is(styleJsonUrl, new URL('/maps/style.json', address).href)
+    assert.equal(styleJsonUrl, new URL('/maps/style.json', address).href)
   })
 })
 
@@ -118,7 +119,7 @@ test('/style.json resolves style.json of local "default" static map when availab
     url: '/style.json',
   })
 
-  t.is(response.statusCode, 200)
+  assert.equal(response.statusCode, 200)
 })
 
 test('/style.json resolves online style.json when local static is not available', async (t) => {
@@ -145,9 +146,9 @@ test('/style.json resolves online style.json when local static is not available'
     query: `?key=pk.abc-123`,
   })
 
-  t.is(response.statusCode, 200)
+  assert.equal(response.statusCode, 200)
 
-  t.is(
+  assert.equal(
     response.json().name,
     // Based on the mapbox-outdoors-v12.json fixture
     'Mapbox Outdoors',
@@ -182,8 +183,8 @@ test('defaultOnlineStyleUrl opt works', async (t) => {
     query: `?key=abc-123`,
   })
 
-  t.is(response.statusCode, 200)
-  t.is(
+  assert.equal(response.statusCode, 200)
+  assert.equal(
     response.json().name,
     // Based on the protomaps-dark.v2.json fixture
     'style@2.0.0-alpha.4 theme@dark',
@@ -214,17 +215,17 @@ test('/style.json resolves style.json of offline fallback map when static and on
     // Omitting the `key` query param here to simulate not being able to get the online style.json
   })
 
-  t.is(response.json().id, 'blank', 'gets fallback style.json')
-  t.is(response.statusCode, 200)
+  assert.equal(response.json().id, 'blank', 'gets fallback style.json')
+  assert.equal(response.statusCode, 200)
 })
 
 /**
- * @param {import('brittle').TestInstance} t
+ * @param {import('node:test').TestContext} t
  */
 function setup(t) {
   const server = Fastify({ logger: false, forceCloseConnections: true })
 
-  t.teardown(async () => {
+  t.after(async () => {
     await server.close()
   })
 

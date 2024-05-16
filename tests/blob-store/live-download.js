@@ -1,10 +1,10 @@
 // @ts-check
+import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DriveLiveDownload } from '../../src/blob-store/live-download.js'
 import Hyperdrive from 'hyperdrive'
 import Corestore from 'corestore'
 import RAM from 'random-access-memory'
-import test from 'brittle'
 import { setTimeout } from 'node:timers/promises'
 import { once } from 'node:events'
 import { randomBytes } from 'node:crypto'
@@ -14,7 +14,7 @@ import { randomBytes } from 'node:crypto'
 // Test with buffers that are 3 times the default blockSize for hyperblobs
 const TEST_BUF_SIZE = 3 * 64 * 1024
 
-test('live download', async (t) => {
+test('live download', async () => {
   const { drive1, drive2, replicate } = await testEnv()
 
   await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
@@ -32,14 +32,14 @@ test('live download', async (t) => {
   await waitForState(download, 'downloaded')
   // Can't use `drive2.get()` here because connected to replication stream, so
   // it would download anyway (no `waitFor = false` support for Hyperdrive yet)
-  t.ok(
+  assert(
     await blobCore2.has(
       blob1.blockOffset,
       blob1.blockOffset + blob1.blockLength
     ),
     'First blob is downloaded'
   )
-  t.ok(blob1.blockLength > 1, 'Blob is more than one block length')
+  assert(blob1.blockLength > 1, 'Blob is more than one block length')
 
   const expected = randomBytes(TEST_BUF_SIZE)
   await drive1.put('/bar', expected)
@@ -48,10 +48,14 @@ test('live download', async (t) => {
   stream.destroy()
   await once(stream, 'close')
 
-  t.alike(await drive2.get('/bar'), expected, 'Second blob is downloaded')
+  assert.deepEqual(
+    await drive2.get('/bar'),
+    expected,
+    'Second blob is downloaded'
+  )
 })
 
-test('sparse live download', async (t) => {
+test('sparse live download', async () => {
   const { drive1, drive2, replicate } = await testEnv()
 
   const buf1 = randomBytes(TEST_BUF_SIZE)
@@ -74,22 +78,26 @@ test('sparse live download', async (t) => {
   stream.destroy()
   await once(stream, 'close')
 
-  t.alike(await drive2.get('photo/original/one'), buf1)
-  t.alike(await drive2.get('photo/original/two'), buf2)
+  assert.deepEqual(await drive2.get('photo/original/one'), buf1)
+  assert.deepEqual(await drive2.get('photo/original/two'), buf2)
 
-  await t.exception(
+  await assert.rejects(
     drive2.get('video/original/one', { wait: false }),
-    /BLOCK_NOT_AVAILABLE/,
+    {
+      message: /BLOCK_NOT_AVAILABLE/,
+    },
     'Block not available'
   )
-  await t.exception(
+  await assert.rejects(
     drive2.get('video/original/two', { wait: false }),
-    /BLOCK_NOT_AVAILABLE/,
+    {
+      message: /BLOCK_NOT_AVAILABLE/,
+    },
     'Block not available'
   )
 })
 
-test('Abort download (same tick)', async (t) => {
+test('Abort download (same tick)', async () => {
   const { drive1, drive2, replicate } = await testEnv()
   await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
   const stream = replicate()
@@ -98,7 +106,7 @@ test('Abort download (same tick)', async (t) => {
   controller.abort()
   stream.destroy()
   await once(stream, 'close')
-  t.alike(download.state, {
+  assert.deepEqual(download.state, {
     haveCount: 0,
     haveBytes: 0,
     wantCount: 0,
@@ -106,10 +114,10 @@ test('Abort download (same tick)', async (t) => {
     error: null,
     status: 'aborted',
   })
-  t.is(await drive2.get('/foo'), null, 'nothing downloaded')
+  assert.equal(await drive2.get('/foo'), null, 'nothing downloaded')
 })
 
-test('Abort download (next event loop)', async (t) => {
+test('Abort download (next event loop)', async () => {
   const { drive1, drive2, replicate } = await testEnv()
   await drive1.put('/one', randomBytes(TEST_BUF_SIZE))
   const stream = replicate()
@@ -120,7 +128,7 @@ test('Abort download (next event loop)', async (t) => {
   controller.abort()
   stream.destroy()
   await once(stream, 'close')
-  t.alike(download.state, {
+  assert.deepEqual(download.state, {
     haveCount: 0,
     haveBytes: 0,
     wantCount: 0,
@@ -128,14 +136,16 @@ test('Abort download (next event loop)', async (t) => {
     error: null,
     status: 'aborted',
   })
-  await t.exception(
+  await assert.rejects(
     drive2.get('/foo', { wait: false }),
-    /Block not available locally/,
+    {
+      message: /Block not available locally/,
+    },
     'Block not available locally'
   )
 })
 
-test('Abort download (after initial download)', async (t) => {
+test('Abort download (after initial download)', async () => {
   const { drive1, drive2, replicate } = await testEnv()
 
   const buf1 = randomBytes(TEST_BUF_SIZE)
@@ -156,15 +166,17 @@ test('Abort download (after initial download)', async (t) => {
   stream.destroy()
   await once(stream, 'close')
 
-  t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
-  await t.exception(
+  assert.deepEqual(await drive2.get('/one'), buf1, 'First blob is downloaded')
+  await assert.rejects(
     drive2.get('/two', { wait: false }),
-    /BLOCK_NOT_AVAILABLE/,
+    {
+      message: /BLOCK_NOT_AVAILABLE/,
+    },
     'Second blob is not downloaded'
   )
 })
 
-test('Live download when data is already downloaded', async (t) => {
+test('Live download when data is already downloaded', async () => {
   const { drive1, drive2, replicate } = await testEnv()
 
   const buf1 = randomBytes(20)
@@ -174,7 +186,7 @@ test('Live download when data is already downloaded', async (t) => {
 
   await drive2.db.core.update({ wait: true })
   await drive2.download()
-  t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
+  assert.deepEqual(await drive2.get('/one'), buf1, 'First blob is downloaded')
 
   stream1.destroy()
   await once(stream1, 'close')
@@ -182,7 +194,7 @@ test('Live download when data is already downloaded', async (t) => {
   const stream2 = replicate()
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
-  t.alike(
+  assert.deepEqual(
     download.state,
     {
       haveCount: 1,
@@ -202,10 +214,10 @@ test('Live download when data is already downloaded', async (t) => {
   stream2.destroy()
   await once(stream2, 'close')
 
-  t.alike(await drive2.get('/two'), buf2, 'Second blob is downloaded')
+  assert.deepEqual(await drive2.get('/two'), buf2, 'Second blob is downloaded')
 })
 
-test('Live download continues across disconnection and reconnect', async (t) => {
+test('Live download continues across disconnection and reconnect', async () => {
   const { drive1, drive2, replicate } = await testEnv()
 
   const buf1 = randomBytes(TEST_BUF_SIZE)
@@ -216,7 +228,7 @@ test('Live download continues across disconnection and reconnect', async (t) => 
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
 
-  t.alike(await drive2.get('/one'), buf1, 'First blob is downloaded')
+  assert.deepEqual(await drive2.get('/one'), buf1, 'First blob is downloaded')
 
   stream1.destroy()
   await once(stream1, 'close')
@@ -230,17 +242,21 @@ test('Live download continues across disconnection and reconnect', async (t) => 
   stream2.destroy()
   await once(stream2, 'close')
 
-  t.alike(await drive2.get('/two'), buf2, 'Second blob is downloaded')
+  assert.deepEqual(await drive2.get('/two'), buf2, 'Second blob is downloaded')
 })
 
-test('Initial status', async (t) => {
+test('Initial status', async () => {
   const { drive1 } = await testEnv()
 
   const download = new DriveLiveDownload(drive1)
-  t.is(download.state.status, 'checking', "initial status is 'checking'")
+  assert.equal(
+    download.state.status,
+    'checking',
+    "initial status is 'checking'"
+  )
 })
 
-test('Unitialized drive with no data', async (t) => {
+test('Unitialized drive with no data', async () => {
   // This test is important because it catches an edge case where a drive might
   // have been added by its key, but has never replicated, so it has no data so
   // the content feed will never be read from the header, which might result in
@@ -249,14 +265,14 @@ test('Unitialized drive with no data', async (t) => {
   const { drive2 } = await testEnv()
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
-  t.is(
+  assert.equal(
     download.state.status,
     'downloaded',
     'uninitialized drive without peers results in `downloaded` state'
   )
 })
 
-test('live download started before initial replication', async (t) => {
+test('live download started before initial replication', async () => {
   const { drive1, drive2, replicate } = await testEnv()
 
   await drive1.put('/foo', randomBytes(TEST_BUF_SIZE))
@@ -269,7 +285,7 @@ test('live download started before initial replication', async (t) => {
   const download = new DriveLiveDownload(drive2)
   await waitForState(download, 'downloaded')
   // initially drive2 is not replicating and empty, so we expect a 'downloaded' status
-  t.is(download.state.status, 'downloaded')
+  assert.equal(download.state.status, 'downloaded')
 
   const stream = replicate()
   const blobCore2 = (await drive2.getBlobs())?.core
@@ -278,14 +294,14 @@ test('live download started before initial replication', async (t) => {
 
   // Can't use `drive2.get()` here because connected to replication stream, so
   // it would download anyway (no `waitFor = false` support for Hyperdrive yet)
-  t.ok(
+  assert(
     await blobCore2.has(
       blob1.blockOffset,
       blob1.blockOffset + blob1.blockLength
     ),
     'First blob is downloaded'
   )
-  t.ok(blob1.blockLength > 1, 'Blob is more than one block length')
+  assert(blob1.blockLength > 1, 'Blob is more than one block length')
 
   const expected = randomBytes(TEST_BUF_SIZE)
   await drive1.put('/bar', expected)
@@ -294,7 +310,11 @@ test('live download started before initial replication', async (t) => {
   stream.destroy()
   await once(stream, 'close')
 
-  t.alike(await drive2.get('/bar'), expected, 'Second blob is downloaded')
+  assert.deepEqual(
+    await drive2.get('/bar'),
+    expected,
+    'Second blob is downloaded'
+  )
 })
 
 /**
