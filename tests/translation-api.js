@@ -1,5 +1,6 @@
 // @ts-check
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import TranslationApi, {
   ktranslatedLanguageCodeToSchemaNames,
 } from '../src/translation-api.js'
@@ -14,7 +15,7 @@ import { IndexWriter } from '../src/index-writer/index.js'
 import RAM from 'random-access-memory'
 import { hashObject } from '../src/utils.js'
 
-test(`translation api - put() and get()`, async (t) => {
+test('translation api - put() and get()', async () => {
   const api = setup()
 
   const doc = {
@@ -32,7 +33,7 @@ test(`translation api - put() and get()`, async (t) => {
     ...api[ktranslatedLanguageCodeToSchemaNames].entries(),
   ].length
 
-  t.is(
+  assert.equal(
     mapEntriesLength,
     0,
     'the map we use to caching translations is empty before calling put'
@@ -44,8 +45,8 @@ test(`translation api - put() and get()`, async (t) => {
   const { docId } = await api.put(doc)
   api.index(doc)
 
-  t.ok(docId, `putting a translation doc works`)
-  t.is(
+  assert(docId, 'putting a translation doc works')
+  assert.equal(
     docId,
     expectedDocId,
     'the docId is built as a hash from the doc correctly'
@@ -54,12 +55,12 @@ test(`translation api - put() and get()`, async (t) => {
   mapEntriesLength = [...api[ktranslatedLanguageCodeToSchemaNames].entries()]
     .length
 
-  t.is(
+  assert.equal(
     mapEntriesLength,
     1,
     'after calling api.index(), the map now has some elements in it'
   )
-  t.ok(
+  assert(
     api[ktranslatedLanguageCodeToSchemaNames].get('es')?.has('field'),
     `we've effectively have fields in spanish`
   )
@@ -67,7 +68,7 @@ test(`translation api - put() and get()`, async (t) => {
   /* eslint-disable no-unused-vars */
   const { schemaName, message: msg, ...docToGet } = doc
 
-  t.is(
+  assert.equal(
     (await api.get(docToGet)).length,
     1,
     `using the doc without schema name to get the translation works`
@@ -86,7 +87,7 @@ test(`translation api - put() and get()`, async (t) => {
 
   await api.put(newDoc)
 
-  t.is(
+  assert.equal(
     (
       await api.get({
         schemaNameRef: 'field',
