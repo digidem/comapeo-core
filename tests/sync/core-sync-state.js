@@ -376,7 +376,7 @@ test('bitCount32', () => {
 // This takes several hours to run on my M2 Macbook Pro (it's the slowBitCount
 // that takes a long time - bitCount32 takes about 23 seconds), so not running
 // this by default. The test did pass when I ran it though.
-test('bitCount32 (full test)', { skip: true }, () => {
+test.skip('bitCount32 (full test)', () => {
   for (let n = 0; n < 2 ** 32; n++) {
     if (n % 2 ** 28 === 0) console.log(n)
     const bitCount = bitCount32(n)
