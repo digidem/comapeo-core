@@ -20,6 +20,10 @@ export const kResume = Symbol('resume')
  */
 
 /**
+ * @typedef {'none' | 'initial' | 'all'} SyncEnabledState
+ */
+
+/**
  * @typedef {object} SyncTypeState
  * @property {number} have Number of blocks we have locally
  * @property {number} want Number of blocks we want from connected peers
@@ -44,7 +48,7 @@ export const kResume = Symbol('resume')
 /**
  * @internal
  * @typedef {object} InternalSyncStateUnpaused
- * @prop {'initial only' | 'all'} enabledNamespaceGroups
+ * @prop {'initial' | 'all'} syncEnabledState
  * @prop {number} autostopAfter
  */
 
@@ -74,17 +78,17 @@ export class SyncApi extends TypedEmitter {
   #autostopper = new Autostopper(this.#autostop.bind(this))
   /** @type {InternalSyncState} */
   #internalSyncState = {
-    enabledNamespaceGroups: 'initial only',
+    syncEnabledState: 'initial',
     autostopAfter: Infinity,
   }
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
 
-  /** @returns {'none' | 'initial only' | 'all'} */
-  get #enabledNamespaceGroups() {
-    return 'enabledNamespaceGroups' in this.#internalSyncState
-      ? this.#internalSyncState.enabledNamespaceGroups
+  /** @returns {SyncEnabledState} */
+  get #syncEnabledState() {
+    return 'syncEnabledState' in this.#internalSyncState
+      ? this.#internalSyncState.syncEnabledState
       : 'none'
   }
 
@@ -92,22 +96,22 @@ export class SyncApi extends TypedEmitter {
    * @returns {boolean}
    */
   get #isSyncingData() {
-    const enabledNamespaceGroups = this.#enabledNamespaceGroups
-    switch (enabledNamespaceGroups) {
+    const syncEnabledState = this.#syncEnabledState
+    switch (syncEnabledState) {
       case 'none':
-      case 'initial only':
+      case 'initial':
         return false
       case 'all':
         return true
       default:
-        throw new ExhaustivenessError(enabledNamespaceGroups)
+        throw new ExhaustivenessError(syncEnabledState)
     }
   }
 
   #update() {
-    const enabledNamespaceGroups = this.#enabledNamespaceGroups
+    const syncEnabledState = this.#syncEnabledState
     for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.setNamespaceGroupToReplicate(enabledNamespaceGroups)
+      peerSyncController.setSyncEnabledState(syncEnabledState)
     }
 
     this.#autostopper.update({
@@ -205,7 +209,7 @@ export class SyncApi extends TypedEmitter {
    */
   start() {
     this.#internalSyncState = {
-      enabledNamespaceGroups: 'all',
+      syncEnabledState: 'all',
       // TODO: Make this configurable. Should be trivial to add.
       // See <https://github.com/digidem/mapeo-core-next/issues/627>.
       autostopAfter: Infinity,
@@ -221,13 +225,13 @@ export class SyncApi extends TypedEmitter {
       this.#internalSyncState = {
         stateToReturnToAfterPause: {
           ...this.#internalSyncState.stateToReturnToAfterPause,
-          enabledNamespaceGroups: 'initial only',
+          syncEnabledState: 'initial',
         },
       }
     } else {
       this.#internalSyncState = {
         ...this.#internalSyncState,
-        enabledNamespaceGroups: 'initial only',
+        syncEnabledState: 'initial',
       }
     }
     this.#update()
@@ -269,12 +273,12 @@ export class SyncApi extends TypedEmitter {
   }
 
   #autostop() {
-    const namespaceGroupToReplicate =
+    const syncEnabledState =
       'stateToReturnToAfterPause' in this.#internalSyncState
         ? 'none'
-        : 'initial only'
+        : 'initial'
     for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.setNamespaceGroupToReplicate(namespaceGroupToReplicate)
+      peerSyncController.setSyncEnabledState(syncEnabledState)
     }
   }
 
@@ -311,9 +315,7 @@ export class SyncApi extends TypedEmitter {
     // Add peer to all core states (via namespace sync states)
     this[kSyncState].addPeer(peerSyncController.peerId)
 
-    peerSyncController.setNamespaceGroupToReplicate(
-      this.#enabledNamespaceGroups
-    )
+    peerSyncController.setSyncEnabledState(this.#syncEnabledState)
 
     const peerQueue = this.#pendingDiscoveryKeys.get(protomux)
     if (peerQueue) {

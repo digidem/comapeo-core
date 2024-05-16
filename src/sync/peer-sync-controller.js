@@ -18,7 +18,7 @@ export const DATA_NAMESPACES = NAMESPACES.filter(
 
 /**
  * @internal
- * @typedef {'none' | 'initial only' | 'all'} NamespaceGroup
+ * @typedef {import('./sync-api.js').SyncEnabledState} SyncEnabledState
  */
 
 export class PeerSyncController {
@@ -30,8 +30,8 @@ export class PeerSyncController {
   #roles
   /** @type {Record<Namespace, SyncCapability>} */
   #syncCapability = createNamespaceMap('unknown')
-  /** @type {NamespaceGroup} */
-  #namespaceGroupToReplicate = 'none'
+  /** @type {SyncEnabledState} */
+  #syncEnabledState = 'none'
   /** @type {Record<Namespace, import('./core-sync-state.js').CoreState | null>} */
   #prevLocalState = createNamespaceMap(null)
   /** @type {SyncStatus} */
@@ -89,13 +89,13 @@ export class PeerSyncController {
     return this.#syncCapability
   }
 
-  get namespaceGroupToReplicate() {
-    return this.#namespaceGroupToReplicate
+  get syncEnabledState() {
+    return this.#syncEnabledState
   }
 
-  /** @param {NamespaceGroup} group */
-  setNamespaceGroupToReplicate(group) {
-    this.#namespaceGroupToReplicate = group
+  /** @param {SyncEnabledState} syncEnabledState */
+  setSyncEnabledState(syncEnabledState) {
+    this.#syncEnabledState = syncEnabledState
     this.#updateEnabledNamespaces()
   }
 
@@ -199,11 +199,11 @@ export class PeerSyncController {
   #updateEnabledNamespaces() {
     /** @type {boolean} */ let isAnySyncEnabled
     /** @type {boolean} */ let isDataSyncEnabled
-    switch (this.#namespaceGroupToReplicate) {
+    switch (this.#syncEnabledState) {
       case 'none':
         isAnySyncEnabled = isDataSyncEnabled = false
         break
-      case 'initial only':
+      case 'initial':
         isAnySyncEnabled = true
         isDataSyncEnabled = false
         break
@@ -211,7 +211,7 @@ export class PeerSyncController {
         isAnySyncEnabled = isDataSyncEnabled = true
         break
       default:
-        throw new ExhaustivenessError(this.#namespaceGroupToReplicate)
+        throw new ExhaustivenessError(this.#syncEnabledState)
     }
 
     for (const ns of NAMESPACES) {
