@@ -1,6 +1,6 @@
 // @ts-check
 import { test } from 'brittle'
-import { size } from 'iterpal'
+import { arrayFrom, size } from 'iterpal'
 import { defaultConfigPath } from './helpers/default-config.js'
 import { readConfig } from '../src/config-import.js'
 
@@ -133,8 +133,9 @@ test('config import - icons', async (t) => {
   )
 
   config = await readConfig('./tests/fixtures/config/validIcons.zip')
-  t.plan(15) // 2 icon assertions + (3+9) variant assertions + 1 no warnings
-  for await (const icon of config.icons()) {
+  const icons = await arrayFrom(config.icons())
+  t.is(icons.length, 2)
+  for (const icon of icons) {
     if (icon.name === 'plant') {
       t.is(icon.variants.length, 3, '3 variants of plant icons')
     } else if (icon.name === 'tree') {
