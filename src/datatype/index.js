@@ -7,6 +7,8 @@ import { noop, deNullify } from '../utils.js'
 import { NotFoundError } from '../errors.js'
 import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { parse as parseBCP47 } from 'bcp-47'
+import { setProperty, getProperty } from 'dot-prop'
 
 /**
  * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
@@ -69,6 +71,7 @@ export class DataType extends TypedEmitter {
   #schemaName
   #sql
   #db
+  #getTranslations
 
   /**
    *
@@ -76,13 +79,15 @@ export class DataType extends TypedEmitter {
    * @param {TTable} opts.table
    * @param {TDataStore} opts.dataStore
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.db
+   * @param {import('../translation-api.js').default['get']} opts.getTranslations
    */
-  constructor({ dataStore, table, db }) {
+  constructor({ dataStore, table, db, getTranslations }) {
     super()
     this.#dataStore = dataStore
     this.#table = table
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
     this.#db = db
+    this.#getTranslations = getTranslations
     this.#sql = {
       getByDocId: db
         .select()
@@ -169,26 +174,73 @@ export class DataType extends TypedEmitter {
 
   /**
    * @param {string} docId
+   * @param {{ lang?: string }} [opts]
    */
-  async getByDocId(docId) {
+  async getByDocId(docId, { lang } = {}) {
     await this.#dataStore.indexer.idle()
-    const result = this.#sql.getByDocId.get({ docId })
+    const result = /** @type {undefined | MapeoDoc} */ (
+      this.#sql.getByDocId.get({ docId })
+    )
     if (!result) throw new NotFoundError()
-    return deNullify(result)
+    return this.#translate(deNullify(result), { lang })
   }
 
-  /** @param {string} versionId */
-  async getByVersionId(versionId) {
-    return this.#dataStore.read(versionId)
+  /**
+   * @param {string} versionId
+   * @param {{ lang?: string }} [opts]
+   */
+  async getByVersionId(versionId, { lang } = {}) {
+    const result = await this.#dataStore.read(versionId)
+    return this.#translate(result, { lang })
   }
 
-  /** @param {{ includeDeleted?: boolean }} [opts] */
-  async getMany({ includeDeleted = false } = {}) {
+  /**
+   * @param {MapeoDoc} doc
+   * @param {{ lang?: string }} [opts]
+   */
+  async #translate(doc, { lang } = {}) {
+    if (!lang) return doc
+
+    const { language, region } = parseBCP47(lang)
+    if (!language) return doc
+    const translatedDoc = JSON.parse(JSON.stringify(doc))
+
+    let value = {
+      languageCode: language,
+      schemaNameRef: translatedDoc.schemaName,
+      docIdRef: translatedDoc.docId,
+      regionCode: region !== null ? region : undefined,
+    }
+    let translations = await this.#getTranslations(value)
+    // if passing a region code returns no matches,
+    // fallback to matching only languageCode
+    if (translations.length === 0 && value.regionCode) {
+      value.regionCode = undefined
+      translations = await this.#getTranslations(value)
+    }
+
+    for (let translation of translations) {
+      if (typeof getProperty(doc, translation.fieldRef) === 'string') {
+        setProperty(doc, translation.fieldRef, translation.message)
+      }
+    }
+    return doc
+  }
+
+  /** @param {{ includeDeleted?: boolean, lang?: string }} [opts] */
+  async getMany({ includeDeleted = false, lang } = {}) {
     await this.#dataStore.indexer.idle()
     const rows = includeDeleted
       ? this.#sql.getManyWithDeleted.all()
       : this.#sql.getMany.all()
-    return rows.map((doc) => deNullify(doc))
+    return await Promise.all(
+      rows.map(
+        async (doc) =>
+          await this.#translate(deNullify(/** @type {MapeoDoc} */ (doc)), {
+            lang,
+          })
+      )
+    )
   }
 
   /**

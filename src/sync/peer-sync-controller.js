@@ -45,7 +45,11 @@ export class PeerSyncController {
    * @param {Logger} [opts.logger]
    */
   constructor({ protomux, coreManager, syncState, roles, logger }) {
-    // @ts-ignore
+    /**
+     * @param {string} formatter
+     * @param {unknown[]} args
+     * @returns {void}
+     */
     this.#log = (formatter, ...args) => {
       const log = Logger.create('peer', logger).log
       return log.apply(null, [
@@ -225,6 +229,7 @@ export class PeerSyncController {
    * @param {import('hypercore')<'binary', any>} core
    */
   #replicateCore(core) {
+    if (core.closed) return
     if (this.#replicatingCores.has(core)) return
     this.#log('replicating core %k', core.key)
     core.replicate(this.#protomux)

@@ -4,6 +4,7 @@ import { docSchemas } from '@mapeo/schema'
 
 import { kGetIconBlob } from '../icon-api.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
+import { ExhaustivenessError } from '../utils.js'
 
 export default fp(iconServerPlugin, {
   fastify: '4.x',
@@ -40,6 +41,8 @@ const PARAMS_JSON_SCHEMA = T.Object({
           return T.Literal('png')
         case 'image/svg+xml':
           return T.Literal('svg')
+        default:
+          throw new ExhaustivenessError(mimeType)
       }
     })
   ),

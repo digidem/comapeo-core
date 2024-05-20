@@ -123,8 +123,11 @@ function setup() {
 
   const dataType = new DataType({
     dataStore,
-    table: table,
+    table,
     db,
+    getTranslations() {
+      throw new Error('Cannot get translations from translations')
+    },
   })
 
   return new TranslationApi({

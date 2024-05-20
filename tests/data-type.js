@@ -1,5 +1,6 @@
 // @ts-check
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { DataStore } from '../src/datastore/index.js'
 import {
   createCoreManager,
@@ -8,7 +9,7 @@ import {
 } from './helpers/core-manager.js'
 import RAM from 'random-access-memory'
 import crypto from 'hypercore-crypto'
-import { observationTable } from '../src/schema/project.js'
+import { observationTable, translationTable } from '../src/schema/project.js'
 import { DataType, kCreateWithDocId } from '../src/datatype/index.js'
 import { IndexWriter } from '../src/index-writer/index.js'
 import { NotFoundError } from '../src/errors.js'
@@ -17,6 +18,9 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'crypto'
+import TranslationApi from '../src/translation-api.js'
+import { getProperty } from 'dot-prop'
+import { decode, decodeBlockPrefix } from '@mapeo/schema'
 
 /** @type {import('@mapeo/schema').ObservationValue} */
 const obsFixture = {
@@ -27,7 +31,7 @@ const obsFixture = {
   metadata: {},
 }
 
-test('private createWithDocId() method', async (t) => {
+test('private createWithDocId() method', async () => {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
@@ -51,15 +55,18 @@ test('private createWithDocId() method', async (t) => {
     dataStore,
     table: observationTable,
     db,
+    getTranslations() {
+      throw new Error('Translations should not be fetched in this test')
+    },
   })
   const customId = randomBytes(8).toString('hex')
   const obs = await dataType[kCreateWithDocId](customId, obsFixture)
-  t.is(obs.docId, customId)
+  assert.equal(obs.docId, customId)
   const read = await dataType.getByDocId(customId)
-  t.is(read.docId, customId)
+  assert.equal(read.docId, customId)
 })
 
-test('private createWithDocId() method throws when doc exists', async (t) => {
+test('private createWithDocId() method throws when doc exists', async () => {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
@@ -83,16 +90,19 @@ test('private createWithDocId() method throws when doc exists', async (t) => {
     dataStore,
     table: observationTable,
     db,
+    getTranslations() {
+      throw new Error('Translations should not be fetched in this test')
+    },
   })
   const customId = randomBytes(8).toString('hex')
   await dataType[kCreateWithDocId](customId, obsFixture)
-  await t.exception(
+  await assert.rejects(
     () => dataType[kCreateWithDocId](customId, obsFixture),
     'Throws with error creating a doc with an id that already exists'
   )
 })
 
-test('test validity of `createdBy` field', async (t) => {
+test('test validity of `createdBy` field', async () => {
   const projectKey = randomBytes(32)
   const { dataType: dt1, dataStore: ds1 } = await testenv({ projectKey })
 
@@ -100,14 +110,14 @@ test('test validity of `createdBy` field', async (t) => {
   const obs = await dt1[kCreateWithDocId](customId, obsFixture)
   const createdBy = crypto.discoveryKey(ds1.writerCore.key).toString('hex')
 
-  t.is(
+  assert.equal(
     obs.createdBy,
     createdBy,
     'createdBy should be generated from the DataStore writerCore discoveryKey'
   )
 })
 
-test('test validity of `createdBy` field from another peer', async (t) => {
+test('test validity of `createdBy` field from another peer', async () => {
   const projectKey = randomBytes(32)
   const {
     coreManager: cm1,
@@ -121,12 +131,13 @@ test('test validity of `createdBy` field from another peer', async (t) => {
   const { destroy } = replicate(cm1, cm2)
   await waitForCores(cm2, [driveId])
   const replicatedCore = cm2.getCoreByKey(driveId)
+  assert(replicatedCore, 'Replicated core should exist')
   await replicatedCore.update({ wait: true })
   await replicatedCore.download({ end: replicatedCore.length }).done()
   const replicatedObservation = await dt2.getByVersionId(obs.versionId)
 
   const createdBy = crypto.discoveryKey(ds1.writerCore.key).toString('hex')
-  t.is(replicatedObservation.createdBy, createdBy)
+  assert.equal(replicatedObservation.createdBy, createdBy)
 
   /** @type {import('@mapeo/schema').ObservationValue} */
   const newObsFixture = {
@@ -138,32 +149,105 @@ test('test validity of `createdBy` field from another peer', async (t) => {
   }
   const updatedDoc = await dt2.update(obs.versionId, newObsFixture)
   const updatedObservation = await dt2.getByVersionId(updatedDoc.versionId)
-  t.is(updatedObservation.createdBy, createdBy)
+  assert.equal(updatedObservation.createdBy, createdBy)
   await destroy()
 })
 
-test('getByDocId() throws if no document exists with that ID', async (t) => {
+test('getByDocId() throws if no document exists with that ID', async () => {
   const { dataType } = await testenv({ projectKey: randomBytes(32) })
-  await t.exception(() => dataType.getByDocId('foo bar'), NotFoundError)
+  await assert.rejects(() => dataType.getByDocId('foo bar'), NotFoundError)
 })
 
-test('delete()', async (t) => {
+test('delete()', async () => {
   const projectKey = randomBytes(32)
   const { dataType } = await testenv({ projectKey })
   const doc = await dataType.create(obsFixture)
-  t.is(doc.deleted, false, `'deleted' field is false before deletion`)
+  assert.equal(doc.deleted, false, `'deleted' field is false before deletion`)
   const deletedDoc = await dataType.delete(doc.docId)
-  t.is(deletedDoc.deleted, true, `'deleted' field is true after deletion`)
-  t.alike(
+  assert.equal(
+    deletedDoc.deleted,
+    true,
+    `'deleted' field is true after deletion`
+  )
+  assert.deepEqual(
     deletedDoc.links,
     [doc.versionId],
     `deleted doc links back to created doc`
   )
   const retrievedDocByDocId = await dataType.getByDocId(deletedDoc.docId)
-  t.alike(
+  assert.deepEqual(
     retrievedDocByDocId,
     deletedDoc,
     `retrieving by docId returns deleted doc`
+  )
+})
+
+test('translation', async () => {
+  const projectKey = randomBytes(32)
+  const { dataType, translationApi } = await testenv({ projectKey })
+  /** @type {import('@mapeo/schema').ObservationValue} */
+  const observation = {
+    schemaName: 'observation',
+    refs: [],
+    tags: {
+      type: 'point',
+    },
+    attachments: [],
+    metadata: {},
+  }
+
+  const doc = await dataType.create(observation)
+  const translation = {
+    /** @type {'translation'} */
+    schemaName: 'translation',
+    schemaNameRef: 'observation',
+    docIdRef: doc.docId,
+    fieldRef: 'tags.type',
+    languageCode: 'es',
+    regionCode: 'AR',
+    message: 'punto',
+  }
+  await translationApi.put(translation)
+  translationApi.index(translation)
+
+  assert.equal(
+    translation.message,
+    getProperty(
+      await dataType.getByDocId(doc.docId, { lang: 'es' }),
+      translation.fieldRef
+    ),
+    `we get a valid translated field`
+  )
+  assert.equal(
+    translation.message,
+    getProperty(
+      await dataType.getByDocId(doc.docId, { lang: 'es-AR' }),
+      translation.fieldRef
+    ),
+    `we get a valid translated field`
+  )
+  assert.equal(
+    translation.message,
+    getProperty(
+      await dataType.getByDocId(doc.docId, { lang: 'es-ES' }),
+      translation.fieldRef
+    ),
+    `passing an untranslated regionCode, still returns a translated field, since we fallback to only matching languageCode`
+  )
+
+  assert.equal(
+    getProperty(observation, 'tags.type'),
+    getProperty(
+      await dataType.getByDocId(doc.docId, { lang: 'de' }),
+      'tags.type'
+    ),
+    `passing an untranslated language code returns the untranslated message`
+  )
+
+  assert.equal(
+    getProperty(observation, 'tags.type'),
+    getProperty(await dataType.getByDocId(doc.docId), 'tags.type'),
+    `not passing a a language code returns the untranslated message`
   )
 })
 
@@ -181,7 +265,7 @@ async function testenv(opts) {
   const coreManager = createCoreManager({ ...opts, db })
 
   const indexWriter = new IndexWriter({
-    tables: [observationTable],
+    tables: [observationTable, translationTable],
     sqlite,
   })
 
@@ -191,11 +275,58 @@ async function testenv(opts) {
     batch: async (entries) => indexWriter.batch(entries),
     storage: () => new RAM(),
   })
+
+  const configDataStore = new DataStore({
+    coreManager,
+    namespace: 'config',
+    batch: async (entries) => {
+      /** @type {import('multi-core-indexer').Entry[]} */
+      const entriesToIndex = []
+      for (const entry of entries) {
+        const { schemaName } = decodeBlockPrefix(entry.block)
+        try {
+          if (schemaName === 'translation') {
+            const doc = decode(entry.block, {
+              coreDiscoveryKey: entry.key,
+              index: entry.index,
+            })
+            assert(
+              doc.schemaName === 'translation',
+              'expected a translation doc'
+            )
+            translationApi.index(doc)
+          }
+          entriesToIndex.push(entry)
+        } catch {
+          // Ignore errors thrown by values that can't be decoded for now
+        }
+      }
+      const indexed = await indexWriter.batch(entriesToIndex)
+      return indexed
+    },
+    storage: () => new RAM(),
+  })
+
+  const translationDataType = new DataType({
+    dataStore: configDataStore,
+    table: translationTable,
+    db,
+    getTranslations: () => {
+      throw new Error('Cannot get translations for translations')
+    },
+  })
+
+  const translationApi = new TranslationApi({
+    dataType: translationDataType,
+    table: translationTable,
+  })
+
   const dataType = new DataType({
     dataStore,
     table: observationTable,
     db,
+    getTranslations: translationApi.get.bind(translationApi),
   })
 
-  return { coreManager, dataType, dataStore }
+  return { coreManager, dataType, dataStore, translationApi }
 }

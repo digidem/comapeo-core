@@ -1,14 +1,15 @@
 // @ts-check
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import * as fs from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'url'
-import test from 'brittle'
 import { BlobApi } from '../src/blob-api.js'
 
 import { createBlobStore } from './helpers/blob-store.js'
 
-test('create blobs', async (t) => {
+test('create blobs', async () => {
   const { blobStore } = createBlobStore()
 
   const blobApi = new BlobApi({
@@ -34,12 +35,12 @@ test('create blobs', async (t) => {
     { mimeType: 'image/png' }
   )
 
-  t.is(attachment.driveId, blobStore.writerDriveId)
-  t.is(attachment.type, 'photo')
-  t.alike(attachment.hash, hash.digest('hex'))
+  assert.equal(attachment.driveId, blobStore.writerDriveId)
+  assert.equal(attachment.type, 'photo')
+  assert.deepEqual(attachment.hash, hash.digest('hex'))
 })
 
-test('get url from blobId', async (t) => {
+test('get url from blobId', async () => {
   const type = 'photo'
   const variant = 'original'
   const name = '1234'
@@ -63,7 +64,7 @@ test('get url from blobId', async (t) => {
       name,
     })
 
-    t.is(
+    assert.equal(
       url,
       `http://127.0.0.1:${port}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
     )
@@ -80,7 +81,7 @@ test('get url from blobId', async (t) => {
       name,
     })
 
-    t.is(
+    assert.equal(
       url,
       `http://127.0.0.1:${port}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
     )
@@ -97,7 +98,7 @@ test('get url from blobId', async (t) => {
       name,
     })
 
-    t.is(
+    assert.equal(
       url,
       `http://127.0.0.1:${port}/${prefix}/${blobStore.writerDriveId}/${type}/${variant}/${name}`
     )
