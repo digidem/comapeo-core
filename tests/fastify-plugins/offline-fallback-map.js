@@ -1,5 +1,6 @@
 import path from 'node:path'
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import Fastify from 'fastify'
 
 import { plugin as OfflineFallbackMapPlugin } from '../../src/fastify-plugins/maps/offline-fallback-map.js'
@@ -12,7 +13,7 @@ const MAPEO_FALLBACK_MAP_PATH = new URL(
 test('decorator', async (t) => {
   const server = setup(t)
   await server.ready()
-  t.ok(server.hasDecorator('mapeoFallbackMap'), 'decorator is set up')
+  assert(server.hasDecorator('mapeoFallbackMap'), 'decorator is set up')
 })
 
 test('/style.json', async (t) => {
@@ -24,11 +25,11 @@ test('/style.json', async (t) => {
     url: '/style.json',
   })
 
-  t.is(response.statusCode, 200)
+  assert.equal(response.statusCode, 200)
 
   const styleJson = response.json()
 
-  t.alike(
+  assert.deepEqual(
     styleJson.sources,
     {
       'boundaries-source': {
@@ -61,12 +62,12 @@ test('/style.json', async (t) => {
       url: data,
     })
 
-    t.is(response.statusCode, 200, `can reach ${sourceName}`)
+    assert.equal(response.statusCode, 200, `can reach ${sourceName}`)
   }
 })
 
 /**
- * @param {import('brittle').TestInstance} t
+ * @param {import('node:test').TestContext} t
  */
 function setup(t) {
   const server = Fastify({ logger: false, forceCloseConnections: true })
@@ -76,7 +77,7 @@ function setup(t) {
     sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
   })
 
-  t.teardown(async () => {
+  t.after(async () => {
     await server.close()
   })
 
