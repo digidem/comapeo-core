@@ -95,6 +95,9 @@ export class PeerSyncController {
 
   /** @param {SyncEnabledState} syncEnabledState */
   setSyncEnabledState(syncEnabledState) {
+    if (this.#syncEnabledState === syncEnabledState) {
+      return
+    }
     this.#syncEnabledState = syncEnabledState
     this.#updateEnabledNamespaces()
   }
