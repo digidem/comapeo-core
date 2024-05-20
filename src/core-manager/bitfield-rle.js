@@ -15,8 +15,8 @@ const n = 4
 class State {
   /**
    *
-   * @param {Uint8Array} input
-   * @param {Uint8Array | undefined} output
+   * @param {Buffer} input
+   * @param {Buffer | undefined} output
    * @param {number} offset
    */
   constructor(input, output, offset) {
@@ -31,10 +31,13 @@ class State {
 encode.bytes = 0
 
 /**
- * @param {import('type-fest').TypedArray} bitfield
- * @returns {Buffer}
+ * @param {Uint32Array} bitfield
+ * @param {Buffer} [buffer]
+ * @param {number} [offset]
  */
-export function encode(bitfield) {
+export function encode(bitfield, buffer, offset) {
+  if (!offset) offset = 0
+
   const bitfieldBuf = Buffer.from(
     bitfield.buffer,
     bitfield.byteOffset,
@@ -44,8 +47,7 @@ export function encode(bitfield) {
   // Encoded as little endian
   if (isBigEndian) bitfieldBuf.swap32()
 
-  const buffer = Buffer.allocUnsafe(encodingLength(bitfieldBuf))
-  const offset = 0
+  if (!buffer) buffer = Buffer.allocUnsafe(encodingLength(bitfieldBuf))
   var state = new State(bitfieldBuf, buffer, offset)
   rle(state)
   encode.bytes = state.outputOffset - offset
@@ -53,9 +55,9 @@ export function encode(bitfield) {
 }
 
 /**
- * @param {Uint8Array} bitfield
+ * @param {Buffer} bitfield
  */
-export function encodingLength(bitfield) {
+function encodingLength(bitfield) {
   var state = new State(bitfield, undefined, 0)
   rle(state)
   return state.outputOffset
@@ -63,7 +65,7 @@ export function encodingLength(bitfield) {
 
 decode.bytes = 0
 /**
- * @param {Uint8Array} buffer
+ * @param {Buffer} buffer
  * @param {number} [offset]
  * @returns {Uint32Array}
  */
@@ -83,7 +85,7 @@ export function decode(buffer, offset) {
     if (repeat) {
       bitfieldBuf.fill(next & 2 ? 255 : 0, ptr, ptr + len)
     } else {
-      bitfieldBuf.set(buffer.subarray(offset, offset + len), ptr)
+      buffer.copy(bitfieldBuf, ptr, offset, offset + len)
       offset += len
     }
 
@@ -103,7 +105,7 @@ export function decode(buffer, offset) {
 }
 
 /**
- * @param {Uint8Array} buffer
+ * @param {Buffer} buffer
  * @param {number} offset
  */
 export function decodingLength(buffer, offset) {
@@ -164,17 +166,14 @@ function rle(state) {
 }
 
 /**
- * @param {State & { output: Uint8Array }} state
+ * @param {State & { output: Buffer }} state
  * @param {number} end
  */
 function encodeHead(state, end) {
   var headLength = end - state.inputOffset
   varint.encode(2 * headLength, state.output, state.outputOffset)
   state.outputOffset += varint.encode.bytes || 0
-  state.output.set(
-    state.input.subarray(state.inputOffset, end),
-    state.outputOffset
-  )
+  state.input.copy(state.output, state.outputOffset, state.inputOffset, end)
   state.outputOffset += headLength
 }
 
@@ -230,7 +229,7 @@ function encodeUpdate(state, i, len, bit) {
 /**
  *
  * @param {State} state
- * @returns {state is State & { output: Uint8Array }}
+ * @returns {state is State & { output: Buffer }}
  */
 function stateHasOutput(state) {
   return !!state.output
