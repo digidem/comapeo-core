@@ -7,7 +7,7 @@ import {
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { keyToId } from '../utils.js'
+import { ExhaustivenessError, keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
@@ -29,7 +29,7 @@ export const kRescindFullStopRequest = Symbol('foreground')
  * @property {number} wanted Number of blocks that connected peers want from us
  * @property {number} missing Number of blocks missing (we don't have them, but connected peers don't have them either)
  * @property {boolean} dataToSync Is there data available to sync? (want > 0 || wanted > 0)
- * @property {boolean} syncing Are we currently syncing?
+ * @property {boolean} isSyncEnabled Do we want to sync this type of data?
  */
 
 /**
@@ -132,10 +132,20 @@ export class SyncApi extends TypedEmitter {
   #getState(namespaceSyncState) {
     const state = reduceSyncState(namespaceSyncState)
 
-    state.data.syncing =
-      this.#wantsToSyncData &&
-      (!this.#hasRequestedFullStop ||
-        !isSynced(namespaceSyncState, 'full', this.#peerSyncControllers))
+    switch (this.#previousSyncEnabledState) {
+      case 'none':
+        state.initial.isSyncEnabled = state.data.isSyncEnabled = false
+        break
+      case 'presync':
+        state.initial.isSyncEnabled = true
+        state.data.isSyncEnabled = false
+        break
+      case 'all':
+        state.initial.isSyncEnabled = state.data.isSyncEnabled = true
+        break
+      default:
+        throw new ExhaustivenessError(this.#previousSyncEnabledState)
+    }
 
     return state
   }
@@ -366,6 +376,6 @@ function createInitialSyncTypeState() {
     wanted: 0,
     missing: 0,
     dataToSync: false,
-    syncing: true,
+    isSyncEnabled: true,
   }
 }

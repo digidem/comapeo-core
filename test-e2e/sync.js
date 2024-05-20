@@ -448,7 +448,7 @@ test('Correct sync state prior to data sync', async function (t) {
         wanted: docs.length,
         missing: 0,
         dataToSync: true,
-        syncing: false,
+        isSyncEnabled: false,
       },
       connectedPeers: managers.length - 1,
     }
