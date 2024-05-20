@@ -58,6 +58,8 @@ export class SyncApi extends TypedEmitter {
   #peerIds = new Set()
   #wantsToSyncData = false
   #isBackgrounded = false
+  /** @type {SyncEnabledState} */
+  #previousSyncEnabledState = 'none'
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
@@ -143,12 +145,7 @@ export class SyncApi extends TypedEmitter {
 
     /** @type {SyncEnabledState} */ let syncEnabledState
     if (this.#isBackgrounded) {
-      let isStopped = true
-      for (const peerSyncController of this.#peerSyncControllers.values()) {
-        isStopped = peerSyncController.syncEnabledState === 'none'
-        break
-      }
-      if (isStopped) {
+      if (this.#previousSyncEnabledState === 'none') {
         syncEnabledState = 'none'
       } else if (
         isSynced(
@@ -173,6 +170,8 @@ export class SyncApi extends TypedEmitter {
     }
 
     this.emit('sync-state', this.#getState(namespaceSyncState))
+
+    this.#previousSyncEnabledState = syncEnabledState
   }
 
   /**

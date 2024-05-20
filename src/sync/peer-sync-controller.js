@@ -89,10 +89,6 @@ export class PeerSyncController {
     return this.#syncCapability
   }
 
-  get syncEnabledState() {
-    return this.#syncEnabledState
-  }
-
   /** @param {SyncEnabledState} syncEnabledState */
   setSyncEnabledState(syncEnabledState) {
     if (this.#syncEnabledState === syncEnabledState) {
