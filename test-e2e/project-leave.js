@@ -278,11 +278,9 @@ test('Data access after leaving project', async (t) => {
       metadata: {},
     })
   }, 'member cannot create new data after leaving')
-  // It would also be reasonable for this to reject:
-  t.alike(
-    await memberProject.observation.getMany(),
-    [],
-    "Shouldn't have any observations after leaving"
+  await t.exception(
+    () => memberProject.observation.getMany(),
+    "Shouldn't be able to fetch observations after leaving"
   )
 
   t.alike(
