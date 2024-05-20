@@ -83,7 +83,9 @@ export class SyncApi extends TypedEmitter {
       peerSyncControllers: this.#pscByPeerId,
     })
     this[kSyncState].setMaxListeners(0)
-    this[kSyncState].on('state', this.#updateState)
+    this[kSyncState].on('state', (namespaceSyncState) => {
+      this.#updateState(namespaceSyncState)
+    })
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
     this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
@@ -150,9 +152,7 @@ export class SyncApi extends TypedEmitter {
     return state
   }
 
-  #updateState = () => {
-    const namespaceSyncState = this[kSyncState].getState()
-
+  #updateState(namespaceSyncState = this[kSyncState].getState()) {
     /** @type {SyncEnabledState} */ let syncEnabledState
     if (this.#hasRequestedFullStop) {
       if (this.#previousSyncEnabledState === 'none') {
