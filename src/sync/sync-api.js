@@ -11,8 +11,8 @@ import { keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
-export const kBackground = Symbol('background')
-export const kForeground = Symbol('foreground')
+export const kRequestFullStop = Symbol('background')
+export const kRescindFullStopRequest = Symbol('foreground')
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -57,7 +57,7 @@ export class SyncApi extends TypedEmitter {
   /** @type {Set<string>} */
   #peerIds = new Set()
   #wantsToSyncData = false
-  #isBackgrounded = false
+  #hasRequestedFullStop = false
   /** @type {SyncEnabledState} */
   #previousSyncEnabledState = 'none'
   /** @type {Map<import('protomux'), Set<Buffer>>} */
@@ -134,7 +134,7 @@ export class SyncApi extends TypedEmitter {
 
     state.data.syncing =
       this.#wantsToSyncData &&
-      (!this.#isBackgrounded ||
+      (!this.#hasRequestedFullStop ||
         !isSynced(namespaceSyncState, 'full', this.#peerSyncControllers))
 
     return state
@@ -144,7 +144,7 @@ export class SyncApi extends TypedEmitter {
     const namespaceSyncState = this[kSyncState].getState()
 
     /** @type {SyncEnabledState} */ let syncEnabledState
-    if (this.#isBackgrounded) {
+    if (this.#hasRequestedFullStop) {
       if (this.#previousSyncEnabledState === 'none') {
         syncEnabledState = 'none'
       } else if (
@@ -196,18 +196,18 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
-   * Gracefully stop syncing all cores.
+   * Request a graceful stop to all sync.
    */
-  [kBackground]() {
-    this.#isBackgrounded = true
+  [kRequestFullStop]() {
+    this.#hasRequestedFullStop = true
     this.#updateState()
   }
 
   /**
-   * Unpause.
+   * Rescind any requests for a full stop.
    */
-  [kForeground]() {
-    this.#isBackgrounded = false
+  [kRescindFullStopRequest]() {
+    this.#hasRequestedFullStop = false
     this.#updateState()
   }
 

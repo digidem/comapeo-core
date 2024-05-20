@@ -41,7 +41,11 @@ import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Roles } from './roles.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { Logger } from './logger.js'
-import { kSyncState, kBackground, kForeground } from './sync/sync-api.js'
+import {
+  kSyncState,
+  kRequestFullStop,
+  kRescindFullStopRequest,
+} from './sync/sync-api.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 /** @typedef {import('type-fest').SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
@@ -764,7 +768,7 @@ export class MapeoManager extends TypedEmitter {
    */
   onBackgrounded() {
     const projects = this.#activeProjects.values()
-    for (const project of projects) project.$sync[kBackground]()
+    for (const project of projects) project.$sync[kRequestFullStop]()
   }
 
   /**
@@ -777,7 +781,7 @@ export class MapeoManager extends TypedEmitter {
    */
   onForegrounded() {
     const projects = this.#activeProjects.values()
-    for (const project of projects) project.$sync[kForeground]()
+    for (const project of projects) project.$sync[kRescindFullStopRequest]()
   }
 
   /**
