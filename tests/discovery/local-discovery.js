@@ -119,7 +119,6 @@ async function testMultiple(t, { period, nPeers = 20 }) {
   const peersById = new Map()
   /** @type {Map<string, OpenedNoiseStream[]>} */
   const connsById = new Map()
-  // t.plan(3 * nPeers + 1)
 
   const { promise: fullyConnectedPromise, resolve: onFullyConnected } = pDefer()
 
