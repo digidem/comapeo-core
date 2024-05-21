@@ -42,7 +42,7 @@ jobs:
       - name: Push updated markdown docs
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: 'feat: update api markdown docs'
+          commit_message: 'docs: update API docs'
           file_pattern: 'docs/api/md/*'
       - uses: nearform-actions/optic-release-automation-action@v4
         with:

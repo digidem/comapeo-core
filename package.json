@@ -49,9 +49,6 @@
       "node": true
     },
     "extends": "eslint:recommended",
-    "ignorePatterns": [
-      "docs/*"
-    ],
     "parserOptions": {
       "ecmaVersion": 13,
       "sourceType": "module"
