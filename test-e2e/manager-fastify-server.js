@@ -293,6 +293,54 @@ test('retrieving icons using url', async (t) => {
   await exceptionPromise2
 })
 
+test('retrieving audio file', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
+
+  const fastify = Fastify()
+  const fastifyController = new FastifyController({ fastify })
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+    fastify,
+  })
+
+  const project = await manager.getProject(await manager.createProject())
+
+  // Manager should await for the server to start internally
+  fastifyController.start()
+  await t.test('creating audio', async () => {
+    const blobId = await project.$blobs.create(
+      { original: join(BLOB_FIXTURES_DIR, 'audio.mp3') },
+      { mimeType: 'audio/mp3' }
+    )
+    const blobUrl = await project.$blobs.getUrl({
+      ...blobId,
+      variant: 'original',
+    })
+    assert(
+      new URL(blobUrl),
+      'retrieving url based on HTTP server resolves after starting it'
+    )
+
+    const response = await fetch(blobUrl)
+
+    assert.equal(response.status, 200, 'response status ok')
+    assert.equal(
+      response.headers.get('content-type'),
+      'audio/mp3',
+      'matching content type header'
+    )
+    const expected = await fs.readFile(join(BLOB_FIXTURES_DIR, 'audio.mp3'))
+    const body = Buffer.from(await response.arrayBuffer())
+    assert.deepEqual(body, expected, 'matching reponse body')
+  })
+  clock.tick(100_000)
+})
+
 test('retrieving style.json using stable url', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
