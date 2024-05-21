@@ -22,7 +22,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - name: Generate HTML documentation
-        run: npm run doc:publish
+        run: |
+          npm ci
+          npm run doc:publish
       - id: upload-documentation
         name: Upload documentation to Pages
         uses: actions/upload-pages-artifact@v2
