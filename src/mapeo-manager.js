@@ -93,8 +93,6 @@ export class MapeoManager extends TypedEmitter {
   #loggerBase
   #l
   #defaultConfigPath
-  /** @readonly */
-  #deviceType
 
   /**
    * @param {Object} opts
@@ -104,7 +102,6 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
-   * @param {import('./generated/rpc.js').DeviceInfo['deviceType']} [opts.deviceType] Device type, shared with local peers and project members
    * @param {String} [opts.defaultConfigPath]
    */
   constructor({
@@ -114,13 +111,11 @@ export class MapeoManager extends TypedEmitter {
     clientMigrationsFolder,
     coreStorage,
     fastify,
-    deviceType,
     defaultConfigPath,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
-    this.#deviceType = deviceType
     this.#defaultConfigPath = defaultConfigPath
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
