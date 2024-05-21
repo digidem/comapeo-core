@@ -7,7 +7,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
-import { NAMESPACES } from './constants.js'
+import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
@@ -72,6 +72,7 @@ export class MapeoProject extends TypedEmitter {
   #projectId
   #deviceId
   #coreManager
+  #indexWriter
   #dataStores
   #dataTypes
   #blobStore
@@ -152,7 +153,7 @@ export class MapeoProject extends TypedEmitter {
       logger: this.#l,
     })
 
-    const indexWriter = new IndexWriter({
+    this.#indexWriter = new IndexWriter({
       tables: [
         observationTable,
         trackTable,
@@ -183,7 +184,7 @@ export class MapeoProject extends TypedEmitter {
       auth: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'auth',
-        batch: (entries) => indexWriter.batch(entries),
+        batch: (entries) => this.#indexWriter.batch(entries),
         storage: indexerStorage,
       }),
       config: new DataStore({
@@ -191,7 +192,7 @@ export class MapeoProject extends TypedEmitter {
         namespace: 'config',
         batch: (entries) =>
           this.#handleConfigEntries(entries, {
-            projectIndexWriter: indexWriter,
+            projectIndexWriter: this.#indexWriter,
             sharedIndexWriter,
           }),
         storage: indexerStorage,
@@ -199,7 +200,7 @@ export class MapeoProject extends TypedEmitter {
       data: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'data',
-        batch: (entries) => indexWriter.batch(entries),
+        batch: (entries) => this.#indexWriter.batch(entries),
         storage: indexerStorage,
       }),
     }
@@ -664,7 +665,10 @@ export class MapeoProject extends TypedEmitter {
       )
     }
 
-    // 2. Clear data from cores
+    // 2. Assign LEFT role for device
+    await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+
+    // 3. Clear data from cores
     // TODO: only clear synced data
     const namespacesWithoutAuth =
       /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
@@ -681,12 +685,24 @@ export class MapeoProject extends TypedEmitter {
       ])
     )
 
-    // TODO: 3. Clear data from indexes
-    // 3.1 Reset multi-core indexer state
-    // 3.2 Clear indexed data
+    // 4. Clear data from indexes
+    // 4.1 Reset multi-core indexer state
+    await Promise.all(
+      Object.values(this.#dataStores)
+        .filter((dataStore) => dataStore.namespace !== 'auth')
+        .map(async (dataStore) => {
+          await dataStore.close()
+          await dataStore.unlink()
+        })
+    )
 
-    // 4. Assign LEFT role for device
-    await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+    // 4.2 Clear indexed data
+    /** @type {Set<string>} */
+    const authSchemas = new Set(NAMESPACE_SCHEMAS.auth)
+    for (const schemaName of this.#indexWriter.schemas) {
+      const isAuthSchema = authSchemas.has(schemaName)
+      if (!isAuthSchema) this.#indexWriter.deleteSchema(schemaName)
+    }
   }
 
   /** @param {Object} opts

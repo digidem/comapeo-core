@@ -1,10 +1,10 @@
 // @ts-check
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
-import { once } from 'node:events'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
+import { pEvent } from 'p-event'
 import { connectPeers, createManagers, waitForPeers } from './utils.js'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
@@ -163,8 +163,11 @@ test('device info sent to peers', async (t) => {
 
   const otherManagersReceivedNameChangePromise = Promise.all(
     otherManagers.map(async (manager) => {
-      const [peersFromEvent] = await once(manager, 'local-peers')
-      t.is(peersFromEvent.find(isChangedPeer)?.name, 'new name')
+      await pEvent(
+        manager,
+        'local-peers',
+        (peers) => peers.find(isChangedPeer)?.name === 'new name'
+      )
 
       const updatedLocalPeers = await manager.listLocalPeers()
       t.is(updatedLocalPeers.find(isChangedPeer)?.name, 'new name')

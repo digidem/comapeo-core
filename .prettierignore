@@ -3,4 +3,6 @@
 /src/generated/
 *.snapshot.cjs
 /tests/fixtures/
-/docs/*
+/docs/
+/coverage/
+/proto/build/

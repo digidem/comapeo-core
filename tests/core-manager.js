@@ -168,8 +168,6 @@ test('multiplexing waits for cores to be added', async function (t) {
   // Mapeo code expects replication to work when cores are not added to the
   // replication stream at the same time. This is not explicitly tested in
   // Hypercore so we check here that this behaviour works.
-  t.plan(2)
-
   const a1 = await createCore()
   const a2 = await createCore()
 
