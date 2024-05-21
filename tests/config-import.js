@@ -143,7 +143,7 @@ test('config import - icons', async () => {
       assert.equal(icon.variants.length, 9, '9 - all - variants of tree icons')
     }
     for (let variant of icon.variants) {
-      assert.equal(variant.mimeType, 'image/png', 'varianassert.equal a png')
+      assert.equal(variant.mimeType, 'image/png', 'variant is a png')
     }
   }
   assert.equal(config.warnings.length, 0, 'no warnings on the file')
@@ -199,7 +199,7 @@ test('config import - presets', async () => {
   )
   assert(
     /invalid preset nullPreset/.test(config.warnings[1].message),
-    'the second error is because the preseassert.equal null'
+    'the second error is because the preset is null'
   )
 
   config = await readConfig('./tests/fixtures/config/validPreset.zip')
