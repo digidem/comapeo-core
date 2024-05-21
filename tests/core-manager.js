@@ -519,14 +519,8 @@ test('deleteOthersData()', async (t) => {
     const n1 = new NoiseSecretStream(true)
     const n2 = new NoiseSecretStream(false)
     n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
-    cm1[kCoreManagerReplicate](
-      // @ts-expect-error
-      n1
-    )
-    cm2[kCoreManagerReplicate](
-      // @ts-expect-error
-      n2
-    )
+    cm1[kCoreManagerReplicate](n1)
+    cm2[kCoreManagerReplicate](n2)
 
     // This delay is needed in order for replication to finish properly
     await new Promise((res) => setTimeout(res, 200))
