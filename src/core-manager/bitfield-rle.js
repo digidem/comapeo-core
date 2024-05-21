@@ -57,7 +57,7 @@ export function encode(bitfield, buffer, offset) {
 /**
  * @param {Buffer} bitfield
  */
-export function encodingLength(bitfield) {
+function encodingLength(bitfield) {
   var state = new State(bitfield, undefined, 0)
   rle(state)
   return state.outputOffset
