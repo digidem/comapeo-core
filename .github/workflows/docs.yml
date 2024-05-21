@@ -16,22 +16,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set git user
-        uses: fregante/setup-git-user@v1
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Generate Api docs
-        run: |
-          npm ci
-          npm run doc
-      - name: Push updated markdown docs
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: 'Update api markdown docs'
-          file_pattern: 'docs/api/md/*'
       - name: Generate HTML documentation
         run: npm run doc:publish
       - id: upload-documentation

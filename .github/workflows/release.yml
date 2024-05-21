@@ -32,15 +32,18 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
-      - name: Publish docs api to repo
+      - uses: actions/checkout@v4
+      - name: Set git user
+        uses: fregante/setup-git-user@v1
+      - name: Generate Api docs
         run: |
           npm ci
           npm run doc
-          git status
-          git add docs/api/md
-          git commit -am "updated api docs"
-          git fetch origin main
-          git push origin main
+      - name: Push updated markdown docs
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'feat: update api markdown docs'
+          file_pattern: 'docs/api/md/*'
       - uses: nearform-actions/optic-release-automation-action@v4
         with:
           commit-message: 'Release {version}'
