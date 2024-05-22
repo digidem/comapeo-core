@@ -338,6 +338,8 @@ test('retrieving audio file', async (t) => {
     const body = Buffer.from(await response.arrayBuffer())
     assert.deepEqual(body, expected, 'matching reponse body')
   })
+
+  await fastifyController.stop()
   clock.tick(100_000)
 })
 
