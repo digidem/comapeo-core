@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1713301821225,
-      "tag": "0000_burly_network",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1715798039939,
-      "tag": "0001_boring_jack_flag",
+      "when": 1716380870121,
+      "tag": "0000_square_zaran",
       "breakpoints": true
     }
   ]
