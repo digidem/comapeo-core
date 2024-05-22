@@ -1,0 +1,35 @@
+name: Publish documentation
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  publish-documentation:
+    permissions:
+      id-token: write
+      pages: write
+      contents: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Generate HTML documentation
+        run: |
+          npm ci
+          npm run doc:publish
+      - id: upload-documentation
+        name: Upload documentation to Pages
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: docs/api/html
+      - id: deployment
+        name: Deploy documentation to GitHub Pages
+        uses: actions/deploy-pages@v2
