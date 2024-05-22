@@ -1,4 +1,3 @@
-// @ts-check
 import { test } from 'brittle'
 
 import {

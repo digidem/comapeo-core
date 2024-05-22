@@ -1,4 +1,3 @@
-// @ts-check
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
