@@ -1,4 +1,3 @@
-// @ts-check
 import { test } from 'brittle'
 import { KeyManager } from '@mapeo/crypto'
 import { parseVersionId } from '@mapeo/schema'

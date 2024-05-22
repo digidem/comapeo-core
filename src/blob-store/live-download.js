@@ -1,4 +1,3 @@
-// @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { once } from 'node:events'
 import SubEncoder from 'sub-encoder'

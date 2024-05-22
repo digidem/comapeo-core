@@ -1,4 +1,3 @@
-// @ts-check
 import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode } from '@mapeo/schema'
