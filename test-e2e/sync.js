@@ -1,4 +1,3 @@
-// @ts-check
 import { test } from 'brittle'
 import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'

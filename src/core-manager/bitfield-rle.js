@@ -1,4 +1,3 @@
-// @ts-check
 // https://github.com/mafintosh/bitfield-rle/blob/31a0001/index.js
 // Vendored so that we can run cross-platform tests with latest Node versions
 // Modified to encode and decode Uint32Arrays
