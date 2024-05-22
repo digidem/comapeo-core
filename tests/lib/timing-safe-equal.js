@@ -1,30 +1,30 @@
-// @ts-check
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import timingSafeEqual from '../../src/lib/timing-safe-equal.js'
 
-test('comparing buffers', (t) => {
+test('comparing buffers', () => {
   const a = Buffer.from([1, 2, 3])
   const b = Buffer.from([1, 2, 3])
   const c = Buffer.from([4, 5, 6])
   const d = Buffer.from([7])
 
-  t.ok(timingSafeEqual(a, a))
-  t.ok(timingSafeEqual(a, b))
+  assert(timingSafeEqual(a, a))
+  assert(timingSafeEqual(a, b))
 
-  t.absent(timingSafeEqual(a, c))
-  t.absent(timingSafeEqual(a, d))
+  assert(!timingSafeEqual(a, c))
+  assert(!timingSafeEqual(a, d))
 })
 
-test('comparing strings', (t) => {
-  t.ok(timingSafeEqual('foo', 'foo'))
-  t.absent(timingSafeEqual('foo', 'bar'))
-  t.absent(timingSafeEqual('foo', 'x'))
-  t.absent(
-    timingSafeEqual(String.fromCharCode(0x49), String.fromCharCode(0x6c49)),
+test('comparing strings', () => {
+  assert(timingSafeEqual('foo', 'foo'))
+  assert(!timingSafeEqual('foo', 'bar'))
+  assert(!timingSafeEqual('foo', 'x'))
+  assert(
+    !timingSafeEqual(String.fromCharCode(0x49), String.fromCharCode(0x6c49)),
     'characters that might truncate the same are still different'
   )
-  t.absent(
-    timingSafeEqual('\udc69', '\udc6a'),
+  assert(
+    !timingSafeEqual('\udc69', '\udc6a'),
     'lone surrogates compare correctly'
   )
 })

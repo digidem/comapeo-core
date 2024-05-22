@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import Fastify from 'fastify'
 
 import { plugin } from '../../src/fastify-plugins/maps/static-maps.js'
@@ -10,7 +11,7 @@ const MAP_FIXTURES_PATH = new URL('../fixtures/maps', import.meta.url).pathname
 test('decorator', async (t) => {
   const server = setup(t)
   await server.ready()
-  t.ok(server.hasDecorator('mapeoStaticMaps'), 'decorator is set up')
+  assert(server.hasDecorator('mapeoStaticMaps'), 'decorator is set up')
 })
 
 test('list map styles', async (t) => {
@@ -22,11 +23,11 @@ test('list map styles', async (t) => {
     url: '/',
   })
 
-  t.is(response.statusCode, 200)
+  assert.equal(response.statusCode, 200)
 
   const data = response.json()
 
-  t.alike(
+  assert.deepEqual(
     data,
     [
       {
@@ -61,11 +62,11 @@ test('get style.json', async (t) => {
         url: `/${styleId}/style.json`,
       })
 
-      t.is(response.statusCode, 200)
+      assert.equal(response.statusCode, 200)
 
       const data = response.json()
 
-      t.alike(
+      assert.deepEqual(
         data,
         JSON.parse(rawStyleJson.replace(/\{host\}/gm, `${address}/${styleId}`)),
         'response data is correct'
@@ -94,8 +95,8 @@ test('get sprite.json', async (t) => {
         url: `/${styleId}/sprites/sprite.json`,
       })
 
-      t.is(response.statusCode, 200)
-      t.alike(response.json(), expectedJson)
+      assert.equal(response.statusCode, 200)
+      assert.deepEqual(response.json(), expectedJson)
     })
   )
 })
@@ -107,7 +108,7 @@ test('get tile (image)', async (t) => {
   const styleIds = fs.readdirSync(MAP_FIXTURES_PATH)
 
   for (const styleId of styleIds) {
-    t.test('non-existing tile', async (st) => {
+    await t.test('non-existing tile', async () => {
       // With extension
       {
         const response = await server.inject({
@@ -115,7 +116,7 @@ test('get tile (image)', async (t) => {
           url: `/${styleId}/tiles/mapbox.satellite/0/0/0.png`,
         })
 
-        st.is(response.statusCode, 404)
+        assert.equal(response.statusCode, 404)
       }
 
       // Without extension
@@ -125,22 +126,22 @@ test('get tile (image)', async (t) => {
           url: `/${styleId}/tiles/mapbox.satellite/0/0/0`,
         })
 
-        st.is(response.statusCode, 404)
+        assert.equal(response.statusCode, 404)
       }
     })
 
-    t.test('non-existing tile id', async (st) => {
+    await t.test('non-existing tile id', async () => {
       {
         const response = await server.inject({
           method: 'GET',
           url: `/${styleId}/tiles/foo.bar/6/10/24.png`,
         })
 
-        st.is(response.statusCode, 404)
+        assert.equal(response.statusCode, 404)
       }
     })
 
-    t.test('existing tile', async (st) => {
+    await t.test('existing tile', async () => {
       // With extension
       {
         const response = await server.inject({
@@ -148,13 +149,13 @@ test('get tile (image)', async (t) => {
           url: `/${styleId}/tiles/mapbox.satellite/6/10/24.png`,
         })
 
-        st.is(response.statusCode, 200)
-        st.is(
+        assert.equal(response.statusCode, 200)
+        assert.equal(
           response.headers['content-type'],
           'image/png',
           'content type correct'
         )
-        st.is(
+        assert.equal(
           getContentLength(response.headers),
           21014,
           'correct content length'
@@ -168,13 +169,13 @@ test('get tile (image)', async (t) => {
           url: `/${styleId}/tiles/mapbox.satellite/6/10/24`,
         })
 
-        st.is(response.statusCode, 200)
-        st.is(
+        assert.equal(response.statusCode, 200)
+        assert.equal(
           response.headers['content-type'],
           'image/png',
           'content type correct'
         )
-        st.is(
+        assert.equal(
           getContentLength(response.headers),
           21014,
           'correct content length'
@@ -193,15 +194,15 @@ test('get tile (pbf)', async (t) => {
     url: '/streets-sat-style/tiles/mapbox.mapbox-streets-v7/12/656/1582.vector.pbf',
   })
 
-  t.is(response.statusCode, 200)
+  assert.equal(response.statusCode, 200)
 
-  t.is(
+  assert.equal(
     response.headers['content-type'],
     'application/x-protobuf',
     'content type correct'
   )
 
-  t.is(getContentLength(response.headers), 49229, 'correct file length')
+  assert.equal(getContentLength(response.headers), 49229, 'correct file length')
 })
 
 test('get font pbf', async (t) => {
@@ -213,26 +214,26 @@ test('get font pbf', async (t) => {
     url: '/streets-sat-style/fonts/DIN Offc Pro Bold,Arial Unicode MS Bold/0-255.pbf',
   })
 
-  t.is(response.statusCode, 200)
+  assert.equal(response.statusCode, 200)
 
-  t.is(
+  assert.equal(
     response.headers['content-type'],
     'application/x-protobuf',
     'content type correct'
   )
 
-  t.is(getContentLength(response.headers), 75287, 'correct file length')
+  assert.equal(getContentLength(response.headers), 75287, 'correct file length')
 })
 
 /**
- * @param {import('brittle').TestInstance} t
+ * @param {import('node:test').TestContext} t
  */
 function setup(t) {
   const server = Fastify({ logger: false, forceCloseConnections: true })
 
   server.register(plugin, { staticRootDir: MAP_FIXTURES_PATH })
 
-  t.teardown(async () => {
+  t.after(async () => {
     await server.close()
   })
 

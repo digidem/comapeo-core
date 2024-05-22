@@ -1,17 +1,20 @@
 // @ts-check
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { randomBytes } from 'crypto'
 import fastify from 'fastify'
 
 import IconServerPlugin from '../../src/fastify-plugins/icons.js'
 import { projectKeyToPublicId } from '../../src/utils.js'
 
-test('Plugin throws error if missing getProject option', async (t) => {
+test('Plugin throws error if missing getProject option', async () => {
   const server = fastify()
-  await t.exception(() => server.register(IconServerPlugin))
+  await assert.rejects(async () => {
+    await server.register(IconServerPlugin)
+  })
 })
 
-test('Plugin handles prefix option properly', async (t) => {
+test('Plugin handles prefix option properly', async () => {
   const prefix = 'icons'
 
   const server = fastify()
@@ -33,10 +36,10 @@ test('Plugin handles prefix option properly', async (t) => {
     })}`,
   })
 
-  t.not(response.statusCode, 404, 'returns non-404 status code')
+  assert.notEqual(response.statusCode, 404, 'returns non-404 status code')
 })
 
-test('url param validation', async (t) => {
+test('url param validation', async () => {
   const server = fastify()
 
   server.register(IconServerPlugin, {
@@ -99,16 +102,14 @@ test('url param validation', async (t) => {
   ]
 
   await Promise.all(
-    fixtures.map(async ([name, input]) => {
+    fixtures.map(async ([_, input]) => {
       const response = await server.inject({
         method: 'GET',
         url: buildIconUrl(input),
       })
 
-      t.comment(name)
-
-      t.is(response.statusCode, 400, 'returns expected status code')
-      t.is(
+      assert.equal(response.statusCode, 400, 'returns expected status code')
+      assert.equal(
         response.json().code,
         'FST_ERR_VALIDATION',
         'error is validation error'
