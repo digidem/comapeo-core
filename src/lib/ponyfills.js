@@ -1,5 +1,3 @@
-// @ts-check
-
 /**
  * Ponyfill of `AbortSignal.any()`.
  *
