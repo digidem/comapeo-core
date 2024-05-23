@@ -1,6 +1,6 @@
-// @ts-check
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
+import { once } from 'node:events'
 
 import {
   COORDINATOR_ROLE_ID,
@@ -166,7 +166,6 @@ test('getting invited member after invite accepted', async (t) => {
 })
 
 test('invite uses custom role name when provided', async (t) => {
-  t.plan(1)
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
   connectPeers(managers)
@@ -174,9 +173,7 @@ test('invite uses custom role name when provided', async (t) => {
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
-  invitee.invite.on('invite-received', ({ roleName }) => {
-    t.is(roleName, 'friend', 'roleName should be equal')
-  })
+  const inviteReceivedPromise = once(invitee.invite, 'invite-received')
 
   await invite({
     invitor,
@@ -186,11 +183,13 @@ test('invite uses custom role name when provided', async (t) => {
     reject: true,
   })
 
+  const [{ roleName }] = await inviteReceivedPromise
+  t.is(roleName, 'friend', 'roleName should be equal')
+
   await disconnectPeers(managers)
 })
 
 test('invite uses default role name when not provided', async (t) => {
-  t.plan(1)
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
   connectPeers(managers)
@@ -198,13 +197,7 @@ test('invite uses default role name when not provided', async (t) => {
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
-  invitee.invite.on('invite-received', ({ roleName }) => {
-    t.is(
-      roleName,
-      ROLES[MEMBER_ROLE_ID].name,
-      '`roleName` should use the fallback by deriving `roleId`'
-    )
-  })
+  const inviteReceivedPromise = once(invitee.invite, 'invite-received')
 
   await invite({
     invitor,
@@ -212,6 +205,13 @@ test('invite uses default role name when not provided', async (t) => {
     invitees: [invitee],
     reject: true,
   })
+
+  const [{ roleName }] = await inviteReceivedPromise
+  t.is(
+    roleName,
+    ROLES[MEMBER_ROLE_ID].name,
+    '`roleName` should use the fallback by deriving `roleId`'
+  )
 
   await disconnectPeers(managers)
 })

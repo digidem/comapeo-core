@@ -1,5 +1,5 @@
-// @ts-check
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
@@ -8,6 +8,7 @@ import Fastify from 'fastify'
 import { getExpectedConfig } from './utils.js'
 import { defaultConfigPath } from '../tests/helpers/default-config.js'
 import { kDataTypes } from '../src/mapeo-project.js'
+import { hashObject } from '../src/utils.js'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -29,10 +30,10 @@ test('Managing created projects', async (t) => {
     name: 'project 2',
   })
 
-  await t.test('initial information from listed projects', async (st) => {
+  await t.test('initial information from listed projects', async () => {
     const listedProjects = await manager.listProjects()
 
-    st.is(listedProjects.length, 2)
+    assert.equal(listedProjects.length, 2)
 
     const listedProject1 = listedProjects.find(
       (p) => p.projectId === project1Id
@@ -42,40 +43,40 @@ test('Managing created projects', async (t) => {
       (p) => p.projectId === project2Id
     )
 
-    st.ok(listedProject1)
-    st.absent(listedProject1?.name)
-    st.ok(listedProject1?.createdAt)
-    st.ok(listedProject1?.updatedAt)
+    assert(listedProject1)
+    assert(!listedProject1?.name)
+    assert(listedProject1?.createdAt)
+    assert(listedProject1?.updatedAt)
 
-    st.ok(listedProject2)
-    st.is(listedProject2?.name, 'project 2')
-    st.ok(listedProject2?.createdAt)
-    st.ok(listedProject2?.updatedAt)
+    assert(listedProject2)
+    assert.equal(listedProject2?.name, 'project 2')
+    assert(listedProject2?.createdAt)
+    assert(listedProject2?.updatedAt)
   })
 
   const project1 = await manager.getProject(project1Id)
   const project2 = await manager.getProject(project2Id)
 
-  t.ok(project1)
-  t.ok(project2)
+  assert(project1)
+  assert(project2)
 
-  await t.test('initial settings from project instances', async (st) => {
+  await t.test('initial settings from project instances', async () => {
     const settings1 = await project1.$getProjectSettings()
     const settings2 = await project2.$getProjectSettings()
 
-    st.alike(
+    assert.deepEqual(
       settings1,
       { name: undefined, defaultPresets: undefined },
       'undefined name and default presets for project1'
     )
-    st.alike(
+    assert.deepEqual(
       settings2,
       { name: 'project 2', defaultPresets: undefined },
       'matched name for project2 with undefined default presets'
     )
   })
 
-  await t.test('after updating project settings', async (st) => {
+  await t.test('after updating project settings', async () => {
     await project1.$setProjectSettings({
       name: 'project 1',
     })
@@ -86,13 +87,13 @@ test('Managing created projects', async (t) => {
     const settings1 = await project1.$getProjectSettings()
     const settings2 = await project2.$getProjectSettings()
 
-    st.is(settings1.name, 'project 1')
+    assert.equal(settings1.name, 'project 1')
 
-    st.is(settings2.name, 'project 2 updated')
+    assert.equal(settings2.name, 'project 2 updated')
 
     const listedProjects = await manager.listProjects()
 
-    st.is(listedProjects.length, 2)
+    assert.equal(listedProjects.length, 2)
 
     const project1FromListed = listedProjects.find(
       (p) => p.projectId === project1Id
@@ -102,15 +103,15 @@ test('Managing created projects', async (t) => {
       (p) => p.projectId === project2Id
     )
 
-    st.ok(project1FromListed)
-    st.is(project1FromListed?.name, 'project 1')
-    st.ok(project1FromListed?.createdAt)
-    st.ok(project1FromListed?.updatedAt)
+    assert(project1FromListed)
+    assert.equal(project1FromListed?.name, 'project 1')
+    assert(project1FromListed?.createdAt)
+    assert(project1FromListed?.updatedAt)
 
-    st.ok(project2FromListed)
-    st.is(project2FromListed?.name, 'project 2 updated')
-    st.ok(project2FromListed?.createdAt)
-    st.ok(project2FromListed?.updatedAt)
+    assert(project2FromListed)
+    assert.equal(project2FromListed?.name, 'project 2 updated')
+    assert(project2FromListed?.createdAt)
+    assert(project2FromListed?.updatedAt)
   })
 })
 
@@ -136,29 +137,29 @@ test('Consistent loading of config', async (t) => {
   const projectPresets = await project.preset.getMany()
   await t.test(
     'load default config and check if correctly loaded',
-    async (st) => {
-      st.is(
+    async () => {
+      assert.equal(
         //@ts-ignore
         projectSettings.defaultPresets.point.length,
         expectedDefault.presets.length,
         'the default presets loaded is equal to the number of presets in the default config'
       )
 
-      st.alike(
+      assert.deepEqual(
         projectPresets.map((preset) => preset.name),
         expectedDefault.presets.map((preset) => preset.value.name),
         'project is loading the default presets correctly'
       )
 
       const projectFields = await project.field.getMany()
-      st.alike(
+      assert.deepEqual(
         projectFields.map((field) => field.tagKey),
         expectedDefault.fields.map((field) => field.value.tagKey),
         'project is loading the default fields correctly'
       )
 
       const projectIcons = await project[kDataTypes].icon.getMany()
-      st.alike(
+      assert.deepEqual(
         projectIcons.map((icon) => icon.name),
         expectedDefault.icons.map((icon) => icon.name),
         'project is loading the default icons correctly'
@@ -166,58 +167,55 @@ test('Consistent loading of config', async (t) => {
     }
   )
 
-  await t.test(
-    'loading non-default config when creating project',
-    async (st) => {
-      const configPath = 'tests/fixtures/config/completeConfig.zip'
-      const projectId = await manager.createProject({ configPath })
+  await t.test('loading non-default config when creating project', async () => {
+    const configPath = 'tests/fixtures/config/completeConfig.zip'
+    const projectId = await manager.createProject({ configPath })
 
-      const project = await manager.getProject(projectId)
+    const project = await manager.getProject(projectId)
 
-      const projectSettings = await project.$getProjectSettings()
-      st.is(
-        projectSettings.defaultPresets?.point.length,
-        expectedMinimal.presets.length,
-        'the default presets loaded is equal to the number of presets in the default config'
-      )
+    const projectSettings = await project.$getProjectSettings()
+    assert.equal(
+      projectSettings.defaultPresets?.point.length,
+      expectedMinimal.presets.length,
+      'the default presets loaded is equal to the number of presets in the default config'
+    )
 
-      const projectPresets = await project.preset.getMany()
-      st.alike(
-        projectPresets.map((preset) => preset.name),
-        expectedMinimal.presets.map((preset) => preset.value.name),
-        'project is loading the default presets correctly'
-      )
+    const projectPresets = await project.preset.getMany()
+    assert.deepEqual(
+      projectPresets.map((preset) => preset.name),
+      expectedMinimal.presets.map((preset) => preset.value.name),
+      'project is loading the default presets correctly'
+    )
 
-      const projectFields = await project.field.getMany()
-      st.alike(
-        projectFields.map((field) => field.tagKey),
-        expectedMinimal.fields.map((field) => field.value.tagKey),
-        'project is loading the default fields correctly'
-      )
+    const projectFields = await project.field.getMany()
+    assert.deepEqual(
+      projectFields.map((field) => field.tagKey),
+      expectedMinimal.fields.map((field) => field.value.tagKey),
+      'project is loading the default fields correctly'
+    )
 
-      const projectIcons = await project[kDataTypes].icon.getMany()
-      st.alike(
-        projectIcons.map((icon) => icon.name),
-        expectedMinimal.icons.map((icon) => icon.name),
-        'project is loading the default icons correctly'
-      )
-    }
-  )
+    const projectIcons = await project[kDataTypes].icon.getMany()
+    assert.deepEqual(
+      projectIcons.map((icon) => icon.name),
+      expectedMinimal.icons.map((icon) => icon.name),
+      'project is loading the default icons correctly'
+    )
+  })
 
   await t.test(
     'load different config and check if correctly loaded',
-    async (st) => {
+    async () => {
       const configPath = 'tests/fixtures/config/completeConfig.zip'
       await project.importConfig({ configPath })
       const projectPresets = await project.preset.getMany()
-      st.alike(
+      assert.deepEqual(
         projectPresets.map((preset) => preset.name),
         expectedMinimal.presets.map((preset) => preset.value.name),
         'project presets explicitly loaded match expected config'
       )
 
       const projectFields = await project.field.getMany()
-      st.alike(
+      assert.deepEqual(
         projectFields.map((field) => field.tagKey),
         expectedMinimal.fields.map((field) => field.value.tagKey),
         'project fields explicitly loaded match expected config'
@@ -225,7 +223,7 @@ test('Consistent loading of config', async (t) => {
 
       // TODO: since we don't delete icons, this wouldn't match
       // const projectIcons = await project1[kDataTypes].icon.getMany()
-      // st.alike(
+      // assert.deepEqual(
       //   projectIcons.map((icon) => icon.name),
       //   loadedIcons.map((icon) => icon.name)
       // )
@@ -261,10 +259,10 @@ test('Managing added projects', async (t) => {
     { waitForSync: false }
   )
 
-  await t.test('initial information from listed projects', async (st) => {
+  await t.test('initial information from listed projects', async () => {
     const listedProjects = await manager.listProjects()
 
-    st.is(listedProjects.length, 2)
+    assert.equal(listedProjects.length, 2)
 
     const listedProject1 = listedProjects.find(
       (p) => p.projectId === project1Id
@@ -274,41 +272,44 @@ test('Managing added projects', async (t) => {
       (p) => p.projectId === project2Id
     )
 
-    st.ok(listedProject1)
-    st.is(listedProject1?.name, 'project 1')
-    st.absent(listedProject1?.createdAt)
-    st.absent(listedProject1?.updatedAt)
+    assert(listedProject1)
+    assert.equal(listedProject1?.name, 'project 1')
+    assert(!listedProject1?.createdAt)
+    assert(!listedProject1?.updatedAt)
 
-    st.ok(listedProject2)
-    st.is(listedProject2?.name, 'project 2')
-    st.absent(listedProject2?.createdAt)
-    st.absent(listedProject2?.updatedAt)
+    assert(listedProject2)
+    assert.equal(listedProject2?.name, 'project 2')
+    assert(!listedProject2?.createdAt)
+    assert(!listedProject2?.updatedAt)
   })
 
-  // TODO: Ideally would use the todo opt but usage in a subtest doesn't work:  https://github.com/holepunchto/brittle/issues/39
-  // t.test('initial settings from project instances', async (t) => {
-  //   const project1 = await manager.getProject(project1Id)
-  //   const project2 = await manager.getProject(project2Id)
+  await t.test(
+    'initial settings from project instances',
+    { skip: true },
+    async () => {
+      const project1 = await manager.getProject(project1Id)
+      const project2 = await manager.getProject(project2Id)
 
-  //   t.ok(project1)
-  //   t.ok(project2)
+      assert(project1)
+      assert(project2)
 
-  //   const settings1 = await project1.$getProjectSettings()
-  //   const settings2 = await project2.$getProjectSettings()
+      const settings1 = await project1.$getProjectSettings()
+      const settings2 = await project2.$getProjectSettings()
 
-  //   t.alike(settings1, {
-  //     name: 'project 1',
-  //     defaultPresets: undefined,
-  //   })
+      assert.deepEqual(settings1, {
+        name: 'project 1',
+        defaultPresets: undefined,
+      })
 
-  //   t.alike(settings2, {
-  //     name: 'project 2',
-  //     defaultPresets: undefined,
-  //   })
-  // })
+      assert.deepEqual(settings2, {
+        name: 'project 2',
+        defaultPresets: undefined,
+      })
+    }
+  )
 })
 
-test('Managing both created and added projects', async (t) => {
+test('Managing both created and added projects', async () => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
@@ -333,26 +334,26 @@ test('Managing both created and added projects', async (t) => {
 
   const listedProjects = await manager.listProjects()
 
-  t.is(listedProjects.length, 2)
+  assert.equal(listedProjects.length, 2)
 
   const createdProjectListed = listedProjects.find(
     ({ projectId }) => projectId === createdProjectId
   )
-  t.ok(createdProjectListed, 'created project is listed')
+  assert(createdProjectListed, 'created project is listed')
 
   const addedProjectListed = listedProjects.find(
     ({ projectId }) => projectId === addedProjectId
   )
-  t.ok(addedProjectListed, 'added project is listed')
+  assert(addedProjectListed, 'added project is listed')
 
   const createdProject = await manager.getProject(createdProjectId)
-  t.ok(createdProject)
+  assert(createdProject)
 
   const addedProject = await manager.getProject(addedProjectId)
-  t.ok(addedProject)
+  assert(addedProject)
 })
 
-test('Manager cannot add project that already exists', async (t) => {
+test('Manager cannot add project that already exists', async () => {
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
@@ -366,7 +367,7 @@ test('Manager cannot add project that already exists', async (t) => {
 
   const existingProjectsCountBefore = (await manager.listProjects()).length
 
-  await t.exception(
+  await assert.rejects(
     async () =>
       manager.addProject({
         projectKey: Buffer.from(existingProjectId, 'hex'),
@@ -378,10 +379,10 @@ test('Manager cannot add project that already exists', async (t) => {
 
   const existingProjectsCountAfter = (await manager.listProjects()).length
 
-  t.is(existingProjectsCountBefore, existingProjectsCountAfter)
+  assert.equal(existingProjectsCountBefore, existingProjectsCountAfter)
 })
 
-test('Consistent storage folders', async (t) => {
+test('Consistent storage folders', async () => {
   /** @type {string[]} */
   const storageNames = []
   const manager = new MapeoManager({
@@ -410,7 +411,11 @@ test('Consistent storage folders', async (t) => {
     await project.$getOwnRole()
   }
 
-  t.snapshot(storageNames.sort())
+  assert.equal(
+    hashObject(storageNames.sort()),
+    '0c177494a78a8564be24976b2805a06dd9b8bfc7515ba62f1cfec1cba6f66152',
+    'storage names match snapshot'
+  )
 })
 
 /**

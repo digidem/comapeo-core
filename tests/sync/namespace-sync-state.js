@@ -1,5 +1,5 @@
-//@ts-check
 import test from 'brittle'
+import pDefer from 'p-defer'
 import { KeyManager } from '@mapeo/crypto'
 import { NamespaceSyncState } from '../../src/sync/namespace-sync-state.js'
 import {
@@ -11,7 +11,6 @@ import {
 import { randomBytes } from 'crypto'
 
 test('sync cores in a namespace', async function (t) {
-  t.plan(2)
   const projectKeyPair = KeyManager.generateProjectKeypair()
   const rootKey1 = randomBytes(16)
   const rootKey2 = randomBytes(16)
@@ -38,8 +37,8 @@ test('sync cores in a namespace', async function (t) {
     waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
-  let syncState1Synced = false
-  let syncState2Synced = false
+  const syncState1Sync = pDefer()
+  const syncState2Sync = pDefer()
 
   const syncState1 = new NamespaceSyncState({
     coreManager: cm1,
@@ -50,20 +49,9 @@ test('sync cores in a namespace', async function (t) {
         state.localState.want === 0 &&
         state.localState.wanted === 0 &&
         state.localState.have === 30 &&
-        state.localState.missing === 10 &&
-        !syncState1Synced
+        state.localState.missing === 10
       ) {
-        const expected = {
-          [km2.getIdentityKeypair().publicKey.toString('hex')]: {
-            want: 0,
-            wanted: 0,
-            have: 30,
-            missing: 10,
-            status: 'connected',
-          },
-        }
-        t.alike(state.remoteStates, expected, 'syncState1 is synced')
-        syncState1Synced = true
+        syncState1Sync.resolve(state.remoteStates)
       }
     },
     peerSyncControllers: new Map(),
@@ -78,20 +66,9 @@ test('sync cores in a namespace', async function (t) {
         state.localState.want === 0 &&
         state.localState.wanted === 0 &&
         state.localState.have === 30 &&
-        state.localState.missing === 10 &&
-        !syncState2Synced
+        state.localState.missing === 10
       ) {
-        const expected = {
-          [km1.getIdentityKeypair().publicKey.toString('hex')]: {
-            want: 0,
-            wanted: 0,
-            have: 30,
-            missing: 10,
-            status: 'connected',
-          },
-        }
-        t.alike(state.remoteStates, expected, 'syncState2 is synced')
-        syncState2Synced = true
+        syncState2Sync.resolve(state.remoteStates)
       }
     },
     peerSyncControllers: new Map(),
@@ -118,10 +95,37 @@ test('sync cores in a namespace', async function (t) {
     const core = cm2.getCoreByKey(key)
     core?.download({ start: 0, end: -1 })
   }
+
+  t.alike(
+    await syncState1Sync.promise,
+    {
+      [km2.getIdentityKeypair().publicKey.toString('hex')]: {
+        want: 0,
+        wanted: 0,
+        have: 30,
+        missing: 10,
+        status: 'connected',
+      },
+    },
+    'syncState1 is synced'
+  )
+
+  t.alike(
+    await syncState2Sync.promise,
+    {
+      [km1.getIdentityKeypair().publicKey.toString('hex')]: {
+        want: 0,
+        wanted: 0,
+        have: 30,
+        missing: 10,
+        status: 'connected',
+      },
+    },
+    'syncState2 is synced'
+  )
 })
 
-test('replicate with updating data', async function (t) {
-  t.plan(2)
+test('replicate with updating data', async function () {
   const fillLength = 5000
 
   const projectKeyPair = KeyManager.generateProjectKeypair()
@@ -151,8 +155,8 @@ test('replicate with updating data', async function (t) {
     waitForCores(cm2, getKeys(cm1, 'auth')),
   ])
 
-  let syncState1AlreadyDone = false
-  let syncState2AlreadyDone = false
+  const syncState1Sync = pDefer()
+  const syncState2Sync = pDefer()
 
   const syncState1 = new NamespaceSyncState({
     coreManager: cm1,
@@ -161,10 +165,7 @@ test('replicate with updating data', async function (t) {
       const { localState } = syncState1.getState()
       const synced =
         localState.wanted === 0 && localState.have === fillLength * 2
-      if (synced && !syncState1AlreadyDone) {
-        t.ok(synced, 'syncState1 is synced')
-        syncState1AlreadyDone = true
-      }
+      if (synced) syncState1Sync.resolve()
     },
     peerSyncControllers: new Map(),
   })
@@ -176,10 +177,7 @@ test('replicate with updating data', async function (t) {
       const { localState } = syncState2.getState()
       const synced =
         localState.wanted === 0 && localState.have === fillLength * 2
-      if (synced && !syncState2AlreadyDone) {
-        t.ok(synced, 'syncState2 is synced')
-        syncState2AlreadyDone = true
-      }
+      if (synced) syncState2Sync.resolve()
     },
     peerSyncControllers: new Map(),
   })
@@ -198,4 +196,6 @@ test('replicate with updating data', async function (t) {
     const core = cm2.getCoreByKey(key)
     core?.download({ start: 0, end: -1 })
   }
+
+  await Promise.all([syncState1Sync.promise, syncState2Sync.promise])
 })

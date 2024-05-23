@@ -1,5 +1,5 @@
-// @ts-check
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
@@ -8,7 +8,7 @@ import { MapeoManager } from '../src/mapeo-manager.js'
 import { MapeoProject } from '../src/mapeo-project.js'
 import { removeUndefinedFields } from './utils.js'
 
-test('Project settings create, read, and update operations', async (t) => {
+test('Project settings create, read, and update operations', async () => {
   const fastify = Fastify()
 
   const manager = new MapeoManager({
@@ -24,21 +24,21 @@ test('Project settings create, read, and update operations', async (t) => {
 
   const projectId = await manager.createProject()
 
-  t.ok(
+  assert(
     projectId && typeof projectId === 'string',
     'probably valid project ID returned when creating project'
   )
 
   const project = await manager.getProject(projectId)
 
-  t.ok(
+  assert(
     project instanceof MapeoProject,
     'manager.getProject() returns MapeoProject instance'
   )
 
   const initialSettings = await project.$getProjectSettings()
 
-  t.alike(
+  assert.deepEqual(
     removeUndefinedFields(initialSettings),
     {},
     'project has no settings when initially created'
@@ -50,11 +50,15 @@ test('Project settings create, read, and update operations', async (t) => {
 
   const updatedSettings = await project.$setProjectSettings(expectedSettings)
 
-  t.is(updatedSettings.name, expectedSettings.name, 'updatable settings change')
+  assert.equal(
+    updatedSettings.name,
+    expectedSettings.name,
+    'updatable settings change'
+  )
 
   const settings = await project.$getProjectSettings()
 
-  t.alike(
+  assert.deepEqual(
     settings,
     updatedSettings,
     'retrieved settings are equivalent to most recently updated'

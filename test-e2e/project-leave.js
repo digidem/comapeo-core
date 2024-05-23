@@ -1,4 +1,3 @@
-// @ts-check
 import { test } from 'brittle'
 
 import {
@@ -248,6 +247,20 @@ test('Data access after leaving project', async (t) => {
 
   const [, coordinatorProject, memberProject] = projects
 
+  await memberProject.observation.create({
+    schemaName: 'observation',
+    attachments: [],
+    tags: {},
+    refs: [],
+    metadata: {},
+  })
+  t.ok(
+    (await memberProject.observation.getMany()).length >= 1,
+    'Test is set up correctly'
+  )
+
+  await waitForSync(projects, 'initial')
+
   await Promise.all([
     coordinator.leaveProject(projectId),
     member.leaveProject(projectId),
@@ -264,6 +277,10 @@ test('Data access after leaving project', async (t) => {
       metadata: {},
     })
   }, 'member cannot create new data after leaving')
+  await t.exception(
+    () => memberProject.observation.getMany(),
+    "Shouldn't be able to fetch observations after leaving"
+  )
 
   t.alike(
     await memberProject.$getProjectSettings(),

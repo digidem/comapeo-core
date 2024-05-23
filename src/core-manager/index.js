@@ -1,4 +1,3 @@
-// @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
 import { debounce } from 'throttle-debounce'
