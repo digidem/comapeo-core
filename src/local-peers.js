@@ -1,4 +1,3 @@
-// @ts-check
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import { assert, ExhaustivenessError, keyToId, noop } from './utils.js'

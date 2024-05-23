@@ -15,18 +15,6 @@ test('encodes and decodes', function () {
   )
 })
 
-test('encodingLength', function () {
-  var bits = new Bitfield(1024)
-  var len = rle.encodingLength(bits.buffer)
-  assert(len < bits.buffer.length, 'is smaller')
-  var deflated = rle.encode(bits.buffer)
-  assert.deepEqual(
-    len,
-    deflated.length,
-    'encoding length is similar to encoded buffers length'
-  )
-})
-
 test('encodes and decodes with all bits set', function () {
   var bits = new Bitfield(1024)
 
@@ -104,26 +92,18 @@ test('encodes empty bitfield', function () {
 })
 
 test('throws on bad input', function () {
-  assert.throws(
-    function () {
-      rle.decode(toUint32Array([100, 0, 0, 0]))
-    },
-    undefined,
-    'invalid delta count'
-  )
+  assert.throws(function () {
+    rle.decode(Buffer.from([100, 0, 0, 0]))
+  }, 'invalid delta count')
   // t.exception.all also catches RangeErrors, which is what we expect from this
-  assert.throws(
-    function () {
-      rle.decode(
-        toUint32Array([
-          10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0,
-          10, 0,
-        ])
-      )
-    },
-    undefined,
-    'missing delta'
-  )
+  assert.throws(function () {
+    rle.decode(
+      Buffer.from([
+        10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0, 10, 0,
+        10, 0,
+      ])
+    )
+  }, 'missing delta')
 })
 
 test('not power of two', function () {
@@ -136,7 +116,7 @@ test('not power of two', function () {
   )
 })
 
-/** @param {Bitfield | Buffer | Array<number>} b */
+/** @param {Bitfield | Uint8Array | Array<number>} b */
 function toUint32Array(b) {
   if (Array.isArray(b)) {
     b = Buffer.from(b)

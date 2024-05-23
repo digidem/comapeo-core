@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {string | number | bigint | boolean | undefined | symbol | null} Primitive */
 
 /**

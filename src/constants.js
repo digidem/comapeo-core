@@ -7,3 +7,16 @@ export const NAMESPACES = /** @type {const} */ ([
   'blobIndex',
   'blob',
 ])
+
+export const NAMESPACE_SCHEMAS = /** @type {const} */ ({
+  data: ['observation', 'track'],
+  config: [
+    'translation',
+    'preset',
+    'field',
+    'projectSettings',
+    'deviceInfo',
+    'icon',
+  ],
+  auth: ['coreOwnership', 'role'],
+})

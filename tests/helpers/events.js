@@ -1,4 +1,3 @@
-// @ts-check
 import { assert } from '../../src/utils.js'
 import { pEventIterator } from 'p-event'
 import { arrayFrom } from 'iterpal'

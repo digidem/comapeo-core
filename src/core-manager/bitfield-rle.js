@@ -1,4 +1,3 @@
-// @ts-check
 // https://github.com/mafintosh/bitfield-rle/blob/31a0001/index.js
 // Vendored so that we can run cross-platform tests with latest Node versions
 // Modified to encode and decode Uint32Arrays
@@ -57,7 +56,7 @@ export function encode(bitfield, buffer, offset) {
 /**
  * @param {Buffer} bitfield
  */
-export function encodingLength(bitfield) {
+function encodingLength(bitfield) {
   var state = new State(bitfield, undefined, 0)
   rle(state)
   return state.outputOffset

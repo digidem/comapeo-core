@@ -1,4 +1,3 @@
-// @ts-check
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { once } from 'node:events'

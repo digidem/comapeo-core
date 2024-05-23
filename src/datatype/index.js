@@ -1,4 +1,3 @@
-// @ts-check
 import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, sql } from 'drizzle-orm'
@@ -118,6 +117,14 @@ export class DataType extends TypedEmitter {
 
   get [kTable]() {
     return this.#table
+  }
+
+  get schemaName() {
+    return this.#schemaName
+  }
+
+  get namespace() {
+    return this.#dataStore.namespace
   }
 
   get writerCore() {
