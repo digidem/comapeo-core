@@ -1,4 +1,5 @@
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
@@ -17,7 +18,7 @@ import { createCoreManager } from './helpers/core-manager.js'
 import { iconTable } from '../src/schema/project.js'
 import { IndexWriter } from '../src/index-writer/index.js'
 
-test('create()', async (t) => {
+test('create()', async () => {
   const { iconApi, iconDataType } = setup()
 
   const expectedName = 'myIcon'
@@ -25,7 +26,7 @@ test('create()', async (t) => {
   const bitmapBlob = randomBytes(128)
   const svgBlob = randomBytes(128)
 
-  await t.exception(async () => {
+  await assert.rejects(async () => {
     return iconApi.create({ name: expectedName, variants: [] })
   }, 'throws when no variants are provided')
 
@@ -49,13 +50,13 @@ test('create()', async (t) => {
     variants: expectedVariants,
   })
 
-  t.ok(iconId, 'returns document id')
+  assert(iconId, 'returns document id')
 
   const doc = await iconDataType.getByDocId(iconId)
 
-  t.ok(doc, 'icon document created')
-  t.is(doc.name, expectedName, 'document has expected icon name')
-  t.is(
+  assert(doc, 'icon document created')
+  assert.equal(doc.name, expectedName, 'document has expected icon name')
+  assert.equal(
     doc.variants.length,
     expectedVariants.length,
     'document has expected icon name'
@@ -75,13 +76,13 @@ test('create()', async (t) => {
       return mimeTypeMatches && sizeMatches && pixelDensityMatches
     })
 
-    t.ok(match, 'variant is saved')
+    assert(match, 'variant is saved')
 
     // TODO: Do we need to check the blobVersionId field?
   }
 })
 
-test('[kGetIconBlob]()', async (t) => {
+test('[kGetIconBlob]()', async () => {
   const { iconApi } = setup()
 
   const expectedName = 'myIcon'
@@ -117,7 +118,7 @@ test('[kGetIconBlob]()', async (t) => {
       mimeType: 'image/png',
     })
 
-    t.alike(result, bitmapBlob, 'returns expected bitmap blob')
+    assert.deepEqual(result, bitmapBlob, 'returns expected bitmap blob')
   }
 
   // SVG exact
@@ -127,7 +128,7 @@ test('[kGetIconBlob]()', async (t) => {
       mimeType: 'image/svg+xml',
     })
 
-    t.alike(result, svgBlob, 'returns expected svg blob')
+    assert.deepEqual(result, svgBlob, 'returns expected svg blob')
   }
 
   /// See more extensive non-exact testing in getBestVariant() tests further down
@@ -140,7 +141,7 @@ test('[kGetIconBlob]()', async (t) => {
       mimeType: 'image/png',
     })
 
-    t.alike(result, bitmapBlob, 'returns expected bitmap blob')
+    assert.deepEqual(result, bitmapBlob, 'returns expected bitmap blob')
   }
 
   // SVG non-exact
@@ -150,11 +151,11 @@ test('[kGetIconBlob]()', async (t) => {
       mimeType: 'image/svg+xml',
     })
 
-    t.alike(result, svgBlob, 'returns expected svg blob')
+    assert.deepEqual(result, svgBlob, 'returns expected svg blob')
   }
 })
 
-test(`getIconUrl()`, async (t) => {
+test(`getIconUrl()`, async () => {
   let mediaBaseUrl = 'http://127.0.0.1:8080/icons/'
 
   const { iconApi } = setup({
@@ -170,7 +171,7 @@ test(`getIconUrl()`, async (t) => {
       pixelDensity: 1,
     })
 
-    t.is(
+    assert.equal(
       url,
       mediaBaseUrl + `${iconId}/small.png`,
       'returns expected bitmap icon url'
@@ -183,7 +184,7 @@ test(`getIconUrl()`, async (t) => {
       mimeType: 'image/svg+xml',
     })
 
-    t.is(
+    assert.equal(
       url,
       mediaBaseUrl + `${iconId}/small.svg`,
       'returns expected svg icon url'
@@ -200,7 +201,7 @@ test(`getIconUrl()`, async (t) => {
       pixelDensity: 2,
     })
 
-    t.is(
+    assert.equal(
       url,
       mediaBaseUrl + `${iconId}/medium@2x.png`,
       'returns expected bitmap icon url after media base url changes'
@@ -213,7 +214,7 @@ test(`getIconUrl()`, async (t) => {
       mimeType: 'image/svg+xml',
     })
 
-    t.is(
+    assert.equal(
       url,
       mediaBaseUrl + `${iconId}/large.svg`,
       'returns expected svg icon url after media base url changes'
@@ -221,8 +222,8 @@ test(`getIconUrl()`, async (t) => {
   }
 })
 
-test('getBestVariant() - no variants exist', (t) => {
-  t.exception(() => {
+test('getBestVariant() - no variants exist', () => {
+  assert.throws(() => {
     return getBestVariant([], {
       mimeType: 'image/png',
       size: 'small',
@@ -231,7 +232,7 @@ test('getBestVariant() - no variants exist', (t) => {
   }, 'throws when no variants exist')
 })
 
-test('getBestVariant() - specify mimeType', (t) => {
+test('getBestVariant() - specify mimeType', async (t) => {
   /** @type {{size:import('../src/icon-api.js').IconVariant['size']}} */
   const common = { size: 'small' }
 
@@ -246,7 +247,7 @@ test('getBestVariant() - specify mimeType', (t) => {
     mimeType: 'image/svg+xml',
   })
 
-  t.test('request mime type with match present', (st) => {
+  await t.test('request mime type with match present', () => {
     /** @type {Array<[import('../src/icon-api.js').IconVariant['mimeType'], import('../src/icon-api.js').IconVariant]>} */
     const pairs = [
       ['image/png', pngVariant],
@@ -264,13 +265,13 @@ test('getBestVariant() - specify mimeType', (t) => {
       }
       const result = getBestVariant([pngVariant, svgVariant], obj)
 
-      st.alike(
+      assert.deepEqual(
         result,
         getBestVariant([pngVariant, svgVariant].reverse(), obj),
         'same result regardless of variants order'
       )
 
-      st.alike(
+      assert.deepEqual(
         result,
         expectedVariant,
         `returns variant with desired mime type (${mimeType})`
@@ -278,15 +279,15 @@ test('getBestVariant() - specify mimeType', (t) => {
     }
   })
 
-  t.test('request a mime type with no match present', (st) => {
-    st.exception(() => {
+  await t.test('request a mime type with no match present', () => {
+    assert.throws(() => {
       getBestVariant([pngVariant], {
         ...common,
         mimeType: 'image/svg+xml',
       })
     }, 'throws when no match for svg exists')
 
-    st.exception(() => {
+    assert.throws(() => {
       // @ts-expect-error
       getBestVariant([svgVariant], {
         ...common,
@@ -296,7 +297,7 @@ test('getBestVariant() - specify mimeType', (t) => {
   })
 })
 
-test('getBestVariant() - specify size', (t) => {
+test('getBestVariant() - specify size', async (t) => {
   /** @type {Pick<import('../src/icon-api.js').BitmapOpts, 'pixelDensity' | 'mimeType'>} */
   const common = { pixelDensity: 1, mimeType: 'image/png' }
 
@@ -315,7 +316,7 @@ test('getBestVariant() - specify size', (t) => {
     size: 'large',
   })
 
-  t.test('request size with match present', (st) => {
+  await t.test('request size with match present', () => {
     /** @type {Array<[import('@mapeo/schema').Icon['variants'][number]['size'], import('@mapeo/schema').Icon['variants'][number]]>} */
     const pairs = [
       ['small', smallVariant],
@@ -328,7 +329,7 @@ test('getBestVariant() - specify size', (t) => {
         { ...common, size }
       )
 
-      st.alike(
+      assert.deepEqual(
         result,
         getBestVariant([smallVariant, mediumVariant, largeVariant].reverse(), {
           ...common,
@@ -337,7 +338,7 @@ test('getBestVariant() - specify size', (t) => {
         'same result regardless of variants order'
       )
 
-      st.alike(
+      assert.deepEqual(
         result,
         expectedVariant,
         `returns variant with desired size (${size})`
@@ -345,13 +346,13 @@ test('getBestVariant() - specify size', (t) => {
     }
   })
 
-  t.test('request size with only smaller existing', (st) => {
+  await t.test('request size with only smaller existing', () => {
     const result = getBestVariant([smallVariant, mediumVariant], {
       ...common,
       size: 'large',
     })
 
-    st.alike(
+    assert.deepEqual(
       result,
       getBestVariant([smallVariant, mediumVariant].reverse(), {
         ...common,
@@ -360,16 +361,16 @@ test('getBestVariant() - specify size', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, mediumVariant, 'returns closest smaller size')
+    assert.deepEqual(result, mediumVariant, 'returns closest smaller size')
   })
 
-  t.test('request size with both larger and smaller existing', (st) => {
+  await t.test('request size with both larger and smaller existing', () => {
     const result = getBestVariant([smallVariant, largeVariant], {
       ...common,
       size: 'medium',
     })
 
-    st.alike(
+    assert.deepEqual(
       result,
       getBestVariant([smallVariant, largeVariant].reverse(), {
         ...common,
@@ -378,16 +379,16 @@ test('getBestVariant() - specify size', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, smallVariant, 'returns smaller size')
+    assert.deepEqual(result, smallVariant, 'returns smaller size')
   })
 
-  t.test('request size with only larger existing', (st) => {
+  await t.test('request size with only larger existing', () => {
     const result = getBestVariant([mediumVariant, largeVariant], {
       ...common,
       size: 'small',
     })
 
-    st.alike(
+    assert.deepEqual(
       result,
       getBestVariant([mediumVariant, largeVariant].reverse(), {
         ...common,
@@ -396,11 +397,11 @@ test('getBestVariant() - specify size', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, mediumVariant, 'returns closest larger size')
+    assert.deepEqual(result, mediumVariant, 'returns closest larger size')
   })
 })
 
-test('getBestVariant() - specify pixel density', (t) => {
+test('getBestVariant() - specify pixel density', async (t) => {
   /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'size' | 'mimeType'>} */
   const common = { size: 'small', mimeType: 'image/png' }
 
@@ -419,7 +420,7 @@ test('getBestVariant() - specify pixel density', (t) => {
     pixelDensity: 3,
   })
 
-  t.test('request pixel density with match present', (st) => {
+  await t.test('request pixel density with match present', () => {
     /** @type {Array<[import('../src/icon-api.js').BitmapOpts['pixelDensity'], import('@mapeo/schema').Icon['variants'][number]]>} */
     const pairs = [
       [1, density1Variant],
@@ -432,7 +433,7 @@ test('getBestVariant() - specify pixel density', (t) => {
         { ...common, pixelDensity }
       )
 
-      st.alike(
+      assert.deepEqual(
         result,
         getBestVariant(
           [density1Variant, density2Variant, density3Variant].reverse(),
@@ -441,7 +442,7 @@ test('getBestVariant() - specify pixel density', (t) => {
         'same result regardless of variants order'
       )
 
-      st.alike(
+      assert.deepEqual(
         result,
         expectedVariant,
         `returns variant with desired pixel density (${pixelDensity})`
@@ -449,13 +450,13 @@ test('getBestVariant() - specify pixel density', (t) => {
     }
   })
 
-  t.test('request pixel density with only smaller existing', (st) => {
+  await t.test('request pixel density with only smaller existing', () => {
     const result = getBestVariant([density1Variant, density2Variant], {
       ...common,
       pixelDensity: 3,
     })
 
-    st.alike(
+    assert.deepEqual(
       result,
       getBestVariant([density1Variant, density2Variant].reverse(), {
         ...common,
@@ -464,18 +465,18 @@ test('getBestVariant() - specify pixel density', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, density2Variant, 'returns closest smaller density')
+    assert.deepEqual(result, density2Variant, 'returns closest smaller density')
   })
 
-  t.test(
+  await t.test(
     'request pixel density with both larger and smaller existing',
-    (st) => {
+    () => {
       const result = getBestVariant([density1Variant, density3Variant], {
         ...common,
         pixelDensity: 2,
       })
 
-      st.alike(
+      assert.deepEqual(
         result,
         getBestVariant([density1Variant, density3Variant].reverse(), {
           ...common,
@@ -484,17 +485,17 @@ test('getBestVariant() - specify pixel density', (t) => {
         'same result regardless of variants order'
       )
 
-      st.alike(result, density1Variant, 'returns smaller density')
+      assert.deepEqual(result, density1Variant, 'returns smaller density')
     }
   )
 
-  t.test('request pixel density with only larger existing', (st) => {
+  await t.test('request pixel density with only larger existing', () => {
     const result = getBestVariant([density2Variant, density3Variant], {
       ...common,
       pixelDensity: 1,
     })
 
-    st.alike(
+    assert.deepEqual(
       result,
       getBestVariant([density2Variant, density3Variant].reverse(), {
         ...common,
@@ -503,11 +504,11 @@ test('getBestVariant() - specify pixel density', (t) => {
       'same result regardless of variants order'
     )
 
-    st.alike(result, density2Variant, 'returns closest larger density')
+    assert.deepEqual(result, density2Variant, 'returns closest larger density')
   })
 })
 
-test('getBestVariant() - params prioritization', (t) => {
+test('getBestVariant() - params prioritization', () => {
   const wantedSizePngVariant = createIconVariant({
     mimeType: 'image/png',
     pixelDensity: 1,
@@ -543,7 +544,7 @@ test('getBestVariant() - params prioritization', (t) => {
     }
   )
 
-  t.alike(
+  assert.deepEqual(
     result,
     getBestVariant(
       [
@@ -560,14 +561,18 @@ test('getBestVariant() - params prioritization', (t) => {
     'same result regardless of variants order'
   )
 
-  t.alike(result, wantedSizeSvgVariant, 'mime type > size > pixel density')
+  assert.deepEqual(
+    result,
+    wantedSizeSvgVariant,
+    'mime type > size > pixel density'
+  )
 })
 
 // TODO: Currently fails. Not sure if we'd run into this situation often in reality
 test(
   'getBestVariant - multiple exact matches return deterministic result',
-  { todo: true },
-  (t) => {
+  { skip: true },
+  () => {
     const variantA = createIconVariant({
       size: 'small',
       mimeType: 'image/svg+xml',
@@ -582,7 +587,7 @@ test(
       mimeType: 'image/svg+xml',
     })
 
-    t.alike(
+    assert.deepEqual(
       result,
       getBestVariant([variantA, variantB].reverse(), {
         mimeType: 'image/svg+xml',
@@ -591,11 +596,11 @@ test(
       'same result regardless of variants order'
     )
 
-    t.alike(result, variantA)
+    assert.deepEqual(result, variantA)
   }
 )
 
-test('constructIconPath() - bad inputs', (t) => {
+test('constructIconPath() - bad inputs', () => {
   // Array of [input, test message]
   /** @type {Array<[Parameters<typeof constructIconPath>[0], string]>} */
   const fixtures = [
@@ -622,11 +627,11 @@ test('constructIconPath() - bad inputs', (t) => {
   ]
 
   for (const [input, message] of fixtures) {
-    t.exception(() => constructIconPath(input), message)
+    assert.throws(() => constructIconPath(input), message)
   }
 })
 
-test('constructIconPath() - good inputs', (t) => {
+test('constructIconPath() - good inputs', () => {
   // Array of [input, expected, test message]
   /** @type {Array<[Parameters<typeof constructIconPath>[0], string, string]>} */
   const fixtures = [
@@ -648,7 +653,7 @@ test('constructIconPath() - good inputs', (t) => {
   ]
 
   for (const [input, expected, message] of fixtures) {
-    t.is(constructIconPath(input), expected, message)
+    assert.equal(constructIconPath(input), expected, message)
   }
 })
 
