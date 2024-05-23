@@ -169,7 +169,7 @@ export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
  *
  * @template {number} T
  * @param {T} count
- * @param {import('brittle').TestInstance} t
+ * @param {import('node:test').TestContext} t
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
@@ -189,7 +189,7 @@ export async function createManagers(count, t, deviceType) {
 
 /**
  * @param {string} seed
- * @param {import('brittle').TestInstance} t
+ * @param {import('node:test').TestContext} t
  */
 export function createManager(seed, t) {
   /** @type {string} */ let dbFolder
@@ -201,7 +201,7 @@ export function createManager(seed, t) {
   } else {
     const directories = [temporaryDirectory(), temporaryDirectory()]
     ;[dbFolder, coreStorage] = directories
-    t.teardown(() =>
+    t.after(() =>
       Promise.all(
         directories.map((dir) =>
           fsPromises.rm(dir, {
@@ -271,12 +271,12 @@ export class ManagerCustodian {
   #coreStorage = temporaryDirectory()
 
   /**
-   * @param {import('brittle').TestInstance} t
+   * @param {import('node:test').TestContext} t
    */
   constructor(t) {
     this.#t = t
     for (const folder of [this.#dbFolder, this.#coreStorage]) {
-      t.teardown(() =>
+      t.after(() =>
         fsPromises.rm(folder, { recursive: true, force: true, maxRetries: 2 })
       )
     }
@@ -354,7 +354,7 @@ export class ManagerCustodian {
     `
 
     const result = temporaryFile({ extension: 'mjs' })
-    this.#t.teardown(() => fsPromises.rm(result, { maxRetries: 2 }))
+    this.#t.after(() => fsPromises.rm(result, { maxRetries: 2 }))
     await fsPromises.writeFile(result, source, 'utf8')
     return result
   }

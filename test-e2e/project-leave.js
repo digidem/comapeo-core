@@ -1,4 +1,5 @@
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 
 import {
   BLOCKED_ROLE_ID,
@@ -22,7 +23,7 @@ test('Creator cannot leave project if they are the only member', async (t) => {
 
   const projectId = await creatorManager.createProject({ name: 'mapeo' })
 
-  await t.exception(async () => {
+  await assert.rejects(async () => {
     await creatorManager.leaveProject(projectId)
   }, 'attempting to leave fails')
 })
@@ -49,17 +50,17 @@ test('Creator cannot leave project if no other coordinators exist', async (t) =>
 
   const [creatorProject, memberProject] = projects
 
-  t.ok(
+  assert(
     await creatorProject.$member.getById(member.deviceId),
     'member successfully added from creator perspective'
   )
 
-  t.ok(
+  assert(
     await memberProject.$member.getById(creator.deviceId),
     'creator successfully added from member perspective'
   )
 
-  await t.exception(async () => {
+  await assert.rejects(async () => {
     await creator.leaveProject(projectId)
   }, 'creator attempting to leave project with no other coordinators fails')
 
@@ -88,7 +89,7 @@ test('Blocked member cannot leave project', async (t) => {
 
   const [creatorProject, memberProject] = projects
 
-  t.alike(
+  assert.deepEqual(
     await memberProject.$getOwnRole(),
     ROLES[MEMBER_ROLE_ID],
     'Member is initially a member'
@@ -98,13 +99,13 @@ test('Blocked member cannot leave project', async (t) => {
 
   await waitForSync(projects, 'initial')
 
-  t.alike(
+  assert.deepEqual(
     await memberProject.$getOwnRole(),
     ROLES[BLOCKED_ROLE_ID],
     'Member is now blocked'
   )
 
-  await t.exception(async () => {
+  await assert.rejects(async () => {
     await member.leaveProject(projectId)
   }, 'Member attempting to leave project fails')
 
@@ -133,12 +134,12 @@ test('Creator can leave project if another coordinator exists', async (t) => {
 
   const [creatorProject, coordinatorProject] = projects
 
-  t.ok(
+  assert(
     await creatorProject.$member.getById(coordinator.deviceId),
     'coordinator successfully added from creator perspective'
   )
 
-  t.ok(
+  assert(
     await coordinatorProject.$member.getById(coordinator.deviceId),
     'creator successfully added from creator perspective'
   )
@@ -147,7 +148,7 @@ test('Creator can leave project if another coordinator exists', async (t) => {
 
   await creator.leaveProject(projectId)
 
-  t.alike(
+  assert.deepEqual(
     await creatorProject.$getOwnRole(),
     ROLES[LEFT_ROLE_ID],
     'creator now has LEFT role'
@@ -155,7 +156,7 @@ test('Creator can leave project if another coordinator exists', async (t) => {
 
   await waitForSync(projects, 'initial')
 
-  t.is(
+  assert.equal(
     (await coordinatorProject.$member.getById(creator.deviceId)).role,
     ROLES[LEFT_ROLE_ID],
     'coordinator can still retrieve info about creator who left'
@@ -186,12 +187,12 @@ test('Member can leave project if creator exists', async (t) => {
 
   const [creatorProject, memberProject] = projects
 
-  t.ok(
+  assert(
     await creatorProject.$member.getById(member.deviceId),
     'member successfully added from creator perspective'
   )
 
-  t.ok(
+  assert(
     await memberProject.$member.getById(creator.deviceId),
     'creator successfully added from member perspective'
   )
@@ -200,7 +201,7 @@ test('Member can leave project if creator exists', async (t) => {
 
   await member.leaveProject(projectId)
 
-  t.alike(
+  assert.deepEqual(
     await memberProject.$getOwnRole(),
     ROLES[LEFT_ROLE_ID],
     'member now has LEFT role'
@@ -208,7 +209,7 @@ test('Member can leave project if creator exists', async (t) => {
 
   await waitForSync(projects, 'initial')
 
-  t.is(
+  assert.equal(
     (await creatorProject.$member.getById(member.deviceId)).role,
     ROLES[LEFT_ROLE_ID],
     'creator can still retrieve info about member who left'
@@ -254,7 +255,7 @@ test('Data access after leaving project', async (t) => {
     refs: [],
     metadata: {},
   })
-  t.ok(
+  assert(
     (await memberProject.observation.getMany()).length >= 1,
     'Test is set up correctly'
   )
@@ -268,7 +269,7 @@ test('Data access after leaving project', async (t) => {
 
   await waitForSync(projects, 'initial')
 
-  await t.exception(async () => {
+  await assert.rejects(async () => {
     await memberProject.observation.create({
       schemaName: 'observation',
       attachments: [],
@@ -277,24 +278,24 @@ test('Data access after leaving project', async (t) => {
       metadata: {},
     })
   }, 'member cannot create new data after leaving')
-  await t.exception(
+  await assert.rejects(
     () => memberProject.observation.getMany(),
     "Shouldn't be able to fetch observations after leaving"
   )
 
-  t.alike(
+  assert.deepEqual(
     await memberProject.$getProjectSettings(),
     MapeoProject.EMPTY_PROJECT_SETTINGS,
     'member getting project settings returns empty settings'
   )
 
-  t.alike(
+  assert.deepEqual(
     await coordinatorProject.$getProjectSettings(),
     MapeoProject.EMPTY_PROJECT_SETTINGS,
     'coordinator getting project settings returns empty settings'
   )
 
-  await t.exception(async () => {
+  await assert.rejects(async () => {
     await coordinatorProject.$setProjectSettings({ name: 'foo' })
   }, 'coordinator cannot update project settings after leaving')
 
@@ -305,7 +306,7 @@ test('leaving a project while disconnected', async (t) => {
   const managers = await createManagers(2, t)
 
   let disconnectPeers = connectPeers(managers)
-  t.teardown(() => disconnectPeers())
+  t.after(() => disconnectPeers())
 
   await waitForPeers(managers)
 
@@ -328,7 +329,7 @@ test('leaving a project while disconnected', async (t) => {
 
   await member.leaveProject(projectId)
 
-  t.ok(
+  assert(
     await creatorProject.$member.getById(member.deviceId),
     'creator still thinks member is part of project'
   )
@@ -338,7 +339,7 @@ test('leaving a project while disconnected', async (t) => {
 
   await waitForSync(projects, 'initial')
 
-  t.is(
+  assert.equal(
     (await creatorProject.$member.getById(member.deviceId)).role.roleId,
     LEFT_ROLE_ID,
     'creator no longer thinks member is part of project'
