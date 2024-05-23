@@ -1,4 +1,4 @@
-import test from 'brittle'
+import test from 'node:test'
 import { access, constants } from 'node:fs/promises'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Hypercore from 'hypercore'
@@ -33,7 +33,7 @@ async function createCore(key) {
   return core
 }
 
-test('project creator auth core has project key', async function (t) {
+test('project creator auth core has project key', async function () {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
@@ -45,17 +45,17 @@ test('project creator auth core has project key', async function (t) {
     projectSecretKey,
   })
   const { key: authCoreKey } = cm.getWriterCore('auth')
-  t.ok(authCoreKey.equals(projectKey))
+  assert(authCoreKey.equals(projectKey))
 })
 
-test('getCreatorCore()', async (t) => {
+test('getCreatorCore()', async () => {
   const projectKey = randomBytes(32)
   const cm = createCoreManager({ projectKey })
   await cm.creatorCore.ready()
-  t.ok(cm.creatorCore.key.equals(projectKey))
+  assert(cm.creatorCore.key.equals(projectKey))
 })
 
-test('eagerly updates remote bitfields', async function (t) {
+test('eagerly updates remote bitfields', async () => {
   // Replication progress relies on the peer.remoteBitfield to actually match
   // the bitfield of the peer. By default hypercore only updates the
   // remoteBitfield for the ranges of a hypercore that you try to download. We
@@ -84,13 +84,13 @@ test('eagerly updates remote bitfields', async function (t) {
   // Need to wait for now, since no event for when a remote bitfield is updated
   await new Promise((res) => setTimeout(res, 200))
 
-  t.is(cm2Core.length, cm1Core.length)
+  assert.equal(cm2Core.length, cm1Core.length)
 
   {
     assert(cm1Core.core)
     // This is testing that the remote bitfield is a duplicate of the bitfield
     // on the core that is being replicated, prior to calling core.download()
-    t.ok(
+    assert(
       bitfieldEquals(
         cm2Core.peers[0].remoteBitfield,
         cm1Core.core.bitfield,
@@ -113,7 +113,7 @@ test('eagerly updates remote bitfields', async function (t) {
     // Need to wait for now, since no event for when a remote bitfield is updated
     await new Promise((res) => setTimeout(res, 200))
     assert(cm2Core.core)
-    t.ok(
+    assert(
       bitfieldEquals(
         cm1Core.peers[0].remoteBitfield,
         cm2Core.core.bitfield,
@@ -135,9 +135,9 @@ test('eagerly updates remote bitfields', async function (t) {
 
     const cm3Core = cm3.getCoreByKey(cm1Core.key)
     assert(cm3Core)
-    t.alike(cm3Core.length, cm1Core.length)
+    assert.deepEqual(cm3Core.length, cm1Core.length)
 
-    t.ok(
+    assert(
       bitfieldEquals(
         cm3Core.peers[0].remoteBitfield,
         cm2Core.core.bitfield,
@@ -152,8 +152,8 @@ test('eagerly updates remote bitfields', async function (t) {
 
     await new Promise((res) => setTimeout(res, 200))
 
-    t.alike(cm3Core.length, cm1Core.length)
-    t.ok(
+    assert.deepEqual(cm3Core.length, cm1Core.length)
+    assert(
       bitfieldEquals(
         cm3Core.peers[0].remoteBitfield,
         cm2Core.core.bitfield,
@@ -164,7 +164,7 @@ test('eagerly updates remote bitfields', async function (t) {
   }
 })
 
-test('multiplexing waits for cores to be added', async function (t) {
+test('multiplexing waits for cores to be added', async () => {
   // Mapeo code expects replication to work when cores are not added to the
   // replication stream at the same time. This is not explicitly tested in
   // Hypercore so we check here that this behaviour works.
@@ -192,11 +192,11 @@ test('multiplexing waits for cores to be added', async function (t) {
     b2.replicate(stream2, { keepAlive: false })
   }, 7000)
 
-  t.alike(await b1.get(0), Buffer.from('hi'))
-  t.alike(await b2.get(0), Buffer.from('ho'))
+  assert.deepEqual(await b1.get(0), Buffer.from('hi'))
+  assert.deepEqual(await b2.get(0), Buffer.from('ho'))
 })
 
-test('close()', async (t) => {
+test('close()', async () => {
   const cm = createCoreManager()
   for (const namespace of CoreManager.namespaces) {
     cm.addCore(randomBytes(32), namespace)
@@ -204,13 +204,13 @@ test('close()', async (t) => {
   await cm.close()
   for (const namespace of CoreManager.namespaces) {
     for (const { core } of cm.getCores(namespace)) {
-      t.ok(core.closed, 'core is closed')
-      t.is(core.sessions.length, 0, 'no open sessions')
+      assert(core.closed, 'core is closed')
+      assert.equal(core.sessions.length, 0, 'no open sessions')
     }
   }
 })
 
-test('Added cores are persisted', async (t) => {
+test('Added cores are persisted', async () => {
   const keyManager = new KeyManager(randomBytes(16))
   const projectKey = randomBytes(32)
 
@@ -234,10 +234,10 @@ test('Added cores are persisted', async (t) => {
     projectKey,
   })
 
-  t.ok(cm2.getCoreByKey(key), 'Added core is persisted')
+  assert(cm2.getCoreByKey(key), 'Added core is persisted')
 })
 
-test('encryption', async function (t) {
+test('encryption', async () => {
   /** @type {Partial<Record<Namespace, Buffer>>} */
   const encryptionKeys = {}
   for (const ns of CoreManager.namespaces) {
@@ -257,12 +257,12 @@ test('encryption', async function (t) {
     const { core: coreReplica3 } = cm3.addCore(key, ns)
     const value = Buffer.from(ns)
     await core.append(value)
-    t.unlike(await coreReplica2.get(0), value)
-    t.alike(await coreReplica3.get(0), value)
+    assert.notDeepEqual(await coreReplica2.get(0), value)
+    assert.deepEqual(await coreReplica3.get(0), value)
   }
 })
 
-test('poolSize limits number of open file descriptors', async function (t) {
+test('poolSize limits number of open file descriptors', async () => {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
@@ -283,10 +283,10 @@ test('poolSize limits number of open file descriptors', async function (t) {
       cm.addCore(coreKey, 'data')
     }
     const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
-    t.is(readyPromises.length, CORE_COUNT)
+    assert.equal(readyPromises.length, CORE_COUNT)
     await Promise.all(readyPromises)
     const fdCount = await countOpenFileDescriptors(tempPath)
-    t.ok(fdCount > CORE_COUNT, 'without pool, at least one fd per core')
+    assert(fdCount > CORE_COUNT, 'without pool, at least one fd per core')
   })
 
   await temporaryDirectoryTask(async (tempPath) => {
@@ -309,7 +309,7 @@ test('poolSize limits number of open file descriptors', async function (t) {
     const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
     await Promise.all(readyPromises)
     const fdCount = await countOpenFileDescriptors(tempPath)
-    t.is(
+    assert.equal(
       fdCount,
       POOL_SIZE,
       'with pool, no more file descriptors than pool size'
@@ -317,7 +317,7 @@ test('poolSize limits number of open file descriptors', async function (t) {
   })
 })
 
-test('sends "haves" bitfields over project creator core replication stream', async function (t) {
+test('sends "haves" bitfields over project creator core replication stream', async () => {
   const projectKey = randomBytes(32)
   const cm1 = createCoreManager({ projectKey })
   const cm2 = createCoreManager({ projectKey })
@@ -380,7 +380,7 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   assert(bitfield)
   assert(cm1Core.core)
 
-  t.ok(
+  assert(
     bitfieldEquals(bitfield, cm1Core.core.bitfield, cm1Core.length),
     'remote bitfield is same as source bitfield'
   )
@@ -393,19 +393,19 @@ test('sends "haves" bitfields over project creator core replication stream', asy
 test('unreplicate', async (t) => {
   const WAIT_TIMEOUT = 200
   const REPLICATION_DELAY = 20
-  await t.test('initiator unreplicates, receiver re-replicates', async (st) => {
+  await t.test('initiator unreplicates, receiver re-replicates', async () => {
     const a = await createCore()
     await a.append(['a', 'b'])
     const b = await createCore(a.key)
 
-    const [s1, s2] = replicateCores(a, b, t, { delay: REPLICATION_DELAY })
+    const [s1, s2] = replicateCores(a, b, { delay: REPLICATION_DELAY })
 
     const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
-    st.is(block1?.toString(), 'a')
+    assert.equal(block1?.toString(), 'a')
 
     await unreplicate(a, s1.noiseStream.userData)
 
-    await st.exception(
+    await assert.rejects(
       () => b.get(1, { timeout: WAIT_TIMEOUT }),
       'Throws with timeout error'
     )
@@ -413,46 +413,43 @@ test('unreplicate', async (t) => {
     b.replicate(s2)
 
     const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
-    st.is(block2?.toString(), 'b')
+    assert.equal(block2?.toString(), 'b')
   })
-  await t.test(
-    'initiator unreplicates, initiator re-replicates',
-    async (st) => {
-      const a = await createCore()
-      await a.append(['a', 'b'])
-      const b = await createCore(a.key)
-
-      const [s1] = replicateCores(a, b, t, { delay: REPLICATION_DELAY })
-
-      const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
-      st.is(block1?.toString(), 'a')
-
-      await unreplicate(a, s1.noiseStream.userData)
-
-      await st.exception(
-        () => b.get(1, { timeout: 200 }),
-        'Throws with timeout error'
-      )
-
-      a.replicate(s1)
-
-      const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
-      st.is(block2?.toString(), 'b')
-    }
-  )
-  await t.test('receiver unreplicates, receiver re-replicates', async (st) => {
+  await t.test('initiator unreplicates, initiator re-replicates', async () => {
     const a = await createCore()
     await a.append(['a', 'b'])
     const b = await createCore(a.key)
 
-    const [, s2] = replicateCores(a, b, t, { delay: REPLICATION_DELAY })
+    const [s1] = replicateCores(a, b, { delay: REPLICATION_DELAY })
 
     const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
-    st.is(block1?.toString(), 'a')
+    assert.equal(block1?.toString(), 'a')
+
+    await unreplicate(a, s1.noiseStream.userData)
+
+    await assert.rejects(
+      () => b.get(1, { timeout: 200 }),
+      'Throws with timeout error'
+    )
+
+    a.replicate(s1)
+
+    const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
+    assert.equal(block2?.toString(), 'b')
+  })
+  await t.test('receiver unreplicates, receiver re-replicates', async () => {
+    const a = await createCore()
+    await a.append(['a', 'b'])
+    const b = await createCore(a.key)
+
+    const [, s2] = replicateCores(a, b, { delay: REPLICATION_DELAY })
+
+    const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
+    assert.equal(block1?.toString(), 'a')
 
     await unreplicate(b, s2.noiseStream.userData)
 
-    await st.exception(
+    await assert.rejects(
       () => b.get(1, { timeout: WAIT_TIMEOUT }),
       'Throws with timeout error'
     )
@@ -460,11 +457,11 @@ test('unreplicate', async (t) => {
     b.replicate(s2)
 
     const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
-    st.is(block2?.toString(), 'b')
+    assert.equal(block2?.toString(), 'b')
   })
 })
 
-test('deleteOthersData()', async (t) => {
+test('deleteOthersData()', async () => {
   await temporaryDirectoryTask(async (tempPath) => {
     const projectKey = randomBytes(32)
 
@@ -526,7 +523,7 @@ test('deleteOthersData()', async (t) => {
     await new Promise((res) => setTimeout(res, 200))
 
     /// Confirmation to ensure that replication worked
-    t.is(
+    assert.equal(
       cm1.getCores('data').length,
       2,
       'peer 1 has expected number of data cores after replication'
@@ -549,13 +546,13 @@ test('deleteOthersData()', async (t) => {
     )
 
     // Hypercore uses 4 files per core (oplog, tree, bitfield, data)
-    t.is(
+    assert.equal(
       dataCoreStorageNames.length,
       8,
       'peer 1 has expected number of data core storage files after replication'
     )
 
-    t.is(
+    assert.equal(
       db1
         .select()
         .from(coresTable)
@@ -565,7 +562,7 @@ test('deleteOthersData()', async (t) => {
       'peer 1 `cores` table has info about `data` core from peer 2'
     )
 
-    t.is(
+    assert.equal(
       db2
         .select()
         .from(coresTable)
@@ -598,17 +595,17 @@ test('deleteOthersData()', async (t) => {
       )
     ).every((exists) => exists === false)
 
-    t.ok(
+    assert(
       peer1DataStoragePreservedForPeer1,
       'peer 1 still has `data` storage for itself'
     )
 
-    t.ok(
+    assert(
       peer2DataStorageDeletedForPeer1,
       'peer 1 no longer has `data` storage for peer 2'
     )
 
-    t.is(
+    assert.equal(
       db1
         .select()
         .from(coresTable)
@@ -681,18 +678,17 @@ async function countOpenFileDescriptors(dir) {
 /**
  * @param {Hypercore} a
  * @param {Hypercore} b
- * @param {import('brittle').TestInstance} t
  * @param {Parameters<typeof Hypercore.prototype.replicate>[1] & { delay?: number }} [opts]
  * @returns
  */
-function replicateCores(a, b, t, { delay = 0, ...opts } = {}) {
+function replicateCores(a, b, { delay = 0, ...opts } = {}) {
   const s1 = a.replicate(true, { keepAlive: false, ...opts })
   const s2 = b.replicate(false, { keepAlive: false, ...opts })
   s1.on('error', (err) =>
-    t.comment(`replication stream error (initiator): ${err}`)
+    console.debug(`replication stream error (initiator): ${err}`)
   )
   s2.on('error', (err) =>
-    t.comment(`replication stream error (responder): ${err}`)
+    console.debug(`replication stream error (responder): ${err}`)
   )
   s1.pipe(latencyStream(delay)).pipe(s2).pipe(latencyStream(delay)).pipe(s1)
   return [s1, s2]
