@@ -19,6 +19,7 @@ const datastore = new DataStore({
     // Process entries here using an indexer...
   },
   namespace: 'data',
+  reindex: false,
 })
 
 /** @type {MapeoDoc} */

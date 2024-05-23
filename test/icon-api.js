@@ -684,6 +684,7 @@ function setup({
     coreManager: cm,
     storage: () => new RAM(),
     batch: async (entries) => indexWriter.batch(entries),
+    reindex: false,
   })
 
   const iconDataType = new DataType({
