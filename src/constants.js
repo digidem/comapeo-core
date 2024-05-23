@@ -32,3 +32,6 @@ export const NAMESPACE_SCHEMAS = /** @type {const} */ ({
 })
 
 export const SUPPORTED_CONFIG_VERSION = 1
+
+// WARNING: This value is persisted. Be careful when changing it.
+export const DRIZZLE_MIGRATIONS_TABLE = '__drizzle_migrations'

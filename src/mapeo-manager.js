@@ -10,6 +10,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
 import { createRequire } from 'module'
 
+import { DRIZZLE_MIGRATIONS_TABLE } from './constants.js'
 import { IndexWriter } from './index-writer/index.js'
 import {
   MapeoProject,
@@ -153,7 +154,12 @@ export class MapeoManager extends TypedEmitter {
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
     this.#db = drizzle(sqlite)
-    migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
+    migrate(this.#db, {
+      migrationsFolder: clientMigrationsFolder,
+      migrationsTable: DRIZZLE_MIGRATIONS_TABLE,
+    })
+    // TODO(evanhahn) Do we need to handle migration changes and clear storage
+    // here? Doesn't actually seem relevant yet but could be...
 
     this.#localPeers = new LocalPeers({ logger })
     this.#localPeers.on('peers', (peers) => {

@@ -1,4 +1,5 @@
 import path from 'path'
+import * as fs from 'node:fs'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
@@ -6,7 +7,11 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
-import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
+import {
+  NAMESPACES,
+  NAMESPACE_SCHEMAS,
+  DRIZZLE_MIGRATIONS_TABLE,
+} from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
@@ -43,6 +48,7 @@ import {
   projectKeyToPublicId,
   valueOf,
 } from './utils.js'
+import { countDrizzleMigrations } from './lib/count-drizzle-migrations.js'
 import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
@@ -131,11 +137,44 @@ export class MapeoProject extends TypedEmitter {
     this.#loadingConfig = false
 
     ///////// 1. Setup database
+
     this.#sqlite = new Database(dbPath)
     const db = drizzle(this.#sqlite)
-    migrate(db, { migrationsFolder: projectMigrationsFolder })
+    const migrationsBefore = countDrizzleMigrations(
+      db,
+      DRIZZLE_MIGRATIONS_TABLE
+    )
+    migrate(db, {
+      migrationsFolder: projectMigrationsFolder,
+      migrationsTable: DRIZZLE_MIGRATIONS_TABLE,
+    })
+    const migrationsAfter = countDrizzleMigrations(db, DRIZZLE_MIGRATIONS_TABLE)
+    const didMigrateDatabase = migrationsAfter !== migrationsBefore
 
-    ///////// 2. Setup random-access-storage functions
+    const indexedTables = [
+      observationTable,
+      trackTable,
+      presetTable,
+      fieldTable,
+      coreOwnershipTable,
+      roleTable,
+      deviceInfoTable,
+      iconTable,
+      translationTable,
+    ]
+
+    ///////// 2. Wipe data if we need to re-index
+
+    if (didMigrateDatabase) {
+      fs.rmSync(INDEXER_STORAGE_FOLDER_NAME, {
+        force: true,
+        recursive: true,
+        maxRetries: 10,
+      })
+      for (const table of indexedTables) db.delete(table).run()
+    }
+
+    ///////// 3. Setup random-access-storage functions
 
     /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
     const coreManagerStorage = (name) =>
@@ -145,7 +184,7 @@ export class MapeoProject extends TypedEmitter {
     const indexerStorage = (name) =>
       coreStorage(path.join(INDEXER_STORAGE_FOLDER_NAME, name))
 
-    ///////// 3. Create instances
+    ///////// 4. Create instances
 
     this.#coreManager = new CoreManager({
       projectSecretKey,
@@ -158,17 +197,7 @@ export class MapeoProject extends TypedEmitter {
     })
 
     this.#indexWriter = new IndexWriter({
-      tables: [
-        observationTable,
-        trackTable,
-        presetTable,
-        fieldTable,
-        coreOwnershipTable,
-        roleTable,
-        deviceInfoTable,
-        iconTable,
-        translationTable,
-      ],
+      tables: indexedTables,
       sqlite: this.#sqlite,
       getWinner,
       mapDoc: (doc, version) => {
@@ -347,7 +376,7 @@ export class MapeoProject extends TypedEmitter {
       dataType: this.#dataTypes.translation,
     })
 
-    ///////// 4. Replicate local peers automatically
+    ///////// 5. Replicate local peers automatically
 
     // Replicate already connected local peers
     for (const peer of localPeers.peers) {
