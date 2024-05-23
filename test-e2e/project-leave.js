@@ -1,4 +1,5 @@
 import { test } from 'brittle'
+import assert from 'node:assert/strict'
 
 import {
   BLOCKED_ROLE_ID,
@@ -9,6 +10,7 @@ import {
 } from '../src/roles.js'
 import { MapeoProject } from '../src/mapeo-project.js'
 import {
+  ManagerCustodian,
   connectPeers,
   createManagers,
   disconnectPeers,
@@ -342,6 +344,53 @@ test('leaving a project while disconnected', async (t) => {
     (await creatorProject.$member.getById(member.deviceId)).role.roleId,
     LEFT_ROLE_ID,
     'creator no longer thinks member is part of project'
+  )
+})
+
+test('partly-left projects are cleaned up on startup', async (t) => {
+  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
+  // of `t` to ease our transition away from Brittle. We can remove this comment
+  // when Brittle is removed.
+  const custodian = new ManagerCustodian(t)
+
+  const projectId = await custodian.withManagerInSeparateProcess(
+    async (manager, LEFT_ROLE_ID) => {
+      const projectId = await manager.createProject({ name: 'foo' })
+      const project = await manager.getProject(projectId)
+      await project.observation.create({
+        schemaName: 'observation',
+        attachments: [],
+        tags: {},
+        refs: [],
+        metadata: {},
+      })
+      await project.$member.assignRole(
+        manager.getDeviceInfo().deviceId,
+        /**
+         * This test-only hack assigns the "left" role ID without actually
+         * cleaning up the project.
+         * @type {any}
+         */ (LEFT_ROLE_ID)
+      )
+      return projectId
+    },
+    LEFT_ROLE_ID
+  )
+
+  const couldGetObservations = await custodian.withManagerInSeparateProcess(
+    async (manager, projectId) => {
+      const project = await manager.getProject(projectId)
+      return project.observation
+        .getMany()
+        .then(() => true)
+        .catch(() => false)
+    },
+    projectId
+  )
+
+  assert(
+    !couldGetObservations,
+    "Shouldn't be able to fetch observations after leaving"
   )
 })
 
