@@ -14,6 +14,14 @@ const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
+test('migrations pick up values that were previously not understood', async () => {
+  // TODO(evanhahn) Write this test
+  // Receive an observation with a new field, `foo`
+  // Get the bytes, add it to the core, see that it's in SQLite without a `foo` column
+  // Do a migration where `foo` is added
+  // Reload the project and see that `foo` is now there
+})
+
 test('migration of localDeviceInfo table', async (t) => {
   const comapeoCorePreMigrationUrl = await import.meta.resolve?.(
     '@comapeo/core2.0.1'
