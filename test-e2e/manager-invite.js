@@ -1,4 +1,3 @@
-// @ts-check
 import { test, skip } from 'brittle'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'

@@ -1,4 +1,3 @@
-// @ts-check
 import { test } from 'brittle'
 import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'

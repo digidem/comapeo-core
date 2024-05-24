@@ -1,5 +1,3 @@
-// @ts-check
-
 /**
  * Returns `true` if the string is empty or only contains whitespace, `false` otherwise.
  *

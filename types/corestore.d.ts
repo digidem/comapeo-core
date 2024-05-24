@@ -3,6 +3,8 @@ declare module 'corestore' {
   import Hypercore, {
     type HypercoreStorage,
     type HypercoreOptions,
+    type ReplicationStream,
+    type CreateProtocolStreamOpts,
   } from 'hypercore'
   import { SetRequired } from 'type-fest'
 
@@ -30,7 +32,16 @@ declare module 'corestore' {
         sparse?: boolean
       }
     ): Hypercore<Hypercore.ValueEncoding, Buffer>
-    replicate: typeof Hypercore.prototype.replicate
+    replicate(
+      stream:
+        | boolean
+        | Duplex
+        | NodeDuplex
+        | NoiseStream
+        | ProtocolStream
+        | Protomux,
+      opts?: CreateProtocolStreamOpts
+    ): ReplicationStream
     namespace(name: string): Corestore
     ready(): Promise<void>
     close(): Promise<void>

@@ -1,4 +1,3 @@
-// @ts-check
 import { validate } from '@mapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, sql } from 'drizzle-orm'

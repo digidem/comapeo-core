@@ -1,4 +1,3 @@
-//@ts-check
 import test from 'brittle'
 import pDefer from 'p-defer'
 import { KeyManager } from '@mapeo/crypto'

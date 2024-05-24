@@ -1,9 +1,10 @@
 {
-  "entryPoints": ["./index.js", "./src/**/*.js"],
-  "allReflectionsHaveOwnDocument": true,
+  "entryPoints": ["src/index.js"],
+  "exclude": ["src/generated/*"],
   "cleanOutputDir": false,
   "readme": "none",
   "name": "API",
   "excludePrivate": true,
-  "excludeExternals": true
+  "excludeExternals": true,
+  "disableSources": true
 }
