@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "ad5e754d-a523-4dc8-96d4-fe26099eb1a3",
+  "id": "faf22cd4-1533-466a-8037-6566a1adbf4d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -761,6 +761,13 @@
         },
         "terms": {
           "name": "terms",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

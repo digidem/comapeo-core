@@ -128,6 +128,7 @@ CREATE TABLE `preset` (
 	`fieldIds` text NOT NULL,
 	`iconId` text,
 	`terms` text NOT NULL,
+	`color` text NOT NULL,
 	`forks` text NOT NULL
 );
 --> statement-breakpoint
