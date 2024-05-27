@@ -205,7 +205,8 @@ test('config import - presets', async () => {
   for (const preset of config.presets()) {
     assert.equal(preset.value.schemaName, 'preset', `schemaName is 'preset'`)
     assert(
-      preset.value.name === 'Planta' || 'Punto de Entrada',
+      preset.value.name === 'Planta' ||
+        preset.value.name === 'Punto de entrada',
       'the preset name is expected'
     )
   }
