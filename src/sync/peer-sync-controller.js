@@ -16,6 +16,11 @@ export const DATA_NAMESPACES = NAMESPACES.filter(
   (ns) => !PRESYNC_NAMESPACES.includes(ns)
 )
 
+/**
+ * @internal
+ * @typedef {import('./sync-api.js').SyncEnabledState} SyncEnabledState
+ */
+
 export class PeerSyncController {
   #replicatingCores = new Set()
   /** @type {Set<Namespace>} */
@@ -25,7 +30,8 @@ export class PeerSyncController {
   #roles
   /** @type {Record<Namespace, SyncCapability>} */
   #syncCapability = createNamespaceMap('unknown')
-  #isDataSyncEnabled = false
+  /** @type {SyncEnabledState} */
+  #syncEnabledState = 'none'
   /** @type {Record<Namespace, import('./core-sync-state.js').CoreState | null>} */
   #prevLocalState = createNamespaceMap(null)
   /** @type {SyncStatus} */
@@ -83,22 +89,12 @@ export class PeerSyncController {
     return this.#syncCapability
   }
 
-  /**
-   * Enable syncing of data (in the data and blob namespaces)
-   */
-  enableDataSync() {
-    this.#isDataSyncEnabled = true
-    this.#updateEnabledNamespaces()
-  }
-
-  /**
-   * Disable syncing of data (in the data and blob namespaces).
-   *
-   * Syncing of metadata (auth, config and blobIndex namespaces) will continue
-   * in the background without user interaction.
-   */
-  disableDataSync() {
-    this.#isDataSyncEnabled = false
+  /** @param {SyncEnabledState} syncEnabledState */
+  setSyncEnabledState(syncEnabledState) {
+    if (this.#syncEnabledState === syncEnabledState) {
+      return
+    }
+    this.#syncEnabledState = syncEnabledState
     this.#updateEnabledNamespaces()
   }
 
@@ -184,18 +180,45 @@ export class PeerSyncController {
     }
     this.#log('capability %o', this.#syncCapability)
 
-    // If any namespace has new data, update what is enabled
-    if (Object.values(didUpdate).indexOf(true) > -1) {
-      this.#updateEnabledNamespaces()
-    }
+    this.#updateEnabledNamespaces()
   }
 
+  /**
+   * Enable and disable the appropriate namespaces.
+   *
+   * If replicating no namespace groups, all namespaces are disabled.
+   *
+   * If only replicating the initial namespace groups, only the initial
+   * namespaces are replicated, assuming the capability permits.
+   *
+   * If replicating all namespaces, everything is replicated. However, data
+   * namespaces are only enabled after the initial namespaces have synced. And
+   * again, capabilities are checked.
+   */
   #updateEnabledNamespaces() {
-    // - If the sync capability is unknown, then the namespace is disabled,
-    //   apart from the auth namespace.
-    // - If sync capability is allowed, the "pre-sync" namespaces are enabled,
-    //   and if data sync is enabled, then all namespaces are enabled
+    /** @type {boolean} */ let isAnySyncEnabled
+    /** @type {boolean} */ let isDataSyncEnabled
+    switch (this.#syncEnabledState) {
+      case 'none':
+        isAnySyncEnabled = isDataSyncEnabled = false
+        break
+      case 'presync':
+        isAnySyncEnabled = true
+        isDataSyncEnabled = false
+        break
+      case 'all':
+        isAnySyncEnabled = isDataSyncEnabled = true
+        break
+      default:
+        throw new ExhaustivenessError(this.#syncEnabledState)
+    }
+
     for (const ns of NAMESPACES) {
+      if (!isAnySyncEnabled) {
+        this.#disableNamespace(ns)
+        continue
+      }
+
       const cap = this.#syncCapability[ns]
       if (cap === 'blocked') {
         this.#disableNamespace(ns)
@@ -208,7 +231,7 @@ export class PeerSyncController {
       } else if (cap === 'allowed') {
         if (PRESYNC_NAMESPACES.includes(ns)) {
           this.#enableNamespace(ns)
-        } else if (this.#isDataSyncEnabled) {
+        } else if (isDataSyncEnabled) {
           const arePresyncNamespacesSynced = PRESYNC_NAMESPACES.every(
             (ns) => this.#syncStatus[ns] === 'synced'
           )

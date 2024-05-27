@@ -41,7 +41,11 @@ import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Roles } from './roles.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { Logger } from './logger.js'
-import { kSyncState } from './sync/sync-api.js'
+import {
+  kSyncState,
+  kRequestFullStop,
+  kRescindFullStopRequest,
+} from './sync/sync-api.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 /** @typedef {import('type-fest').SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
@@ -747,6 +751,32 @@ export class MapeoManager extends TypedEmitter {
    */
   async listLocalPeers() {
     return omitPeerProtomux(this.#localPeers.peers)
+  }
+
+  /**
+   * Call this when the app goes into the background.
+   *
+   * Will gracefully shut down sync.
+   *
+   * @see {@link onForegrounded}
+   * @returns {void}
+   */
+  onBackgrounded() {
+    const projects = this.#activeProjects.values()
+    for (const project of projects) project.$sync[kRequestFullStop]()
+  }
+
+  /**
+   * Call this when the app goes into the foreground.
+   *
+   * Will undo the effects of `onBackgrounded`.
+   *
+   * @see {@link onBackgrounded}
+   * @returns {void}
+   */
+  onForegrounded() {
+    const projects = this.#activeProjects.values()
+    for (const project of projects) project.$sync[kRescindFullStopRequest]()
   }
 
   /**
