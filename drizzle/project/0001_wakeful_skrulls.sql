@@ -1,0 +1,1 @@
+ALTER TABLE preset ADD `color` text NOT NULL;
