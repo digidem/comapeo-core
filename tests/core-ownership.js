@@ -1,5 +1,5 @@
-// @ts-check
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { KeyManager, sign } from '@mapeo/crypto'
 import sodium from 'sodium-universal'
 import {
@@ -10,25 +10,25 @@ import { randomBytes } from 'node:crypto'
 import { parseVersionId, getVersionId } from '@mapeo/schema'
 import { discoveryKey } from 'hypercore-crypto'
 
-test('Valid coreOwnership record', (t) => {
+test('Valid coreOwnership record', () => {
   const validDoc = generateValidDoc()
   const version = parseVersionId(validDoc.versionId)
 
   const mappedDoc = mapAndValidateCoreOwnership(validDoc, version)
 
-  t.ok(validDoc.links.length > 0, 'original doc has links')
-  t.alike(mappedDoc.links, [], 'links are stripped from mapped doc')
-  t.absent(
-    'coreSignatures' in mappedDoc,
+  assert(validDoc.links.length > 0, 'original doc has links')
+  assert.deepEqual(mappedDoc.links, [], 'links are stripped from mapped doc')
+  assert(
+    !('coreSignatures' in mappedDoc),
     'coreSignatures are stripped from mapped doc'
   )
-  t.absent(
-    'identitySignature' in mappedDoc,
+  assert(
+    !('identitySignature' in mappedDoc),
     'identitySignature is stripped from mapped doc'
   )
 })
 
-test('Invalid coreOwnership signatures', (t) => {
+test('Invalid coreOwnership signatures', () => {
   const validDoc = generateValidDoc()
   const version = parseVersionId(validDoc.versionId)
 
@@ -40,17 +40,17 @@ test('Invalid coreOwnership signatures', (t) => {
         [key]: randomBytes(sodium.crypto_sign_BYTES),
       },
     }
-    t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+    assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
   }
 
   const invalidDoc = {
     ...validDoc,
     identitySignature: randomBytes(sodium.crypto_sign_BYTES),
   }
-  t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+  assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
 })
 
-test('Invalid coreOwnership docId and coreIds', (t) => {
+test('Invalid coreOwnership docId and coreIds', () => {
   const validDoc = generateValidDoc()
   const version = parseVersionId(validDoc.versionId)
 
@@ -59,17 +59,17 @@ test('Invalid coreOwnership docId and coreIds', (t) => {
       ...validDoc,
       [`${key}CoreId`]: randomBytes(32).toString('hex'),
     }
-    t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+    assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
   }
 
   const invalidDoc = {
     ...validDoc,
     docId: randomBytes(32).toString('hex'),
   }
-  t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+  assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
 })
 
-test('Invalid coreOwnership docId and coreIds (wrong length)', (t) => {
+test('Invalid coreOwnership docId and coreIds (wrong length)', () => {
   const validDoc = generateValidDoc()
   const version = parseVersionId(validDoc.versionId)
 
@@ -79,26 +79,26 @@ test('Invalid coreOwnership docId and coreIds (wrong length)', (t) => {
       ...validDoc,
       [`${namespace}CoreId`]: validDoc[`${namespace}CoreId`].slice(0, -1),
     }
-    t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+    assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
   }
 
   const invalidDoc = {
     ...validDoc,
     docId: validDoc.docId.slice(0, -1),
   }
-  t.exception(() => mapAndValidateCoreOwnership(invalidDoc, version))
+  assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
 })
 
-test('Invalid - different coreKey', (t) => {
+test('Invalid - different coreKey', () => {
   const validDoc = generateValidDoc()
   const version = {
     ...parseVersionId(validDoc.versionId),
     coreDiscoveryKey: discoveryKey(randomBytes(32)),
   }
-  t.exception(() => mapAndValidateCoreOwnership(validDoc, version))
+  assert.throws(() => mapAndValidateCoreOwnership(validDoc, version))
 })
 
-test('getWinner (coreOwnership)', (t) => {
+test('getWinner (coreOwnership)', () => {
   const validDoc = generateValidDoc()
   const version = parseVersionId(validDoc.versionId)
 
@@ -111,11 +111,19 @@ test('getWinner (coreOwnership)', (t) => {
     versionId: getVersionId({ ...version, index: 6 }),
   }
 
-  t.is(getWinner(docA, docB), docA, 'Doc with lowest index picked as winner')
-  t.is(getWinner(docB, docA), docA, 'Doc with lowest index picked as winner')
+  assert.equal(
+    getWinner(docA, docB),
+    docA,
+    'Doc with lowest index picked as winner'
+  )
+  assert.equal(
+    getWinner(docB, docA),
+    docA,
+    'Doc with lowest index picked as winner'
+  )
 })
 
-test('getWinner (default)', (t) => {
+test('getWinner (default)', () => {
   const docA = {
     docId: 'A',
     schemaName: 'other',
@@ -130,13 +138,29 @@ test('getWinner (default)', (t) => {
     links: ['1'],
     updatedAt: new Date(1999, 0, 2).toISOString(),
   }
-  t.is(getWinner(docA, docB), docB, 'Doc with last updatedAt picked as winner')
-  t.is(getWinner(docB, docA), docB, 'Doc with last updatedAt picked as winner')
+  assert.equal(
+    getWinner(docA, docB),
+    docB,
+    'Doc with last updatedAt picked as winner'
+  )
+  assert.equal(
+    getWinner(docB, docA),
+    docB,
+    'Doc with last updatedAt picked as winner'
+  )
 
   docA.updatedAt = docB.updatedAt
 
-  t.is(getWinner(docA, docB), docA, 'Deterministic winner if same updatedAt')
-  t.is(getWinner(docB, docA), docA, 'Deterministic winner if same updatedAt')
+  assert.equal(
+    getWinner(docA, docB),
+    docA,
+    'Deterministic winner if same updatedAt'
+  )
+  assert.equal(
+    getWinner(docB, docA),
+    docA,
+    'Deterministic winner if same updatedAt'
+  )
 })
 
 function generateValidDoc() {

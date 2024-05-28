@@ -1,5 +1,4 @@
-// @ts-check
-import test from 'brittle'
+import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DataStore } from '../src/datastore/index.js'
 import {
@@ -31,7 +30,7 @@ const obsFixture = {
   metadata: {},
 }
 
-test('private createWithDocId() method', async (t) => {
+test('private createWithDocId() method', async () => {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
@@ -61,12 +60,12 @@ test('private createWithDocId() method', async (t) => {
   })
   const customId = randomBytes(8).toString('hex')
   const obs = await dataType[kCreateWithDocId](customId, obsFixture)
-  t.is(obs.docId, customId)
+  assert.equal(obs.docId, customId)
   const read = await dataType.getByDocId(customId)
-  t.is(read.docId, customId)
+  assert.equal(read.docId, customId)
 })
 
-test('private createWithDocId() method throws when doc exists', async (t) => {
+test('private createWithDocId() method throws when doc exists', async () => {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
@@ -96,13 +95,13 @@ test('private createWithDocId() method throws when doc exists', async (t) => {
   })
   const customId = randomBytes(8).toString('hex')
   await dataType[kCreateWithDocId](customId, obsFixture)
-  await t.exception(
+  await assert.rejects(
     () => dataType[kCreateWithDocId](customId, obsFixture),
     'Throws with error creating a doc with an id that already exists'
   )
 })
 
-test('test validity of `createdBy` field', async (t) => {
+test('test validity of `createdBy` field', async () => {
   const projectKey = randomBytes(32)
   const { dataType: dt1, dataStore: ds1 } = await testenv({ projectKey })
 
@@ -110,14 +109,14 @@ test('test validity of `createdBy` field', async (t) => {
   const obs = await dt1[kCreateWithDocId](customId, obsFixture)
   const createdBy = crypto.discoveryKey(ds1.writerCore.key).toString('hex')
 
-  t.is(
+  assert.equal(
     obs.createdBy,
     createdBy,
     'createdBy should be generated from the DataStore writerCore discoveryKey'
   )
 })
 
-test('test validity of `createdBy` field from another peer', async (t) => {
+test('test validity of `createdBy` field from another peer', async () => {
   const projectKey = randomBytes(32)
   const {
     coreManager: cm1,
@@ -137,7 +136,7 @@ test('test validity of `createdBy` field from another peer', async (t) => {
   const replicatedObservation = await dt2.getByVersionId(obs.versionId)
 
   const createdBy = crypto.discoveryKey(ds1.writerCore.key).toString('hex')
-  t.is(replicatedObservation.createdBy, createdBy)
+  assert.equal(replicatedObservation.createdBy, createdBy)
 
   /** @type {import('@mapeo/schema').ObservationValue} */
   const newObsFixture = {
@@ -149,36 +148,40 @@ test('test validity of `createdBy` field from another peer', async (t) => {
   }
   const updatedDoc = await dt2.update(obs.versionId, newObsFixture)
   const updatedObservation = await dt2.getByVersionId(updatedDoc.versionId)
-  t.is(updatedObservation.createdBy, createdBy)
+  assert.equal(updatedObservation.createdBy, createdBy)
   await destroy()
 })
 
-test('getByDocId() throws if no document exists with that ID', async (t) => {
+test('getByDocId() throws if no document exists with that ID', async () => {
   const { dataType } = await testenv({ projectKey: randomBytes(32) })
-  await t.exception(() => dataType.getByDocId('foo bar'), NotFoundError)
+  await assert.rejects(() => dataType.getByDocId('foo bar'), NotFoundError)
 })
 
-test('delete()', async (t) => {
+test('delete()', async () => {
   const projectKey = randomBytes(32)
   const { dataType } = await testenv({ projectKey })
   const doc = await dataType.create(obsFixture)
-  t.is(doc.deleted, false, `'deleted' field is false before deletion`)
+  assert.equal(doc.deleted, false, `'deleted' field is false before deletion`)
   const deletedDoc = await dataType.delete(doc.docId)
-  t.is(deletedDoc.deleted, true, `'deleted' field is true after deletion`)
-  t.alike(
+  assert.equal(
+    deletedDoc.deleted,
+    true,
+    `'deleted' field is true after deletion`
+  )
+  assert.deepEqual(
     deletedDoc.links,
     [doc.versionId],
     `deleted doc links back to created doc`
   )
   const retrievedDocByDocId = await dataType.getByDocId(deletedDoc.docId)
-  t.alike(
+  assert.deepEqual(
     retrievedDocByDocId,
     deletedDoc,
     `retrieving by docId returns deleted doc`
   )
 })
 
-test('translation', async (t) => {
+test('translation', async () => {
   const projectKey = randomBytes(32)
   const { dataType, translationApi } = await testenv({ projectKey })
   /** @type {import('@mapeo/schema').ObservationValue} */
@@ -206,7 +209,7 @@ test('translation', async (t) => {
   await translationApi.put(translation)
   translationApi.index(translation)
 
-  t.is(
+  assert.equal(
     translation.message,
     getProperty(
       await dataType.getByDocId(doc.docId, { lang: 'es' }),
@@ -214,7 +217,7 @@ test('translation', async (t) => {
     ),
     `we get a valid translated field`
   )
-  t.is(
+  assert.equal(
     translation.message,
     getProperty(
       await dataType.getByDocId(doc.docId, { lang: 'es-AR' }),
@@ -222,7 +225,7 @@ test('translation', async (t) => {
     ),
     `we get a valid translated field`
   )
-  t.is(
+  assert.equal(
     translation.message,
     getProperty(
       await dataType.getByDocId(doc.docId, { lang: 'es-ES' }),
@@ -231,7 +234,7 @@ test('translation', async (t) => {
     `passing an untranslated regionCode, still returns a translated field, since we fallback to only matching languageCode`
   )
 
-  t.is(
+  assert.equal(
     getProperty(observation, 'tags.type'),
     getProperty(
       await dataType.getByDocId(doc.docId, { lang: 'de' }),
@@ -240,7 +243,7 @@ test('translation', async (t) => {
     `passing an untranslated language code returns the untranslated message`
   )
 
-  t.is(
+  assert.equal(
     getProperty(observation, 'tags.type'),
     getProperty(await dataType.getByDocId(doc.docId), 'tags.type'),
     `not passing a a language code returns the untranslated message`

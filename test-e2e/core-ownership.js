@@ -1,4 +1,3 @@
-// @ts-check
 import { test } from 'brittle'
 import { KeyManager } from '@mapeo/crypto'
 import { parseVersionId } from '@mapeo/schema'
@@ -42,6 +41,7 @@ test('CoreOwnership', async (t) => {
     removeTags: {},
     terms: [],
     fieldIds: [],
+    color: '#ff00ff',
   })
   t.is(
     discoveryId(await coreOwnership.getCoreId(deviceId, 'config')),

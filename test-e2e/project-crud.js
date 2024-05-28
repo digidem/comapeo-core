@@ -1,4 +1,3 @@
-// @ts-check
 import { test } from 'brittle'
 import { randomBytes } from 'crypto'
 import { valueOf } from '../src/utils.js'
@@ -32,6 +31,7 @@ const fixtures = [
     removeTags: {},
     fieldIds: [],
     terms: [],
+    color: '#ff00ff',
   },
   {
     schemaName: 'field',

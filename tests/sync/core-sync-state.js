@@ -1,6 +1,6 @@
-// @ts-check
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-import test from 'brittle'
 import Hypercore from 'hypercore'
 import RAM from 'random-access-memory'
 import {
@@ -238,7 +238,7 @@ const scenarios = [
   },
 ]
 
-test('deriveState() scenarios', (t) => {
+test('deriveState() scenarios', () => {
   for (const { state, expected, message } of scenarios) {
     const derivedState = deriveState({
       length: state.length,
@@ -249,11 +249,11 @@ test('deriveState() scenarios', (t) => {
       peerSyncControllers: new Map(),
       namespace: 'auth',
     })
-    t.alike(derivedState, expected, message)
+    assert.deepEqual(derivedState, expected, message)
   }
 })
 
-test('deriveState() have at index beyond bitfield page size', (t) => {
+test('deriveState() have at index beyond bitfield page size', () => {
   const localState = createState({ have: 2 ** 10 - 1 })
   const remoteState = new PeerState()
   const remoteHaveBitfield = new RemoteBitfield()
@@ -284,10 +284,10 @@ test('deriveState() have at index beyond bitfield page size', (t) => {
       },
     },
   }
-  t.alike(deriveState(state), expected)
+  assert.deepEqual(deriveState(state), expected)
 })
 
-test('CoreReplicationState', async (t) => {
+test('CoreReplicationState', async () => {
   for (const { state, expected, message } of scenarios) {
     const localCore = await createCore()
     await localCore.ready()
@@ -343,7 +343,7 @@ test('CoreReplicationState', async (t) => {
       })
     )
     await updateWithTimeout(emitter, 100)
-    t.alike(
+    assert.deepEqual(
       crs.getState(),
       { ...expected, remoteStates: expectedRemoteStates },
       message
@@ -351,7 +351,7 @@ test('CoreReplicationState', async (t) => {
   }
 })
 
-test('bitCount32', (t) => {
+test('bitCount32', () => {
   const testCases = new Set([0, 2 ** 32 - 1])
   for (let i = 0; i < 32; i++) {
     testCases.add(2 ** i)
@@ -364,19 +364,23 @@ test('bitCount32', (t) => {
   for (const n of testCases) {
     const actual = bitCount32(n)
     const expected = slowBitCount(n)
-    t.is(actual, expected, `${n.toString(2)} has ${expected} bit(s) set`)
+    assert.equal(
+      actual,
+      expected,
+      `${n.toString(2)} has ${expected} bit(s) set`
+    )
   }
 })
 
 // This takes several hours to run on my M2 Macbook Pro (it's the slowBitCount
 // that takes a long time - bitCount32 takes about 23 seconds), so not running
 // this by default. The test did pass when I ran it though.
-test.skip('bitCount32 (full test)', (t) => {
+test.skip('bitCount32 (full test)', () => {
   for (let n = 0; n < 2 ** 32; n++) {
     if (n % 2 ** 28 === 0) console.log(n)
     const bitCount = bitCount32(n)
     const expected = slowBitCount(n)
-    if (bitCount !== expected) t.fail('bitcount is correct ' + n)
+    if (bitCount !== expected) assert.fail('bitcount is correct ' + n)
   }
 })
 

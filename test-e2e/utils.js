@@ -1,4 +1,3 @@
-// @ts-check
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
@@ -181,7 +180,7 @@ export async function createManagers(count, t, deviceType) {
       .fill(null)
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
-        const manager = createManager(name, t, deviceType)
+        const manager = createManager(name, t)
         await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
@@ -191,9 +190,8 @@ export async function createManagers(count, t, deviceType) {
 /**
  * @param {string} seed
  * @param {import('brittle').TestInstance} t
- * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
  */
-export function createManager(seed, t, deviceType) {
+export function createManager(seed, t) {
   /** @type {string} */ let dbFolder
   /** @type {string | import('../src/types.js').CoreStorage} */ let coreStorage
 
@@ -223,7 +221,6 @@ export function createManager(seed, t, deviceType) {
     dbFolder,
     coreStorage,
     fastify: Fastify(),
-    deviceType,
   })
 }
 

@@ -1,4 +1,3 @@
-// @ts-check
 import test from 'brittle'
 import RAM from 'random-access-memory'
 import Database from 'better-sqlite3'

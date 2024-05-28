@@ -41,7 +41,11 @@ import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Roles } from './roles.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { Logger } from './logger.js'
-import { kSyncState } from './sync/sync-api.js'
+import {
+  kSyncState,
+  kRequestFullStop,
+  kRescindFullStopRequest,
+} from './sync/sync-api.js'
 
 /** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
 /** @typedef {import('type-fest').SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
@@ -93,8 +97,6 @@ export class MapeoManager extends TypedEmitter {
   #loggerBase
   #l
   #defaultConfigPath
-  /** @readonly */
-  #deviceType
 
   /**
    * @param {Object} opts
@@ -104,7 +106,6 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
    * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
-   * @param {import('./generated/rpc.js').DeviceInfo['deviceType']} [opts.deviceType] Device type, shared with local peers and project members
    * @param {String} [opts.defaultConfigPath]
    */
   constructor({
@@ -114,13 +115,11 @@ export class MapeoManager extends TypedEmitter {
     clientMigrationsFolder,
     coreStorage,
     fastify,
-    deviceType,
     defaultConfigPath,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
-    this.#deviceType = deviceType
     this.#defaultConfigPath = defaultConfigPath
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
@@ -752,6 +751,32 @@ export class MapeoManager extends TypedEmitter {
    */
   async listLocalPeers() {
     return omitPeerProtomux(this.#localPeers.peers)
+  }
+
+  /**
+   * Call this when the app goes into the background.
+   *
+   * Will gracefully shut down sync.
+   *
+   * @see {@link onForegrounded}
+   * @returns {void}
+   */
+  onBackgrounded() {
+    const projects = this.#activeProjects.values()
+    for (const project of projects) project.$sync[kRequestFullStop]()
+  }
+
+  /**
+   * Call this when the app goes into the foreground.
+   *
+   * Will undo the effects of `onBackgrounded`.
+   *
+   * @see {@link onBackgrounded}
+   * @returns {void}
+   */
+  onForegrounded() {
+    const projects = this.#activeProjects.values()
+    for (const project of projects) project.$sync[kRescindFullStopRequest]()
   }
 
   /**
