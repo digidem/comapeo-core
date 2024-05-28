@@ -41,6 +41,7 @@ test('CoreOwnership', async (t) => {
     removeTags: {},
     terms: [],
     fieldIds: [],
+    color: '#ff00ff',
   })
   t.is(
     discoveryId(await coreOwnership.getCoreId(deviceId, 'config')),
