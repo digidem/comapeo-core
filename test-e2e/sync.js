@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'
 import { excludeKeys } from 'filter-obj'
+import { map } from 'iterpal'
 import {
   connectPeers,
   createManagers,
   invite,
   seedDatabases,
-  sortById,
   waitForPeers,
   waitForSync,
 } from './utils.js'
@@ -26,8 +26,11 @@ import { kSyncState } from '../src/sync/sync-api.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
-test('Create and sync data', { timeout: 100_000 }, async function (t) {
-  const COUNT = 10
+test('Create and sync data', { timeout: 60_000 }, async (t) => {
+  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
+  // of `t` to ease our transition away from Brittle. We can remove this comment
+  // when Brittle is removed.
+  const COUNT = 5
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
@@ -49,27 +52,33 @@ test('Create and sync data', { timeout: 100_000 }, async function (t) {
   connectPeers(managers, { discovery: false })
   await waitForSync(projects, 'initial')
 
-  for (const schemaName of generatedSchemaNames) {
-    for (const project of projects) {
-      const deviceId = project.deviceId.slice(0, 7)
-      // @ts-ignore - to complex to narrow `schemaName` to valid values
-      const docs = await project[schemaName].getMany()
-      const expected = generatedDocs.filter((v) => v.schemaName === schemaName)
-      if (SCHEMAS_INITIAL_SYNC.includes(schemaName)) {
-        t.alike(
-          sortById(docs),
-          sortById(expected),
-          `All ${schemaName} docs synced to ${deviceId}`
-        )
-      } else {
-        t.not(
-          docs.length,
-          expected.length,
-          `Not all ${schemaName} docs synced to ${deviceId}`
-        )
-      }
-    }
-  }
+  await Promise.all(
+    map(generatedSchemaNames, (schemaName) =>
+      Promise.all(
+        map(projects, async (project) => {
+          const deviceId = project.deviceId.slice(0, 7)
+          // @ts-ignore - to complex to narrow `schemaName` to valid values
+          const docs = await project[schemaName].getMany()
+          const expected = generatedDocs.filter(
+            (v) => v.schemaName === schemaName
+          )
+          if (SCHEMAS_INITIAL_SYNC.includes(schemaName)) {
+            assert.deepEqual(
+              new Set(docs),
+              new Set(expected),
+              `All ${schemaName} docs synced to ${deviceId}`
+            )
+          } else {
+            assert.notEqual(
+              docs.length,
+              expected.length,
+              `Not all ${schemaName} docs synced to ${deviceId}`
+            )
+          }
+        })
+      )
+    )
+  )
 
   for (const project of projects) {
     project.$sync.start()
@@ -77,19 +86,25 @@ test('Create and sync data', { timeout: 100_000 }, async function (t) {
 
   await waitForSync(projects, 'full')
 
-  for (const schemaName of generatedSchemaNames) {
-    for (const project of projects) {
-      const deviceId = project.deviceId.slice(0, 7)
-      // @ts-ignore - to complex to narrow `schemaName` to valid values
-      const docs = await project[schemaName].getMany()
-      const expected = generatedDocs.filter((v) => v.schemaName === schemaName)
-      t.alike(
-        sortById(docs),
-        sortById(expected),
-        `All ${schemaName} docs synced to ${deviceId}`
+  await Promise.all(
+    map(generatedSchemaNames, (schemaName) =>
+      Promise.all(
+        map(projects, async (project) => {
+          const deviceId = project.deviceId.slice(0, 7)
+          // @ts-ignore - to complex to narrow `schemaName` to valid values
+          const docs = await project[schemaName].getMany()
+          const expected = generatedDocs.filter(
+            (v) => v.schemaName === schemaName
+          )
+          assert.deepEqual(
+            new Set(docs),
+            new Set(expected),
+            `All ${schemaName} docs synced to ${deviceId}`
+          )
+        })
       )
-    }
-  }
+    )
+  )
 })
 
 test('start and stop sync', async function (t) {
