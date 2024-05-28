@@ -345,39 +345,40 @@ function* translationForValue({
   fieldsToTranslate,
 }) {
   for (const [fieldRef, message] of Object.entries(fieldsToTranslate)) {
-    if (typeof message !== 'string') {
-      console.log('MSG', message)
-      //warnings.push(
-      //  new Error(
-      //    `invalid translation message type ${typeof message}, message must be string`
-      //  )
-      //)
-      continue
-    }
-    const translationValue = {
+    /** @type {Record<string,any>} */
+    let value = {
       /** @type {'translation'} */
       schemaName: 'translation',
       languageCode,
       regionCode: regionCode || '',
       schemaNameRef,
-      fieldRef,
-      message,
-    }
-    if (
-      !validate(translationValue.schemaName, {
-        ...translationValue,
-        docIdRef: '',
-      })
-    ) {
-      warnings.push(
-        new Error(`Invalid translation ${translationValue.message}`)
-      )
-      continue
     }
 
-    yield {
-      name: docName,
-      value: translationValue,
+    if (isRecord(message)) {
+      for (let [key, translation] of Object.entries(message)) {
+        value = {
+          ...value,
+          fieldRef: `${fieldRef}.${key}`,
+          message: translation,
+        }
+        if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
+          warnings.push(new Error(`Invalid translation ${value.message}`))
+          continue
+        }
+
+        yield {
+          name: docName,
+          value,
+        }
+      }
+    } else if (typeof message === 'string') {
+      value = { ...value, fieldRef, message }
+      if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
+        warnings.push(new Error(`Invalid translation ${value.message}`))
+        continue
+      }
+
+      yield { name: docName, value }
     }
   }
 }
