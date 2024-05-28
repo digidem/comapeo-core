@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   CoreManager,
   kCoreManagerReplicate,
@@ -10,6 +9,8 @@ import RAM from 'random-access-memory'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+/** @typedef {(typeof import('../../src/constants.js').NAMESPACES)[number]} Namespace */
+
 /**
  *
  * @param {Partial<ConstructorParameters<typeof CoreManager>[0]> & { rootKey?: Buffer }} param0
@@ -31,7 +32,7 @@ export function createCoreManager({
   return new CoreManager({
     db,
     keyManager,
-    storage: RAM,
+    storage: () => new RAM(),
     projectKey,
     autoDownload: false,
     ...opts,
@@ -39,42 +40,58 @@ export function createCoreManager({
 }
 
 /**
+ * @param {import('streamx').Duplex} stream
+ * @returns {Promise<void>}
+ */
+const destroyStream = (stream) =>
+  new Promise((res) => {
+    stream.on('close', res)
+    stream.destroy()
+  })
+
+/**
  *
  * @param {CoreManager} cm1
  * @param {CoreManager} cm2
  * @param {{ kp1: import('../../src/types.js').KeyPair, kp2: import('../../src/types.js').KeyPair }} [opts]
- * @returns
+ * @returns {{ destroy: () => Promise<void> }}
  */
 export function replicate(
   cm1,
   cm2,
-  { kp1 = NoiseSecretStream.keyPair(), kp2 = NoiseSecretStream.keyPair() } = {}
+  { kp1, kp2 } = {
+    kp1: NoiseSecretStream.keyPair(),
+    kp2: NoiseSecretStream.keyPair(),
+  }
 ) {
-  const n1 = new NoiseSecretStream(true, undefined, { keyPair: kp1 })
-  const n2 = new NoiseSecretStream(false, undefined, { keyPair: kp2 })
+  /** @typedef {typeof NoiseSecretStream<import('streamx').Duplex>} DefaultSecretStream */
+  const n1 = new /** @type {DefaultSecretStream} */ (NoiseSecretStream)(
+    true,
+    undefined,
+    { keyPair: kp1 }
+  )
+  const n2 = new /** @type {DefaultSecretStream} */ (NoiseSecretStream)(
+    false,
+    undefined,
+    { keyPair: kp2 }
+  )
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
   cm1[kCoreManagerReplicate](n1)
   cm2[kCoreManagerReplicate](n2)
 
-  async function destroy() {
-    await Promise.all([
-      new Promise((res) => {
-        n1.on('close', res)
-        n1.destroy()
-      }),
-      new Promise((res) => {
-        n2.on('close', res)
-        n2.destroy()
-      }),
-    ])
-  }
-
   return {
-    destroy,
+    async destroy() {
+      await Promise.all([n1, n2].map(destroyStream))
+    },
   }
 }
 
+/**
+ * @param {CoreManager} coreManager
+ * @param {ReadonlyArray<Buffer>} keys
+ * @returns {Promise<void>}
+ */
 export async function waitForCores(coreManager, keys) {
   const allKeys = getAllKeys(coreManager)
   if (hasKeys(keys, allKeys)) return
@@ -90,18 +107,30 @@ export async function waitForCores(coreManager, keys) {
   })
 }
 
+/**
+ * @param {CoreManager} coreManager
+ * @returns {Array<Buffer>}
+ */
 export function getAllKeys(coreManager) {
-  const keys = []
-  for (const namespace of CoreManager.namespaces) {
-    keys.push.apply(keys, getKeys(coreManager, namespace))
-  }
-  return keys
+  return CoreManager.namespaces.flatMap((namespace) =>
+    getKeys(coreManager, namespace)
+  )
 }
 
+/**
+ * @param {CoreManager} coreManager
+ * @param {Namespace} namespace
+ * @returns {Array<Buffer>}
+ */
 export function getKeys(coreManager, namespace) {
   return coreManager.getCores(namespace).map(({ key }) => key)
 }
 
+/**
+ * @param {ReadonlyArray<Buffer>} someKeys
+ * @param {ReadonlyArray<Buffer>} allKeys
+ * @returns {boolean}
+ */
 export function hasKeys(someKeys, allKeys) {
   for (const key of someKeys) {
     if (!allKeys.find((k) => k.equals(key))) return false
