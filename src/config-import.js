@@ -345,30 +345,38 @@ function* translationForValue({
   fieldsToTranslate,
 }) {
   for (const [fieldRef, message] of Object.entries(fieldsToTranslate)) {
-    /** @type {Record<string,any>} */
     let value = {
       /** @type {'translation'} */
       schemaName: 'translation',
       languageCode,
       regionCode: regionCode || '',
       schemaNameRef,
+      fieldRef: '',
+      message: '',
     }
 
     if (isRecord(message)) {
       for (let [key, translation] of Object.entries(message)) {
-        value = {
-          ...value,
-          fieldRef: `${fieldRef}.${key}`,
-          message: translation,
-        }
-        if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
-          warnings.push(new Error(`Invalid translation ${value.message}`))
-          continue
-        }
+        if (typeof translation === 'string') {
+          value = {
+            ...value,
+            fieldRef: `${fieldRef}.${key}`,
+            message: translation,
+          }
+          if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
+            warnings.push(new Error(`Invalid translation ${value.message}`))
+            continue
+          }
 
-        yield {
-          name: docName,
-          value,
+          yield {
+            name: docName,
+            value,
+          }
+        } else {
+          warnings.push(
+            new Error(`Invalid translation message type ${typeof message}`)
+          )
+          continue
         }
       }
     } else if (typeof message === 'string') {
@@ -379,6 +387,11 @@ function* translationForValue({
       }
 
       yield { name: docName, value }
+    } else {
+      warnings.push(
+        new Error(`Invalid translation message type ${typeof message}`)
+      )
+      continue
     }
   }
 }
