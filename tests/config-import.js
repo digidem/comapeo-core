@@ -258,5 +258,7 @@ test('config import - load default config', async () => {
     'correct number of presets in default config'
   )
 
+  //console.log('translations size', size(config.translations()))
+
   assert.equal(config.warnings.length, 0, 'no warnings on config file')
 })

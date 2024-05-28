@@ -22,7 +22,7 @@ const MAX_ICON_SIZE = 10_000_000
 /** @typedef {('presets' | 'fields')} ValidDocTypes */
 /**
  * @typedef {{
- *  [lang: string] : unknown
+ *  [lang: string]: unknown
  * }} TranslationsFile
  */
 
@@ -210,17 +210,12 @@ export async function readConfig(configPath) {
       )) {
         if (!isRecord(languageTranslations))
           throw new Error('invalid language translations object')
-        const translationObject = translationsForLanguage(
+        for (const { name, value } of translationsForLanguage(
           lang,
           languageTranslations
-        )
-        if (!translationObject) continue
-        const { value, name } = translationObject
-        if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
-          warnings.push(new Error(`Invalid translation ${value.message}`))
-          continue
+        )) {
+          yield { name, value }
         }
-        yield { name, value }
       }
     },
   }
@@ -276,12 +271,9 @@ async function findTranslationsFile(entries) {
 /**
  * @param {string} lang
  * @param {Record<string, unknown>} languageTranslations
- * @returns {{
- * name: string,
- * value:Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>} | undefined}
  *
  */
-function translationsForLanguage(lang, languageTranslations) {
+function* translationsForLanguage(lang, languageTranslations) {
   const { language: languageCode, region: regionCode } = parseBCP47(lang)
   if (!languageCode) {
     warnings.push(new Error(`invalid translation language ${lang}`))
@@ -299,7 +291,7 @@ function translationsForLanguage(lang, languageTranslations) {
       warnings.push(new Error('invalid translation for docType object'))
       continue
     }
-    return translationsForDocType({
+    yield* translationsForDocType({
       languageCode,
       regionCode,
       schemaNameRef,
@@ -314,7 +306,7 @@ function translationsForLanguage(lang, languageTranslations) {
  * @param {ValidDocTypes} opts.schemaNameRef
  * @param {Record<ValidDocTypes, unknown>} opts.languageTranslationsForDocType
  */
-function translationsForDocType({
+function* translationsForDocType({
   languageCode,
   regionCode,
   schemaNameRef,
@@ -327,28 +319,65 @@ function translationsForDocType({
       warnings.push(new Error(`invalid translation field`))
       return
     }
-    for (const [fieldRef, message] of Object.entries(fieldsToTranslate)) {
-      if (typeof message !== 'string') {
-        warnings.push(
-          new Error(
-            `invalid translation message type ${typeof message}, message must be string`
-          )
-        )
-        continue
-      }
-      const translationValue = {
-        /** @type {'translation'} */
-        schemaName: 'translation',
-        languageCode,
-        regionCode: regionCode || '',
-        schemaNameRef,
-        fieldRef,
-        message,
-      }
-      return {
-        name: docName,
-        value: translationValue,
-      }
+    yield* translationForValue({
+      languageCode,
+      regionCode,
+      schemaNameRef,
+      docName,
+      fieldsToTranslate,
+    })
+  }
+}
+
+/**
+ * @param {Object} opts
+ * @param {string} opts.languageCode
+ * @param {string | null | undefined} opts.regionCode
+ * @param {ValidDocTypes} opts.schemaNameRef
+ * @param {string} opts.docName
+ * @param {Record<string,unknown>} opts.fieldsToTranslate
+ */
+function* translationForValue({
+  languageCode,
+  regionCode,
+  schemaNameRef,
+  docName,
+  fieldsToTranslate,
+}) {
+  for (const [fieldRef, message] of Object.entries(fieldsToTranslate)) {
+    if (typeof message !== 'string') {
+      console.log('MSG', message)
+      //warnings.push(
+      //  new Error(
+      //    `invalid translation message type ${typeof message}, message must be string`
+      //  )
+      //)
+      continue
+    }
+    const translationValue = {
+      /** @type {'translation'} */
+      schemaName: 'translation',
+      languageCode,
+      regionCode: regionCode || '',
+      schemaNameRef,
+      fieldRef,
+      message,
+    }
+    if (
+      !validate(translationValue.schemaName, {
+        ...translationValue,
+        docIdRef: '',
+      })
+    ) {
+      warnings.push(
+        new Error(`Invalid translation ${translationValue.message}`)
+      )
+      continue
+    }
+
+    yield {
+      name: docName,
+      value: translationValue,
     }
   }
 }
