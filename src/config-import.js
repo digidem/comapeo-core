@@ -356,35 +356,7 @@ function* translationForValue({
     }
 
     if (isRecord(message)) {
-      let idx = 0
-      for (let translation of Object.values(message)) {
-        if (isRecord(translation)) {
-          for (let [key, msg] of Object.entries(translation)) {
-            if (typeof msg === 'string') {
-              value = {
-                ...value,
-                fieldRef: `${fieldRef}[${idx}].${key}`,
-                message: msg,
-              }
-              if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
-                warnings.push(new Error(`Invalid translation ${value.message}`))
-                continue
-              }
-
-              yield {
-                name: docName,
-                value,
-              }
-            }
-          }
-        } else {
-          warnings.push(
-            new Error(`Invalid translation message type ${typeof message}`)
-          )
-          continue
-        }
-        idx++
-      }
+      yield* translateMessageObject({ value, message, docName })
     } else if (typeof message === 'string') {
       value = { ...value, fieldRef, message }
       if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
@@ -398,6 +370,37 @@ function* translationForValue({
         new Error(`Invalid translation message type ${typeof message}`)
       )
       continue
+    }
+  }
+}
+/**
+ * @param {Object} opts
+ * @param {any} opts.value
+ * @param {string} opts.docName
+ * @param {Record<string,unknown>} opts.message
+ */
+function* translateMessageObject({ value, message, docName }) {
+  let idx = 0
+  for (let translation of Object.values(message)) {
+    if (isRecord(translation)) {
+      for (let [key, msg] of Object.entries(translation)) {
+        if (typeof msg === 'string') {
+          value = {
+            ...value,
+            fieldRef: `${value.fieldRef}[${idx}].${key}`,
+            message: msg,
+          }
+          if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
+            warnings.push(new Error(`Invalid translation ${value.message}`))
+            continue
+          }
+          yield {
+            value,
+            name: docName,
+          }
+        }
+      }
+      idx++
     }
   }
 }
