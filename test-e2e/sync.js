@@ -1,13 +1,14 @@
 import { test } from 'brittle'
+import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'
 import { excludeKeys } from 'filter-obj'
+import { map } from 'iterpal'
 import {
   connectPeers,
   createManagers,
   invite,
   seedDatabases,
-  sortById,
   waitForPeers,
   waitForSync,
 } from './utils.js'
@@ -25,7 +26,10 @@ import { kSyncState } from '../src/sync/sync-api.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
-test('Create and sync data', { timeout: 100_000 }, async function (t) {
+test('Create and sync data', { timeout: 100_000 }, async (t) => {
+  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
+  // of `t` to ease our transition away from Brittle. We can remove this comment
+  // when Brittle is removed.
   const COUNT = 10
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
@@ -48,27 +52,33 @@ test('Create and sync data', { timeout: 100_000 }, async function (t) {
   connectPeers(managers, { discovery: false })
   await waitForSync(projects, 'initial')
 
-  for (const schemaName of generatedSchemaNames) {
-    for (const project of projects) {
-      const deviceId = project.deviceId.slice(0, 7)
-      // @ts-ignore - to complex to narrow `schemaName` to valid values
-      const docs = await project[schemaName].getMany()
-      const expected = generatedDocs.filter((v) => v.schemaName === schemaName)
-      if (SCHEMAS_INITIAL_SYNC.includes(schemaName)) {
-        t.alike(
-          sortById(docs),
-          sortById(expected),
-          `All ${schemaName} docs synced to ${deviceId}`
-        )
-      } else {
-        t.not(
-          docs.length,
-          expected.length,
-          `Not all ${schemaName} docs synced to ${deviceId}`
-        )
-      }
-    }
-  }
+  await Promise.all(
+    map(generatedSchemaNames, (schemaName) =>
+      Promise.all(
+        map(projects, async (project) => {
+          const deviceId = project.deviceId.slice(0, 7)
+          // @ts-ignore - to complex to narrow `schemaName` to valid values
+          const docs = await project[schemaName].getMany()
+          const expected = generatedDocs.filter(
+            (v) => v.schemaName === schemaName
+          )
+          if (SCHEMAS_INITIAL_SYNC.includes(schemaName)) {
+            assert.deepEqual(
+              new Set(docs),
+              new Set(expected),
+              `All ${schemaName} docs synced to ${deviceId}`
+            )
+          } else {
+            assert.notEqual(
+              docs.length,
+              expected.length,
+              `Not all ${schemaName} docs synced to ${deviceId}`
+            )
+          }
+        })
+      )
+    )
+  )
 
   for (const project of projects) {
     project.$sync.start()
@@ -76,19 +86,25 @@ test('Create and sync data', { timeout: 100_000 }, async function (t) {
 
   await waitForSync(projects, 'full')
 
-  for (const schemaName of generatedSchemaNames) {
-    for (const project of projects) {
-      const deviceId = project.deviceId.slice(0, 7)
-      // @ts-ignore - to complex to narrow `schemaName` to valid values
-      const docs = await project[schemaName].getMany()
-      const expected = generatedDocs.filter((v) => v.schemaName === schemaName)
-      t.alike(
-        sortById(docs),
-        sortById(expected),
-        `All ${schemaName} docs synced to ${deviceId}`
+  await Promise.all(
+    map(generatedSchemaNames, (schemaName) =>
+      Promise.all(
+        map(projects, async (project) => {
+          const deviceId = project.deviceId.slice(0, 7)
+          // @ts-ignore - too complex to narrow `schemaName` to valid values
+          const docs = await project[schemaName].getMany()
+          const expected = generatedDocs.filter(
+            (v) => v.schemaName === schemaName
+          )
+          assert.deepEqual(
+            new Set(docs),
+            new Set(expected),
+            `All ${schemaName} docs synced to ${deviceId}`
+          )
+        })
       )
-    }
-  }
+    )
+  )
 })
 
 test('start and stop sync', async function (t) {
@@ -157,6 +173,104 @@ test('start and stop sync', async function (t) {
   t.alike(obs2Synced, obs2, 'observation is synced')
 
   await disconnect()
+})
+
+test('gracefully shutting down sync for all projects when backgrounded', async function (t) {
+  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
+  // of `t` to ease our transition away from Brittle. We can remove this comment
+  // when Brittle is removed.
+
+  const managers = await createManagers(2, t)
+  const [invitor, ...invitees] = managers
+
+  const disconnect = connectPeers(managers, { discovery: false })
+  t.teardown(disconnect)
+
+  const projectGroupsAfterFirstStep = await Promise.all(
+    [1, 2, 3].map(async (projectNumber) => {
+      const projectId = await invitor.createProject({
+        name: `Project ${projectNumber}`,
+      })
+
+      await invite({ invitor, invitees, projectId })
+
+      const projects = await Promise.all(
+        managers.map((m) => m.getProject(projectId))
+      )
+      const [invitorProject, inviteeProject] = projects
+
+      const observation1 = await invitorProject.observation.create(
+        valueOf(generate('observation')[0])
+      )
+
+      await assert.rejects(
+        () => inviteeProject.observation.getByDocId(observation1.docId),
+        'before peers have started sync, doc does not sync'
+      )
+
+      inviteeProject.$sync.start()
+      invitorProject.$sync.start()
+
+      await waitForSync(projects, 'full')
+
+      return { invitorProject, inviteeProject, observation1 }
+    })
+  )
+
+  invitor.onBackgrounded()
+
+  const projectGroupsAfterSecondStep = await Promise.all(
+    projectGroupsAfterFirstStep.map(
+      async ({ invitorProject, inviteeProject, observation1 }) => {
+        assert(
+          await inviteeProject.observation.getByDocId(observation1.docId),
+          'invitee receives doc'
+        )
+
+        const observation2 = await invitorProject.observation.create(
+          valueOf(generate('observation')[0])
+        )
+        const observation3 = await inviteeProject.observation.create(
+          valueOf(generate('observation')[0])
+        )
+        await delay(1000)
+        await assert.rejects(
+          () => inviteeProject.observation.getByDocId(observation2.docId),
+          "invitee doesn't receive second doc yet"
+        )
+        await assert.rejects(
+          () => invitorProject.observation.getByDocId(observation3.docId),
+          "invitor doesn't receive third doc yet"
+        )
+
+        return { invitorProject, inviteeProject, observation2, observation3 }
+      }
+    )
+  )
+
+  invitor.onForegrounded()
+
+  await Promise.all(
+    projectGroupsAfterSecondStep.map(
+      async ({
+        invitorProject,
+        inviteeProject,
+        observation2,
+        observation3,
+      }) => {
+        await waitForSync([invitorProject, inviteeProject], 'full')
+
+        assert(
+          await inviteeProject.observation.getByDocId(observation2.docId),
+          'invitee receives second doc'
+        )
+        assert(
+          await invitorProject.observation.getByDocId(observation3.docId),
+          'invitor receives third doc'
+        )
+      }
+    )
+  )
 })
 
 test('shares cores', async function (t) {
@@ -348,7 +462,7 @@ test('Correct sync state prior to data sync', async function (t) {
         wanted: docs.length,
         missing: 0,
         dataToSync: true,
-        syncing: false,
+        isSyncEnabled: false,
       },
       connectedPeers: managers.length - 1,
     }

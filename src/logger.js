@@ -59,6 +59,7 @@ export class Logger {
   static create(ns, logger) {
     if (logger) return logger.extend(ns)
     const i = (counts.get(ns) || 0) + 1
+    counts.set(ns, i)
     const deviceId = String(i).padStart(TRIM, '0')
     return new Logger({ deviceId, ns })
   }

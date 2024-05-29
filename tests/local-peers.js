@@ -1,4 +1,5 @@
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { keyToId, projectKeyToPublicId } from '../src/utils.js'
 import {
   LocalPeers,
@@ -14,7 +15,7 @@ import { KeyManager } from '@mapeo/crypto'
 import Protomux from 'protomux'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 
-test('sending and receiving invites', async (t) => {
+test('sending and receiving invites', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
@@ -36,17 +37,17 @@ test('sending and receiving invites', async (t) => {
   replicate(r1, r2)
 
   const [peers] = await r1PeersPromise
-  t.is(peers.length, 1)
+  assert.equal(peers.length, 1)
   await Promise.all(
     invalidInvites.map((i) => r1.sendInvite(peers[0].deviceId, i))
   )
   await r1.sendInvite(peers[0].deviceId, validInvite)
 
   const [_, receivedInvite] = await r2InvitePromise
-  t.alike(receivedInvite, validInvite, 'received invite')
+  assert.deepEqual(receivedInvite, validInvite, 'received invite')
 })
 
-test('sending and receiving invite responses', async (t) => {
+test('sending and receiving invite responses', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
@@ -65,15 +66,19 @@ test('sending and receiving invite responses', async (t) => {
   replicate(r1, r2)
 
   const [peers] = await r1PeersPromise
-  t.is(peers.length, 1)
+  assert.equal(peers.length, 1)
   await r1.sendInviteResponse(peers[0].deviceId, invalidInviteResponse)
   await r1.sendInviteResponse(peers[0].deviceId, validInviteResponse)
 
   const [_, receivedResponse] = await r2InviteResponsePromise
-  t.alike(receivedResponse, validInviteResponse, 'received invite response')
+  assert.deepEqual(
+    receivedResponse,
+    validInviteResponse,
+    'received invite response'
+  )
 })
 
-test('sending and receiving project join details', async (t) => {
+test('sending and receiving project join details', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
@@ -94,7 +99,7 @@ test('sending and receiving project join details', async (t) => {
   replicate(r1, r2)
 
   const [peers] = await r1PeersPromise
-  t.is(peers.length, 1)
+  assert.equal(peers.length, 1)
   await Promise.all(
     invalidProjectJoinDetails.map((d) =>
       r1.sendProjectJoinDetails(peers[0].deviceId, d)
@@ -103,10 +108,14 @@ test('sending and receiving project join details', async (t) => {
   await r1.sendProjectJoinDetails(peers[0].deviceId, validProjectJoinDetails)
 
   const [_, details] = await r2GotProjectDetailsPromise
-  t.alike(details, validProjectJoinDetails, 'received project join details')
+  assert.deepEqual(
+    details,
+    validProjectJoinDetails,
+    'received project join details'
+  )
 })
 
-test('messages to unknown peers', async (t) => {
+test('messages to unknown peers', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
@@ -118,7 +127,7 @@ test('messages to unknown peers', async (t) => {
 
   await oncePeersPromise
 
-  await t.exception(
+  await assert.rejects(
     r1.sendInvite(unknownPeerId, {
       inviteId: testInviteId(),
       projectPublicId: testProjectPublicId(),
@@ -127,14 +136,14 @@ test('messages to unknown peers', async (t) => {
     }),
     UnknownPeerError
   )
-  await t.exception(
+  await assert.rejects(
     r1.sendInviteResponse(unknownPeerId, {
       inviteId: testInviteId(),
       decision: InviteResponse_Decision.ACCEPT,
     }),
     UnknownPeerError
   )
-  await t.exception(
+  await assert.rejects(
     r1.sendProjectJoinDetails(unknownPeerId, {
       inviteId: testInviteId(),
       projectKey: testProjectKey(),
@@ -142,7 +151,7 @@ test('messages to unknown peers', async (t) => {
     }),
     UnknownPeerError
   )
-  await t.exception(
+  await assert.rejects(
     r1.sendDeviceInfo(unknownPeerId, {
       name: 'mapeo',
       deviceType: 'mobile',
@@ -160,19 +169,21 @@ test('handles invalid invites', async (t) => {
   })
 
   r2.on('invite', () => {
-    t.fail('should not receive invite')
+    assert.fail('should not receive invite')
   })
 
   const r2FailedToHandleMessagePromise = once(r2, 'failed-to-handle-message')
 
   const destroy = replicate(r1, r2)
-  t.teardown(destroy)
+  t.after(() => {
+    destroy()
+  })
 
   const [messageType] = await r2FailedToHandleMessagePromise
-  t.is(messageType, 'Invite')
+  assert.equal(messageType, 'Invite')
 })
 
-test('Disconnected peer shows in state', async (t) => {
+test('Disconnected peer shows in state', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
   let peerStateUpdates = 0
@@ -180,41 +191,38 @@ test('Disconnected peer shows in state', async (t) => {
   const destroy = replicate(r1, r2)
 
   for await (const [peers] of on(r1, 'peers')) {
-    t.is(peers.length, 1, 'one peer in state')
+    assert.equal(peers.length, 1, 'one peer in state')
     if (peers[0].status === 'connected') {
-      t.pass('peer appeared as connected')
-      t.is(++peerStateUpdates, 1)
+      assert.equal(++peerStateUpdates, 1)
       destroy(new Error())
       break
     } else {
-      t.pass('peer appeared as disconnected')
-      t.is(++peerStateUpdates, 2)
+      assert.equal(++peerStateUpdates, 2)
     }
   }
 })
 
-test('next tick disconnect does not throw', async (t) => {
+test('next tick disconnect does not throw', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
   const destroy = replicate(r1, r2)
   await Promise.resolve()
   destroy(new Error())
-  t.pass()
 })
 
-test('invalid stream', (t) => {
+test('invalid stream', () => {
   const r1 = new LocalPeers()
   const regularStream = new Duplex()
-  t.exception(
+  assert.throws(
     () =>
       // @ts-expect-error
       r1.connect(regularStream),
-    'Invalid stream'
+    { message: 'Invalid stream' }
   )
 })
 
-test('Send device info', async (t) => {
+test('Send device info', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
@@ -222,7 +230,7 @@ test('Send device info', async (t) => {
   const expectedDeviceInfo = { name: 'mapeo', deviceType: 'mobile' }
 
   r1.on('peers', async (peers) => {
-    t.is(peers.length, 1)
+    assert.equal(peers.length, 1)
     r1.sendDeviceInfo(peers[0].deviceId, expectedDeviceInfo)
   })
 
@@ -231,14 +239,14 @@ test('Send device info', async (t) => {
   await new Promise((res) => {
     r2.on('peers', (peers) => {
       if (!(peers.length === 1 && peers[0].name)) return
-      t.is(peers[0].name, expectedDeviceInfo.name)
-      t.is(peers[0].deviceType, expectedDeviceInfo.deviceType)
+      assert.equal(peers[0].name, expectedDeviceInfo.name)
+      assert.equal(peers[0].deviceType, expectedDeviceInfo.deviceType)
       res(true)
     })
   })
 })
 
-test('Send device info immediately', async (t) => {
+test('Send device info immediately', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
@@ -255,14 +263,14 @@ test('Send device info immediately', async (t) => {
   await new Promise((res) => {
     r2.on('peers', (peers) => {
       if (!(peers.length === 1 && peers[0].name)) return
-      t.is(peers[0].name, expectedDeviceInfo.name)
-      t.is(peers[0].deviceType, expectedDeviceInfo.deviceType)
+      assert.equal(peers[0].name, expectedDeviceInfo.name)
+      assert.equal(peers[0].deviceType, expectedDeviceInfo.deviceType)
       res(true)
     })
   })
 })
 
-test('Reconnect peer and send device info', async (t) => {
+test('Reconnect peer and send device info', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
@@ -273,29 +281,29 @@ test('Reconnect peer and send device info', async (t) => {
   await once(r1, 'peers')
   await destroy()
 
-  t.is(r1.peers.length, 1)
-  t.is(r1.peers[0].status, 'disconnected')
+  assert.equal(r1.peers.length, 1)
+  assert.equal(r1.peers[0].status, 'disconnected')
 
   replicate(r1, r2)
 
   const [r1peers] = await once(r1, 'peers')
-  t.is(r1.peers.length, 1)
-  t.is(r1peers[0].status, 'connected')
+  assert.equal(r1.peers.length, 1)
+  assert.equal(r1peers[0].status, 'connected')
 
   r1.sendDeviceInfo(r1peers[0].deviceId, expectedDeviceInfo)
 
   const [r2Peers] = await once(r2, 'peers')
-  t.is(r2Peers[0].name, expectedDeviceInfo.name)
-  t.is(r2Peers[0].deviceType, expectedDeviceInfo.deviceType)
+  assert.equal(r2Peers[0].name, expectedDeviceInfo.name)
+  assert.equal(r2Peers[0].deviceType, expectedDeviceInfo.deviceType)
 })
 
-test('connected peer has protomux instance', async (t) => {
+test('connected peer has protomux instance', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
   replicate(r1, r2)
   const [[peer]] = await once(r1, 'peers')
-  t.is(peer.status, 'connected')
-  t.ok(Protomux.isProtomux(peer.protomux))
+  assert.equal(peer.status, 'connected')
+  assert(Protomux.isProtomux(peer.protomux))
 })
 
 function testInviteId() {
