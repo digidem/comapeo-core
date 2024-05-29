@@ -256,7 +256,7 @@ test('getBestVariant() - specify mimeType', async (t) => {
 
     for (const [mimeType, expectedVariant] of pairs) {
       /** @type {any} */
-      let obj = {
+      const obj = {
         ...common,
         mimeType,
       }

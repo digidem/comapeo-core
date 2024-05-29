@@ -166,7 +166,7 @@ export async function readConfig(configPath) {
       })
 
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
-      for (let { preset, name } of sortedPresets) {
+      for (const { preset, name } of sortedPresets) {
         /** @type {Record<string, unknown>} */
         const presetValue = {
           schemaName: 'preset',
@@ -381,9 +381,9 @@ function* translationForValue({
  */
 function* translateMessageObject({ value, message, docName }) {
   let idx = 0
-  for (let translation of Object.values(message)) {
+  for (const translation of Object.values(message)) {
     if (isRecord(translation)) {
-      for (let [key, msg] of Object.entries(translation)) {
+      for (const [key, msg] of Object.entries(translation)) {
         if (typeof msg === 'string') {
           value = {
             ...value,
