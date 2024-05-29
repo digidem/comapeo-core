@@ -356,21 +356,26 @@ function* translationForValue({
     }
 
     if (isRecord(message)) {
-      for (let [key, translation] of Object.entries(message)) {
-        if (typeof translation === 'string') {
-          value = {
-            ...value,
-            fieldRef: `${fieldRef}.${key}`,
-            message: translation,
-          }
-          if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
-            warnings.push(new Error(`Invalid translation ${value.message}`))
-            continue
-          }
+      let idx = 0
+      for (let translation of Object.values(message)) {
+        if (isRecord(translation)) {
+          for (let [key, msg] of Object.entries(translation)) {
+            if (typeof msg === 'string') {
+              value = {
+                ...value,
+                fieldRef: `${fieldRef}[${idx}].${key}`,
+                message: msg,
+              }
+              if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
+                warnings.push(new Error(`Invalid translation ${value.message}`))
+                continue
+              }
 
-          yield {
-            name: docName,
-            value,
+              yield {
+                name: docName,
+                value,
+              }
+            }
           }
         } else {
           warnings.push(
@@ -378,6 +383,7 @@ function* translationForValue({
           )
           continue
         }
+        idx++
       }
     } else if (typeof message === 'string') {
       value = { ...value, fieldRef, message }

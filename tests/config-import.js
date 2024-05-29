@@ -260,7 +260,7 @@ test('config import - load default config', async () => {
 
   assert.equal(
     size(config.translations()),
-    847,
+    870,
     'correct number of translations in default config'
   )
 
