@@ -91,7 +91,7 @@ test('Create and sync data', { timeout: 60_000 }, async (t) => {
       Promise.all(
         map(projects, async (project) => {
           const deviceId = project.deviceId.slice(0, 7)
-          // @ts-ignore - to complex to narrow `schemaName` to valid values
+          // @ts-ignore - too complex to narrow `schemaName` to valid values
           const docs = await project[schemaName].getMany()
           const expected = generatedDocs.filter(
             (v) => v.schemaName === schemaName
