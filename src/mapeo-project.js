@@ -759,8 +759,8 @@ export class MapeoProject extends TypedEmitter {
       })
     }
 
-    let presetPromises = []
-    for (let { preset, name } of presetsWithRefs) {
+    const presetPromises = []
+    for (const { preset, name } of presetsWithRefs) {
       presetPromises.push(
         this.preset.create(preset).then(({ docId }) => {
           presetNameToId.set(name, docId)
@@ -771,7 +771,7 @@ export class MapeoProject extends TypedEmitter {
     await Promise.all(presetPromises)
 
     const translationPromises = []
-    for (let { name, value } of config.translations()) {
+    for (const { name, value } of config.translations()) {
       let docIdRef
       if (value.schemaNameRef === 'fields') {
         docIdRef = fieldNameToId.get(name)
