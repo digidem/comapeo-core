@@ -449,7 +449,7 @@ export class CoreManager extends TypedEmitter {
    */
   async #sendHaves(peer, cores) {
     if (!peer) {
-      console.warn('sendHaves no peer', peer.remotePublicKey)
+      console.error('Called #sendHaves with no peer')
       // TODO: How to handle this and when does it happen?
       return
     }

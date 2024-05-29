@@ -207,7 +207,7 @@ test('translation api - passing `lang` to dataType', async (t) => {
         return { docIdRef: preset.docId, ...matchingTranslation }
     })
     .filter(isDefined)
-  for (let translationDoc of presetTranslationsDoc) {
+  for (const translationDoc of presetTranslationsDoc) {
     const { docIdRef, message, fieldRef } = await project.$translation.put(
       translationDoc
     )

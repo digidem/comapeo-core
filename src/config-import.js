@@ -155,7 +155,7 @@ export async function readConfig(configPath) {
       })
 
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
-      for (let preset of sortedPresets) {
+      for (const preset of sortedPresets) {
         /** @type {Record<string, unknown>} */
         const presetValue = {
           schemaName: 'preset',

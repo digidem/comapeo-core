@@ -7,13 +7,19 @@ import {
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { keyToId } from '../utils.js'
+import { ExhaustivenessError, keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
+export const kRequestFullStop = Symbol('background')
+export const kRescindFullStopRequest = Symbol('foreground')
 
 /**
  * @typedef {'initial' | 'full'} SyncType
+ */
+
+/**
+ * @typedef {'none' | 'presync' | 'all'} SyncEnabledState
  */
 
 /**
@@ -23,7 +29,7 @@ export const kSyncState = Symbol('sync state')
  * @property {number} wanted Number of blocks that connected peers want from us
  * @property {number} missing Number of blocks missing (we don't have them, but connected peers don't have them either)
  * @property {boolean} dataToSync Is there data available to sync? (want > 0 || wanted > 0)
- * @property {boolean} syncing Are we currently syncing?
+ * @property {boolean} isSyncEnabled Do we want to sync this type of data?
  */
 
 /**
@@ -50,7 +56,10 @@ export class SyncApi extends TypedEmitter {
   #pscByPeerId = new Map()
   /** @type {Set<string>} */
   #peerIds = new Set()
-  #isSyncing = false
+  #wantsToSyncData = false
+  #hasRequestedFullStop = false
+  /** @type {SyncEnabledState} */
+  #previousSyncEnabledState = 'none'
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
@@ -75,8 +84,7 @@ export class SyncApi extends TypedEmitter {
     })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
-      const state = this.#getState(namespaceSyncState)
-      this.emit('sync-state', state)
+      this.#updateState(namespaceSyncState)
     })
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
@@ -125,34 +133,92 @@ export class SyncApi extends TypedEmitter {
    */
   #getState(namespaceSyncState) {
     const state = reduceSyncState(namespaceSyncState)
-    state.data.syncing = this.#isSyncing
+
+    switch (this.#previousSyncEnabledState) {
+      case 'none':
+        state.initial.isSyncEnabled = state.data.isSyncEnabled = false
+        break
+      case 'presync':
+        state.initial.isSyncEnabled = true
+        state.data.isSyncEnabled = false
+        break
+      case 'all':
+        state.initial.isSyncEnabled = state.data.isSyncEnabled = true
+        break
+      default:
+        throw new ExhaustivenessError(this.#previousSyncEnabledState)
+    }
+
     return state
   }
 
-  /**
-   * Start syncing data cores
-   */
-  start() {
-    if (this.#isSyncing) return
-    this.#isSyncing = true
-    this.#l.log('Starting data sync')
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.enableDataSync()
+  #updateState(namespaceSyncState = this[kSyncState].getState()) {
+    /** @type {SyncEnabledState} */ let syncEnabledState
+    if (this.#hasRequestedFullStop) {
+      if (this.#previousSyncEnabledState === 'none') {
+        syncEnabledState = 'none'
+      } else if (
+        isSynced(
+          namespaceSyncState,
+          this.#wantsToSyncData ? 'full' : 'initial',
+          this.#peerSyncControllers
+        )
+      ) {
+        syncEnabledState = 'none'
+      } else if (this.#wantsToSyncData) {
+        syncEnabledState = 'all'
+      } else {
+        syncEnabledState = 'presync'
+      }
+    } else {
+      syncEnabledState = this.#wantsToSyncData ? 'all' : 'presync'
     }
-    this.emit('sync-state', this.getState())
+
+    this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
+    for (const peerSyncController of this.#peerSyncControllers.values()) {
+      peerSyncController.setSyncEnabledState(syncEnabledState)
+    }
+
+    this.emit('sync-state', this.#getState(namespaceSyncState))
+
+    this.#previousSyncEnabledState = syncEnabledState
   }
 
   /**
-   * Stop syncing data cores (metadata cores will continue syncing in the background)
+   * Start syncing data cores.
+   *
+   * If the app is backgrounded and sync has already completed, this will do
+   * nothing until the app is foregrounded.
+   */
+  start() {
+    this.#wantsToSyncData = true
+    this.#updateState()
+  }
+
+  /**
+   * Stop syncing data cores.
+   *
+   * Pre-sync cores will continue syncing unless the app is backgrounded.
    */
   stop() {
-    if (!this.#isSyncing) return
-    this.#isSyncing = false
-    this.#l.log('Stopping data sync')
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.disableDataSync()
-    }
-    this.emit('sync-state', this.getState())
+    this.#wantsToSyncData = false
+    this.#updateState()
+  }
+
+  /**
+   * Request a graceful stop to all sync.
+   */
+  [kRequestFullStop]() {
+    this.#hasRequestedFullStop = true
+    this.#updateState()
+  }
+
+  /**
+   * Rescind any requests for a full stop.
+   */
+  [kRescindFullStopRequest]() {
+    this.#hasRequestedFullStop = false
+    this.#updateState()
   }
 
   /**
@@ -161,12 +227,11 @@ export class SyncApi extends TypedEmitter {
    */
   async waitForSync(type) {
     const state = this[kSyncState].getState()
-    const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
-    if (isSynced(state, namespaces, this.#peerSyncControllers)) return
+    if (isSynced(state, type, this.#peerSyncControllers)) return
     return new Promise((res) => {
       const _this = this
       this[kSyncState].on('state', function onState(state) {
-        if (!isSynced(state, namespaces, _this.#peerSyncControllers)) return
+        if (!isSynced(state, type, _this.#peerSyncControllers)) return
         _this[kSyncState].off('state', onState)
         res()
       })
@@ -206,9 +271,7 @@ export class SyncApi extends TypedEmitter {
     // Add peer to all core states (via namespace sync states)
     this[kSyncState].addPeer(peerSyncController.peerId)
 
-    if (this.#isSyncing) {
-      peerSyncController.enableDataSync()
-    }
+    this.#updateState()
 
     const peerQueue = this.#pendingDiscoveryKeys.get(protomux)
     if (peerQueue) {
@@ -248,10 +311,11 @@ export class SyncApi extends TypedEmitter {
  * Is the sync state "synced", e.g. is there nothing left to sync
  *
  * @param {import('./sync-state.js').State} state
- * @param {readonly import('../core-manager/index.js').Namespace[]} namespaces
+ * @param {SyncType} type
  * @param {Map<import('protomux'), PeerSyncController>} peerSyncControllers
  */
-function isSynced(state, namespaces, peerSyncControllers) {
+function isSynced(state, type, peerSyncControllers) {
+  const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
   for (const ns of namespaces) {
     if (state[ns].dataToSync) return false
     for (const psc of peerSyncControllers.values()) {
@@ -312,6 +376,6 @@ function createInitialSyncTypeState() {
     wanted: 0,
     missing: 0,
     dataToSync: false,
-    syncing: true,
+    isSyncEnabled: true,
   }
 }
