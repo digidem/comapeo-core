@@ -26,11 +26,11 @@ import { kSyncState } from '../src/sync/sync-api.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
-test('Create and sync data', { timeout: 60_000 }, async (t) => {
+test('Create and sync data', { timeout: 100_000 }, async (t) => {
   // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
   // of `t` to ease our transition away from Brittle. We can remove this comment
   // when Brittle is removed.
-  const COUNT = 5
+  const COUNT = 10
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
