@@ -684,12 +684,6 @@ async function countOpenFileDescriptors(dir) {
 function replicateCores(a, b, { delay = 0, ...opts } = {}) {
   const s1 = a.replicate(true, { keepAlive: false, ...opts })
   const s2 = b.replicate(false, { keepAlive: false, ...opts })
-  s1.on('error', (err) =>
-    console.debug(`replication stream error (initiator): ${err}`)
-  )
-  s2.on('error', (err) =>
-    console.debug(`replication stream error (responder): ${err}`)
-  )
   s1.pipe(latencyStream(delay)).pipe(s2).pipe(latencyStream(delay)).pipe(s1)
   return [s1, s2]
 }
