@@ -144,7 +144,7 @@ export async function readConfig(configPath) {
     },
 
     /**
-     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@mapeo/schema').PresetValue, name: String}>}
+     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@mapeo/schema').PresetValue, name: string}>}
      */
     *presets() {
       const { presets } = presetsFile
