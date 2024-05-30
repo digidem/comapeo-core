@@ -219,7 +219,7 @@ test('config import - translations', async () => {
     assert.equal(value.schemaName, 'translation', `schemaName is 'translation'`)
     assert(
       value.schemaNameRef === 'presets' || value.schemaNameRef === 'fields',
-      `Config translates only 'fields' or 'presets`
+      `Config translates only 'fields' or 'presets'`
     )
   }
   assert.equal(
