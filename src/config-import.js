@@ -355,7 +355,7 @@ function* translationForValue({
       message: '',
     }
 
-    if (isRecord(message)) {
+    if (isRecord(message) && isMessageObject(message)) {
       yield* translateMessageObject({ value, message, docName })
     } else if (typeof message === 'string') {
       value = { ...value, fieldRef, message }
@@ -375,9 +375,9 @@ function* translationForValue({
 }
 /**
  * @param {Object} opts
- * @param {any} opts.value
+ * @param {Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>} opts.value
  * @param {string} opts.docName
- * @param {Record<string,unknown>} opts.message
+ * @param {Record<string,{label:string,value:string}>} opts.message
  */
 function* translateMessageObject({ value, message, docName }) {
   let idx = 0
@@ -451,6 +451,14 @@ function parseIcon(filename, buf) {
       blob: buf,
     },
   }
+}
+
+/**
+ * @param {Record<string, unknown>} message
+ * @returns {message is Record<string,{label:string, value:string}>}
+ */
+function isMessageObject(message) {
+  return Object.values(message).every((val) => 'label' in val && 'value' in val)
 }
 
 /**
