@@ -51,14 +51,12 @@ export class DataType<
   constructor({
     dataStore,
     table,
-    getPermissions,
     db,
     getTranslations,
   }: {
     table: TTable
     dataStore: TDataStore
     db: import('drizzle-orm/better-sqlite3').BetterSQLite3Database
-    getPermissions?: () => any
     getTranslations: TranslationApi['get']
   })
 
