@@ -44,8 +44,10 @@ export async function readConfig(configPath) {
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
   const entries = await zip.readEntries(MAX_ENTRIES)
-  const presetsFile = await findPresetsFile(entries)
-  const translationsFile = await findTranslationsFile(entries)
+  const [presetsFile, translationsFile] = await Promise.all([
+    findPresetsFile(entries),
+    findTranslationsFile(entries),
+  ])
 
   return {
     get warnings() {
