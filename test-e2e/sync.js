@@ -3,9 +3,11 @@ import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'
 import { excludeKeys } from 'filter-obj'
+import FakeTimers from '@sinonjs/fake-timers'
 import { map } from 'iterpal'
 import {
   connectPeers,
+  createManager,
   createManagers,
   invite,
   seedDatabases,
@@ -173,6 +175,114 @@ test('start and stop sync', async function (t) {
   t.alike(obs2Synced, obs2, 'observation is synced')
 
   await disconnect()
+})
+
+test('auto-stop', async (t) => {
+  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
+  // of `t` to ease our transition away from Brittle. We can remove this comment
+  // when Brittle is removed.
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.teardown(() => clock.uninstall())
+
+  const managers = await createManagers(2, t)
+  const [invitor, ...invitees] = managers
+
+  const disconnect = connectPeers(managers, { discovery: false })
+  t.teardown(disconnect)
+
+  const projectId = await invitor.createProject({ name: 'mapeo' })
+  await invite({ invitor, invitees, projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  const [invitorProject, inviteeProject] = projects
+
+  const generatedObservations = generate('observation', { count: 2 })
+
+  invitorProject.$sync.start({ autostopDataSyncAfter: 10_000 })
+  inviteeProject.$sync.start({ autostopDataSyncAfter: 10_000 })
+
+  assert(
+    invitorProject.$sync.getState().data.isSyncEnabled,
+    "invitor hasn't auto-stopped yet"
+  )
+  assert(
+    inviteeProject.$sync.getState().data.isSyncEnabled,
+    "invitee hasn't auto-stopped yet"
+  )
+
+  const observation1 = await invitorProject.observation.create(
+    valueOf(generatedObservations[0])
+  )
+  await waitForSync(projects, 'full')
+  assert(
+    await inviteeProject.observation.getByDocId(observation1.docId),
+    'invitee receives doc'
+  )
+
+  await clock.tickAsync(9000)
+
+  const observation2 = await invitorProject.observation.create(
+    valueOf(generatedObservations[1])
+  )
+  await waitForSync(projects, 'full')
+  assert(
+    await inviteeProject.observation.getByDocId(observation2.docId),
+    'invitee receives doc'
+  )
+
+  await clock.tickAsync(9000)
+
+  assert(
+    invitorProject.$sync.getState().data.isSyncEnabled,
+    "invitor hasn't auto-stopped yet because the timer has been restarted"
+  )
+  assert(
+    inviteeProject.$sync.getState().data.isSyncEnabled,
+    "invitee hasn't auto-stopped yet because the timer has been restarted"
+  )
+
+  const invitorProjectOnSyncDisabled = pEvent(
+    invitorProject.$sync,
+    'sync-state',
+    ({ data: { isSyncEnabled } }) => !isSyncEnabled
+  )
+  const inviteeProjectOnSyncDisabled = pEvent(
+    inviteeProject.$sync,
+    'sync-state',
+    ({ data: { isSyncEnabled } }) => !isSyncEnabled
+  )
+
+  clock.tick(2000)
+
+  await Promise.all([
+    invitorProjectOnSyncDisabled,
+    inviteeProjectOnSyncDisabled,
+  ])
+  assert(
+    !invitorProject.$sync.getState().data.isSyncEnabled,
+    'invitor has auto-stopped'
+  )
+  assert(
+    !inviteeProject.$sync.getState().data.isSyncEnabled,
+    'invitee has auto-stopped'
+  )
+})
+
+test('validates auto-stop timeouts', async (t) => {
+  const manager = await createManager('test', t)
+  const projectId = await manager.createProject({ name: 'foo' })
+  const project = await manager.getProject(projectId)
+
+  const invalid = [-Infinity, 0, 1.23, 2 ** 31, Infinity]
+  for (const autostopDataSyncAfter of invalid) {
+    assert.throws(() => {
+      project.$sync.start({ autostopDataSyncAfter })
+    })
+  }
+
+  assert(!project.$sync.getState().data.isSyncEnabled, 'sync is not enabled')
 })
 
 test('gracefully shutting down sync for all projects when backgrounded', async function (t) {
