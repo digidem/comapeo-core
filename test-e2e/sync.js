@@ -243,8 +243,23 @@ test('auto-stop', async (t) => {
     "invitee hasn't auto-stopped yet because the timer has been restarted"
   )
 
-  await clock.tickAsync(2000)
+  const invitorProjectOnSyncDisabled = pEvent(
+    invitorProject.$sync,
+    'sync-state',
+    ({ data: { isSyncEnabled } }) => !isSyncEnabled
+  )
+  const inviteeProjectOnSyncDisabled = pEvent(
+    inviteeProject.$sync,
+    'sync-state',
+    ({ data: { isSyncEnabled } }) => !isSyncEnabled
+  )
 
+  clock.tick(2000)
+
+  await Promise.all([
+    invitorProjectOnSyncDisabled,
+    inviteeProjectOnSyncDisabled,
+  ])
   assert(
     !invitorProject.$sync.getState().data.isSyncEnabled,
     'invitor has auto-stopped'
