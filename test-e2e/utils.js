@@ -190,8 +190,9 @@ export async function createManagers(count, t, deviceType) {
 /**
  * @param {string} seed
  * @param {import('brittle').TestInstance} t
+ * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]>} [overrides]
  */
-export function createManager(seed, t) {
+export function createManager(seed, t, overrides = {}) {
   /** @type {string} */ let dbFolder
   /** @type {string | import('../src/types.js').CoreStorage} */ let coreStorage
 
@@ -221,6 +222,7 @@ export function createManager(seed, t) {
     dbFolder,
     coreStorage,
     fastify: Fastify(),
+    ...overrides,
   })
 }
 
@@ -509,6 +511,40 @@ async function seedProjectDatabase(
     }
   }
   return Promise.all(promises)
+}
+
+/**
+ * If the path is a regular file, return its size.
+ *
+ * If the path is a directory, return the size of all regular files inside.
+ * Recurses through subdirectories.
+ *
+ * If the path is anything else, such as a symlink, `0` is returned.
+ *
+ * @param {string} filePath
+ * @returns {Promise<number>}
+ */
+export async function getFileSize(filePath) {
+  const stats = await fsPromises.stat(filePath)
+
+  if (stats.isFile()) return stats.size
+
+  if (!stats.isDirectory()) return 0
+
+  const dirents = await fsPromises.readdir(filePath, {
+    withFileTypes: true,
+    recursive: true,
+  })
+  let result = 0
+  await Promise.all(
+    dirents.map(async (dirent) => {
+      if (!dirent.isFile()) return 0
+      const dirFilePath = path.join(dirent.path, dirent.name)
+      const dirStats = await fsPromises.stat(dirFilePath)
+      result += dirStats.size
+    })
+  )
+  return result
 }
 
 /**

@@ -1,5 +1,7 @@
 import { test } from 'brittle'
 import assert from 'node:assert/strict'
+import * as fs from 'node:fs/promises'
+import { temporaryDirectory } from 'tempy'
 
 import {
   BLOCKED_ROLE_ID,
@@ -12,8 +14,10 @@ import { MapeoProject } from '../src/mapeo-project.js'
 import {
   ManagerCustodian,
   connectPeers,
+  createManager,
   createManagers,
   disconnectPeers,
+  getFileSize,
   invite,
   waitForPeers,
   waitForSync,
@@ -301,6 +305,79 @@ test('Data access after leaving project', async (t) => {
   }, 'coordinator cannot update project settings after leaving')
 
   await disconnectPeers(managers)
+})
+
+test('leaving a project deletes data from disk', async (t) => {
+  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
+  // of `t` to ease our transition away from Brittle. We can remove this comment
+  // when Brittle is removed.
+  const memberCoreStorage = temporaryDirectory()
+  t.teardown(() =>
+    fs.rm(memberCoreStorage, { recursive: true, force: true, maxRetries: 2 })
+  )
+
+  const managers = await Promise.all([
+    (async () => {
+      const creator = await createManager('creator', t)
+      await creator.setDeviceInfo({ name: 'creator' })
+      return creator
+    })(),
+    (async () => {
+      const member = await createManager('member', t, {
+        coreStorage: memberCoreStorage,
+      })
+      await member.setDeviceInfo({ name: 'member' })
+      return member
+    })(),
+  ])
+  const [creator, member] = managers
+
+  const disconnectPeers = connectPeers(managers)
+  t.teardown(disconnectPeers)
+  await waitForPeers(managers)
+
+  const projectId = await creator.createProject({ name: 'mapeo' })
+
+  await invite({
+    invitor: creator,
+    invitees: [member],
+    projectId,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  const [creatorProject, memberProject] = projects
+
+  const observation = await creatorProject.observation.create({
+    schemaName: 'observation',
+    attachments: [],
+    tags: {},
+    refs: [],
+    metadata: {},
+  })
+
+  creatorProject.$sync.start()
+  memberProject.$sync.start()
+
+  await waitForSync(projects, 'full')
+
+  assert(
+    await memberProject.observation.getByDocId(observation.docId),
+    'Observation made it to other manager; test is set up correctly'
+  )
+
+  const sizeBeforeRemoval = await getFileSize(memberCoreStorage)
+
+  await member.leaveProject(projectId)
+
+  const sizeAfterRemoval = await getFileSize(memberCoreStorage)
+
+  assert(
+    sizeBeforeRemoval > sizeAfterRemoval,
+    'Some data was removed from disk'
+  )
 })
 
 test('leaving a project while disconnected', async (t) => {
