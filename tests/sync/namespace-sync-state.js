@@ -1,4 +1,5 @@
-import test from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import pDefer from 'p-defer'
 import { KeyManager } from '@mapeo/crypto'
 import { NamespaceSyncState } from '../../src/sync/namespace-sync-state.js'
@@ -10,7 +11,7 @@ import {
 } from '../helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 
-test('sync cores in a namespace', async function (t) {
+test('sync cores in a namespace', async () => {
   const projectKeyPair = KeyManager.generateProjectKeypair()
   const rootKey1 = randomBytes(16)
   const rootKey2 = randomBytes(16)
@@ -96,7 +97,7 @@ test('sync cores in a namespace', async function (t) {
     core?.download({ start: 0, end: -1 })
   }
 
-  t.alike(
+  assert.deepEqual(
     await syncState1Sync.promise,
     {
       [km2.getIdentityKeypair().publicKey.toString('hex')]: {
@@ -110,7 +111,7 @@ test('sync cores in a namespace', async function (t) {
     'syncState1 is synced'
   )
 
-  t.alike(
+  assert.deepEqual(
     await syncState2Sync.promise,
     {
       [km1.getIdentityKeypair().publicKey.toString('hex')]: {

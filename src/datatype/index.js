@@ -67,7 +67,6 @@ export const kTable = Symbol('table')
 export class DataType extends TypedEmitter {
   #dataStore
   #table
-  #getPermissions
   #schemaName
   #sql
   #db
@@ -80,14 +79,12 @@ export class DataType extends TypedEmitter {
    * @param {TDataStore} opts.dataStore
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.db
    * @param {import('../translation-api.js').default['get']} opts.getTranslations
-   * @param {() => any} [opts.getPermissions]
    */
-  constructor({ dataStore, table, getPermissions, db, getTranslations }) {
+  constructor({ dataStore, table, db, getTranslations }) {
     super()
     this.#dataStore = dataStore
     this.#table = table
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
-    this.#getPermissions = getPermissions
     this.#db = db
     this.#getTranslations = getTranslations
     this.#sql = {
@@ -215,7 +212,7 @@ export class DataType extends TypedEmitter {
     if (!language) return doc
     const translatedDoc = JSON.parse(JSON.stringify(doc))
 
-    let value = {
+    const value = {
       languageCode: language,
       schemaNameRef: translatedDoc.schemaName,
       docIdRef: translatedDoc.docId,
@@ -229,7 +226,7 @@ export class DataType extends TypedEmitter {
       translations = await this.#getTranslations(value)
     }
 
-    for (let translation of translations) {
+    for (const translation of translations) {
       if (typeof getProperty(doc, translation.fieldRef) === 'string') {
         setProperty(doc, translation.fieldRef, translation.message)
       }
