@@ -62,7 +62,8 @@ export class SyncApi extends TypedEmitter {
   #previousSyncEnabledState = 'none'
   /** @type {null | number} */
   #previousDataHave = null
-  #autostopDataSyncAfter = Infinity
+  /** @type {null | number} */
+  #autostopDataSyncAfter = null
   /** @type {null | ReturnType<typeof setTimeout>} */
   #autostopDataSyncTimeout = null
   /** @type {Map<import('protomux'), Set<Buffer>>} */
@@ -207,7 +208,7 @@ export class SyncApi extends TypedEmitter {
           this.#peerSyncControllers
         )
       ) {
-        if (Number.isFinite(this.#autostopDataSyncAfter)) {
+        if (typeof this.#autostopDataSyncAfter === 'number') {
           this.#autostopDataSyncTimeout ??= setTimeout(() => {
             this.#wantsToSyncData = false
             this.#updateState()
@@ -239,11 +240,11 @@ export class SyncApi extends TypedEmitter {
    * nothing until the app is foregrounded.
    *
    * @param {object} [options]
-   * @param {number} [options.autostopDataSyncAfter=Infinity] If no data sync
+   * @param {null | number} [options.autostopDataSyncAfter] If no data sync
    * happens after this duration in milliseconds, sync will be automatically
    * stopped as if {@link stop} was called.
    */
-  start({ autostopDataSyncAfter = Infinity } = {}) {
+  start({ autostopDataSyncAfter = null } = {}) {
     assertAutostopDataSyncAfterIsValid(autostopDataSyncAfter)
     this.#wantsToSyncData = true
     this.#autostopDataSyncAfter = autostopDataSyncAfter
@@ -372,11 +373,11 @@ export class SyncApi extends TypedEmitter {
 }
 
 /**
- * @param {number} ms
+ * @param {null | number} ms
  * @returns {void}
  */
 function assertAutostopDataSyncAfterIsValid(ms) {
-  if (ms === Infinity) return
+  if (ms === null) return
   assert(
     ms > 0 && ms <= 2 ** 31 - 1 && Number.isSafeInteger(ms),
     'auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer'

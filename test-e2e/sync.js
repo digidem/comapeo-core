@@ -275,7 +275,7 @@ test('validates auto-stop timeouts', async (t) => {
   const projectId = await manager.createProject({ name: 'foo' })
   const project = await manager.getProject(projectId)
 
-  const invalid = [-Infinity, 0, 1.23, 2 ** 31]
+  const invalid = [-Infinity, 0, 1.23, 2 ** 31, Infinity]
   for (const autostopDataSyncAfter of invalid) {
     assert.throws(() => {
       project.$sync.start({ autostopDataSyncAfter })
