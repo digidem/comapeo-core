@@ -355,7 +355,7 @@ function* translationForValue({
       message: '',
     }
 
-    if (isRecord(message) && isMessageObject(message)) {
+    if (isRecord(message) && isFieldOptions(message)) {
       yield* translateMessageObject({ value, message, docName })
     } else if (typeof message === 'string') {
       value = { ...value, fieldRef, message }
@@ -457,7 +457,7 @@ function parseIcon(filename, buf) {
  * @param {Record<string, unknown>} message
  * @returns {message is Record<string,{label:string, value:string}>}
  */
-function isMessageObject(message) {
+function isFieldOptions(message) {
   return Object.values(message).every((val) => 'label' in val && 'value' in val)
 }
 
