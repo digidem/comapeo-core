@@ -460,7 +460,9 @@ function parseIcon(filename, buf) {
  * @returns {message is Record<string,{label:string, value:string}>}
  */
 function isFieldOptions(message) {
-  return Object.values(message).every((val) => 'label' in val && 'value' in val)
+  return Object.values(message).every(
+    (val) => isRecord(val) && 'label' in val && 'value' in val
+  )
 }
 
 /**
