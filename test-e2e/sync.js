@@ -174,17 +174,14 @@ test('start and stop sync', async function (t) {
 })
 
 test('auto-stop', async (t) => {
-  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
-  // of `t` to ease our transition away from Brittle. We can remove this comment
-  // when Brittle is removed.
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
-  t.teardown(() => clock.uninstall())
+  t.after(() => clock.uninstall())
 
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
 
   const disconnect = connectPeers(managers, { discovery: false })
-  t.teardown(disconnect)
+  t.after(disconnect)
 
   const projectId = await invitor.createProject({ name: 'mapeo' })
   await invite({ invitor, invitees, projectId })
