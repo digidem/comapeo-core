@@ -1,4 +1,5 @@
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { KeyManager } from '@mapeo/crypto'
 import { parseVersionId } from '@mapeo/schema'
 import RAM from 'random-access-memory'
@@ -8,7 +9,7 @@ import Fastify from 'fastify'
 import { kCoreOwnership } from '../src/mapeo-project.js'
 import { MapeoManager } from '../src/mapeo-manager.js'
 
-test('CoreOwnership', async (t) => {
+test('CoreOwnership', async () => {
   const rootKey = KeyManager.generateRootKey()
   const km = new KeyManager(rootKey)
   const fastify = Fastify()
@@ -30,7 +31,7 @@ test('CoreOwnership', async (t) => {
   const identityKeypair = km.getIdentityKeypair()
   const deviceId = identityKeypair.publicKey.toString('hex')
   const authCoreId = await coreOwnership.getCoreId(deviceId, 'auth')
-  t.is(await coreOwnership.getOwner(authCoreId), deviceId)
+  assert.equal(await coreOwnership.getOwner(authCoreId), deviceId)
 
   const preset = await project.preset.create({
     schemaName: 'preset',
@@ -43,7 +44,7 @@ test('CoreOwnership', async (t) => {
     fieldIds: [],
     color: '#ff00ff',
   })
-  t.is(
+  assert.equal(
     discoveryId(await coreOwnership.getCoreId(deviceId, 'config')),
     parseVersionId(preset.versionId).coreDiscoveryKey.toString('hex')
   )
@@ -55,7 +56,7 @@ test('CoreOwnership', async (t) => {
     refs: [],
     metadata: {},
   })
-  t.is(
+  assert.equal(
     discoveryId(await coreOwnership.getCoreId(deviceId, 'data')),
     parseVersionId(observation.versionId).coreDiscoveryKey.toString('hex')
   )

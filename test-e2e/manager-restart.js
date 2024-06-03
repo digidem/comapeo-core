@@ -1,4 +1,5 @@
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { ManagerCustodian } from './utils.js'
 
 test('restoring data from a previous run', async (t) => {
@@ -17,5 +18,5 @@ test('restoring data from a previous run', async (t) => {
     projectId
   )
 
-  t.is(nameInOtherProcess, 'Foo Bar')
+  assert.equal(nameInOtherProcess, 'Foo Bar')
 })

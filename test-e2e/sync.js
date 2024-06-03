@@ -1,4 +1,4 @@
-import { test } from 'brittle'
+import test from 'node:test'
 import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'
@@ -29,9 +29,6 @@ import { kSyncState } from '../src/sync/sync-api.js'
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
 test('Create and sync data', { timeout: 100_000 }, async (t) => {
-  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
-  // of `t` to ease our transition away from Brittle. We can remove this comment
-  // when Brittle is removed.
   const COUNT = 10
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
@@ -45,7 +42,6 @@ test('Create and sync data', { timeout: 100_000 }, async (t) => {
   )
 
   const generatedDocs = (await seedDatabases(projects)).flat()
-  t.pass(`Generated ${generatedDocs.length} values`)
   const generatedSchemaNames = generatedDocs.reduce((acc, cur) => {
     acc.add(cur.schemaName)
     return acc
@@ -130,12 +126,12 @@ test('start and stop sync', async function (t) {
   await waitForSync(projects, 'initial')
   inviteeProject.$sync.start()
 
-  await t.exception(
+  await assert.rejects(
     () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
     'wait for sync times out'
   )
 
-  await t.exception(
+  await assert.rejects(
     () => inviteeProject.observation.getByDocId(obs1.docId),
     'before both peers have started sync, doc does not sync'
   )
@@ -147,7 +143,7 @@ test('start and stop sync', async function (t) {
 
   const obs1Synced = await inviteeProject.observation.getByDocId(obs1.docId)
 
-  t.alike(obs1Synced, obs1, 'observation is synced')
+  assert.deepEqual(obs1Synced, obs1, 'observation is synced')
 
   inviteeProject.$sync.stop()
 
@@ -156,12 +152,12 @@ test('start and stop sync', async function (t) {
   )
   await waitForSync(projects, 'initial')
 
-  await t.exception(
+  await assert.rejects(
     () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
     'wait for sync times out'
   )
 
-  await t.exception(
+  await assert.rejects(
     () => invitorProject.observation.getByDocId(obs2.docId),
     'after stopping sync, data does not sync'
   )
@@ -172,23 +168,20 @@ test('start and stop sync', async function (t) {
 
   const obs2Synced = await invitorProject.observation.getByDocId(obs2.docId)
 
-  t.alike(obs2Synced, obs2, 'observation is synced')
+  assert.deepEqual(obs2Synced, obs2, 'observation is synced')
 
   await disconnect()
 })
 
 test('auto-stop', async (t) => {
-  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
-  // of `t` to ease our transition away from Brittle. We can remove this comment
-  // when Brittle is removed.
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
-  t.teardown(() => clock.uninstall())
+  t.after(() => clock.uninstall())
 
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
 
   const disconnect = connectPeers(managers, { discovery: false })
-  t.teardown(disconnect)
+  t.after(disconnect)
 
   const projectId = await invitor.createProject({ name: 'mapeo' })
   await invite({ invitor, invitees, projectId })
@@ -286,15 +279,11 @@ test('validates auto-stop timeouts', async (t) => {
 })
 
 test('gracefully shutting down sync for all projects when backgrounded', async function (t) {
-  // NOTE: Unlike other tests in this file, this test uses `node:assert` instead
-  // of `t` to ease our transition away from Brittle. We can remove this comment
-  // when Brittle is removed.
-
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
 
   const disconnect = connectPeers(managers, { discovery: false })
-  t.teardown(disconnect)
+  t.after(disconnect)
 
   const projectGroupsAfterFirstStep = await Promise.all(
     [1, 2, 3].map(async (projectNumber) => {
@@ -401,7 +390,7 @@ test('shares cores', async function (t) {
   for (const ns of PRESYNC_NAMESPACES) {
     for (const cm of coreManagers) {
       const keyCount = getKeys(cm, ns).length
-      t.is(keyCount, COUNT, 'expected number of cores')
+      assert.equal(keyCount, COUNT, 'expected number of cores')
     }
   }
 
@@ -416,7 +405,7 @@ test('shares cores', async function (t) {
   for (const ns of NAMESPACES) {
     for (const cm of coreManagers) {
       const keyCount = getKeys(cm, ns).length
-      t.is(keyCount, COUNT, 'expected number of cores')
+      assert.equal(keyCount, COUNT, 'expected number of cores')
     }
   }
 })
@@ -462,24 +451,24 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     p.$sync[kSyncState].getState()
   )
 
-  t.is(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
-  t.is(invitorState.data.localState.have, dataDocsCount)
-  t.is(blockedState.config.localState.have, 1) // just the device info doc
-  t.is(blockedState.data.localState.have, 0) // no data docs synced
+  assert.equal(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
+  assert.equal(invitorState.data.localState.have, dataDocsCount)
+  assert.equal(blockedState.config.localState.have, 1) // just the device info doc
+  assert.equal(blockedState.data.localState.have, 0) // no data docs synced
 
   for (const ns of NAMESPACES) {
     if (ns === 'auth') {
-      t.is(invitorState[ns].coreCount, 3)
-      t.is(inviteeState[ns].coreCount, 3)
-      t.is(blockedState[ns].coreCount, 3)
+      assert.equal(invitorState[ns].coreCount, 3)
+      assert.equal(inviteeState[ns].coreCount, 3)
+      assert.equal(blockedState[ns].coreCount, 3)
     } else if (PRESYNC_NAMESPACES.includes(ns)) {
-      t.is(invitorState[ns].coreCount, 3)
-      t.is(inviteeState[ns].coreCount, 3)
-      t.is(blockedState[ns].coreCount, 1)
+      assert.equal(invitorState[ns].coreCount, 3)
+      assert.equal(inviteeState[ns].coreCount, 3)
+      assert.equal(blockedState[ns].coreCount, 1)
     } else {
-      t.is(invitorState[ns].coreCount, 2)
-      t.is(inviteeState[ns].coreCount, 2)
-      t.is(blockedState[ns].coreCount, 1)
+      assert.equal(invitorState[ns].coreCount, 2)
+      assert.equal(inviteeState[ns].coreCount, 2)
+      assert.equal(blockedState[ns].coreCount, 1)
     }
 
     // "Invitor" knows blocked peer is blocked from the start, so never connects
@@ -488,7 +477,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     // creates a local copy of the blocked peer's cores, but never downloads
     // data, so it considers data to be "missing" which the Invitor does not
     // register as missing.
-    t.alike(
+    assert.deepEqual(
       excludeKeys(invitorState[ns].localState, ['missing']),
       excludeKeys(inviteeState[ns].localState, ['missing'])
     )
@@ -521,13 +510,13 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
   })
 
   projects[0].$sync.start()
-  t.ok(stateEvents.length === 1, 'sync-state event emitted after start')
+  assert(stateEvents.length === 1, 'sync-state event emitted after start')
 
   await delay(500)
 
   const eventCountBeforeStop = stateEvents.length
   projects[0].$sync.stop()
-  t.ok(
+  assert(
     stateEvents.length > eventCountBeforeStop,
     'sync-state event emitted after stop'
   )
@@ -583,7 +572,7 @@ test('Correct sync state prior to data sync', async function (t) {
 
   const syncState = await Promise.all(projects.map((p) => p.$sync.getState()))
 
-  t.alike(syncState, expected)
+  assert.deepEqual(syncState, expected)
 
   await disconnect2()
   await Promise.all(projects.map((p) => p.close()))
@@ -594,25 +583,23 @@ test('pre-haves are updated', async (t) => {
   const [invitor, ...invitees] = managers
 
   const disconnect = connectPeers(managers)
-  t.teardown(disconnect)
+  t.after(disconnect)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
   const projects = await Promise.all(
     managers.map((m) => m.getProject(projectId))
   )
-  for (const project of projects) t.teardown(() => project.close())
+  for (const project of projects) t.after(() => project.close())
   const [invitorProject, inviteeProject] = projects
   await waitForSync(projects, 'initial')
 
   assertDataSyncStateMatches(
-    t,
     invitorProject,
     { have: 0, wanted: 0, dataToSync: false },
     'Invitor project should have nothing to sync at start'
   )
   assertDataSyncStateMatches(
-    t,
     inviteeProject,
     { have: 0, wanted: 0, dataToSync: false },
     'Invitee project should see nothing to sync at start'
@@ -644,7 +631,6 @@ test('pre-haves are updated', async (t) => {
   await Promise.all([invitorToSyncPromise, inviteeToSyncPromise])
 
   assertDataSyncStateMatches(
-    t,
     inviteeProject,
     { have: 0, want: 1, dataToSync: true },
     'Invitee project should learn about something to sync'
@@ -652,15 +638,14 @@ test('pre-haves are updated', async (t) => {
 })
 
 /**
- * @param {import('brittle').TestInstance} t
  * @param {MapeoProject} project
  * @param {Partial<SyncState>} expected
  * @param {string} message
  * @returns {void}
  */
-function assertDataSyncStateMatches(t, project, expected, message) {
+function assertDataSyncStateMatches(project, expected, message) {
   const actual = project.$sync.getState().data
-  t.ok(syncStateMatches(actual, expected), message)
+  assert(syncStateMatches(actual, expected), message)
 }
 
 /**
