@@ -8,6 +8,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
+import WebSocket, { createWebSocketStream } from 'ws'
 
 import { IndexWriter } from './index-writer/index.js'
 import {
@@ -754,6 +755,42 @@ export class MapeoManager extends TypedEmitter {
    */
   async listLocalPeers() {
     return omitPeerProtomux(this.#localPeers.peers)
+  }
+
+  /**
+   * @param {object} peer
+   * @param {string} peer.address Remote address, such as `wss://example.com`.
+   */
+  connectDnsPeer(peer) {
+    const websocket = new WebSocket(peer.address)
+
+    websocket.on('error', (err) => {
+      // TODO: Handle this error
+      console.error('@@@@', 'websocket error', err)
+    })
+
+    this.connectWebsocketPeer(websocket, true)
+  }
+
+  /**
+   * @param {WebSocket} websocket
+   * @param {boolean} isInitiator
+   */
+  connectWebsocketPeer(websocket, isInitiator) {
+    const websocketStream = createWebSocketStream(websocket)
+
+    const secretStream = new NoiseSecretStream(isInitiator, websocketStream, {
+      keyPair: this.#keyManager.getIdentityKeypair(),
+    })
+
+    secretStream.on('error', (err) => {
+      // TODO: Handle this error
+      console.error('@@@@', 'secretstream error', err)
+    })
+
+    secretStream.on('connect', () => {
+      this.#replicate(secretStream)
+    })
   }
 
   /**
