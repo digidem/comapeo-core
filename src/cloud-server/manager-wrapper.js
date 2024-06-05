@@ -40,7 +40,6 @@ export default class WebsocketManagerWrapper {
       })
 
       this.#websocketServer.on('listening', () => {
-        console.log('listening!')
         resolve()
       })
     })
@@ -56,9 +55,7 @@ export default class WebsocketManagerWrapper {
         reject(new Error('Nothing to close'))
         return
       }
-      console.log('calling .close...')
       this.#websocketServer.close((err) => {
-        console.log('closed', err)
         if (err) {
           reject(err)
         } else {
