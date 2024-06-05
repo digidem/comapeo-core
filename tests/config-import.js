@@ -213,6 +213,22 @@ test('config import - presets', async () => {
   assert.equal(config.warnings.length, 0, `no warnings on the file`)
 })
 
+test('config import - translations', async () => {
+  const config = await readConfig(defaultConfigPath)
+  for (const { value } of config.translations()) {
+    assert.equal(value.schemaName, 'translation', `schemaName is 'translation'`)
+    assert(
+      value.schemaNameRef === 'presets' || value.schemaNameRef === 'fields',
+      `Config translates only 'fields' or 'presets'`
+    )
+  }
+  assert.equal(
+    config.warnings.length,
+    0,
+    `no warnings when loading the default config`
+  )
+})
+
 test('config import - load default config', async () => {
   const config = await readConfig(defaultConfigPath)
   assert(config, 'valid config file')
@@ -240,6 +256,12 @@ test('config import - load default config', async () => {
     size(config.presets()),
     28,
     'correct number of presets in default config'
+  )
+
+  assert.equal(
+    size(config.translations()),
+    870,
+    'correct number of translations in default config'
   )
 
   assert.equal(config.warnings.length, 0, 'no warnings on config file')
