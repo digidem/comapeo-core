@@ -797,7 +797,6 @@ export class MapeoManager extends TypedEmitter {
     )
     this.#dnsPeers.delete(peer.address)
     websocket.close()
-    console.log('Closed connection to ' + peer.address)
   }
 
   /**

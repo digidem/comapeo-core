@@ -5,10 +5,7 @@ import { createManagers, invite, waitForPeers, waitForSync } from './utils.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import WebsocketManagerWrapper from '../src/cloud-server/manager-wrapper.js'
 
-// TODO: maybe not the best test
-test('websocket e2e test', { timeout: 2 ** 30 }, async (t) => {
-  console.log('Starting test at ' + new Date().toISOString())
-
+test('websocket e2e test', async (t) => {
   const managers = await createManagers(2, t)
   const [mobileManager, cloudManager] = managers
 
@@ -50,6 +47,9 @@ test('websocket e2e test', { timeout: 2 ** 30 }, async (t) => {
   )
   const [mobileProject, cloudProject] = projects
 
+  mobileProject.$sync.start()
+  cloudProject.$sync.start()
+
   const [observation1, observation2] = await Promise.all(
     projects.map((project) =>
       project.observation.create({
@@ -62,9 +62,7 @@ test('websocket e2e test', { timeout: 2 ** 30 }, async (t) => {
     )
   )
 
-  console.log('Waiting for sync...')
   await waitForSync(projects, 'full')
-  console.log('Synced.')
 
   assert(
     await cloudProject.observation.getByDocId(observation1.docId),
