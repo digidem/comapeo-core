@@ -25,6 +25,7 @@ import {
 } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 import {
+  assert,
   deNullify,
   getDeviceId,
   keyToId,
@@ -757,12 +758,23 @@ export class MapeoManager extends TypedEmitter {
     return omitPeerProtomux(this.#localPeers.peers)
   }
 
+  // TODO: Move this up
+  /** @type {Map<string, WebSocket>} */
+  #dnsPeers = new Map()
+
   /**
    * @param {object} peer
    * @param {string} peer.address Remote address, such as `wss://example.com`.
+   * @returns {void}
    */
   connectDnsPeer(peer) {
+    if (this.#dnsPeers.has(peer.address)) {
+      throw new Error(`Already connected to ${peer.address}`)
+    }
+
     const websocket = new WebSocket(peer.address)
+
+    this.#dnsPeers.set(peer.address, websocket)
 
     websocket.on('error', (err) => {
       // TODO: Handle this error
@@ -773,8 +785,25 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
+   * @param {object} peer
+   * @param {string} peer.address Remote address, such as `wss://example.com`.
+   * @returns {void}
+   */
+  disconnectDnsPeer(peer) {
+    const websocket = this.#dnsPeers.get(peer.address)
+    assert(
+      websocket,
+      `Can't disconnect ${peer.address}. It was never connected`
+    )
+    this.#dnsPeers.delete(peer.address)
+    websocket.close()
+    console.log('Closed connection to ' + peer.address)
+  }
+
+  /**
    * @param {WebSocket} websocket
    * @param {boolean} isInitiator
+   * @returns {void}
    */
   connectWebsocketPeer(websocket, isInitiator) {
     const websocketStream = createWebSocketStream(websocket)
@@ -791,6 +820,14 @@ export class MapeoManager extends TypedEmitter {
     secretStream.on('connect', () => {
       this.#replicate(secretStream)
     })
+  }
+
+  /**
+   * @param {WebSocket} websocket
+   * @returns {void}
+   */
+  disconnectWebsocketPeer(websocket) {
+    websocket.close()
   }
 
   /**
