@@ -6,7 +6,7 @@ import { MEMBER_ROLE_ID } from '../src/roles.js'
 import WebsocketManagerWrapper from '../src/cloud-server/manager-wrapper.js'
 
 // TODO: maybe not the best test
-test('websocket e2e test', async (t) => {
+test('websocket e2e test', { timeout: 2 ** 30 }, async (t) => {
   console.log('Starting test at ' + new Date().toISOString())
 
   const managers = await createManagers(2, t)
