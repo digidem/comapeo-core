@@ -1,4 +1,5 @@
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { createManagers, ManagerCustodian } from './utils.js'
 import { defaultConfigPath } from '../tests/helpers/default-config.js'
 import {
@@ -27,7 +28,7 @@ test('translation api - put() and get() presets', async (t) => {
     })
     .filter(isDefined)
 
-  t.ok(
+  assert(
     presetTranslationsDoc.length > 0,
     'at least one preset translation doc exists'
   )
@@ -44,29 +45,29 @@ test('translation api - put() and get() presets', async (t) => {
       docIdRef: translationDoc.docIdRef,
     })
 
-    t.is(
+    assert.equal(
       presetDocId,
       expectedTranslations[0].docIdRef,
       `the preset docId matches the translation docIdRef`
     )
 
-    t.is(
+    assert.equal(
       presetsTranslationMap[presetName],
       expectedTranslations[0].message,
       `the translated message matches what is expected ${presetName} -> ${expectedTranslations[0].message}`
     )
 
-    t.is(
+    assert.equal(
       expectedTranslations.length,
       1,
       `we should only have one translated document`
     )
-    t.is(
+    assert.equal(
       expectedTranslations[0].docId,
       translationDocId,
       `the docId of added translation for ${expectedTranslations[0].message} matches`
     )
-    t.is(
+    assert.equal(
       (
         await project.$translation.get({
           docIdRef: translationDoc.docIdRef,
@@ -99,7 +100,7 @@ test('translation api - put() and get() fields', async (t) => {
     })
     .filter(isDefined)
 
-  t.ok(
+  assert(
     fieldTranslationsDoc.length > 0,
     'at least one field translation doc exists'
   )
@@ -116,25 +117,25 @@ test('translation api - put() and get() fields', async (t) => {
       docIdRef: translationDoc.docIdRef,
     })
 
-    t.is(
+    assert.equal(
       fieldDocId,
       expectedTranslations[0].docIdRef,
       `the field docId matches the translation docIdRef`
     )
 
-    t.is(
+    assert.equal(
       fieldsTranslationMap[fieldLabel],
       expectedTranslations[0].message,
       `the translated message matches what is expected ${fieldLabel} -> ${expectedTranslations[0].message}`
     )
 
-    t.is(
+    assert.equal(
       expectedTranslations.length,
       1,
       `we should only have one translated document`
     )
 
-    t.is(
+    assert.equal(
       expectedTranslations[0].docId,
       translationDocId,
       `the docId of added translation for ${expectedTranslations[0].message} matches`
@@ -170,7 +171,7 @@ test('translation api - passing `lang` to dataType', async (t) => {
     const translatedField = await project.field.getByDocId(docIdRef, {
       lang: 'es',
     })
-    t.is(
+    assert.equal(
       translatedField[fieldRef],
       message,
       `passing 'lang' returns the correct translated field`
@@ -178,7 +179,7 @@ test('translation api - passing `lang` to dataType', async (t) => {
 
     /** @type {Record<string, unknown>} */
     const untranslatedField = await project.field.getByDocId(docIdRef)
-    t.not(
+    assert.notEqual(
       untranslatedField[fieldRef],
       message,
       `not passing 'lang' won't give a translated field`
@@ -189,7 +190,7 @@ test('translation api - passing `lang` to dataType', async (t) => {
       docIdRef,
       { lang: 'es-CO' }
     )
-    t.is(
+    assert.equal(
       fallbackRegionCodeTranslatedField[fieldRef],
       message,
       `passing 'lang' with untranslated 'regionCode' returns a fallback translated field matching 'languageCode'`
@@ -216,7 +217,7 @@ test('translation api - passing `lang` to dataType', async (t) => {
     const translatedPreset = await project.preset.getByDocId(docIdRef, {
       lang: 'es',
     })
-    t.is(
+    assert.equal(
       translatedPreset[fieldRef],
       message,
       `passing 'lang' returns the correct translated preset`
@@ -224,7 +225,7 @@ test('translation api - passing `lang` to dataType', async (t) => {
 
     /** @type {Record<string, unknown>} */
     const untranslatedPreset = await project.preset.getByDocId(docIdRef)
-    t.not(
+    assert.notEqual(
       untranslatedPreset[fieldRef],
       message,
       `not passing 'lang' won't give a translated preset`
@@ -235,7 +236,7 @@ test('translation api - passing `lang` to dataType', async (t) => {
       docIdRef,
       { lang: 'es-CO' }
     )
-    t.is(
+    assert.equal(
       fallbackRegionCodeTranslatedPreset[fieldRef],
       message,
       `passing 'lang' with untranslated 'regionCode' returns a fallback translated preset matching 'languageCode'`
@@ -355,7 +356,7 @@ test('translation api - re-loading from disk', async (t) => {
       }
     )
 
-  t.ok(hasExpectedNumberOfTranslations)
+  assert(hasExpectedNumberOfTranslations)
 })
 
 /**

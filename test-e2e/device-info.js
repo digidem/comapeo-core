@@ -1,4 +1,5 @@
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
@@ -13,7 +14,7 @@ const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
-test('write and read deviceInfo', async (t) => {
+test('write and read deviceInfo', async () => {
   const fastify = Fastify()
   const rootKey = KeyManager.generateRootKey()
   const manager = new MapeoManager({
@@ -26,21 +27,21 @@ test('write and read deviceInfo', async (t) => {
   })
 
   await manager.setDeviceInfo({ name: 'my device', deviceType: 'tablet' })
-  t.alike(manager.getDeviceInfo(), {
+  assert.deepEqual(manager.getDeviceInfo(), {
     name: 'my device',
     deviceType: 'tablet',
     deviceId: manager.deviceId,
   })
 
   await manager.setDeviceInfo({ name: 'new name' })
-  t.alike(manager.getDeviceInfo(), {
+  assert.deepEqual(manager.getDeviceInfo(), {
     name: 'new name',
     deviceId: manager.deviceId,
   })
 })
 
-test('device info written to projects', (t) => {
-  t.test('when creating project', async (st) => {
+test('device info written to projects', async (t) => {
+  await t.test('when creating project', async () => {
     const fastify = Fastify()
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
@@ -58,12 +59,12 @@ test('device info written to projects', (t) => {
 
     const me = await project.$member.getById(project.deviceId)
 
-    st.is(me.deviceId, project.deviceId)
-    st.is(me.name, 'mapeo')
-    st.is(me.deviceType, 'tablet')
+    assert.equal(me.deviceId, project.deviceId)
+    assert.equal(me.name, 'mapeo')
+    assert.equal(me.deviceType, 'tablet')
   })
 
-  t.test('when adding project', async (st) => {
+  await t.test('when adding project', async () => {
     const fastify = Fastify()
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
@@ -89,11 +90,11 @@ test('device info written to projects', (t) => {
 
     const me = await project.$member.getById(project.deviceId)
 
-    st.is(me.name, 'mapeo')
-    st.is(me.deviceType, 'tablet')
+    assert.equal(me.name, 'mapeo')
+    assert.equal(me.deviceType, 'tablet')
   })
 
-  t.test('after updating global device info', async (st) => {
+  await t.test('after updating global device info', async () => {
     const fastify = Fastify()
     const manager = new MapeoManager({
       rootKey: KeyManager.generateRootKey(),
@@ -125,8 +126,8 @@ test('device info written to projects', (t) => {
       )
 
       for (const info of ownMemberInfos) {
-        st.is(info.name, 'before')
-        st.is(info.deviceType, 'tablet')
+        assert.equal(info.name, 'before')
+        assert.equal(info.deviceType, 'tablet')
       }
     }
 
@@ -138,8 +139,8 @@ test('device info written to projects', (t) => {
       )
 
       for (const info of ownMemberInfos) {
-        st.is(info.name, 'after')
-        st.is(info.deviceType, 'desktop')
+        assert.equal(info.name, 'after')
+        assert.equal(info.deviceType, 'desktop')
       }
     }
   })
@@ -150,7 +151,7 @@ test('device info written to projects', (t) => {
 test('device info sent to peers', async (t) => {
   const managers = await createManagers(3, t)
   const disconnectPeers = connectPeers(managers, { discovery: true })
-  t.teardown(disconnectPeers)
+  t.after(disconnectPeers)
   await waitForPeers(managers, { waitForDeviceInfo: true })
 
   const managerThatChangesName = managers[0]
@@ -169,7 +170,7 @@ test('device info sent to peers', async (t) => {
       )
 
       const updatedLocalPeers = await manager.listLocalPeers()
-      t.is(updatedLocalPeers.find(isChangedPeer)?.name, 'new name')
+      assert.equal(updatedLocalPeers.find(isChangedPeer)?.name, 'new name')
     })
   )
 
