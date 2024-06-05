@@ -57,4 +57,4 @@ jobs:
           # optional: set this secret in your repo config for publishing to NPM
           npm-token: ${{ secrets.NPM_TOKEN }}
           build-command: |
-            npm install
+            npm ci
