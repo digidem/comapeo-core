@@ -61,6 +61,7 @@ export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
 export const kProjectLeave = Symbol('leave project')
+export const kClearDataIfLeft = Symbol('clear data if left project')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
@@ -667,8 +668,20 @@ export class MapeoProject extends TypedEmitter {
     // 2. Assign LEFT role for device
     await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
 
-    // 3. Clear data from cores
-    // TODO: only clear synced data
+    // 3. Clear data
+    await this[kClearDataIfLeft]()
+  }
+
+  /**
+   * Clear data if we've left the project. No-op if you're still in the project.
+   * @returns {Promise<void>}
+   */
+  async [kClearDataIfLeft]() {
+    const role = await this.$getOwnRole()
+    if (role.roleId !== LEFT_ROLE_ID) {
+      return
+    }
+
     const namespacesWithoutAuth =
       /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
         'config',
@@ -676,6 +689,11 @@ export class MapeoProject extends TypedEmitter {
         'blob',
         'blobIndex',
       ])
+    const dataStoresToUnlink = Object.values(this.#dataStores).filter(
+      (dataStore) => dataStore.namespace !== 'auth'
+    )
+
+    await Promise.all(dataStoresToUnlink.map((ds) => ds.close()))
 
     await Promise.all(
       namespacesWithoutAuth.flatMap((namespace) => [
@@ -684,18 +702,8 @@ export class MapeoProject extends TypedEmitter {
       ])
     )
 
-    // 4. Clear data from indexes
-    // 4.1 Reset multi-core indexer state
-    await Promise.all(
-      Object.values(this.#dataStores)
-        .filter((dataStore) => dataStore.namespace !== 'auth')
-        .map(async (dataStore) => {
-          await dataStore.close()
-          await dataStore.unlink()
-        })
-    )
+    await Promise.all(dataStoresToUnlink.map((ds) => ds.unlink()))
 
-    // 4.2 Clear indexed data
     /** @type {Set<string>} */
     const authSchemas = new Set(NAMESPACE_SCHEMAS.auth)
     for (const schemaName of this.#indexWriter.schemas) {
