@@ -745,7 +745,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /** @type {LocalDiscovery['connectPeer']} */
-  connectPeer(peer) {
+  connectLocalPeer(peer) {
     this.#localDiscovery.connectPeer(peer)
   }
 

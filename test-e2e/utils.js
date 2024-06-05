@@ -46,7 +46,7 @@ export function connectPeers(managers, { discovery = true } = {}) {
       manager.startLocalPeerDiscoveryServer().then(({ name, port }) => {
         for (const otherManager of managers) {
           if (otherManager === manager) continue
-          otherManager.connectPeer({ address: '127.0.0.1', name, port })
+          otherManager.connectLocalPeer({ address: '127.0.0.1', name, port })
         }
       })
     }
