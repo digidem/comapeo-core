@@ -284,9 +284,11 @@ function* translationsForLanguage(lang, languageTranslations) {
   for (const [schemaNameRef, languageTranslationsForDocType] of Object.entries(
     languageTranslations
   )) {
-    // TODO: push to warnings when removing categories from default config
+    // TODO: remove categories check when removed from default config
     if (!(schemaNameRef === 'fields' || schemaNameRef === 'presets')) {
-      // warnings.push(new Error(`invalid schemaNameRef ${schemaNameRef}`))
+      if (schemaNameRef !== 'categories') {
+        warnings.push(new Error(`invalid schemaNameRef ${schemaNameRef}`))
+      }
       continue
     }
     if (!isRecord(languageTranslationsForDocType)) {
