@@ -514,7 +514,7 @@ async function seedProjectDatabase(
 }
 
 /**
- * If the path is a regular file, return its size.
+ * If the path is a regular file, return its size in bytes.
  *
  * If the path is a directory, return the size of all regular files inside.
  * Recurses through subdirectories.
@@ -524,7 +524,7 @@ async function seedProjectDatabase(
  * @param {string} filePath
  * @returns {Promise<number>}
  */
-export async function getFileSize(filePath) {
+export async function getDiskUsage(filePath) {
   const stats = await fsPromises.stat(filePath)
 
   if (stats.isFile()) return stats.size

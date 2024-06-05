@@ -17,7 +17,7 @@ import {
   createManager,
   createManagers,
   disconnectPeers,
-  getFileSize,
+  getDiskUsage,
   invite,
   waitForPeers,
   waitForSync,
@@ -365,11 +365,11 @@ test('leaving a project deletes data from disk', async (t) => {
     'Observation made it to other manager; test is set up correctly'
   )
 
-  const sizeBeforeRemoval = await getFileSize(memberCoreStorage)
+  const sizeBeforeRemoval = await getDiskUsage(memberCoreStorage)
 
   await member.leaveProject(projectId)
 
-  const sizeAfterRemoval = await getFileSize(memberCoreStorage)
+  const sizeAfterRemoval = await getDiskUsage(memberCoreStorage)
 
   assert(
     sizeBeforeRemoval > sizeAfterRemoval,
