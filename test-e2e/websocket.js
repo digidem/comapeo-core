@@ -26,6 +26,17 @@ test('websocket e2e test', { timeout: 2 ** 30 }, async (t) => {
 
   await waitForPeers(managers)
 
+  const mobileDeviceId = mobileManager.getDeviceInfo().deviceId
+  const cloudDeviceId = cloudManager.getDeviceInfo().deviceId
+  assert.deepEqual(
+    (await cloudManager.listLocalPeers()).map((p) => p.deviceId),
+    [mobileDeviceId]
+  )
+  assert.deepEqual(
+    (await mobileManager.listLocalPeers()).map((p) => p.deviceId),
+    [cloudDeviceId]
+  )
+
   const projectId = await mobileManager.createProject({ name: 'mapeo' })
   await invite({
     invitor: mobileManager,
