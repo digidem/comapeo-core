@@ -13,6 +13,7 @@ import { IndexWriter } from './index-writer/index.js'
 import {
   MapeoProject,
   kBlobStore,
+  kClearDataIfLeft,
   kProjectLeave,
   kSetOwnDeviceInfo,
 } from './mapeo-project.js'
@@ -378,7 +379,7 @@ export class MapeoManager extends TypedEmitter {
     })
 
     // 4. Create MapeoProject instance
-    const project = this.#createProjectInstance({
+    const project = await this.#createProjectInstance({
       encryptionKeys,
       projectKey: projectKeypair.publicKey,
       projectSecretKey: projectKeypair.secretKey,
@@ -449,7 +450,7 @@ export class MapeoManager extends TypedEmitter {
       projectId
     )
 
-    const project = this.#createProjectInstance(projectKeys)
+    const project = await this.#createProjectInstance(projectKeys)
 
     project.once('close', () => {
       this.#activeProjects.delete(projectPublicId)
@@ -462,10 +463,10 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /** @param {ProjectKeys} projectKeys */
-  #createProjectInstance(projectKeys) {
+  async #createProjectInstance(projectKeys) {
     validateProjectKeys(projectKeys)
     const projectId = keyToId(projectKeys.projectKey)
-    return new MapeoProject({
+    const project = new MapeoProject({
       ...this.#projectStorage(projectId),
       ...projectKeys,
       projectMigrationsFolder: this.#projectMigrationsFolder,
@@ -476,6 +477,8 @@ export class MapeoManager extends TypedEmitter {
       logger: this.#loggerBase,
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
     })
+    await project[kClearDataIfLeft]()
+    return project
   }
 
   /**
@@ -742,7 +745,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /** @type {LocalDiscovery['connectPeer']} */
-  connectPeer(peer) {
+  connectLocalPeer(peer) {
     this.#localDiscovery.connectPeer(peer)
   }
 

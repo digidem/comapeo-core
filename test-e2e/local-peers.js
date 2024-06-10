@@ -1,4 +1,5 @@
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import {
   connectPeers,
   createManagers,
@@ -11,7 +12,7 @@ test('Local peers discovery each other and share device info', async (t) => {
   const desktopManagers = await createManagers(5, t, 'desktop')
   const managers = [...mobileManagers, ...desktopManagers]
   connectPeers(managers, { discovery: true })
-  t.teardown(() => disconnectPeers(managers))
+  t.after(() => disconnectPeers(managers))
   await waitForPeers(managers, { waitForDeviceInfo: true })
   const deviceInfos = [...mobileManagers, ...desktopManagers].map((m) =>
     m.getDeviceInfo()
@@ -24,7 +25,7 @@ test('Local peers discovery each other and share device info', async (t) => {
       deviceId: p.deviceId,
       deviceType: p.deviceType,
     }))
-    t.alike(
+    assert.deepEqual(
       new Set(actualDeviceInfos),
       new Set(expectedDeviceInfos),
       `manager ${i} has correct peers`
