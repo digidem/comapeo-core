@@ -2,19 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'
-import {
-  connectPeers,
-  createManagers,
-  disconnectPeers,
-  waitForPeers,
-} from './utils.js'
+import { connectPeers, createManagers, waitForPeers } from './utils.js'
 import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
 
 /** @typedef {import('../src/generated/rpc.js').Invite} Invite */
 
 test('member invite accepted', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
-  connectPeers([creator, joiner])
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(disconnectPeers)
   await waitForPeers([creator, joiner])
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
@@ -66,14 +62,13 @@ test('member invite accepted', async (t) => {
     await joinerProject.$member.getMany(),
     'Project members match'
   )
-
-  await disconnectPeers([creator, joiner])
 })
 
 test('chain of invites', async (t) => {
   const managers = await createManagers(4, t)
   const [creator, ...joiners] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
@@ -116,16 +111,14 @@ test('chain of invites', async (t) => {
       'Project members match'
     )
   }
-
-  await disconnectPeers(managers)
 })
 
 test('generates new invite IDs for each invite', async (t) => {
   const inviteCount = 10
 
   const [creator, joiner] = await createManagers(2, t)
-  connectPeers([creator, joiner])
-  t.after(() => disconnectPeers([creator, joiner]))
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(disconnectPeers)
   await waitForPeers([creator, joiner])
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
@@ -156,7 +149,8 @@ test('generates new invite IDs for each invite', async (t) => {
 test("member can't invite", { skip: true }, async (t) => {
   const managers = await createManagers(3, t)
   const [creator, member, joiner] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
@@ -188,13 +182,12 @@ test("member can't invite", { skip: true }, async (t) => {
     assert.fail('should not send invite')
   )
   await exceptionPromise
-
-  await disconnectPeers(managers)
 })
 
 test('member invite rejected', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
-  connectPeers([creator, joiner])
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(disconnectPeers)
   await waitForPeers([creator, joiner])
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
@@ -234,14 +227,12 @@ test('member invite rejected', async (t) => {
     1,
     'Only 1 member in project still'
   )
-
-  await disconnectPeers([creator, joiner])
 })
 
 test('cancelation', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
-  connectPeers([creator, joiner])
-  t.after(() => disconnectPeers([creator, joiner]))
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(disconnectPeers)
   await waitForPeers([creator, joiner])
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
@@ -278,8 +269,8 @@ test('cancelation', async (t) => {
 
 test('canceling nothing', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
-  connectPeers([creator, joiner])
-  t.after(() => disconnectPeers([creator, joiner]))
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(disconnectPeers)
 
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
