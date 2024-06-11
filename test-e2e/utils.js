@@ -46,7 +46,7 @@ export function connectPeers(managers, { discovery = true } = {}) {
       manager.startLocalPeerDiscoveryServer().then(({ name, port }) => {
         for (const otherManager of managers) {
           if (otherManager === manager) continue
-          otherManager.connectPeer({ address: '127.0.0.1', name, port })
+          otherManager.connectLocalPeer({ address: '127.0.0.1', name, port })
         }
       })
     }
@@ -169,7 +169,7 @@ export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
  *
  * @template {number} T
  * @param {T} count
- * @param {import('brittle').TestInstance} t
+ * @param {import('node:test').TestContext} t
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
@@ -189,9 +189,10 @@ export async function createManagers(count, t, deviceType) {
 
 /**
  * @param {string} seed
- * @param {import('brittle').TestInstance} t
+ * @param {import('node:test').TestContext} t
+ * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]>} [overrides]
  */
-export function createManager(seed, t) {
+export function createManager(seed, t, overrides = {}) {
   /** @type {string} */ let dbFolder
   /** @type {string | import('../src/types.js').CoreStorage} */ let coreStorage
 
@@ -201,7 +202,7 @@ export function createManager(seed, t) {
   } else {
     const directories = [temporaryDirectory(), temporaryDirectory()]
     ;[dbFolder, coreStorage] = directories
-    t.teardown(() =>
+    t.after(() =>
       Promise.all(
         directories.map((dir) =>
           fsPromises.rm(dir, {
@@ -221,6 +222,7 @@ export function createManager(seed, t) {
     dbFolder,
     coreStorage,
     fastify: Fastify(),
+    ...overrides,
   })
 }
 
@@ -271,12 +273,12 @@ export class ManagerCustodian {
   #coreStorage = temporaryDirectory()
 
   /**
-   * @param {import('brittle').TestInstance} t
+   * @param {import('node:test').TestContext} t
    */
   constructor(t) {
     this.#t = t
     for (const folder of [this.#dbFolder, this.#coreStorage]) {
-      t.teardown(() =>
+      t.after(() =>
         fsPromises.rm(folder, { recursive: true, force: true, maxRetries: 2 })
       )
     }
@@ -354,7 +356,7 @@ export class ManagerCustodian {
     `
 
     const result = temporaryFile({ extension: 'mjs' })
-    this.#t.teardown(() => fsPromises.rm(result, { maxRetries: 2 }))
+    this.#t.after(() => fsPromises.rm(result, { maxRetries: 2 }))
     await fsPromises.writeFile(result, source, 'utf8')
     return result
   }
@@ -509,6 +511,40 @@ async function seedProjectDatabase(
     }
   }
   return Promise.all(promises)
+}
+
+/**
+ * If the path is a regular file, return its size in bytes.
+ *
+ * If the path is a directory, return the size of all regular files inside.
+ * Recurses through subdirectories.
+ *
+ * If the path is anything else, such as a symlink, `0` is returned.
+ *
+ * @param {string} filePath
+ * @returns {Promise<number>}
+ */
+export async function getDiskUsage(filePath) {
+  const stats = await fsPromises.stat(filePath)
+
+  if (stats.isFile()) return stats.size
+
+  if (!stats.isDirectory()) return 0
+
+  const dirents = await fsPromises.readdir(filePath, {
+    withFileTypes: true,
+    recursive: true,
+  })
+  let result = 0
+  await Promise.all(
+    dirents.map(async (dirent) => {
+      if (!dirent.isFile()) return 0
+      const dirFilePath = path.join(dirent.path, dirent.name)
+      const dirStats = await fsPromises.stat(dirFilePath)
+      result += dirStats.size
+    })
+  )
+  return result
 }
 
 /**

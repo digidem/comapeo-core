@@ -7,7 +7,7 @@ import {
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { ExhaustivenessError, keyToId } from '../utils.js'
+import { ExhaustivenessError, assert, keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
@@ -60,6 +60,12 @@ export class SyncApi extends TypedEmitter {
   #hasRequestedFullStop = false
   /** @type {SyncEnabledState} */
   #previousSyncEnabledState = 'none'
+  /** @type {null | number} */
+  #previousDataHave = null
+  /** @type {null | number} */
+  #autostopDataSyncAfter = null
+  /** @type {null | ReturnType<typeof setTimeout>} */
+  #autostopDataSyncTimeout = null
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
@@ -152,9 +158,33 @@ export class SyncApi extends TypedEmitter {
     return state
   }
 
+  /**
+   * Update which namespaces are synced and the autostop timeout.
+   *
+   * The following table describes the expected behavior based on inputs.
+   *
+   * | Want to sync data? | Full stop requested? | Synced? | Enabled | Timeout |
+   * |--------------------|----------------------|---------|---------|---------|
+   * | no                 | no                   | no      | presync | off     |
+   * | no                 | no                   | yes     | presync | off     |
+   * | no                 | yes                  | no      | presync | off     |
+   * | no                 | yes                  | yes     | none    | off     |
+   * | yes                | no                   | no      | all     | off     |
+   * | yes                | no                   | yes     | all     | on      |
+   * | yes                | yes                  | no      | all     | off     |
+   * | yes                | yes                  | yes     | none    | off     |
+   */
   #updateState(namespaceSyncState = this[kSyncState].getState()) {
+    const dataHave = namespaceSyncState.data.localState.have
+    const hasReceivedNewData = dataHave !== this.#previousDataHave
+    if (hasReceivedNewData) {
+      this.#clearAutostopDataSyncTimeoutIfExists()
+    }
+    this.#previousDataHave = dataHave
+
     /** @type {SyncEnabledState} */ let syncEnabledState
     if (this.#hasRequestedFullStop) {
+      this.#clearAutostopDataSyncTimeoutIfExists()
       if (this.#previousSyncEnabledState === 'none') {
         syncEnabledState = 'none'
       } else if (
@@ -170,8 +200,27 @@ export class SyncApi extends TypedEmitter {
       } else {
         syncEnabledState = 'presync'
       }
+    } else if (this.#wantsToSyncData) {
+      if (
+        isSynced(
+          namespaceSyncState,
+          this.#wantsToSyncData ? 'full' : 'initial',
+          this.#peerSyncControllers
+        )
+      ) {
+        if (typeof this.#autostopDataSyncAfter === 'number') {
+          this.#autostopDataSyncTimeout ??= setTimeout(() => {
+            this.#wantsToSyncData = false
+            this.#updateState()
+          }, this.#autostopDataSyncAfter)
+        }
+      } else {
+        this.#clearAutostopDataSyncTimeoutIfExists()
+      }
+      syncEnabledState = 'all'
     } else {
-      syncEnabledState = this.#wantsToSyncData ? 'all' : 'presync'
+      this.#clearAutostopDataSyncTimeoutIfExists()
+      syncEnabledState = 'presync'
     }
 
     this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
@@ -189,9 +238,18 @@ export class SyncApi extends TypedEmitter {
    *
    * If the app is backgrounded and sync has already completed, this will do
    * nothing until the app is foregrounded.
+   *
+   * @param {object} [options]
+   * @param {null | number} [options.autostopDataSyncAfter] If no data sync
+   * happens after this duration in milliseconds, sync will be automatically
+   * stopped as if {@link stop} was called.
    */
-  start() {
+  start({ autostopDataSyncAfter = null } = {}) {
+    assertAutostopDataSyncAfterIsValid(autostopDataSyncAfter)
     this.#wantsToSyncData = true
+    this.#autostopDataSyncAfter = autostopDataSyncAfter
+    // Ensure the timeout is started anew.
+    this.#clearAutostopDataSyncTimeoutIfExists()
     this.#updateState()
   }
 
@@ -236,6 +294,13 @@ export class SyncApi extends TypedEmitter {
         res()
       })
     })
+  }
+
+  #clearAutostopDataSyncTimeoutIfExists() {
+    if (this.#autostopDataSyncTimeout) {
+      clearTimeout(this.#autostopDataSyncTimeout)
+      this.#autostopDataSyncTimeout = null
+    }
   }
 
   /**
@@ -305,6 +370,18 @@ export class SyncApi extends TypedEmitter {
     this.#peerIds.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
   }
+}
+
+/**
+ * @param {null | number} ms
+ * @returns {void}
+ */
+function assertAutostopDataSyncAfterIsValid(ms) {
+  if (ms === null) return
+  assert(
+    ms > 0 && ms <= 2 ** 31 - 1 && Number.isSafeInteger(ms),
+    'auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer'
+  )
 }
 
 /**

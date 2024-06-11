@@ -101,8 +101,7 @@
   "homepage": "https://github.com/digidem/mapeo-core#readme",
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
-    "@hyperswarm/testnet": "^3.1.2",
-    "@mapeo/default-config": "4.0.0-alpha.4",
+    "@mapeo/default-config": "4.0.0-alpha.5",
     "@mapeo/mock-data": "^1.0.2",
     "@sinonjs/fake-timers": "^10.0.2",
     "@types/b4a": "^1.6.0",
@@ -119,7 +118,6 @@
     "@types/varint": "^6.0.1",
     "@types/yauzl-promise": "^4.0.0",
     "bitfield": "^4.1.0",
-    "brittle": "^3.5.0",
     "cpy": "^10.1.0",
     "cpy-cli": "^5.0.0",
     "drizzle-kit": "^0.20.14",

@@ -1,4 +1,5 @@
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { randomBytes } from 'crypto'
 import { valueOf } from '../src/utils.js'
 import {
@@ -92,7 +93,7 @@ test('CRUD operations', async (t) => {
 
   for (const value of fixtures) {
     const { schemaName } = value
-    await t.test(`create and read ${schemaName}`, async (st) => {
+    await t.test(`create and read ${schemaName}`, async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       /** @type {any[]} */
@@ -113,14 +114,18 @@ test('CRUD operations', async (t) => {
       const read = await Promise.all(
         written.map((doc) => project[schemaName].getByDocId(doc.docId))
       )
-      st.alike(
+      assert.deepEqual(
         sortById(written),
         sortById(read),
         'return create() matches return of getByDocId()'
       )
-      st.alike(sortById(updates), sortById(written), 'updated-docs emitted')
+      assert.deepEqual(
+        sortById(updates),
+        sortById(written),
+        'updated-docs emitted'
+      )
     })
-    await t.test('update', async (st) => {
+    await t.test('update', async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       // @ts-ignore
@@ -133,21 +138,33 @@ test('CRUD operations', async (t) => {
         updateValue
       )
       const updatedReRead = await project[schemaName].getByDocId(written.docId)
-      st.alike(
+      assert.deepEqual(
         updated,
         updatedReRead,
         'return of update() matched return of getByDocId()'
       )
-      st.alike(
+      assert.deepEqual(
         valueOf(removeUndefinedFields(updated)),
         updateValue,
         'expected value is updated'
       )
-      st.not(written.updatedAt, updated.updatedAt, 'updatedAt has changed')
-      st.is(written.createdAt, updated.createdAt, 'createdAt does not change')
-      st.is(written.createdBy, updated.createdBy, 'createdBy does not change')
+      assert.notEqual(
+        written.updatedAt,
+        updated.updatedAt,
+        'updatedAt has changed'
+      )
+      assert.equal(
+        written.createdAt,
+        updated.createdAt,
+        'createdAt does not change'
+      )
+      assert.equal(
+        written.createdBy,
+        updated.createdBy,
+        'createdBy does not change'
+      )
     })
-    await t.test('getMany', async (st) => {
+    await t.test('getMany', async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       const writePromises = []
@@ -174,7 +191,7 @@ test('CRUD operations', async (t) => {
       const deleted = await Promise.all(deletePromises)
       const expectedWithDeleted = [...expectedWithoutDeleted, ...deleted]
       const manyWithoutDeleted = await project[schemaName].getMany()
-      st.alike(
+      assert.deepEqual(
         sortById(manyWithoutDeleted),
         sortById(expectedWithoutDeleted),
         'expected values returns from getMany()'
@@ -182,14 +199,14 @@ test('CRUD operations', async (t) => {
       const manyWithDeleted = await project[schemaName].getMany({
         includeDeleted: true,
       })
-      st.alike(
+      assert.deepEqual(
         sortById(manyWithDeleted),
         sortById(expectedWithDeleted),
         'expected values returns from getMany({ includeDeleted: true })'
       )
     })
 
-    t.test('create, close and then create, update', async (st) => {
+    await t.test('create, close and then create, update', async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       const values = new Array(5).fill(null).map(() => {
@@ -203,26 +220,25 @@ test('CRUD operations', async (t) => {
       const written = await project[schemaName].create(value)
       await project.close()
 
-      await st.exception(async () => {
+      await assert.rejects(async () => {
         const updateValue = getUpdateFixture(value)
         // @ts-ignore
         await project[schemaName].update(written.versionId, updateValue)
       }, 'should fail updating since the project is already closed')
 
-      await st.exception(async () => {
+      await assert.rejects(async () => {
         for (const value of values) {
           // @ts-ignore
           await project[schemaName].create(value)
         }
       }, 'should fail creating since the project is already closed')
 
-      // @ts-ignore
-      await st.exception.all(async () => {
+      await assert.rejects(async () => {
         await project[schemaName].getMany()
       }, 'should fail getting since the project is already closed')
     })
 
-    t.test('create, read, close, re-open, read', async (st) => {
+    await t.test('create, read, close, re-open, read', async () => {
       const projectId = await manager.createProject()
 
       let project = await manager.getProject(projectId)
@@ -248,14 +264,14 @@ test('CRUD operations', async (t) => {
       const many2 = await project[schemaName].getMany()
       const manyValues2 = many2.map((doc) => valueOf(doc))
 
-      st.alike(
+      assert.deepEqual(
         removeUndefinedFields(manyValues1),
         removeUndefinedFields(manyValues2),
         'expected values returned before closing and after re-opening'
       )
     })
 
-    await t.test(`create and delete ${schemaName}`, async (st) => {
+    await t.test(`create and delete ${schemaName}`, async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       const writePromises = []
@@ -276,18 +292,18 @@ test('CRUD operations', async (t) => {
       const read = await Promise.all(
         written.map((doc) => project[schemaName].getByDocId(doc.docId))
       )
-      st.ok(
+      assert(
         deleted.every((doc) => doc.deleted),
         'all docs are deleted'
       )
-      st.alike(
+      assert.deepEqual(
         sortById(deleted),
         sortById(read),
         'return create() matches return of getByDocId()'
       )
     })
 
-    await t.test('delete forks', async (st) => {
+    await t.test('delete forks', async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
       // @ts-ignore
@@ -304,18 +320,22 @@ test('CRUD operations', async (t) => {
         updateValue
       )
       const updatedReRead = await project[schemaName].getByDocId(written.docId)
-      st.alike(
+      assert.deepEqual(
         updatedFork2,
         updatedReRead,
         'return of update() matched return of getByDocId()'
       )
-      st.alike(updatedReRead.forks, [updatedFork1.versionId], 'doc is forked')
+      assert.deepEqual(
+        updatedReRead.forks,
+        [updatedFork1.versionId],
+        'doc is forked'
+      )
       const deleted = await project[schemaName].delete(written.docId)
-      st.ok(deleted.deleted, 'doc is deleted')
-      st.is(deleted.forks.length, 0, 'forks are deleted')
+      assert(deleted.deleted, 'doc is deleted')
+      assert.equal(deleted.forks.length, 0, 'forks are deleted')
       const deletedReRead = await project[schemaName].getByDocId(written.docId)
-      st.ok(deletedReRead.deleted, 'doc is deleted')
-      st.is(deletedReRead.forks.length, 0, 'forks are deleted')
+      assert(deletedReRead.deleted, 'doc is deleted')
+      assert.equal(deletedReRead.forks.length, 0, 'forks are deleted')
     })
   }
 })
