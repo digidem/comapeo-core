@@ -4,11 +4,7 @@ import { keyToPublicId } from '@mapeo/crypto'
 import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
 
-const PROJECT_INVITE_ID_SALT = Buffer.from(
-  // Generated with `crypto.randomBytes(32).toString('base64')`
-  'h5sCJPM49Lw/TTM7Z3lBqKfmEsoWqwopeZOG+KT1GWQ=',
-  'base64'
-)
+const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
 
 /**
  * @param {String|Buffer} id
