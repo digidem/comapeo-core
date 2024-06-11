@@ -47,7 +47,8 @@ test('Create and sync data', { timeout: 100_000 }, async (t) => {
     return acc
   }, new Set())
 
-  connectPeers(managers, { discovery: false })
+  const disconnectPeers = connectPeers(managers, { discovery: false })
+  t.after(disconnectPeers)
   await waitForSync(projects, 'initial')
 
   await Promise.all(
@@ -376,7 +377,8 @@ test('shares cores', async function (t) {
   const COUNT = 5
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
-  connectPeers(managers, { discovery: false })
+  const disconnectPeers = connectPeers(managers, { discovery: false })
+  t.after(disconnectPeers)
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
 

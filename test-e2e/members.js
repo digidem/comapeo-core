@@ -13,7 +13,6 @@ import {
 import {
   connectPeers,
   createManagers,
-  disconnectPeers,
   invite,
   waitForPeers,
   waitForSync,
@@ -100,7 +99,8 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
 test('getting invited member after invite rejected', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -125,13 +125,13 @@ test('getting invited member after invite rejected', async (t) => {
     !members.find((m) => m.deviceId === invitee.deviceId),
     'invited member not found'
   )
-  await disconnectPeers(managers)
 })
 
 test('getting invited member after invite accepted', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const { name: inviteeName } = invitee.getDeviceInfo()
@@ -163,13 +163,13 @@ test('getting invited member after invite accepted', async (t) => {
   )
 
   // TODO: Test that device info of invited member can be read from invitor after syncing
-  await disconnectPeers(managers)
 })
 
 test('invite uses custom role name when provided', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -186,14 +186,13 @@ test('invite uses custom role name when provided', async (t) => {
 
   const [{ roleName }] = await inviteReceivedPromise
   assert.equal(roleName, 'friend', 'roleName should be equal')
-
-  await disconnectPeers(managers)
 })
 
 test('invite uses default role name when not provided', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -213,8 +212,6 @@ test('invite uses default role name when not provided', async (t) => {
     ROLES[MEMBER_ROLE_ID].name,
     '`roleName` should use the fallback by deriving `roleId`'
   )
-
-  await disconnectPeers(managers)
 })
 
 test('roles - creator role and role assignment', async (t) => {
@@ -337,7 +334,8 @@ test('roles - getMany() on newly invited device before sync', async (t) => {
 test('roles - assignRole()', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -439,14 +437,12 @@ test('roles - assignRole()', async (t) => {
       'invitee now has member role from invitee perspective'
     )
   })
-
-  await disconnectPeers(managers)
 })
 
 test('roles - assignRole() with forked role', async (t) => {
   const managers = await createManagers(3, t)
   const [invitor, invitee1, invitee2] = managers
-  connectPeers(managers)
+  let disconnectPeers = connectPeers(managers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -466,7 +462,7 @@ test('roles - assignRole() with forked role', async (t) => {
 
   const [invitorProject, invitee1Project] = projects
 
-  await disconnectPeers(managers)
+  await disconnectPeers()
 
   // 2. Create fork by two devices assigning a role to invitee2 while disconnected
   // TODO: Assign different roles and test fork resolution prefers the role with least power (code for this is not written yet)
@@ -474,7 +470,8 @@ test('roles - assignRole() with forked role', async (t) => {
   await invitorProject.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
   await invitee1Project.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
 
-  await connectPeers(managers)
+  disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForSync(projects, 'initial')
 
   // 3. Verify that invitee2 role is now forked
@@ -494,6 +491,4 @@ test('roles - assignRole() with forked role', async (t) => {
     invitee2.deviceId
   )
   assert.equal(invitee2RoleMerged.forks.length, 0, 'invitee2 role has no forks')
-
-  await disconnectPeers(managers)
 })
