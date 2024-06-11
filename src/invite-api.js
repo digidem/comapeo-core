@@ -102,12 +102,14 @@ class PendingInvites {
   }
 
   /**
-   * @param {string} projectPublicId
+   * @param {Readonly<Buffer>} projectInviteId
    * @returns {boolean}
    */
-  isAcceptingForProject(projectPublicId) {
+  isAcceptingForProject(projectInviteId) {
     for (const { invite, isAccepting } of this.invites()) {
-      if (isAccepting && invite.projectPublicId === projectPublicId) return true
+      if (isAccepting && invite.projectInviteId.equals(projectInviteId)) {
+        return true
+      }
     }
     return false
   }
@@ -129,15 +131,15 @@ class PendingInvites {
   }
 
   /**
-   * @param {string} projectPublicId
+   * @param {Readonly<Buffer>} projectInviteId
    * @returns {PendingInvite[]} the pending invites that were deleted
    */
-  deleteByProjectPublicId(projectPublicId) {
+  deleteByProjectInviteId(projectInviteId) {
     /** @type {PendingInvite[]} */
     const result = []
 
     for (const pendingInvite of this.invites()) {
-      if (pendingInvite.invite.projectPublicId === projectPublicId) {
+      if (pendingInvite.invite.projectInviteId.equals(projectInviteId)) {
         result.push(pendingInvite)
       }
     }
@@ -158,7 +160,7 @@ class PendingInvites {
  * @extends {TypedEmitter<InviteApiEvents>}
  */
 export class InviteApi extends TypedEmitter {
-  #isMember
+  #getProjectByInviteId
   #addProject
   #pendingInvites = new PendingInvites()
   #l
@@ -167,8 +169,8 @@ export class InviteApi extends TypedEmitter {
    * @param {Object} options
    * @param {import('./local-peers.js').LocalPeers} options.rpc
    * @param {object} options.queries
-   * @param {(projectId: string) => boolean} options.queries.isMember
-   * @param {(projectDetails: Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string }) => Promise<unknown>} options.queries.addProject
+   * @param {(projectInviteId: Readonly<Buffer>) => undefined | { projectPublicId: string }} options.queries.getProjectByInviteId
+   * @param {(projectDetails: Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string }) => Promise<string>} options.queries.addProject
    * @param {Logger} [options.logger]
    */
   constructor({ rpc, queries, logger }) {
@@ -177,7 +179,7 @@ export class InviteApi extends TypedEmitter {
     this.#l = Logger.create('InviteApi', logger)
 
     this.rpc = rpc
-    this.#isMember = queries.isMember
+    this.#getProjectByInviteId = queries.getProjectByInviteId
     this.#addProject = queries.addProject
 
     this.rpc.on('invite', (...args) => {
@@ -206,7 +208,9 @@ export class InviteApi extends TypedEmitter {
 
     this.#l.log('Received invite %h from %S', invite.inviteId, peerId)
 
-    const isAlreadyMember = this.#isMember(invite.projectPublicId)
+    const isAlreadyMember = Boolean(
+      this.#getProjectByInviteId(invite.projectInviteId)
+    )
     if (isAlreadyMember) {
       this.#l.log('Invite %h: already in project', invite.inviteId)
       this.rpc
@@ -291,7 +295,7 @@ export class InviteApi extends TypedEmitter {
     }
 
     const { peerId, invite } = pendingInvite
-    const { projectName, projectPublicId } = invite
+    const { projectName, projectInviteId } = invite
 
     /** @param {InviteRemovalReason} removalReason */
     const removePendingInvite = (removalReason) => {
@@ -303,14 +307,14 @@ export class InviteApi extends TypedEmitter {
 
     // This is probably impossible in the UI, but it's theoretically possible
     // to join a project while an invite is pending, so we need to check this.
-    const isAlreadyMember = this.#isMember(projectPublicId)
-    if (isAlreadyMember) {
+    const existingProject = this.#getProjectByInviteId(projectInviteId)
+    if (existingProject) {
       this.#l.log(
         "Went to accept invite %h but we're already in the project",
         inviteId
       )
       const pendingInvitesDeleted =
-        this.#pendingInvites.deleteByProjectPublicId(projectPublicId)
+        this.#pendingInvites.deleteByProjectInviteId(projectInviteId)
       for (const pendingInvite of pendingInvitesDeleted) {
         this.rpc
           .sendInviteResponse(pendingInvite.peerId, {
@@ -324,12 +328,14 @@ export class InviteApi extends TypedEmitter {
           'accepted'
         )
       }
-      return projectPublicId
+      return existingProject.projectPublicId
     }
 
     assert(
-      !this.#pendingInvites.isAcceptingForProject(projectPublicId),
-      `Cannot double-accept invite for project ${projectPublicId}`
+      !this.#pendingInvites.isAcceptingForProject(projectInviteId),
+      `Cannot double-accept invite for project ${projectInviteId
+        .toString('hex')
+        .slice(0, 7)}`
     )
     this.#pendingInvites.markAccepting(inviteId)
 
@@ -364,17 +370,19 @@ export class InviteApi extends TypedEmitter {
       throw new Error('Could not accept invite: Peer disconnected')
     }
 
+    /** @type {string} */ let projectPublicId
+
     try {
       const details = await projectDetailsPromise
       assert(details, 'Expected project details')
-      await this.#addProject({ ...details, projectName })
+      projectPublicId = await this.#addProject({ ...details, projectName })
     } catch (e) {
       removePendingInvite('internal error')
       throw new Error('Failed to join project')
     }
 
     const pendingInvitesDeleted =
-      this.#pendingInvites.deleteByProjectPublicId(projectPublicId)
+      this.#pendingInvites.deleteByProjectInviteId(projectInviteId)
 
     for (const pendingInvite of pendingInvitesDeleted) {
       const isPendingInviteWeJustAccepted =
@@ -441,9 +449,9 @@ export class InviteApi extends TypedEmitter {
  * @returns {Invite}
  */
 function internalToExternal(internal) {
-  const { inviteId, ...rest } = internal
   return {
-    inviteId: inviteId.toString('hex'),
-    ...rest,
+    ...internal,
+    inviteId: internal.inviteId.toString('hex'),
+    projectInviteId: internal.projectInviteId.toString('hex'),
   }
 }

@@ -10,6 +10,7 @@ CREATE TABLE `projectSettings_backlink` (
 CREATE TABLE `projectKeys` (
 	`projectId` text PRIMARY KEY NOT NULL,
 	`projectPublicId` text NOT NULL,
+	`projectInviteId` blob NOT NULL,
 	`keysCipher` blob NOT NULL,
 	`projectInfo` text DEFAULT '{}' NOT NULL
 );
