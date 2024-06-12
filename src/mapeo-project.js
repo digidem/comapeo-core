@@ -840,34 +840,7 @@ function extractEditableProjectSettings(projectDoc) {
   return result
 }
 
-/** @typedef
- * {DataType<
- * import('./datastore/index.js').DataStore<'config'>,
- * typeof import('./schema/project.js').translationTable,
- * 'translation',
- * import('@mapeo/schema').Translation,
- * import('@mapeo/schema').TranslationValue>} TranslationDataType
- */
-
-/** @typedef
- * {DataType<
- * import('./datastore/index.js').DataStore<'config'>,
- * typeof import('./schema/project.js').presetTable,
- * 'preset',
- * import('@mapeo/schema').Preset,
- * import('@mapeo/schema').PresetValue>} PresetDataType
- */
-
-/** @typedef
- * {DataType<
- * import('./datastore/index.js').DataStore<'config'>,
- * typeof import('./schema/project.js').fieldTable,
- * 'field',
- * import('@mapeo/schema').Field,
- * import('@mapeo/schema').FieldValue>} FieldDataType
- */
-
-/** @param {FieldDataType | PresetDataType} dataType */
+/** @param {MapeoProject['field'] | MapeoProject['preset']} dataType */
 async function deleteAll(dataType) {
   const deletions = []
   for (const { docId } of await dataType.getMany()) {
@@ -878,9 +851,9 @@ async function deleteAll(dataType) {
 
 /**
 @param {Object} dataTypes
-@param {TranslationDataType} dataTypes.translation
-@param {PresetDataType} dataTypes.presets
-@param {FieldDataType} dataTypes.fields
+@param {MapeoProject['translation']} dataTypes.translation
+@param {MapeoProject['preset']} dataTypes.presets
+@param {MapeoProject['field']} dataTypes.fields
 */
 async function deleteTranslations(dataTypes) {
   const deletions = []
