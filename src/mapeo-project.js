@@ -492,6 +492,10 @@ export class MapeoProject extends TypedEmitter {
     return this.#dataTypes.field
   }
 
+  get translation() {
+    return this.#dataTypes.translation
+  }
+
   get $member() {
     return this.#memberApi
   }
@@ -720,6 +724,7 @@ export class MapeoProject extends TypedEmitter {
     // check for already present fields and presets and delete them if exist
     await deleteAll(this.preset)
     await deleteAll(this.field)
+    await deleteAll(this.translation)
 
     const config = await readConfig(configPath)
     /** @type {Map<string, string>} */
