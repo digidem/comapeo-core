@@ -3,7 +3,7 @@ import _m0 from "protobufjs/minimal.js";
 import { EncryptionKeys } from "./keys.js";
 export interface Invite {
     inviteId: Buffer;
-    projectPublicId: string;
+    projectInviteId: Buffer;
     projectName: string;
     roleName?: string | undefined;
     roleDescription?: string | undefined;
@@ -48,14 +48,14 @@ export declare const Invite: {
     decode(input: _m0.Reader | Uint8Array, length?: number): Invite;
     create<I extends {
         inviteId?: Buffer;
-        projectPublicId?: string;
+        projectInviteId?: Buffer;
         projectName?: string;
         roleName?: string | undefined;
         roleDescription?: string | undefined;
         invitorName?: string;
     } & {
         inviteId?: Buffer;
-        projectPublicId?: string;
+        projectInviteId?: Buffer;
         projectName?: string;
         roleName?: string | undefined;
         roleDescription?: string | undefined;
@@ -63,14 +63,14 @@ export declare const Invite: {
     } & { [K in Exclude<keyof I, keyof Invite>]: never; }>(base?: I): Invite;
     fromPartial<I_1 extends {
         inviteId?: Buffer;
-        projectPublicId?: string;
+        projectInviteId?: Buffer;
         projectName?: string;
         roleName?: string | undefined;
         roleDescription?: string | undefined;
         invitorName?: string;
     } & {
         inviteId?: Buffer;
-        projectPublicId?: string;
+        projectInviteId?: Buffer;
         projectName?: string;
         roleName?: string | undefined;
         roleDescription?: string | undefined;

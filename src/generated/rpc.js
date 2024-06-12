@@ -74,7 +74,7 @@ export function deviceInfo_DeviceTypeToNumber(object) {
     }
 }
 function createBaseInvite() {
-    return { inviteId: Buffer.alloc(0), projectPublicId: "", projectName: "", invitorName: "" };
+    return { inviteId: Buffer.alloc(0), projectInviteId: Buffer.alloc(0), projectName: "", invitorName: "" };
 }
 export var Invite = {
     encode: function (message, writer) {
@@ -82,8 +82,8 @@ export var Invite = {
         if (message.inviteId.length !== 0) {
             writer.uint32(10).bytes(message.inviteId);
         }
-        if (message.projectPublicId !== "") {
-            writer.uint32(18).string(message.projectPublicId);
+        if (message.projectInviteId.length !== 0) {
+            writer.uint32(18).bytes(message.projectInviteId);
         }
         if (message.projectName !== "") {
             writer.uint32(26).string(message.projectName);
@@ -116,7 +116,7 @@ export var Invite = {
                     if (tag !== 18) {
                         break;
                     }
-                    message.projectPublicId = reader.string();
+                    message.projectInviteId = reader.bytes();
                     continue;
                 case 3:
                     if (tag !== 26) {
@@ -157,7 +157,7 @@ export var Invite = {
         var _a, _b, _c, _d, _e, _f;
         var message = createBaseInvite();
         message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
-        message.projectPublicId = (_b = object.projectPublicId) !== null && _b !== void 0 ? _b : "";
+        message.projectInviteId = (_b = object.projectInviteId) !== null && _b !== void 0 ? _b : Buffer.alloc(0);
         message.projectName = (_c = object.projectName) !== null && _c !== void 0 ? _c : "";
         message.roleName = (_d = object.roleName) !== null && _d !== void 0 ? _d : undefined;
         message.roleDescription = (_e = object.roleDescription) !== null && _e !== void 0 ? _e : undefined;
