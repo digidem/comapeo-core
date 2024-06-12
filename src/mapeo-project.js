@@ -725,7 +725,11 @@ export class MapeoProject extends TypedEmitter {
     await deleteAll(this.preset)
     await deleteAll(this.field)
     // delete only translations that refer to deleted fields and presets
-    await deleteTranslations(this.translation, this.preset, this.field)
+    await deleteTranslations({
+      translation: this.translation,
+      presets: this.preset,
+      fields: this.field,
+    })
 
     const config = await readConfig(configPath)
     /** @type {Map<string, string>} */
@@ -836,8 +840,34 @@ function extractEditableProjectSettings(projectDoc) {
   return result
 }
 
-// TODO: maybe a better signature than a bunch of any?
-/** @param {DataType<any,any,any,any,any>} dataType */
+/** @typedef
+ * {DataType<
+ * import('./datastore/index.js').DataStore<'config'>,
+ * typeof import('./schema/project.js').translationTable,
+ * 'translation',
+ * import('@mapeo/schema').Translation,
+ * import('@mapeo/schema').TranslationValue>} TranslationDataType
+ */
+
+/** @typedef
+ * {DataType<
+ * import('./datastore/index.js').DataStore<'config'>,
+ * typeof import('./schema/project.js').presetTable,
+ * 'preset',
+ * import('@mapeo/schema').Preset,
+ * import('@mapeo/schema').PresetValue>} PresetDataType
+ */
+
+/** @typedef
+ * {DataType<
+ * import('./datastore/index.js').DataStore<'config'>,
+ * typeof import('./schema/project.js').fieldTable,
+ * 'field',
+ * import('@mapeo/schema').Field,
+ * import('@mapeo/schema').FieldValue>} FieldDataType
+ */
+
+/** @param {FieldDataType | PresetDataType} dataType */
 async function deleteAll(dataType) {
   const deletions = []
   for (const { docId } of await dataType.getMany()) {
@@ -846,30 +876,28 @@ async function deleteAll(dataType) {
   return Promise.all(deletions)
 }
 
-// TODO: maybe a better signature than a bunch of any?
 /**
-@param {DataType<any,any,any,any,any>} translation
-@param {DataType<any,any,any,any,any>} preset
-@param {DataType<any,any,any,any,any>} field
+@param {Object} dataTypes
+@param {TranslationDataType} dataTypes.translation
+@param {PresetDataType} dataTypes.presets
+@param {FieldDataType} dataTypes.fields
 */
-async function deleteTranslations(translation, preset, field) {
+async function deleteTranslations(dataTypes) {
   const deletions = []
   for (const {
     docId,
     docIdRef,
     schemaNameRef,
-  } of await translation.getMany()) {
+  } of await dataTypes.translation.getMany()) {
     try {
-      if (schemaNameRef === 'presets') {
-        const presetToDelete = await preset.getByDocId(docIdRef)
-        if (presetToDelete.deleted) deletions.push(translation.delete(docId))
-      } else if (schemaNameRef === 'fields') {
-        const fieldToDelete = await field.getByDocId(docIdRef)
-        if (fieldToDelete.deleted) deletions.push(translation.delete(docId))
+      if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
+        const toDelete = await dataTypes[schemaNameRef].getByDocId(docIdRef)
+        if (toDelete.deleted)
+          deletions.push(dataTypes.translation.delete(docId))
       }
     } catch (e) {
       console.log('referred preset or field is not found, deleting translation')
-      deletions.push(translation.delete(docId))
+      deletions.push(dataTypes.translation.delete(docId))
     }
   }
   await Promise.all(deletions)
