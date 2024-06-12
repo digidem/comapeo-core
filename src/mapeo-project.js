@@ -869,7 +869,9 @@ async function deleteTranslations(dataTypes) {
           deletions.push(dataTypes.translation.delete(docId))
       }
     } catch (e) {
-      console.log('referred preset or field is not found, deleting translation')
+      console.log(
+        `referred ${schemaNameRef} is not found, deleting translation`
+      )
       deletions.push(dataTypes.translation.delete(docId))
     }
   }
