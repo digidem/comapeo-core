@@ -60,11 +60,11 @@ test('config import - load and re-load config manually', async (t) => {
   assert.equal(
     translations.length,
     870,
-    'correct number of manually loaded translations'
+    're-loading the same config leads to the same number of translations (since they are deleted)'
   )
 })
 
-test('load config', async (t) => {
+test('load config in parallel', async (t) => {
   const manager = createManager('device0', t)
   const project = await manager.getProject(await manager.createProject())
   await Promise.all([
