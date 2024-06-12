@@ -64,7 +64,7 @@ test('config import - load and re-load config manually', async (t) => {
   )
 })
 
-test('load config in parallel', async (t) => {
+test('manually load config in parallel', async (t) => {
   const manager = createManager('device0', t)
   const project = await manager.getProject(await manager.createProject())
   await Promise.all([

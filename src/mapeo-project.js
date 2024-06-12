@@ -724,7 +724,8 @@ export class MapeoProject extends TypedEmitter {
     // check for already present fields and presets and delete them if exist
     await deleteAll(this.preset)
     await deleteAll(this.field)
-    await deleteAll(this.translation)
+    // delete only translations that refer to deleted fields and presets
+    await deleteTranslations(this.translation, this.preset, this.field)
 
     const config = await readConfig(configPath)
     /** @type {Map<string, string>} */
@@ -843,6 +844,35 @@ async function deleteAll(dataType) {
     deletions.push(dataType.delete(docId))
   }
   return Promise.all(deletions)
+}
+
+// TODO: maybe a better signature than a bunch of any?
+/**
+@param {DataType<any,any,any,any,any>} translation
+@param {DataType<any,any,any,any,any>} preset
+@param {DataType<any,any,any,any,any>} field
+*/
+async function deleteTranslations(translation, preset, field) {
+  const deletions = []
+  for (const {
+    docId,
+    docIdRef,
+    schemaNameRef,
+  } of await translation.getMany()) {
+    try {
+      if (schemaNameRef === 'presets') {
+        const presetToDelete = await preset.getByDocId(docIdRef)
+        if (presetToDelete.deleted) deletions.push(translation.delete(docId))
+      } else if (schemaNameRef === 'fields') {
+        const fieldToDelete = await field.getByDocId(docIdRef)
+        if (fieldToDelete.deleted) deletions.push(translation.delete(docId))
+      }
+    } catch (e) {
+      console.log('referred preset or field is not found, deleting translation')
+      deletions.push(translation.delete(docId))
+    }
+  }
+  await Promise.all(deletions)
 }
 
 /**
