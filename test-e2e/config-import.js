@@ -74,7 +74,20 @@ test('manually load config in parallel', async (t) => {
   const presets = await project.preset.getMany()
   const fields = await project.field.getMany()
   const translations = await project.translation.getMany()
-  console.log('presets', presets.length)
-  console.log('fields', fields.length)
-  console.log('translations', translations.length)
+
+  assert.equal(
+    presets.length,
+    28,
+    're-loading the same config leads to the same number of presets (since they are deleted)'
+  )
+  assert.equal(
+    fields.length,
+    11,
+    're-loading the same config leads to the same number of fields (since they are deleted)'
+  )
+  assert.equal(
+    translations.length,
+    870,
+    're-loading the same config leads to the same number of translations (since they are deleted)'
+  )
 })

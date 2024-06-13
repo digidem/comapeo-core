@@ -725,7 +725,7 @@ export class MapeoProject extends TypedEmitter {
     await deleteAll(this.preset)
     await deleteAll(this.field)
     // delete only translations that refer to deleted fields and presets
-    await deleteTranslations({
+    await deleteTranslations(this.#l)({
       translation: this.translation,
       presets: this.preset,
       fields: this.field,
@@ -850,32 +850,33 @@ async function deleteAll(dataType) {
 }
 
 /**
-@param {Object} dataTypes
-@param {MapeoProject['translation']} dataTypes.translation
-@param {MapeoProject['preset']} dataTypes.presets
-@param {MapeoProject['field']} dataTypes.fields
-*/
-async function deleteTranslations(dataTypes) {
-  const deletions = []
-  for (const {
-    docId,
-    docIdRef,
-    schemaNameRef,
-  } of await dataTypes.translation.getMany()) {
-    try {
-      if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
-        const toDelete = await dataTypes[schemaNameRef].getByDocId(docIdRef)
-        if (toDelete.deleted)
-          deletions.push(dataTypes.translation.delete(docId))
-      }
-    } catch (e) {
-      console.log(
-        `referred ${schemaNameRef} is not found, deleting translation`
-      )
-      deletions.push(dataTypes.translation.delete(docId))
-    }
+ * @param {Logger} logger
+ */
+function deleteTranslations(logger) {
+  /**
+   * @param {Object} dataTypes
+   * @param {MapeoProject['translation']} dataTypes.translation
+   * @param {MapeoProject['preset']} dataTypes.presets
+   * @param {MapeoProject['field']} dataTypes.fields
+   */
+  return async function (dataTypes) {
+    const translations = await dataTypes.translation.getMany()
+    await Promise.all(
+      translations.map(async ({ docId, docIdRef, schemaNameRef }) => {
+        try {
+          if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
+            const toDelete = await dataTypes[schemaNameRef].getByDocId(docIdRef)
+            if (toDelete.deleted) dataTypes.translation.delete(docId)
+          }
+        } catch (e) {
+          logger.log(
+            `referred ${schemaNameRef} is not found, deleting translation`
+          )
+          dataTypes.translation.delete(docId)
+        }
+      })
+    )
   }
-  await Promise.all(deletions)
 }
 
 /**
