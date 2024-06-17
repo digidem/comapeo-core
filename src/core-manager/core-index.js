@@ -59,8 +59,9 @@ export class CoreIndex {
   getWriter(namespace) {
     const writerRecord = this.#writersByNamespace.get(namespace)
     // Shouldn't happen, since we add all the writers in the contructor
-    if (!writerRecord)
+    if (!writerRecord) {
       throw new Error(`Writer for namespace '${namespace}' is not defined`)
+    }
     return writerRecord
   }
 

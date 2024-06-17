@@ -54,6 +54,10 @@
       "sourceType": "module"
     },
     "rules": {
+      "curly": [
+        "error",
+        "multi-line"
+      ],
       "eqeqeq": "error",
       "default-case": "error",
       "default-case-last": "error",

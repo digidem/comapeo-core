@@ -23,8 +23,9 @@ test('translation api - put() and get() presets', async (t) => {
       const matchingTranslation = presetTranslations.find((translation) => {
         return translation.message === presetsTranslationMap[preset.name]
       })
-      if (matchingTranslation)
+      if (matchingTranslation) {
         return { docIdRef: preset.docId, ...matchingTranslation }
+      }
     })
     .filter(isDefined)
 
@@ -95,8 +96,9 @@ test('translation api - put() and get() fields', async (t) => {
       const matchingTranslation = fieldTranslations.find((translation) => {
         return translation.message === fieldsTranslationMap[field.label]
       })
-      if (matchingTranslation)
+      if (matchingTranslation) {
         return { docIdRef: field.docId, ...matchingTranslation }
+      }
     })
     .filter(isDefined)
 
@@ -158,8 +160,9 @@ test('translation api - passing `lang` to dataType', async (t) => {
       const matchingTranslation = fieldTranslations.find((translation) => {
         return translation.message === fieldsTranslationMap[field.label]
       })
-      if (matchingTranslation)
+      if (matchingTranslation) {
         return { docIdRef: field.docId, ...matchingTranslation }
+      }
     })
     .filter(isDefined)
   for (const translationDoc of fieldTranslationsDoc) {
@@ -204,8 +207,9 @@ test('translation api - passing `lang` to dataType', async (t) => {
       const matchingTranslation = presetTranslations.find((translation) => {
         return translation.message === presetsTranslationMap[preset.name]
       })
-      if (matchingTranslation)
+      if (matchingTranslation) {
         return { docIdRef: preset.docId, ...matchingTranslation }
+      }
     })
     .filter(isDefined)
   for (const translationDoc of presetTranslationsDoc) {
@@ -291,8 +295,9 @@ test('translation api - re-loading from disk', async (t) => {
                 )
               }
             )
-            if (matchingTranslation)
+            if (matchingTranslation) {
               return { docIdRef: preset.docId, ...matchingTranslation }
+            }
           })
           .filter(isDefined)
         for (const translationDoc of presetTranslationsDoc) {
@@ -308,8 +313,9 @@ test('translation api - re-loading from disk', async (t) => {
                 return translation.message === fieldsTranslationMap[field.label]
               }
             )
-            if (matchingTranslation)
+            if (matchingTranslation) {
               return { docIdRef: field.docId, ...matchingTranslation }
+            }
           })
           .filter(isDefined)
         for (const translationDoc of fieldTranslationsDoc) {

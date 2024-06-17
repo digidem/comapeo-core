@@ -308,10 +308,11 @@ function createServer(opts) {
   return fastify().register(BlobServerPlugin, {
     prefix: opts.prefix,
     getBlobStore: async (projectPublicId) => {
-      if (projectPublicId !== projectKeyToPublicId(opts.projectKey))
+      if (projectPublicId !== projectKeyToPublicId(opts.projectKey)) {
         throw new Error(
           `Could not get blobStore for project id ${projectPublicId}`
         )
+      }
       return opts.blobStore
     },
   })
