@@ -725,7 +725,8 @@ export class MapeoProject extends TypedEmitter {
     await deleteAll(this.preset)
     await deleteAll(this.field)
     // delete only translations that refer to deleted fields and presets
-    await deleteTranslations(this.#l)({
+    await deleteTranslations({
+      logger: this.#l,
       translation: this.translation,
       presets: this.preset,
       fields: this.field,
@@ -850,33 +851,29 @@ async function deleteAll(dataType) {
 }
 
 /**
- * @param {Logger} logger
+ * @param {Object} opts
+ * @param {Logger} opts.logger
+ * @param {MapeoProject['translation']} opts.translation
+ * @param {MapeoProject['preset']} opts.presets
+ * @param {MapeoProject['field']} opts.fields
  */
-function deleteTranslations(logger) {
-  /**
-   * @param {Object} dataTypes
-   * @param {MapeoProject['translation']} dataTypes.translation
-   * @param {MapeoProject['preset']} dataTypes.presets
-   * @param {MapeoProject['field']} dataTypes.fields
-   */
-  return async function (dataTypes) {
-    const translations = await dataTypes.translation.getMany()
-    await Promise.all(
-      translations.map(async ({ docId, docIdRef, schemaNameRef }) => {
-        try {
-          if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
-            const toDelete = await dataTypes[schemaNameRef].getByDocId(docIdRef)
-            if (toDelete.deleted) dataTypes.translation.delete(docId)
-          }
-        } catch (e) {
-          logger.log(
-            `referred ${schemaNameRef} is not found, deleting translation`
-          )
-          dataTypes.translation.delete(docId)
+async function deleteTranslations(opts) {
+  const translations = await opts.translation.getMany()
+  await Promise.all(
+    translations.map(async ({ docId, docIdRef, schemaNameRef }) => {
+      try {
+        if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
+          const toDelete = await opts[schemaNameRef].getByDocId(docIdRef)
+          if (toDelete.deleted) opts.translation.delete(docId)
         }
-      })
-    )
-  }
+      } catch (e) {
+        opts.logger.log(
+          `referred ${schemaNameRef} is not found, deleting translation`
+        )
+        opts.translation.delete(docId)
+      }
+    })
+  )
 }
 
 /**
