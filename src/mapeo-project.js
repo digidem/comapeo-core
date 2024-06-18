@@ -87,6 +87,8 @@ export class MapeoProject extends TypedEmitter {
   /** @type {TranslationApi} */
   #translationApi
   #l
+  /** @type {Boolean} this avoids loading multiple configs in parallel */
+  #loadingConfig
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
@@ -125,6 +127,7 @@ export class MapeoProject extends TypedEmitter {
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
+    this.#loadingConfig = false
 
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
@@ -721,6 +724,9 @@ export class MapeoProject extends TypedEmitter {
    *  @returns {Promise<Error[]>}
    */
   async importConfig({ configPath }) {
+    if (this.#loadingConfig) return /** @type Error[] */ []
+    this.#loadingConfig = true
+
     // check for already present fields and presets and delete them if exist
     await deleteAll(this.preset)
     await deleteAll(this.field)
@@ -826,7 +832,7 @@ export class MapeoProject extends TypedEmitter {
         relation: [],
       },
     })
-
+    this.#loadingConfig = false
     return config.warnings
   }
 }
