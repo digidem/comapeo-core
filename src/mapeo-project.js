@@ -872,20 +872,17 @@ async function deleteTranslations(opts) {
   const translations = await opts.translation.getMany()
   await Promise.all(
     translations.map(async ({ docId, docIdRef, schemaNameRef }) => {
-      if (schemaNameRef !== 'presets' && schemaNameRef !== 'fields') return
-
-      let shouldDelete = true
-      try {
-        const toDelete = await opts[schemaNameRef].getByDocId(docIdRef)
-        shouldDelete = toDelete.deleted
-      } catch (e) {
-        opts.logger.log(
-          `referred ${schemaNameRef} is not found, deleting translation`
-        )
-      }
-
-      if (shouldDelete) {
-        opts.translation.delete(docId)
+      if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
+        let shouldDelete = false
+        try {
+          const toDelete = await opts[schemaNameRef].getByDocId(docIdRef)
+          shouldDelete = toDelete.deleted
+        } catch (e) {
+          opts.logger.log(`referred ${docIdRef} is not found`)
+        }
+        if (shouldDelete) {
+          await opts.translation.delete(docId)
+        }
       }
     })
   )
