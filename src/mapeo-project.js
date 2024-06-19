@@ -864,7 +864,7 @@ async function deleteAll(dataType) {
 /**
  * @param {Object} opts
  * @param {Logger} opts.logger
- * @param {MapeoProject['translation']} opts.translation
+ * @param {MapeoProject['$translation']['dataType']} opts.translation
  * @param {MapeoProject['preset']} opts.presets
  * @param {MapeoProject['field']} opts.fields
  */
