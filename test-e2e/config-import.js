@@ -64,30 +64,15 @@ test('config import - load and re-load config manually', async (t) => {
   )
 })
 
-test('manually load config in parallel', async (t) => {
+test('failing on loading multiple configs in parallel', async (t) => {
   const manager = createManager('device0', t)
   const project = await manager.getProject(await manager.createProject())
-  await Promise.all([
-    project.importConfig({ configPath: defaultConfigPath }),
-    project.importConfig({ configPath: defaultConfigPath }),
-  ])
-  const presets = await project.preset.getMany()
-  const fields = await project.field.getMany()
-  const translations = await project.translation.getMany()
-
-  assert.equal(
-    presets.length,
-    28,
-    're-loading the same config leads to the same number of presets (since they are deleted)'
-  )
-  assert.equal(
-    fields.length,
-    11,
-    're-loading the same config leads to the same number of fields (since they are deleted)'
-  )
-  assert.equal(
-    translations.length,
-    870,
-    're-loading the same config leads to the same number of translations (since they are deleted)'
+  assert.throws(
+    async () =>
+      await Promise.all([
+        project.importConfig({ configPath: defaultConfigPath }),
+        project.importConfig({ configPath: defaultConfigPath }),
+      ]),
+    'Cannot run multiple config imports at the same time'
   )
 })

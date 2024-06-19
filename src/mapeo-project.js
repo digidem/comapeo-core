@@ -494,7 +494,6 @@ export class MapeoProject extends TypedEmitter {
   get field() {
     return this.#dataTypes.field
   }
-
   get translation() {
     return this.#dataTypes.translation
   }
@@ -724,7 +723,10 @@ export class MapeoProject extends TypedEmitter {
    *  @returns {Promise<Error[]>}
    */
   async importConfig({ configPath }) {
-    if (this.#loadingConfig) return /** @type Error[] */ []
+    assert(
+      !this.#loadingConfig,
+      'Cannot run multiple config imports at the same time'
+    )
     this.#loadingConfig = true
 
     try {
@@ -833,6 +835,7 @@ export class MapeoProject extends TypedEmitter {
           relation: [],
         },
       })
+      this.#loadingConfig = false
       return config.warnings
     } catch (e) {
       this.#l.log('error loading config', e)
