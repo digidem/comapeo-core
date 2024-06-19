@@ -10,7 +10,7 @@ test('config import - load default config when passed a path to `createProject`'
   )
   const presets = await project.preset.getMany()
   const fields = await project.field.getMany()
-  const translations = await project.translation.getMany()
+  const translations = await project.$translation.dataType.getMany()
   assert.equal(presets.length, 28, 'correct number of loaded presets')
   assert.equal(fields.length, 11, 'correct number of loaded fields')
   assert.equal(
@@ -27,7 +27,7 @@ test('config import - load and re-load config manually', async (t) => {
   const warnings = await project.importConfig({ configPath: defaultConfigPath })
   let presets = await project.preset.getMany()
   let fields = await project.field.getMany()
-  let translations = await project.translation.getMany()
+  let translations = await project.$translation.dataType.getMany()
 
   assert.equal(
     warnings.length,
@@ -46,7 +46,7 @@ test('config import - load and re-load config manually', async (t) => {
   await project.importConfig({ configPath: defaultConfigPath })
   presets = await project.preset.getMany()
   fields = await project.field.getMany()
-  translations = await project.translation.getMany()
+  translations = await project.$translation.dataType.getMany()
   assert.equal(
     presets.length,
     28,

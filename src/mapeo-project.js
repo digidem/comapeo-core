@@ -494,9 +494,6 @@ export class MapeoProject extends TypedEmitter {
   get field() {
     return this.#dataTypes.field
   }
-  get translation() {
-    return this.#dataTypes.translation
-  }
 
   get $member() {
     return this.#memberApi
@@ -736,7 +733,7 @@ export class MapeoProject extends TypedEmitter {
       // delete only translations that refer to deleted fields and presets
       await deleteTranslations({
         logger: this.#l,
-        translation: this.translation,
+        translation: this.$translation.dataType,
         presets: this.preset,
         fields: this.field,
       })
