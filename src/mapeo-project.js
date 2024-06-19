@@ -727,113 +727,118 @@ export class MapeoProject extends TypedEmitter {
     if (this.#loadingConfig) return /** @type Error[] */ []
     this.#loadingConfig = true
 
-    // check for already present fields and presets and delete them if exist
-    await deleteAll(this.preset)
-    await deleteAll(this.field)
-    // delete only translations that refer to deleted fields and presets
-    await deleteTranslations({
-      logger: this.#l,
-      translation: this.translation,
-      presets: this.preset,
-      fields: this.field,
-    })
-
-    const config = await readConfig(configPath)
-    /** @type {Map<string, string>} */
-    const iconNameToId = new Map()
-    /** @type {Map<string, string>} */
-    const fieldNameToId = new Map()
-    /** @type {Map<string,string>} */
-    const presetNameToId = new Map()
-
-    // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
-    for await (const icon of config.icons()) {
-      const iconId = await this.#iconApi.create(icon)
-      iconNameToId.set(icon.name, iconId)
-    }
-
-    // Ok to create fields and presets in parallel
-    const fieldPromises = []
-    for (const { name, value } of config.fields()) {
-      fieldPromises.push(
-        this.#dataTypes.field.create(value).then(({ docId }) => {
-          fieldNameToId.set(name, docId)
-        })
-      )
-    }
-    await Promise.all(fieldPromises)
-
-    const presetsWithRefs = []
-    for (const { fieldNames, iconName, value, name } of config.presets()) {
-      const fieldIds = fieldNames.map((fieldName) => {
-        const id = fieldNameToId.get(fieldName)
-        if (!id) {
-          throw new Error(
-            `field ${fieldName} not found (referenced by preset ${value.name})})`
-          )
-        }
-        return id
+    try {
+      // check for already present fields and presets and delete them if exist
+      await deleteAll(this.preset)
+      await deleteAll(this.field)
+      // delete only translations that refer to deleted fields and presets
+      await deleteTranslations({
+        logger: this.#l,
+        translation: this.translation,
+        presets: this.preset,
+        fields: this.field,
       })
-      presetsWithRefs.push({
-        preset: {
-          ...value,
-          iconId: iconName && iconNameToId.get(iconName),
-          fieldIds,
-        },
-        name,
-      })
-    }
 
-    const presetPromises = []
-    for (const { preset, name } of presetsWithRefs) {
-      presetPromises.push(
-        this.preset.create(preset).then(({ docId }) => {
-          presetNameToId.set(name, docId)
-        })
-      )
-    }
+      const config = await readConfig(configPath)
+      /** @type {Map<string, string>} */
+      const iconNameToId = new Map()
+      /** @type {Map<string, string>} */
+      const fieldNameToId = new Map()
+      /** @type {Map<string,string>} */
+      const presetNameToId = new Map()
 
-    await Promise.all(presetPromises)
-
-    const translationPromises = []
-    for (const { name, value } of config.translations()) {
-      let docIdRef
-      if (value.schemaNameRef === 'fields') {
-        docIdRef = fieldNameToId.get(name)
-      } else if (value.schemaNameRef === 'presets') {
-        docIdRef = presetNameToId.get(name)
-      } else {
-        throw new Error(`invalid schemaNameRef ${value.schemaNameRef}`)
+      // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
+      for await (const icon of config.icons()) {
+        const iconId = await this.#iconApi.create(icon)
+        iconNameToId.set(icon.name, iconId)
       }
-      if (docIdRef) {
-        translationPromises.push(
-          this.$translation.put({
-            ...value,
-            docIdRef,
+
+      // Ok to create fields and presets in parallel
+      const fieldPromises = []
+      for (const { name, value } of config.fields()) {
+        fieldPromises.push(
+          this.#dataTypes.field.create(value).then(({ docId }) => {
+            fieldNameToId.set(name, docId)
           })
         )
-      } else {
-        throw new Error(
-          `docIdRef for preset or field with name ${name} not found`
+      }
+      await Promise.all(fieldPromises)
+
+      const presetsWithRefs = []
+      for (const { fieldNames, iconName, value, name } of config.presets()) {
+        const fieldIds = fieldNames.map((fieldName) => {
+          const id = fieldNameToId.get(fieldName)
+          if (!id) {
+            throw new Error(
+              `field ${fieldName} not found (referenced by preset ${value.name})})`
+            )
+          }
+          return id
+        })
+        presetsWithRefs.push({
+          preset: {
+            ...value,
+            iconId: iconName && iconNameToId.get(iconName),
+            fieldIds,
+          },
+          name,
+        })
+      }
+
+      const presetPromises = []
+      for (const { preset, name } of presetsWithRefs) {
+        presetPromises.push(
+          this.preset.create(preset).then(({ docId }) => {
+            presetNameToId.set(name, docId)
+          })
         )
       }
+
+      await Promise.all(presetPromises)
+
+      const translationPromises = []
+      for (const { name, value } of config.translations()) {
+        let docIdRef
+        if (value.schemaNameRef === 'fields') {
+          docIdRef = fieldNameToId.get(name)
+        } else if (value.schemaNameRef === 'presets') {
+          docIdRef = presetNameToId.get(name)
+        } else {
+          throw new Error(`invalid schemaNameRef ${value.schemaNameRef}`)
+        }
+        if (docIdRef) {
+          translationPromises.push(
+            this.$translation.put({
+              ...value,
+              docIdRef,
+            })
+          )
+        } else {
+          throw new Error(
+            `docIdRef for preset or field with name ${name} not found`
+          )
+        }
+      }
+      await Promise.all(translationPromises)
+
+      // close the zip handles after we know we won't be needing them anymore
+      await config.close()
+
+      await this.$setProjectSettings({
+        defaultPresets: {
+          point: [...presetNameToId.values()],
+          line: [],
+          area: [],
+          vertex: [],
+          relation: [],
+        },
+      })
+      return config.warnings
+    } catch (e) {
+      this.#l.log('error loading config', e)
+      this.#loadingConfig = false
+      return /** @type Error[] */ []
     }
-    await Promise.all(translationPromises)
-
-    // close the zip handles after we know we won't be needing them anymore
-    await config.close()
-
-    await this.$setProjectSettings({
-      defaultPresets: {
-        point: [...presetNameToId.values()],
-        line: [],
-        area: [],
-        vertex: [],
-        relation: [],
-      },
-    })
-    this.#loadingConfig = false
-    return config.warnings
   }
 }
 
