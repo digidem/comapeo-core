@@ -67,7 +67,6 @@ export const kTable = Symbol('table')
 export class DataType extends TypedEmitter {
   #dataStore
   #table
-  #getPermissions
   #schemaName
   #sql
   #db
@@ -80,14 +79,12 @@ export class DataType extends TypedEmitter {
    * @param {TDataStore} opts.dataStore
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.db
    * @param {import('../translation-api.js').default['get']} opts.getTranslations
-   * @param {() => any} [opts.getPermissions]
    */
-  constructor({ dataStore, table, getPermissions, db, getTranslations }) {
+  constructor({ dataStore, table, db, getTranslations }) {
     super()
     this.#dataStore = dataStore
     this.#table = table
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
-    this.#getPermissions = getPermissions
     this.#db = db
     this.#getTranslations = getTranslations
     this.#sql = {

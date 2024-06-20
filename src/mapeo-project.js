@@ -63,6 +63,7 @@ export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
 export const kProjectLeave = Symbol('leave project')
+export const kClearDataIfLeft = Symbol('clear data if left project')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
@@ -675,8 +676,20 @@ export class MapeoProject extends TypedEmitter {
     // 2. Assign LEFT role for device
     await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
 
-    // 3. Clear data from cores
-    // TODO: only clear synced data
+    // 3. Clear data
+    await this[kClearDataIfLeft]()
+  }
+
+  /**
+   * Clear data if we've left the project. No-op if you're still in the project.
+   * @returns {Promise<void>}
+   */
+  async [kClearDataIfLeft]() {
+    const role = await this.$getOwnRole()
+    if (role.roleId !== LEFT_ROLE_ID) {
+      return
+    }
+
     const namespacesWithoutAuth =
       /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
         'config',
@@ -684,6 +697,11 @@ export class MapeoProject extends TypedEmitter {
         'blob',
         'blobIndex',
       ])
+    const dataStoresToUnlink = Object.values(this.#dataStores).filter(
+      (dataStore) => dataStore.namespace !== 'auth'
+    )
+
+    await Promise.all(dataStoresToUnlink.map((ds) => ds.close()))
 
     await Promise.all(
       namespacesWithoutAuth.flatMap((namespace) => [
@@ -692,18 +710,8 @@ export class MapeoProject extends TypedEmitter {
       ])
     )
 
-    // 4. Clear data from indexes
-    // 4.1 Reset multi-core indexer state
-    await Promise.all(
-      Object.values(this.#dataStores)
-        .filter((dataStore) => dataStore.namespace !== 'auth')
-        .map(async (dataStore) => {
-          await dataStore.close()
-          await dataStore.unlink()
-        })
-    )
+    await Promise.all(dataStoresToUnlink.map((ds) => ds.unlink()))
 
-    // 4.2 Clear indexed data
     /** @type {Set<string>} */
     const authSchemas = new Set(NAMESPACE_SCHEMAS.auth)
     for (const schemaName of this.#indexWriter.schemas) {
@@ -726,6 +734,8 @@ export class MapeoProject extends TypedEmitter {
     const iconNameToId = new Map()
     /** @type {Map<string, string>} */
     const fieldNameToId = new Map()
+    /** @type {Map<string,string>} */
+    const presetNameToId = new Map()
 
     // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
     for await (const icon of config.icons()) {
@@ -745,7 +755,7 @@ export class MapeoProject extends TypedEmitter {
     await Promise.all(fieldPromises)
 
     const presetsWithRefs = []
-    for (const { fieldNames, iconName, value } of config.presets()) {
+    for (const { fieldNames, iconName, value, name } of config.presets()) {
       const fieldIds = fieldNames.map((fieldName) => {
         const id = fieldNameToId.get(fieldName)
         if (!id) {
@@ -756,24 +766,57 @@ export class MapeoProject extends TypedEmitter {
         return id
       })
       presetsWithRefs.push({
-        ...value,
-        iconId: iconName && iconNameToId.get(iconName),
-        fieldIds,
+        preset: {
+          ...value,
+          iconId: iconName && iconNameToId.get(iconName),
+          fieldIds,
+        },
+        name,
       })
     }
+
+    const presetPromises = []
+    for (const { preset, name } of presetsWithRefs) {
+      presetPromises.push(
+        this.preset.create(preset).then(({ docId }) => {
+          presetNameToId.set(name, docId)
+        })
+      )
+    }
+
+    await Promise.all(presetPromises)
+
+    const translationPromises = []
+    for (const { name, value } of config.translations()) {
+      let docIdRef
+      if (value.schemaNameRef === 'fields') {
+        docIdRef = fieldNameToId.get(name)
+      } else if (value.schemaNameRef === 'presets') {
+        docIdRef = presetNameToId.get(name)
+      } else {
+        throw new Error(`invalid schemaNameRef ${value.schemaNameRef}`)
+      }
+      if (docIdRef) {
+        translationPromises.push(
+          this.$translation.put({
+            ...value,
+            docIdRef,
+          })
+        )
+      } else {
+        throw new Error(
+          `docIdRef for preset or field with name ${name} not found`
+        )
+      }
+    }
+    await Promise.all(translationPromises)
 
     // close the zip handles after we know we won't be needing them anymore
     await config.close()
 
-    const presetPromises = presetsWithRefs.map((preset) =>
-      this.preset.create(preset)
-    )
-    const createdPresets = await Promise.all(presetPromises)
-    const presetIds = createdPresets.map(({ docId }) => docId)
-
     await this.$setProjectSettings({
       defaultPresets: {
-        point: presetIds,
+        point: [...presetNameToId.values()],
         line: [],
         area: [],
         vertex: [],

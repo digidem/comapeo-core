@@ -1,4 +1,5 @@
-import { test } from 'brittle'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { randomBytes } from 'crypto'
 import { once } from 'node:events'
 
@@ -12,7 +13,6 @@ import {
 import {
   connectPeers,
   createManagers,
-  disconnectPeers,
   invite,
   waitForPeers,
   waitForSync,
@@ -27,7 +27,7 @@ test('getting yourself after creating project', async (t) => {
 
   const me = await project.$member.getById(project.deviceId)
 
-  t.alike(
+  assert.deepEqual(
     me,
     {
       deviceId: project.deviceId,
@@ -40,8 +40,8 @@ test('getting yourself after creating project', async (t) => {
 
   const members = await project.$member.getMany()
 
-  t.is(members.length, 1)
-  t.alike(
+  assert.equal(members.length, 1)
+  assert.deepEqual(
     members[0],
     {
       deviceId: project.deviceId,
@@ -70,7 +70,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
 
   const me = await project.$member.getById(project.deviceId)
 
-  t.alike(
+  assert.deepEqual(
     me,
     {
       deviceId: project.deviceId,
@@ -83,8 +83,8 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
 
   const members = await project.$member.getMany()
 
-  t.is(members.length, 1)
-  t.alike(
+  assert.equal(members.length, 1)
+  assert.deepEqual(
     members[0],
     {
       deviceId: project.deviceId,
@@ -99,7 +99,8 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
 test('getting invited member after invite rejected', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -112,25 +113,25 @@ test('getting invited member after invite rejected', async (t) => {
     reject: true,
   })
 
-  await t.exception(
+  await assert.rejects(
     () => project.$member.getById(invitee.deviceId),
     'invited member cannot be retrieved'
   )
 
   const members = await project.$member.getMany()
 
-  t.is(members.length, 1)
-  t.absent(
-    members.find((m) => m.deviceId === invitee.deviceId),
+  assert.equal(members.length, 1)
+  assert(
+    !members.find((m) => m.deviceId === invitee.deviceId),
     'invited member not found'
   )
-  await disconnectPeers(managers)
 })
 
 test('getting invited member after invite accepted', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const { name: inviteeName } = invitee.getDeviceInfo()
@@ -146,11 +147,11 @@ test('getting invited member after invite accepted', async (t) => {
 
   const members = await project.$member.getMany()
 
-  t.is(members.length, 2)
+  assert.equal(members.length, 2)
 
   const invitedMember = members.find((m) => m.deviceId === invitee.deviceId)
 
-  t.alike(
+  assert.deepEqual(
     invitedMember,
     {
       deviceId: invitee.deviceId,
@@ -162,13 +163,13 @@ test('getting invited member after invite accepted', async (t) => {
   )
 
   // TODO: Test that device info of invited member can be read from invitor after syncing
-  await disconnectPeers(managers)
 })
 
 test('invite uses custom role name when provided', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -184,15 +185,14 @@ test('invite uses custom role name when provided', async (t) => {
   })
 
   const [{ roleName }] = await inviteReceivedPromise
-  t.is(roleName, 'friend', 'roleName should be equal')
-
-  await disconnectPeers(managers)
+  assert.equal(roleName, 'friend', 'roleName should be equal')
 })
 
 test('invite uses default role name when not provided', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -207,13 +207,11 @@ test('invite uses default role name when not provided', async (t) => {
   })
 
   const [{ roleName }] = await inviteReceivedPromise
-  t.is(
+  assert.equal(
     roleName,
     ROLES[MEMBER_ROLE_ID].name,
     '`roleName` should use the fallback by deriving `roleId`'
   )
-
-  await disconnectPeers(managers)
 })
 
 test('roles - creator role and role assignment', async (t) => {
@@ -223,14 +221,18 @@ test('roles - creator role and role assignment', async (t) => {
   const project = await manager.getProject(projectId)
   const ownRole = await project.$getOwnRole()
 
-  t.alike(ownRole, CREATOR_ROLE, 'Project creator has creator role')
+  assert.deepEqual(ownRole, CREATOR_ROLE, 'Project creator has creator role')
 
   const deviceId = randomBytes(32).toString('hex')
   await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
 
   const member = await project.$member.getById(deviceId)
 
-  t.alike(member.role, ROLES[MEMBER_ROLE_ID], 'Can assign role to device')
+  assert.deepEqual(
+    member.role,
+    ROLES[MEMBER_ROLE_ID],
+    'Can assign role to device'
+  )
 })
 
 test('roles - new device without role', async (t) => {
@@ -249,7 +251,7 @@ test('roles - new device without role', async (t) => {
 
   const ownRole = await project.$getOwnRole()
 
-  t.alike(
+  assert.deepEqual(
     ownRole.sync,
     {
       auth: 'allowed',
@@ -260,7 +262,7 @@ test('roles - new device without role', async (t) => {
     },
     'A new device before sync can sync auth and config namespaces, but not other namespaces'
   )
-  await t.exception(async () => {
+  await assert.rejects(async () => {
     const deviceId = randomBytes(32).toString('hex')
     await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
   }, 'Trying to assign a role without the permission throws an error')
@@ -275,7 +277,7 @@ test('roles - getMany() on invitor device', async (t) => {
   const project = await manager.getProject(projectId)
   const ownRole = await project.$getOwnRole()
 
-  t.alike(ownRole, CREATOR_ROLE, 'Project creator has creator role')
+  assert.deepEqual(ownRole, CREATOR_ROLE, 'Project creator has creator role')
 
   const deviceId1 = randomBytes(32).toString('hex')
   const deviceId2 = randomBytes(32).toString('hex')
@@ -297,7 +299,7 @@ test('roles - getMany() on invitor device', async (t) => {
     actual[member.deviceId] = member.role
   }
 
-  t.alike(actual, expected, 'expected roles')
+  assert.deepEqual(actual, expected, 'expected roles')
 })
 
 test('roles - getMany() on newly invited device before sync', async (t) => {
@@ -326,13 +328,14 @@ test('roles - getMany() on newly invited device before sync', async (t) => {
     actual[member.deviceId] = member.role
   }
 
-  t.alike(actual, expected, 'expected role')
+  assert.deepEqual(actual, expected, 'expected role')
 })
 
 test('roles - assignRole()', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -350,19 +353,19 @@ test('roles - assignRole()', async (t) => {
 
   const [invitorProject, inviteeProject] = projects
 
-  t.alike(
+  assert.deepEqual(
     (await invitorProject.$member.getById(invitee.deviceId)).role,
     ROLES[MEMBER_ROLE_ID],
     'invitee has member role from invitor perspective'
   )
 
-  t.alike(
+  assert.deepEqual(
     await inviteeProject.$getOwnRole(),
     ROLES[MEMBER_ROLE_ID],
     'invitee has member role from invitee perspective'
   )
 
-  await t.test('invitor updates invitee role to coordinator', async (st) => {
+  await t.test('invitor updates invitee role to coordinator', async () => {
     const roleRecordBefore = await invitorProject[kDataTypes].role.getByDocId(
       invitee.deviceId
     )
@@ -376,29 +379,29 @@ test('roles - assignRole()', async (t) => {
       invitee.deviceId
     )
 
-    t.alike(
+    assert.deepEqual(
       roleRecordAfter.links,
       [roleRecordBefore.versionId],
       'role record links to record before role assignment'
     )
-    t.is(roleRecordAfter.forks.length, 0, 'role record has no forks')
+    assert.equal(roleRecordAfter.forks.length, 0, 'role record has no forks')
 
     await waitForSync(projects, 'initial')
 
-    st.alike(
+    assert.deepEqual(
       (await invitorProject.$member.getById(invitee.deviceId)).role,
       ROLES[COORDINATOR_ROLE_ID],
       'invitee now has coordinator role from invitor perspective'
     )
 
-    st.alike(
+    assert.deepEqual(
       await inviteeProject.$getOwnRole(),
       ROLES[COORDINATOR_ROLE_ID],
       'invitee now has coordinator role from invitee perspective'
     )
   })
 
-  await t.test('invitee updates own role to member', async (st) => {
+  await t.test('invitee updates own role to member', async () => {
     const roleRecordBefore = await inviteeProject[kDataTypes].role.getByDocId(
       invitee.deviceId
     )
@@ -409,12 +412,12 @@ test('roles - assignRole()', async (t) => {
       invitee.deviceId
     )
 
-    t.alike(
+    assert.deepEqual(
       roleRecordAfter.links,
       [roleRecordBefore.versionId],
       'role record from invitee links to record before role assignment'
     )
-    t.is(
+    assert.equal(
       roleRecordAfter.forks.length,
       0,
       'role record from invitee record has no forks'
@@ -422,26 +425,24 @@ test('roles - assignRole()', async (t) => {
 
     await waitForSync(projects, 'initial')
 
-    st.alike(
+    assert.deepEqual(
       (await invitorProject.$member.getById(invitee.deviceId)).role,
       ROLES[MEMBER_ROLE_ID],
       'invitee now has member role from invitor perspective'
     )
 
-    st.alike(
+    assert.deepEqual(
       await inviteeProject.$getOwnRole(),
       ROLES[MEMBER_ROLE_ID],
       'invitee now has member role from invitee perspective'
     )
   })
-
-  await disconnectPeers(managers)
 })
 
 test('roles - assignRole() with forked role', async (t) => {
   const managers = await createManagers(3, t)
   const [invitor, invitee1, invitee2] = managers
-  connectPeers(managers)
+  let disconnectPeers = connectPeers(managers)
   await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -461,7 +462,7 @@ test('roles - assignRole() with forked role', async (t) => {
 
   const [invitorProject, invitee1Project] = projects
 
-  await disconnectPeers(managers)
+  await disconnectPeers()
 
   // 2. Create fork by two devices assigning a role to invitee2 while disconnected
   // TODO: Assign different roles and test fork resolution prefers the role with least power (code for this is not written yet)
@@ -469,7 +470,8 @@ test('roles - assignRole() with forked role', async (t) => {
   await invitorProject.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
   await invitee1Project.$member.assignRole(invitee2.deviceId, MEMBER_ROLE_ID)
 
-  await connectPeers(managers)
+  disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForSync(projects, 'initial')
 
   // 3. Verify that invitee2 role is now forked
@@ -477,7 +479,7 @@ test('roles - assignRole() with forked role', async (t) => {
   const invitee2RoleForked = await invitee1Project[kDataTypes].role.getByDocId(
     invitee2.deviceId
   )
-  t.is(invitee2RoleForked.forks.length, 1, 'invitee2 role has one fork')
+  assert.equal(invitee2RoleForked.forks.length, 1, 'invitee2 role has one fork')
 
   // 4. Assign role again, which should merge forked records
 
@@ -488,7 +490,5 @@ test('roles - assignRole() with forked role', async (t) => {
   const invitee2RoleMerged = await invitee1Project[kDataTypes].role.getByDocId(
     invitee2.deviceId
   )
-  t.is(invitee2RoleMerged.forks.length, 0, 'invitee2 role has no forks')
-
-  await disconnectPeers(managers)
+  assert.equal(invitee2RoleMerged.forks.length, 0, 'invitee2 role has no forks')
 })
