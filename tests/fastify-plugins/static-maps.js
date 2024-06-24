@@ -247,8 +247,9 @@ function setup(t) {
 function getContentLength(headers) {
   const contentLength = headers['content-length']
 
-  if (Array.isArray(contentLength))
+  if (Array.isArray(contentLength)) {
     throw new Error('Cannot parse content-length header')
+  }
   if (typeof contentLength === 'number') return contentLength
   if (typeof contentLength === 'string') return parseInt(contentLength, 10)
   return contentLength
