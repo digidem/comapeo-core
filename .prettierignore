@@ -1,7 +1,6 @@
 /dist/
 /drizzle/*/meta/
 /src/generated/
-*.snapshot.cjs
 /tests/fixtures/
 /docs/
 /coverage/

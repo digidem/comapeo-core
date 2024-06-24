@@ -16,7 +16,6 @@ import {
   connectPeers,
   createManager,
   createManagers,
-  disconnectPeers,
   getDiskUsage,
   invite,
   waitForPeers,
@@ -36,7 +35,8 @@ test('Creator cannot leave project if they are the only member', async (t) => {
 test('Creator cannot leave project if no other coordinators exist', async (t) => {
   const managers = await createManagers(2, t)
 
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const [creator, member] = managers
@@ -68,14 +68,13 @@ test('Creator cannot leave project if no other coordinators exist', async (t) =>
   await assert.rejects(async () => {
     await creator.leaveProject(projectId)
   }, 'creator attempting to leave project with no other coordinators fails')
-
-  await disconnectPeers(managers)
 })
 
 test('Blocked member cannot leave project', async (t) => {
   const managers = await createManagers(2, t)
 
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const [creator, member] = managers
@@ -113,14 +112,13 @@ test('Blocked member cannot leave project', async (t) => {
   await assert.rejects(async () => {
     await member.leaveProject(projectId)
   }, 'Member attempting to leave project fails')
-
-  await disconnectPeers(managers)
 })
 
 test('Creator can leave project if another coordinator exists', async (t) => {
   const managers = await createManagers(2, t)
 
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const [creator, coordinator] = managers
@@ -166,14 +164,13 @@ test('Creator can leave project if another coordinator exists', async (t) => {
     ROLES[LEFT_ROLE_ID],
     'coordinator can still retrieve info about creator who left'
   )
-
-  await disconnectPeers(managers)
 })
 
 test('Member can leave project if creator exists', async (t) => {
   const managers = await createManagers(2, t)
 
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const [creator, member] = managers
@@ -219,14 +216,13 @@ test('Member can leave project if creator exists', async (t) => {
     ROLES[LEFT_ROLE_ID],
     'creator can still retrieve info about member who left'
   )
-
-  await disconnectPeers(managers)
 })
 
 test('Data access after leaving project', async (t) => {
   const managers = await createManagers(3, t)
 
-  connectPeers(managers)
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
   await waitForPeers(managers)
 
   const [creator, coordinator, member] = managers
@@ -303,8 +299,6 @@ test('Data access after leaving project', async (t) => {
   await assert.rejects(async () => {
     await coordinatorProject.$setProjectSettings({ name: 'foo' })
   }, 'coordinator cannot update project settings after leaving')
-
-  await disconnectPeers(managers)
 })
 
 test('leaving a project deletes data from disk', async (t) => {

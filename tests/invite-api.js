@@ -7,7 +7,11 @@ import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { LocalPeers } from '../src/local-peers.js'
 import { InviteApi } from '../src/invite-api.js'
-import { keyToId, projectKeyToPublicId } from '../src/utils.js'
+import {
+  keyToId,
+  projectKeyToProjectInviteId,
+  projectKeyToPublicId,
+} from '../src/utils.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 
 /** @typedef {import('../src/generated/rpc.js').Invite} Invite */
@@ -29,7 +33,7 @@ test('has no invites to start', () => {
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async () => {
         assert.fail('should not be called')
       },
@@ -40,12 +44,12 @@ test('has no invites to start', () => {
 })
 
 test('invite-received event has expected payload', async () => {
-  const { rpc, invitorPeerId, projectPublicId } = setup()
+  const { rpc, invitorPeerId, projectInviteId } = setup()
 
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async () => {
         assert.fail('should not be called')
       },
@@ -57,7 +61,7 @@ test('invite-received event has expected payload', async () => {
   const projectName = 'My Project'
   const bareInvite = {
     inviteId: randomBytes(32),
-    projectPublicId,
+    projectInviteId,
     projectName,
     invitorName: 'Your Friend',
   }
@@ -81,20 +85,20 @@ test('invite-received event has expected payload', async () => {
   const expectedInvites = [
     {
       inviteId: bareInvite.inviteId.toString('hex'),
-      projectPublicId,
+      projectInviteId: projectInviteId.toString('hex'),
       projectName,
       invitorName: 'Your Friend',
     },
     {
       inviteId: partialInvite.inviteId.toString('hex'),
-      projectPublicId,
+      projectInviteId: projectInviteId.toString('hex'),
       projectName,
       roleDescription: 'Cool Role',
       invitorName: 'Your Friend',
     },
     {
       inviteId: fullInvite.inviteId.toString('hex'),
-      projectPublicId,
+      projectInviteId: projectInviteId.toString('hex'),
       projectName,
       roleName: 'Superfan',
       roleDescription: 'This Cool Role',
@@ -131,9 +135,10 @@ test('Accept invite', async () => {
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async ({ projectKey }) => {
         projectKeysFound.push(projectKey)
+        return projectKeyToPublicId(projectKey)
       },
     },
   })
@@ -207,7 +212,7 @@ test('Reject invite', async () => {
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async () => {
         assert.fail('should not add project')
       },
@@ -268,12 +273,14 @@ test('Reject invite', async () => {
 
 test('Receiving invite for project that peer already belongs to', async (t) => {
   await t.test('was member prior to connection', async () => {
-    const { rpc, invitorPeerId, projectPublicId, invite } = setup()
+    const { rpc, invitorPeerId, projectPublicId, projectInviteId, invite } =
+      setup()
 
     const inviteApi = new InviteApi({
       rpc,
       queries: {
-        isMember: (p) => p === projectPublicId,
+        getProjectByInviteId: (p) =>
+          p === projectInviteId ? { projectPublicId } : undefined,
         addProject: async () => {
           assert.fail('should not add project')
         },
@@ -320,14 +327,16 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
   await t.test(
     'became member (somehow!) between receiving invite and accepting',
     async () => {
-      const { rpc, invitorPeerId, invite, inviteExternal } = setup()
+      const { rpc, invitorPeerId, invite, inviteExternal, projectPublicId } =
+        setup()
 
       let isMember = false
 
       const inviteApi = new InviteApi({
         rpc,
         queries: {
-          isMember: () => isMember,
+          getProjectByInviteId: () =>
+            isMember ? { projectPublicId } : undefined,
           addProject: async () => {
             assert.fail('should not add project')
           },
@@ -392,10 +401,11 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     const inviteApi = new InviteApi({
       rpc,
       queries: {
-        isMember: () => false,
+        getProjectByInviteId: () => undefined,
         addProject: async ({ projectKey }) => {
           assert(!projectKeyAdded, 'only adds one project')
           projectKeyAdded = projectKey
+          return projectKeyToPublicId(projectKey)
         },
       },
     })
@@ -576,8 +586,10 @@ test('trying to accept or reject non-existent invite throws', async () => {
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
-      addProject: async () => {},
+      getProjectByInviteId: () => undefined,
+      addProject: async () => {
+        assert.fail('should never be called')
+      },
     },
   })
 
@@ -609,9 +621,10 @@ test('throws when quickly double-accepting the same invite', async () => {
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async ({ projectKey }) => {
         projectKeysFound.push(projectKey)
+        return projectKeyToPublicId(projectKey)
       },
     },
   })
@@ -677,9 +690,10 @@ test('throws when quickly accepting and then rejecting an invite', async () => {
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async ({ projectKey }) => {
         projectKeysFound.push(projectKey)
+        return projectKeyToPublicId(projectKey)
       },
     },
   })
@@ -732,9 +746,10 @@ test('throws when quickly accepting two invites for the same project', async () 
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async ({ projectKey }) => {
         projectKeysFound.push(projectKey)
+        return projectKeyToPublicId(projectKey)
       },
     },
   })
@@ -798,7 +813,7 @@ test('receiving project join details from an unknown peer is a no-op', async () 
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async () => {
         assert.fail('should not be called')
       },
@@ -868,7 +883,7 @@ test('receiving project join details for an unknown invite ID is a no-op', async
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async () => {
         assert.fail('should not be called')
       },
@@ -931,8 +946,10 @@ test('ignores duplicate invite IDs', async () => {
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
-      addProject: async () => {},
+      getProjectByInviteId: () => undefined,
+      addProject: async () => {
+        assert.fail('should not be called')
+      },
     },
   })
 
@@ -955,7 +972,7 @@ test('failures to send acceptances cause accept to reject, no project to be adde
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async () => {
         assert.fail('should not try to add project if could not accept')
       },
@@ -1010,7 +1027,7 @@ test('failures to send rejections are ignored, but invite is still removed', asy
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async () => {
         assert.fail('should not add project')
       },
@@ -1057,7 +1074,7 @@ test('failures to add project cause accept() to reject and invite to be removed'
   const inviteApi = new InviteApi({
     rpc,
     queries: {
-      isMember: () => false,
+      getProjectByInviteId: () => undefined,
       addProject: async () => {
         throw new Error('Failed to add project')
       },
@@ -1113,9 +1130,11 @@ function setup() {
   const projectKey = KeyManager.generateProjectKeypair().publicKey
 
   const projectPublicId = projectKeyToPublicId(projectKey)
+  const projectInviteId = projectKeyToProjectInviteId(projectKey)
+
   const invite = {
     inviteId: randomBytes(32),
-    projectPublicId,
+    projectInviteId,
     projectName: 'Mapeo Project',
     roleName: 'Superfan',
     invitorName: 'Host',
@@ -1123,6 +1142,7 @@ function setup() {
   const inviteExternal = {
     ...invite,
     inviteId: invite.inviteId.toString('hex'),
+    projectInviteId: projectInviteId.toString('hex'),
   }
 
   const invitorPeerId = keyToId(randomBytes(16))
@@ -1132,6 +1152,7 @@ function setup() {
     rpc,
     invitorPeerId,
     projectPublicId,
+    projectInviteId,
     invite,
     inviteExternal,
     projectKey,
