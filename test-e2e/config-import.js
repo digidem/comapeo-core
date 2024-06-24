@@ -67,12 +67,10 @@ test('config import - load and re-load config manually', async (t) => {
 test('failing on loading multiple configs in parallel', async (t) => {
   const manager = createManager('device0', t)
   const project = await manager.getProject(await manager.createProject())
-  await assert.rejects(
-    async () =>
-      await Promise.all([
-        project.importConfig({ configPath: defaultConfigPath }),
-        project.importConfig({ configPath: defaultConfigPath }),
-      ]),
-    'Cannot run multiple config imports at the same time'
-  )
+  await assert.rejects(async () => {
+    await Promise.all([
+      project.importConfig({ configPath: defaultConfigPath }),
+      project.importConfig({ configPath: defaultConfigPath }),
+    ])
+  }, 'loading configs in parallell should throw')
 })
