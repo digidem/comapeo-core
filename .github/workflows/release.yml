@@ -17,6 +17,8 @@ on:
           # - prepatch
           # - preminor
           # - premajor
+  pull_request:
+    types: [closed]
 
 jobs:
   release:
