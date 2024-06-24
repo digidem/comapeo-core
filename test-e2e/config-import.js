@@ -67,7 +67,7 @@ test('config import - load and re-load config manually', async (t) => {
 test('failing on loading multiple configs in parallel', async (t) => {
   const manager = createManager('device0', t)
   const project = await manager.getProject(await manager.createProject())
-  assert.throws(
+  await assert.rejects(
     async () =>
       await Promise.all([
         project.importConfig({ configPath: defaultConfigPath }),
