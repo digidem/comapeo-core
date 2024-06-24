@@ -8,7 +8,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import * as v8 from 'node:v8'
 
-import { MapeoManager } from '../src/index.js'
+import { MapeoManager, roles } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
 import { once } from 'node:events'
 import { generate } from '@mapeo/mock-data'
@@ -16,7 +16,6 @@ import { valueOf } from '../src/utils.js'
 import { randomInt } from 'node:crypto'
 import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
-import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { readConfig } from '../src/config-import.js'
 
@@ -91,7 +90,7 @@ export async function invite({
   invitor,
   projectId,
   invitees,
-  roleId = MEMBER_ROLE_ID,
+  roleId = roles.MEMBER_ROLE_ID,
   roleName,
   reject = false,
 }) {
