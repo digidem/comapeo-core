@@ -209,8 +209,9 @@ export async function readConfig(configPath) {
       for (const [lang, languageTranslations] of Object.entries(
         translationsFile
       )) {
-        if (!isRecord(languageTranslations))
+        if (!isRecord(languageTranslations)) {
           throw new Error('invalid language translations object')
+        }
         for (const { name, value } of translationsForLanguage(warnings)(
           lang,
           languageTranslations

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'
 import { connectPeers, createManagers, waitForPeers } from './utils.js'
-import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
+import { roles } from '../src/index.js'
+
+const { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } = roles
 
 /** @typedef {import('../src/generated/rpc.js').Invite} Invite */
 

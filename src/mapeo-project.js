@@ -90,6 +90,8 @@ export class MapeoProject extends TypedEmitter {
   /** @type {TranslationApi} */
   #translationApi
   #l
+  /** @type {Boolean} this avoids loading multiple configs in parallel */
+  #loadingConfig
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
@@ -128,6 +130,7 @@ export class MapeoProject extends TypedEmitter {
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
+    this.#loadingConfig = false
 
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
@@ -564,6 +567,20 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
+   * @param {string} createdBy The `createdBy` value from a document.
+   * @returns {Promise<string>} The device ID for this creator.
+   * @throws When device ID cannot be found.
+   */
+  async $createdByToDeviceId(createdBy) {
+    const discoveryKey = Buffer.from(createdBy, 'hex')
+    const coreId = this.#coreManager
+      .getCoreByDiscoveryKey(discoveryKey)
+      ?.key.toString('hex')
+    if (!coreId) throw new Error('NotFound')
+    return this.#coreOwnership.getOwner(coreId)
+  }
+
+  /**
    * Replicate a project to a @hyperswarm/secret-stream. Invites will not
    * function because the RPC channel is not connected for project replication,
    * and only this project will replicate (to replicate multiple projects you
@@ -725,106 +742,125 @@ export class MapeoProject extends TypedEmitter {
    *  @returns {Promise<Error[]>}
    */
   async importConfig({ configPath }) {
-    // check for already present fields and presets and delete them if exist
-    await deleteAll(this.preset)
-    await deleteAll(this.field)
+    assert(
+      !this.#loadingConfig,
+      'Cannot run multiple config imports at the same time'
+    )
+    this.#loadingConfig = true
 
-    const config = await readConfig(configPath)
-    /** @type {Map<string, string>} */
-    const iconNameToId = new Map()
-    /** @type {Map<string, string>} */
-    const fieldNameToId = new Map()
-    /** @type {Map<string,string>} */
-    const presetNameToId = new Map()
-
-    // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
-    for await (const icon of config.icons()) {
-      const iconId = await this.#iconApi.create(icon)
-      iconNameToId.set(icon.name, iconId)
-    }
-
-    // Ok to create fields and presets in parallel
-    const fieldPromises = []
-    for (const { name, value } of config.fields()) {
-      fieldPromises.push(
-        this.#dataTypes.field.create(value).then(({ docId }) => {
-          fieldNameToId.set(name, docId)
-        })
-      )
-    }
-    await Promise.all(fieldPromises)
-
-    const presetsWithRefs = []
-    for (const { fieldNames, iconName, value, name } of config.presets()) {
-      const fieldIds = fieldNames.map((fieldName) => {
-        const id = fieldNameToId.get(fieldName)
-        if (!id) {
-          throw new Error(
-            `field ${fieldName} not found (referenced by preset ${value.name})})`
-          )
-        }
-        return id
+    try {
+      // check for already present fields and presets and delete them if exist
+      await deleteAll(this.preset)
+      await deleteAll(this.field)
+      // delete only translations that refer to deleted fields and presets
+      await deleteTranslations({
+        logger: this.#l,
+        translation: this.$translation.dataType,
+        presets: this.preset,
+        fields: this.field,
       })
-      presetsWithRefs.push({
-        preset: {
-          ...value,
-          iconId: iconName && iconNameToId.get(iconName),
-          fieldIds,
-        },
-        name,
-      })
-    }
 
-    const presetPromises = []
-    for (const { preset, name } of presetsWithRefs) {
-      presetPromises.push(
-        this.preset.create(preset).then(({ docId }) => {
-          presetNameToId.set(name, docId)
-        })
-      )
-    }
+      const config = await readConfig(configPath)
+      /** @type {Map<string, string>} */
+      const iconNameToId = new Map()
+      /** @type {Map<string, string>} */
+      const fieldNameToId = new Map()
+      /** @type {Map<string,string>} */
+      const presetNameToId = new Map()
 
-    await Promise.all(presetPromises)
-
-    const translationPromises = []
-    for (const { name, value } of config.translations()) {
-      let docIdRef
-      if (value.schemaNameRef === 'fields') {
-        docIdRef = fieldNameToId.get(name)
-      } else if (value.schemaNameRef === 'presets') {
-        docIdRef = presetNameToId.get(name)
-      } else {
-        throw new Error(`invalid schemaNameRef ${value.schemaNameRef}`)
+      // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
+      for await (const icon of config.icons()) {
+        const iconId = await this.#iconApi.create(icon)
+        iconNameToId.set(icon.name, iconId)
       }
-      if (docIdRef) {
-        translationPromises.push(
-          this.$translation.put({
-            ...value,
-            docIdRef,
+
+      // Ok to create fields and presets in parallel
+      const fieldPromises = []
+      for (const { name, value } of config.fields()) {
+        fieldPromises.push(
+          this.#dataTypes.field.create(value).then(({ docId }) => {
+            fieldNameToId.set(name, docId)
           })
         )
-      } else {
-        throw new Error(
-          `docIdRef for preset or field with name ${name} not found`
+      }
+      await Promise.all(fieldPromises)
+
+      const presetsWithRefs = []
+      for (const { fieldNames, iconName, value, name } of config.presets()) {
+        const fieldIds = fieldNames.map((fieldName) => {
+          const id = fieldNameToId.get(fieldName)
+          if (!id) {
+            throw new Error(
+              `field ${fieldName} not found (referenced by preset ${value.name})})`
+            )
+          }
+          return id
+        })
+        presetsWithRefs.push({
+          preset: {
+            ...value,
+            iconId: iconName && iconNameToId.get(iconName),
+            fieldIds,
+          },
+          name,
+        })
+      }
+
+      const presetPromises = []
+      for (const { preset, name } of presetsWithRefs) {
+        presetPromises.push(
+          this.preset.create(preset).then(({ docId }) => {
+            presetNameToId.set(name, docId)
+          })
         )
       }
+
+      await Promise.all(presetPromises)
+
+      const translationPromises = []
+      for (const { name, value } of config.translations()) {
+        let docIdRef
+        if (value.schemaNameRef === 'fields') {
+          docIdRef = fieldNameToId.get(name)
+        } else if (value.schemaNameRef === 'presets') {
+          docIdRef = presetNameToId.get(name)
+        } else {
+          throw new Error(`invalid schemaNameRef ${value.schemaNameRef}`)
+        }
+        if (docIdRef) {
+          translationPromises.push(
+            this.$translation.put({
+              ...value,
+              docIdRef,
+            })
+          )
+        } else {
+          throw new Error(
+            `docIdRef for preset or field with name ${name} not found`
+          )
+        }
+      }
+      await Promise.all(translationPromises)
+
+      // close the zip handles after we know we won't be needing them anymore
+      await config.close()
+
+      await this.$setProjectSettings({
+        defaultPresets: {
+          point: [...presetNameToId.values()],
+          line: [],
+          area: [],
+          vertex: [],
+          relation: [],
+        },
+      })
+      this.#loadingConfig = false
+      return config.warnings
+    } catch (e) {
+      this.#l.log('error loading config', e)
+      this.#loadingConfig = false
+      return /** @type Error[] */ []
     }
-    await Promise.all(translationPromises)
-
-    // close the zip handles after we know we won't be needing them anymore
-    await config.close()
-
-    await this.$setProjectSettings({
-      defaultPresets: {
-        point: [...presetNameToId.values()],
-        line: [],
-        area: [],
-        vertex: [],
-        relation: [],
-      },
-    })
-
-    return config.warnings
   }
 }
 
@@ -838,14 +874,40 @@ function extractEditableProjectSettings(projectDoc) {
   return result
 }
 
-// TODO: maybe a better signature than a bunch of any?
-/** @param {DataType<any,any,any,any,any>} dataType */
+/** @param {MapeoProject['field'] | MapeoProject['preset']} dataType */
 async function deleteAll(dataType) {
   const deletions = []
   for (const { docId } of await dataType.getMany()) {
     deletions.push(dataType.delete(docId))
   }
   return Promise.all(deletions)
+}
+
+/**
+ * @param {Object} opts
+ * @param {Logger} opts.logger
+ * @param {MapeoProject['$translation']['dataType']} opts.translation
+ * @param {MapeoProject['preset']} opts.presets
+ * @param {MapeoProject['field']} opts.fields
+ */
+async function deleteTranslations(opts) {
+  const translations = await opts.translation.getMany()
+  await Promise.all(
+    translations.map(async ({ docId, docIdRef, schemaNameRef }) => {
+      if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
+        let shouldDelete = false
+        try {
+          const toDelete = await opts[schemaNameRef].getByDocId(docIdRef)
+          shouldDelete = toDelete.deleted
+        } catch (e) {
+          opts.logger.log(`referred ${docIdRef} is not found`)
+        }
+        if (shouldDelete) {
+          await opts.translation.delete(docId)
+        }
+      }
+    })
+  )
 }
 
 /**

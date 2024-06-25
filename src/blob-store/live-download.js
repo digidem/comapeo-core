@@ -126,7 +126,7 @@ export class DriveLiveDownload extends TypedEmitter {
    * @returns {BlobDownloadState | BlobDownloadStateError}
    */
   get state() {
-    if (this.#error)
+    if (this.#error) {
       return {
         haveCount: this.#haveCount,
         haveBytes: this.#haveBytes,
@@ -135,6 +135,7 @@ export class DriveLiveDownload extends TypedEmitter {
         error: this.#error,
         status: 'error',
       }
+    }
     return {
       haveCount: this.#haveCount,
       haveBytes: this.#haveBytes,
