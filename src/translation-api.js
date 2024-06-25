@@ -126,4 +126,7 @@ export default class TranslationApi {
   get [ktranslatedLanguageCodeToSchemaNames]() {
     return this.#translatedLanguageCodeToSchemaNames
   }
+  get dataType() {
+    return this.#dataType
+  }
 }
