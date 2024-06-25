@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createManager } from './utils.js'
 import { defaultConfigPath } from '../tests/helpers/default-config.js'
 
-test('config import - load default config when passed a path to `createProject`', async (t) => {
+test(' config import - load default config when passed a path to `createProject`', async (t) => {
   const manager = createManager('device0', t)
   const project = await manager.getProject(
     await manager.createProject({ configPath: defaultConfigPath })
@@ -67,10 +67,10 @@ test('config import - load and re-load config manually', async (t) => {
 test('failing on loading multiple configs in parallel', async (t) => {
   const manager = createManager('device0', t)
   const project = await manager.getProject(await manager.createProject())
-  await assert.rejects(async () => {
-    await Promise.all([
-      project.importConfig({ configPath: defaultConfigPath }),
-      project.importConfig({ configPath: defaultConfigPath }),
-    ])
-  }, 'loading configs in parallell should throw')
+  const results = await Promise.allSettled([
+    project.importConfig({ configPath: defaultConfigPath }),
+    project.importConfig({ configPath: defaultConfigPath }),
+  ])
+  assert.equal(results[0]?.status, 'fulfilled', 'first import should work')
+  assert.equal(results[1]?.status, 'rejected', 'second import should fail')
 })
