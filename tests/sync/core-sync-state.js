@@ -577,7 +577,8 @@ export function replicate(
  * @param {number} n
  */
 function createUint32Array(n) {
-  if (n > 2 ** 32 - 1)
+  if (n > 2 ** 32 - 1) {
     throw new Error('Currently can only make array from 32-bit number')
+  }
   return new Uint32Array([n])
 }

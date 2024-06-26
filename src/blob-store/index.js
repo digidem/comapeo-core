@@ -151,10 +151,11 @@ export class BlobStore {
     const drive = this.#getDrive(driveId)
     const blobs = await drive.getBlobs()
 
-    if (!blobs)
+    if (!blobs) {
       throw new Error(
         'Hyperblobs instance not found for drive ' + driveId.slice(0, 7)
       )
+    }
 
     return blobs.createReadStream(entry.value.blob, options)
   }
@@ -171,10 +172,11 @@ export class BlobStore {
     const drive = this.#getDrive(driveId)
     const blobs = await drive.getBlobs()
 
-    if (!blobs)
+    if (!blobs) {
       throw new Error(
         'Hyperblobs instance not found for drive ' + driveId.slice(0, 7)
       )
+    }
 
     return blobs.get(entry.value.blob, { wait: false, start: 0, length })
   }

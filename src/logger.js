@@ -29,9 +29,10 @@ createDebug.formatters.X = function (v) {
       k,
       // @ts-ignore - type checks here don't get us anything
       mapObject(v, (k, v) => {
-        if (k === 'remoteStates')
+        if (k === 'remoteStates') {
           // @ts-ignore - type checks here don't get us anything
           return [k, mapObject(v, (k, v) => [k.slice(0, 7), v])]
+        }
         return [k, v]
       }),
     ])

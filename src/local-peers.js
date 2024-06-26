@@ -528,7 +528,7 @@ export class LocalPeers extends TypedEmitter {
           'Invite %h from %S for %h',
           invite.inviteId,
           peerId,
-          invite.projectPublicId
+          invite.projectInviteId
         )
         break
       }
@@ -650,7 +650,7 @@ function assertInviteIdIsValid(id) {
 function parseInvite(data) {
   const result = Invite.decode(data)
   assertInviteIdIsValid(result.inviteId)
-  assert(result.projectPublicId.length, 'Invite must have project public ID')
+  assert(result.projectInviteId.length, 'Invite must have project invite ID')
   assert(!isBlank(result.projectName), 'Invite project name cannot be blank')
   assert(!isBlank(result.invitorName), 'Invite invitor name cannot be blank')
   return result
