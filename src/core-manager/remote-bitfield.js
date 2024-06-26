@@ -3,7 +3,7 @@
 // With added JSDoc types
 
 import BigSparseArray from 'big-sparse-array'
-import { quickbit } from './compat.js'
+import quickbit from 'quickbit-universal'
 
 export const BITS_PER_PAGE = 32768
 const BYTES_PER_PAGE = BITS_PER_PAGE / 8
