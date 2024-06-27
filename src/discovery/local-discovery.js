@@ -13,6 +13,10 @@ import { Logger } from '../logger.js'
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 /** @typedef {import('../utils.js').OpenedNoiseStream<net.Socket>} OpenedNoiseStream */
 
+const TCP_KEEP_ALIVE_OPTIONS = {
+  keepAlive: true,
+  keepAliveInitialDelay: 10_000,
+}
 export const ERR_DUPLICATE = 'Duplicate connection'
 
 /**
@@ -52,7 +56,10 @@ export class LocalDiscovery extends TypedEmitter {
       this.#log('socket error', e.message)
     }
     this.#identityKeypair = identityKeypair
-    this.#server = net.createServer(this.#handleTcpConnection.bind(this, false))
+    this.#server = net.createServer(
+      TCP_KEEP_ALIVE_OPTIONS,
+      this.#handleTcpConnection.bind(this, false)
+    )
     this.#server.on('error', (e) => {
       this.#log('Server error', e)
     })
@@ -90,7 +97,11 @@ export class LocalDiscovery extends TypedEmitter {
       this.#log(`Already connected to ${name.slice(0, 7)}`)
       return
     }
-    const socket = net.connect(port, address)
+    const socket = net.connect({
+      host: address,
+      port,
+      ...TCP_KEEP_ALIVE_OPTIONS,
+    })
     socket.on('error', this.#handleSocketError)
     socket.once('connect', () => {
       this.#handleTcpConnection(true, socket)
