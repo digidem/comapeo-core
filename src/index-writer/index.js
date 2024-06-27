@@ -76,9 +76,10 @@ export class IndexWriter {
     /** @type {IndexedDocIds} */
     const indexed = {}
     for (const { block, key, index } of entries) {
+      /** @type {MapeoDoc} */ let doc
       try {
         const version = { coreDiscoveryKey: discoveryKey(key), index }
-        var doc = this.#mapDoc(decode(block, version), version)
+        doc = this.#mapDoc(decode(block, version), version)
       } catch (e) {
         this.#l.log('Could not decode entry %d of %h', index, key)
         // Unknown or invalid entry - silently ignore

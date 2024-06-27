@@ -47,7 +47,7 @@ export function encode(bitfield, buffer, offset) {
   if (isBigEndian) bitfieldBuf.swap32()
 
   if (!buffer) buffer = Buffer.allocUnsafe(encodingLength(bitfieldBuf))
-  var state = new State(bitfieldBuf, buffer, offset)
+  const state = new State(bitfieldBuf, buffer, offset)
   rle(state)
   encode.bytes = state.outputOffset - offset
   return buffer
@@ -57,7 +57,7 @@ export function encode(bitfield, buffer, offset) {
  * @param {Buffer} bitfield
  */
 function encodingLength(bitfield) {
-  var state = new State(bitfield, undefined, 0)
+  const state = new State(bitfield, undefined, 0)
   rle(state)
   return state.outputOffset
 }
@@ -71,13 +71,13 @@ decode.bytes = 0
 export function decode(buffer, offset) {
   if (!offset) offset = 0
 
-  var bitfieldBuf = Buffer.allocUnsafe(decodingLength(buffer, offset))
-  var ptr = 0
+  const bitfieldBuf = Buffer.allocUnsafe(decodingLength(buffer, offset))
+  let ptr = 0
 
   while (offset < buffer.length) {
-    var next = varint.decode(buffer, offset)
-    var repeat = next & 1
-    var len = repeat ? (next - (next & 3)) / 4 : next / 2
+    const next = varint.decode(buffer, offset)
+    const repeat = next & 1
+    const len = repeat ? (next - (next & 3)) / 4 : next / 2
 
     offset += varint.decode.bytes || 0
 
@@ -110,14 +110,14 @@ export function decode(buffer, offset) {
 export function decodingLength(buffer, offset) {
   if (!offset) offset = 0
 
-  var len = 0
+  let len = 0
 
   while (offset < buffer.length) {
-    var next = varint.decode(buffer, offset)
+    const next = varint.decode(buffer, offset)
     offset += varint.decode.bytes || 0
 
-    var repeat = next & 1
-    var slice = repeat ? (next - (next & 3)) / 4 : next / 2
+    const repeat = next & 1
+    const slice = repeat ? (next - (next & 3)) / 4 : next / 2
 
     len += slice
     if (!repeat) offset += slice
@@ -134,9 +134,9 @@ export function decodingLength(buffer, offset) {
  * @param {State} state
  */
 function rle(state) {
-  var len = 0
-  var bits = 0
-  var input = state.input
+  let len = 0
+  let bits = 0
+  const input = state.input
 
   // Skip trimming for now, since it was breaking re-encoding to a Uint32Array.
   // Only has a small memory overhead.
@@ -144,7 +144,7 @@ function rle(state) {
   // while (state.inputLength > 0 && !input[state.inputLength - 1])
   //   state.inputLength--
 
-  for (var i = 0; i < state.inputLength; i++) {
+  for (let i = 0; i < state.inputLength; i++) {
     if (input[i] === bits) {
       len++
       continue
@@ -169,7 +169,7 @@ function rle(state) {
  * @param {number} end
  */
 function encodeHead(state, end) {
-  var headLength = end - state.inputOffset
+  const headLength = end - state.inputOffset
   varint.encode(2 * headLength, state.output, state.outputOffset)
   state.outputOffset += varint.encode.bytes || 0
   state.input.copy(state.output, state.outputOffset, state.inputOffset, end)
@@ -180,7 +180,7 @@ function encodeHead(state, end) {
  * @param {State} state
  */
 function encodeFinal(state) {
-  var headLength = state.inputLength - state.inputOffset
+  const headLength = state.inputLength - state.inputOffset
   if (!headLength) return
 
   if (!stateHasOutput(state)) {
@@ -201,13 +201,13 @@ function encodeFinal(state) {
  * @returns
  */
 function encodeUpdate(state, i, len, bit) {
-  var headLength = i - len - state.inputOffset
-  var headCost = headLength
+  const headLength = i - len - state.inputOffset
+  const headCost = headLength
     ? varint.encodingLength(2 * headLength) + headLength
     : 0
-  var enc = 4 * len + (bit ? 2 : 0) + 1 // len << 2 | bit << 1 | 1
-  var encCost = headCost + varint.encodingLength(enc)
-  var baseCost =
+  const enc = 4 * len + (bit ? 2 : 0) + 1 // len << 2 | bit << 1 | 1
+  const encCost = headCost + varint.encodingLength(enc)
+  const baseCost =
     varint.encodingLength(2 * (i - state.inputOffset)) + i - state.inputOffset
 
   if (encCost >= baseCost) return

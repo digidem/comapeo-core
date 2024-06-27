@@ -83,7 +83,8 @@
             }
           ]
         }
-      ]
+      ],
+      "no-var": "error"
     },
     "ignorePatterns": [
       "docs/*"
