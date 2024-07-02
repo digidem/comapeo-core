@@ -78,8 +78,6 @@ export class MapeoProject extends TypedEmitter {
   #blobStore
   #coreOwnership
   #roles
-  /** @ts-ignore */
-  #ownershipWriteDone
   #sqlite
   #memberApi
   #iconApi
@@ -416,9 +414,11 @@ export class MapeoProject extends TypedEmitter {
 
   /**
    * Resolves when hypercores have all loaded
+   *
+   * @returns {Promise<void>}
    */
-  async ready() {
-    await Promise.all([this.#coreManager.ready(), this.#ownershipWriteDone])
+  ready() {
+    return this.#coreManager.ready()
   }
 
   /**
