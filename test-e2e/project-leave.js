@@ -22,16 +22,6 @@ import {
   waitForSync,
 } from './utils.js'
 
-test('Creator cannot leave project if they are the only member', async (t) => {
-  const [creatorManager] = await createManagers(1, t)
-
-  const projectId = await creatorManager.createProject({ name: 'mapeo' })
-
-  await assert.rejects(async () => {
-    await creatorManager.leaveProject(projectId)
-  }, 'attempting to leave fails')
-})
-
 test('Creator cannot leave project if no other coordinators exist', async (t) => {
   const managers = await createManagers(2, t)
 
@@ -112,6 +102,22 @@ test('Blocked member cannot leave project', async (t) => {
   await assert.rejects(async () => {
     await member.leaveProject(projectId)
   }, 'Member attempting to leave project fails')
+})
+
+test('leaving a project as the only member', async (t) => {
+  /// TODO tidy this test
+  const [creatorManager] = await createManagers(1, t)
+
+  const projectId = await creatorManager.createProject({ name: 'mapeo' })
+  const creatorProject = await creatorManager.getProject(projectId)
+
+  await creatorManager.leaveProject(projectId)
+
+  assert.deepEqual(
+    await creatorProject.$getOwnRole(),
+    ROLES[LEFT_ROLE_ID],
+    'creator now has LEFT role'
+  )
 })
 
 test('Creator can leave project if another coordinator exists', async (t) => {
