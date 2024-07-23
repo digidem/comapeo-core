@@ -399,6 +399,7 @@ export class MapeoManager extends TypedEmitter {
     })
 
     // 5. Write project settings to project instance
+    // @ts-ignore: TODO: remove after deciding configMetadata mandatorism
     await project.$setProjectSettings({ name })
 
     // 6. Write device info into project

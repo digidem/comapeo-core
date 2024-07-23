@@ -51,6 +51,7 @@ import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
 
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
+/** @typedef {Pick<import('@mapeo/schema').ProjectSettingsValue, 'configName' | 'configVersion'>} ConfigMetadata */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -508,7 +509,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {Partial<EditableProjectSettings>} settings
+   * @param {Partial<EditableProjectSettings> & ConfigMetadata} settings
    * @returns {Promise<EditableProjectSettings>}
    */
   async $setProjectSettings(settings) {
