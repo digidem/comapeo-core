@@ -26,6 +26,12 @@ const MAX_ICON_SIZE = 10_000_000
  * }} TranslationsFile
  */
 
+/** @typedef {{
+ *  name: string,
+ *  version: string
+ * }} MetadataFile
+ */
+
 /**
  * @typedef {Parameters<import('./icon-api.js').IconApi['create']>[0]} IconData
  */
@@ -43,14 +49,19 @@ export async function readConfig(configPath) {
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
   const entries = await zip.readEntries(MAX_ENTRIES)
-  const [presetsFile, translationsFile] = await Promise.all([
+  const [presetsFile, translationsFile, metadataFile] = await Promise.all([
     findPresetsFile(entries),
     findTranslationsFile(entries),
+    findMetadataFile(entries),
   ])
 
   return {
     get warnings() {
       return warnings
+    },
+
+    get metadata() {
+      return metadataFile
     },
 
     async close() {
@@ -271,6 +282,27 @@ async function findTranslationsFile(entries) {
 }
 
 /**
+ * @param {ReadonlyArray<Entry>} entries
+ * @returns {Promise<MetadataFile | undefined>}
+ */
+async function findMetadataFile(entries) {
+  const metadataEntry = entries.find(
+    (entry) => entry.filename === 'metadata.json'
+  )
+  if (!metadataEntry) return
+  //assert(metadataEntry, 'Zip file does not contain metadata.json')
+  let result
+  try {
+    result = await json(await metadataEntry.openReadStream())
+  } catch (err) {
+    throw new Error('Could not parse metadata.json')
+  }
+  assert(isRecord(result), 'Invalid metadata.json file')
+  assert(isValidMetadataFile(result), 'Invalid structure of metadata file')
+  return result
+}
+
+/**
  * @param {Error[]} warnings
  */
 function translationsForLanguage(warnings) {
@@ -477,6 +509,24 @@ function parseIcon(filename, buf) {
       blob: buf,
     },
   }
+}
+
+/**
+ * @param {Record<string,unknown>} obj
+ * @returns {obj is MetadataFile}
+ */
+function isValidMetadataFile(obj) {
+  // extra fields are valid
+  return (
+    'name' in obj &&
+    'version' in obj &&
+    typeof obj['name'] === 'string' &&
+    typeof obj['version'] === 'string'
+  )
+  //return (
+  //  Object.keys(obj).every((k) => k === 'name' || k === 'version') &&
+  //  Object.values(obj).every((v) => typeof v === 'string')
+  //)
 }
 
 /**
