@@ -105,13 +105,12 @@ test('Blocked member cannot leave project', async (t) => {
 })
 
 test('leaving a project as the only member', async (t) => {
-  /// TODO tidy this test
-  const [creatorManager] = await createManagers(1, t)
+  const [manager] = await createManagers(1, t)
 
-  const projectId = await creatorManager.createProject({ name: 'mapeo' })
-  const creatorProject = await creatorManager.getProject(projectId)
+  const projectId = await manager.createProject({ name: 'mapeo' })
+  const creatorProject = await manager.getProject(projectId)
 
-  await creatorManager.leaveProject(projectId)
+  await manager.leaveProject(projectId)
 
   assert.deepEqual(
     await creatorProject.$getOwnRole(),
