@@ -830,8 +830,8 @@ export class MapeoProject extends TypedEmitter {
           vertex: [],
           relation: [],
         },
-        configName: config.metadata?.name,
-        configVersion: config.metadata?.version,
+        configName: config.metadata.name,
+        configVersion: config.metadata.version,
       })
       this.#loadingConfig = false
       return config.warnings

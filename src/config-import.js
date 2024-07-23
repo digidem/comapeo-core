@@ -49,11 +49,14 @@ export async function readConfig(configPath) {
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
   const entries = await zip.readEntries(MAX_ENTRIES)
-  const [presetsFile, translationsFile, metadataFile] = await Promise.all([
-    findPresetsFile(entries),
-    findTranslationsFile(entries),
-    findMetadataFile(entries),
-  ])
+  //const [presetsFile, translationsFile, metadataFile] = await Promise.all([
+  //  findPresetsFile(entries),
+  //  findTranslationsFile(entries),
+  //  findMetadataFile(entries),
+  //])
+  const presetsFile = await findPresetsFile(entries)
+  const translationsFile = await findTranslationsFile(entries)
+  const metadataFile = await findMetadataFile(entries)
 
   return {
     get warnings() {
@@ -283,14 +286,14 @@ async function findTranslationsFile(entries) {
 
 /**
  * @param {ReadonlyArray<Entry>} entries
- * @returns {Promise<MetadataFile | undefined>}
+ * @returns {Promise<MetadataFile>}
  */
 async function findMetadataFile(entries) {
   const metadataEntry = entries.find(
     (entry) => entry.filename === 'metadata.json'
   )
-  if (!metadataEntry) return
-  //assert(metadataEntry, 'Zip file does not contain metadata.json')
+  //if (!metadataEntry) return
+  assert(metadataEntry, 'Zip file does not contain metadata.json')
   let result
   try {
     result = await json(await metadataEntry.openReadStream())
