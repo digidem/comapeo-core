@@ -22,7 +22,7 @@ import {
   waitForSync,
 } from './utils.js'
 
-test('Creator cannot leave project if no other coordinators exist', async (t) => {
+test("Creator cannot leave project if they're the only coordinator", async (t) => {
   const managers = await createManagers(2, t)
 
   const disconnectPeers = connectPeers(managers)
