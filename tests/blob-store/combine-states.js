@@ -106,31 +106,44 @@ test('arithmetic test', () => {
 
 /**
  * Returns an iterator of all permutations of the given array.
- * From https://stackoverflow.com/a/37580979/3071863
+ *
+ * Implements [Heap's algorithm][0].
+ *
+ * [0]: https://en.wikipedia.org/wiki/Heap%27s_algorithm
+ *
  * @template T
- * @param {Array<T>} arr
- * @returns {IterableIterator<Array<T>>}
+ * @param {ReadonlyArray<T>} arr
+ * @returns {IterableIterator<ReadonlyArray<T>>}
  */
-export function* permute(arr) {
-  var length = arr.length,
-    c = Array(length).fill(0),
-    i = 1,
-    k,
-    p
+function* permute(arr) {
+  const c = Array(arr.length).fill(0)
 
-  yield arr.slice()
-  while (i < length) {
+  yield arr
+
+  let i = 1
+  while (i < arr.length) {
     if (c[i] < i) {
-      k = i % 2 && c[i]
-      p = arr[i]
-      arr[i] = arr[k]
-      arr[k] = p
-      ++c[i]
+      arr = swapping(arr, i % 2 ? c[i] : 0, i)
+      yield arr
+      c[i] += 1
       i = 1
-      yield arr.slice()
     } else {
       c[i] = 0
-      ++i
+      i += 1
     }
   }
+}
+
+/**
+ * @template T
+ * @param {ReadonlyArray<T>} arr
+ * @param {number} index1
+ * @param {number} index2
+ * @returns {ReadonlyArray<T>}
+ */
+function swapping(arr, index1, index2) {
+  const result = arr.slice()
+  result[index1] = arr[index2]
+  result[index2] = arr[index1]
+  return result
 }
