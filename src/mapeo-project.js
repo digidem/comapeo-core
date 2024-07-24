@@ -630,11 +630,12 @@ export class MapeoProject extends TypedEmitter {
     return this.#iconApi
   }
 
-  async [kProjectLeave]() {
-    // 1. Check that the device can leave the project
+  /**
+   * @returns {Promise<void>}
+   */
+  async #throwIfCannotLeaveProject() {
     const roleDocs = await this.#dataTypes.role.getMany()
 
-    // 1.1 Check that we are not blocked in the project
     const ownRole = roleDocs.find(({ docId }) => this.#deviceId === docId)
 
     if (ownRole?.roleId === BLOCKED_ROLE_ID) {
@@ -643,49 +644,33 @@ export class MapeoProject extends TypedEmitter {
 
     const allRoles = await this.#roles.getAll()
 
-    // 1.2 Check that we are not the only device in the project
-    if (allRoles.size <= 1) {
-      throw new Error('Cannot leave a project as the only device')
-    }
+    const isOnlyDevice = allRoles.size <= 1
+    if (isOnlyDevice) return
 
-    // 1.3 Check if there are other known devices that are either the project creator or a coordinator
     const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
       this.#projectId
     )
-    let otherCreatorOrCoordinatorExists = false
 
     for (const deviceId of allRoles.keys()) {
-      // Skip self (see 1.1 and 1.2 for relevant checks)
       if (deviceId === this.#deviceId) continue
-
-      // Check if the device is the project creator first because
-      // it is a derived role that is not stored in the role docs explicitly
-      if (deviceId === projectCreatorDeviceId) {
-        otherCreatorOrCoordinatorExists = true
-        break
-      }
-
-      // Determine if the the device is a coordinator based on the role docs
-      const isCoordinator = roleDocs.some(
-        (doc) => doc.docId === deviceId && doc.roleId === COORDINATOR_ROLE_ID
-      )
-
-      if (isCoordinator) {
-        otherCreatorOrCoordinatorExists = true
-        break
-      }
+      const isCreatorOrCoordinator =
+        deviceId === projectCreatorDeviceId ||
+        roleDocs.some(
+          (doc) => doc.docId === deviceId && doc.roleId === COORDINATOR_ROLE_ID
+        )
+      if (isCreatorOrCoordinator) return
     }
 
-    if (!otherCreatorOrCoordinatorExists) {
-      throw new Error(
-        'Cannot leave a project that does not have an external creator or another coordinator'
-      )
-    }
+    throw new Error(
+      'Cannot leave a project that does not have an external creator or another coordinator'
+    )
+  }
 
-    // 2. Assign LEFT role for device
+  async [kProjectLeave]() {
+    await this.#throwIfCannotLeaveProject()
+
     await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
 
-    // 3. Clear data
     await this[kClearDataIfLeft]()
   }
 
