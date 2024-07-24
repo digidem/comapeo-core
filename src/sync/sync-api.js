@@ -228,9 +228,9 @@ export class SyncApi extends TypedEmitter {
       peerSyncController.setSyncEnabledState(syncEnabledState)
     }
 
-    this.emit('sync-state', this.#getState(namespaceSyncState))
-
     this.#previousSyncEnabledState = syncEnabledState
+
+    this.emit('sync-state', this.#getState(namespaceSyncState))
   }
 
   /**
