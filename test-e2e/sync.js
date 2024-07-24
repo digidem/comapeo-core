@@ -1,9 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import * as fs from 'node:fs/promises'
 import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'
+import { request } from 'undici'
 import { excludeKeys } from 'filter-obj'
 import FakeTimers from '@sinonjs/fake-timers'
+import Fastify from 'fastify'
 import { map } from 'iterpal'
 import {
   connectPeers,
@@ -17,6 +20,7 @@ import {
 import { kCoreManager } from '../src/mapeo-project.js'
 import { getKeys } from '../tests/helpers/core-manager.js'
 import { NAMESPACES } from '../src/constants.js'
+import { FastifyController } from '../src/fastify-controller.js'
 import { PRESYNC_NAMESPACES } from '../src/sync/peer-sync-controller.js'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
@@ -103,6 +107,65 @@ test('Create and sync data', { timeout: 100_000 }, async (t) => {
         })
       )
     )
+  )
+})
+
+test('syncing blobs', async (t) => {
+  const invitor = createManager('invitor', t)
+
+  const fastify = Fastify()
+  const fastifyController = new FastifyController({ fastify })
+  t.after(() => fastifyController.stop())
+  const invitee = createManager('invitee', t, { fastify })
+
+  const managers = [invitee, invitor]
+
+  await Promise.all([
+    invitor.setDeviceInfo({ name: 'invitor' }),
+    invitee.setDeviceInfo({ name: 'invitee' }),
+    fastifyController.start(),
+  ])
+
+  let disconnectPeers = connectPeers(managers, { discovery: false })
+  t.after(() => disconnectPeers())
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+  await disconnectPeers()
+
+  const projects = await Promise.all([
+    invitor.getProject(projectId),
+    invitee.getProject(projectId),
+  ])
+  const [invitorProject, inviteeProject] = projects
+
+  const fixturePath = new URL(
+    '../tests/fixtures/images/02-digidem-logo.jpg',
+    import.meta.url
+  ).pathname
+
+  const blob = await invitorProject.$blobs.create(
+    { original: fixturePath },
+    { mimeType: 'image/jpeg' }
+  )
+
+  disconnectPeers = connectPeers(managers, { discovery: false })
+  await waitForSync(projects, 'initial')
+
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+
+  await waitForSync(projects, 'full')
+
+  const blobUrl = await inviteeProject.$blobs.getUrl({
+    ...blob,
+    variant: 'original',
+  })
+  const response = await request(blobUrl, { reset: true })
+  assert.equal(response.statusCode, 200)
+  assert.deepEqual(
+    Buffer.from(await response.body.arrayBuffer()),
+    await fs.readFile(fixturePath),
+    'blob makes it to the other side'
   )
 })
 
