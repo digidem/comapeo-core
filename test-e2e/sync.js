@@ -29,6 +29,7 @@ import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
 /** @typedef {import('../src/mapeo-project.js').MapeoProject} MapeoProject */
 /** @typedef {import('../src/sync/sync-api.js').SyncTypeState} SyncState */
+/** @typedef {import('../src/sync/sync-api.js').State} State */
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
@@ -558,36 +559,49 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const projectId = await invitor.createProject({ name: 'Mapeo' })
+  const project = await invitor.getProject(projectId)
+  t.after(() => project.close())
+
+  /** @type {State[]} */ const statesBeforeStart = []
+
+  /** @type {State[]} */ let states = statesBeforeStart
+  project.$sync.on('sync-state', (state) => states.push(state))
 
   const disconnect = connectPeers(managers, { discovery: false })
-
+  t.after(disconnect)
   await invite({ invitor, invitees, projectId })
 
-  const projects = await Promise.all(
-    managers.map((m) => m.getProject(projectId))
+  /** @type {State[]} */ const statesAfterStart = []
+  states = statesAfterStart
+  project.$sync.start()
+  assert(
+    statesAfterStart.length >= 1,
+    'Expected at least one event after starting'
   )
-
-  const stateEvents = []
-
-  projects[0].$sync.on('sync-state', (state) => {
-    const timestamp = Date.now()
-    stateEvents.push({ state, timestamp })
-  })
-
-  projects[0].$sync.start()
-  assert(stateEvents.length === 1, 'sync-state event emitted after start')
+  for (const state of statesAfterStart) {
+    assert(state.initial.isSyncEnabled, 'initial namespaces are enabled')
+    assert(state.data.isSyncEnabled, 'data namespaces are enabled')
+  }
 
   await delay(500)
 
-  const eventCountBeforeStop = stateEvents.length
-  projects[0].$sync.stop()
-  assert(
-    stateEvents.length > eventCountBeforeStop,
-    'sync-state event emitted after stop'
-  )
+  /** @type {State[]} */ const statesAfterStop = []
+  states = statesAfterStop
+  project.$sync.stop()
 
-  await disconnect()
-  await Promise.all(projects.map((p) => p.close()))
+  for (const state of statesAfterStart) {
+    assert(state.initial.isSyncEnabled, 'initial namespaces are enabled')
+    assert(state.data.isSyncEnabled, 'data namespaces are enabled')
+  }
+
+  assert(
+    statesAfterStop.length >= 1,
+    'Expected at least one event after stopping'
+  )
+  for (const state of statesAfterStop) {
+    assert(state.initial.isSyncEnabled, 'initial namespaces are still enabled')
+    assert(!state.data.isSyncEnabled, 'data namespaces are disabled')
+  }
 })
 
 test('Correct sync state prior to data sync', async function (t) {
