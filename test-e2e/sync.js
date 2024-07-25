@@ -55,6 +55,14 @@ test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
 
   await waitForSync(projects, 'initial')
 
+  console.log('tor', invitorProject.$sync.getState().data)
+  console.log('tee', inviteeProject.$sync.getState().data)
+
+  assertDataSyncStateMatches(
+    invitorProject,
+    { have: 1, wanted: 1, dataToSync: true },
+    'Invitor project should have something to sync'
+  )
   assertDataSyncStateMatches(
     inviteeProject,
     { have: 0, want: 1, dataToSync: true },
