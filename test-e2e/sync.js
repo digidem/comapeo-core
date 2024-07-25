@@ -33,6 +33,35 @@ import { kSyncState } from '../src/sync/sync-api.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
+// TODO: Move this to a different part of the file
+// TODO: Clean up this test
+test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, ...invitees] = managers
+  const [invitee] = invitees
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  const invitorProject = await invitor.getProject(projectId)
+  t.after(() => invitorProject.close())
+
+  await invitorProject.observation.create(valueOf(generate('observation')[0]))
+
+  const disconnectPeers = connectPeers(managers, { discovery: false })
+  t.after(disconnectPeers)
+  await invite({ invitor, invitees, projectId })
+
+  const inviteeProject = await invitee.getProject(projectId)
+  const projects = [invitorProject, inviteeProject]
+
+  await waitForSync(projects, 'initial')
+
+  assertDataSyncStateMatches(
+    inviteeProject,
+    { have: 0, want: 1, dataToSync: true },
+    'Invitee project should learn about something to sync'
+  )
+})
+
 test('Create and sync data', { timeout: 100_000 }, async (t) => {
   const COUNT = 10
   const managers = await createManagers(COUNT, t)
