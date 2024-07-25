@@ -75,6 +75,20 @@ test.only('tells newly-invited managers about existing data', async (t) => {
     { have: 0, want: 1, dataToSync: true },
     'Invitee project should learn about something to sync'
   )
+
+  inviteeProject.$sync.start()
+  await delay(1000) // Seems unnecessary, but added just in case
+
+  assertDataSyncStateMatches(
+    invitorProject,
+    { have: 1, wanted: 1, dataToSync: true },
+    'Invitor project should have something to sync'
+  )
+  assertDataSyncStateMatches(
+    inviteeProject,
+    { have: 0, want: 1, dataToSync: true },
+    'Invitee project should learn about something to sync'
+  )
 })
 
 test('Create and sync data', { timeout: 100_000 }, async (t) => {
