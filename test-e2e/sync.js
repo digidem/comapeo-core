@@ -35,28 +35,35 @@ const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
 // TODO: Move this to a different part of the file
 // TODO: Clean up this test
-test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
+test.only('tells newly-invited managers about existing data', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
   const [invitee] = invitees
+
+  // 1. Device A creates project
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   const invitorProject = await invitor.getProject(projectId)
   t.after(() => invitorProject.close())
 
+  // 2. Device A creates observation
+
   await invitorProject.observation.create(valueOf(generate('observation')[0]))
+
+  // 3. Device A adds Device B to project
 
   const disconnectPeers = connectPeers(managers, { discovery: false })
   t.after(disconnectPeers)
   await invite({ invitor, invitees, projectId })
 
   const inviteeProject = await invitee.getProject(projectId)
-  const projects = [invitorProject, inviteeProject]
 
-  await waitForSync(projects, 'initial')
+  // 4. Device B detects syncable changes and enables sync. Device A does not detect syncable changes
 
-  console.log('tor', invitorProject.$sync.getState().data)
-  console.log('tee', inviteeProject.$sync.getState().data)
+  console.log('invitor state', invitorProject.$sync.getState().data)
+  // { have: 1, want: 0, wanted: 1, missing: 0, dataToSync: true, isSyncEnabled: false }
+  console.log('invitee state', inviteeProject.$sync.getState().data)
+  // { have: 0, want: 1, wanted: 0, missing: 0, dataToSync: true, isSyncEnabled: false }
 
   assertDataSyncStateMatches(
     invitorProject,
