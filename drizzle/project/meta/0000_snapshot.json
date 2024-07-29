@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "5c172829-9efe-4acb-afa9-dfbeb5ad8117",
+  "id": "78513317-e2d9-430b-85be-35ff5587339c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {

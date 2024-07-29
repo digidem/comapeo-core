@@ -4,6 +4,7 @@ import { json, buffer } from 'node:stream/consumers'
 import { assert } from './utils.js'
 import path from 'node:path'
 import { parse as parseBCP47 } from 'bcp-47'
+import { SUPPORTED_CONFIG_VERSIONS } from './constants.js'
 
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
@@ -26,11 +27,7 @@ const MAX_ICON_SIZE = 10_000_000
  * }} TranslationsFile
  */
 
-/** @typedef {{
- *  name: string,
- *  version: string
- * }} MetadataFile
- */
+/** @typedef {import('@mapeo/schema').ProjectSettingsValue['configMetadata']} MetadataFile */
 
 /**
  * @typedef {Parameters<import('./icon-api.js').IconApi['create']>[0]} IconData
@@ -57,6 +54,13 @@ export async function readConfig(configPath) {
   const presetsFile = await findPresetsFile(entries)
   const translationsFile = await findTranslationsFile(entries)
   const metadataFile = await findMetadataFile(entries)
+
+  assert(
+    isValidConfigFile(metadataFile),
+    `invalid or missing config version We support versions ${SUPPORTED_CONFIG_VERSIONS.join(
+      ','
+    )}`
+  )
 
   return {
     get warnings() {
@@ -522,8 +526,12 @@ function isValidMetadataFile(obj) {
   // extra fields are valid
   return (
     'name' in obj &&
-    'version' in obj &&
+    'buildDate' in obj &&
+    'importDate' in obj &&
+    'fileVersion' in obj &&
     typeof obj['name'] === 'string' &&
+    typeof obj['buildDate'] === 'string' &&
+    typeof obj['importDate'] === 'string' &&
     typeof obj['version'] === 'string'
   )
   //return (
@@ -556,4 +564,14 @@ function isRecord(value) {
  */
 function hasOwn(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop)
+}
+
+/**
+ * @param {Object} obj
+ * @param {number | undefined} [obj.fileVersion]
+ * @returns {boolean}
+ */
+function isValidConfigFile({ fileVersion }) {
+  if (!fileVersion) return false
+  return SUPPORTED_CONFIG_VERSIONS.some((v) => v === fileVersion)
 }

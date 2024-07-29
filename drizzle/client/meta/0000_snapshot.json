@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "6fbde96c-a2de-47cc-bb57-0bb6a77bf33c",
+  "id": "deda0b13-3e20-4feb-a255-64ac1bfe0355",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "localDeviceInfo": {
@@ -169,15 +169,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "configName": {
-          "name": "configName",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "configVersion": {
-          "name": "configVersion",
+        "configMetadata": {
+          "name": "configMetadata",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
