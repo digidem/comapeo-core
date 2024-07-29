@@ -532,7 +532,7 @@ function isValidMetadataFile(obj) {
     typeof obj['name'] === 'string' &&
     typeof obj['buildDate'] === 'string' &&
     typeof obj['importDate'] === 'string' &&
-    typeof obj['version'] === 'string'
+    typeof obj['fileVersion'] === 'number'
   )
   //return (
   //  Object.keys(obj).every((k) => k === 'name' || k === 'version') &&
