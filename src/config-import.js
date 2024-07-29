@@ -27,7 +27,7 @@ const MAX_ICON_SIZE = 10_000_000
  * }} TranslationsFile
  */
 
-/** @typedef {import('@mapeo/schema').ProjectSettingsValue['configMetadata']} MetadataFile */
+/** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue['configMetadata'], 'importDate'>} MetadataFile */
 
 /**
  * @typedef {Parameters<import('./icon-api.js').IconApi['create']>[0]} IconData
@@ -68,7 +68,7 @@ export async function readConfig(configPath) {
     },
 
     get metadata() {
-      return metadataFile
+      return { ...metadataFile, importDate: new Date().toISOString() }
     },
 
     async close() {
@@ -527,11 +527,9 @@ function isValidMetadataFile(obj) {
   return (
     'name' in obj &&
     'buildDate' in obj &&
-    'importDate' in obj &&
     'fileVersion' in obj &&
     typeof obj['name'] === 'string' &&
     typeof obj['buildDate'] === 'string' &&
-    typeof obj['importDate'] === 'string' &&
     typeof obj['fileVersion'] === 'number'
   )
   //return (
