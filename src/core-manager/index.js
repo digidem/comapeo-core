@@ -290,7 +290,7 @@ export class CoreManager extends TypedEmitter {
       keyPair,
       encryptionKey: this.#encryptionKeys[namespace],
     })
-    if (namespace !== 'blob' && this.#autoDownload) {
+    if (this.#autoDownload) {
       core.download({ start: 0, end: -1 })
     }
     // Every peer adds a listener, so could have many peers
