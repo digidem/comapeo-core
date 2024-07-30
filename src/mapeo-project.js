@@ -579,7 +579,6 @@ export class MapeoProject extends TypedEmitter {
    * need to replicate the manager instance via manager[kManagerReplicate])
    *
    * @param {Parameters<import('hypercore')['replicate']>[0]} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
-   * @returns
    */
   [kProjectReplicate](stream) {
     // @ts-expect-error - hypercore types need updating
