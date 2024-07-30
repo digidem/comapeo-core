@@ -9,6 +9,7 @@ import FakeTimers from '@sinonjs/fake-timers'
 import Fastify from 'fastify'
 import { map } from 'iterpal'
 import {
+  FAST_TESTS,
   connectPeers,
   createManager,
   createManagers,
@@ -34,7 +35,7 @@ import { kSyncState } from '../src/sync/sync-api.js'
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
 test('Create and sync data', { timeout: 100_000 }, async (t) => {
-  const COUNT = 10
+  const COUNT = FAST_TESTS ? 5 : 10
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
