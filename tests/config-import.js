@@ -123,8 +123,9 @@ test('config import - icons', async () => {
   let config = await readConfig(
     './tests/fixtures/config/invalidIconFilename.zip'
   )
-
-  await arrayFrom(config.icons())
+  /* eslint-disable-next-line */
+  for await (const icon of config.icons()) {
+  }
   assert.equal(
     config.warnings.length,
     1,
@@ -140,7 +141,9 @@ test('config import - icons', async () => {
     './tests/fixtures/config/invalidIconPixelDensity.zip'
   )
 
-  await arrayFrom(config.icons())
+  /* eslint-disable-next-line */
+  for await (const icon of config.icons()) {
+  }
   assert.equal(
     config.warnings.length,
     1,
@@ -154,7 +157,9 @@ test('config import - icons', async () => {
   // size
   config = await readConfig('./tests/fixtures/config/invalidIconSize.zip')
 
-  await arrayFrom(config.icons())
+  /* eslint-disable-next-line */
+  for await (const icon of config.icons()) {
+  }
   assert.equal(
     config.warnings.length,
     1,
@@ -183,8 +188,9 @@ test('config import - icons', async () => {
 
 test('config import - fields', async () => {
   let config = await readConfig('./tests/fixtures/config/invalidField.zip')
-
-  arrayFrom(config.fields())
+  /* eslint-disable-next-line */
+  for (const field of config.fields()) {
+  }
   assert.equal(config.warnings.length, 3, 'we got 3 errors when reading fields')
   assert(
     /Invalid field noKeyField/.test(config.warnings[0].message),
@@ -214,8 +220,9 @@ test('config import - fields', async () => {
 
 test('config import - presets', async () => {
   let config = await readConfig('./tests/fixtures/config/invalidPreset.zip')
-
-  arrayFrom(config.presets())
+  /* eslint-disable-next-line */
+  for (const preset of config.presets()) {
+  }
   assert.equal(
     config.warnings.length,
     2,
