@@ -9,7 +9,7 @@ import Hypercore from 'hypercore'
 import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { keyToId, noop } from '../utils.js'
+import { ExhaustivenessError, keyToId, noop } from '../utils.js'
 import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
@@ -40,6 +40,7 @@ export class CoreManager extends TypedEmitter {
   #creatorCore
   #projectKey
   #queries
+  #getRole
   #encryptionKeys
   #projectExtension
   /** @type {'opened' | 'closing' | 'closed'} */
@@ -69,6 +70,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
    * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
    * @param {boolean} [options.autoDownload=true] Immediately start downloading cores - should only be set to false for tests
+   * @param {typeof import('../roles.js').Roles.prototype.getRole} options.getRole
    * @param {Logger} [options.logger]
    */
   constructor({
@@ -79,6 +81,7 @@ export class CoreManager extends TypedEmitter {
     encryptionKeys = {},
     storage,
     autoDownload = true,
+    getRole,
     logger,
   }) {
     super()
@@ -98,6 +101,7 @@ export class CoreManager extends TypedEmitter {
     this.#projectKey = projectKey
     this.#encryptionKeys = encryptionKeys
     this.#autoDownload = autoDownload
+    this.#getRole = getRole
 
     // Pre-prepare SQL statement for better performance
     this.#queries = {
@@ -419,10 +423,11 @@ export class CoreManager extends TypedEmitter {
       this.#projectExtension.send(message, peer)
     }
 
-    // TODO: Don't `await` in the loop. Do these "in parallel".
+    const syncCapabilities = await this.#getSyncCapabilities(peer)
+
     for (const namespace of NAMESPACES) {
+      if (!canSync(syncCapabilities, namespace)) continue
       for (const coreKey of coreKeys[`${namespace}CoreKeys`]) {
-        if (!(await this.#peerCanSyncNamespace(peer, namespace))) continue
         // Use public method - these must be persisted (private method defaults to persisted=false)
         this.addCore(coreKey, namespace)
         this.#keyRequests.deleteByDiscoveryKey(discoveryKey(coreKey))
@@ -433,12 +438,11 @@ export class CoreManager extends TypedEmitter {
   // TODO: Move this elsewhere
   /**
    * @param {HypercorePeer} peer
-   * @param {Namespace} namespace
-   * @returns {Promise<boolean>}
    */
-  async #peerCanSyncNamespace(peer, namespace) {
-    console.log(peer, namespace)
-    return true
+  async #getSyncCapabilities(peer) {
+    const peerDeviceId = keyToId(peer.remotePublicKey)
+    const role = await this.#getRole(peerDeviceId, { timeout: 10_000 })
+    return role.sync
   }
 
   /**
@@ -666,4 +670,21 @@ function findPeer(core, publicKey, { timeout = 200 } = {}) {
       }
     }
   })
+}
+
+/**
+ * @param {Record<Namespace, 'allowed' | 'blocked'>} syncCapabilities
+ * @param {Namespace} namespace
+ * @returns {boolean}
+ */
+function canSync(syncCapabilities, namespace) {
+  const syncCapability = syncCapabilities[namespace]
+  switch (syncCapability) {
+    case 'allowed':
+      return true
+    case 'blocked':
+      return false
+    default:
+      throw new ExhaustivenessError(syncCapability)
+  }
 }
