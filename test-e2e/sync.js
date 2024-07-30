@@ -9,7 +9,6 @@ import FakeTimers from '@sinonjs/fake-timers'
 import Fastify from 'fastify'
 import { map } from 'iterpal'
 import {
-  FAST_TESTS,
   connectPeers,
   createManager,
   createManagers,
@@ -35,7 +34,7 @@ import { kSyncState } from '../src/sync/sync-api.js'
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
 test('Create and sync data', { timeout: 100_000 }, async (t) => {
-  const COUNT = FAST_TESTS ? 5 : 10
+  const COUNT = 10
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
@@ -466,8 +465,14 @@ test('shares cores', async function (t) {
   for (const project of projects) {
     project.$sync.start()
   }
+  const everyoneEnabledDataSyncPromise = await Promise.all(
+    projects.map((project) =>
+      pEvent(project.$sync, 'sync-state', (state) => state.data.isSyncEnabled)
+    )
+  )
 
   await waitForSync(projects, 'full')
+  await everyoneEnabledDataSyncPromise
 
   for (const ns of NAMESPACES) {
     for (const cm of coreManagers) {
@@ -603,6 +608,41 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
     assert(state.initial.isSyncEnabled, 'initial namespaces are still enabled')
     assert(!state.data.isSyncEnabled, 'data namespaces are disabled')
   }
+})
+
+test('updates sync state when peers are added', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, ...invitees] = managers
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  const invitorProject = await invitor.getProject(projectId)
+  t.after(() => invitorProject.close())
+
+  await invitorProject.observation.create(valueOf(generate('observation')[0]))
+
+  assertDataSyncStateMatches(
+    invitorProject,
+    { have: 1, wanted: 0, dataToSync: false },
+    'data sync state is correct at start'
+  )
+
+  const invitorProjectNoticesInvitee = pEvent(
+    invitorProject.$sync,
+    'sync-state',
+    ({ data: { dataToSync } }) => dataToSync
+  )
+
+  const disconnectPeers = connectPeers(managers, { discovery: false })
+  t.after(disconnectPeers)
+  await invite({ invitor, invitees, projectId })
+
+  assertDataSyncStateMatches(
+    invitorProject,
+    { have: 1, wanted: 1, dataToSync: true },
+    'there should be something to sync'
+  )
+
+  await invitorProjectNoticesInvitee
 })
 
 test('Correct sync state prior to data sync', async function (t) {

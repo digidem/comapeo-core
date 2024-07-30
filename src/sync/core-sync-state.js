@@ -172,6 +172,7 @@ export class CoreSyncState {
   addPeer(peerId) {
     if (this.#remoteStates.has(peerId)) return
     this.#remoteStates.set(peerId, new PeerState())
+    this.#update()
   }
 
   /**
