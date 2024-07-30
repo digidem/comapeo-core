@@ -4,7 +4,7 @@ import { json, buffer } from 'node:stream/consumers'
 import { assert } from './utils.js'
 import path from 'node:path'
 import { parse as parseBCP47 } from 'bcp-47'
-import { SUPPORTED_CONFIG_VERSIONS } from './constants.js'
+import { SUPPORTED_CONFIG_VERSION } from './constants.js'
 
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
@@ -27,7 +27,7 @@ const MAX_ICON_SIZE = 10_000_000
  * }} TranslationsFile
  */
 
-/** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue['configMetadata'], 'importDate'>} MetadataFile */
+/** @typedef {NonNullable<import('@mapeo/schema').ProjectSettingsValue['configMetadata']>} MetadataFile */
 
 /**
  * @typedef {Parameters<import('./icon-api.js').IconApi['create']>[0]} IconData
@@ -39,6 +39,7 @@ const MAX_ICON_SIZE = 10_000_000
 export async function readConfig(configPath) {
   /** @type {Error[]} */
   const warnings = []
+  console.log('path', configPath)
 
   const zip = await yauzl.open(configPath)
   if (zip.entryCount > MAX_ENTRIES) {
@@ -46,20 +47,12 @@ export async function readConfig(configPath) {
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
   const entries = await zip.readEntries(MAX_ENTRIES)
-  //const [presetsFile, translationsFile, metadataFile] = await Promise.all([
-  //  findPresetsFile(entries),
-  //  findTranslationsFile(entries),
-  //  findMetadataFile(entries),
-  //])
   const presetsFile = await findPresetsFile(entries)
   const translationsFile = await findTranslationsFile(entries)
   const metadataFile = await findMetadataFile(entries)
-
   assert(
     isValidConfigFile(metadataFile),
-    `invalid or missing config version We support versions ${SUPPORTED_CONFIG_VERSIONS.join(
-      ','
-    )}`
+    `invalid or missing config file version ${metadataFile.fileVersion}. We support version ${SUPPORTED_CONFIG_VERSION}}`
   )
 
   return {
@@ -290,13 +283,12 @@ async function findTranslationsFile(entries) {
 
 /**
  * @param {ReadonlyArray<Entry>} entries
- * @returns {Promise<MetadataFile>}
+ * @returns {Promise<Omit<MetadataFile, 'importDate'>>}
  */
 async function findMetadataFile(entries) {
   const metadataEntry = entries.find(
     (entry) => entry.filename === 'metadata.json'
   )
-  //if (!metadataEntry) return
   assert(metadataEntry, 'Zip file does not contain metadata.json')
   let result
   try {
@@ -306,6 +298,8 @@ async function findMetadataFile(entries) {
   }
   assert(isRecord(result), 'Invalid metadata.json file')
   assert(isValidMetadataFile(result), 'Invalid structure of metadata file')
+
+  console.log('META', result)
   return result
 }
 
@@ -520,7 +514,7 @@ function parseIcon(filename, buf) {
 
 /**
  * @param {Record<string,unknown>} obj
- * @returns {obj is MetadataFile}
+ * @returns {obj is Omit<MetadataFile, 'importDate'>}
  */
 function isValidMetadataFile(obj) {
   // extra fields are valid
@@ -532,10 +526,6 @@ function isValidMetadataFile(obj) {
     typeof obj['buildDate'] === 'string' &&
     typeof obj['fileVersion'] === 'number'
   )
-  //return (
-  //  Object.keys(obj).every((k) => k === 'name' || k === 'version') &&
-  //  Object.values(obj).every((v) => typeof v === 'string')
-  //)
 }
 
 /**
@@ -566,10 +556,18 @@ function hasOwn(obj, prop) {
 
 /**
  * @param {Object} obj
- * @param {number | undefined} [obj.fileVersion]
+ * @param {string | undefined} [obj.fileVersion]
  * @returns {boolean}
  */
 function isValidConfigFile({ fileVersion }) {
   if (!fileVersion) return false
-  return SUPPORTED_CONFIG_VERSIONS.some((v) => v === fileVersion)
+  const regex = /^(\d+)\.(\d+)$/
+  const match = fileVersion.match(regex)
+
+  if (!match) return false
+
+  const major = parseInt(match[1], 10)
+  //const minor = parseInt(match[2], 10)
+
+  return major > SUPPORTED_CONFIG_VERSION
 }

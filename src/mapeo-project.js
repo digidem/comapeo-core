@@ -509,7 +509,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {Partial<EditableProjectSettings> & { configMetadata: ConfigMetadata }} settings
+   * @param {Partial<EditableProjectSettings>} settings
    * @returns {Promise<EditableProjectSettings>}
    */
   async $setProjectSettings(settings) {
