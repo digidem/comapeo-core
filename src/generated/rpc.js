@@ -2,6 +2,7 @@
 import _m0 from "protobufjs/minimal.js";
 import { EncryptionKeys } from "./keys.js";
 export var InviteResponse_Decision = {
+    DECISION_UNSPECIFIED: "DECISION_UNSPECIFIED",
     REJECT: "REJECT",
     ACCEPT: "ACCEPT",
     ALREADY: "ALREADY",
@@ -10,12 +11,15 @@ export var InviteResponse_Decision = {
 export function inviteResponse_DecisionFromJSON(object) {
     switch (object) {
         case 0:
+        case "DECISION_UNSPECIFIED":
+            return InviteResponse_Decision.DECISION_UNSPECIFIED;
+        case 1:
         case "REJECT":
             return InviteResponse_Decision.REJECT;
-        case 1:
+        case 2:
         case "ACCEPT":
             return InviteResponse_Decision.ACCEPT;
-        case 2:
+        case 3:
         case "ALREADY":
             return InviteResponse_Decision.ALREADY;
         case -1:
@@ -26,18 +30,21 @@ export function inviteResponse_DecisionFromJSON(object) {
 }
 export function inviteResponse_DecisionToNumber(object) {
     switch (object) {
-        case InviteResponse_Decision.REJECT:
+        case InviteResponse_Decision.DECISION_UNSPECIFIED:
             return 0;
-        case InviteResponse_Decision.ACCEPT:
+        case InviteResponse_Decision.REJECT:
             return 1;
-        case InviteResponse_Decision.ALREADY:
+        case InviteResponse_Decision.ACCEPT:
             return 2;
+        case InviteResponse_Decision.ALREADY:
+            return 3;
         case InviteResponse_Decision.UNRECOGNIZED:
         default:
             return -1;
     }
 }
 export var DeviceInfo_DeviceType = {
+    device_type_unspecified: "device_type_unspecified",
     mobile: "mobile",
     tablet: "tablet",
     desktop: "desktop",
@@ -46,12 +53,15 @@ export var DeviceInfo_DeviceType = {
 export function deviceInfo_DeviceTypeFromJSON(object) {
     switch (object) {
         case 0:
+        case "device_type_unspecified":
+            return DeviceInfo_DeviceType.device_type_unspecified;
+        case 1:
         case "mobile":
             return DeviceInfo_DeviceType.mobile;
-        case 1:
+        case 2:
         case "tablet":
             return DeviceInfo_DeviceType.tablet;
-        case 2:
+        case 3:
         case "desktop":
             return DeviceInfo_DeviceType.desktop;
         case -1:
@@ -62,12 +72,14 @@ export function deviceInfo_DeviceTypeFromJSON(object) {
 }
 export function deviceInfo_DeviceTypeToNumber(object) {
     switch (object) {
-        case DeviceInfo_DeviceType.mobile:
+        case DeviceInfo_DeviceType.device_type_unspecified:
             return 0;
-        case DeviceInfo_DeviceType.tablet:
+        case DeviceInfo_DeviceType.mobile:
             return 1;
-        case DeviceInfo_DeviceType.desktop:
+        case DeviceInfo_DeviceType.tablet:
             return 2;
+        case DeviceInfo_DeviceType.desktop:
+            return 3;
         case DeviceInfo_DeviceType.UNRECOGNIZED:
         default:
             return -1;
@@ -208,7 +220,7 @@ export var InviteCancel = {
     },
 };
 function createBaseInviteResponse() {
-    return { inviteId: Buffer.alloc(0), decision: InviteResponse_Decision.REJECT };
+    return { inviteId: Buffer.alloc(0), decision: InviteResponse_Decision.DECISION_UNSPECIFIED };
 }
 export var InviteResponse = {
     encode: function (message, writer) {
@@ -216,7 +228,7 @@ export var InviteResponse = {
         if (message.inviteId.length !== 0) {
             writer.uint32(10).bytes(message.inviteId);
         }
-        if (message.decision !== InviteResponse_Decision.REJECT) {
+        if (message.decision !== InviteResponse_Decision.DECISION_UNSPECIFIED) {
             writer.uint32(16).int32(inviteResponse_DecisionToNumber(message.decision));
         }
         return writer;
@@ -255,7 +267,7 @@ export var InviteResponse = {
         var _a, _b;
         var message = createBaseInviteResponse();
         message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
-        message.decision = (_b = object.decision) !== null && _b !== void 0 ? _b : InviteResponse_Decision.REJECT;
+        message.decision = (_b = object.decision) !== null && _b !== void 0 ? _b : InviteResponse_Decision.DECISION_UNSPECIFIED;
         return message;
     },
 };
