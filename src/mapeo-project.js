@@ -291,7 +291,6 @@ export class MapeoProject extends TypedEmitter {
       projectKey: projectKey,
       deviceKey: keyManager.getIdentityKeypair().publicKey,
     })
-    this.#roles.start()
 
     this.#memberApi = new MemberApi({
       deviceId: this.#deviceId,
