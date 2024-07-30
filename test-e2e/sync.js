@@ -27,6 +27,7 @@ import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
+import { blobMetadata } from '../tests/helpers/blob-store.js'
 /** @typedef {import('../src/mapeo-project.js').MapeoProject} MapeoProject */
 /** @typedef {import('../src/sync/sync-api.js').SyncTypeState} SyncState */
 /** @typedef {import('../src/sync/sync-api.js').State} State */
@@ -146,7 +147,7 @@ test('syncing blobs', async (t) => {
 
   const blob = await invitorProject.$blobs.create(
     { original: fixturePath },
-    { mimeType: 'image/jpeg' }
+    blobMetadata({ mimeType: 'image/jpeg' })
   )
 
   disconnectPeers = connectPeers(managers, { discovery: false })
