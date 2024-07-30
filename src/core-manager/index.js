@@ -432,7 +432,7 @@ export class CoreManager extends TypedEmitter {
 
   // TODO: Move this elsewhere
   /**
-   * @param {any} peer
+   * @param {HypercorePeer} peer
    * @param {Namespace} namespace
    * @returns {Promise<boolean>}
    */
