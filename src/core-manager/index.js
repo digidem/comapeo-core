@@ -155,7 +155,7 @@ export class CoreManager extends TypedEmitter {
       {
         encoding: ProjectExtensionCodec,
         onmessage: (msg, peer) => {
-          this.#handleProjectMessage(msg, peer)
+          this.#handleProjectMessage(msg, peer).catch(noop)
         },
       }
     )
@@ -404,8 +404,9 @@ export class CoreManager extends TypedEmitter {
   /**
    * @param {ProjectExtension} msg
    * @param {HypercorePeer} peer
+   * @returns {Promise<void>}
    */
-  #handleProjectMessage({ wantCoreKeys, ...coreKeys }, peer) {
+  async #handleProjectMessage({ wantCoreKeys, ...coreKeys }, peer) {
     const message = ProjectExtension.create()
     let hasKeys = false
     for (const discoveryKey of wantCoreKeys) {
@@ -417,13 +418,26 @@ export class CoreManager extends TypedEmitter {
     if (hasKeys) {
       this.#projectExtension.send(message, peer)
     }
+
+    // TODO: Don't `await` in the loop. Do these "in parallel".
     for (const namespace of NAMESPACES) {
       for (const coreKey of coreKeys[`${namespace}CoreKeys`]) {
+        if (!(await this.#peerCanSyncNamespace(peer, namespace))) continue
         // Use public method - these must be persisted (private method defaults to persisted=false)
         this.addCore(coreKey, namespace)
         this.#keyRequests.deleteByDiscoveryKey(discoveryKey(coreKey))
       }
     }
+  }
+
+  // TODO: Move this elsewhere
+  /**
+   * @param {any} peer
+   * @param {Namespace} namespace
+   * @returns {Promise<boolean>}
+   */
+  async #peerCanSyncNamespace(peer,namespace) {
+
   }
 
   /**
