@@ -123,6 +123,8 @@ export class IconApi {
  * @type {Record<IconVariant['size'], number>}
  */
 const SIZE_AS_NUMERIC = {
+  // We're defaulting for medium size when size is unspecified, is this the correct approach??
+  size_unspecified: 2,
   small: 1,
   medium: 2,
   large: 3,
