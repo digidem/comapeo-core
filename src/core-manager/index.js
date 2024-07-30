@@ -436,8 +436,9 @@ export class CoreManager extends TypedEmitter {
    * @param {Namespace} namespace
    * @returns {Promise<boolean>}
    */
-  async #peerCanSyncNamespace(peer,namespace) {
-
+  async #peerCanSyncNamespace(peer, namespace) {
+    console.log(peer, namespace)
+    return true
   }
 
   /**
