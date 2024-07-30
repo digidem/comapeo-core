@@ -61,10 +61,8 @@ export class SyncState extends TypedEmitter {
    */
   getState() {
     const state = mapObject(this.#syncStates, (namespace, nss) => {
-      const cached = this.#cachedState[namespace]
       // Only re-calculate state if state has updated for that namespace
-      const namespaceState =
-        cached && !this.#updated.has(namespace) ? cached : nss.getState()
+      const namespaceState = nss.getState()
       this.#cachedState[namespace] = namespaceState
       return [namespace, namespaceState]
     })

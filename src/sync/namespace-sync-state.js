@@ -14,8 +14,6 @@ export class NamespaceSyncState {
   #coreCount = 0
   #handleUpdate
   #namespace
-  /** @type {SyncState | null} */
-  #cachedState = null
   #peerSyncControllers
 
   /**
@@ -31,7 +29,6 @@ export class NamespaceSyncState {
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#handleUpdate = () => {
-      this.#cachedState = null
       process.nextTick(onUpdate)
     }
 
@@ -56,7 +53,6 @@ export class NamespaceSyncState {
 
   /** @returns {SyncState} */
   getState() {
-    if (this.#cachedState) return this.#cachedState
     /** @type {SyncState} */
     const state = {
       dataToSync: false,
@@ -80,7 +76,6 @@ export class NamespaceSyncState {
     if (state.localState.want > 0 || state.localState.wanted > 0) {
       state.dataToSync = true
     }
-    this.#cachedState = state
     return state
   }
 
