@@ -246,6 +246,16 @@ export class Roles {
   }
 
   /**
+   * @returns {void}
+   */
+  start() {
+    // TODO: Add a capabilities.on('update', updateCapabilities) event. Internally it needs to listen for both new role records, but also new coreOwnership records, because we only know the role of the project creator via their core ownership record (because they own the auth core with the key that matches the project key).
+    this.#dataType.on('updated-docs', (roles) => {
+      console.log('roles updated', roles)
+    })
+  }
+
+  /**
    * Get the role for device `deviceId`.
    *
    * @param {string} deviceId

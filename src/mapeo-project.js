@@ -283,6 +283,7 @@ export class MapeoProject extends TypedEmitter {
       coreKeypairs,
       identityKeypair,
     })
+
     this.#roles = new Roles({
       dataType: this.#dataTypes.role,
       coreOwnership: this.#coreOwnership,
@@ -290,6 +291,7 @@ export class MapeoProject extends TypedEmitter {
       projectKey: projectKey,
       deviceKey: keyManager.getIdentityKeypair().publicKey,
     })
+    this.#roles.start()
 
     this.#memberApi = new MemberApi({
       deviceId: this.#deviceId,
