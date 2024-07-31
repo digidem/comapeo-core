@@ -1,7 +1,7 @@
 import yazl from 'yazl'
 import * as fs from 'node:fs/promises'
 import { createWriteStream } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 
 const CONFIG_FIXTURES_PATH = new URL(
   '../tests/fixtures/config',
@@ -30,7 +30,7 @@ async function zipFolder(path) {
   for (const content of contents) {
     const filePath = join(path, content.name)
     for await (const p of walk(filePath, content.isDirectory())) {
-      const zipPath = p.replace(`${path}/`, '')
+      const zipPath = relative(path, p)
       zip.addFile(p, zipPath)
     }
   }
