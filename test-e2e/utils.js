@@ -439,7 +439,7 @@ async function waitForProjectSync(project, peerIds, type = 'initial') {
 /**
  * @param {Record<string, unknown>} remoteStates
  * @param {string[]} peerIds
- * @returns
+ * @returns {boolean}
  */
 function hasPeerIds(remoteStates, peerIds) {
   for (const peerId of peerIds) {
