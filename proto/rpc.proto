@@ -17,9 +17,10 @@ message InviteCancel {
 
 message InviteResponse {
   enum Decision {
-    REJECT = 0;
-    ACCEPT = 1;
-    ALREADY = 2;
+    DECISION_UNSPECIFIED = 0;
+    REJECT = 1;
+    ACCEPT = 2;
+    ALREADY = 3;
   }
   bytes inviteId = 1;
   Decision decision = 2;
@@ -33,9 +34,10 @@ message ProjectJoinDetails {
 
 message DeviceInfo {
   enum DeviceType {
-    mobile = 0;
-    tablet = 1;
-    desktop = 2;
+    device_type_unspecified = 0;
+    mobile = 1;
+    tablet = 2;
+    desktop = 3;
   }
   string name = 1;
   optional DeviceType deviceType = 2;

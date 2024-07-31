@@ -21,6 +21,7 @@ export interface InviteResponse {
 }
 
 export const InviteResponse_Decision = {
+  DECISION_UNSPECIFIED: "DECISION_UNSPECIFIED",
   REJECT: "REJECT",
   ACCEPT: "ACCEPT",
   ALREADY: "ALREADY",
@@ -32,12 +33,15 @@ export type InviteResponse_Decision = typeof InviteResponse_Decision[keyof typeo
 export function inviteResponse_DecisionFromJSON(object: any): InviteResponse_Decision {
   switch (object) {
     case 0:
+    case "DECISION_UNSPECIFIED":
+      return InviteResponse_Decision.DECISION_UNSPECIFIED;
+    case 1:
     case "REJECT":
       return InviteResponse_Decision.REJECT;
-    case 1:
+    case 2:
     case "ACCEPT":
       return InviteResponse_Decision.ACCEPT;
-    case 2:
+    case 3:
     case "ALREADY":
       return InviteResponse_Decision.ALREADY;
     case -1:
@@ -49,12 +53,14 @@ export function inviteResponse_DecisionFromJSON(object: any): InviteResponse_Dec
 
 export function inviteResponse_DecisionToNumber(object: InviteResponse_Decision): number {
   switch (object) {
-    case InviteResponse_Decision.REJECT:
+    case InviteResponse_Decision.DECISION_UNSPECIFIED:
       return 0;
-    case InviteResponse_Decision.ACCEPT:
+    case InviteResponse_Decision.REJECT:
       return 1;
-    case InviteResponse_Decision.ALREADY:
+    case InviteResponse_Decision.ACCEPT:
       return 2;
+    case InviteResponse_Decision.ALREADY:
+      return 3;
     case InviteResponse_Decision.UNRECOGNIZED:
     default:
       return -1;
@@ -73,6 +79,7 @@ export interface DeviceInfo {
 }
 
 export const DeviceInfo_DeviceType = {
+  device_type_unspecified: "device_type_unspecified",
   mobile: "mobile",
   tablet: "tablet",
   desktop: "desktop",
@@ -84,12 +91,15 @@ export type DeviceInfo_DeviceType = typeof DeviceInfo_DeviceType[keyof typeof De
 export function deviceInfo_DeviceTypeFromJSON(object: any): DeviceInfo_DeviceType {
   switch (object) {
     case 0:
+    case "device_type_unspecified":
+      return DeviceInfo_DeviceType.device_type_unspecified;
+    case 1:
     case "mobile":
       return DeviceInfo_DeviceType.mobile;
-    case 1:
+    case 2:
     case "tablet":
       return DeviceInfo_DeviceType.tablet;
-    case 2:
+    case 3:
     case "desktop":
       return DeviceInfo_DeviceType.desktop;
     case -1:
@@ -101,12 +111,14 @@ export function deviceInfo_DeviceTypeFromJSON(object: any): DeviceInfo_DeviceTyp
 
 export function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceType): number {
   switch (object) {
-    case DeviceInfo_DeviceType.mobile:
+    case DeviceInfo_DeviceType.device_type_unspecified:
       return 0;
-    case DeviceInfo_DeviceType.tablet:
+    case DeviceInfo_DeviceType.mobile:
       return 1;
-    case DeviceInfo_DeviceType.desktop:
+    case DeviceInfo_DeviceType.tablet:
       return 2;
+    case DeviceInfo_DeviceType.desktop:
+      return 3;
     case DeviceInfo_DeviceType.UNRECOGNIZED:
     default:
       return -1;
@@ -259,7 +271,7 @@ export const InviteCancel = {
 };
 
 function createBaseInviteResponse(): InviteResponse {
-  return { inviteId: Buffer.alloc(0), decision: InviteResponse_Decision.REJECT };
+  return { inviteId: Buffer.alloc(0), decision: InviteResponse_Decision.DECISION_UNSPECIFIED };
 }
 
 export const InviteResponse = {
@@ -267,7 +279,7 @@ export const InviteResponse = {
     if (message.inviteId.length !== 0) {
       writer.uint32(10).bytes(message.inviteId);
     }
-    if (message.decision !== InviteResponse_Decision.REJECT) {
+    if (message.decision !== InviteResponse_Decision.DECISION_UNSPECIFIED) {
       writer.uint32(16).int32(inviteResponse_DecisionToNumber(message.decision));
     }
     return writer;
@@ -309,7 +321,7 @@ export const InviteResponse = {
   fromPartial<I extends Exact<DeepPartial<InviteResponse>, I>>(object: I): InviteResponse {
     const message = createBaseInviteResponse();
     message.inviteId = object.inviteId ?? Buffer.alloc(0);
-    message.decision = object.decision ?? InviteResponse_Decision.REJECT;
+    message.decision = object.decision ?? InviteResponse_Decision.DECISION_UNSPECIFIED;
     return message;
   },
 };
