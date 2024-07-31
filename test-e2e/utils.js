@@ -19,7 +19,7 @@ import fsPromises from 'node:fs/promises'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { readConfig } from '../src/config-import.js'
 
-export const FAST_TESTS = !!process.env.FAST_TESTS
+const FAST_TESTS = !!process.env.FAST_TESTS
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
