@@ -148,6 +148,7 @@ export class MemberApi extends TypedEmitter {
         case InviteResponse_Decision.REJECT:
           return inviteResponse.decision
         case InviteResponse_Decision.UNRECOGNIZED:
+        case InviteResponse_Decision.DECISION_UNSPECIFIED:
           return InviteResponse_Decision.REJECT
         case InviteResponse_Decision.ACCEPT:
           // We should assign the role locally *before* sharing the project details

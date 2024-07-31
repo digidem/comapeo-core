@@ -679,7 +679,6 @@ async function countOpenFileDescriptors(dir) {
  * @param {Hypercore} a
  * @param {Hypercore} b
  * @param {Parameters<typeof Hypercore.prototype.replicate>[1] & { delay?: number }} [opts]
- * @returns
  */
 function replicateCores(a, b, { delay = 0, ...opts } = {}) {
   const s1 = a.replicate(true, { keepAlive: false, ...opts })
@@ -691,7 +690,6 @@ function replicateCores(a, b, { delay = 0, ...opts } = {}) {
 /**
  * Randomly delay stream chunks by up to `delay` milliseconds
  * @param {number} delay
- * @returns
  */
 function latencyStream(delay = 0) {
   return new Transform({

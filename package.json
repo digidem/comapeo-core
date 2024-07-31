@@ -1,6 +1,6 @@
 {
   "name": "@mapeo/core",
-  "version": "9.0.0-alpha.13",
+  "version": "9.0.0-alpha.14",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
@@ -159,7 +159,7 @@
     "@fastify/type-provider-typebox": "^4.0.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "1.0.0-alpha.10",
-    "@mapeo/schema": "3.0.0-next.16",
+    "@mapeo/schema": "^3.0.0-next.16",
     "@mapeo/sqlite-indexer": "1.0.0-alpha.9",
     "@sinclair/typebox": "^0.29.6",
     "b4a": "^1.6.3",

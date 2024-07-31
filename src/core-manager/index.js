@@ -479,7 +479,6 @@ export class CoreManager extends TypedEmitter {
    * Replicate all cores in core manager
    *
    * @param {Parameters<Corestore['replicate']>[0]} stream
-   * @returns
    */
   [kCoreManagerReplicate](stream) {
     const protocolStream = Hypercore.createProtocolStream(stream, {
