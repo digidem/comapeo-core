@@ -1,5 +1,5 @@
 import yazl from 'yazl'
-import fs from 'node:fs/promises'
+import * as fs from 'node:fs/promises'
 import { createWriteStream } from 'node:fs'
 
 const CONFIG_FIXTURES_PATH = new URL(
@@ -9,7 +9,7 @@ const CONFIG_FIXTURES_PATH = new URL(
 const dir = await fs.readdir(CONFIG_FIXTURES_PATH)
 console.log('zipping config fixtures')
 for (const fileOrFolder of dir) {
-  const p = `${CONFIG_FIXTURES_PATH}/${fileOrFolder}`
+  const p = join(CONFIG_FIXTURES_PATH, fileOrFolder)
   const stat = await fs.stat(p)
   if (stat.isDirectory()) {
     zipFolder(p)
@@ -38,13 +38,16 @@ async function zipFolder(path) {
 }
 
 /**
+ * @param {string} path
+ * @returns {AsyncGenerator<string>}
+ */
  */
 async function* walk(path) {
   const stat = await fs.stat(path)
   if (stat.isDirectory()) {
     const dir = await fs.readdir(path)
     for (const newPath of dir) {
-      yield* await walk(`${path}/${newPath}`)
+      yield* walk(join(path, newPath))
     }
   } else {
     yield path
