@@ -148,7 +148,6 @@ export class MemberApi extends TypedEmitter {
         case InviteResponse_Decision.REJECT:
           return inviteResponse.decision
         case InviteResponse_Decision.UNRECOGNIZED:
-          return InviteResponse_Decision.REJECT
         case InviteResponse_Decision.DECISION_UNSPECIFIED:
           return InviteResponse_Decision.REJECT
         case InviteResponse_Decision.ACCEPT:
