@@ -9,6 +9,8 @@ import { parse as parseBCP47 } from 'bcp-47'
 const MAX_ENTRIES = 10_000
 const MAX_ICON_SIZE = 10_000_000
 
+/** @typedef {Omit<import('@mapeo/schema').TranslationValue, 'docRef'> & {docRef: {type: string}}} DereferencedTranslation */
+
 /**
  * @typedef {yauzl.Entry} Entry
  */
@@ -199,11 +201,7 @@ export async function readConfig(configPath) {
         }
       }
     },
-    /**
-     * @returns {Iterable<{
-     * name: string,
-     * value:Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>}>}
-     */
+    /** @returns {Iterable<{ name: string, value:DereferencedTranslation}>} */
     *translations() {
       if (!translationsFile) return
       for (const [lang, languageTranslations] of Object.entries(
@@ -285,14 +283,13 @@ function translationsForLanguage(warnings) {
       warnings.push(new Error(`invalid translation language ${lang}`))
       return
     }
-    for (const [
-      schemaNameRef,
-      languageTranslationsForDocType,
-    ] of Object.entries(languageTranslations)) {
+    for (const [refType, languageTranslationsForDocType] of Object.entries(
+      languageTranslations
+    )) {
       // TODO: remove categories check when removed from default config
-      if (!(schemaNameRef === 'fields' || schemaNameRef === 'presets')) {
-        if (schemaNameRef !== 'categories') {
-          warnings.push(new Error(`invalid schemaNameRef ${schemaNameRef}`))
+      if (!(refType === 'fields' || refType === 'presets')) {
+        if (refType !== 'categories') {
+          warnings.push(new Error(`invalid docRef.type ${refType}`))
         }
         continue
       }
@@ -303,7 +300,7 @@ function translationsForLanguage(warnings) {
       yield* translationsForDocType(warnings)({
         languageCode,
         regionCode,
-        schemaNameRef,
+        refType,
         languageTranslationsForDocType,
       })
     }
@@ -317,13 +314,13 @@ function translationsForDocType(warnings) {
   /** @param {Object} opts
    * @param {string} opts.languageCode
    * @param {string | null | undefined} opts.regionCode
-   * @param {ValidDocTypes} opts.schemaNameRef
+   * @param {ValidDocTypes} opts.refType
    * @param {Record<ValidDocTypes, unknown>} opts.languageTranslationsForDocType
    */
   return function* ({
     languageCode,
     regionCode,
-    schemaNameRef,
+    refType,
     languageTranslationsForDocType,
   }) {
     for (const [docName, fieldsToTranslate] of Object.entries(
@@ -336,7 +333,7 @@ function translationsForDocType(warnings) {
       yield* translationForValue(warnings)({
         languageCode,
         regionCode,
-        schemaNameRef,
+        refType,
         docName,
         fieldsToTranslate,
       })
@@ -352,32 +349,32 @@ function translationForValue(warnings) {
    * @param {Object} opts
    * @param {string} opts.languageCode
    * @param {string | null | undefined} opts.regionCode
-   * @param {ValidDocTypes} opts.schemaNameRef
+   * @param {ValidDocTypes} opts.refType
    * @param {string} opts.docName
    * @param {Record<string,unknown>} opts.fieldsToTranslate
    */
   return function* ({
     languageCode,
     regionCode,
-    schemaNameRef,
+    refType,
     docName,
     fieldsToTranslate,
   }) {
-    for (const [fieldRef, message] of Object.entries(fieldsToTranslate)) {
+    for (const [propertyRef, message] of Object.entries(fieldsToTranslate)) {
       let value = {
         /** @type {'translation'} */
         schemaName: 'translation',
         languageCode,
         regionCode: regionCode || '',
-        schemaNameRef,
-        fieldRef: '',
+        docRef: { type: refType },
+        propertyRef: '',
         message: '',
       }
 
       if (isRecord(message) && isFieldOptions(message)) {
         yield* translateMessageObject(warnings)({ value, message, docName })
       } else if (typeof message === 'string') {
-        value = { ...value, fieldRef, message }
+        value = { ...value, propertyRef, message }
         if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
           warnings.push(new Error(`Invalid translation ${value.message}`))
           continue
@@ -400,7 +397,7 @@ function translationForValue(warnings) {
 function translateMessageObject(warnings) {
   /**
    * @param {Object} opts
-   * @param {Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>} opts.value
+   * @param {DereferencedTranslation} opts.value
    * @param {string} opts.docName
    * @param {Record<string,{label:string,value:string}>} opts.message
    */
@@ -412,7 +409,7 @@ function translateMessageObject(warnings) {
           if (typeof msg === 'string') {
             value = {
               ...value,
-              fieldRef: `${value.fieldRef}[${idx}].${key}`,
+              propertyRef: `${value.propertyRef}[${idx}].${key}`,
               message: msg,
             }
             if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
