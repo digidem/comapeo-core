@@ -1,5 +1,7 @@
 export const kGetIconBlob = Symbol('getIcon')
 
+/** @typedef {import('@mapeo/schema').PresetValue['iconRef']} IconRef */
+
 /** @typedef {import('@mapeo/schema').IconValue['variants']} IconVariants */
 /** @typedef {IconVariants[number]} IconVariant */
 
@@ -48,7 +50,7 @@ export class IconApi {
    * @param {import('@mapeo/schema').IconValue['name']} icon.name
    * @param {Array<(BitmapOpts | SvgOpts) & { blob: Buffer }>} icon.variants
    *
-   * @returns {Promise<string>}
+   * @returns {Promise<IconRef>}
    */
   async create(icon) {
     if (icon.variants.length < 1) {
@@ -62,13 +64,13 @@ export class IconApi {
       })
     )
 
-    const { docId } = await this.#dataType.create({
+    const { docId, versionId } = await this.#dataType.create({
       schemaName: 'icon',
       name: icon.name,
       variants: savedVariants,
     })
 
-    return docId
+    return { docId, versionId }
   }
 
   /**
@@ -123,6 +125,8 @@ export class IconApi {
  * @type {Record<IconVariant['size'], number>}
  */
 const SIZE_AS_NUMERIC = {
+  // NOTE: when size is unspecified, we fallback to medium
+  size_unspecified: 2,
   small: 1,
   medium: 2,
   large: 3,

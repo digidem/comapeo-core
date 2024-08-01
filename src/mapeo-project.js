@@ -737,8 +737,8 @@ export class MapeoProject extends TypedEmitter {
       })
 
       const config = await readConfig(configPath)
-      /** @type {Map<string, string>} */
-      const iconNameToId = new Map()
+      /** @type {Map<string, import('./icon-api.js').IconRef>} */
+      const iconNameToRef = new Map()
       /** @type {Map<string, string>} */
       const fieldNameToId = new Map()
       /** @type {Map<string,string>} */
@@ -746,8 +746,8 @@ export class MapeoProject extends TypedEmitter {
 
       // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
       for await (const icon of config.icons()) {
-        const iconId = await this.#iconApi.create(icon)
-        iconNameToId.set(icon.name, iconId)
+        const iconRef = await this.#iconApi.create(icon)
+        iconNameToRef.set(icon.name, iconRef)
       }
 
       // Ok to create fields and presets in parallel
@@ -772,10 +772,15 @@ export class MapeoProject extends TypedEmitter {
           }
           return id
         })
+
+        let iconRef
+        if (iconName) {
+          iconRef = iconNameToRef.get(iconName)
+        }
         presetsWithRefs.push({
           preset: {
             ...value,
-            iconId: iconName && iconNameToId.get(iconName),
+            iconRef,
             fieldIds,
           },
           name,
