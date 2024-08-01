@@ -50,7 +50,7 @@ export class IconApi {
    * @param {import('@mapeo/schema').IconValue['name']} icon.name
    * @param {Array<(BitmapOpts | SvgOpts) & { blob: Buffer }>} icon.variants
    *
-   * @returns {Promise<IconRef>}
+   * @returns {Promise<import('@mapeo/schema').Icon>}
    */
   async create(icon) {
     if (icon.variants.length < 1) {
@@ -64,13 +64,13 @@ export class IconApi {
       })
     )
 
-    const { docId, versionId } = await this.#dataType.create({
+    const doc = await this.#dataType.create({
       schemaName: 'icon',
       name: icon.name,
       variants: savedVariants,
     })
 
-    return { docId, versionId }
+    return doc
   }
 
   /**

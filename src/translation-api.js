@@ -66,7 +66,7 @@ export default class TranslationApi {
   /**
    * @param {import('type-fest').SetOptional<
    * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message'>,
-   * 'fieldRef' | 'regionCode'>} value
+   * 'propertyRef' | 'regionCode'>} value
    * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
   async get(value) {
@@ -77,18 +77,17 @@ export default class TranslationApi {
         .get(value.languageCode)
         ?.has(
           /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
-            value.schemaNameRef
+            value.docRef.type
           )
         )
     if (!docTypeIsTranslatedToLanguage) return []
-
     const filters = [
-      eq(this.#table.docIdRef, value.docIdRef),
-      eq(this.#table.schemaNameRef, value.schemaNameRef),
+      eq(this.#table.docRef.docId, value.docRef.docId),
+      eq(this.#table.docRef.type, value.docRef.type),
       eq(this.#table.languageCode, value.languageCode),
     ]
-    if (value.fieldRef) {
-      filters.push(eq(this.#table.fieldRef, value.fieldRef))
+    if (value.propertyRef) {
+      filters.push(eq(this.#table.propertyRef, value.propertyRef))
     }
 
     if (value.regionCode) {
@@ -117,7 +116,7 @@ export default class TranslationApi {
     }
     translatedSchemas.add(
       /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
-        doc.schemaNameRef
+        doc.docRef.type
       )
     )
   }

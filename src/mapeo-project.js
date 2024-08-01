@@ -746,8 +746,8 @@ export class MapeoProject extends TypedEmitter {
 
       // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
       for await (const icon of config.icons()) {
-        const iconRef = await this.#iconApi.create(icon)
-        iconNameToRef.set(icon.name, iconRef)
+        const { docId, versionId } = await this.#iconApi.create(icon)
+        iconNameToRef.set(icon.name, { docId, versionId })
       }
 
       // Ok to create fields and presets in parallel
@@ -875,14 +875,14 @@ async function deleteAll(dataType) {
 async function deleteTranslations(opts) {
   const translations = await opts.translation.getMany()
   await Promise.all(
-    translations.map(async ({ docId, docIdRef, schemaNameRef }) => {
-      if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
+    translations.map(async ({ docId, docRef }) => {
+      if (docRef.type === 'presets' || docRef.type === 'fields') {
         let shouldDelete = false
         try {
-          const toDelete = await opts[schemaNameRef].getByDocId(docIdRef)
+          const toDelete = await opts[docRef.type].getByDocId(docRef.docId)
           shouldDelete = toDelete.deleted
         } catch (e) {
-          opts.logger.log(`referred ${docIdRef} is not found`)
+          opts.logger.log(`referred ${docRef.docId} is not found`)
         }
         if (shouldDelete) {
           await opts.translation.delete(docId)

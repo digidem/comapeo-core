@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "faf22cd4-1533-466a-8037-6566a1adbf4d",
+  "id": "4588f0d5-db91-41b2-ab4f-dfac53e08564",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -594,13 +594,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "refs": {
-          "name": "refs",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "attachments": {
           "name": "attachments",
           "type": "text",
@@ -745,15 +738,15 @@
           "notNull": true,
           "autoincrement": false
         },
-        "fieldIds": {
-          "name": "fieldIds",
+        "fieldRefs": {
+          "name": "fieldRefs",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "iconId": {
-          "name": "iconId",
+        "iconRef": {
+          "name": "iconRef",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -970,8 +963,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "refs": {
-          "name": "refs",
+        "observationRefs": {
+          "name": "observationRefs",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1079,22 +1072,15 @@
           "notNull": true,
           "autoincrement": false
         },
-        "schemaNameRef": {
-          "name": "schemaNameRef",
+        "docRef": {
+          "name": "docRef",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "docIdRef": {
-          "name": "docIdRef",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "fieldRef": {
-          "name": "fieldRef",
+        "propertyRef": {
+          "name": "propertyRef",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
