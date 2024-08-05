@@ -808,15 +808,14 @@ export class MapeoProject extends TypedEmitter {
         } else {
           throw new Error(`invalid docRefType ${value.docRefType}`)
         }
-        if (
-          docRef &&
-          docRef.docId !== undefined &&
-          docRef.versionId !== undefined
-        ) {
+        if (docRef.docId && docRef.versionId) {
           translationPromises.push(
             this.$translation.put({
               ...value,
-              docRef,
+              docRef: {
+                docId: docRef.docId,
+                versionId: docRef.versionId,
+              },
             })
           )
         } else {

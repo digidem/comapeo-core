@@ -13,6 +13,7 @@ import { createCoreManager } from './helpers/core-manager.js'
 import { IndexWriter } from '../src/index-writer/index.js'
 import RAM from 'random-access-memory'
 import { hashObject } from '../src/utils.js'
+import { randomBytes } from 'node:crypto'
 
 test('translation api - put() and get()', async () => {
   const api = setup()
@@ -20,9 +21,13 @@ test('translation api - put() and get()', async () => {
   const doc = {
     /** @type {'translation'} */
     schemaName: 'translation',
-    schemaNameRef: 'field',
-    docIdRef: '',
-    fieldRef: 'Monitor Name',
+    /** @type {import('@mapeo/schema').TranslationValue['docRefType']} */
+    docRefType: 'field',
+    docRef: {
+      docId: randomBytes(32).toString('hex'),
+      versionId: `${randomBytes(32).toString('hex')}/0`,
+    },
+    propertyRef: 'Monitor Name',
     languageCode: 'es',
     regionCode: 'ar',
     message: 'Nombre Monitor',
@@ -76,9 +81,13 @@ test('translation api - put() and get()', async () => {
   const newDoc = {
     /** @type {'translation'} */
     schemaName: 'translation',
-    schemaNameRef: 'field',
-    docIdRef: '',
-    fieldRef: 'Historic Place Name',
+    /** @type {import('@mapeo/schema').TranslationValue['docRefType']} */
+    docRefType: 'field',
+    docRef: {
+      docId: randomBytes(32).toString('hex'),
+      versionId: `${randomBytes(32).toString('hex')}/0`,
+    },
+    propertyRef: 'Historic Place Name',
     languageCode: 'es',
     regionCode: 'ar',
     message: 'Nombre Lugar Histórico',
@@ -89,8 +98,11 @@ test('translation api - put() and get()', async () => {
   assert.equal(
     (
       await api.get({
-        schemaNameRef: 'field',
-        docIdRef: '',
+        docRefType: 'field',
+        docRef: {
+          docId: randomBytes(32).toString('hex'),
+          versionId: `${randomBytes(32).toString('hex')}/0`,
+        },
         languageCode: 'es',
       })
     ).length,

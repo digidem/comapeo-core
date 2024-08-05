@@ -82,7 +82,7 @@ export default class TranslationApi {
         )
     if (!docTypeIsTranslatedToLanguage) return []
     const filters = [
-      eq(this.#table.docRef.docId, value.docRef.docId),
+      //eq(this.#table.docRef.table.docId, value.docRef.docId),
       eq(this.#table.docRefType, value.docRefType),
       eq(this.#table.languageCode, value.languageCode),
     ]
