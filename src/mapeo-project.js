@@ -732,8 +732,8 @@ export class MapeoProject extends TypedEmitter {
       await deleteTranslations({
         logger: this.#l,
         translation: this.$translation.dataType,
-        presets: this.preset,
-        fields: this.field,
+        preset: this.preset,
+        field: this.field,
       })
 
       const config = await readConfig(configPath)
@@ -791,7 +791,7 @@ export class MapeoProject extends TypedEmitter {
       for (const { preset, name } of presetsWithRefs) {
         presetPromises.push(
           this.preset.create(preset).then(({ docId, versionId }) => {
-            presetNameToRef.set(name, { docId, versionId, type: 'presets' })
+            presetNameToRef.set(name, { docId, versionId })
           })
         )
       }
@@ -801,14 +801,18 @@ export class MapeoProject extends TypedEmitter {
       const translationPromises = []
       for (const { name, value } of config.translations()) {
         let docRef
-        if (value.docRef.type === 'fields') {
-          docRef = { ...value.docRef, ...fieldNameToRef.get(name) }
-        } else if (value.docRef.type === 'presets') {
-          docRef = { ...value.docRef, ...presetNameToRef.get(name) }
+        if (value.docRefType === 'field') {
+          docRef = { ...fieldNameToRef.get(name) }
+        } else if (value.docRefType === 'preset') {
+          docRef = { ...presetNameToRef.get(name) }
         } else {
-          throw new Error(`invalid schemaNameRef ${value.docRef.type}`)
+          throw new Error(`invalid docRefType ${value.docRefType}`)
         }
-        if (docRef) {
+        if (
+          docRef &&
+          docRef.docId !== undefined &&
+          docRef.versionId !== undefined
+        ) {
           translationPromises.push(
             this.$translation.put({
               ...value,
@@ -869,17 +873,17 @@ async function deleteAll(dataType) {
  * @param {Object} opts
  * @param {Logger} opts.logger
  * @param {MapeoProject['$translation']['dataType']} opts.translation
- * @param {MapeoProject['preset']} opts.presets
- * @param {MapeoProject['field']} opts.fields
+ * @param {MapeoProject['preset']} opts.preset
+ * @param {MapeoProject['field']} opts.field
  */
 async function deleteTranslations(opts) {
   const translations = await opts.translation.getMany()
   await Promise.all(
-    translations.map(async ({ docId, docRef }) => {
-      if (docRef.type === 'presets' || docRef.type === 'fields') {
+    translations.map(async ({ docId, docRef, docRefType }) => {
+      if (docRefType === 'preset' || docRefType === 'field') {
         let shouldDelete = false
         try {
-          const toDelete = await opts[docRef.type].getByDocId(docRef.docId)
+          const toDelete = await opts[docRefType].getByDocId(docRef.docId)
           shouldDelete = toDelete.deleted
         } catch (e) {
           opts.logger.log(`referred ${docRef.docId} is not found`)

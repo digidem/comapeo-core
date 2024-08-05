@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "4588f0d5-db91-41b2-ab4f-dfac53e08564",
+  "id": "3ef67d9d-408c-424f-ac6d-a353df47bd86",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -615,6 +615,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "presetRef": {
+          "name": "presetRef",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "forks": {
           "name": "forks",
           "type": "text",
@@ -1074,6 +1081,13 @@
         },
         "docRef": {
           "name": "docRef",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "docRefType": {
+          "name": "docRefType",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

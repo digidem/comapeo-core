@@ -77,13 +77,13 @@ export default class TranslationApi {
         .get(value.languageCode)
         ?.has(
           /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
-            value.docRef.type
+            value.docRefType
           )
         )
     if (!docTypeIsTranslatedToLanguage) return []
     const filters = [
       eq(this.#table.docRef.docId, value.docRef.docId),
-      eq(this.#table.docRef.type, value.docRef.type),
+      eq(this.#table.docRefType, value.docRefType),
       eq(this.#table.languageCode, value.languageCode),
     ]
     if (value.propertyRef) {
@@ -116,7 +116,7 @@ export default class TranslationApi {
     }
     translatedSchemas.add(
       /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
-        doc.docRef.type
+        doc.docRefType
       )
     )
   }

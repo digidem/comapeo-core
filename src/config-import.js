@@ -9,8 +9,6 @@ import { parse as parseBCP47 } from 'bcp-47'
 const MAX_ENTRIES = 10_000
 const MAX_ICON_SIZE = 10_000_000
 
-/** @typedef {Omit<import('@mapeo/schema').TranslationValue, 'docRef'> & {docRef: {type: string}}} DereferencedTranslation */
-
 /**
  * @typedef {yauzl.Entry} Entry
  */
@@ -173,7 +171,7 @@ export async function readConfig(configPath) {
         /** @type {Record<string, unknown>} */
         const presetValue = {
           schemaName: 'preset',
-          fieldIds: [],
+          fieldRefs: [],
           addTags: {},
           removeTags: {},
           terms: [],
@@ -201,7 +199,7 @@ export async function readConfig(configPath) {
         }
       }
     },
-    /** @returns {Iterable<{ name: string, value:DereferencedTranslation}>} */
+    /** @returns {Iterable<{ name: string, value:Omit<import('@mapeo/schema').TranslationValue, 'docRef'>}>} */
     *translations() {
       if (!translationsFile) return
       for (const [lang, languageTranslations] of Object.entries(
@@ -283,13 +281,13 @@ function translationsForLanguage(warnings) {
       warnings.push(new Error(`invalid translation language ${lang}`))
       return
     }
-    for (const [refType, languageTranslationsForDocType] of Object.entries(
+    for (const [docRefType, languageTranslationsForDocType] of Object.entries(
       languageTranslations
     )) {
       // TODO: remove categories check when removed from default config
-      if (!(refType === 'fields' || refType === 'presets')) {
-        if (refType !== 'categories') {
-          warnings.push(new Error(`invalid docRef.type ${refType}`))
+      if (!(docRefType === 'fields' || docRefType === 'presets')) {
+        if (docRefType !== 'categories') {
+          warnings.push(new Error(`invalid docRef.type ${docRefType}`))
         }
         continue
       }
@@ -300,11 +298,20 @@ function translationsForLanguage(warnings) {
       yield* translationsForDocType(warnings)({
         languageCode,
         regionCode,
-        refType,
+        docRefType: convertDocRefTypeName(docRefType),
         languageTranslationsForDocType,
       })
     }
   }
+}
+/**
+ * @param {ValidDocTypes} docRefType
+ * @returns {import('@mapeo/schema').TranslationValue['docRefType']}
+ */
+function convertDocRefTypeName(docRefType) {
+  if (docRefType === 'fields') return 'field'
+  if (docRefType === 'presets') return 'preset'
+  throw new Error(`invalid docRefType ${docRefType} for config import`)
 }
 
 /**
@@ -314,13 +321,13 @@ function translationsForDocType(warnings) {
   /** @param {Object} opts
    * @param {string} opts.languageCode
    * @param {string | null | undefined} opts.regionCode
-   * @param {ValidDocTypes} opts.refType
+   * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {Record<ValidDocTypes, unknown>} opts.languageTranslationsForDocType
    */
   return function* ({
     languageCode,
     regionCode,
-    refType,
+    docRefType,
     languageTranslationsForDocType,
   }) {
     for (const [docName, fieldsToTranslate] of Object.entries(
@@ -333,7 +340,7 @@ function translationsForDocType(warnings) {
       yield* translationForValue(warnings)({
         languageCode,
         regionCode,
-        refType,
+        docRefType,
         docName,
         fieldsToTranslate,
       })
@@ -349,14 +356,14 @@ function translationForValue(warnings) {
    * @param {Object} opts
    * @param {string} opts.languageCode
    * @param {string | null | undefined} opts.regionCode
-   * @param {ValidDocTypes} opts.refType
+   * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {string} opts.docName
    * @param {Record<string,unknown>} opts.fieldsToTranslate
    */
   return function* ({
     languageCode,
     regionCode,
-    refType,
+    docRefType,
     docName,
     fieldsToTranslate,
   }) {
@@ -366,7 +373,7 @@ function translationForValue(warnings) {
         schemaName: 'translation',
         languageCode,
         regionCode: regionCode || '',
-        docRef: { type: refType },
+        docRefType,
         propertyRef: '',
         message: '',
       }
@@ -375,11 +382,6 @@ function translationForValue(warnings) {
         yield* translateMessageObject(warnings)({ value, message, docName })
       } else if (typeof message === 'string') {
         value = { ...value, propertyRef, message }
-        if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
-          warnings.push(new Error(`Invalid translation ${value.message}`))
-          continue
-        }
-
         yield { name: docName, value }
       } else {
         warnings.push(
@@ -397,7 +399,7 @@ function translationForValue(warnings) {
 function translateMessageObject(warnings) {
   /**
    * @param {Object} opts
-   * @param {DereferencedTranslation} opts.value
+   * @param {Omit<import('@mapeo/schema').TranslationValue, 'docRef'>} opts.value
    * @param {string} opts.docName
    * @param {Record<string,{label:string,value:string}>} opts.message
    */
@@ -412,7 +414,12 @@ function translateMessageObject(warnings) {
               propertyRef: `${value.propertyRef}[${idx}].${key}`,
               message: msg,
             }
-            if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
+            if (
+              !validate('translation', {
+                ...value,
+                docRef: { docId: '', versionId: '' },
+              })
+            ) {
               warnings.push(new Error(`Invalid translation ${value.message}`))
               continue
             }
