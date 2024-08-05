@@ -45,7 +45,7 @@ test('create()', async () => {
     },
   ]
 
-  const iconId = await iconApi.create({
+  const { docId: iconId } = await iconApi.create({
     name: expectedName,
     variants: expectedVariants,
   })
@@ -105,7 +105,7 @@ test('[kGetIconBlob]()', async () => {
     },
   ]
 
-  const iconId = await iconApi.create({
+  const { docId: iconId } = await iconApi.create({
     name: expectedName,
     variants: expectedVariants,
   })

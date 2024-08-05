@@ -215,10 +215,10 @@ export class DataType extends TypedEmitter {
     const value = {
       languageCode: language,
       docRef: {
-        type: translatedDoc.schemaName,
         docId: translatedDoc.docId,
         versionId: translatedDoc.versionId,
       },
+      docRefType: translatedDoc.schemaName,
       regionCode: region !== null ? region : undefined,
     }
     let translations = await this.#getTranslations(value)

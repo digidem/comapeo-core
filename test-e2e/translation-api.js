@@ -24,7 +24,10 @@ test('translation api - put() and get() presets', async (t) => {
         return translation.message === presetsTranslationMap[preset.name]
       })
       if (matchingTranslation) {
-        return { docIdRef: preset.docId, ...matchingTranslation }
+        return {
+          docRef: { docId: preset.docId, versionId: preset.versionId },
+          ...matchingTranslation,
+        }
       }
     })
     .filter(isDefined)
@@ -39,16 +42,16 @@ test('translation api - put() and get() presets', async (t) => {
       translationDoc
     )
     const { name: presetName, docId: presetDocId } =
-      await project.preset.getByDocId(translationDoc.docIdRef)
+      await project.preset.getByDocId(translationDoc.docRef.docId)
     const expectedTranslations = await project.$translation.get({
-      schemaNameRef: 'preset',
+      docRefType: 'preset',
       languageCode: 'es',
-      docIdRef: translationDoc.docIdRef,
+      docRef: translationDoc.docRef,
     })
 
     assert.equal(
       presetDocId,
-      expectedTranslations[0].docIdRef,
+      expectedTranslations[0].docRef.docId,
       `the preset docId matches the translation docIdRef`
     )
 
@@ -71,8 +74,8 @@ test('translation api - put() and get() presets', async (t) => {
     assert.equal(
       (
         await project.$translation.get({
-          docIdRef: translationDoc.docIdRef,
-          schemaNameRef: 'preset',
+          docRef: translationDoc.docRef,
+          docRefType: 'preset',
           languageCode: 'es',
         })
       ).length,
@@ -97,7 +100,10 @@ test('translation api - put() and get() fields', async (t) => {
         return translation.message === fieldsTranslationMap[field.label]
       })
       if (matchingTranslation) {
-        return { docIdRef: field.docId, ...matchingTranslation }
+        return {
+          docRef: { docId: field.docId, versionId: field.versionId },
+          ...matchingTranslation,
+        }
       }
     })
     .filter(isDefined)
@@ -112,16 +118,16 @@ test('translation api - put() and get() fields', async (t) => {
       translationDoc
     )
     const { label: fieldLabel, docId: fieldDocId } =
-      await project.field.getByDocId(translationDoc.docIdRef)
+      await project.field.getByDocId(translationDoc.docRef.docId)
     const expectedTranslations = await project.$translation.get({
-      schemaNameRef: 'field',
+      docRefType: 'field',
       languageCode: 'es',
-      docIdRef: translationDoc.docIdRef,
+      docRef: translationDoc.docRef,
     })
 
     assert.equal(
       fieldDocId,
-      expectedTranslations[0].docIdRef,
+      expectedTranslations[0].docRef.docId,
       `the field docId matches the translation docIdRef`
     )
 
@@ -161,40 +167,43 @@ test('translation api - passing `lang` to dataType', async (t) => {
         return translation.message === fieldsTranslationMap[field.label]
       })
       if (matchingTranslation) {
-        return { docIdRef: field.docId, ...matchingTranslation }
+        return {
+          docRef: { docId: field.docId, versionId: field.versionId },
+          ...matchingTranslation,
+        }
       }
     })
     .filter(isDefined)
   for (const translationDoc of fieldTranslationsDoc) {
-    const { docIdRef, message, fieldRef } = await project.$translation.put(
+    const { docRef, message, propertyRef } = await project.$translation.put(
       translationDoc
     )
 
     /** @type {Record<string, unknown>} */
-    const translatedField = await project.field.getByDocId(docIdRef, {
+    const translatedField = await project.field.getByDocId(docRef.docId, {
       lang: 'es',
     })
     assert.equal(
-      translatedField[fieldRef],
+      translatedField[propertyRef],
       message,
       `passing 'lang' returns the correct translated field`
     )
 
     /** @type {Record<string, unknown>} */
-    const untranslatedField = await project.field.getByDocId(docIdRef)
+    const untranslatedField = await project.field.getByDocId(docRef.docId)
     assert.notEqual(
-      untranslatedField[fieldRef],
+      untranslatedField[propertyRef],
       message,
       `not passing 'lang' won't give a translated field`
     )
 
     /** @type {Record<string, unknown>} */
     const fallbackRegionCodeTranslatedField = await project.field.getByDocId(
-      docIdRef,
+      docRef.docId,
       { lang: 'es-CO' }
     )
     assert.equal(
-      fallbackRegionCodeTranslatedField[fieldRef],
+      fallbackRegionCodeTranslatedField[propertyRef],
       message,
       `passing 'lang' with untranslated 'regionCode' returns a fallback translated field matching 'languageCode'`
     )
@@ -208,40 +217,43 @@ test('translation api - passing `lang` to dataType', async (t) => {
         return translation.message === presetsTranslationMap[preset.name]
       })
       if (matchingTranslation) {
-        return { docIdRef: preset.docId, ...matchingTranslation }
+        return {
+          docRef: { docId: preset.docId, versionId: preset.versionId },
+          ...matchingTranslation,
+        }
       }
     })
     .filter(isDefined)
   for (const translationDoc of presetTranslationsDoc) {
-    const { docIdRef, message, fieldRef } = await project.$translation.put(
+    const { docRef, message, propertyRef } = await project.$translation.put(
       translationDoc
     )
 
     /** @type {Record<string, unknown>} */
-    const translatedPreset = await project.preset.getByDocId(docIdRef, {
+    const translatedPreset = await project.preset.getByDocId(docRef.docId, {
       lang: 'es',
     })
     assert.equal(
-      translatedPreset[fieldRef],
+      translatedPreset[propertyRef],
       message,
       `passing 'lang' returns the correct translated preset`
     )
 
     /** @type {Record<string, unknown>} */
-    const untranslatedPreset = await project.preset.getByDocId(docIdRef)
+    const untranslatedPreset = await project.preset.getByDocId(docRef.docId)
     assert.notEqual(
-      untranslatedPreset[fieldRef],
+      untranslatedPreset[propertyRef],
       message,
       `not passing 'lang' won't give a translated preset`
     )
 
     /** @type {Record<string, unknown>} */
     const fallbackRegionCodeTranslatedPreset = await project.preset.getByDocId(
-      docIdRef,
+      docRef.docId,
       { lang: 'es-CO' }
     )
     assert.equal(
-      fallbackRegionCodeTranslatedPreset[fieldRef],
+      fallbackRegionCodeTranslatedPreset[propertyRef],
       message,
       `passing 'lang' with untranslated 'regionCode' returns a fallback translated preset matching 'languageCode'`
     )
@@ -296,7 +308,10 @@ test('translation api - re-loading from disk', async (t) => {
               }
             )
             if (matchingTranslation) {
-              return { docIdRef: preset.docId, ...matchingTranslation }
+              return {
+                docRef: { docId: preset.docId, versionId: preset.versionId },
+                ...matchingTranslation,
+              }
             }
           })
           .filter(isDefined)
@@ -314,7 +329,10 @@ test('translation api - re-loading from disk', async (t) => {
               }
             )
             if (matchingTranslation) {
-              return { docIdRef: field.docId, ...matchingTranslation }
+              return {
+                docRef: { docId: field.docId, versionId: field.versionId },
+                ...matchingTranslation,
+              }
             }
           })
           .filter(isDefined)
@@ -335,19 +353,19 @@ test('translation api - re-loading from disk', async (t) => {
       ) => {
         const project = await manager2.getProject(projectId)
 
-        for (const { docIdRef } of presetTranslationsDoc) {
+        for (const { docRef } of presetTranslationsDoc) {
           const translations = await project.$translation.get({
-            docIdRef,
-            schemaNameRef: 'preset',
+            docRef,
+            docRefType: 'preset',
             languageCode: 'es',
           })
           if (translations.length === 0) return false
         }
 
-        for (const { docIdRef } of fieldTranslationsDoc) {
+        for (const { docRef } of fieldTranslationsDoc) {
           const translations = await project.$translation.get({
-            docIdRef,
-            schemaNameRef: 'field',
+            docRef,
+            docRefType: 'field',
             languageCode: 'es',
           })
           if (translations.length === 0) return false

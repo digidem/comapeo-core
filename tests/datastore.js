@@ -15,7 +15,6 @@ const obs = {
   updatedAt: new Date().toISOString(),
   createdBy: 'def',
   schemaName: 'observation',
-  refs: [],
   tags: {},
   attachments: [],
   metadata: {},

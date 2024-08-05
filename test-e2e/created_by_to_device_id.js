@@ -36,7 +36,6 @@ test('$createdByToDeviceId', async (t) => {
     schemaName: 'observation',
     attachments: [],
     tags: {},
-    refs: [],
     metadata: {},
   })
 

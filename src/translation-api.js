@@ -69,6 +69,7 @@ export default class TranslationApi {
    * 'propertyRef' | 'regionCode'>} value
    * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
+  // TODO: docRef.versionId should be optional, right??
   async get(value) {
     await this.ready()
 
