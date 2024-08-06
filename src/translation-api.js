@@ -63,13 +63,16 @@ export default class TranslationApi {
     }
   }
 
+  /** @typedef {import('type-fest').SetOptional<
+   * import('@mapeo/schema').TranslationValue['docRef'], 'versionId'>} DocRefWithOptionalVersionId
+   */
+
   /**
    * @param {import('type-fest').SetOptional<
-   * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message'>,
-   * 'propertyRef' | 'regionCode'>} value
+   * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message' | 'docRef'>,
+   * 'propertyRef' | 'regionCode'> & {docRef: DocRefWithOptionalVersionId}} value
    * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
-  // TODO: docRef.versionId should be optional, right??
   async get(value) {
     await this.ready()
 
@@ -88,6 +91,13 @@ export default class TranslationApi {
       eq(this.#table.docRefType, value.docRefType),
       eq(this.#table.languageCode, value.languageCode),
     ]
+
+    if (value.docRef.versionId) {
+      // @ts-ignore
+      filters.push(
+        eq(this.#table.docRef.table.versionId, value.docRef.versionId)
+      )
+    }
     if (value.propertyRef) {
       filters.push(eq(this.#table.propertyRef, value.propertyRef))
     }
