@@ -85,6 +85,7 @@ export default class TranslationApi {
           )
         )
     if (!docTypeIsTranslatedToLanguage) return []
+    // Cant access elements inside this.#table.docRef (which is a custom drizzle type)
     const filters = [
       // @ts-ignore
       eq(this.#table.docRef.table.docId, value.docRef.docId),
