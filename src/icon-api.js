@@ -64,13 +64,11 @@ export class IconApi {
       })
     )
 
-    const doc = await this.#dataType.create({
+    return await this.#dataType.create({
       schemaName: 'icon',
       name: icon.name,
       variants: savedVariants,
     })
-
-    return doc
   }
 
   /**
