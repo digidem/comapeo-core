@@ -93,8 +93,8 @@ export default class TranslationApi {
     ]
 
     if (value.docRef.versionId) {
-      // @ts-ignore
       filters.push(
+        // @ts-ignore
         eq(this.#table.docRef.table.versionId, value.docRef.versionId)
       )
     }
