@@ -20,7 +20,7 @@ const commonField = {
 
 /** @type {Object.<string,string>} */
 export const presetsTranslationMap = {
-  Airstrip: 'Pista de Aterrizaje',
+  Airstrip: 'Pista de aterrizaje',
   Boundry: 'Límite',
   Cave: 'Cueva',
   Building: 'Edificio',
