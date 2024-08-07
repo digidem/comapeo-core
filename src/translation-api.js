@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, sql } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
 import { NotFoundError } from './errors.js'
@@ -70,7 +70,7 @@ export default class TranslationApi {
   /**
    * @param {import('type-fest').SetOptional<
    * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message' | 'docRef'>,
-   * 'propertyRef' | 'regionCode'> & {docRef: DocRefWithOptionalVersionId}} value
+   * 'propertyRef' | 'regionCode'> & {docRef?: DocRefWithOptionalVersionId}} value
    * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
   async get(value) {
@@ -85,26 +85,25 @@ export default class TranslationApi {
           )
         )
     if (!docTypeIsTranslatedToLanguage) return []
-    // Cant access elements inside this.#table.docRef (which is a custom drizzle type)
+
     const filters = [
-      // @ts-ignore
-      eq(this.#table.docRef.table.docId, value.docRef.docId),
-      eq(this.#table.docRefType, value.docRefType),
-      eq(this.#table.languageCode, value.languageCode),
+      sql`docRefType = ${value.docRefType}`,
+      sql`languageCode = ${value.languageCode}`,
     ]
 
-    if (value.docRef.versionId) {
+    if (value.docRef?.docId) {
+      filters.push(sql`json_extract(docRef, '$.docId') = ${value.docRef.docId}`)
+    }
+    if (value.docRef?.versionId) {
       filters.push(
-        // @ts-ignore
-        eq(this.#table.docRef.table.versionId, value.docRef.versionId)
+        sql`json_extract(docRef,'$.versionId') = ${value.docRef.versionId}`
       )
     }
     if (value.propertyRef) {
-      filters.push(eq(this.#table.propertyRef, value.propertyRef))
+      filters.push(sql`propertyRef = ${value.propertyRef}`)
     }
-
     if (value.regionCode) {
-      filters.push(eq(this.#table.regionCode, value.regionCode))
+      filters.push(sql`regionCode = ${value.regionCode}`)
     }
 
     return (await this.#dataType[kSelect]())

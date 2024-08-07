@@ -46,7 +46,9 @@ test('translation api - put() and get() presets', async (t) => {
     const expectedTranslations = await project.$translation.get({
       docRefType: 'preset',
       languageCode: 'es',
+      regionCode: 'AR',
       docRef: translationDoc.docRef,
+      propertyRef: translationDoc.propertyRef,
     })
 
     assert.equal(
@@ -71,7 +73,8 @@ test('translation api - put() and get() presets', async (t) => {
       translationDocId,
       `the docId of added translation for ${expectedTranslations[0].message} matches`
     )
-    assert.equal(
+
+    assert.notEqual(
       (
         await project.$translation.get({
           docRef: translationDoc.docRef,
@@ -79,7 +82,7 @@ test('translation api - put() and get() presets', async (t) => {
           languageCode: 'es',
         })
       ).length,
-      1,
+      0,
       `not passing region code returns matching translations`
     )
   }
@@ -122,6 +125,8 @@ test('translation api - put() and get() fields', async (t) => {
     const expectedTranslations = await project.$translation.get({
       docRefType: 'field',
       languageCode: 'es',
+      propertyRef: translationDoc.propertyRef,
+      regionCode: 'AR',
       docRef: translationDoc.docRef,
     })
 

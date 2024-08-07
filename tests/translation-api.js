@@ -98,12 +98,8 @@ test('translation api - put() and get()', async () => {
   assert.equal(
     (
       await api.get({
-        docRefType: 'field',
-        docRef: {
-          docId: randomBytes(32).toString('hex'),
-          versionId: `${randomBytes(32).toString('hex')}/0`,
-        },
-        languageCode: 'es',
+        docRefType: newDoc.docRefType,
+        languageCode: newDoc.languageCode,
       })
     ).length,
     2,
