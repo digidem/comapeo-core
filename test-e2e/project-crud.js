@@ -66,7 +66,12 @@ function getUpdateFixture(value) {
     case 'preset':
       return {
         ...value,
-        fieldIds: [randomBytes(32).toString('hex')],
+        fieldRefs: [
+          {
+            docId: randomBytes(32).toString('hex'),
+            versionId: `${randomBytes(32).toString('hex')}/0`,
+          },
+        ],
       }
     case 'field':
       return {

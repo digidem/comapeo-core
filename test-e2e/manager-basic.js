@@ -63,15 +63,18 @@ test('Managing created projects', async (t) => {
   await t.test('initial settings from project instances', async () => {
     const settings1 = await project1.$getProjectSettings()
     const settings2 = await project2.$getProjectSettings()
-
     assert.deepEqual(
       settings1,
-      { name: undefined, defaultPresets: undefined },
+      { name: undefined, defaultPresets: undefined, configMetadata: undefined },
       'undefined name and default presets for project1'
     )
     assert.deepEqual(
       settings2,
-      { name: 'project 2', defaultPresets: undefined },
+      {
+        name: 'project 2',
+        defaultPresets: undefined,
+        configMetadata: undefined,
+      },
       'matched name for project2 with undefined default presets'
     )
   })
