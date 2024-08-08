@@ -1,11 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-<<<<<<< HEAD
-  "id": "deda0b13-3e20-4feb-a255-64ac1bfe0355",
-=======
   "id": "c4f2efaa-b40a-4148-9b5f-b1a4fd9f7f8e",
->>>>>>> 241f2a763a3b5abc8e5044a24ce8631d9183182c
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "localDeviceInfo": {
@@ -177,11 +173,7 @@
           "name": "configMetadata",
           "type": "text",
           "primaryKey": false,
-<<<<<<< HEAD
-          "notNull": true,
-=======
           "notNull": false,
->>>>>>> 241f2a763a3b5abc8e5044a24ce8631d9183182c
           "autoincrement": false
         },
         "forks": {
