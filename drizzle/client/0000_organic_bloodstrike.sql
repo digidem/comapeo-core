@@ -26,11 +26,7 @@ CREATE TABLE `projectSettings` (
 	`deleted` integer NOT NULL,
 	`name` text,
 	`defaultPresets` text,
-<<<<<<<< HEAD:drizzle/client/0000_brief_thor.sql
-	`configMetadata` text NOT NULL,
-========
 	`configMetadata` text,
->>>>>>>> 241f2a763a3b5abc8e5044a24ce8631d9183182c:drizzle/client/0000_organic_bloodstrike.sql
 	`forks` text NOT NULL
 );
 --> statement-breakpoint
