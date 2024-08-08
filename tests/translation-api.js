@@ -106,6 +106,18 @@ test('translation api - put() and get()', async () => {
     1,
     `we have a field translation for spanish in the db`
   )
+
+  assert.equal(
+    (
+      await api.get({
+        docRefType: newDoc.docRefType,
+        languageCode: newDoc.languageCode,
+        docRef: { docId: newDoc.docRef.docId },
+      })
+    ).length,
+    1,
+    `we can avoid passing a versionId to get`
+  )
 })
 
 function setup() {
