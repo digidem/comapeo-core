@@ -100,10 +100,11 @@ test('translation api - put() and get()', async () => {
       await api.get({
         docRefType: newDoc.docRefType,
         languageCode: newDoc.languageCode,
+        docRef: newDoc.docRef,
       })
     ).length,
-    2,
-    `we have two field translations for spanish in the db`
+    1,
+    `we have a field translation for spanish in the db`
   )
 })
 

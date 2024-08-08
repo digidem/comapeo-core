@@ -70,7 +70,7 @@ export default class TranslationApi {
   /**
    * @param {import('type-fest').SetOptional<
    * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message' | 'docRef'>,
-   * 'propertyRef' | 'regionCode'> & {docRef?: DocRefWithOptionalVersionId}} value
+   * 'propertyRef' | 'regionCode'> & {docRef: DocRefWithOptionalVersionId}} value
    * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
   async get(value) {
@@ -89,11 +89,9 @@ export default class TranslationApi {
     const filters = [
       sql`docRefType = ${value.docRefType}`,
       sql`languageCode = ${value.languageCode}`,
+      sql`json_extract(docRef, '$.docId') = ${value.docRef.docId}`,
     ]
 
-    if (value.docRef?.docId) {
-      filters.push(sql`json_extract(docRef, '$.docId') = ${value.docRef.docId}`)
-    }
     if (value.docRef?.versionId) {
       filters.push(
         sql`json_extract(docRef,'$.versionId') = ${value.docRef.versionId}`
