@@ -6,14 +6,18 @@ export const kGetIconBlob = Symbol('getIcon')
 /** @typedef {IconVariants[number]} IconVariant */
 
 /**
+ * @typedef {Exclude<IconVariant['size'], 'size_unspecified'>} ValidSizes
+ */
+
+/**
  * @typedef {Object} BitmapOpts
  * @property {Extract<IconVariant['mimeType'], 'image/png'>} mimeType
  * @property {Extract<IconVariant, {mimeType: 'image/png'}>['pixelDensity']} pixelDensity
- * @property {Exclude<IconVariant['size'], 'size_unspecified'>} size
+ * @property {ValidSizes} size
  *
  * @typedef {Object} SvgOpts
  * @property {Extract<IconVariant['mimeType'], 'image/svg+xml'>} mimeType
- * @property {Exclude<IconVariant['size'], 'size_unspecified'>} size
+ * @property {ValidSizes} size
  */
 
 /** @type {{ [mime in IconVariant['mimeType']]: string }} */

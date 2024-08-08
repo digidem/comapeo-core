@@ -110,7 +110,8 @@ const DENSITY_MATCH_REGEX = /@(\d+)x$/i
  * @param {string} input
  *
  * @return {{
- * pixelDensity: import('../icon-api.js').BitmapOpts['pixelDensity'], size: import('../icon-api.js').ValidSizes}}
+ * pixelDensity: import('../icon-api.js').BitmapOpts['pixelDensity'],
+ * size: import('../icon-api.js').ValidSizes}}
  */
 function extractSizeAndPixelDensity(input) {
   const result = DENSITY_MATCH_REGEX.exec(input)
