@@ -39,7 +39,7 @@ const MAX_ICON_SIZE = 10_000_000
 export async function readConfig(configPath) {
   /** @type {Error[]} */
   const warnings = []
-  console.log('path', configPath)
+  const importDate = new Date().toISOString()
 
   const zip = await yauzl.open(configPath)
   if (zip.entryCount > MAX_ENTRIES) {
@@ -61,7 +61,7 @@ export async function readConfig(configPath) {
     },
 
     get metadata() {
-      return { ...metadataFile, importDate: new Date().toISOString() }
+      return { ...metadataFile, importDate }
     },
 
     async close() {
