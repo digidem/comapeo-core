@@ -245,7 +245,7 @@ test('retrieving icons using url', async (t) => {
   await t.test('icon exists', async () => {
     const iconBuffer = randomBytes(128)
 
-    const iconId = await project.$icons.create({
+    const { docId: iconId } = await project.$icons.create({
       name: 'foo',
       variants: [
         {

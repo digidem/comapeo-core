@@ -207,8 +207,9 @@ test('config import - translations', async () => {
   const config = await readConfig(defaultConfigPath)
   for (const { value } of config.translations()) {
     assert.equal(value.schemaName, 'translation', `schemaName is 'translation'`)
+
     assert(
-      value.schemaNameRef === 'presets' || value.schemaNameRef === 'fields',
+      value.docRefType === 'preset' || value.docRefType === 'field',
       `Config translates only 'fields' or 'presets'`
     )
   }
