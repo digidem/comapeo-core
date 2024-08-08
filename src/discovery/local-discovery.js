@@ -184,7 +184,7 @@ export class LocalDiscovery extends TypedEmitter {
   /**
    *
    * @param {OpenedNoiseStream} conn
-   * @returns
+   * @returns {void}
    */
   #handleNoiseStreamConnection(conn) {
     const { remotePublicKey, isInitiator } = conn

@@ -182,7 +182,7 @@ export async function readConfig(configPath) {
         /** @type {Record<string, unknown>} */
         const presetValue = {
           schemaName: 'preset',
-          fieldIds: [],
+          fieldRefs: [],
           addTags: {},
           removeTags: {},
           terms: [],
@@ -210,11 +210,7 @@ export async function readConfig(configPath) {
         }
       }
     },
-    /**
-     * @returns {Iterable<{
-     * name: string,
-     * value:Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>}>}
-     */
+    /** @returns {Iterable<{ name: string, value:Omit<import('@mapeo/schema').TranslationValue, 'docRef'>}>} */
     *translations() {
       if (!translationsFile) return
       for (const [lang, languageTranslations] of Object.entries(
@@ -319,13 +315,13 @@ function translationsForLanguage(warnings) {
       return
     }
     for (const [
-      schemaNameRef,
+      schemaNamePlural,
       languageTranslationsForDocType,
     ] of Object.entries(languageTranslations)) {
       // TODO: remove categories check when removed from default config
-      if (!(schemaNameRef === 'fields' || schemaNameRef === 'presets')) {
-        if (schemaNameRef !== 'categories') {
-          warnings.push(new Error(`invalid schemaNameRef ${schemaNameRef}`))
+      if (!(schemaNamePlural === 'fields' || schemaNamePlural === 'presets')) {
+        if (schemaNamePlural !== 'categories') {
+          warnings.push(new Error(`invalid docRef.type ${schemaNamePlural}`))
         }
         continue
       }
@@ -336,11 +332,23 @@ function translationsForLanguage(warnings) {
       yield* translationsForDocType(warnings)({
         languageCode,
         regionCode,
-        schemaNameRef,
+        docRefType: schemaNamePluralToDocRefType(schemaNamePlural),
         languageTranslationsForDocType,
       })
     }
   }
+}
+/**
+ * schemaNames in configs are in plural but in the schemas are in singular
+ * @param {ValidDocTypes} schemaNamePlural
+ * @returns {import('@mapeo/schema').TranslationValue['docRefType']}
+ */
+function schemaNamePluralToDocRefType(schemaNamePlural) {
+  if (schemaNamePlural === 'fields') return 'field'
+  if (schemaNamePlural === 'presets') return 'preset'
+  throw new Error(
+    `invalid schemaNamePlural ${schemaNamePlural} for config import`
+  )
 }
 
 /**
@@ -350,13 +358,13 @@ function translationsForDocType(warnings) {
   /** @param {Object} opts
    * @param {string} opts.languageCode
    * @param {string | null | undefined} opts.regionCode
-   * @param {ValidDocTypes} opts.schemaNameRef
+   * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {Record<ValidDocTypes, unknown>} opts.languageTranslationsForDocType
    */
   return function* ({
     languageCode,
     regionCode,
-    schemaNameRef,
+    docRefType,
     languageTranslationsForDocType,
   }) {
     for (const [docName, fieldsToTranslate] of Object.entries(
@@ -369,7 +377,7 @@ function translationsForDocType(warnings) {
       yield* translationForValue(warnings)({
         languageCode,
         regionCode,
-        schemaNameRef,
+        docRefType,
         docName,
         fieldsToTranslate,
       })
@@ -385,37 +393,32 @@ function translationForValue(warnings) {
    * @param {Object} opts
    * @param {string} opts.languageCode
    * @param {string | null | undefined} opts.regionCode
-   * @param {ValidDocTypes} opts.schemaNameRef
+   * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {string} opts.docName
    * @param {Record<string,unknown>} opts.fieldsToTranslate
    */
   return function* ({
     languageCode,
     regionCode,
-    schemaNameRef,
+    docRefType,
     docName,
     fieldsToTranslate,
   }) {
-    for (const [fieldRef, message] of Object.entries(fieldsToTranslate)) {
+    for (const [propertyRef, message] of Object.entries(fieldsToTranslate)) {
       let value = {
         /** @type {'translation'} */
         schemaName: 'translation',
         languageCode,
         regionCode: regionCode || '',
-        schemaNameRef,
-        fieldRef: '',
+        docRefType,
+        propertyRef: '',
         message: '',
       }
 
       if (isRecord(message) && isFieldOptions(message)) {
         yield* translateMessageObject(warnings)({ value, message, docName })
       } else if (typeof message === 'string') {
-        value = { ...value, fieldRef, message }
-        if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
-          warnings.push(new Error(`Invalid translation ${value.message}`))
-          continue
-        }
-
+        value = { ...value, propertyRef, message }
         yield { name: docName, value }
       } else {
         warnings.push(
@@ -433,7 +436,7 @@ function translationForValue(warnings) {
 function translateMessageObject(warnings) {
   /**
    * @param {Object} opts
-   * @param {Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>} opts.value
+   * @param {Omit<import('@mapeo/schema').TranslationValue, 'docRef'>} opts.value
    * @param {string} opts.docName
    * @param {Record<string,{label:string,value:string}>} opts.message
    */
@@ -445,10 +448,15 @@ function translateMessageObject(warnings) {
           if (typeof msg === 'string') {
             value = {
               ...value,
-              fieldRef: `${value.fieldRef}[${idx}].${key}`,
+              propertyRef: `${value.propertyRef}[${idx}].${key}`,
               message: msg,
             }
-            if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
+            if (
+              !validate('translation', {
+                ...value,
+                docRef: { docId: '', versionId: '' },
+              })
+            ) {
               warnings.push(new Error(`Invalid translation ${value.message}`))
               continue
             }

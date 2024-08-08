@@ -14,7 +14,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 /**
  *
  * @param {Partial<ConstructorParameters<typeof CoreManager>[0]> & { rootKey?: Buffer }} param0
- * @returns
+ * @returns {CoreManager}
  */
 export function createCoreManager({
   rootKey = randomBytes(16),

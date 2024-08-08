@@ -58,8 +58,6 @@ export class CoreSyncState {
   #remoteStates = new Map()
   /** @type {InternalState['localState']} */
   #localState = new PeerState()
-  /** @type {DerivedState | null} */
-  #cachedState = null
   #preHavesLength = 0
   #update
   #peerSyncControllers
@@ -77,14 +75,12 @@ export class CoreSyncState {
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#update = () => {
-      this.#cachedState = null
       process.nextTick(onUpdate)
     }
   }
 
   /** @type {() => DerivedState} */
   getState() {
-    if (this.#cachedState) return this.#cachedState
     const localCoreLength = this.#core?.length || 0
     return deriveState({
       length: Math.max(localCoreLength, this.#preHavesLength),
@@ -176,6 +172,7 @@ export class CoreSyncState {
   addPeer(peerId) {
     if (this.#remoteStates.has(peerId)) return
     this.#remoteStates.set(peerId, new PeerState())
+    this.#update()
   }
 
   /**

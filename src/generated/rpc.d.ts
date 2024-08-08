@@ -17,6 +17,7 @@ export interface InviteResponse {
     decision: InviteResponse_Decision;
 }
 export declare const InviteResponse_Decision: {
+    readonly DECISION_UNSPECIFIED: "DECISION_UNSPECIFIED";
     readonly REJECT: "REJECT";
     readonly ACCEPT: "ACCEPT";
     readonly ALREADY: "ALREADY";
@@ -35,6 +36,7 @@ export interface DeviceInfo {
     deviceType?: DeviceInfo_DeviceType | undefined;
 }
 export declare const DeviceInfo_DeviceType: {
+    readonly device_type_unspecified: "device_type_unspecified";
     readonly mobile: "mobile";
     readonly tablet: "tablet";
     readonly desktop: "desktop";

@@ -290,7 +290,7 @@ export class CoreManager extends TypedEmitter {
       keyPair,
       encryptionKey: this.#encryptionKeys[namespace],
     })
-    if (namespace !== 'blob' && this.#autoDownload) {
+    if (this.#autoDownload) {
       core.download({ start: 0, end: -1 })
     }
     // Every peer adds a listener, so could have many peers
@@ -479,7 +479,6 @@ export class CoreManager extends TypedEmitter {
    * Replicate all cores in core manager
    *
    * @param {Parameters<Corestore['replicate']>[0]} stream
-   * @returns
    */
   [kCoreManagerReplicate](stream) {
     const protocolStream = Hypercore.createProtocolStream(stream, {

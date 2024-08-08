@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, sql } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
 import { NotFoundError } from './errors.js'
@@ -63,10 +63,14 @@ export default class TranslationApi {
     }
   }
 
+  /** @typedef {import('type-fest').SetOptional<
+   * import('@mapeo/schema').TranslationValue['docRef'], 'versionId'>} DocRefWithOptionalVersionId
+   */
+
   /**
    * @param {import('type-fest').SetOptional<
-   * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message'>,
-   * 'fieldRef' | 'regionCode'>} value
+   * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message' | 'docRef'>,
+   * 'propertyRef' | 'regionCode'> & {docRef: DocRefWithOptionalVersionId}} value
    * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
   async get(value) {
@@ -77,22 +81,27 @@ export default class TranslationApi {
         .get(value.languageCode)
         ?.has(
           /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
-            value.schemaNameRef
+            value.docRefType
           )
         )
     if (!docTypeIsTranslatedToLanguage) return []
 
     const filters = [
-      eq(this.#table.docIdRef, value.docIdRef),
-      eq(this.#table.schemaNameRef, value.schemaNameRef),
-      eq(this.#table.languageCode, value.languageCode),
+      sql`docRefType = ${value.docRefType}`,
+      sql`languageCode = ${value.languageCode}`,
+      sql`json_extract(docRef, '$.docId') = ${value.docRef.docId}`,
     ]
-    if (value.fieldRef) {
-      filters.push(eq(this.#table.fieldRef, value.fieldRef))
-    }
 
+    if (value.docRef?.versionId) {
+      filters.push(
+        sql`json_extract(docRef,'$.versionId') = ${value.docRef.versionId}`
+      )
+    }
+    if (value.propertyRef) {
+      filters.push(sql`propertyRef = ${value.propertyRef}`)
+    }
     if (value.regionCode) {
-      filters.push(eq(this.#table.regionCode, value.regionCode))
+      filters.push(sql`regionCode = ${value.regionCode}`)
     }
 
     return (await this.#dataType[kSelect]())
@@ -117,7 +126,7 @@ export default class TranslationApi {
     }
     translatedSchemas.add(
       /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
-        doc.schemaNameRef
+        doc.docRefType
       )
     )
   }

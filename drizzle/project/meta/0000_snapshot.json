@@ -1,7 +1,11 @@
 {
   "version": "5",
   "dialect": "sqlite",
+<<<<<<< HEAD
   "id": "78513317-e2d9-430b-85be-35ff5587339c",
+=======
+  "id": "3ef67d9d-408c-424f-ac6d-a353df47bd86",
+>>>>>>> 241f2a763a3b5abc8e5044a24ce8631d9183182c
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -594,13 +598,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "refs": {
-          "name": "refs",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "attachments": {
           "name": "attachments",
           "type": "text",
@@ -620,6 +617,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "presetRef": {
+          "name": "presetRef",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "forks": {
@@ -745,15 +749,15 @@
           "notNull": true,
           "autoincrement": false
         },
-        "fieldIds": {
-          "name": "fieldIds",
+        "fieldRefs": {
+          "name": "fieldRefs",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "iconId": {
-          "name": "iconId",
+        "iconRef": {
+          "name": "iconRef",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -970,8 +974,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "refs": {
-          "name": "refs",
+        "observationRefs": {
+          "name": "observationRefs",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1079,22 +1083,22 @@
           "notNull": true,
           "autoincrement": false
         },
-        "schemaNameRef": {
-          "name": "schemaNameRef",
+        "docRef": {
+          "name": "docRef",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "docIdRef": {
-          "name": "docIdRef",
+        "docRefType": {
+          "name": "docRefType",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "fieldRef": {
-          "name": "fieldRef",
+        "propertyRef": {
+          "name": "propertyRef",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
