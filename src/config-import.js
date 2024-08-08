@@ -281,13 +281,14 @@ function translationsForLanguage(warnings) {
       warnings.push(new Error(`invalid translation language ${lang}`))
       return
     }
-    for (const [docRefType, languageTranslationsForDocType] of Object.entries(
-      languageTranslations
-    )) {
+    for (const [
+      schemaNamePlural,
+      languageTranslationsForDocType,
+    ] of Object.entries(languageTranslations)) {
       // TODO: remove categories check when removed from default config
-      if (!(docRefType === 'fields' || docRefType === 'presets')) {
-        if (docRefType !== 'categories') {
-          warnings.push(new Error(`invalid docRef.type ${docRefType}`))
+      if (!(schemaNamePlural === 'fields' || schemaNamePlural === 'presets')) {
+        if (schemaNamePlural !== 'categories') {
+          warnings.push(new Error(`invalid docRef.type ${schemaNamePlural}`))
         }
         continue
       }
@@ -298,20 +299,23 @@ function translationsForLanguage(warnings) {
       yield* translationsForDocType(warnings)({
         languageCode,
         regionCode,
-        docRefType: convertDocRefTypeName(docRefType),
+        docRefType: schemaNamePluralToDocRefType(schemaNamePlural),
         languageTranslationsForDocType,
       })
     }
   }
 }
 /**
- * @param {ValidDocTypes} docRefType
+ * schemaNames in configs are in plural but in the schemas are in singular
+ * @param {ValidDocTypes} schemaNamePlural
  * @returns {import('@mapeo/schema').TranslationValue['docRefType']}
  */
-function convertDocRefTypeName(docRefType) {
-  if (docRefType === 'fields') return 'field'
-  if (docRefType === 'presets') return 'preset'
-  throw new Error(`invalid docRefType ${docRefType} for config import`)
+function schemaNamePluralToDocRefType(schemaNamePlural) {
+  if (schemaNamePlural === 'fields') return 'field'
+  if (schemaNamePlural === 'presets') return 'preset'
+  throw new Error(
+    `invalid schemaNamePlural ${schemaNamePlural} for config import`
+  )
 }
 
 /**
