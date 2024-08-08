@@ -295,7 +295,6 @@ async function findMetadataFile(entries) {
   assert(isRecord(result), 'Invalid metadata.json file')
   assert(isValidMetadataFile(result), 'Invalid structure of metadata file')
 
-  console.log('META', result)
   return result
 }
 
@@ -532,7 +531,7 @@ function isValidMetadataFile(obj) {
     'fileVersion' in obj &&
     typeof obj['name'] === 'string' &&
     typeof obj['buildDate'] === 'string' &&
-    typeof obj['fileVersion'] === 'number'
+    typeof obj['fileVersion'] === 'string'
   )
 }
 
@@ -577,5 +576,5 @@ function isValidConfigFile({ fileVersion }) {
   const major = parseInt(match[1], 10)
   //const minor = parseInt(match[2], 10)
 
-  return major > SUPPORTED_CONFIG_VERSION
+  return major >= SUPPORTED_CONFIG_VERSION
 }
