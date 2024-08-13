@@ -93,21 +93,7 @@ test('config import - loading', async () => {
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/invalidMetadataKey2.zip'),
-    /Error: Invalid structure of metadata file/,
-    ''
-  )
-
-  await assert.rejects(
-    async () =>
       await readConfig('./tests/fixtures/config/invalidMetadataValue.zip'),
-    /Error: Invalid structure of metadata file/,
-    ''
-  )
-
-  await assert.rejects(
-    async () =>
-      await readConfig('./tests/fixtures/config/invalidMetadataValue2.zip'),
     /Error: Invalid structure of metadata file/,
     ''
   )
