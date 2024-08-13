@@ -214,8 +214,11 @@ export class DataType extends TypedEmitter {
 
     const value = {
       languageCode: language,
-      schemaNameRef: translatedDoc.schemaName,
-      docIdRef: translatedDoc.docId,
+      docRef: {
+        docId: translatedDoc.docId,
+        versionId: translatedDoc.versionId,
+      },
+      docRefType: translatedDoc.schemaName,
       regionCode: region !== null ? region : undefined,
     }
     let translations = await this.#getTranslations(value)
@@ -227,8 +230,8 @@ export class DataType extends TypedEmitter {
     }
 
     for (const translation of translations) {
-      if (typeof getProperty(doc, translation.fieldRef) === 'string') {
-        setProperty(doc, translation.fieldRef, translation.message)
+      if (typeof getProperty(doc, translation.propertyRef) === 'string') {
+        setProperty(doc, translation.propertyRef, translation.message)
       }
     }
     return doc

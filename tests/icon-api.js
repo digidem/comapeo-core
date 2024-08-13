@@ -45,7 +45,7 @@ test('create()', async () => {
     },
   ]
 
-  const iconId = await iconApi.create({
+  const { docId: iconId } = await iconApi.create({
     name: expectedName,
     variants: expectedVariants,
   })
@@ -105,7 +105,7 @@ test('[kGetIconBlob]()', async () => {
     },
   ]
 
-  const iconId = await iconApi.create({
+  const { docId: iconId } = await iconApi.create({
     name: expectedName,
     variants: expectedVariants,
   })
@@ -233,7 +233,7 @@ test('getBestVariant() - no variants exist', () => {
 })
 
 test('getBestVariant() - specify mimeType', async (t) => {
-  /** @type {{size:import('../src/icon-api.js').IconVariant['size']}} */
+  /** @type {{size:import('../src/icon-api.js').ValidSizes}} */
   const common = { size: 'small' }
 
   const pngVariant = createIconVariant({
@@ -317,7 +317,7 @@ test('getBestVariant() - specify size', async (t) => {
   })
 
   await t.test('request size with match present', () => {
-    /** @type {Array<[import('@mapeo/schema').Icon['variants'][number]['size'], import('@mapeo/schema').Icon['variants'][number]]>} */
+    /** @type {Array<[import('../src/icon-api.js').ValidSizes, import('@mapeo/schema').Icon['variants'][number]]>} */
     const pairs = [
       ['small', smallVariant],
       ['medium', mediumVariant],
@@ -402,7 +402,8 @@ test('getBestVariant() - specify size', async (t) => {
 })
 
 test('getBestVariant() - specify pixel density', async (t) => {
-  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'size' | 'mimeType'>} */
+  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'mimeType'> &
+   * {size: import('../src/icon-api.js').ValidSizes}} */
   const common = { size: 'small', mimeType: 'image/png' }
 
   const density1Variant = createIconVariant({

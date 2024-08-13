@@ -100,10 +100,10 @@ CREATE TABLE `observation` (
 	`deleted` integer NOT NULL,
 	`lat` real,
 	`lon` real,
-	`refs` text NOT NULL,
 	`attachments` text NOT NULL,
 	`tags` text NOT NULL,
 	`metadata` text NOT NULL,
+	`presetRef` text,
 	`forks` text NOT NULL
 );
 --> statement-breakpoint
@@ -125,8 +125,8 @@ CREATE TABLE `preset` (
 	`tags` text NOT NULL,
 	`addTags` text NOT NULL,
 	`removeTags` text NOT NULL,
-	`fieldIds` text NOT NULL,
-	`iconId` text,
+	`fieldRefs` text NOT NULL,
+	`iconRef` text,
 	`terms` text NOT NULL,
 	`color` text NOT NULL,
 	`forks` text NOT NULL
@@ -164,7 +164,7 @@ CREATE TABLE `track` (
 	`links` text NOT NULL,
 	`deleted` integer NOT NULL,
 	`locations` text NOT NULL,
-	`refs` text NOT NULL,
+	`observationRefs` text NOT NULL,
 	`attachments` text NOT NULL,
 	`tags` text NOT NULL,
 	`forks` text NOT NULL
@@ -183,9 +183,9 @@ CREATE TABLE `translation` (
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
 	`deleted` integer NOT NULL,
-	`schemaNameRef` text NOT NULL,
-	`docIdRef` text NOT NULL,
-	`fieldRef` text NOT NULL,
+	`docRef` text NOT NULL,
+	`docRefType` text NOT NULL,
+	`propertyRef` text NOT NULL,
 	`languageCode` text NOT NULL,
 	`regionCode` text NOT NULL,
 	`message` text NOT NULL,

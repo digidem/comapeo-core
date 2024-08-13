@@ -18,7 +18,6 @@ import { setTimeout as delay } from 'timers/promises'
 const fixtures = [
   {
     schemaName: 'observation',
-    refs: [],
     tags: {},
     attachments: [],
     metadata: {},
@@ -30,7 +29,7 @@ const fixtures = [
     geometry: ['point'],
     addTags: {},
     removeTags: {},
-    fieldIds: [],
+    fieldRefs: [],
     terms: [],
     color: '#ff00ff',
   },
@@ -42,7 +41,7 @@ const fixtures = [
   },
   {
     schemaName: 'track',
-    refs: [],
+    observationRefs: [],
     tags: {},
     attachments: [],
     locations: Array.from({ length: 10 }, trackPositionFixture),
@@ -67,7 +66,12 @@ function getUpdateFixture(value) {
     case 'preset':
       return {
         ...value,
-        fieldIds: [randomBytes(32).toString('hex')],
+        fieldRefs: [
+          {
+            docId: randomBytes(32).toString('hex'),
+            versionId: `${randomBytes(32).toString('hex')}/0`,
+          },
+        ],
       }
     case 'field':
       return {
