@@ -1,0 +1,13 @@
+{
+    "fields": {
+        "noKeyField": {
+            "type": "text",
+            "label": "Nombre del Monitor o Mapeador",
+            "universal": true,
+            "placeholder": "¿Quién está haciendo esta observación?"
+        },
+        "nullField": null,
+        "noObjectField": "a string"
+    },
+    "presets": {}
+}
