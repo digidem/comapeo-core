@@ -30,6 +30,7 @@ import { ROLES, isRoleIdForNewInvite } from './roles.js'
  * @prop {import('./roles.js').Role} role
  * @prop {import('@mapeo/schema').DeviceInfo['name']} [name]
  * @prop {import('@mapeo/schema').DeviceInfo['deviceType']} [deviceType]
+ * @prop {import('@mapeo/schema').DeviceInfo['createdAt']} [joinedAt]
  */
 
 export class MemberApi extends TypedEmitter {
@@ -255,6 +256,7 @@ export class MemberApi extends TypedEmitter {
 
       result.name = deviceInfo.name
       result.deviceType = deviceInfo.deviceType
+      result.joinedAt = deviceInfo.createdAt
     } catch (err) {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
@@ -290,6 +292,7 @@ export class MemberApi extends TypedEmitter {
 
           memberInfo.name = deviceInfo?.name
           memberInfo.deviceType = deviceInfo?.deviceType
+          memberInfo.joinedAt = deviceInfo?.createdAt
         } catch (err) {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available

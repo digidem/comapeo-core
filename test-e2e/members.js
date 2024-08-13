@@ -25,8 +25,7 @@ test('getting yourself after creating project', async (t) => {
   const deviceInfo = manager.getDeviceInfo()
   const project = await manager.getProject(await manager.createProject())
 
-  const me = await project.$member.getById(project.deviceId)
-
+  const { joinedAt: _, ...me } = await project.$member.getById(project.deviceId)
   assert.deepEqual(
     me,
     {
