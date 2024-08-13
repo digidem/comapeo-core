@@ -1,0 +1,289 @@
+{
+  "access-point-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 0,
+    "y": 0,
+    "pixelRatio": 1
+  },
+  "agrobusiness-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 100,
+    "y": 0,
+    "pixelRatio": 1
+  },
+  "airstrip-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 0,
+    "y": 100,
+    "pixelRatio": 1
+  },
+  "ancestral-site-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 100,
+    "y": 100,
+    "pixelRatio": 1
+  },
+  "animal-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 200,
+    "y": 0,
+    "pixelRatio": 1
+  },
+  "archaeological-site-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 300,
+    "y": 0,
+    "pixelRatio": 1
+  },
+  "boundary-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 200,
+    "y": 100,
+    "pixelRatio": 1
+  },
+  "burial-site-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 300,
+    "y": 100,
+    "pixelRatio": 1
+  },
+  "camp-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 0,
+    "y": 200,
+    "pixelRatio": 1
+  },
+  "cave-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 100,
+    "y": 200,
+    "pixelRatio": 1
+  },
+  "coca-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 200,
+    "y": 200,
+    "pixelRatio": 1
+  },
+  "community-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 300,
+    "y": 200,
+    "pixelRatio": 1
+  },
+  "fishing-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 0,
+    "y": 300,
+    "pixelRatio": 1
+  },
+  "gathering-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 100,
+    "y": 300,
+    "pixelRatio": 1
+  },
+  "grupo-armado-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 200,
+    "y": 300,
+    "pixelRatio": 1
+  },
+  "hills-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 300,
+    "y": 300,
+    "pixelRatio": 1
+  },
+  "house-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 400,
+    "y": 0,
+    "pixelRatio": 1
+  },
+  "hunting-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 500,
+    "y": 0,
+    "pixelRatio": 1
+  },
+  "illegal-camp-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 600,
+    "y": 0,
+    "pixelRatio": 1
+  },
+  "illegal-fishing-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 700,
+    "y": 0,
+    "pixelRatio": 1
+  },
+  "illegal-settlement-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 400,
+    "y": 100,
+    "pixelRatio": 1
+  },
+  "lake-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 500,
+    "y": 100,
+    "pixelRatio": 1
+  },
+  "logging-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 600,
+    "y": 100,
+    "pixelRatio": 1
+  },
+  "mejoras-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 700,
+    "y": 100,
+    "pixelRatio": 1
+  },
+  "mining-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 400,
+    "y": 200,
+    "pixelRatio": 1
+  },
+  "oil-impact-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 500,
+    "y": 200,
+    "pixelRatio": 1
+  },
+  "oil-installation-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 600,
+    "y": 200,
+    "pixelRatio": 1
+  },
+  "old-garden-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 700,
+    "y": 200,
+    "pixelRatio": 1
+  },
+  "other-2-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 400,
+    "y": 300,
+    "pixelRatio": 1
+  },
+  "other-impact-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 500,
+    "y": 300,
+    "pixelRatio": 1
+  },
+  "palm-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 600,
+    "y": 300,
+    "pixelRatio": 1
+  },
+  "path-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 700,
+    "y": 300,
+    "pixelRatio": 1
+  },
+  "plant-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 0,
+    "y": 400,
+    "pixelRatio": 1
+  },
+  "poaching-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 100,
+    "y": 400,
+    "pixelRatio": 1
+  },
+  "river-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 200,
+    "y": 400,
+    "pixelRatio": 1
+  },
+  "road-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 300,
+    "y": 400,
+    "pixelRatio": 1
+  },
+  "sacred-site-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 400,
+    "y": 400,
+    "pixelRatio": 1
+  },
+  "salt-lick-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 500,
+    "y": 400,
+    "pixelRatio": 1
+  },
+  "swidden-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 600,
+    "y": 400,
+    "pixelRatio": 1
+  },
+  "tree-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 700,
+    "y": 400,
+    "pixelRatio": 1
+  },
+  "waterfall-100px": {
+    "width": 100,
+    "height": 100,
+    "x": 0,
+    "y": 500,
+    "pixelRatio": 1
+  }
+}
