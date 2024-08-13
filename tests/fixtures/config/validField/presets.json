@@ -1,0 +1,12 @@
+{
+  "fields":{
+    "nombre-monitor": {
+      "tagKey": "nombre-monitor",
+      "type": "text",
+      "label": "Nombre del Monitor o Mapeador",
+      "universal": true,
+      "placeholder": "¿Quién está haciendo esta observación?"
+    }
+  },
+  "presets":{ }
+}
