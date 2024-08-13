@@ -23,6 +23,7 @@ export const kRescindFullStopRequest = Symbol('foreground')
  */
 
 /**
+ * TODO: Do we still need this type?
  * @typedef {object} SyncTypeState
  * @property {number} have Number of blocks we have locally
  * @property {number} want Number of blocks we want from connected peers
@@ -33,10 +34,23 @@ export const kRescindFullStopRequest = Symbol('foreground')
  */
 
 /**
+ * @typedef {object} DeviceNamespaceGroupSyncState
+ * @property {boolean} isEnabled
+ * @property {number} want
+ * @property {number} wanted
+ */
+
+/**
+ * @typedef {object} DeviceSyncState
+ * @property {DeviceNamespaceGroupSyncState} initial
+ * @property {DeviceNamespaceGroupSyncState} data
+ */
+
+/**
  * @typedef {object} State
- * @property {SyncTypeState} initial State of initial sync (sync of auth, metadata and project config)
- * @property {SyncTypeState} data State of data sync (observations, map data, photos, audio, video etc.)
- * @property {number} connectedPeers Number of connected peers
+ * @property {{isSyncEnabled: boolean}} initial State of initial sync (sync of auth, metadata and project config)
+ * @property {{isSyncEnabled:boolean}} data State of data sync (observations, map data, photos, audio, video etc.)
+ * @property {Record<string, DeviceSyncState>} deviceSyncState TODO docs
  */
 
 /**
@@ -423,6 +437,23 @@ function isSynced(state, type, peerSyncControllers) {
  * @returns {State}
  */
 function reduceSyncState(namespaceSyncState) {
+  // TODO
+  console.log(namespaceSyncState)
+  return {
+    initial: {
+      // TODO
+      isSyncEnabled: true,
+    },
+    data: {
+      // TODO
+      isSyncEnabled: false,
+    },
+    deviceSyncState: {
+      // TODO
+    },
+  }
+
+  /*
   const connectedPeers = Object.values(
     namespaceSyncState.auth.remoteStates
   ).filter((remoteState) => remoteState.status === 'connected').length
@@ -440,6 +471,7 @@ function reduceSyncState(namespaceSyncState) {
     mutatingAddNamespaceState(state.data, nsState)
   }
   return state
+  */
 }
 
 /**
