@@ -244,13 +244,13 @@ export class SyncApi extends TypedEmitter {
    * happens after this duration in milliseconds, sync will be automatically
    * stopped as if {@link stop} was called.
    */
-  start({ autostopDataSyncAfter = null } = {}) {
-    assertAutostopDataSyncAfterIsValid(autostopDataSyncAfter)
+  start({ autostopDataSyncAfter } = {}) {
     this.#wantsToSyncData = true
-    this.#autostopDataSyncAfter = autostopDataSyncAfter
-    // Ensure the timeout is started anew.
-    this.#clearAutostopDataSyncTimeoutIfExists()
-    this.#updateState()
+    if (autostopDataSyncAfter === undefined) {
+      this.#updateState()
+    } else {
+      this.setAutostopDataSyncTimeout(autostopDataSyncAfter)
+    }
   }
 
   /**
@@ -276,6 +276,17 @@ export class SyncApi extends TypedEmitter {
    */
   [kRescindFullStopRequest]() {
     this.#hasRequestedFullStop = false
+    this.#updateState()
+  }
+
+  /**
+   * @param {null | number} autostopDataSyncAfter
+   * @returns {void}
+   */
+  setAutostopDataSyncTimeout(autostopDataSyncAfter) {
+    assertAutostopDataSyncAfterIsValid(autostopDataSyncAfter)
+    this.#clearAutostopDataSyncTimeoutIfExists()
+    this.#autostopDataSyncAfter = autostopDataSyncAfter
     this.#updateState()
   }
 
