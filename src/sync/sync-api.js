@@ -152,24 +152,31 @@ export class SyncApi extends TypedEmitter {
    * @returns {State}
    */
   #getState(namespaceSyncState) {
-    const state = reduceSyncState(namespaceSyncState)
+    // TODO: consider renaming reduceSyncState
+    const deviceSyncState = reduceSyncState(namespaceSyncState)
 
     switch (this.#previousSyncEnabledState) {
       case 'none':
-        state.initial.isSyncEnabled = state.data.isSyncEnabled = false
-        break
+        return {
+          initial: { isSyncEnabled: false },
+          data: { isSyncEnabled: false },
+          deviceSyncState,
+        }
       case 'presync':
-        state.initial.isSyncEnabled = true
-        state.data.isSyncEnabled = false
-        break
+        return {
+          initial: { isSyncEnabled: true },
+          data: { isSyncEnabled: false },
+          deviceSyncState,
+        }
       case 'all':
-        state.initial.isSyncEnabled = state.data.isSyncEnabled = true
-        break
+        return {
+          initial: { isSyncEnabled: true },
+          data: { isSyncEnabled: true },
+          deviceSyncState,
+        }
       default:
         throw new ExhaustivenessError(this.#previousSyncEnabledState)
     }
-
-    return state
   }
 
   /**
@@ -434,24 +441,62 @@ function isSynced(state, type, peerSyncControllers) {
  * Reduce the more detailed sync state we use internally to the public sync
  * state that sums namespaces into an 'initial' and 'full' sync state
  * @param {import('./sync-state.js').State} namespaceSyncState
- * @returns {State}
+ * @returns {State['deviceSyncState']}
  */
 function reduceSyncState(namespaceSyncState) {
-  // TODO
-  console.log(namespaceSyncState)
-  return {
-    initial: {
-      // TODO
-      isSyncEnabled: true,
-    },
-    data: {
-      // TODO
-      isSyncEnabled: false,
-    },
-    deviceSyncState: {
-      // TODO
-    },
+  /** @type {State['deviceSyncState']} */ const result = {}
+
+  // {
+  //   auth: {
+  //     coreLength: 123,
+  //     localState: ...
+  //     remoteStates: {
+  //       'abc123': {
+  //         status: 'connected',
+  //         have: 99,
+  //         want: 123,
+  //         wanted: 456,
+  //         missing: 987,
+  //       }
+  //     }
+  //   }
+  //   config: ...
+  //   blob: ...
+  // }
+
+  /**
+   * TODO: maybe move this out and take a `result` parameter?
+   * @param {string} peerId
+   * @param {'initial' | 'data'} namespaceGroup
+   * @param {any} peerCoreState TODO
+   * @returns {void}
+   */
+  function mutatingAddToResult(peerId, namespaceGroup, peerCoreState) {
+    // TODO: use `hasOwn`
+    if (!(peerId in result)) {
+      result[peerId] = {
+        initial: { isEnabled: false, want: 0, wanted: 0 },
+        data: { isEnabled: false, want: 0, wanted: 0 },
+      }
+    }
+    // TODO: how do we change `isEnabled`?
+    result[peerId].initial.isEnabled = TODO // ???
+    // TODO: this feels hard to read
+    result[peerId][namespaceGroup].want += peerCoreState.want
+    result[peerId][namespaceGroup].wanted += peerCoreState.wanted
   }
+
+  for (const ns of PRESYNC_NAMESPACES) {
+    const nsState = namespaceSyncState[ns]
+    for (const [peerId, peerCoreState] of Object.entries(
+      nsState.remoteStates
+    )) {
+      if (peerCoreState.status !== 'connected') continue
+      mutatingAddToResult(peerId, 'initial', peerCoreState)
+    }
+  }
+
+  return result
 
   /*
   const connectedPeers = Object.values(
