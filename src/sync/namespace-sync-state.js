@@ -148,9 +148,9 @@ export class NamespaceSyncState {
  */
 export function createState(status) {
   if (status) {
-    return { want: 0, have: 0, wanted: 0, missing: 0, status }
+    return { want: 0, have: 0, wanted: 0, status }
   } else {
-    return { want: 0, have: 0, wanted: 0, missing: 0 }
+    return { want: 0, have: 0, wanted: 0 }
   }
 }
 
@@ -178,7 +178,6 @@ function mutatingAddPeerState(accumulator, currentValue) {
   accumulator.have += currentValue.have
   accumulator.want += currentValue.want
   accumulator.wanted += currentValue.wanted
-  accumulator.missing += currentValue.missing
   if ('status' in accumulator && accumulator.status !== currentValue.status) {
     if (currentValue.status === 'disconnected') {
       accumulator.status === 'disconnected'
