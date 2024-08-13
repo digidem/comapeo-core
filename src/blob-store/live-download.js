@@ -291,7 +291,7 @@ export class DriveLiveDownload extends TypedEmitter {
  *
  * @param {Iterable<{ state: BlobDownloadState | BlobDownloadStateError }>} liveDownloads
  * @param {{ signal?: AbortSignal }} options
- * @returns
+ * @returns {BlobDownloadState | BlobDownloadStateError}
  */
 export function combineStates(liveDownloads, { signal } = {}) {
   /** @type {BlobDownloadState | BlobDownloadStateError} */

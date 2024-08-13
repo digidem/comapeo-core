@@ -579,7 +579,6 @@ export class MapeoProject extends TypedEmitter {
    * need to replicate the manager instance via manager[kManagerReplicate])
    *
    * @param {Parameters<import('hypercore')['replicate']>[0]} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
-   * @returns
    */
   [kProjectReplicate](stream) {
     // @ts-expect-error - hypercore types need updating
@@ -733,30 +732,30 @@ export class MapeoProject extends TypedEmitter {
       await deleteTranslations({
         logger: this.#l,
         translation: this.$translation.dataType,
-        presets: this.preset,
-        fields: this.field,
+        preset: this.preset,
+        field: this.field,
       })
 
       const config = await readConfig(configPath)
-      /** @type {Map<string, string>} */
-      const iconNameToId = new Map()
-      /** @type {Map<string, string>} */
-      const fieldNameToId = new Map()
-      /** @type {Map<string,string>} */
-      const presetNameToId = new Map()
+      /** @type {Map<string, import('./icon-api.js').IconRef>} */
+      const iconNameToRef = new Map()
+      /** @type {Map<string, import('@mapeo/schema').PresetValue['fieldRefs'][1]>} */
+      const fieldNameToRef = new Map()
+      /** @type {Map<string,import('@mapeo/schema').TranslationValue['docRef']>} */
+      const presetNameToRef = new Map()
 
       // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
       for await (const icon of config.icons()) {
-        const iconId = await this.#iconApi.create(icon)
-        iconNameToId.set(icon.name, iconId)
+        const { docId, versionId } = await this.#iconApi.create(icon)
+        iconNameToRef.set(icon.name, { docId, versionId })
       }
 
       // Ok to create fields and presets in parallel
       const fieldPromises = []
       for (const { name, value } of config.fields()) {
         fieldPromises.push(
-          this.#dataTypes.field.create(value).then(({ docId }) => {
-            fieldNameToId.set(name, docId)
+          this.#dataTypes.field.create(value).then(({ docId, versionId }) => {
+            fieldNameToRef.set(name, { docId, versionId })
           })
         )
       }
@@ -764,20 +763,25 @@ export class MapeoProject extends TypedEmitter {
 
       const presetsWithRefs = []
       for (const { fieldNames, iconName, value, name } of config.presets()) {
-        const fieldIds = fieldNames.map((fieldName) => {
-          const id = fieldNameToId.get(fieldName)
-          if (!id) {
+        const fieldRefs = fieldNames.map((fieldName) => {
+          const fieldRef = fieldNameToRef.get(fieldName)
+          if (!fieldRef) {
             throw new Error(
               `field ${fieldName} not found (referenced by preset ${value.name})})`
             )
           }
-          return id
+          return fieldRef
         })
+
+        let iconRef
+        if (iconName) {
+          iconRef = iconNameToRef.get(iconName)
+        }
         presetsWithRefs.push({
           preset: {
             ...value,
-            iconId: iconName && iconNameToId.get(iconName),
-            fieldIds,
+            iconRef,
+            fieldRefs,
           },
           name,
         })
@@ -786,8 +790,8 @@ export class MapeoProject extends TypedEmitter {
       const presetPromises = []
       for (const { preset, name } of presetsWithRefs) {
         presetPromises.push(
-          this.preset.create(preset).then(({ docId }) => {
-            presetNameToId.set(name, docId)
+          this.preset.create(preset).then(({ docId, versionId }) => {
+            presetNameToRef.set(name, { docId, versionId })
           })
         )
       }
@@ -796,24 +800,27 @@ export class MapeoProject extends TypedEmitter {
 
       const translationPromises = []
       for (const { name, value } of config.translations()) {
-        let docIdRef
-        if (value.schemaNameRef === 'fields') {
-          docIdRef = fieldNameToId.get(name)
-        } else if (value.schemaNameRef === 'presets') {
-          docIdRef = presetNameToId.get(name)
+        let docRef
+        if (value.docRefType === 'field') {
+          docRef = { ...fieldNameToRef.get(name) }
+        } else if (value.docRefType === 'preset') {
+          docRef = { ...presetNameToRef.get(name) }
         } else {
-          throw new Error(`invalid schemaNameRef ${value.schemaNameRef}`)
+          throw new Error(`invalid docRefType ${value.docRefType}`)
         }
-        if (docIdRef) {
+        if (docRef.docId && docRef.versionId) {
           translationPromises.push(
             this.$translation.put({
               ...value,
-              docIdRef,
+              docRef: {
+                docId: docRef.docId,
+                versionId: docRef.versionId,
+              },
             })
           )
         } else {
           throw new Error(
-            `docIdRef for preset or field with name ${name} not found`
+            `docRef for preset or field with name ${name} not found`
           )
         }
       }
@@ -821,10 +828,11 @@ export class MapeoProject extends TypedEmitter {
 
       // close the zip handles after we know we won't be needing them anymore
       await config.close()
+      const presetIds = [...presetNameToRef.values()].map((val) => val.docId)
 
       await this.$setProjectSettings({
         defaultPresets: {
-          point: [...presetNameToId.values()],
+          point: presetIds,
           line: [],
           area: [],
           vertex: [],
@@ -864,20 +872,20 @@ async function deleteAll(dataType) {
  * @param {Object} opts
  * @param {Logger} opts.logger
  * @param {MapeoProject['$translation']['dataType']} opts.translation
- * @param {MapeoProject['preset']} opts.presets
- * @param {MapeoProject['field']} opts.fields
+ * @param {MapeoProject['preset']} opts.preset
+ * @param {MapeoProject['field']} opts.field
  */
 async function deleteTranslations(opts) {
   const translations = await opts.translation.getMany()
   await Promise.all(
-    translations.map(async ({ docId, docIdRef, schemaNameRef }) => {
-      if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
+    translations.map(async ({ docId, docRef, docRefType }) => {
+      if (docRefType === 'preset' || docRefType === 'field') {
         let shouldDelete = false
         try {
-          const toDelete = await opts[schemaNameRef].getByDocId(docIdRef)
+          const toDelete = await opts[docRefType].getByDocId(docRef.docId)
           shouldDelete = toDelete.deleted
         } catch (e) {
-          opts.logger.log(`referred ${docIdRef} is not found`)
+          opts.logger.log(`referred ${docRef.docId} is not found`)
         }
         if (shouldDelete) {
           await opts.translation.delete(docId)

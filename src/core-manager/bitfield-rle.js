@@ -198,7 +198,7 @@ function encodeFinal(state) {
  * @param {number} i
  * @param {number} len
  * @param {number} bit
- * @returns
+ * @returns {void}
  */
 function encodeUpdate(state, i, len, bit) {
   const headLength = i - len - state.inputOffset

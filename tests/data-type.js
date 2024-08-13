@@ -24,7 +24,6 @@ import { decode, decodeBlockPrefix } from '@mapeo/schema'
 /** @type {import('@mapeo/schema').ObservationValue} */
 const obsFixture = {
   schemaName: 'observation',
-  refs: [],
   tags: {},
   attachments: [],
   metadata: {},
@@ -141,7 +140,6 @@ test('test validity of `createdBy` field from another peer', async () => {
   /** @type {import('@mapeo/schema').ObservationValue} */
   const newObsFixture = {
     schemaName: 'observation',
-    refs: [{ id: randomBytes(32).toString('hex') }],
     tags: {},
     attachments: [],
     metadata: {},
@@ -187,7 +185,6 @@ test('translation', async () => {
   /** @type {import('@mapeo/schema').ObservationValue} */
   const observation = {
     schemaName: 'observation',
-    refs: [],
     tags: {
       type: 'point',
     },
@@ -199,9 +196,10 @@ test('translation', async () => {
   const translation = {
     /** @type {'translation'} */
     schemaName: 'translation',
-    schemaNameRef: 'observation',
-    docIdRef: doc.docId,
-    fieldRef: 'tags.type',
+    /** @type {import('@mapeo/schema').TranslationValue['docRefType']} */
+    docRefType: 'observation',
+    docRef: { docId: doc.docId, versionId: doc.versionId },
+    propertyRef: 'tags.type',
     languageCode: 'es',
     regionCode: 'AR',
     message: 'punto',
@@ -213,7 +211,7 @@ test('translation', async () => {
     translation.message,
     getProperty(
       await dataType.getByDocId(doc.docId, { lang: 'es' }),
-      translation.fieldRef
+      translation.propertyRef
     ),
     `we get a valid translated field`
   )
@@ -221,7 +219,7 @@ test('translation', async () => {
     translation.message,
     getProperty(
       await dataType.getByDocId(doc.docId, { lang: 'es-AR' }),
-      translation.fieldRef
+      translation.propertyRef
     ),
     `we get a valid translated field`
   )
@@ -229,7 +227,7 @@ test('translation', async () => {
     translation.message,
     getProperty(
       await dataType.getByDocId(doc.docId, { lang: 'es-ES' }),
-      translation.fieldRef
+      translation.propertyRef
     ),
     `passing an untranslated regionCode, still returns a translated field, since we fallback to only matching languageCode`
   )

@@ -41,7 +41,7 @@ test('CoreOwnership', async () => {
     addTags: {},
     removeTags: {},
     terms: [],
-    fieldIds: [],
+    fieldRefs: [],
     color: '#ff00ff',
   })
   assert.equal(
@@ -53,7 +53,6 @@ test('CoreOwnership', async () => {
     schemaName: 'observation',
     attachments: [],
     tags: {},
-    refs: [],
     metadata: {},
   })
   assert.equal(

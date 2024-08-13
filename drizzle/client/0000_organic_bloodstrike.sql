@@ -26,6 +26,7 @@ CREATE TABLE `projectSettings` (
 	`deleted` integer NOT NULL,
 	`name` text,
 	`defaultPresets` text,
+	`configMetadata` text,
 	`forks` text NOT NULL
 );
 --> statement-breakpoint

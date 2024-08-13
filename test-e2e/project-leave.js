@@ -258,7 +258,6 @@ test('Data access after leaving project', async (t) => {
     schemaName: 'observation',
     attachments: [],
     tags: {},
-    refs: [],
     metadata: {},
   })
   assert(
@@ -280,7 +279,6 @@ test('Data access after leaving project', async (t) => {
       schemaName: 'observation',
       attachments: [],
       tags: {},
-      refs: [],
       metadata: {},
     })
   }, 'member cannot create new data after leaving')
@@ -350,7 +348,6 @@ test('leaving a project deletes data from disk', async (t) => {
     schemaName: 'observation',
     attachments: [],
     tags: {},
-    refs: [],
     metadata: {},
   })
 
@@ -431,7 +428,6 @@ test('partly-left projects are cleaned up on startup', async (t) => {
         schemaName: 'observation',
         attachments: [],
         tags: {},
-        refs: [],
         metadata: {},
       })
       await project.$member.assignRole(

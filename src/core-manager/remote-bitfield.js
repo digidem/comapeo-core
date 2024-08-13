@@ -39,7 +39,7 @@ class RemoteBitfieldPage {
   /**
    *
    * @param {number} index
-   * @returns
+   * @returns {boolean}
    */
   get(index) {
     return quickbit.get(this.bitfield, index)
@@ -373,7 +373,7 @@ export default class RemoteBitfield {
   /**
    * @param {number} start
    * @param {Uint32Array} bitfield
-   * @returns
+   * @returns {boolean}
    */
   insert(start, bitfield) {
     if (start % 32 !== 0) return false
