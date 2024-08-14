@@ -252,8 +252,7 @@ function proxyProps(target, props) {
   // @ts-ignore - too much time to learn how to teach this to Typescript
   return new Proxy(target, {
     get(target, prop, receiver) {
-      // eslint-disable-next-line no-prototype-builtins
-      if (props.hasOwnProperty(prop)) {
+      if (Object.hasOwn(props, prop)) {
         return Reflect.get(props, prop, receiver)
       } else {
         return Reflect.get(target, prop, receiver)
