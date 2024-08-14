@@ -717,7 +717,7 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
   }
 })
 
-test.only('updates sync state when peers are added', async (t) => {
+test('updates sync state when peers are added', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
   const [invitee] = invitees
@@ -820,10 +820,10 @@ test('Correct sync state prior to data sync', async function (t) {
   await Promise.all(projects.map((p) => p.close()))
 })
 
-/* TODO
 test('pre-haves are updated', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
+  const [invitee] = invitees
 
   const disconnect = connectPeers(managers)
   t.after(disconnect)
@@ -837,72 +837,50 @@ test('pre-haves are updated', async (t) => {
   const [invitorProject, inviteeProject] = projects
   await waitForSync(projects, 'initial')
 
-  assertDataSyncStateMatches(
-    invitorProject,
-    { have: 0, wanted: 0, dataToSync: false },
+  console.dir(invitorProject.$sync.getState(), { depth: null })
+  console.dir(inviteeProject.$sync.getState(), { depth: null })
+
+  assert.deepEqual(
+    invitorProject.$sync.getState().deviceSyncState[invitee.deviceId].data,
+    {
+      isEnabled: false,
+      want: 0,
+      wanted: 0,
+    },
     'Invitor project should have nothing to sync at start'
   )
-  assertDataSyncStateMatches(
-    inviteeProject,
-    { have: 0, wanted: 0, dataToSync: false },
-    'Invitee project should see nothing to sync at start'
+  assert.deepEqual(
+    inviteeProject.$sync.getState().deviceSyncState[invitor.deviceId].data,
+    {
+      isEnabled: false,
+      want: 0,
+      wanted: 0,
+    },
+    'Invitee project should have nothing to sync at start'
   )
 
   const invitorToSyncPromise = pEvent(
     invitorProject.$sync,
     'sync-state',
-    (syncState) =>
-      syncStateMatches(syncState.data, {
-        have: 1,
-        wanted: 1,
-        dataToSync: true,
-      })
+    ({ deviceSyncState }) => deviceSyncState[invitee.deviceId]?.data.wanted > 0
   )
   const inviteeToSyncPromise = pEvent(
     inviteeProject.$sync,
     'sync-state',
-    (syncState) =>
-      syncStateMatches(syncState.data, {
-        have: 0,
-        want: 1,
-        dataToSync: true,
-      })
+    ({ deviceSyncState }) => deviceSyncState[invitor.deviceId]?.data.wanted > 0
   )
 
   await invitorProject.observation.create(valueOf(generate('observation')[0]))
 
   await Promise.all([invitorToSyncPromise, inviteeToSyncPromise])
 
-  assertDataSyncStateMatches(
-    inviteeProject,
-    { have: 0, want: 1, dataToSync: true },
+  assert.deepEqual(
+    inviteeProject.$sync.getState().deviceSyncState[invitor.deviceId].data,
+    {
+      isEnabled: false,
+      want: 0,
+      wanted: 1,
+    },
     'Invitee project should learn about something to sync'
   )
 })
-*/
-
-// /**
-//  * @param {MapeoProject} project
-//  * @param {Partial<SyncState>} expected
-//  * @param {string} message
-//  * @returns {void}
-//  */
-// function assertDataSyncStateMatches(project, expected, message) {
-//   const actual = project.$sync.getState().data
-//   assert(syncStateMatches(actual, expected), message)
-// }
-//
-// /**
-//  * @param {any} syncState
-//  * @param {any} expected
-//  * @param {SyncState} syncState
-//  * @param {Partial<SyncState>} expected
-//  * @returns {boolean}
-//  */
-// function syncStateMatches(syncState, expected) {
-//   for (const [key, expectedValue] of Object.entries(expected)) {
-//     const actualValue = /** @type {any} */ (syncState)[key]
-//     if (actualValue !== expectedValue) return false
-//   }
-//   return true
-// }
