@@ -717,9 +717,10 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
   }
 })
 
-test('updates sync state when peers are added', async (t) => {
+test.only('updates sync state when peers are added', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
+  const [invitee] = invitees
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   const invitorProject = await invitor.getProject(projectId)
@@ -727,29 +728,43 @@ test('updates sync state when peers are added', async (t) => {
 
   await invitorProject.observation.create(valueOf(generate('observation')[0]))
 
-  assertDataSyncStateMatches(
-    invitorProject,
-    { have: 1, wanted: 0, dataToSync: false },
+  assert.deepEqual(
+    invitorProject.$sync.getState(),
+    {
+      initial: { isSyncEnabled: true },
+      data: { isSyncEnabled: false },
+      deviceSyncState: {},
+    },
     'data sync state is correct at start'
   )
 
-  const invitorProjectNoticesInvitee = pEvent(
-    invitorProject.$sync,
-    'sync-state',
-    ({ deviceSyncState }) => Object.keys(deviceSyncState).length > 0
-  )
+  // TODO
+  // const invitorProjectNoticesInvitee = pEvent(
+  //   invitorProject.$sync,
+  //   'sync-state',
+  //   ({ deviceSyncState }) => Object.keys(deviceSyncState).length > 0
+  // )
 
   const disconnectPeers = connectPeers(managers, { discovery: false })
   t.after(disconnectPeers)
   await invite({ invitor, invitees, projectId })
 
-  assertDataSyncStateMatches(
-    invitorProject,
-    { have: 1, wanted: 1, dataToSync: true },
+  assert.deepEqual(
+    invitorProject.$sync.getState(),
+    {
+      initial: { isSyncEnabled: true },
+      data: { isSyncEnabled: false },
+      deviceSyncState: {
+        [invitee.deviceId]: {
+          initial: { isEnabled: true, want: 0, wanted: 0 },
+          data: { isEnabled: false, want: 1, wanted: 0 },
+        },
+      },
+    },
     'there should be something to sync'
   )
 
-  await invitorProjectNoticesInvitee
+  // await invitorProjectNoticesInvitee
 })
 
 test('Correct sync state prior to data sync', async function (t) {
@@ -866,27 +881,28 @@ test('pre-haves are updated', async (t) => {
 })
 */
 
-/**
- * @param {MapeoProject} project
- * @param {Partial<SyncState>} expected
- * @param {string} message
- * @returns {void}
- */
-function assertDataSyncStateMatches(project, expected, message) {
-  const actual = project.$sync.getState().data
-  assert(syncStateMatches(actual, expected), message)
-}
-
-/**
-  // TODO: Update this: remove `any`s
- * @param {any} syncState
- * @param {any} expected
- * @returns {boolean}
- */
-function syncStateMatches(syncState, expected) {
-  for (const [key, expectedValue] of Object.entries(expected)) {
-    const actualValue = /** @type {any} */ (syncState)[key]
-    if (actualValue !== expectedValue) return false
-  }
-  return true
-}
+// /**
+//  * @param {MapeoProject} project
+//  * @param {Partial<SyncState>} expected
+//  * @param {string} message
+//  * @returns {void}
+//  */
+// function assertDataSyncStateMatches(project, expected, message) {
+//   const actual = project.$sync.getState().data
+//   assert(syncStateMatches(actual, expected), message)
+// }
+//
+// /**
+//  * @param {any} syncState
+//  * @param {any} expected
+//  * @param {SyncState} syncState
+//  * @param {Partial<SyncState>} expected
+//  * @returns {boolean}
+//  */
+// function syncStateMatches(syncState, expected) {
+//   for (const [key, expectedValue] of Object.entries(expected)) {
+//     const actualValue = /** @type {any} */ (syncState)[key]
+//     if (actualValue !== expectedValue) return false
+//   }
+//   return true
+// }

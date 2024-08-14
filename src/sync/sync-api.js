@@ -35,9 +35,9 @@ export const kRescindFullStopRequest = Symbol('foreground')
 
 /**
  * @typedef {object} DeviceNamespaceGroupSyncState
- * @property {boolean} isEnabled
- * @property {number} want
- * @property {number} wanted
+ * @property {boolean} isEnabled TODO consider renaming this to isSyncEnabled for consistency
+ * @property {number} want TODO docs
+ * @property {number} wanted TODO docs
  */
 
 /**
