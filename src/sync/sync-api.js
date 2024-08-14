@@ -153,7 +153,10 @@ export class SyncApi extends TypedEmitter {
    */
   #getState(namespaceSyncState) {
     // TODO: consider renaming reduceSyncState
-    const deviceSyncState = reduceSyncState(namespaceSyncState)
+    const deviceSyncState = reduceSyncState(
+      namespaceSyncState,
+      this.#peerSyncControllers.values()
+    )
 
     switch (this.#previousSyncEnabledState) {
       case 'none':
@@ -441,10 +444,35 @@ function isSynced(state, type, peerSyncControllers) {
  * Reduce the more detailed sync state we use internally to the public sync
  * state that sums namespaces into an 'initial' and 'full' sync state
  * @param {import('./sync-state.js').State} namespaceSyncState
+ * @param {Iterable<PeerSyncController>} peerSyncControllers
  * @returns {State['deviceSyncState']}
  */
-function reduceSyncState(namespaceSyncState) {
+function reduceSyncState(namespaceSyncState, peerSyncControllers) {
   /** @type {State['deviceSyncState']} */ const result = {}
+
+  for (const psc of peerSyncControllers) {
+    const { peerId } = psc
+
+    result[peerId] = {
+      initial: { isEnabled: false, want: 0, wanted: 0 },
+      data: { isEnabled: false, want: 0, wanted: 0 },
+    }
+
+    for (const namespace of NAMESPACES) {
+      const isBlocked = psc.syncCapability[namespace] === 'blocked'
+      if (isBlocked) continue
+
+      const peerCoreState = namespaceSyncState[namespace].remoteStates[peerId]
+      if (!peerCoreState) continue
+
+      const namespaceGroup = PRESYNC_NAMESPACES.includes(namespace)
+        ? 'initial'
+        : 'data'
+      result[peerId][namespaceGroup].isEnabled = true
+      result[peerId][namespaceGroup].want += peerCoreState.want
+      result[peerId][namespaceGroup].wanted += peerCoreState.wanted
+    }
+  }
 
   // {
   //   auth: {
@@ -464,59 +492,7 @@ function reduceSyncState(namespaceSyncState) {
   //   blob: ...
   // }
 
-  /**
-   * TODO: maybe move this out and take a `result` parameter?
-   * @param {string} peerId
-   * @param {'initial' | 'data'} namespaceGroup
-   * @param {any} peerCoreState TODO
-   * @returns {void}
-   */
-  function mutatingAddToResult(peerId, namespaceGroup, peerCoreState) {
-    // TODO: use `hasOwn`
-    if (!(peerId in result)) {
-      result[peerId] = {
-        initial: { isEnabled: false, want: 0, wanted: 0 },
-        data: { isEnabled: false, want: 0, wanted: 0 },
-      }
-    }
-    // TODO: how do we change `isEnabled`?
-    result[peerId].initial.isEnabled = TODO // ???
-    // TODO: this feels hard to read
-    result[peerId][namespaceGroup].want += peerCoreState.want
-    result[peerId][namespaceGroup].wanted += peerCoreState.wanted
-  }
-
-  for (const ns of PRESYNC_NAMESPACES) {
-    const nsState = namespaceSyncState[ns]
-    for (const [peerId, peerCoreState] of Object.entries(
-      nsState.remoteStates
-    )) {
-      if (peerCoreState.status !== 'connected') continue
-      mutatingAddToResult(peerId, 'initial', peerCoreState)
-    }
-  }
-
   return result
-
-  /*
-  const connectedPeers = Object.values(
-    namespaceSyncState.auth.remoteStates
-  ).filter((remoteState) => remoteState.status === 'connected').length
-  const state = {
-    initial: createInitialSyncTypeState(),
-    data: createInitialSyncTypeState(),
-    connectedPeers,
-  }
-  for (const ns of PRESYNC_NAMESPACES) {
-    const nsState = namespaceSyncState[ns]
-    mutatingAddNamespaceState(state.initial, nsState)
-  }
-  for (const ns of DATA_NAMESPACES) {
-    const nsState = namespaceSyncState[ns]
-    mutatingAddNamespaceState(state.data, nsState)
-  }
-  return state
-  */
 }
 
 /**
