@@ -257,7 +257,7 @@ test('auto-stop', async (t) => {
   )
   const [invitorProject, inviteeProject] = projects
 
-  const generatedObservations = generate('observation', { count: 2 })
+  const generatedObservations = generate('observation', { count: 3 })
 
   invitorProject.$sync.start({ autostopDataSyncAfter: 10_000 })
   inviteeProject.$sync.start({ autostopDataSyncAfter: 10_000 })
@@ -337,7 +337,7 @@ test('auto-stop', async (t) => {
   invitorProject.$sync.start()
 
   const observation3 = await invitorProject.observation.create(
-    valueOf(generatedObservations[0])
+    valueOf(generatedObservations[2])
   )
   await waitForSync(projects, 'full')
   assert(
@@ -385,6 +385,50 @@ test('auto-stop', async (t) => {
   assert(
     !invitorProject.$sync.getState().data.isSyncEnabled,
     'invitor has auto-stopped'
+  )
+})
+
+test('disabling auto-stop timeout', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
+
+  const managers = await createManagers(2, t)
+  const [invitor, ...invitees] = managers
+
+  const disconnect = connectPeers(managers, { discovery: false })
+  t.after(disconnect)
+
+  const projectId = await invitor.createProject({ name: 'mapeo' })
+  await invite({ invitor, invitees, projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  const [invitorProject, inviteeProject] = projects
+
+  invitorProject.$sync.start({ autostopDataSyncAfter: 10_000 })
+  invitorProject.$sync.setAutostopDataSyncTimeout(null)
+
+  inviteeProject.$sync.start()
+
+  assert(
+    invitorProject.$sync.getState().data.isSyncEnabled,
+    "invitor hasn't auto-stopped yet"
+  )
+
+  const observation1 = await invitorProject.observation.create(
+    valueOf(generate('observation')[0])
+  )
+  await waitForSync(projects, 'full')
+  assert(
+    await inviteeProject.observation.getByDocId(observation1.docId),
+    'invitee receives doc'
+  )
+
+  await clock.tickAsync(999_999_999)
+  assert(
+    invitorProject.$sync.getState().data.isSyncEnabled,
+    "invitor still hasn't auto-stopped"
   )
 })
 
