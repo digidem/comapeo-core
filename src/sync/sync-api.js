@@ -3,7 +3,6 @@ import { SyncState } from './sync-state.js'
 import {
   PeerSyncController,
   PRESYNC_NAMESPACES,
-  DATA_NAMESPACES,
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
@@ -24,6 +23,7 @@ export const kRescindFullStopRequest = Symbol('foreground')
 
 /**
  * TODO: Do we still need this type?
+ * TODO: can we remove any of this stuff?
  * @typedef {object} SyncTypeState
  * @property {number} have Number of blocks we have locally
  * @property {number} want Number of blocks we want from connected peers
@@ -487,49 +487,5 @@ function reduceSyncState(namespaceSyncState, peerSyncControllers) {
     }
   }
 
-  // {
-  //   auth: {
-  //     coreLength: 123,
-  //     localState: ...
-  //     remoteStates: {
-  //       'abc123': {
-  //         status: 'connected',
-  //         have: 99,
-  //         want: 123,
-  //         wanted: 456,
-  //         missing: 987,
-  //       }
-  //     }
-  //   }
-  //   config: ...
-  //   blob: ...
-  // }
-
   return result
-}
-
-/**
- * @param {SyncTypeState} accumulator
- * @param {import('./namespace-sync-state.js').SyncState} currentValue
- */
-function mutatingAddNamespaceState(accumulator, currentValue) {
-  accumulator.have += currentValue.localState.have
-  accumulator.want += currentValue.localState.want
-  accumulator.wanted += currentValue.localState.wanted
-  accumulator.missing += currentValue.localState.missing
-  accumulator.dataToSync ||= currentValue.dataToSync
-}
-
-/**
- * @returns {SyncTypeState}
- */
-function createInitialSyncTypeState() {
-  return {
-    have: 0,
-    want: 0,
-    wanted: 0,
-    missing: 0,
-    dataToSync: false,
-    isSyncEnabled: true,
-  }
 }
