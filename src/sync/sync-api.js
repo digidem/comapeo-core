@@ -38,7 +38,7 @@ export const kRescindFullStopRequest = Symbol('foreground')
  * @typedef {object} State
  * @property {{ isSyncEnabled: boolean }} initial State of initial sync (sync of auth, metadata and project config)
  * @property {{ isSyncEnabled: boolean }} data State of data sync (observations, map data, photos, audio, video etc.)
- * @property {Record<string, DeviceSyncState>} deviceSyncState TODO docs
+ * @property {Record<string, DeviceSyncState>} deviceSyncState TODO docs? rename to `remoteDeviceSyncState`?
  */
 
 /**
@@ -429,6 +429,7 @@ function isSynced(state, type, peerSyncControllers) {
 }
 
 /**
+ * TODO: update the docs?
  * Reduce the more detailed sync state we use internally to the public sync
  * state that sums namespaces into an 'initial' and 'full' sync state
  * @param {import('./sync-state.js').State} namespaceSyncState
