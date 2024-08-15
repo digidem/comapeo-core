@@ -822,7 +822,6 @@ test('Correct sync state prior to data sync', async function (t) {
 
   const syncState = await Promise.all(projects.map((p) => p.$sync.getState()))
 
-  console.log('@@@@', syncState)
   assert.deepEqual(syncState, expected)
 
   await disconnect2()
@@ -846,9 +845,6 @@ test('pre-haves are updated', async (t) => {
   const [invitorProject, inviteeProject] = projects
   await waitForSync(projects, 'initial')
 
-  console.dir(invitorProject.$sync.getState(), { depth: null })
-  console.dir(inviteeProject.$sync.getState(), { depth: null })
-
   assert.deepEqual(
     invitorProject.$sync.getState().deviceSyncState[invitee.deviceId].data,
     {
@@ -868,23 +864,15 @@ test('pre-haves are updated', async (t) => {
     'Invitee project should have nothing to sync at start'
   )
 
-  // TODO: clean up this test
-
   const invitorToSyncPromise = pEvent(
     invitorProject.$sync,
     'sync-state',
-    ({ deviceSyncState }) => {
-      console.log('invitor sync state', deviceSyncState)
-      return deviceSyncState[invitee.deviceId]?.data.want > 0
-    }
+    ({ deviceSyncState }) => deviceSyncState[invitee.deviceId]?.data.want > 0
   )
   const inviteeToSyncPromise = pEvent(
     inviteeProject.$sync,
     'sync-state',
-    ({ deviceSyncState }) => {
-      console.log('invitee sync state', deviceSyncState)
-      return deviceSyncState[invitor.deviceId]?.data.wanted > 0
-    }
+    ({ deviceSyncState }) => deviceSyncState[invitor.deviceId]?.data.wanted > 0
   )
 
   await invitorProject.observation.create(valueOf(generate('observation')[0]))
