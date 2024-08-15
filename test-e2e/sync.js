@@ -30,7 +30,6 @@ import { kSyncState } from '../src/sync/sync-api.js'
 import { blobMetadata } from '../tests/helpers/blob-store.js'
 import * as util from 'node:util'
 /** @typedef {import('../src/mapeo-project.js').MapeoProject} MapeoProject */
-/** @typedef {import('../src/sync/sync-api.js').SyncTypeState} SyncState */
 /** @typedef {import('../src/sync/sync-api.js').State} State */
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']

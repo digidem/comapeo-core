@@ -22,18 +22,6 @@ export const kRescindFullStopRequest = Symbol('foreground')
  */
 
 /**
- * TODO: Do we still need this type?
- * TODO: can we remove any of this stuff?
- * @typedef {object} SyncTypeState
- * @property {number} have Number of blocks we have locally
- * @property {number} want Number of blocks we want from connected peers
- * @property {number} wanted Number of blocks that connected peers want from us
- * @property {number} missing Number of blocks missing (we don't have them, but connected peers don't have them either)
- * @property {boolean} dataToSync Is there data available to sync? (want > 0 || wanted > 0)
- * @property {boolean} isSyncEnabled Do we want to sync this type of data?
- */
-
-/**
  * @typedef {object} DeviceNamespaceGroupSyncState
  * @property {boolean} isEnabled TODO consider renaming this to isSyncEnabled for consistency
  * @property {number} want TODO docs
