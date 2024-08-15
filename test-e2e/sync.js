@@ -28,6 +28,7 @@ import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { blobMetadata } from '../tests/helpers/blob-store.js'
+import * as util from 'node:util'
 /** @typedef {import('../src/mapeo-project.js').MapeoProject} MapeoProject */
 /** @typedef {import('../src/sync/sync-api.js').SyncTypeState} SyncState */
 /** @typedef {import('../src/sync/sync-api.js').State} State */
@@ -768,6 +769,8 @@ test('updates sync state when peers are added', async (t) => {
 })
 
 test('Correct sync state prior to data sync', async function (t) {
+  util.inspect.defaultOptions.depth = null // TODO remove this
+
   const COUNT = 6
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
@@ -784,28 +787,34 @@ test('Correct sync state prior to data sync', async function (t) {
   const generated = await seedDatabases(projects, { schemas: ['observation'] })
   await waitForSync(projects, 'initial')
 
-  const initialSyncState = await Promise.all(
-    projects.map((p) => p.$sync.getState())
-  )
-
   // Disconnect and reconnect, because currently pre-have messages about data
   // sync state are only shared on first connection
   await disconnect1()
   const disconnect2 = connectPeers(managers, { discovery: false })
   await waitForPeers(managers)
 
-  const expected = generated.map((docs, i) => {
+  const expected = managers.map((manager, index) => {
+    /** @type {State['deviceSyncState']} */ const deviceSyncState = {}
+
+    const myDocs = generated[index]
+
+    for (const [otherIndex, otherManager] of managers.entries()) {
+      if (manager === otherManager) continue
+
+      const otherDocs = generated[otherIndex]
+      const wanted = otherDocs.length
+      const want = myDocs.length
+
+      deviceSyncState[otherManager.deviceId] = {
+        initial: { isEnabled: true, want: 0, wanted: 0 },
+        data: { isEnabled: false, want, wanted },
+      }
+    }
+
     return {
-      initial: initialSyncState[i].initial,
-      data: {
-        have: docs.length,
-        want: generated.filter((d) => d !== docs).flat().length,
-        wanted: docs.length,
-        missing: 0,
-        dataToSync: true,
-        isSyncEnabled: false,
-      },
-      connectedPeers: managers.length - 1,
+      initial: { isSyncEnabled: true },
+      data: { isSyncEnabled: false },
+      deviceSyncState,
     }
   })
 
@@ -814,6 +823,7 @@ test('Correct sync state prior to data sync', async function (t) {
 
   const syncState = await Promise.all(projects.map((p) => p.$sync.getState()))
 
+  console.log('@@@@', syncState)
   assert.deepEqual(syncState, expected)
 
   await disconnect2()
