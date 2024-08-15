@@ -465,10 +465,23 @@ function reduceSyncState(namespaceSyncState, peerSyncControllers) {
       const peerCoreState = namespaceSyncState[namespace].remoteStates[peerId]
       if (!peerCoreState) continue
 
+      /** @type {boolean} */ let isEnabled
+      switch (peerCoreState.status) {
+        case 'disconnected':
+        case 'connecting':
+          isEnabled = false
+          break
+        case 'connected':
+          isEnabled = true
+          break
+        default:
+          throw new ExhaustivenessError(peerCoreState.status)
+      }
+
       const namespaceGroup = PRESYNC_NAMESPACES.includes(namespace)
         ? 'initial'
         : 'data'
-      result[peerId][namespaceGroup].isEnabled = true
+      result[peerId][namespaceGroup].isEnabled = isEnabled
       result[peerId][namespaceGroup].want += peerCoreState.want
       result[peerId][namespaceGroup].wanted += peerCoreState.wanted
     }

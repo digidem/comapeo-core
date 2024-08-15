@@ -859,15 +859,23 @@ test('pre-haves are updated', async (t) => {
     'Invitee project should have nothing to sync at start'
   )
 
+  // TODO: clean up this test
+
   const invitorToSyncPromise = pEvent(
     invitorProject.$sync,
     'sync-state',
-    ({ deviceSyncState }) => deviceSyncState[invitee.deviceId]?.data.wanted > 0
+    ({ deviceSyncState }) => {
+      console.log('invitor sync state', deviceSyncState)
+      return deviceSyncState[invitee.deviceId]?.data.want > 0
+    }
   )
   const inviteeToSyncPromise = pEvent(
     inviteeProject.$sync,
     'sync-state',
-    ({ deviceSyncState }) => deviceSyncState[invitor.deviceId]?.data.wanted > 0
+    ({ deviceSyncState }) => {
+      console.log('invitee sync state', deviceSyncState)
+      return deviceSyncState[invitor.deviceId]?.data.wanted > 0
+    }
   )
 
   await invitorProject.observation.create(valueOf(generate('observation')[0]))
