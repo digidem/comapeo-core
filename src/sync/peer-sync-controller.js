@@ -12,10 +12,6 @@ import { ExhaustivenessError, createMap } from '../utils.js'
 
 /** @type {Namespace[]} */
 export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
-export const DATA_NAMESPACES = NAMESPACES.filter(
-  (ns) => !PRESYNC_NAMESPACES.includes(ns)
-)
-// TODO: DATA_NAMESPACES seems unused. can we remove it?
 
 /**
  * @internal
