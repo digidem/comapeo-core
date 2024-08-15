@@ -764,6 +764,7 @@ test('updates sync state when peers are added', async (t) => {
     'there should be something to sync'
   )
 
+  // TODO
   // await invitorProjectNoticesInvitee
 })
 
@@ -889,3 +890,40 @@ test('pre-haves are updated', async (t) => {
     'Invitee project should learn about something to sync'
   )
 })
+
+// TODO: remove timeout
+test.only(
+  'data sync state is properly updated as data sync is enabled and disabled',
+  { timeout: 2 ** 30 },
+  async (t) => {
+    const managers = await createManagers(3, t)
+    const [invitor, ...invitees] = managers
+
+    const disconnect = connectPeers(managers)
+    t.after(disconnect)
+
+    const projectId = await invitor.createProject({ name: 'Mapeo' })
+    // TODO: create an observation
+    // TODO: add a check here for the invitor
+
+    await invite({ invitor, invitees, projectId })
+    const projects = await Promise.all(
+      managers.map((m) => m.getProject(projectId))
+    )
+    await waitForSync(projects, 'initial')
+
+    // TODO: add a check here
+
+    projects[0].$sync.start()
+
+    // TODO: add a check here
+
+    projects[1].$sync.start()
+
+    // TODO: add a check here
+
+    projects[1].$sync.stop()
+
+    // TODO: add a check here
+  }
+)
