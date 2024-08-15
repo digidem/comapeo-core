@@ -140,7 +140,7 @@ export async function readConfig(configPath) {
           schemaName: 'field',
         }
         for (const key of Object.keys(valueSchemas.field.properties)) {
-          if (hasOwn(field, key)) {
+          if (Object.hasOwn(field, key)) {
             fieldValue[key] = field[key]
           }
         }
@@ -188,7 +188,7 @@ export async function readConfig(configPath) {
           terms: [],
         }
         for (const key of Object.keys(valueSchemas.preset.properties)) {
-          if (hasOwn(preset, key)) {
+          if (Object.hasOwn(preset, key)) {
             presetValue[key] = preset[key]
           }
         }
@@ -551,14 +551,6 @@ function isFieldOptions(message) {
  */
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
-/**
- * @param {Record<string | symbol, unknown>} obj
- * @param {string | symbol} prop
- */
-function hasOwn(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop)
 }
 
 /**
