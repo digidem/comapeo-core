@@ -917,8 +917,9 @@ test.only(
         syncState.initial.isSyncEnabled,
         'initial sync is also enabled for all remote devices'
       )
-      assert.ok(
-        syncState.data.want === 1,
+      assert.equal(
+        syncState.data.want,
+        1,
         'remote peers want one document from local peer'
       )
     })
@@ -946,17 +947,35 @@ test.only(
       'remote peer has data sync enabled after starting sync'
     )
 
-    Object.values(
-      invitorProject.$sync.getState().remoteDeviceSyncState
-    ).forEach((remoteState) => {
-      // shouldn't this be true for one of the peers?
-      console.log('remote state sync enabled', remoteState.data.isSyncEnabled)
-    })
-
-    // TODO: add a check here
+    await delay(1000)
+    assert.ok(
+      Object.values(invitorProject.$sync.getState().remoteDeviceSyncState).some(
+        (remoteState) => {
+          return remoteState.data.isSyncEnabled
+        }
+      ),
+      'at least one remote peer has enabled data sync'
+    )
 
     inviteesProjects[0].$sync.stop()
-
-    // TODO: add a check here
+    const wantedDocs = Object.values(
+      invitorProject.$sync.getState().remoteDeviceSyncState
+    ).reduce((finalWanted, remoteState) => {
+      return finalWanted + remoteState.data.want
+    }, 0)
+    assert.equal(
+      wantedDocs,
+      1,
+      'after one peer enabled data sync, only the other peer remains wanting a doc'
+    )
+    await delay(1000)
+    assert.ok(
+      !Object.values(
+        invitorProject.$sync.getState().remoteDeviceSyncState
+      ).some((remoteState) => {
+        return remoteState.data.isSyncEnabled
+      }),
+      'no remote peer has enabled data sync now'
+    )
   }
 )
