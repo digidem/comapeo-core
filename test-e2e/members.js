@@ -25,7 +25,16 @@ test('getting yourself after creating project', async (t) => {
   const deviceInfo = manager.getDeviceInfo()
   const project = await manager.getProject(await manager.createProject())
 
-  const { joinedAt: _, ...me } = await project.$member.getById(project.deviceId)
+  const { joinedAt, ...me } = await project.$member.getById(project.deviceId)
+  assert.ok(joinedAt, 'has a `joinedAt` field')
+
+  const joinedAtUnix = new Date(joinedAt).getTime()
+  const now = new Date().getTime()
+
+  assert.ok(
+    Math.abs(joinedAtUnix - now) < 1000,
+    'time of joined proyect is close to now'
+  )
   assert.deepEqual(
     me,
     {
@@ -38,10 +47,11 @@ test('getting yourself after creating project', async (t) => {
   )
 
   const members = await project.$member.getMany()
+  const { joinedAt: _, ...member } = members[0]
 
   assert.equal(members.length, 1)
   assert.deepEqual(
-    members[0],
+    member,
     {
       deviceId: project.deviceId,
       deviceType: 'tablet',
@@ -67,7 +77,14 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
     )
   )
 
-  const me = await project.$member.getById(project.deviceId)
+  const { joinedAt, ...me } = await project.$member.getById(project.deviceId)
+  assert.ok(joinedAt, 'joinedAt exists at project')
+  const joinedAtUnix = new Date(joinedAt).getTime()
+  const now = new Date().getTime()
+  assert.ok(
+    Math.abs(now - joinedAtUnix) < 1000,
+    'time between joined project and now is short'
+  )
 
   assert.deepEqual(
     me,
@@ -81,10 +98,11 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
   )
 
   const members = await project.$member.getMany()
+  const { joinedAt: _, ...member } = members[0]
 
   assert.equal(members.length, 1)
   assert.deepEqual(
-    members[0],
+    member,
     {
       deviceId: project.deviceId,
       deviceType: 'tablet',
@@ -149,17 +167,27 @@ test('getting invited member after invite accepted', async (t) => {
   assert.equal(members.length, 2)
 
   const invitedMember = members.find((m) => m.deviceId === invitee.deviceId)
+  if (invitedMember) {
+    const { joinedAt, ...invitedMemberWithoutJoinedAt } = invitedMember
+    assert.ok(joinedAt, 'joinedAt exists for project')
+    const joinedAtUnix = new Date(joinedAt).getTime()
+    const now = new Date().getTime()
+    assert.ok(
+      Math.abs(now - joinedAtUnix) < 1000,
+      'time between joined project and now is short'
+    )
 
-  assert.deepEqual(
-    invitedMember,
-    {
-      deviceId: invitee.deviceId,
-      deviceType: undefined,
-      name: inviteeName,
-      role: ROLES[MEMBER_ROLE_ID],
-    },
-    'has expected member info with member role'
-  )
+    assert.deepEqual(
+      invitedMemberWithoutJoinedAt,
+      {
+        deviceId: invitee.deviceId,
+        deviceType: undefined,
+        name: inviteeName,
+        role: ROLES[MEMBER_ROLE_ID],
+      },
+      'has expected member info with member role'
+    )
+  }
 
   // TODO: Test that device info of invited member can be read from invitor after syncing
 })
