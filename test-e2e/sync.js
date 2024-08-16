@@ -884,35 +884,29 @@ test('pre-haves are updated', async (t) => {
 })
 
 // TODO: remove timeout
-test.only(
-  'data sync state is properly updated as data sync is enabled and disabled',
-  { timeout: 2 ** 30 },
-  async (t) => {
-    const managers = await createManagers(3, t)
-    const [invitor, ...invitees] = managers
+test('data sync state is properly updated as data sync is enabled and disabled', async (t) => {
+  const managers = await createManagers(3, t)
+  const [invitor, ...invitees] = managers
 
-    const disconnect = connectPeers(managers)
-    t.after(disconnect)
+  const disconnect = connectPeers(managers)
+  t.after(disconnect)
 
-    const projectId = await invitor.createProject({ name: 'Mapeo' })
-    const invitorProject = await invitor.getProject(projectId)
-    // TODO: create an observation
-    invitorProject.observation.create(valueOf(generate('observation')[0]))
-    // TODO: add a check here for the invitor
-    assert.ok(
-      invitorProject.$sync.getState().initial,
-      'initial sync is enabled for local device'
-    )
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  const invitorProject = await invitor.getProject(projectId)
+  invitorProject.observation.create(valueOf(generate('observation')[0]))
+  assert.ok(
+    invitorProject.$sync.getState().initial,
+    'initial sync is enabled for local device'
+  )
 
-    await invite({ invitor, invitees, projectId })
-    const [_, ...inviteesProjects] = await Promise.all(
-      managers.map((m) => m.getProject(projectId))
-    )
-    await waitForSync([invitorProject, ...inviteesProjects], 'initial')
+  await invite({ invitor, invitees, projectId })
+  const [_, ...inviteesProjects] = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  await waitForSync([invitorProject, ...inviteesProjects], 'initial')
 
-    Object.values(
-      invitorProject.$sync.getState().remoteDeviceSyncState
-    ).forEach((syncState) => {
+  Object.values(invitorProject.$sync.getState().remoteDeviceSyncState).forEach(
+    (syncState) => {
       assert.ok(
         syncState.initial.isSyncEnabled,
         'initial sync is also enabled for all remote devices'
@@ -922,60 +916,60 @@ test.only(
         1,
         'remote peers want one document from local peer'
       )
-    })
+    }
+  )
 
-    invitorProject.$sync.start()
+  invitorProject.$sync.start()
 
-    assert.ok(
-      invitorProject.$sync.getState().data.isSyncEnabled,
-      'after enabled sync, data sync is enabled for local device'
-    )
+  assert.ok(
+    invitorProject.$sync.getState().data.isSyncEnabled,
+    'after enabled sync, data sync is enabled for local device'
+  )
 
-    Object.values(
-      invitorProject.$sync.getState().remoteDeviceSyncState
-    ).forEach((syncState) => {
+  Object.values(invitorProject.$sync.getState().remoteDeviceSyncState).forEach(
+    (syncState) => {
       assert.ok(
         !syncState.data.isSyncEnabled,
         'data sync is still disabled for all remote devices'
       )
-    })
+    }
+  )
 
-    inviteesProjects[0].$sync.start()
+  inviteesProjects[0].$sync.start()
 
-    assert.ok(
-      inviteesProjects[0].$sync.getState().data.isSyncEnabled,
-      'remote peer has data sync enabled after starting sync'
-    )
+  assert.ok(
+    inviteesProjects[0].$sync.getState().data.isSyncEnabled,
+    'remote peer has data sync enabled after starting sync'
+  )
 
-    await delay(1000)
-    assert.ok(
-      Object.values(invitorProject.$sync.getState().remoteDeviceSyncState).some(
-        (remoteState) => {
-          return remoteState.data.isSyncEnabled
-        }
-      ),
-      'at least one remote peer has enabled data sync'
-    )
-
-    inviteesProjects[0].$sync.stop()
-    const wantedDocs = Object.values(
-      invitorProject.$sync.getState().remoteDeviceSyncState
-    ).reduce((finalWanted, remoteState) => {
-      return finalWanted + remoteState.data.want
-    }, 0)
-    assert.equal(
-      wantedDocs,
-      1,
-      'after one peer enabled data sync, only the other peer remains wanting a doc'
-    )
-    await delay(1000)
-    assert.ok(
-      !Object.values(
-        invitorProject.$sync.getState().remoteDeviceSyncState
-      ).some((remoteState) => {
+  await delay(2000)
+  assert.ok(
+    Object.values(invitorProject.$sync.getState().remoteDeviceSyncState).some(
+      (remoteState) => {
         return remoteState.data.isSyncEnabled
-      }),
-      'no remote peer has enabled data sync now'
-    )
-  }
-)
+      }
+    ),
+    'at least one remote peer has enabled data sync'
+  )
+
+  inviteesProjects[0].$sync.stop()
+  const wantedDocs = Object.values(
+    invitorProject.$sync.getState().remoteDeviceSyncState
+  ).reduce((finalWanted, remoteState) => {
+    return finalWanted + remoteState.data.want
+  }, 0)
+  assert.equal(
+    wantedDocs,
+    1,
+    'after one peer enabled data sync, only the other peer remains wanting a doc'
+  )
+  await delay(2000)
+  assert.ok(
+    !Object.values(invitorProject.$sync.getState().remoteDeviceSyncState).some(
+      (remoteState) => {
+        return remoteState.data.isSyncEnabled
+      }
+    ),
+    'no remote peer has enabled data sync now'
+  )
+})
