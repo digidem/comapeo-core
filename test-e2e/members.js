@@ -33,7 +33,7 @@ test('getting yourself after creating project', async (t) => {
 
   assert.ok(
     Math.abs(joinedAtUnix - now) < 1000,
-    'time of joined proyect is close to now'
+    'time of joined project is close to now'
   )
   assert.deepEqual(
     me,
