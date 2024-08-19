@@ -919,11 +919,6 @@ test.only('data sync state is properly updated as data sync is enabled and disab
     },
     "from the invitor's perspective, remote peers want one document and data sync is disabled"
   )
-  //console.log('invitor id', invitorProject.deviceId)
-  //console.log(
-  //  'actual',
-  //  inviteesProjects[0].$sync.getState().remoteDeviceSyncState
-  //)
   assert.deepEqual(
     inviteesProjects[0].$sync.getState().remoteDeviceSyncState,
     {
@@ -992,30 +987,30 @@ test.only('data sync state is properly updated as data sync is enabled and disab
 
   inviteesProjects[0].$sync.start()
 
-  //assert.ok(
-  //  inviteesProjects[0].$sync.getState().data.isSyncEnabled,
-  //  'invitee has data sync enabled after starting sync'
-  //)
-  //
-  //await inviteeAppearsEnabledPromise
-  //
-  //assert(
-  //  invitorProject.$sync.getState().remoteDeviceSyncState[invitees[0].deviceId]
-  //    ?.data.isSyncEnabled,
-  //  'one invitee has enabled data sync'
-  //)
-  //assert(
-  //  !invitorProject.$sync.getState().remoteDeviceSyncState[invitees[1].deviceId]
-  //    ?.data.isSyncEnabled,
-  //  'other invitee has not enabled data sync'
-  //)
+  assert.ok(
+    inviteesProjects[0].$sync.getState().data.isSyncEnabled,
+    'invitee has data sync enabled after starting sync'
+  )
 
-  //await invitorProjectSyncedWithFirstInviteePromise
-  //
-  //await Promise.all([
-  //  invitorProjectSyncedWithFirstInviteePromise,
-  //  firstInviteeProjectSyncedWithInvitorPromise,
-  //])
+  await inviteeAppearsEnabledPromise
+
+  assert(
+    invitorProject.$sync.getState().remoteDeviceSyncState[invitees[0].deviceId]
+      ?.data.isSyncEnabled,
+    'one invitee has enabled data sync'
+  )
+  assert(
+    !invitorProject.$sync.getState().remoteDeviceSyncState[invitees[1].deviceId]
+      ?.data.isSyncEnabled,
+    'other invitee has not enabled data sync'
+  )
+
+  await invitorProjectSyncedWithFirstInviteePromise
+
+  await Promise.all([
+    invitorProjectSyncedWithFirstInviteePromise,
+    firstInviteeProjectSyncedWithInvitorPromise,
+  ])
 
   //const inviteeAppearsDisabledPromise = pEvent(
   //  invitorProject.$sync,
