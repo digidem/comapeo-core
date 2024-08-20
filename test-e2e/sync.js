@@ -4,7 +4,8 @@ import * as fs from 'node:fs/promises'
 import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'
 import { request } from 'undici'
-import { excludeKeys } from 'filter-obj'
+// import { excludeKeys } from 'filter-obj' TODO
+import { isDeepStrictEqual } from 'node:util'
 import FakeTimers from '@sinonjs/fake-timers'
 import Fastify from 'fastify'
 import { map } from 'iterpal'
@@ -803,11 +804,15 @@ test('Correct sync state prior to data sync', async function (t) {
     }
   })
 
-  // Wait for initial sharing of sync state
-  await delay(200)
+  await Promise.all(
+    projects.map((project, i) =>
+      pEvent(project.$sync, 'sync-state', (syncState) =>
+        isDeepStrictEqual(syncState, expected[i])
+      )
+    )
+  )
 
-  const syncState = await Promise.all(projects.map((p) => p.$sync.getState()))
-
+  const syncState = projects.map((p) => p.$sync.getState())
   assert.deepEqual(syncState, expected)
 
   await disconnect2()
@@ -882,7 +887,7 @@ test('pre-haves are updated', async (t) => {
 })
 
 // TODO: remove timeout
-test.only('data sync state is properly updated as data sync is enabled and disabled', async (t) => {
+test('data sync state is properly updated as data sync is enabled and disabled', async (t) => {
   const managers = await createManagers(3, t)
   const [invitor, ...invitees] = managers
 
