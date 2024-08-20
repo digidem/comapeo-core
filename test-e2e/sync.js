@@ -885,7 +885,6 @@ test('pre-haves are updated', async (t) => {
   )
 })
 
-// TODO: remove timeout
 test('data sync state is properly updated as data sync is enabled and disabled', async (t) => {
   const managers = await createManagers(3, t)
   const [invitor, ...invitees] = managers
@@ -957,18 +956,12 @@ test('data sync state is properly updated as data sync is enabled and disabled',
     'data sync is still disabled for remote peers'
   )
 
-  /* eslint-disable-next-line no-unused-vars */
   const inviteeAppearsEnabledPromise = pEvent(
     invitorProject.$sync,
     'sync-state',
     ({ remoteDeviceSyncState }) =>
       remoteDeviceSyncState[invitees[0].deviceId]?.data.isSyncEnabled
-  ) // this should resolve with the first invitee's data.isSyncEnabled value
-
-  // commenting this will crash the db
-  await delay(2000)
-
-  /* eslint-disable-next-line no-unused-vars */
+  )
   const invitorProjectSyncedWithFirstInviteePromise = pEvent(
     invitorProject.$sync,
     'sync-state',
@@ -976,8 +969,7 @@ test('data sync state is properly updated as data sync is enabled and disabled',
       const remoteData = remoteDeviceSyncState[invitees[0].deviceId]?.data ?? {}
       return remoteData.want + remoteData.wanted === 0
     }
-  ) // this should resolve with the first invitee's data. want+wanted=0
-  /* eslint-disable-next-line no-unused-vars */
+  )
   const firstInviteeProjectSyncedWithInvitorPromise = pEvent(
     inviteesProjects[0].$sync,
     'sync-state',
@@ -985,7 +977,7 @@ test('data sync state is properly updated as data sync is enabled and disabled',
       const remoteData = remoteDeviceSyncState[invitor.deviceId]?.data ?? {}
       return remoteData.want + remoteData.wanted === 0
     }
-  ) // this should resolve with the invitor's data. want+wanted
+  )
 
   inviteesProjects[0].$sync.start()
 
