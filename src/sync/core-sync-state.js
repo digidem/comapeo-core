@@ -347,8 +347,7 @@ export class PeerState {
  * Only exporteed for testing
  */
 export function deriveState(coreState) {
-  // TODO: consider renaming this to `length` to make the diff smaller
-  const coreLength = coreState.length || 0
+  const length = coreState.length || 0
   /** @type {CoreState} */
   const localState = { have: 0, want: 0, wanted: 0 }
   /** @type {Record<PeerId, PeerCoreState>} */
@@ -373,8 +372,8 @@ export function deriveState(coreState) {
     }
   }
 
-  for (let i = 0; i < coreLength; i += 32) {
-    const truncate = 2 ** Math.min(32, coreLength - i) - 1
+  for (let i = 0; i < length; i += 32) {
+    const truncate = 2 ** Math.min(32, length - i) - 1
 
     const localHaves = coreState.localState.haveWord(i) & truncate
     localState.have += bitCount32(localHaves)
@@ -399,7 +398,11 @@ export function deriveState(coreState) {
     localState.want += bitCount32(iWantFromOthers)
   }
 
-  return { coreLength, localState, remoteStates }
+  return {
+    coreLength: length,
+    localState,
+    remoteStates,
+  }
 }
 
 /**
