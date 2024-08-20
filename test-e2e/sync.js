@@ -656,10 +656,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     // creates a local copy of the blocked peer's cores, but never downloads
     // data, so it considers data to be "missing" which the Invitor does not
     // register as missing.
-    assert.deepEqual(
-      invitorState[ns].localState,
-      inviteeState[ns].localState,
-    )
+    assert.deepEqual(invitorState[ns].localState, inviteeState[ns].localState)
   }
 
   await disconnect1()
@@ -1011,35 +1008,33 @@ test.only('data sync state is properly updated as data sync is enabled and disab
     firstInviteeProjectSyncedWithInvitorPromise,
   ])
 
-  //const inviteeAppearsDisabledPromise = pEvent(
-  //  invitorProject.$sync,
-  //  'sync-state',
-  //  ({ remoteDeviceSyncState }) =>
-  //    !remoteDeviceSyncState[invitees[0].deviceId]?.data.isSyncEnabled
-  //)
-  //
-  //inviteesProjects[0].$sync.stop()
-  //
-  //await inviteeAppearsDisabledPromise
-  //
-  //const finalRemoteDeviceSyncState =
-  //  invitorProject.$sync.getState().remoteDeviceSyncState
-  //assert.deepEqual(
-  //  finalRemoteDeviceSyncState[invitees[0].deviceId],
-  //  {
-  //    initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-  //    data: { isSyncEnabled: false, want: 0, wanted: 0 },
-  //  },
-  //  'one invitee is disabled but settled'
-  //)
-  //assert.deepEqual(
-  //  finalRemoteDeviceSyncState[invitees[1].deviceId],
-  //  {
-  //    [invitees[1].deviceId]: {
-  //      initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-  //      data: { isSyncEnabled: false, want: 1, wanted: 0 },
-  //    },
-  //  },
-  //  'other invitee is still disabled, still wants something'
-  //)
+  const inviteeAppearsDisabledPromise = pEvent(
+    invitorProject.$sync,
+    'sync-state',
+    ({ remoteDeviceSyncState }) =>
+      !remoteDeviceSyncState[invitees[0].deviceId]?.data.isSyncEnabled
+  )
+
+  inviteesProjects[0].$sync.stop()
+
+  await inviteeAppearsDisabledPromise
+
+  const finalRemoteDeviceSyncState =
+    invitorProject.$sync.getState().remoteDeviceSyncState
+  assert.deepEqual(
+    finalRemoteDeviceSyncState[invitees[0].deviceId],
+    {
+      initial: { isSyncEnabled: true, want: 0, wanted: 0 },
+      data: { isSyncEnabled: false, want: 0, wanted: 0 },
+    },
+    'one invitee is disabled but settled'
+  )
+  assert.deepEqual(
+    finalRemoteDeviceSyncState[invitees[1].deviceId],
+    {
+      initial: { isSyncEnabled: true, want: 0, wanted: 0 },
+      data: { isSyncEnabled: false, want: 1, wanted: 0 },
+    },
+    'other invitee is still disabled, still wants something'
+  )
 })
