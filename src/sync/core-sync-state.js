@@ -363,8 +363,6 @@ export function deriveState(coreState) {
     // how to expose this state in a meaningful way for considering sync
     // completion, because blocked peers do not sync.
     if (isBlocked) continue
-    // TODO
-    // peerIds.push(peerId)
     peers.set(peerId, peerState)
 
     remoteStates[peerId] = {
@@ -401,75 +399,7 @@ export function deriveState(coreState) {
     localState.want += bitCount32(iWantFromOthers)
   }
 
-  return {
-    coreLength,
-    localState,
-    remoteStates,
-  }
-
-  // -----------------
-
-  // const peerIds = ['local']
-  // const peers = [coreState.localState]
-
-  // for (const [peerId, peerState] of coreState.remoteStates.entries()) {
-  //   const psc = coreState.peerSyncControllers.get(peerId)
-  //   const isBlocked = psc?.syncCapability[coreState.namespace] === 'blocked'
-  //   // Currently we do not include blocked peers in sync state - it's unclear
-  //   // how to expose this state in a meaningful way for considering sync
-  //   // completion, because blocked peers do not sync.
-  //   if (isBlocked) continue
-  //   peerIds.push(peerId)
-  //   peers.push(peerState)
-  // }
-
-  // /** @type {CoreState[]} */
-  // const peerStates = new Array(peers.length)
-  // const length = coreState.length || 0
-  // for (let i = 0; i < peerStates.length; i++) {
-  //   peerStates[i] = { want: 0, have: 0, wanted: 0 }
-  // }
-  // const haves = new Array(peerStates.length)
-  // let want = 0
-  // for (let i = 0; i < length; i += 32) {
-  //   const truncate = 2 ** Math.min(32, length - i) - 1
-  //   let someoneHasIt = 0
-  //   for (let j = 0; j < peers.length; j++) {
-  //     haves[j] = peers[j].haveWord(i) & truncate
-  //     someoneHasIt |= haves[j]
-  //     peerStates[j].have += bitCount32(haves[j])
-  //   }
-  //   let someoneWantsIt = 0
-  //   for (let j = 0; j < peers.length; j++) {
-  //     // A block is a want if:
-  //     //   1. The peer wants it
-  //     //   2. They don't have it
-  //     //   3. Someone does have it
-  //     const wouldLikeIt = peers[j].wantWord(i) & ~haves[j]
-  //     want = wouldLikeIt & someoneHasIt
-  //     someoneWantsIt |= want
-  //     peerStates[j].want += bitCount32(want)
-  //   }
-  //   for (let j = 0; j < peerStates.length; j++) {
-  //     // A block is wanted if:
-  //     //   1. Someone wants it
-  //     //   2. The peer has it
-  //     const wanted = someoneWantsIt & haves[j]
-  //     peerStates[j].wanted += bitCount32(wanted)
-  //   }
-  // }
-  // /** @type {DerivedState} */
-  // const derivedState = {
-  //   coreLength: length,
-  //   localState: peerStates[0],
-  //   remoteStates: {},
-  // }
-  // for (let j = 1; j < peerStates.length; j++) {
-  //   const peerState = /** @type {PeerCoreState} */ (peerStates[j])
-  //   peerState.status = peers[j].status
-  //   derivedState.remoteStates[peerIds[j]] = peerState
-  // }
-  // return derivedState
+  return { coreLength, localState, remoteStates }
 }
 
 /**
