@@ -29,7 +29,7 @@ import { EventEmitter } from 'node:events'
  */
 const scenarios = [
   {
-    message: '3 peers, start with haves, test want, have, wanted and missing',
+    message: '3 peers, start with haves, test want, have, and wanted',
     state: {
       length: 4,
       localState: { have: 0b0111 },
@@ -37,27 +37,24 @@ const scenarios = [
     },
     expected: {
       coreLength: 4,
-      localState: { want: 0, have: 3, wanted: 2, missing: 1 },
+      localState: { want: 0, have: 3, wanted: 2 },
       remoteStates: {
         peer0: {
           want: 1,
           have: 2,
           wanted: 1,
-          missing: 1,
           status: 'disconnected',
         },
         peer1: {
           want: 1,
           have: 2,
           wanted: 1,
-          missing: 1,
           status: 'disconnected',
         },
         peer2: {
           want: 2,
           have: 1,
           wanted: 0,
-          missing: 1,
           status: 'disconnected',
         },
       },
@@ -72,20 +69,18 @@ const scenarios = [
     },
     expected: {
       coreLength: 4,
-      localState: { want: 0, have: 0, wanted: 0, missing: 4 },
+      localState: { want: 0, have: 0, wanted: 0 },
       remoteStates: {
         peer0: {
           want: 0,
           have: 0,
           wanted: 0,
-          missing: 4,
           status: 'disconnected',
         },
         peer1: {
           want: 0,
           have: 0,
           wanted: 0,
-          missing: 4,
           status: 'disconnected',
         },
       },
@@ -100,9 +95,9 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 1, missing: 0 },
+      localState: { want: 0, have: 3, wanted: 1 },
       remoteStates: {
-        peer0: { want: 1, have: 1, wanted: 0, missing: 0, status: 'connected' },
+        peer0: { want: 1, have: 1, wanted: 0, status: 'connected' },
       },
     },
   },
@@ -115,13 +110,12 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 1, missing: 0 },
+      localState: { want: 0, have: 3, wanted: 1 },
       remoteStates: {
         peer0: {
           want: 1,
           have: 1,
           wanted: 0,
-          missing: 0,
           status: 'disconnected',
         },
       },
@@ -136,13 +130,12 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 1, missing: 0 },
+      localState: { want: 0, have: 3, wanted: 1 },
       remoteStates: {
         peer0: {
           want: 1,
           have: 2,
           wanted: 0,
-          missing: 0,
           status: 'disconnected',
         },
       },
@@ -157,13 +150,12 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 0, missing: 0 },
+      localState: { want: 0, have: 3, wanted: 0 },
       remoteStates: {
         peer0: {
           want: 0,
           have: 3,
           wanted: 0,
-          missing: 0,
           status: 'disconnected',
         },
       },
@@ -182,27 +174,24 @@ const scenarios = [
     },
     expected: {
       coreLength: 72,
-      localState: { want: 0, have: 50, wanted: 15, missing: 22 },
+      localState: { want: 0, have: 50, wanted: 15 },
       remoteStates: {
         peer0: {
           want: 10,
           have: 40,
           wanted: 5,
-          missing: 22,
           status: 'disconnected',
         },
         peer1: {
           want: 5,
           have: 40,
           wanted: 10,
-          missing: 0,
           status: 'disconnected',
         },
         peer2: {
           want: 5,
           have: 40,
           wanted: 10,
-          missing: 0,
           status: 'disconnected',
         },
       },
@@ -217,20 +206,18 @@ const scenarios = [
     },
     expected: {
       coreLength: 2,
-      localState: { want: 0, have: 2, wanted: 2, missing: 0 },
+      localState: { want: 0, have: 2, wanted: 2 },
       remoteStates: {
         peer0: {
           want: 1,
           have: 0,
           wanted: 0,
-          missing: 0,
           status: 'disconnected',
         },
         peer1: {
           want: 2,
           have: 0,
           wanted: 0,
-          missing: 0,
           status: 'disconnected',
         },
       },
@@ -272,14 +259,12 @@ test('deriveState() have at index beyond bitfield page size', () => {
       want: 1,
       have: 10,
       wanted: 10,
-      missing: BITS_PER_PAGE - 1,
     },
     remoteStates: {
       peer0: {
         want: 10,
         have: 1,
         wanted: 1,
-        missing: BITS_PER_PAGE - 1,
         status: 'disconnected',
       },
     },

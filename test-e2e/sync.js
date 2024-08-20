@@ -649,6 +649,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
       assert.equal(blockedState[ns].coreCount, 1)
     }
 
+    // TODO: Update this comment?
     // "Invitor" knows blocked peer is blocked from the start, so never connects
     // and never creates a local copy of the blocked peer cores, but "Invitee"
     // does connect initially, before it realized the peer is blocked, and
@@ -656,8 +657,8 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     // data, so it considers data to be "missing" which the Invitor does not
     // register as missing.
     assert.deepEqual(
-      excludeKeys(invitorState[ns].localState, ['missing']),
-      excludeKeys(inviteeState[ns].localState, ['missing'])
+      invitorState[ns].localState,
+      inviteeState[ns].localState,
     )
   }
 
@@ -1004,8 +1005,6 @@ test.only('data sync state is properly updated as data sync is enabled and disab
       ?.data.isSyncEnabled,
     'other invitee has not enabled data sync'
   )
-
-  await invitorProjectSyncedWithFirstInviteePromise
 
   await Promise.all([
     invitorProjectSyncedWithFirstInviteePromise,

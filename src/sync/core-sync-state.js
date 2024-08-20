@@ -22,7 +22,6 @@ import RemoteBitfield, {
  * @property {number} have blocks the peer has locally
  * @property {number} want blocks the peer wants, and at least one peer has
  * @property {number} wanted blocks the peer has that at least one peer wants
- * @property {number} missing blocks the peer wants but no peer has
  */
 /**
  * @typedef {CoreState & { status: 'disconnected' | 'connecting' | 'connected' }} PeerCoreState
@@ -48,7 +47,6 @@ import RemoteBitfield, {
  *   1. `have` - number of blocks the peer has locally
  *   2. `want` - number of blocks the peer wants, and at least one peer has
  *   3. `wanted` - number of blocks the peer has that at least one peer wants
- *   4. `missing` - number of blocks the peer wants but no peer has
  *
  */
 export class CoreSyncState {
@@ -367,7 +365,7 @@ export function deriveState(coreState) {
   const peerStates = new Array(peers.length)
   const length = coreState.length || 0
   for (let i = 0; i < peerStates.length; i++) {
-    peerStates[i] = { want: 0, have: 0, wanted: 0, missing: 0 }
+    peerStates[i] = { want: 0, have: 0, wanted: 0}
   }
   const haves = new Array(peerStates.length)
   let want = 0
@@ -389,14 +387,6 @@ export function deriveState(coreState) {
       want = wouldLikeIt & someoneHasIt
       someoneWantsIt |= want
       peerStates[j].want += bitCount32(want)
-      // A block is missing if:
-      //   1. The peer wants it
-      //   2. The peer doesn't have it
-      //   3. No other peer has it
-      // Need to truncate to the core length, since otherwise we would get
-      // missing values beyond core length
-      const missing = wouldLikeIt & ~someoneHasIt & truncate
-      peerStates[j].missing += bitCount32(missing)
     }
     for (let j = 0; j < peerStates.length; j++) {
       // A block is wanted if:
