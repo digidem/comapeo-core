@@ -22,23 +22,25 @@ export const kRescindFullStopRequest = Symbol('foreground')
  */
 
 /**
- * @typedef {object} DeviceNamespaceGroupSyncState
+ * @internal
+ * @typedef {object} RemoteDeviceNamespaceGroupSyncState
  * @property {boolean} isSyncEnabled this device in a 'connected' state
  * @property {number} want number of docs wanted by this device
  * @property {number} wanted number of docs that other devices want from this device
  */
 
 /**
- * @typedef {object} DeviceSyncState state of sync for remote peer
- * @property {DeviceNamespaceGroupSyncState} initial state of auth, metadata and project config
- * @property {DeviceNamespaceGroupSyncState} data state of observations, map data, media attachments
+ * @internal
+ * @typedef {object} RemoteDeviceSyncState state of sync for remote peer
+ * @property {RemoteDeviceNamespaceGroupSyncState} initial state of auth, metadata and project config
+ * @property {RemoteDeviceNamespaceGroupSyncState} data state of observations, map data, media attachments
  */
 
 /**
  * @typedef {object} State
  * @property {{ isSyncEnabled: boolean }} initial State of initial sync (sync of auth, metadata and project config) for local device
  * @property {{ isSyncEnabled: boolean }} data State of data sync (observations, map data, photos, audio, video etc.) for local device
- * @property {Record<string, DeviceSyncState>} remoteDeviceSyncState  map of peerId to DeviceSyncState.
+ * @property {Record<string, RemoteDeviceSyncState>} remoteDeviceSyncState  map of peerId to DeviceSyncState.
  */
 
 /**
