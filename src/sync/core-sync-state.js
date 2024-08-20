@@ -337,9 +337,7 @@ export class PeerState {
 }
 
 /**
- * Derive count for each peer: "want"; "have"; "wanted". There is definitely a
- * more performant and clever way of doing this, but at least with this
- * implementation I can understand what I am doing.
+ * Derive count for each peer: "want"; "have"; "wanted".
  *
  * @param {InternalState} coreState
  *
