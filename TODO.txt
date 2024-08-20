@@ -1,7 +1,0 @@
-- can we remove `have`?
-- can we remove `missing`?
-- can we remove `dataToSync`?
-- docs
-- maybe clean up `reduceSyncState`
-- change names?
-- all remaining TODOs
