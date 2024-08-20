@@ -4,7 +4,6 @@ import * as fs from 'node:fs/promises'
 import { pEvent } from 'p-event'
 import { setTimeout as delay } from 'timers/promises'
 import { request } from 'undici'
-// import { excludeKeys } from 'filter-obj' TODO
 import { isDeepStrictEqual } from 'node:util'
 import FakeTimers from '@sinonjs/fake-timers'
 import Fastify from 'fastify'

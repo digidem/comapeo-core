@@ -128,7 +128,6 @@
     "cpy-cli": "^5.0.0",
     "drizzle-kit": "^0.20.14",
     "eslint": "^8.57.0",
-    "filter-obj": "^6.0.0",
     "husky": "^8.0.0",
     "iterpal": "^0.4.0",
     "light-my-request": "^5.10.0",
