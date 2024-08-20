@@ -439,11 +439,6 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
   for (const psc of peerSyncControllers) {
     const { peerId } = psc
 
-    result[peerId] = {
-      initial: { isSyncEnabled: false, want: 0, wanted: 0 },
-      data: { isSyncEnabled: false, want: 0, wanted: 0 },
-    }
-
     for (const namespace of NAMESPACES) {
       const isBlocked = psc.syncCapability[namespace] === 'blocked'
       if (isBlocked) continue
@@ -463,6 +458,13 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
           break
         default:
           throw new ExhaustivenessError(peerCoreState.status)
+      }
+
+      if (!Object.hasOwn(result, peerId)) {
+        result[peerId] = {
+          initial: { isSyncEnabled: false, want: 0, wanted: 0 },
+          data: { isSyncEnabled: false, want: 0, wanted: 0 },
+        }
       }
 
       const namespaceGroup = PRESYNC_NAMESPACES.includes(namespace)
