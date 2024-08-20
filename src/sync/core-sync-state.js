@@ -18,18 +18,22 @@ import RemoteBitfield, {
  * @property {import('../core-manager/index.js').Namespace} namespace
  */
 /**
- * @typedef {object} CoreState
- * @property {number} have blocks the peer has locally
- * @property {number} want blocks this peer wants from us TODO: derive?
- * @property {number} wanted blocks we want from this peer TODO: derivce?
+ * @typedef {object} LocalCoreState
+ * @property {number} have blocks we have
+ * @property {number} want unique blocks we want from any other peer
+ * @property {number} wanted blocks we want from this peer
  */
 /**
- * @typedef {CoreState & { status: 'disconnected' | 'connecting' | 'connected' }} PeerCoreState
+ * @typedef {object} PeerCoreState
+ * @property {number} have blocks the peer has locally
+ * @property {number} want blocks this peer wants from us
+ * @property {number} wanted blocks we want from this peer
+ * @property {'disconnected' | 'connecting' | 'connected'} status
  */
 /**
  * @typedef {object} DerivedState
  * @property {number} coreLength known (sparse) length of the core
- * @property {CoreState} localState local state
+ * @property {LocalCoreState} localState local state
  * @property {{ [peerId in PeerId]: PeerCoreState }} remoteStates map of state of all known peers
  */
 
@@ -346,7 +350,7 @@ export class PeerState {
  */
 export function deriveState(coreState) {
   const length = coreState.length || 0
-  /** @type {CoreState} */
+  /** @type {LocalCoreState} */
   const localState = { have: 0, want: 0, wanted: 0 }
   /** @type {Record<PeerId, PeerCoreState>} */
   const remoteStates = {}
