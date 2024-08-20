@@ -363,6 +363,7 @@ export function deriveState(coreState) {
     // how to expose this state in a meaningful way for considering sync
     // completion, because blocked peers do not sync.
     if (isBlocked) continue
+    // TODO
     // peerIds.push(peerId)
     peers.set(peerId, peerState)
 
@@ -380,24 +381,24 @@ export function deriveState(coreState) {
     const localHaves = coreState.localState.haveWord(i) & truncate
     localState.have += bitCount32(localHaves)
 
-    for (const [peerId, peer] of peers.entries()) {
-      // Haves
+    let wantFromAnyElse = 0
+    let iWantFromOthers = 0
 
+    for (const [peerId, peer] of peers.entries()) {
       const peerHaves = peer.haveWord(i) & truncate
       remoteStates[peerId].have += bitCount32(peerHaves)
 
-      // Wants (from me)
-
       const wantsFromMe = peer.wantWord(i) & ~peerHaves & localHaves
       remoteStates[peerId].want += bitCount32(wantsFromMe)
-      localState.wanted += bitCount32(wantsFromMe) // TODO: does this work?
-
-      // I want from them
+      wantFromAnyElse |= wantsFromMe
 
       const wantedByMe = peerHaves & ~localHaves
       remoteStates[peerId].wanted += bitCount32(wantedByMe)
-      localState.want += bitCount32(wantedByMe) // TODO: does this work?
+      iWantFromOthers |= wantedByMe
     }
+
+    localState.wanted += bitCount32(wantFromAnyElse)
+    localState.want += bitCount32(iWantFromOthers)
   }
 
   return {

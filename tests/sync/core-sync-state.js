@@ -42,13 +42,13 @@ const scenarios = [
         peer0: {
           want: 1,
           have: 2,
-          wanted: 1,
+          wanted: 0,
           status: 'disconnected',
         },
         peer1: {
           want: 1,
           have: 2,
-          wanted: 1,
+          wanted: 0,
           status: 'disconnected',
         },
         peer2: {
@@ -179,19 +179,19 @@ const scenarios = [
         peer0: {
           want: 10,
           have: 40,
-          wanted: 5,
+          wanted: 0,
           status: 'disconnected',
         },
         peer1: {
           want: 5,
           have: 40,
-          wanted: 10,
+          wanted: 0,
           status: 'disconnected',
         },
         peer2: {
           want: 5,
           have: 40,
-          wanted: 10,
+          wanted: 0,
           status: 'disconnected',
         },
       },
