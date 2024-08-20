@@ -48,10 +48,16 @@ import RemoteBitfield, {
  * "pull" the state when it wants it via `coreSyncState.getState()`.
  *
  * Each peer (including the local peer) has a state of:
- *   1. `have` - number of blocks the peer has locally
- *   2. `want` - TODO
- *   3. `wanted` - TODO
  *
+ * 1. `have` - number of blocks the peer has locally
+ *
+ * 2. `want` - number of blocks this peer wants. For local state, this is the
+ *    number of unique blocks we want from anyone else. For remote peers, it is
+ *    the number of blocks this peer wants from us.
+ *
+ * 3. `wanted` - number of blocks this peer has that's wanted by others. For
+ *    local state, this is the number of unique blocks any of our peers want.
+ *    For remote peers, it is the number of blocks we want from them.
  */
 export class CoreSyncState {
   /** @type {import('hypercore')<'binary', Buffer> | undefined} */
