@@ -49,8 +49,7 @@ test('sync cores in a namespace', async () => {
       if (
         state.localState.want === 0 &&
         state.localState.wanted === 0 &&
-        state.localState.have === 30 &&
-        state.localState.missing === 10
+        state.localState.have === 30
       ) {
         syncState1Sync.resolve(state.remoteStates)
       }
@@ -66,8 +65,7 @@ test('sync cores in a namespace', async () => {
       if (
         state.localState.want === 0 &&
         state.localState.wanted === 0 &&
-        state.localState.have === 30 &&
-        state.localState.missing === 10
+        state.localState.have === 30
       ) {
         syncState2Sync.resolve(state.remoteStates)
       }
@@ -104,7 +102,6 @@ test('sync cores in a namespace', async () => {
         want: 0,
         wanted: 0,
         have: 30,
-        missing: 10,
         status: 'connected',
       },
     },
@@ -118,7 +115,6 @@ test('sync cores in a namespace', async () => {
         want: 0,
         wanted: 0,
         have: 30,
-        missing: 10,
         status: 'connected',
       },
     },

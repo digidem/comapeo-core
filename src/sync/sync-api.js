@@ -3,7 +3,6 @@ import { SyncState } from './sync-state.js'
 import {
   PeerSyncController,
   PRESYNC_NAMESPACES,
-  DATA_NAMESPACES,
 } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
@@ -23,20 +22,25 @@ export const kRescindFullStopRequest = Symbol('foreground')
  */
 
 /**
- * @typedef {object} SyncTypeState
- * @property {number} have Number of blocks we have locally
- * @property {number} want Number of blocks we want from connected peers
- * @property {number} wanted Number of blocks that connected peers want from us
- * @property {number} missing Number of blocks missing (we don't have them, but connected peers don't have them either)
- * @property {boolean} dataToSync Is there data available to sync? (want > 0 || wanted > 0)
- * @property {boolean} isSyncEnabled Do we want to sync this type of data?
+ * @internal
+ * @typedef {object} RemoteDeviceNamespaceGroupSyncState
+ * @property {boolean} isSyncEnabled do we want to sync this namespace group?
+ * @property {number} want number of blocks this device wants from us
+ * @property {number} wanted number of blocks we want from this device
+ */
+
+/**
+ * @internal
+ * @typedef {object} RemoteDeviceSyncState state of sync for a remote peer
+ * @property {RemoteDeviceNamespaceGroupSyncState} initial state of initial namespaces (auth, config, and blob index)
+ * @property {RemoteDeviceNamespaceGroupSyncState} data state of data namespaces (data and blob)
  */
 
 /**
  * @typedef {object} State
- * @property {SyncTypeState} initial State of initial sync (sync of auth, metadata and project config)
- * @property {SyncTypeState} data State of data sync (observations, map data, photos, audio, video etc.)
- * @property {number} connectedPeers Number of connected peers
+ * @property {{ isSyncEnabled: boolean }} initial state of initial namespace syncing (auth, config, and blob index) for local device
+ * @property {{ isSyncEnabled: boolean }} data state of data namespace syncing (data and blob) for local device
+ * @property {Record<string, RemoteDeviceSyncState>} remoteDeviceSyncState sync states for remote peers
  */
 
 /**
@@ -138,24 +142,33 @@ export class SyncApi extends TypedEmitter {
    * @returns {State}
    */
   #getState(namespaceSyncState) {
-    const state = reduceSyncState(namespaceSyncState)
+    const remoteDeviceSyncState = getRemoteDevicesSyncState(
+      namespaceSyncState,
+      this.#peerSyncControllers.values()
+    )
 
     switch (this.#previousSyncEnabledState) {
       case 'none':
-        state.initial.isSyncEnabled = state.data.isSyncEnabled = false
-        break
+        return {
+          initial: { isSyncEnabled: false },
+          data: { isSyncEnabled: false },
+          remoteDeviceSyncState,
+        }
       case 'presync':
-        state.initial.isSyncEnabled = true
-        state.data.isSyncEnabled = false
-        break
+        return {
+          initial: { isSyncEnabled: true },
+          data: { isSyncEnabled: false },
+          remoteDeviceSyncState,
+        }
       case 'all':
-        state.initial.isSyncEnabled = state.data.isSyncEnabled = true
-        break
+        return {
+          initial: { isSyncEnabled: true },
+          data: { isSyncEnabled: true },
+          remoteDeviceSyncState,
+        }
       default:
         throw new ExhaustivenessError(this.#previousSyncEnabledState)
     }
-
-    return state
   }
 
   /**
@@ -417,53 +430,52 @@ function isSynced(state, type, peerSyncControllers) {
 }
 
 /**
- * Reduce the more detailed sync state we use internally to the public sync
- * state that sums namespaces into an 'initial' and 'full' sync state
  * @param {import('./sync-state.js').State} namespaceSyncState
- * @returns {State}
+ * @param {Iterable<PeerSyncController>} peerSyncControllers
+ * @returns {State['remoteDeviceSyncState']}
  */
-function reduceSyncState(namespaceSyncState) {
-  const connectedPeers = Object.values(
-    namespaceSyncState.auth.remoteStates
-  ).filter((remoteState) => remoteState.status === 'connected').length
-  const state = {
-    initial: createInitialSyncTypeState(),
-    data: createInitialSyncTypeState(),
-    connectedPeers,
-  }
-  for (const ns of PRESYNC_NAMESPACES) {
-    const nsState = namespaceSyncState[ns]
-    mutatingAddNamespaceState(state.initial, nsState)
-  }
-  for (const ns of DATA_NAMESPACES) {
-    const nsState = namespaceSyncState[ns]
-    mutatingAddNamespaceState(state.data, nsState)
-  }
-  return state
-}
+function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
+  /** @type {State['remoteDeviceSyncState']} */ const result = {}
 
-/**
- * @param {SyncTypeState} accumulator
- * @param {import('./namespace-sync-state.js').SyncState} currentValue
- */
-function mutatingAddNamespaceState(accumulator, currentValue) {
-  accumulator.have += currentValue.localState.have
-  accumulator.want += currentValue.localState.want
-  accumulator.wanted += currentValue.localState.wanted
-  accumulator.missing += currentValue.localState.missing
-  accumulator.dataToSync ||= currentValue.dataToSync
-}
+  for (const psc of peerSyncControllers) {
+    const { peerId } = psc
 
-/**
- * @returns {SyncTypeState}
- */
-function createInitialSyncTypeState() {
-  return {
-    have: 0,
-    want: 0,
-    wanted: 0,
-    missing: 0,
-    dataToSync: false,
-    isSyncEnabled: true,
+    for (const namespace of NAMESPACES) {
+      const isBlocked = psc.syncCapability[namespace] === 'blocked'
+      if (isBlocked) continue
+
+      const peerCoreState = namespaceSyncState[namespace].remoteStates[peerId]
+      if (!peerCoreState) continue
+
+      /** @type {boolean} */
+      let isSyncEnabled
+      switch (peerCoreState.status) {
+        case 'disconnected':
+        case 'connecting':
+          isSyncEnabled = false
+          break
+        case 'connected':
+          isSyncEnabled = true
+          break
+        default:
+          throw new ExhaustivenessError(peerCoreState.status)
+      }
+
+      if (!Object.hasOwn(result, peerId)) {
+        result[peerId] = {
+          initial: { isSyncEnabled: false, want: 0, wanted: 0 },
+          data: { isSyncEnabled: false, want: 0, wanted: 0 },
+        }
+      }
+
+      const namespaceGroup = PRESYNC_NAMESPACES.includes(namespace)
+        ? 'initial'
+        : 'data'
+      result[peerId][namespaceGroup].isSyncEnabled = isSyncEnabled
+      result[peerId][namespaceGroup].want += peerCoreState.want
+      result[peerId][namespaceGroup].wanted += peerCoreState.wanted
+    }
   }
+
+  return result
 }

@@ -12,9 +12,6 @@ import { ExhaustivenessError, createMap } from '../utils.js'
 
 /** @type {Namespace[]} */
 export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
-export const DATA_NAMESPACES = NAMESPACES.filter(
-  (ns) => !PRESYNC_NAMESPACES.includes(ns)
-)
 
 /**
  * @internal
@@ -32,7 +29,7 @@ export class PeerSyncController {
   #syncCapability = createNamespaceMap('unknown')
   /** @type {SyncEnabledState} */
   #syncEnabledState = 'none'
-  /** @type {Record<Namespace, import('./core-sync-state.js').CoreState | null>} */
+  /** @type {Record<Namespace, import('./core-sync-state.js').LocalCoreState | null>} */
   #prevLocalState = createNamespaceMap(null)
   /** @type {SyncStatus} */
   #syncStatus = createNamespaceMap('unknown')

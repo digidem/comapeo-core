@@ -20,19 +20,22 @@ import RemoteBitfield, {
  * @property {import('../core-manager/index.js').Namespace} namespace
  */
 /**
- * @typedef {object} CoreState
- * @property {number} have blocks the peer has locally
- * @property {number} want blocks the peer wants, and at least one peer has
- * @property {number} wanted blocks the peer has that at least one peer wants
- * @property {number} missing blocks the peer wants but no peer has
+ * @typedef {object} LocalCoreState
+ * @property {number} have blocks we have
+ * @property {number} want unique blocks we want from any other peer
+ * @property {number} wanted blocks we want from this peer
  */
 /**
- * @typedef {CoreState & { status: 'disconnected' | 'connecting' | 'connected' }} PeerCoreState
+ * @typedef {object} PeerCoreState
+ * @property {number} have blocks the peer has locally
+ * @property {number} want blocks this peer wants from us
+ * @property {number} wanted blocks we want from this peer
+ * @property {'disconnected' | 'connecting' | 'connected'} status
  */
 /**
  * @typedef {object} DerivedState
  * @property {number} coreLength known (sparse) length of the core
- * @property {CoreState} localState local state
+ * @property {LocalCoreState} localState local state
  * @property {{ [peerId in PeerId]: PeerCoreState }} remoteStates map of state of all known peers
  */
 
@@ -47,11 +50,16 @@ import RemoteBitfield, {
  * "pull" the state when it wants it via `coreSyncState.getState()`.
  *
  * Each peer (including the local peer) has a state of:
- *   1. `have` - number of blocks the peer has locally
- *   2. `want` - number of blocks the peer wants, and at least one peer has
- *   3. `wanted` - number of blocks the peer has that at least one peer wants
- *   4. `missing` - number of blocks the peer wants but no peer has
  *
+ * 1. `have` - number of blocks the peer has locally
+ *
+ * 2. `want` - number of blocks this peer wants. For local state, this is the
+ *    number of unique blocks we want from anyone else. For remote peers, it is
+ *    the number of blocks this peer wants from us.
+ *
+ * 3. `wanted` - number of blocks this peer has that's wanted by others. For
+ *    local state, this is the number of unique blocks any of our peers want.
+ *    For remote peers, it is the number of blocks we want from them.
  */
 export class CoreSyncState {
   /** @type {import('hypercore')<'binary', Buffer> | undefined} */
@@ -341,9 +349,7 @@ export class PeerState {
 }
 
 /**
- * Derive count for each peer: "want"; "have"; "wanted". There is definitely a
- * more performant and clever way of doing this, but at least with this
- * implementation I can understand what I am doing.
+ * Derive count for each peer: "want"; "have"; "wanted".
  *
  * @param {InternalState} coreState
  *
@@ -351,9 +357,14 @@ export class PeerState {
  * Only exporteed for testing
  */
 export function deriveState(coreState) {
-  const peerIds = ['local']
-  const peers = [coreState.localState]
+  const length = coreState.length || 0
+  /** @type {LocalCoreState} */
+  const localState = { have: 0, want: 0, wanted: 0 }
+  /** @type {Record<PeerId, PeerCoreState>} */
+  const remoteStates = {}
 
+  /** @type {Map<PeerId, PeerState>} */
+  const peers = new Map()
   for (const [peerId, peerState] of coreState.remoteStates.entries()) {
     const psc = coreState.peerSyncControllers.get(peerId)
     const isBlocked = psc?.syncCapability[coreState.namespace] === 'blocked'
@@ -361,65 +372,46 @@ export function deriveState(coreState) {
     // how to expose this state in a meaningful way for considering sync
     // completion, because blocked peers do not sync.
     if (isBlocked) continue
-    peerIds.push(peerId)
-    peers.push(peerState)
+    peers.set(peerId, peerState)
+    remoteStates[peerId] = {
+      have: 0,
+      want: 0,
+      wanted: 0,
+      status: peerState.status,
+    }
   }
 
-  /** @type {CoreState[]} */
-  const peerStates = new Array(peers.length)
-  const length = coreState.length || 0
-  for (let i = 0; i < peerStates.length; i++) {
-    peerStates[i] = { want: 0, have: 0, wanted: 0, missing: 0 }
-  }
-  const haves = new Array(peerStates.length)
-  let want = 0
   for (let i = 0; i < length; i += 32) {
     const truncate = 2 ** Math.min(32, length - i) - 1
-    let someoneHasIt = 0
-    for (let j = 0; j < peers.length; j++) {
-      haves[j] = peers[j].haveWord(i) & truncate
-      someoneHasIt |= haves[j]
-      peerStates[j].have += bitCount32(haves[j])
+
+    const localHaves = coreState.localState.haveWord(i) & truncate
+    localState.have += bitCount32(localHaves)
+
+    let someoneElseWantsFromMe = 0
+    let iWantFromSomeoneElse = 0
+
+    for (const [peerId, peer] of peers.entries()) {
+      const peerHaves = peer.haveWord(i) & truncate
+      remoteStates[peerId].have += bitCount32(peerHaves)
+
+      const theyWantFromMe = peer.wantWord(i) & ~peerHaves & localHaves
+      remoteStates[peerId].want += bitCount32(theyWantFromMe)
+      someoneElseWantsFromMe |= theyWantFromMe
+
+      const iWantFromThem = peerHaves & ~localHaves
+      remoteStates[peerId].wanted += bitCount32(iWantFromThem)
+      iWantFromSomeoneElse |= iWantFromThem
     }
-    let someoneWantsIt = 0
-    for (let j = 0; j < peers.length; j++) {
-      // A block is a want if:
-      //   1. The peer wants it
-      //   2. They don't have it
-      //   3. Someone does have it
-      const wouldLikeIt = peers[j].wantWord(i) & ~haves[j]
-      want = wouldLikeIt & someoneHasIt
-      someoneWantsIt |= want
-      peerStates[j].want += bitCount32(want)
-      // A block is missing if:
-      //   1. The peer wants it
-      //   2. The peer doesn't have it
-      //   3. No other peer has it
-      // Need to truncate to the core length, since otherwise we would get
-      // missing values beyond core length
-      const missing = wouldLikeIt & ~someoneHasIt & truncate
-      peerStates[j].missing += bitCount32(missing)
-    }
-    for (let j = 0; j < peerStates.length; j++) {
-      // A block is wanted if:
-      //   1. Someone wants it
-      //   2. The peer has it
-      const wanted = someoneWantsIt & haves[j]
-      peerStates[j].wanted += bitCount32(wanted)
-    }
+
+    localState.wanted += bitCount32(someoneElseWantsFromMe)
+    localState.want += bitCount32(iWantFromSomeoneElse)
   }
-  /** @type {DerivedState} */
-  const derivedState = {
+
+  return {
     coreLength: length,
-    localState: peerStates[0],
-    remoteStates: {},
+    localState,
+    remoteStates,
   }
-  for (let j = 1; j < peerStates.length; j++) {
-    const peerState = /** @type {PeerCoreState} */ (peerStates[j])
-    peerState.status = peers[j].status
-    derivedState.remoteStates[peerIds[j]] = peerState
-  }
-  return derivedState
 }
 
 /**
