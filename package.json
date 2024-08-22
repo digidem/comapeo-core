@@ -144,10 +144,10 @@
     "streamx": "^2.15.1",
     "tempy": "^3.1.0",
     "ts-proto": "^1.156.7",
-    "typedoc": "^0.25.13",
-    "typedoc-plugin-markdown": "^3.17.1",
-    "typedoc-plugin-missing-exports": "^2.2.0",
-    "typescript": "^5.4.5",
+    "typedoc": "^0.26.6",
+    "typedoc-plugin-markdown": "^4.2.5",
+    "typedoc-plugin-missing-exports": "^3.0.0",
+    "typescript": "^5.5.4",
     "yazl": "^2.5.1"
   },
   "dependencies": {
