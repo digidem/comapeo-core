@@ -48,9 +48,11 @@ import {
   kRequestFullStop,
   kRescindFullStopRequest,
 } from './sync/sync-api.js'
+/** @import { ProjectSettingsValue as ProjectValue } from '@mapeo/schema' */
+/** @import { SetNonNullable } from 'type-fest' */
+/** @import { Namespace } from './core-manager/index.js' */
 
-/** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
-/** @typedef {import('type-fest').SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
+/** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -359,7 +361,7 @@ export class MapeoManager extends TypedEmitter {
     const projectKeypair = KeyManager.generateProjectKeypair()
 
     // 2. Create namespace encryption keys
-    /** @type {Record<import('./core-manager/core-index.js').Namespace, Buffer>} */
+    /** @type {Record<Namespace, Buffer>} */
     const encryptionKeys = {
       auth: randomBytes(32),
       blob: randomBytes(32),

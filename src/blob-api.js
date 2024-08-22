@@ -2,9 +2,7 @@ import fs from 'node:fs'
 // @ts-expect-error - pipelinePromise missing from streamx types
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
-
-/** @typedef {import('./types.js').BlobId} BlobId */
-/** @typedef {import('./types.js').BlobType} BlobType  */
+/** @import { BlobId, BlobType } from './types.js' */
 
 /**
  * Location coordinate data. Based on [Expo's `LocationObjectCoords`][0].
@@ -53,7 +51,7 @@ export class BlobApi {
 
   /**
    * Get a url for a blob based on its BlobId
-   * @param {import('./types.js').BlobId} blobId
+   * @param {BlobId} blobId
    * @returns {Promise<string>}
    */
   async getUrl(blobId) {

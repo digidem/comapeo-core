@@ -28,8 +28,7 @@ import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { blobMetadata } from '../tests/helpers/blob-store.js'
-/** @typedef {import('../src/mapeo-project.js').MapeoProject} MapeoProject */
-/** @typedef {import('../src/sync/sync-api.js').State} State */
+/** @import { State } from '../src/sync/sync-api.js' */
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 

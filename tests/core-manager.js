@@ -24,7 +24,9 @@ import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
-/** @typedef {import('../src/constants.js').NAMESPACES[number]} Namespace */
+/** @import { NAMESPACES } from '../src/constants.js' */
+
+/** @typedef {typeof NAMESPACES[number]} Namespace */
 
 /** @param {any} [key] */
 async function createCore(key) {

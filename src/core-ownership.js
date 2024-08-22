@@ -9,10 +9,7 @@ import mapObject from 'map-obj'
 import { discoveryKey } from 'hypercore-crypto'
 import pDefer from 'p-defer'
 import { NAMESPACES } from './constants.js'
-
-/**
- * @typedef {import('./types.js').CoreOwnershipWithSignatures} CoreOwnershipWithSignatures
- */
+/** @import { CoreOwnershipWithSignatures } from './types.js' */
 
 export class CoreOwnership {
   #dataType

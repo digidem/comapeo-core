@@ -2,13 +2,15 @@ import { and, sql } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
 import { NotFoundError } from './errors.js'
+/** @import { Translation, TranslationValue } from '@mapeo/schema' */
+/** @import { SetOptional } from 'type-fest' */
 
 export const ktranslatedLanguageCodeToSchemaNames = Symbol(
   'translatedLanguageCodeToSchemaNames'
 )
 export default class TranslationApi {
   /** @type {Map<
-   * import('@mapeo/schema').TranslationValue['languageCode'],
+   * TranslationValue['languageCode'],
    * Set<import('@mapeo/schema/dist/types.js').SchemaName>>} */
   #translatedLanguageCodeToSchemaNames = new Map()
   #dataType
@@ -21,8 +23,8 @@ export default class TranslationApi {
    *   import('./datastore/index.js').DataStore<'config'>,
    *   typeof import('./schema/project.js').translationTable,
    *   'translation',
-   *   import('@mapeo/schema').Translation,
-   *   import('@mapeo/schema').TranslationValue
+   *   Translation,
+   *   TranslationValue
    * >}  opts.dataType
    * @param {typeof import('./schema/project.js').translationTable} opts.table
    */
@@ -45,7 +47,7 @@ export default class TranslationApi {
   }
 
   /**
-   * @param {import('@mapeo/schema').TranslationValue} value
+   * @param {TranslationValue} value
    */
   async put(value) {
     /* eslint-disable no-unused-vars */
@@ -63,13 +65,11 @@ export default class TranslationApi {
     }
   }
 
-  /** @typedef {import('type-fest').SetOptional<
-   * import('@mapeo/schema').TranslationValue['docRef'], 'versionId'>} DocRefWithOptionalVersionId
-   */
+  /** @typedef {SetOptional<TranslationValue['docRef'], 'versionId'>} DocRefWithOptionalVersionId */
 
   /**
-   * @param {import('type-fest').SetOptional<
-   * Omit<import('@mapeo/schema').TranslationValue,'schemaName' | 'message' | 'docRef'>,
+   * @param {SetOptional<
+   * Omit<TranslationValue,'schemaName' | 'message' | 'docRef'>,
    * 'propertyRef' | 'regionCode'> & {docRef: DocRefWithOptionalVersionId}} value
    * @returns {Promise<import('@mapeo/schema').Translation[]>}
    */
@@ -111,7 +111,7 @@ export default class TranslationApi {
   }
 
   /**
-   * @param {import('@mapeo/schema').TranslationValue} doc
+   * @param {TranslationValue} doc
    */
   index(doc) {
     let translatedSchemas = this.#translatedLanguageCodeToSchemaNames.get(

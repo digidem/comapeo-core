@@ -12,25 +12,29 @@ import {
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { ROLES, isRoleIdForNewInvite } from './roles.js'
-
 /**
- * @internal
- * @typedef {import('./generated/rpc.js').Invite} Invite
+ * @import {
+ *   DeviceInfo,
+ *   DeviceInfoValue,
+ *   ProjectSettings,
+ *   ProjectSettingsValue
+ * } from '@mapeo/schema'
  */
-/**
- * @internal
- * @typedef {import('./generated/rpc.js').InviteResponse} InviteResponse
- */
+/** @import { Invite, InviteResponse } from './generated/rpc.js' */
+/** @import { DataType } from './datatype/index.js' */
+/** @import { DataStore } from './datastore/index.js' */
+/** @import { deviceInfoTable } from './schema/project.js' */
+/** @import { projectSettingsTable } from './schema/client.js' */
 
-/** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
-/** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
+/** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
+/** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
 /**
  * @typedef {object} MemberInfo
  * @prop {string} deviceId
  * @prop {import('./roles.js').Role} role
- * @prop {import('@mapeo/schema').DeviceInfo['name']} [name]
- * @prop {import('@mapeo/schema').DeviceInfo['deviceType']} [deviceType]
- * @prop {import('@mapeo/schema').DeviceInfo['createdAt']} [joinedAt]
+ * @prop {DeviceInfo['name']} [name]
+ * @prop {DeviceInfo['deviceType']} [deviceType]
+ * @prop {DeviceInfo['createdAt']} [joinedAt]
  */
 
 export class MemberApi extends TypedEmitter {

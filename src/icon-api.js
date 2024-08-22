@@ -1,8 +1,9 @@
+/** @import { PresetValue, IconValue } from '@mapeo/schema' */
+
 export const kGetIconBlob = Symbol('getIcon')
 
-/** @typedef {import('@mapeo/schema').PresetValue['iconRef']} IconRef */
-
-/** @typedef {import('@mapeo/schema').IconValue['variants']} IconVariants */
+/** @typedef {PresetValue['iconRef']} IconRef */
+/** @typedef {IconValue['variants']} IconVariants */
 /** @typedef {IconVariants[number]} IconVariant */
 
 /**

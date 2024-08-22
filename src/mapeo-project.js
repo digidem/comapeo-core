@@ -49,9 +49,10 @@ import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
+/** @import { ProjectSettingsValue } from '@mapeo/schema' */
 
-/** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
-/** @typedef {import('@mapeo/schema').ProjectSettingsValue['configMetadata']} ConfigMetadata */
+/** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
+/** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'

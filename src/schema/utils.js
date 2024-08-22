@@ -4,10 +4,11 @@ import {
   sqliteTable,
   customType,
 } from 'drizzle-orm/sqlite-core'
+/** @import { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core' */
 
 /**
  * @template {string} [TName=string]
- * @typedef {import('drizzle-orm/sqlite-core').SQLiteTableWithColumns<{
+ * @typedef {SQLiteTableWithColumns<{
  *   name: TName;
  *   dialect: 'sqlite';
  *   schema: string | undefined;

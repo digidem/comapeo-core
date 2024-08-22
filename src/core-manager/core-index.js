@@ -1,7 +1,5 @@
 import crypto from 'hypercore-crypto'
-
-/** @typedef {import('./index.js').Namespace} Namespace */
-/** @typedef {import('./index.js').CoreRecord} CoreRecord */
+/** @import { CoreRecord, Namespace } from './index.js' */
 
 /**
  * An in-memory index of open cores.

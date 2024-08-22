@@ -2,8 +2,7 @@ import { keyToId } from '../utils.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
 } from '../core-manager/remote-bitfield.js'
-/** @typedef {import('../types.js').HypercoreRemoteBitfield} HypercoreRemoteBitfield */
-/** @typedef {import('../types.js').HypercorePeer} HypercorePeer */
+/** @import { HypercorePeer, HypercoreRemoteBitfield } from '../types.js' */
 
 /**
  * @typedef {RemoteBitfield} Bitfield
