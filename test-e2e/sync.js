@@ -504,7 +504,7 @@ test('validates auto-stop timeouts', async (t) => {
   assert(!project.$sync.getState().data.isSyncEnabled, 'sync is not enabled')
 })
 
-test.only('gracefully shutting down sync for all projects when backgrounded', async function (t) {
+test('gracefully shutting down sync for all projects when backgrounded', async function (t) {
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
 
