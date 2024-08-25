@@ -14,16 +14,16 @@
  * ```
  */
 
-import { setTimeout as delay } from 'node:timers/promises'
-import { pEvent } from 'p-event'
 import { generate } from '@mapeo/mock-data'
 import { map } from 'iterpal'
 import assert from 'node:assert/strict'
 import * as process from 'node:process'
 import test from 'node:test'
+import { setTimeout as delay } from 'node:timers/promises'
+import { isDeepStrictEqual } from 'node:util'
+import { pEvent } from 'p-event'
 import { valueOf } from '../src/utils.js'
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
-import { isDeepStrictEqual } from 'node:util'
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 
 /**
