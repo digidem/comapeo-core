@@ -271,6 +271,11 @@ export class PeerSyncController {
     if (!peerToUnreplicate) return
     this.#log('unreplicating core %k', core.key)
     peerToUnreplicate.channel.close()
+    // TODO: tidy this
+    this.#protomux.unpair({
+      protocol: 'hypercore/alpha',
+      id: core.discoveryKey || undefined,
+    })
     this.#replicatingCores.delete(core)
   }
 

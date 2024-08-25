@@ -284,7 +284,10 @@ test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
 
   invitorProject.$sync.start()
 
-  await pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 })
+  await assert.rejects(
+    () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
+    'wait for sync times out'
+  )
 
   await assert.rejects(
     () => inviteeProject.observation.getByDocId(obs3.docId),
