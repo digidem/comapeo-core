@@ -264,18 +264,17 @@ export class PeerSyncController {
    * @param {import('hypercore')<'binary', any>} core
    */
   #unreplicateCore(core) {
+    // TODO: tidy this
     if (core === this.#coreManager.creatorCore) return
     const peerToUnreplicate = core.peers.find(
       (peer) => peer.protomux === this.#protomux
     )
-    if (!peerToUnreplicate) return
-    this.#log('unreplicating core %k', core.key)
-    peerToUnreplicate.channel.close()
-    // TODO: tidy this
-    this.#protomux.unpair({
+    console.log('@@@@','unreplicating core', core.key?.toString('hex').slice(0, 6))
+    peerToUnreplicate?.protomux.unpair({
       protocol: 'hypercore/alpha',
-      id: core.discoveryKey || undefined,
+      id: core.discoveryKey,
     })
+    peerToUnreplicate?.channel.close()
     this.#replicatingCores.delete(core)
   }
 

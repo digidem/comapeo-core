@@ -56,8 +56,8 @@ declare module 'protomux' {
       opts: { protocol: string; id?: Buffer },
       notify: (id: Buffer) => Promise<void>
     ): void
-    unpair(opts: { protocol: string; id?: Buffer }): void
-    opened(opts: { protocol: string; id?: Buffer }): boolean
+    unpair(opts: { protocol: string; id?: null | Buffer }): void
+    opened(opts: { protocol: string; id?: null | Buffer }): boolean
     createChannel(opts: {
       userData?: any
       protocol: string
