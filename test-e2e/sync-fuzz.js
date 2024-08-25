@@ -14,14 +14,13 @@
  * ```
  */
 
+// import whyIsNodeRunning from 'why-is-node-running'
 import { generate } from '@mapeo/mock-data'
-import { map } from 'iterpal'
 import assert from 'node:assert/strict'
 import * as process from 'node:process'
 import test from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 import { isDeepStrictEqual } from 'node:util'
-import { pEvent } from 'p-event'
 import { valueOf } from '../src/utils.js'
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -67,7 +66,6 @@ for (let i = 1; i <= testCount; i++) {
     const [invitor, ...invitees] = managers
 
     const disconnect = connectPeers(managers, { discovery: false })
-    t.after(disconnect)
 
     const projectId = await invitor.createProject({ name: 'Mapeo' })
     await invite({ invitor, invitees, projectId })
@@ -83,6 +81,14 @@ for (let i = 1; i <= testCount; i++) {
         })
       )
     )
+    t.after(() => {
+      // TODO tidy this
+      console.log('@@@@', 'disconnecting!')
+      return disconnect()
+    })
+    // t.after(() => {
+    //   setImmediate(() => whyIsNodeRunning())
+    // })
     await waitForSync(projects, 'initial')
 
     /** @type {string[]} */
@@ -93,22 +99,44 @@ for (let i = 1; i <= testCount; i++) {
       observationIds: new Set(),
     }))
 
+    // TODO
+    const timeout = setTimeout(() => {}, 2 ** 30)
+    t.after(() => {
+      clearTimeout(timeout)
+    })
+
     for (let i = 0; i < actionCount; i++) {
+      // console.log('@@@@', 'starting action', i)
       const possibleActions = getPossibleNextActions(projects)
       const action = sample(possibleActions)
       assert(action, 'no next step? test is broken')
 
+      // console.log('@@@@', 'running action', i)
       const result = await action(expectedState)
+      console.log('@@@@', result.title)
       actionTitles.push(result.title)
       expectedState = result.newExpectedState
 
+      console.log('@@@@', 'waiting for data sync...')
       await waitForDataSyncForEnabledProjects(projects)
+      console.log('@@@@', 'waited for data sync')
 
       /** @type {State} */
       const actualState = await Promise.all(
         projects.map(async (project) => {
+          // console.log('@@@@', 'project', index, 'fetching observations...')
           const observations = await project.observation.getMany()
-          const observationIds = map(observations, (o) => o.docId)
+          // console.log(
+          //   '@@@@',
+          //   'project',
+          //   index,
+          //   'fetched',
+          //   observations.length,
+          //   'observations.'
+          // )
+          // TODO
+          // const observationIds = map(observations, (o) => o.docId)
+          const observationIds = observations.map((o) => o.docId)
           return {
             isSyncEnabled: isSyncEnabled(project),
             observationIds: new Set(observationIds),
@@ -116,8 +144,12 @@ for (let i = 1; i <= testCount; i++) {
         })
       )
 
+      console.log('@@@@', 'about to check states...')
       assertStatesMatch(actualState, expectedState, actionTitles)
+      console.log('@@@@', 'checked states')
     }
+
+    console.log('@@@@', 'done')
   })
 }
 
@@ -216,14 +248,8 @@ function getPossibleNextActionsForProject(project, index) {
   // Start or stop sync
 
   if (isSyncEnabled(project)) {
-    result.push(async (expectedState) => {
-      const stopped = pEvent(
-        project.$sync,
-        'sync-state',
-        (state) => !state.data.isSyncEnabled
-      )
+    result.push((expectedState) => {
       project.$sync.stop()
-      await stopped
 
       const myProject = expectedState[index]
       return {
@@ -238,14 +264,8 @@ function getPossibleNextActionsForProject(project, index) {
       }
     })
   } else {
-    result.push(async (expectedState) => {
-      const started = pEvent(
-        project.$sync,
-        'sync-state',
-        (state) => !state.data.isSyncEnabled
-      )
+    result.push((expectedState) => {
       project.$sync.start()
-      await started
 
       const myProject = expectedState[index]
       return {
@@ -292,55 +312,69 @@ function getPossibleNextActions(projects) {
  */
 async function waitForDataSyncForEnabledProjects(projects) {
   /**
-   * @param {object} remoteState
-   * @param {boolean} remoteState.isSyncEnabled
-   * @param {number} remoteState.want
-   * @param {number} remoteState.wanted
-   * @returns {boolean}
-   */
-  const isRemoteStateDone = (remoteState) =>
-    remoteState.isSyncEnabled
-      ? remoteState.want === 0 && remoteState.wanted === 0
-      : true
-
-  /**
    * @param {MapeoProject} project
    * @returns {boolean}
    */
   const isProjectDone = (project) => {
-    const {
-      data: { isSyncEnabled },
-      remoteDeviceSyncState,
-    } = project.$sync.getState()
-    return (
-      !isSyncEnabled ||
-      Object.values(remoteDeviceSyncState).every(
-        (remoteState) =>
-          isRemoteStateDone(remoteState.initial) &&
-          isRemoteStateDone(remoteState.data)
+    const otherProjects = projects.filter((p) => p !== project)
+    const otherProjectsSyncStates = otherProjects.map((p) => p.$sync.getState())
+
+    // TODO tidy
+    let result = false
+    if (project.$sync.getState().data.isSyncEnabled) {
+      result = otherProjectsSyncStates.every((s) =>
+        // TODO tidy
+        s.data.isSyncEnabled
+          ? s.remoteDeviceSyncState[project.deviceId].data.want === 0 &&
+            s.remoteDeviceSyncState[project.deviceId].data.wanted === 0
+          : true
       )
-    )
+    } else {
+      result = true
+      // result = otherProjectsSyncStates.every(
+      //   (s) => !s.remoteDeviceSyncState[project.deviceId].data.isSyncEnabled
+      // )
+    }
+
+    return result
   }
 
   /**
    * @returns {boolean}
    */
-  const isDone = () => projects.every(isProjectDone)
-
-  await delay(1000)
-  // TODO: any way to avoid this?
+  const isDone = () => {
+    const result = projects.every(isProjectDone)
+    if (!result) {
+      console.log(
+        '@@@@',
+        JSON.stringify(projects.map((p) => p.$sync.getState()))
+      )
+    }
+    return result
+  }
 
   if (isDone()) return
 
-  return new Promise((resolve) => {
-    const onState = () => {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      for (const project of projects) {
+        project.$sync.off('sync-state', onState)
+      }
+      clearTimeout(timeout)
+    }
+
+    let onState = () => {
       if (isDone()) {
-        for (const project of projects) {
-          project.$sync.off('sync-state', onState)
-        }
+        cleanup()
+        onState = () => {} // TODO: necessary?
         resolve()
       }
     }
+
+    const timeout = setTimeout(() => {
+      cleanup()
+      reject(new Error('Timed out'))
+    }, 3000)
 
     for (const project of projects) {
       project.$sync.on('sync-state', onState)
