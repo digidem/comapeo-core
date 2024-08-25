@@ -238,8 +238,7 @@ test('start and stop sync', async function (t) {
   await disconnect()
 })
 
-// TODO: add a descriptive test title
-test('TODO', async (t) => {
+test('sync only happens if both sides are enabled', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
 
@@ -273,7 +272,6 @@ test('TODO', async (t) => {
   assert(await inviteeProject.observation.getByDocId(obs1.docId))
   assert(await invitorProject.observation.getByDocId(obs2.docId))
 
-  // Order is important here
   invitorProject.$sync.stop()
   inviteeProject.$sync.stop()
 
@@ -295,7 +293,6 @@ test('TODO', async (t) => {
 })
 
 test('auto-stop', async (t) => {
-  console.log('starting auto-stop test')
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
 
@@ -443,11 +440,9 @@ test('auto-stop', async (t) => {
     !invitorProject.$sync.getState().data.isSyncEnabled,
     'invitor has auto-stopped'
   )
-  console.log('auto-stop test fixed')
 })
 
 test('disabling auto-stop timeout', async (t) => {
-  console.log('disabling auto-stop timeout', 'start')
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
 
@@ -489,8 +484,6 @@ test('disabling auto-stop timeout', async (t) => {
     invitorProject.$sync.getState().data.isSyncEnabled,
     "invitor still hasn't auto-stopped"
   )
-
-  console.log('disabling auto-stop timeout', 'stop')
 })
 
 test('validates auto-stop timeouts', async (t) => {
@@ -520,26 +513,20 @@ test.only('gracefully shutting down sync for all projects when backgrounded', as
 
   const projectGroupsAfterFirstStep = await Promise.all(
     [1, 2, 3].map(async (projectNumber) => {
-      console.log(projectNumber, 'creating project...')
       const projectId = await invitor.createProject({
         name: `Project ${projectNumber}`,
       })
-      console.log(projectNumber, 'created project.')
 
-      console.log(projectNumber, 'inviting...')
       await invite({ invitor, invitees, projectId })
-      console.log(projectNumber, 'invited')
 
       const projects = await Promise.all(
         managers.map((m) => m.getProject(projectId))
       )
       const [invitorProject, inviteeProject] = projects
 
-      console.log(projectNumber, 'creating observation...')
       const observation1 = await invitorProject.observation.create(
         valueOf(generate('observation')[0])
       )
-      console.log(projectNumber, 'created observation')
 
       await assert.rejects(
         () => inviteeProject.observation.getByDocId(observation1.docId),
@@ -549,9 +536,7 @@ test.only('gracefully shutting down sync for all projects when backgrounded', as
       inviteeProject.$sync.start()
       invitorProject.$sync.start()
 
-      console.log(projectNumber, 'waiting for sync')
       await waitForSync(projects, 'full')
-      console.log(projectNumber, 'sync completed')
 
       return { invitorProject, inviteeProject, observation1 }
     })
