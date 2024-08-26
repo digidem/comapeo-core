@@ -28,6 +28,7 @@ test('Managing created projects', async (t) => {
   const project1Id = await manager.createProject()
   const project2Id = await manager.createProject({
     name: 'project 2',
+    isInitialProject: true,
   })
 
   await t.test('initial information from listed projects', async () => {
@@ -79,7 +80,7 @@ test('Managing created projects', async (t) => {
         name: 'project 2',
         defaultPresets: undefined,
         configMetadata: undefined,
-        isInitialProject: false,
+        isInitialProject: true,
       },
       'matched name for project2 with undefined default presets'
     )
