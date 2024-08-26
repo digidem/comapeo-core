@@ -7,7 +7,7 @@ import { NotFoundError } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
 import { setProperty, getProperty } from 'dot-prop'
-/** @import { MapeoDoc, MapeoValue, encode } from '@mapeo/schema' */
+/** @import { MapeoDoc, MapeoValue } from '@mapeo/schema' */
 /** @import { MapeoDocMap, MapeoValueMap } from '../types.js' */
 /** @import { DataStore } from '../datastore/index.js' */
 
