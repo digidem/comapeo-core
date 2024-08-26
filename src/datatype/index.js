@@ -7,7 +7,7 @@ import { NotFoundError } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
 import { setProperty, getProperty } from 'dot-prop'
-/** @import { MapeoDoc, MapeoValue } from '@mapeo/schema' */
+/** @import { MapeoDoc, MapeoValue, encode } from '@mapeo/schema' */
 /** @import { MapeoDocMap, MapeoValueMap } from '../types.js' */
 
 /**
@@ -148,7 +148,8 @@ export class DataType extends TypedEmitter {
     }
     const nowDateString = generateDate()
 
-    /** @type {OmitUnion<MapeoDoc, 'versionId' | 'originalVersionId'>} */
+    // TODO: Maybe try `DataStore.write` instead?
+    /** @type {Parameters<typeof encode>[0]} */
     const doc = {
       ...value,
       docId,

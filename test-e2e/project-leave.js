@@ -1,8 +1,11 @@
-import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
+import test from 'node:test'
 import { temporaryDirectory } from 'tempy'
 
+import { generate } from '@mapeo/mock-data'
+import { valueOf } from '@mapeo/schema'
+import { MapeoProject } from '../src/mapeo-project.js'
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
@@ -10,7 +13,6 @@ import {
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
 } from '../src/roles.js'
-import { MapeoProject } from '../src/mapeo-project.js'
 import {
   ManagerCustodian,
   connectPeers,
@@ -254,12 +256,7 @@ test('Data access after leaving project', async (t) => {
 
   const [, coordinatorProject, memberProject] = projects
 
-  await memberProject.observation.create({
-    schemaName: 'observation',
-    attachments: [],
-    tags: {},
-    metadata: {},
-  })
+  await memberProject.observation.create(valueOf(generate('observation')[0]))
   assert(
     (await memberProject.observation.getMany()).length >= 1,
     'Test is set up correctly'
@@ -275,12 +272,7 @@ test('Data access after leaving project', async (t) => {
   await waitForSync(projects, 'initial')
 
   await assert.rejects(async () => {
-    await memberProject.observation.create({
-      schemaName: 'observation',
-      attachments: [],
-      tags: {},
-      metadata: {},
-    })
+    await memberProject.observation.create(valueOf(generate('observation')[0]))
   }, 'member cannot create new data after leaving')
   await assert.rejects(
     () => memberProject.observation.getMany(),
@@ -344,12 +336,9 @@ test('leaving a project deletes data from disk', async (t) => {
   )
   const [creatorProject, memberProject] = projects
 
-  const observation = await creatorProject.observation.create({
-    schemaName: 'observation',
-    attachments: [],
-    tags: {},
-    metadata: {},
-  })
+  const observation = await creatorProject.observation.create(
+    valueOf(generate('observation')[0])
+  )
 
   creatorProject.$sync.start()
   memberProject.$sync.start()
@@ -424,12 +413,7 @@ test('partly-left projects are cleaned up on startup', async (t) => {
     async (manager, LEFT_ROLE_ID) => {
       const projectId = await manager.createProject({ name: 'foo' })
       const project = await manager.getProject(projectId)
-      await project.observation.create({
-        schemaName: 'observation',
-        attachments: [],
-        tags: {},
-        metadata: {},
-      })
+      await project.observation.create(valueOf(generate('observation')[0]))
       await project.$member.assignRole(
         manager.getDeviceInfo().deviceId,
         /**

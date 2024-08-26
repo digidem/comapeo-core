@@ -15,9 +15,11 @@ const obs = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   schemaName: 'observation',
+  lat: -3,
+  lon: 37,
   tags: {},
   attachments: [],
-  metadata: {},
+  metadata: { manualLocation: false },
   deleted: false,
 }
 

@@ -24,18 +24,19 @@ import { decode, decodeBlockPrefix, parseVersionId } from '@mapeo/schema'
 /** @type {import('@mapeo/schema').ObservationValue} */
 const obsFixture = {
   schemaName: 'observation',
+    lat:-3,lon:37,
   tags: {},
   attachments: [],
-  metadata: {},
+  metadata: { manualLocation: false },
 }
 
 /** @type {import('@mapeo/schema').ObservationValue} */
 const newObsFixture = {
   schemaName: 'observation',
-  refs: [{ id: randomBytes(32).toString('hex') }],
+    lat:-3,lon:37,
   tags: {},
   attachments: [],
-  metadata: {},
+  metadata: { manualLocation: false },
 }
 
 test('private createWithDocId() method', async () => {
@@ -225,11 +226,12 @@ test('translation', async () => {
   /** @type {import('@mapeo/schema').ObservationValue} */
   const observation = {
     schemaName: 'observation',
+    lat:-3,lon:37,
     tags: {
       type: 'point',
     },
     attachments: [],
-    metadata: {},
+    metadata: { manualLocation: false },
   }
 
   const doc = await dataType.create(observation)

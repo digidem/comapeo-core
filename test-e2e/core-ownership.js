@@ -1,13 +1,16 @@
-import test from 'node:test'
-import assert from 'node:assert/strict'
 import { KeyManager } from '@mapeo/crypto'
-import { parseVersionId } from '@mapeo/schema'
-import RAM from 'random-access-memory'
-import { discoveryKey } from 'hypercore-crypto'
+import { parseVersionId, valueOf } from '@mapeo/schema'
 import Fastify from 'fastify'
+import { discoveryKey } from 'hypercore-crypto'
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import RAM from 'random-access-memory'
 
-import { kCoreOwnership } from '../src/mapeo-project.js'
+import { generate } from '@mapeo/mock-data'
 import { MapeoManager } from '../src/mapeo-manager.js'
+import { kCoreOwnership } from '../src/mapeo-project.js'
+
+// TODO: re-organize imports for smaller diff
 
 test('CoreOwnership', async () => {
   const rootKey = KeyManager.generateRootKey()
@@ -33,28 +36,17 @@ test('CoreOwnership', async () => {
   const authCoreId = await coreOwnership.getCoreId(deviceId, 'auth')
   assert.equal(await coreOwnership.getOwner(authCoreId), deviceId)
 
-  const preset = await project.preset.create({
-    schemaName: 'preset',
-    name: 'test preset',
-    geometry: ['point'],
-    tags: {},
-    addTags: {},
-    removeTags: {},
-    terms: [],
-    fieldRefs: [],
-    color: '#ff00ff',
-  })
+  const preset = await project.preset.create(
+    valueOf(generate('preset')[0])
+  )
   assert.equal(
     discoveryId(await coreOwnership.getCoreId(deviceId, 'config')),
     parseVersionId(preset.versionId).coreDiscoveryKey.toString('hex')
   )
 
-  const observation = await project.observation.create({
-    schemaName: 'observation',
-    attachments: [],
-    tags: {},
-    metadata: {},
-  })
+  const observation = await project.observation.create(
+    valueOf(generate('observation')[0])
+  )
   assert.equal(
     discoveryId(await coreOwnership.getCoreId(deviceId, 'data')),
     parseVersionId(observation.versionId).coreDiscoveryKey.toString('hex')

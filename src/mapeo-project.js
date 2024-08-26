@@ -539,6 +539,7 @@ export class MapeoProject extends TypedEmitter {
       await projectSettings[kCreateWithDocId](this.#projectId, {
         ...settings,
         schemaName: 'projectSettings',
+        isInitialProject: Boolean(settings.isInitialProject),
       })
     )
   }
@@ -762,10 +763,16 @@ export class MapeoProject extends TypedEmitter {
           return fieldRef
         })
 
-        let iconRef
-        if (iconName) {
-          iconRef = iconNameToRef.get(iconName)
+        if (!iconName) {
+          throw new Error(`preset ${value.name} is missing an icon name`)
         }
+        const iconRef = iconNameToRef.get(iconName)
+        if (!iconRef) {
+          throw new Error(
+            `icon ${iconName} not found (referenced by preset ${value.name})`
+          )
+        }
+
         presetsWithRefs.push({
           preset: {
             ...value,
