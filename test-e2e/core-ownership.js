@@ -1,16 +1,14 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import { KeyManager } from '@mapeo/crypto'
 import { parseVersionId, valueOf } from '@mapeo/schema'
-import Fastify from 'fastify'
-import { discoveryKey } from 'hypercore-crypto'
-import assert from 'node:assert/strict'
-import test from 'node:test'
 import RAM from 'random-access-memory'
+import { discoveryKey } from 'hypercore-crypto'
+import Fastify from 'fastify'
 
 import { generate } from '@mapeo/mock-data'
-import { MapeoManager } from '../src/mapeo-manager.js'
 import { kCoreOwnership } from '../src/mapeo-project.js'
-
-// TODO: re-organize imports for smaller diff
+import { MapeoManager } from '../src/mapeo-manager.js'
 
 test('CoreOwnership', async () => {
   const rootKey = KeyManager.generateRootKey()
