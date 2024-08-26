@@ -12,24 +12,29 @@ import {
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { ROLES, isRoleIdForNewInvite } from './roles.js'
-
 /**
- * @internal
- * @typedef {import('./generated/rpc.js').Invite} Invite
+ * @import {
+ *   DeviceInfo,
+ *   DeviceInfoValue,
+ *   ProjectSettings,
+ *   ProjectSettingsValue
+ * } from '@mapeo/schema'
  */
-/**
- * @internal
- * @typedef {import('./generated/rpc.js').InviteResponse} InviteResponse
- */
+/** @import { Invite, InviteResponse } from './generated/rpc.js' */
+/** @import { DataType } from './datatype/index.js' */
+/** @import { DataStore } from './datastore/index.js' */
+/** @import { deviceInfoTable } from './schema/project.js' */
+/** @import { projectSettingsTable } from './schema/client.js' */
 
-/** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/project.js').deviceInfoTable, "deviceInfo", import('@mapeo/schema').DeviceInfo, import('@mapeo/schema').DeviceInfoValue>} DeviceInfoDataType */
-/** @typedef {import('./datatype/index.js').DataType<import('./datastore/index.js').DataStore<'config'>, typeof import('./schema/client.js').projectSettingsTable, "projectSettings", import('@mapeo/schema').ProjectSettings, import('@mapeo/schema').ProjectSettingsValue>} ProjectDataType */
+/** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
+/** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
 /**
  * @typedef {object} MemberInfo
  * @prop {string} deviceId
  * @prop {import('./roles.js').Role} role
- * @prop {import('@mapeo/schema').DeviceInfo['name']} [name]
- * @prop {import('@mapeo/schema').DeviceInfo['deviceType']} [deviceType]
+ * @prop {DeviceInfo['name']} [name]
+ * @prop {DeviceInfo['deviceType']} [deviceType]
+ * @prop {DeviceInfo['createdAt']} [joinedAt]
  */
 
 export class MemberApi extends TypedEmitter {
@@ -148,6 +153,7 @@ export class MemberApi extends TypedEmitter {
         case InviteResponse_Decision.REJECT:
           return inviteResponse.decision
         case InviteResponse_Decision.UNRECOGNIZED:
+        case InviteResponse_Decision.DECISION_UNSPECIFIED:
           return InviteResponse_Decision.REJECT
         case InviteResponse_Decision.ACCEPT:
           // We should assign the role locally *before* sharing the project details
@@ -254,6 +260,7 @@ export class MemberApi extends TypedEmitter {
 
       result.name = deviceInfo.name
       result.deviceType = deviceInfo.deviceType
+      result.joinedAt = deviceInfo.createdAt
     } catch (err) {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
@@ -289,6 +296,7 @@ export class MemberApi extends TypedEmitter {
 
           memberInfo.name = deviceInfo?.name
           memberInfo.deviceType = deviceInfo?.deviceType
+          memberInfo.joinedAt = deviceInfo?.createdAt
         } catch (err) {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available

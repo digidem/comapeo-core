@@ -4,9 +4,9 @@ import util from 'node:util'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { LiveDownload } from './live-download.js'
+/** @import { BlobId } from '../types.js' */
 
 /** @typedef {TypedEmitter<{ 'add-drive': (drive: import('hyperdrive')) => void }>} InternalDriveEmitter */
-/** @typedef {import('../types.js').BlobId} BlobId */
 
 // prop = blob type name
 // value = array of blob variants supported for that type
@@ -252,8 +252,7 @@ function proxyProps(target, props) {
   // @ts-ignore - too much time to learn how to teach this to Typescript
   return new Proxy(target, {
     get(target, prop, receiver) {
-      // eslint-disable-next-line no-prototype-builtins
-      if (props.hasOwnProperty(prop)) {
+      if (Object.hasOwn(props, prop)) {
         return Reflect.get(props, prop, receiver)
       } else {
         return Reflect.get(target, prop, receiver)

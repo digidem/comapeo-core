@@ -1,12 +1,13 @@
 import { CoreSyncState } from './core-sync-state.js'
 import { discoveryKey } from 'hypercore-crypto'
+/** @import { Namespace } from '../types.js' */
 
 /**
  * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'> & { dataToSync: boolean, coreCount: number }} SyncState
  */
 
 /**
- * @template {import('../core-manager/index.js').Namespace} [TNamespace=import('../core-manager/index.js').Namespace]
+ * @template {Namespace} [TNamespace=Namespace]
  */
 export class NamespaceSyncState {
   /** @type {Map<string, CoreSyncState>} */
@@ -148,9 +149,9 @@ export class NamespaceSyncState {
  */
 export function createState(status) {
   if (status) {
-    return { want: 0, have: 0, wanted: 0, missing: 0, status }
+    return { want: 0, have: 0, wanted: 0, status }
   } else {
-    return { want: 0, have: 0, wanted: 0, missing: 0 }
+    return { want: 0, have: 0, wanted: 0 }
   }
 }
 
@@ -178,7 +179,6 @@ function mutatingAddPeerState(accumulator, currentValue) {
   accumulator.have += currentValue.have
   accumulator.want += currentValue.want
   accumulator.wanted += currentValue.wanted
-  accumulator.missing += currentValue.missing
   if ('status' in accumulator && accumulator.status !== currentValue.status) {
     if (currentValue.status === 'disconnected') {
       accumulator.status === 'disconnected'

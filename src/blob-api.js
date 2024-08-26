@@ -2,9 +2,38 @@ import fs from 'node:fs'
 // @ts-expect-error - pipelinePromise missing from streamx types
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
+/** @import { BlobId, BlobType } from './types.js' */
 
-/** @typedef {import('./types.js').BlobId} BlobId */
-/** @typedef {import('./types.js').BlobType} BlobType  */
+/**
+ * Location coordinate data. Based on [Expo's `LocationObjectCoords`][0].
+ * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobjectcoords
+ *
+ * @typedef {object} LocationObjectCoords
+ * @prop {number | null} accuracy
+ * @prop {number | null} altitude
+ * @prop {number | null} altitudeAccuracy
+ * @prop {number | null} heading
+ * @prop {number} latitude
+ * @prop {number} longitude
+ * @prop {number | null} speed
+ */
+
+/**
+ * Location metadata for a blob. Based on [Expo's `LocationObject`][0].
+ * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobject
+ *
+ * @typedef {object} LocationObject
+ * @prop {LocationObjectCoords} coords
+ * @prop {boolean} [mocked]
+ * @prop {number} timestamp
+ */
+
+/**
+ * @typedef {object} Metadata
+ * @prop {string} mimeType
+ * @prop {number} timestamp
+ * @prop {LocationObject} [location]
+ */
 
 export class BlobApi {
   #blobStore
@@ -22,7 +51,7 @@ export class BlobApi {
 
   /**
    * Get a url for a blob based on its BlobId
-   * @param {import('./types.js').BlobId} blobId
+   * @param {BlobId} blobId
    * @returns {Promise<string>}
    */
   async getUrl(blobId) {
@@ -40,7 +69,7 @@ export class BlobApi {
   /**
    * Write blobs for provided variants of a file
    * @param {{ original: string, preview?: string, thumbnail?: string }} filepaths
-   * @param {{ mimeType: string }} metadata
+   * @param {Metadata} metadata
    * @returns {Promise<{ driveId: string, name: string, type: 'photo' | 'video' | 'audio', hash: string }>}
    */
   async create(filepaths, metadata) {

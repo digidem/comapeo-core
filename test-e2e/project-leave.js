@@ -22,17 +22,7 @@ import {
   waitForSync,
 } from './utils.js'
 
-test('Creator cannot leave project if they are the only member', async (t) => {
-  const [creatorManager] = await createManagers(1, t)
-
-  const projectId = await creatorManager.createProject({ name: 'mapeo' })
-
-  await assert.rejects(async () => {
-    await creatorManager.leaveProject(projectId)
-  }, 'attempting to leave fails')
-})
-
-test('Creator cannot leave project if no other coordinators exist', async (t) => {
+test("Creator cannot leave project if they're the only coordinator", async (t) => {
   const managers = await createManagers(2, t)
 
   const disconnectPeers = connectPeers(managers)
@@ -112,6 +102,21 @@ test('Blocked member cannot leave project', async (t) => {
   await assert.rejects(async () => {
     await member.leaveProject(projectId)
   }, 'Member attempting to leave project fails')
+})
+
+test('leaving a project as the only member', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const projectId = await manager.createProject({ name: 'mapeo' })
+  const creatorProject = await manager.getProject(projectId)
+
+  await manager.leaveProject(projectId)
+
+  assert.deepEqual(
+    await creatorProject.$getOwnRole(),
+    ROLES[LEFT_ROLE_ID],
+    'creator now has LEFT role'
+  )
 })
 
 test('Creator can leave project if another coordinator exists', async (t) => {
@@ -253,7 +258,6 @@ test('Data access after leaving project', async (t) => {
     schemaName: 'observation',
     attachments: [],
     tags: {},
-    refs: [],
     metadata: {},
   })
   assert(
@@ -275,7 +279,6 @@ test('Data access after leaving project', async (t) => {
       schemaName: 'observation',
       attachments: [],
       tags: {},
-      refs: [],
       metadata: {},
     })
   }, 'member cannot create new data after leaving')
@@ -345,7 +348,6 @@ test('leaving a project deletes data from disk', async (t) => {
     schemaName: 'observation',
     attachments: [],
     tags: {},
-    refs: [],
     metadata: {},
   })
 
@@ -426,7 +428,6 @@ test('partly-left projects are cleaned up on startup', async (t) => {
         schemaName: 'observation',
         attachments: [],
         tags: {},
-        refs: [],
         metadata: {},
       })
       await project.$member.assignRole(

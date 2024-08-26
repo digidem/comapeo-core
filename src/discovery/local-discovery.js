@@ -9,9 +9,10 @@ import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
 import { Logger } from '../logger.js'
+/** @import { OpenedNoiseStream } from '../utils.js' */
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
-/** @typedef {import('../utils.js').OpenedNoiseStream<net.Socket>} OpenedNoiseStream */
+/** @typedef {OpenedNoiseStream<net.Socket>} OpenedNetNoiseStream */
 
 const TCP_KEEP_ALIVE_OPTIONS = {
   keepAlive: true,
@@ -21,7 +22,7 @@ export const ERR_DUPLICATE = 'Duplicate connection'
 
 /**
  * @typedef {Object} DiscoveryEvents
- * @property {(connection: OpenedNoiseStream) => void} connection
+ * @property {(connection: OpenedNetNoiseStream) => void} connection
  */
 
 /**
@@ -31,7 +32,7 @@ export class LocalDiscovery extends TypedEmitter {
   #identityKeypair
   #name = randomBytes(8).toString('hex')
   #server
-  /** @type {Map<string, OpenedNoiseStream>} */
+  /** @type {Map<string, OpenedNetNoiseStream>} */
   #noiseConnections = new Map()
   #sm
   #log
@@ -149,7 +150,7 @@ export class LocalDiscovery extends TypedEmitter {
       secretStream.off('error', this.#handleSocketError)
       this.#handleNoiseStreamConnection(
         // We know the NoiseStream is open at this point, so we can coerce the type
-        /** @type {OpenedNoiseStream} */
+        /** @type {OpenedNetNoiseStream} */
         (secretStream)
       )
     })
@@ -157,8 +158,8 @@ export class LocalDiscovery extends TypedEmitter {
 
   /**
    *
-   * @param {OpenedNoiseStream} existing
-   * @param {OpenedNoiseStream} keeping
+   * @param {OpenedNetNoiseStream} existing
+   * @param {OpenedNetNoiseStream} keeping
    */
   #handleConnectionSwap(existing, keeping) {
     let closed = false
@@ -183,8 +184,8 @@ export class LocalDiscovery extends TypedEmitter {
 
   /**
    *
-   * @param {OpenedNoiseStream} conn
-   * @returns
+   * @param {OpenedNetNoiseStream} conn
+   * @returns {void}
    */
   #handleNoiseStreamConnection(conn) {
     const { remotePublicKey, isInitiator } = conn

@@ -4,6 +4,7 @@ import { json, buffer } from 'node:stream/consumers'
 import { assert } from './utils.js'
 import path from 'node:path'
 import { parse as parseBCP47 } from 'bcp-47'
+import { SUPPORTED_CONFIG_VERSION } from './constants.js'
 
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
@@ -26,6 +27,8 @@ const MAX_ICON_SIZE = 10_000_000
  * }} TranslationsFile
  */
 
+/** @typedef {NonNullable<import('@mapeo/schema').ProjectSettingsValue['configMetadata']>} MetadataFile */
+
 /**
  * @typedef {Parameters<import('./icon-api.js').IconApi['create']>[0]} IconData
  */
@@ -36,6 +39,7 @@ const MAX_ICON_SIZE = 10_000_000
 export async function readConfig(configPath) {
   /** @type {Error[]} */
   const warnings = []
+  const importDate = new Date().toISOString()
 
   const zip = await yauzl.open(configPath)
   if (zip.entryCount > MAX_ENTRIES) {
@@ -43,14 +47,21 @@ export async function readConfig(configPath) {
     throw new Error(`Zip file contains too many entries. Max is ${MAX_ENTRIES}`)
   }
   const entries = await zip.readEntries(MAX_ENTRIES)
-  const [presetsFile, translationsFile] = await Promise.all([
-    findPresetsFile(entries),
-    findTranslationsFile(entries),
-  ])
+  const presetsFile = await findPresetsFile(entries)
+  const translationsFile = await findTranslationsFile(entries)
+  const metadataFile = await findMetadataFile(entries)
+  assert(
+    isValidConfigFile(metadataFile),
+    `invalid or missing config file version ${metadataFile.fileVersion}. We support version ${SUPPORTED_CONFIG_VERSION}}`
+  )
 
   return {
     get warnings() {
       return warnings
+    },
+
+    get metadata() {
+      return { ...metadataFile, importDate }
     },
 
     async close() {
@@ -129,7 +140,7 @@ export async function readConfig(configPath) {
           schemaName: 'field',
         }
         for (const key of Object.keys(valueSchemas.field.properties)) {
-          if (hasOwn(field, key)) {
+          if (Object.hasOwn(field, key)) {
             fieldValue[key] = field[key]
           }
         }
@@ -171,13 +182,13 @@ export async function readConfig(configPath) {
         /** @type {Record<string, unknown>} */
         const presetValue = {
           schemaName: 'preset',
-          fieldIds: [],
+          fieldRefs: [],
           addTags: {},
           removeTags: {},
           terms: [],
         }
         for (const key of Object.keys(valueSchemas.preset.properties)) {
-          if (hasOwn(preset, key)) {
+          if (Object.hasOwn(preset, key)) {
             presetValue[key] = preset[key]
           }
         }
@@ -199,11 +210,7 @@ export async function readConfig(configPath) {
         }
       }
     },
-    /**
-     * @returns {Iterable<{
-     * name: string,
-     * value:Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>}>}
-     */
+    /** @returns {Iterable<{ name: string, value:Omit<import('@mapeo/schema').TranslationValue, 'docRef'>}>} */
     *translations() {
       if (!translationsFile) return
       for (const [lang, languageTranslations] of Object.entries(
@@ -271,6 +278,27 @@ async function findTranslationsFile(entries) {
 }
 
 /**
+ * @param {ReadonlyArray<Entry>} entries
+ * @returns {Promise<Omit<MetadataFile, 'importDate'>>}
+ */
+async function findMetadataFile(entries) {
+  const metadataEntry = entries.find(
+    (entry) => entry.filename === 'metadata.json'
+  )
+  assert(metadataEntry, 'Zip file does not contain metadata.json')
+  let result
+  try {
+    result = await json(await metadataEntry.openReadStream())
+  } catch (err) {
+    throw new Error('Could not parse metadata.json')
+  }
+  assert(isRecord(result), 'Invalid metadata.json file')
+  assert(isValidMetadataFile(result), 'Invalid structure of metadata file')
+
+  return result
+}
+
+/**
  * @param {Error[]} warnings
  */
 function translationsForLanguage(warnings) {
@@ -286,13 +314,13 @@ function translationsForLanguage(warnings) {
       return
     }
     for (const [
-      schemaNameRef,
+      schemaNamePlural,
       languageTranslationsForDocType,
     ] of Object.entries(languageTranslations)) {
       // TODO: remove categories check when removed from default config
-      if (!(schemaNameRef === 'fields' || schemaNameRef === 'presets')) {
-        if (schemaNameRef !== 'categories') {
-          warnings.push(new Error(`invalid schemaNameRef ${schemaNameRef}`))
+      if (!(schemaNamePlural === 'fields' || schemaNamePlural === 'presets')) {
+        if (schemaNamePlural !== 'categories') {
+          warnings.push(new Error(`invalid docRef.type ${schemaNamePlural}`))
         }
         continue
       }
@@ -303,11 +331,23 @@ function translationsForLanguage(warnings) {
       yield* translationsForDocType(warnings)({
         languageCode,
         regionCode,
-        schemaNameRef,
+        docRefType: schemaNamePluralToDocRefType(schemaNamePlural),
         languageTranslationsForDocType,
       })
     }
   }
+}
+/**
+ * schemaNames in configs are in plural but in the schemas are in singular
+ * @param {ValidDocTypes} schemaNamePlural
+ * @returns {import('@mapeo/schema').TranslationValue['docRefType']}
+ */
+function schemaNamePluralToDocRefType(schemaNamePlural) {
+  if (schemaNamePlural === 'fields') return 'field'
+  if (schemaNamePlural === 'presets') return 'preset'
+  throw new Error(
+    `invalid schemaNamePlural ${schemaNamePlural} for config import`
+  )
 }
 
 /**
@@ -317,13 +357,13 @@ function translationsForDocType(warnings) {
   /** @param {Object} opts
    * @param {string} opts.languageCode
    * @param {string | null | undefined} opts.regionCode
-   * @param {ValidDocTypes} opts.schemaNameRef
+   * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {Record<ValidDocTypes, unknown>} opts.languageTranslationsForDocType
    */
   return function* ({
     languageCode,
     regionCode,
-    schemaNameRef,
+    docRefType,
     languageTranslationsForDocType,
   }) {
     for (const [docName, fieldsToTranslate] of Object.entries(
@@ -336,7 +376,7 @@ function translationsForDocType(warnings) {
       yield* translationForValue(warnings)({
         languageCode,
         regionCode,
-        schemaNameRef,
+        docRefType,
         docName,
         fieldsToTranslate,
       })
@@ -352,37 +392,32 @@ function translationForValue(warnings) {
    * @param {Object} opts
    * @param {string} opts.languageCode
    * @param {string | null | undefined} opts.regionCode
-   * @param {ValidDocTypes} opts.schemaNameRef
+   * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {string} opts.docName
    * @param {Record<string,unknown>} opts.fieldsToTranslate
    */
   return function* ({
     languageCode,
     regionCode,
-    schemaNameRef,
+    docRefType,
     docName,
     fieldsToTranslate,
   }) {
-    for (const [fieldRef, message] of Object.entries(fieldsToTranslate)) {
+    for (const [propertyRef, message] of Object.entries(fieldsToTranslate)) {
       let value = {
         /** @type {'translation'} */
         schemaName: 'translation',
         languageCode,
         regionCode: regionCode || '',
-        schemaNameRef,
-        fieldRef: '',
+        docRefType,
+        propertyRef: '',
         message: '',
       }
 
       if (isRecord(message) && isFieldOptions(message)) {
         yield* translateMessageObject(warnings)({ value, message, docName })
       } else if (typeof message === 'string') {
-        value = { ...value, fieldRef, message }
-        if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
-          warnings.push(new Error(`Invalid translation ${value.message}`))
-          continue
-        }
-
+        value = { ...value, propertyRef, message }
         yield { name: docName, value }
       } else {
         warnings.push(
@@ -400,7 +435,7 @@ function translationForValue(warnings) {
 function translateMessageObject(warnings) {
   /**
    * @param {Object} opts
-   * @param {Omit<import('@mapeo/schema').TranslationValue, 'docIdRef'>} opts.value
+   * @param {Omit<import('@mapeo/schema').TranslationValue, 'docRef'>} opts.value
    * @param {string} opts.docName
    * @param {Record<string,{label:string,value:string}>} opts.message
    */
@@ -412,10 +447,15 @@ function translateMessageObject(warnings) {
           if (typeof msg === 'string') {
             value = {
               ...value,
-              fieldRef: `${value.fieldRef}[${idx}].${key}`,
+              propertyRef: `${value.propertyRef}[${idx}].${key}`,
               message: msg,
             }
-            if (!validate(value.schemaName, { ...value, docIdRef: '' })) {
+            if (
+              !validate('translation', {
+                ...value,
+                docRef: { docId: '', versionId: '' },
+              })
+            ) {
               warnings.push(new Error(`Invalid translation ${value.message}`))
               continue
             }
@@ -480,6 +520,22 @@ function parseIcon(filename, buf) {
 }
 
 /**
+ * @param {Record<string,unknown>} obj
+ * @returns {obj is Omit<MetadataFile, 'importDate'>}
+ */
+function isValidMetadataFile(obj) {
+  // extra fields are valid
+  return (
+    'name' in obj &&
+    'buildDate' in obj &&
+    'fileVersion' in obj &&
+    typeof obj['name'] === 'string' &&
+    typeof obj['buildDate'] === 'string' &&
+    typeof obj['fileVersion'] === 'string'
+  )
+}
+
+/**
  * @param {Record<string, unknown>} message
  * @returns {message is Record<string,{label:string, value:string}>}
  */
@@ -498,9 +554,19 @@ function isRecord(value) {
 }
 
 /**
- * @param {Record<string | symbol, unknown>} obj
- * @param {string | symbol} prop
+ * @param {Object} obj
+ * @param {string | undefined} [obj.fileVersion]
+ * @returns {boolean}
  */
-function hasOwn(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop)
+function isValidConfigFile({ fileVersion }) {
+  if (!fileVersion) return false
+  const regex = /^(\d+)\.(\d+)$/
+  const match = fileVersion.match(regex)
+
+  if (!match) return false
+
+  const major = parseInt(match[1], 10)
+  //const minor = parseInt(match[2], 10)
+
+  return major >= SUPPORTED_CONFIG_VERSION
 }

@@ -13,12 +13,12 @@ import {
 import { round } from './utils.js'
 import { generate } from '@mapeo/mock-data'
 import { setTimeout as delay } from 'timers/promises'
+/** @import { MapeoDoc } from '@mapeo/schema' */
 
 /** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
 const fixtures = [
   {
     schemaName: 'observation',
-    refs: [],
     tags: {},
     attachments: [],
     metadata: {},
@@ -30,7 +30,7 @@ const fixtures = [
     geometry: ['point'],
     addTags: {},
     removeTags: {},
-    fieldIds: [],
+    fieldRefs: [],
     terms: [],
     color: '#ff00ff',
   },
@@ -42,7 +42,7 @@ const fixtures = [
   },
   {
     schemaName: 'track',
-    refs: [],
+    observationRefs: [],
     tags: {},
     attachments: [],
     locations: Array.from({ length: 10 }, trackPositionFixture),
@@ -67,7 +67,12 @@ function getUpdateFixture(value) {
     case 'preset':
       return {
         ...value,
-        fieldIds: [randomBytes(32).toString('hex')],
+        fieldRefs: [
+          {
+            docId: randomBytes(32).toString('hex'),
+            versionId: `${randomBytes(32).toString('hex')}/0`,
+          },
+        ],
       }
     case 'field':
       return {
@@ -98,6 +103,7 @@ test('CRUD operations', async (t) => {
       const project = await manager.getProject(projectId)
       /** @type {any[]} */
       const updates = []
+      /** @type {Promise<MapeoDoc>[]} */
       const writePromises = []
       project[schemaName].on('updated-docs', (docs) => updates.push(...docs))
       let i = 0
@@ -274,6 +280,7 @@ test('CRUD operations', async (t) => {
     await t.test(`create and delete ${schemaName}`, async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
+      /** @type {Promise<MapeoDoc>[]} */
       const writePromises = []
       let i = 0
       while (i++ < CREATE_COUNT) {

@@ -49,8 +49,11 @@ import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
+/** @import { ProjectSettingsValue } from '@mapeo/schema' */
+/** @import { CoreStorage, KeyPair, Namespace } from './types.js' */
 
-/** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
+/** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
+/** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -100,7 +103,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
-   * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
+   * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {Logger} [opts.logger]
@@ -565,7 +568,6 @@ export class MapeoProject extends TypedEmitter {
    * need to replicate the manager instance via manager[kManagerReplicate])
    *
    * @param {Parameters<import('hypercore')['replicate']>[0]} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
-   * @returns
    */
   [kProjectReplicate](stream) {
     // @ts-expect-error - hypercore types need updating
@@ -616,11 +618,12 @@ export class MapeoProject extends TypedEmitter {
     return this.#iconApi
   }
 
-  async [kProjectLeave]() {
-    // 1. Check that the device can leave the project
+  /**
+   * @returns {Promise<void>}
+   */
+  async #throwIfCannotLeaveProject() {
     const roleDocs = await this.#dataTypes.role.getMany()
 
-    // 1.1 Check that we are not blocked in the project
     const ownRole = roleDocs.find(({ docId }) => this.#deviceId === docId)
 
     if (ownRole?.roleId === BLOCKED_ROLE_ID) {
@@ -629,49 +632,33 @@ export class MapeoProject extends TypedEmitter {
 
     const allRoles = await this.#roles.getAll()
 
-    // 1.2 Check that we are not the only device in the project
-    if (allRoles.size <= 1) {
-      throw new Error('Cannot leave a project as the only device')
-    }
+    const isOnlyDevice = allRoles.size <= 1
+    if (isOnlyDevice) return
 
-    // 1.3 Check if there are other known devices that are either the project creator or a coordinator
     const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
       this.#projectId
     )
-    let otherCreatorOrCoordinatorExists = false
 
     for (const deviceId of allRoles.keys()) {
-      // Skip self (see 1.1 and 1.2 for relevant checks)
       if (deviceId === this.#deviceId) continue
-
-      // Check if the device is the project creator first because
-      // it is a derived role that is not stored in the role docs explicitly
-      if (deviceId === projectCreatorDeviceId) {
-        otherCreatorOrCoordinatorExists = true
-        break
-      }
-
-      // Determine if the the device is a coordinator based on the role docs
-      const isCoordinator = roleDocs.some(
-        (doc) => doc.docId === deviceId && doc.roleId === COORDINATOR_ROLE_ID
-      )
-
-      if (isCoordinator) {
-        otherCreatorOrCoordinatorExists = true
-        break
-      }
+      const isCreatorOrCoordinator =
+        deviceId === projectCreatorDeviceId ||
+        roleDocs.some(
+          (doc) => doc.docId === deviceId && doc.roleId === COORDINATOR_ROLE_ID
+        )
+      if (isCreatorOrCoordinator) return
     }
 
-    if (!otherCreatorOrCoordinatorExists) {
-      throw new Error(
-        'Cannot leave a project that does not have an external creator or another coordinator'
-      )
-    }
+    throw new Error(
+      'Cannot leave a project that does not have an external creator or another coordinator'
+    )
+  }
 
-    // 2. Assign LEFT role for device
+  async [kProjectLeave]() {
+    await this.#throwIfCannotLeaveProject()
+
     await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
 
-    // 3. Clear data
     await this[kClearDataIfLeft]()
   }
 
@@ -686,7 +673,7 @@ export class MapeoProject extends TypedEmitter {
     }
 
     const namespacesWithoutAuth =
-      /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
+      /** @satisfies {Exclude<Namespace, 'auth'>[]} */ ([
         'config',
         'data',
         'blob',
@@ -734,30 +721,30 @@ export class MapeoProject extends TypedEmitter {
       await deleteTranslations({
         logger: this.#l,
         translation: this.$translation.dataType,
-        presets: this.preset,
-        fields: this.field,
+        preset: this.preset,
+        field: this.field,
       })
 
       const config = await readConfig(configPath)
-      /** @type {Map<string, string>} */
-      const iconNameToId = new Map()
-      /** @type {Map<string, string>} */
-      const fieldNameToId = new Map()
-      /** @type {Map<string,string>} */
-      const presetNameToId = new Map()
+      /** @type {Map<string, import('./icon-api.js').IconRef>} */
+      const iconNameToRef = new Map()
+      /** @type {Map<string, import('@mapeo/schema').PresetValue['fieldRefs'][1]>} */
+      const fieldNameToRef = new Map()
+      /** @type {Map<string,import('@mapeo/schema').TranslationValue['docRef']>} */
+      const presetNameToRef = new Map()
 
       // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
       for await (const icon of config.icons()) {
-        const iconId = await this.#iconApi.create(icon)
-        iconNameToId.set(icon.name, iconId)
+        const { docId, versionId } = await this.#iconApi.create(icon)
+        iconNameToRef.set(icon.name, { docId, versionId })
       }
 
       // Ok to create fields and presets in parallel
       const fieldPromises = []
       for (const { name, value } of config.fields()) {
         fieldPromises.push(
-          this.#dataTypes.field.create(value).then(({ docId }) => {
-            fieldNameToId.set(name, docId)
+          this.#dataTypes.field.create(value).then(({ docId, versionId }) => {
+            fieldNameToRef.set(name, { docId, versionId })
           })
         )
       }
@@ -765,20 +752,25 @@ export class MapeoProject extends TypedEmitter {
 
       const presetsWithRefs = []
       for (const { fieldNames, iconName, value, name } of config.presets()) {
-        const fieldIds = fieldNames.map((fieldName) => {
-          const id = fieldNameToId.get(fieldName)
-          if (!id) {
+        const fieldRefs = fieldNames.map((fieldName) => {
+          const fieldRef = fieldNameToRef.get(fieldName)
+          if (!fieldRef) {
             throw new Error(
               `field ${fieldName} not found (referenced by preset ${value.name})})`
             )
           }
-          return id
+          return fieldRef
         })
+
+        let iconRef
+        if (iconName) {
+          iconRef = iconNameToRef.get(iconName)
+        }
         presetsWithRefs.push({
           preset: {
             ...value,
-            iconId: iconName && iconNameToId.get(iconName),
-            fieldIds,
+            iconRef,
+            fieldRefs,
           },
           name,
         })
@@ -787,8 +779,8 @@ export class MapeoProject extends TypedEmitter {
       const presetPromises = []
       for (const { preset, name } of presetsWithRefs) {
         presetPromises.push(
-          this.preset.create(preset).then(({ docId }) => {
-            presetNameToId.set(name, docId)
+          this.preset.create(preset).then(({ docId, versionId }) => {
+            presetNameToRef.set(name, { docId, versionId })
           })
         )
       }
@@ -797,24 +789,27 @@ export class MapeoProject extends TypedEmitter {
 
       const translationPromises = []
       for (const { name, value } of config.translations()) {
-        let docIdRef
-        if (value.schemaNameRef === 'fields') {
-          docIdRef = fieldNameToId.get(name)
-        } else if (value.schemaNameRef === 'presets') {
-          docIdRef = presetNameToId.get(name)
+        let docRef
+        if (value.docRefType === 'field') {
+          docRef = { ...fieldNameToRef.get(name) }
+        } else if (value.docRefType === 'preset') {
+          docRef = { ...presetNameToRef.get(name) }
         } else {
-          throw new Error(`invalid schemaNameRef ${value.schemaNameRef}`)
+          throw new Error(`invalid docRefType ${value.docRefType}`)
         }
-        if (docIdRef) {
+        if (docRef.docId && docRef.versionId) {
           translationPromises.push(
             this.$translation.put({
               ...value,
-              docIdRef,
+              docRef: {
+                docId: docRef.docId,
+                versionId: docRef.versionId,
+              },
             })
           )
         } else {
           throw new Error(
-            `docIdRef for preset or field with name ${name} not found`
+            `docRef for preset or field with name ${name} not found`
           )
         }
       }
@@ -822,15 +817,17 @@ export class MapeoProject extends TypedEmitter {
 
       // close the zip handles after we know we won't be needing them anymore
       await config.close()
+      const presetIds = [...presetNameToRef.values()].map((val) => val.docId)
 
       await this.$setProjectSettings({
         defaultPresets: {
-          point: [...presetNameToId.values()],
+          point: presetIds,
           line: [],
           area: [],
           vertex: [],
           relation: [],
         },
+        configMetadata: config.metadata,
       })
       this.#loadingConfig = false
       return config.warnings
@@ -865,20 +862,20 @@ async function deleteAll(dataType) {
  * @param {Object} opts
  * @param {Logger} opts.logger
  * @param {MapeoProject['$translation']['dataType']} opts.translation
- * @param {MapeoProject['preset']} opts.presets
- * @param {MapeoProject['field']} opts.fields
+ * @param {MapeoProject['preset']} opts.preset
+ * @param {MapeoProject['field']} opts.field
  */
 async function deleteTranslations(opts) {
   const translations = await opts.translation.getMany()
   await Promise.all(
-    translations.map(async ({ docId, docIdRef, schemaNameRef }) => {
-      if (schemaNameRef === 'presets' || schemaNameRef === 'fields') {
+    translations.map(async ({ docId, docRef, docRefType }) => {
+      if (docRefType === 'preset' || docRefType === 'field') {
         let shouldDelete = false
         try {
-          const toDelete = await opts[schemaNameRef].getByDocId(docIdRef)
+          const toDelete = await opts[docRefType].getByDocId(docRef.docId)
           shouldDelete = toDelete.deleted
         } catch (e) {
-          opts.logger.log(`referred ${docIdRef} is not found`)
+          opts.logger.log(`referred ${docRef.docId} is not found`)
         }
         if (shouldDelete) {
           await opts.translation.delete(docId)
@@ -899,11 +896,10 @@ async function deleteTranslations(opts) {
  * @param {Buffer} opts.projectKey
  * @param {Buffer} [opts.projectSecretKey]
  * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
- * @returns {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>}
+ * @returns {Record<Namespace, KeyPair>}
  */
 function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
-  const keypairs =
-    /** @type {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>} */ ({})
+  const keypairs = /** @type {Record<Namespace, KeyPair>} */ ({})
 
   for (const namespace of NAMESPACES) {
     keypairs[namespace] =

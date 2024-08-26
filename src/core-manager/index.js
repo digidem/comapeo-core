@@ -14,14 +14,14 @@ import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 
+/** @import { HypercorePeer, Namespace } from '../types.js' */
+
 const WRITER_CORE_PREHAVES_DEBOUNCE_DELAY = 1000
 
 export const kCoreManagerReplicate = Symbol('replicate core manager')
 
-/** @typedef {import('hypercore')<'binary', Buffer>} Core */
-/** @typedef {(typeof NAMESPACES)[number]} Namespace */
+/** @typedef {Hypercore<'binary', Buffer>} Core */
 /** @typedef {{ core: Core, key: Buffer, namespace: Namespace }} CoreRecord */
-/** @typedef {import('streamx').Duplex} DuplexStream */
 /**
  * @typedef {Object} Events
  * @property {(coreRecord: CoreRecord) => void} add-core
@@ -265,7 +265,7 @@ export class CoreManager extends TypedEmitter {
    *
    * @param {Buffer} key 32-byte public key of core to add
    * @param {Namespace} namespace
-   * @returns {import('./core-index.js').CoreRecord}
+   * @returns {CoreRecord}
    */
   addCore(key, namespace) {
     return this.#addCore({ publicKey: key }, namespace, true)
@@ -277,7 +277,7 @@ export class CoreManager extends TypedEmitter {
    * @param {{ publicKey: Buffer, secretKey?: Buffer }} keyPair
    * @param {Namespace} namespace
    * @param {boolean} [persist=false]
-   * @returns {import('./core-index.js').CoreRecord}
+   * @returns {CoreRecord}
    */
   #addCore(keyPair, namespace, persist = false) {
     // No-op if core is already managed
@@ -290,7 +290,7 @@ export class CoreManager extends TypedEmitter {
       keyPair,
       encryptionKey: this.#encryptionKeys[namespace],
     })
-    if (namespace !== 'blob' && this.#autoDownload) {
+    if (this.#autoDownload) {
       core.download({ start: 0, end: -1 })
     }
     // Every peer adds a listener, so could have many peers
@@ -401,7 +401,7 @@ export class CoreManager extends TypedEmitter {
 
   /**
    * @param {ProjectExtension} msg
-   * @param {any} peer
+   * @param {HypercorePeer} peer
    */
   #handleProjectMessage({ wantCoreKeys, ...coreKeys }, peer) {
     const message = ProjectExtension.create()
@@ -426,7 +426,7 @@ export class CoreManager extends TypedEmitter {
 
   /**
    * @param {Omit<HaveMsg, 'namespace'> & { namespace: Namespace | 'UNRECOGNIZED' }} msg
-   * @param {any} peer
+   * @param {HypercorePeer} peer
    */
   #handleHaveMessage(msg, peer) {
     const { start, discoveryKey, bitfield, namespace } = msg
@@ -444,7 +444,7 @@ export class CoreManager extends TypedEmitter {
 
   /**
    *
-   * @param {any} peer
+   * @param {HypercorePeer} peer
    * @param {Iterable<{ core: Hypercore<Hypercore.ValueEncoding, Buffer>, namespace: Namespace }>} cores
    */
   async #sendHaves(peer, cores) {
@@ -479,7 +479,6 @@ export class CoreManager extends TypedEmitter {
    * Replicate all cores in core manager
    *
    * @param {Parameters<Corestore['replicate']>[0]} stream
-   * @returns
    */
   [kCoreManagerReplicate](stream) {
     const protocolStream = Hypercore.createProtocolStream(stream, {
@@ -497,7 +496,7 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
-   * @param {Exclude<typeof NAMESPACES[number], 'auth'>} namespace
+   * @param {Exclude<Namespace, 'auth'>} namespace
    * @returns {Promise<void>}
    */
   async deleteOthersData(namespace) {
@@ -640,7 +639,7 @@ function findPeer(core, publicKey, { timeout = 200 } = {}) {
 
     core.on('peer-add', onPeer)
 
-    /** @param {any} peer */
+    /** @param {HypercorePeer} peer */
     function onPeer(peer) {
       if (peer.remotePublicKey.equals(publicKey)) {
         clearTimeout(timeoutId)

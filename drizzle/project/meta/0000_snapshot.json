@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "71bb0d4c-aa1f-4a55-a59d-42ee0eb9dd31",
+  "id": "6a5db612-edfc-4c51-8977-535d9945e837",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -373,8 +373,9 @@
           "name": "universal",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "placeholder": {
           "name": "placeholder",
@@ -584,19 +585,12 @@
           "name": "lat",
           "type": "real",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "lon": {
           "name": "lon",
           "type": "real",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "refs": {
-          "name": "refs",
-          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -619,7 +613,14 @@
           "name": "metadata",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "presetRef": {
+          "name": "presetRef",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "forks": {
@@ -745,18 +746,18 @@
           "notNull": true,
           "autoincrement": false
         },
-        "fieldIds": {
-          "name": "fieldIds",
+        "fieldRefs": {
+          "name": "fieldRefs",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "iconId": {
-          "name": "iconId",
+        "iconRef": {
+          "name": "iconRef",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "terms": {
@@ -970,8 +971,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "refs": {
-          "name": "refs",
+        "observationRefs": {
+          "name": "observationRefs",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1079,22 +1080,22 @@
           "notNull": true,
           "autoincrement": false
         },
-        "schemaNameRef": {
-          "name": "schemaNameRef",
+        "docRef": {
+          "name": "docRef",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "docIdRef": {
-          "name": "docIdRef",
+        "docRefType": {
+          "name": "docRefType",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "fieldRef": {
-          "name": "fieldRef",
+        "propertyRef": {
+          "name": "propertyRef",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

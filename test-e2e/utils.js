@@ -173,6 +173,7 @@ export async function createManagers(count, t, deviceType) {
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
         const manager = createManager(name, t)
+        // @ts-ignore TODO: remove after updating @mapeo/schema
         await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
@@ -438,7 +439,7 @@ async function waitForProjectSync(project, peerIds, type = 'initial') {
 /**
  * @param {Record<string, unknown>} remoteStates
  * @param {string[]} peerIds
- * @returns
+ * @returns {boolean}
  */
 function hasPeerIds(remoteStates, peerIds) {
   for (const peerId of peerIds) {

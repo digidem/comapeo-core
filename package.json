@@ -1,6 +1,6 @@
 {
   "name": "@mapeo/core",
-  "version": "9.0.0-alpha.12",
+  "version": "9.0.0-alpha.16",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
@@ -8,8 +8,9 @@
   "scripts": {
     "lint": "eslint --cache .",
     "format": "prettier . --write",
-    "test": "npm-run-all lint test:prettier build:types type test:unit test:e2e test:types",
+    "test": "npm-run-all lint test:prettier build:types type test:buildConfigs test:unit test:e2e test:types",
     "test:prettier": "prettier --check .",
+    "test:buildConfigs": "node scripts/build-config-fixtures.js",
     "test:unit": "node --test tests/*.js tests/**/*.js",
     "test:e2e": "node --test test-e2e/*.js test-e2e/**/*.js",
     "test:types": "tsc -p test-types/tsconfig.json",
@@ -127,7 +128,6 @@
     "cpy-cli": "^5.0.0",
     "drizzle-kit": "^0.20.14",
     "eslint": "^8.57.0",
-    "filter-obj": "^6.0.0",
     "husky": "^8.0.0",
     "iterpal": "^0.4.0",
     "light-my-request": "^5.10.0",
@@ -144,10 +144,11 @@
     "streamx": "^2.15.1",
     "tempy": "^3.1.0",
     "ts-proto": "^1.156.7",
-    "typedoc": "^0.25.13",
-    "typedoc-plugin-markdown": "^3.17.1",
-    "typedoc-plugin-missing-exports": "^2.2.0",
-    "typescript": "^5.4.5"
+    "typedoc": "^0.26.6",
+    "typedoc-plugin-markdown": "^4.2.5",
+    "typedoc-plugin-missing-exports": "^3.0.0",
+    "typescript": "^5.5.4",
+    "yazl": "^2.5.1"
   },
   "dependencies": {
     "@digidem/types": "^2.3.0",

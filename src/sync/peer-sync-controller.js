@@ -1,24 +1,14 @@
 import mapObject from 'map-obj'
-import { NAMESPACES } from '../constants.js'
+import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
 import { ExhaustivenessError, createMap } from '../utils.js'
+/** @import { CoreRecord } from '../core-manager/index.js' */
+/** @import { Role } from '../roles.js' */
+/** @import { SyncEnabledState } from './sync-api.js' */
+/** @import { Namespace } from '../types.js' */
 
 /**
- * @typedef {import('../core-manager/index.js').Namespace} Namespace
- */
-/**
- * @typedef {import('../roles.js').Role['sync'][Namespace] | 'unknown'} SyncCapability
- */
-
-/** @type {Namespace[]} */
-export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
-export const DATA_NAMESPACES = NAMESPACES.filter(
-  (ns) => !PRESYNC_NAMESPACES.includes(ns)
-)
-
-/**
- * @internal
- * @typedef {import('./sync-api.js').SyncEnabledState} SyncEnabledState
+ * @typedef {Role['sync'][Namespace] | 'unknown'} SyncCapability
  */
 
 export class PeerSyncController {
@@ -32,7 +22,7 @@ export class PeerSyncController {
   #syncCapability = createNamespaceMap('unknown')
   /** @type {SyncEnabledState} */
   #syncEnabledState = 'none'
-  /** @type {Record<Namespace, import('./core-sync-state.js').CoreState | null>} */
+  /** @type {Record<Namespace, import('./core-sync-state.js').LocalCoreState | null>} */
   #prevLocalState = createNamespaceMap(null)
   /** @type {SyncStatus} */
   #syncStatus = createNamespaceMap('unknown')
@@ -127,7 +117,7 @@ export class PeerSyncController {
    * Handler for 'core-add' event from CoreManager
    * Bound to `this` (defined as static property)
    *
-   * @param {import("../core-manager/core-index.js").CoreRecord} coreRecord
+   * @param {CoreRecord} coreRecord
    */
   #handleAddCore = ({ core, namespace }) => {
     if (!this.#enabledNamespaces.has(namespace)) return

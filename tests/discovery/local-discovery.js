@@ -12,7 +12,7 @@ import {
   LocalDiscovery,
 } from '../../src/discovery/local-discovery.js'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-/** @typedef {import('../../src/utils.js').OpenedNoiseStream} OpenedNoiseStream */
+/** @import { OpenedNoiseStream } from '../../src/utils.js' */
 
 test('peer discovery - discovery and sharing of data', async (t) => {
   const deferred = pDefer()

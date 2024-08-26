@@ -10,6 +10,8 @@ import { randomBytes } from 'node:crypto'
 import { parseVersionId, getVersionId } from '@mapeo/schema'
 import { discoveryKey } from 'hypercore-crypto'
 
+/** @import { Namespace } from '../src/types.js' */
+
 test('Valid coreOwnership record', () => {
   const validDoc = generateValidDoc()
   const version = parseVersionId(validDoc.versionId)
@@ -74,7 +76,7 @@ test('Invalid coreOwnership docId and coreIds (wrong length)', () => {
   const version = parseVersionId(validDoc.versionId)
 
   for (const key of Object.keys(validDoc.coreSignatures)) {
-    const namespace = /** @type {import('./core-manager.js').Namespace} */ (key)
+    const namespace = /** @type {Namespace} */ (key)
     const invalidDoc = {
       ...validDoc,
       [`${namespace}CoreId`]: validDoc[`${namespace}CoreId`].slice(0, -1),

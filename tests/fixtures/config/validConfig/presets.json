@@ -1,0 +1,839 @@
+{
+    "categories": {},
+    "fields": {
+        "nombre-monitor": {
+            "key": "nombre-monitor",
+            "type": "text",
+            "label": "Nombre del Monitor o Mapeador",
+            "universal": true,
+            "placeholder": "¿Quién está haciendo esta observación?"
+        },
+        "nombre": {
+            "key": "nombre",
+            "type": "text",
+            "label": "Nombre del Sitio",
+            "universal": true,
+            "placeholder": "¿Escribe aquí el nombre de la cosa o el sitio si hay?"
+        }
+    },
+    "presets": {
+        "access-point": {
+            "icon": "access-point",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "geometry": [
+                "point",
+                "area",
+                "line"
+            ],
+            "sort": 1,
+            "tags": {
+                "type": "threat",
+                "threat": "access-point"
+            },
+            "name": "Punto de entrada"
+        },
+        "agrobusiness": {
+            "icon": "agrobusiness",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area",
+                "line"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "agrobusiness"
+            },
+            "name": "Agricultura grande escala"
+        },
+        "airstrip": {
+            "icon": "airstrip",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "aeroway",
+                "aeroway": "airstrip"
+            },
+            "name": "Pista"
+        },
+        "ancestral-site": {
+            "icon": "ancestral-site",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "sort": 3,
+            "tags": {
+                "type": "cultural",
+                "cultural": "ancestral-site"
+            },
+            "name": "Sitio ancestral"
+        },
+        "animal": {
+            "icon": "animal",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area",
+                "line"
+            ],
+            "tags": {
+                "type": "animal"
+            },
+            "terms": [],
+            "name": "Animal"
+        },
+        "archaeological-site": {
+            "icon": "archaeological-site",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "cultural",
+                "cultural": "archaeological-site"
+            },
+            "name": "Sitio arqueológico"
+        },
+        "area": {
+            "icon": "other-2",
+            "name": "Area n",
+            "tags": {
+                "area": "yes",
+                "nuevo": "yes"
+            },
+            "geometry": [
+                "area"
+            ],
+            "matchScore": 0.1
+        },
+        "boundary-line": {
+            "icon": "boundary",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "line"
+            ],
+            "tags": {
+                "type": "boundary",
+                "boundary": "indigenous"
+            },
+            "name": "Límite de territorio"
+        },
+        "burial-site": {
+            "icon": "burial-site",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "community",
+                "community": "burial"
+            },
+            "name": "Entierros"
+        },
+        "camp": {
+            "icon": "camp",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "camp"
+            },
+            "name": "Campamento"
+        },
+        "cave": {
+            "icon": "cave",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "cave_entrance"
+            },
+            "terms": [],
+            "name": "Cueva"
+        },
+        "coca": {
+            "icon": "coca",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "coca"
+            },
+            "name": "Cultivo ilícito"
+        },
+        "community": {
+            "icon": "community",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "place": "village"
+            },
+            "name": "Comunidad"
+        },
+        "fishing-site": {
+            "icon": "fishing",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "activity",
+                "activity": "fishing"
+            },
+            "name": "Sitio de pesca"
+        },
+        "gathering-site": {
+            "icon": "gathering",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "activity",
+                "activity": "gathering"
+            },
+            "name": "Sitio de recolección"
+        },
+        "grupo-armado": {
+            "icon": "grupo-armado",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "grupo-armado"
+            },
+            "name": "Grupo-armado"
+        },
+        "hills": {
+            "icon": "hills",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "peak"
+            },
+            "name": "Cerros"
+        },
+        "house": {
+            "icon": "house",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "building": "residential"
+            },
+            "name": "Casa"
+        },
+        "hunting-site": {
+            "icon": "hunting",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "activity",
+                "activity": "hunting"
+            },
+            "terms": [],
+            "name": "Sitio de caza"
+        },
+        "illegal-camp": {
+            "icon": "illegal-camp",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "camp"
+            },
+            "name": "Campamento ilegal"
+        },
+        "illegal-fishing": {
+            "icon": "illegal-fishing",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "fishing"
+            },
+            "name": "Pesca ilegal"
+        },
+        "illegal-mining": {
+            "icon": "mining",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "mining"
+            },
+            "name": "Minería ilegal"
+        },
+        "lake": {
+            "icon": "lake",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "water",
+                "water": "lake"
+            },
+            "terms": [],
+            "name": "Lago"
+        },
+        "line": {
+            "icon": "other-2",
+            "name": "Linea nueva",
+            "tags": {
+                "nuevo": "yes"
+            },
+            "geometry": [
+                "line"
+            ]
+        },
+        "logging": {
+            "icon": "logging",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "logging"
+            },
+            "name": "Tala ilegal"
+        },
+        "mejoras": {
+            "icon": "mejoras",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "mejoras"
+            },
+            "name": "Mejoras"
+        },
+        "new-road": {
+            "icon": "road",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "line"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "road"
+            },
+            "name": "Trocha/carretera nueva"
+        },
+        "oil-impact": {
+            "icon": "oil-impact",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "oil-impact"
+            },
+            "name": "Impactos petroleros"
+        },
+        "oil-installation": {
+            "icon": "oil-installation",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "oil"
+            },
+            "name": "Instalación petrolera"
+        },
+        "old-garden": {
+            "icon": "old-garden",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "community",
+                "community": "fallow"
+            },
+            "name": "Purma o rastrojo"
+        },
+        "other-impact": {
+            "icon": "other-impact",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area",
+                "line"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "other"
+            },
+            "name": "Otros impacto o amenaza"
+        },
+        "palm": {
+            "icon": "palm",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "tree",
+                "tree": "palm"
+            },
+            "terms": [],
+            "name": "Palmera"
+        },
+        "path": {
+            "icon": "path",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "line"
+            ],
+            "tags": {
+                "type": "highway",
+                "highway": "footway"
+            },
+            "terms": [
+                ""
+            ],
+            "name": "Camino"
+        },
+        "plant": {
+            "icon": "plant",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "plant"
+            },
+            "terms": [],
+            "name": "Planta"
+        },
+        "poaching": {
+            "icon": "poaching",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "poachings"
+            },
+            "name": "Caza ilegal"
+        },
+        "point": {
+            "icon": "other-2",
+            "name": "Nuevo punto",
+            "sort": 3,
+            "tags": {
+                "nuevo": "yes"
+            },
+            "geometry": [
+                "point"
+            ]
+        },
+        "river": {
+            "icon": "river",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "line"
+            ],
+            "tags": {
+                "waterway": "river",
+                "type": "waterway"
+            },
+            "terms": [],
+            "name": "Río o quebrada"
+        },
+        "sacred-site": {
+            "icon": "sacred-site",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "cultural",
+                "cultural": "cultural-site"
+            },
+            "name": "Sitio sagrado"
+        },
+        "salt-lick": {
+            "icon": "salt-lick",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "salt-lick"
+            },
+            "terms": [],
+            "name": "Saladero"
+        },
+        "settlement-illegal": {
+            "icon": "illegal-settlement",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 1,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "threat",
+                "threat": "settlement"
+            },
+            "name": "Asentamiento ilegal"
+        },
+        "swidden": {
+            "icon": "swidden",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "landuse",
+                "landuse": "farmland"
+            },
+            "name": "Chacra"
+        },
+        "waterfall": {
+            "icon": "waterfall",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "waterway",
+                "waterway": "waterfall"
+            },
+            "name": "Cascada"
+        },
+        "tree": {
+            "icon": "tree",
+            "fields": [
+                "nombre",
+                "nombre-monitor"
+            ],
+            "sort": 3,
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "tree"
+            },
+            "terms": [],
+            "name": "Arbol"
+        }
+    },
+    "defaults": {
+        "area": [
+            "area",
+            "ancestral-site",
+            "archaeological-site",
+            "burial-site",
+            "camp",
+            "cave",
+            "coca",
+            "community",
+            "fishing-site",
+            "gathering-site",
+            "hills",
+            "hunting-site",
+            "illegal-camp",
+            "illegal-fishing",
+            "illegal-mining",
+            "lake",
+            "logging",
+            "oil-impact",
+            "oil-installation",
+            "old-garden",
+            "palm",
+            "plant",
+            "poaching",
+            "sacred-site",
+            "salt-lick",
+            "swidden",
+            "tree",
+            "waterfall",
+            "access-point",
+            "agrobusiness",
+            "airstrip",
+            "animal",
+            "other-impact",
+            "grupo-armado"
+        ],
+        "line": [
+            "line",
+            "access-point",
+            "agrobusiness",
+            "animal",
+            "other-impact",
+            "boundary-line",
+            "new-road",
+            "path",
+            "river"
+        ],
+        "point": [
+            "point",
+            "ancestral-site",
+            "archaeological-site",
+            "burial-site",
+            "camp",
+            "cave",
+            "coca",
+            "community",
+            "fishing-site",
+            "gathering-site",
+            "hills",
+            "hunting-site",
+            "illegal-camp",
+            "illegal-fishing",
+            "illegal-mining",
+            "lake",
+            "logging",
+            "oil-impact",
+            "oil-installation",
+            "old-garden",
+            "palm",
+            "plant",
+            "poaching",
+            "sacred-site",
+            "salt-lick",
+            "swidden",
+            "tree",
+            "waterfall",
+            "access-point",
+            "agrobusiness",
+            "airstrip",
+            "animal",
+            "other-impact",
+            "boundary-line",
+            "new-road",
+            "path",
+            "river",
+            "grupo-armado"
+        ],
+        "vertex": [],
+        "relation": []
+    }
+}

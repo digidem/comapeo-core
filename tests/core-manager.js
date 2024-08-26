@@ -24,7 +24,7 @@ import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
-/** @typedef {import('../src/constants.js').NAMESPACES[number]} Namespace */
+/** @import { Namespace } from '../src/types.js' */
 
 /** @param {any} [key] */
 async function createCore(key) {
@@ -323,7 +323,7 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   const cm2 = createCoreManager({ projectKey })
   /**
    * For each peer, indexed by peerId, a map of hypercore bitfields, indexed by discoveryId
-   * @type {Map<string, Map<import('../src/core-manager/index.js').Namespace, Map<string, RemoteBitfield>>>}
+   * @type {Map<string, Map<Namespace, Map<string, RemoteBitfield>>>}
    */
   const havesByPeer = new Map()
 
@@ -679,7 +679,6 @@ async function countOpenFileDescriptors(dir) {
  * @param {Hypercore} a
  * @param {Hypercore} b
  * @param {Parameters<typeof Hypercore.prototype.replicate>[1] & { delay?: number }} [opts]
- * @returns
  */
 function replicateCores(a, b, { delay = 0, ...opts } = {}) {
   const s1 = a.replicate(true, { keepAlive: false, ...opts })
@@ -691,7 +690,6 @@ function replicateCores(a, b, { delay = 0, ...opts } = {}) {
 /**
  * Randomly delay stream chunks by up to `delay` milliseconds
  * @param {number} delay
- * @returns
  */
 function latencyStream(delay = 0) {
   return new Transform({

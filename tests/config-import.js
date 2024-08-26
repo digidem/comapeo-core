@@ -72,6 +72,32 @@ test('config import - loading', async () => {
     'fields field in presets.json is not an object'
   )
 
+  await assert.rejects(
+    async () => await readConfig('./tests/fixtures/config/missingMetadata.zip'),
+    /Zip file does not contain metadata.json/,
+    ''
+  )
+
+  await assert.rejects(
+    async () => await readConfig('./tests/fixtures/config/invalidMetadata.zip'),
+    /Could not parse metadata.json/,
+    ''
+  )
+
+  await assert.rejects(
+    async () =>
+      await readConfig('./tests/fixtures/config/invalidMetadataKey.zip'),
+    /Error: Invalid structure of metadata file/,
+    ''
+  )
+
+  await assert.rejects(
+    async () =>
+      await readConfig('./tests/fixtures/config/invalidMetadataValue.zip'),
+    /Error: Invalid structure of metadata file/,
+    ''
+  )
+
   assert(
     await readConfig('./tests/fixtures/config/validConfig.zip'),
     'valid zip'
@@ -83,9 +109,7 @@ test('config import - icons', async () => {
   let config = await readConfig(
     './tests/fixtures/config/invalidIconFilename.zip'
   )
-  /* eslint-disable-next-line */
-  for await (const icon of config.icons()) {
-  }
+  await arrayFrom(config.icons())
   assert.equal(
     config.warnings.length,
     1,
@@ -101,9 +125,7 @@ test('config import - icons', async () => {
     './tests/fixtures/config/invalidIconPixelDensity.zip'
   )
 
-  /* eslint-disable-next-line */
-  for await (const icon of config.icons()) {
-  }
+  await arrayFrom(config.icons())
 
   assert.equal(
     config.warnings.length,
@@ -118,10 +140,7 @@ test('config import - icons', async () => {
   // size
   config = await readConfig('./tests/fixtures/config/invalidIconSize.zip')
 
-  /* eslint-disable-next-line */
-  for await (const icon of config.icons()) {
-  }
-
+  await arrayFrom(config.icons())
   assert.equal(
     config.warnings.length,
     1,
@@ -150,10 +169,7 @@ test('config import - icons', async () => {
 
 test('config import - fields', async () => {
   let config = await readConfig('./tests/fixtures/config/invalidField.zip')
-
-  /* eslint-disable-next-line */
-  for (const field of config.fields()) {
-  }
+  arrayFrom(config.fields())
   assert.equal(config.warnings.length, 3, 'we got 3 errors when reading fields')
   assert(
     /Invalid field noKeyField/.test(config.warnings[0].message),
@@ -183,10 +199,7 @@ test('config import - fields', async () => {
 
 test('config import - presets', async () => {
   let config = await readConfig('./tests/fixtures/config/invalidPreset.zip')
-
-  /* eslint-disable-next-line */
-  for (const preset of config.presets()) {
-  }
+  arrayFrom(config.presets())
   assert.equal(
     config.warnings.length,
     2,
@@ -217,8 +230,9 @@ test('config import - translations', async () => {
   const config = await readConfig(defaultConfigPath)
   for (const { value } of config.translations()) {
     assert.equal(value.schemaName, 'translation', `schemaName is 'translation'`)
+
     assert(
-      value.schemaNameRef === 'presets' || value.schemaNameRef === 'fields',
+      value.docRefType === 'preset' || value.docRefType === 'field',
       `Config translates only 'fields' or 'presets'`
     )
   }

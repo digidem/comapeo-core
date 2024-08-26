@@ -48,9 +48,11 @@ import {
   kRequestFullStop,
   kRescindFullStopRequest,
 } from './sync/sync-api.js'
+/** @import { ProjectSettingsValue as ProjectValue } from '@mapeo/schema' */
+/** @import { SetNonNullable } from 'type-fest' */
+/** @import { CoreStorage, Namespace } from './types.js' */
 
-/** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
-/** @typedef {import('type-fest').SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
+/** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -86,7 +88,7 @@ export class MapeoManager extends TypedEmitter {
   // Maps project public id -> project instance
   /** @type {Map<string, MapeoProject>} */
   #activeProjects
-  /** @type {import('./types.js').CoreStorage} */
+  /** @type {CoreStorage} */
   #coreStorage
   #dbFolder
   /** @type {string} */
@@ -106,7 +108,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string} opts.projectMigrationsFolder path for drizzle migrations folder for project database
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
-   * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
+   * @param {string | CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
    * @param {String} [opts.defaultConfigPath]
    */
@@ -359,7 +361,7 @@ export class MapeoManager extends TypedEmitter {
     const projectKeypair = KeyManager.generateProjectKeypair()
 
     // 2. Create namespace encryption keys
-    /** @type {Record<import('./core-manager/core-index.js').Namespace, Buffer>} */
+    /** @type {Record<Namespace, Buffer>} */
     const encryptionKeys = {
       auth: randomBytes(32),
       blob: randomBytes(32),

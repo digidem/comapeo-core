@@ -15,6 +15,7 @@ import { FastifyController } from '../src/fastify-controller.js'
 import { plugin as StaticMapsPlugin } from '../src/fastify-plugins/maps/static-maps.js'
 import { plugin as MapServerPlugin } from '../src/fastify-plugins/maps/index.js'
 import { plugin as OfflineFallbackMapPlugin } from '../src/fastify-plugins/maps/offline-fallback-map.js'
+import { blobMetadata } from '../tests/helpers/blob-store.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../tests/fixtures/blob-api/', import.meta.url)
@@ -150,7 +151,7 @@ test('retrieving blobs using url', async (t) => {
   await t.test('blob exists', async () => {
     const blobId = await project.$blobs.create(
       { original: join(BLOB_FIXTURES_DIR, 'original.png') },
-      { mimeType: 'image/png' }
+      blobMetadata({ mimeType: 'image/png' })
     )
 
     const blobUrl = await project.$blobs.getUrl({
@@ -244,7 +245,7 @@ test('retrieving icons using url', async (t) => {
   await t.test('icon exists', async () => {
     const iconBuffer = randomBytes(128)
 
-    const iconId = await project.$icons.create({
+    const { docId: iconId } = await project.$icons.create({
       name: 'foo',
       variants: [
         {
@@ -314,7 +315,7 @@ test('retrieving audio file', async (t) => {
   await t.test('creating audio', async () => {
     const blobId = await project.$blobs.create(
       { original: join(BLOB_FIXTURES_DIR, 'audio.mp3') },
-      { mimeType: 'audio/mp3' }
+      blobMetadata({ mimeType: 'audio/mp3' })
     )
     const blobUrl = await project.$blobs.getUrl({
       ...blobId,

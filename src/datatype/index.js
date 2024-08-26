@@ -7,19 +7,9 @@ import { NotFoundError } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
 import { setProperty, getProperty } from 'dot-prop'
+/** @import { MapeoDoc, MapeoValue } from '@mapeo/schema' */
+/** @import { MapeoDocMap, MapeoValueMap } from '../types.js' */
 
-/**
- * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
- */
-/**
- * @typedef {import('@mapeo/schema').MapeoValue} MapeoValue
- */
-/**
- * @typedef {import('../types.js').MapeoDocMap} MapeoDocMap
- */
-/**
- * @typedef {import('../types.js').MapeoValueMap} MapeoValueMap
- */
 /**
  * @typedef {`${MapeoDoc['schemaName']}Table`} MapeoDocTableName
  */
@@ -209,8 +199,11 @@ export class DataType extends TypedEmitter {
 
     const value = {
       languageCode: language,
-      schemaNameRef: translatedDoc.schemaName,
-      docIdRef: translatedDoc.docId,
+      docRef: {
+        docId: translatedDoc.docId,
+        versionId: translatedDoc.versionId,
+      },
+      docRefType: translatedDoc.schemaName,
       regionCode: region !== null ? region : undefined,
     }
     let translations = await this.#getTranslations(value)
@@ -222,8 +215,8 @@ export class DataType extends TypedEmitter {
     }
 
     for (const translation of translations) {
-      if (typeof getProperty(doc, translation.fieldRef) === 'string') {
-        setProperty(doc, translation.fieldRef, translation.message)
+      if (typeof getProperty(doc, translation.propertyRef) === 'string') {
+        setProperty(doc, translation.propertyRef, translation.message)
       }
     }
     return doc
