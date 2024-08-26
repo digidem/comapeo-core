@@ -1,5 +1,5 @@
 import mapObject from 'map-obj'
-import { NAMESPACES } from '../constants.js'
+import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
 import { ExhaustivenessError, createMap } from '../utils.js'
 /** @import { CoreRecord } from '../core-manager/index.js' */
@@ -10,9 +10,6 @@ import { ExhaustivenessError, createMap } from '../utils.js'
 /**
  * @typedef {Role['sync'][Namespace] | 'unknown'} SyncCapability
  */
-
-/** @type {Namespace[]} */
-export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
 
 export class PeerSyncController {
   #replicatingCores = new Set()
