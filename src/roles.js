@@ -2,7 +2,7 @@ import { currentSchemaVersions } from '@mapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
-/** @import { Namespace } from './core-manager/index.js' */
+/** @import { Namespace } from './types.js' */
 
 // Randomly generated 8-byte encoded as hex
 export const CREATOR_ROLE_ID = 'a12a6702b93bd7ff'

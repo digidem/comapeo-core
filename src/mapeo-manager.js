@@ -50,7 +50,7 @@ import {
 } from './sync/sync-api.js'
 /** @import { ProjectSettingsValue as ProjectValue } from '@mapeo/schema' */
 /** @import { SetNonNullable } from 'type-fest' */
-/** @import { Namespace } from './core-manager/index.js' */
+/** @import { CoreStorage, Namespace } from './types.js' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
@@ -88,7 +88,7 @@ export class MapeoManager extends TypedEmitter {
   // Maps project public id -> project instance
   /** @type {Map<string, MapeoProject>} */
   #activeProjects
-  /** @type {import('./types.js').CoreStorage} */
+  /** @type {CoreStorage} */
   #coreStorage
   #dbFolder
   /** @type {string} */
@@ -108,7 +108,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string} opts.projectMigrationsFolder path for drizzle migrations folder for project database
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
-   * @param {string | import('./types.js').CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
+   * @param {string | CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
    * @param {String} [opts.defaultConfigPath]
    */

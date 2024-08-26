@@ -2,12 +2,13 @@ import mapObject from 'map-obj'
 import { NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
 import { ExhaustivenessError, createMap } from '../utils.js'
-/** @import { CoreRecord, Namespace } from '../core-manager/index.js' */
+/** @import { CoreRecord } from '../core-manager/index.js' */
 /** @import { Role } from '../roles.js' */
 /** @import { SyncEnabledState } from './sync-api.js' */
+/** @import { Namespace } from '../types.js' */
 
 /**
- * @typedef {Role['sync'][Namespace] | 'unknown'} SyncCapability
+ * @typedef {import('../roles.js').Role['sync'][Namespace] | 'unknown'} SyncCapability
  */
 
 /** @type {Namespace[]} */

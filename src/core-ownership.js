@@ -9,7 +9,14 @@ import mapObject from 'map-obj'
 import { discoveryKey } from 'hypercore-crypto'
 import pDefer from 'p-defer'
 import { NAMESPACES } from './constants.js'
-/** @import { CoreOwnershipWithSignatures } from './types.js' */
+/**
+ * @import {
+ *   CoreOwnershipWithSignatures,
+ *   CoreOwnershipWithSignaturesValue,
+ *   KeyPair,
+ *   Namespace
+ * } from './types.js'
+ */
 
 export class CoreOwnership {
   #dataType
@@ -24,8 +31,8 @@ export class CoreOwnership {
    *   import('@mapeo/schema').CoreOwnership,
    *   import('@mapeo/schema').CoreOwnershipValue
    * >} opts.dataType
-   * @param {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>} opts.coreKeypairs
-   * @param {import('./types.js').KeyPair} opts.identityKeypair
+   * @param {Record<Namespace, KeyPair>} opts.coreKeypairs
+   * @param {KeyPair} opts.identityKeypair
    */
   constructor({ dataType, coreKeypairs, identityKeypair }) {
     this.#dataType = dataType
@@ -46,7 +53,7 @@ export class CoreOwnership {
     if (authWriterCore.opened) {
       writeOwnership()
     } else {
-      authWriterCore.on('ready', writeOwnership)
+      authWriterCore.once('ready', writeOwnership)
     }
   }
 
@@ -74,7 +81,7 @@ export class CoreOwnership {
   /**
    *
    * @param {string} deviceId
-   * @param {typeof NAMESPACES[number]} namespace
+   * @param {Namespace} namespace
    * @returns {Promise<string>} coreId of core belonging to `deviceId` for `namespace`
    */
   async getCoreId(deviceId, namespace) {
@@ -85,11 +92,11 @@ export class CoreOwnership {
 
   /**
    *
-   * @param {import('./types.js').KeyPair} identityKeypair
-   * @param {Record<typeof NAMESPACES[number], import('./types.js').KeyPair>} coreKeypairs
+   * @param {KeyPair} identityKeypair
+   * @param {Record<Namespace, KeyPair>} coreKeypairs
    */
   async #writeOwnership(identityKeypair, coreKeypairs) {
-    /** @type {import('./types.js').CoreOwnershipWithSignaturesValue} */
+    /** @type {CoreOwnershipWithSignaturesValue} */
     const docValue = {
       schemaName: 'coreOwnership',
       ...mapObject(coreKeypairs, (key, value) => {

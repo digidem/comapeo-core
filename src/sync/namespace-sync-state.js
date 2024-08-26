@@ -1,12 +1,13 @@
 import { CoreSyncState } from './core-sync-state.js'
 import { discoveryKey } from 'hypercore-crypto'
+/** @import { Namespace } from '../types.js' */
 
 /**
  * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'> & { dataToSync: boolean, coreCount: number }} SyncState
  */
 
 /**
- * @template {import('../core-manager/index.js').Namespace} [TNamespace=import('../core-manager/index.js').Namespace]
+ * @template {Namespace} [TNamespace=Namespace]
  */
 export class NamespaceSyncState {
   /** @type {Map<string, CoreSyncState>} */
