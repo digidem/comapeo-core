@@ -8,7 +8,7 @@ import { ExhaustivenessError, createMap } from '../utils.js'
 /** @import { Namespace } from '../types.js' */
 
 /**
- * @typedef {import('../roles.js').Role['sync'][Namespace] | 'unknown'} SyncCapability
+ * @typedef {Role['sync'][Namespace] | 'unknown'} SyncCapability
  */
 
 /** @type {Namespace[]} */

@@ -20,7 +20,7 @@ const WRITER_CORE_PREHAVES_DEBOUNCE_DELAY = 1000
 
 export const kCoreManagerReplicate = Symbol('replicate core manager')
 
-/** @typedef {import('hypercore')<'binary', Buffer>} Core */
+/** @typedef {Hypercore<'binary', Buffer>} Core */
 /** @typedef {{ core: Core, key: Buffer, namespace: Namespace }} CoreRecord */
 /**
  * @typedef {Object} Events
