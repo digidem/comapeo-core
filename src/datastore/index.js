@@ -5,13 +5,8 @@ import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
 import { NAMESPACE_SCHEMAS } from '../constants.js'
 import { createMap } from '../utils.js'
+/** @import { MapeoDoc } from '@mapeo/schema' */
 
-/**
- * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
- */
-/**
- * @typedef {import('../datatype/index.js').MapeoDocTablesMap} MapeoDocTablesMap
- */
 /**
  * For each schemaName in this dataStore, emits an array of docIds that have
  * been indexed whenever indexing finishes (becomes idle). `projectSettings`

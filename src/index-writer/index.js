@@ -4,18 +4,14 @@ import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { getBacklinkTableName } from '../schema/utils.js'
 import { discoveryKey } from 'hypercore-crypto'
 import { Logger } from '../logger.js'
+/** @import { MapeoDoc, VersionIdObject } from '@mapeo/schema' */
+/** @import { MapeoDocTables } from '../datatype/index.js' */
 
-/**
- * @typedef {import('../datatype/index.js').MapeoDocTables} MapeoDocTables
- */
-/**
- * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
- */
 /**
  * @typedef {{ [K in MapeoDoc['schemaName']]?: string[] }} IndexedDocIds
  */
 /**
- * @typedef {ReturnType<import('@mapeo/schema').decode>} MapeoDocInternal
+ * @typedef {ReturnType<typeof decode>} MapeoDocInternal
  */
 
 /**
@@ -36,7 +32,7 @@ export class IndexWriter {
    * @param {object} opts
    * @param {import('better-sqlite3').Database} opts.sqlite
    * @param {TTables[]} opts.tables
-   * @param {(doc: MapeoDocInternal, version: import('@mapeo/schema').VersionIdObject) => MapeoDoc} [opts.mapDoc] optionally transform a document prior to indexing. Can also validate, if an error is thrown then the document will not be indexed
+   * @param {(doc: MapeoDocInternal, version: VersionIdObject) => MapeoDoc} [opts.mapDoc] optionally transform a document prior to indexing. Can also validate, if an error is thrown then the document will not be indexed
    * @param {typeof import('@mapeo/sqlite-indexer').defaultGetWinner} [opts.getWinner] custom function to determine the "winner" of two forked documents. Defaults to choosing the document with the most recent `updatedAt`
    * @param {Logger} [opts.logger]
    */

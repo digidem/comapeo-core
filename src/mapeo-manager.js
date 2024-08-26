@@ -48,10 +48,11 @@ import {
   kRequestFullStop,
   kRescindFullStopRequest,
 } from './sync/sync-api.js'
-
+/** @import { ProjectSettingsValue as ProjectValue } from '@mapeo/schema' */
+/** @import { SetNonNullable } from 'type-fest' */
 /** @import { CoreStorage, Namespace } from './types.js' */
-/** @typedef {import("@mapeo/schema").ProjectSettingsValue} ProjectValue */
-/** @typedef {import('type-fest').SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
+
+/** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 

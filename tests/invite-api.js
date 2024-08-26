@@ -13,9 +13,7 @@ import {
   projectKeyToPublicId,
 } from '../src/utils.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
-
-/** @typedef {import('../src/generated/rpc.js').Invite} Invite */
-/** @typedef {import('../src/generated/rpc.js').InviteResponse} InviteResponse */
+/** @import { InviteResponse } from '../src/generated/rpc.js' */
 
 class MockLocalPeers extends LocalPeers {
   /**

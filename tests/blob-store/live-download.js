@@ -7,8 +7,12 @@ import RAM from 'random-access-memory'
 import { setTimeout } from 'node:timers/promises'
 import { once } from 'node:events'
 import { randomBytes } from 'node:crypto'
-/** @typedef {import('../../src/blob-store/live-download.js').BlobDownloadState} BlobDownloadState */
-/** @typedef {import('../../src/blob-store/live-download.js').BlobDownloadStateError} BlobDownloadStateError */
+/**
+ * @import {
+ *   BlobDownloadState,
+ *   BlobDownloadStateError
+ * } from '../../src/blob-store/live-download.js'
+ */
 
 // Test with buffers that are 3 times the default blockSize for hyperblobs
 const TEST_BUF_SIZE = 3 * 64 * 1024

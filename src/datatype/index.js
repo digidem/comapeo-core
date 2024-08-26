@@ -8,19 +8,9 @@ import crypto from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
 import { setProperty, getProperty } from 'dot-prop'
+/** @import { MapeoDoc, MapeoValue } from '@mapeo/schema' */
+/** @import { MapeoDocMap, MapeoValueMap } from '../types.js' */
 
-/**
- * @typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
- */
-/**
- * @typedef {import('@mapeo/schema').MapeoValue} MapeoValue
- */
-/**
- * @typedef {import('../types.js').MapeoDocMap} MapeoDocMap
- */
-/**
- * @typedef {import('../types.js').MapeoValueMap} MapeoValueMap
- */
 /**
  * @typedef {`${MapeoDoc['schemaName']}Table`} MapeoDocTableName
  */

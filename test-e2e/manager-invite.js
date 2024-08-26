@@ -7,8 +7,6 @@ import { roles } from '../src/index.js'
 
 const { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } = roles
 
-/** @typedef {import('../src/generated/rpc.js').Invite} Invite */
-
 test('member invite accepted', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
   const disconnectPeers = connectPeers([creator, joiner])

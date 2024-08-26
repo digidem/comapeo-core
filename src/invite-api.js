@@ -5,6 +5,14 @@ import { assert, keyToId, noop } from './utils.js'
 import HashMap from './lib/hashmap.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { Logger } from './logger.js'
+/** @import { MapBuffers } from './types.js' */
+/**
+ * @import {
+ *   Invite as InviteRpcMessage,
+ *   InviteCancel,
+ *   ProjectJoinDetails
+ * } from './generated/rpc.js'
+ */
 
 // There are three slightly different invite types:
 //
@@ -14,15 +22,10 @@ import { Logger } from './logger.js'
 
 /**
  * @internal
- * @typedef {import('./generated/rpc.js').Invite} InviteRpcMessage
- */
-
-/**
- * @internal
  * @typedef {InviteRpcMessage & { receivedAt: number }} InviteInternal
  */
 
-/** @typedef {import('./types.js').MapBuffers<InviteInternal>} Invite */
+/** @typedef {MapBuffers<InviteInternal>} Invite */
 
 /**
  * @typedef {(
@@ -33,16 +36,6 @@ import { Logger } from './logger.js'
  *  'connection error' |
  *  'internal error'
  * )} InviteRemovalReason
- */
-
-/**
- * @internal
- * @typedef {import('./generated/rpc.js').InviteCancel} InviteCancel
- */
-
-/**
- * @internal
- * @typedef {import('./generated/rpc.js').ProjectJoinDetails} ProjectJoinDetails
  */
 
 /**
