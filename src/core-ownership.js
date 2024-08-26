@@ -49,7 +49,7 @@ export class CoreOwnership {
     if (authWriterCore.opened) {
       writeOwnership()
     } else {
-      authWriterCore.on('ready', writeOwnership)
+      authWriterCore.once('ready', writeOwnership)
     }
   }
 
