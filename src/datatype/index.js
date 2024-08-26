@@ -9,6 +9,7 @@ import { parse as parseBCP47 } from 'bcp-47'
 import { setProperty, getProperty } from 'dot-prop'
 /** @import { MapeoDoc, MapeoValue, encode } from '@mapeo/schema' */
 /** @import { MapeoDocMap, MapeoValueMap } from '../types.js' */
+/** @import { DataStore } from '../datastore/index.js' */
 
 /**
  * @typedef {`${MapeoDoc['schemaName']}Table`} MapeoDocTableName
@@ -46,7 +47,7 @@ export const kSelect = Symbol('select')
 export const kTable = Symbol('table')
 
 /**
- * @template {import('../datastore/index.js').DataStore} TDataStore
+ * @template {DataStore} TDataStore
  * @template {TDataStore['schemas'][number]} TSchemaName
  * @template {MapeoDocTablesMap[TSchemaName]} TTable
  * @template {Exclude<MapeoDocMap[TSchemaName], { schemaName: 'coreOwnership' }>} TDoc
@@ -148,8 +149,7 @@ export class DataType extends TypedEmitter {
     }
     const nowDateString = generateDate()
 
-    // TODO: Maybe try `DataStore.write` instead?
-    /** @type {Parameters<typeof encode>[0]} */
+    /** @type {Parameters<typeof DataStore.prototype.write>[0]} */
     const doc = {
       ...value,
       docId,
@@ -158,9 +158,6 @@ export class DataType extends TypedEmitter {
       deleted: false,
       links: [],
     }
-
-    // TS can't track the relationship between TDoc and TValue, so doc above is
-    // typed as MapeoDoc (without versionId) rather than as TDoc.
     await this.#dataStore.write(doc)
     return this.getByDocId(doc.docId)
   }
