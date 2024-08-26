@@ -23,7 +23,6 @@
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
     "prepack": "npm run build:types",
-    "postinstall": "patch-package",
     "prepare": "husky install"
   },
   "files": [
@@ -186,7 +185,6 @@
     "p-defer": "^4.0.0",
     "p-event": "^6.0.1",
     "p-timeout": "^6.1.2",
-    "patch-package": "^8.0.0",
     "protobufjs": "^7.2.3",
     "protomux": "^3.4.1",
     "quickbit-universal": "^2.2.0",
