@@ -1,3 +1,5 @@
+import { generate } from '@mapeo/mock-data'
+import { valueOf } from '@mapeo/schema'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
@@ -32,12 +34,9 @@ test('$createdByToDeviceId', async (t) => {
   creatorProject.$sync.start()
   memberProject.$sync.start()
 
-  const observation = await creatorProject.observation.create({
-    schemaName: 'observation',
-    attachments: [],
-    tags: {},
-    metadata: {},
-  })
+  const observation = await creatorProject.observation.create(
+    valueOf(generate('observation')[0])
+  )
 
   await waitForSync(projects, 'full')
 

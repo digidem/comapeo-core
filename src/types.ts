@@ -13,6 +13,9 @@ import type NoiseStream from '@hyperswarm/secret-stream'
 import { Duplex } from 'streamx'
 import RandomAccessStorage from 'random-access-storage'
 import { DefaultListener, ListenerSignature } from 'tiny-typed-emitter'
+import type { NAMESPACES } from './constants.js'
+
+export type Namespace = (typeof NAMESPACES)[number]
 
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 export type BlobType = keyof SupportedBlobVariants

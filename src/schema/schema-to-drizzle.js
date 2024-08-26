@@ -1,13 +1,8 @@
 import { text, integer, real } from 'drizzle-orm/sqlite-core'
 import { ExhaustivenessError } from '../utils.js'
 import { customJson } from './utils.js'
-
-/**
-@typedef {import('@mapeo/schema').MapeoDoc} MapeoDoc
- */
-/**
-@typedef {import('../types.js').MapeoDocMap} MapeoDocMap
- */
+/** @import { MapeoDoc } from '@mapeo/schema' */
+/** @import { MapeoDocMap } from '../types.js' */
 
 /**
 Convert a JSONSchema definition to a Drizzle Columns Map (the parameter for

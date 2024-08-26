@@ -53,7 +53,7 @@ declare module 'protomux' {
     cork(): void
     uncork(): void
     pair(
-      opts: { protocol: string; id?: Buffer },
+      opts: { protocol: string; id?: null | Buffer },
       notify: (id: Buffer) => Promise<void>
     ): void
     unpair(opts: { protocol: string; id?: null | Buffer }): void
@@ -62,7 +62,7 @@ declare module 'protomux' {
       userData?: any
       protocol: string
       aliases?: string[]
-      id?: Buffer
+      id?: null | Buffer
       unique?: boolean
       handshake?: Encoding
       messages: MessageOptions[]

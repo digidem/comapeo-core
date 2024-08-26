@@ -5,12 +5,12 @@ import { Type as T } from '@sinclair/typebox'
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
 
+/** @import { BlobId } from '../types.js' */
+
 export default fp(blobServerPlugin, {
   fastify: '4.x',
   name: 'mapeo-blobs',
 })
-
-/** @typedef {import('../types.js').BlobId} BlobId */
 
 /**
  * @typedef {Object} BlobServerPluginOpts

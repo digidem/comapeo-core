@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
 import { temporaryDirectory } from 'tempy'
 
+import { generate } from '@mapeo/mock-data'
+import { valueOf } from '@mapeo/schema'
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
@@ -254,12 +256,7 @@ test('Data access after leaving project', async (t) => {
 
   const [, coordinatorProject, memberProject] = projects
 
-  await memberProject.observation.create({
-    schemaName: 'observation',
-    attachments: [],
-    tags: {},
-    metadata: {},
-  })
+  await memberProject.observation.create(valueOf(generate('observation')[0]))
   assert(
     (await memberProject.observation.getMany()).length >= 1,
     'Test is set up correctly'
@@ -275,12 +272,7 @@ test('Data access after leaving project', async (t) => {
   await waitForSync(projects, 'initial')
 
   await assert.rejects(async () => {
-    await memberProject.observation.create({
-      schemaName: 'observation',
-      attachments: [],
-      tags: {},
-      metadata: {},
-    })
+    await memberProject.observation.create(valueOf(generate('observation')[0]))
   }, 'member cannot create new data after leaving')
   await assert.rejects(
     () => memberProject.observation.getMany(),
@@ -344,12 +336,9 @@ test('leaving a project deletes data from disk', async (t) => {
   )
   const [creatorProject, memberProject] = projects
 
-  const observation = await creatorProject.observation.create({
-    schemaName: 'observation',
-    attachments: [],
-    tags: {},
-    metadata: {},
-  })
+  const observation = await creatorProject.observation.create(
+    valueOf(generate('observation')[0])
+  )
 
   creatorProject.$sync.start()
   memberProject.$sync.start()
@@ -421,15 +410,10 @@ test('partly-left projects are cleaned up on startup', async (t) => {
   const custodian = new ManagerCustodian(t)
 
   const projectId = await custodian.withManagerInSeparateProcess(
-    async (manager, LEFT_ROLE_ID) => {
+    async (manager, { observation, LEFT_ROLE_ID }) => {
       const projectId = await manager.createProject({ name: 'foo' })
       const project = await manager.getProject(projectId)
-      await project.observation.create({
-        schemaName: 'observation',
-        attachments: [],
-        tags: {},
-        metadata: {},
-      })
+      await project.observation.create(observation)
       await project.$member.assignRole(
         manager.getDeviceInfo().deviceId,
         /**
@@ -440,7 +424,10 @@ test('partly-left projects are cleaned up on startup', async (t) => {
       )
       return projectId
     },
-    LEFT_ROLE_ID
+    {
+      observation: valueOf(generate('observation')[0]),
+      LEFT_ROLE_ID,
+    }
   )
 
   const couldGetObservations = await custodian.withManagerInSeparateProcess(

@@ -3,7 +3,8 @@ import { pipelinePromise as pipeline, Writable } from 'streamx'
 
 import { BlobStore } from '../../src/blob-store/index.js'
 import { createCoreManager } from './core-manager.js'
-/** @typedef {import('../../src/blob-api.js').Metadata} Metadata */
+
+/** @import { Metadata } from '../../src/blob-api.js' */
 
 /**
  * @param {Object} [opts]
