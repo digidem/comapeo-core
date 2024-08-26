@@ -108,7 +108,7 @@
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
     "@mapeo/default-config": "file:mapeo-default-config-4.0.0-alpha.6.tgz",
-    "@mapeo/mock-data": "file:../mapeo-mock-data/mapeo-mock-data-1.0.3-alpha.2.tgz",
+    "@mapeo/mock-data": "^1.0.3-alpha.3",
     "@sinonjs/fake-timers": "^10.0.2",
     "@types/b4a": "^1.6.0",
     "@types/bogon": "^1.0.2",
