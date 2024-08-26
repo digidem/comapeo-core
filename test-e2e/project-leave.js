@@ -5,7 +5,6 @@ import { temporaryDirectory } from 'tempy'
 
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@mapeo/schema'
-import { MapeoProject } from '../src/mapeo-project.js'
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
@@ -13,6 +12,7 @@ import {
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
 } from '../src/roles.js'
+import { MapeoProject } from '../src/mapeo-project.js'
 import {
   ManagerCustodian,
   connectPeers,
