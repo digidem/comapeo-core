@@ -34,8 +34,8 @@ const obsFixture = {
 /** @type {import('@mapeo/schema').ObservationValue} */
 const newObsFixture = {
   schemaName: 'observation',
-  lat: -3,
-  lon: 37,
+  lat: -1,
+  lon: 36,
   tags: {},
   attachments: [],
   metadata: { manualLocation: false },
