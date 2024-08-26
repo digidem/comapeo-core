@@ -410,10 +410,10 @@ test('partly-left projects are cleaned up on startup', async (t) => {
   const custodian = new ManagerCustodian(t)
 
   const projectId = await custodian.withManagerInSeparateProcess(
-    async (manager, LEFT_ROLE_ID) => {
+    async (manager, observation, LEFT_ROLE_ID) => {
       const projectId = await manager.createProject({ name: 'foo' })
       const project = await manager.getProject(projectId)
-      await project.observation.create(valueOf(generate('observation')[0]))
+      await project.observation.create(observation)
       await project.$member.assignRole(
         manager.getDeviceInfo().deviceId,
         /**
@@ -424,6 +424,7 @@ test('partly-left projects are cleaned up on startup', async (t) => {
       )
       return projectId
     },
+    valueOf(generate('observation')[0]),
     LEFT_ROLE_ID
   )
 

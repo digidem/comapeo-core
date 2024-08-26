@@ -8,6 +8,7 @@ import {
   presetsTranslationMap,
   presetTranslations,
 } from './fixtures/translations.js'
+/** @import { MapeoManager } from '../src/mapeo-manager.js' */
 
 test('translation api - put() and get() presets', async (t) => {
   const [manager] = await createManagers(1, t, 'mobile')
@@ -267,24 +268,23 @@ test('translation api - passing `lang` to dataType', async (t) => {
 
 test('translation api - re-loading from disk', async (t) => {
   const custodian = new ManagerCustodian(t)
-  const deps = {
-    defaultConfigPath,
-    presetsTranslationMap,
-    presetTranslations,
-    fieldsTranslationMap,
-    fieldTranslations,
-  }
   const { projectId, presetTranslationsDoc, fieldTranslationsDoc } =
     await custodian.withManagerInSeparateProcess(
+      /**
+       * @param {MapeoManager} manager1
+       * @param {typeof defaultConfigPath} defaultConfigPath
+       * @param {typeof presetsTranslationMap} presetsTranslationMap
+       * @param {typeof presetTranslations} presetTranslations
+       * @param {typeof fieldsTranslationMap} fieldsTranslationMap
+       * @param {typeof fieldTranslations} fieldTranslations
+       */
       async (
         manager1,
-        {
-          defaultConfigPath,
-          presetsTranslationMap,
-          presetTranslations,
-          fieldsTranslationMap,
-          fieldTranslations,
-        }
+        defaultConfigPath,
+        presetsTranslationMap,
+        presetTranslations,
+        fieldsTranslationMap,
+        fieldTranslations
       ) => {
         const projectId = await manager1.createProject({
           configPath: defaultConfigPath,
@@ -347,7 +347,11 @@ test('translation api - re-loading from disk', async (t) => {
 
         return { projectId, presetTranslationsDoc, fieldTranslationsDoc }
       },
-      deps
+      defaultConfigPath,
+      presetsTranslationMap,
+      presetTranslations,
+      fieldsTranslationMap,
+      fieldTranslations
     )
 
   const hasExpectedNumberOfTranslations =

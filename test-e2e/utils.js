@@ -278,6 +278,12 @@ export class ManagerCustodian {
   }
 
   /**
+   * @internal
+   * @template {(firstArg: any, ...args: any[]) => any} T
+   * @typedef {Parameters<T> extends [any, ...infer R] ? R : never} ParametersWithoutFirst
+   */
+
+  /**
    * Run a function on a new manager in a separate process.
    *
    * Because this function is serialized and run in a separate process, there
@@ -286,11 +292,10 @@ export class ManagerCustodian {
    * 1. Anything referenced outside the function must be passed as an argument.
    * 2. Arguments and return values must be serializable using `v8.serialize`.
    *
-   * @template ArgsT
-   * @template ResultT
-   * @param {(manager: MapeoManager, ...args: ArgsT[]) => Promise<ResultT>} fn
-   * @param {ArgsT[]} args
-   * @returns {Promise<ResultT>}
+   * @template {(manager: MapeoManager, ...args: any[]) => Promise<any>} T
+   * @param {T} fn
+   * @param {ParametersWithoutFirst<T>} args
+   * @returns {Promise<ReturnType<T>>}
    */
   async withManagerInSeparateProcess(fn, ...args) {
     const jsFile = await this.#createJsFile(fn, args)
