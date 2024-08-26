@@ -2,8 +2,7 @@ import { keyToId } from '../utils.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
 } from '../core-manager/remote-bitfield.js'
-/** @typedef {import('../types.js').HypercoreRemoteBitfield} HypercoreRemoteBitfield */
-/** @typedef {import('../types.js').HypercorePeer} HypercorePeer */
+/** @import { HypercorePeer, HypercoreRemoteBitfield, Namespace } from '../types.js' */
 
 /**
  * @typedef {RemoteBitfield} Bitfield
@@ -17,7 +16,7 @@ import RemoteBitfield, {
  * @property {PeerState} localState
  * @property {Map<PeerId, PeerState>} remoteStates
  * @property {Map<string, import('./peer-sync-controller.js').PeerSyncController>} peerSyncControllers
- * @property {import('../core-manager/index.js').Namespace} namespace
+ * @property {Namespace} namespace
  */
 /**
  * @typedef {object} LocalCoreState
@@ -77,7 +76,7 @@ export class CoreSyncState {
    * @param {object} opts
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
-   * @param {import('../core-manager/index.js').Namespace} opts.namespace
+   * @param {Namespace} opts.namespace
    */
   constructor({ onUpdate, peerSyncControllers, namespace }) {
     this.#peerSyncControllers = peerSyncControllers

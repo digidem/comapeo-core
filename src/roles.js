@@ -2,6 +2,7 @@ import { currentSchemaVersions } from '@mapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
+/** @import { Namespace } from './types.js' */
 
 // Randomly generated 8-byte encoded as hex
 export const CREATOR_ROLE_ID = 'a12a6702b93bd7ff'
@@ -67,7 +68,7 @@ const isRoleIdAssignableToAnyone = setHas(ROLE_IDS_ASSIGNABLE_TO_ANYONE)
  * @property {string} name
  * @property {Record<import('@mapeo/schema').MapeoDoc['schemaName'], DocCapability>} docs
  * @property {RoleIdAssignableToOthers[]} roleAssignment
- * @property {Record<import('./core-manager/core-index.js').Namespace, 'allowed' | 'blocked'>} sync
+ * @property {Record<Namespace, 'allowed' | 'blocked'>} sync
  */
 
 /**

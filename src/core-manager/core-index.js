@@ -1,6 +1,5 @@
 import crypto from 'hypercore-crypto'
-
-/** @typedef {import('./index.js').Namespace} Namespace */
+/** @import { Namespace } from '../types.js' */
 /** @typedef {import('./index.js').CoreRecord} CoreRecord */
 
 /**
