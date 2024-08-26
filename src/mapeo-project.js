@@ -727,10 +727,10 @@ export class MapeoProject extends TypedEmitter {
 
     try {
       // check for already present fields and presets and delete them if exist
-      const deletePresetsPromise = deleteAll(this.preset)
-      const deleteFieldsPromise = deleteAll(this.field)
+      const presetsToDelete = await grabDocsToDelete(this.preset)
+      const fieldsToDelete = await grabDocsToDelete(this.field)
       // delete only translations that refer to deleted fields and presets
-      const deleteTranslationsPromise = deleteTranslations({
+      const translationsToDelete = await grabTranslationsToDelete({
         logger: this.#l,
         translation: this.$translation.dataType,
         preset: this.preset,
@@ -842,11 +842,23 @@ export class MapeoProject extends TypedEmitter {
         configMetadata: config.metadata,
       })
       this.#loadingConfig = false
-      await Promise.all([
-        deletePresetsPromise,
-        deleteFieldsPromise,
-        deleteTranslationsPromise,
-      ])
+
+      await Promise.all(
+        presetsToDelete.map(async (docId) => {
+          await this.preset.delete(docId)
+        })
+      )
+      await Promise.all(
+        fieldsToDelete.map(async (docId) => {
+          await this.field.delete(docId)
+        })
+      )
+
+      await Promise.all(
+        translationsToDelete.map(async (docId) => {
+          await this.$translation.dataType.delete(docId)
+        })
+      )
 
       return config.warnings
     } catch (e) {
@@ -867,13 +879,16 @@ function extractEditableProjectSettings(projectDoc) {
   return result
 }
 
-/** @param {MapeoProject['field'] | MapeoProject['preset']} dataType */
-async function deleteAll(dataType) {
-  const deletions = []
+/**
+ @param {MapeoProject['field'] | MapeoProject['preset']} dataType
+ @returns {Promise<String[]>}
+ */
+async function grabDocsToDelete(dataType) {
+  const toDelete = []
   for (const { docId } of await dataType.getMany()) {
-    deletions.push(dataType.delete(docId))
+    toDelete.push(docId)
   }
-  return Promise.all(deletions)
+  return toDelete
 }
 
 /**
@@ -882,11 +897,12 @@ async function deleteAll(dataType) {
  * @param {MapeoProject['$translation']['dataType']} opts.translation
  * @param {MapeoProject['preset']} opts.preset
  * @param {MapeoProject['field']} opts.field
+ * @returns {Promise<String[]>}
  */
-async function deleteTranslations(opts) {
+async function grabTranslationsToDelete(opts) {
+  /** @type {String[]} */
+  const toDelete = []
   const translations = await opts.translation.getMany()
-  /** @type any[] should actually be a list of what `.delete()` returns */
-  const deletions = []
   translations.forEach(async ({ docRefType, docRef, docId }) => {
     if (docRefType === 'field' || docRefType === 'preset') {
       let doc
@@ -896,11 +912,11 @@ async function deleteTranslations(opts) {
         opts.logger.log(`referred ${docRef.versionId} is not found`)
       }
       if (doc) {
-        deletions.push(opts.translation.delete(docId))
+        toDelete.push(docId)
       }
     }
   })
-  return Promise.all(deletions)
+  return toDelete
 }
 
 /**
