@@ -50,6 +50,8 @@ import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
 
+/** @import { CoreStorage, KeyPair, Namespace } from './types.js' */
+
 /** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {import('@mapeo/schema').ProjectSettingsValue['configMetadata']} ConfigMetadata */
 
@@ -101,7 +103,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
-   * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
+   * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {Logger} [opts.logger]
@@ -685,7 +687,7 @@ export class MapeoProject extends TypedEmitter {
     }
 
     const namespacesWithoutAuth =
-      /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
+      /** @satisfies {Exclude<Namespace, 'auth'>[]} */ ([
         'config',
         'data',
         'blob',
@@ -908,11 +910,10 @@ async function deleteTranslations(opts) {
  * @param {Buffer} opts.projectKey
  * @param {Buffer} [opts.projectSecretKey]
  * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
- * @returns {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>}
+ * @returns {Record<Namespace, KeyPair>}
  */
 function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
-  const keypairs =
-    /** @type {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>} */ ({})
+  const keypairs = /** @type {Record<Namespace, KeyPair>} */ ({})
 
   for (const namespace of NAMESPACES) {
     keypairs[namespace] =

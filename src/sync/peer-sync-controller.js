@@ -2,10 +2,8 @@ import mapObject from 'map-obj'
 import { NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
 import { ExhaustivenessError, createMap } from '../utils.js'
+/** @import { Namespace } from '../types.js' */
 
-/**
- * @typedef {import('../core-manager/index.js').Namespace} Namespace
- */
 /**
  * @typedef {import('../roles.js').Role['sync'][Namespace] | 'unknown'} SyncCapability
  */
