@@ -294,7 +294,7 @@ test('translation', async () => {
 })
 
 /**
- * @param {object} opts
+ * @param {object} [opts={}]
  * @param {Buffer} [opts.projectKey]
  */
 async function testenv(opts = {}) {

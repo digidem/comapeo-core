@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { KeyManager } from '@mapeo/crypto'
+import { generate } from '@mapeo/mock-data'
 import { parseVersionId, valueOf } from '@mapeo/schema'
 import RAM from 'random-access-memory'
 import { discoveryKey } from 'hypercore-crypto'
 import Fastify from 'fastify'
 
-import { generate } from '@mapeo/mock-data'
 import { kCoreOwnership } from '../src/mapeo-project.js'
 import { MapeoManager } from '../src/mapeo-manager.js'
 
