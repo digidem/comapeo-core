@@ -1,6 +1,6 @@
 import path from 'path'
 import Database from 'better-sqlite3'
-import { decodeBlockPrefix, decode } from '@mapeo/schema'
+import { decodeBlockPrefix, decode, parseVersionId } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
@@ -560,6 +560,20 @@ export class MapeoProject extends TypedEmitter {
 
   async $getOwnRole() {
     return this.#roles.getRole(this.#deviceId)
+  }
+
+  /**
+   * @param {string} originalVersionId The `originalVersionId` from a document.
+   * @returns {Promise<string>} The device ID for this creator.
+   * @throws When device ID cannot be found.
+   */
+  async $originalVersionIdToDeviceId(originalVersionId) {
+    const { coreDiscoveryKey } = parseVersionId(originalVersionId)
+    const coreId = this.#coreManager
+      .getCoreByDiscoveryKey(coreDiscoveryKey)
+      ?.key.toString('hex')
+    if (!coreId) throw new Error('NotFound')
+    return this.#coreOwnership.getOwner(coreId)
   }
 
   /**
