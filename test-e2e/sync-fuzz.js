@@ -16,6 +16,7 @@
 
 // import whyIsNodeRunning from 'why-is-node-running'
 import { generate } from '@mapeo/mock-data'
+import { map } from 'iterpal'
 import assert from 'node:assert/strict'
 import * as process from 'node:process'
 import test from 'node:test'
@@ -127,6 +128,7 @@ for (let i = 1; i <= testCount; i++) {
     const [invitor, ...invitees] = managers
 
     const disconnect = connectPeers(managers, { discovery: false })
+    t.after(disconnect)
 
     const projectId = await invitor.createProject({ name: 'Mapeo' })
     await invite({ invitor, invitees, projectId })
@@ -142,14 +144,6 @@ for (let i = 1; i <= testCount; i++) {
         })
       )
     )
-    t.after(() => {
-      // TODO tidy this
-      console.log('@@@@', 'disconnecting!')
-      return disconnect()
-    })
-    // t.after(() => {
-    //   setImmediate(() => whyIsNodeRunning())
-    // })
     await waitForSync(projects, 'initial')
 
     /** @type {string[]} */
@@ -167,37 +161,21 @@ for (let i = 1; i <= testCount; i++) {
     })
 
     for (let i = 0; i < actionCount; i++) {
-      // console.log('@@@@', 'starting action', i)
       const possibleActions = getPossibleNextActions(projects)
       const action = sample(possibleActions)
       assert(action, 'no next step? test is broken')
 
-      // console.log('@@@@', 'running action', i)
       const result = await action(expectedState)
-      console.log('@@@@', result.title)
       actionTitles.push(result.title)
       expectedState = result.newExpectedState
 
-      console.log('@@@@', 'waiting for data sync...')
       await waitForDataSyncForEnabledProjects(projects)
-      console.log('@@@@', 'waited for data sync')
 
       /** @type {State} */
       const actualState = await Promise.all(
         projects.map(async (project) => {
-          // console.log('@@@@', 'project', index, 'fetching observations...')
           const observations = await project.observation.getMany()
-          // console.log(
-          //   '@@@@',
-          //   'project',
-          //   index,
-          //   'fetched',
-          //   observations.length,
-          //   'observations.'
-          // )
-          // TODO
-          // const observationIds = map(observations, (o) => o.docId)
-          const observationIds = observations.map((o) => o.docId)
+          const observationIds = map(observations, (o) => o.docId)
           return {
             isSyncEnabled: isSyncEnabled(project),
             observationIds: new Set(observationIds),
@@ -205,12 +183,8 @@ for (let i = 1; i <= testCount; i++) {
         })
       )
 
-      console.log('@@@@', 'about to check states...')
       assertStatesMatch(actualState, expectedState, actionTitles)
-      console.log('@@@@', 'checked states')
     }
-
-    console.log('@@@@', 'done')
   })
 }
 
@@ -377,42 +351,26 @@ async function waitForDataSyncForEnabledProjects(projects) {
    * @returns {boolean}
    */
   const isProjectDone = (project) => {
-    const otherProjects = projects.filter((p) => p !== project)
-    const otherProjectsSyncStates = otherProjects.map((p) => p.$sync.getState())
-
-    // TODO tidy
-    let result = false
     if (project.$sync.getState().data.isSyncEnabled) {
-      result = otherProjectsSyncStates.every((s) =>
-        // TODO tidy
-        s.data.isSyncEnabled
-          ? s.remoteDeviceSyncState[project.deviceId].data.want === 0 &&
-            s.remoteDeviceSyncState[project.deviceId].data.wanted === 0
-          : true
-      )
-    } else {
-      result = true
-      // result = otherProjectsSyncStates.every(
-      //   (s) => !s.remoteDeviceSyncState[project.deviceId].data.isSyncEnabled
-      // )
-    }
+      return projects.every((otherProject) => {
+        const isMe = otherProject === project
+        if (isMe) return true
 
-    return result
+        const syncState = otherProject.$sync.getState()
+        if (!syncState.data.isSyncEnabled) return true
+
+        const howTheySeeMe = syncState.remoteDeviceSyncState[project.deviceId]
+        return howTheySeeMe.data.want === 0 && howTheySeeMe.data.wanted === 0
+      })
+    } else {
+      return true
+    }
   }
 
   /**
    * @returns {boolean}
    */
-  const isDone = () => {
-    const result = projects.every(isProjectDone)
-    if (!result) {
-      console.log(
-        '@@@@',
-        JSON.stringify(projects.map((p) => p.$sync.getState()))
-      )
-    }
-    return result
-  }
+  const isDone = () => projects.every(isProjectDone)
 
   if (isDone()) return
 
