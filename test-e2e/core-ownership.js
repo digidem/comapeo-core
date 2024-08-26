@@ -36,9 +36,7 @@ test('CoreOwnership', async () => {
   const authCoreId = await coreOwnership.getCoreId(deviceId, 'auth')
   assert.equal(await coreOwnership.getOwner(authCoreId), deviceId)
 
-  const preset = await project.preset.create(
-    valueOf(generate('preset')[0])
-  )
+  const preset = await project.preset.create(valueOf(generate('preset')[0]))
   assert.equal(
     discoveryId(await coreOwnership.getCoreId(deviceId, 'config')),
     parseVersionId(preset.versionId).coreDiscoveryKey.toString('hex')

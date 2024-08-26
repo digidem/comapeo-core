@@ -24,7 +24,8 @@ import { decode, decodeBlockPrefix, parseVersionId } from '@mapeo/schema'
 /** @type {import('@mapeo/schema').ObservationValue} */
 const obsFixture = {
   schemaName: 'observation',
-    lat:-3,lon:37,
+  lat: -3,
+  lon: 37,
   tags: {},
   attachments: [],
   metadata: { manualLocation: false },
@@ -33,7 +34,8 @@ const obsFixture = {
 /** @type {import('@mapeo/schema').ObservationValue} */
 const newObsFixture = {
   schemaName: 'observation',
-    lat:-3,lon:37,
+  lat: -3,
+  lon: 37,
   tags: {},
   attachments: [],
   metadata: { manualLocation: false },
@@ -226,7 +228,8 @@ test('translation', async () => {
   /** @type {import('@mapeo/schema').ObservationValue} */
   const observation = {
     schemaName: 'observation',
-    lat:-3,lon:37,
+    lat: -3,
+    lon: 37,
     tags: {
       type: 'point',
     },
