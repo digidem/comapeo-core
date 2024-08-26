@@ -727,10 +727,10 @@ export class MapeoProject extends TypedEmitter {
 
     try {
       // check for already present fields and presets and delete them if exist
-      await deleteAll(this.preset)
-      await deleteAll(this.field)
+      const deletePresetsPromise = deleteAll(this.preset)
+      const deleteFieldsPromise = deleteAll(this.field)
       // delete only translations that refer to deleted fields and presets
-      await deleteTranslations({
+      const deleteTranslationsPromise = deleteTranslations({
         logger: this.#l,
         translation: this.$translation.dataType,
         preset: this.preset,
@@ -821,7 +821,7 @@ export class MapeoProject extends TypedEmitter {
           )
         } else {
           throw new Error(
-            `docRef for preset or field with name ${name} not found`
+            `docRef for ${value.docRefType} with name ${name} not found`
           )
         }
       }
@@ -842,6 +842,12 @@ export class MapeoProject extends TypedEmitter {
         configMetadata: config.metadata,
       })
       this.#loadingConfig = false
+      await Promise.all([
+        deletePresetsPromise,
+        deleteFieldsPromise,
+        deleteTranslationsPromise,
+      ])
+
       return config.warnings
     } catch (e) {
       this.#l.log('error loading config', e)
@@ -879,22 +885,22 @@ async function deleteAll(dataType) {
  */
 async function deleteTranslations(opts) {
   const translations = await opts.translation.getMany()
-  await Promise.all(
-    translations.map(async ({ docId, docRef, docRefType }) => {
-      if (docRefType === 'preset' || docRefType === 'field') {
-        let shouldDelete = false
-        try {
-          const toDelete = await opts[docRefType].getByDocId(docRef.docId)
-          shouldDelete = toDelete.deleted
-        } catch (e) {
-          opts.logger.log(`referred ${docRef.docId} is not found`)
-        }
-        if (shouldDelete) {
-          await opts.translation.delete(docId)
-        }
+  /** @type any[] should actually be a list of what `.delete()` returns */
+  const deletions = []
+  translations.forEach(async ({ docRefType, docRef, docId }) => {
+    if (docRefType === 'field' || docRefType === 'preset') {
+      let doc
+      try {
+        doc = await opts[docRefType].getByVersionId(docRef.versionId)
+      } catch (e) {
+        opts.logger.log(`referred ${docRef.versionId} is not found`)
       }
-    })
-  )
+      if (doc) {
+        deletions.push(opts.translation.delete(docId))
+      }
+    }
+  })
+  return Promise.all(deletions)
 }
 
 /**
