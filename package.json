@@ -138,7 +138,6 @@
     "prettier": "^2.8.8",
     "random-access-file": "^4.0.4",
     "random-access-memory": "^6.2.0",
-    "random-bytes-readable-stream": "^3.0.0",
     "rimraf": "^5.0.5",
     "tempy": "^3.1.0",
     "ts-proto": "^1.156.7",
