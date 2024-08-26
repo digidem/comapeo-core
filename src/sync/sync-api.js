@@ -1,11 +1,8 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { SyncState } from './sync-state.js'
-import {
-  PeerSyncController,
-  PRESYNC_NAMESPACES,
-} from './peer-sync-controller.js'
+import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
-import { NAMESPACES } from '../constants.js'
+import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { ExhaustivenessError, assert, keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
