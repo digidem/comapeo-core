@@ -5,7 +5,7 @@
 - Familiarity with [GitHub pull requests](https://help.github.com/articles/using-pull-requests) and issues.
 - Knowledge of JavaScript and JSDoc
 - Knowledge of [markdown](https://help.github.com/articles/markdown-basics/) for editing `.md` documents.
-- Understanding of or interest in learning technologies used in this project like [hypercore](https://npmjs.com/hypercore), [hyperswarm](https://npmjs.com/hyperswarm), and other dependencies.
+- Understanding of or interest in learning technologies used in this project like [hypercore](https://npmjs.com/hypercore) and other dependencies.
 
 ## Steps to contributing
 

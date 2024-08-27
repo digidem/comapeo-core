@@ -174,7 +174,6 @@
     "hypercore": "10.17.0",
     "hypercore-crypto": "3.4.0",
     "hyperdrive": "11.5.3",
-    "hyperswarm": "4.4.1",
     "json-stable-stringify": "^1.1.1",
     "magic-bytes.js": "^1.10.0",
     "map-obj": "^5.0.2",
