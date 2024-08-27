@@ -34,7 +34,7 @@ import RemoteBitfield, {
 /**
  * @typedef {object} DerivedState
  * @property {number} coreLength known (sparse) length of the core
-* @property {LocalCoreState} localState local state
+ * @property {LocalCoreState} localState local state
  * @property {{ [peerId in PeerId]: PeerNamespaceState }} remoteStates map of state of all known peers
  */
 

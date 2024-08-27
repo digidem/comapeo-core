@@ -118,77 +118,86 @@ test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
   )
 })
 
-for (let i = 1; i <= testCount; i++) {
-  test(`sync fuzz test #${i}`, { timeout: 2 ** 30 }, async (t) => {
-    const managerCount = randint(minManagerCount, maxManagerCount)
-    const actionCount = randint(minActionCount, maxActionCount)
+test('sync fuzz tests', { concurrency: true }, async () => {
+  const promises = []
+  for (let i = 1; i <= testCount; i++) {
+    // TODO: update timeout
+    const p = test(
+      `sync fuzz test #${i}`,
+      { concurrency: true, timeout: 2 ** 30 },
+      async (t) => {
+        const managerCount = randint(minManagerCount, maxManagerCount)
+        const actionCount = randint(minActionCount, maxActionCount)
 
-    const managers = await createManagers(managerCount, t)
-    const [invitor, ...invitees] = managers
+        const managers = await createManagers(managerCount, t)
+        const [invitor, ...invitees] = managers
 
-    const disconnect = connectPeers(managers, { discovery: false })
-    t.after(disconnect)
+        const disconnect = connectPeers(managers, { discovery: false })
+        t.after(disconnect)
 
-    const projectId = await invitor.createProject({ name: 'Mapeo' })
-    await invite({ invitor, invitees, projectId })
+        const projectId = await invitor.createProject({ name: 'Mapeo' })
+        await invite({ invitor, invitees, projectId })
 
-    const projects = await Promise.all(
-      managers.map((m) => m.getProject(projectId))
-    )
-    t.after(() =>
-      Promise.all(
-        projects.map(async (project) => {
-          project.$sync.stop()
-          await project.close()
+        const projects = await Promise.all(
+          managers.map((m) => m.getProject(projectId))
+        )
+        t.after(() =>
+          Promise.all(
+            projects.map(async (project) => {
+              project.$sync.stop()
+              await project.close()
+            })
+          )
+        )
+        await waitForSync(projects, 'initial')
+
+        /** @type {string[]} */
+        const actionTitles = []
+        /** @type {State} */
+        let expectedState = projects.map(() => ({
+          isSyncEnabled: false,
+          observationIds: new Set(),
+        }))
+
+        // TODO
+        const timeout = setTimeout(() => {}, 2 ** 30)
+        t.after(() => {
+          clearTimeout(timeout)
         })
-      )
+
+        for (let i = 0; i < actionCount; i++) {
+          const possibleActions = getPossibleNextActions(projects)
+          const action = sample(possibleActions)
+          assert(action, 'no next step? test is broken')
+
+          const result = await action(expectedState)
+          actionTitles.push(result.title)
+          expectedState = result.newExpectedState
+
+          await waitForStateToMatch(projects, expectedState, actionTitles)
+
+          // await waitForDataSyncForEnabledProjects(projects)
+
+          // /** @type {State} */
+          // const actualState = await Promise.all(
+          //   projects.map(async (project) => {
+          //     const observations = await project.observation.getMany()
+          //     const observationIds = map(observations, (o) => o.docId)
+          //     return {
+          //       isSyncEnabled: isSyncEnabled(project),
+          //       observationIds: new Set(observationIds),
+          //     }
+          //   })
+          // )
+
+          // assertStatesMatch(actualState, expectedState, actionTitles)
+        }
+      }
     )
-    await waitForSync(projects, 'initial')
-
-    /** @type {string[]} */
-    const actionTitles = []
-    /** @type {State} */
-    let expectedState = projects.map(() => ({
-      isSyncEnabled: false,
-      observationIds: new Set(),
-    }))
-
-    // TODO
-    const timeout = setTimeout(() => {}, 2 ** 30)
-    t.after(() => {
-      clearTimeout(timeout)
-    })
-
-    for (let i = 0; i < actionCount; i++) {
-      const possibleActions = getPossibleNextActions(projects)
-      const action = sample(possibleActions)
-      assert(action, 'no next step? test is broken')
-
-      const result = await action(expectedState)
-      actionTitles.push(result.title)
-      expectedState = result.newExpectedState
-
-      // TODO
-      // await waitForStateToMatch(projects, expectedState)
-
-      await waitForDataSyncForEnabledProjects(projects)
-
-      /** @type {State} */
-      const actualState = await Promise.all(
-        projects.map(async (project) => {
-          const observations = await project.observation.getMany()
-          const observationIds = map(observations, (o) => o.docId)
-          return {
-            isSyncEnabled: isSyncEnabled(project),
-            observationIds: new Set(observationIds),
-          }
-        })
-      )
-
-      assertStatesMatch(actualState, expectedState, actionTitles)
-    }
-  })
-}
+    promises.push(p)
+  }
+  await Promise.all(promises)
+})
 
 /**
  * @param {string} name
@@ -347,61 +356,82 @@ function getPossibleNextActions(projects) {
 
 /**
  * @param {MapeoProject[]} projects
+ * @param {State} expectedState
+ * @returns {Promise<boolean>}
+ */
+async function doesStateMatch(projects, expectedState) {
+  const results = await Promise.all(
+    projects.map(async (project, index) => {
+      const expectedProjectState = expectedState[index]
+      assert(expectedProjectState, 'test not set up correctly')
+
+      const actualSyncEnabled = isSyncEnabled(project)
+      const expectedSyncEnabled = expectedProjectState.isSyncEnabled
+      if (expectedSyncEnabled !== actualSyncEnabled) return false
+
+      const observations = await project.observation.getMany()
+      const actualObservationIds = new Set(map(observations, (o) => o.docId))
+      const expectedObservationIds = expectedProjectState.observationIds
+      return isDeepStrictEqual(expectedObservationIds, actualObservationIds)
+    })
+  )
+  return results.every(Boolean)
+}
+
+/**
+ * @param {MapeoProject[]} projects
+ * @param {State} expectedState
+ * @param {ReadonlyArray<string>} actionTitles
  * @returns {Promise<void>}
  */
-async function waitForDataSyncForEnabledProjects(projects) {
-  /**
-   * @param {MapeoProject} project
-   * @returns {boolean}
-   */
-  const isProjectDone = (project) => {
-    if (project.$sync.getState().data.isSyncEnabled) {
-      return projects.every((otherProject) => {
-        const isMe = otherProject === project
-        if (isMe) return true
+function waitForStateToMatch(projects, expectedState, actionTitles) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(async () => {
+      const actualState = await Promise.all(
+        projects.map(async (project) => {
+          const observations = await project.observation.getMany()
+          const observationIds = new Set(map(observations, (o) => o.docId))
+          return {
+            isSyncEnabled: isSyncEnabled(project),
+            observationIds,
+          }
+        })
+      )
 
-        const syncState = otherProject.$sync.getState()
-        if (!syncState.data.isSyncEnabled) return true
+      const lines = [
+        'Expected states to be strictly equal after the following steps, but timed out:',
+        '',
+        ...actionTitles,
+        '',
+        'Expected the following:',
+        ...expectedState.flatMap(assertionLinesForProject),
+        '',
+        'Actually got the following:',
+        ...actualState.flatMap(assertionLinesForProject),
+        '',
+      ]
+      reject(new Error(lines.join('\n')))
+    }, 5000)
 
-        const howTheySeeMe = syncState.remoteDeviceSyncState[project.deviceId]
-        return howTheySeeMe.data.want === 0 && howTheySeeMe.data.wanted === 0
-      })
-    } else {
-      return true
-    }
-  }
-
-  /**
-   * @returns {boolean}
-   */
-  const isDone = () => projects.every(isProjectDone)
-
-  if (isDone()) return
-
-  return new Promise((resolve) => {
-    const cleanup = () => {
+    const removeListeners = () => {
       for (const project of projects) {
         project.$sync.off('sync-state', onState)
       }
-      clearTimeout(timeout)
     }
 
-    let onState = () => {
-      if (isDone()) {
-        cleanup()
-        onState = () => {} // TODO: necessary?
+    const onState = async () => {
+      if (await doesStateMatch(projects, expectedState)) {
+        removeListeners()
+        clearTimeout(timeout)
         resolve()
       }
     }
 
-    const timeout = setTimeout(() => {
-      cleanup()
-      resolve()
-    }, 3000)
-
     for (const project of projects) {
       project.$sync.on('sync-state', onState)
     }
+
+    onState().catch(reject)
   })
 }
 
@@ -419,36 +449,4 @@ function assertionLinesForProject({ isSyncEnabled, observationIds }, index) {
       .sort()
       .map((observationId) => `  ${observationId}`),
   ]
-}
-
-/**
- * Assert that states match. Shows a nice (lazily computed) error if not.
- *
- * @param {State} actual
- * @param {State} expected
- * @param {string[]} actionTitles
- * @returns {void}
- */
-function assertStatesMatch(actual, expected, actionTitles) {
-  if (!isDeepStrictEqual(actual, expected)) {
-    const lines = [
-      'Expected states to be strictly equal after the following steps:',
-      '',
-      ...actionTitles,
-      '',
-      'Expected the following:',
-      ...expected.flatMap(assertionLinesForProject),
-      '',
-      'Actually got the following:',
-      ...actual.flatMap(assertionLinesForProject),
-      '',
-    ]
-    throw new assert.AssertionError({
-      message: lines.join('\n'),
-      actual,
-      expected,
-      operator: 'assertStatesMatch',
-      stackStartFn: assertStatesMatch,
-    })
-  }
 }

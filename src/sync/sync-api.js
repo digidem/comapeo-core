@@ -441,7 +441,8 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
       const isBlocked = psc.syncCapability[namespace] === 'blocked'
       if (isBlocked) continue
 
-      const peerNamespaceState = namespaceSyncState[namespace].remoteStates[peerId]
+      const peerNamespaceState =
+        namespaceSyncState[namespace].remoteStates[peerId]
       if (!peerNamespaceState) continue
 
       // TODO: Separately, avoid weird cases where only some cores are connected
