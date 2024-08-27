@@ -17,12 +17,20 @@
 import { generate } from '@mapeo/mock-data'
 import { map } from 'iterpal'
 import assert from 'node:assert/strict'
+import { randomInt } from 'node:crypto'
 import * as process from 'node:process'
 import test from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 import { isDeepStrictEqual } from 'node:util'
 import { valueOf } from '../src/utils.js'
-import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
+import {
+  connectPeers,
+  createManagers,
+  invite,
+  sample,
+  setAdd,
+  waitForSync,
+} from './utils.js'
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 
 /**
@@ -63,8 +71,8 @@ test('sync fuzz tests', { concurrency: true, timeout: 2 ** 30 }, async () => {
       `fuzz test #${i}`,
       { concurrency: true, timeout: 120_000 },
       async (t) => {
-        const managerCount = randint(minManagerCount, maxManagerCount)
-        const actionCount = randint(minActionCount, maxActionCount)
+        const managerCount = randomInt(minManagerCount, maxManagerCount + 1)
+        const actionCount = randomInt(minActionCount, maxActionCount + 1)
 
         const managers = await createManagers(managerCount, t)
         const [invitor, ...invitees] = managers
@@ -127,39 +135,6 @@ function getEnvironmentVariableInt(name, defaultValue) {
   assert(Number.isFinite(result), `Can't parse ${fullName}`)
   assert(Number.isSafeInteger(result), `${fullName} must be a safe integer`)
 
-  return result
-}
-
-/**
- * Return a random integer between `a` and `b`, inclusive.
- *
- * @param {number} a
- * @param {number} b
- * @returns {number}
- */
-function randint(a, b) {
-  if (a > b) return randint(a, b)
-  return Math.round(Math.random() * Math.abs(b - a)) + a
-}
-
-/**
- * @template T
- * @param {Readonly<ArrayLike<T>>} arr
- * @returns {undefined | T}
- */
-function sample(arr) {
-  return arr[Math.floor(Math.random() * arr.length)]
-}
-
-/**
- * @template T
- * @param {Readonly<Set<T>>} set
- * @param {ReadonlyArray<T>} toAdd
- * @returns {Set<T>}
- */
-function setAdd(set, ...toAdd) {
-  const result = new Set(set)
-  for (const value of toAdd) result.add(value)
   return result
 }
 
