@@ -11,7 +11,7 @@ import {
   waitForCores,
 } from '../helpers/core-manager.js'
 import { BlobStore } from '../../src/blob-store/index.js'
-import { setTimeout } from 'node:timers/promises'
+import { setTimeout as delay } from 'node:timers/promises'
 import { concat } from '../helpers/blob-store.js'
 import { discoveryKey } from 'hypercore-crypto'
 
@@ -91,6 +91,7 @@ test('get(), initialized but unreplicated drive', async () => {
   const driveId = await bs1.put(blob1Id, blob1)
 
   const { destroy } = replicate(cm1, cm2)
+
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
 
   /** @type {any} */
@@ -397,7 +398,7 @@ test('cancelled live download', async function () {
   // STEP 7: Write a blob to CM2
   const driveId2 = await bs2.put(blob2Id, blob2)
   // STEP 8: Wait for blobs to (not) download
-  await setTimeout(200)
+  await delay(200)
   // STEP 9: destroy all the replication streams
   await Promise.all([destroy1(), destroy2()])
 

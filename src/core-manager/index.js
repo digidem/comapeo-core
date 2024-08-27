@@ -254,6 +254,7 @@ export class CoreManager extends TypedEmitter {
    * @returns {CoreRecord}
    */
   addCore(key, namespace) {
+    this.#l.log('Adding remote core %k to %s', key, namespace)
     return this.#addCore({ publicKey: key }, namespace, true)
   }
 

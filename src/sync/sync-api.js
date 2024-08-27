@@ -3,7 +3,7 @@ import { SyncState } from './sync-state.js'
 import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
-import { ExhaustivenessError, assert, keyToId } from '../utils.js'
+import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
 import { NO_ROLE_ID } from '../roles.js'
 /** @import { CoreOwnership } from '../core-ownership.js' */
 
@@ -104,6 +104,19 @@ export class SyncApi extends TypedEmitter {
 
     roles.on('update', this.#handleRoleUpdate)
     coreOwnership.on('update', this.#handleCoreOwnershipUpdate)
+
+    this.#coreOwnership
+      .getAll()
+      .then((coreOwnerships) =>
+        // TODO: see if we can change this to `Promise.all`
+        Promise.allSettled(
+          coreOwnerships.map(async (coreOwnership) => {
+            if (coreOwnership.docId === this.#coreManager.deviceId) return
+            await this.#validateRoleAndAddCoresForPeer(coreOwnership)
+          })
+        )
+      )
+      .catch(noop)
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */
