@@ -119,10 +119,9 @@ test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
 })
 
 test('sync fuzz tests', { concurrency: true, timeout: 2 ** 30 }, async () => {
-  const promises = []
   for (let i = 1; i <= testCount; i++) {
-    const p = test(
-      `sync fuzz test #${i}`,
+    await test(
+      `fuzz test #${i}`,
       { concurrency: true, timeout: 120_000 },
       async (t) => {
         const managerCount = randint(minManagerCount, maxManagerCount)
@@ -171,9 +170,7 @@ test('sync fuzz tests', { concurrency: true, timeout: 2 ** 30 }, async () => {
         }
       }
     )
-    promises.push(p)
   }
-  await Promise.all(promises)
 })
 
 /**
