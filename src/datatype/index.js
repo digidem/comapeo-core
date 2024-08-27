@@ -45,6 +45,7 @@ function generateDate() {
 export const kCreateWithDocId = Symbol('kCreateWithDocId')
 export const kSelect = Symbol('select')
 export const kTable = Symbol('table')
+export const kDataStore = Symbol('dataStore')
 
 /**
  * @template {import('../datastore/index.js').DataStore} TDataStore
@@ -117,8 +118,8 @@ export class DataType extends TypedEmitter {
     return this.#dataStore.namespace
   }
 
-  get writerCore() {
-    return this.#dataStore.writerCore
+  get [kDataStore]() {
+    return this.#dataStore
   }
 
   /**
