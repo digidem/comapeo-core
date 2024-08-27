@@ -65,6 +65,14 @@ test('sync fuzz tests', { concurrency: true, timeout: 2 ** 30 }, async () => {
   const maxManagerCount = getEnvironmentVariableInt('MAX_MANAGER_COUNT', 3)
   const minActionCount = getEnvironmentVariableInt('MIN_ACTION_COUNT', 4)
   const maxActionCount = getEnvironmentVariableInt('MAX_ACTION_COUNT', 32)
+  assert(
+    minManagerCount <= maxManagerCount,
+    'min manager count is greater than max. Test is not set up correctly'
+  )
+  assert(
+    minActionCount <= maxActionCount,
+    'min action count is greater than max. Test is not set up correctly'
+  )
 
   for (let i = 1; i <= testCount; i++) {
     await test(
