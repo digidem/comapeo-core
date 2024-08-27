@@ -51,7 +51,6 @@ declare module 'protomux' {
     stream: TStream
     static from(stream: TStream): Protomux<TStream>
     static isProtomux(mux: unknown): mux is Protomux
-    corked: number
     cork(): void
     uncork(): void
     pair(
