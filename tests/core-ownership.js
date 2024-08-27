@@ -184,7 +184,10 @@ function generateValidDoc() {
       coreDiscoveryKey: discoveryKey(coreKeypairs.auth.publicKey),
       index: 1,
     }),
-    createdBy: discoveryKey(coreKeypairs.auth.publicKey).toString('hex'),
+    originalVersionId: getVersionId({
+      coreDiscoveryKey: discoveryKey(coreKeypairs.auth.publicKey),
+      index: 1,
+    }),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     deleted: false,

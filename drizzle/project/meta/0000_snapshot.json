@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "3ef67d9d-408c-424f-ac6d-a353df47bd86",
+  "id": "6a5db612-edfc-4c51-8977-535d9945e837",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -37,6 +37,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "originalVersionId": {
+          "name": "originalVersionId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "schemaName": {
           "name": "schemaName",
           "type": "text",
@@ -46,13 +53,6 @@
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdBy": {
-          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -183,6 +183,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "originalVersionId": {
+          "name": "originalVersionId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "schemaName": {
           "name": "schemaName",
           "type": "text",
@@ -192,13 +199,6 @@
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdBy": {
-          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -285,6 +285,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "originalVersionId": {
+          "name": "originalVersionId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "schemaName": {
           "name": "schemaName",
           "type": "text",
@@ -294,13 +301,6 @@
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdBy": {
-          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -373,8 +373,9 @@
           "name": "universal",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "placeholder": {
           "name": "placeholder",
@@ -436,6 +437,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "originalVersionId": {
+          "name": "originalVersionId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "schemaName": {
           "name": "schemaName",
           "type": "text",
@@ -445,13 +453,6 @@
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdBy": {
-          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -538,6 +539,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "originalVersionId": {
+          "name": "originalVersionId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "schemaName": {
           "name": "schemaName",
           "type": "text",
@@ -547,13 +555,6 @@
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdBy": {
-          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -584,14 +585,14 @@
           "name": "lat",
           "type": "real",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "lon": {
           "name": "lon",
           "type": "real",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "attachments": {
@@ -612,7 +613,7 @@
           "name": "metadata",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "presetRef": {
@@ -668,6 +669,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "originalVersionId": {
+          "name": "originalVersionId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "schemaName": {
           "name": "schemaName",
           "type": "text",
@@ -677,13 +685,6 @@
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdBy": {
-          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -756,7 +757,7 @@
           "name": "iconRef",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "terms": {
@@ -819,6 +820,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "originalVersionId": {
+          "name": "originalVersionId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "schemaName": {
           "name": "schemaName",
           "type": "text",
@@ -828,13 +836,6 @@
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdBy": {
-          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -921,6 +922,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "originalVersionId": {
+          "name": "originalVersionId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "schemaName": {
           "name": "schemaName",
           "type": "text",
@@ -930,13 +938,6 @@
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdBy": {
-          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1037,6 +1038,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "originalVersionId": {
+          "name": "originalVersionId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "schemaName": {
           "name": "schemaName",
           "type": "text",
@@ -1046,13 +1054,6 @@
         },
         "createdAt": {
           "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdBy": {
-          "name": "createdBy",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
