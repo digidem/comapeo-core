@@ -50,6 +50,7 @@ export async function readConfig(configPath) {
   const presetsFile = await findPresetsFile(entries)
   const translationsFile = await findTranslationsFile(entries)
   const metadataFile = await findMetadataFile(entries)
+  const iconEntries = getIconEntries(entries)
   assert(
     isValidConfigFile(metadataFile),
     `invalid or missing config file version ${metadataFile.fileVersion}. We support version ${SUPPORTED_CONFIG_VERSION}}`
@@ -76,11 +77,11 @@ export async function readConfig(configPath) {
       let icon
 
       // we sort the icons by filename so we can group variants together
-      const iconEntries = entries
-        .filter((entry) => entry.filename.match(/^icons\/([^/]+)$/))
-        .sort((icon, nextIcon) =>
-          icon.filename.localeCompare(nextIcon.filename)
-        )
+      //const iconEntries = entries
+      //  .filter((entry) => entry.filename.match(/^icons\/([^/]+)$/))
+      //  .sort((icon, nextIcon) =>
+      //    icon.filename.localeCompare(nextIcon.filename)
+      //  )
 
       for (const entry of iconEntries) {
         if (entry.uncompressedSize > MAX_ICON_SIZE) {
@@ -192,6 +193,26 @@ export async function readConfig(configPath) {
             presetValue[key] = preset[key]
           }
         }
+        // check that preset references existing icon
+        const iconFilenames = new Set(
+          iconEntries.map((icon) => {
+            const matches = path
+              .basename(icon.filename)
+              .match(/([a-zA-Z--0-]+)-/)
+            if (matches) {
+              const [_, name] = matches
+              return name
+            }
+          })
+        )
+        if (preset.icon && typeof preset.icon === 'string') {
+          if (!iconFilenames.has(preset.icon)) {
+            throw new Error(
+              `preset references icon with name ${preset.icon} but file doesn't exist`
+            )
+          }
+        }
+
         if (!validate('preset', presetValue)) {
           warnings.push(new Error(`Invalid preset ${preset.name}`))
           continue
@@ -469,6 +490,15 @@ function translateMessageObject(warnings) {
       }
     }
   }
+}
+
+/**
+ * @param {ReadonlyArray<Entry>} entries
+ */
+function getIconEntries(entries) {
+  return entries
+    .filter((entry) => entry.filename.match(/^icons\/([^/]+)$/))
+    .sort((icon, nextIcon) => icon.filename.localeCompare(nextIcon.filename))
 }
 
 /**
