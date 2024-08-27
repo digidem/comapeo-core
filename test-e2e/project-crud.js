@@ -19,14 +19,20 @@ import { setTimeout as delay } from 'timers/promises'
 const fixtures = [
   {
     schemaName: 'observation',
+    lat: -3,
+    lon: 37,
     tags: {},
     attachments: [],
-    metadata: {},
+    metadata: { manualLocation: false },
   },
   {
     schemaName: 'preset',
     name: 'myPreset',
     tags: {},
+    iconRef: {
+      docId: randomBytes(32).toString('hex'),
+      versionId: `${randomBytes(32).toString('hex')}/0`,
+    },
     geometry: ['point'],
     addTags: {},
     removeTags: {},
@@ -39,6 +45,7 @@ const fixtures = [
     type: 'text',
     tagKey: 'foo',
     label: 'my label',
+    universal: false,
   },
   {
     schemaName: 'track',
@@ -165,9 +172,9 @@ test('CRUD operations', async (t) => {
         'createdAt does not change'
       )
       assert.equal(
-        written.createdBy,
-        updated.createdBy,
-        'createdBy does not change'
+        written.originalVersionId,
+        updated.originalVersionId,
+        'originalVersionId does not change'
       )
     })
     await t.test('getMany', async () => {
