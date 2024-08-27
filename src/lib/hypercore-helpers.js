@@ -2,7 +2,7 @@ import { assert } from '../utils.js'
 
 /**
  * @param {import('hypercore')<'binary', any>} core
- * @param {import("protomux")} protomux
+ * @param {import('protomux')} protomux
  */
 export function unreplicate(core, protomux) {
   assert(core.discoveryKey, 'Core should have a discovery key')
