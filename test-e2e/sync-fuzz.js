@@ -283,8 +283,9 @@ function getPossibleNextActionsForProject(project, index) {
   // Start or stop sync
 
   if (isSyncEnabled(project)) {
-    result.push((expectedState) => {
+    result.push(async (expectedState) => {
       project.$sync.stop()
+      await new Promise((res) => setTimeout(res, 10))
 
       const myProject = expectedState[index]
       return {
@@ -299,8 +300,9 @@ function getPossibleNextActionsForProject(project, index) {
       }
     })
   } else {
-    result.push((expectedState) => {
+    result.push(async (expectedState) => {
       project.$sync.start()
+      await new Promise((res) => setTimeout(res, 10))
 
       const myProject = expectedState[index]
       return {
