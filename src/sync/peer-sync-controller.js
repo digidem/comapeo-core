@@ -256,11 +256,21 @@ export class PeerSyncController {
 
   /**
    * @param {import('hypercore')<'binary', any>} core
+   * @returns {Promise<void>}
    */
-  #unreplicateCore(core) {
+  async #unreplicateCore(core) {
     if (core === this.#coreManager.creatorCore) return
-    unreplicate(core, this.#protomux)
+
     this.#replicatingCores.delete(core)
+
+    const isCoreReady = Boolean(core.discoveryKey)
+    if (!isCoreReady) {
+      await core.ready()
+      const wasReEnabledWhileWaiting = this.#replicatingCores.has(core)
+      if (wasReEnabledWhileWaiting) return
+    }
+
+    unreplicate(core, this.#protomux)
     this.#log('unreplicated core %k', core.key)
   }
 

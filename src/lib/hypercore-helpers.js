@@ -1,7 +1,7 @@
 import { assert } from '../utils.js'
 
 /**
- * @param {import('hypercore')<'binary', any>} core
+ * @param {import('hypercore')<'binary', any>} core Core to unreplicate. Must be ready.
  * @param {import('protomux')} protomux
  */
 export function unreplicate(core, protomux) {
