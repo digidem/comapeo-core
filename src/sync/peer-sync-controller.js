@@ -291,7 +291,7 @@ export class PeerSyncController {
 }
 
 /**
- * @typedef {{ [namespace in Namespace]?: import("./core-sync-state.js").PeerNamespaceState }} PeerState
+ * @typedef {{ [namespace in Namespace]?: import("./core-sync-state.js").PeerCoreState }} PeerState
  */
 
 /** @typedef {Record<Namespace, 'unknown' | 'syncing' | 'synced'>} SyncStatus */
