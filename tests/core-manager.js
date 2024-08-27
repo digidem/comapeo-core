@@ -1,5 +1,6 @@
 import test from 'node:test'
 import { access, constants } from 'node:fs/promises'
+import { setTimeout as delay } from 'node:timers/promises'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Hypercore from 'hypercore'
 import RAM from 'random-access-memory'
@@ -11,6 +12,7 @@ import {
   CoreManager,
   kCoreManagerReplicate,
 } from '../src/core-manager/index.js'
+import { unreplicate } from '../src/lib/hypercore-helpers.js'
 import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
 import assert from 'node:assert/strict'
 import { once } from 'node:events'
@@ -393,72 +395,125 @@ test('sends "haves" bitfields over project creator core replication stream', asy
 test('unreplicate', async (t) => {
   const WAIT_TIMEOUT = 200
   const REPLICATION_DELAY = 20
-  await t.test('initiator unreplicates, receiver re-replicates', async () => {
-    const a = await createCore()
-    await a.append(['a', 'b'])
-    const b = await createCore(a.key)
+  const scenarios = [
+    {
+      unreplicate: ['initiator', 'receiver'],
+      rereplicate: ['initiator', 'receiver'],
+      expectedReadAfterReplicate: true,
+    },
+    {
+      unreplicate: ['initiator'],
+      rereplicate: ['initiator'],
+      expectedReadAfterReplicate: true,
+    },
+    {
+      unreplicate: ['receiver'],
+      rereplicate: ['receiver'],
+      expectedReadAfterReplicate: true,
+    },
+    {
+      unreplicate: ['initiator', 'receiver'],
+      rereplicate: ['initiator'],
+      expectedReadAfterReplicate: false,
+    },
+    {
+      unreplicate: ['initiator', 'receiver'],
+      rereplicate: ['receiver'],
+      expectedReadAfterReplicate: false,
+    },
+  ]
+  // Add order permutations to scenarios
+  for (const scenario of [...scenarios]) {
+    if (scenario.unreplicate.length !== 2) continue
+    scenarios.push({
+      ...scenario,
+      unreplicate: [scenario.unreplicate[1], scenario.unreplicate[0]],
+    })
+  }
+  for (const scenario of [...scenarios]) {
+    if (scenario.rereplicate.length !== 2) continue
+    scenarios.push({
+      ...scenario,
+      rereplicate: [scenario.rereplicate[1], scenario.rereplicate[0]],
+    })
+  }
 
-    const [s1, s2] = replicateCores(a, b, { delay: REPLICATION_DELAY })
+  for (const unreplicateWait of [0, 100]) {
+    for (const scenario of scenarios) {
+      await t.test(
+        `unreplicate: ${scenario.unreplicate.join(
+          ', '
+        )}; rereplicate: ${scenario.rereplicate.join(
+          ', '
+        )}; delay: ${unreplicateWait}; expectedReadAfterReplicate: ${
+          scenario.expectedReadAfterReplicate
+        }`,
+        async () => {
+          const a = await createCore()
+          await a.append(['a', 'b'])
+          const b = await createCore(a.key)
+          const c = await createCore(a.key)
 
-    const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
-    assert.equal(block1?.toString(), 'a')
+          const [s1, s2] = replicateCores(a, b, { delay: REPLICATION_DELAY })
+          replicateCores(a, c, { delay: REPLICATION_DELAY })
 
-    await unreplicate(a, s1.noiseStream.userData)
+          // Check replication is actually working
+          {
+            const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
+            assert.equal(block1?.toString(), 'a')
+          }
+          {
+            const block1 = await c.get(0, { timeout: WAIT_TIMEOUT })
+            assert.equal(block1?.toString(), 'a')
+          }
 
-    await assert.rejects(
-      () => b.get(1, { timeout: WAIT_TIMEOUT }),
-      'Throws with timeout error'
-    )
+          // Unreplicate in order with delay
+          for (const toUnreplicate of scenario.unreplicate) {
+            const coreToUnreplicate = toUnreplicate === 'initiator' ? a : b
+            const protomuxToUnreplicate =
+              toUnreplicate === 'initiator' ? s1 : s2
+            unreplicate(
+              coreToUnreplicate,
+              protomuxToUnreplicate.noiseStream.userData
+            )
+            await delay(unreplicateWait)
+          }
 
-    b.replicate(s2)
+          // Check that we can't read the next block
+          await assert.rejects(
+            () => b.get(1, { timeout: WAIT_TIMEOUT }),
+            'Throws with timeout error'
+          )
 
-    const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
-    assert.equal(block2?.toString(), 'b')
-  })
-  await t.test('initiator unreplicates, initiator re-replicates', async () => {
-    const a = await createCore()
-    await a.append(['a', 'b'])
-    const b = await createCore(a.key)
+          // Re-replicate in order with delay
+          for (const toRereplicate of scenario.rereplicate) {
+            const coreToRereplicate = toRereplicate === 'initiator' ? a : b
+            const protomuxToRereplicate =
+              toRereplicate === 'initiator' ? s1 : s2
+            coreToRereplicate.replicate(protomuxToRereplicate)
+            await delay(unreplicateWait)
+          }
 
-    const [s1] = replicateCores(a, b, { delay: REPLICATION_DELAY })
+          // Check that we can read or not read the next block as expected
+          if (scenario.expectedReadAfterReplicate) {
+            const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
+            assert.equal(block2?.toString(), 'b')
+          } else {
+            await assert.rejects(
+              () => b.get(1, { timeout: WAIT_TIMEOUT }),
+              'Throws with timeout error'
+            )
+          }
 
-    const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
-    assert.equal(block1?.toString(), 'a')
-
-    await unreplicate(a, s1.noiseStream.userData)
-
-    await assert.rejects(
-      () => b.get(1, { timeout: 200 }),
-      'Throws with timeout error'
-    )
-
-    a.replicate(s1)
-
-    const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
-    assert.equal(block2?.toString(), 'b')
-  })
-  await t.test('receiver unreplicates, receiver re-replicates', async () => {
-    const a = await createCore()
-    await a.append(['a', 'b'])
-    const b = await createCore(a.key)
-
-    const [, s2] = replicateCores(a, b, { delay: REPLICATION_DELAY })
-
-    const block1 = await b.get(0, { timeout: WAIT_TIMEOUT })
-    assert.equal(block1?.toString(), 'a')
-
-    await unreplicate(b, s2.noiseStream.userData)
-
-    await assert.rejects(
-      () => b.get(1, { timeout: WAIT_TIMEOUT }),
-      'Throws with timeout error'
-    )
-
-    b.replicate(s2)
-
-    const block2 = await b.get(1, { timeout: WAIT_TIMEOUT })
-    assert.equal(block2?.toString(), 'b')
-  })
+          // Replication with code 'c' should still work
+          {
+            const block2 = await c.get(1, { timeout: WAIT_TIMEOUT })
+            assert.equal(block2?.toString(), 'b')
+          }
+        }
+      )
+    }
+  }
 })
 
 test('deleteOthersData()', async () => {
@@ -697,20 +752,6 @@ function latencyStream(delay = 0) {
       setTimeout(callback, Math.random() * delay, null, data)
     },
   })
-}
-
-/**
- *
- * @param {Hypercore<'binary', any>} core
- * @param {import('protomux')} protomux
- */
-export function unreplicate(core, protomux) {
-  const peerToUnreplicate = core.peers.find(
-    (peer) => peer.protomux === protomux
-  )
-  if (!peerToUnreplicate) return
-  peerToUnreplicate.channel.close()
-  return
 }
 
 /**

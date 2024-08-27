@@ -391,7 +391,7 @@ function slowBitCount(n) {
 
 /**
  *
- * @param {{ have?: number | bigint, prehave?: number, want?: number | bigint, status?: import('../../src/sync/core-sync-state.js').PeerCoreState['status'] }} param0
+ * @param {{ have?: number | bigint, prehave?: number, want?: number | bigint, status?: import('../../src/sync/core-sync-state.js').PeerNamespaceState['status'] }} param0
  */
 function createState({ have, prehave, want, status }) {
   const peerState = new PeerState()

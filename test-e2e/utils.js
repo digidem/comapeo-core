@@ -567,6 +567,19 @@ export async function getExpectedConfig(path) {
 export function sortById(docs) {
   return sortBy(docs, 'docId')
 }
+
+/**
+ * @template T
+ * @param {Readonly<Set<T>>} set
+ * @param {ReadonlyArray<T>} toAdd
+ * @returns {Set<T>}
+ */
+export function setAdd(set, ...toAdd) {
+  const result = new Set(set)
+  for (const value of toAdd) result.add(value)
+  return result
+}
+
 /**
  * Lazy way of removing fields with undefined values from an object
  * @param {unknown} object
@@ -590,4 +603,13 @@ export function randomNum({ min = 0, max = 1, precision } = {}) {
   const num = Math.random() * (max - min) + min
   if (typeof precision === 'undefined') return num
   return round(num, precision)
+}
+
+/**
+ * @template T
+ * @param {Readonly<ArrayLike<T>>} arr
+ * @returns {undefined | T}
+ */
+export function sample(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
 }

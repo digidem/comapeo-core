@@ -10,7 +10,7 @@ import {
   waitForSync,
 } from './utils.js'
 
-test('$createdByToDeviceId', async (t) => {
+test('$originalVersionIdToDeviceId', async (t) => {
   const managers = await createManagers(2, t)
 
   const disconnectPeers = connectPeers(managers)
@@ -41,11 +41,15 @@ test('$createdByToDeviceId', async (t) => {
   await waitForSync(projects, 'full')
 
   assert.equal(
-    await creatorProject.$createdByToDeviceId(observation.createdBy),
+    await creatorProject.$originalVersionIdToDeviceId(
+      observation.originalVersionId
+    ),
     creator.deviceId
   )
   assert.equal(
-    await memberProject.$createdByToDeviceId(observation.createdBy),
+    await memberProject.$originalVersionIdToDeviceId(
+      observation.originalVersionId
+    ),
     creator.deviceId
   )
 })
