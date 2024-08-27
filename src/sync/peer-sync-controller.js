@@ -2,6 +2,7 @@ import mapObject from 'map-obj'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
 import { ExhaustivenessError, createMap } from '../utils.js'
+import { unreplicate } from '../lib/hypercore-helpers.js'
 /** @import { CoreRecord } from '../core-manager/index.js' */
 /** @import { Role } from '../roles.js' */
 /** @import { SyncEnabledState } from './sync-api.js' */
@@ -259,17 +260,9 @@ export class PeerSyncController {
   #unreplicateCore(core) {
     // TODO: tidy this
     if (core === this.#coreManager.creatorCore) return
-    const peerToUnreplicate = core.peers.find(
-      (peer) => peer.protomux === this.#protomux
-    )
-    if (!peerToUnreplicate) return
-    this.#log('unreplicating core %k', core.key)
-    peerToUnreplicate.protomux.unpair({
-      protocol: 'hypercore/alpha',
-      id: core.discoveryKey,
-    })
-    peerToUnreplicate.channel.close()
+    unreplicate(core, this.#protomux)
     this.#replicatingCores.delete(core)
+    this.#log('unreplicated core %k', core.key)
   }
 
   /**

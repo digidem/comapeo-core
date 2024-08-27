@@ -46,6 +46,7 @@ declare module 'protomux' {
 
   class Protomux<TStream extends Duplex | NodeDuplex = Duplex> {
     constructor(stream: TStream)
+    [Symbol.iterator](): IterableIterator<Channel>
     isProtomux: true
     stream: TStream
     static from(stream: TStream): Protomux<TStream>
