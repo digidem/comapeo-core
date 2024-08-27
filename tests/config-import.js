@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import * as fs from 'node:fs'
+import { temporaryFileTask } from 'tempy'
 import { arrayFrom, size } from 'iterpal'
+import { ZipFile } from 'yazl'
 import { defaultConfigPath } from './helpers/default-config.js'
 import { readConfig } from '../src/config-import.js'
 
@@ -17,10 +20,16 @@ test('config import - loading', async () => {
     'not a zip file'
   )
 
-  await assert.rejects(
-    async () => await readConfig('./tests/fixtures/config/tooBigOfAZip.zip'),
-    /Error: Zip file contains too many entries. Max is 10000/,
-    'number of files in zip is above MAX_ENTRIES'
+  await temporaryFileTask(
+    async (zipPath) => {
+      await writeZipWithLotsOfEmptyFiles(zipPath, 10_001)
+      await assert.rejects(
+        readConfig(zipPath),
+        /Error: Zip file contains too many entries. Max is 10000/,
+        'number of files in zip is above MAX_ENTRIES'
+      )
+    },
+    { extension: 'zip' }
   )
 
   await assert.rejects(
@@ -280,3 +289,28 @@ test('config import - load default config', async () => {
 
   assert.equal(config.warnings.length, 0, 'no warnings on config file')
 })
+
+/**
+ * @param {string} zipPath
+ * @param {number} count
+ * @returns {Promise<void>}
+ */
+function writeZipWithLotsOfEmptyFiles(zipPath, count) {
+  return new Promise((resolve) => {
+    const zipFile = new ZipFile()
+
+    const emptyBuffer = Buffer.alloc(0)
+    // Runs faster with compression disabled.
+    const options = { compress: false }
+
+    for (let i = 0; i < count; i++) {
+      zipFile.addBuffer(emptyBuffer, i.toString(), options)
+    }
+
+    zipFile.outputStream
+      .pipe(fs.createWriteStream(zipPath))
+      .on('close', resolve)
+
+    zipFile.end()
+  })
+}
