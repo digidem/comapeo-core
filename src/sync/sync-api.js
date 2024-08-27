@@ -437,6 +437,9 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
   for (const psc of peerSyncControllers) {
     const { peerId } = psc
 
+    /** @type {undefined | boolean} */ let isInitialEnabled
+    /** @type {undefined | boolean} */ let isDataEnabled
+
     for (const namespace of NAMESPACES) {
       const isBlocked = psc.syncCapability[namespace] === 'blocked'
       if (isBlocked) continue
@@ -466,12 +469,23 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
         }
       }
 
-      const namespaceGroup = PRESYNC_NAMESPACES.includes(namespace)
-        ? 'initial'
-        : 'data'
-      result[peerId][namespaceGroup].isSyncEnabled = isSyncEnabled
+      /** @type {'initial' | 'data'} */ let namespaceGroup
+      const isPresyncNamespace = PRESYNC_NAMESPACES.includes(namespace)
+      if (isPresyncNamespace) {
+        namespaceGroup = 'initial'
+        isInitialEnabled = (isInitialEnabled ?? true) && isSyncEnabled
+      } else {
+        namespaceGroup = 'data'
+        isDataEnabled = (isDataEnabled ?? true) && isSyncEnabled
+      }
+
       result[peerId][namespaceGroup].want += peerNamespaceState.want
       result[peerId][namespaceGroup].wanted += peerNamespaceState.wanted
+    }
+
+    if (Object.hasOwn(result, peerId)) {
+      result[peerId].initial.isSyncEnabled = Boolean(isInitialEnabled)
+      result[peerId].data.isSyncEnabled = Boolean(isDataEnabled)
     }
   }
 
