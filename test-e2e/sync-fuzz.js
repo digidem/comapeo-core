@@ -59,7 +59,7 @@ import {
  * @returns {ActionResult | Promise<ActionResult>}
  */
 
-test('sync fuzz tests', { concurrency: true, timeout: 2 ** 30 }, async () => {
+test('sync fuzz tests', { concurrency: true, timeout: 2 ** 30 }, async (t) => {
   const testCount = getEnvironmentVariableInt('TEST_COUNT', 10)
   const minManagerCount = getEnvironmentVariableInt('MIN_MANAGER_COUNT', 2)
   const maxManagerCount = getEnvironmentVariableInt('MAX_MANAGER_COUNT', 3)
@@ -75,7 +75,7 @@ test('sync fuzz tests', { concurrency: true, timeout: 2 ** 30 }, async () => {
   )
 
   for (let i = 1; i <= testCount; i++) {
-    await test(
+    await t.test(
       `fuzz test #${i}`,
       { concurrency: true, timeout: 120_000 },
       async (t) => {
