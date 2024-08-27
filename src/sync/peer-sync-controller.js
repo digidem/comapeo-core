@@ -258,7 +258,6 @@ export class PeerSyncController {
    * @param {import('hypercore')<'binary', any>} core
    */
   #unreplicateCore(core) {
-    // TODO: tidy this
     if (core === this.#coreManager.creatorCore) return
     unreplicate(core, this.#protomux)
     this.#replicatingCores.delete(core)
