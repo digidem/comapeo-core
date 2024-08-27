@@ -25,7 +25,7 @@ import RemoteBitfield, {
  * @property {number} wanted blocks we want from this peer
  */
 /**
- * @typedef {object} PeerCoreState
+ * @typedef {object} PeerNamespaceState
  * @property {number} have blocks the peer has locally
  * @property {number} want blocks this peer wants from us
  * @property {number} wanted blocks we want from this peer
@@ -35,7 +35,7 @@ import RemoteBitfield, {
  * @typedef {object} DerivedState
  * @property {number} coreLength known (sparse) length of the core
  * @property {LocalCoreState} localState local state
- * @property {{ [peerId in PeerId]: PeerCoreState }} remoteStates map of state of all known peers
+ * @property {{ [peerId in PeerId]: PeerNamespaceState }} remoteStates map of state of all known peers
  */
 
 /**
@@ -266,7 +266,7 @@ export class PeerState {
   #haves
   /** @type {Bitfield} */
   #wants = new RemoteBitfield()
-  /** @type {PeerCoreState['status']} */
+  /** @type {PeerNamespaceState['status']} */
   status = 'disconnected'
   #wantAll
   constructor({ wantAll = true } = {}) {
@@ -359,7 +359,7 @@ export function deriveState(coreState) {
   const length = coreState.length || 0
   /** @type {LocalCoreState} */
   const localState = { have: 0, want: 0, wanted: 0 }
-  /** @type {Record<PeerId, PeerCoreState>} */
+  /** @type {Record<PeerId, PeerNamespaceState>} */
   const remoteStates = {}
 
   /** @type {Map<PeerId, PeerState>} */
