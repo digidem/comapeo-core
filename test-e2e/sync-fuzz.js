@@ -169,6 +169,9 @@ for (let i = 1; i <= testCount; i++) {
       actionTitles.push(result.title)
       expectedState = result.newExpectedState
 
+      // TODO
+      // await waitForStateToMatch(projects, expectedState)
+
       await waitForDataSyncForEnabledProjects(projects)
 
       /** @type {State} */

@@ -140,12 +140,12 @@ export class NamespaceSyncState {
 
 /**
  * @overload
- * @param {import('./core-sync-state.js').PeerCoreState['status']} status
- * @returns {import('./core-sync-state.js').PeerCoreState}
+ * @param {import('./core-sync-state.js').PeerNamespaceState['status']} status
+ * @returns {import('./core-sync-state.js').PeerNamespaceState}
  */
 
 /**
- * @param {import('./core-sync-state.js').PeerCoreState['status']} [status]
+ * @param {import('./core-sync-state.js').PeerNamespaceState['status']} [status]
  */
 export function createState(status) {
   if (status) {
@@ -164,16 +164,16 @@ export function createState(status) {
 
 /**
  * @overload
- * @param {import('./core-sync-state.js').PeerCoreState} accumulator
- * @param {import('./core-sync-state.js').PeerCoreState} currentValue
- * @returns {import('./core-sync-state.js').PeerCoreState}
+ * @param {import('./core-sync-state.js').PeerNamespaceState} accumulator
+ * @param {import('./core-sync-state.js').PeerNamespaceState} currentValue
+ * @returns {import('./core-sync-state.js').PeerNamespaceState}
  */
 
 /**
  * Adds peer state in `currentValue` to peer state in `accumulator`
  *
- * @param {import('./core-sync-state.js').PeerCoreState} accumulator
- * @param {import('./core-sync-state.js').PeerCoreState} currentValue
+ * @param {import('./core-sync-state.js').PeerNamespaceState} accumulator
+ * @param {import('./core-sync-state.js').PeerNamespaceState} currentValue
  */
 function mutatingAddPeerState(accumulator, currentValue) {
   accumulator.have += currentValue.have
