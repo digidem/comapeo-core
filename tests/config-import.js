@@ -214,6 +214,15 @@ test('config import - presets', async () => {
     'the second error is because the preset is null'
   )
 
+  config = await readConfig(
+    './tests/fixtures/config/invalidIconNameOnPreset.zip'
+  )
+
+  assert.throws(
+    () => arrayFrom(config.presets()),
+    /preset references icon with name /
+  )
+
   config = await readConfig('./tests/fixtures/config/validPreset.zip')
   for (const preset of config.presets()) {
     assert.equal(preset.value.schemaName, 'preset', `schemaName is 'preset'`)

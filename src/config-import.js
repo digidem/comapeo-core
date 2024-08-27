@@ -76,13 +76,6 @@ export async function readConfig(configPath) {
       /** @type {IconData | undefined} */
       let icon
 
-      // we sort the icons by filename so we can group variants together
-      //const iconEntries = entries
-      //  .filter((entry) => entry.filename.match(/^icons\/([^/]+)$/))
-      //  .sort((icon, nextIcon) =>
-      //    icon.filename.localeCompare(nextIcon.filename)
-      //  )
-
       for (const entry of iconEntries) {
         if (entry.uncompressedSize > MAX_ICON_SIZE) {
           warnings.push(

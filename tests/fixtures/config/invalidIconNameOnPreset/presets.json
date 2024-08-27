@@ -1,0 +1,47 @@
+{
+  "fields":{
+    "nombre-monitor": {
+      "tagKey": "nombre-monitor",
+      "type": "text",
+      "label": "Nombre del Monitor o Mapeador",
+      "universal": true,
+      "placeholder": "¿Quién está haciendo esta observación?"
+    }
+  },
+  "presets":{
+    "access-point":{
+      "icon": "access-pont",
+      "fields": [
+        "nombre-monitor"
+      ],
+      "geometry": [
+        "point",
+        "area",
+        "line"
+      ],
+      "sort": 1,
+      "tags": {
+        "type": "threat",
+        "threat": "access-point"
+      },
+      "name": "Punto de entrada"
+    },
+    "plant":{
+      "icon": "plant",
+      "fields": [
+        "nombre-monitor"
+      ],
+      "sort": 3,
+      "geometry": [
+        "point",
+        "area"
+      ],
+      "tags": {
+        "type": "natural",
+        "natural": "plant"
+      },
+      "terms": [],
+      "name": "Planta",
+    }
+  }
+}
