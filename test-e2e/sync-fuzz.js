@@ -14,7 +14,6 @@
  * ```
  */
 
-// import whyIsNodeRunning from 'why-is-node-running'
 import { generate } from '@mapeo/mock-data'
 import { map } from 'iterpal'
 import assert from 'node:assert/strict'
