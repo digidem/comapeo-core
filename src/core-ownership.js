@@ -3,12 +3,18 @@ import { parseVersionId } from '@mapeo/schema'
 import { defaultGetWinner } from '@mapeo/sqlite-indexer'
 import assert from 'node:assert/strict'
 import sodium from 'sodium-universal'
-import { kTable, kSelect, kCreateWithDocId } from './datatype/index.js'
+import {
+  kTable,
+  kSelect,
+  kCreateWithDocId,
+  kDataStore,
+} from './datatype/index.js'
 import { eq, or } from 'drizzle-orm'
 import mapObject from 'map-obj'
 import { discoveryKey } from 'hypercore-crypto'
 import pDefer from 'p-defer'
 import { NAMESPACES } from './constants.js'
+import { TypedEmitter } from 'tiny-typed-emitter'
 /**
  * @import {
  *   CoreOwnershipWithSignatures,
@@ -18,7 +24,15 @@ import { NAMESPACES } from './constants.js'
  * } from './types.js'
  */
 
-export class CoreOwnership {
+/**
+ * @typedef {object} CoreOwnershipEvents
+ * @property {(docIds: Set<string>) => void} update Emitted when new coreOwnership records are indexed
+ */
+
+/**
+ * @extends {TypedEmitter<CoreOwnershipEvents>}
+ */
+export class CoreOwnership extends TypedEmitter {
   #dataType
   #ownershipWriteDone
   /**
@@ -35,8 +49,9 @@ export class CoreOwnership {
    * @param {KeyPair} opts.identityKeypair
    */
   constructor({ dataType, coreKeypairs, identityKeypair }) {
+    super()
     this.#dataType = dataType
-    const authWriterCore = dataType.writerCore
+    const authWriterCore = dataType[kDataStore].writerCore
     const deferred = pDefer()
     this.#ownershipWriteDone = deferred.promise
 
@@ -55,6 +70,8 @@ export class CoreOwnership {
     } else {
       authWriterCore.once('ready', writeOwnership)
     }
+
+    dataType[kDataStore].on('coreOwnership', this.emit.bind(this, 'update'))
   }
 
   /**
@@ -85,9 +102,18 @@ export class CoreOwnership {
    * @returns {Promise<string>} coreId of core belonging to `deviceId` for `namespace`
    */
   async getCoreId(deviceId, namespace) {
-    await this.#ownershipWriteDone
-    const result = await this.#dataType.getByDocId(deviceId)
+    const result = await this.get(deviceId)
     return result[`${namespace}CoreId`]
+  }
+
+  /**
+   * Get capabilities for a given deviceId
+   *
+   * @param {string} deviceId
+   */
+  async get(deviceId) {
+    await this.#ownershipWriteDone
+    return this.#dataType.getByDocId(deviceId)
   }
 
   /**
