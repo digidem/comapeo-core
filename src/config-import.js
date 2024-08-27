@@ -198,7 +198,7 @@ export async function readConfig(configPath) {
             }
           })
         )
-        if (preset.icon && typeof preset.icon === 'string') {
+        if ('icon' in preset && typeof preset.icon === 'string') {
           if (!iconFilenames.has(preset.icon)) {
             throw new Error(
               `preset references icon with name ${preset.icon} but file doesn't exist`
