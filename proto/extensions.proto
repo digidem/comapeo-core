@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+// TODO: Can we simplify this?
 message ProjectExtension {
   repeated bytes wantCoreKeys = 1;
 

@@ -4,6 +4,8 @@ import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { ExhaustivenessError, assert, keyToId } from '../utils.js'
+import { NO_ROLE_ID } from '../roles.js'
+/** @import { CoreOwnership } from '../core-ownership.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
@@ -50,6 +52,7 @@ export const kRescindFullStopRequest = Symbol('foreground')
  */
 export class SyncApi extends TypedEmitter {
   #coreManager
+  #coreOwnership
   #roles
   /** @type {Map<import('protomux'), PeerSyncController>} */
   #peerSyncControllers = new Map()
@@ -75,14 +78,16 @@ export class SyncApi extends TypedEmitter {
    *
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
+   * @param {CoreOwnership} opts.coreOwnership
    * @param {import('../roles.js').Roles} opts.roles
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
    */
-  constructor({ coreManager, throttleMs = 200, roles, logger }) {
+  constructor({ coreManager, throttleMs = 200, roles, logger, coreOwnership }) {
     super()
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
+    this.#coreOwnership = coreOwnership
     this.#roles = roles
     this[kSyncState] = new SyncState({
       coreManager,
@@ -96,6 +101,9 @@ export class SyncApi extends TypedEmitter {
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
     this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
+
+    roles.on('update', this.#handleRoleUpdate)
+    coreOwnership.on('update', this.#handleCoreOwnershipUpdate)
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */
@@ -390,6 +398,65 @@ export class SyncApi extends TypedEmitter {
     this.#pscByPeerId.delete(peerId)
     this.#peerIds.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
+  }
+
+  /**
+   * @param {Set<string>} roleDocIds
+   */
+  #handleRoleUpdate = async (roleDocIds) => {
+    const coreOwnershipPromises = []
+    for (const roleDocId of roleDocIds) {
+      // Ignore docs about ourselves
+      if (roleDocId === this.#coreManager.deviceId) continue
+      coreOwnershipPromises.push(this.#coreOwnership.get(roleDocId))
+    }
+
+    const ownershipResults = await Promise.allSettled(coreOwnershipPromises)
+
+    for (const result of ownershipResults) {
+      if (result.status === 'rejected') continue
+      await this.#validateRoleAndAddCoresForPeer(result.value)
+      this.#l.log('Added cores for device %S', result.value.docId)
+    }
+  }
+
+  /**
+   * @param {Set<string>} coreOwnershipDocIds
+   */
+  #handleCoreOwnershipUpdate = async (coreOwnershipDocIds) => {
+    for (const coreOwnershipDocId of coreOwnershipDocIds) {
+      // Ignore our own ownership doc - we don't need to add cores for ourselves
+      if (coreOwnershipDocId === this.#coreManager.deviceId) continue
+
+      try {
+        // TODO: maybe do this elsewhere?
+        // TODO: maybe do this in a promise.all?
+        const coreOwnershipDoc = await this.#coreOwnership.get(
+          coreOwnershipDocId
+        )
+        await this.#validateRoleAndAddCoresForPeer(coreOwnershipDoc)
+        this.#l.log('Added cores for device %S', coreOwnershipDocId)
+      } catch (e) {
+        // Ignore, we'll add these when the role is added
+        this.#l.log('No role for device %S', coreOwnershipDocId)
+      }
+    }
+  }
+
+  /**
+   * @param {import('@mapeo/schema').CoreOwnership} coreOwnership
+   */
+  async #validateRoleAndAddCoresForPeer(coreOwnership) {
+    // TODO: If in the future we allow syncing from blocked peers, we can drop the role check here, and just add cores
+    const peerDeviceId = coreOwnership.docId
+    const role = await this.#roles.getRole(peerDeviceId)
+    // We only add cores for peers that have been explicitly written into the project
+    if (role.roleId === NO_ROLE_ID) return
+    for (const ns of NAMESPACES) {
+      if (ns === 'auth') continue
+      const coreKey = Buffer.from(coreOwnership[`${ns}CoreId`], 'hex')
+      this.#coreManager.addCore(coreKey, ns)
+    }
   }
 }
 
