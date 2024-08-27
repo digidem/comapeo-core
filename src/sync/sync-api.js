@@ -445,7 +445,6 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
         namespaceSyncState[namespace].remoteStates[peerId]
       if (!peerNamespaceState) continue
 
-      // TODO: Separately, avoid weird cases where only some cores are connected
       /** @type {boolean} */
       let isSyncEnabled
       switch (peerNamespaceState.status) {
