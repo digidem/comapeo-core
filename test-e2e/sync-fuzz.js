@@ -118,13 +118,12 @@ test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
   )
 })
 
-test('sync fuzz tests', { concurrency: true }, async () => {
+test('sync fuzz tests', { concurrency: true, timeout: 2 ** 30 }, async () => {
   const promises = []
   for (let i = 1; i <= testCount; i++) {
-    // TODO: update timeout
     const p = test(
       `sync fuzz test #${i}`,
-      { concurrency: true, timeout: 2 ** 30 },
+      { concurrency: true, timeout: 120_000 },
       async (t) => {
         const managerCount = randint(minManagerCount, maxManagerCount)
         const actionCount = randint(minActionCount, maxActionCount)
@@ -159,12 +158,6 @@ test('sync fuzz tests', { concurrency: true }, async () => {
           observationIds: new Set(),
         }))
 
-        // TODO
-        const timeout = setTimeout(() => {}, 2 ** 30)
-        t.after(() => {
-          clearTimeout(timeout)
-        })
-
         for (let i = 0; i < actionCount; i++) {
           const possibleActions = getPossibleNextActions(projects)
           const action = sample(possibleActions)
@@ -175,22 +168,6 @@ test('sync fuzz tests', { concurrency: true }, async () => {
           expectedState = result.newExpectedState
 
           await waitForStateToMatch(projects, expectedState, actionTitles)
-
-          // await waitForDataSyncForEnabledProjects(projects)
-
-          // /** @type {State} */
-          // const actualState = await Promise.all(
-          //   projects.map(async (project) => {
-          //     const observations = await project.observation.getMany()
-          //     const observationIds = map(observations, (o) => o.docId)
-          //     return {
-          //       isSyncEnabled: isSyncEnabled(project),
-          //       observationIds: new Set(observationIds),
-          //     }
-          //   })
-          // )
-
-          // assertStatesMatch(actualState, expectedState, actionTitles)
         }
       }
     )
