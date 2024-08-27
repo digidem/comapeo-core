@@ -844,22 +844,16 @@ export class MapeoProject extends TypedEmitter {
       this.#loadingConfig = false
 
       await Promise.all(
-        presetsToDelete.map(async (docId) => {
+        (presetsToDelete.map(async (docId) => {
           await this.preset.delete(docId)
-        })
-      )
-      await Promise.all(
+        }),
         fieldsToDelete.map(async (docId) => {
           await this.field.delete(docId)
-        })
-      )
-
-      await Promise.all(
+        }),
         translationsToDelete.map(async (docId) => {
           await this.$translation.dataType.delete(docId)
-        })
+        })).flat()
       )
-
       return config.warnings
     } catch (e) {
       this.#l.log('error loading config', e)
