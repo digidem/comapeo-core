@@ -51,74 +51,13 @@ import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
  * @returns {ActionResult | Promise<ActionResult>}
  */
 
-const testCount = getEnvironmentVariableInt('TEST_COUNT', 10)
-const minManagerCount = getEnvironmentVariableInt('MIN_MANAGER_COUNT', 2)
-const maxManagerCount = getEnvironmentVariableInt('MAX_MANAGER_COUNT', 3)
-const minActionCount = getEnvironmentVariableInt('MIN_ACTION_COUNT', 4)
-const maxActionCount = getEnvironmentVariableInt('MAX_ACTION_COUNT', 32)
-
-// TODO temp
-test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
-  const managers = await createManagers(3, t)
-  const [invitor, ...invitees] = managers
-
-  const disconnect = connectPeers(managers, { discovery: false })
-  t.after(disconnect)
-
-  const projectId = await invitor.createProject({ name: 'Mapeo' })
-  await invite({ invitor, invitees, projectId })
-
-  const projects = await Promise.all(
-    managers.map((m) => m.getProject(projectId))
-  )
-  await waitForSync(projects, 'initial')
-
-  projects[2].$sync.start()
-  projects[1].$sync.start()
-  projects[0].$sync.start()
-  projects[1].$sync.stop()
-
-  await delay(1000)
-
-  const observation1 = await projects[1].observation.create(
-    valueOf(generate('observation')[0])
-  )
-  // const observation4 = await projects[1].observation.create(
-  //   valueOf(generate('observation')[0])
-  // )
-  // const observation2 = await projects[0].observation.create(
-  //   valueOf(generate('observation')[0])
-  // )
-  // const observation3 = await projects[0].observation.create(
-  //   valueOf(generate('observation')[0])
-  // )
-
-  projects[1].$sync.start()
-
-  // await delay(1000)
-  await waitForSync(projects, 'full')
-
-  const results = await Promise.all(
-    projects.map(async (project) => {
-      const observations = await project.observation.getMany()
-      const ids = observations.map((o) => o.docId)
-      return new Set(ids)
-    })
-  )
-  assert.deepEqual(
-    results,
-    Array(3).fill(
-      new Set([
-        observation1.docId,
-        // observation2.docId,
-        // observation3.docId,
-        // observation4.docId,
-      ])
-    )
-  )
-})
-
 test('sync fuzz tests', { concurrency: true, timeout: 2 ** 30 }, async () => {
+  const testCount = getEnvironmentVariableInt('TEST_COUNT', 10)
+  const minManagerCount = getEnvironmentVariableInt('MIN_MANAGER_COUNT', 2)
+  const maxManagerCount = getEnvironmentVariableInt('MAX_MANAGER_COUNT', 3)
+  const minActionCount = getEnvironmentVariableInt('MIN_ACTION_COUNT', 4)
+  const maxActionCount = getEnvironmentVariableInt('MAX_ACTION_COUNT', 32)
+
   for (let i = 1; i <= testCount; i++) {
     await test(
       `fuzz test #${i}`,
