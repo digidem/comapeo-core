@@ -177,6 +177,7 @@ export async function readConfig(configPath) {
         const presetValue = {
           schemaName: 'preset',
           fieldRefs: [],
+          iconRef: { docId: 'placeholder', versionId: 'placeholder' },
           addTags: {},
           removeTags: {},
           terms: [],
