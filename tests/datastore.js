@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { randomBytes } from 'node:crypto'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
 import { getVersionId } from '@mapeo/schema'
@@ -10,14 +11,19 @@ import { discoveryKey } from 'hypercore-crypto'
 /** @type {Omit<import('@mapeo/schema').Observation, 'versionId'>} */
 const obs = {
   docId: 'abc',
+  originalVersionId: getVersionId({
+    coreDiscoveryKey: randomBytes(32),
+    index: 1,
+  }),
   links: [],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  createdBy: 'def',
   schemaName: 'observation',
+  lat: -3,
+  lon: 37,
   tags: {},
   attachments: [],
-  metadata: {},
+  metadata: { manualLocation: false },
   deleted: false,
 }
 

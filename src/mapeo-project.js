@@ -1,6 +1,6 @@
 import path from 'path'
 import Database from 'better-sqlite3'
-import { decodeBlockPrefix, decode } from '@mapeo/schema'
+import { decodeBlockPrefix, decode, parseVersionId } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
@@ -540,6 +540,7 @@ export class MapeoProject extends TypedEmitter {
       await projectSettings[kCreateWithDocId](this.#projectId, {
         ...settings,
         schemaName: 'projectSettings',
+        isInitialProject: Boolean(settings.isInitialProject),
       })
     )
   }
@@ -563,14 +564,14 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {string} createdBy The `createdBy` value from a document.
+   * @param {string} originalVersionId The `originalVersionId` from a document.
    * @returns {Promise<string>} The device ID for this creator.
    * @throws When device ID cannot be found.
    */
-  async $createdByToDeviceId(createdBy) {
-    const discoveryKey = Buffer.from(createdBy, 'hex')
+  async $originalVersionIdToDeviceId(originalVersionId) {
+    const { coreDiscoveryKey } = parseVersionId(originalVersionId)
     const coreId = this.#coreManager
-      .getCoreByDiscoveryKey(discoveryKey)
+      .getCoreByDiscoveryKey(coreDiscoveryKey)
       ?.key.toString('hex')
     if (!coreId) throw new Error('NotFound')
     return this.#coreOwnership.getOwner(coreId)
@@ -777,10 +778,16 @@ export class MapeoProject extends TypedEmitter {
           return fieldRef
         })
 
-        let iconRef
-        if (iconName) {
-          iconRef = iconNameToRef.get(iconName)
+        if (!iconName) {
+          throw new Error(`preset ${value.name} is missing an icon name`)
         }
+        const iconRef = iconNameToRef.get(iconName)
+        if (!iconRef) {
+          throw new Error(
+            `icon ${iconName} not found (referenced by preset ${value.name})`
+          )
+        }
+
         presetsWithRefs.push({
           preset: {
             ...value,
