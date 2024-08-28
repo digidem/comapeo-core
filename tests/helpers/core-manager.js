@@ -9,7 +9,8 @@ import RAM from 'random-access-memory'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-/** @typedef {(typeof import('../../src/constants.js').NAMESPACES)[number]} Namespace */
+import { NAMESPACES } from '../../src/constants.js'
+/** @import { Namespace } from '../../src/types.js' */
 
 /**
  *
@@ -50,6 +51,20 @@ const destroyStream = (stream) =>
   })
 
 /**
+ * @param {CoreManager} cmToAdd
+ * @param {CoreManager} cmToReceive
+ * @returns {Promise<void>}
+ */
+async function addWriterCores(cmToAdd, cmToReceive) {
+  await cmToAdd.ready()
+  for (const ns of NAMESPACES) {
+    if (ns === 'auth') continue
+    const core = cmToAdd.getWriterCore(ns)
+    cmToReceive.addCore(core.key, ns)
+  }
+}
+
+/**
  *
  * @param {CoreManager} cm1
  * @param {CoreManager} cm2
@@ -79,6 +94,9 @@ export function replicate(
 
   cm1[kCoreManagerReplicate](n1)
   cm2[kCoreManagerReplicate](n2)
+
+  addWriterCores(cm1, cm2)
+  addWriterCores(cm2, cm1)
 
   return {
     async destroy() {
