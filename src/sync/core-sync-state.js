@@ -2,8 +2,7 @@ import { keyToId } from '../utils.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
 } from '../core-manager/remote-bitfield.js'
-/** @typedef {import('../types.js').HypercoreRemoteBitfield} HypercoreRemoteBitfield */
-/** @typedef {import('../types.js').HypercorePeer} HypercorePeer */
+/** @import { HypercorePeer, HypercoreRemoteBitfield, Namespace } from '../types.js' */
 
 /**
  * @typedef {RemoteBitfield} Bitfield
@@ -17,7 +16,7 @@ import RemoteBitfield, {
  * @property {PeerState} localState
  * @property {Map<PeerId, PeerState>} remoteStates
  * @property {Map<string, import('./peer-sync-controller.js').PeerSyncController>} peerSyncControllers
- * @property {import('../core-manager/index.js').Namespace} namespace
+ * @property {Namespace} namespace
  */
 /**
  * @typedef {object} LocalCoreState
@@ -26,7 +25,7 @@ import RemoteBitfield, {
  * @property {number} wanted blocks we want from this peer
  */
 /**
- * @typedef {object} PeerCoreState
+ * @typedef {object} PeerNamespaceState
  * @property {number} have blocks the peer has locally
  * @property {number} want blocks this peer wants from us
  * @property {number} wanted blocks we want from this peer
@@ -36,7 +35,7 @@ import RemoteBitfield, {
  * @typedef {object} DerivedState
  * @property {number} coreLength known (sparse) length of the core
  * @property {LocalCoreState} localState local state
- * @property {{ [peerId in PeerId]: PeerCoreState }} remoteStates map of state of all known peers
+ * @property {{ [peerId in PeerId]: PeerNamespaceState }} remoteStates map of state of all known peers
  */
 
 /**
@@ -77,7 +76,7 @@ export class CoreSyncState {
    * @param {object} opts
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
-   * @param {import('../core-manager/index.js').Namespace} opts.namespace
+   * @param {Namespace} opts.namespace
    */
   constructor({ onUpdate, peerSyncControllers, namespace }) {
     this.#peerSyncControllers = peerSyncControllers
@@ -267,7 +266,7 @@ export class PeerState {
   #haves
   /** @type {Bitfield} */
   #wants = new RemoteBitfield()
-  /** @type {PeerCoreState['status']} */
+  /** @type {PeerNamespaceState['status']} */
   status = 'disconnected'
   #wantAll
   constructor({ wantAll = true } = {}) {
@@ -360,7 +359,7 @@ export function deriveState(coreState) {
   const length = coreState.length || 0
   /** @type {LocalCoreState} */
   const localState = { have: 0, want: 0, wanted: 0 }
-  /** @type {Record<PeerId, PeerCoreState>} */
+  /** @type {Record<PeerId, PeerNamespaceState>} */
   const remoteStates = {}
 
   /** @type {Map<PeerId, PeerState>} */

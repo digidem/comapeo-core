@@ -1,11 +1,8 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { SyncState } from './sync-state.js'
-import {
-  PeerSyncController,
-  PRESYNC_NAMESPACES,
-} from './peer-sync-controller.js'
+import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
-import { NAMESPACES } from '../constants.js'
+import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { ExhaustivenessError, assert, keyToId } from '../utils.js'
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
@@ -444,12 +441,13 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
       const isBlocked = psc.syncCapability[namespace] === 'blocked'
       if (isBlocked) continue
 
-      const peerCoreState = namespaceSyncState[namespace].remoteStates[peerId]
-      if (!peerCoreState) continue
+      const peerNamespaceState =
+        namespaceSyncState[namespace].remoteStates[peerId]
+      if (!peerNamespaceState) continue
 
       /** @type {boolean} */
       let isSyncEnabled
-      switch (peerCoreState.status) {
+      switch (peerNamespaceState.status) {
         case 'disconnected':
         case 'connecting':
           isSyncEnabled = false
@@ -458,7 +456,7 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
           isSyncEnabled = true
           break
         default:
-          throw new ExhaustivenessError(peerCoreState.status)
+          throw new ExhaustivenessError(peerNamespaceState.status)
       }
 
       if (!Object.hasOwn(result, peerId)) {
@@ -472,8 +470,8 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
         ? 'initial'
         : 'data'
       result[peerId][namespaceGroup].isSyncEnabled = isSyncEnabled
-      result[peerId][namespaceGroup].want += peerCoreState.want
-      result[peerId][namespaceGroup].wanted += peerCoreState.wanted
+      result[peerId][namespaceGroup].want += peerNamespaceState.want
+      result[peerId][namespaceGroup].wanted += peerNamespaceState.wanted
     }
   }
 

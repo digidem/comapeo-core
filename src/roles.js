@@ -1,7 +1,9 @@
 import { currentSchemaVersions } from '@mapeo/schema'
 import mapObject from 'map-obj'
-import { kCreateWithDocId } from './datatype/index.js'
+import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
+import { TypedEmitter } from 'tiny-typed-emitter'
+/** @import { Namespace } from './types.js' */
 
 // Randomly generated 8-byte encoded as hex
 export const CREATOR_ROLE_ID = 'a12a6702b93bd7ff'
@@ -67,7 +69,7 @@ const isRoleIdAssignableToAnyone = setHas(ROLE_IDS_ASSIGNABLE_TO_ANYONE)
  * @property {string} name
  * @property {Record<import('@mapeo/schema').MapeoDoc['schemaName'], DocCapability>} docs
  * @property {RoleIdAssignableToOthers[]} roleAssignment
- * @property {Record<import('./core-manager/core-index.js').Namespace, 'allowed' | 'blocked'>} sync
+ * @property {Record<Namespace, 'allowed' | 'blocked'>} sync
  */
 
 /**
@@ -213,7 +215,15 @@ export const ROLES = {
   [NO_ROLE_ID]: NO_ROLE,
 }
 
-export class Roles {
+/**
+ * @typedef {object} RolesEvents
+ * @property {(docIds: Set<string>) => void} update Emitted when new role records are indexed
+ */
+
+/**
+ * @extends {TypedEmitter<RolesEvents>}
+ */
+export class Roles extends TypedEmitter {
   #dataType
   #coreOwnership
   #coreManager
@@ -238,11 +248,13 @@ export class Roles {
    * @param {Buffer} opts.deviceKey public key of this device
    */
   constructor({ dataType, coreOwnership, coreManager, projectKey, deviceKey }) {
+    super()
     this.#dataType = dataType
     this.#coreOwnership = coreOwnership
     this.#coreManager = coreManager
     this.#projectCreatorAuthCoreId = projectKey.toString('hex')
     this.#ownDeviceId = deviceKey.toString('hex')
+    dataType[kDataStore].on('role', this.emit.bind(this, 'update'))
   }
 
   /**

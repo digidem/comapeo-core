@@ -46,6 +46,7 @@ declare module 'protomux' {
 
   class Protomux<TStream extends Duplex | NodeDuplex = Duplex> {
     constructor(stream: TStream)
+    [Symbol.iterator](): IterableIterator<Channel>
     isProtomux: true
     stream: TStream
     static from(stream: TStream): Protomux<TStream>
@@ -53,16 +54,16 @@ declare module 'protomux' {
     cork(): void
     uncork(): void
     pair(
-      opts: { protocol: string; id?: Buffer },
+      opts: { protocol: string; id?: null | Buffer },
       notify: (id: Buffer) => Promise<void>
     ): void
-    unpair(opts: { protocol: string; id?: Buffer }): void
-    opened(opts: { protocol: string; id?: Buffer }): boolean
+    unpair(opts: { protocol: string; id?: null | Buffer }): void
+    opened(opts: { protocol: string; id?: null | Buffer }): boolean
     createChannel(opts: {
       userData?: any
       protocol: string
       aliases?: string[]
-      id?: Buffer
+      id?: null | Buffer
       unique?: boolean
       handshake?: Encoding
       messages: MessageOptions[]

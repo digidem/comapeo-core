@@ -3,10 +3,11 @@ import { NAMESPACES } from '../constants.js'
 import { NamespaceSyncState } from './namespace-sync-state.js'
 import { throttle } from 'throttle-debounce'
 import mapObject from 'map-obj'
+/** @import { Namespace } from '../types.js' */
 
 /**
  * @typedef {Record<
- *  import('../core-manager/index.js').Namespace,
+ *  Namespace,
  *  import('./namespace-sync-state.js').SyncState
  * >} State
  */
@@ -16,8 +17,7 @@ import mapObject from 'map-obj'
  * @extends {TypedEmitter<{ state: (state: State) => void}>}
  */
 export class SyncState extends TypedEmitter {
-  #syncStates =
-    /** @type {Record<import('../core-manager/index.js').Namespace, NamespaceSyncState> } */ ({})
+  #syncStates = /** @type {Record<Namespace, NamespaceSyncState> } */ ({})
   /**
    *
    * @param {object} opts

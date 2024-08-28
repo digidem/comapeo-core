@@ -1,6 +1,6 @@
 import path from 'path'
 import Database from 'better-sqlite3'
-import { decodeBlockPrefix, decode } from '@mapeo/schema'
+import { decodeBlockPrefix, decode, parseVersionId } from '@mapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
@@ -49,9 +49,11 @@ import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
+/** @import { ProjectSettingsValue } from '@mapeo/schema' */
+/** @import { CoreStorage, KeyPair, Namespace } from './types.js' */
 
-/** @typedef {Omit<import('@mapeo/schema').ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
-/** @typedef {import('@mapeo/schema').ProjectSettingsValue['configMetadata']} ConfigMetadata */
+/** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
+/** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -101,7 +103,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
-   * @param {import('./types.js').CoreStorage} opts.coreStorage Folder to store all hypercore data
+   * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {Logger} [opts.logger]
@@ -537,6 +539,7 @@ export class MapeoProject extends TypedEmitter {
       await projectSettings[kCreateWithDocId](this.#projectId, {
         ...settings,
         schemaName: 'projectSettings',
+        isInitialProject: Boolean(settings.isInitialProject),
       })
     )
   }
@@ -560,14 +563,14 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {string} createdBy The `createdBy` value from a document.
+   * @param {string} originalVersionId The `originalVersionId` from a document.
    * @returns {Promise<string>} The device ID for this creator.
    * @throws When device ID cannot be found.
    */
-  async $createdByToDeviceId(createdBy) {
-    const discoveryKey = Buffer.from(createdBy, 'hex')
+  async $originalVersionIdToDeviceId(originalVersionId) {
+    const { coreDiscoveryKey } = parseVersionId(originalVersionId)
     const coreId = this.#coreManager
-      .getCoreByDiscoveryKey(discoveryKey)
+      .getCoreByDiscoveryKey(coreDiscoveryKey)
       ?.key.toString('hex')
     if (!coreId) throw new Error('NotFound')
     return this.#coreOwnership.getOwner(coreId)
@@ -685,7 +688,7 @@ export class MapeoProject extends TypedEmitter {
     }
 
     const namespacesWithoutAuth =
-      /** @satisfies {Exclude<import('./core-manager/index.js').Namespace, 'auth'>[]} */ ([
+      /** @satisfies {Exclude<Namespace, 'auth'>[]} */ ([
         'config',
         'data',
         'blob',
@@ -774,10 +777,16 @@ export class MapeoProject extends TypedEmitter {
           return fieldRef
         })
 
-        let iconRef
-        if (iconName) {
-          iconRef = iconNameToRef.get(iconName)
+        if (!iconName) {
+          throw new Error(`preset ${value.name} is missing an icon name`)
         }
+        const iconRef = iconNameToRef.get(iconName)
+        if (!iconRef) {
+          throw new Error(
+            `icon ${iconName} not found (referenced by preset ${value.name})`
+          )
+        }
+
         presetsWithRefs.push({
           preset: {
             ...value,
@@ -924,11 +933,10 @@ async function grabTranslationsToDelete(opts) {
  * @param {Buffer} opts.projectKey
  * @param {Buffer} [opts.projectSecretKey]
  * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
- * @returns {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>}
+ * @returns {Record<Namespace, KeyPair>}
  */
 function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
-  const keypairs =
-    /** @type {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>} */ ({})
+  const keypairs = /** @type {Record<Namespace, KeyPair>} */ ({})
 
   for (const namespace of NAMESPACES) {
     keypairs[namespace] =

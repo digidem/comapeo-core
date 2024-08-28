@@ -1,21 +1,15 @@
 import mapObject from 'map-obj'
-import { NAMESPACES } from '../constants.js'
+import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
 import { ExhaustivenessError, createMap } from '../utils.js'
+import { unreplicate } from '../lib/hypercore-helpers.js'
+/** @import { CoreRecord } from '../core-manager/index.js' */
+/** @import { Role } from '../roles.js' */
+/** @import { SyncEnabledState } from './sync-api.js' */
+/** @import { Namespace } from '../types.js' */
 
 /**
- * @typedef {import('../core-manager/index.js').Namespace} Namespace
- */
-/**
- * @typedef {import('../roles.js').Role['sync'][Namespace] | 'unknown'} SyncCapability
- */
-
-/** @type {Namespace[]} */
-export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
-
-/**
- * @internal
- * @typedef {import('./sync-api.js').SyncEnabledState} SyncEnabledState
+ * @typedef {Role['sync'][Namespace] | 'unknown'} SyncCapability
  */
 
 export class PeerSyncController {
@@ -124,7 +118,7 @@ export class PeerSyncController {
    * Handler for 'core-add' event from CoreManager
    * Bound to `this` (defined as static property)
    *
-   * @param {import("../core-manager/core-index.js").CoreRecord} coreRecord
+   * @param {CoreRecord} coreRecord
    */
   #handleAddCore = ({ core, namespace }) => {
     if (!this.#enabledNamespaces.has(namespace)) return
@@ -262,16 +256,22 @@ export class PeerSyncController {
 
   /**
    * @param {import('hypercore')<'binary', any>} core
+   * @returns {Promise<void>}
    */
-  #unreplicateCore(core) {
+  async #unreplicateCore(core) {
     if (core === this.#coreManager.creatorCore) return
-    const peerToUnreplicate = core.peers.find(
-      (peer) => peer.protomux === this.#protomux
-    )
-    if (!peerToUnreplicate) return
-    this.#log('unreplicating core %k', core.key)
-    peerToUnreplicate.channel.close()
+
     this.#replicatingCores.delete(core)
+
+    const isCoreReady = Boolean(core.discoveryKey)
+    if (!isCoreReady) {
+      await core.ready()
+      const wasReEnabledWhileWaiting = this.#replicatingCores.has(core)
+      if (wasReEnabledWhileWaiting) return
+    }
+
+    unreplicate(core, this.#protomux)
+    this.#log('unreplicated core %k', core.key)
   }
 
   /**
@@ -300,7 +300,7 @@ export class PeerSyncController {
 }
 
 /**
- * @typedef {{ [namespace in Namespace]?: import("./core-sync-state.js").PeerCoreState }} PeerState
+ * @typedef {{ [namespace in Namespace]?: import("./core-sync-state.js").PeerNamespaceState }} PeerState
  */
 
 /** @typedef {Record<Namespace, 'unknown' | 'syncing' | 'synced'>} SyncStatus */

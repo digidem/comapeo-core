@@ -19,17 +19,15 @@ import {
 } from './utils.js'
 import { kCoreManager } from '../src/mapeo-project.js'
 import { getKeys } from '../tests/helpers/core-manager.js'
-import { NAMESPACES } from '../src/constants.js'
+import { NAMESPACES, PRESYNC_NAMESPACES } from '../src/constants.js'
 import { FastifyController } from '../src/fastify-controller.js'
-import { PRESYNC_NAMESPACES } from '../src/sync/peer-sync-controller.js'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { blobMetadata } from '../tests/helpers/blob-store.js'
-/** @typedef {import('../src/mapeo-project.js').MapeoProject} MapeoProject */
-/** @typedef {import('../src/sync/sync-api.js').State} State */
+/** @import { State } from '../src/sync/sync-api.js' */
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
@@ -238,6 +236,60 @@ test('start and stop sync', async function (t) {
   await disconnect()
 })
 
+test('sync only happens if both sides are enabled', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, ...invitees] = managers
+
+  const disconnect = connectPeers(managers, { discovery: false })
+  t.after(disconnect)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees, projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  t.after(() => Promise.all(projects.map((project) => project.close())))
+  const [invitorProject, inviteeProject] = projects
+
+  const generatedObservations = generate('observation', { count: 3 })
+
+  const obs1 = await invitorProject.observation.create(
+    valueOf(generatedObservations[0])
+  )
+  const obs2 = await inviteeProject.observation.create(
+    valueOf(generatedObservations[1])
+  )
+
+  await waitForSync(projects, 'initial')
+
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+  await waitForSync(projects, 'full')
+
+  assert(await inviteeProject.observation.getByDocId(obs1.docId))
+  assert(await invitorProject.observation.getByDocId(obs2.docId))
+
+  invitorProject.$sync.stop()
+  inviteeProject.$sync.stop()
+
+  const obs3 = await invitorProject.observation.create(
+    valueOf(generatedObservations[2])
+  )
+
+  invitorProject.$sync.start()
+
+  await assert.rejects(
+    () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
+    'wait for sync times out'
+  )
+
+  await assert.rejects(
+    () => inviteeProject.observation.getByDocId(obs3.docId),
+    'one side stopping sync should prevent data from syncing'
+  )
+})
+
 test('auto-stop', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
@@ -334,6 +386,7 @@ test('auto-stop', async (t) => {
   )
 
   invitorProject.$sync.start()
+  inviteeProject.$sync.start()
 
   const observation3 = await invitorProject.observation.create(
     valueOf(generatedObservations[2])

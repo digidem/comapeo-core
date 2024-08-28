@@ -3,6 +3,9 @@ import sodium from 'sodium-universal'
 import { keyToPublicId } from '@mapeo/crypto'
 import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
+/** @import { Duplex as NodeDuplex } from 'node:stream' */
+/** @import { Duplex as StreamxDuplex } from 'streamx' */
+/** @import NoiseStream from '@hyperswarm/secret-stream' */
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
 
@@ -43,11 +46,10 @@ export function parseVersion(version) {
   }
 }
 
-/** @typedef {import('@hyperswarm/secret-stream')<any>} NoiseStream */
 /** @typedef {NoiseStream & { destroyed: true }} DestroyedNoiseStream */
 /**
- * @template {import('node:stream').Duplex | import('streamx').Duplex} [T=import('node:stream').Duplex | import('streamx').Duplex]
- * @typedef {import('@hyperswarm/secret-stream')<T> & { publicKey: Buffer, remotePublicKey: Buffer, handshake: Buffer }} OpenedNoiseStream
+ * @template {NodeDuplex | StreamxDuplex} [T=NodeDuplex | StreamxDuplex]
+ * @typedef {NoiseStream<T> & { publicKey: Buffer, remotePublicKey: Buffer, handshake: Buffer }} OpenedNoiseStream
  */
 
 /**
@@ -128,18 +130,18 @@ export function deNullify(obj) {
 /**
  * @template {import('@mapeo/schema').MapeoDoc & { forks?: string[] }} T
  * @param {T} doc
- * @returns {Omit<T, 'docId' | 'versionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'createdBy' | 'deleted'>}
+ * @returns {Omit<T, 'docId' | 'versionId' | 'originalVersionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'deleted'>}
  */
 export function valueOf(doc) {
   /* eslint-disable no-unused-vars */
   const {
     docId,
     versionId,
+    originalVersionId,
     links,
     forks,
     createdAt,
     updatedAt,
-    createdBy,
     deleted,
     ...rest
   } = doc

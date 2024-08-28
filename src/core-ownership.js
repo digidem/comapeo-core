@@ -3,18 +3,36 @@ import { parseVersionId } from '@mapeo/schema'
 import { defaultGetWinner } from '@mapeo/sqlite-indexer'
 import assert from 'node:assert/strict'
 import sodium from 'sodium-universal'
-import { kTable, kSelect, kCreateWithDocId } from './datatype/index.js'
+import {
+  kTable,
+  kSelect,
+  kCreateWithDocId,
+  kDataStore,
+} from './datatype/index.js'
 import { eq, or } from 'drizzle-orm'
 import mapObject from 'map-obj'
 import { discoveryKey } from 'hypercore-crypto'
 import pDefer from 'p-defer'
 import { NAMESPACES } from './constants.js'
-
+import { TypedEmitter } from 'tiny-typed-emitter'
 /**
- * @typedef {import('./types.js').CoreOwnershipWithSignatures} CoreOwnershipWithSignatures
+ * @import {
+ *   CoreOwnershipWithSignatures,
+ *   CoreOwnershipWithSignaturesValue,
+ *   KeyPair,
+ *   Namespace
+ * } from './types.js'
  */
 
-export class CoreOwnership {
+/**
+ * @typedef {object} CoreOwnershipEvents
+ * @property {(docIds: Set<string>) => void} update Emitted when new coreOwnership records are indexed
+ */
+
+/**
+ * @extends {TypedEmitter<CoreOwnershipEvents>}
+ */
+export class CoreOwnership extends TypedEmitter {
   #dataType
   #ownershipWriteDone
   /**
@@ -27,12 +45,13 @@ export class CoreOwnership {
    *   import('@mapeo/schema').CoreOwnership,
    *   import('@mapeo/schema').CoreOwnershipValue
    * >} opts.dataType
-   * @param {Record<import('./core-manager/index.js').Namespace, import('./types.js').KeyPair>} opts.coreKeypairs
-   * @param {import('./types.js').KeyPair} opts.identityKeypair
+   * @param {Record<Namespace, KeyPair>} opts.coreKeypairs
+   * @param {KeyPair} opts.identityKeypair
    */
   constructor({ dataType, coreKeypairs, identityKeypair }) {
+    super()
     this.#dataType = dataType
-    const authWriterCore = dataType.writerCore
+    const authWriterCore = dataType[kDataStore].writerCore
     const deferred = pDefer()
     this.#ownershipWriteDone = deferred.promise
 
@@ -51,6 +70,8 @@ export class CoreOwnership {
     } else {
       authWriterCore.once('ready', writeOwnership)
     }
+
+    dataType[kDataStore].on('coreOwnership', this.emit.bind(this, 'update'))
   }
 
   /**
@@ -77,22 +98,31 @@ export class CoreOwnership {
   /**
    *
    * @param {string} deviceId
-   * @param {typeof NAMESPACES[number]} namespace
+   * @param {Namespace} namespace
    * @returns {Promise<string>} coreId of core belonging to `deviceId` for `namespace`
    */
   async getCoreId(deviceId, namespace) {
-    await this.#ownershipWriteDone
-    const result = await this.#dataType.getByDocId(deviceId)
+    const result = await this.get(deviceId)
     return result[`${namespace}CoreId`]
   }
 
   /**
+   * Get capabilities for a given deviceId
    *
-   * @param {import('./types.js').KeyPair} identityKeypair
-   * @param {Record<typeof NAMESPACES[number], import('./types.js').KeyPair>} coreKeypairs
+   * @param {string} deviceId
+   */
+  async get(deviceId) {
+    await this.#ownershipWriteDone
+    return this.#dataType.getByDocId(deviceId)
+  }
+
+  /**
+   *
+   * @param {KeyPair} identityKeypair
+   * @param {Record<Namespace, KeyPair>} coreKeypairs
    */
   async #writeOwnership(identityKeypair, coreKeypairs) {
-    /** @type {import('./types.js').CoreOwnershipWithSignaturesValue} */
+    /** @type {CoreOwnershipWithSignaturesValue} */
     const docValue = {
       schemaName: 'coreOwnership',
       ...mapObject(coreKeypairs, (key, value) => {
