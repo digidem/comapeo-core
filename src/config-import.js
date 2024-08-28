@@ -199,12 +199,18 @@ export async function readConfig(configPath) {
             presetValue[key] = preset[key]
           }
         }
-        if ('icon' in preset && typeof preset.icon === 'string') {
-          if (!iconFilenames.has(preset.icon)) {
-            throw new Error(
+
+        if (!('icon' in preset) || typeof preset.icon !== 'string') {
+          warnings.push(new Error(`Preset ${preset.name} doesn't have an icon`))
+          return
+        }
+        if (!iconFilenames.has(preset.icon)) {
+          warnings.push(
+            new Error(
               `preset references icon with name ${preset.icon} but file doesn't exist`
             )
-          }
+          )
+          return
         }
 
         if (!validate('preset', presetValue)) {
