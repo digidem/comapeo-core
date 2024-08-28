@@ -236,6 +236,60 @@ test('start and stop sync', async function (t) {
   await disconnect()
 })
 
+test('sync only happens if both sides are enabled', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, ...invitees] = managers
+
+  const disconnect = connectPeers(managers, { discovery: false })
+  t.after(disconnect)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees, projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  t.after(() => Promise.all(projects.map((project) => project.close())))
+  const [invitorProject, inviteeProject] = projects
+
+  const generatedObservations = generate('observation', { count: 3 })
+
+  const obs1 = await invitorProject.observation.create(
+    valueOf(generatedObservations[0])
+  )
+  const obs2 = await inviteeProject.observation.create(
+    valueOf(generatedObservations[1])
+  )
+
+  await waitForSync(projects, 'initial')
+
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+  await waitForSync(projects, 'full')
+
+  assert(await inviteeProject.observation.getByDocId(obs1.docId))
+  assert(await invitorProject.observation.getByDocId(obs2.docId))
+
+  invitorProject.$sync.stop()
+  inviteeProject.$sync.stop()
+
+  const obs3 = await invitorProject.observation.create(
+    valueOf(generatedObservations[2])
+  )
+
+  invitorProject.$sync.start()
+
+  await assert.rejects(
+    () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
+    'wait for sync times out'
+  )
+
+  await assert.rejects(
+    () => inviteeProject.observation.getByDocId(obs3.docId),
+    'one side stopping sync should prevent data from syncing'
+  )
+})
+
 test('auto-stop', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
@@ -332,6 +386,7 @@ test('auto-stop', async (t) => {
   )
 
   invitorProject.$sync.start()
+  inviteeProject.$sync.start()
 
   const observation3 = await invitorProject.observation.create(
     valueOf(generatedObservations[2])
@@ -633,20 +688,14 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   assert.equal(blockedState.data.localState.have, 0) // no data docs synced
 
   for (const ns of NAMESPACES) {
-    if (ns === 'auth') {
-      assert.equal(invitorState[ns].coreCount, 3)
-      assert.equal(inviteeState[ns].coreCount, 3)
-      assert.equal(blockedState[ns].coreCount, 3)
-    } else if (PRESYNC_NAMESPACES.includes(ns)) {
-      assert.equal(invitorState[ns].coreCount, 3)
-      assert.equal(inviteeState[ns].coreCount, 3)
-      assert.equal(blockedState[ns].coreCount, 1)
-    } else {
-      assert.equal(invitorState[ns].coreCount, 2)
-      assert.equal(inviteeState[ns].coreCount, 2)
-      assert.equal(blockedState[ns].coreCount, 1)
-    }
-    assert.deepEqual(invitorState[ns].localState, inviteeState[ns].localState)
+    assert.equal(invitorState[ns].coreCount, 3, ns)
+    assert.equal(inviteeState[ns].coreCount, 3, ns)
+    assert.equal(blockedState[ns].coreCount, 3, ns)
+    assert.deepEqual(
+      invitorState[ns].localState,
+      inviteeState[ns].localState,
+      ns
+    )
   }
 
   await disconnect1()

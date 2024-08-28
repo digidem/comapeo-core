@@ -1,12 +1,6 @@
-/// <reference types="node" />
 import _m0 from "protobufjs/minimal.js";
 export interface ProjectExtension {
-    wantCoreKeys: Buffer[];
     authCoreKeys: Buffer[];
-    configCoreKeys: Buffer[];
-    dataCoreKeys: Buffer[];
-    blobIndexCoreKeys: Buffer[];
-    blobCoreKeys: Buffer[];
 }
 export interface HaveExtension {
     discoveryKey: Buffer;
@@ -28,60 +22,23 @@ export declare function haveExtension_NamespaceToNumber(object: HaveExtension_Na
 export declare const ProjectExtension: {
     encode(message: ProjectExtension, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): ProjectExtension;
-    create<I extends {
-        wantCoreKeys?: Buffer[];
-        authCoreKeys?: Buffer[];
-        configCoreKeys?: Buffer[];
-        dataCoreKeys?: Buffer[];
-        blobIndexCoreKeys?: Buffer[];
-        blobCoreKeys?: Buffer[];
-    } & {
-        wantCoreKeys?: Buffer[] & Buffer[] & { [K in Exclude<keyof I["wantCoreKeys"], keyof Buffer[]>]: never; };
-        authCoreKeys?: Buffer[] & Buffer[] & { [K_1 in Exclude<keyof I["authCoreKeys"], keyof Buffer[]>]: never; };
-        configCoreKeys?: Buffer[] & Buffer[] & { [K_2 in Exclude<keyof I["configCoreKeys"], keyof Buffer[]>]: never; };
-        dataCoreKeys?: Buffer[] & Buffer[] & { [K_3 in Exclude<keyof I["dataCoreKeys"], keyof Buffer[]>]: never; };
-        blobIndexCoreKeys?: Buffer[] & Buffer[] & { [K_4 in Exclude<keyof I["blobIndexCoreKeys"], keyof Buffer[]>]: never; };
-        blobCoreKeys?: Buffer[] & Buffer[] & { [K_5 in Exclude<keyof I["blobCoreKeys"], keyof Buffer[]>]: never; };
-    } & { [K_6 in Exclude<keyof I, keyof ProjectExtension>]: never; }>(base?: I): ProjectExtension;
-    fromPartial<I_1 extends {
-        wantCoreKeys?: Buffer[];
-        authCoreKeys?: Buffer[];
-        configCoreKeys?: Buffer[];
-        dataCoreKeys?: Buffer[];
-        blobIndexCoreKeys?: Buffer[];
-        blobCoreKeys?: Buffer[];
-    } & {
-        wantCoreKeys?: Buffer[] & Buffer[] & { [K_7 in Exclude<keyof I_1["wantCoreKeys"], keyof Buffer[]>]: never; };
-        authCoreKeys?: Buffer[] & Buffer[] & { [K_8 in Exclude<keyof I_1["authCoreKeys"], keyof Buffer[]>]: never; };
-        configCoreKeys?: Buffer[] & Buffer[] & { [K_9 in Exclude<keyof I_1["configCoreKeys"], keyof Buffer[]>]: never; };
-        dataCoreKeys?: Buffer[] & Buffer[] & { [K_10 in Exclude<keyof I_1["dataCoreKeys"], keyof Buffer[]>]: never; };
-        blobIndexCoreKeys?: Buffer[] & Buffer[] & { [K_11 in Exclude<keyof I_1["blobIndexCoreKeys"], keyof Buffer[]>]: never; };
-        blobCoreKeys?: Buffer[] & Buffer[] & { [K_12 in Exclude<keyof I_1["blobCoreKeys"], keyof Buffer[]>]: never; };
-    } & { [K_13 in Exclude<keyof I_1, keyof ProjectExtension>]: never; }>(object: I_1): ProjectExtension;
+    create<I extends Exact<DeepPartial<ProjectExtension>, I>>(base?: I): ProjectExtension;
+    fromPartial<I extends Exact<DeepPartial<ProjectExtension>, I>>(object: I): ProjectExtension;
 };
 export declare const HaveExtension: {
     encode(message: HaveExtension, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): HaveExtension;
-    create<I extends {
-        discoveryKey?: Buffer;
-        start?: number;
-        encodedBitfield?: Buffer;
-        namespace?: HaveExtension_Namespace;
-    } & {
-        discoveryKey?: Buffer;
-        start?: number;
-        encodedBitfield?: Buffer;
-        namespace?: HaveExtension_Namespace;
-    } & { [K in Exclude<keyof I, keyof HaveExtension>]: never; }>(base?: I): HaveExtension;
-    fromPartial<I_1 extends {
-        discoveryKey?: Buffer;
-        start?: number;
-        encodedBitfield?: Buffer;
-        namespace?: HaveExtension_Namespace;
-    } & {
-        discoveryKey?: Buffer;
-        start?: number;
-        encodedBitfield?: Buffer;
-        namespace?: HaveExtension_Namespace;
-    } & { [K_1 in Exclude<keyof I_1, keyof HaveExtension>]: never; }>(object: I_1): HaveExtension;
+    create<I extends Exact<DeepPartial<HaveExtension>, I>>(base?: I): HaveExtension;
+    fromPartial<I extends Exact<DeepPartial<HaveExtension>, I>>(object: I): HaveExtension;
 };
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+type DeepPartial<T> = T extends Builtin ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {
+    [K in keyof T]?: DeepPartial<T[K]>;
+} : Partial<T>;
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+type Exact<P, I extends P> = P extends Builtin ? P : P & {
+    [K in keyof P]: Exact<P[K], I[K]>;
+} & {
+    [K in Exclude<keyof I, KeysOfUnion<P>>]: never;
+};
+export {};
