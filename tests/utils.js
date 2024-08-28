@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   assert as utilsAssert,
   ExhaustivenessError,
+  isDefined,
   setHas,
 } from '../src/utils.js'
 
@@ -24,6 +25,12 @@ test('ExhaustivenessError', () => {
       }
     })
   })
+})
+
+test('isDefined()', () => {
+  assert(isDefined(123))
+  assert(isDefined(null))
+  assert(!isDefined(undefined))
 })
 
 test('setHas()', () => {
