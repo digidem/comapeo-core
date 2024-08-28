@@ -851,24 +851,31 @@ export class MapeoProject extends TypedEmitter {
         },
         configMetadata: config.metadata,
       })
-      this.#loadingConfig = false
 
-      await Promise.all(
-        (presetsToDelete.map(async (docId) => {
+      const deletePresetsPromise = Promise.all(
+        presetsToDelete.map(async (docId) => {
           const { deleted } = await this.preset.getByDocId(docId)
-          if (!deleted) {
-            await this.preset.delete(docId)
-          }
-        }),
+          if (!deleted) await this.preset.delete(docId)
+        })
+      )
+      const deleteFieldsPromise = Promise.all(
         fieldsToDelete.map(async (docId) => {
           const { deleted } = await this.field.getByDocId(docId)
           if (!deleted) await this.field.delete(docId)
-        }),
+        })
+      )
+      const deleteTranslationsPromise = Promise.all(
         translationsToDelete.map(async (docId) => {
           const { deleted } = await this.$translation.dataType.getByDocId(docId)
           if (!deleted) await this.$translation.dataType.delete(docId)
-        })).flat()
+        })
       )
+      await Promise.all([
+        deletePresetsPromise,
+        deleteFieldsPromise,
+        deleteTranslationsPromise,
+      ])
+      this.#loadingConfig = false
       return config.warnings
     } catch (e) {
       this.#l.log('error loading config', e)
