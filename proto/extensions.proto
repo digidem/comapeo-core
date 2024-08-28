@@ -1,13 +1,7 @@
 syntax = "proto3";
 
 message ProjectExtension {
-  repeated bytes wantCoreKeys = 1;
-
-  repeated bytes authCoreKeys = 2;
-  repeated bytes configCoreKeys = 3;
-  repeated bytes dataCoreKeys = 4;
-  repeated bytes blobIndexCoreKeys = 5;
-  repeated bytes blobCoreKeys = 6;
+  repeated bytes authCoreKeys = 1;
 }
 
 message HaveExtension {
