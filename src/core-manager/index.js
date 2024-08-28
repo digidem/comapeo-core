@@ -162,6 +162,7 @@ export class CoreManager extends TypedEmitter {
       this.#sendHaves(peer, this.#coreIndex).catch(() => {
         this.#l.log('Failed to send pre-haves to newly-connected peer')
       })
+      this.#sendAuthCoreKeys(peer)
     })
 
     this.#ready = Promise.all(
@@ -365,7 +366,7 @@ export class CoreManager extends TypedEmitter {
    *
    * @param {HypercorePeer} peer
    */
-  sendAuthCoreKeys(peer) {
+  #sendAuthCoreKeys(peer) {
     const message = ProjectExtension.create()
     for (const { key } of this.getCores('auth')) {
       message[`authCoreKeys`].push(key)
