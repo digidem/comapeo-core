@@ -392,7 +392,9 @@ test('sends "haves" bitfields over project creator core replication stream', asy
   await Promise.all([once(n1, 'close'), once(n2, 'close')])
 })
 
-test('unreplicate', async (t) => {
+test('unreplicate', { concurrency: true }, async (t) => {
+  /** @type {Promise<unknown>[]} */ const testPromises = []
+
   const WAIT_TIMEOUT = 200
   const REPLICATION_DELAY = 20
   const scenarios = [
@@ -440,7 +442,7 @@ test('unreplicate', async (t) => {
 
   for (const unreplicateWait of [0, 100]) {
     for (const scenario of scenarios) {
-      await t.test(
+      const testPromise = t.test(
         `unreplicate: ${scenario.unreplicate.join(
           ', '
         )}; rereplicate: ${scenario.rereplicate.join(
@@ -512,8 +514,11 @@ test('unreplicate', async (t) => {
           }
         }
       )
+      testPromises.push(testPromise)
     }
   }
+
+  await Promise.all(testPromises)
 })
 
 test('deleteOthersData()', async (t) => {
