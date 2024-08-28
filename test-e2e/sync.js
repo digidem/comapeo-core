@@ -32,7 +32,7 @@ import { blobMetadata } from '../tests/helpers/blob-store.js'
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
 test('Create and sync data', { timeout: 100_000 }, async (t) => {
-  const COUNT = 2 // TODO
+  const COUNT = 10
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
   const disconnect = connectPeers(managers, { discovery: false })
@@ -50,13 +50,9 @@ test('Create and sync data', { timeout: 100_000 }, async (t) => {
     return acc
   }, new Set())
 
-  console.log('@@@@', 'connecting peers...')
   const disconnectPeers = connectPeers(managers, { discovery: false })
-  console.log('@@@@', 'connected.')
   t.after(disconnectPeers)
-  console.log('@@@@', 'waiting for initial sync...')
   await waitForSync(projects, 'initial')
-  console.log('@@@@', 'waited for initial sync.')
 
   await Promise.all(
     map(generatedSchemaNames, (schemaName) =>
@@ -90,9 +86,7 @@ test('Create and sync data', { timeout: 100_000 }, async (t) => {
     project.$sync.start()
   }
 
-  console.log('@@@@', 'waiting for sync...')
   await waitForSync(projects, 'full')
-  console.log('@@@@', 'waited for sync')
 
   await Promise.all(
     map(generatedSchemaNames, (schemaName) =>

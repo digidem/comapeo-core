@@ -5,6 +5,7 @@ import { Logger } from '../logger.js'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
 import { NO_ROLE_ID } from '../roles.js'
+/** @import { CoreOwnership as CoreOwnershipDoc } from '@mapeo/schema' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
@@ -108,7 +109,6 @@ export class SyncApi extends TypedEmitter {
     this.#coreOwnership
       .getAll()
       .then((coreOwnerships) =>
-        // TODO: see if we can change this to `Promise.all`
         Promise.allSettled(
           coreOwnerships.map(async (coreOwnership) => {
             if (coreOwnership.docId === this.#coreManager.deviceId) return
@@ -415,9 +415,10 @@ export class SyncApi extends TypedEmitter {
 
   /**
    * @param {Set<string>} roleDocIds
+   * @returns {Promise<void>}
    */
   #handleRoleUpdate = async (roleDocIds) => {
-    const coreOwnershipPromises = []
+    /** @type {Promise<CoreOwnershipDoc>[]} */ const coreOwnershipPromises = []
     for (const roleDocId of roleDocIds) {
       // Ignore docs about ourselves
       if (roleDocId === this.#coreManager.deviceId) continue
@@ -435,35 +436,44 @@ export class SyncApi extends TypedEmitter {
 
   /**
    * @param {Set<string>} coreOwnershipDocIds
+   * @returns {Promise<void>}
    */
   #handleCoreOwnershipUpdate = async (coreOwnershipDocIds) => {
+    /** @type {Promise<void>[]} */ const promises = []
+
     for (const coreOwnershipDocId of coreOwnershipDocIds) {
       // Ignore our own ownership doc - we don't need to add cores for ourselves
       if (coreOwnershipDocId === this.#coreManager.deviceId) continue
 
-      try {
-        // TODO: maybe do this elsewhere?
-        // TODO: maybe do this in a promise.all?
-        const coreOwnershipDoc = await this.#coreOwnership.get(
-          coreOwnershipDocId
-        )
-        await this.#validateRoleAndAddCoresForPeer(coreOwnershipDoc)
-        this.#l.log('Added cores for device %S', coreOwnershipDocId)
-      } catch (e) {
-        // Ignore, we'll add these when the role is added
-        this.#l.log('No role for device %S', coreOwnershipDocId)
-      }
+      promises.push(
+        (async () => {
+          try {
+            const coreOwnershipDoc = await this.#coreOwnership.get(
+              coreOwnershipDocId
+            )
+            await this.#validateRoleAndAddCoresForPeer(coreOwnershipDoc)
+            this.#l.log('Added cores for device %S', coreOwnershipDocId)
+          } catch (_) {
+            // Ignore, we'll add these when the role is added
+            this.#l.log('No role for device %S', coreOwnershipDocId)
+          }
+        })()
+      )
     }
+
+    await Promise.all(promises)
   }
 
   /**
-   * @param {import('@mapeo/schema').CoreOwnership} coreOwnership
+   * @param {CoreOwnershipDoc} coreOwnership
+   * @returns {Promise<void>}
    */
   async #validateRoleAndAddCoresForPeer(coreOwnership) {
-    // TODO: If in the future we allow syncing from blocked peers, we can drop the role check here, and just add cores
     const peerDeviceId = coreOwnership.docId
     const role = await this.#roles.getRole(peerDeviceId)
-    // We only add cores for peers that have been explicitly written into the project
+    // We only add cores for peers that have been explicitly written into the
+    // project. If in the future we allow syncing from blocked peers, we can
+    // drop the role check here, and just add cores.
     if (role.roleId === NO_ROLE_ID) return
     for (const ns of NAMESPACES) {
       if (ns === 'auth') continue
