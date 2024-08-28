@@ -369,7 +369,7 @@ export class CoreManager extends TypedEmitter {
   #sendAuthCoreKeys(peer) {
     const message = ProjectExtension.create()
     for (const { key } of this.getCores('auth')) {
-      message[`authCoreKeys`].push(key)
+      message.authCoreKeys.push(key)
     }
     this.#projectExtension.send(message, peer)
   }
