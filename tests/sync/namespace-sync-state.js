@@ -102,7 +102,7 @@ test('sync cores in a namespace', async () => {
         want: 0,
         wanted: 0,
         have: 30,
-        status: 'connected',
+        status: 'started',
       },
     },
     'syncState1 is synced'
@@ -115,7 +115,7 @@ test('sync cores in a namespace', async () => {
         want: 0,
         wanted: 0,
         have: 30,
-        status: 'connected',
+        status: 'started',
       },
     },
     'syncState2 is synced'

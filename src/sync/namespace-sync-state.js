@@ -180,13 +180,13 @@ function mutatingAddPeerState(accumulator, currentValue) {
   accumulator.want += currentValue.want
   accumulator.wanted += currentValue.wanted
   if ('status' in accumulator && accumulator.status !== currentValue.status) {
-    if (currentValue.status === 'disconnected') {
-      accumulator.status === 'disconnected'
+    if (currentValue.status === 'stopped') {
+      accumulator.status === 'stopped'
     } else if (
-      currentValue.status === 'connecting' &&
-      accumulator.status === 'connected'
+      currentValue.status === 'starting' &&
+      accumulator.status === 'starting'
     ) {
-      accumulator.status = 'connecting'
+      accumulator.status = 'starting'
     }
   }
   return accumulator

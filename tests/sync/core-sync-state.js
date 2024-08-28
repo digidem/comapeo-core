@@ -43,19 +43,19 @@ const scenarios = [
           want: 1,
           have: 2,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
         peer1: {
           want: 1,
           have: 2,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
         peer2: {
           want: 2,
           have: 1,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
       },
     },
@@ -75,29 +75,29 @@ const scenarios = [
           want: 0,
           have: 0,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
         peer1: {
           want: 0,
           have: 0,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
       },
     },
   },
   {
-    message: 'connected = true',
+    message: 'started',
     state: {
       length: 3,
       localState: { have: 0b111 },
-      remoteStates: [{ have: 0b001, want: 0b011, status: 'connected' }],
+      remoteStates: [{ have: 0b001, want: 0b011, status: 'started' }],
     },
     expected: {
       coreLength: 3,
       localState: { want: 0, have: 3, wanted: 1 },
       remoteStates: {
-        peer0: { want: 1, have: 1, wanted: 0, status: 'connected' },
+        peer0: { want: 1, have: 1, wanted: 0, status: 'started' },
       },
     },
   },
@@ -116,7 +116,7 @@ const scenarios = [
           want: 1,
           have: 1,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
       },
     },
@@ -136,7 +136,7 @@ const scenarios = [
           want: 1,
           have: 2,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
       },
     },
@@ -156,7 +156,7 @@ const scenarios = [
           want: 0,
           have: 3,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
       },
     },
@@ -180,19 +180,19 @@ const scenarios = [
           want: 10,
           have: 40,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
         peer1: {
           want: 5,
           have: 40,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
         peer2: {
           want: 5,
           have: 40,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
       },
     },
@@ -212,13 +212,13 @@ const scenarios = [
           want: 1,
           have: 0,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
         peer1: {
           want: 2,
           have: 0,
           wanted: 0,
-          status: 'disconnected',
+          status: 'stopped',
         },
       },
     },
@@ -265,7 +265,7 @@ test('deriveState() have at index beyond bitfield page size', () => {
         want: 10,
         have: 1,
         wanted: 1,
-        status: 'disconnected',
+        status: 'stopped',
       },
     },
   }
@@ -290,8 +290,8 @@ test('CoreReplicationState', async () => {
     seed.write('local')
     const kp1 = NoiseSecretStream.keyPair(seed)
     const peerIds = new Map()
-    /** @type {Map<string, 'connected' | 'disconnected'>} */
-    const connectedState = new Map()
+    /** @type {Map<string, 'started' | 'stopped'>} */
+    const statusesByPeer = new Map()
     for (const [
       index,
       { have, want, prehave },
@@ -300,13 +300,13 @@ test('CoreReplicationState', async () => {
       const kp2 = NoiseSecretStream.keyPair(seed)
       const peerId = kp2.publicKey.toString('hex')
       peerIds.set('peer' + index, peerId)
-      connectedState.set(peerId, 'disconnected')
+      statusesByPeer.set(peerId, 'stopped')
 
       // We unit test deriveState with no bitfields, but we need something here
       // for things to work
       crs.insertPreHaves(peerId, 0, createUint32Array(prehave || 0))
       if (typeof have !== 'number' && typeof want !== 'number') continue
-      connectedState.set(peerId, 'connected')
+      statusesByPeer.set(peerId, 'started')
       const core = await createCore(localCore.key)
       setPeerWants(crs, peerId, want)
       replicate(localCore, core, { kp1, kp2 })
@@ -322,7 +322,7 @@ test('CoreReplicationState', async () => {
           peerId,
           {
             ...value,
-            status: connectedState.get(peerId),
+            status: statusesByPeer.get(peerId),
           },
         ]
       })
