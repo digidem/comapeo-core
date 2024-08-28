@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { isDefined } from '../src/utils.js'
 import { createManagers, ManagerCustodian } from './utils.js'
 import { defaultConfigPath } from '../tests/helpers/default-config.js'
 import {
@@ -387,12 +388,3 @@ test('translation api - re-loading from disk', async (t) => {
 
   assert(hasExpectedNumberOfTranslations)
 })
-
-/**
- * @template T
- * @param {undefined | T} value
- * @returns {value is T}
- */
-function isDefined(value) {
-  return value !== undefined
-}

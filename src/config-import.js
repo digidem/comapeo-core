@@ -1,7 +1,7 @@
 import yauzl from 'yauzl-promise'
 import { validate, valueSchemas } from '@mapeo/schema'
 import { json, buffer } from 'node:stream/consumers'
-import { assert } from './utils.js'
+import { assert, isDefined } from './utils.js'
 import path from 'node:path'
 import { parse as parseBCP47 } from 'bcp-47'
 import { SUPPORTED_CONFIG_VERSION } from './constants.js'
@@ -172,15 +172,16 @@ export async function readConfig(configPath) {
         return sort - nextSort
       })
 
-      // check that preset references existing icon
       const iconFilenames = new Set(
-        iconEntries.map((icon) => {
-          const matches = path.basename(icon.filename).match(ICON_NAME_REGEX)
-          if (matches) {
-            const [_, name] = matches
-            return name
-          }
-        })
+        iconEntries
+          .map((icon) => {
+            const matches = path.basename(icon.filename).match(ICON_NAME_REGEX)
+            if (matches) {
+              const [_, name] = matches
+              return name
+            }
+          })
+          .filter(isDefined)
       )
 
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
