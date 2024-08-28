@@ -366,20 +366,9 @@ export class CoreManager extends TypedEmitter {
    * @param {HypercorePeer} peer
    */
   sendAuthCoreKeys(peer) {
-    this.#sendCoreKeys(peer, ['auth'])
-  }
-
-  /**
-   * We only send non-auth core keys to a peer for unit tests
-   * @param {HypercorePeer} peer
-   * @param {Readonly<Namespace[]>} namespaces
-   */
-  #sendCoreKeys(peer, namespaces) {
     const message = ProjectExtension.create()
-    for (const ns of namespaces) {
-      for (const { key } of this.getCores(ns)) {
-        message[`${ns}CoreKeys`].push(key)
-      }
+    for (const { key } of this.getCores('auth')) {
+      message[`authCoreKeys`].push(key)
     }
     this.#projectExtension.send(message, peer)
   }
@@ -438,16 +427,13 @@ export class CoreManager extends TypedEmitter {
    * ONLY FOR TESTING
    * Replicate all cores in core manager
    *
+   * NB: Remote peers need to be manually added when unit testing core manager
+   * without the Sync API
+   *
    * @param {Parameters<Corestore['replicate']>[0]} stream
    */
   [kCoreManagerReplicate](stream) {
     const protocolStream = this.#corestore.replicate(stream)
-    this.#creatorCore.on('peer-add', (peer) => {
-      // Normally only auth core keys are sent, but for unit tests we need to
-      // send all of them, because unit tests don't include the Sync API which
-      // adds cores from core ownership records.
-      this.#sendCoreKeys(peer, NAMESPACES)
-    })
     return protocolStream
   }
 
