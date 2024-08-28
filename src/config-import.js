@@ -9,6 +9,7 @@ import { SUPPORTED_CONFIG_VERSION } from './constants.js'
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
 const MAX_ICON_SIZE = 10_000_000
+const ICON_NAME_REGEX = /([a-zA-Z0-9-]+)-([a-zA-Z]+)@(\d+)x\.[a-zA-Z]+$/
 
 /**
  * @typedef {yauzl.Entry} Entry
@@ -171,6 +172,17 @@ export async function readConfig(configPath) {
         return sort - nextSort
       })
 
+      // check that preset references existing icon
+      const iconFilenames = new Set(
+        iconEntries.map((icon) => {
+          const matches = path.basename(icon.filename).match(ICON_NAME_REGEX)
+          if (matches) {
+            const [_, name] = matches
+            return name
+          }
+        })
+      )
+
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
       for (const { preset, name } of sortedPresets) {
         /** @type {Record<string, unknown>} */
@@ -187,18 +199,6 @@ export async function readConfig(configPath) {
             presetValue[key] = preset[key]
           }
         }
-        // check that preset references existing icon
-        const iconFilenames = new Set(
-          iconEntries.map((icon) => {
-            const matches = path
-              .basename(icon.filename)
-              .match(/([a-zA-Z--0-]+)-/)
-            if (matches) {
-              const [_, name] = matches
-              return name
-            }
-          })
-        )
         if ('icon' in preset && typeof preset.icon === 'string') {
           if (!iconFilenames.has(preset.icon)) {
             throw new Error(
@@ -502,9 +502,7 @@ function getIconEntries(entries) {
  */
 function parseIcon(filename, buf) {
   const parsedFilename = path.parse(filename)
-  const matches = parsedFilename.base.match(
-    /([a-zA-Z0-9-]+)-([a-zA-Z]+)@(\d+)x\.[a-zA-Z]+$/
-  )
+  const matches = parsedFilename.base.match(ICON_NAME_REGEX)
   if (!matches) {
     throw new Error(`Unexpected icon filename ${filename}`)
   }
