@@ -51,15 +51,15 @@ const destroyStream = (stream) =>
   })
 
 /**
- * @param {CoreManager} cmToAdd
+ * @param {CoreManager} cmToTakeFrom
  * @param {CoreManager} cmToReceive
  * @returns {Promise<void>}
  */
-async function addWriterCores(cmToAdd, cmToReceive) {
-  await cmToAdd.ready()
+async function takeWriterCores(cmToTakeFrom, cmToReceive) {
+  await cmToTakeFrom.ready()
   for (const ns of NAMESPACES) {
     if (ns === 'auth') continue
-    const core = cmToAdd.getWriterCore(ns)
+    const core = cmToTakeFrom.getWriterCore(ns)
     cmToReceive.addCore(core.key, ns)
   }
 }
@@ -95,8 +95,8 @@ export function replicate(
   cm1[kCoreManagerReplicate](n1)
   cm2[kCoreManagerReplicate](n2)
 
-  addWriterCores(cm1, cm2)
-  addWriterCores(cm2, cm1)
+  takeWriterCores(cm1, cm2)
+  takeWriterCores(cm2, cm1)
 
   return {
     async destroy() {
