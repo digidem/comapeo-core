@@ -338,6 +338,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#syncApi = new SyncApi({
       coreManager: this.#coreManager,
+      coreOwnership: this.#coreOwnership,
       roles: this.#roles,
       logger: this.#l,
     })

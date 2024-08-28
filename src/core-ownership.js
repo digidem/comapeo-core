@@ -116,6 +116,11 @@ export class CoreOwnership extends TypedEmitter {
     return this.#dataType.getByDocId(deviceId)
   }
 
+  async getAll() {
+    await this.#ownershipWriteDone
+    return this.#dataType.getMany()
+  }
+
   /**
    *
    * @param {KeyPair} identityKeypair

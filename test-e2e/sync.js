@@ -688,20 +688,14 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   assert.equal(blockedState.data.localState.have, 0) // no data docs synced
 
   for (const ns of NAMESPACES) {
-    if (ns === 'auth') {
-      assert.equal(invitorState[ns].coreCount, 3)
-      assert.equal(inviteeState[ns].coreCount, 3)
-      assert.equal(blockedState[ns].coreCount, 3)
-    } else if (PRESYNC_NAMESPACES.includes(ns)) {
-      assert.equal(invitorState[ns].coreCount, 3)
-      assert.equal(inviteeState[ns].coreCount, 3)
-      assert.equal(blockedState[ns].coreCount, 1)
-    } else {
-      assert.equal(invitorState[ns].coreCount, 2)
-      assert.equal(inviteeState[ns].coreCount, 2)
-      assert.equal(blockedState[ns].coreCount, 1)
-    }
-    assert.deepEqual(invitorState[ns].localState, inviteeState[ns].localState)
+    assert.equal(invitorState[ns].coreCount, 3, ns)
+    assert.equal(inviteeState[ns].coreCount, 3, ns)
+    assert.equal(blockedState[ns].coreCount, 3, ns)
+    assert.deepEqual(
+      invitorState[ns].localState,
+      inviteeState[ns].localState,
+      ns
+    )
   }
 
   await disconnect1()
