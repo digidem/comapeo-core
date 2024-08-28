@@ -854,13 +854,18 @@ export class MapeoProject extends TypedEmitter {
 
       await Promise.all(
         (presetsToDelete.map(async (docId) => {
-          await this.preset.delete(docId)
+          const { deleted } = await this.preset.getByDocId(docId)
+          if (!deleted) {
+            await this.preset.delete(docId)
+          }
         }),
         fieldsToDelete.map(async (docId) => {
-          await this.field.delete(docId)
+          const { deleted } = await this.field.getByDocId(docId)
+          if (!deleted) await this.field.delete(docId)
         }),
         translationsToDelete.map(async (docId) => {
-          await this.$translation.dataType.delete(docId)
+          const { deleted } = await this.$translation.dataType.getByDocId(docId)
+          if (!deleted) await this.$translation.dataType.delete(docId)
         })).flat()
       )
       return config.warnings

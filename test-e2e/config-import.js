@@ -64,6 +64,65 @@ test('config import - load and re-load config manually', async (t) => {
   )
 })
 
+test('deletion of data before loading a new config', async (t) => {
+  const manager = createManager('device0', t)
+  const project = await manager.getProject(await manager.createProject())
+  let nPresets = (await project.preset.getMany()).length
+  for (let i = 0; i < 10; i++) {
+    await project.importConfig({
+      configPath: defaultConfigPath,
+    })
+    nPresets = (await project.preset.getMany()).length
+    await project.importConfig({
+      configPath: './tests/fixtures/config/validConfig.zip',
+    })
+    await project.importConfig({
+      configPath: defaultConfigPath,
+    })
+    assert.equal(
+      (await project.preset.getMany()).length,
+      nPresets,
+      'after loading config 1, then 2, then 1 again, number of presets should be equal'
+    )
+    nPresets = (await project.preset.getMany()).length
+  }
+  //const firstConfigNFields = (await project.field.getMany()).length
+  //const firstConfigNTranslations = (
+  //  await project.$translation.dataType.getMany()
+  //).length
+
+  //await project.importConfig({
+  //  configPath: './tests/fixtures/config/validConfig.zip',
+  //})
+  //
+  //await project.importConfig({
+  //  configPath: defaultConfigPath,
+  //})
+  //const lastConfigNPresets = (await project.preset.getMany()).length
+  //const lastConfigNFields = (await project.field.getMany()).length
+  //const lastConfigNTranslations = (
+  //  await project.$translation.dataType.getMany()
+  //).length
+  //
+  //assert.equal(
+  //  lastConfigNPresets,
+  //  firstConfigNPresets,
+  //  'after loading another config, and reloading the first one, we get matching presets'
+  //)
+  //
+  //assert.equal(
+  //  lastConfigNFields,
+  //  firstConfigNFields,
+  //  'after loading another config, and reloading the first one, we get matching fields'
+  //)
+  //
+  //assert.equal(
+  //  lastConfigNTranslations,
+  //  firstConfigNTranslations,
+  //  'after loading another config, and reloading the first one, we get matching translations'
+  //)
+})
+
 test('failing on loading multiple configs in parallel', async (t) => {
   const manager = createManager('device0', t)
   const project = await manager.getProject(await manager.createProject())
