@@ -31,7 +31,7 @@ import { blobMetadata } from '../tests/helpers/blob-store.js'
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
-test.only('Create and sync data', { timeout: 100_000 }, async (t) => {
+test('Create and sync data', { timeout: 100_000 }, async (t) => {
   const COUNT = 2 // TODO
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
