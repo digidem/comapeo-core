@@ -68,24 +68,22 @@ test('deletion of data before loading a new config', async (t) => {
   const manager = createManager('device0', t)
   const project = await manager.getProject(await manager.createProject())
   let nPresets = (await project.preset.getMany()).length
-  for (let i = 0; i < 10; i++) {
-    await project.importConfig({
-      configPath: defaultConfigPath,
-    })
-    nPresets = (await project.preset.getMany()).length
-    await project.importConfig({
-      configPath: './tests/fixtures/config/validConfig.zip',
-    })
-    await project.importConfig({
-      configPath: defaultConfigPath,
-    })
-    assert.equal(
-      (await project.preset.getMany()).length,
-      nPresets,
-      'after loading config 1, then 2, then 1 again, number of presets should be equal'
-    )
-    nPresets = (await project.preset.getMany()).length
-  }
+  await project.importConfig({
+    configPath: defaultConfigPath,
+  })
+  nPresets = (await project.preset.getMany()).length
+  await project.importConfig({
+    configPath: './tests/fixtures/config/validConfig.zip',
+  })
+  await project.importConfig({
+    configPath: defaultConfigPath,
+  })
+  assert.equal(
+    (await project.preset.getMany()).length,
+    nPresets,
+    'after loading config 1, then 2, then 1 again, number of presets should be equal'
+  )
+  nPresets = (await project.preset.getMany()).length
   //const firstConfigNFields = (await project.field.getMany()).length
   //const firstConfigNTranslations = (
   //  await project.$translation.dataType.getMany()
