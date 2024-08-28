@@ -223,13 +223,25 @@ test('config import - presets', async () => {
     'the second error is because the preset is null'
   )
 
+  config = await readConfig('./tests/fixtures/config/noIconNameOnPreset.zip')
+  arrayFrom(config.presets())
+  assert.equal(
+    config.warnings.length,
+    1,
+    'we got an error when loading the preset'
+  )
+  assert(
+    /Punto de entrada doesn't have an icon/.test(config.warnings[0].message),
+    "there's a warning because the preset has no icon field"
+  )
+
   config = await readConfig(
     './tests/fixtures/config/invalidIconNameOnPreset.zip'
   )
-
-  assert.throws(
-    () => arrayFrom(config.presets()),
-    /preset references icon with name /
+  arrayFrom(config.presets())
+  assert(
+    /preset references icon with name/.test(config.warnings[0].message),
+    "there's a warning because the preset references a missing icon"
   )
 
   config = await readConfig('./tests/fixtures/config/validPreset.zip')
