@@ -1,4 +1,3 @@
-/// <reference types="node" />
 import _m0 from "protobufjs/minimal.js";
 import { EncryptionKeys } from "./keys.js";
 export interface Invite {
@@ -48,142 +47,41 @@ export declare function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceT
 export declare const Invite: {
     encode(message: Invite, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): Invite;
-    create<I extends {
-        inviteId?: Buffer;
-        projectInviteId?: Buffer;
-        projectName?: string;
-        roleName?: string | undefined;
-        roleDescription?: string | undefined;
-        invitorName?: string;
-    } & {
-        inviteId?: Buffer;
-        projectInviteId?: Buffer;
-        projectName?: string;
-        roleName?: string | undefined;
-        roleDescription?: string | undefined;
-        invitorName?: string;
-    } & { [K in Exclude<keyof I, keyof Invite>]: never; }>(base?: I): Invite;
-    fromPartial<I_1 extends {
-        inviteId?: Buffer;
-        projectInviteId?: Buffer;
-        projectName?: string;
-        roleName?: string | undefined;
-        roleDescription?: string | undefined;
-        invitorName?: string;
-    } & {
-        inviteId?: Buffer;
-        projectInviteId?: Buffer;
-        projectName?: string;
-        roleName?: string | undefined;
-        roleDescription?: string | undefined;
-        invitorName?: string;
-    } & { [K_1 in Exclude<keyof I_1, keyof Invite>]: never; }>(object: I_1): Invite;
+    create<I extends Exact<DeepPartial<Invite>, I>>(base?: I): Invite;
+    fromPartial<I extends Exact<DeepPartial<Invite>, I>>(object: I): Invite;
 };
 export declare const InviteCancel: {
     encode(message: InviteCancel, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): InviteCancel;
-    create<I extends {
-        inviteId?: Buffer;
-    } & {
-        inviteId?: Buffer;
-    } & { [K in Exclude<keyof I, "inviteId">]: never; }>(base?: I): InviteCancel;
-    fromPartial<I_1 extends {
-        inviteId?: Buffer;
-    } & {
-        inviteId?: Buffer;
-    } & { [K_1 in Exclude<keyof I_1, "inviteId">]: never; }>(object: I_1): InviteCancel;
+    create<I extends Exact<DeepPartial<InviteCancel>, I>>(base?: I): InviteCancel;
+    fromPartial<I extends Exact<DeepPartial<InviteCancel>, I>>(object: I): InviteCancel;
 };
 export declare const InviteResponse: {
     encode(message: InviteResponse, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): InviteResponse;
-    create<I extends {
-        inviteId?: Buffer;
-        decision?: InviteResponse_Decision;
-    } & {
-        inviteId?: Buffer;
-        decision?: InviteResponse_Decision;
-    } & { [K in Exclude<keyof I, keyof InviteResponse>]: never; }>(base?: I): InviteResponse;
-    fromPartial<I_1 extends {
-        inviteId?: Buffer;
-        decision?: InviteResponse_Decision;
-    } & {
-        inviteId?: Buffer;
-        decision?: InviteResponse_Decision;
-    } & { [K_1 in Exclude<keyof I_1, keyof InviteResponse>]: never; }>(object: I_1): InviteResponse;
+    create<I extends Exact<DeepPartial<InviteResponse>, I>>(base?: I): InviteResponse;
+    fromPartial<I extends Exact<DeepPartial<InviteResponse>, I>>(object: I): InviteResponse;
 };
 export declare const ProjectJoinDetails: {
     encode(message: ProjectJoinDetails, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): ProjectJoinDetails;
-    create<I extends {
-        inviteId?: Buffer;
-        projectKey?: Buffer;
-        encryptionKeys?: {
-            auth?: Buffer;
-            data?: Buffer;
-            config?: Buffer;
-            blobIndex?: Buffer;
-            blob?: Buffer;
-        };
-    } & {
-        inviteId?: Buffer;
-        projectKey?: Buffer;
-        encryptionKeys?: {
-            auth?: Buffer;
-            data?: Buffer;
-            config?: Buffer;
-            blobIndex?: Buffer;
-            blob?: Buffer;
-        } & {
-            auth?: Buffer;
-            data?: Buffer;
-            config?: Buffer;
-            blobIndex?: Buffer;
-            blob?: Buffer;
-        } & { [K in Exclude<keyof I["encryptionKeys"], keyof EncryptionKeys>]: never; };
-    } & { [K_1 in Exclude<keyof I, keyof ProjectJoinDetails>]: never; }>(base?: I): ProjectJoinDetails;
-    fromPartial<I_1 extends {
-        inviteId?: Buffer;
-        projectKey?: Buffer;
-        encryptionKeys?: {
-            auth?: Buffer;
-            data?: Buffer;
-            config?: Buffer;
-            blobIndex?: Buffer;
-            blob?: Buffer;
-        };
-    } & {
-        inviteId?: Buffer;
-        projectKey?: Buffer;
-        encryptionKeys?: {
-            auth?: Buffer;
-            data?: Buffer;
-            config?: Buffer;
-            blobIndex?: Buffer;
-            blob?: Buffer;
-        } & {
-            auth?: Buffer;
-            data?: Buffer;
-            config?: Buffer;
-            blobIndex?: Buffer;
-            blob?: Buffer;
-        } & { [K_2 in Exclude<keyof I_1["encryptionKeys"], keyof EncryptionKeys>]: never; };
-    } & { [K_3 in Exclude<keyof I_1, keyof ProjectJoinDetails>]: never; }>(object: I_1): ProjectJoinDetails;
+    create<I extends Exact<DeepPartial<ProjectJoinDetails>, I>>(base?: I): ProjectJoinDetails;
+    fromPartial<I extends Exact<DeepPartial<ProjectJoinDetails>, I>>(object: I): ProjectJoinDetails;
 };
 export declare const DeviceInfo: {
     encode(message: DeviceInfo, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): DeviceInfo;
-    create<I extends {
-        name?: string;
-        deviceType?: DeviceInfo_DeviceType | undefined;
-    } & {
-        name?: string;
-        deviceType?: DeviceInfo_DeviceType | undefined;
-    } & { [K in Exclude<keyof I, keyof DeviceInfo>]: never; }>(base?: I): DeviceInfo;
-    fromPartial<I_1 extends {
-        name?: string;
-        deviceType?: DeviceInfo_DeviceType | undefined;
-    } & {
-        name?: string;
-        deviceType?: DeviceInfo_DeviceType | undefined;
-    } & { [K_1 in Exclude<keyof I_1, keyof DeviceInfo>]: never; }>(object: I_1): DeviceInfo;
+    create<I extends Exact<DeepPartial<DeviceInfo>, I>>(base?: I): DeviceInfo;
+    fromPartial<I extends Exact<DeepPartial<DeviceInfo>, I>>(object: I): DeviceInfo;
 };
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+type DeepPartial<T> = T extends Builtin ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {
+    [K in keyof T]?: DeepPartial<T[K]>;
+} : Partial<T>;
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+type Exact<P, I extends P> = P extends Builtin ? P : P & {
+    [K in keyof P]: Exact<P[K], I[K]>;
+} & {
+    [K in Exclude<keyof I, KeysOfUnion<P>>]: never;
+};
+export {};

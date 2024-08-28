@@ -105,13 +105,7 @@ export class PeerSyncController {
       if (this.#enabledNamespaces.has(coreRecord.namespace)) {
         this.#replicateCore(coreRecord.core)
       }
-      return
     }
-    if (!this.peerKey) {
-      this.#log('Unexpected null peerKey')
-      return
-    }
-    this.#coreManager.requestCoreKey(this.peerKey, discoveryKey)
   }
 
   /**

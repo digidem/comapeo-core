@@ -516,7 +516,7 @@ test('unreplicate', async (t) => {
   }
 })
 
-test('deleteOthersData()', async () => {
+test('deleteOthersData()', async (t) => {
   await temporaryDirectoryTask(async (tempPath) => {
     const projectKey = randomBytes(32)
 
@@ -567,12 +567,8 @@ test('deleteOthersData()', async () => {
         .map((_, i) => 'block' + i)
     )
 
-    /// Replicate
-    const n1 = new NoiseSecretStream(true)
-    const n2 = new NoiseSecretStream(false)
-    n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
-    cm1[kCoreManagerReplicate](n1)
-    cm2[kCoreManagerReplicate](n2)
+    const { destroy } = replicate(cm1, cm2)
+    t.after(destroy)
 
     // This delay is needed in order for replication to finish properly
     await new Promise((res) => setTimeout(res, 200))
@@ -669,10 +665,6 @@ test('deleteOthersData()', async () => {
       0,
       'peer 1 `cores` table has no info about `data` core from peer 2'
     )
-
-    n1.destroy()
-    n2.destroy()
-    await Promise.all([once(n1, 'close'), once(n2, 'close')])
   })
 })
 
