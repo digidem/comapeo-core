@@ -216,7 +216,7 @@ test('config import - presets', async () => {
   )
   assert(
     /invalid preset noObjectPreset/.test(config.warnings[0].message),
-    'the first error is because the preseassert.equal not an object'
+    'the first error is because the preset is not an object'
   )
   assert(
     /invalid preset nullPreset/.test(config.warnings[1].message),
