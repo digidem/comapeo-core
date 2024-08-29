@@ -59,8 +59,6 @@ export class SyncApi extends TypedEmitter {
   #peerSyncControllers = new Map()
   /** @type {Map<string, PeerSyncController>} */
   #pscByPeerId = new Map()
-  /** @type {Set<string>} */
-  #peerIds = new Set()
   #wantsToSyncData = false
   #hasRequestedFullStop = false
   /** @type {SyncEnabledState} */
@@ -373,7 +371,6 @@ export class SyncApi extends TypedEmitter {
     })
     this.#peerSyncControllers.set(protomux, peerSyncController)
     this.#pscByPeerId.set(peerSyncController.peerId, peerSyncController)
-    this.#peerIds.add(peerSyncController.peerId)
 
     // Add peer to all core states (via namespace sync states)
     this[kSyncState].addPeer(peerSyncController.peerId)
@@ -409,7 +406,6 @@ export class SyncApi extends TypedEmitter {
     this.#peerSyncControllers.delete(protomux)
     const peerId = keyToId(peer.remotePublicKey)
     this.#pscByPeerId.delete(peerId)
-    this.#peerIds.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
   }
 
