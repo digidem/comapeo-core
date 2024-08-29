@@ -98,8 +98,8 @@ CREATE TABLE `observation` (
 	`updatedAt` text NOT NULL,
 	`links` text NOT NULL,
 	`deleted` integer NOT NULL,
-	`lat` real NOT NULL,
-	`lon` real NOT NULL,
+	`lat` real,
+	`lon` real,
 	`attachments` text NOT NULL,
 	`tags` text NOT NULL,
 	`metadata` text,
@@ -165,7 +165,6 @@ CREATE TABLE `track` (
 	`deleted` integer NOT NULL,
 	`locations` text NOT NULL,
 	`observationRefs` text NOT NULL,
-	`attachments` text NOT NULL,
 	`tags` text NOT NULL,
 	`forks` text NOT NULL
 );
