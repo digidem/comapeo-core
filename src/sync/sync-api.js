@@ -506,7 +506,7 @@ function isSynced(state, type, peerSyncControllers) {
       const { peerId } = psc
       if (psc.syncCapability[ns] === 'blocked') continue
       if (!(peerId in state[ns].remoteStates)) return false
-      if (state[ns].remoteStates[peerId].status === 'connecting') return false
+      if (state[ns].remoteStates[peerId].status === 'starting') return false
     }
   }
   return true
@@ -534,11 +534,11 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
       /** @type {boolean} */
       let isSyncEnabled
       switch (peerNamespaceState.status) {
-        case 'disconnected':
-        case 'connecting':
+        case 'stopped':
+        case 'starting':
           isSyncEnabled = false
           break
-        case 'connected':
+        case 'started':
           isSyncEnabled = true
           break
         default:
