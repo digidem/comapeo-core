@@ -110,6 +110,15 @@ export function setHas(set) {
 }
 
 /**
+ * @template T
+ * @param {undefined | T} value
+ * @returns {value is T}
+ */
+export function isDefined(value) {
+  return value !== undefined
+}
+
+/**
  * When reading from SQLite, any optional properties are set to `null`. This
  * converts `null` back to `undefined` to match the input types (e.g. the types
  * defined in @mapeo/schema)
