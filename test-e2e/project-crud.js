@@ -51,7 +51,6 @@ const fixtures = [
     schemaName: 'track',
     observationRefs: [],
     tags: {},
-    attachments: [],
     locations: Array.from({ length: 10 }, trackPositionFixture),
   },
 ]
