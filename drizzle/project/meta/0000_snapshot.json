@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "6a5db612-edfc-4c51-8977-535d9945e837",
+  "id": "2be32705-ddce-45ee-97c1-c6f2fc748568",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -585,14 +585,14 @@
           "name": "lat",
           "type": "real",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "lon": {
           "name": "lon",
           "type": "real",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "attachments": {
@@ -973,13 +973,6 @@
         },
         "observationRefs": {
           "name": "observationRefs",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "attachments": {
-          "name": "attachments",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
