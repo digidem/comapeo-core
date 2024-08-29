@@ -2,7 +2,11 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { SyncState } from './sync-state.js'
 import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
-import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
+import {
+  DATA_NAMESPACES,
+  NAMESPACES,
+  PRESYNC_NAMESPACES,
+} from '../constants.js'
 import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
 import { NO_ROLE_ID } from '../roles.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@mapeo/schema' */
@@ -59,8 +63,6 @@ export class SyncApi extends TypedEmitter {
   #peerSyncControllers = new Map()
   /** @type {Map<string, PeerSyncController>} */
   #pscByPeerId = new Map()
-  /** @type {Set<string>} */
-  #peerIds = new Set()
   #wantsToSyncData = false
   #hasRequestedFullStop = false
   /** @type {SyncEnabledState} */
@@ -206,7 +208,11 @@ export class SyncApi extends TypedEmitter {
    * | yes                | yes                  | yes     | none    | off     |
    */
   #updateState(namespaceSyncState = this[kSyncState].getState()) {
-    const dataHave = namespaceSyncState.data.localState.have
+    const dataHave = DATA_NAMESPACES.reduce(
+      (total, namespace) =>
+        total + namespaceSyncState[namespace].localState.have,
+      0
+    )
     const hasReceivedNewData = dataHave !== this.#previousDataHave
     if (hasReceivedNewData) {
       this.#clearAutostopDataSyncTimeoutIfExists()
@@ -373,7 +379,6 @@ export class SyncApi extends TypedEmitter {
     })
     this.#peerSyncControllers.set(protomux, peerSyncController)
     this.#pscByPeerId.set(peerSyncController.peerId, peerSyncController)
-    this.#peerIds.add(peerSyncController.peerId)
 
     // Add peer to all core states (via namespace sync states)
     this[kSyncState].addPeer(peerSyncController.peerId)
@@ -409,7 +414,6 @@ export class SyncApi extends TypedEmitter {
     this.#peerSyncControllers.delete(protomux)
     const peerId = keyToId(peer.remotePublicKey)
     this.#pscByPeerId.delete(peerId)
-    this.#peerIds.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
   }
 
@@ -510,7 +514,7 @@ function isSynced(state, type, peerSyncControllers) {
       const { peerId } = psc
       if (psc.syncCapability[ns] === 'blocked') continue
       if (!(peerId in state[ns].remoteStates)) return false
-      if (state[ns].remoteStates[peerId].status === 'connecting') return false
+      if (state[ns].remoteStates[peerId].status === 'starting') return false
     }
   }
   return true
@@ -527,6 +531,9 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
   for (const psc of peerSyncControllers) {
     const { peerId } = psc
 
+    /** @type {undefined | boolean} */ let isInitialEnabled
+    /** @type {undefined | boolean} */ let isDataEnabled
+
     for (const namespace of NAMESPACES) {
       const isBlocked = psc.syncCapability[namespace] === 'blocked'
       if (isBlocked) continue
@@ -538,11 +545,11 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
       /** @type {boolean} */
       let isSyncEnabled
       switch (peerNamespaceState.status) {
-        case 'disconnected':
-        case 'connecting':
+        case 'stopped':
+        case 'starting':
           isSyncEnabled = false
           break
-        case 'connected':
+        case 'started':
           isSyncEnabled = true
           break
         default:
@@ -556,12 +563,23 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
         }
       }
 
-      const namespaceGroup = PRESYNC_NAMESPACES.includes(namespace)
-        ? 'initial'
-        : 'data'
-      result[peerId][namespaceGroup].isSyncEnabled = isSyncEnabled
+      /** @type {'initial' | 'data'} */ let namespaceGroup
+      const isPresyncNamespace = PRESYNC_NAMESPACES.includes(namespace)
+      if (isPresyncNamespace) {
+        namespaceGroup = 'initial'
+        isInitialEnabled = (isInitialEnabled ?? true) && isSyncEnabled
+      } else {
+        namespaceGroup = 'data'
+        isDataEnabled = (isDataEnabled ?? true) && isSyncEnabled
+      }
+
       result[peerId][namespaceGroup].want += peerNamespaceState.want
       result[peerId][namespaceGroup].wanted += peerNamespaceState.wanted
+    }
+
+    if (Object.hasOwn(result, peerId)) {
+      result[peerId].initial.isSyncEnabled = Boolean(isInitialEnabled)
+      result[peerId].data.isSyncEnabled = Boolean(isDataEnabled)
     }
   }
 

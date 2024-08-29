@@ -2,14 +2,14 @@
     "categories": {},
     "fields": {
         "nombre-monitor": {
-            "key": "nombre-monitor",
+            "tagKey": "nombre-monitor",
             "type": "text",
             "label": "Nombre del Monitor o Mapeador",
             "universal": true,
             "placeholder": "¿Quién está haciendo esta observación?"
         },
         "nombre": {
-            "key": "nombre",
+            "tagKey": "nombre",
             "type": "text",
             "label": "Nombre del Sitio",
             "universal": true,
@@ -33,6 +33,7 @@
                 "type": "threat",
                 "threat": "access-point"
             },
+            "color": "#ff00ff",
             "name": "Punto de entrada"
         },
         "agrobusiness": {
@@ -51,6 +52,7 @@
                 "type": "threat",
                 "threat": "agrobusiness"
             },
+            "color": "#ff00ff",
             "name": "Agricultura grande escala"
         },
         "airstrip": {
@@ -68,6 +70,7 @@
                 "type": "aeroway",
                 "aeroway": "airstrip"
             },
+            "color": "#ff00ff",
             "name": "Pista"
         },
         "ancestral-site": {
@@ -85,6 +88,7 @@
                 "type": "cultural",
                 "cultural": "ancestral-site"
             },
+            "color": "#ff00ff",
             "name": "Sitio ancestral"
         },
         "animal": {
@@ -103,6 +107,7 @@
                 "type": "animal"
             },
             "terms": [],
+            "color": "#ff00ff",
             "name": "Animal"
         },
         "archaeological-site": {
@@ -120,10 +125,12 @@
                 "type": "cultural",
                 "cultural": "archaeological-site"
             },
+            "color": "#ff00ff",
             "name": "Sitio arqueológico"
         },
         "area": {
             "icon": "other-2",
+            "color": "#ff00ff",
             "name": "Area n",
             "tags": {
                 "area": "yes",
@@ -149,6 +156,7 @@
                 "type": "boundary",
                 "boundary": "indigenous"
             },
+            "color": "#ff00ff",
             "name": "Límite de territorio"
         },
         "burial-site": {
@@ -166,6 +174,7 @@
                 "type": "community",
                 "community": "burial"
             },
+            "color": "#ff00ff",
             "name": "Entierros"
         },
         "camp": {
@@ -182,6 +191,7 @@
             "tags": {
                 "type": "camp"
             },
+            "color": "#ff00ff",
             "name": "Campamento"
         },
         "cave": {
@@ -200,6 +210,7 @@
                 "natural": "cave_entrance"
             },
             "terms": [],
+            "color": "#ff00ff",
             "name": "Cueva"
         },
         "coca": {
@@ -217,6 +228,7 @@
                 "type": "threat",
                 "threat": "coca"
             },
+            "color": "#ff00ff",
             "name": "Cultivo ilícito"
         },
         "community": {
@@ -233,6 +245,7 @@
             "tags": {
                 "place": "village"
             },
+            "color": "#ff00ff",
             "name": "Comunidad"
         },
         "fishing-site": {
@@ -250,6 +263,7 @@
                 "type": "activity",
                 "activity": "fishing"
             },
+            "color": "#ff00ff",
             "name": "Sitio de pesca"
         },
         "gathering-site": {
@@ -267,6 +281,7 @@
                 "type": "activity",
                 "activity": "gathering"
             },
+            "color": "#ff00ff",
             "name": "Sitio de recolección"
         },
         "grupo-armado": {
@@ -284,6 +299,7 @@
                 "type": "threat",
                 "threat": "grupo-armado"
             },
+            "color": "#ff00ff",
             "name": "Grupo-armado"
         },
         "hills": {
@@ -301,6 +317,7 @@
                 "type": "natural",
                 "natural": "peak"
             },
+            "color": "#ff00ff",
             "name": "Cerros"
         },
         "house": {
@@ -317,6 +334,7 @@
             "tags": {
                 "building": "residential"
             },
+            "color": "#ff00ff",
             "name": "Casa"
         },
         "hunting-site": {
@@ -335,6 +353,7 @@
                 "activity": "hunting"
             },
             "terms": [],
+            "color": "#ff00ff",
             "name": "Sitio de caza"
         },
         "illegal-camp": {
@@ -352,6 +371,7 @@
                 "type": "threat",
                 "threat": "camp"
             },
+            "color": "#ff00ff",
             "name": "Campamento ilegal"
         },
         "illegal-fishing": {
@@ -369,6 +389,7 @@
                 "type": "threat",
                 "threat": "fishing"
             },
+            "color": "#ff00ff",
             "name": "Pesca ilegal"
         },
         "illegal-mining": {
@@ -386,6 +407,7 @@
                 "type": "threat",
                 "threat": "mining"
             },
+            "color": "#ff00ff",
             "name": "Minería ilegal"
         },
         "lake": {
@@ -405,10 +427,12 @@
                 "water": "lake"
             },
             "terms": [],
+            "color": "#ff00ff",
             "name": "Lago"
         },
         "line": {
             "icon": "other-2",
+            "color": "#ff00ff",
             "name": "Linea nueva",
             "tags": {
                 "nuevo": "yes"
@@ -432,6 +456,7 @@
                 "type": "threat",
                 "threat": "logging"
             },
+            "color": "#ff00ff",
             "name": "Tala ilegal"
         },
         "mejoras": {
@@ -449,6 +474,7 @@
                 "type": "threat",
                 "threat": "mejoras"
             },
+            "color": "#ff00ff",
             "name": "Mejoras"
         },
         "new-road": {
@@ -466,6 +492,7 @@
                 "type": "threat",
                 "threat": "road"
             },
+            "color": "#ff00ff",
             "name": "Trocha/carretera nueva"
         },
         "oil-impact": {
@@ -483,6 +510,7 @@
                 "type": "threat",
                 "threat": "oil-impact"
             },
+            "color": "#ff00ff",
             "name": "Impactos petroleros"
         },
         "oil-installation": {
@@ -500,6 +528,7 @@
                 "type": "threat",
                 "threat": "oil"
             },
+            "color": "#ff00ff",
             "name": "Instalación petrolera"
         },
         "old-garden": {
@@ -517,6 +546,7 @@
                 "type": "community",
                 "community": "fallow"
             },
+            "color": "#ff00ff",
             "name": "Purma o rastrojo"
         },
         "other-impact": {
@@ -535,6 +565,7 @@
                 "type": "threat",
                 "threat": "other"
             },
+            "color": "#ff00ff",
             "name": "Otros impacto o amenaza"
         },
         "palm": {
@@ -554,6 +585,7 @@
                 "tree": "palm"
             },
             "terms": [],
+            "color": "#ff00ff",
             "name": "Palmera"
         },
         "path": {
@@ -574,6 +606,7 @@
             "terms": [
                 ""
             ],
+            "color": "#ff00ff",
             "name": "Camino"
         },
         "plant": {
@@ -592,6 +625,7 @@
                 "natural": "plant"
             },
             "terms": [],
+            "color": "#ff00ff",
             "name": "Planta"
         },
         "poaching": {
@@ -609,10 +643,12 @@
                 "type": "threat",
                 "threat": "poachings"
             },
+            "color": "#ff00ff",
             "name": "Caza ilegal"
         },
         "point": {
             "icon": "other-2",
+            "color": "#ff00ff",
             "name": "Nuevo punto",
             "sort": 3,
             "tags": {
@@ -638,6 +674,7 @@
                 "type": "waterway"
             },
             "terms": [],
+            "color": "#ff00ff",
             "name": "Río o quebrada"
         },
         "sacred-site": {
@@ -655,6 +692,7 @@
                 "type": "cultural",
                 "cultural": "cultural-site"
             },
+            "color": "#ff00ff",
             "name": "Sitio sagrado"
         },
         "salt-lick": {
@@ -673,6 +711,7 @@
                 "natural": "salt-lick"
             },
             "terms": [],
+            "color": "#ff00ff",
             "name": "Saladero"
         },
         "settlement-illegal": {
@@ -690,6 +729,7 @@
                 "type": "threat",
                 "threat": "settlement"
             },
+            "color": "#ff00ff",
             "name": "Asentamiento ilegal"
         },
         "swidden": {
@@ -707,6 +747,7 @@
                 "type": "landuse",
                 "landuse": "farmland"
             },
+            "color": "#ff00ff",
             "name": "Chacra"
         },
         "waterfall": {
@@ -724,6 +765,7 @@
                 "type": "waterway",
                 "waterway": "waterfall"
             },
+            "color": "#ff00ff",
             "name": "Cascada"
         },
         "tree": {
@@ -742,6 +784,7 @@
                 "natural": "tree"
             },
             "terms": [],
+            "color": "#ff00ff",
             "name": "Arbol"
         }
     },

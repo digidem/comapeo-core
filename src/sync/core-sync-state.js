@@ -29,7 +29,7 @@ import RemoteBitfield, {
  * @property {number} have blocks the peer has locally
  * @property {number} want blocks this peer wants from us
  * @property {number} wanted blocks we want from this peer
- * @property {'disconnected' | 'connecting' | 'connected'} status
+ * @property {'stopped' | 'starting' | 'started'} status
  */
 /**
  * @typedef {object} DerivedState
@@ -206,13 +206,12 @@ export class CoreSyncState {
   #onPeerAdd = (peer) => {
     const peerId = keyToId(peer.remotePublicKey)
 
-    // Update state to ensure this peer is in the state and set to connected
+    // Update state to ensure this peer is in the state correctly
     const peerState = this.#getPeerState(peerId)
-    peerState.status = 'connecting'
+    peerState.status = 'starting'
 
     this.#core?.update({ wait: true }).then(() => {
-      // A peer should become connected
-      peerState.status = 'connected'
+      peerState.status = 'started'
       this.#update()
     })
 
@@ -237,7 +236,7 @@ export class CoreSyncState {
   }
 
   /**
-   * Handle a peer being removed - keeps it in state, but sets state.connected = false
+   * Handle a peer being removed - keeps it in state, but marks it stopped
    *
    * (defined as class field to bind to `this`)
    * @param {HypercorePeer} peer
@@ -245,7 +244,7 @@ export class CoreSyncState {
   #onPeerRemove = (peer) => {
     const peerId = keyToId(peer.remotePublicKey)
     const peerState = this.#getPeerState(peerId)
-    peerState.status = 'disconnected'
+    peerState.status = 'stopped'
     this.#update()
   }
 }
@@ -267,7 +266,7 @@ export class PeerState {
   /** @type {Bitfield} */
   #wants = new RemoteBitfield()
   /** @type {PeerNamespaceState['status']} */
-  status = 'disconnected'
+  status = 'stopped'
   #wantAll
   constructor({ wantAll = true } = {}) {
     this.#wantAll = wantAll

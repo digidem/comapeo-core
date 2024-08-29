@@ -731,10 +731,10 @@ export class MapeoProject extends TypedEmitter {
 
     try {
       // check for already present fields and presets and delete them if exist
-      await deleteAll(this.preset)
-      await deleteAll(this.field)
+      const presetsToDelete = await grabDocsToDelete(this.preset)
+      const fieldsToDelete = await grabDocsToDelete(this.field)
       // delete only translations that refer to deleted fields and presets
-      await deleteTranslations({
+      const translationsToDelete = await grabTranslationsToDelete({
         logger: this.#l,
         translation: this.$translation.dataType,
         preset: this.preset,
@@ -831,7 +831,7 @@ export class MapeoProject extends TypedEmitter {
           )
         } else {
           throw new Error(
-            `docRef for preset or field with name ${name} not found`
+            `docRef for ${value.docRefType} with name ${name} not found`
           )
         }
       }
@@ -851,6 +851,30 @@ export class MapeoProject extends TypedEmitter {
         },
         configMetadata: config.metadata,
       })
+
+      const deletePresetsPromise = Promise.all(
+        presetsToDelete.map(async (docId) => {
+          const { deleted } = await this.preset.getByDocId(docId)
+          if (!deleted) await this.preset.delete(docId)
+        })
+      )
+      const deleteFieldsPromise = Promise.all(
+        fieldsToDelete.map(async (docId) => {
+          const { deleted } = await this.field.getByDocId(docId)
+          if (!deleted) await this.field.delete(docId)
+        })
+      )
+      const deleteTranslationsPromise = Promise.all(
+        [...translationsToDelete].map(async (docId) => {
+          const { deleted } = await this.$translation.dataType.getByDocId(docId)
+          if (!deleted) await this.$translation.dataType.delete(docId)
+        })
+      )
+      await Promise.all([
+        deletePresetsPromise,
+        deleteFieldsPromise,
+        deleteTranslationsPromise,
+      ])
       this.#loadingConfig = false
       return config.warnings
     } catch (e) {
@@ -871,13 +895,16 @@ function extractEditableProjectSettings(projectDoc) {
   return result
 }
 
-/** @param {MapeoProject['field'] | MapeoProject['preset']} dataType */
-async function deleteAll(dataType) {
-  const deletions = []
+/**
+ @param {MapeoProject['field'] | MapeoProject['preset']} dataType
+ @returns {Promise<String[]>}
+ */
+async function grabDocsToDelete(dataType) {
+  const toDelete = []
   for (const { docId } of await dataType.getMany()) {
-    deletions.push(dataType.delete(docId))
+    toDelete.push(docId)
   }
-  return Promise.all(deletions)
+  return toDelete
 }
 
 /**
@@ -886,25 +913,28 @@ async function deleteAll(dataType) {
  * @param {MapeoProject['$translation']['dataType']} opts.translation
  * @param {MapeoProject['preset']} opts.preset
  * @param {MapeoProject['field']} opts.field
+ * @returns {Promise<Set<String>>}
  */
-async function deleteTranslations(opts) {
+async function grabTranslationsToDelete(opts) {
+  /** @type {Set<String>} */
+  const toDelete = new Set()
   const translations = await opts.translation.getMany()
   await Promise.all(
-    translations.map(async ({ docId, docRef, docRefType }) => {
-      if (docRefType === 'preset' || docRefType === 'field') {
-        let shouldDelete = false
+    translations.map(async ({ docRefType, docRef, docId }) => {
+      if (docRefType === 'field' || docRefType === 'preset') {
+        let doc
         try {
-          const toDelete = await opts[docRefType].getByDocId(docRef.docId)
-          shouldDelete = toDelete.deleted
+          doc = await opts[docRefType].getByVersionId(docRef.versionId)
         } catch (e) {
-          opts.logger.log(`referred ${docRef.docId} is not found`)
+          opts.logger.log(`referred ${docRef.versionId} is not found`)
         }
-        if (shouldDelete) {
-          await opts.translation.delete(docId)
+        if (doc) {
+          toDelete.add(docId)
         }
       }
     })
   )
+  return toDelete
 }
 
 /**

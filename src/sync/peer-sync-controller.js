@@ -311,7 +311,7 @@ function getSyncStatus(peerId, state) {
     if (!peerState) {
       syncStatus[namespace] = 'unknown'
     } else if (
-      peerState.status === 'connected' &&
+      peerState.status === 'started' &&
       state[namespace].localState.want === 0
     ) {
       syncStatus[namespace] = 'synced'

@@ -1,7 +1,7 @@
 import yauzl from 'yauzl-promise'
 import { validate, valueSchemas } from '@mapeo/schema'
 import { json, buffer } from 'node:stream/consumers'
-import { assert } from './utils.js'
+import { assert, isDefined } from './utils.js'
 import path from 'node:path'
 import { parse as parseBCP47 } from 'bcp-47'
 import { SUPPORTED_CONFIG_VERSION } from './constants.js'
@@ -9,6 +9,7 @@ import { SUPPORTED_CONFIG_VERSION } from './constants.js'
 // Throw error if a zipfile contains more than 10,000 entries
 const MAX_ENTRIES = 10_000
 const MAX_ICON_SIZE = 10_000_000
+const ICON_NAME_REGEX = /([a-zA-Z0-9-]+)-([a-zA-Z]+)@(\d+)x\.[a-zA-Z]+$/
 
 /**
  * @typedef {yauzl.Entry} Entry
@@ -50,6 +51,7 @@ export async function readConfig(configPath) {
   const presetsFile = await findPresetsFile(entries)
   const translationsFile = await findTranslationsFile(entries)
   const metadataFile = await findMetadataFile(entries)
+  const iconEntries = getIconEntries(entries)
   assert(
     isValidConfigFile(metadataFile),
     `invalid or missing config file version ${metadataFile.fileVersion}. We support version ${SUPPORTED_CONFIG_VERSION}}`
@@ -74,13 +76,6 @@ export async function readConfig(configPath) {
     async *icons() {
       /** @type {IconData | undefined} */
       let icon
-
-      // we sort the icons by filename so we can group variants together
-      const iconEntries = entries
-        .filter((entry) => entry.filename.match(/^icons\/([^/]+)$/))
-        .sort((icon, nextIcon) =>
-          icon.filename.localeCompare(nextIcon.filename)
-        )
 
       for (const entry of iconEntries) {
         if (entry.uncompressedSize > MAX_ICON_SIZE) {
@@ -177,6 +172,18 @@ export async function readConfig(configPath) {
         return sort - nextSort
       })
 
+      const iconFilenames = new Set(
+        iconEntries
+          .map((icon) => {
+            const matches = path.basename(icon.filename).match(ICON_NAME_REGEX)
+            if (matches) {
+              const [_, name] = matches
+              return name
+            }
+          })
+          .filter(isDefined)
+      )
+
       // 5. for each preset get the corresponding fieldId and iconId, add them to the db
       for (const { preset, name } of sortedPresets) {
         /** @type {Record<string, unknown>} */
@@ -193,6 +200,20 @@ export async function readConfig(configPath) {
             presetValue[key] = preset[key]
           }
         }
+
+        if (!('icon' in preset) || typeof preset.icon !== 'string') {
+          warnings.push(new Error(`Preset ${preset.name} doesn't have an icon`))
+          return
+        }
+        if (!iconFilenames.has(preset.icon)) {
+          warnings.push(
+            new Error(
+              `preset references icon with name ${preset.icon} but file doesn't exist`
+            )
+          )
+          return
+        }
+
         if (!validate('preset', presetValue)) {
           warnings.push(new Error(`Invalid preset ${preset.name}`))
           continue
@@ -473,15 +494,22 @@ function translateMessageObject(warnings) {
 }
 
 /**
+ * @param {ReadonlyArray<Entry>} entries
+ */
+function getIconEntries(entries) {
+  return entries
+    .filter((entry) => entry.filename.match(/^icons\/([^/]+)$/))
+    .sort((icon, nextIcon) => icon.filename.localeCompare(nextIcon.filename))
+}
+
+/**
  * @param {string} filename
  * @param {Buffer} buf
  * @returns {{ name: string, variant: IconData['variants'][Number] }}}
  */
 function parseIcon(filename, buf) {
   const parsedFilename = path.parse(filename)
-  const matches = parsedFilename.base.match(
-    /([a-zA-Z0-9-]+)-([a-zA-Z]+)@(\d+)x\.[a-zA-Z]+$/
-  )
+  const matches = parsedFilename.base.match(ICON_NAME_REGEX)
   if (!matches) {
     throw new Error(`Unexpected icon filename ${filename}`)
   }
