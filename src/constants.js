@@ -13,6 +13,11 @@ export const NAMESPACES = /** @type {const} */ ([
 /** @type {ReadonlyArray<Namespace>} */
 export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
 
+/** @type {ReadonlyArray<Namespace>} */
+export const DATA_NAMESPACES = NAMESPACES.filter(
+  (namespace) => !PRESYNC_NAMESPACES.includes(namespace)
+)
+
 export const NAMESPACE_SCHEMAS = /** @type {const} */ ({
   data: ['observation', 'track'],
   config: [

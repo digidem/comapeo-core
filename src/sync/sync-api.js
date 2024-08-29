@@ -2,7 +2,11 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { SyncState } from './sync-state.js'
 import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
-import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
+import {
+  DATA_NAMESPACES,
+  NAMESPACES,
+  PRESYNC_NAMESPACES,
+} from '../constants.js'
 import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
 import { NO_ROLE_ID } from '../roles.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@mapeo/schema' */
@@ -204,7 +208,11 @@ export class SyncApi extends TypedEmitter {
    * | yes                | yes                  | yes     | none    | off     |
    */
   #updateState(namespaceSyncState = this[kSyncState].getState()) {
-    const dataHave = namespaceSyncState.data.localState.have
+    const dataHave = DATA_NAMESPACES.reduce(
+      (total, namespace) =>
+        total + namespaceSyncState[namespace].localState.have,
+      0
+    )
     const hasReceivedNewData = dataHave !== this.#previousDataHave
     if (hasReceivedNewData) {
       this.#clearAutostopDataSyncTimeoutIfExists()

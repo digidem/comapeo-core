@@ -294,21 +294,34 @@ test('auto-stop', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
 
-  const managers = await createManagers(2, t)
-  const [invitor, ...invitees] = managers
+  const invitor = createManager('invitor', t)
+
+  const fastify = Fastify()
+  const fastifyController = new FastifyController({ fastify })
+  t.after(() => fastifyController.stop())
+  const invitee = createManager('invitee', t, { fastify })
+
+  const managers = [invitor, invitee]
+
+  await Promise.all([
+    invitor.setDeviceInfo({ name: 'invitor' }),
+    invitee.setDeviceInfo({ name: 'invitee' }),
+    fastifyController.start(),
+  ])
+  t.after(() => fastifyController.stop())
 
   const disconnect = connectPeers(managers, { discovery: false })
   t.after(disconnect)
 
   const projectId = await invitor.createProject({ name: 'mapeo' })
-  await invite({ invitor, invitees, projectId })
+  await invite({ invitor, invitees: [invitee], projectId })
 
   const projects = await Promise.all(
     managers.map((m) => m.getProject(projectId))
   )
   const [invitorProject, inviteeProject] = projects
 
-  const generatedObservations = generate('observation', { count: 3 })
+  const generatedObservations = generate('observation', { count: 2 })
 
   invitorProject.$sync.start({ autostopDataSyncAfter: 10_000 })
   inviteeProject.$sync.start({ autostopDataSyncAfter: 10_000 })
@@ -333,13 +346,25 @@ test('auto-stop', async (t) => {
 
   await clock.tickAsync(9000)
 
-  const observation2 = await invitorProject.observation.create(
-    valueOf(generatedObservations[1])
+  const fixturePath = new URL(
+    '../tests/fixtures/images/02-digidem-logo.jpg',
+    import.meta.url
+  ).pathname
+  const blob = await invitorProject.$blobs.create(
+    { original: fixturePath },
+    blobMetadata({ mimeType: 'image/jpeg' })
   )
   await waitForSync(projects, 'full')
-  assert(
-    await inviteeProject.observation.getByDocId(observation2.docId),
-    'invitee receives doc'
+  const blobUrl = await inviteeProject.$blobs.getUrl({
+    ...blob,
+    variant: 'original',
+  })
+  const response = await request(blobUrl, { reset: true })
+  assert.equal(response.statusCode, 200)
+  assert.deepEqual(
+    Buffer.from(await response.body.arrayBuffer()),
+    await fs.readFile(fixturePath),
+    'invitee receives blob'
   )
 
   await clock.tickAsync(9000)
@@ -388,12 +413,12 @@ test('auto-stop', async (t) => {
   invitorProject.$sync.start()
   inviteeProject.$sync.start()
 
-  const observation3 = await invitorProject.observation.create(
-    valueOf(generatedObservations[2])
+  const observation2 = await invitorProject.observation.create(
+    valueOf(generatedObservations[1])
   )
   await waitForSync(projects, 'full')
   assert(
-    await inviteeProject.observation.getByDocId(observation3.docId),
+    await inviteeProject.observation.getByDocId(observation2.docId),
     'invitee receives doc'
   )
 
