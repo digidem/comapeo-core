@@ -251,6 +251,7 @@ export class DataType extends TypedEmitter {
     )
     /** @type {any} */
     const doc = {
+      // @ts-expect-error Can't figure out why TypeScript doesn't think `value` is spreadable.
       ...value,
       docId,
       createdAt,
