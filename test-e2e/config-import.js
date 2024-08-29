@@ -114,7 +114,7 @@ test('failing on loading a second config should not delete any data', async (t) 
   const nFields = (await project.field.getMany()).length
   const nTranslations = (await project.$translation.dataType.getMany()).length
 
-  // load wrong config
+  // load a non-existent config
   await project.importConfig({ configPath: 'hi' })
 
   const nPresetsAfter = (await project.preset.getMany()).length
