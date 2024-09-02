@@ -83,6 +83,7 @@ export const DeviceInfo_DeviceType = {
   mobile: "mobile",
   tablet: "tablet",
   desktop: "desktop",
+  selfHostedServer: "selfHostedServer",
   UNRECOGNIZED: "UNRECOGNIZED",
 } as const;
 
@@ -102,6 +103,9 @@ export function deviceInfo_DeviceTypeFromJSON(object: any): DeviceInfo_DeviceTyp
     case 3:
     case "desktop":
       return DeviceInfo_DeviceType.desktop;
+    case 4:
+    case "selfHostedServer":
+      return DeviceInfo_DeviceType.selfHostedServer;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -119,6 +123,8 @@ export function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceType): nu
       return 2;
     case DeviceInfo_DeviceType.desktop:
       return 3;
+    case DeviceInfo_DeviceType.selfHostedServer:
+      return 4;
     case DeviceInfo_DeviceType.UNRECOGNIZED:
     default:
       return -1;
