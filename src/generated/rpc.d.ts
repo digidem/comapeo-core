@@ -39,6 +39,7 @@ export declare const DeviceInfo_DeviceType: {
     readonly mobile: "mobile";
     readonly tablet: "tablet";
     readonly desktop: "desktop";
+    readonly selfHostedServer: "selfHostedServer";
     readonly UNRECOGNIZED: "UNRECOGNIZED";
 };
 export type DeviceInfo_DeviceType = typeof DeviceInfo_DeviceType[keyof typeof DeviceInfo_DeviceType];
