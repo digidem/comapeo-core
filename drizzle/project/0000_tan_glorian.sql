@@ -61,7 +61,7 @@ CREATE TABLE `field` (
 	`appearance` text,
 	`snakeCase` integer,
 	`options` text,
-	`universal` integer DEFAULT false NOT NULL,
+	`universal` integer,
 	`placeholder` text,
 	`helperText` text,
 	`forks` text NOT NULL
@@ -126,7 +126,7 @@ CREATE TABLE `preset` (
 	`addTags` text NOT NULL,
 	`removeTags` text NOT NULL,
 	`fieldRefs` text NOT NULL,
-	`iconRef` text NOT NULL,
+	`iconRef` text,
 	`terms` text NOT NULL,
 	`color` text NOT NULL,
 	`forks` text NOT NULL
