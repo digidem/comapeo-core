@@ -507,7 +507,7 @@ export class MapeoProject extends TypedEmitter {
     return this.#dataTypes.field
   }
 
-  get alert() {
+  get remoteDetectionAlert() {
     return this.#dataTypes.remoteDetectionAlert
   }
 

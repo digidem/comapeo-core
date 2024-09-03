@@ -53,6 +53,14 @@ const fixtures = [
     tags: {},
     locations: Array.from({ length: 10 }, trackPositionFixture),
   },
+  {
+    schemaName: 'remoteDetectionAlert',
+    detectionDateStart: new Date().toISOString(),
+    detectionDateEnd: new Date().toISOString(),
+    sourceId: randomBytes(32).toString('hex'),
+    metadata: {},
+    geometry: {},
+  },
 ]
 
 /**
@@ -115,8 +123,10 @@ test('CRUD operations', async (t) => {
       let i = 0
       while (i++ < CREATE_COUNT) {
         const mocked =
-          // TODO: add tracks to @mapeo/mock-data
-          schemaName === 'track' ? value : valueOf(generate(schemaName)[0])
+          // TODO: add tracks and remoteDetectionAlert to @mapeo/mock-data
+          schemaName === 'track' || schemaName === 'remoteDetectionAlert'
+            ? value
+            : valueOf(generate(schemaName)[0])
         writePromises.push(
           // @ts-ignore
           project[schemaName].create(mocked)
@@ -182,8 +192,10 @@ test('CRUD operations', async (t) => {
       const writePromises = []
       for (let i = 0; i < CREATE_COUNT; i++) {
         const mocked =
-          // TODO: add tracks to @mapeo/mock-data
-          schemaName === 'track' ? value : valueOf(generate(schemaName)[0])
+          // TODO: add tracks and remoteDetectionAlert to @mapeo/mock-data
+          schemaName === 'track' || schemaName === 'remoteDetectionAlert'
+            ? value
+            : valueOf(generate(schemaName)[0])
         writePromises.push(
           // @ts-ignore
           project[schemaName].create(mocked)
@@ -291,8 +303,10 @@ test('CRUD operations', async (t) => {
       let i = 0
       while (i++ < CREATE_COUNT) {
         const mocked =
-          // TODO: add tracks to @mapeo/mock-data
-          schemaName === 'track' ? value : valueOf(generate(schemaName)[0])
+          // TODO: add tracks and remoteDetectionAlert to @mapeo/mock-data
+          schemaName === 'track' || schemaName === 'remoteDetectionAlert'
+            ? value
+            : valueOf(generate(schemaName)[0])
         writePromises.push(
           // @ts-ignore
           project[schemaName].create(mocked)
