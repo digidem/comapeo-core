@@ -58,7 +58,7 @@ const fixtures = [
     detectionDateStart: new Date().toISOString(),
     detectionDateEnd: new Date().toISOString(),
     sourceId: randomBytes(32).toString('hex'),
-    metadata: {},
+    metadata: { alert_type: 'fire' },
     geometry: {},
   },
 ]

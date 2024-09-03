@@ -1,6 +1,6 @@
 {
   "name": "@mapeo/core",
-  "version": "9.0.0-alpha.21",
+  "version": "9.0.0-alpha.22",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
@@ -107,7 +107,7 @@
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
     "@mapeo/default-config": "4.0.0-alpha.8",
-    "@mapeo/mock-data": "^1.0.3-alpha.4",
+    "@mapeo/mock-data": "^1.0.3-alpha.5",
     "@sinonjs/fake-timers": "^10.0.2",
     "@types/b4a": "^1.6.0",
     "@types/bogon": "^1.0.2",
