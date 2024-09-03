@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "2be32705-ddce-45ee-97c1-c6f2fc748568",
+  "id": "b06de2c5-6a4c-4578-a8f0-d15f9f20e902",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -373,9 +373,8 @@
           "name": "universal",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
+          "notNull": false,
+          "autoincrement": false
         },
         "placeholder": {
           "name": "placeholder",
@@ -757,7 +756,7 @@
           "name": "iconRef",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "terms": {
