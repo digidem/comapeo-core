@@ -282,6 +282,94 @@ test('canceling nothing', async (t) => {
   })
 })
 
+test('canceling, then re-inviting', async (t) => {
+  const [creator, joiner] = await createManagers(2, t)
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(disconnectPeers)
+  await waitForPeers([creator, joiner])
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+
+  const invite1ReceivedPromise = once(joiner.invite, 'invite-received')
+  const invite1Promise = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  const invite1AbortedPromise = assert.rejects(invite1Promise)
+  await invite1ReceivedPromise
+  creatorProject.$member.requestCancelInvite(joiner.deviceId)
+  await invite1AbortedPromise
+
+  assert.deepEqual(
+    await joiner.listProjects(),
+    [],
+    "joiner doesn't have project yet"
+  )
+
+  const invite2Promise = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  const [invite2] = await once(joiner.invite, 'invite-received')
+  await joiner.invite.accept(invite2)
+
+  assert.equal(
+    await invite2Promise,
+    InviteResponse_Decision.ACCEPT,
+    'correct invite response'
+  )
+  assert.deepEqual(
+    await joiner.listProjects(),
+    await creator.listProjects(),
+    'project info recorded in joiner successfully'
+  )
+})
+
+test('rejecting, then accepting', async (t) => {
+  const [creator, joiner] = await createManagers(2, t)
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(disconnectPeers)
+  await waitForPeers([creator, joiner])
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+
+  const invite1ReceivedPromise = once(joiner.invite, 'invite-received')
+  const invite1Promise = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  const [invite1] = await invite1ReceivedPromise
+  await joiner.invite.reject(invite1)
+  assert.equal(
+    await invite1Promise,
+    InviteResponse_Decision.REJECT,
+    'correct response for invite 1'
+  )
+
+  assert.deepEqual(
+    await joiner.listProjects(),
+    [],
+    "joiner doesn't have project yet"
+  )
+
+  const invite2ReceivedPromise = once(joiner.invite, 'invite-received')
+  const invite2Promise = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  const [invite2] = await invite2ReceivedPromise
+  await joiner.invite.accept(invite2)
+
+  assert.equal(
+    await invite2Promise,
+    InviteResponse_Decision.ACCEPT,
+    'correct invite response'
+  )
+  assert.deepEqual(
+    await joiner.listProjects(),
+    await creator.listProjects(),
+    'project info recorded in joiner successfully'
+  )
+})
+
 /**
  * @param {import('../src/member-api.js').MemberInfo} a
  * @param {import('../src/member-api.js').MemberInfo} b
