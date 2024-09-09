@@ -699,7 +699,14 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @template {import('type-fest').Exact<import('./schema/client.js').DeviceInfoParam, T>} T
+   * @typedef {Exclude<
+   * import('./schema/client.js').DeviceInfoParam['deviceType'],
+   * 'selfHostedServer'>} RPCDeviceType
+   */
+
+  /**
+   * @template {import('type-fest').Exact<
+   * import('./schema/client.js').DeviceInfoParam & {deviceType?: RPCDeviceType}, T>} T
    * @param {T} deviceInfo
    */
   async setDeviceInfo(deviceInfo) {
