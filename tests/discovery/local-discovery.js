@@ -135,7 +135,7 @@ async function testMultiple(t, { period, nPeers = 20 }) {
   for (let i = 0; i < nPeers; i++) {
     const identityKeypair = new KeyManager(randomBytes(16)).getIdentityKeypair()
     const discovery = new LocalDiscovery({ identityKeypair })
-    const peerId = keyToPublicId(discovery.publicKey)
+    const peerId = keyToPublicId(identityKeypair.publicKey)
     peersById.set(peerId, discovery)
     /** @type {OpenedNoiseStream[]} */
     const conns = []
