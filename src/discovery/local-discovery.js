@@ -9,7 +9,7 @@ import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
 import { Logger } from '../logger.js'
-/** @import { OpenedNoiseStream } from '../utils.js' */
+/** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 /** @typedef {OpenedNoiseStream<net.Socket>} OpenedNetNoiseStream */

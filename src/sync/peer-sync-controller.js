@@ -7,6 +7,7 @@ import { unreplicate } from '../lib/hypercore-helpers.js'
 /** @import { Role } from '../roles.js' */
 /** @import { SyncEnabledState } from './sync-api.js' */
 /** @import { Namespace } from '../types.js' */
+/** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 
 /**
  * @typedef {Role['sync'][Namespace] | 'unknown'} SyncCapability
@@ -35,7 +36,7 @@ export class PeerSyncController {
 
   /**
    * @param {object} opts
-   * @param {import("protomux")<import('../utils.js').OpenedNoiseStream>} opts.protomux
+   * @param {import('protomux')<OpenedNoiseStream>} opts.protomux
    * @param {import("../core-manager/index.js").CoreManager} opts.coreManager
    * @param {import("./sync-state.js").SyncState} opts.syncState
    * @param {import('../roles.js').Roles} opts.roles
