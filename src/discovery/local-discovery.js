@@ -66,10 +66,6 @@ export class LocalDiscovery extends TypedEmitter {
     })
   }
 
-  get publicKey() {
-    return this.#identityKeypair.publicKey
-  }
-
   /** @returns {Promise<{ name: string, port: number }>} */
   async start() {
     await this.#sm.start()
@@ -254,10 +250,6 @@ export class LocalDiscovery extends TypedEmitter {
     // No 'error' listeners attached to `conn` at this point, it's up to the
     // consumer to attach an 'error' listener to avoid uncaught errors.
     this.emit('connection', conn)
-  }
-
-  get connections() {
-    return this.#noiseConnections.values()
   }
 
   /**
