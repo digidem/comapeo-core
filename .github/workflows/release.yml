@@ -42,11 +42,12 @@ jobs:
       # TODO: Re-enable this.
       # See <https://github.com/digidem/mapeo-core-next/issues/707>.
       #
-      # - name: Push updated markdown docs
-      #   uses: stefanzweifel/git-auto-commit-action@v5
-      #   with:
-      #     commit_message: 'docs: update API docs'
-      #     file_pattern: 'docs/api/md/*'
+      - name: Push updated markdown docs
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'docs: update API docs'
+          file_pattern: 'docs/api/md/*'
+          push_options: --force
       - uses: nearform-actions/optic-release-automation-action@v4
         with:
           commit-message: 'Release {version}'
