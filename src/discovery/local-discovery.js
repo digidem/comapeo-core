@@ -194,7 +194,7 @@ export class LocalDiscovery extends TypedEmitter {
     const remoteId = keyToPublicId(remotePublicKey)
 
     this.#log(
-      `${isInitiator ? 'outgoing' : 'incoming'} secretSteam connection ${
+      `${isInitiator ? 'outgoing' : 'incoming'} secretStream connection ${
         isInitiator ? 'to' : 'from'
       } %h`,
       remotePublicKey
