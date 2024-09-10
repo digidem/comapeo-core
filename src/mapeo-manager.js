@@ -27,12 +27,12 @@ import {
   deNullify,
   getDeviceId,
   keyToId,
-  openedNoiseSecretStream,
   projectIdToNonce,
   projectKeyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
+import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
 import IconServerPlugin from './fastify-plugins/icons.js'
@@ -51,6 +51,7 @@ import {
 /** @import { ProjectSettingsValue as ProjectValue } from '@mapeo/schema' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { CoreStorage, Namespace } from './types.js' */
+/** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 

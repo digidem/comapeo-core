@@ -13,6 +13,7 @@ import {
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
 import pTimeout, { TimeoutError } from 'p-timeout'
+/** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 
 // Unique identifier for the mapeo rpc protocol
 const PROTOCOL_NAME = 'mapeo/rpc'
@@ -387,7 +388,7 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * @param {Protomux<import('./utils.js').OpenedNoiseStream>} protomux
+   * @param {Protomux<OpenedNoiseStream>} protomux
    * @param {() => void} done
    */
   #makePeer(protomux, done) {
@@ -460,7 +461,7 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * @param {Protomux<import('./utils.js').OpenedNoiseStream>} protomux
+   * @param {Protomux<OpenedNoiseStream>} protomux
    */
   #getPeerByProtomux(protomux) {
     // We could also index peers by protomux to avoid this, but that would mean
@@ -511,7 +512,7 @@ export class LocalPeers extends TypedEmitter {
 
   /**
    *
-   * @param {Protomux<import('./utils.js').OpenedNoiseStream>} protomux
+   * @param {Protomux<OpenedNoiseStream>} protomux
    * @param {keyof typeof MESSAGE_TYPES} type
    * @param {Buffer} value
    */

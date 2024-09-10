@@ -9,7 +9,7 @@ import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
 import { Logger } from '../logger.js'
-/** @import { OpenedNoiseStream } from '../utils.js' */
+/** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 /** @typedef {OpenedNoiseStream<net.Socket>} OpenedNetNoiseStream */
@@ -113,9 +113,9 @@ export class LocalDiscovery extends TypedEmitter {
     socket.off('error', this.#handleSocketError)
     socket.on('error', onSocketError)
 
-    /** @param {any} e */
+    /** @param {Error} e */
     function onSocketError(e) {
-      if (e.code === 'EPIPE') {
+      if ('code' in e && e.code === 'EPIPE') {
         socket.destroy()
         if (secretStream) {
           secretStream.destroy()
