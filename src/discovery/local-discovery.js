@@ -113,9 +113,9 @@ export class LocalDiscovery extends TypedEmitter {
     socket.off('error', this.#handleSocketError)
     socket.on('error', onSocketError)
 
-    /** @param {any} e */
+    /** @param {Error} e */
     function onSocketError(e) {
-      if (e.code === 'EPIPE') {
+      if ('code' in e && e.code === 'EPIPE') {
         socket.destroy()
         if (secretStream) {
           secretStream.destroy()
