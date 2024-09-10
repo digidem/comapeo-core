@@ -72,6 +72,7 @@ export class LocalDiscovery extends TypedEmitter {
     return { name: this.#name, port: getAddress(this.#server).port }
   }
 
+  /** @returns {Promise<void>} */
   async #start() {
     // Let OS choose port, listen on ip4, all interfaces
     this.#server.listen(0, '0.0.0.0')
@@ -108,6 +109,7 @@ export class LocalDiscovery extends TypedEmitter {
   /**
    * @param {boolean} isInitiator
    * @param {net.Socket} socket
+   * @returns {void}
    */
   #handleTcpConnection(isInitiator, socket) {
     socket.off('error', this.#handleSocketError)
@@ -153,9 +155,9 @@ export class LocalDiscovery extends TypedEmitter {
   }
 
   /**
-   *
    * @param {OpenedNetNoiseStream} existing
    * @param {OpenedNetNoiseStream} keeping
+   * @returns {void}
    */
   #handleConnectionSwap(existing, keeping) {
     let closed = false
@@ -179,7 +181,6 @@ export class LocalDiscovery extends TypedEmitter {
   }
 
   /**
-   *
    * @param {OpenedNetNoiseStream} conn
    * @returns {void}
    */
