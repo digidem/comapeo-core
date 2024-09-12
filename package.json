@@ -95,9 +95,11 @@
     "url": "git+https://github.com/digidem/mapeo-core.git"
   },
   "authors": [
-    "Karissa McKelvey",
-    "Gregor MacLennan",
-    "noffle"
+    "Andrew Chou <achou@awana.digital>",
+    "Evan Hahn <ehahn@awana.digital>",
+    "Gregor MacLennan <gmaclennan@awana.digital>",
+    "Seth Vincent",
+    "Tomás Ciccola <tciccola@awana.digital>"
   ],
   "license": "MIT",
   "bugs": {
