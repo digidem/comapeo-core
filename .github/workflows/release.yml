@@ -40,7 +40,7 @@ jobs:
           npm ci
           npm run doc
       # TODO: Re-enable this.
-      # See <https://github.com/digidem/mapeo-core-next/issues/707>.
+      # See <https://github.com/digidem/comapeo-core/issues/707>.
       #
       # - name: Push updated markdown docs
       #   uses: stefanzweifel/git-auto-commit-action@v5

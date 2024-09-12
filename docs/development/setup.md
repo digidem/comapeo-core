@@ -9,8 +9,8 @@
 
 ## Clone the repo
 
-- `git clone git@github.com:digidem/mapeo-core-next.git`
-- `cd mapeo-core-next`
+- `git clone git@github.com:digidem/comapeo-core.git`
+- `cd comapeo-core`
 
 ## Install dependencies
 
