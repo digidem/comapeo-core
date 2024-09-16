@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "41e23fc3-463e-432a-9a5f-7c20366d6294",
+  "id": "e75103ab-bbcb-4ca9-a0c4-2d9095b63add",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "localDeviceInfo": {
@@ -174,13 +174,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false
-        },
-        "isInitialProject": {
-          "name": "isInitialProject",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
           "autoincrement": false
         },
         "forks": {
