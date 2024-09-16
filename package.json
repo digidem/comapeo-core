@@ -109,7 +109,7 @@
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
     "@mapeo/default-config": "4.0.1-alpha.0",
-    "@mapeo/mock-data": "1.0.3-alpha.6",
+    "@mapeo/mock-data": "1.0.3-alpha.7",
     "@sinonjs/fake-timers": "^10.0.2",
     "@types/b4a": "^1.6.0",
     "@types/bogon": "^1.0.2",
@@ -158,7 +158,7 @@
     "@fastify/type-provider-typebox": "^4.0.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "1.0.0-alpha.10",
-    "@mapeo/schema": "3.0.0-next.27",
+    "@mapeo/schema": "3.0.0-next.28",
     "@mapeo/sqlite-indexer": "1.0.0-alpha.9",
     "@sinclair/typebox": "^0.29.6",
     "b4a": "^1.6.3",
