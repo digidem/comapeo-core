@@ -120,8 +120,8 @@ test('syncing blobs', async (t) => {
   const managers = [invitee, invitor]
 
   await Promise.all([
-    invitor.setDeviceInfo({ name: 'invitor' }),
-    invitee.setDeviceInfo({ name: 'invitee' }),
+    invitor.setDeviceInfo({ name: 'invitor', deviceType: 'mobile' }),
+    invitee.setDeviceInfo({ name: 'invitee', deviceType: 'mobile' }),
     fastifyController.start(),
   ])
 
@@ -304,8 +304,8 @@ test('auto-stop', async (t) => {
   const managers = [invitor, invitee]
 
   await Promise.all([
-    invitor.setDeviceInfo({ name: 'invitor' }),
-    invitee.setDeviceInfo({ name: 'invitee' }),
+    invitor.setDeviceInfo({ name: 'invitor', deviceType: 'mobile' }),
+    invitee.setDeviceInfo({ name: 'invitee', deviceType: 'mobile' }),
     fastifyController.start(),
   ])
   t.after(() => fastifyController.stop())

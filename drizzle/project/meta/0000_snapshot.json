@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "b06de2c5-6a4c-4578-a8f0-d15f9f20e902",
+  "id": "597b1fb1-5fe9-4601-abab-9cd02b6a77fe",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coreOwnership_backlink": {
@@ -236,7 +236,7 @@
           "name": "deviceType",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "forks": {
@@ -770,7 +770,7 @@
           "name": "color",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "forks": {
@@ -1104,7 +1104,7 @@
           "name": "regionCode",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "message": {

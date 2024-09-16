@@ -51,6 +51,7 @@ import {
 /** @import { ProjectSettingsValue as ProjectValue } from '@mapeo/schema' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { CoreStorage, Namespace } from './types.js' */
+/** @import { DeviceInfoParam } from './schema/client.js' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
@@ -351,17 +352,13 @@ export class MapeoManager extends TypedEmitter {
    * Create a new project.
    * @param {(
    *   import('type-fest').Simplify<(
-   *     Partial<Pick<ProjectValue, 'name' | 'isInitialProject'>> &
+   *     Partial<Pick<ProjectValue, 'name'>> &
    *     { configPath?: string }
    *   )>
    * )} [options]
    * @returns {Promise<string>} Project public id
    */
-  async createProject({
-    name,
-    configPath = this.#defaultConfigPath,
-    isInitialProject = false,
-  } = {}) {
+  async createProject({ name, configPath = this.#defaultConfigPath } = {}) {
     // 1. Create project keypair
     const projectKeypair = KeyManager.generateProjectKeypair()
 
@@ -406,7 +403,7 @@ export class MapeoManager extends TypedEmitter {
     })
 
     // 5. Write project settings to project instance
-    await project.$setProjectSettings({ name, isInitialProject })
+    await project.$setProjectSettings({ name })
 
     // 6. Write device info into project
     const deviceInfo = this.getDeviceInfo()
@@ -741,7 +738,12 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @returns {{ deviceId: string } & Partial<import('./schema/client.js').DeviceInfoParam>}
+   * @returns {(
+   *   {
+   *     deviceId: string;
+   *     deviceType: DeviceInfoParam['deviceType']
+   *   } & Partial<DeviceInfoParam>
+   * )}
    */
   getDeviceInfo() {
     const row = this.#db
@@ -749,7 +751,11 @@ export class MapeoManager extends TypedEmitter {
       .from(localDeviceInfoTable)
       .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
       .get()
-    return { deviceId: this.#deviceId, ...row?.deviceInfo }
+    return {
+      deviceId: this.#deviceId,
+      deviceType: 'device_type_unspecified',
+      ...row?.deviceInfo,
+    }
   }
 
   /**

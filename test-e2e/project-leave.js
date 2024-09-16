@@ -305,14 +305,14 @@ test('leaving a project deletes data from disk', async (t) => {
   const managers = await Promise.all([
     (async () => {
       const creator = await createManager('creator', t)
-      await creator.setDeviceInfo({ name: 'creator' })
+      await creator.setDeviceInfo({ name: 'creator', deviceType: 'mobile' })
       return creator
     })(),
     (async () => {
       const member = await createManager('member', t, {
         coreStorage: memberCoreStorage,
       })
-      await member.setDeviceInfo({ name: 'member' })
+      await member.setDeviceInfo({ name: 'member', deviceType: 'mobile' })
       return member
     })(),
   ])

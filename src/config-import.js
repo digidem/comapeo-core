@@ -330,11 +330,14 @@ function translationsForLanguage(warnings) {
    *
    */
   return function* (lang, languageTranslations) {
-    const { language: languageCode, region: regionCode } = parseBCP47(lang)
+    const parsed = parseBCP47(lang)
+    const { language: languageCode } = parsed
     if (!languageCode) {
       warnings.push(new Error(`invalid translation language ${lang}`))
       return
     }
+    let { region: regionCode } = parsed
+    regionCode ||= undefined
     for (const [
       schemaNamePlural,
       languageTranslationsForDocType,
@@ -378,7 +381,7 @@ function schemaNamePluralToDocRefType(schemaNamePlural) {
 function translationsForDocType(warnings) {
   /** @param {Object} opts
    * @param {string} opts.languageCode
-   * @param {string | null | undefined} opts.regionCode
+   * @param {string | undefined} opts.regionCode
    * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {Record<ValidDocTypes, unknown>} opts.languageTranslationsForDocType
    */
@@ -413,7 +416,7 @@ function translationForValue(warnings) {
   /**
    * @param {Object} opts
    * @param {string} opts.languageCode
-   * @param {string | null | undefined} opts.regionCode
+   * @param {string | undefined} opts.regionCode
    * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {string} opts.docName
    * @param {Record<string,unknown>} opts.fieldsToTranslate
@@ -430,7 +433,7 @@ function translationForValue(warnings) {
         /** @type {'translation'} */
         schemaName: 'translation',
         languageCode,
-        regionCode: regionCode || '',
+        regionCode,
         docRefType,
         propertyRef: '',
         message: '',
@@ -475,7 +478,7 @@ function translateMessageObject(warnings) {
             if (
               !validate('translation', {
                 ...value,
-                docRef: { docId: '', versionId: '' },
+                docRef: { docId: 'placeholder', versionId: 'placeholder' },
               })
             ) {
               warnings.push(new Error(`Invalid translation ${value.message}`))
