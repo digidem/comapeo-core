@@ -351,17 +351,13 @@ export class MapeoManager extends TypedEmitter {
    * Create a new project.
    * @param {(
    *   import('type-fest').Simplify<(
-   *     Partial<Pick<ProjectValue, 'name' | 'isInitialProject'>> &
+   *     Partial<Pick<ProjectValue, 'name'>> &
    *     { configPath?: string }
    *   )>
    * )} [options]
    * @returns {Promise<string>} Project public id
    */
-  async createProject({
-    name,
-    configPath = this.#defaultConfigPath,
-    isInitialProject = false,
-  } = {}) {
+  async createProject({ name, configPath = this.#defaultConfigPath } = {}) {
     // 1. Create project keypair
     const projectKeypair = KeyManager.generateProjectKeypair()
 
@@ -406,7 +402,7 @@ export class MapeoManager extends TypedEmitter {
     })
 
     // 5. Write project settings to project instance
-    await project.$setProjectSettings({ name, isInitialProject })
+    await project.$setProjectSettings({ name })
 
     // 6. Write device info into project
     const deviceInfo = this.getDeviceInfo()
