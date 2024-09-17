@@ -2,7 +2,7 @@
 // database and it contains information that is shared across all projects on a
 // device
 import { blob, sqliteTable, text } from 'drizzle-orm/sqlite-core'
-import { dereferencedDocSchemas as schemas } from '@mapeo/schema'
+import { dereferencedDocSchemas as schemas } from '@comapeo/schema'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable, customJson } from './utils.js'
 
@@ -40,7 +40,7 @@ export const projectKeysTable = sqliteTable('projectKeys', {
 })
 
 /**
- * @typedef {Omit<import('@mapeo/schema').DeviceInfoValue, 'schemaName'>} DeviceInfoParam
+ * @typedef {Omit<import('@comapeo/schema').DeviceInfoValue, 'schemaName'>} DeviceInfoParam
  */
 
 const deviceInfoColumn =

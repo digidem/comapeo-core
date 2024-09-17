@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
-import { getVersionId } from '@mapeo/schema'
+import { getVersionId } from '@comapeo/schema'
 import { once } from 'events'
 import RAM from 'random-access-memory'
 import { discoveryKey } from 'hypercore-crypto'
 
-/** @type {Omit<import('@mapeo/schema').Observation, 'versionId'>} */
+/** @type {Omit<import('@comapeo/schema').Observation, 'versionId'>} */
 const obs = {
   docId: 'abc',
   originalVersionId: getVersionId({

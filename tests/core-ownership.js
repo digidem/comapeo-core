@@ -7,7 +7,7 @@ import {
   getWinner,
 } from '../src/core-ownership.js'
 import { randomBytes } from 'node:crypto'
-import { parseVersionId, getVersionId } from '@mapeo/schema'
+import { parseVersionId, getVersionId } from '@comapeo/schema'
 import { discoveryKey } from 'hypercore-crypto'
 
 /** @import { Namespace } from '../src/types.js' */
@@ -177,7 +177,7 @@ function generateValidDoc() {
     blob: km.getHypercoreKeypair('blob', projectKey),
   }
 
-  /** @type {ReturnType<typeof import('@mapeo/schema').decode>} */
+  /** @type {ReturnType<typeof import('@comapeo/schema').decode>} */
   const validDoc = {
     docId: km.getIdentityKeypair().publicKey.toString('hex'),
     versionId: getVersionId({

@@ -1,5 +1,5 @@
 import yauzl from 'yauzl-promise'
-import { validate, valueSchemas } from '@mapeo/schema'
+import { validate, valueSchemas } from '@comapeo/schema'
 import { json, buffer } from 'node:stream/consumers'
 import { assert, isDefined } from './utils.js'
 import path from 'node:path'
@@ -28,7 +28,7 @@ const ICON_NAME_REGEX = /([a-zA-Z0-9-]+)-([a-zA-Z]+)@(\d+)x\.[a-zA-Z]+$/
  * }} TranslationsFile
  */
 
-/** @typedef {NonNullable<import('@mapeo/schema').ProjectSettingsValue['configMetadata']>} MetadataFile */
+/** @typedef {NonNullable<import('@comapeo/schema').ProjectSettingsValue['configMetadata']>} MetadataFile */
 
 /**
  * @typedef {Parameters<import('./icon-api.js').IconApi['create']>[0]} IconData
@@ -121,7 +121,7 @@ export async function readConfig(configPath) {
     },
 
     /**
-     * @returns {Iterable<{ name: string, value: import('@mapeo/schema').FieldValue }>}
+     * @returns {Iterable<{ name: string, value: import('@comapeo/schema').FieldValue }>}
      */
     *fields() {
       const { fields } = presetsFile
@@ -151,7 +151,7 @@ export async function readConfig(configPath) {
     },
 
     /**
-     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@mapeo/schema').PresetValue, name: string}>}
+     * @returns {Iterable<{ fieldNames: string[], iconName: string | undefined, value: import('@comapeo/schema').PresetValue, name: string}>}
      */
     *presets() {
       const { presets } = presetsFile
@@ -232,7 +232,7 @@ export async function readConfig(configPath) {
         }
       }
     },
-    /** @returns {Iterable<{ name: string, value:Omit<import('@mapeo/schema').TranslationValue, 'docRef'>}>} */
+    /** @returns {Iterable<{ name: string, value:Omit<import('@comapeo/schema').TranslationValue, 'docRef'>}>} */
     *translations() {
       if (!translationsFile) return
       for (const [lang, languageTranslations] of Object.entries(
@@ -330,11 +330,14 @@ function translationsForLanguage(warnings) {
    *
    */
   return function* (lang, languageTranslations) {
-    const { language: languageCode, region: regionCode } = parseBCP47(lang)
+    const parsed = parseBCP47(lang)
+    const { language: languageCode } = parsed
     if (!languageCode) {
       warnings.push(new Error(`invalid translation language ${lang}`))
       return
     }
+    let { region: regionCode } = parsed
+    regionCode ||= undefined
     for (const [
       schemaNamePlural,
       languageTranslationsForDocType,
@@ -362,7 +365,7 @@ function translationsForLanguage(warnings) {
 /**
  * schemaNames in configs are in plural but in the schemas are in singular
  * @param {ValidDocTypes} schemaNamePlural
- * @returns {import('@mapeo/schema').TranslationValue['docRefType']}
+ * @returns {import('@comapeo/schema').TranslationValue['docRefType']}
  */
 function schemaNamePluralToDocRefType(schemaNamePlural) {
   if (schemaNamePlural === 'fields') return 'field'
@@ -378,8 +381,8 @@ function schemaNamePluralToDocRefType(schemaNamePlural) {
 function translationsForDocType(warnings) {
   /** @param {Object} opts
    * @param {string} opts.languageCode
-   * @param {string | null | undefined} opts.regionCode
-   * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
+   * @param {string | undefined} opts.regionCode
+   * @param {import('@comapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {Record<ValidDocTypes, unknown>} opts.languageTranslationsForDocType
    */
   return function* ({
@@ -413,8 +416,8 @@ function translationForValue(warnings) {
   /**
    * @param {Object} opts
    * @param {string} opts.languageCode
-   * @param {string | null | undefined} opts.regionCode
-   * @param {import('@mapeo/schema').TranslationValue['docRefType']} opts.docRefType
+   * @param {string | undefined} opts.regionCode
+   * @param {import('@comapeo/schema').TranslationValue['docRefType']} opts.docRefType
    * @param {string} opts.docName
    * @param {Record<string,unknown>} opts.fieldsToTranslate
    */
@@ -430,7 +433,7 @@ function translationForValue(warnings) {
         /** @type {'translation'} */
         schemaName: 'translation',
         languageCode,
-        regionCode: regionCode || '',
+        regionCode,
         docRefType,
         propertyRef: '',
         message: '',
@@ -457,7 +460,7 @@ function translationForValue(warnings) {
 function translateMessageObject(warnings) {
   /**
    * @param {Object} opts
-   * @param {Omit<import('@mapeo/schema').TranslationValue, 'docRef'>} opts.value
+   * @param {Omit<import('@comapeo/schema').TranslationValue, 'docRef'>} opts.value
    * @param {string} opts.docName
    * @param {Record<string,{label:string,value:string}>} opts.message
    */
@@ -475,7 +478,7 @@ function translateMessageObject(warnings) {
             if (
               !validate('translation', {
                 ...value,
-                docRef: { docId: '', versionId: '' },
+                docRef: { docId: 'placeholder', versionId: 'placeholder' },
               })
             ) {
               warnings.push(new Error(`Invalid translation ${value.message}`))

@@ -1,4 +1,4 @@
-import { validate } from '@mapeo/schema'
+import { validate } from '@comapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
@@ -7,7 +7,7 @@ import { NotFoundError } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
 import { setProperty, getProperty } from 'dot-prop'
-/** @import { MapeoDoc, MapeoValue } from '@mapeo/schema' */
+/** @import { MapeoDoc, MapeoValue } from '@comapeo/schema' */
 /** @import { MapeoDocMap, MapeoValueMap } from '../types.js' */
 /** @import { DataStore } from '../datastore/index.js' */
 

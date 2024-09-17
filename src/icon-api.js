@@ -1,4 +1,4 @@
-/** @import { PresetValue, IconValue } from '@mapeo/schema' */
+/** @import { PresetValue, IconValue } from '@comapeo/schema' */
 
 export const kGetIconBlob = Symbol('getIcon')
 
@@ -38,8 +38,8 @@ export class IconApi {
    *   import('./datastore/index.js').DataStore<'config'>,
    *   typeof import('./schema/project.js').iconTable,
    *   'icon',
-   *   import('@mapeo/schema').Icon,
-   *   import('@mapeo/schema').IconValue
+   *   import('@comapeo/schema').Icon,
+   *   import('@comapeo/schema').IconValue
    * >} opts.iconDataType
    * @param {import('./datastore/index.js').DataStore<'config'>} opts.iconDataStore
    * @param {() => Promise<string>} opts.getMediaBaseUrl
@@ -52,10 +52,10 @@ export class IconApi {
 
   /**
    * @param {object} icon
-   * @param {import('@mapeo/schema').IconValue['name']} icon.name
+   * @param {import('@comapeo/schema').IconValue['name']} icon.name
    * @param {Array<(BitmapOpts | SvgOpts) & { blob: Buffer }>} icon.variants
    *
-   * @returns {Promise<import('@mapeo/schema').Icon>}
+   * @returns {Promise<import('@comapeo/schema').Icon>}
    */
   async create(icon) {
     if (icon.variants.length < 1) {

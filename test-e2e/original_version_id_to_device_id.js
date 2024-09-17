@@ -1,5 +1,5 @@
 import { generate } from '@mapeo/mock-data'
-import { valueOf } from '@mapeo/schema'
+import { valueOf } from '@comapeo/schema'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import * as clientTableSchemas from '../src/schema/client.js'
 import * as projectTableSchemas from '../src/schema/project.js'
-import { dereferencedDocSchemas as jsonSchemas } from '@mapeo/schema'
+import { dereferencedDocSchemas as jsonSchemas } from '@comapeo/schema'
 import {
   BACKLINK_TABLE_POSTFIX,
   getBacklinkTableName,

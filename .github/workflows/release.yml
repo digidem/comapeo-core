@@ -6,13 +6,13 @@ on:
       semver:
         description: 'The semver to use'
         required: true
-        default: 'prerelease'
+        default: 'patch'
         type: choice
         options:
           # - auto
-          # - patch
-          # - minor
-          # - major
+          - patch
+          - minor
+          - major
           - prerelease
           # - prepatch
           # - preminor
@@ -51,10 +51,10 @@ jobs:
           sync-semver-tags: true
           access: 'public'
           # This prefix is added before the prerelease number, e.g. `v3.0.0-alpha.0`
-          prerelease-prefix: 'alpha'
+          # prerelease-prefix: 'alpha'
           semver: ${{ github.event.inputs.semver }}
           # Prereleases are published under the `alpha` npm dist-tag
-          npm-tag: ${{ startsWith(github.event.inputs.semver, 'pre') && 'alpha' || 'latest' }}
+          # npm-tag: ${{ startsWith(github.event.inputs.semver, 'pre') && 'alpha' || 'latest' }}
           # Don't notify linked issues
           notify-linked-issues: false
           # optional: set this secret in your repo config for publishing to NPM

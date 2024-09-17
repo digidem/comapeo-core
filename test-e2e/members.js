@@ -181,7 +181,7 @@ test('getting invited member after invite accepted', async (t) => {
       invitedMemberWithoutJoinedAt,
       {
         deviceId: invitee.deviceId,
-        deviceType: undefined,
+        deviceType: 'device_type_unspecified',
         name: inviteeName,
         role: ROLES[MEMBER_ROLE_ID],
       },

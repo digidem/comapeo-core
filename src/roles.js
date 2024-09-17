@@ -1,4 +1,4 @@
-import { currentSchemaVersions } from '@mapeo/schema'
+import { currentSchemaVersions } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
@@ -67,7 +67,7 @@ const isRoleIdAssignableToAnyone = setHas(ROLE_IDS_ASSIGNABLE_TO_ANYONE)
  * @typedef {object} Role
  * @property {T} roleId
  * @property {string} name
- * @property {Record<import('@mapeo/schema').MapeoDoc['schemaName'], DocCapability>} docs
+ * @property {Record<import('@comapeo/schema').MapeoDoc['schemaName'], DocCapability>} docs
  * @property {RoleIdAssignableToOthers[]} roleAssignment
  * @property {Record<Namespace, 'allowed' | 'blocked'>} sync
  */
@@ -239,8 +239,8 @@ export class Roles extends TypedEmitter {
    *   import('./datastore/index.js').DataStore<'auth'>,
    *   typeof import('./schema/project.js').roleTable,
    *   'role',
-   *   import('@mapeo/schema').Role,
-   *   import('@mapeo/schema').RoleValue
+   *   import('@comapeo/schema').Role,
+   *   import('@comapeo/schema').RoleValue
    * >} opts.dataType
    * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('./core-manager/index.js').CoreManager} opts.coreManager

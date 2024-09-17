@@ -2,7 +2,7 @@
 // declaration for DataType is written manually below, and copied into the
 // `dist` folder at build-time. The types are checked in `test-types/data-types.ts`
 
-import { type MapeoDoc, type MapeoValue } from '@mapeo/schema'
+import { type MapeoDoc, type MapeoValue } from '@comapeo/schema'
 import {
   type MapeoDocMap,
   type MapeoValueMap,
