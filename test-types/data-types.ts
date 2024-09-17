@@ -10,7 +10,7 @@ import {
   PresetValue,
   Track,
   TrackValue,
-} from '@mapeo/schema'
+} from '@comapeo/schema'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import RAM from 'random-access-memory'

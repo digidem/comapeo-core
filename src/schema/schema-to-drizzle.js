@@ -1,7 +1,7 @@
 import { text, integer, real } from 'drizzle-orm/sqlite-core'
 import { ExhaustivenessError } from '../utils.js'
 import { customJson } from './utils.js'
-/** @import { MapeoDoc } from '@mapeo/schema' */
+/** @import { MapeoDoc } from '@comapeo/schema' */
 /** @import { MapeoDocMap } from '../types.js' */
 
 /**
@@ -70,7 +70,7 @@ export function jsonSchemaToDrizzleColumns(schema) {
       }
     }
   }
-  // Not yet in @mapeo/schema
+  // Not yet in @comapeo/schema
   columns.forks = customJson('forks').notNull()
   return /** @type {any} */ (columns)
 }

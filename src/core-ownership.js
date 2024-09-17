@@ -1,5 +1,5 @@
 import { verifySignature, sign } from '@mapeo/crypto'
-import { parseVersionId } from '@mapeo/schema'
+import { parseVersionId } from '@comapeo/schema'
 import { defaultGetWinner } from '@mapeo/sqlite-indexer'
 import assert from 'node:assert/strict'
 import sodium from 'sodium-universal'
@@ -42,8 +42,8 @@ export class CoreOwnership extends TypedEmitter {
    *   import('./datastore/index.js').DataStore<'auth'>,
    *   typeof import('./schema/project.js').coreOwnershipTable,
    *   'coreOwnership',
-   *   import('@mapeo/schema').CoreOwnership,
-   *   import('@mapeo/schema').CoreOwnershipValue
+   *   import('@comapeo/schema').CoreOwnership,
+   *   import('@comapeo/schema').CoreOwnershipValue
    * >} opts.dataType
    * @param {Record<Namespace, KeyPair>} opts.coreKeypairs
    * @param {KeyPair} opts.identityKeypair
@@ -155,8 +155,8 @@ export class CoreOwnership extends TypedEmitter {
  *   the doc with the lowest index (e.g. the first)
  *
  * @param {CoreOwnershipWithSignatures} doc
- * @param {import('@mapeo/schema').VersionIdObject} version
- * @returns {import('@mapeo/schema').CoreOwnership}
+ * @param {import('@comapeo/schema').VersionIdObject} version
+ * @returns {import('@comapeo/schema').CoreOwnership}
  */
 export function mapAndValidateCoreOwnership(doc, { coreDiscoveryKey }) {
   if (

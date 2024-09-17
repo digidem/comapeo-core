@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Database from 'better-sqlite3'
 import { deNullify } from '../src/utils.js'
-import type { MapeoDoc, MapeoValue } from '@mapeo/schema'
+import type { MapeoDoc, MapeoValue } from '@comapeo/schema'
 import * as projectTableSchemas from '../src/schema/project.js'
 
 const sqlite = new Database(':memory:')

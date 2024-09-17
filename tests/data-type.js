@@ -19,9 +19,9 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'crypto'
 import TranslationApi from '../src/translation-api.js'
 import { getProperty } from 'dot-prop'
-import { decode, decodeBlockPrefix, parseVersionId } from '@mapeo/schema'
+import { decode, decodeBlockPrefix, parseVersionId } from '@comapeo/schema'
 
-/** @type {import('@mapeo/schema').ObservationValue} */
+/** @type {import('@comapeo/schema').ObservationValue} */
 const obsFixture = {
   schemaName: 'observation',
   lat: -3,
@@ -31,7 +31,7 @@ const obsFixture = {
   metadata: { manualLocation: false },
 }
 
-/** @type {import('@mapeo/schema').ObservationValue} */
+/** @type {import('@comapeo/schema').ObservationValue} */
 const newObsFixture = {
   schemaName: 'observation',
   lat: -1,
@@ -178,7 +178,7 @@ test('validity of `originalVersionId` from another peer', async () => {
 
   assert.equal(replicatedObservation.originalVersionId, obs.originalVersionId)
 
-  /** @type {import('@mapeo/schema').ObservationValue} */
+  /** @type {import('@comapeo/schema').ObservationValue} */
   const newObsFixture = {
     schemaName: 'observation',
     lat: -3,
@@ -225,7 +225,7 @@ test('delete()', async () => {
 test('translation', async () => {
   const projectKey = randomBytes(32)
   const { dataType, translationApi } = await testenv({ projectKey })
-  /** @type {import('@mapeo/schema').ObservationValue} */
+  /** @type {import('@comapeo/schema').ObservationValue} */
   const observation = {
     schemaName: 'observation',
     lat: -3,
@@ -241,7 +241,7 @@ test('translation', async () => {
   const translation = {
     /** @type {'translation'} */
     schemaName: 'translation',
-    /** @type {import('@mapeo/schema').TranslationValue['docRefType']} */
+    /** @type {import('@comapeo/schema').TranslationValue['docRefType']} */
     docRefType: 'observation',
     docRef: { docId: doc.docId, versionId: doc.versionId },
     propertyRef: 'tags.type',

@@ -1,6 +1,6 @@
 import path from 'path'
 import Database from 'better-sqlite3'
-import { decodeBlockPrefix, decode, parseVersionId } from '@mapeo/schema'
+import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
@@ -49,7 +49,7 @@ import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
-/** @import { ProjectSettingsValue } from '@mapeo/schema' */
+/** @import { ProjectSettingsValue } from '@comapeo/schema' */
 /** @import { CoreStorage, KeyPair, Namespace } from './types.js' */
 
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
@@ -600,8 +600,8 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {Pick<import('@mapeo/schema').DeviceInfoValue, 'name' | 'deviceType'>} value
-   * @returns {Promise<import('@mapeo/schema').DeviceInfo>}
+   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType'>} value
+   * @returns {Promise<import('@comapeo/schema').DeviceInfo>}
    */
   async [kSetOwnDeviceInfo](value) {
     const { deviceInfo } = this.#dataTypes
@@ -743,9 +743,9 @@ export class MapeoProject extends TypedEmitter {
       const config = await readConfig(configPath)
       /** @type {Map<string, import('./icon-api.js').IconRef>} */
       const iconNameToRef = new Map()
-      /** @type {Map<string, import('@mapeo/schema').PresetValue['fieldRefs'][1]>} */
+      /** @type {Map<string, import('@comapeo/schema').PresetValue['fieldRefs'][1]>} */
       const fieldNameToRef = new Map()
-      /** @type {Map<string,import('@mapeo/schema').TranslationValue['docRef']>} */
+      /** @type {Map<string,import('@comapeo/schema').TranslationValue['docRef']>} */
       const presetNameToRef = new Map()
 
       // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
@@ -885,7 +885,7 @@ export class MapeoProject extends TypedEmitter {
 }
 
 /**
- * @param {import("@mapeo/schema").ProjectSettings & { forks: string[] }} projectDoc
+ * @param {import("@comapeo/schema").ProjectSettings & { forks: string[] }} projectDoc
  * @returns {EditableProjectSettings}
  */
 function extractEditableProjectSettings(projectDoc) {
@@ -966,9 +966,9 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
  * Validate that a deviceInfo record is written by the device that is it about,
  * e.g. version.coreKey should equal docId
  *
- * @param {import('@mapeo/schema').DeviceInfo} doc
- * @param {import('@mapeo/schema').VersionIdObject} version
- * @returns {import('@mapeo/schema').DeviceInfo}
+ * @param {import('@comapeo/schema').DeviceInfo} doc
+ * @param {import('@comapeo/schema').VersionIdObject} version
+ * @returns {import('@comapeo/schema').DeviceInfo}
  */
 function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
   if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {

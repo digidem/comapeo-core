@@ -1,11 +1,11 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
-import { encode, decode, getVersionId, parseVersionId } from '@mapeo/schema'
+import { encode, decode, getVersionId, parseVersionId } from '@comapeo/schema'
 import MultiCoreIndexer from 'multi-core-indexer'
 import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
 import { NAMESPACE_SCHEMAS } from '../constants.js'
 import { createMap } from '../utils.js'
-/** @import { MapeoDoc } from '@mapeo/schema' */
+/** @import { MapeoDoc } from '@comapeo/schema' */
 
 /**
  * For each schemaName in this dataStore, emits an array of docIds that have

@@ -99,7 +99,7 @@ export function isDefined(value) {
 /**
  * When reading from SQLite, any optional properties are set to `null`. This
  * converts `null` back to `undefined` to match the input types (e.g. the types
- * defined in @mapeo/schema)
+ * defined in @comapeo/schema)
  * @template {{}} T
  * @param {T} obj
  * @returns {import('./types.js').NullableToOptional<T>}
@@ -115,7 +115,7 @@ export function deNullify(obj) {
 }
 
 /**
- * @template {import('@mapeo/schema').MapeoDoc & { forks?: string[] }} T
+ * @template {import('@comapeo/schema').MapeoDoc & { forks?: string[] }} T
  * @param {T} doc
  * @returns {Omit<T, 'docId' | 'versionId' | 'originalVersionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'deleted'>}
  */

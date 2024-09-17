@@ -48,7 +48,7 @@ import {
   kRequestFullStop,
   kRescindFullStopRequest,
 } from './sync/sync-api.js'
-/** @import { ProjectSettingsValue as ProjectValue } from '@mapeo/schema' */
+/** @import { ProjectSettingsValue as ProjectValue } from '@comapeo/schema' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { CoreStorage, Namespace } from './types.js' */
 /** @import { DeviceInfoParam } from './schema/client.js' */
