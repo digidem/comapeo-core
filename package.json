@@ -92,7 +92,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/digidem/mapeo-core.git"
+    "url": "git+https://github.com/digidem/comapeo-core.git"
   },
   "authors": [
     "Andrew Chou <achou@awana.digital>",
@@ -103,9 +103,9 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/digidem/mapeo-core/issues"
+    "url": "https://github.com/digidem/comapeo-core/issues"
   },
-  "homepage": "https://github.com/digidem/mapeo-core#readme",
+  "homepage": "https://github.com/digidem/comapeo-core#readme",
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
     "@mapeo/default-config": "4.0.1-alpha.0",
