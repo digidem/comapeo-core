@@ -2,7 +2,7 @@ import { and, sql } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
 import { NotFoundError } from './errors.js'
-/** @import { Translation, TranslationValue } from '@mapeo/schema' */
+/** @import { Translation, TranslationValue } from '@comapeo/schema' */
 /** @import { SetOptional } from 'type-fest' */
 
 export const ktranslatedLanguageCodeToSchemaNames = Symbol(
@@ -11,7 +11,7 @@ export const ktranslatedLanguageCodeToSchemaNames = Symbol(
 export default class TranslationApi {
   /** @type {Map<
    * TranslationValue['languageCode'],
-   * Set<import('@mapeo/schema/dist/types.js').SchemaName>>} */
+   * Set<import('@comapeo/schema/dist/types.js').SchemaName>>} */
   #translatedLanguageCodeToSchemaNames = new Map()
   #dataType
   #table
@@ -71,7 +71,7 @@ export default class TranslationApi {
    * @param {SetOptional<
    * Omit<TranslationValue,'schemaName' | 'message' | 'docRef'>,
    * 'propertyRef' | 'regionCode'> & {docRef: DocRefWithOptionalVersionId}} value
-   * @returns {Promise<import('@mapeo/schema').Translation[]>}
+   * @returns {Promise<import('@comapeo/schema').Translation[]>}
    */
   async get(value) {
     await this.ready()
@@ -80,7 +80,7 @@ export default class TranslationApi {
       this.#translatedLanguageCodeToSchemaNames
         .get(value.languageCode)
         ?.has(
-          /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
+          /** @type {import('@comapeo/schema/dist/types.js').SchemaName} */ (
             value.docRefType
           )
         )
@@ -125,7 +125,7 @@ export default class TranslationApi {
       )
     }
     translatedSchemas.add(
-      /** @type {import('@mapeo/schema/dist/types.js').SchemaName} */ (
+      /** @type {import('@comapeo/schema/dist/types.js').SchemaName} */ (
         doc.docRefType
       )
     )

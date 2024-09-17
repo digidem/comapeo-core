@@ -1,6 +1,6 @@
 import { Type as T } from '@sinclair/typebox'
 import fp from 'fastify-plugin'
-import { docSchemas } from '@mapeo/schema'
+import { docSchemas } from '@comapeo/schema'
 
 import { kGetIconBlob } from '../icon-api.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
@@ -134,7 +134,7 @@ function extractSizeAndPixelDensity(input) {
 
 /**
  * @param {string} value
- * @returns {asserts value is Exclude<import('@mapeo/schema').Icon['variants'][number]['size'],'size_unspecified'>}
+ * @returns {asserts value is Exclude<import('@comapeo/schema').Icon['variants'][number]['size'],'size_unspecified'>}
  */
 function assertValidSize(value) {
   if (

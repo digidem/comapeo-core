@@ -6,7 +6,7 @@ import type {
   SetOptional,
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
-import { MapeoCommon, MapeoDoc, MapeoValue, decode } from '@mapeo/schema'
+import { MapeoCommon, MapeoDoc, MapeoValue, decode } from '@comapeo/schema'
 import type BigSparseArray from 'big-sparse-array'
 import type Protomux from 'protomux'
 import type NoiseStream from '@hyperswarm/secret-stream'
@@ -55,7 +55,7 @@ export type MapeoValueMap = {
   [K in MapeoValue['schemaName']]: Extract<MapeoValue, { schemaName: K }>
 }
 
-// TODO: Replace this with exports from @mapeo/schema
+// TODO: Replace this with exports from @comapeo/schema
 export type CoreOwnershipWithSignatures = Extract<
   ReturnType<typeof decode>,
   { schemaName: 'coreOwnership' }
@@ -95,7 +95,7 @@ export type MapBuffers<T> = {
  * Make any properties whose value include `null` optional, and remove `null`
  * from the type. This converts the types returned from SQLite (which have all
  * top-level optional props set to `null`) to the original types in
- * @mapeo/schema
+ * @comapeo/schema
  */
 export type NullableToOptional<T> = Simplify<RemoveNull<NullToOptional<T>>>
 export type KeyPair = {

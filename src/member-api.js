@@ -18,7 +18,7 @@ import { ROLES, isRoleIdForNewInvite } from './roles.js'
  *   DeviceInfoValue,
  *   ProjectSettings,
  *   ProjectSettingsValue
- * } from '@mapeo/schema'
+ * } from '@comapeo/schema'
  */
 /** @import { Invite, InviteResponse } from './generated/rpc.js' */
 /** @import { DataType } from './datatype/index.js' */

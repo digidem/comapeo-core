@@ -4,7 +4,7 @@ import * as fs from 'node:fs/promises'
 import { temporaryDirectory } from 'tempy'
 
 import { generate } from '@mapeo/mock-data'
-import { valueOf } from '@mapeo/schema'
+import { valueOf } from '@comapeo/schema'
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,

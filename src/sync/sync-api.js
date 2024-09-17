@@ -9,7 +9,7 @@ import {
 } from '../constants.js'
 import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
 import { NO_ROLE_ID } from '../roles.js'
-/** @import { CoreOwnership as CoreOwnershipDoc } from '@mapeo/schema' */
+/** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 

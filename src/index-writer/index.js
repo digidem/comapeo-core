@@ -1,10 +1,10 @@
-import { decode } from '@mapeo/schema'
+import { decode } from '@comapeo/schema'
 import SqliteIndexer from '@mapeo/sqlite-indexer'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { getBacklinkTableName } from '../schema/utils.js'
 import { discoveryKey } from 'hypercore-crypto'
 import { Logger } from '../logger.js'
-/** @import { MapeoDoc, VersionIdObject } from '@mapeo/schema' */
+/** @import { MapeoDoc, VersionIdObject } from '@comapeo/schema' */
 /** @import { MapeoDocTables } from '../datatype/index.js' */
 
 /**

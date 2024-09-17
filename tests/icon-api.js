@@ -317,7 +317,7 @@ test('getBestVariant() - specify size', async (t) => {
   })
 
   await t.test('request size with match present', () => {
-    /** @type {Array<[import('../src/icon-api.js').ValidSizes, import('@mapeo/schema').Icon['variants'][number]]>} */
+    /** @type {Array<[import('../src/icon-api.js').ValidSizes, import('@comapeo/schema').Icon['variants'][number]]>} */
     const pairs = [
       ['small', smallVariant],
       ['medium', mediumVariant],
@@ -402,7 +402,7 @@ test('getBestVariant() - specify size', async (t) => {
 })
 
 test('getBestVariant() - specify pixel density', async (t) => {
-  /** @type {Pick<import('@mapeo/schema').Icon['variants'][number], 'mimeType'> &
+  /** @type {Pick<import('@comapeo/schema').Icon['variants'][number], 'mimeType'> &
    * {size: import('../src/icon-api.js').ValidSizes}} */
   const common = { size: 'small', mimeType: 'image/png' }
 
@@ -422,7 +422,7 @@ test('getBestVariant() - specify pixel density', async (t) => {
   })
 
   await t.test('request pixel density with match present', () => {
-    /** @type {Array<[import('../src/icon-api.js').BitmapOpts['pixelDensity'], import('@mapeo/schema').Icon['variants'][number]]>} */
+    /** @type {Array<[import('../src/icon-api.js').BitmapOpts['pixelDensity'], import('@comapeo/schema').Icon['variants'][number]]>} */
     const pairs = [
       [1, density1Variant],
       [2, density2Variant],
@@ -713,7 +713,7 @@ function createRandomVersionId(index = 0) {
 
 /**
  * @param {import('../src/icon-api.js').BitmapOpts | import('../src/icon-api.js').SvgOpts} opts
- * @returns {import('@mapeo/schema').Icon['variants'][number]}
+ * @returns {import('@comapeo/schema').Icon['variants'][number]}
  */
 function createIconVariant(opts) {
   return {
