@@ -540,7 +540,6 @@ export class MapeoProject extends TypedEmitter {
       await projectSettings[kCreateWithDocId](this.#projectId, {
         ...settings,
         schemaName: 'projectSettings',
-        isInitialProject: Boolean(settings.isInitialProject),
       })
     )
   }

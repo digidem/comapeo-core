@@ -38,7 +38,7 @@ CREATE TABLE `deviceInfo` (
 	`links` text NOT NULL,
 	`deleted` integer NOT NULL,
 	`name` text NOT NULL,
-	`deviceType` text,
+	`deviceType` text NOT NULL,
 	`forks` text NOT NULL
 );
 --> statement-breakpoint
@@ -128,7 +128,7 @@ CREATE TABLE `preset` (
 	`fieldRefs` text NOT NULL,
 	`iconRef` text,
 	`terms` text NOT NULL,
-	`color` text NOT NULL,
+	`color` text,
 	`forks` text NOT NULL
 );
 --> statement-breakpoint
@@ -186,7 +186,7 @@ CREATE TABLE `translation` (
 	`docRefType` text NOT NULL,
 	`propertyRef` text NOT NULL,
 	`languageCode` text NOT NULL,
-	`regionCode` text NOT NULL,
+	`regionCode` text,
 	`message` text NOT NULL,
 	`forks` text NOT NULL
 );
