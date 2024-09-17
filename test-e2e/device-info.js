@@ -33,9 +33,10 @@ test('write and read deviceInfo', async () => {
     deviceId: manager.deviceId,
   })
 
-  await manager.setDeviceInfo({ name: 'new name' })
+  await manager.setDeviceInfo({ name: 'new name', deviceType: 'mobile' })
   assert.deepEqual(manager.getDeviceInfo(), {
     name: 'new name',
+    deviceType: 'mobile',
     deviceId: manager.deviceId,
   })
 })
@@ -174,7 +175,10 @@ test('device info sent to peers', async (t) => {
     })
   )
 
-  await managerThatChangesName.setDeviceInfo({ name: 'new name' })
+  await managerThatChangesName.setDeviceInfo({
+    name: 'new name',
+    deviceType: 'mobile',
+  })
 
   await otherManagersReceivedNameChangePromise
 })
