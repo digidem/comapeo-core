@@ -184,7 +184,7 @@ function mutatingAddPeerState(accumulator, currentValue) {
       accumulator.status === 'stopped'
     } else if (
       currentValue.status === 'starting' &&
-      accumulator.status === 'starting'
+      accumulator.status === 'started'
     ) {
       accumulator.status = 'starting'
     }
