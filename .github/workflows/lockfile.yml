@@ -18,6 +18,7 @@ jobs:
       - name: Check out a copy of the repo
         uses: actions/checkout@v4
       - name: NPM Lockfile Changes
+        # The original doesn't support v3 lockfiles so we use a fork that adds support for them
         uses: rvanvelzen/npm-lockfile-changes@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
