@@ -1,8 +1,8 @@
 name: Check Lockfile
 on: pull_request
 jobs:
-  lockfile:
-    name: Lockfile check
+  lockfile_version:
+    name: Lockfile version check
     runs-on: ubuntu-latest
     steps:
       - name: Check out a copy of the repo
@@ -11,3 +11,13 @@ jobs:
         uses: mansona/npm-lockfile-version@v1
         with:
           version: 3
+  lockfile_changes:
+    name: Lockfile changes check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out a copy of the repo
+        uses: actions/checkout@v4
+      - name: NPM Lockfile Changes
+        uses: codepunkt/npm-lockfile-changes@v1.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
