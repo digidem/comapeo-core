@@ -151,8 +151,5 @@ function setup() {
     },
   })
 
-  return new TranslationApi({
-    dataType,
-    table,
-  })
+  return new TranslationApi({ dataType })
 }

@@ -14,7 +14,6 @@ export default class TranslationApi {
    * Set<import('@comapeo/schema/dist/types.js').SchemaName>>} */
   #translatedLanguageCodeToSchemaNames = new Map()
   #dataType
-  #table
   #indexPromise
 
   /**
@@ -26,11 +25,9 @@ export default class TranslationApi {
    *   Translation,
    *   TranslationValue
    * >}  opts.dataType
-   * @param {typeof import('./schema/project.js').translationTable} opts.table
    */
-  constructor({ dataType, table }) {
+  constructor({ dataType }) {
     this.#dataType = dataType
-    this.#table = table
     this.#indexPromise = this.#dataType
       .getMany()
       .then((docs) => {

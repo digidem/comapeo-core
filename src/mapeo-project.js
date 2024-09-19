@@ -345,7 +345,6 @@ export class MapeoProject extends TypedEmitter {
 
     this.#translationApi = new TranslationApi({
       dataType: this.#dataTypes.translation,
-      table: translationTable,
     })
 
     ///////// 4. Replicate local peers automatically

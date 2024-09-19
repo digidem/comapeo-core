@@ -358,10 +358,7 @@ async function testenv(opts = {}) {
     },
   })
 
-  const translationApi = new TranslationApi({
-    dataType: translationDataType,
-    table: translationTable,
-  })
+  const translationApi = new TranslationApi({ dataType: translationDataType })
 
   const dataType = new DataType({
     dataStore,
