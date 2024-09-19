@@ -62,7 +62,7 @@ export class NamespaceSyncState {
     const state = {
       dataToSync: false,
       coreCount: this.#coreCount,
-      localState: createState(),
+      localState: { want: 0, have: 0, wanted: 0 },
       remoteStates: {},
     }
     for (const css of this.#coreStates.values()) {
@@ -130,28 +130,6 @@ export class NamespaceSyncState {
       this.#coreStates.set(discoveryId, coreState)
     }
     return coreState
-  }
-}
-
-/**
- * @overload
- * @returns {SyncState['localState']}
- */
-
-/**
- * @overload
- * @param {import('./core-sync-state.js').PeerNamespaceState['status']} status
- * @returns {import('./core-sync-state.js').PeerNamespaceState}
- */
-
-/**
- * @param {import('./core-sync-state.js').PeerNamespaceState['status']} [status]
- */
-export function createState(status) {
-  if (status) {
-    return { want: 0, have: 0, wanted: 0, status }
-  } else {
-    return { want: 0, have: 0, wanted: 0 }
   }
 }
 
