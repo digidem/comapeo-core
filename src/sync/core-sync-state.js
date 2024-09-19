@@ -22,7 +22,7 @@ import RemoteBitfield, {
  * @typedef {object} LocalCoreState
  * @property {number} have blocks we have
  * @property {number} want unique blocks we want from any other peer
- * @property {number} wanted blocks we want from this peer
+ * @property {number} wanted unique blocks any other peer wants from us
  */
 /**
  * @typedef {object} PeerNamespaceState
