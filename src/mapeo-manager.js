@@ -52,7 +52,6 @@ import {
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { CoreStorage, Namespace } from './types.js' */
 /** @import { DeviceInfoParam } from './schema/client.js' */
-/** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
