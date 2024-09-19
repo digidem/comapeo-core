@@ -14,13 +14,10 @@ jobs:
   lockfile_changes:
     name: Lockfile changes check
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      contents: read
     steps:
       - name: Check out a copy of the repo
         uses: actions/checkout@v4
       - name: NPM Lockfile Changes
-        uses: codepunkt/npm-lockfile-changes@v1.0.0
+        uses: rvanvelzen/npm-lockfile-changes@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
