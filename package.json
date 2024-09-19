@@ -151,6 +151,7 @@
     "yazl": "^2.5.1"
   },
   "dependencies": {
+    "@comapeo/schema": "1.0.0",
     "@digidem/types": "^2.3.0",
     "@electron/asar": "^3.2.8",
     "@fastify/error": "^3.4.1",
@@ -158,7 +159,6 @@
     "@fastify/type-provider-typebox": "^4.0.0",
     "@hyperswarm/secret-stream": "^6.1.2",
     "@mapeo/crypto": "1.0.0-alpha.10",
-    "@comapeo/schema": "1.0.0",
     "@mapeo/sqlite-indexer": "1.0.0-alpha.9",
     "@sinclair/typebox": "^0.29.6",
     "b4a": "^1.6.3",
@@ -167,7 +167,7 @@
     "big-sparse-array": "^1.0.3",
     "bogon": "^1.1.0",
     "compact-encoding": "^2.12.0",
-    "corestore": "^6.8.4",
+    "corestore": "6.8.4",
     "debug": "^4.3.4",
     "dot-prop": "^9.0.0",
     "drizzle-orm": "^0.30.8",
