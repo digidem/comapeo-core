@@ -1,5 +1,9 @@
 name: Check Lockfile
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - 'package-lock.json'
+
 jobs:
   lockfile_version:
     name: Lockfile version check
