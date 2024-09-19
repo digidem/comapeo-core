@@ -23,6 +23,6 @@ jobs:
         uses: actions/checkout@v4
       - name: NPM Lockfile Changes
         # The original doesn't support v3 lockfiles so we use a fork that adds support for them
-        uses: rvanvelzen/npm-lockfile-changes@main
+        uses: rvanvelzen/npm-lockfile-changes@6fded38b5a054f5ab49efd6850668e796f780604
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
