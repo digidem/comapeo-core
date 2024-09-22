@@ -34,19 +34,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
-      - uses: actions/checkout@v4
-      - name: Set git user
-        uses: fregante/setup-git-user@v1
-      - name: Generate Api docs
-        run: |
-          npm ci
-          npm run doc
-      - name: Push updated markdown docs
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: 'docs: update API docs'
-          file_pattern: 'docs/api/md/*'
-          push_options: --force
       - uses: nearform-actions/optic-release-automation-action@v4
         with:
           commit-message: 'Release {version}'
@@ -63,3 +50,4 @@ jobs:
           npm-token: ${{ secrets.NPM_TOKEN }}
           build-command: |
             npm ci
+            npm run doc
