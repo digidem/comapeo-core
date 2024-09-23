@@ -19,7 +19,7 @@ on:
           # - premajor
   pull_request:
     types: [closed]
-    branches: [main]
+    branches: [main, 'release/**']
 
 jobs:
   release:
