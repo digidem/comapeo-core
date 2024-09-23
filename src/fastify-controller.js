@@ -64,7 +64,13 @@ export class FastifyController {
 
   async #stopServer() {
     const { server } = this.#fastify
-    await promisify(server.close.bind(server))()
+
+    const closePromise = promisify(server.close.bind(server))()
+
+    // We call this after `server.close()` as recommended by the Node docs (see https://nodejs.org/docs/latest-v20.x/api/http.html#servercloseidleconnections)
+    server.closeIdleConnections()
+
+    await closePromise
   }
 
   /**
