@@ -89,6 +89,7 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./roles.js').RoleIdForNewInvite} opts.roleId
    * @param {string} [opts.roleName]
    * @param {string} [opts.roleDescription]
+   * @param {Buffer} [opts.__testOnlyInviteId] Hard-code the invite ID. Only for tests.
    * @returns {Promise<(
    *   typeof InviteResponse_Decision.ACCEPT |
    *   typeof InviteResponse_Decision.REJECT |
@@ -97,7 +98,12 @@ export class MemberApi extends TypedEmitter {
    */
   async invite(
     deviceId,
-    { roleId, roleName = ROLES[roleId]?.name, roleDescription }
+    {
+      roleId,
+      roleName = ROLES[roleId]?.name,
+      roleDescription,
+      __testOnlyInviteId,
+    }
   ) {
     assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
     assert(
@@ -120,7 +126,7 @@ export class MemberApi extends TypedEmitter {
 
       abortSignal.throwIfAborted()
 
-      const inviteId = crypto.randomBytes(32)
+      const inviteId = __testOnlyInviteId || crypto.randomBytes(32)
       const projectId = projectKeyToId(this.#projectKey)
       const projectInviteId = projectKeyToProjectInviteId(this.#projectKey)
       const project = await this.#dataTypes.project.getByDocId(projectId)

@@ -7,13 +7,13 @@ import { fork } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import * as v8 from 'node:v8'
+import { pEvent } from 'p-event'
 
 import { MapeoManager, roles } from '../src/index.js'
 import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
-import { once } from 'node:events'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
-import { randomInt } from 'node:crypto'
+import { randomBytes, randomInt } from 'node:crypto'
 import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import { kSyncState } from '../src/sync/sync-api.js'
@@ -100,18 +100,25 @@ export async function invite({
   const promises = []
 
   for (const invitee of invitees) {
+    const inviteId = randomBytes(32)
     promises.push(
       invitorProject.$member.invite(invitee.deviceId, {
         roleId,
         roleName,
+        __testOnlyInviteId: inviteId,
       })
     )
     promises.push(
-      once(invitee.invite, 'invite-received').then(async ([invite]) => {
+      (async () => {
+        const invite = await pEvent(
+          invitee.invite,
+          'invite-received',
+          (invite) => Buffer.from(invite.inviteId, 'hex').equals(inviteId)
+        )
         await (reject
           ? invitee.invite.reject(invite)
           : invitee.invite.accept(invite))
-      })
+      })()
     )
   }
 
