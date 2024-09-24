@@ -31,11 +31,7 @@ export class MapeoCloudServer {
   async listen({ port }) {
     switch (this.#websocketServer.state) {
       case 'not started': {
-        const websocketServer = new WebSocketServer({
-          port,
-          // TODO: `clientTracking` is just here for debugging
-          clientTracking: true,
-        })
+        const websocketServer = new WebSocketServer({ port })
 
         const isInitiator = false
         websocketServer.on('connection', (websocket) => {
