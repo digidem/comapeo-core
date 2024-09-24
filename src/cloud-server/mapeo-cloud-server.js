@@ -30,25 +30,8 @@ export class MapeoCloudServer {
    */
   async listen({ port }) {
     switch (this.#websocketServer.state) {
-      case 'not started': {
-        const websocketServer = new WebSocketServer({ port })
-
-        websocketServer.on('connection', (websocket) => {
-          const websocketStream = createWebSocketStream(websocket)
-          const secretStream = new NoiseSecretStream(false, websocketStream, {
-            keyPair: this.#mapeoManager.getIdentityKeypair(),
-          })
-          MapeoManager.replicate(this.#mapeoManager, secretStream)
-        })
-
-        this.#websocketServer = { state: 'started', websocketServer }
-
-        // TODO: Handle errors
-
-        await once(websocketServer, 'listening')
-
+      case 'not started':
         break
-      }
       case 'started':
         throw new Error('Already listening')
       case 'stopped':
@@ -56,6 +39,27 @@ export class MapeoCloudServer {
       default:
         throw new ExhaustivenessError(this.#websocketServer)
     }
+
+    this.#mapeoManager.invite.on('invite-received', (invite) => {
+      // TODO: Don't blindly accept all invites
+      this.#mapeoManager.invite.accept(invite)
+    })
+
+    const websocketServer = new WebSocketServer({ port })
+
+    websocketServer.on('connection', (websocket) => {
+      const websocketStream = createWebSocketStream(websocket)
+      const secretStream = new NoiseSecretStream(false, websocketStream, {
+        keyPair: this.#mapeoManager.getIdentityKeypair(),
+      })
+      MapeoManager.replicate(this.#mapeoManager, secretStream)
+    })
+
+    this.#websocketServer = { state: 'started', websocketServer }
+
+    // TODO: Handle errors
+
+    await once(websocketServer, 'listening')
   }
 
   /**
