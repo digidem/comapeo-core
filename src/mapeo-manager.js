@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto'
+import { once } from 'node:events'
 import path from 'path'
 import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
@@ -8,6 +9,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
+import WebSocket, { createWebSocketStream } from 'ws'
 
 import { IndexWriter } from './index-writer/index.js'
 import {
@@ -69,6 +71,7 @@ const ICONS_PREFIX = 'icons'
 
 export const kRPC = Symbol('rpc')
 export const kManagerReplicate = Symbol('replicate manager')
+const kReplicate = Symbol('replicate')
 
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
@@ -96,6 +99,8 @@ export class MapeoManager extends TypedEmitter {
   #projectMigrationsFolder
   #deviceId
   #localPeers
+  /** @type {Map<string, WebSocket>} */
+  #websocketPeers = new Map()
   #invite
   #fastify
   #localDiscovery
@@ -191,10 +196,10 @@ export class MapeoManager extends TypedEmitter {
     })
 
     this.#localDiscovery = new LocalDiscovery({
-      identityKeypair: this.#keyManager.getIdentityKeypair(),
+      identityKeypair: this.getIdentityKeypair(),
       logger,
     })
-    this.#localDiscovery.on('connection', this.#replicate.bind(this))
+    this.#localDiscovery.on('connection', this[kReplicate].bind(this))
   }
 
   /**
@@ -208,6 +213,10 @@ export class MapeoManager extends TypedEmitter {
     return this.#deviceId
   }
 
+  getIdentityKeypair() {
+    return this.#keyManager.getIdentityKeypair()
+  }
+
   /**
    * Create a Mapeo replication stream. This replication connects the Mapeo RPC
    * channel and allows invites. All active projects will sync automatically to
@@ -219,9 +228,9 @@ export class MapeoManager extends TypedEmitter {
    */
   [kManagerReplicate](isInitiator) {
     const noiseStream = new NoiseSecretStream(isInitiator, undefined, {
-      keyPair: this.#keyManager.getIdentityKeypair(),
+      keyPair: this.getIdentityKeypair(),
     })
-    return this.#replicate(noiseStream)
+    return this[kReplicate](noiseStream)
   }
 
   /**
@@ -256,7 +265,7 @@ export class MapeoManager extends TypedEmitter {
   /**
    * @param {NoiseSecretStream<any>} noiseStream
    */
-  #replicate(noiseStream) {
+  [kReplicate](noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
 
     openedNoiseSecretStream(noiseStream)
@@ -780,6 +789,52 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
+   * @param {string} host The remote host. Can be a domain such as `example.com`, an IPv4 address such as `203.0.113.42`, or an IPv6 address. Can also include a port, such as `example.com:9876`.
+   * @returns {void}
+   */
+  connectWebsocketPeer(host) {
+    // TODO: What about `wss:`?
+    const href = `ws://${host}`
+
+    const websocket = new WebSocket(href)
+    this.#websocketPeers.set(host, websocket)
+
+    const websocketStream = createWebSocketStream(websocket)
+
+    // TODO: Handle errors
+
+    const isInitiator = true
+    const secretStream = new NoiseSecretStream(isInitiator, websocketStream, {
+      keyPair: this.getIdentityKeypair(),
+    })
+
+    this[kReplicate](secretStream)
+  }
+
+  /**
+   * If the peer is already disconnected, this is a no-op.
+   *
+   * @param {string} host
+   * @returns {Promise<void>}
+   */
+  disconnectWebsocketPeer(host) {
+    const websocket = this.#websocketPeers.get(host)
+    this.#websocketPeers.delete(host)
+
+    if (websocket) {
+      // TODO: Can this be tidied?
+      const result = once(websocket, 'close')
+      console.log('@@@@', 'closing the websocket...')
+      websocket.close()
+      return result.then((...args) => {
+        console.log('@@@@', 'websocket closed.', ...args)
+      })
+    } else {
+      return Promise.resolve()
+    }
+  }
+
+  /**
    * @returns {Promise<PublicPeerInfo[]>}
    */
   async listLocalPeers() {
@@ -866,6 +921,18 @@ export class MapeoManager extends TypedEmitter {
   async getMapStyleJsonUrl() {
     await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
     return this.#fastify.mapeoMaps.getStyleJsonUrl()
+  }
+
+  /**
+   * This lets us avoid exposing `kReplicate` as part of the `MapeoManager`
+   * prototype, which would get exposed to RPC.
+   *
+   * @param {MapeoManager} mapeoManager
+   * @param {NoiseSecretStream<any>} secretStream
+   * @returns {void}
+   */
+  static replicate(mapeoManager, secretStream) {
+    mapeoManager[kReplicate](secretStream)
   }
 }
 
