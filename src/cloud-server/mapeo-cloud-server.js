@@ -33,14 +33,11 @@ export class MapeoCloudServer {
       case 'not started': {
         const websocketServer = new WebSocketServer({ port })
 
-        const isInitiator = false
         websocketServer.on('connection', (websocket) => {
           const websocketStream = createWebSocketStream(websocket)
-          const secretStream = new NoiseSecretStream(
-            isInitiator,
-            websocketStream,
-            { keyPair: this.#mapeoManager.getIdentityKeypair() }
-          )
+          const secretStream = new NoiseSecretStream(false, websocketStream, {
+            keyPair: this.#mapeoManager.getIdentityKeypair(),
+          })
           MapeoManager.replicate(this.#mapeoManager, secretStream)
         })
 

@@ -802,8 +802,7 @@ export class MapeoManager extends TypedEmitter {
 
     // TODO: Handle errors
 
-    const isInitiator = true
-    const secretStream = new NoiseSecretStream(isInitiator, websocketStream, {
+    const secretStream = new NoiseSecretStream(true, websocketStream, {
       keyPair: this.getIdentityKeypair(),
     })
 
