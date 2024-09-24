@@ -4,6 +4,7 @@
     "lib": ["es2022"],
     "noImplicitAny": true,
     "noImplicitThis": true,
+    "noUncheckedSideEffectImports": true,
     "strictNullChecks": true,
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
