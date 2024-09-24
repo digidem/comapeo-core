@@ -84,7 +84,6 @@ test('websocket e2e test', async (t) => {
 async function runWithRetries(fn) {
   /** @type {unknown} */ let lastError
   for (let ms = 50; ms <= 5000; ms **= 1.1) {
-    console.log({ ms })
     try {
       return await fn()
     } catch (err) {
