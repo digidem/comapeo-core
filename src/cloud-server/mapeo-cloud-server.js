@@ -75,23 +75,14 @@ export class MapeoCloudServer {
         throw new Error('Server not started')
       case 'started': {
         const { websocketServer } = this.#websocketServer
-        console.log('@@@@', 'entering promise to close server...')
         return new Promise((resolve, reject) => {
-          console.log(
-            '@@@@',
-            'about to call .close...',
-            websocketServer.clients.size
-          )
           websocketServer.close((err) => {
-            console.log('@@@@', 'close callback fired.', err)
             if (err) {
               reject(err)
             } else {
-              console.log('@@@@', 'server closed')
               resolve()
             }
           })
-          console.log('@@@@', 'called .close.')
         })
       }
       case 'stopped':

@@ -6,7 +6,6 @@ import { MapeoCloudServer } from '../src/cloud-server/mapeo-cloud-server.js'
 import { createManagers, invite, waitForPeers, waitForSync } from './utils.js'
 
 test('websocket e2e test', async (t) => {
-  console.log('@@@@', 'starting')
   const managers = await createManagers(2, t)
   const [mobileManager, cloudManager] = managers
 
@@ -20,12 +19,7 @@ test('websocket e2e test', async (t) => {
 
   t.after(async () => {
     mobileManager.disconnectWebsocketPeer(hostname)
-    await new Promise((resolve) => {
-      setTimeout(resolve, 2000)
-    })
-    console.log('@@@@', 'about to close server...')
     await cloudWrapper.close()
-    console.log('@@@@', 'closed server.')
   })
 
   await waitForPeers(managers)
@@ -40,8 +34,6 @@ test('websocket e2e test', async (t) => {
     (await mobileManager.listLocalPeers()).map((p) => p.deviceId),
     [cloudDeviceId]
   )
-
-  console.log('@@@@', 'about to create project')
 
   const projectId = await mobileManager.createProject({ name: 'mapeo' })
   await invite({ invitor: mobileManager, invitees: [cloudManager], projectId })
@@ -70,5 +62,4 @@ test('websocket e2e test', async (t) => {
     await mobileProject.observation.getByDocId(observation2.docId),
     'Mobile project gets observation created by cloud'
   )
-  console.log('@@@@', 'done')
 })

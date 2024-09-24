@@ -1,5 +1,4 @@
 import { randomBytes } from 'crypto'
-import { once } from 'node:events'
 import path from 'path'
 import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
@@ -815,23 +814,11 @@ export class MapeoManager extends TypedEmitter {
    * If the peer is already disconnected, this is a no-op.
    *
    * @param {string} host
-   * @returns {Promise<void>}
+   * @returns {void}
    */
   disconnectWebsocketPeer(host) {
-    const websocket = this.#websocketPeers.get(host)
+    this.#websocketPeers.get(host)?.close()
     this.#websocketPeers.delete(host)
-
-    if (websocket) {
-      // TODO: Can this be tidied?
-      const result = once(websocket, 'close')
-      console.log('@@@@', 'closing the websocket...')
-      websocket.close()
-      return result.then((...args) => {
-        console.log('@@@@', 'websocket closed.', ...args)
-      })
-    } else {
-      return Promise.resolve()
-    }
   }
 
   /**
