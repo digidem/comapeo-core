@@ -2,7 +2,6 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { encode, decode, getVersionId, parseVersionId } from '@comapeo/schema'
 import MultiCoreIndexer from 'multi-core-indexer'
 import pDefer from 'p-defer'
-import { discoveryKey } from 'hypercore-crypto'
 import { NAMESPACE_SCHEMAS } from '../constants.js'
 import { createMap } from '../utils.js'
 /** @import { MapeoDoc } from '@comapeo/schema' */
@@ -36,7 +35,7 @@ export class DataStore extends TypedEmitter {
   #coreManager
   #namespace
   #batch
-  #writerCore
+  #writerCoreRecord
   #coreIndexer
   /** @type {Map<string, import('p-defer').DeferredPromise<void>>} */
   #pendingIndex = new Map()
@@ -61,7 +60,7 @@ export class DataStore extends TypedEmitter {
       NAMESPACE_SCHEMAS[namespace],
       () => new Set()
     )
-    this.#writerCore = coreManager.getWriterCore(namespace).core
+    this.#writerCoreRecord = coreManager.getWriterCore(namespace)
     const cores = coreManager.getCores(namespace).map((cr) => cr.core)
     this.#coreIndexer = new MultiCoreIndexer(cores, {
       storage,
@@ -88,7 +87,7 @@ export class DataStore extends TypedEmitter {
   }
 
   get writerCore() {
-    return this.#writerCore
+    return this.#writerCoreRecord.core
   }
 
   getIndexState() {
@@ -105,9 +104,11 @@ export class DataStore extends TypedEmitter {
     // Writes to the writerCore need to wait until the entry is indexed before
     // returning, so we check if any incoming entry has a pending promise
     for (const entry of entries) {
-      if (!entry.key.equals(this.#writerCore.key)) continue
+      if (entry.discoveryId !== this.#writerCoreRecord.discoveryId) {
+        continue
+      }
       const versionId = getVersionId({
-        coreDiscoveryKey: discoveryKey(entry.key),
+        coreDiscoveryId: entry.discoveryId,
         index: entry.index,
       })
       const pending = this.#pendingIndex.get(versionId)
@@ -153,23 +154,20 @@ export class DataStore extends TypedEmitter {
     // same tick, so we can't know their index before append resolves.
     const deferredAppend = pDefer()
     this.#pendingAppends.add(deferredAppend.promise)
-    const { length } = await this.#writerCore.append(block)
+    const { length } = await this.writerCore.append(block)
     deferredAppend.resolve()
     this.#pendingAppends.delete(deferredAppend.promise)
 
     const index = length - 1
-    const coreDiscoveryKey = this.#writerCore.discoveryKey
-    if (!coreDiscoveryKey) {
-      throw new Error('Writer core is not ready')
-    }
-    const versionId = getVersionId({ coreDiscoveryKey, index })
+    const coreDiscoveryId = this.#writerCoreRecord.discoveryId
+    const versionId = getVersionId({ coreDiscoveryId, index })
     /** @type {import('p-defer').DeferredPromise<void>} */
     const deferred = pDefer()
     this.#pendingIndex.set(versionId, deferred)
     await deferred.promise
 
     return /** @type {Extract<MapeoDoc, TDoc>} */ (
-      decode(block, { coreDiscoveryKey, index })
+      decode(block, { coreDiscoveryId, index })
     )
   }
 
@@ -189,13 +187,10 @@ export class DataStore extends TypedEmitter {
 
   /** @param {Buffer} buf */
   async writeRaw(buf) {
-    const { length } = await this.#writerCore.append(buf)
+    const { length } = await this.writerCore.append(buf)
     const index = length - 1
-    const coreDiscoveryKey = this.#writerCore.discoveryKey
-    if (!coreDiscoveryKey) {
-      throw new Error('Writer core is not ready')
-    }
-    const versionId = getVersionId({ coreDiscoveryKey, index })
+    const coreDiscoveryId = this.#writerCoreRecord.discoveryId
+    const versionId = getVersionId({ coreDiscoveryId, index })
     return versionId
   }
 

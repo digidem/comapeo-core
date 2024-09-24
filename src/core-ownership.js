@@ -155,12 +155,13 @@ export class CoreOwnership extends TypedEmitter {
  *   the doc with the lowest index (e.g. the first)
  *
  * @param {CoreOwnershipWithSignatures} doc
- * @param {import('@comapeo/schema').VersionIdObject} version
+ * @param {import('@comapeo/schema').VersionDiscoveryIdObject} version
  * @returns {import('@comapeo/schema').CoreOwnership}
  */
-export function mapAndValidateCoreOwnership(doc, { coreDiscoveryKey }) {
+export function mapAndValidateCoreOwnership(doc, { coreDiscoveryId }) {
   if (
-    !coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.authCoreId, 'hex')))
+    coreDiscoveryId !==
+    discoveryKey(Buffer.from(doc.authCoreId, 'hex')).toString('hex')
   ) {
     throw new Error('Invalid coreOwnership record: mismatched authCoreId')
   }

@@ -22,13 +22,12 @@ export class CoreIndex {
    * @param {Object} options
    * @param {import('hypercore')<"binary", Buffer>} options.core Hypercore instance
    * @param {Buffer} options.key Buffer containing public key of this core
+   * @param {string} options.discoveryId discoveryId of this core
    * @param {Namespace} options.namespace
    * @param {boolean} [options.writer] Is this a writer core?
    */
-  add({ core, key, namespace, writer = false }) {
-    const discoveryKey = crypto.discoveryKey(key)
-    const discoveryId = discoveryKey.toString('hex')
-    const record = { core, key, namespace }
+  add({ core, key, discoveryId, namespace, writer = false }) {
+    const record = { core, key, discoveryId, namespace }
     if (writer) {
       this.#writersByNamespace.set(namespace, record)
     }

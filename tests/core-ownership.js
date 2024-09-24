@@ -7,14 +7,14 @@ import {
   getWinner,
 } from '../src/core-ownership.js'
 import { randomBytes } from 'node:crypto'
-import { parseVersionId, getVersionId } from '@comapeo/schema'
+import { getVersionId } from '@comapeo/schema'
 import { discoveryKey } from 'hypercore-crypto'
 
 /** @import { Namespace } from '../src/types.js' */
 
 test('Valid coreOwnership record', () => {
   const validDoc = generateValidDoc()
-  const version = parseVersionId(validDoc.versionId)
+  const version = parseVersionIdInternal(validDoc.versionId)
 
   const mappedDoc = mapAndValidateCoreOwnership(validDoc, version)
 
@@ -32,7 +32,7 @@ test('Valid coreOwnership record', () => {
 
 test('Invalid coreOwnership signatures', () => {
   const validDoc = generateValidDoc()
-  const version = parseVersionId(validDoc.versionId)
+  const version = parseVersionIdInternal(validDoc.versionId)
 
   for (const key of Object.keys(validDoc.coreSignatures)) {
     const invalidDoc = {
@@ -54,7 +54,7 @@ test('Invalid coreOwnership signatures', () => {
 
 test('Invalid coreOwnership docId and coreIds', () => {
   const validDoc = generateValidDoc()
-  const version = parseVersionId(validDoc.versionId)
+  const version = parseVersionIdInternal(validDoc.versionId)
 
   for (const key of Object.keys(validDoc.coreSignatures)) {
     const invalidDoc = {
@@ -73,7 +73,7 @@ test('Invalid coreOwnership docId and coreIds', () => {
 
 test('Invalid coreOwnership docId and coreIds (wrong length)', () => {
   const validDoc = generateValidDoc()
-  const version = parseVersionId(validDoc.versionId)
+  const version = parseVersionIdInternal(validDoc.versionId)
 
   for (const key of Object.keys(validDoc.coreSignatures)) {
     const namespace = /** @type {Namespace} */ (key)
@@ -94,15 +94,15 @@ test('Invalid coreOwnership docId and coreIds (wrong length)', () => {
 test('Invalid - different coreKey', () => {
   const validDoc = generateValidDoc()
   const version = {
-    ...parseVersionId(validDoc.versionId),
-    coreDiscoveryKey: discoveryKey(randomBytes(32)),
+    ...parseVersionIdInternal(validDoc.versionId),
+    coreDiscoveryId: discoveryKey(randomBytes(32)).toString('hex'),
   }
   assert.throws(() => mapAndValidateCoreOwnership(validDoc, version))
 })
 
 test('getWinner (coreOwnership)', () => {
   const validDoc = generateValidDoc()
-  const version = parseVersionId(validDoc.versionId)
+  const version = parseVersionIdInternal(validDoc.versionId)
 
   const docA = {
     ...validDoc,
@@ -217,4 +217,18 @@ function generateValidDoc() {
     ),
   }
   return validDoc
+}
+
+/**
+ * Tests need to parse a versionId to a discoveryId and index, vs the public
+ * method parseVersionId which parses to a discoveryKey and index.
+ *
+ * @param {string} versionId
+ */
+function parseVersionIdInternal(versionId) {
+  const [coreDiscoveryId, index] = versionId.split('/')
+  return {
+    coreDiscoveryId,
+    index: Number.parseInt(index),
+  }
 }

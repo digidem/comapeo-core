@@ -37,9 +37,8 @@ test('read and write', async () => {
     coreManager: cm,
     namespace: 'data',
     batch: async (entries) => {
-      for (const { index, key } of entries) {
-        const coreDiscoveryKey = discoveryKey(key)
-        const versionId = getVersionId({ coreDiscoveryKey, index })
+      for (const { index, discoveryId } of entries) {
+        const versionId = discoveryId + '/' + index
         indexedVersionIds.push(versionId)
       }
       return {}
