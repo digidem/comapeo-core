@@ -96,33 +96,31 @@ export async function invite({
 }) {
   const invitorProject = await invitor.getProject(projectId)
 
-  /** @type {Array<Promise<unknown>>} */
-  const promises = []
+  await Promise.allSettled(
+    invitees.map(async (invitee) => {
+      const inviteId = randomBytes(32)
 
-  for (const invitee of invitees) {
-    const inviteId = randomBytes(32)
-    promises.push(
-      invitorProject.$member.invite(invitee.deviceId, {
-        roleId,
-        roleName,
-        __testOnlyInviteId: inviteId,
-      })
-    )
-    promises.push(
-      (async () => {
-        const invite = await pEvent(
-          invitee.invite,
-          'invite-received',
-          (invite) => Buffer.from(invite.inviteId, 'hex').equals(inviteId)
-        )
-        await (reject
-          ? invitee.invite.reject(invite)
-          : invitee.invite.accept(invite))
-      })()
-    )
-  }
+      await waitForPeers([invitor, invitee])
 
-  await Promise.allSettled(promises)
+      await Promise.all([
+        invitorProject.$member.invite(invitee.deviceId, {
+          roleId,
+          roleName,
+          __testOnlyInviteId: inviteId,
+        }),
+        (async () => {
+          const invite = await pEvent(
+            invitee.invite,
+            'invite-received',
+            (invite) => Buffer.from(invite.inviteId, 'hex').equals(inviteId)
+          )
+          await (reject
+            ? invitee.invite.reject(invite)
+            : invitee.invite.accept(invite))
+        })(),
+      ])
+    })
+  )
 }
 
 /**
