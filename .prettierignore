@@ -1,7 +1,7 @@
 /dist/
 /drizzle/*/meta/
 /src/generated/
-/tests/fixtures/
+/test/fixtures/
 /docs/
 /coverage/
 /proto/build/

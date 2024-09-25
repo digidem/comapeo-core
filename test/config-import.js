@@ -15,7 +15,7 @@ test('config import - loading', async () => {
   )
 
   await assert.rejects(
-    async () => await readConfig('./tests/fixtures/config/notAZip.txt'),
+    async () => await readConfig('./test/fixtures/config/notAZip.txt'),
     /End of Central Directory Record not found/,
     'not a zip file'
   )
@@ -34,81 +34,81 @@ test('config import - loading', async () => {
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/configWithoutPresets.zip'),
+      await readConfig('./test/fixtures/config/configWithoutPresets.zip'),
     /Error: Zip file does not contain presets.json/,
     'missing presets.json'
   )
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/invalidPresetsJSON.zip'),
+      await readConfig('./test/fixtures/config/invalidPresetsJSON.zip'),
     /Error: Could not parse presets.json/,
     'JSON.parse error of presets.json'
   )
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/invalidPresetsFile.zip'),
+      await readConfig('./test/fixtures/config/invalidPresetsFile.zip'),
     /Error: Invalid presets.json file/,
     'presets.json is not an object'
   )
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/missingPresetsField.zip'),
+      await readConfig('./test/fixtures/config/missingPresetsField.zip'),
     /Error: Invalid presets.json file/,
     'no presets field in presets.json'
   )
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/presetsFieldNotAnObject.zip'),
+      await readConfig('./test/fixtures/config/presetsFieldNotAnObject.zip'),
     /Error: Invalid presets.json file/,
     'presets field in presets.json is not an object'
   )
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/missingFieldsField.zip'),
+      await readConfig('./test/fixtures/config/missingFieldsField.zip'),
     /Error: Invalid presets.json file/,
     'no fields field in presets.json'
   )
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/fieldsFieldNotAnObject.zip'),
+      await readConfig('./test/fixtures/config/fieldsFieldNotAnObject.zip'),
     /Error: Invalid presets.json file/,
     'fields field in presets.json is not an object'
   )
 
   await assert.rejects(
-    async () => await readConfig('./tests/fixtures/config/missingMetadata.zip'),
+    async () => await readConfig('./test/fixtures/config/missingMetadata.zip'),
     /Zip file does not contain metadata.json/,
     ''
   )
 
   await assert.rejects(
-    async () => await readConfig('./tests/fixtures/config/invalidMetadata.zip'),
+    async () => await readConfig('./test/fixtures/config/invalidMetadata.zip'),
     /Could not parse metadata.json/,
     ''
   )
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/invalidMetadataKey.zip'),
+      await readConfig('./test/fixtures/config/invalidMetadataKey.zip'),
     /Error: Invalid structure of metadata file/,
     ''
   )
 
   await assert.rejects(
     async () =>
-      await readConfig('./tests/fixtures/config/invalidMetadataValue.zip'),
+      await readConfig('./test/fixtures/config/invalidMetadataValue.zip'),
     /Error: Invalid structure of metadata file/,
     ''
   )
 
   assert(
-    await readConfig('./tests/fixtures/config/validConfig.zip'),
+    await readConfig('./test/fixtures/config/validConfig.zip'),
     'valid zip'
   )
 })
@@ -116,7 +116,7 @@ test('config import - loading', async () => {
 test('config import - icons', async () => {
   // filename
   let config = await readConfig(
-    './tests/fixtures/config/invalidIconFilename.zip'
+    './test/fixtures/config/invalidIconFilename.zip'
   )
   await arrayFrom(config.icons())
   assert.equal(
@@ -131,7 +131,7 @@ test('config import - icons', async () => {
 
   // pixel density
   config = await readConfig(
-    './tests/fixtures/config/invalidIconPixelDensity.zip'
+    './test/fixtures/config/invalidIconPixelDensity.zip'
   )
 
   await arrayFrom(config.icons())
@@ -147,7 +147,7 @@ test('config import - icons', async () => {
   )
 
   // size
-  config = await readConfig('./tests/fixtures/config/invalidIconSize.zip')
+  config = await readConfig('./test/fixtures/config/invalidIconSize.zip')
 
   await arrayFrom(config.icons())
   assert.equal(
@@ -160,7 +160,7 @@ test('config import - icons', async () => {
     'the error message is about invalid size'
   )
 
-  config = await readConfig('./tests/fixtures/config/validIcons.zip')
+  config = await readConfig('./test/fixtures/config/validIcons.zip')
   const icons = await arrayFrom(config.icons())
   assert.equal(icons.length, 2)
   for (const icon of icons) {
@@ -177,7 +177,7 @@ test('config import - icons', async () => {
 })
 
 test('config import - fields', async () => {
-  let config = await readConfig('./tests/fixtures/config/invalidField.zip')
+  let config = await readConfig('./test/fixtures/config/invalidField.zip')
   arrayFrom(config.fields())
   assert.equal(config.warnings.length, 3, 'we got 3 errors when reading fields')
   assert(
@@ -193,7 +193,7 @@ test('config import - fields', async () => {
     'the third error is because the field is not an object'
   )
 
-  config = await readConfig('./tests/fixtures/config/validField.zip')
+  config = await readConfig('./test/fixtures/config/validField.zip')
   for (const field of config.fields()) {
     assert.equal(field.name, 'nombre-monitor', `field.name is 'nombre-monitor'`)
     assert.equal(
@@ -207,7 +207,7 @@ test('config import - fields', async () => {
 })
 
 test('config import - presets', async () => {
-  let config = await readConfig('./tests/fixtures/config/invalidPreset.zip')
+  let config = await readConfig('./test/fixtures/config/invalidPreset.zip')
   arrayFrom(config.presets())
   assert.equal(
     config.warnings.length,
@@ -223,7 +223,7 @@ test('config import - presets', async () => {
     'the second error is because the preset is null'
   )
 
-  config = await readConfig('./tests/fixtures/config/noIconNameOnPreset.zip')
+  config = await readConfig('./test/fixtures/config/noIconNameOnPreset.zip')
   arrayFrom(config.presets())
   assert.equal(
     config.warnings.length,
@@ -236,7 +236,7 @@ test('config import - presets', async () => {
   )
 
   config = await readConfig(
-    './tests/fixtures/config/invalidIconNameOnPreset.zip'
+    './test/fixtures/config/invalidIconNameOnPreset.zip'
   )
   arrayFrom(config.presets())
   assert(
@@ -244,7 +244,7 @@ test('config import - presets', async () => {
     "there's a warning because the preset references a missing icon"
   )
 
-  config = await readConfig('./tests/fixtures/config/validPreset.zip')
+  config = await readConfig('./test/fixtures/config/validPreset.zip')
   for (const preset of config.presets()) {
     assert.equal(preset.value.schemaName, 'preset', `schemaName is 'preset'`)
     assert(

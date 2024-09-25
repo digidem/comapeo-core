@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { isDefined } from '../src/utils.js'
 import { createManagers, ManagerCustodian } from './utils.js'
-import { defaultConfigPath } from '../tests/helpers/default-config.js'
+import { defaultConfigPath } from '../test/helpers/default-config.js'
 import {
   fieldsTranslationMap,
   fieldTranslations,

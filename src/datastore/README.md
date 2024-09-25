@@ -10,7 +10,7 @@ The `DataStore` class is an API over a CoreManager namespace, responsible for re
 
 The `DataStore` class is used internally by the [`DataType`](../datatype/) class.
 
-An example of `DataStore` usage taken from the [datastore tests](../../tests/datastore.js):
+An example of `DataStore` usage taken from the [datastore tests](../../test/datastore.js):
 
 ```js
 const datastore = new DataStore({
@@ -43,4 +43,4 @@ TODO!
 
 ## Tests
 
-Tests for this module are in [tests/datastore.js](../../tests/datastore.js)
+Tests for this module are in [test/datastore.js](../../test/datastore.js)
