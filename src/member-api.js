@@ -9,6 +9,7 @@ import {
   projectKeyToId,
   projectKeyToProjectInviteId,
 } from './utils.js'
+import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { ROLES, isRoleIdForNewInvite } from './roles.js'
@@ -279,6 +280,8 @@ export class MemberApi extends TypedEmitter {
       this.#dataTypes.deviceInfo.getMany(),
     ])
 
+    const deviceInfoByConfigCoreId = keyBy(allDeviceInfo, ({ docId }) => docId)
+
     return Promise.all(
       [...allRoles.entries()].map(async ([deviceId, role]) => {
         /** @type {MemberInfo} */
@@ -290,9 +293,7 @@ export class MemberApi extends TypedEmitter {
             'config'
           )
 
-          const deviceInfo = allDeviceInfo.find(
-            ({ docId }) => docId === configCoreId
-          )
+          const deviceInfo = deviceInfoByConfigCoreId.get(configCoreId)
 
           memberInfo.name = deviceInfo?.name
           memberInfo.deviceType = deviceInfo?.deviceType
