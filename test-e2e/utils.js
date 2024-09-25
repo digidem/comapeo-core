@@ -134,17 +134,21 @@ export async function invite({
  */
 export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
   new Promise((res) => {
-    const expectedCount = managers.length - 1
+    const deviceIds = new Set(managers.map((m) => m.deviceId))
+
     const isDone = () =>
       managers.every((manager) => {
-        const { peers } = manager[kRPC]
-        const connectedPeers = peers.filter(
-          ({ status }) => status === 'connected'
-        )
-        return (
-          connectedPeers.length === expectedCount &&
-          (!waitForDeviceInfo || connectedPeers.every(({ name }) => !!name))
-        )
+        const unconnectedDeviceIds = new Set(deviceIds)
+        unconnectedDeviceIds.delete(manager.deviceId)
+        for (const peer of manager[kRPC].peers) {
+          if (
+            peer.status === 'connected' &&
+            (!waitForDeviceInfo || peer.name)
+          ) {
+            unconnectedDeviceIds.delete(peer.deviceId)
+          }
+        }
+        return unconnectedDeviceIds.size === 0
       })
 
     if (isDone()) {
