@@ -690,6 +690,17 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   )
   const [invitorProject, inviteeProject] = projects
 
+  assert.equal(
+    (await invitorProject.$member.getById(blocked.deviceId)).role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitor sees blocked participant as part of the project'
+  )
+  assert.equal(
+    (await inviteeProject.$member.getById(blocked.deviceId)).role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitee sees blocked participant as part of the project'
+  )
+
   const generatedDocs = (await seedDatabases([inviteeProject])).flat()
   const configDocsCount = generatedDocs.filter(
     (doc) => doc.schemaName !== 'observation'
