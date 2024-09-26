@@ -127,17 +127,21 @@ export async function invite({
  */
 export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
   new Promise((res) => {
-    const expectedCount = managers.length - 1
+    const deviceIds = new Set(managers.map((m) => m.deviceId))
+
     const isDone = () =>
       managers.every((manager) => {
-        const { peers } = manager[kRPC]
-        const connectedPeers = peers.filter(
-          ({ status }) => status === 'connected'
-        )
-        return (
-          connectedPeers.length === expectedCount &&
-          (!waitForDeviceInfo || connectedPeers.every(({ name }) => !!name))
-        )
+        const unconnectedDeviceIds = new Set(deviceIds)
+        unconnectedDeviceIds.delete(manager.deviceId)
+        for (const peer of manager[kRPC].peers) {
+          if (
+            peer.status === 'connected' &&
+            (!waitForDeviceInfo || peer.name)
+          ) {
+            unconnectedDeviceIds.delete(peer.deviceId)
+          }
+        }
+        return unconnectedDeviceIds.size === 0
       })
 
     if (isDone()) {
@@ -165,7 +169,11 @@ export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
-export async function createManagers(count, t, deviceType) {
+export async function createManagers(
+  count,
+  t,
+  deviceType = 'device_type_unspecified'
+) {
   // @ts-ignore
   return Promise.all(
     Array(count)
@@ -173,7 +181,6 @@ export async function createManagers(count, t, deviceType) {
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
         const manager = createManager(name, t)
-        // @ts-ignore TODO: remove after updating @mapeo/schema
         await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
@@ -468,7 +475,7 @@ export function waitForSync(projects, type = 'initial') {
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
  * @param {object} [opts]
- * @param {readonly import('@mapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
+ * @param {readonly import('@comapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
  */
 export function seedDatabases(projects, { schemas = SCHEMAS_TO_SEED } = {}) {
   return Promise.all(projects.map((p) => seedProjectDatabase(p, { schemas })))
@@ -483,8 +490,8 @@ const SCHEMAS_TO_SEED = /** @type {const} */ ([
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject} project
  * @param {object} [opts]
- * @param {readonly import('@mapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
- * @returns {Promise<Array<import('@mapeo/schema').MapeoDoc & { forks: string[] }>>}
+ * @param {readonly import('@comapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
+ * @returns {Promise<Array<import('@comapeo/schema').MapeoDoc & { forks: string[] }>>}
  */
 async function seedProjectDatabase(
   project,
@@ -563,7 +570,7 @@ export async function getExpectedConfig(path) {
   }
 }
 
-/** @param {import('@mapeo/schema').MapeoDoc[]} docs */
+/** @param {import('@comapeo/schema').MapeoDoc[]} docs */
 export function sortById(docs) {
   return sortBy(docs, 'docId')
 }

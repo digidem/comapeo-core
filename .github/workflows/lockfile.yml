@@ -1,8 +1,12 @@
 name: Check Lockfile
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - 'package-lock.json'
+
 jobs:
-  lockfile:
-    name: Lockfile check
+  lockfile_version:
+    name: Lockfile version check
     runs-on: ubuntu-latest
     steps:
       - name: Check out a copy of the repo
@@ -11,3 +15,20 @@ jobs:
         uses: mansona/npm-lockfile-version@v1
         with:
           version: 3
+  lockfile_changes:
+    name: Lockfile changes check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out a copy of the repo
+        uses: actions/checkout@v4
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.LOCKFILE_BOT_APP_ID }}
+          private-key: ${{ secrets.LOCKFILE_BOT_PRIVATE_KEY }}
+      - name: NPM Lockfile Changes
+        # The original doesn't support v3 lockfiles so we use a fork that adds support for them
+        uses: rvanvelzen/npm-lockfile-changes@6fded38b5a054f5ab49efd6850668e796f780604
+        with:
+          token: ${{ steps.app-token.outputs.token }}

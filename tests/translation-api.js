@@ -21,7 +21,7 @@ test('translation api - put() and get()', async () => {
   const doc = {
     /** @type {'translation'} */
     schemaName: 'translation',
-    /** @type {import('@mapeo/schema').TranslationValue['docRefType']} */
+    /** @type {import('@comapeo/schema').TranslationValue['docRefType']} */
     docRefType: 'field',
     docRef: {
       docId: randomBytes(32).toString('hex'),
@@ -81,7 +81,7 @@ test('translation api - put() and get()', async () => {
   const newDoc = {
     /** @type {'translation'} */
     schemaName: 'translation',
-    /** @type {import('@mapeo/schema').TranslationValue['docRefType']} */
+    /** @type {import('@comapeo/schema').TranslationValue['docRefType']} */
     docRefType: 'field',
     docRef: {
       docId: randomBytes(32).toString('hex'),
@@ -151,8 +151,5 @@ function setup() {
     },
   })
 
-  return new TranslationApi({
-    dataType,
-    table,
-  })
+  return new TranslationApi({ dataType })
 }

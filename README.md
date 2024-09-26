@@ -1,20 +1,14 @@
-# Mapeo Core
+# CoMapeo Core
 
 > A local-first library for collaborating on mapping projects.
 
-## ⚠️ Early development
-
-This is the next version of @mapeo/core, hosted in its own repo for ease of testing.
-
-This library isn't ready for direct use yet!
-
 ## About
 
-Mapeo Core is a library used by the [mobile](https://github.com/digidem/mapeo-mobile) and [desktop](https://github.com/digidem/mapeo-desktop) Mapeo apps that provides the core features needed for offline-first peer to peer collaboration on mapping projects.
+CoMapeo Core is a library used by the [mobile](https://github.com/digidem/comapeo-mobile) and [desktop](https://github.com/digidem/comapeo-desktop) CoMapeo apps that provides the core features needed for offline-first peer to peer collaboration on mapping projects.
 
 ## Docs
 
-To learn more about Mapeo Core see the [docs](docs/) section of this repo.
+To learn more about CoMapeo Core see the [docs](docs/) section of this repo.
 
 ## Change log
 
@@ -25,7 +19,7 @@ The changes in each version are described in the [change log](CHANGELOG.md).
 > **⚠️ Warning:** this package is not ready for use!
 
 ```shell
-npm i digidem/mapeo-core-next
+npm install @comapeo/core
 ```
 
 ## Contributing

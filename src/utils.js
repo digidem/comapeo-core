@@ -1,25 +1,9 @@
-import b4a from 'b4a'
 import sodium from 'sodium-universal'
 import { keyToPublicId } from '@mapeo/crypto'
 import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
-/** @import { Duplex as NodeDuplex } from 'node:stream' */
-/** @import { Duplex as StreamxDuplex } from 'streamx' */
-/** @import NoiseStream from '@hyperswarm/secret-stream' */
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
-
-/**
- * @param {String|Buffer} id
- * @returns {Buffer | Uint8Array}
- */
-export function idToKey(id) {
-  if (b4a.isBuffer(id)) {
-    return /** @type {Buffer} */ (id)
-  }
-
-  return b4a.from(/** @type {String} */ (id), 'hex')
-}
 
 /**
  *
@@ -32,37 +16,6 @@ export function keyToId(key) {
   }
 
   return key.toString('hex')
-}
-
-/**
- * @param {String} version
- * @returns {{coreId: String, blockIndex: Number}}
- */
-export function parseVersion(version) {
-  const [coreId, blockIndex] = version.split('@')
-  return {
-    coreId,
-    blockIndex: Number(blockIndex),
-  }
-}
-
-/** @typedef {NoiseStream & { destroyed: true }} DestroyedNoiseStream */
-/**
- * @template {NodeDuplex | StreamxDuplex} [T=NodeDuplex | StreamxDuplex]
- * @typedef {NoiseStream<T> & { publicKey: Buffer, remotePublicKey: Buffer, handshake: Buffer }} OpenedNoiseStream
- */
-
-/**
- * Utility to await a NoiseSecretStream to open, that returns a stream with the
- * correct types for publicKey and remotePublicKey (which can be null before
- * stream is opened)
- *
- * @param {NoiseStream} stream
- * @returns {Promise<OpenedNoiseStream | DestroyedNoiseStream>}
- */
-export async function openedNoiseSecretStream(stream) {
-  await stream.opened
-  return /** @type {OpenedNoiseStream | DestroyedNoiseStream} */ (stream)
 }
 
 export class ExhaustivenessError extends Error {
@@ -121,7 +74,7 @@ export function isDefined(value) {
 /**
  * When reading from SQLite, any optional properties are set to `null`. This
  * converts `null` back to `undefined` to match the input types (e.g. the types
- * defined in @mapeo/schema)
+ * defined in @comapeo/schema)
  * @template {{}} T
  * @param {T} obj
  * @returns {import('./types.js').NullableToOptional<T>}
@@ -137,7 +90,7 @@ export function deNullify(obj) {
 }
 
 /**
- * @template {import('@mapeo/schema').MapeoDoc & { forks?: string[] }} T
+ * @template {import('@comapeo/schema').MapeoDoc & { forks?: string[] }} T
  * @param {T} doc
  * @returns {Omit<T, 'docId' | 'versionId' | 'originalVersionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'deleted'>}
  */

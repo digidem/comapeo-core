@@ -13,9 +13,9 @@ import {
 import { round } from './utils.js'
 import { generate } from '@mapeo/mock-data'
 import { setTimeout as delay } from 'timers/promises'
-/** @import { MapeoDoc } from '@mapeo/schema' */
+/** @import { MapeoDoc } from '@comapeo/schema' */
 
-/** @satisfies {Array<import('@mapeo/schema').MapeoValue>} */
+/** @satisfies {Array<import('@comapeo/schema').MapeoValue>} */
 const fixtures = [
   {
     schemaName: 'observation',
@@ -66,7 +66,7 @@ const fixtures = [
 /**
  * Add some random data to each fixture to test updates
  *
- * @template {import('@mapeo/schema').MapeoValue} T
+ * @template {import('@comapeo/schema').MapeoValue} T
  * @param {T} value
  * @returns {T}
  */

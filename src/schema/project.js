@@ -1,7 +1,7 @@
 // These schemas are all in a "project" database. Each project in Mapeo has an
 // independent "project" database.
 import { blob, sqliteTable, text } from 'drizzle-orm/sqlite-core'
-import { dereferencedDocSchemas as schemas } from '@mapeo/schema'
+import { dereferencedDocSchemas as schemas } from '@comapeo/schema'
 import { NAMESPACES } from '../constants.js'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable } from './utils.js'

@@ -120,8 +120,8 @@ test('syncing blobs', async (t) => {
   const managers = [invitee, invitor]
 
   await Promise.all([
-    invitor.setDeviceInfo({ name: 'invitor' }),
-    invitee.setDeviceInfo({ name: 'invitee' }),
+    invitor.setDeviceInfo({ name: 'invitor', deviceType: 'mobile' }),
+    invitee.setDeviceInfo({ name: 'invitee', deviceType: 'mobile' }),
     fastifyController.start(),
   ])
 
@@ -304,8 +304,8 @@ test('auto-stop', async (t) => {
   const managers = [invitor, invitee]
 
   await Promise.all([
-    invitor.setDeviceInfo({ name: 'invitor' }),
-    invitee.setDeviceInfo({ name: 'invitee' }),
+    invitor.setDeviceInfo({ name: 'invitor', deviceType: 'mobile' }),
+    invitee.setDeviceInfo({ name: 'invitee', deviceType: 'mobile' }),
     fastifyController.start(),
   ])
   t.after(() => fastifyController.stop())
@@ -689,6 +689,17 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     managers.map((m) => m.getProject(projectId))
   )
   const [invitorProject, inviteeProject] = projects
+
+  assert.equal(
+    (await invitorProject.$member.getById(blocked.deviceId)).role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitor sees blocked participant as part of the project'
+  )
+  assert.equal(
+    (await inviteeProject.$member.getById(blocked.deviceId)).role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitee sees blocked participant as part of the project'
+  )
 
   const generatedDocs = (await seedDatabases([inviteeProject])).flat()
   const configDocsCount = generatedDocs.filter(

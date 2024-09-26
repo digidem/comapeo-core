@@ -1,30 +1,13 @@
 declare module 'protomux' {
   import { Duplex } from 'streamx'
   import { Duplex as NodeDuplex } from 'stream'
-
-  interface PreEncodingState {
-    buffer: null
-    start: number
-    end: number
-  }
-
-  interface EncodingState {
-    buffer: null | Buffer
-    start: number
-    end: number
-  }
-
-  interface Encoding {
-    preencode(state: PreEncodingState, value: any): void
-    encode(state: EncodingState, value: any): void
-    decode(state: EncodingState): any
-  }
+  import type cenc from 'compact-encoding'
 
   interface Message {
     type: number
     send(msg: any): void
     onmessage: (message: any) => void
-    encoding: Encoding
+    encoding: cenc.Encoder
   }
 
   type MessageOptions = Partial<Pick<Message, 'onmessage' | 'encoding'>>
@@ -65,7 +48,7 @@ declare module 'protomux' {
       aliases?: string[]
       id?: null | Buffer
       unique?: boolean
-      handshake?: Encoding
+      handshake?: cenc.Encoder
       messages: MessageOptions[]
       onopen?(handshake?: any): Promise<void> | void
       onclose?(): Promise<void> | void

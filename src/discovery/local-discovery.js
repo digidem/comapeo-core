@@ -9,7 +9,7 @@ import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
 import { Logger } from '../logger.js'
-/** @import { OpenedNoiseStream } from '../utils.js' */
+/** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 /** @typedef {OpenedNoiseStream<net.Socket>} OpenedNetNoiseStream */
@@ -66,16 +66,13 @@ export class LocalDiscovery extends TypedEmitter {
     })
   }
 
-  get publicKey() {
-    return this.#identityKeypair.publicKey
-  }
-
   /** @returns {Promise<{ name: string, port: number }>} */
   async start() {
     await this.#sm.start()
     return { name: this.#name, port: getAddress(this.#server).port }
   }
 
+  /** @returns {Promise<void>} */
   async #start() {
     // Let OS choose port, listen on ip4, all interfaces
     this.#server.listen(0, '0.0.0.0')
@@ -112,14 +109,15 @@ export class LocalDiscovery extends TypedEmitter {
   /**
    * @param {boolean} isInitiator
    * @param {net.Socket} socket
+   * @returns {void}
    */
   #handleTcpConnection(isInitiator, socket) {
     socket.off('error', this.#handleSocketError)
     socket.on('error', onSocketError)
 
-    /** @param {any} e */
+    /** @param {Error} e */
     function onSocketError(e) {
-      if (e.code === 'EPIPE') {
+      if ('code' in e && e.code === 'EPIPE') {
         socket.destroy()
         if (secretStream) {
           secretStream.destroy()
@@ -157,9 +155,9 @@ export class LocalDiscovery extends TypedEmitter {
   }
 
   /**
-   *
    * @param {OpenedNetNoiseStream} existing
    * @param {OpenedNetNoiseStream} keeping
+   * @returns {void}
    */
   #handleConnectionSwap(existing, keeping) {
     let closed = false
@@ -183,7 +181,6 @@ export class LocalDiscovery extends TypedEmitter {
   }
 
   /**
-   *
    * @param {OpenedNetNoiseStream} conn
    * @returns {void}
    */
@@ -198,7 +195,7 @@ export class LocalDiscovery extends TypedEmitter {
     const remoteId = keyToPublicId(remotePublicKey)
 
     this.#log(
-      `${isInitiator ? 'outgoing' : 'incoming'} secretSteam connection ${
+      `${isInitiator ? 'outgoing' : 'incoming'} secret stream connection ${
         isInitiator ? 'to' : 'from'
       } %h`,
       remotePublicKey
@@ -254,10 +251,6 @@ export class LocalDiscovery extends TypedEmitter {
     // No 'error' listeners attached to `conn` at this point, it's up to the
     // consumer to attach an 'error' listener to avoid uncaught errors.
     this.emit('connection', conn)
-  }
-
-  get connections() {
-    return this.#noiseConnections.values()
   }
 
   /**

@@ -1,4 +1,4 @@
-/** @typedef {string | number | bigint | boolean | undefined | symbol | null} Primitive */
+/** @import { Primitive } from 'type-fest' */
 
 /**
  * `Map` uses same-value-zero equality for keys, which makes it more difficult

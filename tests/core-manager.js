@@ -353,12 +353,11 @@ test('sends "haves" bitfields over project creator core replication stream', asy
 
   const cm1Core = cm1.getWriterCore('data').core
   await cm1Core.ready()
-  const batchSize = 4096
   // Create 4 million entries in hypercore - will be at least two have bitfields
+  const batchSize = 4096
+  const block = new Uint8Array([99])
+  const data = Array(batchSize).fill(block)
   for (let i = 0; i < 2 ** 22; i += batchSize) {
-    const data = Array(batchSize)
-      .fill(null)
-      .map(() => 'block')
     await cm1Core.append(data)
   }
 

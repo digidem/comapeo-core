@@ -1,7 +1,7 @@
 const commonPreset = {
   /** @type {'translation'} */
   schemaName: 'translation',
-  /** @type {import('@mapeo/schema').TranslationValue['docRefType']} */
+  /** @type {import('@comapeo/schema').TranslationValue['docRefType']} */
   docRefType: 'preset',
   languageCode: 'es',
   regionCode: 'AR',
@@ -11,7 +11,7 @@ const commonPreset = {
 const commonField = {
   /** @type {'translation'} */
   schemaName: 'translation',
-  /** @type {import('@mapeo/schema').TranslationValue['docRefType']} */
+  /** @type {import('@comapeo/schema').TranslationValue['docRefType']} */
   docRefType: 'field',
   languageCode: 'es',
   regionCode: 'AR',
