@@ -2,9 +2,8 @@ import { decode } from '@comapeo/schema'
 import SqliteIndexer from '@mapeo/sqlite-indexer'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { getBacklinkTableName } from '../schema/utils.js'
-import { discoveryKey } from 'hypercore-crypto'
 import { Logger } from '../logger.js'
-/** @import { MapeoDoc, VersionIdObject } from '@comapeo/schema' */
+/** @import { MapeoDoc, VersionDiscoveryIdObject } from '@comapeo/schema' */
 /** @import { MapeoDocTables } from '../datatype/index.js' */
 
 /**
@@ -32,7 +31,7 @@ export class IndexWriter {
    * @param {object} opts
    * @param {import('better-sqlite3').Database} opts.sqlite
    * @param {TTables[]} opts.tables
-   * @param {(doc: MapeoDocInternal, version: VersionIdObject) => MapeoDoc} [opts.mapDoc] optionally transform a document prior to indexing. Can also validate, if an error is thrown then the document will not be indexed
+   * @param {(doc: MapeoDocInternal, version: VersionDiscoveryIdObject) => MapeoDoc} [opts.mapDoc] optionally transform a document prior to indexing. Can also validate, if an error is thrown then the document will not be indexed
    * @param {typeof import('@mapeo/sqlite-indexer').defaultGetWinner} [opts.getWinner] custom function to determine the "winner" of two forked documents. Defaults to choosing the document with the most recent `updatedAt`
    * @param {Logger} [opts.logger]
    */
@@ -71,13 +70,13 @@ export class IndexWriter {
     const queued = {}
     /** @type {IndexedDocIds} */
     const indexed = {}
-    for (const { block, key, index } of entries) {
+    for (const { block, discoveryId, index } of entries) {
       /** @type {MapeoDoc} */ let doc
       try {
-        const version = { coreDiscoveryKey: discoveryKey(key), index }
+        const version = { coreDiscoveryId: discoveryId, index }
         doc = this.#mapDoc(decode(block, version), version)
       } catch (e) {
-        this.#l.log('Could not decode entry %d of %h', index, key)
+        this.#l.log('Could not decode entry %d of %S', index, discoveryId)
         // Unknown or invalid entry - silently ignore
         continue
       }

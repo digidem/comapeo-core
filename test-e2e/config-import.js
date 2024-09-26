@@ -3,22 +3,26 @@ import assert from 'node:assert/strict'
 import { createManager } from './utils.js'
 import { defaultConfigPath } from '../tests/helpers/default-config.js'
 
-test(' config import - load default config when passed a path to `createProject`', async (t) => {
-  const manager = createManager('device0', t)
-  const project = await manager.getProject(
-    await manager.createProject({ configPath: defaultConfigPath })
-  )
-  const presets = await project.preset.getMany()
-  const fields = await project.field.getMany()
-  const translations = await project.$translation.dataType.getMany()
-  assert.equal(presets.length, 28, 'correct number of loaded presets')
-  assert.equal(fields.length, 11, 'correct number of loaded fields')
-  assert.equal(
-    translations.length,
-    870,
-    'correct number of loaded translations'
-  )
-})
+test(
+  ' config import - load default config when passed a path to `createProject`',
+  { only: true },
+  async (t) => {
+    const manager = createManager('device0', t)
+    const project = await manager.getProject(
+      await manager.createProject({ configPath: defaultConfigPath })
+    )
+    const presets = await project.preset.getMany()
+    const fields = await project.field.getMany()
+    const translations = await project.$translation.dataType.getMany()
+    assert.equal(presets.length, 28, 'correct number of loaded presets')
+    assert.equal(fields.length, 11, 'correct number of loaded fields')
+    assert.equal(
+      translations.length,
+      870,
+      'correct number of loaded translations'
+    )
+  }
+)
 
 test('config import - load and re-load config manually', async (t) => {
   const manager = createManager('device0', t)

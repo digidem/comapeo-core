@@ -151,7 +151,7 @@
     "yazl": "^2.5.1"
   },
   "dependencies": {
-    "@comapeo/schema": "1.0.0",
+    "@comapeo/schema": "file:comapeo-schema-PR267+bc403d5.tgz",
     "@digidem/types": "^2.3.0",
     "@electron/asar": "^3.2.8",
     "@fastify/error": "^3.4.1",
@@ -181,7 +181,7 @@
     "magic-bytes.js": "^1.10.0",
     "map-obj": "^5.0.2",
     "mime": "^4.0.3",
-    "multi-core-indexer": "^1.0.0-alpha.10",
+    "multi-core-indexer": "file:multi-core-indexer-PR25+2537f7d.tgz",
     "p-defer": "^4.0.0",
     "p-event": "^6.0.1",
     "p-timeout": "^6.1.2",

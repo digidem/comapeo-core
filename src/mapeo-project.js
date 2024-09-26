@@ -461,7 +461,7 @@ export class MapeoProject extends TypedEmitter {
           projectSettingsEntries.push(entry)
         } else if (schemaName === 'translation') {
           const doc = decode(entry.block, {
-            coreDiscoveryKey: entry.key,
+            coreDiscoveryId: entry.discoveryId,
             index: entry.index,
           })
 
@@ -966,11 +966,14 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
  * e.g. version.coreKey should equal docId
  *
  * @param {import('@comapeo/schema').DeviceInfo} doc
- * @param {import('@comapeo/schema').VersionIdObject} version
+ * @param {import('@comapeo/schema').VersionDiscoveryIdObject} version
  * @returns {import('@comapeo/schema').DeviceInfo}
  */
-function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
-  if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
+function mapAndValidateDeviceInfo(doc, { coreDiscoveryId }) {
+  if (
+    coreDiscoveryId !==
+    discoveryKey(Buffer.from(doc.docId, 'hex')).toString('hex')
+  ) {
     throw new Error(
       'Invalid deviceInfo record, cannot write deviceInfo for another device'
     )

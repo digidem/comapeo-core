@@ -3,6 +3,7 @@ import Corestore from 'corestore'
 import { debounce } from 'throttle-debounce'
 import assert from 'node:assert/strict'
 import { sql, eq } from 'drizzle-orm'
+import hCrypto from 'hypercore-crypto'
 
 import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
@@ -20,7 +21,7 @@ const WRITER_CORE_PREHAVES_DEBOUNCE_DELAY = 1000
 export const kCoreManagerReplicate = Symbol('replicate core manager')
 
 /** @typedef {Hypercore<'binary', Buffer>} Core */
-/** @typedef {{ core: Core, key: Buffer, namespace: Namespace }} CoreRecord */
+/** @typedef {{ core: Core, key: Buffer, discoveryId: string, namespace: Namespace }} CoreRecord */
 /**
  * @typedef {Object} Events
  * @property {(coreRecord: CoreRecord) => void} add-core
@@ -273,6 +274,7 @@ export class CoreManager extends TypedEmitter {
     if (existingCore) return existingCore
 
     const { publicKey: key, secretKey } = keyPair
+    const discoveryId = hCrypto.discoveryKey(key).toString('hex')
     const writer = !!secretKey
     const core = this.#corestore.get({
       keyPair,
@@ -285,7 +287,7 @@ export class CoreManager extends TypedEmitter {
     core.setMaxListeners(0)
     // @ts-ignore - ensure key is defined before hypercore is ready
     core.key = key
-    this.#coreIndex.add({ core, key, namespace, writer })
+    this.#coreIndex.add({ core, key, discoveryId, namespace, writer })
 
     // **Hack** As soon as a peer is added, eagerly send a "want" for the entire
     // core. This ensures that the peer sends back its entire bitfield.
@@ -341,9 +343,9 @@ export class CoreManager extends TypedEmitter {
       namespace,
       key
     )
-    this.emit('add-core', { core, key, namespace })
+    this.emit('add-core', { core, key, discoveryId, namespace })
 
-    return { core, key, namespace }
+    return { core, key, discoveryId, namespace }
   }
 
   /**

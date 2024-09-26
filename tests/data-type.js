@@ -329,7 +329,7 @@ async function testenv(opts = {}) {
         try {
           if (schemaName === 'translation') {
             const doc = decode(entry.block, {
-              coreDiscoveryKey: entry.key,
+              coreDiscoveryId: entry.discoveryId,
               index: entry.index,
             })
             assert(
