@@ -15,13 +15,13 @@ import { FastifyController } from '../src/fastify-controller.js'
 import { plugin as StaticMapsPlugin } from '../src/fastify-plugins/maps/static-maps.js'
 import { plugin as MapServerPlugin } from '../src/fastify-plugins/maps/index.js'
 import { plugin as OfflineFallbackMapPlugin } from '../src/fastify-plugins/maps/offline-fallback-map.js'
-import { blobMetadata } from '../tests/helpers/blob-store.js'
+import { blobMetadata } from '../test/helpers/blob-store.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
-  new URL('../tests/fixtures/blob-api/', import.meta.url)
+  new URL('../test/fixtures/blob-api/', import.meta.url)
 )
 
-const MAP_FIXTURES_PATH = new URL('../tests/fixtures/maps', import.meta.url)
+const MAP_FIXTURES_PATH = new URL('../test/fixtures/maps', import.meta.url)
   .pathname
 
 const MAPEO_FALLBACK_MAP_PATH = new URL(

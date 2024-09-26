@@ -18,7 +18,7 @@ import {
   waitForSync,
 } from './utils.js'
 import { kCoreManager } from '../src/mapeo-project.js'
-import { getKeys } from '../tests/helpers/core-manager.js'
+import { getKeys } from '../test/helpers/core-manager.js'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../src/constants.js'
 import { FastifyController } from '../src/fastify-controller.js'
 import { generate } from '@mapeo/mock-data'
@@ -26,7 +26,7 @@ import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
-import { blobMetadata } from '../tests/helpers/blob-store.js'
+import { blobMetadata } from '../test/helpers/blob-store.js'
 /** @import { State } from '../src/sync/sync-api.js' */
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
@@ -138,7 +138,7 @@ test('syncing blobs', async (t) => {
   const [invitorProject, inviteeProject] = projects
 
   const fixturePath = new URL(
-    '../tests/fixtures/images/02-digidem-logo.jpg',
+    '../test/fixtures/images/02-digidem-logo.jpg',
     import.meta.url
   ).pathname
 
@@ -347,7 +347,7 @@ test('auto-stop', async (t) => {
   await clock.tickAsync(9000)
 
   const fixturePath = new URL(
-    '../tests/fixtures/images/02-digidem-logo.jpg',
+    '../test/fixtures/images/02-digidem-logo.jpg',
     import.meta.url
   ).pathname
   const blob = await invitorProject.$blobs.create(

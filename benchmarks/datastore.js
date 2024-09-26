@@ -1,5 +1,5 @@
 import benchmark from 'nanobench'
-import { createDataStore } from '../tests/helpers/datastore.js'
+import { createDataStore } from '../test/helpers/datastore.js'
 
 const datastore = await createDataStore({
   dataTypes: [
