@@ -6,7 +6,7 @@ import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import Fastify from 'fastify'
 import { getExpectedConfig } from './utils.js'
-import { defaultConfigPath } from '../tests/helpers/default-config.js'
+import { defaultConfigPath } from '../test/helpers/default-config.js'
 import { kDataTypes } from '../src/mapeo-project.js'
 import { hashObject } from '../src/utils.js'
 
@@ -133,7 +133,7 @@ test('Consistent loading of config', async (t) => {
 
   const expectedDefault = await getExpectedConfig(defaultConfigPath)
   const expectedMinimal = await getExpectedConfig(
-    'tests/fixtures/config/completeConfig.zip'
+    'test/fixtures/config/completeConfig.zip'
   )
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
@@ -173,7 +173,7 @@ test('Consistent loading of config', async (t) => {
   )
 
   await t.test('loading non-default config when creating project', async () => {
-    const configPath = 'tests/fixtures/config/completeConfig.zip'
+    const configPath = 'test/fixtures/config/completeConfig.zip'
     const projectId = await manager.createProject({ configPath })
 
     const project = await manager.getProject(projectId)
@@ -210,7 +210,7 @@ test('Consistent loading of config', async (t) => {
   await t.test(
     'load different config and check if correctly loaded',
     async () => {
-      const configPath = 'tests/fixtures/config/completeConfig.zip'
+      const configPath = 'test/fixtures/config/completeConfig.zip'
       await project.importConfig({ configPath })
       const projectPresets = await project.preset.getMany()
       assert.deepEqual(
