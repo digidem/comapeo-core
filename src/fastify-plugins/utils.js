@@ -39,14 +39,14 @@ export async function getFastifyServerAddress(server, { timeout } = {}) {
 }
 
 /**
- * @param {Readonly<Date>} lastModified
+ * @param {Parameters<import('fastify').FastifyReply['headers']>[0]} [overrides]
  */
-export function createStyleJsonResponseHeaders(lastModified) {
+export function createStyleJsonResponseHeaders(overrides) {
   return {
     'Cache-Control': 'max-age=' + 5 * 60, // 5 minutes
     'Access-Control-Allow-Headers':
       'Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since',
     'Access-Control-Allow-Origin': '*',
-    'Last-Modified': lastModified.toUTCString(),
+    ...overrides,
   }
 }

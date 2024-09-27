@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import Fastify from 'fastify'
 import { MockAgent, setGlobalDispatcher } from 'undici'
@@ -10,7 +11,12 @@ import {
 } from '../../src/fastify-plugins/maps/index.js'
 import { plugin as StaticMapsPlugin } from '../../src/fastify-plugins/maps/static-maps.js'
 import { plugin as OfflineFallbackMapPlugin } from '../../src/fastify-plugins/maps/offline-fallback-map.js'
-import { readFileSync } from 'node:fs'
+import { plugin as StyledMapPackagePlugin } from '../../src/fastify-plugins/maps/styled-map-package.js'
+
+const NON_EXISTENT_MAP_PATH = new URL(
+  '../fixtures/maps/does-not-exist',
+  import.meta.url
+).pathname
 
 const MAP_FIXTURES_PATH = new URL('../fixtures/maps', import.meta.url).pathname
 
@@ -21,6 +27,11 @@ const MAP_STYLE_FIXTURES_PATH = new URL(
 
 const MAPEO_FALLBACK_MAP_PATH = new URL(
   '../../node_modules/mapeo-offline-map',
+  import.meta.url
+).pathname
+
+const SMP_FIXTURE_PATH = new URL(
+  '../fixtures/styled-map-packages/basic.smp',
   import.meta.url
 ).pathname
 
@@ -37,6 +48,11 @@ test('fails to register when dependent plugins are not registered', async (t) =>
 test('prefix opt is handled correctly', async (t) => {
   const server = setup(t)
 
+  server.register(StyledMapPackagePlugin, {
+    prefix: 'smp',
+    lazy: true,
+    filepath: SMP_FIXTURE_PATH,
+  })
   server.register(StaticMapsPlugin, {
     prefix: 'static',
     staticRootDir: MAP_FIXTURES_PATH,
@@ -75,11 +91,15 @@ test('prefix opt is handled correctly', async (t) => {
 test('mapeoMaps decorator context', async (t) => {
   const server = setup(t)
 
+  server.register(StyledMapPackagePlugin, {
+    prefix: 'smp',
+    lazy: true,
+    filepath: SMP_FIXTURE_PATH,
+  })
   server.register(StaticMapsPlugin, {
     prefix: 'static',
     staticRootDir: MAP_FIXTURES_PATH,
   })
-
   server.register(OfflineFallbackMapPlugin, {
     prefix: 'fallback',
     styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
@@ -98,18 +118,26 @@ test('mapeoMaps decorator context', async (t) => {
   })
 })
 
-test('/style.json resolves style.json of local "default" static map when available', async (t) => {
+test('/style.json resolves style.json of SMP map when available', async (t) => {
   const server = setup(t)
 
+  // Register SMP plugin with valid map
+  server.register(StyledMapPackagePlugin, {
+    prefix: 'smp',
+    lazy: true,
+    filepath: SMP_FIXTURE_PATH,
+  })
+  // Register other plugins with non-existent maps
   server.register(StaticMapsPlugin, {
     prefix: 'static',
-    staticRootDir: MAP_FIXTURES_PATH,
+    staticRootDir: NON_EXISTENT_MAP_PATH,
   })
   server.register(OfflineFallbackMapPlugin, {
     prefix: 'fallback',
-    styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
-    sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
+    styleJsonPath: path.join(NON_EXISTENT_MAP_PATH, 'style.json'),
+    sourcesDir: path.join(NON_EXISTENT_MAP_PATH, 'dist'),
   })
+
   server.register(MapServerPlugin)
 
   await server.listen()
@@ -122,19 +150,57 @@ test('/style.json resolves style.json of local "default" static map when availab
   assert.equal(response.statusCode, 200)
 })
 
-test('/style.json resolves online style.json when local static is not available', async (t) => {
+test('/style.json resolves style.json of local "default" static map when available', async (t) => {
   const server = setup(t)
 
+  // Register static maps plugin with valid options
   server.register(StaticMapsPlugin, {
     prefix: 'static',
-    // Need to choose a directory that doesn't have any map fixtures
-    staticRootDir: path.resolve(MAP_FIXTURES_PATH, '../does-not-exist'),
+    staticRootDir: MAP_FIXTURES_PATH,
+  })
+  // Register other plugins with non-existent maps
+  server.register(StyledMapPackagePlugin, {
+    prefix: 'smp',
+    lazy: true,
+    filepath: NON_EXISTENT_MAP_PATH,
   })
   server.register(OfflineFallbackMapPlugin, {
     prefix: 'fallback',
-    styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
-    sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
+    styleJsonPath: NON_EXISTENT_MAP_PATH,
+    sourcesDir: NON_EXISTENT_MAP_PATH,
   })
+
+  server.register(MapServerPlugin)
+
+  await server.listen()
+
+  const response = await server.inject({
+    method: 'GET',
+    url: '/style.json',
+  })
+
+  assert.equal(response.statusCode, 200)
+})
+
+test('/style.json resolves online style.json when SMP and local static are not available', async (t) => {
+  const server = setup(t)
+
+  // Register all plugins with non-existent maps
+  server.register(StyledMapPackagePlugin, {
+    prefix: 'smp',
+    lazy: true,
+    filepath: NON_EXISTENT_MAP_PATH,
+  })
+  server.register(StaticMapsPlugin, {
+    prefix: 'static',
+    staticRootDir: NON_EXISTENT_MAP_PATH,
+  })
+  server.register(OfflineFallbackMapPlugin, {
+    prefix: 'fallback',
+    styleJsonPath: NON_EXISTENT_MAP_PATH,
+    sourcesDir: NON_EXISTENT_MAP_PATH,
+  })
+
   server.register(MapServerPlugin)
 
   await server.listen()
@@ -159,16 +225,22 @@ test('/style.json resolves online style.json when local static is not available'
 test('defaultOnlineStyleUrl opt works', async (t) => {
   const server = setup(t)
 
+  // Register all plugins with non-existent maps
+  server.register(StyledMapPackagePlugin, {
+    prefix: 'smp',
+    lazy: true,
+    filepath: NON_EXISTENT_MAP_PATH,
+  })
   server.register(StaticMapsPlugin, {
     prefix: 'static',
-    // Need to choose a directory that doesn't have any map fixtures
-    staticRootDir: path.resolve(MAP_FIXTURES_PATH, '../does-not-exist'),
+    staticRootDir: NON_EXISTENT_MAP_PATH,
   })
   server.register(OfflineFallbackMapPlugin, {
     prefix: 'fallback',
-    styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
-    sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
+    styleJsonPath: NON_EXISTENT_MAP_PATH,
+    sourcesDir: NON_EXISTENT_MAP_PATH,
   })
+
   server.register(MapServerPlugin, {
     // Note that we're specifying a different option than the default
     defaultOnlineStyleUrl: 'https://api.protomaps.com/styles/v2/dark.json',
@@ -195,16 +267,23 @@ test('defaultOnlineStyleUrl opt works', async (t) => {
 test('/style.json resolves style.json of offline fallback map when static and online are not available', async (t) => {
   const server = setup(t)
 
-  server.register(StaticMapsPlugin, {
-    prefix: 'static',
-    // Need to choose a directory that doesn't have any map fixtures
-    staticRootDir: path.resolve(MAP_FIXTURES_PATH, '../does-not-exist'),
-  })
+  // Register offline fallback plugin with valid map
   server.register(OfflineFallbackMapPlugin, {
     prefix: 'fallback',
     styleJsonPath: path.join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
     sourcesDir: path.join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
   })
+  // Register other plugins with non-existent maps
+  server.register(StyledMapPackagePlugin, {
+    prefix: 'smp',
+    lazy: true,
+    filepath: NON_EXISTENT_MAP_PATH,
+  })
+  server.register(StaticMapsPlugin, {
+    prefix: 'static',
+    staticRootDir: NON_EXISTENT_MAP_PATH,
+  })
+
   server.register(MapServerPlugin)
 
   await server.listen()

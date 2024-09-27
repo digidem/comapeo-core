@@ -15,6 +15,8 @@ import { FastifyController } from '../src/fastify-controller.js'
 import { plugin as StaticMapsPlugin } from '../src/fastify-plugins/maps/static-maps.js'
 import { plugin as MapServerPlugin } from '../src/fastify-plugins/maps/index.js'
 import { plugin as OfflineFallbackMapPlugin } from '../src/fastify-plugins/maps/offline-fallback-map.js'
+import { plugin as StyledMapPackagePlugin } from '../src/fastify-plugins/maps/styled-map-package.js'
+
 import { blobMetadata } from '../test/helpers/blob-store.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
@@ -26,6 +28,11 @@ const MAP_FIXTURES_PATH = new URL('../test/fixtures/maps', import.meta.url)
 
 const MAPEO_FALLBACK_MAP_PATH = new URL(
   '../../node_modules/mapeo-offline-map',
+  import.meta.url
+).pathname
+
+const SMP_FIXTURE_PATH = new URL(
+  '../fixtures/styled-map-packages/basic.smp',
   import.meta.url
 ).pathname
 
@@ -349,6 +356,11 @@ test('retrieving style.json using stable url', async (t) => {
 
   const fastify = Fastify()
 
+  fastify.register(StyledMapPackagePlugin, {
+    prefix: 'smp',
+    lazy: true,
+    filepath: SMP_FIXTURE_PATH,
+  })
   fastify.register(StaticMapsPlugin, {
     prefix: 'static',
     staticRootDir: MAP_FIXTURES_PATH,

@@ -9,6 +9,7 @@ import {
 } from '../utils.js'
 import { PLUGIN_NAME as MAPEO_STATIC_MAPS } from './static-maps.js'
 import { PLUGIN_NAME as MAPEO_OFFLINE_FALLBACK } from './offline-fallback-map.js'
+import { PLUGIN_NAME as COMAPEO_STYLED_MAP_PACKAGE } from './styled-map-package.js'
 
 export const PLUGIN_NAME = 'mapeo-maps'
 export const DEFAULT_MAPBOX_STYLE_URL =
@@ -31,7 +32,11 @@ export const plugin = fp(mapsPlugin, {
   fastify: '4.x',
   name: PLUGIN_NAME,
   decorators: { fastify: ['mapeoStaticMaps', 'mapeoFallbackMap'] },
-  dependencies: [MAPEO_STATIC_MAPS, MAPEO_OFFLINE_FALLBACK],
+  dependencies: [
+    COMAPEO_STYLED_MAP_PACKAGE,
+    MAPEO_STATIC_MAPS,
+    MAPEO_OFFLINE_FALLBACK,
+  ],
 })
 
 /**
@@ -76,7 +81,19 @@ async function routes(fastify, opts) {
     async (req, rep) => {
       const serverAddress = await getFastifyServerAddress(req.server.server)
 
-      // 1. Attempt to get "default" local static map's style.json
+      // 1. Attempt to use the styled map package
+      {
+        const style = await fastify.comapeoSmp.getStyle().catch(() => {
+          fastify.log.warn('Cannot read styled map package archive')
+          return null
+        })
+
+        if (style) {
+          return style
+        }
+      }
+
+      // 2. Attempt to get "default" local static map's style.json
       {
         const styleId = 'default'
 
@@ -90,12 +107,16 @@ async function routes(fastify, opts) {
 
         if (results) {
           const [stats, styleJson] = results
-          rep.headers(createStyleJsonResponseHeaders(stats.mtime))
+          rep.headers(
+            createStyleJsonResponseHeaders({
+              'Last-Modified': stats.mtime.toUTCString(),
+            })
+          )
           return styleJson
         }
       }
 
-      // 2. Attempt to get a default style.json from online source
+      // 3. Attempt to get a default style.json from online source
       {
         const { key } = req.query
 
@@ -151,7 +172,7 @@ async function routes(fastify, opts) {
         }
       }
 
-      // 3. Provide offline fallback map's style.json
+      // 4. Provide offline fallback map's style.json
       {
         let results = null
 
@@ -165,7 +186,11 @@ async function routes(fastify, opts) {
         }
 
         const [stats, styleJson] = results
-        rep.headers(createStyleJsonResponseHeaders(stats.mtime))
+        rep.headers(
+          createStyleJsonResponseHeaders({
+            'Last-Modified': stats.mtime.toUTCString(),
+          })
+        )
         return styleJson
       }
     }

@@ -190,7 +190,11 @@ async function routes(fastify, opts) {
         throw new NotFoundError(`id = ${styleId}, style.json`)
       }
 
-      rep.headers(createStyleJsonResponseHeaders(stats.mtime))
+      rep.headers(
+        createStyleJsonResponseHeaders({
+          'Last-Modified': stats.mtime.toUTCString(),
+        })
+      )
 
       return styleJson
     }
