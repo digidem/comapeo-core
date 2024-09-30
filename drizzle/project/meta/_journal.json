@@ -1,1 +1,13 @@
-{"version":"5","dialect":"sqlite","entries":[]}
+{
+  "version": "5",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1727713501752,
+      "tag": "0000_perfect_george_stacy",
+      "breakpoints": true
+    }
+  ]
+}
