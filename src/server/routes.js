@@ -1,4 +1,5 @@
 import { Type } from '@sinclair/typebox'
+import assert from 'node:assert/strict'
 import { kProjectReplicate } from '../mapeo-project.js'
 import { wsCoreReplicator } from './ws-core-replicator.js'
 
@@ -11,6 +12,27 @@ const HEX_STRING_32_BYTES = Type.String({ pattern: HEX_REGEX_32_BYTES })
 
 /** @type {FastifyPluginAsync<RouteOptions, RawServerDefault, TypeBoxTypeProvider>} */
 export default async function routes(fastify) {
+  fastify.get(
+    '/deviceinfo',
+    {
+      schema: {
+        response: {
+          200: Type.Object({
+            data: Type.Object({
+              deviceId: Type.String(),
+              name: Type.String(),
+            }),
+          }),
+        },
+      },
+    },
+    async function (_req, reply) {
+      const { deviceId, name } = this.comapeo.getDeviceInfo()
+      assert(name, 'Expected server to have a name')
+      reply.send({ data: { deviceId, name } })
+    }
+  )
+
   fastify.get(
     '/sync/:projectPublicId',
     {
