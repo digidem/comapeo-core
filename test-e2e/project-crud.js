@@ -104,9 +104,9 @@ function create(project, value) {
       return project[value.schemaName].create(value)
     case 'preset':
       return project[value.schemaName].create(value)
-    case 'track':
-      return project[value.schemaName].create(value)
     case 'remoteDetectionAlert':
+      return project[value.schemaName].create(value)
+    case 'track':
       return project[value.schemaName].create(value)
     default:
       throw new ExhaustivenessError(value)
@@ -141,16 +141,16 @@ function createWithMockData(project, schemaName, count) {
           project[schemaName].create(valueOf(doc))
         )
       )
-    case 'track':
-      return Promise.all(
-        generate(schemaName, { count }).map((doc) =>
-          project[schemaName].create(valueOf(doc))
-        )
-      )
     case 'remoteDetectionAlert':
       return Promise.all(
         generate(schemaName, { count }).map((doc) =>
           project[schemaName].create(doc)
+        )
+      )
+    case 'track':
+      return Promise.all(
+        generate(schemaName, { count }).map((doc) =>
+          project[schemaName].create(valueOf(doc))
         )
       )
     default:
@@ -174,9 +174,9 @@ function update(project, versionId, value) {
       return project[value.schemaName].update(versionId, value)
     case 'preset':
       return project[value.schemaName].update(versionId, value)
-    case 'track':
-      return project[value.schemaName].update(versionId, value)
     case 'remoteDetectionAlert':
+      return project[value.schemaName].update(versionId, value)
+    case 'track':
       return project[value.schemaName].update(versionId, value)
     default:
       throw new ExhaustivenessError(value)
@@ -213,16 +213,14 @@ function getUpdateFixture(value) {
         ...value,
         label: randomBytes(10).toString('hex'),
       }
+    case 'remoteDetectionAlert':
+      return { ...value }
     case 'track':
       return {
         ...value,
         tags: {
           foo: 'bar',
         },
-      }
-    case 'remoteDetectionAlert':
-      return {
-        ...value,
       }
     default:
       return { ...value }
