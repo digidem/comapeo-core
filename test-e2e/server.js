@@ -8,20 +8,14 @@ import createServer from '../src/server/app.js'
 // TODO: test bad requests
 
 test('adding a server peer', async (t) => {
-  console.log('@@@@', 'adding a server peer')
   const manager = createManager('device0', t)
   await manager.setDeviceInfo({ name: 'device0', deviceType: 'mobile' }) // TODO: necessary?
-  console.log('@@@@', 'created manager', manager.deviceId)
   const projectId = await manager.createProject()
-  console.log('@@@@', 'created project')
   const project = await manager.getProject(projectId)
-
-  console.log('@@@@', 'creating the project')
 
   const server = createTestServer()
 
   const serverAddress = await server.listen()
-  console.log('@@@@', serverAddress)
 
   t.after(() => server.close())
   const serverHost = new URL(serverAddress).host
@@ -31,7 +25,6 @@ test('adding a server peer', async (t) => {
   })
 
   const members = await project.$member.getMany()
-  console.log('@@@@', members)
   // TODO: Ensure that this peer doesn't exist before adding?
   const hasServerPeer = members.some(
     (member) =>
@@ -45,6 +38,5 @@ function createTestServer() {
   return createServer({
     ...getManagerOptions('test server'),
     serverName: 'test server',
-    logger: true,
   })
 }
