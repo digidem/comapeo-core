@@ -74,6 +74,7 @@ const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 export class MapeoProject extends TypedEmitter {
   #projectId
   #deviceId
+  #identityKeypair
   #coreManager
   #indexWriter
   #dataStores
@@ -92,7 +93,6 @@ export class MapeoProject extends TypedEmitter {
   #loadingConfig
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
-  #identityKeypair
 
   /**
    * @param {Object} opts
