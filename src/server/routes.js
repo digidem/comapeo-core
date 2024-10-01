@@ -65,9 +65,7 @@ export default async function routes(fastify) {
       },
     },
     async function (req, reply) {
-      const hasExistingProject = await this.comapeo
-        .listProjects()
-        .then((projects) => projects.length > 0)
+      const hasExistingProject = (await this.comapeo.listProjects()).length > 0
 
       if (hasExistingProject) {
         reply.status(400)
