@@ -1,4 +1,6 @@
+import * as b4a from 'b4a'
 import * as crypto from 'node:crypto'
+import WebSocket from 'ws'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
@@ -8,11 +10,14 @@ import {
   ExhaustivenessError,
   projectKeyToId,
   projectKeyToProjectInviteId,
+  projectKeyToPublicId,
 } from './utils.js'
 import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
-import { ROLES, isRoleIdForNewInvite } from './roles.js'
+import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
+import { isValidHost } from './lib/is-valid-host.js'
+import { wsCoreReplicator } from './server/ws-core-replicator.js'
 /**
  * @import {
  *   DeviceInfo,
@@ -26,6 +31,7 @@ import { ROLES, isRoleIdForNewInvite } from './roles.js'
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
 /** @import { projectSettingsTable } from './schema/client.js' */
+/** @import { ReplicationStream } from './types.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
@@ -45,6 +51,8 @@ export class MemberApi extends TypedEmitter {
   #encryptionKeys
   #projectKey
   #rpc
+  #getReplicationStream
+  #waitForInitialSync
   #dataTypes
 
   /** @type {Map<string, { abortController: AbortController }>} */
@@ -58,6 +66,8 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
+   * @param {() => ReplicationStream} opts.getReplicationStream
+   * @param {() => Promise<void>} opts.waitForInitialSync
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
@@ -69,6 +79,8 @@ export class MemberApi extends TypedEmitter {
     encryptionKeys,
     projectKey,
     rpc,
+    getReplicationStream,
+    waitForInitialSync,
     dataTypes,
   }) {
     super()
@@ -78,6 +90,8 @@ export class MemberApi extends TypedEmitter {
     this.#encryptionKeys = encryptionKeys
     this.#projectKey = projectKey
     this.#rpc = rpc
+    this.#getReplicationStream = getReplicationStream
+    this.#waitForInitialSync = waitForInitialSync
     this.#dataTypes = dataTypes
   }
 
@@ -246,6 +260,116 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
+   * Add a server peer.
+   *
+   * @param {string} host
+   * @param {object} [options]
+   * @param {boolean} [options.dangerouslyAllowInsecureConnections]
+   * @returns {Promise<void>}
+   */
+  async addServerPeer(host, { dangerouslyAllowInsecureConnections } = {}) {
+    console.log('@@@@', 'starting addServerPeer')
+    assert(isValidHost(host), 'Hostname must be valid')
+
+    const requestProtocol = dangerouslyAllowInsecureConnections
+      ? 'http:'
+      : 'https:'
+    const requestUrl = `${requestProtocol}//${host}/projects`
+
+    const requestBody = {
+      projectKey: encodeBufferForServer(this.#projectKey),
+      encryptionKeys: {
+        auth: encodeBufferForServer(this.#encryptionKeys.auth),
+        data: encodeBufferForServer(this.#encryptionKeys.data),
+        config: encodeBufferForServer(this.#encryptionKeys.config),
+        blobIndex: encodeBufferForServer(this.#encryptionKeys.blobIndex),
+        blob: encodeBufferForServer(this.#encryptionKeys.blob),
+      },
+    }
+
+    console.log('@@@@', 'making request to ' + requestUrl)
+
+    /** @type {Response} */ let response
+    try {
+      response = await fetch(requestUrl, {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+        headers: { 'Content-Type': 'application/json' },
+      })
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? err.message
+          : String(err)
+      console.log('@@@@', err)
+      throw new Error(
+        `Failed to add server peer due to network error: ${message}`
+      )
+    }
+
+    if (response.status !== 200) {
+      // TODO: Better error handling here
+      console.log('@@@@', 'bad response', response.status)
+      throw new Error(
+        `Failed to add server peer due to HTTP status code ${response.status}`
+      )
+    }
+
+    /** @type {string} */ let deviceId
+    try {
+      const responseBody = await response.json()
+      assert(
+        responseBody &&
+          typeof responseBody === 'object' &&
+          'deviceId' in responseBody &&
+          typeof responseBody.deviceId === 'string',
+        'Response body is valid'
+      )
+      ;({ deviceId } = responseBody)
+    } catch (err) {
+      console.log('@@@@', 'failed to parse json', err)
+      throw new Error(
+        "Failed to add server peer because we couldn't parse the response"
+      )
+    }
+
+    console.log('@@@@', 'about to assign the role...')
+    const roleId = MEMBER_ROLE_ID
+    await this.#roles.assignRole(deviceId, roleId)
+    console.log('@@@@', 'assigned the role.')
+
+    const projectPublicId = projectKeyToPublicId(this.#projectKey)
+    const websocketProtocol = dangerouslyAllowInsecureConnections
+      ? 'ws:'
+      : 'wss:'
+    console.log(
+      '@@@@',
+      'opening websocket to',
+      `${websocketProtocol}//${host}/sync/${projectPublicId}`
+    )
+    const websocket = new WebSocket(
+      `${websocketProtocol}//${host}/sync/${projectPublicId}`
+    )
+    const replicationStream = this.#getReplicationStream()
+    console.log('@@@@', 'got a replication stream')
+    wsCoreReplicator(websocket, replicationStream)
+    console.log('@@@@', 'made the ws core replicator')
+
+    // TODO: remove this
+    await new Promise((resolve) => {
+      setTimeout(resolve, 3000)
+    })
+
+    // TODO: This should be scoped to a single peer
+    await this.#waitForInitialSync()
+    console.log('@@@@', 'initial sync done')
+
+    websocket.close()
+
+    console.log('@@@@', 'closed websocket')
+  }
+
+  /**
    * @param {string} deviceId
    * @returns {Promise<MemberInfo>}
    */
@@ -323,4 +447,12 @@ export class MemberApi extends TypedEmitter {
   async assignRole(deviceId, roleId) {
     return this.#roles.assignRole(deviceId, roleId)
   }
+}
+
+/**
+ * @param {undefined | Uint8Array} buffer
+ * @returns {undefined | string}
+ */
+function encodeBufferForServer(buffer) {
+  return buffer ? b4a.toString(buffer, 'hex') : undefined
 }

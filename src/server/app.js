@@ -6,7 +6,7 @@ import comapeoPlugin from './comapeo-plugin.js'
 
 /** @import { ComapeoPluginOptions } from './comapeo-plugin.js' */
 /** @typedef {import('fastify').FastifyServerOptions['logger']} FastifyLogger */
-/** @typedef {{ logger: FastifyLogger } & ComapeoPluginOptions} ServerOptions */
+/** @typedef {{ logger?: FastifyLogger } & ComapeoPluginOptions} ServerOptions */
 
 /**
  * @param {ServerOptions} opts
