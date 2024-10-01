@@ -92,6 +92,7 @@ export class MapeoProject extends TypedEmitter {
   #loadingConfig
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
+  #identityKeypair
 
   /**
    * @param {Object} opts
@@ -275,7 +276,7 @@ export class MapeoProject extends TypedEmitter {
         },
       }),
     }
-    const identityKeypair = keyManager.getIdentityKeypair()
+    this.#identityKeypair = keyManager.getIdentityKeypair()
     const coreKeypairs = getCoreKeypairs({
       projectKey,
       projectSecretKey,
@@ -284,14 +285,14 @@ export class MapeoProject extends TypedEmitter {
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
       coreKeypairs,
-      identityKeypair,
+      identityKeypair: this.#identityKeypair,
     })
     this.#roles = new Roles({
       dataType: this.#dataTypes.role,
       coreOwnership: this.#coreOwnership,
       coreManager: this.#coreManager,
       projectKey: projectKey,
-      deviceKey: keyManager.getIdentityKeypair().publicKey,
+      deviceKey: this.#identityKeypair.publicKey,
     })
 
     this.#memberApi = new MemberApi({
@@ -594,6 +595,7 @@ export class MapeoProject extends TypedEmitter {
     const replicationStream = this.#coreManager.creatorCore.replicate(
       isInitiatorOrStream,
       {
+        keyPair: this.#identityKeypair,
         // @ts-ignore - hypercore types do not currently include this option
         ondiscoverykey: async (discoveryKey) => {
           const protomux =
