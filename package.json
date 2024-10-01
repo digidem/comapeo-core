@@ -124,6 +124,7 @@
     "@types/sub-encoder": "^2.1.0",
     "@types/throttle-debounce": "^5.0.0",
     "@types/varint": "^6.0.1",
+    "@types/ws": "^8.5.12",
     "@types/yauzl-promise": "^4.0.0",
     "@types/yazl": "^2.4.5",
     "bitfield": "^4.2.0",
@@ -156,8 +157,9 @@
     "@electron/asar": "^3.2.8",
     "@fastify/error": "^3.4.1",
     "@fastify/static": "^7.0.3",
-    "@fastify/type-provider-typebox": "^4.0.0",
-    "@hyperswarm/secret-stream": "^6.1.2",
+    "@fastify/type-provider-typebox": "^4.1.0",
+    "@fastify/websocket": "^11.0.1",
+    "@hyperswarm/secret-stream": "^6.6.3",
     "@mapeo/crypto": "1.0.0-alpha.10",
     "@mapeo/sqlite-indexer": "1.0.0-alpha.9",
     "@sinclair/typebox": "^0.29.6",
@@ -197,6 +199,7 @@
     "type-fest": "^4.5.0",
     "undici": "^6.13.0",
     "varint": "^6.0.0",
+    "ws": "^8.18.0",
     "yauzl-promise": "^4.0.0"
   }
 }
