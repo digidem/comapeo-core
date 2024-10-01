@@ -301,6 +301,13 @@ export class MapeoProject extends TypedEmitter {
       encryptionKeys,
       projectKey,
       rpc: localPeers,
+      getReplicationStream: this[kProjectReplicate].bind(
+        this,
+        // TODO: See if we can fix these
+        /** @type {any} */ (true)
+      ),
+      // TODO: This should be scoped to a single peer, not all peers
+      waitForInitialSync: () => this.$sync.waitForSync('initial'),
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
@@ -581,20 +588,23 @@ export class MapeoProject extends TypedEmitter {
    * and only this project will replicate (to replicate multiple projects you
    * need to replicate the manager instance via manager[kManagerReplicate])
    *
-   * @param {Parameters<import('hypercore')['replicate']>[0]} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
+   * @param {Parameters<import('hypercore')['replicate']>[0]} isInitiatorOrStream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance, or a boolean
    */
-  [kProjectReplicate](stream) {
+  [kProjectReplicate](isInitiatorOrStream) {
     // @ts-expect-error - hypercore types need updating
-    const replicationStream = this.#coreManager.creatorCore.replicate(stream, {
-      // @ts-ignore - hypercore types do not currently include this option
-      ondiscoverykey: async (discoveryKey) => {
-        const protomux =
-          /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
-            replicationStream.noiseStream.userData
-          )
-        this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
-      },
-    })
+    const replicationStream = this.#coreManager.creatorCore.replicate(
+      isInitiatorOrStream,
+      {
+        // @ts-ignore - hypercore types do not currently include this option
+        ondiscoverykey: async (discoveryKey) => {
+          const protomux =
+            /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
+              replicationStream.noiseStream.userData
+            )
+          this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
+        },
+      }
+    )
     return replicationStream
   }
 

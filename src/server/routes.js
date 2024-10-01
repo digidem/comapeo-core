@@ -1,4 +1,6 @@
 import { Type } from '@sinclair/typebox'
+import { kProjectReplicate } from '../mapeo-project.js'
+import { wsCoreReplicator } from './ws-core-replicator.js'
 
 /** @import {FastifyPluginAsync, RawServerDefault} from 'fastify' */
 /** @import {TypeBoxTypeProvider} from '@fastify/type-provider-typebox' */
@@ -14,19 +16,27 @@ export default async function routes(fastify) {
     {
       schema: {
         params: Type.Object({
-          projectPublicId: HEX_STRING_32_BYTES,
+          projectPublicId: Type.String(),
         }),
       },
+      async preValidation(req, reply) {
+        const projectPublicId = req.params.projectPublicId
+        const project = await this.comapeo.getProject(projectPublicId)
+        if (!project) {
+          reply.status(404)
+          reply.send()
+        }
+      },
+      websocket: true,
     },
-    async function (req, reply) {
-      /** @type {import('../mapeo-project.js').MapeoProject | undefined} */
-      let _project
-      try {
-        _project = await this.comapeo.getProject(req.params.projectPublicId)
-      } catch (err) {
-        return reply.status(404).send()
-      }
-      return reply.status(200).send('TODO: Implement this route')
+    async function (socket, req) {
+      // The preValidation hook ensures that the project exists
+      const project = await this.comapeo.getProject(req.params.projectPublicId)
+      const replicationStream = project[kProjectReplicate](
+        // TODO: See if we can fix this type cast
+        /** @type {any} */ (false)
+      )
+      wsCoreReplicator(socket, replicationStream)
     }
   )
 
@@ -67,7 +77,7 @@ export default async function routes(fastify) {
 
       const projectKey = Buffer.from(req.body.projectKey, 'hex')
 
-      await this.comapeo.addProject(
+      const projectId = await this.comapeo.addProject(
         {
           projectKey,
           projectName: 'TODO: Figure out if this should be named',
@@ -81,6 +91,8 @@ export default async function routes(fastify) {
         },
         { waitForSync: false }
       )
+      const project = await this.comapeo.getProject(projectId)
+      project.$sync.start()
 
       reply.send({ deviceId: this.comapeo.deviceId })
       return reply
