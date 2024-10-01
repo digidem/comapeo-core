@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'crypto'
-import { valueOf } from '../src/utils.js'
+import { ExhaustivenessError, valueOf } from '../src/utils.js'
 import {
   createManager,
   sortById,
@@ -13,7 +13,15 @@ import {
 import { round } from './utils.js'
 import { generate } from '@mapeo/mock-data'
 import { setTimeout as delay } from 'timers/promises'
-/** @import { MapeoDoc } from '@comapeo/schema' */
+/**
+ * @import {
+ *   FieldValue,
+ *   MapeoDoc,
+ *   ObservationValue,
+ *   PresetValue,
+ *   TrackValue,
+ * } from '@comapeo/schema' */
+/** @import { MapeoProject } from '../src/mapeo-project.js' */
 
 /** @satisfies {Array<import('@comapeo/schema').MapeoValue>} */
 const fixtures = [
@@ -54,6 +62,104 @@ const fixtures = [
     locations: Array.from({ length: 10 }, trackPositionFixture),
   },
 ]
+
+/**
+ * Create a doc for this test.
+ *
+ * Only supports the schema names we use in this test file, but should be easy
+ * to extend if we add new ones.
+ *
+ * This function has a bunch of repeated code. In a perfect world, we wouldn't
+ * need to do this. Instead, we'd just do:
+ *
+ *     project[value.schemaName].create(value)
+ *
+ * Unfortunately, this doesn't type check because each schema name's `create`
+ * function is incompatible with the others. See [this TypeScript playground][0]
+ * for a minimal reproduction of this problem.
+ *
+ * [0]: https://www.typescriptlang.org/play/?#code/JYOwLgpgTgZghgYwgAgGIHt3IN4ChnIyYBcyIArgLYBG0A3LgL666iSyIoBCcUO+yar1IUa9JiwToQAZzDIANugDmy6MgC8-AkXSkAPABVkEAB6QQAExlpMAPgAUANzgLyEUoYCUmu8imy6AoQAHRKys6u7iG6XgA0AkJQBsZmFtbIPFCOLm4eyN6+-tIyQaHhkXkhSfFMDLgBcsjoAA5gwCWayADaAES6vXHIvUm9ALrIcDaNYAxEfA4zzW0dIM0wy+0lPngES+jUAFakGFgAPpm8Xa1baxr3wwPIAPw4hCTIAIzIjMik2IJhMgAEw-BgEcJqKDdG6rMYOA6HLwMRhAA
+ *
+ * @param {MapeoProject} project
+ * @param {FieldValue | ObservationValue | PresetValue | TrackValue} value
+ * @returns {Promise<MapeoDoc>}
+ */
+function create(project, value) {
+  switch (value.schemaName) {
+    case 'field':
+      return project[value.schemaName].create(value)
+    case 'observation':
+      return project[value.schemaName].create(value)
+    case 'preset':
+      return project[value.schemaName].create(value)
+    case 'track':
+      return project[value.schemaName].create(value)
+    default:
+      throw new ExhaustivenessError(value)
+  }
+}
+
+/**
+ * Create a bunch of docs with mocked data. See above for why this function exists.
+ *
+ * @param {MapeoProject} project
+ * @param {'field' | 'observation' | 'preset' | 'track'} schemaName
+ * @param {number} count
+ * @returns {Promise<MapeoDoc[]>}
+ */
+function createWithMockData(project, schemaName, count) {
+  switch (schemaName) {
+    case 'field':
+      return Promise.all(
+        generate(schemaName, { count }).map((doc) =>
+          project[schemaName].create(valueOf(doc))
+        )
+      )
+    case 'observation':
+      return Promise.all(
+        generate(schemaName, { count }).map((doc) =>
+          project[schemaName].create(valueOf(doc))
+        )
+      )
+    case 'preset':
+      return Promise.all(
+        generate(schemaName, { count }).map((doc) =>
+          project[schemaName].create(valueOf(doc))
+        )
+      )
+    case 'track':
+      return Promise.all(
+        generate(schemaName, { count }).map((doc) =>
+          project[schemaName].create(valueOf(doc))
+        )
+      )
+    default:
+      throw new ExhaustivenessError(schemaName)
+  }
+}
+
+/**
+ * Update a doc. See above for why this function exists.
+ *
+ * @param {MapeoProject} project
+ * @param {string} versionId
+ * @param {FieldValue | ObservationValue | PresetValue | TrackValue} value
+ * @returns {Promise<MapeoDoc>}
+ */
+function update(project, versionId, value) {
+  switch (value.schemaName) {
+    case 'field':
+      return project[value.schemaName].update(versionId, value)
+    case 'observation':
+      return project[value.schemaName].update(versionId, value)
+    case 'preset':
+      return project[value.schemaName].update(versionId, value)
+    case 'track':
+      return project[value.schemaName].update(versionId, value)
+    default:
+      throw new ExhaustivenessError(value)
+  }
+}
 
 /**
  * Add some random data to each fixture to test updates
@@ -107,22 +213,14 @@ test('CRUD operations', async (t) => {
     await t.test(`create and read ${schemaName}`, async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
-      /** @type {any[]} */
+      /** @type {MapeoDoc[]} */
       const updates = []
-      /** @type {Promise<MapeoDoc>[]} */
-      const writePromises = []
       project[schemaName].on('updated-docs', (docs) => updates.push(...docs))
-      let i = 0
-      while (i++ < CREATE_COUNT) {
-        const mocked =
-          // TODO: add tracks to @mapeo/mock-data
-          schemaName === 'track' ? value : valueOf(generate(schemaName)[0])
-        writePromises.push(
-          // @ts-ignore
-          project[schemaName].create(mocked)
-        )
-      }
-      const written = await Promise.all(writePromises)
+      const written = await createWithMockData(
+        project,
+        schemaName,
+        CREATE_COUNT
+      )
       const read = await Promise.all(
         written.map((doc) => project[schemaName].getByDocId(doc.docId))
       )
@@ -140,15 +238,10 @@ test('CRUD operations', async (t) => {
     await t.test('update', async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
-      // @ts-ignore
-      const written = await project[schemaName].create(value)
+      const written = await create(project, value)
       const updateValue = getUpdateFixture(value)
       await delay(1) // delay to ensure updatedAt is different to createdAt
-      // @ts-ignore
-      const updated = await project[schemaName].update(
-        written.versionId,
-        updateValue
-      )
+      const updated = await update(project, written.versionId, updateValue)
       const updatedReRead = await project[schemaName].getByDocId(written.docId)
       assert.deepEqual(
         updated,
@@ -179,17 +272,11 @@ test('CRUD operations', async (t) => {
     await t.test('getMany', async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
-      const writePromises = []
-      for (let i = 0; i < CREATE_COUNT; i++) {
-        const mocked =
-          // TODO: add tracks to @mapeo/mock-data
-          schemaName === 'track' ? value : valueOf(generate(schemaName)[0])
-        writePromises.push(
-          // @ts-ignore
-          project[schemaName].create(mocked)
-        )
-      }
-      const written = await Promise.all(writePromises)
+      const written = await createWithMockData(
+        project,
+        schemaName,
+        CREATE_COUNT
+      )
       const expectedWithoutDeleted = []
       const deletePromises = []
       for (const [i, doc] of written.entries()) {
@@ -225,23 +312,19 @@ test('CRUD operations', async (t) => {
         return getUpdateFixture(value)
       })
       for (const value of values) {
-        // @ts-ignore
-        await project[schemaName].create(value)
+        await create(project, value)
       }
-      // @ts-ignore
-      const written = await project[schemaName].create(value)
+      const written = await create(project, value)
       await project.close()
 
       await assert.rejects(async () => {
         const updateValue = getUpdateFixture(value)
-        // @ts-ignore
-        await project[schemaName].update(written.versionId, updateValue)
+        await update(project, written.versionId, updateValue)
       }, 'should fail updating since the project is already closed')
 
       await assert.rejects(async () => {
         for (const value of values) {
-          // @ts-ignore
-          await project[schemaName].create(value)
+          await create(project, value)
         }
       }, 'should fail creating since the project is already closed')
 
@@ -260,8 +343,7 @@ test('CRUD operations', async (t) => {
       })
 
       for (const value of values) {
-        // @ts-ignore
-        await project[schemaName].create(value)
+        await create(project, value)
       }
 
       const many1 = await project[schemaName].getMany()
@@ -286,19 +368,11 @@ test('CRUD operations', async (t) => {
     await t.test(`create and delete ${schemaName}`, async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
-      /** @type {Promise<MapeoDoc>[]} */
-      const writePromises = []
-      let i = 0
-      while (i++ < CREATE_COUNT) {
-        const mocked =
-          // TODO: add tracks to @mapeo/mock-data
-          schemaName === 'track' ? value : valueOf(generate(schemaName)[0])
-        writePromises.push(
-          // @ts-ignore
-          project[schemaName].create(mocked)
-        )
-      }
-      const written = await Promise.all(writePromises)
+      const written = await createWithMockData(
+        project,
+        schemaName,
+        CREATE_COUNT
+      )
       const deleted = await Promise.all(
         written.map((doc) => project[schemaName].delete(doc.docId))
       )
@@ -319,19 +393,10 @@ test('CRUD operations', async (t) => {
     await t.test('delete forks', async () => {
       const projectId = await manager.createProject()
       const project = await manager.getProject(projectId)
-      // @ts-ignore
-      const written = await project[schemaName].create(value)
+      const written = await create(project, value)
       const updateValue = getUpdateFixture(value)
-      // @ts-ignore
-      const updatedFork1 = await project[schemaName].update(
-        written.versionId,
-        updateValue
-      )
-      // @ts-ignore
-      const updatedFork2 = await project[schemaName].update(
-        written.versionId,
-        updateValue
-      )
+      const updatedFork1 = await update(project, written.versionId, updateValue)
+      const updatedFork2 = await update(project, written.versionId, updateValue)
       const updatedReRead = await project[schemaName].getByDocId(written.docId)
       assert.deepEqual(
         updatedFork2,
