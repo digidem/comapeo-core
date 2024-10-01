@@ -268,7 +268,6 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async addServerPeer(host, { dangerouslyAllowInsecureConnections } = {}) {
-    console.log('@@@@', 'starting addServerPeer')
     assert(isValidHost(host), 'Hostname must be valid')
 
     const requestProtocol = dangerouslyAllowInsecureConnections
@@ -287,8 +286,6 @@ export class MemberApi extends TypedEmitter {
       },
     }
 
-    console.log('@@@@', 'making request to ' + requestUrl)
-
     /** @type {Response} */ let response
     try {
       response = await fetch(requestUrl, {
@@ -301,7 +298,6 @@ export class MemberApi extends TypedEmitter {
         err && typeof err === 'object' && 'message' in err
           ? err.message
           : String(err)
-      console.log('@@@@', err)
       throw new Error(
         `Failed to add server peer due to network error: ${message}`
       )
@@ -309,7 +305,6 @@ export class MemberApi extends TypedEmitter {
 
     if (response.status !== 200) {
       // TODO: Better error handling here
-      console.log('@@@@', 'bad response', response.status)
       throw new Error(
         `Failed to add server peer due to HTTP status code ${response.status}`
       )
@@ -327,33 +322,23 @@ export class MemberApi extends TypedEmitter {
       )
       ;({ deviceId } = responseBody)
     } catch (err) {
-      console.log('@@@@', 'failed to parse json', err)
       throw new Error(
         "Failed to add server peer because we couldn't parse the response"
       )
     }
 
-    console.log('@@@@', 'about to assign the role...')
     const roleId = MEMBER_ROLE_ID
     await this.#roles.assignRole(deviceId, roleId)
-    console.log('@@@@', 'assigned the role.')
 
     const projectPublicId = projectKeyToPublicId(this.#projectKey)
     const websocketProtocol = dangerouslyAllowInsecureConnections
       ? 'ws:'
       : 'wss:'
-    console.log(
-      '@@@@',
-      'opening websocket to',
-      `${websocketProtocol}//${host}/sync/${projectPublicId}`
-    )
     const websocket = new WebSocket(
       `${websocketProtocol}//${host}/sync/${projectPublicId}`
     )
     const replicationStream = this.#getReplicationStream()
-    console.log('@@@@', 'got a replication stream')
     wsCoreReplicator(websocket, replicationStream)
-    console.log('@@@@', 'made the ws core replicator')
 
     // TODO: remove this
     await new Promise((resolve) => {
@@ -362,11 +347,8 @@ export class MemberApi extends TypedEmitter {
 
     // TODO: This should be scoped to a single peer
     await this.#waitForInitialSync()
-    console.log('@@@@', 'initial sync done')
 
     websocket.close()
-
-    console.log('@@@@', 'closed websocket')
   }
 
   /**
