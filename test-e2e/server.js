@@ -35,12 +35,16 @@ test('adding a server peer', async (t) => {
   // TODO: Ensure that this peer doesn't exist before adding?
   const hasServerPeer = members.some(
     (member) =>
-      member.deviceType === 'selfHostedServer' &&
-      member.role.roleId === MEMBER_ROLE_ID
+      // TODO: use server device type
+      member.deviceType === 'desktop' && member.role.roleId === MEMBER_ROLE_ID
   )
   assert(hasServerPeer, 'expected a server peer to be found by the client')
 })
 
 function createTestServer() {
-  return createServer({ ...getManagerOptions('test server'), logger: true })
+  return createServer({
+    ...getManagerOptions('test server'),
+    serverName: 'test server',
+    logger: true,
+  })
 }
