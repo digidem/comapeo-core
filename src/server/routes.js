@@ -29,7 +29,9 @@ export default async function routes(fastify) {
     async function (_req, reply) {
       const { deviceId, name } = this.comapeo.getDeviceInfo()
       assert(name, 'Expected server to have a name')
-      reply.send({ data: { deviceId, name } })
+      reply.send({
+        data: { deviceId, name },
+      })
     }
   )
 
@@ -78,10 +80,14 @@ export default async function routes(fastify) {
         }),
         response: {
           200: Type.Object({
-            deviceId: HEX_STRING_32_BYTES,
+            data: Type.Object({
+              deviceId: HEX_STRING_32_BYTES,
+            }),
           }),
           400: Type.Object({
-            message: Type.String(),
+            error: Type.Object({
+              message: Type.String(),
+            }),
           }),
         },
       },
@@ -91,7 +97,7 @@ export default async function routes(fastify) {
 
       if (hasExistingProject) {
         reply.status(400)
-        reply.send({ message: 'Only one project is allowed' })
+        reply.send({ error: { message: 'Only one project is allowed' } })
         return reply
       }
 
@@ -114,7 +120,11 @@ export default async function routes(fastify) {
       const project = await this.comapeo.getProject(projectId)
       project.$sync.start()
 
-      reply.send({ deviceId: this.comapeo.deviceId })
+      reply.send({
+        data: {
+          deviceId: this.comapeo.deviceId,
+        },
+      })
       return reply
     }
   )

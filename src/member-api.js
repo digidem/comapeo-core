@@ -316,11 +316,14 @@ export class MemberApi extends TypedEmitter {
       assert(
         responseBody &&
           typeof responseBody === 'object' &&
-          'deviceId' in responseBody &&
-          typeof responseBody.deviceId === 'string',
+          'data' in responseBody &&
+          responseBody.data &&
+          typeof responseBody.data === 'object' &&
+          'deviceId' in responseBody.data &&
+          typeof responseBody.data.deviceId === 'string',
         'Response body is valid'
       )
-      ;({ deviceId } = responseBody)
+      ;({ deviceId } = responseBody.data)
     } catch (err) {
       throw new Error(
         "Failed to add server peer because we couldn't parse the response"
