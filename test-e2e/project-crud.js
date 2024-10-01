@@ -24,7 +24,7 @@ import { setTimeout as delay } from 'timers/promises'
  * } from '@comapeo/schema' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 
-/** @satisfies {Array<import('@comapeo/schema').MapeoValue>} */
+/** @type {Array<FieldValue | ObservationValue | PresetValue | RemoteDetectionAlertValue | TrackValue>} */
 const fixtures = [
   {
     schemaName: 'observation',
