@@ -73,8 +73,6 @@ export class PeerSyncController {
   }
 
   get peerKey() {
-    // if (!this.#protomux.stream.remotePublicKey)
-    //   console.log('peerKey proto stream', this.#protomux.stream)
     return this.#protomux.stream.remotePublicKey
   }
 
