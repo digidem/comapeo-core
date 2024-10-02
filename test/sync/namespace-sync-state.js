@@ -1,4 +1,3 @@
-// @ts-nocheck TODO
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import pDefer from 'p-defer'
@@ -11,6 +10,7 @@ import {
   replicate,
 } from '../helpers/core-manager.js'
 import { randomBytes } from 'crypto'
+import { isNamespaceSynced } from '../../src/sync/is-namespace-synced.js'
 
 test('sync cores in a namespace', async () => {
   const projectKeyPair = KeyManager.generateProjectKeypair()
@@ -47,11 +47,7 @@ test('sync cores in a namespace', async () => {
     namespace: 'auth',
     onUpdate: () => {
       const state = syncState1.getState()
-      if (
-        state.localState.want === 0 &&
-        state.localState.wanted === 0 &&
-        state.localState.have === 30
-      ) {
+      if (state.localState.have === 30 && isNamespaceSynced(state)) {
         syncState1Sync.resolve(state.remoteStates)
       }
     },
@@ -63,11 +59,7 @@ test('sync cores in a namespace', async () => {
     namespace: 'auth',
     onUpdate: () => {
       const state = syncState2.getState()
-      if (
-        state.localState.want === 0 &&
-        state.localState.wanted === 0 &&
-        state.localState.have === 30
-      ) {
+      if (state.localState.have === 30 && isNamespaceSynced(state)) {
         syncState2Sync.resolve(state.remoteStates)
       }
     },
@@ -160,9 +152,9 @@ test('replicate with updating data', async function () {
     coreManager: cm1,
     namespace: 'auth',
     onUpdate: () => {
-      const { localState } = syncState1.getState()
+      const state = syncState1.getState()
       const synced =
-        localState.wanted === 0 && localState.have === fillLength * 2
+        state.localState.have === fillLength * 2 && wantsNothing(state)
       if (synced) syncState1Sync.resolve()
     },
     peerSyncControllers: new Map(),
@@ -172,9 +164,9 @@ test('replicate with updating data', async function () {
     coreManager: cm2,
     namespace: 'auth',
     onUpdate: () => {
-      const { localState } = syncState2.getState()
+      const state = syncState2.getState()
       const synced =
-        localState.wanted === 0 && localState.have === fillLength * 2
+        state.localState.have === fillLength * 2 && wantsNothing(state)
       if (synced) syncState2Sync.resolve()
     },
     peerSyncControllers: new Map(),
@@ -197,3 +189,12 @@ test('replicate with updating data', async function () {
 
   await Promise.all([syncState1Sync.promise, syncState2Sync.promise])
 })
+
+/**
+ * TODO: Give this a type better than `any`
+ * @param {any} state
+ * @returns {boolean}
+ */
+function wantsNothing(state) {
+  return Object.values(state.remoteStates).every(remoteState => remoteState.wanted === 0)
+}
