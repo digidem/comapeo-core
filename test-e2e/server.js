@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
-import { createManager, getManagerOptions } from './utils.js'
+import { createManager, createManagers, getManagerOptions } from './utils.js'
 import createServer from '../src/server/app.js'
 
 // TODO: test invalid hostname
@@ -27,6 +27,26 @@ test('adding a server peer', async (t) => {
       member.deviceType === 'desktop' && member.role.roleId === MEMBER_ROLE_ID
   )
   assert(hasServerPeer, 'expected a server peer to be found by the client')
+})
+
+test("can't add a server to two different projects", async (t) => {
+  const [managerA, managerB] = await createManagers(2, t, 'mobile')
+  const projectIdA = await managerA.createProject()
+  const projectIdB = await managerB.createProject()
+  const projectA = await managerA.getProject(projectIdA)
+  const projectB = await managerB.getProject(projectIdB)
+
+  const serverHost = await createTestServer(t)
+
+  await projectA.$member.addServerPeer(serverHost, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+
+  await assert.throws(async () => {
+    await projectB.$member.addServerPeer(serverHost, {
+      dangerouslyAllowInsecureConnections: true,
+    })
+  }, Error)
 })
 
 /**
