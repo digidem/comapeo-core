@@ -8,11 +8,13 @@ import { wsCoreReplicator } from './ws-core-replicator.js'
 
 const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
 const HEX_STRING_32_BYTES = Type.String({ pattern: HEX_REGEX_32_BYTES })
+const BASE32_REGEX_32_BYTES = '^[0-9A-Za-z]{52}$'
+const BASE32_STRING_32_BYTES = Type.String({ pattern: BASE32_REGEX_32_BYTES })
 
 /** @type {FastifyPluginAsync<RouteOptions, RawServerDefault, TypeBoxTypeProvider>} */
 export default async function routes(fastify) {
   fastify.get(
-    '/deviceinfo',
+    '/info',
     {
       schema: {
         response: {
@@ -40,16 +42,21 @@ export default async function routes(fastify) {
     {
       schema: {
         params: Type.Object({
-          projectPublicId: Type.String(),
+          projectPublicId: BASE32_STRING_32_BYTES,
         }),
         response: {
           404: { $ref: 'HttpError' },
         },
       },
-      async preValidation(req) {
+      async preHandler(req) {
         const projectPublicId = req.params.projectPublicId
-        const project = await this.comapeo.getProject(projectPublicId)
-        this.assert(project, 404, 'Project not found')
+        try {
+          await this.comapeo.getProject(projectPublicId)
+        } catch (e) {
+          if (e instanceof Error && e.message.startsWith('NotFound')) {
+            throw this.httpErrors.notFound('Project not found')
+          }
+        }
       },
       websocket: true,
     },
