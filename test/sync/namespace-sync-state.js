@@ -196,5 +196,7 @@ test('replicate with updating data', async function () {
  * @returns {boolean}
  */
 function wantsNothing(state) {
-  return Object.values(state.remoteStates).every(remoteState => remoteState.wanted === 0)
+  return Object.values(state.remoteStates).every(
+    (remoteState) => remoteState.wanted === 0
+  )
 }

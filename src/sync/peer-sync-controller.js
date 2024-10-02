@@ -311,10 +311,7 @@ function getSyncStatus(peerId, state) {
     const peerState = state[namespace].remoteStates[peerId]
     if (!peerState) {
       syncStatus[namespace] = 'unknown'
-    } else if (
-      peerState.status === 'started' &&
-      peerState.wanted === 0
-    ) {
+    } else if (peerState.status === 'started' && peerState.wanted === 0) {
       syncStatus[namespace] = 'synced'
     } else {
       syncStatus[namespace] = 'syncing'
