@@ -1,10 +1,16 @@
 import { ExhaustivenessError } from '../utils.js'
-/** @import { SyncState as NamespaceSyncState } from './namespace-sync-state.js' */
-
-// TODO: Test this
+/** @import { ReadonlyDeep } from 'type-fest' */
 
 /**
- * @param {Pick<NamespaceSyncState, 'remoteStates'>} namespaceSyncState
+ * @internal
+ * @typedef {object} PeerNamespaceState
+ * @property {number} want
+ * @property {number} wanted
+ * @property {'stopped' | 'starting' | 'started'} status
+ */
+
+/**
+ * @param {ReadonlyDeep<{ remoteStates: Record<string, PeerNamespaceState> }>} namespaceSyncState
  * @returns {boolean}
  */
 export const isNamespaceSynced = ({ remoteStates }) =>
