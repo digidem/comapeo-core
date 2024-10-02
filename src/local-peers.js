@@ -13,6 +13,7 @@ import {
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
 import pTimeout, { TimeoutError } from 'p-timeout'
+/** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 
 // Unique identifier for the mapeo rpc protocol
@@ -329,7 +330,7 @@ export class LocalPeers extends TypedEmitter {
   /**
    * Connect to a peer over an existing NoiseSecretStream
    *
-   * @param {import('./types.js').NoiseStream<any>} stream a NoiseSecretStream from @hyperswarm/secret-stream
+   * @param {NoiseStream<any>} stream
    * @returns {import('./types.js').ReplicationStream}
    */
   connect(stream) {
