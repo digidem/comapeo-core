@@ -1,21 +1,20 @@
 import { ExhaustivenessError } from '../utils.js'
 /** @import { ReadonlyDeep } from 'type-fest' */
+/** @import { PeerNamespaceState } from './core-sync-state.js' */
 
 /**
- * @internal
- * @typedef {object} PeerNamespaceState
- * @property {number} want
- * @property {number} wanted
- * @property {'stopped' | 'starting' | 'started'} status
- */
-
-/**
- * @param {ReadonlyDeep<{ remoteStates: Record<string, PeerNamespaceState> }>} namespaceSyncState
+ * @param {ReadonlyDeep<{
+ *   remoteStates: Record<
+ *     string,
+ *     Pick<PeerNamespaceState, 'want' | 'wanted' | 'status'>
+ *   >
+ * }>} namespaceSyncState
  * @returns {boolean}
  */
 export const isNamespaceSynced = ({ remoteStates }) =>
   Object.values(remoteStates).every((peerState) => {
     switch (peerState.status) {
+      case 'unknown':
       case 'starting':
         return false
       case 'stopped':

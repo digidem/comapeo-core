@@ -12,6 +12,7 @@ import {
   connectPeers,
   createManager,
   createManagers,
+  ensureNoPeersAreConnected,
   invite,
   seedDatabases,
   waitForPeers,
@@ -1137,6 +1138,7 @@ test.only(
     )
 
     await disconnectA()
+    await ensureNoPeersAreConnected(invitor, inviteeA)
 
     const disconnectB = connectPeers([invitor, inviteeB], { discovery: false })
     await invite({ invitor, invitees: [inviteeB], projectId })

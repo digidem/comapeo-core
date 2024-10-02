@@ -27,7 +27,7 @@ import RemoteBitfield, {
  * @property {number} have blocks the peer has locally
  * @property {number} want blocks this peer wants from us
  * @property {number} wanted blocks we want from this peer
- * @property {'stopped' | 'starting' | 'started'} status
+ * @property {'unknown' | 'stopped' | 'starting' | 'started'} status
  */
 /**
  * @typedef {object} DerivedState
@@ -374,6 +374,10 @@ export function deriveState(coreState) {
       want: 0,
       wanted: 0,
       status: peerState.status,
+    }
+
+    if (!psc?.isNamespaceEnabled(coreState.namespace)) {
+      remoteStates[peerId].status = 'unknown'
     }
   }
 

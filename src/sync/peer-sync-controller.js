@@ -69,6 +69,16 @@ export class PeerSyncController {
     this.#updateEnabledNamespaces()
   }
 
+  /**
+   * TODO: Move this
+   * TODO: Remove `any`
+   * @param {any} ns
+   * @returns {boolean}
+   */
+  isNamespaceEnabled(ns) {
+    return this.#enabledNamespaces.has(ns)
+  }
+
   get peerKey() {
     return this.#protomux.stream.remotePublicKey
   }

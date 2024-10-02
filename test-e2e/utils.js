@@ -70,6 +70,32 @@ export function connectPeers(managers, { discovery = true } = {}) {
 }
 
 /**
+ * @param {ReadonlyArray<MapeoManager>} managers
+ * @returns {Promise<void>}
+ */
+export async function ensureNoPeersAreConnected(...managers) {
+  await Promise.all(
+    managers.map(
+      (manager) =>
+        new Promise((resolve) => {
+          const checkIfDone = async () => {
+            const isDone = (await manager.listLocalPeers()).every(
+              (peer) => peer.status === 'disconnected'
+            )
+            if (isDone) {
+              manager.off('local-peers', checkIfDone)
+              // TODO: Can we avoid this
+              resolve(undefined)
+            }
+          }
+          manager.on('local-peers', checkIfDone)
+          checkIfDone()
+        })
+    )
+  )
+}
+
+/**
  * Invite mapeo clients to a project
  *
  * @param {{

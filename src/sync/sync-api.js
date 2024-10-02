@@ -159,6 +159,11 @@ export class SyncApi extends TypedEmitter {
     return this.#getState(this[kSyncState].getState())
   }
 
+  // TODO
+  __tmpEvanHahnGetSyncState() {
+    return this[kSyncState].getState()
+  }
+
   /**
    * @param {import('./sync-state.js').State} namespaceSyncState
    * @returns {State}
@@ -529,6 +534,7 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
       /** @type {boolean} */
       let isSyncEnabled
       switch (peerNamespaceState.status) {
+        case 'unknown':
         case 'stopped':
         case 'starting':
           isSyncEnabled = false
