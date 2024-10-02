@@ -389,16 +389,21 @@ export function deriveState(coreState) {
     let iWantFromSomeoneElse = 0
 
     for (const [peerId, peer] of peers.entries()) {
+      const isPeerStopped = remoteStates[peerId]?.status === 'stopped'
       const peerHaves = peer.haveWord(i) & truncate
       remoteStates[peerId].have += bitCount32(peerHaves)
 
       const theyWantFromMe = peer.wantWord(i) & ~peerHaves & localHaves
       remoteStates[peerId].want += bitCount32(theyWantFromMe)
-      someoneElseWantsFromMe |= theyWantFromMe
+      if (!isPeerStopped) {
+        someoneElseWantsFromMe |= theyWantFromMe
+      }
 
       const iWantFromThem = peerHaves & ~localHaves
       remoteStates[peerId].wanted += bitCount32(iWantFromThem)
-      iWantFromSomeoneElse |= iWantFromThem
+      if (!isPeerStopped) {
+        iWantFromSomeoneElse |= iWantFromThem
+      }
     }
 
     localState.wanted += bitCount32(someoneElseWantsFromMe)
