@@ -1109,3 +1109,41 @@ test('data sync state is properly updated as data sync is enabled and disabled',
     'other invitee is still disabled, still wants something'
   )
 })
+
+test.only(
+  'Sync state with disconnected peer',
+  { timeout: 100_000 },
+  async (t) => {
+    // 1. Connect to a peer, invite it
+    // 2. Disconnect from the peer
+    // 3. Connect to a new peer, invite it
+    // 4. Wait for initial sync with new peer
+    // 5. Sync should complete with new peer
+
+    const managers = await createManagers(3, t)
+    const [invitor, inviteeA, inviteeB] = managers
+    const disconnectA = connectPeers([invitor, inviteeA], { discovery: false })
+    const projectId = await invitor.createProject({ name: 'Mapeo' })
+    await invite({ invitor, invitees: [inviteeA], projectId })
+
+    const [invitorProject, inviteeAProject] = await Promise.all(
+      [invitor, inviteeA].map((m) => m.getProject(projectId))
+    )
+
+    await Promise.all(
+      [invitorProject, inviteeAProject].map((p) =>
+        p.$sync.waitForSync('initial')
+      )
+    )
+
+    await disconnectA()
+
+    const disconnectB = connectPeers([invitor, inviteeB], { discovery: false })
+    await invite({ invitor, invitees: [inviteeB], projectId })
+    await pTimeout(invitorProject.$sync.waitForSync('initial'), {
+      milliseconds: 1000,
+      message: 'invitor should complete initial sync with inviteeB',
+    })
+    await disconnectB()
+  }
+)
