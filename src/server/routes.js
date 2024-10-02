@@ -1,5 +1,4 @@
 import { Type } from '@sinclair/typebox'
-import assert from 'node:assert/strict'
 import { kProjectReplicate } from '../mapeo-project.js'
 import { wsCoreReplicator } from './ws-core-replicator.js'
 
@@ -23,12 +22,13 @@ export default async function routes(fastify) {
               name: Type.String(),
             }),
           }),
+          500: { $ref: 'HttpError' },
         },
       },
     },
     async function (_req, reply) {
       const { deviceId, name } = this.comapeo.getDeviceInfo()
-      assert(name, 'Expected server to have a name')
+      this.assert(name, 500, 'Server is missing a name')
       reply.send({
         data: { deviceId, name },
       })
@@ -42,14 +42,14 @@ export default async function routes(fastify) {
         params: Type.Object({
           projectPublicId: Type.String(),
         }),
+        response: {
+          404: { $ref: 'HttpError' },
+        },
       },
-      async preValidation(req, reply) {
+      async preValidation(req) {
         const projectPublicId = req.params.projectPublicId
         const project = await this.comapeo.getProject(projectPublicId)
-        if (!project) {
-          reply.status(404)
-          reply.send()
-        }
+        this.assert(project, 404, 'Project not found')
       },
       websocket: true,
     },
@@ -84,22 +84,19 @@ export default async function routes(fastify) {
               deviceId: HEX_STRING_32_BYTES,
             }),
           }),
-          400: Type.Object({
-            error: Type.Object({
-              message: Type.String(),
-            }),
-          }),
+          400: { $ref: 'HttpError' },
         },
       },
     },
     async function (req, reply) {
       const hasExistingProject = (await this.comapeo.listProjects()).length > 0
-
-      if (hasExistingProject) {
-        reply.status(400)
-        reply.send({ error: { message: 'Only one project is allowed' } })
-        return reply
-      }
+      // TODO: Different error message, or 200 response, if a project with a
+      // matching projectToken already exists.
+      this.assert(
+        !hasExistingProject,
+        403,
+        'Server is already linked to a project'
+      )
 
       const projectKey = Buffer.from(req.body.projectKey, 'hex')
 

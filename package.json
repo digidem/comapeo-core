@@ -157,6 +157,7 @@
     "@digidem/types": "^2.3.0",
     "@electron/asar": "^3.2.8",
     "@fastify/error": "^3.4.1",
+    "@fastify/sensible": "^5.6.0",
     "@fastify/static": "^7.0.3",
     "@fastify/type-provider-typebox": "^4.1.0",
     "@fastify/websocket": "^10.0.1",
