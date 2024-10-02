@@ -42,7 +42,7 @@ test("can't add a server to two different projects", async (t) => {
     dangerouslyAllowInsecureConnections: true,
   })
 
-  await assert.throws(async () => {
+  await assert.rejects(async () => {
     await projectB.$member.addServerPeer(serverHost, {
       dangerouslyAllowInsecureConnections: true,
     })
