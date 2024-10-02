@@ -1,4 +1,3 @@
-// @ts-nocheck TODO
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
@@ -38,7 +37,7 @@ const scenarios = [
     },
     expected: {
       coreLength: 4,
-      localState: { want: 0, have: 3, wanted: 2 },
+      localState: { have: 3 },
       remoteStates: {
         peer0: {
           want: 1,
@@ -70,7 +69,7 @@ const scenarios = [
     },
     expected: {
       coreLength: 4,
-      localState: { want: 0, have: 0, wanted: 0 },
+      localState: { have: 0 },
       remoteStates: {
         peer0: {
           want: 0,
@@ -96,7 +95,7 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 1 },
+      localState: { have: 3 },
       remoteStates: {
         peer0: { want: 1, have: 1, wanted: 0, status: 'started' },
       },
@@ -111,7 +110,7 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 1 },
+      localState: { have: 3 },
       remoteStates: {
         peer0: {
           want: 1,
@@ -131,7 +130,7 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 1 },
+      localState: { have: 3 },
       remoteStates: {
         peer0: {
           want: 1,
@@ -151,7 +150,7 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 0 },
+      localState: { have: 3 },
       remoteStates: {
         peer0: {
           want: 0,
@@ -175,7 +174,7 @@ const scenarios = [
     },
     expected: {
       coreLength: 72,
-      localState: { want: 0, have: 50, wanted: 15 },
+      localState: { have: 50 },
       remoteStates: {
         peer0: {
           want: 10,
@@ -207,7 +206,7 @@ const scenarios = [
     },
     expected: {
       coreLength: 2,
-      localState: { want: 0, have: 2, wanted: 2 },
+      localState: { have: 2 },
       remoteStates: {
         peer0: {
           want: 1,
@@ -256,11 +255,7 @@ test('deriveState() have at index beyond bitfield page size', () => {
   }
   const expected = {
     coreLength: BITS_PER_PAGE + 10,
-    localState: {
-      want: 1,
-      have: 10,
-      wanted: 10,
-    },
+    localState: { have: 10 },
     remoteStates: {
       peer0: {
         want: 10,
