@@ -156,7 +156,7 @@
     "@electron/asar": "^3.2.8",
     "@fastify/error": "^3.4.1",
     "@fastify/static": "^7.0.3",
-    "@fastify/type-provider-typebox": "^4.0.0",
+    "@fastify/type-provider-typebox": "^4.1.0",
     "@hyperswarm/secret-stream": "^6.6.3",
     "@mapeo/crypto": "1.0.0-alpha.10",
     "@mapeo/sqlite-indexer": "1.0.0-alpha.9",
