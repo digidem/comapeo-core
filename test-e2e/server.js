@@ -4,8 +4,9 @@ import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { createManager, createManagers, getManagerOptions } from './utils.js'
 import createServer from '../src/server/app.js'
 
-// TODO: test invalid hostname
+// TODO: test invalid base URL
 // TODO: test bad requests
+// TODO: test other base URLs
 
 test('adding a server peer', async (t) => {
   const manager = createManager('device0', t)
@@ -13,20 +14,29 @@ test('adding a server peer', async (t) => {
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
-  const serverHost = await createTestServer(t)
+  const serverBaseUrl = await createTestServer(t)
 
-  await project.$member.addServerPeer(serverHost, {
+  await project.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
   })
 
   const members = await project.$member.getMany()
   // TODO: Ensure that this peer doesn't exist before adding?
-  const hasServerPeer = members.some(
-    (member) =>
-      // TODO: use server device type
-      member.deviceType === 'desktop' && member.role.roleId === MEMBER_ROLE_ID
+  const serverPeer = members.find(
+    (member) => member.deviceType === 'selfHostedServer'
   )
-  assert(hasServerPeer, 'expected a server peer to be found by the client')
+  assert(serverPeer, 'expected a server peer to be found by the client')
+  assert.equal(serverPeer.name, 'test server', 'server peers have name')
+  assert.equal(
+    serverPeer.role.roleId,
+    MEMBER_ROLE_ID,
+    'server peers are added as regular members'
+  )
+  assert.equal(
+    serverPeer.selfHostedServerDetails?.baseUrl,
+    'https://mapeo.example',
+    'server peer stores base URL'
+  )
 })
 
 test("can't add a server to two different projects", async (t) => {
@@ -52,14 +62,15 @@ test("can't add a server to two different projects", async (t) => {
 /**
  *
  * @param {import('node:test').TestContext} t
- * @returns {Promise<string>} server host
+ * @returns {Promise<string>} server base URL
  */
 async function createTestServer(t) {
   const server = createServer({
     ...getManagerOptions('test server'),
     serverName: 'test server',
+    serverPublicBaseUrl: 'https://mapeo.example',
   })
   const serverAddress = await server.listen()
   t.after(() => server.close())
-  return new URL(serverAddress).host
+  return serverAddress
 }

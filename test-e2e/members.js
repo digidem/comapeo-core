@@ -14,6 +14,7 @@ import {
   connectPeers,
   createManagers,
   invite,
+  removeUndefinedFields,
   waitForPeers,
   waitForSync,
 } from './utils.js'
@@ -36,7 +37,7 @@ test('getting yourself after creating project', async (t) => {
     'time of joined project is close to now'
   )
   assert.deepEqual(
-    me,
+    removeUndefinedFields(me),
     {
       deviceId: project.deviceId,
       deviceType: 'tablet',
@@ -51,7 +52,7 @@ test('getting yourself after creating project', async (t) => {
 
   assert.equal(members.length, 1)
   assert.deepEqual(
-    member,
+    removeUndefinedFields(member),
     {
       deviceId: project.deviceId,
       deviceType: 'tablet',
@@ -87,7 +88,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
   )
 
   assert.deepEqual(
-    me,
+    removeUndefinedFields(me),
     {
       deviceId: project.deviceId,
       deviceType: 'tablet',
@@ -102,7 +103,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
 
   assert.equal(members.length, 1)
   assert.deepEqual(
-    member,
+    removeUndefinedFields(member),
     {
       deviceId: project.deviceId,
       deviceType: 'tablet',
@@ -178,7 +179,7 @@ test('getting invited member after invite accepted', async (t) => {
     )
 
     assert.deepEqual(
-      invitedMemberWithoutJoinedAt,
+      removeUndefinedFields(invitedMemberWithoutJoinedAt),
       {
         deviceId: invitee.deviceId,
         deviceType: 'device_type_unspecified',

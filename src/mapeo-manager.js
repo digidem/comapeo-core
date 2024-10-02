@@ -95,10 +95,10 @@ export class MapeoManager extends TypedEmitter {
   /** @type {string} */
   #projectMigrationsFolder
   #deviceId
-  #localPeers
-  #invite
-  #fastify
-  #localDiscovery
+  #localPeers // TODO(evanhahn) maybe should be null/undefined for servers
+  #invite // TODO(evanhahn) maybe should be null/undefined for servers
+  #fastify // TODO(evanhahn) maybe should be null/undefined for servers
+  #localDiscovery // TODO(evanhahn) maybe should be null/undefined for servers
   #loggerBase
   #l
   #defaultConfigPath
@@ -704,9 +704,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @typedef {Exclude<
-   * import('./schema/client.js').DeviceInfoParam['deviceType'],
-   * 'selfHostedServer'>} RPCDeviceType
+   * @typedef {import('./schema/client.js').DeviceInfoParam['deviceType']} RPCDeviceType
    */
 
   /**
@@ -733,13 +731,21 @@ export class MapeoManager extends TypedEmitter {
       })
     )
 
-    await Promise.all(
-      this.#localPeers.peers
-        .filter(({ status }) => status === 'connected')
-        .map((peer) =>
-          this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfo)
-        )
-    )
+    // TODO(evanhahn)
+    if (deviceInfo.deviceType !== 'selfHostedServer') {
+      await Promise.all(
+        this.#localPeers.peers
+          .filter(({ status }) => status === 'connected')
+          .map((peer) =>
+            // TODO(evanhahn) TypeScript isn't smart enough to know that
+            // deviceInfo is okay here?
+            this.#localPeers.sendDeviceInfo(
+              peer.deviceId,
+              /** @type {any} */ (deviceInfo)
+            )
+          )
+      )
+    }
 
     this.#l.log('set device info %o', deviceInfo)
   }

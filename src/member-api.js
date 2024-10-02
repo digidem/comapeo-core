@@ -16,7 +16,6 @@ import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
-import { isValidHost } from './lib/is-valid-host.js'
 import { wsCoreReplicator } from './server/ws-core-replicator.js'
 /**
  * @import {
@@ -42,6 +41,8 @@ import { wsCoreReplicator } from './server/ws-core-replicator.js'
  * @prop {DeviceInfo['name']} [name]
  * @prop {DeviceInfo['deviceType']} [deviceType]
  * @prop {DeviceInfo['createdAt']} [joinedAt]
+ * @prop {object} [selfHostedServerDetails]
+ * @prop {string} selfHostedServerDetails.baseUrl
  */
 
 export class MemberApi extends TypedEmitter {
@@ -262,19 +263,21 @@ export class MemberApi extends TypedEmitter {
   /**
    * Add a server peer.
    *
-   * @param {string} host
+   * @param {string} baseUrl
    * @param {object} [options]
    * @param {boolean} [options.dangerouslyAllowInsecureConnections]
    * @returns {Promise<void>}
    */
-  async addServerPeer(host, { dangerouslyAllowInsecureConnections } = {}) {
-    assert(isValidHost(host), 'Hostname must be valid')
+  async addServerPeer(
+    baseUrl,
+    { dangerouslyAllowInsecureConnections = false } = {}
+  ) {
+    assert(
+      isValidServerBaseUrl(baseUrl, { dangerouslyAllowInsecureConnections }),
+      'Base URL is invalid'
+    )
 
-    const requestProtocol = dangerouslyAllowInsecureConnections
-      ? 'http:'
-      : 'https:'
-    const requestUrl = `${requestProtocol}//${host}/projects`
-
+    const requestUrl = new URL('projects', baseUrl)
     const requestBody = {
       projectKey: encodeBufferForServer(this.#projectKey),
       encryptionKeys: {
@@ -334,12 +337,9 @@ export class MemberApi extends TypedEmitter {
     await this.#roles.assignRole(deviceId, roleId)
 
     const projectPublicId = projectKeyToPublicId(this.#projectKey)
-    const websocketProtocol = dangerouslyAllowInsecureConnections
-      ? 'ws:'
-      : 'wss:'
-    const websocket = new WebSocket(
-      `${websocketProtocol}//${host}/sync/${projectPublicId}`
-    )
+    const websocketUrl = new URL('sync/' + projectPublicId, baseUrl)
+    websocketUrl.protocol = dangerouslyAllowInsecureConnections ? 'ws:' : 'wss:'
+    const websocket = new WebSocket(websocketUrl)
     const replicationStream = this.#getReplicationStream()
     wsCoreReplicator(websocket, replicationStream)
 
@@ -413,6 +413,8 @@ export class MemberApi extends TypedEmitter {
           memberInfo.name = deviceInfo?.name
           memberInfo.deviceType = deviceInfo?.deviceType
           memberInfo.joinedAt = deviceInfo?.createdAt
+          memberInfo.selfHostedServerDetails =
+            deviceInfo?.selfHostedServerDetails
         } catch (err) {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available
@@ -432,6 +434,33 @@ export class MemberApi extends TypedEmitter {
   async assignRole(deviceId, roleId) {
     return this.#roles.assignRole(deviceId, roleId)
   }
+}
+
+/**
+ * @param {string} baseUrl
+ * @param {object} options
+ * @param {boolean} options.dangerouslyAllowInsecureConnections
+ * @returns {boolean}
+ */
+function isValidServerBaseUrl(
+  baseUrl,
+  { dangerouslyAllowInsecureConnections }
+) {
+  /** @type {URL} */ let url
+  try {
+    url = new URL(baseUrl)
+  } catch (_err) {
+    return false
+  }
+
+  const isProtocolValid =
+    url.protocol === 'https:' ||
+    (dangerouslyAllowInsecureConnections && url.protocol === 'http:')
+  if (!isProtocolValid) return false
+
+  // TODO: Validate that username/password is missing?
+
+  return true
 }
 
 /**
