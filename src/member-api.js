@@ -17,6 +17,7 @@ import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
 import { wsCoreReplicator } from './server/ws-core-replicator.js'
+import { once } from 'node:events'
 /**
  * @import {
  *   DeviceInfo,
@@ -352,6 +353,7 @@ export class MemberApi extends TypedEmitter {
     await this.#waitForInitialSync()
 
     websocket.close()
+    await once(websocket, 'close')
   }
 
   /**

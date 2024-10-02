@@ -1,8 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
-import { createManager, createManagers, getManagerOptions } from './utils.js'
+import {
+  connectPeers,
+  createManager,
+  createManagers,
+  getManagerOptions,
+  invite,
+  waitForPeers,
+  waitForSync,
+} from './utils.js'
 import createServer from '../src/server/app.js'
+import { valueOf } from '@comapeo/schema'
+import { generate } from '@mapeo/mock-data'
+/** @import { MapeoManager } from '../src/mapeo-manager.js' */
 
 // TODO: test invalid base URL
 // TODO: test bad requests
@@ -59,18 +70,115 @@ test("can't add a server to two different projects", async (t) => {
   }, Error)
 })
 
+test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
+  // create two managers
+  const managers = await createManagers(2, t, 'mobile')
+  const [managerA, managerB] = managers
+
+  // manager 1 sets up server
+  const projectId = await managerA.createProject({ name: 'foo' })
+  const managerAProject = await managerA.getProject(projectId)
+  const serverBaseUrl = await createTestServer(t)
+  await managerAProject.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+
+  // TODO: remove this
+  await new Promise((resolve) => {
+    setTimeout(resolve, 3000)
+  })
+
+  // manager 1, invite manager 2
+  const disconnect1 = connectPeers(managers)
+  t.after(disconnect1)
+  await waitForPeers(managers)
+  await invite({ invitor: managerA, invitees: [managerB], projectId })
+  const managerBProject = await managerB.getProject(projectId)
+
+  // sync managers (to tell manager 2 about server)
+  const projects = [managerAProject, managerBProject]
+  await waitForSync(projects, 'initial')
+  const members = await managerBProject.$member.getMany() // TODO: maybe rename this
+  const serverPeer = members.find(
+    (member) => member.deviceType === 'selfHostedServer'
+  )
+  assert(serverPeer, 'expected a server peer to be found by the client')
+
+  // disconnect managers
+  disconnect1()
+  await waitForNoPeersToBeConnected(managerA)
+  await waitForNoPeersToBeConnected(managerB)
+
+  // Start both syncing data
+  managerAProject.$sync.start()
+  managerBProject.$sync.start()
+  console.log('@@@@', 'about to connect servers')
+  managerAProject.$sync.connectServers()
+  managerBProject.$sync.connectServers()
+  console.log('@@@@', 'connected servers')
+  await waitForSyncWithServer() // TODO this is bogus and silly, just used for waiting
+  console.log('@@@@', 'waited a bit')
+
+  // manager 1 adds data, syncs with server
+  const observation = await managerAProject.observation.create(
+    valueOf(generate('observation')[0])
+  )
+  await waitForSyncWithServer()
+
+  // Check manager 2 doesn't have the data
+  await assert.rejects(() =>
+    managerBProject.observation.getByDocId(observation.docId)
+  )
+
+  // manager 2 now has data from manager 1, even though it wasn't connected to manager 1 directly
+  await waitForSyncWithServer()
+  assert(
+    await managerBProject.observation.getByDocId(observation.docId),
+    'manager B now sees data'
+  )
+})
+
 /**
  *
  * @param {import('node:test').TestContext} t
  * @returns {Promise<string>} server base URL
  */
 async function createTestServer(t) {
+  // TODO: Use a port that's guaranteed to be open
+  const port = 9876
   const server = createServer({
     ...getManagerOptions('test server'),
     serverName: 'test server',
-    serverPublicBaseUrl: 'https://mapeo.example',
+    serverPublicBaseUrl: 'http://localhost:' + port,
   })
-  const serverAddress = await server.listen()
+  const serverAddress = await server.listen({ port })
   t.after(() => server.close())
   return serverAddress
+}
+
+/**
+ * @param {MapeoManager} manager
+ * @returns {Promise<void>}
+ */
+function waitForNoPeersToBeConnected(manager) {
+  return new Promise((resolve) => {
+    const checkIfDone = async () => {
+      const isDone = (await manager.listLocalPeers()).every(
+        (peer) => peer.status === 'disconnected'
+      )
+      if (isDone) {
+        manager.off('local-peers', checkIfDone)
+        resolve()
+      }
+    }
+    manager.on('local-peers', checkIfDone)
+    checkIfDone()
+  })
+}
+
+function waitForSyncWithServer() {
+  // TODO: This is fake
+  return new Promise((resolve) => {
+    setTimeout(resolve, 3000)
+  })
 }

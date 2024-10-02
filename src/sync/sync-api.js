@@ -1,4 +1,5 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
+import WebSocket from 'ws'
 import { SyncState } from './sync-state.js'
 import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
@@ -9,9 +10,11 @@ import {
 } from '../constants.js'
 import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
 import { NO_ROLE_ID } from '../roles.js'
+import { wsCoreReplicator } from '../server/ws-core-replicator.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
+/** @import { ReplicationStream } from '../types.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
@@ -79,20 +82,31 @@ export class SyncApi extends TypedEmitter {
   #l
 
   /**
-   *
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {CoreOwnership} opts.coreOwnership
    * @param {import('../roles.js').Roles} opts.roles
+   * @param {() => Promise<Iterable<string>>} opts.getServerWebsocketUrls
+   * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
    */
-  constructor({ coreManager, throttleMs = 200, roles, logger, coreOwnership }) {
+  constructor({
+    coreManager,
+    throttleMs = 200,
+    roles,
+    getServerWebsocketUrls,
+    getReplicationStream,
+    logger,
+    coreOwnership,
+  }) {
     super()
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
     this.#coreOwnership = coreOwnership
     this.#roles = roles
+    this.#getServerWebsocketUrls = getServerWebsocketUrls
+    this.#getReplicationStream = getReplicationStream
     this[kSyncState] = new SyncState({
       coreManager,
       throttleMs,
@@ -271,6 +285,59 @@ export class SyncApi extends TypedEmitter {
     this.#previousSyncEnabledState = syncEnabledState
 
     this.emit('sync-state', this.#getState(namespaceSyncState))
+  }
+
+  // TODO: Move these higher up
+  #getServerWebsocketUrls
+  #getReplicationStream
+  /** @type {Map<string, WebSocket>} */
+  #serverWebsockets = new Map()
+
+  /**
+   * @returns {void}
+   */
+  connectServers() {
+    // TODO: decide how to handle this async stuff
+    this.#getServerWebsocketUrls()
+      .then((urls) => {
+        for (const url of urls) {
+          const existingWebsocket = this.#serverWebsockets.get(url)
+          console.log('@@@@', 'connecting to', url)
+          if (
+            existingWebsocket &&
+            (existingWebsocket.readyState === WebSocket.OPEN ||
+              existingWebsocket.readyState === WebSocket.CONNECTING)
+          ) {
+            continue
+          }
+
+          const websocket = new WebSocket(url)
+
+          // TODO: Remove this after we've debugged why we're getting a 400 error
+          websocket.on('unexpected-respose', (req, res) => {
+            console.log('@@@@', 'unexpected response', req, res)
+          })
+
+          const replicationStream = this.#getReplicationStream()
+          wsCoreReplicator(websocket, replicationStream)
+
+          this.#serverWebsockets.set(url, websocket)
+          websocket.once('close', () => {
+            this.#serverWebsockets.delete(url)
+          })
+        }
+      })
+      .catch(noop)
+  }
+
+  /**
+   * @returns {void}
+   */
+  disconnectServers() {
+    for (const websocket of this.#serverWebsockets.values()) {
+      websocket.close()
+    }
+    this.#serverWebsockets.clear()
   }
 
   /**

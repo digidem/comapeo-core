@@ -131,6 +131,12 @@ export class MapeoProject extends TypedEmitter {
     this.#projectId = projectKeyToId(projectKey)
     this.#loadingConfig = false
 
+    const getReplicationStream = this[kProjectReplicate].bind(
+      this,
+      // TODO: See if we can fix these
+      /** @type {any} */ (true)
+    )
+
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
     const db = drizzle(this.#sqlite)
@@ -302,11 +308,7 @@ export class MapeoProject extends TypedEmitter {
       encryptionKeys,
       projectKey,
       rpc: localPeers,
-      getReplicationStream: this[kProjectReplicate].bind(
-        this,
-        // TODO: See if we can fix these
-        /** @type {any} */ (true)
-      ),
+      getReplicationStream,
       // TODO: This should be scoped to a single peer, not all peers
       waitForInitialSync: () => this.$sync.waitForSync('initial'),
       dataTypes: {
@@ -349,6 +351,24 @@ export class MapeoProject extends TypedEmitter {
       coreOwnership: this.#coreOwnership,
       roles: this.#roles,
       logger: this.#l,
+      getServerWebsocketUrls: async () => {
+        const members = await this.#memberApi.getMany()
+        /** @type {string[]} */
+        const serverWebsocketUrls = []
+        for (const member of members) {
+          if (
+            member.deviceType === 'selfHostedServer' &&
+            member.selfHostedServerDetails
+          ) {
+            const { baseUrl } = member.selfHostedServerDetails
+            const wsUrl = new URL(`/sync/${this.#projectId}`, baseUrl)
+            wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
+            serverWebsocketUrls.push(wsUrl.href)
+          }
+        }
+        return serverWebsocketUrls
+      },
+      getReplicationStream,
     })
 
     this.#translationApi = new TranslationApi({
