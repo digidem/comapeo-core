@@ -718,16 +718,20 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     p.$sync[kSyncState].getState()
   )
 
-  // TODO
-  // assert.equal(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
-  // assert.equal(invitorState.data.localState.have, dataDocsCount)
-  // assert.equal(blockedState.config.localState.have, 1) // just the device info doc
-  // assert.equal(blockedState.data.localState.have, 0) // no data docs synced
+  assert.equal(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
+  assert.equal(invitorState.data.localState.have, dataDocsCount)
+  assert.equal(blockedState.config.localState.have, 1) // just the device info doc
+  assert.equal(blockedState.data.localState.have, 0) // no data docs synced
 
   for (const ns of NAMESPACES) {
     assert.equal(invitorState[ns].coreCount, 3, ns)
     assert.equal(inviteeState[ns].coreCount, 3, ns)
     assert.equal(blockedState[ns].coreCount, 3, ns)
+    assert.deepEqual(
+      invitorState[ns].localState,
+      inviteeState[ns].localState,
+      ns
+    )
   }
 
   await disconnect1()
@@ -1106,34 +1110,40 @@ test('data sync state is properly updated as data sync is enabled and disabled',
   )
 })
 
-test.only('Sync state with disconnected peer', { timeout: 100_000 }, async (t) => {
-  // 1. Connect to a peer, invite it
-  // 2. Disconnect from the peer
-  // 3. Connect to a new peer, invite it
-  // 4. Wait for initial sync with new peer
-  // 5. Sync should complete with new peer
+test.only(
+  'Sync state with disconnected peer',
+  { timeout: 100_000 },
+  async (t) => {
+    // 1. Connect to a peer, invite it
+    // 2. Disconnect from the peer
+    // 3. Connect to a new peer, invite it
+    // 4. Wait for initial sync with new peer
+    // 5. Sync should complete with new peer
 
-  const managers = await createManagers(3, t)
-  const [invitor, inviteeA, inviteeB] = managers
-  const disconnectA = connectPeers([invitor, inviteeA], { discovery: false })
-  const projectId = await invitor.createProject({ name: 'Mapeo' })
-  await invite({ invitor, invitees: [inviteeA], projectId })
+    const managers = await createManagers(3, t)
+    const [invitor, inviteeA, inviteeB] = managers
+    const disconnectA = connectPeers([invitor, inviteeA], { discovery: false })
+    const projectId = await invitor.createProject({ name: 'Mapeo' })
+    await invite({ invitor, invitees: [inviteeA], projectId })
 
-  const [invitorProject, inviteeAProject] = await Promise.all(
-    [invitor, inviteeA].map((m) => m.getProject(projectId))
-  )
+    const [invitorProject, inviteeAProject] = await Promise.all(
+      [invitor, inviteeA].map((m) => m.getProject(projectId))
+    )
 
-  await Promise.all(
-    [invitorProject, inviteeAProject].map((p) => p.$sync.waitForSync('initial'))
-  )
+    await Promise.all(
+      [invitorProject, inviteeAProject].map((p) =>
+        p.$sync.waitForSync('initial')
+      )
+    )
 
-  await disconnectA()
+    await disconnectA()
 
-  const disconnectB = connectPeers([invitor, inviteeB], { discovery: false })
-  await invite({ invitor, invitees: [inviteeB], projectId })
-  await pTimeout(invitorProject.$sync.waitForSync('initial'), {
-    milliseconds: 1000,
-    message: 'invitor should complete initial sync with inviteeB',
-  })
-  await disconnectB()
-})
+    const disconnectB = connectPeers([invitor, inviteeB], { discovery: false })
+    await invite({ invitor, invitees: [inviteeB], projectId })
+    await pTimeout(invitorProject.$sync.waitForSync('initial'), {
+      milliseconds: 1000,
+      message: 'invitor should complete initial sync with inviteeB',
+    })
+    await disconnectB()
+  }
+)
