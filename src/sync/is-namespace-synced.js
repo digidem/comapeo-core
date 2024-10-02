@@ -14,7 +14,6 @@ import { ExhaustivenessError } from '../utils.js'
 export const isNamespaceSynced = ({ remoteStates }) =>
   Object.values(remoteStates).every((peerState) => {
     switch (peerState.status) {
-      case 'unknown':
       case 'starting':
         return false
       case 'stopped':

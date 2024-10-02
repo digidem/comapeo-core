@@ -534,7 +534,6 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
       /** @type {boolean} */
       let isSyncEnabled
       switch (peerNamespaceState.status) {
-        case 'unknown':
         case 'stopped':
         case 'starting':
           isSyncEnabled = false
