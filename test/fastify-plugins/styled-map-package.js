@@ -10,7 +10,7 @@ const NON_EXISTENT_MAP_PATH = new URL(
 ).pathname
 
 const SMP_FIXTURE_PATH = new URL(
-  '../fixtures/styled-map-packages/basic.smp',
+  '../fixtures/styled-map-packages/demotiles-maplibre.smp',
   import.meta.url
 ).pathname
 
@@ -67,7 +67,7 @@ test('decorator methods do not work when provided invalid file path', async (t) 
   )
 })
 
-test('fetches basic resources', async (t) => {
+test('respects prefix', async (t) => {
   const prefix = 'smp'
 
   const server = setup(t, {
@@ -77,35 +77,51 @@ test('fetches basic resources', async (t) => {
 
   const address = await server.listen()
 
-  const styleJsonResp = await server.inject({
+  const badStyleResp = await server.inject({
+    method: 'GET',
+    url: `${address}/style.json`,
+  })
+
+  assert(
+    badStyleResp.statusCode === 404,
+    'style request responds with 404 when request URL is missing prefix'
+  )
+
+  const goodStyleResp = await server.inject({
     method: 'GET',
     url: `${address}/${prefix}/style.json`,
   })
 
-  assert(styleJsonResp.statusCode === 200)
-
-  const styleJson = styleJsonResp.json()
-
-  const sourceWithTileUrl = Object.values(styleJson.sources).find(
-    /**
-     * @param {*} source
-     * @returns {source is { tiles: string[] }}
-     */
-    (source) => {
-      return 'tiles' in source && Array.isArray(source.tiles) && source.tiles[0]
-    }
+  assert(
+    goodStyleResp.statusCode === 200,
+    'style request with 200 when request URL contains correct prefix'
   )
+})
 
-  const tileUrl = sourceWithTileUrl?.tiles[0]
+test('basic resource fetching works', async (t) => {
+  const server = setup(t, {
+    filepath: SMP_FIXTURE_PATH,
+  })
 
-  assert(tileUrl)
+  const address = await server.listen()
+
+  const styleResp = await server.inject({
+    method: 'GET',
+    url: `${address}/style.json`,
+  })
+
+  assert(styleResp.statusCode === 200)
+
+  const localTileUrl = getFirstLocalTileUrl(styleResp.json(), address)
+
+  assert(localTileUrl, 'local tile URL exists')
 
   const tileResp = await server.inject({
     method: 'GET',
-    url: tileUrl.replace('{x}', '0').replace('{y}', '0').replace('{z}', '0'),
+    url: interpolateTileUrl(localTileUrl, { x: 0, y: 0, z: 0 }),
   })
 
-  assert(tileResp.statusCode === 200)
+  assert(tileResp.statusCode === 200, 'can fetch tile from local tile URL')
 })
 
 /**
@@ -122,4 +138,38 @@ function setup(t, opts) {
   })
 
   return server
+}
+
+/**
+ * @param {*} styleJson
+ * @param {string} address
+ * @returns {string | undefined}
+ */
+function getFirstLocalTileUrl(styleJson, address) {
+  for (const source of Object.values(styleJson.sources)) {
+    if ('tiles' in source && Array.isArray(source.tiles)) {
+      const u = source.tiles.find((/** @type {string} */ url) => {
+        return url.startsWith(address)
+      })
+
+      if (u) {
+        return u
+      }
+    }
+  }
+}
+
+/**
+ * @param {string} url
+ * @param {Object} opts
+ * @param {number} opts.x
+ * @param {number} opts.y
+ * @param {number} opts.z
+ * @returns {string}
+ */
+function interpolateTileUrl(url, opts) {
+  return url
+    .replace('{x}', opts.x.toString())
+    .replace('{y}', opts.y.toString())
+    .replace('{z}', opts.z.toString())
 }

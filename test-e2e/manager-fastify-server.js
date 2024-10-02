@@ -32,7 +32,7 @@ const MAPEO_FALLBACK_MAP_PATH = new URL(
 ).pathname
 
 const SMP_FIXTURE_PATH = new URL(
-  '../fixtures/styled-map-packages/basic.smp',
+  '../fixtures/styled-map-packages/demotiles-maplibre.smp',
   import.meta.url
 ).pathname
 
