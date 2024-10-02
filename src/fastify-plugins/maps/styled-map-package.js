@@ -1,8 +1,12 @@
 import fp from 'fastify-plugin'
+// @ts-expect-error Need to publish types for module
 import { Reader } from 'styled-map-package'
 
 /** @import {FastifyPluginAsync} from 'fastify' */
-/** @import {Resource, SMPStyle} from 'styled-map-package/reader.js' */
+// @ts-expect-error Need to publish types for module
+/** @import {Resource} from 'styled-map-package/reader' */
+// @ts-expect-error Need to publish types for module
+/** @import {SMPStyle} from 'styled-map-package/types' */
 
 export const PLUGIN_NAME = 'comapeo-styled-map-package'
 
