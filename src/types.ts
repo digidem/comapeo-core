@@ -133,7 +133,6 @@ export type HypercorePeer = {
   onrange: (options: { drop: boolean; start: number; length: number }) => void
 }
 
-export { NoiseStream }
 type ProtocolStream = Omit<NoiseStream, 'userData'> & {
   userData: Protomux
 }
