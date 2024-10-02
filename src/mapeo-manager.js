@@ -48,6 +48,7 @@ import {
   kRequestFullStop,
   kRescindFullStopRequest,
 } from './sync/sync-api.js'
+import { isNamespaceSynced } from './sync/is-namespace-synced.js'
 /** @import { ProjectSettingsValue as ProjectValue } from '@comapeo/schema' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { CoreStorage, Namespace } from './types.js' */
@@ -653,25 +654,20 @@ export class MapeoManager extends TypedEmitter {
       project.$getOwnRole(),
       project.$getProjectSettings(),
     ])
-    const {
-      auth: { localState: authState },
-      config: { localState: configState },
-    } = project.$sync[kSyncState].getState()
+    const syncState = project.$sync[kSyncState].getState()
     const isRoleSynced = ownRole !== Roles.NO_ROLE
     const isProjectSettingsSynced =
       projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
-    // Assumes every project that someone is invited to has at least one record
-    // in the auth store - the row record for the invited device
-    const isAuthSynced = authState.want === 0 && authState.have > 0
-    // Assumes every project that someone is invited to has at least one record
-    // in the config store - defining the name of the project.
-    // TODO: Enforce adding a project name in the invite method
-    const isConfigSynced = configState.want === 0 && configState.have > 0
     if (
       isRoleSynced &&
       isProjectSettingsSynced &&
-      isAuthSynced &&
-      isConfigSynced
+      // Assumes every project that someone is invited to has at least one record
+      // in the auth store - the row record for the invited device
+      isInitiallySynced(syncState.auth) &&
+      // Assumes every project that someone is invited to has at least one record
+      // in the config store - defining the name of the project.
+      // TODO: Enforce adding a project name in the invite method
+      isInitiallySynced(syncState.config)
     ) {
       return true
     }
@@ -679,7 +675,10 @@ export class MapeoManager extends TypedEmitter {
       /** @param {import('./sync/sync-state.js').State} syncState */
       const onSyncState = (syncState) => {
         clearTimeout(timeoutId)
-        if (syncState.auth.dataToSync || syncState.config.dataToSync) {
+        if (
+          !isInitiallySynced(syncState.auth) ||
+          !isInitiallySynced(syncState.config)
+        ) {
           timeoutId = setTimeout(onTimeout, timeoutMs)
           return
         }
@@ -910,4 +909,15 @@ function validateProjectKeys(projectKeys) {
  */
 function hasSavedDeviceInfo(partialDeviceInfo) {
   return Boolean(partialDeviceInfo.name)
+}
+
+/**
+ * @param {import('./sync/namespace-sync-state.js').SyncState} namespaceSyncState
+ * @returns {boolean}
+ */
+function isInitiallySynced(namespaceSyncState) {
+  return (
+    namespaceSyncState.localState.have > 0 &&
+    isNamespaceSynced(namespaceSyncState)
+  )
 }

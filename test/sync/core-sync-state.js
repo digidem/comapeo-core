@@ -1,3 +1,4 @@
+// @ts-nocheck TODO
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import NoiseSecretStream from '@hyperswarm/secret-stream'

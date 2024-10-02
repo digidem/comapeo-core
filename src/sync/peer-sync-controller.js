@@ -313,7 +313,7 @@ function getSyncStatus(peerId, state) {
       syncStatus[namespace] = 'unknown'
     } else if (
       peerState.status === 'started' &&
-      state[namespace].localState.want === 0
+      peerState.wanted === 0
     ) {
       syncStatus[namespace] = 'synced'
     } else {

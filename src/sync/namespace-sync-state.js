@@ -3,7 +3,7 @@ import { discoveryKey } from 'hypercore-crypto'
 /** @import { Namespace } from '../types.js' */
 
 /**
- * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'> & { dataToSync: boolean, coreCount: number }} SyncState
+ * @typedef {Omit<import('./core-sync-state.js').DerivedState, 'coreLength'> & { coreCount: number }} SyncState
  */
 
 /**
@@ -60,26 +60,23 @@ export class NamespaceSyncState {
     if (this.#cachedState) return this.#cachedState
     /** @type {SyncState} */
     const state = {
-      dataToSync: false,
       coreCount: this.#coreCount,
-      localState: { want: 0, have: 0, wanted: 0 },
+      localState: { have: 0 },
       remoteStates: {},
     }
     for (const css of this.#coreStates.values()) {
       const coreState = css.getState()
-      mutatingAddPeerState(state.localState, coreState.localState)
+      state.localState.have += coreState.localState.have
       for (const [peerId, peerNamespaceState] of Object.entries(
         coreState.remoteStates
       )) {
         if (!(peerId in state.remoteStates)) {
           state.remoteStates[peerId] = peerNamespaceState
         } else {
+          // TODO: Inline this?
           mutatingAddPeerState(state.remoteStates[peerId], peerNamespaceState)
         }
       }
-    }
-    if (state.localState.want > 0 || state.localState.wanted > 0) {
-      state.dataToSync = true
     }
     this.#cachedState = state
     return state
@@ -132,26 +129,12 @@ export class NamespaceSyncState {
     return coreState
   }
 }
-
-/**
- * @overload
- * @param {SyncState['localState']} accumulator
- * @param {SyncState['localState']} currentValue
- * @returns {SyncState['localState']}
- */
-
-/**
- * @overload
- * @param {import('./core-sync-state.js').PeerNamespaceState} accumulator
- * @param {import('./core-sync-state.js').PeerNamespaceState} currentValue
- * @returns {import('./core-sync-state.js').PeerNamespaceState}
- */
-
 /**
  * Adds peer state in `currentValue` to peer state in `accumulator`
  *
  * @param {import('./core-sync-state.js').PeerNamespaceState} accumulator
  * @param {import('./core-sync-state.js').PeerNamespaceState} currentValue
+ * @returns {import('./core-sync-state.js').PeerNamespaceState}
  */
 function mutatingAddPeerState(accumulator, currentValue) {
   accumulator.have += currentValue.have

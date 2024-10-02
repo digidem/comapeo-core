@@ -9,6 +9,7 @@ import {
 } from '../constants.js'
 import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
 import { NO_ROLE_ID } from '../roles.js'
+import { isNamespaceSynced } from './is-namespace-synced.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
@@ -226,11 +227,7 @@ export class SyncApi extends TypedEmitter {
       if (this.#previousSyncEnabledState === 'none') {
         syncEnabledState = 'none'
       } else if (
-        isSynced(
-          namespaceSyncState,
-          this.#wantsToSyncData ? 'full' : 'initial',
-          this.#peerSyncControllers
-        )
+        isSynced(namespaceSyncState, this.#wantsToSyncData ? 'full' : 'initial')
       ) {
         syncEnabledState = 'none'
       } else if (this.#wantsToSyncData) {
@@ -240,11 +237,7 @@ export class SyncApi extends TypedEmitter {
       }
     } else if (this.#wantsToSyncData) {
       if (
-        isSynced(
-          namespaceSyncState,
-          this.#wantsToSyncData ? 'full' : 'initial',
-          this.#peerSyncControllers
-        )
+        isSynced(namespaceSyncState, this.#wantsToSyncData ? 'full' : 'initial')
       ) {
         if (typeof this.#autostopDataSyncAfter === 'number') {
           this.#autostopDataSyncTimeout ??= setTimeout(() => {
@@ -334,11 +327,11 @@ export class SyncApi extends TypedEmitter {
    */
   async waitForSync(type) {
     const state = this[kSyncState].getState()
-    if (isSynced(state, type, this.#peerSyncControllers)) return
+    if (isSynced(state, type)) return
     return new Promise((res) => {
       const _this = this
       this[kSyncState].on('state', function onState(state) {
-        if (!isSynced(state, type, _this.#peerSyncControllers)) return
+        if (!isSynced(state, type)) return
         _this[kSyncState].off('state', onState)
         res()
       })
@@ -505,20 +498,10 @@ function assertAutostopDataSyncAfterIsValid(ms) {
  *
  * @param {import('./sync-state.js').State} state
  * @param {SyncType} type
- * @param {Map<import('protomux'), PeerSyncController>} peerSyncControllers
  */
-function isSynced(state, type, peerSyncControllers) {
+function isSynced(state, type) {
   const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
-  for (const ns of namespaces) {
-    if (state[ns].dataToSync) return false
-    for (const psc of peerSyncControllers.values()) {
-      const { peerId } = psc
-      if (psc.syncCapability[ns] === 'blocked') continue
-      if (!(peerId in state[ns].remoteStates)) return false
-      if (state[ns].remoteStates[peerId].status === 'starting') return false
-    }
-  }
-  return true
+  return namespaces.every((ns) => isNamespaceSynced(state[ns]))
 }
 
 /**

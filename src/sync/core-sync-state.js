@@ -21,8 +21,6 @@ import RemoteBitfield, {
 /**
  * @typedef {object} LocalCoreState
  * @property {number} have blocks we have
- * @property {number} want unique blocks we want from any other peer
- * @property {number} wanted unique blocks any other peer wants from us
  */
 /**
  * @typedef {object} PeerNamespaceState
@@ -350,14 +348,14 @@ export class PeerState {
  * Derive count for each peer: "want"; "have"; "wanted".
  *
  * @param {InternalState} coreState
- *
+ * @returns {DerivedState}
  * @private
  * Only exporteed for testing
  */
 export function deriveState(coreState) {
   const length = coreState.length || 0
   /** @type {LocalCoreState} */
-  const localState = { have: 0, want: 0, wanted: 0 }
+  const localState = { have: 0 }
   /** @type {Record<PeerId, PeerNamespaceState>} */
   const remoteStates = {}
 
@@ -385,29 +383,16 @@ export function deriveState(coreState) {
     const localHaves = coreState.localState.haveWord(i) & truncate
     localState.have += bitCount32(localHaves)
 
-    let someoneElseWantsFromMe = 0
-    let iWantFromSomeoneElse = 0
-
     for (const [peerId, peer] of peers.entries()) {
-      const isPeerStopped = remoteStates[peerId]?.status === 'stopped'
       const peerHaves = peer.haveWord(i) & truncate
       remoteStates[peerId].have += bitCount32(peerHaves)
 
       const theyWantFromMe = peer.wantWord(i) & ~peerHaves & localHaves
       remoteStates[peerId].want += bitCount32(theyWantFromMe)
-      if (!isPeerStopped) {
-        someoneElseWantsFromMe |= theyWantFromMe
-      }
 
       const iWantFromThem = peerHaves & ~localHaves
       remoteStates[peerId].wanted += bitCount32(iWantFromThem)
-      if (!isPeerStopped) {
-        iWantFromSomeoneElse |= iWantFromThem
-      }
     }
-
-    localState.wanted += bitCount32(someoneElseWantsFromMe)
-    localState.want += bitCount32(iWantFromSomeoneElse)
   }
 
   return {
