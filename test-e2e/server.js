@@ -13,12 +13,7 @@ test('adding a server peer', async (t) => {
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
-  const server = createTestServer()
-
-  const serverAddress = await server.listen()
-
-  t.after(() => server.close())
-  const serverHost = new URL(serverAddress).host
+  const serverHost = await createTestServer(t)
 
   await project.$member.addServerPeer(serverHost, {
     dangerouslyAllowInsecureConnections: true,
@@ -34,9 +29,17 @@ test('adding a server peer', async (t) => {
   assert(hasServerPeer, 'expected a server peer to be found by the client')
 })
 
-function createTestServer() {
-  return createServer({
+/**
+ *
+ * @param {import('node:test').TestContext} t
+ * @returns {Promise<string>} server host
+ */
+async function createTestServer(t) {
+  const server = createServer({
     ...getManagerOptions('test server'),
     serverName: 'test server',
   })
+  const serverAddress = await server.listen()
+  t.after(() => server.close())
+  return new URL(serverAddress).host
 }
