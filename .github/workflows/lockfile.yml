@@ -32,3 +32,4 @@ jobs:
         uses: rvanvelzen/npm-lockfile-changes@6fded38b5a054f5ab49efd6850668e796f780604
         with:
           token: ${{ steps.app-token.outputs.token }}
+          updateComment: true
