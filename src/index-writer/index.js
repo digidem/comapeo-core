@@ -97,7 +97,7 @@ export class IndexWriter {
       const indexer = this.#indexers.get(schemaName)
       if (!indexer) continue // Won't happen, but TS doesn't know that
       indexer.batch(docs)
-      if (this.#l.enabled) {
+      if (this.#l.log.enabled) {
         for (const doc of docs) {
           this.#l.log(
             'Indexed %s %S @ %S',

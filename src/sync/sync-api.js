@@ -261,7 +261,9 @@ export class SyncApi extends TypedEmitter {
       syncEnabledState = 'presync'
     }
 
-    this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
+    if (syncEnabledState !== this.#previousSyncEnabledState) {
+      this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
+    }
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.setSyncEnabledState(syncEnabledState)
     }
@@ -435,7 +437,6 @@ export class SyncApi extends TypedEmitter {
     for (const result of ownershipResults) {
       if (result.status === 'rejected') continue
       await this.#validateRoleAndAddCoresForPeer(result.value)
-      this.#l.log('Added cores for device %S', result.value.docId)
     }
   }
 
@@ -457,10 +458,8 @@ export class SyncApi extends TypedEmitter {
               coreOwnershipDocId
             )
             await this.#validateRoleAndAddCoresForPeer(coreOwnershipDoc)
-            this.#l.log('Added cores for device %S', coreOwnershipDocId)
           } catch (_) {
             // Ignore, we'll add these when the role is added
-            this.#l.log('No role for device %S', coreOwnershipDocId)
           }
         })()
       )
@@ -485,6 +484,7 @@ export class SyncApi extends TypedEmitter {
       const coreKey = Buffer.from(coreOwnership[`${ns}CoreId`], 'hex')
       this.#coreManager.addCore(coreKey, ns)
     }
+    this.#l.log('Added non-auth cores for peer %S', peerDeviceId)
   }
 }
 
