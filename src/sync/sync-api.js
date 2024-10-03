@@ -407,10 +407,6 @@ export class SyncApi extends TypedEmitter {
    * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
    */
   #handlePeerDisconnect = (peer) => {
-    this.#l.log(
-      '@@@@ handlePeerRemove %h',
-      peer.protomux.stream.remotePublicKey
-    )
     const { protomux } = peer
     if (!this.#peerSyncControllers.has(protomux)) {
       this.#l.log(
