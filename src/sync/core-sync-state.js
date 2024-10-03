@@ -2,6 +2,7 @@ import { keyToId } from '../utils.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
 } from '../core-manager/remote-bitfield.js'
+import { Logger } from '../logger.js'
 /** @import { HypercorePeer, HypercoreRemoteBitfield, Namespace } from '../types.js' */
 
 /**
@@ -78,11 +79,11 @@ export class CoreSyncState {
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
    * @param {Namespace} opts.namespace
-   * @param {import('../logger.js').Logger} opts.logger
+   * @param {Logger} [opts.logger]
    */
   constructor({ onUpdate, peerSyncControllers, namespace, logger }) {
-    // This logger is already namespaced by NamespaceSyncState
-    this.#l = logger
+    // The logger parameter is already namespaced by NamespaceSyncState
+    this.#l = logger || Logger.create('css')
     this.#peerSyncControllers = peerSyncControllers
     this.#namespace = namespace
     // Called whenever the state changes, so we clear the cache because next
