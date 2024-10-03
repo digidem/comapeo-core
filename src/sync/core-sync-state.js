@@ -78,7 +78,7 @@ export class CoreSyncState {
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
    * @param {Namespace} opts.namespace
-   * @param {Logger} opts.logger
+   * @param {import('../logger.js').Logger} opts.logger
    */
   constructor({ onUpdate, peerSyncControllers, namespace, logger }) {
     // This logger is already namespaced by NamespaceSyncState
