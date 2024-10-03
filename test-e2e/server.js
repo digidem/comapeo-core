@@ -1,6 +1,10 @@
+import { valueOf } from '@comapeo/schema'
+import { generate } from '@mapeo/mock-data'
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { setTimeout as delay } from 'node:timers/promises'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
+import createServer from '../src/server/app.js'
 import {
   connectPeers,
   createManager,
@@ -8,11 +12,7 @@ import {
   getManagerOptions,
   invite,
   waitForPeers,
-  waitForSync,
 } from './utils.js'
-import createServer from '../src/server/app.js'
-import { valueOf } from '@comapeo/schema'
-import { generate } from '@mapeo/mock-data'
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 
 // TODO: test invalid base URL
@@ -96,8 +96,11 @@ test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
   const managerBProject = await managerB.getProject(projectId)
 
   // sync managers (to tell manager 2 about server)
-  const projects = [managerAProject, managerBProject]
-  await waitForSync(projects, 'initial')
+  // TODO: We should be calling this instead of `delay`, but there [is a bug][0] that prevents this.
+  // [0]: https://github.com/digidem/comapeo-core/pull/887
+  // const projects = [managerAProject, managerBProject]
+  // await waitForSync(projects, 'initial')
+  await delay(3000)
   const members = await managerBProject.$member.getMany() // TODO: maybe rename this
   const serverPeer = members.find(
     (member) => member.deviceType === 'selfHostedServer'
@@ -105,7 +108,7 @@ test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
   assert(serverPeer, 'expected a server peer to be found by the client')
 
   // disconnect managers
-  disconnect1()
+  await disconnect1()
   await waitForNoPeersToBeConnected(managerA)
   await waitForNoPeersToBeConnected(managerB)
 
