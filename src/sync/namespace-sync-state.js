@@ -106,6 +106,15 @@ export class NamespaceSyncState {
   }
 
   /**
+   * @param {string} peerId
+   */
+  disconnectPeer(peerId) {
+    for (const css of this.#coreStates.values()) {
+      css.disconnectPeer(peerId)
+    }
+  }
+
+  /**
    * @param {import('hypercore')<"binary", Buffer>} core
    * @param {Buffer} coreKey
    */

@@ -50,6 +50,15 @@ export class SyncState extends TypedEmitter {
   }
 
   /**
+   * @param {string} peerId
+   */
+  disconnectPeer(peerId) {
+    for (const nss of Object.values(this.#syncStates)) {
+      nss.disconnectPeer(peerId)
+    }
+  }
+
+  /**
    * @returns {State}
    */
   getState() {
