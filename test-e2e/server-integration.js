@@ -1,10 +1,13 @@
-import { getManagerOptions } from './utils.js'
+import { createManager, getManagerOptions } from './utils.js'
 import createServer from '../src/server/app.js'
 import test from 'node:test'
 import crypto, { randomBytes } from 'node:crypto'
 import { KeyManager } from '@mapeo/crypto'
 import assert from 'node:assert/strict'
 import { projectKeyToPublicId } from '../src/utils.js'
+
+// TODO: Dynamically choose a port that's open
+const PORT = 9875
 
 test('server info endpoint', async (t) => {
   const serverName = 'test server'
@@ -109,6 +112,31 @@ test('trying to add second project fails', async (t) => {
   })
 })
 
+test.only('observations endpoint', async (t) => {
+  const server = createTestServer(t)
+
+  const serverBaseUrl = await server.listen({ port: PORT })
+  t.after(() => server.close())
+
+  const manager = await createManager('client', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+
+  const emptyResponse = await server.inject({
+    method: 'GET',
+    url: `/projects/${projectId}/observations`,
+  })
+  assert.equal(emptyResponse.statusCode, 200)
+  assert.deepEqual(await emptyResponse.json(), { data: [] })
+
+  // TODO: Test if no project exists
+  // TODO: Test no observations
+})
+
 function randomHexKey(length = 32) {
   return Buffer.from(crypto.randomBytes(length)).toString('hex')
 }
@@ -137,7 +165,7 @@ function createTestServer(t, serverName = 'test server') {
   const server = createServer({
     ...managerOptions,
     serverName,
-    serverPublicBaseUrl: 'http://localhost:0',
+    serverPublicBaseUrl: 'http://localhost:' + PORT,
   })
   t.after(() => server.close())
   Object.defineProperty(server, 'deviceId', {

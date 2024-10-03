@@ -132,4 +132,38 @@ export default async function routes(fastify) {
       return reply
     }
   )
+
+  fastify.get(
+    '/projects/:projectPublicId/observations',
+    {
+      schema: {
+        params: Type.Object({
+          projectPublicId: BASE32_STRING_32_BYTES,
+        }),
+        response: {
+          404: { $ref: 'HttpError' },
+        },
+      },
+      async preHandler(req) {
+        const projectPublicId = req.params.projectPublicId
+        try {
+          await this.comapeo.getProject(projectPublicId)
+        } catch (e) {
+          if (e instanceof Error && e.message.startsWith('NotFound')) {
+            throw this.httpErrors.notFound('Project not found')
+          }
+        }
+      },
+    },
+    async function (req, reply) {
+      // The preValidation hook ensures that the project exists
+      const project = await this.comapeo.getProject(req.params.projectPublicId)
+
+      reply.send({
+        data: (await project.observation.getMany()).map((obs) => ({
+          id: obs.docId,
+        })),
+      })
+    }
+  )
 }
