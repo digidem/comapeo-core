@@ -2,6 +2,7 @@ import { keyToId } from '../utils.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
 } from '../core-manager/remote-bitfield.js'
+import { Logger } from '../logger.js'
 /** @import { HypercorePeer, HypercoreRemoteBitfield, Namespace } from '../types.js' */
 
 /**
@@ -71,14 +72,18 @@ export class CoreSyncState {
   #update
   #peerSyncControllers
   #namespace
+  #l
 
   /**
    * @param {object} opts
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
    * @param {Namespace} opts.namespace
+   * @param {Logger} [opts.logger]
    */
-  constructor({ onUpdate, peerSyncControllers, namespace }) {
+  constructor({ onUpdate, peerSyncControllers, namespace, logger }) {
+    // The logger parameter is already namespaced by NamespaceSyncState
+    this.#l = logger || Logger.create('css')
     this.#peerSyncControllers = peerSyncControllers
     this.#namespace = namespace
     // Called whenever the state changes, so we clear the cache because next
@@ -152,10 +157,22 @@ export class CoreSyncState {
   insertPreHaves(peerId, start, bitfield) {
     const peerState = this.#getPeerState(peerId)
     peerState.insertPreHaves(start, bitfield)
+    const previousLength = Math.max(
+      this.#preHavesLength,
+      this.#core?.length || 0
+    )
     this.#preHavesLength = Math.max(
       this.#preHavesLength,
       peerState.preHavesBitfield.lastSet(start + bitfield.length * 32) + 1
     )
+    if (this.#preHavesLength > previousLength) {
+      this.#l.log(
+        'Updated peer %S pre-haves length from %d to %d',
+        peerId,
+        previousLength,
+        this.#preHavesLength
+      )
+    }
     this.#update()
   }
 

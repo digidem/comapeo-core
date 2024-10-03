@@ -44,21 +44,10 @@ export class PeerSyncController {
    * @param {Logger} [opts.logger]
    */
   constructor({ protomux, coreManager, syncState, roles, logger }) {
-    const log = Logger.create('peer', logger).log
-    this.#log = Object.assign(
-      /**
-       * @param {any} formatter
-       * @param  {...any} args
-       */
-      (formatter, ...args) => {
-        return log.apply(null, [
-          `[%h] ${formatter}`,
-          protomux.stream.remotePublicKey,
-          ...args,
-        ])
-      },
-      log
-    )
+    const logPrefix = `[${protomux.stream.remotePublicKey
+      ?.toString('hex')
+      .slice(0, 7)}] `
+    this.#log = Logger.create('peer', logger, { prefix: logPrefix }).log
     this.#coreManager = coreManager
     this.#protomux = protomux
     this.#roles = roles
