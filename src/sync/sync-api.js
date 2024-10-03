@@ -313,10 +313,7 @@ export class SyncApi extends TypedEmitter {
 
           const websocket = new WebSocket(url)
 
-          // TODO: Remove this after we've debugged why we're getting a 400 error
-          websocket.on('unexpected-response', (req, res) => {
-            console.log('@@@@', 'unexpected response', res)
-          })
+          // TODO: Handle errors (maybe with the `unexpected-response` event?)
 
           const replicationStream = this.#getReplicationStream()
           wsCoreReplicator(websocket, replicationStream)

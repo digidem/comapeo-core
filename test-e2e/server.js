@@ -112,26 +112,24 @@ test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
   await waitForNoPeersToBeConnected(managerA)
   await waitForNoPeersToBeConnected(managerB)
 
-  // Start both syncing data
-  managerAProject.$sync.start()
-  managerBProject.$sync.start()
-  console.log('@@@@', 'about to connect servers')
-  managerAProject.$sync.connectServers()
-  managerBProject.$sync.connectServers()
-  console.log('@@@@', 'connected servers')
-  await waitForSyncWithServer() // TODO this is bogus and silly, just used for waiting
-  console.log('@@@@', 'waited a bit')
-
   // manager 1 adds data, syncs with server
   const observation = await managerAProject.observation.create(
     valueOf(generate('observation')[0])
   )
+  managerAProject.$sync.start()
+  managerAProject.$sync.connectServers()
   await waitForSyncWithServer()
+  managerAProject.$sync.stop()
 
   // Check manager 2 doesn't have the data
-  await assert.rejects(() =>
-    managerBProject.observation.getByDocId(observation.docId)
+  await assert.rejects(
+    () => managerBProject.observation.getByDocId(observation.docId),
+    "manager B doesn't see observation"
   )
+
+  // manager 2 connects to server
+  managerBProject.$sync.connectServers()
+  managerBProject.$sync.start()
 
   // manager 2 now has data from manager 1, even though it wasn't connected to manager 1 directly
   await waitForSyncWithServer()

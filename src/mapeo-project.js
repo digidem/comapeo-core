@@ -73,6 +73,7 @@ const EMPTY_PROJECT_SETTINGS = Object.freeze({})
  */
 export class MapeoProject extends TypedEmitter {
   #projectId
+  #projectPublicId
   #deviceId
   #identityKeypair
   #coreManager
@@ -318,6 +319,8 @@ export class MapeoProject extends TypedEmitter {
     })
 
     const projectPublicId = projectKeyToPublicId(projectKey)
+    // TODO: clean this up
+    this.#projectPublicId = projectPublicId
 
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
@@ -361,7 +364,7 @@ export class MapeoProject extends TypedEmitter {
             member.selfHostedServerDetails
           ) {
             const { baseUrl } = member.selfHostedServerDetails
-            const wsUrl = new URL(`/sync/${this.#projectId}`, baseUrl)
+            const wsUrl = new URL(`/sync/${this.#projectPublicId}`, baseUrl)
             wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
             serverWebsocketUrls.push(wsUrl.href)
           }
