@@ -21,19 +21,21 @@ import {
 
 test('adding a server peer', async (t) => {
   const manager = createManager('device0', t)
-  await manager.setDeviceInfo({ name: 'device0', deviceType: 'mobile' }) // TODO: necessary?
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
   const serverBaseUrl = await createTestServer(t)
 
+  const hasServerPeerBeforeAdding = (await project.$member.getMany()).some(
+    (member) => member.deviceType === 'selfHostedServer'
+  )
+  assert(!hasServerPeerBeforeAdding, 'no server peers before adding')
+
   await project.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
   })
 
-  const members = await project.$member.getMany()
-  // TODO: Ensure that this peer doesn't exist before adding?
-  const serverPeer = members.find(
+  const serverPeer = (await project.$member.getMany()).find(
     (member) => member.deviceType === 'selfHostedServer'
   )
   assert(serverPeer, 'expected a server peer to be found by the client')
@@ -170,7 +172,7 @@ function waitForNoPeersToBeConnected(manager) {
 }
 
 function waitForSyncWithServer() {
-  // TODO: This is fake
+  // TODO: This is fake!
   return new Promise((resolve) => {
     setTimeout(resolve, 3000)
   })
