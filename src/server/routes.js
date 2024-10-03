@@ -161,7 +161,12 @@ export default async function routes(fastify) {
 
       reply.send({
         data: (await project.observation.getMany()).map((obs) => ({
-          id: obs.docId,
+          docId: obs.docId,
+          createdAt: obs.createdAt,
+          updatedAt: obs.updatedAt,
+          lat: obs.lat,
+          lon: obs.lon,
+          // TODO: Attachments
         })),
       })
     }

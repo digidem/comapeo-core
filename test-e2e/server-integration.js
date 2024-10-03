@@ -5,6 +5,8 @@ import crypto, { randomBytes } from 'node:crypto'
 import { KeyManager } from '@mapeo/crypto'
 import assert from 'node:assert/strict'
 import { projectKeyToPublicId } from '../src/utils.js'
+import { generate } from '@mapeo/mock-data'
+import { valueOf } from '@comapeo/schema'
 
 // TODO: Dynamically choose a port that's open
 const PORT = 9875
@@ -133,8 +135,31 @@ test.only('observations endpoint', async (t) => {
   assert.equal(emptyResponse.statusCode, 200)
   assert.deepEqual(await emptyResponse.json(), { data: [] })
 
-  // TODO: Test if no project exists
-  // TODO: Test no observations
+  project.$sync.start()
+  project.$sync.connectServers()
+  const observations = await Promise.all(
+    generate('observation', { count: 3 }).map((observation) =>
+      project.observation.create(valueOf(observation))
+    )
+  )
+  await project.$sync.waitForSync('full')
+
+  const fullResponse = await server.inject({
+    method: 'GET',
+    url: `/projects/${projectId}/observations`,
+  })
+  assert.equal(fullResponse.statusCode, 200)
+  const { data } = await fullResponse.json()
+  assert.equal(data.length, 3)
+  for (const observation of observations) {
+    const observationFromApi = data.find((o) => o.docId === observation.docId)
+    assert(observationFromApi, 'observation found in API response')
+    assert.equal(observationFromApi.createdAt, observation.createdAt)
+    assert.equal(observationFromApi.updatedAt, observation.updatedAt)
+    assert.equal(observationFromApi.lat, observation.lat)
+    assert.equal(observationFromApi.lon, observation.lon)
+    // TODO: Add attachments
+  }
 })
 
 function randomHexKey(length = 32) {
