@@ -71,14 +71,18 @@ export class CoreSyncState {
   #update
   #peerSyncControllers
   #namespace
+  #l
 
   /**
    * @param {object} opts
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
    * @param {Namespace} opts.namespace
+   * @param {Logger} opts.logger
    */
-  constructor({ onUpdate, peerSyncControllers, namespace }) {
+  constructor({ onUpdate, peerSyncControllers, namespace, logger }) {
+    // This logger is already namespaced by NamespaceSyncState
+    this.#l = logger
     this.#peerSyncControllers = peerSyncControllers
     this.#namespace = namespace
     // Called whenever the state changes, so we clear the cache because next
@@ -152,10 +156,22 @@ export class CoreSyncState {
   insertPreHaves(peerId, start, bitfield) {
     const peerState = this.#getPeerState(peerId)
     peerState.insertPreHaves(start, bitfield)
+    const previousLength = Math.max(
+      this.#preHavesLength,
+      this.#core?.length || 0
+    )
     this.#preHavesLength = Math.max(
       this.#preHavesLength,
       peerState.preHavesBitfield.lastSet(start + bitfield.length * 32) + 1
     )
+    if (this.#preHavesLength > previousLength) {
+      this.#l.log(
+        'Updated peer %S pre-haves length from %d to %d',
+        peerId,
+        previousLength,
+        this.#preHavesLength
+      )
+    }
     this.#update()
   }
 

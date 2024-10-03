@@ -97,6 +97,7 @@ export class SyncApi extends TypedEmitter {
       coreManager,
       throttleMs,
       peerSyncControllers: this.#pscByPeerId,
+      logger,
     })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
