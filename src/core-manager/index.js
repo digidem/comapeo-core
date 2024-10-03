@@ -33,8 +33,8 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
 export class CoreManager extends TypedEmitter {
   #corestore
   #coreIndex
-  /** @type {Core} */
-  #creatorCore
+  /** @type {CoreRecord} */
+  #creatorCoreRecord
   #projectKey
   #queries
   #encryptionKeys
@@ -128,12 +128,12 @@ export class CoreManager extends TypedEmitter {
       }
       const writer = this.#addCore(keyPair, namespace)
       if (namespace === 'auth' && projectSecretKey) {
-        this.#creatorCore = writer.core
+        this.#creatorCoreRecord = writer
       }
     }
 
     // For anyone other than the project creator, creatorCore is readonly
-    this.#creatorCore ??= this.#addCore({ publicKey: projectKey }, 'auth').core
+    this.#creatorCoreRecord ??= this.#addCore({ publicKey: projectKey }, 'auth')
 
     // Load persisted cores
     const rows = db.select().from(coresTable).all()
@@ -141,7 +141,7 @@ export class CoreManager extends TypedEmitter {
       this.#addCore({ publicKey }, namespace)
     }
 
-    this.#projectExtension = this.#creatorCore.registerExtension(
+    this.#projectExtension = this.creatorCore.registerExtension(
       'mapeo/project',
       {
         encoding: ProjectExtensionCodec,
@@ -151,14 +151,14 @@ export class CoreManager extends TypedEmitter {
       }
     )
 
-    this.#haveExtension = this.#creatorCore.registerExtension('mapeo/have', {
+    this.#haveExtension = this.creatorCore.registerExtension('mapeo/have', {
       encoding: HaveExtensionCodec,
       onmessage: (msg, peer) => {
         this.#handleHaveMessage(msg, peer)
       },
     })
 
-    this.#creatorCore.on('peer-add', (peer) => {
+    this.creatorCore.on('peer-add', (peer) => {
       this.#sendHaves(peer, this.#coreIndex).catch(() => {
         this.#l.log('Failed to send pre-haves to newly-connected peer')
       })
@@ -179,7 +179,11 @@ export class CoreManager extends TypedEmitter {
   }
 
   get creatorCore() {
-    return this.#creatorCore
+    return this.#creatorCoreRecord.core
+  }
+
+  get creatorCoreRecord() {
+    return this.#creatorCoreRecord
   }
 
   /**
@@ -255,7 +259,6 @@ export class CoreManager extends TypedEmitter {
    * @returns {CoreRecord}
    */
   addCore(key, namespace) {
-    this.#l.log('Adding remote core %k to %s', key, namespace)
     return this.#addCore({ publicKey: key }, namespace, true)
   }
 
@@ -298,7 +301,7 @@ export class CoreManager extends TypedEmitter {
 
     if (writer) {
       const sendHaves = debounce(WRITER_CORE_PREHAVES_DEBOUNCE_DELAY, () => {
-        for (const peer of this.#creatorCore.peers) {
+        for (const peer of this.creatorCore.peers) {
           this.#sendHaves(peer, [{ core, namespace }]).catch(() => {
             this.#l.log('Failed to send new pre-haves to other peers')
           })
