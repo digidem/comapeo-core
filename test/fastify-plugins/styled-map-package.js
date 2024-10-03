@@ -1,4 +1,4 @@
-import test from 'node:test'
+import test, { describe } from 'node:test'
 import assert from 'node:assert/strict'
 import Fastify from 'fastify'
 
@@ -98,30 +98,56 @@ test('respects prefix', async (t) => {
   )
 })
 
-test('basic resource fetching works', async (t) => {
-  const server = setup(t, {
-    filepath: SMP_FIXTURE_PATH,
+describe('basic resource fetching works', async () => {
+  test('no prefix', async (t) => {
+    const server = setup(t, {
+      filepath: SMP_FIXTURE_PATH,
+    })
+
+    await run(server)
   })
 
-  const address = await server.listen()
+  test('using prefix', async (t) => {
+    const prefix = 'smp'
+    const server = setup(t, {
+      prefix,
+      filepath: SMP_FIXTURE_PATH,
+    })
 
-  const styleResp = await server.inject({
-    method: 'GET',
-    url: `${address}/style.json`,
+    await run(server, prefix)
   })
 
-  assert(styleResp.statusCode === 200)
+  /**
+   * @param {import('fastify').FastifyInstance} server
+   * @param {string} [prefix]
+   */
+  async function run(server, prefix) {
+    const address = await server.listen()
 
-  const localTileUrl = getFirstLocalTileUrl(styleResp.json(), address)
+    const baseUrl = address + (prefix ? `/${prefix}` : '')
 
-  assert(localTileUrl, 'local tile URL exists')
+    const styleResp = await server.inject({
+      method: 'GET',
+      url: `${baseUrl}/style.json`,
+    })
 
-  const tileResp = await server.inject({
-    method: 'GET',
-    url: interpolateTileUrl(localTileUrl, { x: 0, y: 0, z: 0 }),
-  })
+    assert(styleResp.statusCode === 200)
 
-  assert(tileResp.statusCode === 200, 'can fetch tile from local tile URL')
+    const localTileUrl = getFirstLocalTileUrl(styleResp.json(), address)
+
+    assert(localTileUrl, 'local tile URL exists')
+    assert(
+      localTileUrl.startsWith(baseUrl),
+      'local tile URL uses expected base url'
+    )
+
+    const tileResp = await server.inject({
+      method: 'GET',
+      url: interpolateTileUrl(localTileUrl, { x: 0, y: 0, z: 0 }),
+    })
+
+    assert(tileResp.statusCode === 200, 'can fetch tile from local tile URL')
+  }
 })
 
 /**
