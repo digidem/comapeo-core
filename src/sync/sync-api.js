@@ -302,7 +302,6 @@ export class SyncApi extends TypedEmitter {
       .then((urls) => {
         for (const url of urls) {
           const existingWebsocket = this.#serverWebsockets.get(url)
-          console.log('@@@@', 'connecting to', url)
           if (
             existingWebsocket &&
             (existingWebsocket.readyState === WebSocket.OPEN ||
