@@ -45,7 +45,7 @@ test('adding a server peer', async (t) => {
   )
   assert.equal(
     serverPeer.selfHostedServerDetails?.baseUrl,
-    'https://mapeo.example',
+    'http://localhost:9876',
     'server peer stores base URL'
   )
 })
@@ -70,63 +70,60 @@ test("can't add a server to two different projects", async (t) => {
   }, Error)
 })
 
-test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
-  // create two managers
-  const managers = await createManagers(2, t, 'mobile')
+test('data can be synced via a server', async (t) => {
+  const [managers, serverBaseUrl] = await Promise.all([
+    createManagers(2, t, 'mobile'),
+    createTestServer(t),
+  ])
   const [managerA, managerB] = managers
 
-  // manager 1 sets up server
+  // Manager A: create project and add the server to it
   const projectId = await managerA.createProject({ name: 'foo' })
   const managerAProject = await managerA.getProject(projectId)
-  const serverBaseUrl = await createTestServer(t)
   await managerAProject.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
   })
 
-  // manager 1, invite manager 2
-  const disconnect1 = connectPeers(managers)
-  t.after(disconnect1)
+  // Add Manager B to project
+  const disconnectManagers = connectPeers(managers)
+  t.after(disconnectManagers)
   await waitForPeers(managers)
   await invite({ invitor: managerA, invitees: [managerB], projectId })
   const managerBProject = await managerB.getProject(projectId)
 
-  // sync managers (to tell manager 2 about server)
-  // TODO: We should be calling this instead of `delay`, but there [is a bug][0] that prevents this.
+  // Sync managers to tell Manager B about the server
+  // TODO: We shouldn't use this `delay`, but [is a bug][0] that requires it.
   // [0]: https://github.com/digidem/comapeo-core/pull/887
+  //
+  // The code should be:
   // const projects = [managerAProject, managerBProject]
   // await waitForSync(projects, 'initial')
   await delay(3000)
-  const members = await managerBProject.$member.getMany() // TODO: maybe rename this
-  const serverPeer = members.find(
+  const managerBMembers = await managerBProject.$member.getMany()
+  const serverPeer = managerBMembers.find(
     (member) => member.deviceType === 'selfHostedServer'
   )
   assert(serverPeer, 'expected a server peer to be found by the client')
 
-  // disconnect managers
-  await disconnect1()
+  // Manager A adds data that Manager B doesn't know about
+  await disconnectManagers()
   await waitForNoPeersToBeConnected(managerA)
   await waitForNoPeersToBeConnected(managerB)
-
-  // manager 1 adds data, syncs with server
+  managerAProject.$sync.start()
+  managerAProject.$sync.connectServers()
   const observation = await managerAProject.observation.create(
     valueOf(generate('observation')[0])
   )
-  managerAProject.$sync.start()
-  managerAProject.$sync.connectServers()
   await waitForSyncWithServer()
   managerAProject.$sync.stop()
-
-  // Check manager 2 doesn't have the data
   await assert.rejects(
     () => managerBProject.observation.getByDocId(observation.docId),
-    "manager B doesn't see observation"
+    "manager B doesn't see observation yet"
   )
 
-  // manager 2 connects to server
+  // Manager B sees observation after syncing
   managerBProject.$sync.connectServers()
   managerBProject.$sync.start()
-
-  // manager 2 now has data from manager 1, even though it wasn't connected to manager 1 directly
   await waitForSyncWithServer()
   assert(
     await managerBProject.observation.getByDocId(observation.docId),
