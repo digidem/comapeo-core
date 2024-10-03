@@ -83,11 +83,6 @@ test.only('TODO', { timeout: 2 ** 30 }, async (t) => {
     dangerouslyAllowInsecureConnections: true,
   })
 
-  // TODO: remove this
-  await new Promise((resolve) => {
-    setTimeout(resolve, 3000)
-  })
-
   // manager 1, invite manager 2
   const disconnect1 = connectPeers(managers)
   t.after(disconnect1)
