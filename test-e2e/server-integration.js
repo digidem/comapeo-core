@@ -22,7 +22,7 @@ test('server info endpoint', async (t) => {
   assert.deepEqual(response.json(), expectedResponseBody)
 })
 
-test('add project, sync endpoint available', { only: false }, async (t) => {
+test('add project, sync endpoint available', async (t) => {
   const server = createTestServer(t)
   const projectKeys = randomProjectKeys()
   const projectPublicId = projectKeyToPublicId(
@@ -82,7 +82,7 @@ test('invalid project public id', async (t) => {
   assert.equal(response.json().code, 'FST_ERR_VALIDATION')
 })
 
-test('trying to add second project fails', { only: true }, async (t) => {
+test('trying to add second project fails', async (t) => {
   const server = createTestServer(t)
 
   await t.test('add first project', async () => {
@@ -136,7 +136,6 @@ function createTestServer(t, serverName = 'test server') {
   const km = new KeyManager(managerOptions.rootKey)
   const server = createServer({
     ...managerOptions,
-    logger: true,
     serverName,
     serverPublicBaseUrl: 'http://localhost:0',
   })
