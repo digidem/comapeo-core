@@ -674,6 +674,14 @@ export class MapeoManager extends TypedEmitter {
       isConfigSynced
     ) {
       return true
+    } else {
+      this.#l.log(
+        'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
+        isRoleSynced,
+        isProjectSettingsSynced,
+        isAuthSynced,
+        isConfigSynced
+      )
     }
     return new Promise((resolve, reject) => {
       /** @param {import('./sync/sync-state.js').State} syncState */

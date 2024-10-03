@@ -5,6 +5,32 @@ import util from 'util'
 
 const TRIM = 7
 
+const selectColorOriginal = createDebug.selectColor
+
+/**
+ * Selects a color for a debug namespace (warning: overrides private api).
+ * Rather than the default behaviour of creating a unique color for each
+ * namespace, we only hash the last 7 characters of the namespace, which is the
+ * deviceId. This results in debug output where each deviceId has a different
+ * colour, which is more useful for debugging.
+ * @param {string} namespace The namespace string for the debug instance to be colored
+ * @return {number|string} An ANSI color code for the given namespace
+ */
+createDebug.selectColor = function (namespace) {
+  if (!namespace.startsWith('mapeo:')) {
+    return selectColorOriginal(namespace)
+  }
+  let hash = 0
+
+  for (let i = namespace.length - TRIM - 1; i < namespace.length; i++) {
+    hash = (hash << 5) - hash + namespace.charCodeAt(i)
+    hash |= 0 // Convert to 32bit integer
+  }
+
+  // @ts-expect-error - private debug api
+  return createDebug.colors[Math.abs(hash) % createDebug.colors.length]
+}
+
 createDebug.formatters.h = function (v) {
   if (!Buffer.isBuffer(v)) return '[undefined]'
   return v.toString('hex').slice(0, TRIM)
@@ -76,15 +102,8 @@ export class Logger {
     this.#baseLogger = baseLogger || createDebug('mapeo' + (ns ? `:${ns}` : ''))
     this.#log = this.#baseLogger.extend(this.deviceId.slice(0, TRIM))
   }
-  get enabled() {
-    return this.#log.enabled
-  }
-
-  /**
-   * @param  {Parameters<createDebug.Debugger>} args
-   */
-  log = (...args) => {
-    this.#log.apply(this, args)
+  get log() {
+    return this.#log
   }
   /**
    *
