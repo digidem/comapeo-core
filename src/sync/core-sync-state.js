@@ -155,7 +155,7 @@ export class CoreSyncState {
    * @param {Uint32Array} bitfield
    */
   insertPreHaves(peerId, start, bitfield) {
-    const peerState = this.#getPeerState(peerId)
+    const peerState = this.#getOrCreatePeerState(peerId)
     peerState.insertPreHaves(start, bitfield)
     const previousLength = Math.max(
       this.#preHavesLength,
@@ -185,7 +185,7 @@ export class CoreSyncState {
    * @param {Array<{ start: number, length: number }>} ranges
    */
   setPeerWants(peerId, ranges) {
-    const peerState = this.#getPeerState(peerId)
+    const peerState = this.#getOrCreatePeerState(peerId)
     for (const { start, length } of ranges) {
       peerState.setWantRange({ start, length })
     }
@@ -204,7 +204,17 @@ export class CoreSyncState {
   /**
    * @param {PeerId} peerId
    */
-  #getPeerState(peerId) {
+  disconnectPeer(peerId) {
+    const wasRemoved = this.#remoteStates.delete(peerId)
+    if (wasRemoved) {
+      this.#update()
+    }
+  }
+
+  /**
+   * @param {PeerId} peerId
+   */
+  #getOrCreatePeerState(peerId) {
     let peerState = this.#remoteStates.get(peerId)
     if (!peerState) {
       peerState = new PeerState()
@@ -224,7 +234,7 @@ export class CoreSyncState {
     const peerId = keyToId(peer.remotePublicKey)
 
     // Update state to ensure this peer is in the state correctly
-    const peerState = this.#getPeerState(peerId)
+    const peerState = this.#getOrCreatePeerState(peerId)
     peerState.status = 'starting'
 
     this.#core?.update({ wait: true }).then(() => {
@@ -260,7 +270,8 @@ export class CoreSyncState {
    */
   #onPeerRemove = (peer) => {
     const peerId = keyToId(peer.remotePublicKey)
-    const peerState = this.#getPeerState(peerId)
+    const peerState = this.#remoteStates.get(peerId)
+    if (!peerState) return
     peerState.status = 'stopped'
     this.#update()
   }
