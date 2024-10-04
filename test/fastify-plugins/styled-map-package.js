@@ -82,8 +82,9 @@ test('respects prefix', async (t) => {
     url: `${address}/style.json`,
   })
 
-  assert(
-    badStyleResp.statusCode === 404,
+  assert.equal(
+    badStyleResp.statusCode,
+    404,
     'style request responds with 404 when request URL is missing prefix'
   )
 
@@ -92,8 +93,9 @@ test('respects prefix', async (t) => {
     url: `${address}/${prefix}/style.json`,
   })
 
-  assert(
-    goodStyleResp.statusCode === 200,
+  assert.equal(
+    goodStyleResp.statusCode,
+    200,
     'style request with 200 when request URL contains correct prefix'
   )
 })
@@ -131,7 +133,7 @@ describe('basic resource fetching works', async () => {
       url: `${baseUrl}/style.json`,
     })
 
-    assert(styleResp.statusCode === 200)
+    assert.equal(styleResp.statusCode, 200)
 
     const localTileUrl = getFirstLocalTileUrl(styleResp.json(), address)
 
@@ -146,7 +148,7 @@ describe('basic resource fetching works', async () => {
       url: interpolateTileUrl(localTileUrl, { x: 0, y: 0, z: 0 }),
     })
 
-    assert(tileResp.statusCode === 200, 'can fetch tile from local tile URL')
+    assert.equal(tileResp.statusCode, 200, 'can fetch tile from local tile URL')
   }
 })
 
