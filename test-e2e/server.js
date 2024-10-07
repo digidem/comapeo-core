@@ -82,6 +82,7 @@ test('data can be synced via a server', async (t) => {
   // Manager A: create project and add the server to it
   const projectId = await managerA.createProject({ name: 'foo' })
   const managerAProject = await managerA.getProject(projectId)
+  t.after(() => managerAProject.$sync.disconnectServers())
   await managerAProject.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
   })
@@ -92,6 +93,7 @@ test('data can be synced via a server', async (t) => {
   await waitForPeers(managers)
   await invite({ invitor: managerA, invitees: [managerB], projectId })
   const managerBProject = await managerB.getProject(projectId)
+  t.after(() => managerBProject.$sync.disconnectServers())
 
   // Sync managers to tell Manager B about the server
   const projects = [managerAProject, managerBProject]
@@ -112,6 +114,7 @@ test('data can be synced via a server', async (t) => {
     valueOf(generate('observation')[0])
   )
   await waitForSyncWithServer()
+  managerAProject.$sync.disconnectServers()
   managerAProject.$sync.stop()
   await assert.rejects(
     () => managerBProject.observation.getByDocId(observation.docId),

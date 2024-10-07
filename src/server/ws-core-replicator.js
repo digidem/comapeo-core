@@ -19,8 +19,8 @@ export function wsCoreReplicator(ws, replicationStream) {
   )
   return pipeline(
     _replicationStream,
-    createWebSocketStream(ws),
     wsSafetyTransform(ws),
+    createWebSocketStream(ws),
     _replicationStream
   )
 }
