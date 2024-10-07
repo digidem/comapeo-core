@@ -12,12 +12,13 @@ const ROOT_KEY_FILE_NAME = 'root-key'
 
 const schema = Type.Object({
   PORT: Type.Number({ default: 3000 }),
-  API_TOKEN: Type.String({
-    description: 'API token for accessing the server, can be any random string',
-  }),
   SERVER_NAME: Type.String({
     description: 'name of the server',
     default: 'CoMapeo Server',
+  }),
+  SERVER_BEARER_TOKEN: Type.String({
+    description:
+      'Bearer token for accessing the server, can be any random string',
   }),
   SERVER_PUBLIC_BASE_URL: Type.String({
     description: 'public base URL of the server',
@@ -79,8 +80,8 @@ if (!rootKey || rootKey.length !== 16) {
 }
 
 const fastify = createServer({
-  // TODO: apiToken: config.API_TOKEN,
   serverName: config.SERVER_NAME,
+  serverBearerToken: config.SERVER_BEARER_TOKEN,
   serverPublicBaseUrl: config.SERVER_PUBLIC_BASE_URL,
   rootKey,
   coreStorage,

@@ -143,6 +143,7 @@ async function createTestServer(t) {
     ...getManagerOptions('test server'),
     serverName: 'test server',
     serverPublicBaseUrl: 'http://localhost:' + port,
+    serverBearerToken: 'ignored',
   })
   const serverAddress = await server.listen({ port })
   t.after(() => server.close())

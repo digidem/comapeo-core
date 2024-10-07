@@ -2,7 +2,7 @@ import { Type } from '@sinclair/typebox'
 import { kProjectReplicate } from '../mapeo-project.js'
 import { wsCoreReplicator } from './ws-core-replicator.js'
 import timingSafeEqual from '../lib/timing-safe-equal.js'
-/** @import {FastifyPluginAsync, FastifyRequest, RawServerDefault} from 'fastify' */
+/** @import {FastifyInstance, FastifyPluginAsync, FastifyRequest, RawServerDefault} from 'fastify' */
 /** @import {TypeBoxTypeProvider} from '@fastify/type-provider-typebox' */
 
 const BEARER_SPACE_LENGTH = 'Bearer '.length
@@ -14,10 +14,14 @@ const BASE32_STRING_32_BYTES = Type.String({ pattern: BASE32_REGEX_32_BYTES })
 /**
  * @typedef {object} RouteOptions
  * @prop {string} serverBearerToken
+ * @prop {string} serverPublicBaseUrl
  */
 
 /** @type {FastifyPluginAsync<RouteOptions, RawServerDefault, TypeBoxTypeProvider>} */
-export default async function routes(fastify, { serverBearerToken }) {
+export default async function routes(
+  fastify,
+  { serverBearerToken, serverPublicBaseUrl }
+) {
   /**
    * @param {FastifyRequest} req
    */
@@ -63,14 +67,7 @@ export default async function routes(fastify, { serverBearerToken }) {
         },
       },
       async preHandler(req) {
-        const projectPublicId = req.params.projectPublicId
-        try {
-          await this.comapeo.getProject(projectPublicId)
-        } catch (e) {
-          if (e instanceof Error && e.message.startsWith('NotFound')) {
-            throw this.httpErrors.notFound('Project not found')
-          }
-        }
+        await ensureProjectExists(this, req)
       },
       websocket: true,
     },
@@ -161,19 +158,12 @@ export default async function routes(fastify, { serverBearerToken }) {
       },
       async preHandler(req) {
         verifyBearerAuth(req)
-        const projectPublicId = req.params.projectPublicId
-        try {
-          await this.comapeo.getProject(projectPublicId)
-        } catch (e) {
-          if (e instanceof Error && e.message.startsWith('NotFound')) {
-            throw this.httpErrors.notFound('Project not found')
-          }
-        }
+        await ensureProjectExists(this, req)
       },
     },
     async function (req, reply) {
-      // The preValidation hook ensures that the project exists
-      const project = await this.comapeo.getProject(req.params.projectPublicId)
+      const { projectPublicId } = req.params
+      const project = await this.comapeo.getProject(projectPublicId)
 
       reply.send({
         data: (await project.observation.getMany()).map((obs) => ({
@@ -182,11 +172,87 @@ export default async function routes(fastify, { serverBearerToken }) {
           updatedAt: obs.updatedAt,
           lat: obs.lat,
           lon: obs.lon,
-          // TODO: Attachments
+          attachments: obs.attachments.map((attachment) => ({
+            url: new URL(
+              // TODO: Support other variants
+              `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
+              serverPublicBaseUrl
+            ),
+          })),
         })),
       })
     }
   )
+
+  fastify.get(
+    '/projects/:projectPublicId/attachments/:driveDiscoveryId/:type/:name',
+    {
+      schema: {
+        params: Type.Object({
+          projectPublicId: BASE32_STRING_32_BYTES,
+          driveDiscoveryId: Type.String(),
+          // TODO: For now, only photos are supported.
+          type: Type.Literal('photo'),
+          name: Type.String(),
+        }),
+        querystring: Type.Object({
+          variant: Type.Optional(
+            Type.Union([
+              Type.Literal('original'),
+              Type.Literal('preview'),
+              Type.Literal('thumbnail'),
+            ])
+          ),
+        }),
+        response: {
+          403: { $ref: 'HttpError' },
+          404: { $ref: 'HttpError' },
+        },
+      },
+      async preHandler(req) {
+        verifyBearerAuth(req)
+        await ensureProjectExists(this, req)
+      },
+    },
+    async function (req, reply) {
+      const project = await this.comapeo.getProject(req.params.projectPublicId)
+
+      const blobUrl = await project.$blobs.getUrl({
+        driveId: req.params.driveDiscoveryId,
+        name: req.params.name,
+        type: req.params.type,
+        variant: req.query.variant || 'original',
+      })
+
+      const proxiedResponse = await fetch(blobUrl)
+      reply.code(proxiedResponse.status)
+      // TODO: Are there other headers we want to pass through?
+      reply.header('Content-Type', proxiedResponse.headers.get('content-type'))
+      reply.header(
+        'Content-Length',
+        proxiedResponse.headers.get('content-length')
+      )
+      return reply.send(proxiedResponse.body)
+    }
+  )
+}
+
+/**
+ * @param {FastifyInstance} fastify
+ * @param {object} req
+ * @param {object} req.params
+ * @param {string} req.params.projectPublicId
+ * @returns {Promise<void>}
+ */
+async function ensureProjectExists(fastify, req) {
+  try {
+    await fastify.comapeo.getProject(req.params.projectPublicId)
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('NotFound')) {
+      throw fastify.httpErrors.notFound('Project not found')
+    }
+    throw e
+  }
 }
 
 /**

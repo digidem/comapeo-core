@@ -1,16 +1,26 @@
-import { createManager, getManagerOptions } from './utils.js'
-import createServer from '../src/server/app.js'
-import test from 'node:test'
-import crypto, { randomBytes } from 'node:crypto'
-import { KeyManager } from '@mapeo/crypto'
-import assert from 'node:assert/strict'
-import { projectKeyToPublicId } from '../src/utils.js'
-import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
+import { KeyManager } from '@mapeo/crypto'
+import { generate } from '@mapeo/mock-data'
+import assert from 'node:assert/strict'
+import crypto, { randomBytes } from 'node:crypto'
+import * as fs from 'node:fs/promises'
+import test from 'node:test'
+import createServer from '../src/server/app.js'
+import { projectKeyToPublicId } from '../src/utils.js'
+import { blobMetadata } from '../test/helpers/blob-store.js'
+import { createManager, getManagerOptions } from './utils.js'
+import { map } from 'iterpal'
+/** @import { ObservationValue } from '@comapeo/schema'*/
+/** @import { FastifyInstance } from 'fastify' */
 
 // TODO: Dynamically choose a port that's open
 const PORT = 9875
+const BASE_URL = `http://localhost:${PORT}/`
 const BEARER_TOKEN = Buffer.from('swordfish').toString('base64')
+const FIXTURES_ROOT = new URL('../src/server/test/fixtures/', import.meta.url)
+const FIXTURE_ORIGINAL_PATH = new URL('original.jpg', FIXTURES_ROOT).pathname
+const FIXTURE_PREVIEW_PATH = new URL('preview.jpg', FIXTURES_ROOT).pathname
+const FIXTURE_THUMBNAIL_PATH = new URL('thumbnail.jpg', FIXTURES_ROOT).pathname
 
 test('server info endpoint', async (t) => {
   const serverName = 'test server'
@@ -156,36 +166,69 @@ test('observations endpoint', async (t) => {
     assert.deepEqual(await response.json(), { data: [] })
   })
 
-  await t.test('returning observations', async () => {
-    project.$sync.start()
-    project.$sync.connectServers()
-    const observations = await Promise.all(
-      generate('observation', { count: 3 }).map((observation) =>
-        project.observation.create(valueOf(observation))
-      )
-    )
-    await project.$sync.waitForSync('full')
+  await t.test(
+    'returning observations with fetchable attachments',
+    async () => {
+      project.$sync.start()
+      project.$sync.connectServers()
 
-    const response = await server.inject({
-      method: 'GET',
-      url: `/projects/${projectId}/observations`,
-      headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
-    })
-    assert.equal(response.statusCode, 200)
-    const { data } = await response.json()
-    assert.equal(data.length, 3)
-    for (const observation of observations) {
-      const observationFromApi = data.find(
-        (/** @type {{ docId: string }} */ o) => o.docId === observation.docId
+      const observations = await Promise.all([
+        (() => {
+          /** @type {ObservationValue} */
+          const noAttachments = {
+            ...valueOf(generate('observation')[0]),
+            attachments: [],
+          }
+          return project.observation.create(noAttachments)
+        })(),
+        (async () => {
+          const blob = await project.$blobs.create(
+            {
+              original: FIXTURE_ORIGINAL_PATH,
+              preview: FIXTURE_PREVIEW_PATH,
+              thumbnail: FIXTURE_THUMBNAIL_PATH,
+            },
+            blobMetadata({ mimeType: 'image/jpeg' })
+          )
+          /** @type {ObservationValue} */
+          const withAttachment = {
+            ...valueOf(generate('observation')[0]),
+            attachments: [blobToAttachment(blob)],
+          }
+          return project.observation.create(withAttachment)
+        })(),
+      ])
+
+      await project.$sync.waitForSync('full')
+
+      const response = await server.inject({
+        method: 'GET',
+        url: `/projects/${projectId}/observations`,
+        headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
+      })
+
+      assert.equal(response.statusCode, 200)
+
+      const { data } = await response.json()
+
+      assert.equal(data.length, 2)
+
+      await Promise.all(
+        observations.map(async (observation) => {
+          const observationFromApi = data.find(
+            (/** @type {{ docId: string }} */ o) =>
+              o.docId === observation.docId
+          )
+          assert(observationFromApi, 'observation found in API response')
+          assert.equal(observationFromApi.createdAt, observation.createdAt)
+          assert.equal(observationFromApi.updatedAt, observation.updatedAt)
+          assert.equal(observationFromApi.lat, observation.lat)
+          assert.equal(observationFromApi.lon, observation.lon)
+          await assertAttachmentsCanBeFetched({ server, observationFromApi })
+        })
       )
-      assert(observationFromApi, 'observation found in API response')
-      assert.equal(observationFromApi.createdAt, observation.createdAt)
-      assert.equal(observationFromApi.updatedAt, observation.updatedAt)
-      assert.equal(observationFromApi.lat, observation.lat)
-      assert.equal(observationFromApi.lon, observation.lon)
-      // TODO: Add attachments
     }
-  })
+  )
 })
 
 function randomHexKey(length = 32) {
@@ -227,4 +270,84 @@ function createTestServer(t, serverName = 'test server') {
   })
   // @ts-expect-error
   return server
+}
+
+/**
+ * TODO: Use a better type for `blob.type`
+ * @param {object} blob
+ * @param {string} blob.driveId
+ * @param {any} blob.type
+ * @param {string} blob.name
+ * @param {string} blob.hash
+ */
+function blobToAttachment(blob) {
+  return {
+    driveDiscoveryId: blob.driveId,
+    type: blob.type,
+    name: blob.name,
+    hash: blob.hash,
+  }
+}
+
+/**
+ * @param {object} options
+ * @param {FastifyInstance} options.server
+ * @param {Record<string, unknown>} options.observationFromApi
+ * @returns {Promise<void>}
+ */
+async function assertAttachmentsCanBeFetched({ server, observationFromApi }) {
+  assert(Array.isArray(observationFromApi.attachments))
+  await Promise.all(
+    observationFromApi.attachments.map(
+      /** @param {unknown} attachment */
+      async (attachment) => {
+        assert(attachment && typeof attachment === 'object')
+        assert('url' in attachment && typeof attachment.url === 'string')
+        await assertAttachmentAndVariantsCanBeFetched(server, attachment.url)
+      }
+    )
+  )
+}
+
+/**
+ * @param {FastifyInstance} server
+ * @param {string} url
+ * @returns {Promise<void>}
+ */
+async function assertAttachmentAndVariantsCanBeFetched(server, url) {
+  assert(url.startsWith(BASE_URL))
+
+  /** @type {Map<null | string, string>} */
+  const variantsToCheck = new Map([
+    [null, FIXTURE_ORIGINAL_PATH],
+    ['original', FIXTURE_ORIGINAL_PATH],
+    ['preview', FIXTURE_PREVIEW_PATH],
+    ['thumbnail', FIXTURE_THUMBNAIL_PATH],
+  ])
+
+  await Promise.all(
+    map(variantsToCheck, async ([variant, fixturePath]) => {
+      const expectedResponseBodyPromise = fs.readFile(fixturePath)
+      const attachmentResponse = await server.inject({
+        method: 'GET',
+        url: url + (variant ? `?variant=${variant}` : ''),
+        headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
+      })
+      assert.equal(
+        attachmentResponse.statusCode,
+        200,
+        `expected 200 when fetching ${variant} attachment`
+      )
+      assert.equal(
+        attachmentResponse.headers['content-type'],
+        'image/jpeg',
+        `expected ${variant} attachment to be a JPEG`
+      )
+      assert.deepEqual(
+        attachmentResponse.rawPayload,
+        await expectedResponseBodyPromise,
+        `expected ${variant} attachment to match fixture`
+      )
+    })
+  )
 }

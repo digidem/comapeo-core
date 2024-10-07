@@ -28,6 +28,9 @@ export default function createServer({
   fastify.register(fastifyWebsocket)
   fastify.register(fastifySensible, { sharedSchemaId: 'HttpError' })
   fastify.register(comapeoPlugin, comapeoPluginOpts)
-  fastify.register(routes, { serverBearerToken })
+  fastify.register(routes, {
+    serverBearerToken,
+    serverPublicBaseUrl: comapeoPluginOpts.serverPublicBaseUrl,
+  })
   return fastify
 }
