@@ -23,7 +23,7 @@
     "db:generate:project": "drizzle-kit generate:sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate:sqlite --schema src/schema/client.js --out drizzle/client",
     "prepack": "npm run build:types",
-    "prepare": "husky install"
+    "prepare": "husky install || true"
   },
   "files": [
     "src",
@@ -158,6 +158,7 @@
     "@comapeo/schema": "file:comapeo-schema-server.tgz",
     "@digidem/types": "^2.3.0",
     "@electron/asar": "^3.2.8",
+    "@fastify/bearer-auth": "^10.0.1",
     "@fastify/error": "^3.4.1",
     "@fastify/sensible": "^5.6.0",
     "@fastify/static": "^7.0.3",
