@@ -61,8 +61,12 @@ if (config.ROOT_KEY) {
   try {
     rootKey = await fsPromises.readFile(rootKeyFile)
   } catch (err) {
-    // @ts-expect-error
-    if (err?.code !== 'ENOENT') {
+    if (
+      typeof err === 'object' &&
+      err &&
+      'code' in err &&
+      err.code !== 'ENOENT'
+    ) {
       throw err
     }
     rootKey = crypto.randomBytes(16)
