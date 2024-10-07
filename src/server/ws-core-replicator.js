@@ -28,7 +28,7 @@ export function wsCoreReplicator(ws, replicationStream) {
 /**
  * Avoid writing data to a closing or closed websocket, which would result in an
  * error. Instead we drop the data and wait for the stream close/end events to
- * propogate and close the streams cleanly.
+ * propagate and close the streams cleanly.
  *
  * @param {import('ws').WebSocket} ws
  */
