@@ -2,7 +2,7 @@ import { MapeoManager } from '../mapeo-manager.js'
 import createFastifyPlugin from 'fastify-plugin'
 
 /**
- * @typedef {ConstructorParameters<typeof MapeoManager>[0] & {
+ * @typedef {Omit<ConstructorParameters<typeof MapeoManager>[0], 'fastify'> & {
  *   serverName: string;
  *   serverPublicBaseUrl: string;
  * }} ComapeoPluginOptions
@@ -12,6 +12,7 @@ import createFastifyPlugin from 'fastify-plugin'
 const comapeoPlugin = async function (fastify, opts) {
   const comapeo = new MapeoManager({
     ...opts,
+    fastify,
     // TODO(evanhahn)
     // deviceType: 'selfHostedServer',
   })

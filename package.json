@@ -177,6 +177,7 @@
     "debug": "^4.3.4",
     "dot-prop": "^9.0.0",
     "drizzle-orm": "^0.30.8",
+    "env-schema": "^6.0.0",
     "fastify": ">= 4",
     "fastify-plugin": "^4.5.1",
     "hyperblobs": "2.3.0",
