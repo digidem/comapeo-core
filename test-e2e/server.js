@@ -2,7 +2,6 @@ import { valueOf } from '@comapeo/schema'
 import { generate } from '@mapeo/mock-data'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { setTimeout as delay } from 'node:timers/promises'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import createServer from '../src/server/app.js'
 import {
@@ -12,6 +11,7 @@ import {
   getManagerOptions,
   invite,
   waitForPeers,
+  waitForSync,
 } from './utils.js'
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 
@@ -94,13 +94,8 @@ test('data can be synced via a server', async (t) => {
   const managerBProject = await managerB.getProject(projectId)
 
   // Sync managers to tell Manager B about the server
-  // TODO: We shouldn't use this `delay`, but [is a bug][0] that requires it.
-  // [0]: https://github.com/digidem/comapeo-core/pull/887
-  //
-  // The code should be:
-  // const projects = [managerAProject, managerBProject]
-  // await waitForSync(projects, 'initial')
-  await delay(3000)
+  const projects = [managerAProject, managerBProject]
+  await waitForSync(projects, 'initial')
   const managerBMembers = await managerBProject.$member.getMany()
   const serverPeer = managerBMembers.find(
     (member) => member.deviceType === 'selfHostedServer'
