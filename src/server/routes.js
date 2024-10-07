@@ -1,18 +1,32 @@
 import { Type } from '@sinclair/typebox'
 import { kProjectReplicate } from '../mapeo-project.js'
 import { wsCoreReplicator } from './ws-core-replicator.js'
-
-/** @import {FastifyPluginAsync, RawServerDefault} from 'fastify' */
+import timingSafeEqual from '../lib/timing-safe-equal.js'
+/** @import {FastifyPluginAsync, FastifyRequest, RawServerDefault} from 'fastify' */
 /** @import {TypeBoxTypeProvider} from '@fastify/type-provider-typebox' */
-/** @typedef {Record<never, never>} RouteOptions */
 
+const BEARER_SPACE_LENGTH = 'Bearer '.length
 const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
 const HEX_STRING_32_BYTES = Type.String({ pattern: HEX_REGEX_32_BYTES })
 const BASE32_REGEX_32_BYTES = '^[0-9A-Za-z]{52}$'
 const BASE32_STRING_32_BYTES = Type.String({ pattern: BASE32_REGEX_32_BYTES })
 
+/**
+ * @typedef {object} RouteOptions
+ * @prop {string} serverBearerToken
+ */
+
 /** @type {FastifyPluginAsync<RouteOptions, RawServerDefault, TypeBoxTypeProvider>} */
-export default async function routes(fastify) {
+export default async function routes(fastify, { serverBearerToken }) {
+  /**
+   * @param {FastifyRequest} req
+   */
+  const verifyBearerAuth = (req) => {
+    if (!isBearerTokenValid(req.headers.authorization, serverBearerToken)) {
+      throw fastify.httpErrors.forbidden('Invalid bearer token')
+    }
+  }
+
   fastify.get(
     '/info',
     {
@@ -141,10 +155,12 @@ export default async function routes(fastify) {
           projectPublicId: BASE32_STRING_32_BYTES,
         }),
         response: {
+          403: { $ref: 'HttpError' },
           404: { $ref: 'HttpError' },
         },
       },
       async preHandler(req) {
+        verifyBearerAuth(req)
         const projectPublicId = req.params.projectPublicId
         try {
           await this.comapeo.getProject(projectPublicId)
@@ -171,4 +187,21 @@ export default async function routes(fastify) {
       })
     }
   )
+}
+
+/**
+ * @param {undefined | string} headerValue
+ * @param {string} expectedBearerToken
+ * @returns {boolean}
+ */
+function isBearerTokenValid(headerValue = '', expectedBearerToken) {
+  // This check is not strictly required for correctness, but helps protect
+  // against long values.
+  const expectedLength = BEARER_SPACE_LENGTH + expectedBearerToken.length
+  if (headerValue.length !== expectedLength) return false
+
+  if (!headerValue.startsWith('Bearer ')) return false
+  const actualBearerToken = headerValue.slice(BEARER_SPACE_LENGTH)
+
+  return timingSafeEqual(actualBearerToken, expectedBearerToken)
 }

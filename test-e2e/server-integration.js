@@ -10,6 +10,7 @@ import { valueOf } from '@comapeo/schema'
 
 // TODO: Dynamically choose a port that's open
 const PORT = 9875
+const BEARER_TOKEN = Buffer.from('swordfish').toString('base64')
 
 test('server info endpoint', async (t) => {
   const serverName = 'test server'
@@ -128,40 +129,63 @@ test('observations endpoint', async (t) => {
     dangerouslyAllowInsecureConnections: true,
   })
 
-  const emptyResponse = await server.inject({
-    method: 'GET',
-    url: `/projects/${projectId}/observations`,
+  await t.test('returns a 403 if no auth is provided', async () => {
+    const response = await server.inject({
+      method: 'GET',
+      url: `/projects/${projectId}/observations`,
+    })
+    assert.equal(response.statusCode, 403)
   })
-  assert.equal(emptyResponse.statusCode, 200)
-  assert.deepEqual(await emptyResponse.json(), { data: [] })
 
-  project.$sync.start()
-  project.$sync.connectServers()
-  const observations = await Promise.all(
-    generate('observation', { count: 3 }).map((observation) =>
-      project.observation.create(valueOf(observation))
-    )
-  )
-  await project.$sync.waitForSync('full')
-
-  const fullResponse = await server.inject({
-    method: 'GET',
-    url: `/projects/${projectId}/observations`,
+  await t.test('returns a 403 if incorrect auth is provided', async () => {
+    const response = await server.inject({
+      method: 'GET',
+      url: `/projects/${projectId}/observations`,
+      headers: { Authorization: 'Bearer bad' },
+    })
+    assert.equal(response.statusCode, 403)
   })
-  assert.equal(fullResponse.statusCode, 200)
-  const { data } = await fullResponse.json()
-  assert.equal(data.length, 3)
-  for (const observation of observations) {
-    const observationFromApi = data.find(
-      (/** @type {{ docId: string }} */ o) => o.docId === observation.docId
+
+  await t.test('no observations', async () => {
+    const response = await server.inject({
+      method: 'GET',
+      url: `/projects/${projectId}/observations`,
+      headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
+    })
+    assert.equal(response.statusCode, 200)
+    assert.deepEqual(await response.json(), { data: [] })
+  })
+
+  await t.test('returning observations', async () => {
+    project.$sync.start()
+    project.$sync.connectServers()
+    const observations = await Promise.all(
+      generate('observation', { count: 3 }).map((observation) =>
+        project.observation.create(valueOf(observation))
+      )
     )
-    assert(observationFromApi, 'observation found in API response')
-    assert.equal(observationFromApi.createdAt, observation.createdAt)
-    assert.equal(observationFromApi.updatedAt, observation.updatedAt)
-    assert.equal(observationFromApi.lat, observation.lat)
-    assert.equal(observationFromApi.lon, observation.lon)
-    // TODO: Add attachments
-  }
+    await project.$sync.waitForSync('full')
+
+    const response = await server.inject({
+      method: 'GET',
+      url: `/projects/${projectId}/observations`,
+      headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
+    })
+    assert.equal(response.statusCode, 200)
+    const { data } = await response.json()
+    assert.equal(data.length, 3)
+    for (const observation of observations) {
+      const observationFromApi = data.find(
+        (/** @type {{ docId: string }} */ o) => o.docId === observation.docId
+      )
+      assert(observationFromApi, 'observation found in API response')
+      assert.equal(observationFromApi.createdAt, observation.createdAt)
+      assert.equal(observationFromApi.updatedAt, observation.updatedAt)
+      assert.equal(observationFromApi.lat, observation.lat)
+      assert.equal(observationFromApi.lon, observation.lon)
+      // TODO: Add attachments
+    }
+  })
 })
 
 function randomHexKey(length = 32) {
@@ -193,6 +217,7 @@ function createTestServer(t, serverName = 'test server') {
     ...managerOptions,
     serverName,
     serverPublicBaseUrl: 'http://localhost:' + PORT,
+    serverBearerToken: BEARER_TOKEN,
   })
   t.after(() => server.close())
   Object.defineProperty(server, 'deviceId', {
