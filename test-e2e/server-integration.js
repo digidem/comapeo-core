@@ -152,7 +152,9 @@ test('observations endpoint', async (t) => {
   const { data } = await fullResponse.json()
   assert.equal(data.length, 3)
   for (const observation of observations) {
-    const observationFromApi = data.find((o) => o.docId === observation.docId)
+    const observationFromApi = data.find(
+      (/** @type {{ docId: string }} */ o) => o.docId === observation.docId
+    )
     assert(observationFromApi, 'observation found in API response')
     assert.equal(observationFromApi.createdAt, observation.createdAt)
     assert.equal(observationFromApi.updatedAt, observation.updatedAt)
