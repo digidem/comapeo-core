@@ -128,14 +128,14 @@ test('trying to add second project fails', async (t) => {
 test('observations endpoint', async (t) => {
   const server = createTestServer(t)
 
-  const serverBaseUrl = await server.listen({ port: PORT })
+  await server.listen({ port: PORT })
   t.after(() => server.close())
 
   const manager = await createManager('client', t)
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
-  await project.$member.addServerPeer(serverBaseUrl, {
+  await project.$member.addServerPeer(BASE_URL, {
     dangerouslyAllowInsecureConnections: true,
   })
 
@@ -201,14 +201,16 @@ test('observations endpoint', async (t) => {
 
       await project.$sync.waitForSync('full')
 
-      const response = await server.inject({
-        method: 'GET',
-        url: `/projects/${projectId}/observations`,
-        headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
-      })
+      const response = await fetch(
+        `${BASE_URL}projects/${projectId}/observations`,
+        {
+          headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
+        }
+      )
 
-      assert.equal(response.statusCode, 200)
+      assert.equal(response.status, 200)
 
+      // @ts-expect-error
       const { data } = await response.json()
 
       assert.equal(data.length, 2)
@@ -259,7 +261,6 @@ function createTestServer(t, serverName = 'test server') {
   const server = createServer({
     ...managerOptions,
     serverName,
-    serverPublicBaseUrl: 'http://localhost:' + PORT,
     serverBearerToken: BEARER_TOKEN,
   })
   t.after(() => server.close())

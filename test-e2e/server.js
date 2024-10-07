@@ -47,7 +47,7 @@ test('adding a server peer', async (t) => {
   )
   assert.equal(
     serverPeer.selfHostedServerDetails?.baseUrl,
-    'http://localhost:9876',
+    'http://localhost:9876/',
     'server peer stores base URL'
   )
 })
@@ -142,12 +142,11 @@ async function createTestServer(t) {
   const server = createServer({
     ...getManagerOptions('test server'),
     serverName: 'test server',
-    serverPublicBaseUrl: 'http://localhost:' + port,
     serverBearerToken: 'ignored',
   })
-  const serverAddress = await server.listen({ port })
+  await server.listen({ port })
   t.after(() => server.close())
-  return serverAddress
+  return `http://localhost:${port}`
 }
 
 /**

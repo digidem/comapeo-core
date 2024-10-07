@@ -11,6 +11,7 @@ import comapeoPlugin from './comapeo-plugin.js'
  * @typedef {object} OtherServerOptions
  * @prop {FastifyServerOptions['logger']} [logger]
  * @prop {string} serverBearerToken
+ * @prop {string} serverName
  */
 
 /** @typedef {ComapeoPluginOptions & OtherServerOptions} ServerOptions */
@@ -22,6 +23,7 @@ import comapeoPlugin from './comapeo-plugin.js'
 export default function createServer({
   logger,
   serverBearerToken,
+  serverName,
   ...comapeoPluginOpts
 }) {
   const fastify = createFastify({ logger })
@@ -30,7 +32,7 @@ export default function createServer({
   fastify.register(comapeoPlugin, comapeoPluginOpts)
   fastify.register(routes, {
     serverBearerToken,
-    serverPublicBaseUrl: comapeoPluginOpts.serverPublicBaseUrl,
+    serverName,
   })
   return fastify
 }
