@@ -114,7 +114,7 @@ test('trying to add second project fails', async (t) => {
   })
 })
 
-test.only('observations endpoint', async (t) => {
+test('observations endpoint', async (t) => {
   const server = createTestServer(t)
 
   const serverBaseUrl = await server.listen({ port: PORT })
