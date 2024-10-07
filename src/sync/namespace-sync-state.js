@@ -1,3 +1,4 @@
+import { Logger } from '../logger.js'
 import { CoreSyncState } from './core-sync-state.js'
 import { discoveryKey } from 'hypercore-crypto'
 /** @import { Namespace } from '../types.js' */
@@ -18,6 +19,7 @@ export class NamespaceSyncState {
   /** @type {SyncState | null} */
   #cachedState = null
   #peerSyncControllers
+  #logger
 
   /**
    * @param {object} opts
@@ -25,8 +27,17 @@ export class NamespaceSyncState {
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
+   * @param {Logger} [opts.logger]
    */
-  constructor({ namespace, coreManager, onUpdate, peerSyncControllers }) {
+  constructor({
+    namespace,
+    coreManager,
+    onUpdate,
+    peerSyncControllers,
+    logger,
+  }) {
+    // Currently we don't create a logger for this class, just pass it down
+    this.#logger = logger
     this.#namespace = namespace
     this.#peerSyncControllers = peerSyncControllers
     // Called whenever the state changes, so we clear the cache because next
@@ -95,6 +106,15 @@ export class NamespaceSyncState {
   }
 
   /**
+   * @param {string} peerId
+   */
+  disconnectPeer(peerId) {
+    for (const css of this.#coreStates.values()) {
+      css.disconnectPeer(peerId)
+    }
+  }
+
+  /**
    * @param {import('hypercore')<"binary", Buffer>} core
    * @param {Buffer} coreKey
    */
@@ -122,10 +142,14 @@ export class NamespaceSyncState {
   #getCoreState(discoveryId) {
     let coreState = this.#coreStates.get(discoveryId)
     if (!coreState) {
+      const logPrefix = `[${discoveryId.slice(0, 7)}] `
       coreState = new CoreSyncState({
         onUpdate: this.#handleUpdate,
         peerSyncControllers: this.#peerSyncControllers,
         namespace: this.#namespace,
+        logger: Logger.create('css:' + this.#namespace, this.#logger, {
+          prefix: logPrefix,
+        }),
       })
       this.#coreStates.set(discoveryId, coreState)
     }
