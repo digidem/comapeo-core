@@ -84,6 +84,7 @@ export default async function routes(
         /** @type {any} */ (false)
       )
       wsCoreReplicator(socket, replicationStream)
+      project.$sync.start()
     }
   )
 
