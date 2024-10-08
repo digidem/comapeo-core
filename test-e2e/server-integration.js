@@ -201,16 +201,15 @@ test('observations endpoint', async (t) => {
 
       await project.$sync.waitForSync('full')
 
-      const response = await fetch(
-        `${BASE_URL}projects/${projectId}/observations`,
-        {
-          headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
-        }
-      )
+      const response = await server.inject({
+        authority: `localhost:${PORT}`,
+        method: 'GET',
+        url: `/projects/${projectId}/observations`,
+        headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
+      })
 
-      assert.equal(response.status, 200)
+      assert.equal(response.statusCode, 200)
 
-      // @ts-expect-error
       const { data } = await response.json()
 
       assert.equal(data.length, 2)
