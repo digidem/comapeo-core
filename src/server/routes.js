@@ -115,6 +115,7 @@ export default async function routes(
       const projectKey = Buffer.from(req.body.projectKey, 'hex')
       const projectPublicId = projectKeyToPublicId(projectKey)
       const existingProjects = await this.comapeo.listProjects()
+
       if (
         typeof allowedProjectsSetOrNumber === 'number' &&
         existingProjects.length >= allowedProjectsSetOrNumber
@@ -122,11 +123,17 @@ export default async function routes(
         throw fastify.httpErrors.forbidden(
           'Server is already linked to the maximum number of projects'
         )
-      } else if (
+      }
+
+      if (
         allowedProjectsSetOrNumber instanceof Set &&
         !allowedProjectsSetOrNumber.has(projectPublicId)
       ) {
         throw fastify.httpErrors.forbidden('Project not allowed')
+      }
+
+      if (existingProjects.find((p) => p.projectId === projectPublicId)) {
+        throw fastify.httpErrors.badRequest('Project already exists')
       }
 
       const baseUrl = req.baseUrl.toString()

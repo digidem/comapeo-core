@@ -147,6 +147,7 @@ test('trying to add second project fails', async (t) => {
       body: randomProjectKeys(),
     })
     assert.equal(response.statusCode, 403)
+    assert.match(response.json().message, /maximum number of projects/)
   })
 })
 
@@ -171,6 +172,32 @@ test('allowedProjects=3', async (t) => {
       body: randomProjectKeys(),
     })
     assert.equal(response.statusCode, 403)
+    assert.match(response.json().message, /maximum number of projects/)
+  })
+})
+
+test('trying to create the same project twice fails', async (t) => {
+  const server = createTestServer(t, { allowedProjects: 2 })
+
+  const projectKeys = randomProjectKeys()
+
+  await t.test('add project first time succeeds', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/projects',
+      body: projectKeys,
+    })
+    assert.equal(response.statusCode, 200)
+  })
+
+  await t.test('attempt to re-add same project fails', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/projects',
+      body: projectKeys,
+    })
+    assert.equal(response.statusCode, 400)
+    assert.match(response.json().message, /already exists/)
   })
 })
 
