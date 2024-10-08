@@ -151,20 +151,22 @@ async function createTestServer(t) {
 async function createRemoteTestServer(t) {
   const appName = 'comapeo-cloud-test-' + Math.random().toString(36).slice(8)
   await execa(
-    'fly',
+    'flyctl',
     ['apps', 'create', '--name', appName, '--org', 'digidem', '--json'],
     { stdio: 'inherit' }
   )
   t.after(async () => {
-    await execa('fly', ['apps', 'destroy', appName, '-y'], { stdio: 'inherit' })
+    await execa('flyctl', ['apps', 'destroy', appName, '-y'], {
+      stdio: 'inherit',
+    })
   })
   await execa(
-    'fly',
+    'flyctl',
     ['secrets', 'set', 'SERVER_BEARER_TOKEN=ignored', '--app', appName],
     { stdio: 'inherit' }
   )
   await execa(
-    'fly',
+    'flyctl',
     ['deploy', '--app', appName, '-e', 'SERVER_NAME=test server'],
     {
       stdio: 'inherit',
