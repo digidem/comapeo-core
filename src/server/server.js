@@ -11,7 +11,7 @@ const DB_DIR_NAME = 'db'
 const ROOT_KEY_FILE_NAME = 'root-key'
 
 const schema = Type.Object({
-  PORT: Type.Number({ default: 3000 }),
+  PORT: Type.Number({ default: 8080 }),
   SERVER_NAME: Type.String({
     description: 'name of the server',
     default: 'CoMapeo Server',
