@@ -4,10 +4,6 @@ CoMapeo Cloud comes with a [`Dockerfile`](../../Dockerfile) that can be used to 
 
 Server configuration is done using environment variables. The following environment variables are available:
 
-CoMapeo cloud comes with a [`Dockerfile`](../../Dockerfile) that can be used to build a Docker image. This image can be used to deploy CoMapeo cloud on a server.
-
-Server configuration is done using environment variables. The following environment variables are available:
-
 | Environment Variable  | Required | Description                                                          | Default Value    |
 | --------------------- | -------- | -------------------------------------------------------------------- | ---------------- |
 | `SERVER_BEARER_TOKEN` | Yes      | Token for authenticating API requests. Should be large random string |                  |
@@ -18,7 +14,7 @@ Server configuration is done using environment variables. The following environm
 
 ### Deploying with fly.io
 
-CoMapeo cloud can be deployed on [fly.io](https://fly.io) using the following steps:
+CoMapeo Cloud can be deployed on [fly.io](https://fly.io) using the following steps:
 
 1. Install the flyctl CLI tool by following the instructions [here](https://fly.io/docs/getting-started/installing-flyctl/).
 2. Create a new app on fly.io by running `flyctl apps create`, take a note of the app name.
