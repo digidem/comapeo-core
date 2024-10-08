@@ -339,7 +339,10 @@ export class MemberApi extends TypedEmitter {
 
     const projectPublicId = projectKeyToPublicId(this.#projectKey)
     const websocketUrl = new URL('sync/' + projectPublicId, baseUrl)
-    websocketUrl.protocol = dangerouslyAllowInsecureConnections ? 'ws:' : 'wss:'
+    websocketUrl.protocol =
+      dangerouslyAllowInsecureConnections && websocketUrl.protocol === 'http:'
+        ? 'ws:'
+        : 'wss:'
     const websocket = new WebSocket(websocketUrl)
     const replicationStream = this.#getReplicationStream()
     wsCoreReplicator(websocket, replicationStream)
