@@ -34,7 +34,8 @@ CoMapeo cloud can be deployed on [fly.io](https://fly.io) using the following st
 
 To destroy the app (delete all data and project invites), run:
 
-> **Warning:** This action is irreversible and will permanently delete all data associated with the app, and projects that have already added the server will no longer be able to sync with it.
+> [!WARNING]
+> This action is irreversible and will permanently delete all data associated with the app, and projects that have already added the server will no longer be able to sync with it.
 
 ```sh
 flyctl destroy --app <your-app-name>
