@@ -33,6 +33,12 @@ const schema = Type.Object({
         'hex-encoded 16-byte random secret key, used for server keypairs',
     })
   ),
+  ALLOWED_PROJECTS: Type.Optional(
+    Type.Integer({
+      minimum: 1,
+      description: 'number of projects allowed to join the server',
+    })
+  ),
 })
 
 /** @typedef {import('@sinclair/typebox').Static<typeof schema>} Env */
@@ -82,6 +88,7 @@ if (!rootKey || rootKey.length !== 16) {
 const fastify = createServer({
   serverName: config.SERVER_NAME,
   serverBearerToken: config.SERVER_BEARER_TOKEN,
+  allowedProjects: config.ALLOWED_PROJECTS,
   rootKey,
   coreStorage,
   dbFolder,
