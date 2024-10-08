@@ -82,7 +82,6 @@ if (!rootKey || rootKey.length !== 16) {
 const fastify = createServer({
   serverName: config.SERVER_NAME,
   serverBearerToken: config.SERVER_BEARER_TOKEN,
-  serverPublicBaseUrl: config.SERVER_PUBLIC_BASE_URL,
   rootKey,
   coreStorage,
   dbFolder,
