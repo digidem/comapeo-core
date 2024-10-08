@@ -85,6 +85,7 @@ const fastify = createServer({
   projectMigrationsFolder,
   clientMigrationsFolder,
   logger: true,
+  trustProxy: true,
 })
 
 fastify.get('/healthcheck', async () => {})

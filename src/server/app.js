@@ -13,6 +13,7 @@ import allowedHostsPlugin from './allowed-hosts-plugin.js'
  * @internal
  * @typedef {object} OtherServerOptions
  * @prop {FastifyServerOptions['logger']} [logger]
+ * @prop {FastifyServerOptions['trustProxy']} [trustProxy]
  * @prop {string[]} [allowedHosts]
  */
 
@@ -24,13 +25,14 @@ import allowedHostsPlugin from './allowed-hosts-plugin.js'
  */
 export default function createServer({
   logger,
+  trustProxy,
   serverBearerToken,
   serverName,
   allowedHosts,
   allowedProjects = 1,
   ...comapeoPluginOpts
 }) {
-  const fastify = createFastify({ logger })
+  const fastify = createFastify({ logger, trustProxy })
   fastify.register(fastifyWebsocket)
   fastify.register(fastifySensible, { sharedSchemaId: 'HttpError' })
   fastify.register(allowedHostsPlugin, { allowedHosts })
