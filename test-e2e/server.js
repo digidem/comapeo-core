@@ -2,6 +2,7 @@ import { valueOf } from '@comapeo/schema'
 import { generate } from '@mapeo/mock-data'
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { execa } from 'execa'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import createServer from '../src/server/app.js'
 import {
@@ -47,7 +48,7 @@ test('adding a server peer', async (t) => {
   )
   assert.equal(
     serverPeer.selfHostedServerDetails?.baseUrl,
-    'http://localhost:9876/',
+    serverBaseUrl,
     'server peer stores base URL'
   )
 })
@@ -132,11 +133,51 @@ test('data can be synced via a server', async (t) => {
 })
 
 /**
- *
  * @param {import('node:test').TestContext} t
  * @returns {Promise<string>} server base URL
  */
 async function createTestServer(t) {
+  if (process.env.REMOTE_TEST_SERVER) {
+    return createRemoteTestServer(t)
+  } else {
+    return createLocalTestServer(t)
+  }
+}
+
+/**
+ * @param {import('node:test').TestContext} t
+ * @returns {Promise<string>} server base URL
+ */
+async function createRemoteTestServer(t) {
+  const { stdout } = await execa(
+    'fly',
+    ['apps', 'create', '--generate-name', '--org', 'digidem', '--json'],
+    { stderr: 'inherit' }
+  )
+  const { ID: appName } = JSON.parse(stdout)
+  t.after(async () => {
+    await execa('fly', ['apps', 'destroy', appName, '-y'], { stdio: 'inherit' })
+  })
+  await execa(
+    'fly',
+    ['secrets', 'set', 'SERVER_BEARER_TOKEN=ignored', '--app', appName],
+    { stdio: 'inherit' }
+  )
+  await execa(
+    'fly',
+    ['deploy', '--app', appName, '-e', 'SERVER_NAME=test server'],
+    {
+      stdio: 'inherit',
+    }
+  )
+  return `https://${appName}.fly.dev/`
+}
+
+/**
+ * @param {import('node:test').TestContext} t
+ * @returns {Promise<string>} server base URL
+ */
+async function createLocalTestServer(t) {
   // TODO: Use a port that's guaranteed to be open
   const port = 9876
   const server = createServer({
@@ -146,7 +187,7 @@ async function createTestServer(t) {
   })
   await server.listen({ port })
   t.after(() => server.close())
-  return `http://localhost:${port}`
+  return `http://localhost:${port}/`
 }
 
 /**
