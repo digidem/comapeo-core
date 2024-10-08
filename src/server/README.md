@@ -1,6 +1,6 @@
 ## Deploying CoMapeo Cloud
 
-CoMapeo cloud comes with a [`Dockerfile`](../../Dockerfile) that can be used to build a Docker image. This image can be used to deploy CoMapeo cloud on a server.
+CoMapeo Cloud comes with a [`Dockerfile`](../../Dockerfile) that can be used to build a Docker image. This image can be used to deploy CoMapeo Cloud on a server.
 
 Server configuration is done using environment variables. The following environment variables are available:
 
