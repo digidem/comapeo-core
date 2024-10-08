@@ -12,22 +12,11 @@ import Fastify from 'fastify'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { FastifyController } from '../src/fastify-controller.js'
-import { plugin as StaticMapsPlugin } from '../src/fastify-plugins/maps/static-maps.js'
-import { plugin as MapServerPlugin } from '../src/fastify-plugins/maps/index.js'
-import { plugin as OfflineFallbackMapPlugin } from '../src/fastify-plugins/maps/offline-fallback-map.js'
 import { blobMetadata } from '../test/helpers/blob-store.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../test/fixtures/blob-api/', import.meta.url)
 )
-
-const MAP_FIXTURES_PATH = new URL('../test/fixtures/maps', import.meta.url)
-  .pathname
-
-const MAPEO_FALLBACK_MAP_PATH = new URL(
-  '../../node_modules/mapeo-offline-map',
-  import.meta.url
-).pathname
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -343,25 +332,11 @@ test('retrieving audio file', async (t) => {
   clock.tick(100_000)
 })
 
-test('retrieving style.json using stable url', async (t) => {
+test('retrieving style.json using stable url', { only: true }, async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
 
   const fastify = Fastify()
-
-  fastify.register(StaticMapsPlugin, {
-    prefix: 'static',
-    staticRootDir: MAP_FIXTURES_PATH,
-  })
-  fastify.register(OfflineFallbackMapPlugin, {
-    prefix: 'fallback',
-    styleJsonPath: join(MAPEO_FALLBACK_MAP_PATH, 'style.json'),
-    sourcesDir: join(MAPEO_FALLBACK_MAP_PATH, 'dist'),
-  })
-
-  fastify.register(MapServerPlugin, {
-    prefix: 'maps',
-  })
 
   const fastifyController = new FastifyController({ fastify })
   const manager = new MapeoManager({
@@ -388,7 +363,7 @@ test('retrieving style.json using stable url', async (t) => {
 
   const response = await fetch(styleJsonUrl)
 
-  assert.equal(response.status, 200, 'response status ok')
+  assert.equal(response.status, 200, 'expected response')
 
   await fastifyController.stop()
 

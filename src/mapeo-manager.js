@@ -8,6 +8,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
+import { createRequire } from 'module'
 
 import { IndexWriter } from './index-writer/index.js'
 import {
@@ -36,6 +37,7 @@ import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
 import IconServerPlugin from './fastify-plugins/icons.js'
+import { plugin as MapServerPlugin } from './fastify-plugins/maps.js'
 import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
@@ -66,6 +68,15 @@ const MAX_FILE_DESCRIPTORS = 768
 // Prefix names for routes registered with http server
 const BLOBS_PREFIX = 'blobs'
 const ICONS_PREFIX = 'icons'
+const MAPS_PREFIX = 'maps'
+
+const require = createRequire(import.meta.url)
+export const DEFAULT_FALLBACK_MAP_FILE_PATH = require.resolve(
+  '@comapeo/fallback-smp'
+)
+
+export const DEFAULT_ONLINE_STYLE_URL =
+  'https://demotiles.maplibre.org/style.json'
 
 export const kRPC = Symbol('rpc')
 export const kManagerReplicate = Symbol('replicate manager')
@@ -112,6 +123,9 @@ export class MapeoManager extends TypedEmitter {
    * @param {string | CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
    * @param {String} [opts.defaultConfigPath]
+   * @param {string} [opts.customMapPath] File path to a locally stored Styled Map Package (SMP).
+   * @param {string} [opts.fallbackMapPath] File path to a locally stored Styled Map Package (SMP)
+   * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    */
   constructor({
     rootKey,
@@ -121,6 +135,9 @@ export class MapeoManager extends TypedEmitter {
     coreStorage,
     fastify,
     defaultConfigPath,
+    customMapPath,
+    fallbackMapPath = DEFAULT_FALLBACK_MAP_FILE_PATH,
+    defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
@@ -189,6 +206,12 @@ export class MapeoManager extends TypedEmitter {
       prefix: ICONS_PREFIX,
       getProject: this.getProject.bind(this),
     })
+    this.#fastify.register(MapServerPlugin, {
+      prefix: MAPS_PREFIX,
+      customMapPath,
+      defaultOnlineStyleUrl,
+      fallbackMapPath,
+    })
 
     this.#localDiscovery = new LocalDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
@@ -239,6 +262,10 @@ export class MapeoManager extends TypedEmitter {
       }
       case 'icons': {
         prefix = ICONS_PREFIX
+        break
+      }
+      case 'maps': {
+        prefix = MAPS_PREFIX
         break
       }
       default: {
@@ -873,7 +900,7 @@ export class MapeoManager extends TypedEmitter {
 
   async getMapStyleJsonUrl() {
     await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
-    return this.#fastify.mapeoMaps.getStyleJsonUrl()
+    return (await this.#getMediaBaseUrl('maps')) + '/style.json'
   }
 }
 

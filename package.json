@@ -152,6 +152,7 @@
     "yazl": "^2.5.1"
   },
   "dependencies": {
+    "@comapeo/fallback-smp": "^1.0.0",
     "@comapeo/schema": "1.0.0",
     "@digidem/types": "^2.3.0",
     "@electron/asar": "^3.2.8",
@@ -192,6 +193,7 @@
     "sodium-universal": "^4.0.0",
     "start-stop-state-machine": "^1.2.0",
     "streamx": "^2.19.0",
+    "styled-map-package": "^1.0.1",
     "sub-encoder": "^2.1.1",
     "throttle-debounce": "^5.0.0",
     "tiny-typed-emitter": "^2.1.0",
