@@ -20,7 +20,7 @@ jobs:
           fly apps list -q -o digidem | while IFS= read -r name; do
             # Trim leading and trailing whitespace from $name
             name=$(echo "$name" | xargs)
-            # Check if the name starts with 'comapeo-'
+            # Check if the name starts with 'comapeo-cloud-test-'
             if [[ $name == comapeo-cloud-test-* ]]; then
               # Call the fly destroy command with the name
               fly apps destroy -y "$name"
