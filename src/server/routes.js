@@ -31,10 +31,6 @@ export default async function routes(
     }
   }
 
-  fastify.get('/healthcheck', async function (req) {
-    console.dir(req.headers)
-  })
-
   fastify.get(
     '/info',
     {

@@ -90,6 +90,8 @@ const fastify = createServer({
   logger: true,
 })
 
+fastify.get('/healthcheck', async () => {})
+
 try {
   await fastify.listen({ port: config.PORT, host: '0.0.0.0' })
 } catch (err) {
