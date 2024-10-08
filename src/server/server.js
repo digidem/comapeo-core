@@ -27,12 +27,6 @@ const schema = Type.Object({
     description: 'path to directory where data is stored',
     default: DEFAULT_STORAGE,
   }),
-  ROOT_KEY: Type.Optional(
-    Type.String({
-      description:
-        'hex-encoded 16-byte random secret key, used for server keypairs',
-    })
-  ),
   ALLOWED_PROJECTS: Type.Optional(
     Type.Integer({
       minimum: 1,
@@ -62,23 +56,19 @@ await Promise.all([
 
 /** @type {Buffer} */
 let rootKey
-if (config.ROOT_KEY) {
-  rootKey = Buffer.from(config.ROOT_KEY, 'hex')
-} else {
-  try {
-    rootKey = await fsPromises.readFile(rootKeyFile)
-  } catch (err) {
-    if (
-      typeof err === 'object' &&
-      err &&
-      'code' in err &&
-      err.code !== 'ENOENT'
-    ) {
-      throw err
-    }
-    rootKey = crypto.randomBytes(16)
-    await fsPromises.writeFile(rootKeyFile, rootKey)
+try {
+  rootKey = await fsPromises.readFile(rootKeyFile)
+} catch (err) {
+  if (
+    typeof err === 'object' &&
+    err &&
+    'code' in err &&
+    err.code !== 'ENOENT'
+  ) {
+    throw err
   }
+  rootKey = crypto.randomBytes(16)
+  await fsPromises.writeFile(rootKeyFile, rootKey)
 }
 
 if (!rootKey || rootKey.length !== 16) {
