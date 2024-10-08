@@ -11,7 +11,7 @@ const DB_DIR_NAME = 'db'
 const ROOT_KEY_FILE_NAME = 'root-key'
 
 const schema = Type.Object({
-  PORT: Type.Number({ default: 3000 }),
+  PORT: Type.Number({ default: 8080 }),
   SERVER_NAME: Type.String({
     description: 'name of the server',
     default: 'CoMapeo Server',
@@ -27,10 +27,10 @@ const schema = Type.Object({
     description: 'path to directory where data is stored',
     default: DEFAULT_STORAGE,
   }),
-  ROOT_KEY: Type.Optional(
-    Type.String({
-      description:
-        'hex-encoded 16-byte random secret key, used for server keypairs',
+  ALLOWED_PROJECTS: Type.Optional(
+    Type.Integer({
+      minimum: 1,
+      description: 'number of projects allowed to join the server',
     })
   ),
 })
@@ -56,23 +56,19 @@ await Promise.all([
 
 /** @type {Buffer} */
 let rootKey
-if (config.ROOT_KEY) {
-  rootKey = Buffer.from(config.ROOT_KEY, 'hex')
-} else {
-  try {
-    rootKey = await fsPromises.readFile(rootKeyFile)
-  } catch (err) {
-    if (
-      typeof err === 'object' &&
-      err &&
-      'code' in err &&
-      err.code !== 'ENOENT'
-    ) {
-      throw err
-    }
-    rootKey = crypto.randomBytes(16)
-    await fsPromises.writeFile(rootKeyFile, rootKey)
+try {
+  rootKey = await fsPromises.readFile(rootKeyFile)
+} catch (err) {
+  if (
+    typeof err === 'object' &&
+    err &&
+    'code' in err &&
+    err.code !== 'ENOENT'
+  ) {
+    throw err
   }
+  rootKey = crypto.randomBytes(16)
+  await fsPromises.writeFile(rootKeyFile, rootKey)
 }
 
 if (!rootKey || rootKey.length !== 16) {
@@ -82,16 +78,20 @@ if (!rootKey || rootKey.length !== 16) {
 const fastify = createServer({
   serverName: config.SERVER_NAME,
   serverBearerToken: config.SERVER_BEARER_TOKEN,
+  allowedProjects: config.ALLOWED_PROJECTS,
   rootKey,
   coreStorage,
   dbFolder,
   projectMigrationsFolder,
   clientMigrationsFolder,
   logger: true,
+  trustProxy: true,
 })
 
+fastify.get('/healthcheck', async () => {})
+
 try {
-  await fastify.listen({ port: config.PORT, host: '::' })
+  await fastify.listen({ port: config.PORT, host: '0.0.0.0' })
 } catch (err) {
   fastify.log.error(err)
   process.exit(1)
