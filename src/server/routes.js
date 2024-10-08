@@ -88,6 +88,36 @@ export default async function routes(
     }
   )
 
+  fastify.get(
+    '/projects',
+    {
+      schema: {
+        response: {
+          200: Type.Object({
+            data: Type.Array(
+              Type.Object({
+                projectId: Type.String(),
+              })
+            ),
+          }),
+          403: { $ref: 'HttpError' },
+        },
+      },
+      async preHandler(req) {
+        verifyBearerAuth(req)
+      },
+    },
+    async function (req, reply) {
+      const existingProjects = await this.comapeo.listProjects()
+
+      reply.send({
+        data: existingProjects.map(({ projectId }) => ({ projectId })),
+      })
+
+      return reply
+    }
+  )
+
   fastify.post(
     '/projects',
     {
