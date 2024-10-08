@@ -20,9 +20,6 @@ const schema = Type.Object({
     description:
       'Bearer token for accessing the server, can be any random string',
   }),
-  SERVER_PUBLIC_BASE_URL: Type.String({
-    description: 'public base URL of the server',
-  }),
   STORAGE_DIR: Type.String({
     description: 'path to directory where data is stored',
     default: DEFAULT_STORAGE,
