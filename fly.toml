@@ -7,7 +7,6 @@ app = 'comapeo-cloud'
 primary_region = 'ord'
 
 [env]
-  SERVER_PUBLIC_BASE_URL = 'https://comapeo-cloud.fly.dev'
   STORAGE_DIR = '/data'
 
 [build]
