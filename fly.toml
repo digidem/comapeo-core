@@ -4,7 +4,7 @@
 #
 
 app = 'comapeo-cloud'
-primary_region = 'ord'
+primary_region = 'iad'
 
 [env]
   STORAGE_DIR = '/data'
