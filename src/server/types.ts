@@ -9,4 +9,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     comapeo: MapeoManager
   }
+  interface FastifyRequest {
+    baseUrl: URL
+  }
 }

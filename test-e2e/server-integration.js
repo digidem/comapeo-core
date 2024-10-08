@@ -24,7 +24,7 @@ const FIXTURE_THUMBNAIL_PATH = new URL('thumbnail.jpg', FIXTURES_ROOT).pathname
 
 test('server info endpoint', async (t) => {
   const serverName = 'test server'
-  const server = createTestServer(t, serverName)
+  const server = createTestServer(t, { serverName })
   const expectedResponseBody = {
     data: {
       deviceId: server.deviceId,
@@ -36,6 +36,31 @@ test('server info endpoint', async (t) => {
     url: '/info',
   })
   assert.deepEqual(response.json(), expectedResponseBody)
+})
+
+test('allowedHosts valid', async (t) => {
+  const allowedHost = 'www.example.com'
+  const server = createTestServer(t, {
+    allowedHosts: [allowedHost],
+  })
+  const response = await server.inject({
+    authority: allowedHost,
+    method: 'GET',
+    url: '/info',
+  })
+  assert.equal(response.statusCode, 200)
+})
+
+test('allowedHosts invalid', async (t) => {
+  const server = createTestServer(t, {
+    allowedHosts: ['www.example.com'],
+  })
+  const response = await server.inject({
+    authority: 'www.invalid-host.com',
+    method: 'GET',
+    url: '/info',
+  })
+  assert.equal(response.statusCode, 403)
 })
 
 test('add project, sync endpoint available', async (t) => {
@@ -128,14 +153,14 @@ test('trying to add second project fails', async (t) => {
 test('observations endpoint', async (t) => {
   const server = createTestServer(t)
 
-  const serverBaseUrl = await server.listen({ port: PORT })
+  await server.listen({ port: PORT })
   t.after(() => server.close())
 
   const manager = await createManager('client', t)
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
-  await project.$member.addServerPeer(serverBaseUrl, {
+  await project.$member.addServerPeer(BASE_URL, {
     dangerouslyAllowInsecureConnections: true,
   })
 
@@ -202,6 +227,7 @@ test('observations endpoint', async (t) => {
       await project.$sync.waitForSync('full')
 
       const response = await server.inject({
+        authority: `localhost:${PORT}`,
         method: 'GET',
         url: `/projects/${projectId}/observations`,
         headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
@@ -248,19 +274,25 @@ function randomProjectKeys() {
   }
 }
 
+const TEST_SERVER_DEFAULTS = {
+  serverName: 'test server',
+  serverBearerToken: BEARER_TOKEN,
+}
+
 /**
- *
  * @param {import('node:test').TestContext} t
+ * @param {Partial<import('../src/server/app.js').ServerOptions>} [serverOptions]
  * @returns {ReturnType<typeof createServer> & { deviceId: string }}
  */
-function createTestServer(t, serverName = 'test server') {
+function createTestServer(t, serverOptions) {
+  const serverName =
+    serverOptions?.serverName || TEST_SERVER_DEFAULTS.serverName
   const managerOptions = getManagerOptions(serverName)
   const km = new KeyManager(managerOptions.rootKey)
   const server = createServer({
     ...managerOptions,
-    serverName,
-    serverPublicBaseUrl: 'http://localhost:' + PORT,
-    serverBearerToken: BEARER_TOKEN,
+    ...TEST_SERVER_DEFAULTS,
+    ...serverOptions,
   })
   t.after(() => server.close())
   Object.defineProperty(server, 'deviceId', {

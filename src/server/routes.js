@@ -14,13 +14,13 @@ const BASE32_STRING_32_BYTES = Type.String({ pattern: BASE32_REGEX_32_BYTES })
 /**
  * @typedef {object} RouteOptions
  * @prop {string} serverBearerToken
- * @prop {string} serverPublicBaseUrl
+ * @prop {string} serverName
  */
 
 /** @type {FastifyPluginAsync<RouteOptions, RawServerDefault, TypeBoxTypeProvider>} */
 export default async function routes(
   fastify,
-  { serverBearerToken, serverPublicBaseUrl }
+  { serverBearerToken, serverName }
 ) {
   /**
    * @param {FastifyRequest} req
@@ -48,9 +48,8 @@ export default async function routes(
     },
     async function (_req, reply) {
       const { deviceId, name } = this.comapeo.getDeviceInfo()
-      this.assert(name, 500, 'Server is missing a name')
       reply.send({
-        data: { deviceId, name },
+        data: { deviceId, name: name || serverName },
       })
     }
   )
@@ -115,6 +114,21 @@ export default async function routes(
         403,
         'Server is already linked to a project'
       )
+      const baseUrl = req.baseUrl.toString()
+
+      const existingDeviceInfo = this.comapeo.getDeviceInfo()
+      // We don't set device info until this point. We trust that `req.hostname`
+      // is the hostname we want clients to use to sync to the server.
+      if (
+        existingDeviceInfo.deviceType === 'device_type_unspecified' ||
+        existingDeviceInfo.selfHostedServerDetails?.baseUrl !== baseUrl
+      ) {
+        await this.comapeo.setDeviceInfo({
+          deviceType: 'selfHostedServer',
+          name: serverName,
+          selfHostedServerDetails: { baseUrl },
+        })
+      }
 
       const projectKey = Buffer.from(req.body.projectKey, 'hex')
 
@@ -176,7 +190,7 @@ export default async function routes(
             url: new URL(
               // TODO: Support other variants
               `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
-              serverPublicBaseUrl
+              req.baseUrl
             ),
           })),
         })),
