@@ -114,11 +114,7 @@ export default async function routes(
         403,
         'Server is already linked to a project'
       )
-
-      const baseUrl = new URL(
-        fastify.prefix,
-        `${req.protocol}://${req.hostname}`
-      ).toString()
+      const baseUrl = req.baseUrl.toString()
 
       const existingDeviceInfo = this.comapeo.getDeviceInfo()
       // We don't set device info until this point. We trust that `req.hostname`
@@ -182,10 +178,6 @@ export default async function routes(
     async function (req, reply) {
       const { projectPublicId } = req.params
       const project = await this.comapeo.getProject(projectPublicId)
-      const baseUrl = new URL(
-        fastify.prefix,
-        `${req.protocol}://${req.hostname}`
-      )
 
       reply.send({
         data: (await project.observation.getMany()).map((obs) => ({
@@ -198,7 +190,7 @@ export default async function routes(
             url: new URL(
               // TODO: Support other variants
               `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
-              baseUrl
+              req.baseUrl
             ),
           })),
         })),

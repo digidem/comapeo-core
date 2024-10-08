@@ -3,6 +3,7 @@ import createFastify from 'fastify'
 import fastifySensible from '@fastify/sensible'
 import routes from './routes.js'
 import comapeoPlugin from './comapeo-plugin.js'
+import baseUrlPlugin from './base-url-plugin.js'
 /** @import { FastifyServerOptions } from 'fastify' */
 /** @import { ComapeoPluginOptions } from './comapeo-plugin.js' */
 
@@ -29,6 +30,7 @@ export default function createServer({
   const fastify = createFastify({ logger })
   fastify.register(fastifyWebsocket)
   fastify.register(fastifySensible, { sharedSchemaId: 'HttpError' })
+  fastify.register(baseUrlPlugin)
   fastify.register(comapeoPlugin, comapeoPluginOpts)
   fastify.register(routes, {
     serverBearerToken,
