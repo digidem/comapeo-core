@@ -7,17 +7,16 @@ import baseUrlPlugin from './base-url-plugin.js'
 import allowedHostsPlugin from './allowed-hosts-plugin.js'
 /** @import { FastifyServerOptions } from 'fastify' */
 /** @import { ComapeoPluginOptions } from './comapeo-plugin.js' */
+/** @import { RouteOptions } from './routes.js' */
 
 /**
  * @internal
  * @typedef {object} OtherServerOptions
  * @prop {FastifyServerOptions['logger']} [logger]
- * @prop {string} serverBearerToken
- * @prop {string} serverName
  * @prop {string[]} [allowedHosts]
  */
 
-/** @typedef {ComapeoPluginOptions & OtherServerOptions} ServerOptions */
+/** @typedef {ComapeoPluginOptions & OtherServerOptions & RouteOptions} ServerOptions */
 
 /**
  * @param {ServerOptions} opts
@@ -28,6 +27,7 @@ export default function createServer({
   serverBearerToken,
   serverName,
   allowedHosts,
+  allowedProjects = 1,
   ...comapeoPluginOpts
 }) {
   const fastify = createFastify({ logger })
@@ -39,6 +39,7 @@ export default function createServer({
   fastify.register(routes, {
     serverBearerToken,
     serverName,
+    allowedProjects,
   })
   return fastify
 }

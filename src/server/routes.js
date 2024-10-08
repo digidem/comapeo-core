@@ -2,6 +2,7 @@ import { Type } from '@sinclair/typebox'
 import { kProjectReplicate } from '../mapeo-project.js'
 import { wsCoreReplicator } from './ws-core-replicator.js'
 import timingSafeEqual from '../lib/timing-safe-equal.js'
+import { projectKeyToPublicId } from '../utils.js'
 /** @import {FastifyInstance, FastifyPluginAsync, FastifyRequest, RawServerDefault} from 'fastify' */
 /** @import {TypeBoxTypeProvider} from '@fastify/type-provider-typebox' */
 
@@ -15,13 +16,18 @@ const BASE32_STRING_32_BYTES = Type.String({ pattern: BASE32_REGEX_32_BYTES })
  * @typedef {object} RouteOptions
  * @prop {string} serverBearerToken
  * @prop {string} serverName
+ * @prop {string[] | number} [allowedProjects=1]
  */
 
 /** @type {FastifyPluginAsync<RouteOptions, RawServerDefault, TypeBoxTypeProvider>} */
 export default async function routes(
   fastify,
-  { serverBearerToken, serverName }
+  { serverBearerToken, serverName, allowedProjects = 1 }
 ) {
+  /** @type {Set<string> | number} */
+  const allowedProjectsSetOrNumber = Array.isArray(allowedProjects)
+    ? new Set(allowedProjects)
+    : allowedProjects
   /**
    * @param {FastifyRequest} req
    */
@@ -106,14 +112,23 @@ export default async function routes(
       },
     },
     async function (req, reply) {
-      const hasExistingProject = (await this.comapeo.listProjects()).length > 0
-      // TODO: Different error message, or 200 response, if a project with a
-      // matching projectToken already exists.
-      this.assert(
-        !hasExistingProject,
-        403,
-        'Server is already linked to a project'
-      )
+      const projectKey = Buffer.from(req.body.projectKey, 'hex')
+      const projectPublicId = projectKeyToPublicId(projectKey)
+      const existingProjects = await this.comapeo.listProjects()
+      if (
+        typeof allowedProjectsSetOrNumber === 'number' &&
+        existingProjects.length >= allowedProjectsSetOrNumber
+      ) {
+        throw fastify.httpErrors.forbidden(
+          'Server is already linked to the maximum number of projects'
+        )
+      } else if (
+        allowedProjectsSetOrNumber instanceof Set &&
+        !allowedProjectsSetOrNumber.has(projectPublicId)
+      ) {
+        throw fastify.httpErrors.forbidden('Project not allowed')
+      }
+
       const baseUrl = req.baseUrl.toString()
 
       const existingDeviceInfo = this.comapeo.getDeviceInfo()
@@ -129,8 +144,6 @@ export default async function routes(
           selfHostedServerDetails: { baseUrl },
         })
       }
-
-      const projectKey = Buffer.from(req.body.projectKey, 'hex')
 
       const projectId = await this.comapeo.addProject(
         {

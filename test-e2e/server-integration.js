@@ -140,7 +140,7 @@ test('trying to add second project fails', async (t) => {
     assert.deepEqual(response.json(), expectedResponseBody)
   })
 
-  await t.test('attempt to add second project', async () => {
+  await t.test('attempt to add second project fails', async () => {
     const response = await server.inject({
       method: 'POST',
       url: '/projects',
@@ -148,6 +148,65 @@ test('trying to add second project fails', async (t) => {
     })
     assert.equal(response.statusCode, 403)
   })
+})
+
+test('allowedProjects=3', async (t) => {
+  const server = createTestServer(t, { allowedProjects: 3 })
+
+  await t.test('add 3 projects', async () => {
+    for (let i = 0; i < 3; i++) {
+      const response = await server.inject({
+        method: 'POST',
+        url: '/projects',
+        body: randomProjectKeys(),
+      })
+      assert.equal(response.statusCode, 200)
+    }
+  })
+
+  await t.test('attempt to add 4th project fails', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/projects',
+      body: randomProjectKeys(),
+    })
+    assert.equal(response.statusCode, 403)
+  })
+})
+
+test('allowedProjects adding project in allow list', async (t) => {
+  const projectKeys = randomProjectKeys()
+  const projectPublicId = projectKeyToPublicId(
+    Buffer.from(projectKeys.projectKey, 'hex')
+  )
+  const server = createTestServer(t, {
+    allowedProjects: [projectPublicId],
+  })
+
+  const response = await server.inject({
+    method: 'POST',
+    url: '/projects',
+    body: projectKeys,
+  })
+
+  assert.equal(response.statusCode, 200)
+})
+
+test('allowedProjects adding project not in allow list', async (t) => {
+  const allowedProjectId = projectKeyToPublicId(
+    Buffer.from(randomProjectKeys().projectKey, 'hex')
+  )
+  const server = createTestServer(t, {
+    allowedProjects: [allowedProjectId],
+  })
+
+  const response = await server.inject({
+    method: 'POST',
+    url: '/projects',
+    body: randomProjectKeys(),
+  })
+
+  assert.equal(response.statusCode, 403)
 })
 
 test('observations endpoint', async (t) => {
