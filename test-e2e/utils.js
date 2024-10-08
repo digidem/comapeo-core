@@ -27,7 +27,7 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
 
 /**
  * @param {readonly MapeoManager[]} managers
- * @returns {() => void}
+ * @returns {() => Promise<void>}
  */
 export function connectPeers(managers, { discovery = true } = {}) {
   if (discovery) {
@@ -39,12 +39,13 @@ export function connectPeers(managers, { discovery = true } = {}) {
         }
       })
     }
-    return () =>
-      Promise.all(
+    return async () => {
+      await Promise.all(
         managers.map((manager) =>
           manager.stopLocalPeerDiscoveryServer({ force: true })
         )
       )
+    }
   } else {
     /** @type {import('../src/types.js').ReplicationStream[]} */
     const replicationStreams = []
@@ -56,20 +57,14 @@ export function connectPeers(managers, { discovery = true } = {}) {
         r1.pipe(r2).pipe(r1)
       }
     }
-    return function destroy() {
-      const promises = []
-      for (const stream of replicationStreams) {
-        promises.push(
-          /** @type {Promise<void>} */
-          (
-            new Promise((res) => {
-              stream.on('close', res)
-              stream.destroy()
-            })
-          )
-        )
-      }
-      return Promise.all(promises)
+    return async () => {
+      await Promise.all(
+        replicationStreams.map((stream) => {
+          const onClosePromise = pEvent(stream, 'close')
+          stream.destroy()
+          return onClosePromise
+        })
+      )
     }
   }
 }

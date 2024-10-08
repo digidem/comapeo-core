@@ -552,7 +552,6 @@ export class MapeoProject extends TypedEmitter {
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
     } catch (e) {
-      this.#l.log('No project settings')
       return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
     }
   }

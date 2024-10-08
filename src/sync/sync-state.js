@@ -24,8 +24,9 @@ export class SyncState extends TypedEmitter {
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
    * @param {number} [opts.throttleMs]
+   * @param {import('../logger.js').Logger} [opts.logger]
    */
-  constructor({ coreManager, peerSyncControllers, throttleMs = 200 }) {
+  constructor({ coreManager, peerSyncControllers, throttleMs = 200, logger }) {
     super()
     const throttledHandleUpdate = throttle(throttleMs, this.#handleUpdate)
     for (const namespace of NAMESPACES) {
@@ -34,6 +35,7 @@ export class SyncState extends TypedEmitter {
         coreManager,
         onUpdate: throttledHandleUpdate,
         peerSyncControllers,
+        logger,
       })
     }
   }
@@ -44,6 +46,15 @@ export class SyncState extends TypedEmitter {
   addPeer(peerId) {
     for (const nss of Object.values(this.#syncStates)) {
       nss.addPeer(peerId)
+    }
+  }
+
+  /**
+   * @param {string} peerId
+   */
+  disconnectPeer(peerId) {
+    for (const nss of Object.values(this.#syncStates)) {
+      nss.disconnectPeer(peerId)
     }
   }
 

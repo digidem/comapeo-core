@@ -97,6 +97,7 @@ export class SyncApi extends TypedEmitter {
       coreManager,
       throttleMs,
       peerSyncControllers: this.#pscByPeerId,
+      logger,
     })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
@@ -104,7 +105,7 @@ export class SyncApi extends TypedEmitter {
     })
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
-    this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
+    this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerDisconnect)
 
     roles.on('update', this.#handleRoleUpdate)
     coreOwnership.on('update', this.#handleCoreOwnershipUpdate)
@@ -261,7 +262,9 @@ export class SyncApi extends TypedEmitter {
       syncEnabledState = 'presync'
     }
 
-    this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
+    if (syncEnabledState !== this.#previousSyncEnabledState) {
+      this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
+    }
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.setSyncEnabledState(syncEnabledState)
     }
@@ -403,7 +406,7 @@ export class SyncApi extends TypedEmitter {
    *
    * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
    */
-  #handlePeerRemove = (peer) => {
+  #handlePeerDisconnect = (peer) => {
     const { protomux } = peer
     if (!this.#peerSyncControllers.has(protomux)) {
       this.#l.log(
@@ -416,6 +419,8 @@ export class SyncApi extends TypedEmitter {
     const peerId = keyToId(peer.remotePublicKey)
     this.#pscByPeerId.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
+    this[kSyncState].disconnectPeer(peerId)
+    this.#updateState()
   }
 
   /**
@@ -435,7 +440,6 @@ export class SyncApi extends TypedEmitter {
     for (const result of ownershipResults) {
       if (result.status === 'rejected') continue
       await this.#validateRoleAndAddCoresForPeer(result.value)
-      this.#l.log('Added cores for device %S', result.value.docId)
     }
   }
 
@@ -457,10 +461,8 @@ export class SyncApi extends TypedEmitter {
               coreOwnershipDocId
             )
             await this.#validateRoleAndAddCoresForPeer(coreOwnershipDoc)
-            this.#l.log('Added cores for device %S', coreOwnershipDocId)
           } catch (_) {
             // Ignore, we'll add these when the role is added
-            this.#l.log('No role for device %S', coreOwnershipDocId)
           }
         })()
       )
@@ -485,6 +487,7 @@ export class SyncApi extends TypedEmitter {
       const coreKey = Buffer.from(coreOwnership[`${ns}CoreId`], 'hex')
       this.#coreManager.addCore(coreKey, ns)
     }
+    this.#l.log('Added non-auth cores for peer %S', peerDeviceId)
   }
 }
 
