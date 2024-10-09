@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import test from 'node:test'
 import Fastify from 'fastify'
 import { Reader } from 'styled-map-package'
@@ -221,6 +223,106 @@ test('/style.json resolves style.json of fallback map when custom and online are
     expectedFallbackStyleJson,
     'matches fallback map style json'
   )
+})
+
+test('custom map info endpoint not available when custom map path not provided', async (t) => {
+  const server = setup(t)
+
+  server.register(MapServerPlugin, {
+    defaultOnlineStyleUrl: DEFAULT_ONLINE_STYLE_URL,
+    fallbackMapPath: DEFAULT_FALLBACK_MAP_FILE_PATH,
+  })
+
+  const address = await server.listen()
+
+  mockAgent.enableNetConnect(new URL(address).host)
+
+  const response = await server.inject({
+    method: 'GET',
+    url: `/${CUSTOM_MAP_PREFIX}/info`,
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('custom map info endpoint returns not found error when custom map does not exist', async (t) => {
+  const server = setup(t)
+
+  const nonExistentFile =
+    path.parse(SAMPLE_SMP_FIXTURE_PATH).dir + '/does/not/exist.smp'
+
+  server.register(MapServerPlugin, {
+    customMapPath: nonExistentFile,
+    defaultOnlineStyleUrl: DEFAULT_ONLINE_STYLE_URL,
+    fallbackMapPath: DEFAULT_FALLBACK_MAP_FILE_PATH,
+  })
+
+  const address = await server.listen()
+
+  mockAgent.enableNetConnect(new URL(address).host)
+
+  const response = await server.inject({
+    method: 'GET',
+    url: `/${CUSTOM_MAP_PREFIX}/info`,
+  })
+
+  assert.equal(response.statusCode, 404)
+  assert.match(response.json().error, /Not Found/)
+})
+
+test('custom map info endpoint returns server error when custom map is invalid', async (t) => {
+  const server = setup(t)
+
+  const invalidFile = new URL(import.meta.url).pathname
+
+  server.register(MapServerPlugin, {
+    customMapPath: invalidFile,
+    defaultOnlineStyleUrl: DEFAULT_ONLINE_STYLE_URL,
+    fallbackMapPath: DEFAULT_FALLBACK_MAP_FILE_PATH,
+  })
+
+  const address = await server.listen()
+
+  mockAgent.enableNetConnect(new URL(address).host)
+
+  const response = await server.inject({
+    method: 'GET',
+    url: `/${CUSTOM_MAP_PREFIX}/info`,
+  })
+
+  assert.equal(response.statusCode, 500)
+  assert.match(response.json().error, /Internal Server Error/)
+})
+
+test('custom map info endpoint returns expected info when valid custom map is available', async (t) => {
+  const server = setup(t)
+
+  const smpStats = await fs.stat(SAMPLE_SMP_FIXTURE_PATH)
+
+  server.register(MapServerPlugin, {
+    customMapPath: SAMPLE_SMP_FIXTURE_PATH,
+    defaultOnlineStyleUrl: DEFAULT_ONLINE_STYLE_URL,
+    fallbackMapPath: DEFAULT_FALLBACK_MAP_FILE_PATH,
+  })
+
+  const address = await server.listen()
+
+  mockAgent.enableNetConnect(new URL(address).host)
+
+  const response = await server.inject({
+    method: 'GET',
+    url: `/${CUSTOM_MAP_PREFIX}/info`,
+  })
+
+  assert.equal(response.statusCode, 200)
+
+  const info = response.json()
+
+  assert.deepEqual(info, {
+    created: smpStats.ctime.toISOString(),
+    size: smpStats.size,
+    name: 'MapLibre',
+  })
 })
 
 /**

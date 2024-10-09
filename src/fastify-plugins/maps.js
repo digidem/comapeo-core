@@ -1,9 +1,13 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { fetch } from 'undici'
 import { Server as SMPServerPlugin } from 'styled-map-package'
 
 import { noop } from '../utils.js'
+import { NotFoundError, ENOENTError } from './utils.js'
 
 /** @import { FastifyPluginAsync } from 'fastify' */
+/** @import { Stats } from 'node:fs' */
 
 export const CUSTOM_MAP_PREFIX = 'custom'
 export const FALLBACK_MAP_PREFIX = 'fallback'
@@ -19,9 +23,62 @@ export const FALLBACK_MAP_PREFIX = 'fallback'
 /** @type {FastifyPluginAsync<MapsPluginOpts>} */
 export async function plugin(fastify, opts) {
   if (opts.customMapPath) {
+    const { customMapPath } = opts
+
+    fastify.get(`/${CUSTOM_MAP_PREFIX}/info`, async () => {
+      const baseUrl = new URL(fastify.prefix, fastify.listeningOrigin)
+
+      if (!baseUrl.href.endsWith('/')) {
+        baseUrl.href += '/'
+      }
+
+      const customStyleJsonUrl = new URL(
+        `${CUSTOM_MAP_PREFIX}/style.json`,
+        baseUrl
+      )
+      const response = await fetch(customStyleJsonUrl)
+
+      if (response.status === 404) {
+        throw new NotFoundError(customStyleJsonUrl.href)
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to get style from ${customStyleJsonUrl.href}`)
+      }
+
+      /** @type {Stats | undefined} */
+      let stats
+
+      try {
+        stats = await fs.stat(customMapPath)
+      } catch (err) {
+        if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+          throw new ENOENTError(customMapPath)
+        }
+
+        throw err
+      }
+
+      const style = await response.json()
+
+      const styleJsonName =
+        typeof style === 'object' &&
+        style &&
+        'name' in style &&
+        typeof style.name === 'string'
+          ? style.name
+          : undefined
+
+      return {
+        created: stats.ctime,
+        size: stats.size,
+        name: styleJsonName || path.parse(customMapPath).name,
+      }
+    })
+
     fastify.register(SMPServerPlugin, {
       prefix: CUSTOM_MAP_PREFIX,
-      filepath: opts.customMapPath,
+      filepath: customMapPath,
     })
   }
 
