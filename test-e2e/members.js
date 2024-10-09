@@ -15,7 +15,6 @@ import {
   createManagers,
   invite,
   removeUndefinedFields,
-  waitForPeers,
   waitForSync,
 } from './utils.js'
 import { kDataTypes } from '../src/mapeo-project.js'
@@ -119,7 +118,6 @@ test('getting invited member after invite rejected', async (t) => {
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   const project = await invitor.getProject(projectId)
@@ -150,7 +148,6 @@ test('getting invited member after invite accepted', async (t) => {
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const { name: inviteeName } = invitee.getDeviceInfo()
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -198,7 +195,6 @@ test('invite uses custom role name when provided', async (t) => {
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
@@ -221,7 +217,6 @@ test('invite uses default role name when not provided', async (t) => {
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
@@ -364,7 +359,6 @@ test('roles - assignRole()', async (t) => {
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
@@ -471,7 +465,6 @@ test('roles - assignRole() with forked role', async (t) => {
   const managers = await createManagers(3, t)
   const [invitor, invitee1, invitee2] = managers
   let disconnectPeers = connectPeers(managers)
-  await waitForPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
