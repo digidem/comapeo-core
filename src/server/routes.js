@@ -243,7 +243,6 @@ export default async function routes(
           lon: obs.lon,
           attachments: obs.attachments.map((attachment) => ({
             url: new URL(
-              // TODO: Support other variants
               `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
               req.baseUrl
             ),
