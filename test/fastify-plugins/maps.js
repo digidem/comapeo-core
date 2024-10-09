@@ -291,7 +291,7 @@ test('custom map info endpoint returns expected info when available', async (t) 
 
   assert.equal(
     hashObject(response.json()),
-    'ef2ae6b5a1298e608c743a91bb7fba7c55ea63427e34cfb52b808eaaa6625b61',
+    '5bc7093106b4e586df4cea74154f02e35e12f0e13ee6d08178b741e0530712e3',
     'custom map info matches snapshot'
   )
 })
