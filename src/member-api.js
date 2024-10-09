@@ -344,6 +344,7 @@ export class MemberApi extends TypedEmitter {
         ? 'ws:'
         : 'wss:'
     const websocket = new WebSocket(websocketUrl)
+    websocket.on('error', noop)
     const replicationStream = this.#getReplicationStream()
     wsCoreReplicator(websocket, replicationStream)
 
@@ -357,6 +358,7 @@ export class MemberApi extends TypedEmitter {
 
     websocket.close()
     await once(websocket, 'close')
+    websocket.off('error', noop)
   }
 
   /**

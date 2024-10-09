@@ -312,6 +312,8 @@ export class SyncApi extends TypedEmitter {
           }
 
           const websocket = new WebSocket(url)
+          // TODO: Handle websocket errors
+          websocket.on('error', noop)
 
           // TODO: Handle errors (maybe with the `unexpected-response` event?)
 
@@ -320,6 +322,7 @@ export class SyncApi extends TypedEmitter {
 
           this.#serverWebsockets.set(url, websocket)
           websocket.once('close', () => {
+            websocket.off('error', noop)
             this.#serverWebsockets.delete(url)
           })
         }
