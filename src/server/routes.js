@@ -221,6 +221,23 @@ export default async function routes(
           projectPublicId: BASE32_STRING_32_BYTES,
         }),
         response: {
+          200: Type.Object({
+            data: Type.Array(
+              Type.Object({
+                docId: Type.String(),
+                createdAt: Type.String(),
+                updatedAt: Type.String(),
+                deleted: Type.Boolean(),
+                lat: Type.Optional(Type.Number()),
+                lon: Type.Optional(Type.Number()),
+                attachments: Type.Array(
+                  Type.Object({
+                    url: Type.String(),
+                  })
+                ),
+              })
+            ),
+          }),
           403: { $ref: 'HttpError' },
           404: { $ref: 'HttpError' },
         },
