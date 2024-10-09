@@ -14,7 +14,6 @@ import {
   DEFAULT_FALLBACK_MAP_FILE_PATH,
   DEFAULT_ONLINE_STYLE_URL,
 } from '../../src/mapeo-manager.js'
-import { hashObject } from '../../src/utils.js'
 
 const SAMPLE_SMP_FIXTURE_PATH = new URL(
   '../fixtures/maps/maplibre-demotiles.smp',
@@ -291,15 +290,11 @@ test('custom map info endpoint returns expected info when available', async (t) 
 
   const info = response.json()
 
-  assert.equal(typeof info.name, 'string')
-  assert.equal(typeof info.created, 'string')
-  assert.equal(typeof info.size, 'number')
-
-  assert.equal(
-    hashObject(info),
-    'c6684f9b8bea0be698631c8d4ba9e6c85e0b312b10fa2e4273f35d1e01ee9118',
-    'custom map info matches snapshot'
-  )
+  assert.deepEqual(info, {
+    created: '2024-10-09T17:41:16.103Z',
+    size: 2815018,
+    name: 'MapLibre',
+  })
 })
 
 /**
