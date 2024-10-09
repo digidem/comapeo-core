@@ -2,20 +2,13 @@ import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  connectPeers,
-  createManagers,
-  invite,
-  waitForPeers,
-  waitForSync,
-} from './utils.js'
+import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 
 test('$originalVersionIdToDeviceId', async (t) => {
   const managers = await createManagers(2, t)
 
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const [creator, member] = managers
   const projectId = await creator.createProject({ name: 'mapeo' })
