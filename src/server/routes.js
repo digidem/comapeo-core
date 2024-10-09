@@ -97,6 +97,7 @@ export default async function routes(
             data: Type.Array(
               Type.Object({
                 projectId: Type.String(),
+                name: Type.String(),
               })
             ),
           }),
@@ -111,7 +112,10 @@ export default async function routes(
       const existingProjects = await this.comapeo.listProjects()
 
       reply.send({
-        data: existingProjects.map(({ projectId }) => ({ projectId })),
+        data: existingProjects.map((project) => ({
+          projectId: project.projectId,
+          name: project.name,
+        })),
       })
 
       return reply
