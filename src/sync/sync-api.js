@@ -9,6 +9,7 @@ import {
   PRESYNC_NAMESPACES,
 } from '../constants.js'
 import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
+import { getOwn } from '../lib/get-own.js'
 import { NO_ROLE_ID } from '../roles.js'
 import { wsCoreReplicator } from '../server/ws-core-replicator.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
@@ -20,6 +21,9 @@ export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
 export const kRequestFullStop = Symbol('background')
 export const kRescindFullStopRequest = Symbol('foreground')
+export const kWaitForInitialSyncWithPeer = Symbol(
+  'wait for initial sync with peer'
+)
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -414,6 +418,25 @@ export class SyncApi extends TypedEmitter {
     })
   }
 
+  /**
+   * @param {string} deviceId
+   * @returns {Promise<void>}
+   */
+  async [kWaitForInitialSyncWithPeer](deviceId) {
+    const state = this[kSyncState].getState()
+    if (isInitiallySyncedWithPeer(state, deviceId)) return
+    return new Promise((resolve) => {
+      /** @param {import('./sync-state.js').State} state */
+      const onState = (state) => {
+        if (isInitiallySyncedWithPeer(state, deviceId)) {
+          this[kSyncState].off('state', onState)
+          resolve()
+        }
+      }
+      this[kSyncState].on('state', onState)
+    })
+  }
+
   #clearAutostopDataSyncTimeoutIfExists() {
     if (this.#autostopDataSyncTimeout) {
       clearTimeout(this.#autostopDataSyncTimeout)
@@ -585,6 +608,31 @@ function isSynced(state, type, peerSyncControllers) {
       if (psc.syncCapability[ns] === 'blocked') continue
       if (!(peerId in state[ns].remoteStates)) return false
       if (state[ns].remoteStates[peerId].status === 'starting') return false
+    }
+  }
+  return true
+}
+
+/**
+ * @param {import('./sync-state.js').State} state
+ * @param {string} peerId
+ */
+function isInitiallySyncedWithPeer(state, peerId) {
+  for (const ns of PRESYNC_NAMESPACES) {
+    const remoteDeviceSyncState = getOwn(state[ns].remoteStates, peerId)
+    if (!remoteDeviceSyncState) return false
+
+    switch (remoteDeviceSyncState.status) {
+      case 'starting':
+        return false
+      case 'started':
+      case 'stopped': {
+        const { want, wanted } = remoteDeviceSyncState
+        if (want || wanted) return false
+        break
+      }
+      default:
+        throw new ExhaustivenessError(remoteDeviceSyncState.status)
     }
   }
   return true

@@ -54,7 +54,7 @@ export class MemberApi extends TypedEmitter {
   #projectKey
   #rpc
   #getReplicationStream
-  #waitForInitialSync
+  #waitForInitialSyncWithPeer
   #dataTypes
 
   /** @type {Map<string, { abortController: AbortController }>} */
@@ -69,7 +69,7 @@ export class MemberApi extends TypedEmitter {
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
    * @param {() => ReplicationStream} opts.getReplicationStream
-   * @param {() => Promise<void>} opts.waitForInitialSync
+   * @param {(deviceId: string) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
@@ -82,7 +82,7 @@ export class MemberApi extends TypedEmitter {
     projectKey,
     rpc,
     getReplicationStream,
-    waitForInitialSync,
+    waitForInitialSyncWithPeer,
     dataTypes,
   }) {
     super()
@@ -93,7 +93,7 @@ export class MemberApi extends TypedEmitter {
     this.#projectKey = projectKey
     this.#rpc = rpc
     this.#getReplicationStream = getReplicationStream
-    this.#waitForInitialSync = waitForInitialSync
+    this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
     this.#dataTypes = dataTypes
   }
 
@@ -278,20 +278,21 @@ export class MemberApi extends TypedEmitter {
       'Base URL is invalid'
     )
 
-    const { deviceId } = await this.#addServerToProject(baseUrl)
+    const { serverDeviceId } = await this.#addServerToProject(baseUrl)
 
     const roleId = MEMBER_ROLE_ID
-    await this.#roles.assignRole(deviceId, roleId)
+    await this.#roles.assignRole(serverDeviceId, roleId)
 
-    await this.#waitForInitialSyncWithServer(
+    await this.#waitForInitialSyncWithServer({
       baseUrl,
-      dangerouslyAllowInsecureConnections
-    )
+      serverDeviceId,
+      dangerouslyAllowInsecureConnections,
+    })
   }
 
   /**
    * @param {string} baseUrl Server base URL. Should already be validated.
-   * @returns {Promise<{ deviceId: string }>}
+   * @returns {Promise<{ serverDeviceId: string }>}
    */
   async #addServerToProject(baseUrl) {
     const requestUrl = new URL('projects', baseUrl)
@@ -342,8 +343,7 @@ export class MemberApi extends TypedEmitter {
           typeof responseBody.data.deviceId === 'string',
         'Response body is valid'
       )
-      const { deviceId } = responseBody.data
-      return { deviceId }
+      return { serverDeviceId: responseBody.data.deviceId }
     } catch (err) {
       throw new Error(
         "Failed to add server peer because we couldn't parse the response"
@@ -352,14 +352,17 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
-   * @param {string} baseUrl
-   * @param {boolean} dangerouslyAllowInsecureConnections
+   * @param {object} options
+   * @param {string} options.baseUrl
+   * @param {string} options.serverDeviceId
+   * @param {boolean} options.dangerouslyAllowInsecureConnections
    * @returns {Promise<void>}
    */
-  async #waitForInitialSyncWithServer(
+  async #waitForInitialSyncWithServer({
     baseUrl,
-    dangerouslyAllowInsecureConnections
-  ) {
+    serverDeviceId,
+    dangerouslyAllowInsecureConnections,
+  }) {
     const projectPublicId = projectKeyToPublicId(this.#projectKey)
     const websocketUrl = new URL('sync/' + projectPublicId, baseUrl)
     websocketUrl.protocol =
@@ -372,13 +375,7 @@ export class MemberApi extends TypedEmitter {
     const replicationStream = this.#getReplicationStream()
     wsCoreReplicator(websocket, replicationStream)
 
-    // TODO: remove this
-    await new Promise((resolve) => {
-      setTimeout(resolve, 3000)
-    })
-
-    // TODO: This should be scoped to a single peer
-    await this.#waitForInitialSync()
+    await this.#waitForInitialSyncWithPeer(serverDeviceId)
 
     websocket.close()
     await once(websocket, 'close')

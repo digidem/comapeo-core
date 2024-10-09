@@ -44,7 +44,11 @@ import {
   valueOf,
 } from './utils.js'
 import { MemberApi } from './member-api.js'
-import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
+import {
+  SyncApi,
+  kHandleDiscoveryKey,
+  kWaitForInitialSyncWithPeer,
+} from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
@@ -309,8 +313,8 @@ export class MapeoProject extends TypedEmitter {
       projectKey,
       rpc: localPeers,
       getReplicationStream,
-      // TODO: This should be scoped to a single peer, not all peers
-      waitForInitialSync: () => this.$sync.waitForSync('initial'),
+      waitForInitialSyncWithPeer: (deviceId) =>
+        this.$sync[kWaitForInitialSyncWithPeer](deviceId),
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
