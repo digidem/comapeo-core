@@ -289,8 +289,14 @@ test('custom map info endpoint returns expected info when available', async (t) 
 
   assert.equal(response.statusCode, 200)
 
+  const info = response.json()
+
+  assert.equal(typeof info.name, 'string')
+  assert.equal(typeof info.created, 'string')
+  assert.equal(typeof info.size, 'number')
+
   assert.equal(
-    hashObject(response.json()),
+    hashObject(info),
     '5bc7093106b4e586df4cea74154f02e35e12f0e13ee6d08178b741e0530712e3',
     'custom map info matches snapshot'
   )
