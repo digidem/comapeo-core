@@ -235,6 +235,23 @@ export default async function routes(
                     url: Type.String(),
                   })
                 ),
+                tags: Type.Record(
+                  Type.String(),
+                  Type.Union([
+                    Type.Boolean(),
+                    Type.Number(),
+                    Type.String(),
+                    Type.Null(),
+                    Type.Array(
+                      Type.Union([
+                        Type.Boolean(),
+                        Type.Number(),
+                        Type.String(),
+                        Type.Null(),
+                      ])
+                    ),
+                  ])
+                ),
               })
             ),
           }),
@@ -266,6 +283,7 @@ export default async function routes(
                 req.baseUrl
               ),
             })),
+            tags: obs.tags,
           })
         ),
       })

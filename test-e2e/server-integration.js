@@ -402,10 +402,10 @@ test('observations endpoint', async (t) => {
           assert.equal(observationFromApi.lat, observation.lat)
           assert.equal(observationFromApi.lon, observation.lon)
           assert.equal(observationFromApi.deleted, observation.deleted)
-
           if (!observationFromApi.deleted) {
             await assertAttachmentsCanBeFetched({ server, observationFromApi })
           }
+          assert.deepEqual(observationFromApi.tags, observation.tags)
         })
       )
     }
