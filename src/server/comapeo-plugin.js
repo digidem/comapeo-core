@@ -7,12 +7,7 @@ import createFastifyPlugin from 'fastify-plugin'
 
 /** @type {import('fastify').FastifyPluginAsync<ComapeoPluginOptions>} */
 const comapeoPlugin = async function (fastify, opts) {
-  const comapeo = new MapeoManager({
-    ...opts,
-    fastify,
-    // TODO(evanhahn)
-    // deviceType: 'selfHostedServer',
-  })
+  const comapeo = new MapeoManager({ ...opts, fastify })
   fastify.decorate('comapeo', comapeo)
 }
 

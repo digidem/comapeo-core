@@ -106,10 +106,10 @@ export class MapeoManager extends TypedEmitter {
   /** @type {string} */
   #projectMigrationsFolder
   #deviceId
-  #localPeers // TODO(evanhahn) maybe should be null/undefined for servers
-  #invite // TODO(evanhahn) maybe should be null/undefined for servers
-  #fastify // TODO(evanhahn) maybe should be null/undefined for servers
-  #localDiscovery // TODO(evanhahn) maybe should be null/undefined for servers
+  #localPeers
+  #invite
+  #fastify
+  #localDiscovery
   #loggerBase
   #l
   #defaultConfigPath
@@ -758,16 +758,14 @@ export class MapeoManager extends TypedEmitter {
       })
     )
 
-    // TODO(evanhahn)
     if (deviceInfo.deviceType !== 'selfHostedServer') {
       await Promise.all(
         this.#localPeers.peers
           .filter(({ status }) => status === 'connected')
           .map((peer) =>
-            // TODO(evanhahn) TypeScript isn't smart enough to know that
-            // deviceInfo is okay here?
             this.#localPeers.sendDeviceInfo(
               peer.deviceId,
+              // TODO TypeScript isn't smart enough to know that deviceInfo is okay here?
               /** @type {any} */ (deviceInfo)
             )
           )
