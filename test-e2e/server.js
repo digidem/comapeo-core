@@ -1,8 +1,9 @@
 import { valueOf } from '@comapeo/schema'
 import { generate } from '@mapeo/mock-data'
+import { execa } from 'execa'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { execa } from 'execa'
+import { pEvent } from 'p-event'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import createServer from '../src/server/app.js'
 import {
@@ -15,6 +16,8 @@ import {
   waitForSync,
 } from './utils.js'
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
+/** @import { MapeoProject } from '../src/mapeo-project.js' */
+/** @import { State as SyncState } from '../src/sync/sync-api.js' */
 
 // TODO: test invalid base URL
 // TODO: test bad requests
@@ -87,6 +90,15 @@ test('data can be synced via a server', async (t) => {
   await managerAProject.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
   })
+  const serverDeviceIdPromise = managerAProject.$member
+    .getMany()
+    .then((members) => {
+      const serverMember = members.find(
+        (member) => member.deviceType === 'selfHostedServer'
+      )
+      assert(serverMember, 'Manager A must have a server member')
+      return serverMember.deviceId
+    })
 
   // Add Manager B to project
   const disconnectManagers = connectPeers(managers)
@@ -114,7 +126,8 @@ test('data can be synced via a server', async (t) => {
   const observation = await managerAProject.observation.create(
     valueOf(generate('observation')[0])
   )
-  await waitForSyncWithServer()
+  const serverDeviceId = await serverDeviceIdPromise
+  await waitForSyncWithServer(managerAProject, serverDeviceId)
   managerAProject.$sync.disconnectServers()
   managerAProject.$sync.stop()
   await assert.rejects(
@@ -125,7 +138,7 @@ test('data can be synced via a server', async (t) => {
   // Manager B sees observation after syncing
   managerBProject.$sync.connectServers()
   managerBProject.$sync.start()
-  await waitForSyncWithServer()
+  await waitForSyncWithServer(managerBProject, serverDeviceId)
   assert(
     await managerBProject.observation.getByDocId(observation.docId),
     'manager B now sees data'
@@ -212,9 +225,31 @@ function waitForNoPeersToBeConnected(manager) {
   })
 }
 
-function waitForSyncWithServer() {
-  // TODO: This is fake!
-  return new Promise((resolve) => {
-    setTimeout(resolve, 3000)
-  })
+/**
+ * @param {MapeoProject} project
+ * @param {string} serverDeviceId
+ * @returns {Promise<void>}
+ */
+async function waitForSyncWithServer(project, serverDeviceId) {
+  const initialState = project.$sync.getState()
+  if (isSyncedWithServer(initialState, serverDeviceId)) return
+  await pEvent(project.$sync, 'sync-state', (state) =>
+    isSyncedWithServer(state, serverDeviceId)
+  )
+}
+
+/**
+ * @param {SyncState} syncState
+ * @param {string} serverDeviceId
+ * @returns {boolean}
+ */
+function isSyncedWithServer(syncState, serverDeviceId) {
+  const serverSyncState = syncState.remoteDeviceSyncState[serverDeviceId]
+  return Boolean(
+    serverSyncState &&
+      serverSyncState.initial.want === 0 &&
+      serverSyncState.initial.wanted === 0 &&
+      serverSyncState.data.want === 0 &&
+      serverSyncState.data.wanted === 0
+  )
 }
