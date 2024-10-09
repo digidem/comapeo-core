@@ -235,19 +235,22 @@ export default async function routes(
       const project = await this.comapeo.getProject(projectPublicId)
 
       reply.send({
-        data: (await project.observation.getMany()).map((obs) => ({
-          docId: obs.docId,
-          createdAt: obs.createdAt,
-          updatedAt: obs.updatedAt,
-          lat: obs.lat,
-          lon: obs.lon,
-          attachments: obs.attachments.map((attachment) => ({
-            url: new URL(
-              `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
-              req.baseUrl
-            ),
-          })),
-        })),
+        data: (await project.observation.getMany({ includeDeleted: true })).map(
+          (obs) => ({
+            docId: obs.docId,
+            createdAt: obs.createdAt,
+            updatedAt: obs.updatedAt,
+            deleted: obs.deleted,
+            lat: obs.lat,
+            lon: obs.lon,
+            attachments: obs.attachments.map((attachment) => ({
+              url: new URL(
+                `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
+                req.baseUrl
+              ),
+            })),
+          })
+        ),
       })
     }
   )

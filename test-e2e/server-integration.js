@@ -352,6 +352,12 @@ test('observations endpoint', async (t) => {
           return project.observation.create(noAttachments)
         })(),
         (async () => {
+          const { docId } = await project.observation.create(
+            valueOf(generate('observation')[0])
+          )
+          return project.observation.delete(docId)
+        })(),
+        (async () => {
           const blob = await project.$blobs.create(
             {
               original: FIXTURE_ORIGINAL_PATH,
@@ -382,7 +388,7 @@ test('observations endpoint', async (t) => {
 
       const { data } = await response.json()
 
-      assert.equal(data.length, 2)
+      assert.equal(data.length, 3)
 
       await Promise.all(
         observations.map(async (observation) => {
@@ -395,7 +401,11 @@ test('observations endpoint', async (t) => {
           assert.equal(observationFromApi.updatedAt, observation.updatedAt)
           assert.equal(observationFromApi.lat, observation.lat)
           assert.equal(observationFromApi.lon, observation.lon)
-          await assertAttachmentsCanBeFetched({ server, observationFromApi })
+          assert.equal(observationFromApi.deleted, observation.deleted)
+
+          if (!observationFromApi.deleted) {
+            await assertAttachmentsCanBeFetched({ server, observationFromApi })
+          }
         })
       )
     }
