@@ -278,6 +278,22 @@ export class MemberApi extends TypedEmitter {
       'Base URL is invalid'
     )
 
+    const { deviceId } = await this.#addServerToProject(baseUrl)
+
+    const roleId = MEMBER_ROLE_ID
+    await this.#roles.assignRole(deviceId, roleId)
+
+    await this.#waitForInitialSyncWithServer(
+      baseUrl,
+      dangerouslyAllowInsecureConnections
+    )
+  }
+
+  /**
+   * @param {string} baseUrl Server base URL. Should already be validated.
+   * @returns {Promise<{ deviceId: string }>}
+   */
+  async #addServerToProject(baseUrl) {
     const requestUrl = new URL('projects', baseUrl)
     const requestBody = {
       projectKey: encodeBufferForServer(this.#projectKey),
@@ -314,7 +330,6 @@ export class MemberApi extends TypedEmitter {
       )
     }
 
-    /** @type {string} */ let deviceId
     try {
       const responseBody = await response.json()
       assert(
@@ -327,22 +342,31 @@ export class MemberApi extends TypedEmitter {
           typeof responseBody.data.deviceId === 'string',
         'Response body is valid'
       )
-      ;({ deviceId } = responseBody.data)
+      const { deviceId } = responseBody.data
+      return { deviceId }
     } catch (err) {
       throw new Error(
         "Failed to add server peer because we couldn't parse the response"
       )
     }
+  }
 
-    const roleId = MEMBER_ROLE_ID
-    await this.#roles.assignRole(deviceId, roleId)
-
+  /**
+   * @param {string} baseUrl
+   * @param {boolean} dangerouslyAllowInsecureConnections
+   * @returns {Promise<void>}
+   */
+  async #waitForInitialSyncWithServer(
+    baseUrl,
+    dangerouslyAllowInsecureConnections
+  ) {
     const projectPublicId = projectKeyToPublicId(this.#projectKey)
     const websocketUrl = new URL('sync/' + projectPublicId, baseUrl)
     websocketUrl.protocol =
       dangerouslyAllowInsecureConnections && websocketUrl.protocol === 'http:'
         ? 'ws:'
         : 'wss:'
+
     const websocket = new WebSocket(websocketUrl)
     websocket.on('error', noop)
     const replicationStream = this.#getReplicationStream()
