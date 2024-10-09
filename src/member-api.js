@@ -494,7 +494,10 @@ function isValidServerBaseUrl(
   if (url.search) return false
   if (url.hash) return false
 
-  if (!isHostnameIpAddress(url.hostname)) {
+  if (
+    !isHostnameIpAddress(url.hostname) &&
+    !dangerouslyAllowInsecureConnections
+  ) {
     const parts = url.hostname.split('.')
     const isDomainValid = parts.length >= 2 && parts.every(Boolean)
     if (!isDomainValid) return false
