@@ -4,7 +4,7 @@ import { fetch } from 'undici'
 import { Server as SMPServerPlugin } from 'styled-map-package'
 
 import { noop } from '../utils.js'
-import { NotFoundError } from './utils.js'
+import { NotFoundError, ENOENTError } from './utils.js'
 
 /** @import { FastifyPluginAsync } from 'fastify' */
 /** @import { Stats } from 'node:fs' */
@@ -53,7 +53,7 @@ export async function plugin(fastify, opts) {
         stats = await fs.stat(customMapPath)
       } catch (err) {
         if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
-          throw new NotFoundError(customMapPath)
+          throw new ENOENTError(customMapPath)
         }
 
         throw err
