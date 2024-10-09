@@ -294,12 +294,9 @@ export default async function routes(
 
       const proxiedResponse = await fetch(blobUrl)
       reply.code(proxiedResponse.status)
-      // TODO: Are there other headers we want to pass through?
-      reply.header('Content-Type', proxiedResponse.headers.get('content-type'))
-      reply.header(
-        'Content-Length',
-        proxiedResponse.headers.get('content-length')
-      )
+      for (const [headerName, headerValue] of proxiedResponse.headers) {
+        reply.header(headerName, headerValue)
+      }
       return reply.send(proxiedResponse.body)
     }
   )
