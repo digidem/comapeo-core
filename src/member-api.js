@@ -15,6 +15,7 @@ import {
 import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
+import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
 import { wsCoreReplicator } from './server/ws-core-replicator.js'
 import { once } from 'node:events'
@@ -474,6 +475,8 @@ function isValidServerBaseUrl(
   baseUrl,
   { dangerouslyAllowInsecureConnections }
 ) {
+  if (baseUrl.length > 2000) return false
+
   /** @type {URL} */ let url
   try {
     url = new URL(baseUrl)
@@ -486,7 +489,16 @@ function isValidServerBaseUrl(
     (dangerouslyAllowInsecureConnections && url.protocol === 'http:')
   if (!isProtocolValid) return false
 
-  // TODO: Validate that username/password is missing?
+  if (url.username) return false
+  if (url.password) return false
+  if (url.search) return false
+  if (url.hash) return false
+
+  if (!isHostnameIpAddress(url.hostname)) {
+    const parts = url.hostname.split('.')
+    const isDomainValid = parts.length >= 2 && parts.every(Boolean)
+    if (!isDomainValid) return false
+  }
 
   return true
 }

@@ -19,9 +19,53 @@ import {
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 /** @import { State as SyncState } from '../src/sync/sync-api.js' */
 
-// TODO: test invalid base URL
 // TODO: test bad requests
 // TODO: test other base URLs
+
+test('invalid base URLs', async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  const invalidUrls = [
+    '',
+    'no-protocol.example',
+    'ftp://invalid-protocol.example',
+    'http://invalid-protocol.example',
+    'https:',
+    'https://',
+    'https://.',
+    'https://..',
+    'https://https://',
+    'https://https://double-protocol.example',
+    'https://bare-domain',
+    'https://bare-domain:1234',
+    'https://empty-part.',
+    'https://.empty-part',
+    'https://spaces .in-part',
+    'https://spaces.in part',
+    'https://bad-port.example:-1',
+    'https://username@has-auth.example',
+    'https://username:password@has-auth.example',
+    'https://has-query.example/?foo=bar',
+    'https://has-hash.example/#hash',
+    `https://${'x'.repeat(2000)}.example`,
+  ]
+  await Promise.all(
+    invalidUrls.map((url) =>
+      assert.rejects(
+        () => project.$member.addServerPeer(url),
+        /base url is invalid/i,
+        `${url} should be invalid`
+      )
+    )
+  )
+
+  const hasServerPeer = (await project.$member.getMany()).some(
+    (member) => member.deviceType === 'selfHostedServer'
+  )
+  assert(!hasServerPeer, 'no server peers should be added')
+})
 
 test('adding a server peer', async (t) => {
   const manager = createManager('device0', t)
