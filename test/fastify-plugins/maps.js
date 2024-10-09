@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
 import Fastify from 'fastify'
@@ -244,7 +245,7 @@ test('custom map info endpoint not available when custom map path not provided',
   assert.equal(response.statusCode, 404)
 })
 
-test('custom map info endpoint returns expected error when custom map is invalid', async (t) => {
+test('custom map info endpoint returns not found error when custom map does not exist', async (t) => {
   const server = setup(t)
 
   const nonExistentFile =
@@ -265,11 +266,38 @@ test('custom map info endpoint returns expected error when custom map is invalid
     url: `/${CUSTOM_MAP_PREFIX}/info`,
   })
 
-  assert.equal(response.statusCode, 500, 'returns server error status code')
+  assert.equal(response.statusCode, 404)
+  assert.match(response.json().error, /Not Found/)
 })
 
-test('custom map info endpoint returns expected info when available', async (t) => {
+test('custom map info endpoint returns server error when custom map is invalid', async (t) => {
   const server = setup(t)
+
+  const invalidFile = new URL(import.meta.url).pathname
+
+  server.register(MapServerPlugin, {
+    customMapPath: invalidFile,
+    defaultOnlineStyleUrl: DEFAULT_ONLINE_STYLE_URL,
+    fallbackMapPath: DEFAULT_FALLBACK_MAP_FILE_PATH,
+  })
+
+  const address = await server.listen()
+
+  mockAgent.enableNetConnect(new URL(address).host)
+
+  const response = await server.inject({
+    method: 'GET',
+    url: `/${CUSTOM_MAP_PREFIX}/info`,
+  })
+
+  assert.equal(response.statusCode, 500)
+  assert.match(response.json().error, /Internal Server Error/)
+})
+
+test('custom map info endpoint returns expected info when valid custom map is available', async (t) => {
+  const server = setup(t)
+
+  const smpStats = await fs.stat(SAMPLE_SMP_FIXTURE_PATH)
 
   server.register(MapServerPlugin, {
     customMapPath: SAMPLE_SMP_FIXTURE_PATH,
@@ -291,8 +319,8 @@ test('custom map info endpoint returns expected info when available', async (t) 
   const info = response.json()
 
   assert.deepEqual(info, {
-    created: '2024-10-09T17:41:16.103Z',
-    size: 2815018,
+    created: smpStats.ctime.toISOString(),
+    size: smpStats.size,
     name: 'MapLibre',
   })
 })
