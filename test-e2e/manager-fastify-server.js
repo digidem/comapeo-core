@@ -332,7 +332,7 @@ test('retrieving audio file', async (t) => {
   clock.tick(100_000)
 })
 
-test('retrieving style.json using stable url', { only: true }, async (t) => {
+test('retrieving style.json using stable url', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
 
