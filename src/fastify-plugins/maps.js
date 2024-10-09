@@ -45,7 +45,7 @@ export async function plugin(fastify, opts) {
           : undefined
 
       return {
-        created: stats.ctime,
+        created: stats.birthtime,
         size: stats.size,
         name: styleJsonName || path.parse(customMapPath).name,
       }
