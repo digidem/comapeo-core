@@ -72,8 +72,7 @@ const EMPTY_PROJECT_SETTINGS = Object.freeze({})
  * @extends {TypedEmitter<{ close: () => void }>}
  */
 export class MapeoProject extends TypedEmitter {
-  #projectId
-  #projectPublicId
+  #projectKey
   #deviceId
   #identityKeypair
   #coreManager
@@ -129,7 +128,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
-    this.#projectId = projectKeyToId(projectKey)
+    this.#projectKey = projectKey
     this.#loadingConfig = false
 
     const getReplicationStream = this[kProjectReplicate].bind(
@@ -318,10 +317,6 @@ export class MapeoProject extends TypedEmitter {
       },
     })
 
-    const projectPublicId = projectKeyToPublicId(projectKey)
-    // TODO: clean this up
-    this.#projectPublicId = projectPublicId
-
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
     })
@@ -333,7 +328,7 @@ export class MapeoProject extends TypedEmitter {
         if (!base.endsWith('/')) {
           base += '/'
         }
-        return base + projectPublicId
+        return base + this.#projectPublicId
       },
     })
 
@@ -345,7 +340,7 @@ export class MapeoProject extends TypedEmitter {
         if (!base.endsWith('/')) {
           base += '/'
         }
-        return base + projectPublicId
+        return base + this.#projectPublicId
       },
     })
 
@@ -444,6 +439,14 @@ export class MapeoProject extends TypedEmitter {
 
   get deviceId() {
     return this.#deviceId
+  }
+
+  get #projectId() {
+    return projectKeyToId(this.#projectKey)
+  }
+
+  get #projectPublicId() {
+    return projectKeyToPublicId(this.#projectKey)
   }
 
   /**
