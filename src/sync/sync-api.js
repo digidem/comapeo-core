@@ -84,6 +84,10 @@ export class SyncApi extends TypedEmitter {
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
+  #getServerWebsocketUrls
+  #getReplicationStream
+  /** @type {Map<string, WebSocket>} */
+  #serverWebsockets = new Map()
 
   /**
    * @param {object} opts
@@ -291,12 +295,6 @@ export class SyncApi extends TypedEmitter {
 
     this.emit('sync-state', this.#getState(namespaceSyncState))
   }
-
-  // TODO: Move these higher up
-  #getServerWebsocketUrls
-  #getReplicationStream
-  /** @type {Map<string, WebSocket>} */
-  #serverWebsockets = new Map()
 
   /**
    * @returns {void}
