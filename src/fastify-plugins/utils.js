@@ -7,6 +7,12 @@ export const NotFoundError = createError(
   404
 )
 
+export const ENOENTError = createError(
+  'FST_ENOENT',
+  "ENOENT: no such file or directory '%s'",
+  404
+)
+
 /**
  * @param {import('node:http').Server} server
  * @param {{ timeout?: number }} [options]
