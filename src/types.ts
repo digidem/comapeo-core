@@ -17,6 +17,75 @@ import type { NAMESPACES } from './constants.js'
 
 export type Namespace = (typeof NAMESPACES)[number]
 
+/**
+ * Location coordinate data. Based on [Expo's `LocationObjectCoords`][0].
+ * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobjectcoords
+ *
+ * @typedef {object} LocationObjectCoords
+ * @prop {number | null} accuracy
+ * @prop {number | null} altitude
+ * @prop {number | null} altitudeAccuracy
+ * @prop {number | null} heading
+ * @prop {number} latitude
+ * @prop {number} longitude
+ * @prop {number | null} speed
+ */
+
+/**
+ * Location metadata for a blob. Based on [Expo's `LocationObject`][0].
+ * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobject
+ *
+ * @typedef {object} LocationObject
+ * @prop {LocationObjectCoords} coords
+ * @prop {boolean} [mocked]
+ * @prop {number} timestamp
+ */
+
+/**
+ * @typedef {object} Metadata
+ * @prop {string} mimeType
+ * @prop {number} timestamp
+ * @prop {LocationObject} [location]
+ */
+
+/**
+ * Location coordinate data. Based on [Expo's `LocationObjectCoords`][0].
+ * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobjectcoords
+ */
+type LocationObjectCoords = {
+  accuracy: number | null
+  altitude: number | null
+  altitudeAccuracy: number | null
+  heading: number | null
+  latitude: number
+  longitude: number
+  speed: number | null
+}
+
+/**
+ * Location metadata for a blob. Based on [Expo's `LocationObject`][0].
+ * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobject
+ */
+type LocationObject = {
+  coords: LocationObjectCoords
+  mocked?: boolean
+  timestamp: number
+}
+
+// TODO note that this is persisted so we should be careful
+export type BlobMetadata = {
+  timestamp: number
+  location?: LocationObject
+} & (
+  | {
+      mimeType: `image/${string}`
+    }
+  | {
+      mimeType: `audio/${string}`
+      durationMilliseconds: number
+    }
+)
+
 type SupportedBlobVariants = typeof SUPPORTED_BLOB_VARIANTS
 export type BlobType = keyof SupportedBlobVariants
 export type BlobVariant<TBlobType extends BlobType> = TupleToUnion<

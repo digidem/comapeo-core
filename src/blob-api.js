@@ -2,38 +2,8 @@ import fs from 'node:fs'
 // @ts-expect-error - pipelinePromise missing from streamx types
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
-/** @import { BlobId, BlobType } from './types.js' */
-
-/**
- * Location coordinate data. Based on [Expo's `LocationObjectCoords`][0].
- * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobjectcoords
- *
- * @typedef {object} LocationObjectCoords
- * @prop {number | null} accuracy
- * @prop {number | null} altitude
- * @prop {number | null} altitudeAccuracy
- * @prop {number | null} heading
- * @prop {number} latitude
- * @prop {number} longitude
- * @prop {number | null} speed
- */
-
-/**
- * Location metadata for a blob. Based on [Expo's `LocationObject`][0].
- * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobject
- *
- * @typedef {object} LocationObject
- * @prop {LocationObjectCoords} coords
- * @prop {boolean} [mocked]
- * @prop {number} timestamp
- */
-
-/**
- * @typedef {object} Metadata
- * @prop {string} mimeType
- * @prop {number} timestamp
- * @prop {LocationObject} [location]
- */
+import pProps from 'p-props'
+/** @import { BlobId, BlobType, BlobMetadata } from './types.js' */
 
 export class BlobApi {
   #blobStore
@@ -67,9 +37,49 @@ export class BlobApi {
   }
 
   /**
+   * TODO
+   * rejects if
+   * @param {BlobId} blobId
+   * @returns {Promise<BlobMetadata>}
+   */
+  async #getBlobMetadata(blobId) {
+    const entry = await this.#blobStore.entry(blobId)
+    if (!entry) {
+      throw new Error('Blob not found')
+    }
+
+    const rawMetadata = entry.value.metadata
+    if (!rawMetadata) {
+      throw new Error('Blob was found but was missing metadata')
+    }
+
+    if (!isBlobMetadataValid(rawMetadata)) {
+      throw new Error('Blob metadata was found but it was invalid')
+    }
+
+    return rawMetadata
+  }
+
+  /**
+   * TODO
+   * rejects if
+   * @param {BlobId} blobId
+   * @returns {Promise<{
+   *   url: string,
+   *   metadata: BlobMetadata
+   * }>}
+   */
+  async getBlobInfo(blobId) {
+    return pProps({
+      url: this.getUrl(blobId),
+      metadata: this.#getBlobMetadata(blobId),
+    })
+  }
+
+  /**
    * Write blobs for provided variants of a file
    * @param {{ original: string, preview?: string, thumbnail?: string }} filepaths
-   * @param {Metadata} metadata
+   * @param {BlobMetadata} metadata
    * @returns {Promise<{ driveId: string, name: string, type: 'photo' | 'video' | 'audio', hash: string }>}
    */
   async create(filepaths, metadata) {
@@ -136,4 +146,29 @@ function getType(mimeType) {
   if (mimeType.startsWith('audio')) return 'audio'
 
   throw new Error(`Unsupported mimeType: ${mimeType}`)
+}
+
+/**
+ * @param {unknown} rawMetadata
+ * @returns {rawMetadata is BlobMetadata}
+ */
+function isBlobMetadataValid(rawMetadata) {
+  if (!rawMetadata || typeof rawMetadata !== 'object') return false
+
+  const metadataObj = /** @type {Record<string, unknown>} */ (rawMetadata)
+
+  if (typeof metadataObj.timestamp !== 'number') return false
+
+  if (typeof metadataObj.mimeType !== 'string') return false
+  if (metadataObj.mimeType.startsWith('image/')) {
+    // TODO: any other validations?
+  } else if (metadataObj.mimeType.startsWith('audio/')) {
+    if (typeof metadataObj.durationMilliseconds !== 'number') return false
+  } else {
+    return false
+  }
+
+  // TODO: validate location
+
+  return true
 }

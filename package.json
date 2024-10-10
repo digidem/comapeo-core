@@ -184,6 +184,7 @@
     "multi-core-indexer": "^1.0.0-alpha.10",
     "p-defer": "^4.0.0",
     "p-event": "^6.0.1",
+    "p-props": "^6.0.0",
     "p-timeout": "^6.1.2",
     "protobufjs": "^7.2.3",
     "protomux": "^3.4.1",
