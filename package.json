@@ -109,7 +109,7 @@
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
     "@mapeo/default-config": "5.0.0",
-    "@mapeo/mock-data": "2.0.0",
+    "@mapeo/mock-data": "file:mapeo-mock-data-2.1.0.tgz",
     "@sinonjs/fake-timers": "^10.0.2",
     "@types/b4a": "^1.6.0",
     "@types/bogon": "^1.0.2",
@@ -152,7 +152,7 @@
     "yazl": "^2.5.1"
   },
   "dependencies": {
-    "@comapeo/schema": "file:comapeo-schema-1.0.0.tgz",
+    "@comapeo/schema": "^1.1.1",
     "@digidem/types": "^2.3.0",
     "@electron/asar": "^3.2.8",
     "@fastify/error": "^3.4.1",
