@@ -1109,3 +1109,98 @@ test('data sync state is properly updated as data sync is enabled and disabled',
     'other invitee is still disabled, still wants something'
   )
 })
+
+test(
+  'Sync state with disconnected peer (disconnected peer wants)',
+  { timeout: 100_000 },
+  async (t) => {
+    // 1. Connect to a peer, invite it
+    // 2. Disconnect from the peer
+    // 3. Connect to a new peer, invite it
+    // 4. Wait for initial sync with new peer
+    // 5. Sync should complete with new peer
+
+    const managers = await createManagers(3, t)
+    const [invitor, inviteeA, inviteeB] = managers
+    const disconnectA = connectPeers([invitor, inviteeA], { discovery: false })
+    const projectId = await invitor.createProject({ name: 'Mapeo' })
+    await invite({ invitor, invitees: [inviteeA], projectId })
+
+    const [invitorProject, inviteeAProject] = await Promise.all(
+      [invitor, inviteeA].map((m) => m.getProject(projectId))
+    )
+
+    await Promise.all(
+      [invitorProject, inviteeAProject].map((p) =>
+        p.$sync.waitForSync('initial')
+      )
+    )
+
+    await disconnectA()
+
+    const disconnectB = connectPeers([invitor, inviteeB], { discovery: false })
+    await invite({ invitor, invitees: [inviteeB], projectId })
+    await pTimeout(invitorProject.$sync.waitForSync('initial'), {
+      milliseconds: 1000,
+      message: 'invitor should complete initial sync with inviteeB',
+    })
+
+    await disconnectB()
+  }
+)
+
+test(
+  'Sync state with disconnected peer (want data from peer)',
+  { timeout: 100_000 },
+  async (t) => {
+    // 1. Connect to two peers, invite them
+    // 2. One peer adds an observation, does not sync it
+    // 3. Wait until other two peers "know" about that observation
+    // 4. Disconnect peer that added observation
+    // 5. Attempt to sync remaining connected peers
+    // 6. Sync should complete with remaining connected peer
+
+    const managers = await createManagers(3, t)
+    const [invitor, inviteeA, inviteeB] = managers
+    const disconnectA = connectPeers([invitor, inviteeA], { discovery: false })
+    const disconnectB = connectPeers([invitor, inviteeB], { discovery: false })
+    const projectId = await invitor.createProject({ name: 'Mapeo' })
+    await invite({ invitor, invitees: [inviteeA, inviteeB], projectId })
+
+    const [invitorProject, inviteeAProject, inviteeBProject] =
+      await Promise.all(
+        [invitor, inviteeA, inviteeB].map((m) => m.getProject(projectId))
+      )
+
+    await inviteeAProject.observation.create(
+      valueOf(generate('observation')[0])
+    )
+
+    await Promise.all(
+      [invitorProject, inviteeAProject].map((p) =>
+        p.$sync.waitForSync('initial')
+      )
+    )
+
+    // Need to wait for pre-have of inviteeA observation to be received
+    await new Promise((res) => {
+      invitorProject.$sync[kSyncState].on('state', function onState(state) {
+        if (state.data.localState.want === 1) {
+          invitorProject.$sync[kSyncState].removeListener('state', onState)
+          res(void 0)
+        }
+      })
+    })
+    await disconnectA()
+
+    invitorProject.$sync.start()
+    inviteeBProject.$sync.start()
+
+    await pTimeout(invitorProject.$sync.waitForSync('full'), {
+      milliseconds: 1000,
+      message: 'invitor should complete full sync with inviteeB',
+    })
+
+    await disconnectB()
+  }
+)

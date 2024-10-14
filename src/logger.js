@@ -82,13 +82,14 @@ export class Logger {
   /**
    * @param {string} ns
    * @param {Logger} [logger]
+   * @param {{ prefix?: string }} [opts]
    */
-  static create(ns, logger) {
-    if (logger) return logger.extend(ns)
+  static create(ns, logger, opts) {
+    if (logger) return logger.extend(ns, opts)
     const i = (counts.get(ns) || 0) + 1
     counts.set(ns, i)
     const deviceId = String(i).padStart(TRIM, '0')
-    return new Logger({ deviceId, ns })
+    return new Logger({ deviceId, ns, prefix: opts?.prefix })
   }
 
   /**
@@ -96,23 +97,39 @@ export class Logger {
    * @param {string} opts.deviceId
    * @param {createDebug.Debugger} [opts.baseLogger]
    * @param {string} [opts.ns]
+   * @param {string} [opts.prefix] optional prefix to add to the start of each log message. Used to add context e.g. the core ID that is syncing. Use this as an alternative to the debug namespace.
    */
-  constructor({ deviceId, baseLogger, ns }) {
+  constructor({ deviceId, baseLogger, ns, prefix }) {
     this.deviceId = deviceId
     this.#baseLogger = baseLogger || createDebug('mapeo' + (ns ? `:${ns}` : ''))
-    this.#log = this.#baseLogger.extend(this.deviceId.slice(0, TRIM))
+    const log = this.#baseLogger.extend(this.deviceId.slice(0, TRIM))
+    if (prefix) {
+      this.#log = Object.assign(
+        /**
+         * @param {any} formatter
+         * @param  {...any} args
+         */
+        (formatter, ...args) => {
+          return log.apply(null, [`${prefix}${formatter}`, ...args])
+        },
+        log
+      )
+    } else {
+      this.#log = log
+    }
   }
   get log() {
     return this.#log
   }
   /**
-   *
    * @param {string} ns
+   * @param {{ prefix?: string }} [opts]
    */
-  extend(ns) {
+  extend(ns, { prefix } = {}) {
     return new Logger({
       deviceId: this.deviceId,
       baseLogger: this.#baseLogger.extend(ns),
+      prefix,
     })
   }
 }

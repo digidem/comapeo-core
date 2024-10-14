@@ -29,7 +29,6 @@ test("Creator cannot leave project if they're the only coordinator", async (t) =
 
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const [creator, member] = managers
   const projectId = await creator.createProject({ name: 'mapeo' })
@@ -67,7 +66,6 @@ test('Blocked member cannot leave project', async (t) => {
 
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const [creator, member] = managers
   const projectId = await creator.createProject({ name: 'mapeo' })
@@ -126,7 +124,6 @@ test('Creator can leave project if another coordinator exists', async (t) => {
 
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const [creator, coordinator] = managers
   const projectId = await creator.createProject({ name: 'mapeo' })
@@ -178,7 +175,6 @@ test('Member can leave project if creator exists', async (t) => {
 
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const [creator, member] = managers
   const projectId = await creator.createProject({ name: 'mapeo' })
@@ -320,7 +316,6 @@ test('leaving a project deletes data from disk', async (t) => {
 
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const projectId = await creator.createProject({ name: 'mapeo' })
 
@@ -367,8 +362,6 @@ test('leaving a project while disconnected', async (t) => {
 
   let disconnectPeers = connectPeers(managers)
   t.after(() => disconnectPeers())
-
-  await waitForPeers(managers)
 
   const [creator, member] = managers
   const projectId = await creator.createProject({ name: 'mapeo' })
