@@ -13,9 +13,6 @@ import { map } from 'iterpal'
 /** @import { ObservationValue } from '@comapeo/schema'*/
 /** @import { FastifyInstance } from 'fastify' */
 
-// TODO: Dynamically choose a port that's open
-const PORT = 9875
-const BASE_URL = `http://localhost:${PORT}/`
 const BEARER_TOKEN = Buffer.from('swordfish').toString('base64')
 const FIXTURES_ROOT = new URL('../src/server/test/fixtures/', import.meta.url)
 const FIXTURE_ORIGINAL_PATH = new URL('original.jpg', FIXTURES_ROOT).pathname
@@ -298,14 +295,15 @@ test('allowedProjects adding project not in allow list', async (t) => {
 test('observations endpoint', async (t) => {
   const server = createTestServer(t)
 
-  await server.listen({ port: PORT })
+  const serverAddress = await server.listen()
+  const serverUrl = new URL(serverAddress)
   t.after(() => server.close())
 
   const manager = await createManager('client', t)
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
-  await project.$member.addServerPeer(BASE_URL, {
+  await project.$member.addServerPeer(serverAddress, {
     dangerouslyAllowInsecureConnections: true,
   })
 
@@ -378,7 +376,7 @@ test('observations endpoint', async (t) => {
       await project.$sync.waitForSync('full')
 
       const response = await server.inject({
-        authority: `localhost:${PORT}`,
+        authority: serverUrl.host,
         method: 'GET',
         url: `/projects/${projectId}/observations`,
         headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
@@ -403,7 +401,11 @@ test('observations endpoint', async (t) => {
           assert.equal(observationFromApi.lon, observation.lon)
           assert.equal(observationFromApi.deleted, observation.deleted)
           if (!observationFromApi.deleted) {
-            await assertAttachmentsCanBeFetched({ server, observationFromApi })
+            await assertAttachmentsCanBeFetched({
+              server,
+              serverAddress,
+              observationFromApi,
+            })
           }
           assert.deepEqual(observationFromApi.tags, observation.tags)
         })
@@ -479,10 +481,15 @@ function blobToAttachment(blob) {
 /**
  * @param {object} options
  * @param {FastifyInstance} options.server
+ * @param {string} options.serverAddress
  * @param {Record<string, unknown>} options.observationFromApi
  * @returns {Promise<void>}
  */
-async function assertAttachmentsCanBeFetched({ server, observationFromApi }) {
+async function assertAttachmentsCanBeFetched({
+  server,
+  serverAddress,
+  observationFromApi,
+}) {
   assert(Array.isArray(observationFromApi.attachments))
   await Promise.all(
     observationFromApi.attachments.map(
@@ -490,7 +497,11 @@ async function assertAttachmentsCanBeFetched({ server, observationFromApi }) {
       async (attachment) => {
         assert(attachment && typeof attachment === 'object')
         assert('url' in attachment && typeof attachment.url === 'string')
-        await assertAttachmentAndVariantsCanBeFetched(server, attachment.url)
+        await assertAttachmentAndVariantsCanBeFetched(
+          server,
+          serverAddress,
+          attachment.url
+        )
       }
     )
   )
@@ -498,11 +509,16 @@ async function assertAttachmentsCanBeFetched({ server, observationFromApi }) {
 
 /**
  * @param {FastifyInstance} server
+ * @param {string} serverAddress
  * @param {string} url
  * @returns {Promise<void>}
  */
-async function assertAttachmentAndVariantsCanBeFetched(server, url) {
-  assert(url.startsWith(BASE_URL))
+async function assertAttachmentAndVariantsCanBeFetched(
+  server,
+  serverAddress,
+  url
+) {
+  assert(url.startsWith(serverAddress))
 
   /** @type {Map<null | string, string>} */
   const variantsToCheck = new Map([
