@@ -1,31 +1,22 @@
+[**API**](../README.md) • **Docs**
+
+***
+
 [API](../README.md) / FastifyController
 
 # Class: FastifyController
 
-## Table of contents
-
-### Constructors
-
-- [constructor](FastifyController.md#constructor)
-
-### Methods
-
-- [start](FastifyController.md#start)
-- [started](FastifyController.md#started)
-- [stop](FastifyController.md#stop)
-
 ## Constructors
 
-### constructor
+### new FastifyController()
 
-• **new FastifyController**(`opts`): [`FastifyController`](FastifyController.md)
+> **new FastifyController**(`opts`): [`FastifyController`](FastifyController.md)
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `opts` | `Object` |
-| `opts.fastify` | `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\> |
+• **opts**
+
+• **opts.fastify**: `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\>
 
 #### Returns
 
@@ -33,35 +24,33 @@
 
 ## Methods
 
-### start
+### start()
 
-▸ **start**(`opts?`): `Promise`\<`void`\>
+> **start**(`opts`?): `Promise`\<`void`\>
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `opts?` | [`StartOpts`](../interfaces/internal_.StartOpts.md) |
+• **opts?**: [`StartOpts`](../-internal-/interfaces/StartOpts.md)
 
 #### Returns
 
 `Promise`\<`void`\>
 
-___
+***
 
-### started
+### started()
 
-▸ **started**(): `Promise`\<`void`\>
+> **started**(): `Promise`\<`void`\>
 
 #### Returns
 
 `Promise`\<`void`\>
 
-___
+***
 
-### stop
+### stop()
 
-▸ **stop**(): `Promise`\<`void`\>
+> **stop**(): `Promise`\<`void`\>
 
 #### Returns
 

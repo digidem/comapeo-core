@@ -1,71 +1,22 @@
-API
+**API** • **Docs**
+
+***
 
 # API
 
-## Table of contents
+## Modules
 
-### Modules
+- [\<internal\>](-internal-/README.md)
 
-- [\<internal\>](modules/internal_.md)
-
-### Classes
+## Classes
 
 - [FastifyController](classes/FastifyController.md)
 - [MapeoManager](classes/MapeoManager.md)
 
-### Functions
+## Variables
 
-- [MapeoMapsFastifyPlugin](README.md#mapeomapsfastifyplugin)
-- [MapeoOfflineFallbackMapFastifyPlugin](README.md#mapeoofflinefallbackmapfastifyplugin)
-- [MapeoStaticMapsFastifyPlugin](README.md#mapeostaticmapsfastifyplugin)
+- [roles](variables/roles.md)
 
 ## Functions
 
-### MapeoMapsFastifyPlugin
-
-▸ **MapeoMapsFastifyPlugin**(`instance`, `opts`): `Promise`\<`void`\>
-
-#### Parameters
-
-| Name | Type |
-| :------ | :------ |
-| `instance` | `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\> |
-| `opts` | [`MapsPluginOpts`](interfaces/internal_.MapsPluginOpts.md) |
-
-#### Returns
-
-`Promise`\<`void`\>
-
-___
-
-### MapeoOfflineFallbackMapFastifyPlugin
-
-▸ **MapeoOfflineFallbackMapFastifyPlugin**(`instance`, `opts`): `Promise`\<`void`\>
-
-#### Parameters
-
-| Name | Type |
-| :------ | :------ |
-| `instance` | `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\> |
-| `opts` | [`OfflineFallbackMapPluginOpts`](interfaces/internal_.OfflineFallbackMapPluginOpts.md) |
-
-#### Returns
-
-`Promise`\<`void`\>
-
-___
-
-### MapeoStaticMapsFastifyPlugin
-
-▸ **MapeoStaticMapsFastifyPlugin**(`instance`, `opts`): `Promise`\<`void`\>
-
-#### Parameters
-
-| Name | Type |
-| :------ | :------ |
-| `instance` | `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\> |
-| `opts` | [`StaticMapsPluginOpts`](interfaces/internal_.StaticMapsPluginOpts.md) |
-
-#### Returns
-
-`Promise`\<`void`\>
+- [CoMapeoMapsFastifyPlugin](functions/CoMapeoMapsFastifyPlugin.md)
