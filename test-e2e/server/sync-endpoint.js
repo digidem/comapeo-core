@@ -4,7 +4,7 @@ import test from 'node:test'
 import { projectKeyToPublicId } from '../../src/utils.js'
 import { createTestServer, randomProjectKeys } from './test-helpers.js'
 
-test('add project, sync endpoint available', async (t) => {
+test('sync endpoint is available after adding a project', async (t) => {
   const server = createTestServer(t)
   const projectKeys = randomProjectKeys()
   const projectPublicId = projectKeyToPublicId(
@@ -24,7 +24,7 @@ test('add project, sync endpoint available', async (t) => {
   })
 })
 
-test('no project added, sync endpoint not available', async (t) => {
+test('sync endpoint is not available before adding a project', async (t) => {
   const server = createTestServer(t)
 
   const projectPublicId = projectKeyToPublicId(randomBytes(32))
@@ -41,7 +41,7 @@ test('no project added, sync endpoint not available', async (t) => {
   assert.equal(response.json().error, 'Not Found')
 })
 
-test('invalid project public id', async (t) => {
+test('sync endpoint returns error with an invalid project public ID', async (t) => {
   const server = createTestServer(t)
 
   const response = await server.inject({
