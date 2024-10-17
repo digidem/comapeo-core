@@ -135,28 +135,44 @@ test(
   }
 )
 
-// TODO: This test is wrong. Adding the same project twice should be idempotent.
-test('trying to create the same project twice fails', async (t) => {
-  const server = createTestServer(t, { allowedProjects: 2 })
-
+test('adding the same project twice is idempotent', async (t) => {
+  const server = createTestServer(t, { allowedProjects: 1 })
   const projectKeys = randomProjectKeys()
 
-  await t.test('add project first time succeeds', async () => {
-    const response = await server.inject({
-      method: 'POST',
-      url: '/projects',
-      body: projectKeys,
-    })
-    assert.equal(response.statusCode, 200)
+  const firstResponse = await server.inject({
+    method: 'POST',
+    url: '/projects',
+    body: projectKeys,
   })
+  assert.equal(firstResponse.statusCode, 200)
 
-  await t.test('attempt to re-add same project fails', async () => {
-    const response = await server.inject({
-      method: 'POST',
-      url: '/projects',
-      body: projectKeys,
-    })
-    assert.equal(response.statusCode, 400)
-    assert.match(response.json().message, /already exists/)
+  const secondResponse = await server.inject({
+    method: 'POST',
+    url: '/projects',
+    body: projectKeys,
   })
+  assert.equal(secondResponse.statusCode, 200)
+})
+
+test('adding a project ID with different encryption keys is an error', async (t) => {
+  const server = createTestServer(t, { allowedProjects: 1 })
+  const projectKeys1 = randomProjectKeys()
+  const projectKeys2 = {
+    ...projectKeys1,
+    encryptionKeys: randomProjectKeys().encryptionKeys,
+  }
+
+  const firstResponse = await server.inject({
+    method: 'POST',
+    url: '/projects',
+    body: projectKeys1,
+  })
+  assert.equal(firstResponse.statusCode, 200)
+
+  const secondResponse = await server.inject({
+    method: 'POST',
+    url: '/projects',
+    body: projectKeys2,
+  })
+  assert.equal(secondResponse.statusCode, 403)
 })
