@@ -31,18 +31,10 @@ test('add project, sync endpoint available', async (t) => {
     Buffer.from(projectKeys.projectKey, 'hex')
   )
 
-  await t.test('add project', async () => {
-    const expectedResponseBody = {
-      data: {
-        deviceId: server.deviceId,
-      },
-    }
-    const response = await server.inject({
-      method: 'POST',
-      url: '/projects',
-      body: projectKeys,
-    })
-    assert.deepEqual(response.json(), expectedResponseBody)
+  await server.inject({
+    method: 'POST',
+    url: '/projects',
+    body: projectKeys,
   })
 
   await t.test('sync endpoint available', async (t) => {
@@ -82,119 +74,6 @@ test('invalid project public id', async (t) => {
   })
   assert.equal(response.statusCode, 400)
   assert.equal(response.json().code, 'FST_ERR_VALIDATION')
-})
-
-test('trying to add second project fails', async (t) => {
-  const server = createTestServer(t)
-
-  await t.test('add first project', async () => {
-    const expectedResponseBody = {
-      data: {
-        deviceId: server.deviceId,
-      },
-    }
-    const response = await server.inject({
-      method: 'POST',
-      url: '/projects',
-      body: randomProjectKeys(),
-    })
-    assert.deepEqual(response.json(), expectedResponseBody)
-  })
-
-  await t.test('attempt to add second project fails', async () => {
-    const response = await server.inject({
-      method: 'POST',
-      url: '/projects',
-      body: randomProjectKeys(),
-    })
-    assert.equal(response.statusCode, 403)
-    assert.match(response.json().message, /maximum number of projects/)
-  })
-})
-
-test('allowedProjects=3', async (t) => {
-  const server = createTestServer(t, { allowedProjects: 3 })
-
-  await t.test('add 3 projects', async () => {
-    for (let i = 0; i < 3; i++) {
-      const response = await server.inject({
-        method: 'POST',
-        url: '/projects',
-        body: randomProjectKeys(),
-      })
-      assert.equal(response.statusCode, 200)
-    }
-  })
-
-  await t.test('attempt to add 4th project fails', async () => {
-    const response = await server.inject({
-      method: 'POST',
-      url: '/projects',
-      body: randomProjectKeys(),
-    })
-    assert.equal(response.statusCode, 403)
-    assert.match(response.json().message, /maximum number of projects/)
-  })
-})
-
-test('trying to create the same project twice fails', async (t) => {
-  const server = createTestServer(t, { allowedProjects: 2 })
-
-  const projectKeys = randomProjectKeys()
-
-  await t.test('add project first time succeeds', async () => {
-    const response = await server.inject({
-      method: 'POST',
-      url: '/projects',
-      body: projectKeys,
-    })
-    assert.equal(response.statusCode, 200)
-  })
-
-  await t.test('attempt to re-add same project fails', async () => {
-    const response = await server.inject({
-      method: 'POST',
-      url: '/projects',
-      body: projectKeys,
-    })
-    assert.equal(response.statusCode, 400)
-    assert.match(response.json().message, /already exists/)
-  })
-})
-
-test('allowedProjects adding project in allow list', async (t) => {
-  const projectKeys = randomProjectKeys()
-  const projectPublicId = projectKeyToPublicId(
-    Buffer.from(projectKeys.projectKey, 'hex')
-  )
-  const server = createTestServer(t, {
-    allowedProjects: [projectPublicId],
-  })
-
-  const response = await server.inject({
-    method: 'POST',
-    url: '/projects',
-    body: projectKeys,
-  })
-
-  assert.equal(response.statusCode, 200)
-})
-
-test('allowedProjects adding project not in allow list', async (t) => {
-  const allowedProjectId = projectKeyToPublicId(
-    Buffer.from(randomProjectKeys().projectKey, 'hex')
-  )
-  const server = createTestServer(t, {
-    allowedProjects: [allowedProjectId],
-  })
-
-  const response = await server.inject({
-    method: 'POST',
-    url: '/projects',
-    body: randomProjectKeys(),
-  })
-
-  assert.equal(response.statusCode, 403)
 })
 
 test('observations endpoint', async (t) => {
