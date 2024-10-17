@@ -161,23 +161,25 @@ export default async function routes(
       const existingProjects = await this.comapeo.listProjects()
 
       if (
-        typeof allowedProjectsSetOrNumber === 'number' &&
-        existingProjects.length >= allowedProjectsSetOrNumber
-      ) {
-        throw fastify.httpErrors.forbidden(
-          'Server is already linked to the maximum number of projects'
-        )
-      }
-
-      if (
         allowedProjectsSetOrNumber instanceof Set &&
         !allowedProjectsSetOrNumber.has(projectPublicId)
       ) {
         throw fastify.httpErrors.forbidden('Project not allowed')
       }
 
-      if (existingProjects.find((p) => p.projectId === projectPublicId)) {
+      const existingProject = existingProjects.find(
+        (p) => p.projectId === projectPublicId
+      )
+      if (existingProject) {
+        // TODO: This should only throw if the encryption keys are different.
         throw fastify.httpErrors.badRequest('Project already exists')
+      } else if (
+        typeof allowedProjectsSetOrNumber === 'number' &&
+        existingProjects.length >= allowedProjectsSetOrNumber
+      ) {
+        throw fastify.httpErrors.forbidden(
+          'Server is already linked to the maximum number of projects'
+        )
       }
 
       const baseUrl = req.baseUrl.toString()
