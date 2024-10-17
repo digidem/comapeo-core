@@ -5,16 +5,19 @@ import assert from 'node:assert/strict'
 import crypto, { randomBytes } from 'node:crypto'
 import * as fs from 'node:fs/promises'
 import test from 'node:test'
-import createServer from '../src/server/app.js'
-import { projectKeyToPublicId } from '../src/utils.js'
-import { blobMetadata } from '../test/helpers/blob-store.js'
-import { createManager, getManagerOptions } from './utils.js'
+import createServer from '../../src/server/app.js'
+import { projectKeyToPublicId } from '../../src/utils.js'
+import { blobMetadata } from '../../test/helpers/blob-store.js'
+import { createManager, getManagerOptions } from '../utils.js'
 import { map } from 'iterpal'
 /** @import { ObservationValue } from '@comapeo/schema'*/
 /** @import { FastifyInstance } from 'fastify' */
 
 const BEARER_TOKEN = Buffer.from('swordfish').toString('base64')
-const FIXTURES_ROOT = new URL('../src/server/test/fixtures/', import.meta.url)
+const FIXTURES_ROOT = new URL(
+  '../../src/server/test/fixtures/',
+  import.meta.url
+)
 const FIXTURE_ORIGINAL_PATH = new URL('original.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_PREVIEW_PATH = new URL('preview.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_THUMBNAIL_PATH = new URL('thumbnail.jpg', FIXTURES_ROOT).pathname
@@ -438,7 +441,7 @@ const TEST_SERVER_DEFAULTS = {
 
 /**
  * @param {import('node:test').TestContext} t
- * @param {Partial<import('../src/server/app.js').ServerOptions>} [serverOptions]
+ * @param {Partial<import('../../src/server/app.js').ServerOptions>} [serverOptions]
  * @returns {ReturnType<typeof createServer> & { deviceId: string }}
  */
 function createTestServer(t, serverOptions) {
