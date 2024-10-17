@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createTestServer, randomProjectKeys } from './test-helpers.js'
+import { omit } from '../../src/lib/omit.js'
 import { projectKeyToPublicId } from '../../src/utils.js'
+import { createTestServer, randomProjectKeys } from './test-helpers.js'
 
 test('request missing project key', async (t) => {
   const server = createTestServer(t)
@@ -9,19 +10,38 @@ test('request missing project key', async (t) => {
   const response = await server.inject({
     method: 'POST',
     url: '/projects',
-    // TODO: omit the project key
-    body: randomProjectKeys(),
+    body: omit(randomProjectKeys(), ['projectKey']),
   })
 
   assert.equal(response.statusCode, 400)
 })
 
 test('request missing any encryption keys', async (t) => {
-  // TODO
+  const server = createTestServer(t)
+
+  const response = await server.inject({
+    method: 'POST',
+    url: '/projects',
+    body: omit(randomProjectKeys(), ['encryptionKeys']),
+  })
+
+  assert.equal(response.statusCode, 400)
 })
 
 test('request missing an encryption key', async (t) => {
-  // TODO
+  const server = createTestServer(t)
+  const projectKeys = randomProjectKeys()
+
+  const response = await server.inject({
+    method: 'POST',
+    url: '/projects',
+    body: {
+      ...projectKeys,
+      encryptionKeys: omit(projectKeys.encryptionKeys, ['config']),
+    },
+  })
+
+  assert.equal(response.statusCode, 400)
 })
 
 test('adding a project', async (t) => {
