@@ -2,13 +2,17 @@ import { valueOf } from '@comapeo/schema'
 import { generate } from '@mapeo/mock-data'
 import { map } from 'iterpal'
 import assert from 'node:assert/strict'
-import crypto, { randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import * as fs from 'node:fs/promises'
 import test from 'node:test'
 import { projectKeyToPublicId } from '../../src/utils.js'
 import { blobMetadata } from '../../test/helpers/blob-store.js'
 import { createManager } from '../utils.js'
-import { BEARER_TOKEN, createTestServer } from './test-helpers.js'
+import {
+  BEARER_TOKEN,
+  createTestServer,
+  randomProjectKeys,
+} from './test-helpers.js'
 /** @import { ObservationValue } from '@comapeo/schema'*/
 /** @import { FastifyInstance } from 'fastify' */
 
@@ -63,65 +67,6 @@ test('no project added, sync endpoint not available', async (t) => {
   })
   assert.equal(response.statusCode, 404)
   assert.equal(response.json().error, 'Not Found')
-})
-
-test('listing projects', async (t) => {
-  const server = createTestServer(t, { allowedProjects: 999 })
-
-  await t.test('with invalid auth', async () => {
-    const response = await server.inject({
-      method: 'GET',
-      url: '/projects',
-      headers: { Authorization: 'Bearer bad' },
-    })
-    assert.equal(response.statusCode, 403)
-  })
-
-  await t.test('with no projects', async () => {
-    const response = await server.inject({
-      method: 'GET',
-      url: '/projects',
-      headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
-    })
-    assert.equal(response.statusCode, 200)
-    assert.deepEqual(response.json(), { data: [] })
-  })
-
-  await t.test('with projects', async () => {
-    const projectKeys1 = randomProjectKeys()
-    const projectKeys2 = randomProjectKeys()
-
-    await Promise.all(
-      [projectKeys1, projectKeys2].map(async (projectKeys) => {
-        const response = await server.inject({
-          method: 'POST',
-          url: '/projects',
-          body: projectKeys,
-        })
-        assert.equal(response.statusCode, 200)
-      })
-    )
-
-    const response = await server.inject({
-      method: 'GET',
-      url: '/projects',
-      headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
-    })
-    assert.equal(response.statusCode, 200)
-
-    const { data } = response.json()
-    assert(Array.isArray(data))
-    assert.equal(data.length, 2, 'expected 2 projects')
-    for (const projectKeys of [projectKeys1, projectKeys2]) {
-      const projectPublicId = projectKeyToPublicId(
-        Buffer.from(projectKeys.projectKey, 'hex')
-      )
-      assert(
-        data.some((project) => project.projectId === projectPublicId),
-        `expected ${projectPublicId} to be found`
-      )
-    }
-  })
 })
 
 test('invalid project public id', async (t) => {
@@ -373,23 +318,6 @@ test('observations endpoint', async (t) => {
     }
   )
 })
-
-function randomHexKey(length = 32) {
-  return Buffer.from(crypto.randomBytes(length)).toString('hex')
-}
-
-function randomProjectKeys() {
-  return {
-    projectKey: randomHexKey(),
-    encryptionKeys: {
-      auth: randomHexKey(),
-      config: randomHexKey(),
-      data: randomHexKey(),
-      blobIndex: randomHexKey(),
-      blob: randomHexKey(),
-    },
-  }
-}
 
 /**
  * TODO: Use a better type for `blob.type`

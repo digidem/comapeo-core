@@ -1,6 +1,7 @@
 import { KeyManager } from '@mapeo/crypto'
 import createServer from '../../src/server/app.js'
 import { getManagerOptions } from '../utils.js'
+import { randomBytes } from 'node:crypto'
 /** @import { TestContext } from 'node:test' */
 /** @import { ServerOptions } from '../../src/server/app.js' */
 
@@ -35,3 +36,17 @@ export function createTestServer(t, serverOptions) {
   // @ts-expect-error
   return server
 }
+
+const randomHexKey = (length = 32) =>
+  Buffer.from(randomBytes(length)).toString('hex')
+
+export const randomProjectKeys = () => ({
+  projectKey: randomHexKey(),
+  encryptionKeys: {
+    auth: randomHexKey(),
+    config: randomHexKey(),
+    data: randomHexKey(),
+    blobIndex: randomHexKey(),
+    blob: randomHexKey(),
+  },
+})
