@@ -34,6 +34,7 @@ import {
   projectKeyToPublicId,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
+import { omit } from './lib/omit.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
 import IconServerPlugin from './fastify-plugins/icons.js'
@@ -442,9 +443,10 @@ export class MapeoManager extends TypedEmitter {
 
     // 7. Load config, if relevant
     // TODO: see how to expose warnings to frontend
-    /* eslint-disable no-unused-vars */
+    // eslint-disable-next-line no-unused-vars
     let warnings
     if (configPath) {
+      // eslint-disable-next-line no-unused-vars
       warnings = await project.importConfig({ configPath })
     }
 
@@ -917,15 +919,8 @@ export class MapeoManager extends TypedEmitter {
  * @returns {PublicPeerInfo[]}
  */
 function omitPeerProtomux(peers) {
-  return peers.map(
-    ({
-      // @ts-ignore
-      // eslint-disable-next-line no-unused-vars
-      protomux,
-      ...publicPeerInfo
-    }) => {
-      return publicPeerInfo
-    }
+  return peers.map((peer) =>
+    'protomux' in peer ? omit(peer, ['protomux']) : peer
   )
 }
 
