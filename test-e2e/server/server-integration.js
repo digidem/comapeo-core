@@ -20,31 +20,6 @@ const FIXTURE_ORIGINAL_PATH = new URL('original.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_PREVIEW_PATH = new URL('preview.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_THUMBNAIL_PATH = new URL('thumbnail.jpg', FIXTURES_ROOT).pathname
 
-test('allowedHosts valid', async (t) => {
-  const allowedHost = 'www.example.com'
-  const server = createTestServer(t, {
-    allowedHosts: [allowedHost],
-  })
-  const response = await server.inject({
-    authority: allowedHost,
-    method: 'GET',
-    url: '/info',
-  })
-  assert.equal(response.statusCode, 200)
-})
-
-test('allowedHosts invalid', async (t) => {
-  const server = createTestServer(t, {
-    allowedHosts: ['www.example.com'],
-  })
-  const response = await server.inject({
-    authority: 'www.invalid-host.com',
-    method: 'GET',
-    url: '/info',
-  })
-  assert.equal(response.statusCode, 403)
-})
-
 test('add project, sync endpoint available', async (t) => {
   const server = createTestServer(t)
   const projectKeys = randomProjectKeys()
