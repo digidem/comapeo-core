@@ -3,6 +3,27 @@ import test from 'node:test'
 import { createTestServer, randomProjectKeys } from './test-helpers.js'
 import { projectKeyToPublicId } from '../../src/utils.js'
 
+test('request missing project key', async (t) => {
+  const server = createTestServer(t)
+
+  const response = await server.inject({
+    method: 'POST',
+    url: '/projects',
+    // TODO: omit the project key
+    body: randomProjectKeys(),
+  })
+
+  assert.equal(response.statusCode, 400)
+})
+
+test('request missing any encryption keys', async (t) => {
+  // TODO
+})
+
+test('request missing an encryption key', async (t) => {
+  // TODO
+})
+
 test('adding a project', async (t) => {
   const server = createTestServer(t)
 
