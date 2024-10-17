@@ -1,19 +1,17 @@
 import { valueOf } from '@comapeo/schema'
-import { KeyManager } from '@mapeo/crypto'
 import { generate } from '@mapeo/mock-data'
+import { map } from 'iterpal'
 import assert from 'node:assert/strict'
 import crypto, { randomBytes } from 'node:crypto'
 import * as fs from 'node:fs/promises'
 import test from 'node:test'
-import createServer from '../../src/server/app.js'
 import { projectKeyToPublicId } from '../../src/utils.js'
 import { blobMetadata } from '../../test/helpers/blob-store.js'
-import { createManager, getManagerOptions } from '../utils.js'
-import { map } from 'iterpal'
+import { createManager } from '../utils.js'
+import { BEARER_TOKEN, createTestServer } from './test-helpers.js'
 /** @import { ObservationValue } from '@comapeo/schema'*/
 /** @import { FastifyInstance } from 'fastify' */
 
-const BEARER_TOKEN = Buffer.from('swordfish').toString('base64')
 const FIXTURES_ROOT = new URL(
   '../../src/server/test/fixtures/',
   import.meta.url
@@ -21,22 +19,6 @@ const FIXTURES_ROOT = new URL(
 const FIXTURE_ORIGINAL_PATH = new URL('original.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_PREVIEW_PATH = new URL('preview.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_THUMBNAIL_PATH = new URL('thumbnail.jpg', FIXTURES_ROOT).pathname
-
-test('server info endpoint', async (t) => {
-  const serverName = 'test server'
-  const server = createTestServer(t, { serverName })
-  const expectedResponseBody = {
-    data: {
-      deviceId: server.deviceId,
-      name: serverName,
-    },
-  }
-  const response = await server.inject({
-    method: 'GET',
-    url: '/info',
-  })
-  assert.deepEqual(response.json(), expectedResponseBody)
-})
 
 test('allowedHosts valid', async (t) => {
   const allowedHost = 'www.example.com'
@@ -432,36 +414,6 @@ function randomProjectKeys() {
       blob: randomHexKey(),
     },
   }
-}
-
-const TEST_SERVER_DEFAULTS = {
-  serverName: 'test server',
-  serverBearerToken: BEARER_TOKEN,
-}
-
-/**
- * @param {import('node:test').TestContext} t
- * @param {Partial<import('../../src/server/app.js').ServerOptions>} [serverOptions]
- * @returns {ReturnType<typeof createServer> & { deviceId: string }}
- */
-function createTestServer(t, serverOptions) {
-  const serverName =
-    serverOptions?.serverName || TEST_SERVER_DEFAULTS.serverName
-  const managerOptions = getManagerOptions(serverName)
-  const km = new KeyManager(managerOptions.rootKey)
-  const server = createServer({
-    ...managerOptions,
-    ...TEST_SERVER_DEFAULTS,
-    ...serverOptions,
-  })
-  t.after(() => server.close())
-  Object.defineProperty(server, 'deviceId', {
-    get() {
-      return km.getIdentityKeypair().publicKey.toString('hex')
-    },
-  })
-  // @ts-expect-error
-  return server
 }
 
 /**
