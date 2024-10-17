@@ -6,6 +6,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { LiveDownload } from './live-download.js'
 /** @import { Readable as NodeReadable } from 'node:stream' */
 /** @import { Readable as StreamxReadable, Writable } from 'streamx' */
+/** @import { JsonObject } from 'type-fest' */
 /** @import { BlobId } from '../types.js' */
 /** @import { BlobDownloadEvents } from './live-download.js' */
 
@@ -212,7 +213,7 @@ export class BlobStore {
   /**
    * @param {Omit<BlobId, 'driveId'>} blobId
    * @param {object} [options]
-   * @param {{mimeType: string}} [options.metadata] Metadata to store with the blob
+   * @param {JsonObject} [options.metadata] Metadata to store with the blob
    * @returns {Writable & { driveId: string }}
    */
   createWriteStream({ type, variant, name }, options) {
