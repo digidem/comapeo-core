@@ -13,6 +13,7 @@ import { createCoreManager } from './helpers/core-manager.js'
 import { IndexWriter } from '../src/index-writer/index.js'
 import RAM from 'random-access-memory'
 import { hashObject } from '../src/utils.js'
+import { omit } from '../src/lib/omit.js'
 import { randomBytes } from 'node:crypto'
 
 test('translation api - put() and get()', async () => {
@@ -43,8 +44,7 @@ test('translation api - put() and get()', async () => {
     'the map we use to caching translations is empty before calling put'
   )
 
-  /* eslint-disable no-unused-vars */
-  const { message, ...identifiers } = doc
+  const identifiers = omit(doc, ['message'])
   const expectedDocId = hashObject(identifiers)
   const { docId } = await api.put(doc)
   api.index(doc)
@@ -69,11 +69,8 @@ test('translation api - put() and get()', async () => {
     `we've effectively have fields in spanish`
   )
 
-  /* eslint-disable no-unused-vars */
-  const { schemaName, message: msg, ...docToGet } = doc
-
   assert.equal(
-    (await api.get(docToGet)).length,
+    (await api.get(doc)).length,
     1,
     `using the doc without schema name to get the translation works`
   )

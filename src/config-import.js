@@ -516,7 +516,6 @@ function parseIcon(filename, buf) {
   if (!matches) {
     throw new Error(`Unexpected icon filename ${filename}`)
   }
-  /* eslint-disable no-unused-vars */
   const [_, name, size, pixelDensityStr] = matches
   const pixelDensity = Number(pixelDensityStr)
   if (!(pixelDensity === 1 || pixelDensity === 2 || pixelDensity === 3)) {

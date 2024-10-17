@@ -15,6 +15,7 @@ import { discoveryKey } from 'hypercore-crypto'
 import pDefer from 'p-defer'
 import { NAMESPACES } from './constants.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { omit } from './lib/omit.js'
 /**
  * @import {
  *   CoreOwnershipWithSignatures,
@@ -167,8 +168,10 @@ export function mapAndValidateCoreOwnership(doc, { coreDiscoveryKey }) {
   if (!verifyCoreOwnership(doc)) {
     throw new Error('Invalid coreOwnership record: signatures are invalid')
   }
-  // eslint-disable-next-line no-unused-vars
-  const { identitySignature, coreSignatures, ...docWithoutSignatures } = doc
+  const docWithoutSignatures = omit(doc, [
+    'identitySignature',
+    'coreSignatures',
+  ])
   docWithoutSignatures.links = []
   return docWithoutSignatures
 }

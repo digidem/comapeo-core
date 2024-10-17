@@ -2,6 +2,7 @@ import { and, sql } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
 import { NotFoundError } from './errors.js'
+import { omit } from './lib/omit.js'
 /** @import { Translation, TranslationValue } from '@comapeo/schema' */
 /** @import { SetOptional } from 'type-fest' */
 
@@ -47,8 +48,7 @@ export default class TranslationApi {
    * @param {TranslationValue} value
    */
   async put(value) {
-    /* eslint-disable no-unused-vars */
-    const { message, ...identifiers } = value
+    const identifiers = omit(value, ['message'])
     const docId = hashObject(identifiers)
     try {
       const doc = await this.#dataType.getByDocId(docId)

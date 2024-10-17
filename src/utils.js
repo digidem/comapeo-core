@@ -2,6 +2,7 @@ import sodium from 'sodium-universal'
 import { keyToPublicId } from '@mapeo/crypto'
 import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
+import { omit } from './lib/omit.js'
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
 
@@ -95,20 +96,16 @@ export function deNullify(obj) {
  * @returns {Omit<T, 'docId' | 'versionId' | 'originalVersionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'deleted'>}
  */
 export function valueOf(doc) {
-  /* eslint-disable no-unused-vars */
-  const {
-    docId,
-    versionId,
-    originalVersionId,
-    links,
-    forks,
-    createdAt,
-    updatedAt,
-    deleted,
-    ...rest
-  } = doc
-  /* eslint-enable no-unused-vars */
-  return rest
+  return omit(doc, [
+    'docId',
+    'versionId',
+    'originalVersionId',
+    'links',
+    'forks',
+    'createdAt',
+    'updatedAt',
+    'deleted',
+  ])
 }
 
 /**
