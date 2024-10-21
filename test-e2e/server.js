@@ -185,9 +185,9 @@ test('adding a server peer', async (t) => {
     MEMBER_ROLE_ID,
     'server peers are added as regular members'
   )
-  assert.equal(
-    serverPeer.selfHostedServerDetails?.baseUrl,
-    serverBaseUrl,
+  assert.deepEqual(
+    new URL(serverPeer.selfHostedServerDetails?.baseUrl || ''),
+    new URL(serverBaseUrl),
     'server peer stores base URL'
   )
 })
@@ -329,16 +329,14 @@ async function createRemoteTestServer(t) {
  * @returns {Promise<string>} server base URL
  */
 async function createLocalTestServer(t) {
-  // TODO: Use a port that's guaranteed to be open
-  const port = 9876
   const server = createServer({
     ...getManagerOptions('test server'),
     serverName: 'test server',
     serverBearerToken: 'ignored',
   })
-  await server.listen({ port })
+  const address = await server.listen()
   t.after(() => server.close())
-  return `http://localhost:${port}/`
+  return address
 }
 
 /**
