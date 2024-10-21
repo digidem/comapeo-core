@@ -7,6 +7,7 @@ import { getVersionId } from '@comapeo/schema'
 import { once } from 'events'
 import RAM from 'random-access-memory'
 import { discoveryKey } from 'hypercore-crypto'
+import { omit } from '../src/lib/omit.js'
 
 /** @type {Omit<import('@comapeo/schema').Observation, 'versionId'>} */
 const obs = {
@@ -102,9 +103,7 @@ test('index events', async () => {
     storage: () => new RAM(),
   })
   dataStore.indexer.on('index-state', (state) => {
-    // eslint-disable-next-line no-unused-vars
-    const { entriesPerSecond, ...rest } = state
-    indexStates.push(rest)
+    indexStates.push(omit(state, ['entriesPerSecond']))
   })
   const idlePromise = once(dataStore.indexer, 'idle')
   await dataStore.write(obs)

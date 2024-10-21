@@ -43,6 +43,7 @@ import {
   projectKeyToPublicId,
   valueOf,
 } from './utils.js'
+import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
@@ -897,9 +898,7 @@ export class MapeoProject extends TypedEmitter {
  * @returns {EditableProjectSettings}
  */
 function extractEditableProjectSettings(projectDoc) {
-  // eslint-disable-next-line no-unused-vars
-  const { schemaName, ...result } = valueOf(projectDoc)
-  return result
+  return omit(valueOf(projectDoc), ['schemaName'])
 }
 
 /**
