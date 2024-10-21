@@ -325,7 +325,7 @@ export class MemberApi extends TypedEmitter {
       )
     }
 
-    if (response.status !== 200) {
+    if (response.status !== 200 && response.status !== 201) {
       throw new Error(
         `Failed to add server peer due to HTTP status code ${response.status}`
       )
