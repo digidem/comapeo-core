@@ -20,7 +20,6 @@ import {
 /** @import { State as SyncState } from '../src/sync/sync-api.js' */
 
 // TODO: test bad requests
-// TODO: test other base URLs
 
 test('invalid base URLs', async (t) => {
   const manager = createManager('device0', t)
@@ -50,6 +49,8 @@ test('invalid base URLs', async (t) => {
     'https://has-query.example/?foo=bar',
     'https://has-hash.example/#hash',
     `https://${'x'.repeat(2000)}.example`,
+    // We may want to support this someday. See <https://github.com/digidem/comapeo-core/issues/908>.
+    'https://has-pathname.example/p',
   ]
   await Promise.all(
     invalidUrls.map((url) =>

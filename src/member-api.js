@@ -494,6 +494,9 @@ function isValidServerBaseUrl(
   if (url.search) return false
   if (url.hash) return false
 
+  // We may want to support this someday. See <https://github.com/digidem/comapeo-core/issues/908>.
+  if (url.pathname !== '/') return false
+
   if (
     !isHostnameIpAddress(url.hostname) &&
     !dangerouslyAllowInsecureConnections
