@@ -4,9 +4,9 @@ import { map } from 'iterpal'
 import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
 import test from 'node:test'
-import { projectKeyToPublicId } from '../../src/utils.js'
-import { blobMetadata } from '../../test/helpers/blob-store.js'
-import { createManager } from '../utils.js'
+import { projectKeyToPublicId } from '../../utils.js'
+import { blobMetadata } from '../../../test/helpers/blob-store.js'
+import { createManager } from '../../../test-e2e/utils.js'
 import {
   BEARER_TOKEN,
   createTestServer,
@@ -15,13 +15,11 @@ import {
 /** @import { ObservationValue } from '@comapeo/schema'*/
 /** @import { FastifyInstance } from 'fastify' */
 
-const FIXTURES_ROOT = new URL(
-  '../../src/server/test/fixtures/',
-  import.meta.url
-)
+const FIXTURES_ROOT = new URL('./fixtures/', import.meta.url)
 const FIXTURE_ORIGINAL_PATH = new URL('original.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_PREVIEW_PATH = new URL('preview.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_THUMBNAIL_PATH = new URL('thumbnail.jpg', FIXTURES_ROOT).pathname
+const FIXTURE_AUDIO_PATH = new URL('audio.mp3', FIXTURES_ROOT).pathname
 
 test('returns a 403 if no auth is provided', async (t) => {
   const server = createTestServer(t)
@@ -101,18 +99,24 @@ test('returning observations with fetchable attachments', async (t) => {
       return project.observation.delete(docId)
     })(),
     (async () => {
-      const blob = await project.$blobs.create(
-        {
-          original: FIXTURE_ORIGINAL_PATH,
-          preview: FIXTURE_PREVIEW_PATH,
-          thumbnail: FIXTURE_THUMBNAIL_PATH,
-        },
-        blobMetadata({ mimeType: 'image/jpeg' })
-      )
+      const [imageBlob, audioBlob] = await Promise.all([
+        project.$blobs.create(
+          {
+            original: FIXTURE_ORIGINAL_PATH,
+            preview: FIXTURE_PREVIEW_PATH,
+            thumbnail: FIXTURE_THUMBNAIL_PATH,
+          },
+          blobMetadata({ mimeType: 'image/jpeg' })
+        ),
+        project.$blobs.create(
+          { original: FIXTURE_AUDIO_PATH },
+          blobMetadata({ mimeType: 'audio/mpeg' })
+        ),
+      ])
       /** @type {ObservationValue} */
       const withAttachment = {
         ...valueOf(generate('observation')[0]),
-        attachments: [blobToAttachment(blob)],
+        attachments: [blobToAttachment(imageBlob), blobToAttachment(audioBlob)],
       }
       return project.observation.create(withAttachment)
     })(),
@@ -145,7 +149,7 @@ test('returning observations with fetchable attachments', async (t) => {
       assert.equal(observationFromApi.lon, observation.lon)
       assert.equal(observationFromApi.deleted, observation.deleted)
       if (!observationFromApi.deleted) {
-        await assertAttachmentsCanBeFetched({
+        await assertAttachmentsCanBeFetchedAsJpeg({
           server,
           serverAddress,
           observationFromApi,
@@ -185,7 +189,7 @@ function blobToAttachment(blob) {
  * @param {Record<string, unknown>} options.observationFromApi
  * @returns {Promise<void>}
  */
-async function assertAttachmentsCanBeFetched({
+async function assertAttachmentsCanBeFetchedAsJpeg({
   server,
   serverAddress,
   observationFromApi,

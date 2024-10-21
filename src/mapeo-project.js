@@ -43,6 +43,7 @@ import {
   projectKeyToPublicId,
   valueOf,
 } from './utils.js'
+import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
 import {
   SyncApi,
@@ -313,8 +314,8 @@ export class MapeoProject extends TypedEmitter {
       projectKey,
       rpc: localPeers,
       getReplicationStream,
-      waitForInitialSyncWithPeer: (deviceId) =>
-        this.$sync[kWaitForInitialSyncWithPeer](deviceId),
+      waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
+        this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
@@ -930,9 +931,7 @@ export class MapeoProject extends TypedEmitter {
  * @returns {EditableProjectSettings}
  */
 function extractEditableProjectSettings(projectDoc) {
-  // eslint-disable-next-line no-unused-vars
-  const { schemaName, ...result } = valueOf(projectDoc)
-  return result
+  return omit(valueOf(projectDoc), ['schemaName'])
 }
 
 /**

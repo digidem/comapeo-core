@@ -1,7 +1,7 @@
 import { valueOf } from '@comapeo/schema'
 import { generate } from '@mapeo/mock-data'
-import createFastify from 'fastify'
 import { execa } from 'execa'
+import createFastify from 'fastify'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { pEvent } from 'p-event'
@@ -19,9 +19,6 @@ import {
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 /** @import { State as SyncState } from '../src/sync/sync-api.js' */
-
-// TODO: test bad requests
-// TODO: test other base URLs
 
 test('invalid base URLs', async (t) => {
   const manager = createManager('device0', t)
@@ -51,6 +48,8 @@ test('invalid base URLs', async (t) => {
     'https://has-query.example/?foo=bar',
     'https://has-hash.example/#hash',
     `https://${'x'.repeat(2000)}.example`,
+    // We may want to support this someday. See <https://github.com/digidem/comapeo-core/issues/908>.
+    'https://has-pathname.example/p',
   ]
   await Promise.all(
     invalidUrls.map((url) =>
@@ -66,6 +65,119 @@ test('invalid base URLs', async (t) => {
     (member) => member.deviceType === 'selfHostedServer'
   )
   assert(!hasServerPeer, 'no server peers should be added')
+})
+
+test("fails if we can't connect to the server", async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  const serverBaseUrl = 'http://localhost:9999'
+  await assert.rejects(
+    () =>
+      project.$member.addServerPeer(serverBaseUrl, {
+        dangerouslyAllowInsecureConnections: true,
+      }),
+    {
+      message: /Failed to add server peer due to network error/,
+    }
+  )
+})
+
+test(
+  "fails if server doesn't return a 200",
+  { concurrency: true },
+  async (t) => {
+    const manager = createManager('device0', t)
+    const projectId = await manager.createProject()
+    const project = await manager.getProject(projectId)
+
+    await Promise.all(
+      [204, 302, 400, 500].map((statusCode) =>
+        t.test(`when returning a ${statusCode}`, async (t) => {
+          const fastify = createFastify()
+          fastify.post('/projects', (_req, reply) => {
+            reply.status(statusCode).send()
+          })
+          const serverBaseUrl = await fastify.listen()
+          t.after(() => fastify.close())
+
+          await assert.rejects(
+            () =>
+              project.$member.addServerPeer(serverBaseUrl, {
+                dangerouslyAllowInsecureConnections: true,
+              }),
+            {
+              message: `Failed to add server peer due to HTTP status code ${statusCode}`,
+            }
+          )
+        })
+      )
+    )
+  }
+)
+
+test(
+  "fails if server doesn't return data in the right format",
+  { concurrency: true },
+  async (t) => {
+    const manager = createManager('device0', t)
+    const projectId = await manager.createProject()
+    const project = await manager.getProject(projectId)
+
+    await Promise.all(
+      [
+        '',
+        '{bad_json',
+        JSON.stringify({ data: {} }),
+        JSON.stringify({ data: { deviceId: 123 } }),
+        JSON.stringify({ deviceId: 'not under "data"' }),
+      ].map((responseData) =>
+        t.test(`when returning ${responseData}`, async (t) => {
+          const fastify = createFastify()
+          fastify.post('/projects', (_req, reply) => {
+            reply.header('Content-Type', 'application/json').send(responseData)
+          })
+          const serverBaseUrl = await fastify.listen()
+          t.after(() => fastify.close())
+
+          await assert.rejects(
+            () =>
+              project.$member.addServerPeer(serverBaseUrl, {
+                dangerouslyAllowInsecureConnections: true,
+              }),
+            {
+              message:
+                "Failed to add server peer because we couldn't parse the response",
+            }
+          )
+        })
+      )
+    )
+  }
+)
+
+test("fails if first request succeeds but sync doesn't", async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  const fastify = createFastify()
+  fastify.post('/projects', (_req, reply) => {
+    reply.send({ data: { deviceId: 'abc123' } })
+  })
+  const serverBaseUrl = await fastify.listen()
+  t.after(() => fastify.close())
+
+  await assert.rejects(
+    () =>
+      project.$member.addServerPeer(serverBaseUrl, {
+        dangerouslyAllowInsecureConnections: true,
+      }),
+    {
+      message: /404/,
+    }
+  )
 })
 
 test('adding a server peer', async (t) => {
@@ -94,9 +206,9 @@ test('adding a server peer', async (t) => {
     MEMBER_ROLE_ID,
     'server peers are added as regular members'
   )
-  assert.equal(
-    serverPeer.selfHostedServerDetails?.baseUrl,
-    serverBaseUrl,
+  assert.deepEqual(
+    new URL(serverPeer.selfHostedServerDetails?.baseUrl || ''),
+    new URL(serverBaseUrl),
     'server peer stores base URL'
   )
 })
@@ -238,17 +350,15 @@ async function createRemoteTestServer(t) {
  * @returns {Promise<string>} server base URL
  */
 async function createLocalTestServer(t) {
-  // TODO: Use a port that's guaranteed to be open
-  const port = 9876
   const server = createFastify()
   server.register(comapeoServer, {
     ...getManagerOptions('test server'),
     serverName: 'test server',
     serverBearerToken: 'ignored',
   })
-  await server.listen({ port })
+  const address = await server.listen()
   t.after(() => server.close())
-  return `http://localhost:${port}/`
+  return address
 }
 
 /**

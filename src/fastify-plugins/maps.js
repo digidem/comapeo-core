@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fetch } from 'undici'
-import { Server as SMPServerPlugin } from 'styled-map-package'
+import { ReaderWatch, Server as SMPServerPlugin } from 'styled-map-package'
 
 import { noop } from '../utils.js'
 import { NotFoundError, ENOENTError } from './utils.js'
@@ -24,6 +24,10 @@ export const FALLBACK_MAP_PREFIX = 'fallback'
 export async function plugin(fastify, opts) {
   if (opts.customMapPath) {
     const { customMapPath } = opts
+
+    const customMapReader = new ReaderWatch(customMapPath)
+
+    fastify.addHook('onClose', () => customMapReader.close().catch(noop))
 
     fastify.get(`/${CUSTOM_MAP_PREFIX}/info`, async () => {
       const baseUrl = new URL(fastify.prefix, fastify.listeningOrigin)
@@ -78,13 +82,17 @@ export async function plugin(fastify, opts) {
 
     fastify.register(SMPServerPlugin, {
       prefix: CUSTOM_MAP_PREFIX,
-      filepath: customMapPath,
+      reader: customMapReader,
     })
   }
 
+  const fallbackMapReader = new ReaderWatch(opts.fallbackMapPath)
+
+  fastify.addHook('onClose', () => fallbackMapReader.close().catch(noop))
+
   fastify.register(SMPServerPlugin, {
     prefix: FALLBACK_MAP_PREFIX,
-    filepath: opts.fallbackMapPath,
+    reader: fallbackMapReader,
   })
 
   fastify.get('/style.json', async (_request, reply) => {

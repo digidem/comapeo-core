@@ -1,10 +1,10 @@
 import { KeyManager } from '@mapeo/crypto'
-import comapeoServer from '../../src/server/app.js'
 import createFastify from 'fastify'
-import { getManagerOptions } from '../utils.js'
 import { randomBytes } from 'node:crypto'
+import { getManagerOptions } from '../../../test-e2e/utils.js'
+import comapeoServer from '../app.js'
 /** @import { TestContext } from 'node:test' */
-/** @import { ServerOptions } from '../../src/server/app.js' */
+/** @import { ServerOptions } from '../app.js' */
 
 export const BEARER_TOKEN = Buffer.from('swordfish').toString('base64')
 

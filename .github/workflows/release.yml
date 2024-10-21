@@ -37,7 +37,7 @@ jobs:
       - uses: nearform-actions/optic-release-automation-action@v4
         with:
           commit-message: 'Release {version}'
-          sync-semver-tags: true
+          sync-semver-tags: false
           access: 'public'
           # This prefix is added before the prerelease number, e.g. `v3.0.0-alpha.0`
           # prerelease-prefix: 'alpha'

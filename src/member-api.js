@@ -18,7 +18,6 @@ import timingSafeEqual from './lib/timing-safe-equal.js'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
 import { wsCoreReplicator } from './server/ws-core-replicator.js'
-import { once } from 'node:events'
 /**
  * @import {
  *   DeviceInfo,
@@ -70,7 +69,7 @@ export class MemberApi extends TypedEmitter {
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
    * @param {() => ReplicationStream} opts.getReplicationStream
-   * @param {(deviceId: string) => Promise<void>} opts.waitForInitialSyncWithPeer
+   * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
@@ -325,8 +324,7 @@ export class MemberApi extends TypedEmitter {
       )
     }
 
-    if (response.status !== 200) {
-      // TODO: Better error handling here
+    if (response.status !== 200 && response.status !== 201) {
       throw new Error(
         `Failed to add server peer due to HTTP status code ${response.status}`
       )
@@ -372,15 +370,31 @@ export class MemberApi extends TypedEmitter {
         : 'wss:'
 
     const websocket = new WebSocket(websocketUrl)
-    websocket.on('error', noop)
+    await pEvent(websocket, 'open')
+
+    const onErrorPromise = pEvent(websocket, 'error')
+
     const replicationStream = this.#getReplicationStream()
     wsCoreReplicator(websocket, replicationStream)
 
-    await this.#waitForInitialSyncWithPeer(serverDeviceId)
+    const syncAbortController = new AbortController()
+    const syncPromise = this.#waitForInitialSyncWithPeer(
+      serverDeviceId,
+      syncAbortController.signal
+    )
 
-    websocket.close()
-    await once(websocket, 'close')
-    websocket.off('error', noop)
+    const errorEvent = await Promise.race([onErrorPromise, syncPromise])
+
+    if (errorEvent) {
+      syncAbortController.abort()
+      websocket.close()
+      throw errorEvent.error
+    } else {
+      const onClosePromise = pEvent(websocket, 'close')
+      onErrorPromise.cancel()
+      websocket.close()
+      await onClosePromise
+    }
   }
 
   /**
@@ -493,6 +507,9 @@ function isValidServerBaseUrl(
   if (url.password) return false
   if (url.search) return false
   if (url.hash) return false
+
+  // We may want to support this someday. See <https://github.com/digidem/comapeo-core/issues/908>.
+  if (url.pathname !== '/') return false
 
   if (
     !isHostnameIpAddress(url.hostname) &&

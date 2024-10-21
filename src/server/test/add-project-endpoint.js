@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { omit } from '../../src/lib/omit.js'
-import { projectKeyToPublicId } from '../../src/utils.js'
+import { omit } from '../../lib/omit.js'
+import { projectKeyToPublicId } from '../../utils.js'
 import { createTestServer, randomProjectKeys } from './test-helpers.js'
 
 test('request missing project key', async (t) => {

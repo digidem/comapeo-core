@@ -1,4 +1,5 @@
 import { Type } from '@sinclair/typebox'
+import * as fs from 'node:fs'
 import { kProjectReplicate } from '../mapeo-project.js'
 import { wsCoreReplicator } from './ws-core-replicator.js'
 import timingSafeEqual from '../lib/timing-safe-equal.js'
@@ -11,6 +12,8 @@ const HEX_REGEX_32_BYTES = '^[0-9a-fA-F]{64}$'
 const HEX_STRING_32_BYTES = Type.String({ pattern: HEX_REGEX_32_BYTES })
 const BASE32_REGEX_32_BYTES = '^[0-9A-Za-z]{52}$'
 const BASE32_STRING_32_BYTES = Type.String({ pattern: BASE32_REGEX_32_BYTES })
+
+const INDEX_HTML_PATH = new URL('./static/index.html', import.meta.url)
 
 /**
  * @typedef {object} RouteOptions
@@ -36,6 +39,12 @@ export default async function routes(
       throw fastify.httpErrors.forbidden('Invalid bearer token')
     }
   }
+
+  fastify.get('/', (_req, reply) => {
+    const stream = fs.createReadStream(INDEX_HTML_PATH)
+    reply.header('Content-Type', 'text/html')
+    reply.send(stream)
+  })
 
   fastify.get(
     '/info',
@@ -277,12 +286,14 @@ export default async function routes(
             deleted: obs.deleted,
             lat: obs.lat,
             lon: obs.lon,
-            attachments: obs.attachments.map((attachment) => ({
-              url: new URL(
-                `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
-                req.baseUrl
-              ),
-            })),
+            attachments: obs.attachments
+              .filter((attachment) => attachment.type === 'photo')
+              .map((attachment) => ({
+                url: new URL(
+                  `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
+                  req.baseUrl
+                ).href,
+              })),
             tags: obs.tags,
           })
         ),
