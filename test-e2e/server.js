@@ -20,8 +20,6 @@ import {
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 /** @import { State as SyncState } from '../src/sync/sync-api.js' */
 
-// TODO: test bad requests
-
 test('invalid base URLs', async (t) => {
   const manager = createManager('device0', t)
   const projectId = await manager.createProject()
