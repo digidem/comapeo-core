@@ -1,9 +1,9 @@
 import { KeyManager } from '@mapeo/crypto'
-import createServer from '../../src/server/app.js'
-import { getManagerOptions } from '../utils.js'
+import createServer from '../app.js'
+import { getManagerOptions } from '../../../test-e2e/utils.js'
 import { randomBytes } from 'node:crypto'
 /** @import { TestContext } from 'node:test' */
-/** @import { ServerOptions } from '../../src/server/app.js' */
+/** @import { ServerOptions } from '../app.js' */
 
 export const BEARER_TOKEN = Buffer.from('swordfish').toString('base64')
 

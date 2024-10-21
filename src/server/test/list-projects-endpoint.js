@@ -5,7 +5,7 @@ import {
   createTestServer,
   randomProjectKeys,
 } from './test-helpers.js'
-import { projectKeyToPublicId } from '../../src/utils.js'
+import { projectKeyToPublicId } from '../../utils.js'
 
 test('listing projects', async (t) => {
   const server = createTestServer(t, { allowedProjects: 999 })

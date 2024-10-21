@@ -4,9 +4,9 @@ import { map } from 'iterpal'
 import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
 import test from 'node:test'
-import { projectKeyToPublicId } from '../../src/utils.js'
-import { blobMetadata } from '../../test/helpers/blob-store.js'
-import { createManager } from '../utils.js'
+import { projectKeyToPublicId } from '../../utils.js'
+import { blobMetadata } from '../../../test/helpers/blob-store.js'
+import { createManager } from '../../../test-e2e/utils.js'
 import {
   BEARER_TOKEN,
   createTestServer,
@@ -15,10 +15,7 @@ import {
 /** @import { ObservationValue } from '@comapeo/schema'*/
 /** @import { FastifyInstance } from 'fastify' */
 
-const FIXTURES_ROOT = new URL(
-  '../../src/server/test/fixtures/',
-  import.meta.url
-)
+const FIXTURES_ROOT = new URL('./fixtures/', import.meta.url)
 const FIXTURE_ORIGINAL_PATH = new URL('original.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_PREVIEW_PATH = new URL('preview.jpg', FIXTURES_ROOT).pathname
 const FIXTURE_THUMBNAIL_PATH = new URL('thumbnail.jpg', FIXTURES_ROOT).pathname
