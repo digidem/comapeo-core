@@ -56,7 +56,7 @@ Enable to return an object with a `block` property with number of bytes removed
 
 ### createEntryReadStream()
 
-> **createEntryReadStream**(`driveId`, `entry`, `options`?): `Promise`\<[`BlobReadStream`](BlobReadStream.md)\>
+> **createEntryReadStream**(`driveId`, `entry`, `options`?): `Promise`\<[`Readable`](../type-aliases/Readable.md)\>
 
 Optimization for creating the blobs read stream when you have
 previously read the entry from Hyperdrive using `drive.entry`
@@ -79,13 +79,13 @@ Set to `true` to wait for a blob to download, otherwise will throw if blob is no
 
 #### Returns
 
-`Promise`\<[`BlobReadStream`](BlobReadStream.md)\>
+`Promise`\<[`Readable`](../type-aliases/Readable.md)\>
 
 ***
 
 ### createReadStream()
 
-> **createReadStream**(`blobId`, `options`?): `Readable`\<`any`, `any`, `any`, `true`, `false`, `ReadableEvents`\<`any`\>\>
+> **createReadStream**(`blobId`, `options`?): [`Readable`](../type-aliases/Readable.md)
 
 #### Parameters
 
@@ -103,7 +103,7 @@ Set to `true` to wait for a blob to download, otherwise will throw if blob is no
 
 #### Returns
 
-`Readable`\<`any`, `any`, `any`, `true`, `false`, `ReadableEvents`\<`any`\>\>
+[`Readable`](../type-aliases/Readable.md)
 
 ***
 
@@ -129,7 +129,7 @@ Metadata to store with the blob
 
 ### download()
 
-> **download**(`filter`?, `options`?): [`LiveDownload`](LiveDownload.md)
+> **download**(`filter`?, `options`?): `TypedEmitter`\<[`BlobDownloadEvents`](../interfaces/BlobDownloadEvents.md)\>
 
 Download blobs from all drives, optionally filtering particular blob types
 or blob variants. Download will be 'live' and will continue downloading new
@@ -152,9 +152,7 @@ Optional AbortSignal to cancel in-progress download
 
 #### Returns
 
-[`LiveDownload`](LiveDownload.md)
-
-EventEmitter with `.state` propery, emits `state` with new state when it updates
+`TypedEmitter`\<[`BlobDownloadEvents`](../interfaces/BlobDownloadEvents.md)\>
 
 ***
 
@@ -188,7 +186,7 @@ Set to `true` to wait for a blob to download, otherwise will throw if blob is no
 
 ### get()
 
-> **get**(`blobId`, `opts`): `Promise`\<`Buffer`\>
+> **get**(`blobId`, `opts`): `Promise`\<`Uint8Array`\>
 
 #### Parameters
 
@@ -206,7 +204,7 @@ Set to `true` to wait for a blob to download, otherwise will throw if blob is no
 
 #### Returns
 
-`Promise`\<`Buffer`\>
+`Promise`\<`Uint8Array`\>
 
 ***
 
