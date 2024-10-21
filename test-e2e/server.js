@@ -180,10 +180,17 @@ test("fails if first request succeeds but sync doesn't", async (t) => {
       project.$member.addServerPeer(serverBaseUrl, {
         dangerouslyAllowInsecureConnections: true,
       }),
-    {
-      // TODO
-      // code: 'INVALID_SERVER_RESPONSE',
-      message: /404/,
+    (err) => {
+      assert(err instanceof Error, 'receives an error')
+      assert('code' in err, 'gets an error code')
+      assert.equal(
+        err.code,
+        'INVALID_SERVER_RESPONSE',
+        'gets the correct error code'
+      )
+      assert(err.cause instanceof Error, 'error has a cause')
+      assert(err.cause.message.includes('404'), 'error cause is an HTTP 404')
+      return true
     }
   )
 })
