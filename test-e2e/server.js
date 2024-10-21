@@ -55,7 +55,10 @@ test('invalid base URLs', async (t) => {
     invalidUrls.map((url) =>
       assert.rejects(
         () => project.$member.addServerPeer(url),
-        /base url is invalid/i,
+        {
+          code: 'INVALID_URL',
+          message: /base url is invalid/i,
+        },
         `${url} should be invalid`
       )
     )
@@ -79,6 +82,7 @@ test("fails if we can't connect to the server", async (t) => {
         dangerouslyAllowInsecureConnections: true,
       }),
     {
+      code: 'NETWORK_ERROR',
       message: /Failed to add server peer due to network error/,
     }
   )
@@ -108,6 +112,7 @@ test(
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
+              code: 'INVALID_SERVER_RESPONSE',
               message: `Failed to add server peer due to HTTP status code ${statusCode}`,
             }
           )
@@ -147,6 +152,7 @@ test(
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
+              code: 'INVALID_SERVER_RESPONSE',
               message:
                 "Failed to add server peer because we couldn't parse the response",
             }
@@ -175,6 +181,8 @@ test("fails if first request succeeds but sync doesn't", async (t) => {
         dangerouslyAllowInsecureConnections: true,
       }),
     {
+      // TODO
+      // code: 'INVALID_SERVER_RESPONSE',
       message: /404/,
     }
   )

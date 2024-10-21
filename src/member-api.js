@@ -16,6 +16,7 @@ import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
+import { ErrorWithCode } from './lib/error-with-code.js'
 import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
 import { wsCoreReplicator } from './server/ws-core-replicator.js'
 /**
@@ -273,10 +274,11 @@ export class MemberApi extends TypedEmitter {
     baseUrl,
     { dangerouslyAllowInsecureConnections = false } = {}
   ) {
-    assert(
-      isValidServerBaseUrl(baseUrl, { dangerouslyAllowInsecureConnections }),
-      'Base URL is invalid'
-    )
+    if (
+      !isValidServerBaseUrl(baseUrl, { dangerouslyAllowInsecureConnections })
+    ) {
+      throw new ErrorWithCode('INVALID_URL', 'Server base URL is invalid')
+    }
 
     const { serverDeviceId } = await this.#addServerToProject(baseUrl)
 
@@ -319,13 +321,15 @@ export class MemberApi extends TypedEmitter {
         err && typeof err === 'object' && 'message' in err
           ? err.message
           : String(err)
-      throw new Error(
+      throw new ErrorWithCode(
+        'NETWORK_ERROR',
         `Failed to add server peer due to network error: ${message}`
       )
     }
 
     if (response.status !== 200 && response.status !== 201) {
-      throw new Error(
+      throw new ErrorWithCode(
+        'INVALID_SERVER_RESPONSE',
         `Failed to add server peer due to HTTP status code ${response.status}`
       )
     }
@@ -344,7 +348,8 @@ export class MemberApi extends TypedEmitter {
       )
       return { serverDeviceId: responseBody.data.deviceId }
     } catch (err) {
-      throw new Error(
+      throw new ErrorWithCode(
+        'INVALID_SERVER_RESPONSE',
         "Failed to add server peer because we couldn't parse the response"
       )
     }
