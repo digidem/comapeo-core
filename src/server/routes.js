@@ -277,12 +277,14 @@ export default async function routes(
             deleted: obs.deleted,
             lat: obs.lat,
             lon: obs.lon,
-            attachments: obs.attachments.map((attachment) => ({
-              url: new URL(
-                `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
-                req.baseUrl
-              ),
-            })),
+            attachments: obs.attachments
+              .filter((attachment) => attachment.type === 'photo')
+              .map((attachment) => ({
+                url: new URL(
+                  `projects/${projectPublicId}/attachments/${attachment.driveDiscoveryId}/${attachment.type}/${attachment.name}`,
+                  req.baseUrl
+                ),
+              })),
             tags: obs.tags,
           })
         ),
