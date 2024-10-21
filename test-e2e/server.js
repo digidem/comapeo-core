@@ -5,7 +5,7 @@ import createFastify from 'fastify'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { pEvent } from 'p-event'
-import { MEMBER_ROLE_ID } from '../src/roles.js'
+import { LEFT_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
 import createServer from '../src/server/app.js'
 import {
   connectPeers,
@@ -219,6 +219,30 @@ test('adding a server peer', async (t) => {
     new URL(serverBaseUrl),
     'server peer stores base URL'
   )
+})
+
+test.skip('removing a server peer', async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  const serverBaseUrl = await createTestServer(t)
+
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+
+  const serverPeer = await findServerPeer(project)
+  assert(serverPeer, 'server peer should be added')
+  await project.$member.removeServerPeer(serverPeer.deviceId)
+
+  assert.equal(
+    (await findServerPeer(project))?.role.roleId,
+    LEFT_ROLE_ID,
+    'we should believe the server is gone'
+  )
+
+  // TODO: ensure no connections are made
 })
 
 test("can't add a server to two different projects", async (t) => {

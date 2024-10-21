@@ -367,6 +367,15 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
+   * @param {string} serverDeviceId
+   * @returns {Promise<void>}
+   */
+  async removeServerPeer(serverDeviceId) {
+    // TODO
+    console.log({ serverDeviceId })
+  }
+
+  /**
    * @param {object} options
    * @param {string} options.baseUrl
    * @param {string} options.serverDeviceId
