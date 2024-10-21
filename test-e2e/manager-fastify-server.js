@@ -304,7 +304,7 @@ test('retrieving audio file', async (t) => {
   await t.test('creating audio', async () => {
     const blobId = await project.$blobs.create(
       { original: join(BLOB_FIXTURES_DIR, 'audio.mp3') },
-      blobMetadata({ mimeType: 'audio/mp3' })
+      blobMetadata({ mimeType: 'audio/mpeg' })
     )
     const blobUrl = await project.$blobs.getUrl({
       ...blobId,
@@ -320,7 +320,7 @@ test('retrieving audio file', async (t) => {
     assert.equal(response.status, 200, 'response status ok')
     assert.equal(
       response.headers.get('content-type'),
-      'audio/mp3',
+      'audio/mpeg',
       'matching content type header'
     )
     const expected = await fs.readFile(join(BLOB_FIXTURES_DIR, 'audio.mp3'))
