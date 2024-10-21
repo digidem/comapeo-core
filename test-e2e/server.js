@@ -69,70 +69,78 @@ test('invalid base URLs', async (t) => {
   assert(!hasServerPeer, 'no server peers should be added')
 })
 
-test("fails if server doesn't return a 200", { concurrency: 1 }, async (t) => {
-  const manager = createManager('device0', t)
-  const projectId = await manager.createProject()
-  const project = await manager.getProject(projectId)
+test(
+  "fails if server doesn't return a 200",
+  { concurrency: true },
+  async (t) => {
+    const manager = createManager('device0', t)
+    const projectId = await manager.createProject()
+    const project = await manager.getProject(projectId)
 
-  await Promise.all(
-    [204, 302, 400, 500].map((statusCode) =>
-      t.test(`when returning a ${statusCode}`, async (t) => {
-        const fastify = createFastify()
-        fastify.post('/projects', (_req, reply) => {
-          reply.status(statusCode).send()
+    await Promise.all(
+      [204, 302, 400, 500].map((statusCode) =>
+        t.test(`when returning a ${statusCode}`, async (t) => {
+          const fastify = createFastify()
+          fastify.post('/projects', (_req, reply) => {
+            reply.status(statusCode).send()
+          })
+          const url = await fastify.listen()
+          t.after(() => fastify.close())
+
+          await assert.rejects(
+            () =>
+              project.$member.addServerPeer(url, {
+                dangerouslyAllowInsecureConnections: true,
+              }),
+            {
+              message: `Failed to add server peer due to HTTP status code ${statusCode}`,
+            }
+          )
         })
-        const url = await fastify.listen()
-        t.after(() => fastify.close())
-
-        await assert.rejects(
-          () =>
-            project.$member.addServerPeer(url, {
-              dangerouslyAllowInsecureConnections: true,
-            }),
-          {
-            message: `Failed to add server peer due to HTTP status code ${statusCode}`,
-          }
-        )
-      })
+      )
     )
-  )
-})
+  }
+)
 
-test("fails if server doesn't return data in the right format", async (t) => {
-  const manager = createManager('device0', t)
-  const projectId = await manager.createProject()
-  const project = await manager.getProject(projectId)
+test(
+  "fails if server doesn't return data in the right format",
+  { concurrency: true },
+  async (t) => {
+    const manager = createManager('device0', t)
+    const projectId = await manager.createProject()
+    const project = await manager.getProject(projectId)
 
-  await Promise.all(
-    [
-      '',
-      '{bad_json',
-      JSON.stringify({ data: {} }),
-      JSON.stringify({ data: { deviceId: 123 } }),
-      JSON.stringify({ deviceId: 'not under "data"' }),
-    ].map((responseData) =>
-      t.test(`when returning ${responseData}`, async (t) => {
-        const fastify = createFastify()
-        fastify.post('/projects', (_req, reply) => {
-          reply.header('Content-Type', 'application/json').send(responseData)
+    await Promise.all(
+      [
+        '',
+        '{bad_json',
+        JSON.stringify({ data: {} }),
+        JSON.stringify({ data: { deviceId: 123 } }),
+        JSON.stringify({ deviceId: 'not under "data"' }),
+      ].map((responseData) =>
+        t.test(`when returning ${responseData}`, async (t) => {
+          const fastify = createFastify()
+          fastify.post('/projects', (_req, reply) => {
+            reply.header('Content-Type', 'application/json').send(responseData)
+          })
+          const url = await fastify.listen()
+          t.after(() => fastify.close())
+
+          await assert.rejects(
+            () =>
+              project.$member.addServerPeer(url, {
+                dangerouslyAllowInsecureConnections: true,
+              }),
+            {
+              message:
+                "Failed to add server peer because we couldn't parse the response",
+            }
+          )
         })
-        const url = await fastify.listen()
-        t.after(() => fastify.close())
-
-        await assert.rejects(
-          () =>
-            project.$member.addServerPeer(url, {
-              dangerouslyAllowInsecureConnections: true,
-            }),
-          {
-            message:
-              "Failed to add server peer because we couldn't parse the response",
-          }
-        )
-      })
+      )
     )
-  )
-})
+  }
+)
 
 test('adding a server peer', async (t) => {
   const manager = createManager('device0', t)
