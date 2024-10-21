@@ -69,6 +69,23 @@ test('invalid base URLs', async (t) => {
   assert(!hasServerPeer, 'no server peers should be added')
 })
 
+test("fails if we can't connect to the server", async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  const url = 'http://localhost:9999'
+  await assert.rejects(
+    () =>
+      project.$member.addServerPeer(url, {
+        dangerouslyAllowInsecureConnections: true,
+      }),
+    {
+      message: /Failed to add server peer due to network error/,
+    }
+  )
+})
+
 test(
   "fails if server doesn't return a 200",
   { concurrency: true },
