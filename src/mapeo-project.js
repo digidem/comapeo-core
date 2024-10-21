@@ -314,8 +314,8 @@ export class MapeoProject extends TypedEmitter {
       projectKey,
       rpc: localPeers,
       getReplicationStream,
-      waitForInitialSyncWithPeer: (deviceId) =>
-        this.$sync[kWaitForInitialSyncWithPeer](deviceId),
+      waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
+        this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,

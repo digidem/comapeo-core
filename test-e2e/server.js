@@ -72,10 +72,10 @@ test("fails if we can't connect to the server", async (t) => {
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
-  const url = 'http://localhost:9999'
+  const serverBaseUrl = 'http://localhost:9999'
   await assert.rejects(
     () =>
-      project.$member.addServerPeer(url, {
+      project.$member.addServerPeer(serverBaseUrl, {
         dangerouslyAllowInsecureConnections: true,
       }),
     {
@@ -99,12 +99,12 @@ test(
           fastify.post('/projects', (_req, reply) => {
             reply.status(statusCode).send()
           })
-          const url = await fastify.listen()
+          const serverBaseUrl = await fastify.listen()
           t.after(() => fastify.close())
 
           await assert.rejects(
             () =>
-              project.$member.addServerPeer(url, {
+              project.$member.addServerPeer(serverBaseUrl, {
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
@@ -138,12 +138,12 @@ test(
           fastify.post('/projects', (_req, reply) => {
             reply.header('Content-Type', 'application/json').send(responseData)
           })
-          const url = await fastify.listen()
+          const serverBaseUrl = await fastify.listen()
           t.after(() => fastify.close())
 
           await assert.rejects(
             () =>
-              project.$member.addServerPeer(url, {
+              project.$member.addServerPeer(serverBaseUrl, {
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
@@ -156,6 +156,29 @@ test(
     )
   }
 )
+
+test("fails if first request succeeds but sync doesn't", async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  const fastify = createFastify()
+  fastify.post('/projects', (_req, reply) => {
+    reply.send({ data: { deviceId: 'abc123' } })
+  })
+  const serverBaseUrl = await fastify.listen()
+  t.after(() => fastify.close())
+
+  await assert.rejects(
+    () =>
+      project.$member.addServerPeer(serverBaseUrl, {
+        dangerouslyAllowInsecureConnections: true,
+      }),
+    {
+      message: /404/,
+    }
+  )
+})
 
 test('adding a server peer', async (t) => {
   const manager = createManager('device0', t)

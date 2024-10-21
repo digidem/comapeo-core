@@ -418,20 +418,35 @@ export class SyncApi extends TypedEmitter {
 
   /**
    * @param {string} deviceId
+   * @param {AbortSignal} abortSignal
    * @returns {Promise<void>}
    */
-  async [kWaitForInitialSyncWithPeer](deviceId) {
+  async [kWaitForInitialSyncWithPeer](deviceId, abortSignal) {
+    abortSignal.throwIfAborted()
+
     const state = this[kSyncState].getState()
     if (isInitiallySyncedWithPeer(state, deviceId)) return
-    return new Promise((resolve) => {
+
+    return new Promise((resolve, reject) => {
       /** @param {import('./sync-state.js').State} state */
       const onState = (state) => {
         if (isInitiallySyncedWithPeer(state, deviceId)) {
-          this[kSyncState].off('state', onState)
+          cleanup()
           resolve()
         }
       }
+      const onAbort = () => {
+        cleanup()
+        reject(abortSignal.reason)
+      }
+
+      const cleanup = () => {
+        this[kSyncState].off('state', onState)
+        abortSignal.removeEventListener('abort', onAbort)
+      }
+
       this[kSyncState].on('state', onState)
+      abortSignal.addEventListener('abort', onAbort)
     })
   }
 

@@ -5,6 +5,7 @@ import { createWebSocketStream } from 'ws'
 /**
  * @param {import('ws').WebSocket} ws
  * @param {import('../types.js').ReplicationStream} replicationStream
+ * @returns {Promise<void>}
  */
 export function wsCoreReplicator(ws, replicationStream) {
   // This is purely to satisfy typescript at its worst. `pipeline` expects a
