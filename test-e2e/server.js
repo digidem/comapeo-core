@@ -1,11 +1,12 @@
 import { valueOf } from '@comapeo/schema'
 import { generate } from '@mapeo/mock-data'
+import createFastify from 'fastify'
 import { execa } from 'execa'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { pEvent } from 'p-event'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
-import createServer from '../src/server/app.js'
+import comapeoServer from '../src/server/app.js'
 import {
   connectPeers,
   createManager,
@@ -239,7 +240,8 @@ async function createRemoteTestServer(t) {
 async function createLocalTestServer(t) {
   // TODO: Use a port that's guaranteed to be open
   const port = 9876
-  const server = createServer({
+  const server = createFastify()
+  server.register(comapeoServer, {
     ...getManagerOptions('test server'),
     serverName: 'test server',
     serverBearerToken: 'ignored',

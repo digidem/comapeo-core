@@ -1,5 +1,6 @@
 import { KeyManager } from '@mapeo/crypto'
-import createServer from '../../src/server/app.js'
+import comapeoServer from '../../src/server/app.js'
+import createFastify from 'fastify'
 import { getManagerOptions } from '../utils.js'
 import { randomBytes } from 'node:crypto'
 /** @import { TestContext } from 'node:test' */
@@ -15,14 +16,15 @@ const TEST_SERVER_DEFAULTS = {
 /**
  * @param {TestContext} t
  * @param {Partial<ServerOptions>} [serverOptions]
- * @returns {ReturnType<typeof createServer> & { deviceId: string }}
+ * @returns {import('fastify').FastifyInstance & { deviceId: string }}
  */
 export function createTestServer(t, serverOptions) {
   const serverName =
     serverOptions?.serverName || TEST_SERVER_DEFAULTS.serverName
   const managerOptions = getManagerOptions(serverName)
   const km = new KeyManager(managerOptions.rootKey)
-  const server = createServer({
+  const server = createFastify()
+  server.register(comapeoServer, {
     ...managerOptions,
     ...TEST_SERVER_DEFAULTS,
     ...serverOptions,
