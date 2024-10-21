@@ -1,6 +1,7 @@
 import { valueOf } from '@comapeo/schema'
 import { generate } from '@mapeo/mock-data'
 import { execa } from 'execa'
+import createFastify from 'fastify'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { pEvent } from 'p-event'
@@ -66,6 +67,35 @@ test('invalid base URLs', async (t) => {
     (member) => member.deviceType === 'selfHostedServer'
   )
   assert(!hasServerPeer, 'no server peers should be added')
+})
+
+test("fails if server doesn't return a 200", { concurrency: 1 }, async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  await Promise.all(
+    [204, 302, 400, 500].map((statusCode) =>
+      t.test(`when returning a ${statusCode}`, async (t) => {
+        const fastify = createFastify()
+        fastify.post('/projects', (_req, reply) => {
+          reply.status(statusCode).send()
+        })
+        const url = await fastify.listen()
+        t.after(() => fastify.close())
+
+        await assert.rejects(
+          () =>
+            project.$member.addServerPeer(url, {
+              dangerouslyAllowInsecureConnections: true,
+            }),
+          {
+            message: `Failed to add server peer due to HTTP status code ${statusCode}`,
+          }
+        )
+      })
+    )
+  )
 })
 
 test('adding a server peer', async (t) => {
