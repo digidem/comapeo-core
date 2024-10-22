@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import { kProjectReplicate } from '../mapeo-project.js'
 import { wsCoreReplicator } from './ws-core-replicator.js'
 import timingSafeEqual from '../lib/timing-safe-equal.js'
-import { projectKeyToPublicId } from '../utils.js'
+import { assert, projectKeyToPublicId } from '../utils.js'
 /** @import {FastifyInstance, FastifyPluginAsync, FastifyRequest, RawServerDefault} from 'fastify' */
 /** @import {TypeBoxTypeProvider} from '@fastify/type-provider-typebox' */
 
@@ -158,28 +158,28 @@ export default async function routes(
     async function (req, reply) {
       const projectKey = Buffer.from(req.body.projectKey, 'hex')
       const projectPublicId = projectKeyToPublicId(projectKey)
+
       const existingProjects = await this.comapeo.listProjects()
-
-      if (
-        allowedProjectsSetOrNumber instanceof Set &&
-        !allowedProjectsSetOrNumber.has(projectPublicId)
-      ) {
-        throw fastify.httpErrors.forbidden('Project not allowed')
-      }
-
-      const existingProject = existingProjects.find(
-        (p) => p.projectId === projectPublicId
+      const alreadyHasThisProject = existingProjects.some((p) =>
+        timingSafeEqual(p.projectId, projectPublicId)
       )
-      if (existingProject) {
-        // TODO: This should only throw if the encryption keys are different.
-        throw fastify.httpErrors.badRequest('Project already exists')
-      } else if (
-        typeof allowedProjectsSetOrNumber === 'number' &&
-        existingProjects.length >= allowedProjectsSetOrNumber
-      ) {
-        throw fastify.httpErrors.forbidden(
-          'Server is already linked to the maximum number of projects'
-        )
+
+      if (!alreadyHasThisProject) {
+        if (
+          allowedProjectsSetOrNumber instanceof Set &&
+          !allowedProjectsSetOrNumber.has(projectPublicId)
+        ) {
+          throw fastify.httpErrors.forbidden('Project not allowed')
+        }
+
+        if (
+          typeof allowedProjectsSetOrNumber === 'number' &&
+          existingProjects.length >= allowedProjectsSetOrNumber
+        ) {
+          throw fastify.httpErrors.forbidden(
+            'Server is already linked to the maximum number of projects'
+          )
+        }
       }
 
       const baseUrl = req.baseUrl.toString()
@@ -198,21 +198,28 @@ export default async function routes(
         })
       }
 
-      const projectId = await this.comapeo.addProject(
-        {
-          projectKey,
-          projectName: 'TODO: Figure out if this should be named',
-          encryptionKeys: {
-            auth: Buffer.from(req.body.encryptionKeys.auth, 'hex'),
-            config: Buffer.from(req.body.encryptionKeys.config, 'hex'),
-            data: Buffer.from(req.body.encryptionKeys.data, 'hex'),
-            blobIndex: Buffer.from(req.body.encryptionKeys.blobIndex, 'hex'),
-            blob: Buffer.from(req.body.encryptionKeys.blob, 'hex'),
+      if (!alreadyHasThisProject) {
+        const projectId = await this.comapeo.addProject(
+          {
+            projectKey,
+            projectName: 'TODO: Figure out if this should be named',
+            encryptionKeys: {
+              auth: Buffer.from(req.body.encryptionKeys.auth, 'hex'),
+              config: Buffer.from(req.body.encryptionKeys.config, 'hex'),
+              data: Buffer.from(req.body.encryptionKeys.data, 'hex'),
+              blobIndex: Buffer.from(req.body.encryptionKeys.blobIndex, 'hex'),
+              blob: Buffer.from(req.body.encryptionKeys.blob, 'hex'),
+            },
           },
-        },
-        { waitForSync: false }
-      )
-      const project = await this.comapeo.getProject(projectId)
+          { waitForSync: false }
+        )
+        assert(
+          projectId === projectPublicId,
+          'adding a project should return the same ID as what was passed'
+        )
+      }
+
+      const project = await this.comapeo.getProject(projectPublicId)
       project.$sync.start()
 
       reply.send({

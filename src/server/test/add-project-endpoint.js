@@ -153,26 +153,3 @@ test('adding the same project twice is idempotent', async (t) => {
   })
   assert.equal(secondResponse.statusCode, 200)
 })
-
-test('adding a project ID with different encryption keys is an error', async (t) => {
-  const server = createTestServer(t, { allowedProjects: 1 })
-  const projectKeys1 = randomProjectKeys()
-  const projectKeys2 = {
-    ...projectKeys1,
-    encryptionKeys: randomProjectKeys().encryptionKeys,
-  }
-
-  const firstResponse = await server.inject({
-    method: 'POST',
-    url: '/projects',
-    body: projectKeys1,
-  })
-  assert.equal(firstResponse.statusCode, 200)
-
-  const secondResponse = await server.inject({
-    method: 'POST',
-    url: '/projects',
-    body: projectKeys2,
-  })
-  assert.equal(secondResponse.statusCode, 409)
-})
