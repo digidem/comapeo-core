@@ -802,6 +802,7 @@ export class MapeoManager extends TypedEmitter {
    * all media during sync, where-as non-archive devices will not download media
    * original variants, and only download preview and thumbnail variants.
    * @param {boolean} isArchiveDevice
+   * @returns {void}
    */
   setIsArchiveDevice(isArchiveDevice) {
     const values = { deviceId: this.#deviceId, isArchiveDevice }
@@ -836,7 +837,6 @@ export class MapeoManager extends TypedEmitter {
     if (typeof row?.isArchiveDevice === 'boolean') {
       return row.isArchiveDevice
     } else {
-      // TODO: Possibly change default depending on device type
       return true
     }
   }

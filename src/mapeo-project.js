@@ -636,6 +636,7 @@ export class MapeoProject extends TypedEmitter {
     this.#isArchiveDevice = isArchiveDevice
   }
 
+  /** @returns {boolean} */
   get [kIsArchiveDevice]() {
     return this.#isArchiveDevice
   }

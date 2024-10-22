@@ -95,9 +95,7 @@ test('migration of localDeviceInfo table', async (t) => {
 
   const dbFolder = temporaryDirectory()
   const rootKey = KeyManager.generateRootKey()
-  t.after(() => {
-    fs.rmSync(dbFolder, { recursive: true })
-  })
+  t.after(() => fs.rm(dbFolder, { recursive: true }))
 
   const managerPreMigration = new MapeoManagerPreMigration({
     rootKey,
