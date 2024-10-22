@@ -167,6 +167,8 @@ export default async function routes(
       // This would mean a malicious/buggy client, which could cause errors if
       // trying to sync with this server--that seems acceptable.
       const alreadyHasThisProject = existingProjects.some((p) =>
+        // We don't want people to be able to enumerate the project keys that
+        // this server has.
         timingSafeEqual(p.projectId, projectPublicId)
       )
 
