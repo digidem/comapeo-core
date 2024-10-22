@@ -160,6 +160,12 @@ export default async function routes(
       const projectPublicId = projectKeyToPublicId(projectKey)
 
       const existingProjects = await this.comapeo.listProjects()
+
+      // This assumes that two projects with the same project key are equivalent,
+      // and that we don't need to add more. Theoretically, someone could add
+      // project with ID 1 and keys A, then add project with ID 1 and keys B.
+      // This would mean a malicious/buggy client, which could cause errors if
+      // trying to sync with this server--that seems acceptable.
       const alreadyHasThisProject = existingProjects.some((p) =>
         timingSafeEqual(p.projectId, projectPublicId)
       )
