@@ -115,6 +115,7 @@ export class MapeoManager extends TypedEmitter {
   #loggerBase
   #l
   #defaultConfigPath
+  #sqlite
 
   /**
    * @param {Object} opts
@@ -149,11 +150,11 @@ export class MapeoManager extends TypedEmitter {
     this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
     this.#projectMigrationsFolder = projectMigrationsFolder
-    const sqlite = new Database(
+    const sqlite = (this.#sqlite = new Database(
       dbFolder === ':memory:'
         ? ':memory:'
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
-    )
+    ))
     this.#db = drizzle(sqlite)
     migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
 
@@ -950,6 +951,13 @@ export class MapeoManager extends TypedEmitter {
   async getMapStyleJsonUrl() {
     await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
     return (await this.#getMediaBaseUrl('maps')) + '/style.json'
+  }
+
+  async close() {
+    for (const project of this.#activeProjects.values()) {
+      await project.close()
+    }
+    this.#sqlite.close()
   }
 }
 
