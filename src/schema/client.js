@@ -1,7 +1,7 @@
 // These schemas are all in a "client" database. There is only one client
 // database and it contains information that is shared across all projects on a
 // device
-import { blob, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { blob, sqliteTable, text, int } from 'drizzle-orm/sqlite-core'
 import { dereferencedDocSchemas as schemas } from '@comapeo/schema'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable, customJson } from './utils.js'
@@ -49,7 +49,8 @@ const deviceInfoColumn =
   )
 
 // This table only ever has one row in it.
-export const localDeviceInfoTable = sqliteTable('localDeviceInfo', {
+export const deviceSettingsTable = sqliteTable('localDeviceInfo', {
   deviceId: text('deviceId').notNull().unique(),
   deviceInfo: deviceInfoColumn('deviceInfo').notNull(),
+  isArchiveDevice: int('isArchiveDevice', { mode: 'boolean' }),
 })
