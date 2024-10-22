@@ -5,7 +5,7 @@ import createFastify from 'fastify'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { pEvent } from 'p-event'
-import { MEMBER_ROLE_ID } from '../src/roles.js'
+import { LEFT_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
 import comapeoServer from '../src/server/app.js'
 import {
   connectPeers,
@@ -18,6 +18,7 @@ import {
 } from './utils.js'
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
+/** @import { MemberInfo } from '../src/member-api.js' */
 /** @import { State as SyncState } from '../src/sync/sync-api.js' */
 
 test('invalid base URLs', async (t) => {
@@ -55,16 +56,16 @@ test('invalid base URLs', async (t) => {
     invalidUrls.map((url) =>
       assert.rejects(
         () => project.$member.addServerPeer(url),
-        /base url is invalid/i,
+        {
+          code: 'INVALID_URL',
+          message: /base url is invalid/i,
+        },
         `${url} should be invalid`
       )
     )
   )
 
-  const hasServerPeer = (await project.$member.getMany()).some(
-    (member) => member.deviceType === 'selfHostedServer'
-  )
-  assert(!hasServerPeer, 'no server peers should be added')
+  assert(!(await findServerPeer(project)), 'no server peers should be added')
 })
 
 test("fails if we can't connect to the server", async (t) => {
@@ -79,6 +80,7 @@ test("fails if we can't connect to the server", async (t) => {
         dangerouslyAllowInsecureConnections: true,
       }),
     {
+      code: 'NETWORK_ERROR',
       message: /Failed to add server peer due to network error/,
     }
   )
@@ -108,6 +110,7 @@ test(
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
+              code: 'INVALID_SERVER_RESPONSE',
               message: `Failed to add server peer due to HTTP status code ${statusCode}`,
             }
           )
@@ -147,6 +150,7 @@ test(
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
+              code: 'INVALID_SERVER_RESPONSE',
               message:
                 "Failed to add server peer because we couldn't parse the response",
             }
@@ -174,8 +178,17 @@ test("fails if first request succeeds but sync doesn't", async (t) => {
       project.$member.addServerPeer(serverBaseUrl, {
         dangerouslyAllowInsecureConnections: true,
       }),
-    {
-      message: /404/,
+    (err) => {
+      assert(err instanceof Error, 'receives an error')
+      assert('code' in err, 'gets an error code')
+      assert.equal(
+        err.code,
+        'INVALID_SERVER_RESPONSE',
+        'gets the correct error code'
+      )
+      assert(err.cause instanceof Error, 'error has a cause')
+      assert(err.cause.message.includes('404'), 'error cause is an HTTP 404')
+      return true
     }
   )
 })
@@ -187,18 +200,13 @@ test('adding a server peer', async (t) => {
 
   const serverBaseUrl = await createTestServer(t)
 
-  const hasServerPeerBeforeAdding = (await project.$member.getMany()).some(
-    (member) => member.deviceType === 'selfHostedServer'
-  )
-  assert(!hasServerPeerBeforeAdding, 'no server peers before adding')
+  assert(!(await findServerPeer(project)), 'no server peers before adding')
 
   await project.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
   })
 
-  const serverPeer = (await project.$member.getMany()).find(
-    (member) => member.deviceType === 'selfHostedServer'
-  )
+  const serverPeer = await findServerPeer(project)
   assert(serverPeer, 'expected a server peer to be found by the client')
   assert.equal(serverPeer.name, 'test server', 'server peers have name')
   assert.equal(
@@ -211,6 +219,30 @@ test('adding a server peer', async (t) => {
     new URL(serverBaseUrl),
     'server peer stores base URL'
   )
+})
+
+test.skip('removing a server peer', async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  const serverBaseUrl = await createTestServer(t)
+
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+
+  const serverPeer = await findServerPeer(project)
+  assert(serverPeer, 'server peer should be added')
+  await project.$member.removeServerPeer(serverPeer.deviceId)
+
+  assert.equal(
+    (await findServerPeer(project))?.role.roleId,
+    LEFT_ROLE_ID,
+    'we should believe the server is gone'
+  )
+
+  // TODO: ensure no connections are made
 })
 
 test("can't add a server to two different projects", async (t) => {
@@ -247,15 +279,12 @@ test('data can be synced via a server', async (t) => {
   await managerAProject.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
   })
-  const serverDeviceIdPromise = managerAProject.$member
-    .getMany()
-    .then((members) => {
-      const serverMember = members.find(
-        (member) => member.deviceType === 'selfHostedServer'
-      )
+  const serverDeviceIdPromise = findServerPeer(managerAProject).then(
+    (serverMember) => {
       assert(serverMember, 'Manager A must have a server member')
       return serverMember.deviceId
-    })
+    }
+  )
 
   // Add Manager B to project
   const disconnectManagers = connectPeers(managers)
@@ -268,10 +297,7 @@ test('data can be synced via a server', async (t) => {
   // Sync managers to tell Manager B about the server
   const projects = [managerAProject, managerBProject]
   await waitForSync(projects, 'initial')
-  const managerBMembers = await managerBProject.$member.getMany()
-  const serverPeer = managerBMembers.find(
-    (member) => member.deviceType === 'selfHostedServer'
-  )
+  const serverPeer = await findServerPeer(managerBProject)
   assert(serverPeer, 'expected a server peer to be found by the client')
 
   // Manager A adds data that Manager B doesn't know about
@@ -359,6 +385,16 @@ async function createLocalTestServer(t) {
   const address = await server.listen()
   t.after(() => server.close())
   return address
+}
+
+/**
+ * @param {MapeoProject} project
+ * @returns {Promise<undefined | MemberInfo>}
+ */
+async function findServerPeer(project) {
+  return (await project.$member.getMany()).find(
+    (member) => member.deviceType === 'selfHostedServer'
+  )
 }
 
 /**

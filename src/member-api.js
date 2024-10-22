@@ -16,6 +16,7 @@ import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from './lib/timing-safe-equal.js'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
+import { ErrorWithCode } from './lib/error.js'
 import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
 import { wsCoreReplicator } from './server/ws-core-replicator.js'
 /**
@@ -264,6 +265,17 @@ export class MemberApi extends TypedEmitter {
   /**
    * Add a server peer.
    *
+   * Can reject with any of the following error codes (accessed via `err.code`):
+   *
+   * - `INVALID_URL`: the base URL is invalid, likely due to user error.
+   * - `NETWORK_ERROR`: there was an issue connecting to the server. Is the
+   *   device online? Is the server online?
+   * - `INVALID_SERVER_RESPONSE`: we connected to the server but it returned
+   *   an unexpected response. Is the server running a compatible version of
+   *   CoMapeo Cloud?
+   *
+   * If `err.code` is not specified, that indicates a bug in this module.
+   *
    * @param {string} baseUrl
    * @param {object} [options]
    * @param {boolean} [options.dangerouslyAllowInsecureConnections]
@@ -273,10 +285,11 @@ export class MemberApi extends TypedEmitter {
     baseUrl,
     { dangerouslyAllowInsecureConnections = false } = {}
   ) {
-    assert(
-      isValidServerBaseUrl(baseUrl, { dangerouslyAllowInsecureConnections }),
-      'Base URL is invalid'
-    )
+    if (
+      !isValidServerBaseUrl(baseUrl, { dangerouslyAllowInsecureConnections })
+    ) {
+      throw new ErrorWithCode('INVALID_URL', 'Server base URL is invalid')
+    }
 
     const { serverDeviceId } = await this.#addServerToProject(baseUrl)
 
@@ -319,13 +332,15 @@ export class MemberApi extends TypedEmitter {
         err && typeof err === 'object' && 'message' in err
           ? err.message
           : String(err)
-      throw new Error(
+      throw new ErrorWithCode(
+        'NETWORK_ERROR',
         `Failed to add server peer due to network error: ${message}`
       )
     }
 
     if (response.status !== 200 && response.status !== 201) {
-      throw new Error(
+      throw new ErrorWithCode(
+        'INVALID_SERVER_RESPONSE',
         `Failed to add server peer due to HTTP status code ${response.status}`
       )
     }
@@ -344,10 +359,20 @@ export class MemberApi extends TypedEmitter {
       )
       return { serverDeviceId: responseBody.data.deviceId }
     } catch (err) {
-      throw new Error(
+      throw new ErrorWithCode(
+        'INVALID_SERVER_RESPONSE',
         "Failed to add server peer because we couldn't parse the response"
       )
     }
+  }
+
+  /**
+   * @param {string} serverDeviceId
+   * @returns {Promise<void>}
+   */
+  async removeServerPeer(serverDeviceId) {
+    // TODO
+    console.log({ serverDeviceId })
   }
 
   /**
@@ -370,7 +395,23 @@ export class MemberApi extends TypedEmitter {
         : 'wss:'
 
     const websocket = new WebSocket(websocketUrl)
-    await pEvent(websocket, 'open')
+
+    try {
+      await pEvent(websocket, 'open', { rejectionEvents: ['error'] })
+    } catch (rejectionEvent) {
+      throw new ErrorWithCode(
+        // It's difficult for us to reliably disambiguate between "network error"
+        // and "invalid response from server" here, so we just say it was an
+        // invalid server response.
+        'INVALID_SERVER_RESPONSE',
+        'Failed to open the socket',
+        rejectionEvent &&
+        typeof rejectionEvent === 'object' &&
+        'error' in rejectionEvent
+          ? { cause: rejectionEvent.error }
+          : { cause: rejectionEvent }
+      )
+    }
 
     const onErrorPromise = pEvent(websocket, 'error')
 
