@@ -93,9 +93,9 @@ export class MapeoProject extends TypedEmitter {
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #loadingConfig
+  #isArchiveDevice
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
-  #isArchiveDevice
 
   /**
    * @param {Object} opts
@@ -110,8 +110,8 @@ export class MapeoProject extends TypedEmitter {
    * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
+   * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {Logger} [opts.logger]
-   * @param {boolean} [opts.isArchiveDevice] Whether this device is an archive device
    *
    */
   constructor({
