@@ -66,6 +66,8 @@ export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
 export const kProjectLeave = Symbol('leave project')
 export const kClearDataIfLeft = Symbol('clear data if left project')
+export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
+export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
@@ -91,6 +93,7 @@ export class MapeoProject extends TypedEmitter {
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #loadingConfig
+  #isArchiveDevice
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
@@ -107,6 +110,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
+   * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {Logger} [opts.logger]
    *
    */
@@ -123,6 +127,7 @@ export class MapeoProject extends TypedEmitter {
     getMediaBaseUrl,
     localPeers,
     logger,
+    isArchiveDevice,
   }) {
     super()
 
@@ -130,6 +135,7 @@ export class MapeoProject extends TypedEmitter {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
     this.#loadingConfig = false
+    this.#isArchiveDevice = isArchiveDevice
 
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
@@ -623,6 +629,16 @@ export class MapeoProject extends TypedEmitter {
     }
 
     return deviceInfo.update(existingDoc.versionId, doc)
+  }
+
+  /** @param {boolean} isArchiveDevice */
+  async [kSetIsArchiveDevice](isArchiveDevice) {
+    this.#isArchiveDevice = isArchiveDevice
+  }
+
+  /** @returns {boolean} */
+  get [kIsArchiveDevice]() {
+    return this.#isArchiveDevice
   }
 
   /**
