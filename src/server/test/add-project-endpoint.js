@@ -174,5 +174,5 @@ test('adding a project ID with different encryption keys is an error', async (t)
     url: '/projects',
     body: projectKeys2,
   })
-  assert.equal(secondResponse.statusCode, 403)
+  assert.equal(secondResponse.statusCode, 409)
 })
