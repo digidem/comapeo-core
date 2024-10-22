@@ -29,7 +29,8 @@ jobs:
           private-key: ${{ secrets.LOCKFILE_BOT_PRIVATE_KEY }}
       - name: NPM Lockfile Changes
         # The original doesn't support v3 lockfiles so we use a fork that adds support for them
-        uses: rvanvelzen/npm-lockfile-changes@6fded38b5a054f5ab49efd6850668e796f780604
+        # The fork doesn't update comments by an app token, so we use our own fork
+        uses: digidem/npm-lockfile-changes@fix/update-comments
         with:
           token: ${{ steps.app-token.outputs.token }}
           updateComment: true
