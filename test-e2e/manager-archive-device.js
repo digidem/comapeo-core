@@ -36,14 +36,6 @@ test('Set & Get isArchiveDevice', async () => {
     true,
     'isArchiveDevice is true initially'
   )
-  assert.throws(
-    () => manager.setIsArchiveDevice(false),
-    {
-      message: /Must set device info/,
-    },
-    'Throws error if setting archive device without setting device info'
-  )
-  manager.setDeviceInfo({ name: 'Test Device', deviceType: 'desktop' })
   manager.setIsArchiveDevice(false)
   assert.strictEqual(
     manager.getIsArchiveDevice(),
@@ -70,7 +62,6 @@ test('isArchiveDevice persists', async (t) => {
 
   const isArchiveDevice1 = await custodian.withManagerInSeparateProcess(
     async (manager1) => {
-      manager1.setDeviceInfo({ name: 'Test Device', deviceType: 'desktop' })
       manager1.setIsArchiveDevice(false)
       return manager1.getIsArchiveDevice()
     }

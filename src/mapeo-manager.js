@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto'
 import path from 'path'
 import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
-import { count, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
@@ -804,20 +804,17 @@ export class MapeoManager extends TypedEmitter {
    * @param {boolean} isArchiveDevice
    */
   setIsArchiveDevice(isArchiveDevice) {
+    const values = { deviceId: this.#deviceId, isArchiveDevice }
     const result = this.#db
-      .update(deviceSettingsTable)
-      .set({ isArchiveDevice })
-      .where(eq(deviceSettingsTable.deviceId, this.#deviceId))
+      .insert(deviceSettingsTable)
+      .values(values)
+      .onConflictDoUpdate({
+        target: deviceSettingsTable.deviceId,
+        set: values,
+      })
       .run()
-    if (result.changes === 0) {
-      const rowCount = this.#db
-        .select({ count: count() })
-        .from(deviceSettingsTable)
-        .where(eq(deviceSettingsTable.deviceId, this.#deviceId))
-        .get()
-      if (!rowCount || rowCount.count === 0) {
-        throw new Error('Must set device info before setting archive device')
-      }
+    if (!result || result.changes === 0) {
+      throw new Error('Failed to set isArchiveDevice')
     }
     for (const project of this.#activeProjects.values()) {
       project[kSetIsArchiveDevice](isArchiveDevice)

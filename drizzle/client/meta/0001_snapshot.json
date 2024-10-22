@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "b833dd92-7d1e-45c1-bd85-297bac508977",
+  "id": "d84c5b29-8ae6-45f5-9a36-5ccefed38255",
   "prevId": "e75103ab-bbcb-4ca9-a0c4-2d9095b63add",
   "tables": {
     "localDeviceInfo": {
@@ -18,7 +18,7 @@
           "name": "deviceInfo",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "isArchiveDevice": {

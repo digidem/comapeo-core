@@ -51,6 +51,6 @@ const deviceInfoColumn =
 // This table only ever has one row in it.
 export const deviceSettingsTable = sqliteTable('localDeviceInfo', {
   deviceId: text('deviceId').notNull().unique(),
-  deviceInfo: deviceInfoColumn('deviceInfo').notNull(),
+  deviceInfo: deviceInfoColumn('deviceInfo'),
   isArchiveDevice: int('isArchiveDevice', { mode: 'boolean' }),
 })
