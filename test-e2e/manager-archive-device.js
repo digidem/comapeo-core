@@ -5,6 +5,11 @@ import { createManager, ManagerCustodian } from './utils.js'
 
 test('Set & Get isArchiveDevice', async (t) => {
   const manager = createManager('seed', t)
+  assert.strictEqual(
+    manager.getIsArchiveDevice(),
+    true,
+    'isArchiveDevice is true initially'
+  )
 
   // Ensure at least one project exists (tests internal setting on project)
   const projectId = await manager.createProject()
@@ -15,11 +20,6 @@ test('Set & Get isArchiveDevice', async (t) => {
     'Project isArchiveDevice is true initially'
   )
 
-  assert.strictEqual(
-    manager.getIsArchiveDevice(),
-    true,
-    'isArchiveDevice is true initially'
-  )
   manager.setIsArchiveDevice(false)
   assert.strictEqual(
     manager.getIsArchiveDevice(),
