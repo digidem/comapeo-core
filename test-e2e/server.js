@@ -225,6 +225,8 @@ test('adding a server peer', async (t) => {
   )
 })
 
+// TODO: Add support for removing a server peer.
+// See <https://github.com/digidem/comapeo-core/issues/931>.
 test.skip('removing a server peer', async (t) => {
   const manager = createManager('device0', t)
   const projectId = await manager.createProject()
@@ -240,7 +242,8 @@ test.skip('removing a server peer', async (t) => {
   const serverPeer = await findServerPeer(project)
   assert(serverPeer, 'server peer should be added')
 
-  await project.$member.removeServerPeer(serverPeer.deviceId)
+  // TODO
+  // await project.$member.removeServerPeer(serverPeer.deviceId)
 
   assert.equal(
     (await findServerPeer(project))?.role.roleId,
