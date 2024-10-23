@@ -36,7 +36,7 @@ test('listing projects', async (t) => {
     await Promise.all(
       [projectKeys1, projectKeys2].map(async (projectKeys) => {
         const response = await server.inject({
-          method: 'POST',
+          method: 'PUT',
           url: '/projects',
           body: projectKeys,
         })

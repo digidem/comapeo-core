@@ -131,7 +131,7 @@ export default async function routes(
     }
   )
 
-  fastify.post(
+  fastify.put(
     '/projects',
     {
       schema: {
