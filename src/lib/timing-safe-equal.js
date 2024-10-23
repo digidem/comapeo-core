@@ -1,8 +1,8 @@
 import * as crypto from 'node:crypto'
 
 /**
- * @param {string | NodeJS.ArrayBufferView} value
- * @returns {NodeJS.ArrayBufferView}
+ * @param {Readonly<string | Uint8Array>} value
+ * @returns {Uint8Array}
  */
 const bufferify = (value) =>
   // We use UTF-16 because it's the only supported encoding that doesn't
@@ -19,7 +19,7 @@ const bufferify = (value) =>
  * Like `crypto.timingSafeEqual`, but works with strings and doesn't throw if
  * lengths differ.
  *
- * @template {string | NodeJS.ArrayBufferView} T
+ * @template {string | Uint8Array} T
  * @param {T} a
  * @param {T} b
  * @returns {boolean}

@@ -5,7 +5,15 @@ import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { LiveDownload } from './live-download.js'
 /** @import { JsonObject } from 'type-fest' */
+/** @import { Readable as NodeReadable } from 'node:stream' */
+/** @import { Readable as StreamxReadable, Writable } from 'streamx' */
 /** @import { BlobId } from '../types.js' */
+/** @import { BlobDownloadEvents } from './live-download.js' */
+
+/**
+ * @internal
+ * @typedef {NodeReadable | StreamxReadable} Readable
+ */
 
 /** @typedef {TypedEmitter<{ 'add-drive': (drive: import('hyperdrive')) => void }>} InternalDriveEmitter */
 
@@ -75,12 +83,16 @@ export class BlobStore {
     })
   }
 
+  /**
+   * @returns {string}
+   */
   get writerDriveId() {
     return getDiscoveryId(this.#writer.key)
   }
 
   /**
    * @param {string} driveId hex-encoded discovery key
+   * @returns {Hyperdrive}
    */
   #getDrive(driveId) {
     const drive = this.#hyperdrives.get(driveId)
@@ -93,6 +105,7 @@ export class BlobStore {
    * @param {object} opts
    * @param {false} [opts.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
    * @param {never} [opts.timeout] Optional timeout to wait for a blob to download
+   * @returns {Promise<Uint8Array>}
    */
   async get({ type, variant, name, driveId }, { wait = false, timeout } = {}) {
     const drive = this.#getDrive(driveId)
@@ -113,7 +126,7 @@ export class BlobStore {
    * @param {import('../types.js').BlobFilter} [filter] Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
    * @param {object} options
    * @param {AbortSignal} [options.signal] Optional AbortSignal to cancel in-progress download
-   * @returns EventEmitter with `.state` propery, emits `state` with new state when it updates
+   * @returns {TypedEmitter<BlobDownloadEvents>}
    */
   download(filter, { signal } = {}) {
     return new LiveDownload(this.#hyperdrives.values(), this.#driveEmitter, {
@@ -127,6 +140,7 @@ export class BlobStore {
    * @param {object} [options]
    * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
    * @param {number} [options.timeout] Optional timeout to wait for a blob to download
+   * @returns {Readable}
    */
   createReadStream(
     { type, variant, name, driveId },
@@ -147,6 +161,7 @@ export class BlobStore {
    * @param {import('hyperdrive').HyperdriveEntry} entry Hyperdrive entry
    * @param {object} [options]
    * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
+   * @returns {Promise<Readable>}
    */
   async createEntryReadStream(driveId, entry, options = { wait: false }) {
     const drive = this.#getDrive(driveId)
@@ -166,7 +181,6 @@ export class BlobStore {
    * @param {import('hyperdrive').HyperdriveEntry} entry Hyperdrive entry
    * @param {object} [opts]
    * @param {number} [opts.length]
-   *
    * @returns {Promise<Buffer | null>}
    */
   async getEntryBlob(driveId, entry, { length } = {}) {
@@ -200,6 +214,7 @@ export class BlobStore {
    * @param {Omit<BlobId, 'driveId'>} blobId
    * @param {object} [options]
    * @param {JsonObject} [options.metadata] Metadata to store with the blob
+   * @returns {Writable & { driveId: string }}
    */
   createWriteStream({ type, variant, name }, options) {
     const path = makePath({ type, variant, name })
