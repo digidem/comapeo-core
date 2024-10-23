@@ -11,7 +11,7 @@ import {
 } from './utils.js'
 import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
-import timingSafeEqual from './lib/timing-safe-equal.js'
+import timingSafeEqual from 'string-timing-safe-equal'
 import { ROLES, isRoleIdForNewInvite } from './roles.js'
 /**
  * @import {
