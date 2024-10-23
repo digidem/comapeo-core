@@ -71,7 +71,7 @@ test('returning observations with fetchable attachments', async (t) => {
   const serverAddress = await server.listen()
   const serverUrl = new URL(serverAddress)
 
-  const manager = await createManager('client', t)
+  const manager = createManager('client', t)
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
