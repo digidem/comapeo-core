@@ -16,10 +16,11 @@ import {
   kBlobStore,
   kClearDataIfLeft,
   kProjectLeave,
+  kSetIsArchiveDevice,
   kSetOwnDeviceInfo,
 } from './mapeo-project.js'
 import {
-  localDeviceInfoTable,
+  deviceSettingsTable,
   projectKeysTable,
   projectSettingsTable,
 } from './schema/client.js'
@@ -507,6 +508,7 @@ export class MapeoManager extends TypedEmitter {
   async #createProjectInstance(projectKeys) {
     validateProjectKeys(projectKeys)
     const projectId = keyToId(projectKeys.projectKey)
+    const isArchiveDevice = this.getIsArchiveDevice()
     const project = new MapeoProject({
       ...this.#projectStorage(projectId),
       ...projectKeys,
@@ -517,6 +519,7 @@ export class MapeoManager extends TypedEmitter {
       localPeers: this.#localPeers,
       logger: this.#loggerBase,
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
+      isArchiveDevice,
     })
     await project[kClearDataIfLeft]()
     return project
@@ -744,10 +747,10 @@ export class MapeoManager extends TypedEmitter {
   async setDeviceInfo(deviceInfo) {
     const values = { deviceId: this.#deviceId, deviceInfo }
     this.#db
-      .insert(localDeviceInfoTable)
+      .insert(deviceSettingsTable)
       .values(values)
       .onConflictDoUpdate({
-        target: localDeviceInfoTable.deviceId,
+        target: deviceSettingsTable.deviceId,
         set: values,
       })
       .run()
@@ -788,13 +791,57 @@ export class MapeoManager extends TypedEmitter {
   getDeviceInfo() {
     const row = this.#db
       .select()
-      .from(localDeviceInfoTable)
-      .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
+      .from(deviceSettingsTable)
+      .where(eq(deviceSettingsTable.deviceId, this.#deviceId))
       .get()
     return {
       deviceId: this.#deviceId,
       deviceType: 'device_type_unspecified',
       ...row?.deviceInfo,
+    }
+  }
+
+  /**
+   * Set whether this device is an archive device. Archive devices will download
+   * all media during sync, where-as non-archive devices will not download media
+   * original variants, and only download preview and thumbnail variants.
+   * @param {boolean} isArchiveDevice
+   * @returns {void}
+   */
+  setIsArchiveDevice(isArchiveDevice) {
+    const values = { deviceId: this.#deviceId, isArchiveDevice }
+    const result = this.#db
+      .insert(deviceSettingsTable)
+      .values(values)
+      .onConflictDoUpdate({
+        target: deviceSettingsTable.deviceId,
+        set: values,
+      })
+      .run()
+    if (!result || result.changes === 0) {
+      throw new Error('Failed to set isArchiveDevice')
+    }
+    for (const project of this.#activeProjects.values()) {
+      project[kSetIsArchiveDevice](isArchiveDevice)
+    }
+  }
+
+  /**
+   * Get whether this device is an archive device. Archive devices will download
+   * all media during sync, where-as non-archive devices will not download media
+   * original variants, and only download preview and thumbnail variants.
+   * @returns {boolean} isArchiveDevice
+   */
+  getIsArchiveDevice() {
+    const row = this.#db
+      .select()
+      .from(deviceSettingsTable)
+      .where(eq(deviceSettingsTable.deviceId, this.#deviceId))
+      .get()
+    if (typeof row?.isArchiveDevice === 'boolean') {
+      return row.isArchiveDevice
+    } else {
+      return true
     }
   }
 
