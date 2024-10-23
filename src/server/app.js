@@ -1,6 +1,6 @@
 import fastifyWebsocket from '@fastify/websocket'
-import createFastify from 'fastify'
 import fastifySensible from '@fastify/sensible'
+import createFastifyPlugin from 'fastify-plugin'
 import routes from './routes.js'
 import comapeoPlugin from './comapeo-plugin.js'
 import baseUrlPlugin from './base-url-plugin.js'
@@ -12,27 +12,22 @@ import allowedHostsPlugin from './allowed-hosts-plugin.js'
 /**
  * @internal
  * @typedef {object} OtherServerOptions
- * @prop {FastifyServerOptions['logger']} [logger]
- * @prop {FastifyServerOptions['trustProxy']} [trustProxy]
  * @prop {string[]} [allowedHosts]
  */
 
 /** @typedef {ComapeoPluginOptions & OtherServerOptions & RouteOptions} ServerOptions */
 
-/**
- * @param {ServerOptions} opts
- * @returns
- */
-export default function createServer({
-  logger,
-  trustProxy,
-  serverBearerToken,
-  serverName,
-  allowedHosts,
-  allowedProjects = 1,
-  ...comapeoPluginOpts
-}) {
-  const fastify = createFastify({ logger, trustProxy })
+/** @type {import('fastify').FastifyPluginAsync<ServerOptions>} */
+async function comapeoServer(
+  fastify,
+  {
+    serverBearerToken,
+    serverName,
+    allowedHosts,
+    allowedProjects = 1,
+    ...comapeoPluginOpts
+  }
+) {
   fastify.register(fastifyWebsocket)
   fastify.register(fastifySensible, { sharedSchemaId: 'HttpError' })
   fastify.register(allowedHostsPlugin, { allowedHosts })
@@ -43,5 +38,9 @@ export default function createServer({
     serverName,
     allowedProjects,
   })
-  return fastify
 }
+
+export default createFastifyPlugin(comapeoServer, {
+  name: 'comapeoServer',
+  fastify: '4.x',
+})

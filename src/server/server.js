@@ -1,5 +1,6 @@
-import createServer from './app.js'
+import comapeoServer from './app.js'
 import envSchema from 'env-schema'
+import createFastify from 'fastify'
 import { Type } from '@sinclair/typebox'
 import path from 'node:path'
 import fsPromises from 'node:fs/promises'
@@ -72,7 +73,11 @@ if (!rootKey || rootKey.length !== 16) {
   throw new Error('Root key must be 16 bytes')
 }
 
-const fastify = createServer({
+const fastify = createFastify({
+  logger: true,
+  trustProxy: true,
+})
+fastify.register(comapeoServer, {
   serverName: config.SERVER_NAME,
   serverBearerToken: config.SERVER_BEARER_TOKEN,
   allowedProjects: config.ALLOWED_PROJECTS,
@@ -81,8 +86,6 @@ const fastify = createServer({
   dbFolder,
   projectMigrationsFolder,
   clientMigrationsFolder,
-  logger: true,
-  trustProxy: true,
 })
 
 fastify.get('/healthcheck', async () => {})

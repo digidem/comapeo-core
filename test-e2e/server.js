@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { pEvent } from 'p-event'
 import { LEFT_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
-import createServer from '../src/server/app.js'
+import comapeoServer from '../src/server/app.js'
 import {
   connectPeers,
   createManager,
@@ -376,7 +376,8 @@ async function createRemoteTestServer(t) {
  * @returns {Promise<string>} server base URL
  */
 async function createLocalTestServer(t) {
-  const server = createServer({
+  const server = createFastify()
+  server.register(comapeoServer, {
     ...getManagerOptions('test server'),
     serverName: 'test server',
     serverBearerToken: 'ignored',
