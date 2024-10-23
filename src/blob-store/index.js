@@ -201,7 +201,7 @@ export class BlobStore {
    * @param {Omit<BlobId, 'driveId'>} blobId
    * @param {Buffer} blob
    * @param {object} [options]
-   * @param {{mimeType: string}} [options.metadata] Metadata to store with the blob
+   * @param {JsonObject} [options.metadata] Metadata to store with the blob
    * @returns {Promise<string>} discovery key as hex string of hyperdrive where blob is stored
    */
   async put({ type, variant, name }, blob, options) {
