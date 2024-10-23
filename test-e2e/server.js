@@ -1,9 +1,10 @@
 import { valueOf } from '@comapeo/schema'
+import { setTimeout as delay } from 'node:timers/promises'
 import { generate } from '@mapeo/mock-data'
 import { execa } from 'execa'
 import createFastify from 'fastify'
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { mock } from 'node:test'
 import { pEvent } from 'p-event'
 import { LEFT_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
 import comapeoServer from '../src/server/app.js'
@@ -16,10 +17,13 @@ import {
   waitForPeers,
   waitForSync,
 } from './utils.js'
+/** @import { FastifyInstance } from 'fastify' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 /** @import { MemberInfo } from '../src/member-api.js' */
 /** @import { State as SyncState } from '../src/sync/sync-api.js' */
+
+const USE_REMOTE_SERVER = Boolean(process.env.REMOTE_TEST_SERVER)
 
 test('invalid base URLs', async (t) => {
   const manager = createManager('device0', t)
@@ -198,7 +202,7 @@ test('adding a server peer', async (t) => {
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
-  const serverBaseUrl = await createTestServer(t)
+  const { serverBaseUrl } = await createTestServer(t)
 
   assert(!(await findServerPeer(project)), 'no server peers before adding')
 
@@ -226,7 +230,8 @@ test.skip('removing a server peer', async (t) => {
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
-  const serverBaseUrl = await createTestServer(t)
+  const testServer = await createTestServer(t)
+  const { serverBaseUrl } = testServer
 
   await project.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
@@ -234,6 +239,7 @@ test.skip('removing a server peer', async (t) => {
 
   const serverPeer = await findServerPeer(project)
   assert(serverPeer, 'server peer should be added')
+
   await project.$member.removeServerPeer(serverPeer.deviceId)
 
   assert.equal(
@@ -242,7 +248,38 @@ test.skip('removing a server peer', async (t) => {
     'we should believe the server is gone'
   )
 
-  // TODO: ensure no connections are made
+  // If we don't have access to the server (e.g., if it's remote), we can't run
+  // this part of the test. We could probably support this, but it's a lot more
+  // work for limited benefit.
+  if ('server' in testServer) {
+    await testServer.server.close()
+
+    const bogusServer = createFastify()
+    const anyRequestHandler = mock.fn(() => 'should not happen')
+    bogusServer.all('*', anyRequestHandler)
+
+    const { port } = new URL(serverBaseUrl)
+    const bogusServerAddress = await bogusServer.listen({
+      // host,
+      port: Number(port),
+    })
+    t.after(() => bogusServer.close())
+    assert.equal(
+      bogusServerAddress,
+      serverBaseUrl,
+      'Bogus server should have same address as "real" test server. Test is not set up correctly.'
+    )
+
+    project.$sync.connectServers()
+
+    await delay(500)
+
+    assert.strictEqual(
+      anyRequestHandler.mock.calls.length,
+      0,
+      'no connection was made to the server'
+    )
+  }
 })
 
 test("can't add a server to two different projects", async (t) => {
@@ -252,21 +289,21 @@ test("can't add a server to two different projects", async (t) => {
   const projectA = await managerA.getProject(projectIdA)
   const projectB = await managerB.getProject(projectIdB)
 
-  const serverHost = await createTestServer(t)
+  const { serverBaseUrl } = await createTestServer(t)
 
-  await projectA.$member.addServerPeer(serverHost, {
+  await projectA.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
   })
 
   await assert.rejects(async () => {
-    await projectB.$member.addServerPeer(serverHost, {
+    await projectB.$member.addServerPeer(serverBaseUrl, {
       dangerouslyAllowInsecureConnections: true,
     })
   }, Error)
 })
 
 test('data can be synced via a server', async (t) => {
-  const [managers, serverBaseUrl] = await Promise.all([
+  const [managers, { serverBaseUrl }] = await Promise.all([
     createManagers(2, t, 'mobile'),
     createTestServer(t),
   ])
@@ -329,11 +366,24 @@ test('data can be synced via a server', async (t) => {
 })
 
 /**
+ * @typedef {object} LocalTestServer
+ * @prop {'local'} type
+ * @prop {string} serverBaseUrl
+ * @prop {FastifyInstance} server
+ */
+
+/**
+ * @typedef {object} RemoteTestServer
+ * @prop {'remote'} type
+ * @prop {string} serverBaseUrl
+ */
+
+/**
  * @param {import('node:test').TestContext} t
- * @returns {Promise<string>} server base URL
+ * @returns {Promise<LocalTestServer | RemoteTestServer>}
  */
 async function createTestServer(t) {
-  if (process.env.REMOTE_TEST_SERVER) {
+  if (USE_REMOTE_SERVER) {
     return createRemoteTestServer(t)
   } else {
     return createLocalTestServer(t)
@@ -342,7 +392,7 @@ async function createTestServer(t) {
 
 /**
  * @param {import('node:test').TestContext} t
- * @returns {Promise<string>} server base URL
+ * @returns {Promise<RemoteTestServer>}
  */
 async function createRemoteTestServer(t) {
   const appName = 'comapeo-cloud-test-' + Math.random().toString(36).slice(8)
@@ -368,12 +418,12 @@ async function createRemoteTestServer(t) {
       stdio: 'inherit',
     }
   )
-  return `https://${appName}.fly.dev/`
+  return { type: 'remote', serverBaseUrl: `https://${appName}.fly.dev/` }
 }
 
 /**
  * @param {import('node:test').TestContext} t
- * @returns {Promise<string>} server base URL
+ * @returns {Promise<LocalTestServer>}
  */
 async function createLocalTestServer(t) {
   const server = createFastify()
@@ -382,9 +432,9 @@ async function createLocalTestServer(t) {
     serverName: 'test server',
     serverBearerToken: 'ignored',
   })
-  const address = await server.listen()
+  const serverBaseUrl = await server.listen()
   t.after(() => server.close())
-  return address
+  return { type: 'local', server, serverBaseUrl }
 }
 
 /**

@@ -13,6 +13,7 @@ import { getOwn } from '../lib/get-own.js'
 import { NO_ROLE_ID } from '../roles.js'
 import { wsCoreReplicator } from '../server/ws-core-replicator.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
+/** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 /** @import { ReplicationStream } from '../types.js' */
@@ -314,17 +315,33 @@ export class SyncApi extends TypedEmitter {
           }
 
           const websocket = new WebSocket(url)
-          // TODO: Handle websocket errors
-          websocket.on('error', noop)
 
-          // TODO: Handle errors (maybe with the `unexpected-response` event?)
+          /** @param {Error} err */
+          const onWebsocketError = (err) => {
+            this.#l.log('Ignoring WebSocket error to %s: %o', url, err)
+          }
+          websocket.on('error', onWebsocketError)
+
+          /**
+           * @param {unknown} _req
+           * @param {http.IncomingMessage} res
+           */
+          const onWebsocketUnexpectedResponse = (_req, res) => {
+            this.#l.log(
+              'Ignoring unexpected %d WebSocket response to %s',
+              res.statusCode,
+              url
+            )
+          }
+          websocket.on('unexpected-response', onWebsocketUnexpectedResponse)
 
           const replicationStream = this.#getReplicationStream()
           wsCoreReplicator(websocket, replicationStream)
 
           this.#serverWebsockets.set(url, websocket)
           websocket.once('close', () => {
-            websocket.off('error', noop)
+            websocket.off('error', onWebsocketError)
+            websocket.off('unexpected-response', onWebsocketUnexpectedResponse)
             this.#serverWebsockets.delete(url)
           })
         }
