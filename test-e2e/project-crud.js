@@ -213,8 +213,6 @@ function getUpdateFixture(value) {
         ...value,
         label: randomBytes(10).toString('hex'),
       }
-    case 'remoteDetectionAlert':
-      return { ...value }
     case 'track':
       return {
         ...value,
