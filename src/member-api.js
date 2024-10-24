@@ -323,7 +323,7 @@ export class MemberApi extends TypedEmitter {
     /** @type {Response} */ let response
     try {
       response = await fetch(requestUrl, {
-        method: 'POST',
+        method: 'PUT',
         body: JSON.stringify(requestBody),
         headers: { 'Content-Type': 'application/json' },
       })

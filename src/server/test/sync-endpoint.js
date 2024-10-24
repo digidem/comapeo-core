@@ -24,7 +24,7 @@ test('sync endpoint is available after adding a project', async (t) => {
   })
 
   await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: projectKeys,
   })

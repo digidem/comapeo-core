@@ -50,7 +50,7 @@ test('returning no observations', async (t) => {
   )
 
   const addProjectResponse = await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: projectKeys,
   })

@@ -8,7 +8,7 @@ test('request missing project key', async (t) => {
   const server = createTestServer(t)
 
   const response = await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: omit(randomProjectKeys(), ['projectKey']),
   })
@@ -20,7 +20,7 @@ test('request missing any encryption keys', async (t) => {
   const server = createTestServer(t)
 
   const response = await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: omit(randomProjectKeys(), ['encryptionKeys']),
   })
@@ -33,7 +33,7 @@ test('request missing an encryption key', async (t) => {
   const projectKeys = randomProjectKeys()
 
   const response = await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: {
       ...projectKeys,
@@ -48,7 +48,7 @@ test('adding a project', async (t) => {
   const server = createTestServer(t)
 
   const response = await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: randomProjectKeys(),
   })
@@ -63,14 +63,14 @@ test('adding a second project fails by default', async (t) => {
   const server = createTestServer(t)
 
   const firstAddResponse = await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: randomProjectKeys(),
   })
   assert.equal(firstAddResponse.statusCode, 200)
 
   const response = await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: randomProjectKeys(),
   })
@@ -84,7 +84,7 @@ test('allowing a maximum number of projects', async (t) => {
   await t.test('adding 3 projects', async () => {
     for (let i = 0; i < 3; i++) {
       const response = await server.inject({
-        method: 'POST',
+        method: 'PUT',
         url: '/projects',
         body: randomProjectKeys(),
       })
@@ -94,7 +94,7 @@ test('allowing a maximum number of projects', async (t) => {
 
   await t.test('attempting to add 4th project fails', async () => {
     const response = await server.inject({
-      method: 'POST',
+      method: 'PUT',
       url: '/projects',
       body: randomProjectKeys(),
     })
@@ -117,7 +117,7 @@ test(
 
     await t.test('adding a project in the list', async () => {
       const response = await server.inject({
-        method: 'POST',
+        method: 'PUT',
         url: '/projects',
         body: projectKeys,
       })
@@ -126,7 +126,7 @@ test(
 
     await t.test('trying to add a project not in the list', async () => {
       const response = await server.inject({
-        method: 'POST',
+        method: 'PUT',
         url: '/projects',
         body: randomProjectKeys(),
       })
@@ -140,14 +140,14 @@ test('adding the same project twice is idempotent', async (t) => {
   const projectKeys = randomProjectKeys()
 
   const firstResponse = await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: projectKeys,
   })
   assert.equal(firstResponse.statusCode, 200)
 
   const secondResponse = await server.inject({
-    method: 'POST',
+    method: 'PUT',
     url: '/projects',
     body: projectKeys,
   })

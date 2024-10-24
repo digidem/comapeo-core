@@ -102,7 +102,7 @@ test(
       [204, 302, 400, 500].map((statusCode) =>
         t.test(`when returning a ${statusCode}`, async (t) => {
           const fastify = createFastify()
-          fastify.post('/projects', (_req, reply) => {
+          fastify.put('/projects', (_req, reply) => {
             reply.status(statusCode).send()
           })
           const serverBaseUrl = await fastify.listen()
@@ -142,7 +142,7 @@ test(
       ].map((responseData) =>
         t.test(`when returning ${responseData}`, async (t) => {
           const fastify = createFastify()
-          fastify.post('/projects', (_req, reply) => {
+          fastify.put('/projects', (_req, reply) => {
             reply.header('Content-Type', 'application/json').send(responseData)
           })
           const serverBaseUrl = await fastify.listen()
@@ -171,7 +171,7 @@ test("fails if first request succeeds but sync doesn't", async (t) => {
   const project = await manager.getProject(projectId)
 
   const fastify = createFastify()
-  fastify.post('/projects', (_req, reply) => {
+  fastify.put('/projects', (_req, reply) => {
     reply.send({ data: { deviceId: 'abc123' } })
   })
   const serverBaseUrl = await fastify.listen()
