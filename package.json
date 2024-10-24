@@ -157,8 +157,8 @@
     "yazl": "^2.5.1"
   },
   "dependencies": {
-    "@comapeo/schema": "file:comapeo-schema-server.tgz",
     "@comapeo/fallback-smp": "^1.0.0",
+    "@comapeo/schema": "file:comapeo-schema-server.tgz",
     "@digidem/types": "^2.3.0",
     "@fastify/error": "^3.4.1",
     "@fastify/sensible": "^5.6.0",
@@ -199,6 +199,7 @@
     "sodium-universal": "^4.0.0",
     "start-stop-state-machine": "^1.2.0",
     "streamx": "^2.19.0",
+    "string-timing-safe-equal": "^0.1.0",
     "styled-map-package": "^2.0.0",
     "sub-encoder": "^2.1.1",
     "throttle-debounce": "^5.0.0",

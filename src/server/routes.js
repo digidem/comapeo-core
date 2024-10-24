@@ -1,9 +1,9 @@
 import { Type } from '@sinclair/typebox'
 import * as fs from 'node:fs'
+import timingSafeEqual from 'string-timing-safe-equal'
 import { kProjectReplicate } from '../mapeo-project.js'
-import { wsCoreReplicator } from './ws-core-replicator.js'
-import timingSafeEqual from '../lib/timing-safe-equal.js'
 import { assert, projectKeyToPublicId } from '../utils.js'
+import { wsCoreReplicator } from './ws-core-replicator.js'
 /** @import {FastifyInstance, FastifyPluginAsync, FastifyRequest, RawServerDefault} from 'fastify' */
 /** @import {TypeBoxTypeProvider} from '@fastify/type-provider-typebox' */
 
