@@ -1,91 +1,98 @@
 import SubEncoder from 'sub-encoder'
 import mergeStreams from '@sindresorhus/merge-streams'
 import { Transform } from 'node:stream'
+import unixPathResolve from 'unix-path-resolve'
 
 /** @import Hyperdrive from 'hyperdrive' */
-
-/**
- * We treat the return type of `createEntriesStream` as a Readable, because the
- * `add` and `remove` methods should not be used outside this module.
- * @typedef {import('type-fest').Tagged<import('node:stream').Readable, 'entriesStream'>} EntriesStream
- */
+/** @import { BlobStoreEntriesStream } from '../types.js' */
 
 const keyEncoding = new SubEncoder('files', 'utf-8')
-const kAddDrive = Symbol('add-drive')
-
-/**
- * @param {EntriesStream} entriesStream
- * @param {Hyperdrive} drive
- */
-export function addDrive(entriesStream, drive) {
-  // @ts-expect-error
-  entriesStream[kAddDrive](drive)
-}
 
 /**
  *
  * @param {Array<Hyperdrive>} drives
+ * @param {import('./index.js').InternalDriveEmitter} driveEmitter
  * @param {object} opts
  * @param {boolean} [opts.live=false]
- * @param {[string, ...string[]]} [opts.folders]
- * @returns {EntriesStream}
+ * @param {readonly string[]} [opts.folders]
+ * @returns {BlobStoreEntriesStream}
  */
 export function createEntriesStream(
   drives,
+  driveEmitter,
   { live = false, folders = ['/'] } = {}
 ) {
   folders = normalizeFolders(folders)
-  const mergedEntriesStreams = mergeStreams([])
-  for (const drive of drives) {
-    addDrive(drive)
+  const mergedEntriesStreams = mergeStreams(
+    drives.map((drive) => getFilteredHistoryStream(drive.db, { folders, live }))
+  )
+  if (live) {
+    driveEmitter.on('add-drive', addDrive)
+    mergedEntriesStreams.on('close', () => {
+      driveEmitter.off('add-drive', addDrive)
+    })
   }
-  Object.defineProperty(mergedEntriesStreams, kAddDrive, {
-    get() {
-      return addDrive
-    },
-    writable: false,
-    enumerable: false,
-    configurable: false,
-  })
   // @ts-expect-error
   return mergedEntriesStreams
 
   /** @param {Hyperdrive} drive */
   function addDrive(drive) {
-    const bee = drive.db
-    // This will also include old versions of files, but it is the only way to
-    // get a live stream from a Hyperbee, however we currently do not support
-    // edits of blobs, so this should not be an issue, and the consequence is
-    // that old versions are downloaded too, which is acceptable.
-    const historyStream = bee.createHistoryStream({
-      live,
-      // `keyEncoding` is necessary because hyperdrive stores file index data
-      // under the `files` sub-encoding key
-      keyEncoding,
-    })
-    const filteredHistoryStream = historyStream.pipe(
-      new Transform({
-        transform(entry, _, callback) {
-          if (matchesFolder(entry.key, folders)) {
-            callback(null, entry)
-          } else {
-            callback()
-          }
-        },
-      })
+    mergedEntriesStreams.add(
+      getFilteredHistoryStream(drive.db, { folders, live })
     )
-    mergedEntriesStreams.add(filteredHistoryStream)
   }
+}
+
+/**
+ *
+ * @param {import('hyperbee')} bee
+ * @param {object} opts
+ * @param {boolean} opts.live
+ * @param {readonly string[]} opts.folders
+ */
+function getFilteredHistoryStream(bee, { folders, live }) {
+  let driveId = bee.core.discoveryKey?.toString('hex')
+  // This will also include old versions of files, but it is the only way to
+  // get a live stream from a Hyperbee, however we currently do not support
+  // edits of blobs, so this should not be an issue, and the consequence is
+  // that old versions are downloaded too, which is acceptable.
+  const historyStream = bee.createHistoryStream({
+    live,
+    // `keyEncoding` is necessary because hyperdrive stores file index data
+    // under the `files` sub-encoding key
+    keyEncoding,
+  })
+  return historyStream.pipe(
+    new Transform({
+      objectMode: true,
+      /** @param {import('hyperdrive').HyperdriveEntry} entry */
+      transform(entry, _, callback) {
+        if (matchesFolder(entry.key, folders)) {
+          // Unnecessary performance optimization to only call toString() once
+          // bee.discoveryKey will always be defined by the time it starts
+          // streaming, but could be null when the instance is first created.
+          driveId = driveId || bee.core.discoveryKey?.toString('hex')
+          callback(null, { ...entry, driveId })
+        } else {
+          callback()
+        }
+      },
+    })
+  )
 }
 
 /**
  * Take an array of folders, remove any folders that are subfolders of another,
  * remove duplicates, and add trailing slashes
- * @param {string[]} folders
- * @returns {[string, ...string[]]}
+ * @param {readonly string[]} folders
+ * @returns {readonly [string, ...string[]]}
  */
 function normalizeFolders(folders) {
-  folders = folders.map(addTrailingSlash)
+  // 1. Add trailing slashes so that path.startsWith(folder) does not match a folder whose name starts with this folder.
+  // 2. Standardize path names as done internally in Hyperdrive: https://github.com/holepunchto/hyperdrive/blob/5ee0164fb39eadc0a073f7926800f81117a4c52e/index.js#L685
+  folders = folders.map((folder) =>
+    addTrailingSlash(unixPathResolve('/', folder))
+  )
   /** @type {Set<string>} */
   const normalized = new Set()
   for (let i = 0; i < folders.length; i++) {
@@ -111,7 +118,7 @@ function addTrailingSlash(path) {
  * Returns true if the path is within one of the given folders
  *
  * @param {string} path
- * @param {string[]} folders
+ * @param {readonly string[]} folders
  * @returns {boolean}
  */
 function matchesFolder(path, folders) {

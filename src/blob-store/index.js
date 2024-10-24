@@ -3,12 +3,13 @@ import b4a from 'b4a'
 import util from 'node:util'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
-import { LiveDownload } from './live-download.js'
+import { Downloader } from './downloader.js'
+import { createEntriesStream } from './entries-stream.js'
 /** @import { JsonObject } from 'type-fest' */
 /** @import { Readable as NodeReadable } from 'node:stream' */
 /** @import { Readable as StreamxReadable, Writable } from 'streamx' */
-/** @import { BlobId } from '../types.js' */
-/** @import { BlobDownloadEvents } from './live-download.js' */
+/** @import { BlobFilter, BlobId } from '../types.js' */
+/** @import { BlobDownloadEvents } from './downloader.js' */
 
 /**
  * @internal
@@ -123,15 +124,16 @@ export class BlobStore {
    * If no filter is specified, all blobs will be downloaded. If a filter is
    * specified, then _only_ blobs that match the filter will be downloaded.
    *
-   * @param {import('../types.js').BlobFilter} [filter] Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
-   * @param {object} options
-   * @param {AbortSignal} [options.signal] Optional AbortSignal to cancel in-progress download
-   * @returns {TypedEmitter<BlobDownloadEvents>}
+   * @param {object} [options]
+   * @param {import('../types.js').BlobFilter} [options.filter] Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
+   * @param {boolean} [options.live=false] Set to `true` for a downloader that never ends, and will continue downloading any new data that becomes available.
+   * @returns {Downloader}
    */
-  download(filter, { signal } = {}) {
-    return new LiveDownload(this.#hyperdrives.values(), this.#driveEmitter, {
+  download({ filter, live = false } = {}) {
+    const drives = Array.from(this.#hyperdrives.values())
+    return new Downloader(drives, this.#driveEmitter, {
       filter,
-      signal,
+      live,
     })
   }
 
@@ -155,6 +157,24 @@ export class BlobStore {
   }
 
   /**
+   * This is a low-level method to create a stream of entries from all drives.
+   * It includes entries for unknown blob types and variants.
+   *
+   * @param {object} opts
+   * @param {boolean} [opts.live=false] Set to `true` to get a live stream of entries
+   * @param {readonly string[]} [opts.folders] Filter entries to only those in these folders
+   * @returns
+   */
+  createEntriesReadStream({ live = false, folders } = {}) {
+    const drives = Array.from(this.#hyperdrives.values())
+    const entriesStream = createEntriesStream(drives, this.#driveEmitter, {
+      live,
+      folders,
+    })
+    return entriesStream
+  }
+
+  /**
    * Optimization for creating the blobs read stream when you have
    * previously read the entry from Hyperdrive using `drive.entry`
    * @param {BlobId['driveId']} driveId Hyperdrive drive discovery id
@@ -163,7 +183,7 @@ export class BlobStore {
    * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
    * @returns {Promise<Readable>}
    */
-  async createEntryReadStream(driveId, entry, options = { wait: false }) {
+  async createReadStreamFromEntry(driveId, entry, options = { wait: false }) {
     const drive = this.#getDrive(driveId)
     const blobs = await drive.getBlobs()
 
