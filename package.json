@@ -154,7 +154,7 @@
   },
   "dependencies": {
     "@comapeo/fallback-smp": "^1.0.0",
-    "@comapeo/schema": "1.1.1",
+    "@comapeo/schema": "1.2.0",
     "@digidem/types": "^2.3.0",
     "@fastify/error": "^3.4.1",
     "@fastify/type-provider-typebox": "^4.1.0",

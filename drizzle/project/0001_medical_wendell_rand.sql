@@ -18,3 +18,5 @@ CREATE TABLE `remoteDetectionAlert` (
 	`geometry` text NOT NULL,
 	`forks` text NOT NULL
 );
+--> statement-breakpoint
+ALTER TABLE deviceInfo ADD `selfHostedServerDetails` text;

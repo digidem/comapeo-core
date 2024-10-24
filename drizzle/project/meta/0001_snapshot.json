@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "b8629323-8708-4ba1-a9b3-15eb2726ed86",
+  "id": "fd9449b2-3a8e-440e-ba57-62c2db1dc39f",
   "prevId": "597b1fb1-5fe9-4601-abab-9cd02b6a77fe",
   "tables": {
     "coreOwnership_backlink": {
@@ -237,6 +237,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "selfHostedServerDetails": {
+          "name": "selfHostedServerDetails",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "forks": {
