@@ -14,7 +14,7 @@ import {
 } from './utils.js'
 import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
-import timingSafeEqual from './lib/timing-safe-equal.js'
+import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { ErrorWithCode } from './lib/error.js'
 import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
