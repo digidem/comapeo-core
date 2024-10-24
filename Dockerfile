@@ -7,8 +7,6 @@ FROM node:${NODE_VERSION} AS build
 RUN apt-get update && apt-get install -y --no-install-recommends dumb-init
 WORKDIR /usr/src/app
 COPY package*.json /usr/src/app/
-# TODO: Remove this line when the package is published
-COPY comapeo-schema-server.tgz /usr/src/app/
 RUN npm ci --omit=dev
 
 # --------------> The production image__
