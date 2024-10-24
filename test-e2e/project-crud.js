@@ -142,23 +142,10 @@ function createWithMockData(project, schemaName, count) {
         )
       )
     case 'remoteDetectionAlert':
-      // TODO: Add support for remoteDetectionAlert in mapeo-mock-data
       return Promise.all(
-        Array(count)
-          .fill(null)
-          .map(() =>
-            project[schemaName].create({
-              schemaName: 'remoteDetectionAlert',
-              detectionDateStart: new Date().toISOString(),
-              detectionDateEnd: new Date().toISOString(),
-              sourceId: randomBytes(32).toString('hex'),
-              metadata: { alert_type: 'fire' },
-              geometry: {
-                type: 'Point',
-                coordinates: [-3, 37],
-              },
-            })
-          )
+        generate(schemaName, { count }).map((doc) =>
+          project[schemaName].create(valueOf(doc))
+        )
       )
     case 'track':
       return Promise.all(
