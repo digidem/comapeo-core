@@ -3,7 +3,7 @@ import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import { assert, keyToId, noop } from './utils.js'
 import HashMap from './lib/hashmap.js'
-import timingSafeEqual from './lib/timing-safe-equal.js'
+import timingSafeEqual from 'string-timing-safe-equal'
 import { Logger } from './logger.js'
 /** @import { MapBuffers } from './types.js' */
 /**

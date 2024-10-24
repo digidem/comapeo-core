@@ -24,6 +24,7 @@ import {
   roleTable,
   iconTable,
   translationTable,
+  remoteDetectionAlertTable,
 } from './schema/project.js'
 import {
   CoreOwnership,
@@ -186,6 +187,7 @@ export class MapeoProject extends TypedEmitter {
         deviceInfoTable,
         iconTable,
         translationTable,
+        remoteDetectionAlertTable,
       ],
       sqlite: this.#sqlite,
       getWinner,
@@ -239,6 +241,12 @@ export class MapeoProject extends TypedEmitter {
       track: new DataType({
         dataStore: this.#dataStores.data,
         table: trackTable,
+        db,
+        getTranslations,
+      }),
+      remoteDetectionAlert: new DataType({
+        dataStore: this.#dataStores.data,
+        table: remoteDetectionAlertTable,
         db,
         getTranslations,
       }),
@@ -541,6 +549,10 @@ export class MapeoProject extends TypedEmitter {
   }
   get field() {
     return this.#dataTypes.field
+  }
+
+  get remoteDetectionAlert() {
+    return this.#dataTypes.remoteDetectionAlert
   }
 
   get $member() {
