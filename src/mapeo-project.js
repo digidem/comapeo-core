@@ -46,7 +46,11 @@ import {
 } from './utils.js'
 import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
-import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
+import {
+  SyncApi,
+  kHandleDiscoveryKey,
+  kWaitForInitialSyncWithPeer,
+} from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
@@ -76,8 +80,9 @@ const EMPTY_PROJECT_SETTINGS = Object.freeze({})
  * @extends {TypedEmitter<{ close: () => void }>}
  */
 export class MapeoProject extends TypedEmitter {
-  #projectId
+  #projectKey
   #deviceId
+  #identityKeypair
   #coreManager
   #indexWriter
   #dataStores
@@ -134,9 +139,15 @@ export class MapeoProject extends TypedEmitter {
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
-    this.#projectId = projectKeyToId(projectKey)
+    this.#projectKey = projectKey
     this.#loadingConfig = false
     this.#isArchiveDevice = isArchiveDevice
+
+    const getReplicationStream = this[kProjectReplicate].bind(
+      this,
+      // TODO: See if we can fix these
+      /** @type {any} */ (true)
+    )
 
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
@@ -290,7 +301,7 @@ export class MapeoProject extends TypedEmitter {
         },
       }),
     }
-    const identityKeypair = keyManager.getIdentityKeypair()
+    this.#identityKeypair = keyManager.getIdentityKeypair()
     const coreKeypairs = getCoreKeypairs({
       projectKey,
       projectSecretKey,
@@ -299,14 +310,14 @@ export class MapeoProject extends TypedEmitter {
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
       coreKeypairs,
-      identityKeypair,
+      identityKeypair: this.#identityKeypair,
     })
     this.#roles = new Roles({
       dataType: this.#dataTypes.role,
       coreOwnership: this.#coreOwnership,
       coreManager: this.#coreManager,
       projectKey: projectKey,
-      deviceKey: keyManager.getIdentityKeypair().publicKey,
+      deviceKey: this.#identityKeypair.publicKey,
     })
 
     this.#memberApi = new MemberApi({
@@ -316,13 +327,14 @@ export class MapeoProject extends TypedEmitter {
       encryptionKeys,
       projectKey,
       rpc: localPeers,
+      getReplicationStream,
+      waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
+        this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
       },
     })
-
-    const projectPublicId = projectKeyToPublicId(projectKey)
 
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
@@ -335,7 +347,7 @@ export class MapeoProject extends TypedEmitter {
         if (!base.endsWith('/')) {
           base += '/'
         }
-        return base + projectPublicId
+        return base + this.#projectPublicId
       },
     })
 
@@ -347,7 +359,7 @@ export class MapeoProject extends TypedEmitter {
         if (!base.endsWith('/')) {
           base += '/'
         }
-        return base + projectPublicId
+        return base + this.#projectPublicId
       },
     })
 
@@ -356,6 +368,24 @@ export class MapeoProject extends TypedEmitter {
       coreOwnership: this.#coreOwnership,
       roles: this.#roles,
       logger: this.#l,
+      getServerWebsocketUrls: async () => {
+        const members = await this.#memberApi.getMany()
+        /** @type {string[]} */
+        const serverWebsocketUrls = []
+        for (const member of members) {
+          if (
+            member.deviceType === 'selfHostedServer' &&
+            member.selfHostedServerDetails
+          ) {
+            const { baseUrl } = member.selfHostedServerDetails
+            const wsUrl = new URL(`/sync/${this.#projectPublicId}`, baseUrl)
+            wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
+            serverWebsocketUrls.push(wsUrl.href)
+          }
+        }
+        return serverWebsocketUrls
+      },
+      getReplicationStream,
     })
 
     this.#translationApi = new TranslationApi({
@@ -428,6 +458,14 @@ export class MapeoProject extends TypedEmitter {
 
   get deviceId() {
     return this.#deviceId
+  }
+
+  get #projectId() {
+    return projectKeyToId(this.#projectKey)
+  }
+
+  get #projectPublicId() {
+    return projectKeyToPublicId(this.#projectKey)
   }
 
   /**
@@ -613,6 +651,7 @@ export class MapeoProject extends TypedEmitter {
        * Hypercore types need updating.
        * @type {any}
        */ ({
+        keyPair: this.#identityKeypair,
         /** @param {Buffer} discoveryKey */
         ondiscoverykey: async (discoveryKey) => {
           const protomux =
@@ -627,7 +666,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType'>} value
+   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType' | 'selfHostedServerDetails'>} value
    * @returns {Promise<import('@comapeo/schema').DeviceInfo>}
    */
   async [kSetOwnDeviceInfo](value) {
@@ -640,6 +679,7 @@ export class MapeoProject extends TypedEmitter {
     const doc = {
       name: value.name,
       deviceType: value.deviceType,
+      selfHostedServerDetails: value.selfHostedServerDetails,
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 
