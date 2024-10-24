@@ -4,6 +4,7 @@ declare module 'hyperdrive' {
   import Hyperblobs, { BlobId } from 'hyperblobs'
   import { Readable, Writable } from 'streamx'
   import { TypedEmitter } from 'tiny-typed-emitter'
+  import { JsonValue } from 'type-fest'
 
   interface HyperdriveOptions {
     onwait: () => void
@@ -39,7 +40,7 @@ declare module 'hyperdrive' {
         executable: boolean // whether the blob at path is an executable
         linkname: null | string // if entry not symlink, otherwise a string to the entry this links to
         blob: BlobId // a Hyperblob id that can be used to fetch the blob associated with this entry
-        metadata: null | object
+        metadata: JsonValue
       }
     }
   }

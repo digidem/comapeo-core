@@ -44,6 +44,7 @@ import {
   projectKeyToPublicId,
   valueOf,
 } from './utils.js'
+import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
 import { Logger } from './logger.js'
@@ -51,7 +52,7 @@ import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
-/** @import { CoreStorage, KeyPair, Namespace } from './types.js' */
+/** @import { CoreStorage, KeyPair, Namespace, ReplicationStream } from './types.js' */
 
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
@@ -66,6 +67,8 @@ export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
 export const kProjectLeave = Symbol('leave project')
 export const kClearDataIfLeft = Symbol('clear data if left project')
+export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
+export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
@@ -91,6 +94,7 @@ export class MapeoProject extends TypedEmitter {
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #loadingConfig
+  #isArchiveDevice
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
@@ -107,6 +111,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
+   * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {Logger} [opts.logger]
    *
    */
@@ -123,6 +128,7 @@ export class MapeoProject extends TypedEmitter {
     getMediaBaseUrl,
     localPeers,
     logger,
+    isArchiveDevice,
   }) {
     super()
 
@@ -130,6 +136,7 @@ export class MapeoProject extends TypedEmitter {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectId = projectKeyToId(projectKey)
     this.#loadingConfig = false
+    this.#isArchiveDevice = isArchiveDevice
 
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
@@ -592,20 +599,30 @@ export class MapeoProject extends TypedEmitter {
    * and only this project will replicate (to replicate multiple projects you
    * need to replicate the manager instance via manager[kManagerReplicate])
    *
-   * @param {Parameters<import('hypercore')['replicate']>[0]} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
+   * @param {(
+   *   boolean |
+   *   import('stream').Duplex |
+   *   import('streamx').Duplex
+   * )} isInitiatorOrStream
+   * @returns {ReplicationStream}
    */
-  [kProjectReplicate](stream) {
-    // @ts-expect-error - hypercore types need updating
-    const replicationStream = this.#coreManager.creatorCore.replicate(stream, {
-      // @ts-ignore - hypercore types do not currently include this option
-      ondiscoverykey: async (discoveryKey) => {
-        const protomux =
-          /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
-            replicationStream.noiseStream.userData
-          )
-        this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
-      },
-    })
+  [kProjectReplicate](isInitiatorOrStream) {
+    const replicationStream = this.#coreManager.creatorCore.replicate(
+      isInitiatorOrStream,
+      /**
+       * Hypercore types need updating.
+       * @type {any}
+       */ ({
+        /** @param {Buffer} discoveryKey */
+        ondiscoverykey: async (discoveryKey) => {
+          const protomux =
+            /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
+              replicationStream.noiseStream.userData
+            )
+          this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
+        },
+      })
+    )
     return replicationStream
   }
 
@@ -634,6 +651,16 @@ export class MapeoProject extends TypedEmitter {
     }
 
     return deviceInfo.update(existingDoc.versionId, doc)
+  }
+
+  /** @param {boolean} isArchiveDevice */
+  async [kSetIsArchiveDevice](isArchiveDevice) {
+    this.#isArchiveDevice = isArchiveDevice
+  }
+
+  /** @returns {boolean} */
+  get [kIsArchiveDevice]() {
+    return this.#isArchiveDevice
   }
 
   /**
@@ -899,9 +926,7 @@ export class MapeoProject extends TypedEmitter {
  * @returns {EditableProjectSettings}
  */
 function extractEditableProjectSettings(projectDoc) {
-  // eslint-disable-next-line no-unused-vars
-  const { schemaName, ...result } = valueOf(projectDoc)
-  return result
+  return omit(valueOf(projectDoc), ['schemaName'])
 }
 
 /**

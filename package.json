@@ -1,6 +1,6 @@
 {
   "name": "@comapeo/core",
-  "version": "1.0.1",
+  "version": "2.0.1",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
@@ -108,6 +108,7 @@
   "homepage": "https://github.com/digidem/comapeo-core#readme",
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
+    "@comapeo/core2.0.1": "npm:@comapeo/core@2.0.1",
     "@mapeo/default-config": "5.0.0",
     "@mapeo/mock-data": "^2.1.1",
     "@sinonjs/fake-timers": "^10.0.2",
@@ -171,7 +172,7 @@
     "debug": "^4.3.4",
     "dot-prop": "^9.0.0",
     "drizzle-orm": "^0.30.8",
-    "fastify": ">= 4",
+    "fastify": "^4.0.0",
     "fastify-plugin": "^4.5.1",
     "hyperblobs": "2.3.0",
     "hypercore": "10.17.0",
@@ -191,7 +192,7 @@
     "sodium-universal": "^4.0.0",
     "start-stop-state-machine": "^1.2.0",
     "streamx": "^2.19.0",
-    "styled-map-package": "^1.1.0",
+    "styled-map-package": "^2.0.0",
     "sub-encoder": "^2.1.1",
     "throttle-debounce": "^5.0.0",
     "tiny-typed-emitter": "^2.1.0",

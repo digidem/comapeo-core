@@ -102,6 +102,7 @@ async function routes(fastify, options) {
       // Extract the 'mimeType' property of the metadata and use it for the response header if found
       if (
         metadata &&
+        typeof metadata === 'object' &&
         'mimeType' in metadata &&
         typeof metadata.mimeType === 'string'
       ) {
