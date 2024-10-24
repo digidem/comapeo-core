@@ -1,1 +1,0 @@
-ALTER TABLE deviceInfo ADD `selfHostedServerDetails` text;
