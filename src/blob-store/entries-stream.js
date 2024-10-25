@@ -7,11 +7,20 @@ import unixPathResolve from 'unix-path-resolve'
 /** @import { BlobStoreEntriesStream } from '../types.js' */
 
 const keyEncoding = new SubEncoder('files', 'utf-8')
+const kAddDrive = Symbol('addDrive to entries stream')
+
+/**
+ * @param {BlobStoreEntriesStream} entriesStream
+ * @param {Hyperdrive} drive
+ */
+export function addDriveToEntriesStream(entriesStream, drive) {
+  // @ts-expect-error - We don't expose this method in the type
+  entriesStream[kAddDrive](drive)
+}
 
 /**
  *
  * @param {Array<Hyperdrive>} drives
- * @param {import('./index.js').InternalDriveEmitter} driveEmitter
  * @param {object} opts
  * @param {boolean} [opts.live=false]
  * @param {readonly string[]} [opts.folders]
@@ -19,20 +28,17 @@ const keyEncoding = new SubEncoder('files', 'utf-8')
  */
 export function createEntriesStream(
   drives,
-  driveEmitter,
   { live = false, folders = ['/'] } = {}
 ) {
   folders = normalizeFolders(folders)
   const mergedEntriesStreams = mergeStreams(
     drives.map((drive) => getFilteredHistoryStream(drive.db, { folders, live }))
   )
-  if (live) {
-    driveEmitter.on('add-drive', addDrive)
-    mergedEntriesStreams.on('close', () => {
-      driveEmitter.off('add-drive', addDrive)
-    })
-  }
-  // @ts-expect-error
+  Object.defineProperty(mergedEntriesStreams, kAddDrive, {
+    value: addDrive,
+    writable: false,
+    enumerable: false,
+  })
   return mergedEntriesStreams
 
   /** @param {Hyperdrive} drive */

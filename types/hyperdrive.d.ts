@@ -101,6 +101,7 @@ declare module 'hyperdrive' {
       path: string,
       opts?: { diff?: boolean }
     ): Promise<{ blocks: number } | null>
+    close(): Promise<void>
   }
 
   export = Hyperdrive

@@ -2,21 +2,23 @@ import Hyperdrive from 'hyperdrive'
 import b4a from 'b4a'
 import util from 'node:util'
 import { discoveryKey } from 'hypercore-crypto'
-import { TypedEmitter } from 'tiny-typed-emitter'
-import { Downloader } from './downloader.js'
-import { createEntriesStream } from './entries-stream.js'
+import { addDriveToDownloader, Downloader } from './downloader.js'
+import {
+  addDriveToEntriesStream,
+  createEntriesStream,
+} from './entries-stream.js'
+import { IterableWeakSet } from 'weakref'
+
 /** @import { JsonObject } from 'type-fest' */
 /** @import { Readable as NodeReadable } from 'node:stream' */
 /** @import { Readable as StreamxReadable, Writable } from 'streamx' */
-/** @import { BlobFilter, BlobId } from '../types.js' */
+/** @import { BlobFilter, BlobId, BlobStoreEntriesStream } from '../types.js' */
 /** @import { BlobDownloadEvents } from './downloader.js' */
 
 /**
  * @internal
  * @typedef {NodeReadable | StreamxReadable} Readable
  */
-
-/** @typedef {TypedEmitter<{ 'add-drive': (drive: import('hyperdrive')) => void }>} InternalDriveEmitter */
 
 // prop = blob type name
 // value = array of blob variants supported for that type
@@ -42,11 +44,10 @@ export class BlobStore {
   /** @type {Map<string, Hyperdrive>} Indexed by hex-encoded discovery key */
   #hyperdrives = new Map()
   #writer
-  /**
-   * Used to communicate to live download instances when new drives are added
-   * @type {InternalDriveEmitter}
-   */
-  #driveEmitter = new TypedEmitter()
+  /** @type {IterableWeakSet<Downloader>} */
+  #liveDownloaders = new IterableWeakSet()
+  /** @type {IterableWeakSet<BlobStoreEntriesStream} */
+  #liveEntriesStreams = new IterableWeakSet()
 
   /**
    * @param {object} options
@@ -80,7 +81,17 @@ export class BlobStore {
       // @ts-ignore - we know pretendCorestore is not actually a Corestore
       const drive = new Hyperdrive(corestore, key)
       this.#hyperdrives.set(driveId, drive)
-      this.#driveEmitter.emit('add-drive', drive)
+      for (const downloader of this.#liveDownloaders) {
+        addDriveToDownloader(downloader, drive)
+      }
+      for (const entriesStream of this.#liveEntriesStreams) {
+        try {
+          addDriveToEntriesStream(entriesStream, drive)
+        } catch {
+          // This happens when the stream is already closed, so we can remove our reference.
+          this.#liveEntriesStreams.delete(entriesStream)
+        }
+      }
     })
   }
 
@@ -131,10 +142,14 @@ export class BlobStore {
    */
   download({ filter, live = false } = {}) {
     const drives = Array.from(this.#hyperdrives.values())
-    return new Downloader(drives, this.#driveEmitter, {
+    const downloader = new Downloader(drives, {
       filter,
       live,
     })
+    if (live) {
+      this.#liveDownloaders.add(downloader)
+    }
+    return downloader
   }
 
   /**
@@ -167,10 +182,13 @@ export class BlobStore {
    */
   createEntriesReadStream({ live = false, folders } = {}) {
     const drives = Array.from(this.#hyperdrives.values())
-    const entriesStream = createEntriesStream(drives, this.#driveEmitter, {
+    const entriesStream = createEntriesStream(drives, {
       live,
       folders,
     })
+    if (live) {
+      this.#liveEntriesStreams.add(entriesStream)
+    }
     return entriesStream
   }
 

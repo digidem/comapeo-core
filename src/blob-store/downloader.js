@@ -21,6 +21,16 @@ import { noop } from '../utils.js'
  * @property {(state: BlobDownloadState | BlobDownloadStateError ) => void} state Emitted with the current download state whenever it changes (not emitted during initial 'checking' status)
  */
 
+const kAddDrive = Symbol('addDrive to downloader')
+
+/**
+ * @param {Downloader} downloader
+ * @param {Hyperdrive} drive
+ */
+export function addDriveToDownloader(downloader, drive) {
+  downloader[kAddDrive](drive)
+}
+
 class State {
   haveCount = 0
   haveBytes = 0
@@ -72,51 +82,24 @@ export class Downloader extends TypedEmitter {
   #ac = new AbortController()
   #state
 
-  /** @param {import('hyperdrive')} drive */
-  #addDrive = (drive) => {
-    if (drive.key) {
-      this.#drivesById.set(drive.key.toString('hex'), drive)
-      return
-    }
-    drive
-      .ready()
-      .then(() => {
-        if (!drive.key) return // should never happen
-        this.#drivesById.set(drive.key.toString('hex'), drive)
-      })
-      .catch(noop)
-  }
-
   /**
    * Like drive.download() but 'live', and for multiple drives
    * @param {Array<import('hyperdrive')>} drives
-   * @param {import('./index.js').InternalDriveEmitter} driveEmitter
    * @param {object} [options]
    * @param {import('../types.js').BlobFilter} [options.filter] Filter blobs of specific types and/or sizes to download
    * @param {boolean} [options.live=false]
    */
-  constructor(drives, driveEmitter, { filter, live = false } = {}) {
+  constructor(drives, { filter, live = false } = {}) {
     super()
     this.#state = new State({ live })
 
-    this.#entriesStream = createEntriesStream(drives, driveEmitter, {
+    this.#entriesStream = createEntriesStream(drives, {
       live,
       folders: filterToFolders(filter),
     })
 
     this.#donePromise = this.#start()
     this.#donePromise.catch(noop)
-
-    if (!live) return
-
-    driveEmitter.on('add-drive', this.#addDrive)
-    this.#ac.signal.addEventListener(
-      'abort',
-      () => {
-        driveEmitter.off('add-drive', this.#addDrive)
-      },
-      { once: true }
-    )
   }
 
   async #start() {
@@ -169,6 +152,22 @@ export class Downloader extends TypedEmitter {
           this.emit('state', this.#state.value)
         })
     }
+  }
+
+  /** @param {import('hyperdrive')} drive */
+  [kAddDrive](drive) {
+    if (this.#ac.signal.aborted) return
+    if (drive.key) {
+      this.#drivesById.set(drive.key.toString('hex'), drive)
+      return
+    }
+    drive
+      .ready()
+      .then(() => {
+        if (!drive.key) return // should never happen
+        this.#drivesById.set(drive.key.toString('hex'), drive)
+      })
+      .catch(noop)
   }
 
   done() {
