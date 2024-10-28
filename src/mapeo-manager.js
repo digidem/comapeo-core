@@ -80,8 +80,6 @@ export const DEFAULT_FALLBACK_MAP_FILE_PATH = require.resolve(
 export const DEFAULT_ONLINE_STYLE_URL =
   'https://demotiles.maplibre.org/style.json'
 
-export const kRPC = Symbol('rpc')
-
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
  */
@@ -219,13 +217,6 @@ export class MapeoManager extends TypedEmitter {
       logger,
     })
     this.#localDiscovery.on('connection', this.#replicate.bind(this))
-  }
-
-  /**
-   * MapeoRPC instance, used for tests
-   */
-  get [kRPC]() {
-    return this.#localPeers
   }
 
   get deviceId() {
