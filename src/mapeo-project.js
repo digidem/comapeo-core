@@ -143,11 +143,7 @@ export class MapeoProject extends TypedEmitter {
     this.#loadingConfig = false
     this.#isArchiveDevice = isArchiveDevice
 
-    const getReplicationStream = this[kProjectReplicate].bind(
-      this,
-      // TODO: See if we can fix these
-      /** @type {any} */ (true)
-    )
+    const getReplicationStream = this[kProjectReplicate].bind(this, true)
 
     ///////// 1. Setup database
     this.#sqlite = new Database(dbPath)
