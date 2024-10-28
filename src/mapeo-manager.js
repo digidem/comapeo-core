@@ -710,9 +710,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @typedef {Exclude<
-   * import('./schema/client.js').DeviceInfoParam['deviceType'],
-   * 'selfHostedServer'>} RPCDeviceType
+   * @typedef {import('./schema/client.js').DeviceInfoParam['deviceType']} RPCDeviceType
    */
 
   /**
@@ -739,13 +737,22 @@ export class MapeoManager extends TypedEmitter {
       })
     )
 
-    await Promise.all(
-      this.#localPeers.peers
-        .filter(({ status }) => status === 'connected')
-        .map((peer) =>
-          this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfo)
-        )
-    )
+    if (deviceInfo.deviceType !== 'selfHostedServer') {
+      // We have to make a copy of this because TypeScript can't guarantee that
+      // `deviceInfo` won't be mutated by the time it gets to the
+      // `sendDeviceInfo` call below.
+      const deviceInfoToSend = {
+        ...deviceInfo,
+        deviceType: deviceInfo.deviceType,
+      }
+      await Promise.all(
+        this.#localPeers.peers
+          .filter(({ status }) => status === 'connected')
+          .map((peer) =>
+            this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfoToSend)
+          )
+      )
+    }
 
     this.#l.log('set device info %o', deviceInfo)
   }
