@@ -627,7 +627,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType'>} value
+   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType' | 'selfHostedServerDetails'>} value
    * @returns {Promise<import('@comapeo/schema').DeviceInfo>}
    */
   async [kSetOwnDeviceInfo](value) {
@@ -640,6 +640,7 @@ export class MapeoProject extends TypedEmitter {
     const doc = {
       name: value.name,
       deviceType: value.deviceType,
+      selfHostedServerDetails: value.selfHostedServerDetails,
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 
