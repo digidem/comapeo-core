@@ -253,6 +253,7 @@ export class Downloader extends TypedEmitter {
     this.#ac.signal.removeEventListener('abort', this.#cleanup)
     this.#entriesStream.removeListener('error', this.#ac.abort)
     this.#state.queuedDownloads.clear()
+    this.#state.initialLengthsByDriveId.clear()
     this.#drivesById.clear()
     this.#entriesStream.destroy()
   }
