@@ -301,6 +301,8 @@ export default async function routes(
             lat: obs.lat,
             lon: obs.lon,
             attachments: obs.attachments
+              // TODO: For now, only photos are supported.
+              // See <https://github.com/digidem/comapeo-cloud/issues/25>.
               .filter((attachment) => attachment.type === 'photo')
               .map((attachment) => ({
                 url: new URL(
@@ -323,6 +325,7 @@ export default async function routes(
           projectPublicId: BASE32_STRING_32_BYTES,
           driveDiscoveryId: Type.String(),
           // TODO: For now, only photos are supported.
+          // See <https://github.com/digidem/comapeo-cloud/issues/25>.
           type: Type.Literal('photo'),
           name: Type.String(),
         }),
