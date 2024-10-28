@@ -201,7 +201,6 @@
     "undici": "^6.13.0",
     "unix-path-resolve": "^1.0.2",
     "varint": "^6.0.0",
-    "weakref": "^0.2.1",
     "yauzl-promise": "^4.0.0"
   }
 }

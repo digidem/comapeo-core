@@ -6,33 +6,23 @@ import { Transform } from 'node:stream'
 /** @import { BlobStoreEntriesStream } from '../types.js' */
 
 const keyEncoding = new SubEncoder('files', 'utf-8')
-const kAddDrive = Symbol('addDrive to entries stream')
-
-/**
- * @param {BlobStoreEntriesStream} entriesStream
- * @param {Hyperdrive} drive
- */
-export function addDriveToEntriesStream(entriesStream, drive) {
-  // @ts-expect-error - We don't expose this method in the type
-  entriesStream[kAddDrive](drive)
-}
 
 /**
  *
- * @param {Array<Hyperdrive>} drives
+ * @param {import('./index.js').THyperdriveIndex} driveIndex
  * @param {object} opts
  * @param {boolean} [opts.live=false]
  * @returns {BlobStoreEntriesStream}
  */
-export function createEntriesStream(drives, { live = false } = {}) {
+export function createEntriesStream(driveIndex, { live = false } = {}) {
   const mergedEntriesStreams = mergeStreams(
-    drives.map((drive) => getHistoryStream(drive.db, { live }))
+    [...driveIndex].map((drive) => getHistoryStream(drive.db, { live }))
   )
-  Object.defineProperty(mergedEntriesStreams, kAddDrive, {
-    value: addDrive,
-    writable: false,
-    enumerable: false,
-  })
+  driveIndex.on('add-drive', addDrive)
+  // Close is always emitted, so we can use it to remove the listener
+  mergedEntriesStreams.once('close', () =>
+    driveIndex.off('add-drive', addDrive)
+  )
   return mergedEntriesStreams
 
   /** @param {Hyperdrive} drive */
@@ -58,10 +48,10 @@ function getHistoryStream(bee, { live }) {
     // under the `files` sub-encoding key
     keyEncoding,
   })
-  return historyStream.pipe(new AddDiscoveryIds(bee.core))
+  return historyStream.pipe(new AddDriveIds(bee.core))
 }
 
-class AddDiscoveryIds extends Transform {
+class AddDriveIds extends Transform {
   #core
   #discoveryKey
 
