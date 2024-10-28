@@ -46,7 +46,7 @@ export class BlobStore {
   #writer
   /** @type {IterableWeakSet<Downloader>} */
   #liveDownloaders = new IterableWeakSet()
-  /** @type {IterableWeakSet<BlobStoreEntriesStream} */
+  /** @type {IterableWeakSet<BlobStoreEntriesStream>} */
   #liveEntriesStreams = new IterableWeakSet()
 
   /**
@@ -147,6 +147,9 @@ export class BlobStore {
       live,
     })
     if (live) {
+      // If the returned downloader is "live", then we need to add incoming
+      // drives to it, so we keep a weak reference that will be available for as
+      // long as the returned downloader is referenced.
       this.#liveDownloaders.add(downloader)
     }
     return downloader
@@ -177,16 +180,15 @@ export class BlobStore {
    *
    * @param {object} opts
    * @param {boolean} [opts.live=false] Set to `true` to get a live stream of entries
-   * @param {readonly string[]} [opts.folders] Filter entries to only those in these folders
    * @returns
    */
-  createEntriesReadStream({ live = false, folders } = {}) {
+  createEntriesReadStream({ live = false } = {}) {
     const drives = Array.from(this.#hyperdrives.values())
-    const entriesStream = createEntriesStream(drives, {
-      live,
-      folders,
-    })
+    const entriesStream = createEntriesStream(drives, { live })
     if (live) {
+      // If the returned entries stream is "live", then we need to add incoming
+      // drives to it, so we keep a weak reference that will be available for as
+      // long as the returned entries stream is referenced.
       this.#liveEntriesStreams.add(entriesStream)
     }
     return entriesStream
