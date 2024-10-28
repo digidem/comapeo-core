@@ -764,15 +764,18 @@ export class MapeoManager extends TypedEmitter {
     )
 
     if (deviceInfo.deviceType !== 'selfHostedServer') {
+      // We have to make a copy of this because TypeScript can't guarantee that
+      // `deviceInfo` won't be mutated by the time it gets to the
+      // `sendDeviceInfo` call below.
+      const deviceInfoToSend = {
+        ...deviceInfo,
+        deviceType: deviceInfo.deviceType,
+      }
       await Promise.all(
         this.#localPeers.peers
           .filter(({ status }) => status === 'connected')
           .map((peer) =>
-            this.#localPeers.sendDeviceInfo(
-              peer.deviceId,
-              // TODO TypeScript isn't smart enough to know that deviceInfo is okay here?
-              /** @type {any} */ (deviceInfo)
-            )
+            this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfoToSend)
           )
       )
     }
