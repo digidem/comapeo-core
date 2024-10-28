@@ -68,12 +68,9 @@ export class Downloader extends TypedEmitter {
       const drive = this.#driveIndex.get(driveId)
       // ERROR HANDLING: this is unexpected and should not happen
       if (!drive) throw new Error('Drive not found: ' + driveId)
-      // ERROR HANDLING: this should not throw
       const blobs = await drive.getBlobs()
       this.#ac.signal.throwIfAborted()
-      // ERROR HANDLING: this will throw if core.has() throws, which should not happen
       await this.#processEntry(blobs.core, blob)
-      this.#ac.signal.throwIfAborted()
       // This loop will never end unless thrown, since this is a live stream
     }
   }
