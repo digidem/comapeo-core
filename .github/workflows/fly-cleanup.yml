@@ -1,5 +1,7 @@
 # Cleans up orphaned test apps on Fly
+
 # TODO: check app creation date - could destroy an app during a test run
+# See <https://github.com/digidem/comapeo-core/issues/914>.
 
 name: Fly Cleanup
 on:
