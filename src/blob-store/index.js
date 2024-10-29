@@ -242,6 +242,11 @@ export class BlobStore extends TypedEmitter {
 
     return drive.clear(path, options)
   }
+
+  close() {
+    this.#downloader.removeAllListeners()
+    this.#downloader.destroy()
+  }
 }
 
 // Don't want to export the class, but do want to export the type.
