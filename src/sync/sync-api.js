@@ -73,6 +73,7 @@ export class SyncApi extends TypedEmitter {
   /** @type {Map<string, PeerSyncController>} */
   #pscByPeerId = new Map()
   #wantsToSyncData = false
+  #wantsToConnectToServers = false
   #hasRequestedFullStop = false
   /** @type {SyncEnabledState} */
   #previousSyncEnabledState = 'none'
@@ -301,9 +302,14 @@ export class SyncApi extends TypedEmitter {
    * @returns {void}
    */
   connectServers() {
-    // TODO: decide how to handle this async stuff
+    this.#wantsToConnectToServers = true
+
     this.#getServerWebsocketUrls()
       .then((urls) => {
+        const hasDisconnectedSinceWebsocketUrlsRequestFinished =
+          !this.#wantsToConnectToServers
+        if (hasDisconnectedSinceWebsocketUrlsRequestFinished) return
+
         for (const url of urls) {
           const existingWebsocket = this.#serverWebsockets.get(url)
           if (
@@ -357,6 +363,7 @@ export class SyncApi extends TypedEmitter {
       websocket.close()
     }
     this.#serverWebsockets.clear()
+    this.#wantsToConnectToServers = false
   }
 
   /**

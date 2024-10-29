@@ -17,6 +17,7 @@ import {
   waitForPeers,
   waitForSync,
 } from './utils.js'
+import pDefer from 'p-defer'
 /** @import { FastifyInstance } from 'fastify' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -382,6 +383,62 @@ test('data can be synced via a server', async (t) => {
   assert(
     await managerBProject.observation.getByDocId(observation.docId),
     'manager B now sees data'
+  )
+})
+
+test('connecting and then immediately disconnecting (and then immediately connecting again)', async (t) => {
+  const manager = createManager('seed', t)
+  await manager.setDeviceInfo({ name: 'manager', deviceType: 'mobile' })
+
+  // Because we need to stop the server, we can't use a remote server here.
+  const { server, serverBaseUrl } = await createLocalTestServer(t)
+
+  const projectId = await manager.createProject({ name: 'foo' })
+  const project = await manager.getProject(projectId)
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+  assert(await findServerPeer(project), 'test setup: server peer exists')
+
+  await server.close()
+
+  const bogusServer = createFastify()
+  const madeAnyRequestToServer = pDefer()
+  const anyRequestHandler = mock.fn(() => {
+    madeAnyRequestToServer.resolve()
+    return 'some request was made'
+  })
+  bogusServer.all('*', anyRequestHandler)
+  const { port } = new URL(serverBaseUrl)
+  const bogusServerAddress = await bogusServer.listen({ port: Number(port) })
+  t.after(() => bogusServer.close())
+  assert.equal(
+    bogusServerAddress,
+    serverBaseUrl,
+    'test setup: bogus server should have same address as "real" test server'
+  )
+
+  project.$sync.connectServers()
+  project.$sync.disconnectServers()
+
+  await delay(500)
+
+  assert.strictEqual(
+    anyRequestHandler.mock.calls.length,
+    0,
+    'no connection was made to the server'
+  )
+
+  project.$sync.connectServers()
+  project.$sync.disconnectServers()
+  project.$sync.connectServers()
+
+  await madeAnyRequestToServer.promise
+
+  assert.strictEqual(
+    anyRequestHandler.mock.calls.length,
+    1,
+    'a connection was made to the server'
   )
 })
 
