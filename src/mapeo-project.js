@@ -355,6 +355,7 @@ export class MapeoProject extends TypedEmitter {
       coreManager: this.#coreManager,
       coreOwnership: this.#coreOwnership,
       roles: this.#roles,
+      blobDownloadFilter: null,
       logger: this.#l,
     })
 
@@ -657,6 +658,7 @@ export class MapeoProject extends TypedEmitter {
   /** @param {boolean} isArchiveDevice */
   async [kSetIsArchiveDevice](isArchiveDevice) {
     this.#isArchiveDevice = isArchiveDevice
+    // TODO: call this.#syncApi[kSetBlobDownloadFilter]()
   }
 
   /** @returns {boolean} */

@@ -41,11 +41,12 @@ export type BlobId = Simplify<
   }>
 >
 
-type ArrayAtLeastOne<T> = [T, ...T[]]
-
 export type BlobFilter = RequireAtLeastOne<{
-  [KeyType in BlobType]: ArrayAtLeastOne<BlobVariant<KeyType>>
+  [KeyType in BlobType]: Array<BlobVariant<KeyType>>
 }>
+
+/** Map of blob types to array of blob variants */
+export type GenericBlobFilter = Record<string, string[]>
 
 export type MapeoDocMap = {
   [K in MapeoDoc['schemaName']]: Extract<MapeoDoc, { schemaName: K }>
