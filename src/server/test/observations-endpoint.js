@@ -10,7 +10,7 @@ import { createManager } from '../../../test-e2e/utils.js'
 import {
   BEARER_TOKEN,
   createTestServer,
-  randomProjectKeys,
+  randomAddProjectBody,
 } from './test-helpers.js'
 /** @import { ObservationValue } from '@comapeo/schema'*/
 /** @import { FastifyInstance } from 'fastify' */
@@ -44,7 +44,7 @@ test('returns a 403 if incorrect auth is provided', async (t) => {
 
 test('returning no observations', async (t) => {
   const server = createTestServer(t)
-  const projectKeys = randomProjectKeys()
+  const projectKeys = randomAddProjectBody()
   const projectPublicId = projectKeyToPublicId(
     Buffer.from(projectKeys.projectKey, 'hex')
   )
@@ -72,7 +72,7 @@ test('returning observations with fetchable attachments', async (t) => {
   const serverUrl = new URL(serverAddress)
 
   const manager = createManager('client', t)
-  const projectId = await manager.createProject()
+  const projectId = await manager.createProject({ name: 'CoMapeo project' })
   const project = await manager.getProject(projectId)
 
   await project.$member.addServerPeer(serverAddress, {
@@ -161,7 +161,7 @@ test('returning observations with fetchable attachments', async (t) => {
 
 function randomProjectPublicId() {
   return projectKeyToPublicId(
-    Buffer.from(randomProjectKeys().projectKey, 'hex')
+    Buffer.from(randomAddProjectBody().projectKey, 'hex')
   )
 }
 

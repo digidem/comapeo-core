@@ -72,9 +72,26 @@ test('invalid base URLs', async (t) => {
   assert(!(await findServerPeer(project)), 'no server peers should be added')
 })
 
-test("fails if we can't connect to the server", async (t) => {
+test('project with no name', async (t) => {
   const manager = createManager('device0', t)
   const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  await assert.rejects(
+    () =>
+      project.$member.addServerPeer('http://localhost:9999', {
+        dangerouslyAllowInsecureConnections: true,
+      }),
+    {
+      code: 'MISSING_DATA',
+      message: /name/,
+    }
+  )
+})
+
+test("fails if we can't connect to the server", async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject({ name: 'foo' })
   const project = await manager.getProject(projectId)
 
   const serverBaseUrl = 'http://localhost:9999'
@@ -95,7 +112,7 @@ test(
   { concurrency: true },
   async (t) => {
     const manager = createManager('device0', t)
-    const projectId = await manager.createProject()
+    const projectId = await manager.createProject({ name: 'foo' })
     const project = await manager.getProject(projectId)
 
     await Promise.all(
@@ -129,7 +146,7 @@ test(
   { concurrency: true },
   async (t) => {
     const manager = createManager('device0', t)
-    const projectId = await manager.createProject()
+    const projectId = await manager.createProject({ name: 'foo' })
     const project = await manager.getProject(projectId)
 
     await Promise.all(
@@ -167,7 +184,7 @@ test(
 
 test("fails if first request succeeds but sync doesn't", async (t) => {
   const manager = createManager('device0', t)
-  const projectId = await manager.createProject()
+  const projectId = await manager.createProject({ name: 'foo' })
   const project = await manager.getProject(projectId)
 
   const fastify = createFastify()
@@ -199,7 +216,7 @@ test("fails if first request succeeds but sync doesn't", async (t) => {
 
 test('adding a server peer', async (t) => {
   const manager = createManager('device0', t)
-  const projectId = await manager.createProject()
+  const projectId = await manager.createProject({ name: 'foo' })
   const project = await manager.getProject(projectId)
 
   const { serverBaseUrl } = await createTestServer(t)
@@ -287,8 +304,8 @@ test.skip('removing a server peer', async (t) => {
 
 test("can't add a server to two different projects", async (t) => {
   const [managerA, managerB] = await createManagers(2, t, 'mobile')
-  const projectIdA = await managerA.createProject()
-  const projectIdB = await managerB.createProject()
+  const projectIdA = await managerA.createProject({ name: 'project A' })
+  const projectIdB = await managerB.createProject({ name: 'project B' })
   const projectA = await managerA.getProject(projectIdA)
   const projectB = await managerB.getProject(projectIdB)
 

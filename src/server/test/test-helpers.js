@@ -39,16 +39,17 @@ export function createTestServer(t, serverOptions) {
   return server
 }
 
-const randomHexKey = (length = 32) =>
+const randomHex = (length = 32) =>
   Buffer.from(randomBytes(length)).toString('hex')
 
-export const randomProjectKeys = () => ({
-  projectKey: randomHexKey(),
+export const randomAddProjectBody = () => ({
+  projectName: randomHex(16),
+  projectKey: randomHex(),
   encryptionKeys: {
-    auth: randomHexKey(),
-    config: randomHexKey(),
-    data: randomHexKey(),
-    blobIndex: randomHexKey(),
-    blob: randomHexKey(),
+    auth: randomHex(),
+    config: randomHex(),
+    data: randomHex(),
+    blobIndex: randomHex(),
+    blob: randomHex(),
   },
 })

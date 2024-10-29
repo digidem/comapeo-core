@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   BEARER_TOKEN,
   createTestServer,
-  randomProjectKeys,
+  randomAddProjectBody,
 } from './test-helpers.js'
 import { projectKeyToPublicId } from '../../utils.js'
 
@@ -30,15 +30,15 @@ test('listing projects', async (t) => {
   })
 
   await t.test('with projects', async () => {
-    const projectKeys1 = randomProjectKeys()
-    const projectKeys2 = randomProjectKeys()
+    const body1 = randomAddProjectBody()
+    const body2 = randomAddProjectBody()
 
     await Promise.all(
-      [projectKeys1, projectKeys2].map(async (projectKeys) => {
+      [body1, body2].map(async (body) => {
         const response = await server.inject({
           method: 'PUT',
           url: '/projects',
-          body: projectKeys,
+          body,
         })
         assert.equal(response.statusCode, 200)
       })
@@ -54,13 +54,19 @@ test('listing projects', async (t) => {
     const { data } = response.json()
     assert(Array.isArray(data))
     assert.equal(data.length, 2, 'expected 2 projects')
-    for (const projectKeys of [projectKeys1, projectKeys2]) {
+    for (const body of [body1, body2]) {
       const projectPublicId = projectKeyToPublicId(
-        Buffer.from(projectKeys.projectKey, 'hex')
+        Buffer.from(body.projectKey, 'hex')
       )
-      assert(
-        data.some((project) => project.projectId === projectPublicId),
-        `expected ${projectPublicId} to be found`
+      /** @type {Record<string, unknown>} */
+      const project = data.find(
+        (project) => project.projectId === projectPublicId
+      )
+      assert(project, `expected ${projectPublicId} to be found`)
+      assert.equal(
+        project.name,
+        body.projectName,
+        'expected project name to match'
       )
     }
   })

@@ -2,7 +2,31 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { omit } from '../../lib/omit.js'
 import { projectKeyToPublicId } from '../../utils.js'
-import { createTestServer, randomProjectKeys } from './test-helpers.js'
+import { createTestServer, randomAddProjectBody } from './test-helpers.js'
+
+test('request missing project name', async (t) => {
+  const server = createTestServer(t)
+
+  const response = await server.inject({
+    method: 'PUT',
+    url: '/projects',
+    body: omit(randomAddProjectBody(), ['projectName']),
+  })
+
+  assert.equal(response.statusCode, 400)
+})
+
+test('request with empty project name', async (t) => {
+  const server = createTestServer(t)
+
+  const response = await server.inject({
+    method: 'PUT',
+    url: '/projects',
+    body: { ...randomAddProjectBody(), projectName: '' },
+  })
+
+  assert.equal(response.statusCode, 400)
+})
 
 test('request missing project key', async (t) => {
   const server = createTestServer(t)
@@ -10,7 +34,7 @@ test('request missing project key', async (t) => {
   const response = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: omit(randomProjectKeys(), ['projectKey']),
+    body: omit(randomAddProjectBody(), ['projectKey']),
   })
 
   assert.equal(response.statusCode, 400)
@@ -22,7 +46,7 @@ test('request missing any encryption keys', async (t) => {
   const response = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: omit(randomProjectKeys(), ['encryptionKeys']),
+    body: omit(randomAddProjectBody(), ['encryptionKeys']),
   })
 
   assert.equal(response.statusCode, 400)
@@ -30,14 +54,14 @@ test('request missing any encryption keys', async (t) => {
 
 test('request missing an encryption key', async (t) => {
   const server = createTestServer(t)
-  const projectKeys = randomProjectKeys()
+  const body = randomAddProjectBody()
 
   const response = await server.inject({
     method: 'PUT',
     url: '/projects',
     body: {
-      ...projectKeys,
-      encryptionKeys: omit(projectKeys.encryptionKeys, ['config']),
+      ...body,
+      encryptionKeys: omit(body.encryptionKeys, ['config']),
     },
   })
 
@@ -50,7 +74,7 @@ test('adding a project', async (t) => {
   const response = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: randomProjectKeys(),
+    body: randomAddProjectBody(),
   })
 
   assert.equal(response.statusCode, 200)
@@ -65,14 +89,14 @@ test('adding a second project fails by default', async (t) => {
   const firstAddResponse = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: randomProjectKeys(),
+    body: randomAddProjectBody(),
   })
   assert.equal(firstAddResponse.statusCode, 200)
 
   const response = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: randomProjectKeys(),
+    body: randomAddProjectBody(),
   })
   assert.equal(response.statusCode, 403)
   assert.match(response.json().message, /maximum number of projects/)
@@ -86,7 +110,7 @@ test('allowing a maximum number of projects', async (t) => {
       const response = await server.inject({
         method: 'PUT',
         url: '/projects',
-        body: randomProjectKeys(),
+        body: randomAddProjectBody(),
       })
       assert.equal(response.statusCode, 200)
     }
@@ -96,7 +120,7 @@ test('allowing a maximum number of projects', async (t) => {
     const response = await server.inject({
       method: 'PUT',
       url: '/projects',
-      body: randomProjectKeys(),
+      body: randomAddProjectBody(),
     })
     assert.equal(response.statusCode, 403)
     assert.match(response.json().message, /maximum number of projects/)
@@ -107,9 +131,9 @@ test(
   'allowing a specific list of projects',
   { concurrency: true },
   async (t) => {
-    const projectKeys = randomProjectKeys()
+    const body = randomAddProjectBody()
     const projectPublicId = projectKeyToPublicId(
-      Buffer.from(projectKeys.projectKey, 'hex')
+      Buffer.from(body.projectKey, 'hex')
     )
     const server = createTestServer(t, {
       allowedProjects: [projectPublicId],
@@ -119,7 +143,7 @@ test(
       const response = await server.inject({
         method: 'PUT',
         url: '/projects',
-        body: projectKeys,
+        body,
       })
       assert.equal(response.statusCode, 200)
     })
@@ -128,7 +152,7 @@ test(
       const response = await server.inject({
         method: 'PUT',
         url: '/projects',
-        body: randomProjectKeys(),
+        body: randomAddProjectBody(),
       })
       assert.equal(response.statusCode, 403)
     })
@@ -137,19 +161,19 @@ test(
 
 test('adding the same project twice is idempotent', async (t) => {
   const server = createTestServer(t, { allowedProjects: 1 })
-  const projectKeys = randomProjectKeys()
+  const body = randomAddProjectBody()
 
   const firstResponse = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: projectKeys,
+    body,
   })
   assert.equal(firstResponse.statusCode, 200)
 
   const secondResponse = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: projectKeys,
+    body,
   })
   assert.equal(secondResponse.statusCode, 200)
 })

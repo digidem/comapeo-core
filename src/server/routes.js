@@ -133,6 +133,7 @@ export default async function routes(
     {
       schema: {
         body: Type.Object({
+          projectName: Type.String(),
           projectKey: HEX_STRING_32_BYTES,
           encryptionKeys: Type.Object({
             auth: HEX_STRING_32_BYTES,
@@ -153,6 +154,7 @@ export default async function routes(
       },
     },
     async function (req, reply) {
+      const { projectName } = req.body
       const projectKey = Buffer.from(req.body.projectKey, 'hex')
       const projectPublicId = projectKeyToPublicId(projectKey)
 
@@ -207,7 +209,7 @@ export default async function routes(
         const projectId = await this.comapeo.addProject(
           {
             projectKey,
-            projectName: 'TODO: Figure out if this should be named',
+            projectName,
             encryptionKeys: {
               auth: Buffer.from(req.body.encryptionKeys.auth, 'hex'),
               config: Buffer.from(req.body.encryptionKeys.config, 'hex'),

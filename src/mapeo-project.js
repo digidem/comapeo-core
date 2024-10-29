@@ -321,6 +321,7 @@ export class MapeoProject extends TypedEmitter {
       roles: this.#roles,
       coreOwnership: this.#coreOwnership,
       encryptionKeys,
+      getProjectName: this.#getProjectName.bind(this),
       projectKey,
       rpc: localPeers,
       getReplicationStream,
@@ -607,6 +608,13 @@ export class MapeoProject extends TypedEmitter {
     } catch (e) {
       return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
     }
+  }
+
+  /**
+   * @returns {Promise<undefined | string>}
+   */
+  async #getProjectName() {
+    return (await this.$getProjectSettings()).name
   }
 
   async $getOwnRole() {

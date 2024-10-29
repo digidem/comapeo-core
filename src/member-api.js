@@ -27,6 +27,7 @@ import { wsCoreReplicator } from './server/ws-core-replicator.js'
  *   ProjectSettingsValue
  * } from '@comapeo/schema'
  */
+/** @import { Promisable } from 'type-fest' */
 /** @import { Invite, InviteResponse } from './generated/rpc.js' */
 /** @import { DataType } from './datatype/index.js' */
 /** @import { DataStore } from './datastore/index.js' */
@@ -52,6 +53,7 @@ export class MemberApi extends TypedEmitter {
   #roles
   #coreOwnership
   #encryptionKeys
+  #getProjectName
   #projectKey
   #rpc
   #getReplicationStream
@@ -67,6 +69,7 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./roles.js').Roles} opts.roles
    * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
+   * @param {() => Promisable<undefined | string>} opts.getProjectName
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
    * @param {() => ReplicationStream} opts.getReplicationStream
@@ -80,6 +83,7 @@ export class MemberApi extends TypedEmitter {
     roles,
     coreOwnership,
     encryptionKeys,
+    getProjectName,
     projectKey,
     rpc,
     getReplicationStream,
@@ -91,6 +95,7 @@ export class MemberApi extends TypedEmitter {
     this.#roles = roles
     this.#coreOwnership = coreOwnership
     this.#encryptionKeys = encryptionKeys
+    this.#getProjectName = getProjectName
     this.#projectKey = projectKey
     this.#rpc = rpc
     this.#getReplicationStream = getReplicationStream
@@ -268,6 +273,8 @@ export class MemberApi extends TypedEmitter {
    * Can reject with any of the following error codes (accessed via `err.code`):
    *
    * - `INVALID_URL`: the base URL is invalid, likely due to user error.
+   * - `MISSING_DATA`: some required data is missing in order to add the server
+   *   peer. For example, the project must have a name.
    * - `NETWORK_ERROR`: there was an issue connecting to the server. Is the
    *   device online? Is the server online?
    * - `INVALID_SERVER_RESPONSE`: we connected to the server but it returned
@@ -308,8 +315,17 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<{ serverDeviceId: string }>}
    */
   async #addServerToProject(baseUrl) {
+    const projectName = await this.#getProjectName()
+    if (!projectName) {
+      throw new ErrorWithCode(
+        'MISSING_DATA',
+        'Project must have name to add server peer'
+      )
+    }
+
     const requestUrl = new URL('projects', baseUrl)
     const requestBody = {
+      projectName,
       projectKey: encodeBufferForServer(this.#projectKey),
       encryptionKeys: {
         auth: encodeBufferForServer(this.#encryptionKeys.auth),

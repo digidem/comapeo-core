@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { projectKeyToPublicId } from '../../utils.js'
-import { createTestServer, randomProjectKeys } from './test-helpers.js'
+import { createTestServer, randomAddProjectBody } from './test-helpers.js'
 
 test('sync endpoint is available after adding a project', async (t) => {
   const server = createTestServer(t)
-  const projectKeys = randomProjectKeys()
+  const addProjectBody = randomAddProjectBody()
   const projectPublicId = projectKeyToPublicId(
-    Buffer.from(projectKeys.projectKey, 'hex')
+    Buffer.from(addProjectBody.projectKey, 'hex')
   )
 
   await t.test('sync endpoint not available yet', async () => {
@@ -26,7 +26,7 @@ test('sync endpoint is available after adding a project', async (t) => {
   await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: projectKeys,
+    body: addProjectBody,
   })
 
   await t.test('sync endpoint available', async (t) => {
