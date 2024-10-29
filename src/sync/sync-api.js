@@ -135,7 +135,7 @@ export class SyncApi extends TypedEmitter {
   }
 
   /** @param {import('../types.js').BlobFilter | null} blobDownloadFilter */
-  async [kSetBlobDownloadFilter](blobDownloadFilter) {
+  [kSetBlobDownloadFilter](blobDownloadFilter) {
     this.#blobDownloadFilter = blobDownloadFilter
     if (!blobDownloadFilter) return // No download intents = intend to download everything
     for (const peer of this.#coreManager.creatorCore.peers) {
