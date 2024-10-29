@@ -93,7 +93,7 @@ async function routes(fastify, options) {
 
       let blobStream
       try {
-        blobStream = await blobStore.createEntryReadStream(driveId, entry)
+        blobStream = await blobStore.createReadStreamFromEntry(driveId, entry)
       } catch (e) {
         reply.code(404)
         throw e
