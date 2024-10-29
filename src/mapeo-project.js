@@ -72,6 +72,13 @@ export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
+/** @type {import('./types.js').BlobFilter} */
+const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
+  photo: ['preview', 'thumbnail'],
+  // Don't download any audio of video files, since previews and
+  // thumbnails aren't supported yet.
+}
+
 /**
  * @extends {TypedEmitter<{ close: () => void }>}
  */
@@ -326,7 +333,9 @@ export class MapeoProject extends TypedEmitter {
 
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
-      downloadFilter: null,
+      downloadFilter: isArchiveDevice
+        ? null
+        : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER,
     })
 
     this.#blobStore.on('error', (err) => {
@@ -664,6 +673,10 @@ export class MapeoProject extends TypedEmitter {
 
   /** @param {boolean} isArchiveDevice */
   async [kSetIsArchiveDevice](isArchiveDevice) {
+    if (this.#isArchiveDevice === isArchiveDevice) return
+    this.#blobStore.setDownloadFilter(
+      isArchiveDevice ? null : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER
+    )
     this.#isArchiveDevice = isArchiveDevice
   }
 
