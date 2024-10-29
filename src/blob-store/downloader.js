@@ -4,15 +4,18 @@ import { pathPrefixesFromFilter } from './utils.js'
 
 /** @import Hyperdrive from 'hyperdrive' */
 
-// This class contains a large amount of parallel async code, and contains lots
-// of references and some listeners that need to be deferenced when this class
-// is finished with (e.g when a download is complete, or there is an error).
-// I've highlighted lines which could throw an error which would put the
-// downloader in an "error" state. Currently this does not emit an "error"
-// event.
-
 /**
  * Like hyperdrive.download() but 'live', and for multiple drives.
+ *
+ * Will emit an 'error' event for any unexpected errors. A consumer must attach
+ * an error listener to avoid uncaught errors. Sources of errors include:
+ *
+ * - If the entries stream emits an error
+ * - If a drive referenced in an entry is not found
+ * - If core.has() throws (e.g. if hypercore is closed)
+ * - If core.download().done() throws, which should not happen according to
+ *   current hypercore code.
+ * - If the entries stream ends unexpectedly (it should be live and not end)
  *
  * NB: unlike hyperdrive.download(), this will also download deleted and
  * previous versions of blobs - we don't currently support editing or deleting
@@ -44,7 +47,7 @@ export class Downloader extends TypedEmitter {
     this.#entriesStream = createEntriesStream(driveIndex, { live: true })
     this.#entriesStream.once('error', this.#ac.abort)
 
-    this.#ac.signal.addEventListener('abort', this.#cleanup, { once: true })
+    this.#ac.signal.addEventListener('abort', this.#handleAbort, { once: true })
 
     this.#processEntriesPromise = this.#processEntries()
     this.#processEntriesPromise.catch(this.#ac.abort)
@@ -71,8 +74,8 @@ export class Downloader extends TypedEmitter {
       const blobs = await drive.getBlobs()
       this.#ac.signal.throwIfAborted()
       await this.#processEntry(blobs.core, blob)
-      // This loop will never end unless thrown, since this is a live stream
     }
+    throw new Error('Entries stream ended unexpectedly')
   }
 
   /** @param {string} filePath */
@@ -97,7 +100,7 @@ export class Downloader extends TypedEmitter {
     download
       .done()
       .catch((e) => {
-        // TODO: emit error rather than abort downloader if error here
+        // According to the code, this should never throw.
         this.#ac.abort(e)
       })
       .finally(() => {
@@ -112,9 +115,14 @@ export class Downloader extends TypedEmitter {
     this.#ac.abort()
   }
 
-  #cleanup = () => {
+  #handleAbort = () => {
+    const abortReason = this.#ac.signal.reason
+    const wasAbortedByDestroy = abortReason && abortReason.name === 'AbortError'
+    if (!wasAbortedByDestroy) {
+      this.emit('error', abortReason)
+    }
     for (const download of this.#queuedDownloads) download.destroy()
-    this.#ac.signal.removeEventListener('abort', this.#cleanup)
+    this.#ac.signal.removeEventListener('abort', this.#handleAbort)
     this.#entriesStream.removeListener('error', this.#ac.abort)
     // queuedDownloads should always be empty by here anyway, but just in case.
     this.#queuedDownloads.clear()

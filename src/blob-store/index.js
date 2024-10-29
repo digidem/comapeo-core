@@ -39,7 +39,8 @@ class ErrNotFound extends Error {
   }
 }
 
-export class BlobStore {
+/** @extends {TypedEmitter<{ error: (error: Error) => void }>} */
+export class BlobStore extends TypedEmitter {
   #driveIndex
   /** @type {Downloader} */
   #downloader
@@ -50,10 +51,12 @@ export class BlobStore {
    * @param {BlobFilter | null} options.downloadFilter - Filter blob types and/or variants to download. Set to `null` to download all blobs.
    */
   constructor({ coreManager, downloadFilter }) {
+    super()
     this.#driveIndex = new HyperdriveIndex(coreManager)
     this.#downloader = new Downloader(this.#driveIndex, {
       filter: downloadFilter,
     })
+    this.#downloader.on('error', (error) => this.emit('error', error))
   }
 
   /**
@@ -95,10 +98,12 @@ export class BlobStore {
    * @returns {void}
    */
   setDownloadFilter(filter) {
+    this.#downloader.removeAllListeners()
     this.#downloader.destroy()
     this.#downloader = new Downloader(this.#driveIndex, {
       filter,
     })
+    this.#downloader.on('error', (error) => this.emit('error', error))
   }
 
   /**

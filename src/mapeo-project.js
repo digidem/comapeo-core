@@ -318,6 +318,13 @@ export class MapeoProject extends TypedEmitter {
 
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
+      downloadFilter: null,
+    })
+
+    this.#blobStore.on('error', (err) => {
+      // TODO: Handle this error in some way - this error will come from an
+      // unexpected error with background blob downloads
+      console.error('BlobStore error', err)
     })
 
     this.$blobs = new BlobApi({
