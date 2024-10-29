@@ -24,6 +24,7 @@ import {
   roleTable,
   iconTable,
   translationTable,
+  remoteDetectionAlertTable,
 } from './schema/project.js'
 import {
   CoreOwnership,
@@ -175,6 +176,7 @@ export class MapeoProject extends TypedEmitter {
         deviceInfoTable,
         iconTable,
         translationTable,
+        remoteDetectionAlertTable,
       ],
       sqlite: this.#sqlite,
       getWinner,
@@ -228,6 +230,12 @@ export class MapeoProject extends TypedEmitter {
       track: new DataType({
         dataStore: this.#dataStores.data,
         table: trackTable,
+        db,
+        getTranslations,
+      }),
+      remoteDetectionAlert: new DataType({
+        dataStore: this.#dataStores.data,
+        table: remoteDetectionAlertTable,
         db,
         getTranslations,
       }),
@@ -513,6 +521,10 @@ export class MapeoProject extends TypedEmitter {
     return this.#dataTypes.field
   }
 
+  get remoteDetectionAlert() {
+    return this.#dataTypes.remoteDetectionAlert
+  }
+
   get $member() {
     return this.#memberApi
   }
@@ -623,7 +635,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType'>} value
+   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType' | 'selfHostedServerDetails'>} value
    * @returns {Promise<import('@comapeo/schema').DeviceInfo>}
    */
   async [kSetOwnDeviceInfo](value) {
@@ -636,6 +648,7 @@ export class MapeoProject extends TypedEmitter {
     const doc = {
       name: value.name,
       deviceType: value.deviceType,
+      selfHostedServerDetails: value.selfHostedServerDetails,
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 

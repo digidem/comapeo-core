@@ -11,7 +11,7 @@ import {
 } from './utils.js'
 import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
-import timingSafeEqual from './lib/timing-safe-equal.js'
+import timingSafeEqual from 'string-timing-safe-equal'
 import { ROLES, isRoleIdForNewInvite } from './roles.js'
 /**
  * @import {
@@ -36,6 +36,8 @@ import { ROLES, isRoleIdForNewInvite } from './roles.js'
  * @prop {DeviceInfo['name']} [name]
  * @prop {DeviceInfo['deviceType']} [deviceType]
  * @prop {DeviceInfo['createdAt']} [joinedAt]
+ * @prop {object} [selfHostedServerDetails]
+ * @prop {string} selfHostedServerDetails.baseUrl
  */
 
 export class MemberApi extends TypedEmitter {
@@ -304,6 +306,8 @@ export class MemberApi extends TypedEmitter {
           memberInfo.name = deviceInfo?.name
           memberInfo.deviceType = deviceInfo?.deviceType
           memberInfo.joinedAt = deviceInfo?.createdAt
+          memberInfo.selfHostedServerDetails =
+            deviceInfo?.selfHostedServerDetails
         } catch (err) {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available
