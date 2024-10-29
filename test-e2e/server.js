@@ -1,23 +1,24 @@
 import { valueOf } from '@comapeo/schema'
-import { setTimeout as delay } from 'node:timers/promises'
 import { generate } from '@mapeo/mock-data'
 import { execa } from 'execa'
 import createFastify from 'fastify'
 import assert from 'node:assert/strict'
+import { randomBytes } from 'node:crypto'
 import test, { mock } from 'node:test'
+import { setTimeout as delay } from 'node:timers/promises'
+import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
+import RAM from 'random-access-memory'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import comapeoServer from '../src/server/app.js'
 import {
   connectPeers,
   createManager,
   createManagers,
-  getManagerOptions,
   invite,
   waitForPeers,
   waitForSync,
 } from './utils.js'
-import pDefer from 'p-defer'
 /** @import { FastifyInstance } from 'fastify' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -443,9 +444,19 @@ async function createRemoteTestServer(t) {
  * @returns {Promise<LocalTestServer>}
  */
 async function createLocalTestServer(t) {
+  const comapeoCoreUrl = new URL('..', import.meta.url)
+  const projectMigrationsFolder = new URL('./drizzle/project', comapeoCoreUrl)
+    .pathname
+  const clientMigrationsFolder = new URL('./drizzle/client', comapeoCoreUrl)
+    .pathname
+
   const server = createFastify()
   server.register(comapeoServer, {
-    ...getManagerOptions('test server'),
+    rootKey: randomBytes(16),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
     serverName: 'test server',
     serverBearerToken: 'ignored',
   })
