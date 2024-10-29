@@ -1,7 +1,7 @@
 import { KeyManager } from '@mapeo/crypto'
 import createFastify from 'fastify'
 import { randomBytes } from 'node:crypto'
-import { getManagerOptions } from '../../../test-e2e/utils.js'
+import RAM from 'random-access-memory'
 import comapeoServer from '../app.js'
 /** @import { TestContext } from 'node:test' */
 /** @import { ServerOptions } from '../app.js' */
@@ -19,9 +19,18 @@ const TEST_SERVER_DEFAULTS = {
  * @returns {import('fastify').FastifyInstance & { deviceId: string }}
  */
 export function createTestServer(t, serverOptions) {
-  const serverName =
-    serverOptions?.serverName || TEST_SERVER_DEFAULTS.serverName
-  const managerOptions = getManagerOptions(serverName)
+  const comapeoCoreUrl = new URL('../../..', import.meta.url)
+  const projectMigrationsFolder = new URL('./drizzle/project', comapeoCoreUrl)
+    .pathname
+  const clientMigrationsFolder = new URL('./drizzle/client', comapeoCoreUrl)
+    .pathname
+  const managerOptions = {
+    rootKey: randomBytes(16),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+  }
   const km = new KeyManager(managerOptions.rootKey)
   const server = createFastify()
   server.register(comapeoServer, {
