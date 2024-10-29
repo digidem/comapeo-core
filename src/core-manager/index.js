@@ -281,7 +281,8 @@ export class CoreManager extends TypedEmitter {
       keyPair,
       encryptionKey: this.#encryptionKeys[namespace],
     })
-    if (this.#autoDownload) {
+    if (this.#autoDownload && namespace !== 'blob') {
+      // Blob downloads are managed by BlobStore
       core.download({ start: 0, end: -1 })
     }
     // Every peer adds a listener, so could have many peers
