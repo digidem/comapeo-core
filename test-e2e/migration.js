@@ -1,13 +1,12 @@
 import test from 'node:test'
 import { KeyManager } from '@mapeo/crypto'
-import { MapeoManager as MapeoManagerPreMigration } from '@comapeo/core2.0.1'
 import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import Fastify from 'fastify'
 import assert from 'node:assert/strict'
-import { fileURLToPath } from 'node:url'
 import fsPromises from 'node:fs/promises'
 import { temporaryDirectory } from 'tempy'
+import { createOldManagerOnVersion2_0_1 } from './utils.js'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -15,25 +14,12 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
 test('migration of localDeviceInfo table', async (t) => {
-  const comapeoCorePreMigrationUrl = await import.meta.resolve?.(
-    '@comapeo/core2.0.1'
-  )
-  assert(comapeoCorePreMigrationUrl, 'Could not resolve @comapeo/core2.0.1')
-  const clientMigrationsFolderPreMigration = fileURLToPath(
-    new URL('../drizzle/client', comapeoCorePreMigrationUrl)
-  )
-  const projectMigrationsFolderPreMigration = fileURLToPath(
-    new URL('../drizzle/project', comapeoCorePreMigrationUrl)
-  )
-
   const dbFolder = temporaryDirectory()
   const rootKey = KeyManager.generateRootKey()
   t.after(() => fsPromises.rm(dbFolder, { recursive: true }))
 
-  const managerPreMigration = new MapeoManagerPreMigration({
+  const managerPreMigration = await createOldManagerOnVersion2_0_1('seed', {
     rootKey,
-    projectMigrationsFolder: projectMigrationsFolderPreMigration,
-    clientMigrationsFolder: clientMigrationsFolderPreMigration,
     dbFolder,
     coreStorage: () => new RAM(),
     fastify: Fastify(),
