@@ -2,7 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { omit } from '../../lib/omit.js'
 import { projectKeyToPublicId } from '../../utils.js'
-import { createTestServer, randomAddProjectBody } from './test-helpers.js'
+import {
+  createTestServer,
+  randomAddProjectBody,
+  randomHex,
+} from './test-helpers.js'
 
 test('request missing project name', async (t) => {
   const server = createTestServer(t)
@@ -40,6 +44,18 @@ test('request missing project key', async (t) => {
   assert.equal(response.statusCode, 400)
 })
 
+test("request with a project key that's too short", async (t) => {
+  const server = createTestServer(t)
+
+  const response = await server.inject({
+    method: 'PUT',
+    url: '/projects',
+    body: { ...randomAddProjectBody(), projectKey: randomHex(31) },
+  })
+
+  assert.equal(response.statusCode, 400)
+})
+
 test('request missing any encryption keys', async (t) => {
   const server = createTestServer(t)
 
@@ -62,6 +78,22 @@ test('request missing an encryption key', async (t) => {
     body: {
       ...body,
       encryptionKeys: omit(body.encryptionKeys, ['config']),
+    },
+  })
+
+  assert.equal(response.statusCode, 400)
+})
+
+test("request with an encryption key that's too short", async (t) => {
+  const server = createTestServer(t)
+  const body = randomAddProjectBody()
+
+  const response = await server.inject({
+    method: 'PUT',
+    url: '/projects',
+    body: {
+      ...body,
+      encryptionKeys: { ...body.encryptionKeys, config: randomHex(31) },
     },
   })
 

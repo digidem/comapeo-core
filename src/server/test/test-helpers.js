@@ -39,7 +39,7 @@ export function createTestServer(t, serverOptions) {
   return server
 }
 
-const randomHex = (length = 32) =>
+export const randomHex = (length = 32) =>
   Buffer.from(randomBytes(length)).toString('hex')
 
 export const randomAddProjectBody = () => ({

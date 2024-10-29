@@ -133,7 +133,7 @@ export default async function routes(
     {
       schema: {
         body: Type.Object({
-          projectName: Type.String(),
+          projectName: Type.String({ minLength: 1 }),
           projectKey: HEX_STRING_32_BYTES,
           encryptionKeys: Type.Object({
             auth: HEX_STRING_32_BYTES,
