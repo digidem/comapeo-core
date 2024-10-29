@@ -45,12 +45,12 @@ export class Downloader extends TypedEmitter {
     this.#driveIndex = driveIndex
 
     this.#entriesStream = createEntriesStream(driveIndex, { live: true })
-    this.#entriesStream.once('error', this.#ac.abort)
+    this.#entriesStream.once('error', this.#handleError)
 
     this.#ac.signal.addEventListener('abort', this.#handleAbort, { once: true })
 
     this.#processEntriesPromise = this.#processEntries()
-    this.#processEntriesPromise.catch(this.#ac.abort)
+    this.#processEntriesPromise.catch(this.#handleError)
   }
 
   /**
@@ -99,10 +99,8 @@ export class Downloader extends TypedEmitter {
     this.#queuedDownloads.add(download)
     download
       .done()
-      .catch((e) => {
-        // According to the code, this should never throw.
-        this.#ac.abort(e)
-      })
+      // According to the code, this should never throw.
+      .catch(this.#handleError)
       .finally(() => {
         this.#queuedDownloads.delete(download)
       })
@@ -115,12 +113,14 @@ export class Downloader extends TypedEmitter {
     this.#ac.abort()
   }
 
+  /** @param {any} error */
+  #handleError = (error) => {
+    if (this.#ac.signal.aborted) return
+    this.emit('error', error)
+    this.#ac.abort(error)
+  }
+
   #handleAbort = () => {
-    const abortReason = this.#ac.signal.reason
-    const wasAbortedByDestroy = abortReason && abortReason.name === 'AbortError'
-    if (!wasAbortedByDestroy) {
-      this.emit('error', abortReason)
-    }
     for (const download of this.#queuedDownloads) download.destroy()
     this.#ac.signal.removeEventListener('abort', this.#handleAbort)
     this.#entriesStream.removeListener('error', this.#ac.abort)

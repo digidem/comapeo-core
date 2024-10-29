@@ -18,6 +18,10 @@ import { Transform } from 'node:stream'
 export function pathPrefixesFromFilter(filter) {
   const pathPrefixes = []
   for (const [type, variants] of Object.entries(filter)) {
+    if (variants.length === 0) {
+      pathPrefixes.push(`/${type}/`)
+      continue
+    }
     const dedupedVariants = new Set(variants)
     for (const variant of dedupedVariants) {
       pathPrefixes.push(`/${type}/${variant}/`)

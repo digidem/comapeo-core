@@ -1,6 +1,7 @@
 import SubEncoder from 'sub-encoder'
 import mergeStreams from '@sindresorhus/merge-streams'
-import { Transform } from 'node:stream'
+import { Transform, pipeline } from 'node:stream'
+import { noop } from '../utils.js'
 
 /** @import Hyperdrive from 'hyperdrive' */
 /** @import { BlobStoreEntriesStream } from '../types.js' */
@@ -48,7 +49,7 @@ function getHistoryStream(bee, { live }) {
     // under the `files` sub-encoding key
     keyEncoding,
   })
-  return historyStream.pipe(new AddDriveIds(bee.core))
+  return pipeline(historyStream, new AddDriveIds(bee.core), noop)
 }
 
 class AddDriveIds extends Transform {
