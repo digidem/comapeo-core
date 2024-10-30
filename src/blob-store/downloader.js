@@ -1,8 +1,9 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { createEntriesStream } from './entries-stream.js'
-import { pathPrefixesFromFilter } from './utils.js'
+import { filePathMatchesFilter } from './utils.js'
 
 /** @import Hyperdrive from 'hyperdrive' */
+/** @import { BlobFilter } from '../types.js' */
 
 /**
  * Like hyperdrive.download() but 'live', and for multiple drives.
@@ -32,7 +33,7 @@ export class Downloader extends TypedEmitter {
   #entriesStream
   #processEntriesPromise
   #ac = new AbortController()
-  #pathPrefixes
+  #shouldDownloadFile
 
   /**
    * @param {import('./index.js').THyperdriveIndex} driveIndex
@@ -41,8 +42,11 @@ export class Downloader extends TypedEmitter {
    */
   constructor(driveIndex, { filter } = {}) {
     super()
-    this.#pathPrefixes = filter ? pathPrefixesFromFilter(filter) : []
     this.#driveIndex = driveIndex
+
+    this.#shouldDownloadFile = filter
+      ? filePathMatchesFilter.bind(null, filter)
+      : () => true
 
     this.#entriesStream = createEntriesStream(driveIndex, { live: true })
     this.#entriesStream.once('error', this.#handleError)
@@ -77,12 +81,6 @@ export class Downloader extends TypedEmitter {
       this.#ac.signal.throwIfAborted()
     }
     throw new Error('Entries stream ended unexpectedly')
-  }
-
-  /** @param {string} filePath */
-  #shouldDownloadFile(filePath) {
-    if (!this.#pathPrefixes.length) return true
-    return this.#pathPrefixes.some((prefix) => filePath.startsWith(prefix))
   }
 
   /**
