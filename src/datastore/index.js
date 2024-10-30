@@ -111,6 +111,7 @@ export class DataStore extends TypedEmitter {
       const pending = this.#pendingIndex.get(versionId)
       if (!pending) continue
       pending.resolve()
+      this.#pendingIndex.delete(versionId)
     }
     for (const schemaName of this.schemas) {
       // Unsupported initially
