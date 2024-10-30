@@ -1,8 +1,9 @@
+import { keyToPublicId as projectKeyToPublicId } from '@mapeo/crypto'
 import { Type } from '@sinclair/typebox'
+import assert from 'node:assert/strict'
 import * as fs from 'node:fs'
 import timingSafeEqual from 'string-timing-safe-equal'
-import { kProjectReplicate } from '../mapeo-project.js'
-import { assert, projectKeyToPublicId } from '../utils.js'
+import { replicateProject } from '../index.js'
 import { wsCoreReplicator } from './ws-core-replicator.js'
 /** @import {FastifyInstance, FastifyPluginAsync, FastifyRequest, RawServerDefault} from 'fastify' */
 /** @import {TypeBoxTypeProvider} from '@fastify/type-provider-typebox' */
@@ -88,7 +89,7 @@ export default async function routes(
     async function (socket, req) {
       // The preValidation hook ensures that the project exists
       const project = await this.comapeo.getProject(req.params.projectPublicId)
-      const replicationStream = project[kProjectReplicate](false)
+      const replicationStream = replicateProject(project, false)
       wsCoreReplicator(socket, replicationStream)
       project.$sync.start()
     }
@@ -220,8 +221,9 @@ export default async function routes(
           },
           { waitForSync: false }
         )
-        assert(
-          projectId === projectPublicId,
+        assert.equal(
+          projectId,
+          projectPublicId,
           'adding a project should return the same ID as what was passed'
         )
       }

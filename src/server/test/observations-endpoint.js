@@ -1,15 +1,16 @@
 import { valueOf } from '@comapeo/schema'
+import { keyToPublicId as projectKeyToPublicId } from '@mapeo/crypto'
 import { generate } from '@mapeo/mock-data'
 import { map } from 'iterpal'
 import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
 import test from 'node:test'
-import { projectKeyToPublicId } from '../../utils.js'
-import { blobMetadata } from '../../../test/helpers/blob-store.js'
-import { createManager } from '../../../test-e2e/utils.js'
+import { setTimeout as delay } from 'node:timers/promises'
+import { MapeoManager } from '../../index.js'
 import {
   BEARER_TOKEN,
   createTestServer,
+  getManagerOptions,
   randomAddProjectBody,
 } from './test-helpers.js'
 /** @import { ObservationValue } from '@comapeo/schema'*/
@@ -71,7 +72,7 @@ test('returning observations with fetchable attachments', async (t) => {
   const serverAddress = await server.listen()
   const serverUrl = new URL(serverAddress)
 
-  const manager = createManager('client', t)
+  const manager = new MapeoManager(getManagerOptions())
   const projectId = await manager.createProject({ name: 'CoMapeo project' })
   const project = await manager.getProject(projectId)
 
@@ -105,11 +106,11 @@ test('returning observations with fetchable attachments', async (t) => {
             preview: FIXTURE_PREVIEW_PATH,
             thumbnail: FIXTURE_THUMBNAIL_PATH,
           },
-          blobMetadata({ mimeType: 'image/jpeg' })
+          { mimeType: 'image/jpeg', timestamp: Date.now() }
         ),
         project.$blobs.create(
           { original: FIXTURE_AUDIO_PATH },
-          blobMetadata({ mimeType: 'audio/mpeg' })
+          { mimeType: 'audio/mpeg', timestamp: Date.now() }
         ),
       ])
       /** @type {ObservationValue} */
@@ -123,18 +124,21 @@ test('returning observations with fetchable attachments', async (t) => {
 
   await project.$sync.waitForSync('full')
 
-  const response = await server.inject({
-    authority: serverUrl.host,
-    method: 'GET',
-    url: `/projects/${projectId}/observations`,
-    headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
+  // It's possible that the client thinks it's synced but the server hasn't
+  // processed everything yet, so we try a few times.
+  const data = await runWithRetries(3, async () => {
+    const response = await server.inject({
+      authority: serverUrl.host,
+      method: 'GET',
+      url: `/projects/${projectId}/observations`,
+      headers: { Authorization: 'Bearer ' + BEARER_TOKEN },
+    })
+    assert.equal(response.statusCode, 200)
+
+    const { data } = await response.json()
+    assert.equal(data.length, 3)
+    return data
   })
-
-  assert.equal(response.statusCode, 200)
-
-  const { data } = await response.json()
-
-  assert.equal(data.length, 3)
 
   await Promise.all(
     observations.map(async (observation) => {
@@ -179,6 +183,23 @@ function blobToAttachment(blob) {
     name: blob.name,
     hash: blob.hash,
   }
+}
+
+/**
+ * @template T
+ * @param {number} retries
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+async function runWithRetries(retries, fn) {
+  for (let i = 0; i < retries - 1; i++) {
+    try {
+      return await fn()
+    } catch {
+      await delay(500)
+    }
+  }
+  return fn()
 }
 
 /**

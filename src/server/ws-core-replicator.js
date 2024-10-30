@@ -1,10 +1,23 @@
-import { pipeline } from 'node:stream/promises'
 import { Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { createWebSocketStream } from 'ws'
+/** @import Protomux from 'protomux' */
+/** @import NoiseStream from '@hyperswarm/secret-stream' */
+/** @import { Duplex } from 'streamx' */
+
+/**
+ * @internal
+ * @typedef {Omit<NoiseStream, 'userData'> & { userData: Protomux }} ProtocolStream
+ */
+
+/**
+ * @internal
+ * @typedef {Duplex & { noiseStream: ProtocolStream }} ReplicationStream
+ */
 
 /**
  * @param {import('ws').WebSocket} ws
- * @param {import('../types.js').ReplicationStream} replicationStream
+ * @param {ReplicationStream} replicationStream
  * @returns {Promise<void>}
  */
 export function wsCoreReplicator(ws, replicationStream) {

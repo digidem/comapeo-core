@@ -1,10 +1,10 @@
-import comapeoServer from './app.js'
+import { Type } from '@sinclair/typebox'
 import envSchema from 'env-schema'
 import createFastify from 'fastify'
-import { Type } from '@sinclair/typebox'
-import path from 'node:path'
-import fsPromises from 'node:fs/promises'
 import crypto from 'node:crypto'
+import fsPromises from 'node:fs/promises'
+import path from 'node:path'
+import comapeoServer from './app.js'
 
 const DEFAULT_STORAGE = path.join(process.cwd(), 'data')
 const CORE_DIR_NAME = 'core'
@@ -40,12 +40,10 @@ const config = envSchema({ schema, dotenv: true })
 const coreStorage = path.join(config.STORAGE_DIR, CORE_DIR_NAME)
 const dbFolder = path.join(config.STORAGE_DIR, DB_DIR_NAME)
 const rootKeyFile = path.join(config.STORAGE_DIR, ROOT_KEY_FILE_NAME)
-const projectMigrationsFolder = new URL(
-  '../../drizzle/project',
-  import.meta.url
-).pathname
-const clientMigrationsFolder = new URL('../../drizzle/client', import.meta.url)
-  .pathname
+
+const migrationsFolder = new URL('../../drizzle/', import.meta.url).pathname
+const projectMigrationsFolder = path.join(migrationsFolder, 'project')
+const clientMigrationsFolder = path.join(migrationsFolder, 'client')
 
 await Promise.all([
   fsPromises.mkdir(coreStorage, { recursive: true }),

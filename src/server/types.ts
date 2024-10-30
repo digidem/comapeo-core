@@ -3,7 +3,7 @@
 // typescript support currently, so need to be careful about using this where it
 // is not in scope.
 
-import { type MapeoManager } from '../mapeo-manager.js'
+import { type MapeoManager } from '../index.js'
 
 declare module 'fastify' {
   interface FastifyInstance {

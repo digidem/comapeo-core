@@ -1,3 +1,4 @@
+import { keyToPublicId as projectKeyToPublicId } from '@mapeo/crypto'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
@@ -5,7 +6,6 @@ import {
   createTestServer,
   randomAddProjectBody,
 } from './test-helpers.js'
-import { projectKeyToPublicId } from '../../utils.js'
 
 test('listing projects', async (t) => {
   const server = createTestServer(t, { allowedProjects: 999 })

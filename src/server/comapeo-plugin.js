@@ -1,4 +1,4 @@
-import { MapeoManager } from '../mapeo-manager.js'
+import { MapeoManager } from '../index.js'
 import createFastifyPlugin from 'fastify-plugin'
 
 /**

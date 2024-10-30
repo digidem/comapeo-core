@@ -1,6 +1,6 @@
+import { keyToPublicId as projectKeyToPublicId } from '@mapeo/crypto'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { projectKeyToPublicId } from '../../utils.js'
 import { createTestServer, randomAddProjectBody } from './test-helpers.js'
 
 test('sync endpoint is available after adding a project', async (t) => {

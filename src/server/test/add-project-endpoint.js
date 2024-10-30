@@ -1,7 +1,6 @@
+import { keyToPublicId as projectKeyToPublicId } from '@mapeo/crypto'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { omit } from '../../lib/omit.js'
-import { projectKeyToPublicId } from '../../utils.js'
 import {
   createTestServer,
   randomAddProjectBody,
@@ -14,7 +13,7 @@ test('request missing project name', async (t) => {
   const response = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: omit(randomAddProjectBody(), ['projectName']),
+    body: omit(randomAddProjectBody(), 'projectName'),
   })
 
   assert.equal(response.statusCode, 400)
@@ -38,7 +37,7 @@ test('request missing project key', async (t) => {
   const response = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: omit(randomAddProjectBody(), ['projectKey']),
+    body: omit(randomAddProjectBody(), 'projectKey'),
   })
 
   assert.equal(response.statusCode, 400)
@@ -62,7 +61,7 @@ test('request missing any encryption keys', async (t) => {
   const response = await server.inject({
     method: 'PUT',
     url: '/projects',
-    body: omit(randomAddProjectBody(), ['encryptionKeys']),
+    body: omit(randomAddProjectBody(), 'encryptionKeys'),
   })
 
   assert.equal(response.statusCode, 400)
@@ -77,7 +76,7 @@ test('request missing an encryption key', async (t) => {
     url: '/projects',
     body: {
       ...body,
-      encryptionKeys: omit(body.encryptionKeys, ['config']),
+      encryptionKeys: omit(body.encryptionKeys, 'config'),
     },
   })
 
@@ -209,3 +208,16 @@ test('adding the same project twice is idempotent', async (t) => {
   })
   assert.equal(secondResponse.statusCode, 200)
 })
+
+/**
+ * @template {object} T
+ * @template {keyof T} K
+ * @param {T} obj
+ * @param {K} key
+ * @returns {Omit<T, K>}
+ */
+function omit(obj, key) {
+  const result = { ...obj }
+  delete result[key]
+  return result
+}
