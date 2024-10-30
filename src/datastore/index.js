@@ -165,6 +165,7 @@ export class DataStore extends TypedEmitter {
     const deferred = pDefer()
     this.#pendingIndex.set(versionId, deferred)
     await deferred.promise
+    this.#pendingIndex.delete(versionId)
 
     return /** @type {Extract<MapeoDoc, TDoc>} */ (
       decode(block, { coreDiscoveryKey, index })
