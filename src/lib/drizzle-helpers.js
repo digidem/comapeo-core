@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { assert } from '../utils.js'
+import { migrate as drizzleMigrate } from 'drizzle-orm/better-sqlite3/migrator'
+import { DRIZZLE_MIGRATIONS_TABLE } from '../constants.js'
 /** @import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
 
 /**
@@ -25,7 +27,7 @@ const getNumberResult = (queryResult) => {
  * @param {string} tableName
  * @returns {number}
  */
-export const tableCountIfExists = (db, tableName) =>
+const tableCountIfExists = (db, tableName) =>
   db.transaction((tx) => {
     const existsQuery = sql`
       SELECT EXISTS (
@@ -46,3 +48,32 @@ export const tableCountIfExists = (db, tableName) =>
     const countResult = tx.get(countQuery)
     return getNumberResult(countResult)
   })
+
+/**
+ * @internal
+ * @typedef {'initialized database' | 'migrated' | 'no migration'} MigrationResult
+ */
+
+/**
+ * Wrapper around Drizzle's migration function. Returns what happened during
+ * migration; did a migration occur?
+ *
+ * @param {BetterSQLite3Database} db
+ * @param {object} options
+ * @param {string} options.migrationsFolder
+ * @returns {MigrationResult}
+ */
+export const migrate = (db, { migrationsFolder }) => {
+  const migrationsBefore = tableCountIfExists(db, DRIZZLE_MIGRATIONS_TABLE)
+  drizzleMigrate(db, {
+    migrationsFolder,
+    migrationsTable: DRIZZLE_MIGRATIONS_TABLE,
+  })
+  const migrationsAfter = tableCountIfExists(db, DRIZZLE_MIGRATIONS_TABLE)
+
+  if (migrationsAfter === migrationsBefore) return 'no migration'
+
+  if (migrationsBefore === 0) return 'initialized database'
+
+  return 'migrated'
+}

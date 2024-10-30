@@ -2,15 +2,10 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
-import {
-  NAMESPACES,
-  NAMESPACE_SCHEMAS,
-  DRIZZLE_MIGRATIONS_TABLE,
-} from './constants.js'
+import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
@@ -43,12 +38,13 @@ import {
 } from './roles.js'
 import {
   assert,
+  ExhaustivenessError,
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
   valueOf,
 } from './utils.js'
-import { tableCountIfExists } from './lib/drizzle-helpers.js'
+import { migrate } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
 import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
@@ -147,13 +143,21 @@ export class MapeoProject extends TypedEmitter {
 
     this.#sqlite = new Database(dbPath)
     const db = drizzle(this.#sqlite)
-    const migrationsBefore = tableCountIfExists(db, DRIZZLE_MIGRATIONS_TABLE)
-    migrate(db, {
+    const migrationResult = migrate(db, {
       migrationsFolder: projectMigrationsFolder,
-      migrationsTable: DRIZZLE_MIGRATIONS_TABLE,
     })
-    const migrationsAfter = tableCountIfExists(db, DRIZZLE_MIGRATIONS_TABLE)
-    const reindex = migrationsBefore > 0 && migrationsAfter !== migrationsBefore
+    let reindex
+    switch (migrationResult) {
+      case 'initialized database':
+      case 'no migration':
+        reindex = false
+        break
+      case 'migrated':
+        reindex = true
+        break
+      default:
+        throw new ExhaustivenessError(migrationResult)
+    }
 
     const indexedTables = [
       observationTable,

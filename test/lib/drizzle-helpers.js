@@ -2,29 +2,28 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import assert from 'node:assert/strict'
 import test, { describe } from 'node:test'
-import { tableCountIfExists } from '../../src/lib/drizzle-helpers.js'
+import { migrate } from '../../src/lib/drizzle-helpers.js'
 
-describe('table count if exists', () => {
+describe('migrate', async () => {
   const db = new Database(':memory:')
-
-  db.exec('CREATE TABLE empty (ignored)')
-
-  db.exec('CREATE TABLE filled (n INT)')
-  db.exec('INSERT INTO filled (n) VALUES (9)')
-  db.exec('INSERT INTO filled (n) VALUES (8)')
-  db.exec('INSERT INTO filled (n) VALUES (7)')
-
   const driz = drizzle(db)
 
-  test("when table doesn't exist", () => {
-    assert.equal(tableCountIfExists(driz, 'doesnt_exist'), 0)
+  const fixturesDir = new URL('../fixtures/schema/', import.meta.url)
+  const schema1Path = new URL('./1', fixturesDir).pathname
+  const schema2Path = new URL('./2', fixturesDir).pathname
+
+  test('initial migration', () => {
+    const result = migrate(driz, { migrationsFolder: schema1Path })
+    assert.equal(result, 'initialized database')
   })
 
-  test('when table is empty', () => {
-    assert.equal(tableCountIfExists(driz, 'empty'), 0)
+  test('subsequent migration', () => {
+    const result = migrate(driz, { migrationsFolder: schema2Path })
+    assert.equal(result, 'migrated')
   })
 
-  test('when table has rows', () => {
-    assert.equal(tableCountIfExists(driz, 'filled'), 3)
+  test('redundant migration', () => {
+    const result = migrate(driz, { migrationsFolder: schema2Path })
+    assert.equal(result, 'no migration')
   })
 })
