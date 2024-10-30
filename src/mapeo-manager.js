@@ -4,6 +4,7 @@ import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
@@ -25,7 +26,6 @@ import {
 } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 import {
-  ExhaustivenessError,
   deNullify,
   getDeviceId,
   keyToId,
@@ -35,7 +35,6 @@ import {
   projectKeyToPublicId,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
-import { migrate } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
@@ -153,28 +152,7 @@ export class MapeoManager extends TypedEmitter {
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
     this.#db = drizzle(sqlite)
-
-    const indexedTables = [projectSettingsTable]
-
-    const migrationResult = migrate(this.#db, {
-      migrationsFolder: clientMigrationsFolder,
-    })
-    let reindex
-    switch (migrationResult) {
-      case 'initialized database':
-      case 'no migration':
-        reindex = false
-        break
-      case 'migrated':
-        reindex = true
-        break
-      default:
-        throw new ExhaustivenessError(migrationResult)
-    }
-
-    if (reindex) {
-      for (const table of indexedTables) this.#db.delete(table).run()
-    }
+    migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
 
     this.#localPeers = new LocalPeers({ logger })
     this.#localPeers.on('peers', (peers) => {
@@ -187,7 +165,7 @@ export class MapeoManager extends TypedEmitter {
     })
 
     this.#projectSettingsIndexWriter = new IndexWriter({
-      tables: indexedTables,
+      tables: [projectSettingsTable],
       sqlite,
       logger,
     })
