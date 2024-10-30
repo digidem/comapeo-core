@@ -8,29 +8,57 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
 import { setProperty, getProperty } from 'dot-prop'
 /** @import { MapeoDoc, MapeoValue } from '@comapeo/schema' */
-/** @import { MapeoDocMap, MapeoValueMap } from '../types.js' */
+/** @import { RunResult } from 'better-sqlite3' */
+/** @import { SQLiteSelectBase } from 'drizzle-orm/sqlite-core' */
+/** @import { Exact } from 'type-fest' */
 /** @import { DataStore } from '../datastore/index.js' */
+/**
+ * @import {
+ *   CoreOwnershipWithSignaturesValue,
+ *   DefaultEmitterEvents,
+ *   MapeoDocMap,
+ *   MapeoValueMap,
+ * } from '../types.js'
+ */
 
 /**
+ * @internal
  * @typedef {`${MapeoDoc['schemaName']}Table`} MapeoDocTableName
  */
+
 /**
+ * @internal
  * @template T
  * @typedef {T[(keyof T) & MapeoDocTableName]} GetMapeoDocTables
  */
+
 /**
  * Union of Drizzle schema tables that correspond to MapeoDoc types (e.g. excluding backlink tables and other utility tables)
+ * @internal
  * @typedef {GetMapeoDocTables<typeof import('../schema/project.js')> | GetMapeoDocTables<typeof import('../schema/client.js')>} MapeoDocTables
  */
+
 /**
+ * @internal
  * @typedef {{ [K in MapeoDocTables['_']['name']]: Extract<MapeoDocTables, { _: { name: K }}> }} MapeoDocTablesMap
  */
+
 /**
+ * @internal
  * @template T
  * @template {keyof any} K
  * @typedef {T extends any ? Omit<T, K> : never} OmitUnion
  */
+
 /**
+ * @internal
+ * @template {MapeoValue} T
+ * @template {MapeoValue['schemaName']} S
+ * @typedef {Exclude<T, { schemaName: S }>} ExcludeSchema
+ */
+
+/**
+ * @internal
  * @template {MapeoDoc} TDoc
  * @typedef {object} DataTypeEvents
  * @property {(docs: TDoc[]) => void} updated-docs
@@ -49,11 +77,11 @@ export const kDataStore = Symbol('dataStore')
 
 /**
  * @template {DataStore} TDataStore
- * @template {TDataStore['schemas'][number]} TSchemaName
- * @template {MapeoDocTablesMap[TSchemaName]} TTable
- * @template {Exclude<MapeoDocMap[TSchemaName], { schemaName: 'coreOwnership' }>} TDoc
- * @template {Exclude<MapeoValueMap[TSchemaName], { schemaName: 'coreOwnership' }>} TValue
- * @extends {TypedEmitter<DataTypeEvents<TDoc> & import('../types.js').DefaultEmitterEvents<DataTypeEvents<TDoc>>>}
+ * @template {MapeoDocTables} TTable
+ * @template {TTable['_']['name']} TSchemaName
+ * @template {MapeoDocMap[TSchemaName]} TDoc
+ * @template {MapeoValueMap[TSchemaName]} TValue
+ * @extends {TypedEmitter<DataTypeEvents<TDoc> & DefaultEmitterEvents<DataTypeEvents<TDoc>>>}
  */
 export class DataType extends TypedEmitter {
   #dataStore
@@ -106,36 +134,42 @@ export class DataType extends TypedEmitter {
     })
   }
 
+  /** @returns {TTable} */
   get [kTable]() {
     return this.#table
   }
 
+  /** @returns {TSchemaName} */
   get schemaName() {
     return this.#schemaName
   }
 
+  /** @returns {TDataStore['namespace']} */
   get namespace() {
     return this.#dataStore.namespace
   }
 
+  /** @returns {TDataStore} */
   get [kDataStore]() {
     return this.#dataStore
   }
 
   /**
-   * @template {import('type-fest').Exact<TValue, T>} T
+   * @template {Exact<ExcludeSchema<TValue, 'coreOwnership'>, T>} T
    * @param {T} value
+   * @returns {Promise<TDoc & { forks: string[] }>}
    */
   async create(value) {
     const docId = generateId()
-    // @ts-expect-error - can't figure this one out, types in index.d.ts override this
+    // @ts-expect-error - can't figure this one out
     return this[kCreateWithDocId](docId, value, { checkExisting: false })
   }
 
   /**
    * @param {string} docId
-   * @param {TValue | import('../types.js').CoreOwnershipWithSignaturesValue} value
+   * @param {ExcludeSchema<TValue, 'coreOwnership'> | CoreOwnershipWithSignaturesValue} value
    * @param {{ checkExisting?: boolean }} [opts] - only used internally to skip the checkExisting check when creating a document with a random ID (collisions should be too small probability to be worth checking for)
+   * @returns {Promise<TDoc & { forks: string[] }>}
    */
   async [kCreateWithDocId](docId, value, { checkExisting = true } = {}) {
     if (!validate(this.#schemaName, value)) {
@@ -193,15 +227,17 @@ export class DataType extends TypedEmitter {
   /**
    * @param {string} versionId
    * @param {{ lang?: string }} [opts]
+   * @returns {Promise<TDoc>}
    */
   async getByVersionId(versionId, { lang } = {}) {
     const result = await this.#dataStore.read(versionId)
-    return this.#translate(result, { lang })
+    return this.#translate(deNullify(result), { lang })
   }
 
   /**
    * @param {any} doc
    * @param {{ lang?: string }} [opts]
+   * @returns {Promise<TDoc & { forks: string[] }>}
    */
   async #translate(doc, { lang } = {}) {
     if (!lang) return doc
@@ -235,27 +271,27 @@ export class DataType extends TypedEmitter {
     return doc
   }
 
-  /** @param {{ includeDeleted?: boolean, lang?: string }} [opts] */
+  /**
+   * @param {object} opts
+   * @param {boolean} [opts.includeDeleted]
+   * @param {string} [opts.lang]
+   * @returns {Promise<Array<TDoc & { forks: string[] }>>}
+   */
   async getMany({ includeDeleted = false, lang } = {}) {
     await this.#dataStore.indexer.idle()
     const rows = includeDeleted
       ? this.#sql.getManyWithDeleted.all()
       : this.#sql.getMany.all()
     return await Promise.all(
-      rows.map(
-        async (doc) =>
-          await this.#translate(deNullify(/** @type {MapeoDoc} */ (doc)), {
-            lang,
-          })
-      )
+      rows.map((doc) => this.#translate(deNullify(doc), { lang }))
     )
   }
 
   /**
-   *
-   * @template {import('type-fest').Exact<TValue, T>} T
+   * @template {Exact<ExcludeSchema<TValue, 'coreOwnership'>, T>} T
    * @param {string | string[]} versionId
    * @param {T} value
+   * @returns {Promise<TDoc & { forks: string[] }>}
    */
   async update(versionId, value) {
     await this.#dataStore.indexer.idle()
@@ -279,6 +315,7 @@ export class DataType extends TypedEmitter {
 
   /**
    * @param {string} docId
+   * @returns {Promise<TDoc & { forks: string[] }>}
    */
   async delete(docId) {
     await this.#dataStore.indexer.idle()
