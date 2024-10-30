@@ -8,35 +8,38 @@
 import { Transform } from 'node:stream'
 
 /**
- * Convert a filter to an array of path prefixes that match the filter. These
- * path prefixes can be used to filter entries by
- * `entry.key.startsWith(pathPrefix)`.
- *
  * @param {GenericBlobFilter} filter
- * @returns {readonly string[]} array of folders that match the filter
+ * @param {string} filePath
+ * @returns {boolean}
  */
-export function pathPrefixesFromFilter(filter) {
-  const pathPrefixes = []
-  for (const [type, variants] of Object.entries(filter)) {
-    if (variants.length === 0) {
-      pathPrefixes.push(`/${type}/`)
-      continue
-    }
-    const dedupedVariants = new Set(variants)
-    for (const variant of dedupedVariants) {
-      pathPrefixes.push(`/${type}/${variant}/`)
-    }
+export function filePathMatchesFilter(filter, filePath) {
+  const pathParts = filePath.split('/', 4)
+  const [shouldBeEmpty, type, variant] = pathParts
+
+  if (typeof shouldBeEmpty !== 'string' || shouldBeEmpty) return false
+
+  if (!type) return false
+  if (!Object.hasOwn(filter, type)) return false
+
+  const allowedVariants = filter[type] ?? []
+  if (allowedVariants.length === 0) {
+    return pathParts.length >= 3
+  } else {
+    return (
+      pathParts.length >= 4 &&
+      typeof variant === 'string' &&
+      allowedVariants.includes(variant)
+    )
   }
-  return filterSubfoldersAndDuplicates(pathPrefixes)
 }
 
 /** @type {import("../types.js").BlobStoreEntriesStream} */
 export class FilterEntriesStream extends Transform {
-  #pathPrefixes
+  #isIncludedInFilter
   /** @param {GenericBlobFilter} filter */
   constructor(filter) {
     super({ objectMode: true })
-    this.#pathPrefixes = pathPrefixesFromFilter(filter)
+    this.#isIncludedInFilter = filePathMatchesFilter.bind(null, filter)
   }
   /**
    * @param {import("hyperdrive").HyperdriveEntry} entry
@@ -45,31 +48,7 @@ export class FilterEntriesStream extends Transform {
    */
   _transform(entry, _, callback) {
     const { key: filePath } = entry
-    const isIncludedInFilter = this.#pathPrefixes.some((pathPrefix) =>
-      filePath.startsWith(pathPrefix)
-    )
-    if (isIncludedInFilter) this.push(entry)
+    if (this.#isIncludedInFilter(filePath)) this.push(entry)
     callback()
   }
-}
-
-/**
- * Take an array of folders, remove any folders that are duplicates or subfolders of another
- *
- * @param {readonly string[]} folders
- * @returns {readonly string[]}
- */
-function filterSubfoldersAndDuplicates(folders) {
-  /** @type {Set<string>} */
-  const filtered = new Set()
-  for (let i = 0; i < folders.length; i++) {
-    const isSubfolderOfAnotherFolder = !!folders.find((folder, index) => {
-      if (index === i) return false
-      // Deduping is done by the Set, if we do it here we don't get either
-      if (folder === folders[i]) return true
-      return folders[i].startsWith(folder)
-    })
-    if (!isSubfolderOfAnotherFolder) filtered.add(folders[i])
-  }
-  return Array.from(filtered)
 }
