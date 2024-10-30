@@ -169,6 +169,156 @@ export var HaveExtension = {
         return message;
     },
 };
+function createBaseDownloadIntentExtension() {
+    return { downloadIntents: {} };
+}
+export var DownloadIntentExtension = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        Object.entries(message.downloadIntents).forEach(function (_a) {
+            var key = _a[0], value = _a[1];
+            DownloadIntentExtension_DownloadIntentsEntry.encode({ key: key, value: value }, writer.uint32(10).fork())
+                .ldelim();
+        });
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseDownloadIntentExtension();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    var entry1 = DownloadIntentExtension_DownloadIntentsEntry.decode(reader, reader.uint32());
+                    if (entry1.value !== undefined) {
+                        message.downloadIntents[entry1.key] = entry1.value;
+                    }
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return DownloadIntentExtension.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseDownloadIntentExtension();
+        message.downloadIntents = Object.entries((_a = object.downloadIntents) !== null && _a !== void 0 ? _a : {}).reduce(function (acc, _a) {
+            var key = _a[0], value = _a[1];
+            if (value !== undefined) {
+                acc[key] = DownloadIntentExtension_DownloadIntent.fromPartial(value);
+            }
+            return acc;
+        }, {});
+        return message;
+    },
+};
+function createBaseDownloadIntentExtension_DownloadIntent() {
+    return { variants: [] };
+}
+export var DownloadIntentExtension_DownloadIntent = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        for (var _i = 0, _a = message.variants; _i < _a.length; _i++) {
+            var v = _a[_i];
+            writer.uint32(10).string(v);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseDownloadIntentExtension_DownloadIntent();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.variants.push(reader.string());
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return DownloadIntentExtension_DownloadIntent.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseDownloadIntentExtension_DownloadIntent();
+        message.variants = ((_a = object.variants) === null || _a === void 0 ? void 0 : _a.map(function (e) { return e; })) || [];
+        return message;
+    },
+};
+function createBaseDownloadIntentExtension_DownloadIntentsEntry() {
+    return { key: "", value: undefined };
+}
+export var DownloadIntentExtension_DownloadIntentsEntry = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.key !== "") {
+            writer.uint32(10).string(message.key);
+        }
+        if (message.value !== undefined) {
+            DownloadIntentExtension_DownloadIntent.encode(message.value, writer.uint32(18).fork()).ldelim();
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseDownloadIntentExtension_DownloadIntentsEntry();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.key = reader.string();
+                    continue;
+                case 2:
+                    if (tag !== 18) {
+                        break;
+                    }
+                    message.value = DownloadIntentExtension_DownloadIntent.decode(reader, reader.uint32());
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return DownloadIntentExtension_DownloadIntentsEntry.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseDownloadIntentExtension_DownloadIntentsEntry();
+        message.key = (_a = object.key) !== null && _a !== void 0 ? _a : "";
+        message.value = (object.value !== undefined && object.value !== null)
+            ? DownloadIntentExtension_DownloadIntent.fromPartial(object.value)
+            : undefined;
+        return message;
+    },
+};
 var tsProtoGlobalThis = (function () {
     if (typeof globalThis !== "undefined") {
         return globalThis;
