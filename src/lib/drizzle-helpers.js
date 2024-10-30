@@ -32,7 +32,7 @@ const tableCountIfExists = (db, tableName) =>
     const existsQuery = sql`
       SELECT EXISTS (
         SELECT 1
-        FROM sqlite_master
+        FROM sqlite_schema
         WHERE type IS 'table'
         AND name IS ${tableName}
       ) AS result
