@@ -27,7 +27,7 @@ const getNumberResult = (queryResult) => {
  * @param {string} tableName
  * @returns {number}
  */
-const tableCountIfExists = (db, tableName) =>
+const safeCountTableRows = (db, tableName) =>
   db.transaction((tx) => {
     const existsQuery = sql`
       SELECT EXISTS (
@@ -64,12 +64,12 @@ const tableCountIfExists = (db, tableName) =>
  * @returns {MigrationResult}
  */
 export const migrate = (db, { migrationsFolder }) => {
-  const migrationsBefore = tableCountIfExists(db, DRIZZLE_MIGRATIONS_TABLE)
+  const migrationsBefore = safeCountTableRows(db, DRIZZLE_MIGRATIONS_TABLE)
   drizzleMigrate(db, {
     migrationsFolder,
     migrationsTable: DRIZZLE_MIGRATIONS_TABLE,
   })
-  const migrationsAfter = tableCountIfExists(db, DRIZZLE_MIGRATIONS_TABLE)
+  const migrationsAfter = safeCountTableRows(db, DRIZZLE_MIGRATIONS_TABLE)
 
   if (migrationsAfter === migrationsBefore) return 'no migration'
 
