@@ -7,22 +7,22 @@ declare module 'hyperbee' {
   type Encoding<T> = 'binary' | 'utf-8' | 'ascii' | 'json' | AbstractEncoding<T>
 
   declare namespace Hyperbee {
-    interface HyperbeeOptions<T = any> {
+    interface HyperbeeOptions<T = unknown> {
       keyEncoding?: Encoding<T>
       valueEncoding?: Encoding<T>
     }
 
-    interface HyperbeeEntry<T = any> {
+    interface HyperbeeEntry<T = unknown> {
       seq: number
       key: string
       value: T
     }
 
-    interface PutOptions<T = any> {
+    interface PutOptions<T = unknown> {
       cas?: (prev: HyperbeeEntry<T>, next: HyperbeeEntry<T>) => boolean
     }
 
-    interface DelOptions<T = any> {
+    interface DelOptions<T = unknown> {
       cas?: (prev: T) => boolean
     }
 
@@ -51,7 +51,7 @@ declare module 'hyperbee' {
       encoding?: Encoding<T>
     }
 
-    interface DiffStreamEntry<T = any> {
+    interface DiffStreamEntry<T = unknown> {
       left: T
       right: T
     }
@@ -63,14 +63,14 @@ declare module 'hyperbee' {
       valueEncoding?: 'binary' | 'utf-8' | 'ascii' | 'json' | AbstractEncoding
     }
 
-    interface SubDatabaseOptions extends HyperbeeOptions<any> {
+    interface SubDatabaseOptions extends HyperbeeOptions<unknown> {
       sep?: Buffer
     }
 
     interface HeaderOptions {}
   }
 
-  class Hyperbee<T = any> {
+  class Hyperbee<T = unknown> {
     constructor(core: Hypercore, options?: Hyperbee.HyperbeeOptions<T>)
 
     ready(): Promise<void>
@@ -87,18 +87,18 @@ declare module 'hyperbee' {
 
     put(
       key: string,
-      value?: any,
+      value?: unknown,
       options?: Hyperbee.PutOptions<T>
     ): Promise<void>
     del(key: string, options?: Hyperbee.DelOptions<T>): Promise<void>
     get(key: string): Promise<Hyperbee.HyperbeeEntry<T> | null>
     getBySeq(
       seq: number,
-      options?: any
+      options?: unknown
     ): Promise<Omit<Hyperbee.HyperbeeEntry<T>, 'seq'> | null>
 
     batch(): HyperbeeBatch<T>
-    replicate(isInitiatorOrStream: any): Readable
+    replicate(isInitiatorOrStream: unknown): Readable
     createReadStream(
       range?: Hyperbee.ReadStreamRange,
       options?: Hyperbee.ReadStreamOptions
@@ -123,15 +123,15 @@ declare module 'hyperbee' {
     ): Promise<EntryWatcher<T>>
     watch(
       range?: Hyperbee.ReadStreamRange
-    ): AsyncIterable<[any, any]> & { close: () => Promise<void> }
+    ): AsyncIterable<[unknown, unknown]> & { close: () => Promise<void> }
 
     checkout(version: number): Hyperbee
     snapshot(): Hyperbee
 
     sub(prefix: string, options?: Hyperbee.SubDatabaseOptions): Hyperbee
-    getHeader(options?: any): Promise<any>
+    getHeader(options?: unknown): Promise<unknown>
 
-    static isHyperbee(core: Hypercore, options?: any): Promise<boolean>
+    static isHyperbee(core: Hypercore, options?: unknown): Promise<boolean>
   }
 
   class HyperbeeBatch<T> {
@@ -150,7 +150,7 @@ declare module 'hyperbee' {
     close(): Promise<void>
   }
 
-  interface AbstractEncoding<T = any> {
+  interface AbstractEncoding<T = unknown> {
     encode: (data: T) => Buffer
     encode: (data: T, buffer: Buffer) => Buffer
     encode: (data: T, buffer: Buffer, offset: number) => Buffer
