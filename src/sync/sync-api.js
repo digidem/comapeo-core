@@ -25,6 +25,7 @@ export const kRescindFullStopRequest = Symbol('foreground')
 export const kWaitForInitialSyncWithPeer = Symbol(
   'wait for initial sync with peer'
 )
+export const kSetBlobDownloadFilter = Symbol('set isArchiveDevice')
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -90,6 +91,7 @@ export class SyncApi extends TypedEmitter {
   #getReplicationStream
   /** @type {Map<string, WebSocket>} */
   #serverWebsockets = new Map()
+  #blobDownloadFilter
 
   /**
    * @param {object} opts
@@ -98,6 +100,7 @@ export class SyncApi extends TypedEmitter {
    * @param {import('../roles.js').Roles} opts.roles
    * @param {() => Promise<Iterable<string>>} opts.getServerWebsocketUrls
    * @param {() => ReplicationStream} opts.getReplicationStream
+   * @param {import('../types.js').BlobFilter | null} opts.blobDownloadFilter
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
    */
@@ -109,9 +112,11 @@ export class SyncApi extends TypedEmitter {
     getReplicationStream,
     logger,
     coreOwnership,
+    blobDownloadFilter,
   }) {
     super()
     this.#l = Logger.create('syncApi', logger)
+    this.#blobDownloadFilter = blobDownloadFilter
     this.#coreManager = coreManager
     this.#coreOwnership = coreOwnership
     this.#roles = roles
@@ -145,6 +150,15 @@ export class SyncApi extends TypedEmitter {
         )
       )
       .catch(noop)
+  }
+
+  /** @param {import('../types.js').BlobFilter | null} blobDownloadFilter */
+  [kSetBlobDownloadFilter](blobDownloadFilter) {
+    this.#blobDownloadFilter = blobDownloadFilter
+    if (!blobDownloadFilter) return // No download intents = intend to download everything
+    for (const peer of this.#coreManager.creatorCore.peers) {
+      this.#coreManager.sendDownloadIntents(blobDownloadFilter, peer)
+    }
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */
@@ -489,7 +503,7 @@ export class SyncApi extends TypedEmitter {
    * will then handle validation of role records to ensure that the peer is
    * actually still part of the project.
    *
-   * @param {{ protomux: import('protomux')<OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<OpenedNoiseStream> }} peer
    */
   #handlePeerAdd = (peer) => {
     const { protomux } = peer
@@ -499,6 +513,9 @@ export class SyncApi extends TypedEmitter {
         protomux.stream.remotePublicKey
       )
       return
+    }
+    if (this.#blobDownloadFilter) {
+      this.#coreManager.sendDownloadIntents(this.#blobDownloadFilter, peer)
     }
     const peerSyncController = new PeerSyncController({
       protomux,

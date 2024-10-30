@@ -91,10 +91,6 @@ export class DataStore extends TypedEmitter {
     return this.#writerCore
   }
 
-  getIndexState() {
-    return this.#coreIndexer.state
-  }
-
   /**
    *
    * @param {MultiCoreIndexer.Entry<'binary'>[]} entries

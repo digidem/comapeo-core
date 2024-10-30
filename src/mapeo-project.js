@@ -364,6 +364,7 @@ export class MapeoProject extends TypedEmitter {
       coreManager: this.#coreManager,
       coreOwnership: this.#coreOwnership,
       roles: this.#roles,
+      blobDownloadFilter: null,
       logger: this.#l,
       getServerWebsocketUrls: async () => {
         const members = await this.#memberApi.getMany()
@@ -638,8 +639,7 @@ export class MapeoProject extends TypedEmitter {
   /**
    * Replicate a project to a @hyperswarm/secret-stream. Invites will not
    * function because the RPC channel is not connected for project replication,
-   * and only this project will replicate (to replicate multiple projects you
-   * need to replicate the manager instance via manager[kManagerReplicate])
+   * and only this project will replicate.
    *
    * @param {(
    *   boolean |
@@ -700,6 +700,7 @@ export class MapeoProject extends TypedEmitter {
   /** @param {boolean} isArchiveDevice */
   async [kSetIsArchiveDevice](isArchiveDevice) {
     this.#isArchiveDevice = isArchiveDevice
+    // TODO: call this.#syncApi[kSetBlobDownloadFilter]()
   }
 
   /** @returns {boolean} */

@@ -66,6 +66,20 @@ export function haveExtension_NamespaceToNumber(object: HaveExtension_Namespace)
   }
 }
 
+/** A map of blob types and variants that a peer intends to download */
+export interface DownloadIntentExtension {
+  downloadIntents: { [key: string]: DownloadIntentExtension_DownloadIntent };
+}
+
+export interface DownloadIntentExtension_DownloadIntent {
+  variants: string[];
+}
+
+export interface DownloadIntentExtension_DownloadIntentsEntry {
+  key: string;
+  value: DownloadIntentExtension_DownloadIntent | undefined;
+}
+
 function createBaseProjectExtension(): ProjectExtension {
   return { authCoreKeys: [] };
 }
@@ -190,6 +204,173 @@ export const HaveExtension = {
     message.start = object.start ?? 0;
     message.encodedBitfield = object.encodedBitfield ?? Buffer.alloc(0);
     message.namespace = object.namespace ?? HaveExtension_Namespace.auth;
+    return message;
+  },
+};
+
+function createBaseDownloadIntentExtension(): DownloadIntentExtension {
+  return { downloadIntents: {} };
+}
+
+export const DownloadIntentExtension = {
+  encode(message: DownloadIntentExtension, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    Object.entries(message.downloadIntents).forEach(([key, value]) => {
+      DownloadIntentExtension_DownloadIntentsEntry.encode({ key: key as any, value }, writer.uint32(10).fork())
+        .ldelim();
+    });
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): DownloadIntentExtension {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDownloadIntentExtension();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          const entry1 = DownloadIntentExtension_DownloadIntentsEntry.decode(reader, reader.uint32());
+          if (entry1.value !== undefined) {
+            message.downloadIntents[entry1.key] = entry1.value;
+          }
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<DownloadIntentExtension>, I>>(base?: I): DownloadIntentExtension {
+    return DownloadIntentExtension.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DownloadIntentExtension>, I>>(object: I): DownloadIntentExtension {
+    const message = createBaseDownloadIntentExtension();
+    message.downloadIntents = Object.entries(object.downloadIntents ?? {}).reduce<
+      { [key: string]: DownloadIntentExtension_DownloadIntent }
+    >((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = DownloadIntentExtension_DownloadIntent.fromPartial(value);
+      }
+      return acc;
+    }, {});
+    return message;
+  },
+};
+
+function createBaseDownloadIntentExtension_DownloadIntent(): DownloadIntentExtension_DownloadIntent {
+  return { variants: [] };
+}
+
+export const DownloadIntentExtension_DownloadIntent = {
+  encode(message: DownloadIntentExtension_DownloadIntent, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.variants) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): DownloadIntentExtension_DownloadIntent {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDownloadIntentExtension_DownloadIntent();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.variants.push(reader.string());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<DownloadIntentExtension_DownloadIntent>, I>>(
+    base?: I,
+  ): DownloadIntentExtension_DownloadIntent {
+    return DownloadIntentExtension_DownloadIntent.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DownloadIntentExtension_DownloadIntent>, I>>(
+    object: I,
+  ): DownloadIntentExtension_DownloadIntent {
+    const message = createBaseDownloadIntentExtension_DownloadIntent();
+    message.variants = object.variants?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseDownloadIntentExtension_DownloadIntentsEntry(): DownloadIntentExtension_DownloadIntentsEntry {
+  return { key: "", value: undefined };
+}
+
+export const DownloadIntentExtension_DownloadIntentsEntry = {
+  encode(message: DownloadIntentExtension_DownloadIntentsEntry, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      DownloadIntentExtension_DownloadIntent.encode(message.value, writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): DownloadIntentExtension_DownloadIntentsEntry {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDownloadIntentExtension_DownloadIntentsEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = DownloadIntentExtension_DownloadIntent.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<DownloadIntentExtension_DownloadIntentsEntry>, I>>(
+    base?: I,
+  ): DownloadIntentExtension_DownloadIntentsEntry {
+    return DownloadIntentExtension_DownloadIntentsEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DownloadIntentExtension_DownloadIntentsEntry>, I>>(
+    object: I,
+  ): DownloadIntentExtension_DownloadIntentsEntry {
+    const message = createBaseDownloadIntentExtension_DownloadIntentsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? DownloadIntentExtension_DownloadIntent.fromPartial(object.value)
+      : undefined;
     return message;
   },
 };
