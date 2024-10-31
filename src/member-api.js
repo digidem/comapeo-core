@@ -16,7 +16,7 @@ import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
-import { ErrorWithCode } from './lib/error.js'
+import { ErrorWithCode, getErrorMessage } from './lib/error.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
 /**
@@ -285,7 +285,7 @@ export class MemberApi extends TypedEmitter {
    *
    * @param {string} baseUrl
    * @param {object} [options]
-   * @param {boolean} [options.dangerouslyAllowInsecureConnections]
+   * @param {boolean} [options.dangerouslyAllowInsecureConnections] Allow insecure network connections. Should only be used in tests.
    * @returns {Promise<void>}
    */
   async addServerPeer(
@@ -300,8 +300,7 @@ export class MemberApi extends TypedEmitter {
 
     const { serverDeviceId } = await this.#addServerToProject(baseUrl)
 
-    const roleId = MEMBER_ROLE_ID
-    await this.#roles.assignRole(serverDeviceId, roleId)
+    await this.#roles.assignRole(serverDeviceId, MEMBER_ROLE_ID)
 
     await this.#waitForInitialSyncWithServer({
       baseUrl,
@@ -344,13 +343,11 @@ export class MemberApi extends TypedEmitter {
         headers: { 'Content-Type': 'application/json' },
       })
     } catch (err) {
-      const message =
-        err && typeof err === 'object' && 'message' in err
-          ? err.message
-          : String(err)
       throw new ErrorWithCode(
         'NETWORK_ERROR',
-        `Failed to add server peer due to network error: ${message}`
+        `Failed to add server peer due to network error: ${getErrorMessage(
+          err
+        )}`
       )
     }
 

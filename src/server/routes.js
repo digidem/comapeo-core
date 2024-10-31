@@ -32,6 +32,7 @@ export default async function routes(
   const allowedProjectsSetOrNumber = Array.isArray(allowedProjects)
     ? new Set(allowedProjects)
     : allowedProjects
+
   /**
    * @param {FastifyRequest} req
    */
@@ -62,11 +63,11 @@ export default async function routes(
         },
       },
     },
-    async function (_req, reply) {
+    async function () {
       const { deviceId, name } = this.comapeo.getDeviceInfo()
-      reply.send({
+      return {
         data: { deviceId, name: name || serverName },
-      })
+      }
     }
   )
 
@@ -115,17 +116,14 @@ export default async function routes(
         verifyBearerAuth(req)
       },
     },
-    async function (req, reply) {
-      const existingProjects = await this.comapeo.listProjects()
-
-      reply.send({
-        data: existingProjects.map((project) => ({
+    async function () {
+      const projects = await this.comapeo.listProjects()
+      return {
+        data: projects.map((project) => ({
           projectId: project.projectId,
           name: project.name,
         })),
-      })
-
-      return reply
+      }
     }
   )
 
@@ -154,7 +152,7 @@ export default async function routes(
         },
       },
     },
-    async function (req, reply) {
+    async function (req) {
       const { projectName } = req.body
       const projectKey = Buffer.from(req.body.projectKey, 'hex')
       const projectPublicId = projectKeyToPublicId(projectKey)
@@ -231,12 +229,11 @@ export default async function routes(
       const project = await this.comapeo.getProject(projectPublicId)
       project.$sync.start()
 
-      reply.send({
+      return {
         data: {
           deviceId: this.comapeo.deviceId,
         },
-      })
-      return reply
+      }
     }
   )
 
@@ -291,11 +288,11 @@ export default async function routes(
         await ensureProjectExists(this, req)
       },
     },
-    async function (req, reply) {
+    async function (req) {
       const { projectPublicId } = req.params
       const project = await this.comapeo.getProject(projectPublicId)
 
-      reply.send({
+      return {
         data: (await project.observation.getMany({ includeDeleted: true })).map(
           (obs) => ({
             docId: obs.docId,
@@ -317,7 +314,7 @@ export default async function routes(
             tags: obs.tags,
           })
         ),
-      })
+      }
     }
   )
 
