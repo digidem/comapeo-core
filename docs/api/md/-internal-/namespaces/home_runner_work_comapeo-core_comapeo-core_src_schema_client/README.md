@@ -14,7 +14,7 @@
 
 ### Variables
 
-- [localDeviceInfoTable](variables/localDeviceInfoTable.md)
+- [deviceSettingsTable](variables/deviceSettingsTable.md)
 - [projectBacklinkTable](variables/projectBacklinkTable.md)
 - [projectKeysTable](variables/projectKeysTable.md)
 - [projectSettingsTable](variables/projectSettingsTable.md)

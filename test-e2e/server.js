@@ -424,7 +424,11 @@ async function createRemoteTestServer(t) {
     cwd: fileURLToPath(comapeoCloudUrl),
     stdio: /** @type {const} */ ('inherit'),
   }
+
+  await execa('npm', ['install', '--omit=dev'], execaOptions)
+
   const appName = 'comapeo-cloud-test-' + Math.random().toString(36).slice(8)
+
   await execa(
     'flyctl',
     ['apps', 'create', '--name', appName, '--org', 'digidem', '--json'],
@@ -433,16 +437,19 @@ async function createRemoteTestServer(t) {
   t.after(async () => {
     await execa('flyctl', ['apps', 'destroy', appName, '-y'], execaOptions)
   })
+
   await execa(
     'flyctl',
     ['secrets', 'set', 'SERVER_BEARER_TOKEN=ignored', '--app', appName],
     execaOptions
   )
+
   await execa(
     'flyctl',
     ['deploy', '--app', appName, '-e', 'SERVER_NAME=test server'],
     execaOptions
   )
+
   return { type: 'remote', serverBaseUrl: `https://${appName}.fly.dev/` }
 }
 
