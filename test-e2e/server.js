@@ -10,7 +10,7 @@ import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
 import RAM from 'random-access-memory'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
-import comapeoServer from '../src/server/app.js'
+import comapeoServer from '@comapeo/cloud'
 import {
   connectPeers,
   createManager,
@@ -19,6 +19,7 @@ import {
   waitForPeers,
   waitForSync,
 } from './utils.js'
+import { fileURLToPath } from 'node:url'
 /** @import { FastifyInstance } from 'fastify' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -26,6 +27,8 @@ import {
 /** @import { State as SyncState } from '../src/sync/sync-api.js' */
 
 const USE_REMOTE_SERVER = Boolean(process.env.REMOTE_TEST_SERVER)
+
+const comapeoCoreUrl = new URL('..', import.meta.url)
 
 test('invalid base URLs', async (t) => {
   const manager = createManager('device0', t)
@@ -413,28 +416,32 @@ async function createTestServer(t) {
  * @returns {Promise<RemoteTestServer>}
  */
 async function createRemoteTestServer(t) {
+  const comapeoCloudUrl = new URL(
+    './node_modules/@comapeo/cloud/',
+    comapeoCoreUrl
+  )
+  const execaOptions = {
+    cwd: fileURLToPath(comapeoCloudUrl),
+    stdio: /** @type {const} */ ('inherit'),
+  }
   const appName = 'comapeo-cloud-test-' + Math.random().toString(36).slice(8)
   await execa(
     'flyctl',
     ['apps', 'create', '--name', appName, '--org', 'digidem', '--json'],
-    { stdio: 'inherit' }
+    execaOptions
   )
   t.after(async () => {
-    await execa('flyctl', ['apps', 'destroy', appName, '-y'], {
-      stdio: 'inherit',
-    })
+    await execa('flyctl', ['apps', 'destroy', appName, '-y'], execaOptions)
   })
   await execa(
     'flyctl',
     ['secrets', 'set', 'SERVER_BEARER_TOKEN=ignored', '--app', appName],
-    { stdio: 'inherit' }
+    execaOptions
   )
   await execa(
     'flyctl',
     ['deploy', '--app', appName, '-e', 'SERVER_NAME=test server'],
-    {
-      stdio: 'inherit',
-    }
+    execaOptions
   )
   return { type: 'remote', serverBaseUrl: `https://${appName}.fly.dev/` }
 }
@@ -444,7 +451,6 @@ async function createRemoteTestServer(t) {
  * @returns {Promise<LocalTestServer>}
  */
 async function createLocalTestServer(t) {
-  const comapeoCoreUrl = new URL('..', import.meta.url)
   const projectMigrationsFolder = new URL('./drizzle/project', comapeoCoreUrl)
     .pathname
   const clientMigrationsFolder = new URL('./drizzle/client', comapeoCoreUrl)
