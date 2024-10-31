@@ -240,3 +240,19 @@ Resolves when all cores have finished loading
 #### Returns
 
 `Promise`\<`void`\>
+
+***
+
+### sendDownloadIntents()
+
+> **sendDownloadIntents**(`blobFilter`, `peer`): `void`
+
+#### Parameters
+
+• **blobFilter**: [`BlobFilter`](../type-aliases/BlobFilter.md)
+
+• **peer**: [`HypercorePeer`](../type-aliases/HypercorePeer.md)
+
+#### Returns
+
+`void`

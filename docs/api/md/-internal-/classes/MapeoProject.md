@@ -34,6 +34,10 @@ Encryption keys for each namespace
 
 • **opts.getMediaBaseUrl**
 
+• **opts.isArchiveDevice**: `boolean`
+
+Whether this device is an archive device
+
 • **opts.keyManager**: `KeyManager`
 
 mapeo/crypto KeyManager instance
@@ -142,7 +146,7 @@ DataTypes object mappings, used for tests
 
 ##### observation
 
-> **observation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
+> **observation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
 
 ##### preset
 
@@ -152,17 +156,31 @@ DataTypes object mappings, used for tests
 
 > **projectSettings**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"projectSettings"`, `object`, `object`\>
 
+##### remoteDetectionAlert
+
+> **remoteDetectionAlert**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
+
 ##### role
 
 > **role**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"coreOwnership"` \| `"role"`\>, `SQLiteTableWithColumns`\<`object`\>, `"role"`, `object`, `object`\>
 
 ##### track
 
-> **track**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+> **track**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
 
 ##### translation
 
 > **translation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"translation"`, `object`, `object`\>
+
+***
+
+### \[kIsArchiveDevice\]
+
+> `get` **\[kIsArchiveDevice\]**(): `boolean`
+
+#### Returns
+
+`boolean`
 
 ***
 
@@ -228,11 +246,11 @@ DataTypes object mappings, used for tests
 
 ### observation
 
-> `get` **observation**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
+> `get` **observation**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
 
 ***
 
@@ -246,13 +264,23 @@ DataTypes object mappings, used for tests
 
 ***
 
-### track
+### remoteDetectionAlert
 
-> `get` **track**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+> `get` **remoteDetectionAlert**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
+
+***
+
+### track
+
+> `get` **track**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+
+#### Returns
+
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
 
 ## Methods
 
@@ -280,22 +308,33 @@ Clear data if we've left the project. No-op if you're still in the project.
 
 ### \[kProjectReplicate\]()
 
-> **\[kProjectReplicate\]**(`stream`): `Duplex`\<`any`, `any`, `any`, `any`, `true`, `true`, `DuplexEvents`\<`any`, `any`\>\> & `object` & [`Protomux`](Protomux.md)\<`Duplex`\<`any`, `any`, `any`, `any`, `true`, `true`, `DuplexEvents`\<`any`, `any`\>\>\>
+> **\[kProjectReplicate\]**(`isInitiatorOrStream`): [`ReplicationStream`](../type-aliases/ReplicationStream.md)
 
 Replicate a project to a @hyperswarm/secret-stream. Invites will not
 function because the RPC channel is not connected for project replication,
-and only this project will replicate (to replicate multiple projects you
-need to replicate the manager instance via manager[kManagerReplicate])
+and only this project will replicate.
 
 #### Parameters
 
-• **stream**: [`Protomux`](Protomux.md)\<`Duplex`\<`any`, `any`, `any`, `any`, `true`, `true`, `DuplexEvents`\<`any`, `any`\>\>\>
-
-A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
+• **isInitiatorOrStream**: `boolean` \| `Duplex` \| `Duplex`\<`any`, `any`, `any`, `any`, `true`, `true`, `DuplexEvents`\<`any`, `any`\>\>
 
 #### Returns
 
-`Duplex`\<`any`, `any`, `any`, `any`, `true`, `true`, `DuplexEvents`\<`any`, `any`\>\> & `object` & [`Protomux`](Protomux.md)\<`Duplex`\<`any`, `any`, `any`, `any`, `true`, `true`, `DuplexEvents`\<`any`, `any`\>\>\>
+[`ReplicationStream`](../type-aliases/ReplicationStream.md)
+
+***
+
+### \[kSetIsArchiveDevice\]()
+
+> **\[kSetIsArchiveDevice\]**(`isArchiveDevice`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **isArchiveDevice**: `boolean`
+
+#### Returns
+
+`Promise`\<`void`\>
 
 ***
 
@@ -305,7 +344,7 @@ A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
 
 #### Parameters
 
-• **value**: `Pick`\<`object`, `"name"` \| `"deviceType"`\>
+• **value**: `Pick`\<`object`, `"name"` \| `"deviceType"` \| `"selfHostedServerDetails"`\>
 
 #### Returns
 

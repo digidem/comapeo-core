@@ -91,7 +91,6 @@
 
 ### Type Aliases
 
-- [ArrayAtLeastOne](type-aliases/ArrayAtLeastOne.md)
 - [BitField](type-aliases/BitField.md)
 - [BlobDownloadStateError](type-aliases/BlobDownloadStateError.md)
 - [BlobFilter](type-aliases/BlobFilter.md)
@@ -109,6 +108,7 @@
 - [DeviceInfoParam](type-aliases/DeviceInfoParam.md)
 - [EditableProjectSettings](type-aliases/EditableProjectSettings.md)
 - [ElementOf](type-aliases/ElementOf.md)
+- [GenericBlobFilter](type-aliases/GenericBlobFilter.md)
 - [GetMapeoDocTables](type-aliases/GetMapeoDocTables.md)
 - [HypercorePeer](type-aliases/HypercorePeer.md)
 - [HypercoreRemoteBitfield](type-aliases/HypercoreRemoteBitfield.md)
