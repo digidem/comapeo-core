@@ -19,11 +19,14 @@ declare module 'hyperbee' {
     }
 
     interface PutOptions<T = any> {
-      cas?: (prev: HyperbeeEntry<T>, next: HyperbeeEntry<T>) => boolean
+      cas?: (
+        prev: HyperbeeEntry<T>,
+        next: HyperbeeEntry<T>
+      ) => boolean | PromiseLike<boolean>
     }
 
     interface DelOptions<T = any> {
-      cas?: (prev: T) => boolean
+      cas?: (prev: T) => boolean | PromiseLike<boolean>
     }
 
     interface ReadStreamRange {
