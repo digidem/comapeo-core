@@ -87,6 +87,10 @@ declare module 'hyperbee' {
     // readonly discoveryKey: null | Buffer
     // readonly writable: boolean
     // readonly readable: boolean
+    // getBySeq(
+    //   seq: number,
+    //   options?: any
+    // ): Promise<Omit<Hyperbee.HyperbeeEntry<T>, 'seq'> | null>
 
     put(
       key: string,
@@ -95,10 +99,6 @@ declare module 'hyperbee' {
     ): Promise<void>
     del(key: string, options?: Hyperbee.DelOptions<T>): Promise<void>
     get(key: string): Promise<Hyperbee.HyperbeeEntry<T> | null>
-    getBySeq(
-      seq: number,
-      options?: any
-    ): Promise<Omit<Hyperbee.HyperbeeEntry<T>, 'seq'> | null>
 
     batch(): HyperbeeBatch<T>
     replicate(isInitiatorOrStream: any): Readable
