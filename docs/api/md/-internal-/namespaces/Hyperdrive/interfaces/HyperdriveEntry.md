@@ -38,4 +38,4 @@
 
 #### metadata
 
-> **metadata**: `null` \| `object`
+> **metadata**: `JsonValue`

@@ -4,16 +4,21 @@ import { debounce } from 'throttle-debounce'
 import assert from 'node:assert/strict'
 import { sql, eq } from 'drizzle-orm'
 
-import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
+import {
+  HaveExtension,
+  ProjectExtension,
+  DownloadIntentExtension,
+} from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
 import { noop } from '../utils.js'
 import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
+import mapObject from 'map-obj'
 
 /** @import Hypercore from 'hypercore' */
-/** @import { HypercorePeer, Namespace } from '../types.js' */
+/** @import { BlobFilter, GenericBlobFilter, HypercorePeer, Namespace } from '../types.js' */
 
 const WRITER_CORE_PREHAVES_DEBOUNCE_DELAY = 1000
 
@@ -25,6 +30,7 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
  * @typedef {Object} Events
  * @property {(coreRecord: CoreRecord) => void} add-core
  * @property {(namespace: Namespace, msg: { coreDiscoveryId: string, peerId: string, start: number, bitfield: Uint32Array }) => void} peer-have
+ * @property {(blobFilter: GenericBlobFilter, peerId: string) => void} peer-download-intent
  */
 
 /**
@@ -46,6 +52,7 @@ export class CoreManager extends TypedEmitter {
   #deviceId
   #l
   #autoDownload
+  #downloadIntentExtension
 
   static get namespaces() {
     return NAMESPACES
@@ -157,6 +164,16 @@ export class CoreManager extends TypedEmitter {
         this.#handleHaveMessage(msg, peer)
       },
     })
+
+    this.#downloadIntentExtension = this.creatorCore.registerExtension(
+      'mapeo/download-intent',
+      {
+        encoding: DownloadIntentCodec,
+        onmessage: (msg, peer) => {
+          this.#handleDownloadIntentMessage(msg, peer)
+        },
+      }
+    )
 
     this.creatorCore.on('peer-add', (peer) => {
       this.#sendHaves(peer, this.#coreIndex).catch(() => {
@@ -397,6 +414,23 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
+   * @param {GenericBlobFilter} blobFilter
+   * @param {HypercorePeer} peer
+   */
+  #handleDownloadIntentMessage(blobFilter, peer) {
+    const peerId = peer.remotePublicKey.toString('hex')
+    this.emit('peer-download-intent', blobFilter, peerId)
+  }
+
+  /**
+   * @param {BlobFilter} blobFilter
+   * @param {HypercorePeer} peer
+   */
+  sendDownloadIntents(blobFilter, peer) {
+    this.#downloadIntentExtension.send(blobFilter, peer)
+  }
+
+  /**
    *
    * @param {HypercorePeer} peer
    * @param {Iterable<{ core: Hypercore<Hypercore.ValueEncoding, Buffer>, namespace: Namespace }>} cores
@@ -504,5 +538,27 @@ const HaveExtensionCodec = {
       console.error(e)
       return { start, discoveryKey, bitfield: new Uint32Array(), namespace }
     }
+  },
+}
+
+const DownloadIntentCodec = {
+  /** @param {BlobFilter} filter */
+  encode(filter) {
+    const downloadIntents = mapObject(filter, (key, value) => [
+      key,
+      { variants: value || [] },
+    ])
+    return DownloadIntentExtension.encode({ downloadIntents }).finish()
+  },
+  /**
+   * @param {Buffer | Uint8Array} buf
+   * @returns {GenericBlobFilter}
+   */
+  decode(buf) {
+    const msg = DownloadIntentExtension.decode(buf)
+    return mapObject(msg.downloadIntents, (key, value) => [
+      key + '', // keep TS happy
+      value.variants,
+    ])
   },
 }

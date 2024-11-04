@@ -20,3 +20,4 @@
 ## Functions
 
 - [CoMapeoMapsFastifyPlugin](functions/CoMapeoMapsFastifyPlugin.md)
+- [replicateProject](functions/replicateProject.md)

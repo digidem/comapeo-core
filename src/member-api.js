@@ -1,4 +1,6 @@
+import * as b4a from 'b4a'
 import * as crypto from 'node:crypto'
+import WebSocket from 'ws'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
@@ -8,11 +10,15 @@ import {
   ExhaustivenessError,
   projectKeyToId,
   projectKeyToProjectInviteId,
+  projectKeyToPublicId,
 } from './utils.js'
 import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
-import { ROLES, isRoleIdForNewInvite } from './roles.js'
+import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
+import { ErrorWithCode, getErrorMessage } from './lib/error.js'
+import { wsCoreReplicator } from './lib/ws-core-replicator.js'
+import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
 /**
  * @import {
  *   DeviceInfo,
@@ -21,11 +27,13 @@ import { ROLES, isRoleIdForNewInvite } from './roles.js'
  *   ProjectSettingsValue
  * } from '@comapeo/schema'
  */
+/** @import { Promisable } from 'type-fest' */
 /** @import { Invite, InviteResponse } from './generated/rpc.js' */
 /** @import { DataType } from './datatype/index.js' */
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
 /** @import { projectSettingsTable } from './schema/client.js' */
+/** @import { ReplicationStream } from './types.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
@@ -45,8 +53,11 @@ export class MemberApi extends TypedEmitter {
   #roles
   #coreOwnership
   #encryptionKeys
+  #getProjectName
   #projectKey
   #rpc
+  #getReplicationStream
+  #waitForInitialSyncWithPeer
   #dataTypes
 
   /** @type {Map<string, { abortController: AbortController }>} */
@@ -58,8 +69,11 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./roles.js').Roles} opts.roles
    * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
+   * @param {() => Promisable<undefined | string>} opts.getProjectName
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
+   * @param {() => ReplicationStream} opts.getReplicationStream
+   * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
@@ -69,8 +83,11 @@ export class MemberApi extends TypedEmitter {
     roles,
     coreOwnership,
     encryptionKeys,
+    getProjectName,
     projectKey,
     rpc,
+    getReplicationStream,
+    waitForInitialSyncWithPeer,
     dataTypes,
   }) {
     super()
@@ -78,8 +95,11 @@ export class MemberApi extends TypedEmitter {
     this.#roles = roles
     this.#coreOwnership = coreOwnership
     this.#encryptionKeys = encryptionKeys
+    this.#getProjectName = getProjectName
     this.#projectKey = projectKey
     this.#rpc = rpc
+    this.#getReplicationStream = getReplicationStream
+    this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
     this.#dataTypes = dataTypes
   }
 
@@ -248,6 +268,181 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
+   * Add a server peer.
+   *
+   * Can reject with any of the following error codes (accessed via `err.code`):
+   *
+   * - `INVALID_URL`: the base URL is invalid, likely due to user error.
+   * - `MISSING_DATA`: some required data is missing in order to add the server
+   *   peer. For example, the project must have a name.
+   * - `NETWORK_ERROR`: there was an issue connecting to the server. Is the
+   *   device online? Is the server online?
+   * - `INVALID_SERVER_RESPONSE`: we connected to the server but it returned
+   *   an unexpected response. Is the server running a compatible version of
+   *   CoMapeo Cloud?
+   *
+   * If `err.code` is not specified, that indicates a bug in this module.
+   *
+   * @param {string} baseUrl
+   * @param {object} [options]
+   * @param {boolean} [options.dangerouslyAllowInsecureConnections] Allow insecure network connections. Should only be used in tests.
+   * @returns {Promise<void>}
+   */
+  async addServerPeer(
+    baseUrl,
+    { dangerouslyAllowInsecureConnections = false } = {}
+  ) {
+    if (
+      !isValidServerBaseUrl(baseUrl, { dangerouslyAllowInsecureConnections })
+    ) {
+      throw new ErrorWithCode('INVALID_URL', 'Server base URL is invalid')
+    }
+
+    const { serverDeviceId } = await this.#addServerToProject(baseUrl)
+
+    await this.#roles.assignRole(serverDeviceId, MEMBER_ROLE_ID)
+
+    await this.#waitForInitialSyncWithServer({
+      baseUrl,
+      serverDeviceId,
+      dangerouslyAllowInsecureConnections,
+    })
+  }
+
+  /**
+   * @param {string} baseUrl Server base URL. Should already be validated.
+   * @returns {Promise<{ serverDeviceId: string }>}
+   */
+  async #addServerToProject(baseUrl) {
+    const projectName = await this.#getProjectName()
+    if (!projectName) {
+      throw new ErrorWithCode(
+        'MISSING_DATA',
+        'Project must have name to add server peer'
+      )
+    }
+
+    const requestUrl = new URL('projects', baseUrl)
+    const requestBody = {
+      projectName,
+      projectKey: encodeBufferForServer(this.#projectKey),
+      encryptionKeys: {
+        auth: encodeBufferForServer(this.#encryptionKeys.auth),
+        data: encodeBufferForServer(this.#encryptionKeys.data),
+        config: encodeBufferForServer(this.#encryptionKeys.config),
+        blobIndex: encodeBufferForServer(this.#encryptionKeys.blobIndex),
+        blob: encodeBufferForServer(this.#encryptionKeys.blob),
+      },
+    }
+
+    /** @type {Response} */ let response
+    try {
+      response = await fetch(requestUrl, {
+        method: 'PUT',
+        body: JSON.stringify(requestBody),
+        headers: { 'Content-Type': 'application/json' },
+      })
+    } catch (err) {
+      throw new ErrorWithCode(
+        'NETWORK_ERROR',
+        `Failed to add server peer due to network error: ${getErrorMessage(
+          err
+        )}`
+      )
+    }
+
+    if (response.status !== 200 && response.status !== 201) {
+      throw new ErrorWithCode(
+        'INVALID_SERVER_RESPONSE',
+        `Failed to add server peer due to HTTP status code ${response.status}`
+      )
+    }
+
+    try {
+      const responseBody = await response.json()
+      assert(
+        responseBody &&
+          typeof responseBody === 'object' &&
+          'data' in responseBody &&
+          responseBody.data &&
+          typeof responseBody.data === 'object' &&
+          'deviceId' in responseBody.data &&
+          typeof responseBody.data.deviceId === 'string',
+        'Response body is valid'
+      )
+      return { serverDeviceId: responseBody.data.deviceId }
+    } catch (err) {
+      throw new ErrorWithCode(
+        'INVALID_SERVER_RESPONSE',
+        "Failed to add server peer because we couldn't parse the response"
+      )
+    }
+  }
+
+  /**
+   * @param {object} options
+   * @param {string} options.baseUrl
+   * @param {string} options.serverDeviceId
+   * @param {boolean} options.dangerouslyAllowInsecureConnections
+   * @returns {Promise<void>}
+   */
+  async #waitForInitialSyncWithServer({
+    baseUrl,
+    serverDeviceId,
+    dangerouslyAllowInsecureConnections,
+  }) {
+    const projectPublicId = projectKeyToPublicId(this.#projectKey)
+    const websocketUrl = new URL('sync/' + projectPublicId, baseUrl)
+    websocketUrl.protocol =
+      dangerouslyAllowInsecureConnections && websocketUrl.protocol === 'http:'
+        ? 'ws:'
+        : 'wss:'
+
+    const websocket = new WebSocket(websocketUrl)
+
+    try {
+      await pEvent(websocket, 'open', { rejectionEvents: ['error'] })
+    } catch (rejectionEvent) {
+      throw new ErrorWithCode(
+        // It's difficult for us to reliably disambiguate between "network error"
+        // and "invalid response from server" here, so we just say it was an
+        // invalid server response.
+        'INVALID_SERVER_RESPONSE',
+        'Failed to open the socket',
+        rejectionEvent &&
+        typeof rejectionEvent === 'object' &&
+        'error' in rejectionEvent
+          ? { cause: rejectionEvent.error }
+          : { cause: rejectionEvent }
+      )
+    }
+
+    const onErrorPromise = pEvent(websocket, 'error')
+
+    const replicationStream = this.#getReplicationStream()
+    wsCoreReplicator(websocket, replicationStream)
+
+    const syncAbortController = new AbortController()
+    const syncPromise = this.#waitForInitialSyncWithPeer(
+      serverDeviceId,
+      syncAbortController.signal
+    )
+
+    const errorEvent = await Promise.race([onErrorPromise, syncPromise])
+
+    if (errorEvent) {
+      syncAbortController.abort()
+      websocket.close()
+      throw errorEvent.error
+    } else {
+      const onClosePromise = pEvent(websocket, 'close')
+      onErrorPromise.cancel()
+      websocket.close()
+      await onClosePromise
+    }
+  }
+
+  /**
    * @param {string} deviceId
    * @returns {Promise<MemberInfo>}
    */
@@ -327,4 +522,56 @@ export class MemberApi extends TypedEmitter {
   async assignRole(deviceId, roleId) {
     return this.#roles.assignRole(deviceId, roleId)
   }
+}
+
+/**
+ * @param {string} baseUrl
+ * @param {object} options
+ * @param {boolean} options.dangerouslyAllowInsecureConnections
+ * @returns {boolean}
+ */
+function isValidServerBaseUrl(
+  baseUrl,
+  { dangerouslyAllowInsecureConnections }
+) {
+  if (baseUrl.length > 2000) return false
+
+  /** @type {URL} */ let url
+  try {
+    url = new URL(baseUrl)
+  } catch (_err) {
+    return false
+  }
+
+  const isProtocolValid =
+    url.protocol === 'https:' ||
+    (dangerouslyAllowInsecureConnections && url.protocol === 'http:')
+  if (!isProtocolValid) return false
+
+  if (url.username) return false
+  if (url.password) return false
+  if (url.search) return false
+  if (url.hash) return false
+
+  // We may want to support this someday. See <https://github.com/digidem/comapeo-core/issues/908>.
+  if (url.pathname !== '/') return false
+
+  if (
+    !isHostnameIpAddress(url.hostname) &&
+    !dangerouslyAllowInsecureConnections
+  ) {
+    const parts = url.hostname.split('.')
+    const isDomainValid = parts.length >= 2 && parts.every(Boolean)
+    if (!isDomainValid) return false
+  }
+
+  return true
+}
+
+/**
+ * @param {undefined | Uint8Array} buffer
+ * @returns {undefined | string}
+ */
+function encodeBufferForServer(buffer) {
+  return buffer ? b4a.toString(buffer, 'hex') : undefined
 }

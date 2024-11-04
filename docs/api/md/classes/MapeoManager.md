@@ -68,18 +68,6 @@ path for drizzle migrations folder for project database
 
 ## Accessors
 
-### \[kRPC\]
-
-> `get` **\[kRPC\]**(): [`LocalPeers`](../-internal-/classes/LocalPeers.md)
-
-MapeoRPC instance, used for tests
-
-#### Returns
-
-[`LocalPeers`](../-internal-/classes/LocalPeers.md)
-
-***
-
 ### deviceId
 
 > `get` **deviceId**(): `string`
@@ -100,26 +88,6 @@ MapeoRPC instance, used for tests
 
 ## Methods
 
-### \[kManagerReplicate\]()
-
-> **\[kManagerReplicate\]**(`isInitiator`): [`ReplicationStream`](../-internal-/type-aliases/ReplicationStream.md)
-
-Create a Mapeo replication stream. This replication connects the Mapeo RPC
-channel and allows invites. All active projects will sync automatically to
-this replication stream. Only use for local (trusted) connections, because
-the RPC channel key is public. To sync a specific project without
-connecting RPC, use project[kProjectReplication].
-
-#### Parameters
-
-• **isInitiator**: `boolean`
-
-#### Returns
-
-[`ReplicationStream`](../-internal-/type-aliases/ReplicationStream.md)
-
-***
-
 ### addProject()
 
 > **addProject**(`projectJoinDetails`, `opts`?): `Promise`\<`string`\>
@@ -134,7 +102,7 @@ downloaded their proof of project membership and the project config.
 
 • **opts?** = `{}`
 
-For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject()
+Set opts.waitForSync = false to not wait for sync during addProject()
 
 • **opts.waitForSync?**: `boolean` = `true`
 
@@ -191,6 +159,22 @@ Project public id
 #### Returns
 
 `object` & `Partial`\<[`DeviceInfoParam`](../-internal-/type-aliases/DeviceInfoParam.md)\>
+
+***
+
+### getIsArchiveDevice()
+
+> **getIsArchiveDevice**(): `boolean`
+
+Get whether this device is an archive device. Archive devices will download
+all media during sync, where-as non-archive devices will not download media
+original variants, and only download preview and thumbnail variants.
+
+#### Returns
+
+`boolean`
+
+isArchiveDevice
 
 ***
 
@@ -303,6 +287,24 @@ Will undo the effects of `onBackgrounded`.
 #### Returns
 
 `Promise`\<`void`\>
+
+***
+
+### setIsArchiveDevice()
+
+> **setIsArchiveDevice**(`isArchiveDevice`): `void`
+
+Set whether this device is an archive device. Archive devices will download
+all media during sync, where-as non-archive devices will not download media
+original variants, and only download preview and thumbnail variants.
+
+#### Parameters
+
+• **isArchiveDevice**: `boolean`
+
+#### Returns
+
+`void`
 
 ***
 

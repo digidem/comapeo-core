@@ -19,6 +19,7 @@ const datastore = new DataStore({
     // Process entries here using an indexer...
   },
   namespace: 'data',
+  reindex: false,
 })
 
 /** @type {MapeoDoc} */
@@ -33,8 +34,6 @@ datastore.on('index-state', ({ current, remaining, entriesPerSecond }) => {
     // show state to user that indexing is happening
   }
 })
-
-const { current, remaining, entriesPerSecond } = datastore.getIndexState()
 ```
 
 ## API docs

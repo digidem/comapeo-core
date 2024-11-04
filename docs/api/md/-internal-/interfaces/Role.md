@@ -14,7 +14,7 @@
 
 ### docs
 
-> **docs**: `Record`\<`"observation"` \| `"track"` \| `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"` \| `"coreOwnership"` \| `"role"`, [`DocCapability`](DocCapability.md)\>
+> **docs**: `Record`\<`"observation"` \| `"track"` \| `"remoteDetectionAlert"` \| `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"` \| `"coreOwnership"` \| `"role"`, [`DocCapability`](DocCapability.md)\>
 
 ***
 

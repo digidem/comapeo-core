@@ -2,7 +2,6 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
@@ -39,14 +38,20 @@ import {
 } from './roles.js'
 import {
   assert,
+  ExhaustivenessError,
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
   valueOf,
 } from './utils.js'
+import { migrate } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
-import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
+import {
+  SyncApi,
+  kHandleDiscoveryKey,
+  kWaitForInitialSyncWithPeer,
+} from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
@@ -83,8 +88,9 @@ const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
  * @extends {TypedEmitter<{ close: () => void }>}
  */
 export class MapeoProject extends TypedEmitter {
-  #projectId
+  #projectKey
   #deviceId
+  #identityKeypair
   #coreManager
   #indexWriter
   #dataStores
@@ -141,16 +147,52 @@ export class MapeoProject extends TypedEmitter {
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
-    this.#projectId = projectKeyToId(projectKey)
+    this.#projectKey = projectKey
     this.#loadingConfig = false
     this.#isArchiveDevice = isArchiveDevice
 
+    const getReplicationStream = this[kProjectReplicate].bind(this, true)
+
     ///////// 1. Setup database
+
     this.#sqlite = new Database(dbPath)
     const db = drizzle(this.#sqlite)
-    migrate(db, { migrationsFolder: projectMigrationsFolder })
+    const migrationResult = migrate(db, {
+      migrationsFolder: projectMigrationsFolder,
+    })
+    let reindex
+    switch (migrationResult) {
+      case 'initialized database':
+      case 'no migration':
+        reindex = false
+        break
+      case 'migrated':
+        reindex = true
+        break
+      default:
+        throw new ExhaustivenessError(migrationResult)
+    }
 
-    ///////// 2. Setup random-access-storage functions
+    const indexedTables = [
+      observationTable,
+      trackTable,
+      presetTable,
+      fieldTable,
+      coreOwnershipTable,
+      roleTable,
+      deviceInfoTable,
+      iconTable,
+      translationTable,
+      remoteDetectionAlertTable,
+    ]
+
+    ///////// 2. Wipe data if we need to re-index
+
+    if (reindex) {
+      for (const table of indexedTables) db.delete(table).run()
+    }
+
+    ///////// 3. Setup random-access-storage functions
 
     /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
     const coreManagerStorage = (name) =>
@@ -160,7 +202,7 @@ export class MapeoProject extends TypedEmitter {
     const indexerStorage = (name) =>
       coreStorage(path.join(INDEXER_STORAGE_FOLDER_NAME, name))
 
-    ///////// 3. Create instances
+    ///////// 4. Create instances
 
     this.#coreManager = new CoreManager({
       projectSecretKey,
@@ -173,18 +215,7 @@ export class MapeoProject extends TypedEmitter {
     })
 
     this.#indexWriter = new IndexWriter({
-      tables: [
-        observationTable,
-        trackTable,
-        presetTable,
-        fieldTable,
-        coreOwnershipTable,
-        roleTable,
-        deviceInfoTable,
-        iconTable,
-        translationTable,
-        remoteDetectionAlertTable,
-      ],
+      tables: indexedTables,
       sqlite: this.#sqlite,
       getWinner,
       mapDoc: (doc, version) => {
@@ -206,6 +237,7 @@ export class MapeoProject extends TypedEmitter {
         namespace: 'auth',
         batch: (entries) => this.#indexWriter.batch(entries),
         storage: indexerStorage,
+        reindex,
       }),
       config: new DataStore({
         coreManager: this.#coreManager,
@@ -216,12 +248,14 @@ export class MapeoProject extends TypedEmitter {
             sharedIndexWriter,
           }),
         storage: indexerStorage,
+        reindex,
       }),
       data: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'data',
         batch: (entries) => this.#indexWriter.batch(entries),
         storage: indexerStorage,
+        reindex,
       }),
     }
 
@@ -297,7 +331,7 @@ export class MapeoProject extends TypedEmitter {
         },
       }),
     }
-    const identityKeypair = keyManager.getIdentityKeypair()
+    this.#identityKeypair = keyManager.getIdentityKeypair()
     const coreKeypairs = getCoreKeypairs({
       projectKey,
       projectSecretKey,
@@ -306,14 +340,14 @@ export class MapeoProject extends TypedEmitter {
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
       coreKeypairs,
-      identityKeypair,
+      identityKeypair: this.#identityKeypair,
     })
     this.#roles = new Roles({
       dataType: this.#dataTypes.role,
       coreOwnership: this.#coreOwnership,
       coreManager: this.#coreManager,
       projectKey: projectKey,
-      deviceKey: keyManager.getIdentityKeypair().publicKey,
+      deviceKey: this.#identityKeypair.publicKey,
     })
 
     this.#memberApi = new MemberApi({
@@ -321,15 +355,17 @@ export class MapeoProject extends TypedEmitter {
       roles: this.#roles,
       coreOwnership: this.#coreOwnership,
       encryptionKeys,
+      getProjectName: this.#getProjectName.bind(this),
       projectKey,
       rpc: localPeers,
+      getReplicationStream,
+      waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
+        this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
       },
     })
-
-    const projectPublicId = projectKeyToPublicId(projectKey)
 
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
@@ -351,7 +387,7 @@ export class MapeoProject extends TypedEmitter {
         if (!base.endsWith('/')) {
           base += '/'
         }
-        return base + projectPublicId
+        return base + this.#projectPublicId
       },
     })
 
@@ -363,7 +399,7 @@ export class MapeoProject extends TypedEmitter {
         if (!base.endsWith('/')) {
           base += '/'
         }
-        return base + projectPublicId
+        return base + this.#projectPublicId
       },
     })
 
@@ -371,14 +407,33 @@ export class MapeoProject extends TypedEmitter {
       coreManager: this.#coreManager,
       coreOwnership: this.#coreOwnership,
       roles: this.#roles,
+      blobDownloadFilter: null,
       logger: this.#l,
+      getServerWebsocketUrls: async () => {
+        const members = await this.#memberApi.getMany()
+        /** @type {string[]} */
+        const serverWebsocketUrls = []
+        for (const member of members) {
+          if (
+            member.deviceType === 'selfHostedServer' &&
+            member.selfHostedServerDetails
+          ) {
+            const { baseUrl } = member.selfHostedServerDetails
+            const wsUrl = new URL(`/sync/${this.#projectPublicId}`, baseUrl)
+            wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
+            serverWebsocketUrls.push(wsUrl.href)
+          }
+        }
+        return serverWebsocketUrls
+      },
+      getReplicationStream,
     })
 
     this.#translationApi = new TranslationApi({
       dataType: this.#dataTypes.translation,
     })
 
-    ///////// 4. Replicate local peers automatically
+    ///////// 5. Replicate local peers automatically
 
     // Replicate already connected local peers
     for (const peer of localPeers.peers) {
@@ -444,6 +499,14 @@ export class MapeoProject extends TypedEmitter {
 
   get deviceId() {
     return this.#deviceId
+  }
+
+  get #projectId() {
+    return projectKeyToId(this.#projectKey)
+  }
+
+  get #projectPublicId() {
+    return projectKeyToPublicId(this.#projectKey)
   }
 
   /**
@@ -592,6 +655,13 @@ export class MapeoProject extends TypedEmitter {
     }
   }
 
+  /**
+   * @returns {Promise<undefined | string>}
+   */
+  async #getProjectName() {
+    return (await this.$getProjectSettings()).name
+  }
+
   async $getOwnRole() {
     return this.#roles.getRole(this.#deviceId)
   }
@@ -629,6 +699,7 @@ export class MapeoProject extends TypedEmitter {
        * Hypercore types need updating.
        * @type {any}
        */ ({
+        keyPair: this.#identityKeypair,
         /** @param {Buffer} discoveryKey */
         ondiscoverykey: async (discoveryKey) => {
           const protomux =
@@ -677,6 +748,7 @@ export class MapeoProject extends TypedEmitter {
       isArchiveDevice ? null : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER
     )
     this.#isArchiveDevice = isArchiveDevice
+    // TODO: call this.#syncApi[kSetBlobDownloadFilter]()
   }
 
   /** @returns {boolean} */

@@ -51,8 +51,9 @@ export class DataStore extends TypedEmitter {
    * @param {TNamespace} opts.namespace
    * @param {(entries: MultiCoreIndexer.Entry<'binary'>[]) => Promise<import('../index-writer/index.js').IndexedDocIds>} opts.batch
    * @param {MultiCoreIndexer.StorageParam} opts.storage
+   * @param {boolean} opts.reindex
    */
-  constructor({ coreManager, namespace, batch, storage }) {
+  constructor({ coreManager, namespace, batch, storage, reindex }) {
     super()
     this.#coreManager = coreManager
     this.#namespace = namespace
@@ -66,6 +67,7 @@ export class DataStore extends TypedEmitter {
     this.#coreIndexer = new MultiCoreIndexer(cores, {
       storage,
       batch: (entries) => this.#handleEntries(entries),
+      reindex,
     })
     coreManager.on('add-core', (coreRecord) => {
       if (coreRecord.namespace !== namespace) return
@@ -89,10 +91,6 @@ export class DataStore extends TypedEmitter {
 
   get writerCore() {
     return this.#writerCore
-  }
-
-  getIndexState() {
-    return this.#coreIndexer.state
   }
 
   /**
@@ -167,6 +165,7 @@ export class DataStore extends TypedEmitter {
     const deferred = pDefer()
     this.#pendingIndex.set(versionId, deferred)
     await deferred.promise
+    this.#pendingIndex.delete(versionId)
 
     return /** @type {Extract<MapeoDoc, TDoc>} */ (
       decode(block, { coreDiscoveryKey, index })

@@ -20,4 +20,4 @@
 
 ### data
 
-> `readonly` **data**: readonly [`"observation"`, `"track"`]
+> `readonly` **data**: readonly [`"observation"`, `"track"`, `"remoteDetectionAlert"`]

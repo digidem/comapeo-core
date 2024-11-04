@@ -19,3 +19,11 @@ message HaveExtension {
   bytes encodedBitfield = 3;
   Namespace namespace = 4;
 }
+
+// A map of blob types and variants that a peer intends to download
+message DownloadIntentExtension {
+  message DownloadIntent {
+    repeated string variants = 1;
+  }
+  map<string, DownloadIntent> downloadIntents = 1;
+}

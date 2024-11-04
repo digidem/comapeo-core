@@ -1,6 +1,6 @@
 {
   "name": "@comapeo/core",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
@@ -108,6 +108,7 @@
   "homepage": "https://github.com/digidem/comapeo-core#readme",
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
+    "@comapeo/cloud": "^0.1.0",
     "@comapeo/core2.0.1": "npm:@comapeo/core@2.0.1",
     "@mapeo/default-config": "5.0.0",
     "@mapeo/mock-data": "^2.1.1",
@@ -125,6 +126,7 @@
     "@types/sub-encoder": "^2.1.0",
     "@types/throttle-debounce": "^5.0.0",
     "@types/varint": "^6.0.1",
+    "@types/ws": "^8.5.12",
     "@types/yauzl-promise": "^4.0.0",
     "@types/yazl": "^2.4.5",
     "bitfield": "^4.2.0",
@@ -132,6 +134,7 @@
     "cpy-cli": "^5.0.0",
     "drizzle-kit": "^0.20.14",
     "eslint": "^8.57.0",
+    "execa": "^9.5.1",
     "husky": "^8.0.0",
     "iterpal": "^0.4.0",
     "lint-staged": "^14.0.1",
@@ -183,7 +186,7 @@
     "magic-bytes.js": "^1.10.0",
     "map-obj": "^5.0.2",
     "mime": "^4.0.3",
-    "multi-core-indexer": "^1.0.0-alpha.10",
+    "multi-core-indexer": "^1.0.0",
     "p-defer": "^4.0.0",
     "p-event": "^6.0.1",
     "p-timeout": "^6.1.2",
@@ -202,6 +205,7 @@
     "undici": "^6.13.0",
     "unix-path-resolve": "^1.0.2",
     "varint": "^6.0.0",
+    "ws": "^8.18.0",
     "yauzl-promise": "^4.0.0"
   }
 }

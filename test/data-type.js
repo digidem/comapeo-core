@@ -60,6 +60,7 @@ test('private createWithDocId() method', async () => {
       return indexWriter.batch(entries)
     },
     storage: () => new RAM(),
+    reindex: false,
   })
   const dataType = new DataType({
     dataStore,
@@ -95,6 +96,7 @@ test('private createWithDocId() method throws when doc exists', async () => {
       return indexWriter.batch(entries)
     },
     storage: () => new RAM(),
+    reindex: false,
   })
   const dataType = new DataType({
     dataStore,
@@ -316,6 +318,7 @@ async function testenv(opts = {}) {
     namespace: 'data',
     batch: async (entries) => indexWriter.batch(entries),
     storage: () => new RAM(),
+    reindex: false,
   })
 
   const configDataStore = new DataStore({
@@ -347,6 +350,7 @@ async function testenv(opts = {}) {
       return indexed
     },
     storage: () => new RAM(),
+    reindex: false,
   })
 
   const translationDataType = new DataType({
