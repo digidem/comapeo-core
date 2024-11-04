@@ -57,7 +57,7 @@ declare module 'hyperdrive' {
     readonly key: Buffer | null
     readonly discoveryKey: Buffer | null
     readonly contentKey: Buffer | null // The public key of the Hyperblobs instance holding blobs associated with entries in the drive.
-    readonly db: Hyperbee // Hyperbee
+    readonly db: Hyperbee
     readonly version: number
     ready(): Promise<void>
     update(options?: { wait?: boolean }): Promise<Boolean>
