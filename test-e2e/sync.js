@@ -180,6 +180,106 @@ test('syncing blobs', async (t) => {
   })
 })
 
+test('non-archive devices only sync a subset of blobs', async (t) => {
+  const invitor = createManager('invitor', t)
+
+  const fastify = Fastify()
+  const fastifyController = new FastifyController({ fastify })
+  t.after(() => fastifyController.stop())
+  const invitee = createManager('invitee', t, { fastify })
+  invitee.setIsArchiveDevice(false)
+
+  const managers = [invitee, invitor]
+
+  await Promise.all([
+    invitor.setDeviceInfo({ name: 'invitor', deviceType: 'mobile' }),
+    invitee.setDeviceInfo({ name: 'invitee', deviceType: 'mobile' }),
+    fastifyController.start(),
+  ])
+
+  const disconnectPeers = connectPeers(managers)
+  t.after(() => disconnectPeers())
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+
+  const projects = await Promise.all([
+    invitor.getProject(projectId),
+    invitee.getProject(projectId),
+  ])
+  const [invitorProject, inviteeProject] = projects
+
+  const fixturesPath = new URL('../test/fixtures/', import.meta.url)
+  const imagesFixturesPath = new URL('images/', fixturesPath)
+  const photoFixturePaths = {
+    original: new URL('02-digidem-logo.jpg', imagesFixturesPath).pathname,
+    preview: new URL('02-digidem-logo-preview.jpg', imagesFixturesPath)
+      .pathname,
+    thumbnail: new URL('02-digidem-logo-thumb.jpg', imagesFixturesPath)
+      .pathname,
+  }
+  const audioFixturePath = new URL('blob-api/audio.mp3', fixturesPath).pathname
+
+  const [photoBlob, audioBlob] = await Promise.all([
+    invitorProject.$blobs.create(
+      photoFixturePaths,
+      blobMetadata({ mimeType: 'image/jpeg' })
+    ),
+    invitorProject.$blobs.create(
+      { original: audioFixturePath },
+      blobMetadata({ mimeType: 'audio/mpeg' })
+    ),
+  ])
+
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+
+  // TODO: We should replace this with `await waitForSync(projects, 'full')` once
+  // the following issues are merged:
+  //
+  // - <https://github.com/digidem/comapeo-core/issues/682>
+  // - <https://github.com/digidem/comapeo-core/issues/905>
+  await delay(2000)
+
+  /**
+   * @param {BlobId} blobId
+   * @param {string} path
+   */
+  const assertLoads = async (blobId, path) => {
+    const expectedBytesPromise = fs.readFile(path)
+
+    const originalBlobUrl = await inviteeProject.$blobs.getUrl(blobId)
+    const response = await request(originalBlobUrl, { reset: true })
+    assert.equal(response.statusCode, 200)
+    assert.deepEqual(
+      Buffer.from(await response.body.arrayBuffer()),
+      await expectedBytesPromise,
+      'blob makes it to the other side'
+    )
+  }
+
+  /** @param {BlobId} blobId */
+  const assert404 = async (blobId) => {
+    const originalBlobUrl = await inviteeProject.$blobs.getUrl(blobId)
+    const response = await request(originalBlobUrl, { reset: true })
+    assert.equal(response.statusCode, 404, 'blob is not synced')
+  }
+
+  await Promise.all([
+    assert404({ ...photoBlob, variant: 'original' }),
+    assert404({ ...audioBlob, variant: 'original' }),
+    // We have to tell TypeScript that the blob's type is "photo", which it
+    // isn't smart enough to figure out.
+    assertLoads(
+      { ...photoBlob, type: 'photo', variant: 'preview' },
+      photoFixturePaths.preview
+    ),
+    assertLoads(
+      { ...photoBlob, type: 'photo', variant: 'thumbnail' },
+      photoFixturePaths.thumbnail
+    ),
+  ])
+})
+
 test('start and stop sync', async function (t) {
   // Checks that both peers need to start syncing for data to sync, and that
   // $sync.stop() actually stops data syncing

@@ -77,6 +77,13 @@ export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
+/** @type {import('./types.js').BlobFilter} */
+const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
+  photo: ['preview', 'thumbnail'],
+  // Don't download any audio of video files, since previews and
+  // thumbnails aren't supported yet.
+}
+
 /**
  * @extends {TypedEmitter<{ close: () => void }>}
  */
@@ -362,6 +369,15 @@ export class MapeoProject extends TypedEmitter {
 
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
+      downloadFilter: isArchiveDevice
+        ? null
+        : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER,
+    })
+
+    this.#blobStore.on('error', (err) => {
+      // TODO: Handle this error in some way - this error will come from an
+      // unexpected error with background blob downloads
+      console.error('BlobStore error', err)
     })
 
     this.$blobs = new BlobApi({
@@ -506,6 +522,7 @@ export class MapeoProject extends TypedEmitter {
    */
   async close() {
     this.#l.log('closing project %h', this.#projectId)
+    this.#blobStore.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())
@@ -726,6 +743,10 @@ export class MapeoProject extends TypedEmitter {
 
   /** @param {boolean} isArchiveDevice */
   async [kSetIsArchiveDevice](isArchiveDevice) {
+    if (this.#isArchiveDevice === isArchiveDevice) return
+    this.#blobStore.setDownloadFilter(
+      isArchiveDevice ? null : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER
+    )
     this.#isArchiveDevice = isArchiveDevice
     // TODO: call this.#syncApi[kSetBlobDownloadFilter]()
   }

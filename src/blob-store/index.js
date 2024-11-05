@@ -1,21 +1,23 @@
 import Hyperdrive from 'hyperdrive'
 import b4a from 'b4a'
 import util from 'node:util'
+import { pipeline } from 'node:stream'
 import { discoveryKey } from 'hypercore-crypto'
+import { Downloader } from './downloader.js'
+import { createEntriesStream } from './entries-stream.js'
+import { FilterEntriesStream } from './utils.js'
+import { noop } from '../utils.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
-import { LiveDownload } from './live-download.js'
+
 /** @import { JsonObject } from 'type-fest' */
 /** @import { Readable as NodeReadable } from 'node:stream' */
 /** @import { Readable as StreamxReadable, Writable } from 'streamx' */
-/** @import { BlobId } from '../types.js' */
-/** @import { BlobDownloadEvents } from './live-download.js' */
+/** @import { BlobFilter, BlobId, BlobStoreEntriesStream } from '../types.js' */
 
 /**
  * @internal
  * @typedef {NodeReadable | StreamxReadable} Readable
  */
-
-/** @typedef {TypedEmitter<{ 'add-drive': (drive: import('hyperdrive')) => void }>} InternalDriveEmitter */
 
 // prop = blob type name
 // value = array of blob variants supported for that type
@@ -37,57 +39,31 @@ class ErrNotFound extends Error {
   }
 }
 
-export class BlobStore {
-  /** @type {Map<string, Hyperdrive>} Indexed by hex-encoded discovery key */
-  #hyperdrives = new Map()
-  #writer
-  /**
-   * Used to communicate to live download instances when new drives are added
-   * @type {InternalDriveEmitter}
-   */
-  #driveEmitter = new TypedEmitter()
+/** @extends {TypedEmitter<{ error: (error: Error) => void }>} */
+export class BlobStore extends TypedEmitter {
+  #driveIndex
+  /** @type {Downloader} */
+  #downloader
 
   /**
    * @param {object} options
    * @param {import('../core-manager/index.js').CoreManager} options.coreManager
+   * @param {BlobFilter | null} options.downloadFilter - Filter blob types and/or variants to download. Set to `null` to download all blobs.
    */
-  constructor({ coreManager }) {
-    /** @type {undefined | (Hyperdrive & { key: Buffer })} */
-    let writer
-    const corestore = new PretendCorestore({ coreManager })
-    const blobIndexCores = coreManager.getCores('blobIndex')
-    const { key: writerKey } = coreManager.getWriterCore('blobIndex')
-    for (const { key } of blobIndexCores) {
-      // @ts-ignore - we know pretendCorestore is not actually a Corestore
-      const drive = new Hyperdrive(corestore, key)
-      // We use the discovery key to derive the id for a drive
-      this.#hyperdrives.set(getDiscoveryId(key), drive)
-      if (key.equals(writerKey)) {
-        writer = proxyProps(drive, { key: writerKey })
-      }
-    }
-    if (!writer) {
-      throw new Error('Could not find a writer for the blobIndex namespace')
-    }
-    this.#writer = writer
-
-    coreManager.on('add-core', ({ key, namespace }) => {
-      if (namespace !== 'blobIndex') return
-      // We use the discovery key to derive the id for a drive
-      const driveId = getDiscoveryId(key)
-      if (this.#hyperdrives.has(driveId)) return
-      // @ts-ignore - we know pretendCorestore is not actually a Corestore
-      const drive = new Hyperdrive(corestore, key)
-      this.#hyperdrives.set(driveId, drive)
-      this.#driveEmitter.emit('add-drive', drive)
+  constructor({ coreManager, downloadFilter }) {
+    super()
+    this.#driveIndex = new HyperdriveIndex(coreManager)
+    this.#downloader = new Downloader(this.#driveIndex, {
+      filter: downloadFilter,
     })
+    this.#downloader.on('error', (error) => this.emit('error', error))
   }
 
   /**
    * @returns {string}
    */
   get writerDriveId() {
-    return getDiscoveryId(this.#writer.key)
+    return getDiscoveryId(this.#driveIndex.writerKey)
   }
 
   /**
@@ -95,7 +71,7 @@ export class BlobStore {
    * @returns {Hyperdrive}
    */
   #getDrive(driveId) {
-    const drive = this.#hyperdrives.get(driveId)
+    const drive = this.#driveIndex.get(driveId)
     if (!drive) throw new Error('Drive not found ' + driveId.slice(0, 7))
     return drive
   }
@@ -116,23 +92,18 @@ export class BlobStore {
   }
 
   /**
-   * Download blobs from all drives, optionally filtering particular blob types
-   * or blob variants. Download will be 'live' and will continue downloading new
-   * data as it becomes available from any replicating drive.
+   * Set the filter for downloading blobs.
    *
-   * If no filter is specified, all blobs will be downloaded. If a filter is
-   * specified, then _only_ blobs that match the filter will be downloaded.
-   *
-   * @param {import('../types.js').BlobFilter} [filter] Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
-   * @param {object} options
-   * @param {AbortSignal} [options.signal] Optional AbortSignal to cancel in-progress download
-   * @returns {TypedEmitter<BlobDownloadEvents>}
+   * @param {import('../types.js').BlobFilter | null} filter Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
+   * @returns {void}
    */
-  download(filter, { signal } = {}) {
-    return new LiveDownload(this.#hyperdrives.values(), this.#driveEmitter, {
+  setDownloadFilter(filter) {
+    this.#downloader.removeAllListeners()
+    this.#downloader.destroy()
+    this.#downloader = new Downloader(this.#driveIndex, {
       filter,
-      signal,
     })
+    this.#downloader.on('error', (error) => this.emit('error', error))
   }
 
   /**
@@ -155,6 +126,22 @@ export class BlobStore {
   }
 
   /**
+   * This is a low-level method to create a stream of entries from all drives.
+   * It includes entries for unknown blob types and variants.
+   *
+   * @param {object} opts
+   * @param {boolean} [opts.live=false] Set to `true` to get a live stream of entries
+   * @param {import('./utils.js').GenericBlobFilter | null} [opts.filter] Filter blob types and/or variants in returned entries. Filter is { [BlobType]: BlobVariants[] }.
+   * @returns
+   */
+  createEntriesReadStream({ live = false, filter } = {}) {
+    const entriesStream = createEntriesStream(this.#driveIndex, { live })
+    if (!filter) return entriesStream
+    const filterStream = new FilterEntriesStream(filter)
+    return pipeline(entriesStream, filterStream, noop)
+  }
+
+  /**
    * Optimization for creating the blobs read stream when you have
    * previously read the entry from Hyperdrive using `drive.entry`
    * @param {BlobId['driveId']} driveId Hyperdrive drive discovery id
@@ -163,7 +150,7 @@ export class BlobStore {
    * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
    * @returns {Promise<Readable>}
    */
-  async createEntryReadStream(driveId, entry, options = { wait: false }) {
+  async createReadStreamFromEntry(driveId, entry, options = { wait: false }) {
     const drive = this.#getDrive(driveId)
     const blobs = await drive.getBlobs()
 
@@ -206,7 +193,7 @@ export class BlobStore {
    */
   async put({ type, variant, name }, blob, options) {
     const path = makePath({ type, variant, name })
-    await this.#writer.put(path, blob, options)
+    await this.#driveIndex.writer.put(path, blob, options)
     return this.writerDriveId
   }
 
@@ -218,7 +205,7 @@ export class BlobStore {
    */
   createWriteStream({ type, variant, name }, options) {
     const path = makePath({ type, variant, name })
-    const stream = this.#writer.createWriteStream(path, options)
+    const stream = this.#driveIndex.writer.createWriteStream(path, options)
     return proxyProps(stream, {
       driveId: this.writerDriveId,
     })
@@ -236,7 +223,7 @@ export class BlobStore {
     { type, variant, name, driveId },
     options = { follow: false, wait: false }
   ) {
-    const drive = this.#hyperdrives.get(driveId)
+    const drive = this.#driveIndex.get(driveId)
     if (!drive) throw new Error('Drive not found ' + driveId.slice(0, 7))
     const path = makePath({ type, variant, name })
     const entry = await drive.entry(path, options)
@@ -254,6 +241,71 @@ export class BlobStore {
     const drive = this.#getDrive(driveId)
 
     return drive.clear(path, options)
+  }
+
+  close() {
+    this.#downloader.removeAllListeners()
+    this.#downloader.destroy()
+  }
+}
+
+// Don't want to export the class, but do want to export the type.
+/** @typedef {HyperdriveIndex} THyperdriveIndex */
+
+/**
+ * @extends {TypedEmitter<{ 'add-drive': (drive: Hyperdrive) => void }>}
+ */
+class HyperdriveIndex extends TypedEmitter {
+  /** @type {Map<string, Hyperdrive>} */
+  #hyperdrives = new Map()
+  #writer
+  #writerKey
+  /** @param {import('../core-manager/index.js').CoreManager} coreManager */
+  constructor(coreManager) {
+    super()
+    /** @type {undefined | Hyperdrive} */
+    let writer
+    const corestore = new PretendCorestore({ coreManager })
+    const blobIndexCores = coreManager.getCores('blobIndex')
+    const writerCoreRecord = coreManager.getWriterCore('blobIndex')
+    this.#writerKey = writerCoreRecord.key
+    for (const { key } of blobIndexCores) {
+      // @ts-ignore - we know pretendCorestore is not actually a Corestore
+      const drive = new Hyperdrive(corestore, key)
+      // We use the discovery key to derive the id for a drive
+      this.#hyperdrives.set(getDiscoveryId(key), drive)
+      if (key.equals(this.#writerKey)) {
+        writer = drive
+      }
+    }
+    if (!writer) {
+      throw new Error('Could not find a writer for the blobIndex namespace')
+    }
+    this.#writer = writer
+
+    coreManager.on('add-core', ({ key, namespace }) => {
+      if (namespace !== 'blobIndex') return
+      // We use the discovery key to derive the id for a drive
+      const driveId = getDiscoveryId(key)
+      if (this.#hyperdrives.has(driveId)) return
+      // @ts-ignore - we know pretendCorestore is not actually a Corestore
+      const drive = new Hyperdrive(corestore, key)
+      this.#hyperdrives.set(driveId, drive)
+      this.emit('add-drive', drive)
+    })
+  }
+  get writer() {
+    return this.#writer
+  }
+  get writerKey() {
+    return this.#writerKey
+  }
+  [Symbol.iterator]() {
+    return this.#hyperdrives.values()
+  }
+  /** @param {string} driveId */
+  get(driveId) {
+    return this.#hyperdrives.get(driveId)
   }
 }
 
