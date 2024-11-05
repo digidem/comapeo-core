@@ -123,7 +123,7 @@ export class Downloader extends TypedEmitter {
     for (const download of this.#queuedDownloads) download.destroy()
     this.#ac.signal.removeEventListener('abort', this.#handleAbort)
     this.#entriesStream.removeListener('error', this.#ac.abort)
-    // queuedDownloads should always be empty by here anyway, but just in case.
+    // queuedDownloads is likely to be empty here anyway, but clear just in case.
     this.#queuedDownloads.clear()
     this.#entriesStream.destroy()
   }
