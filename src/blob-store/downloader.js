@@ -74,6 +74,7 @@ export class Downloader extends TypedEmitter {
       const blobs = await drive.getBlobs()
       this.#ac.signal.throwIfAborted()
       await this.#processEntry(blobs.core, blob)
+      this.#ac.signal.throwIfAborted()
     }
     throw new Error('Entries stream ended unexpectedly')
   }
