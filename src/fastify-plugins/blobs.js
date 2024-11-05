@@ -1,9 +1,11 @@
 import fp from 'fastify-plugin'
 import { filetypemime } from 'magic-bytes.js'
+import { pEvent } from 'p-event'
 import { Type as T } from '@sinclair/typebox'
 
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
+import { getErrorMessage } from '../lib/error.js'
 
 /** @import { BlobId } from '../types.js' */
 
@@ -97,6 +99,19 @@ async function routes(fastify, options) {
       } catch (e) {
         reply.code(404)
         throw e
+      }
+
+      try {
+        await pEvent(blobStream, 'readable', { rejectionEvents: ['error'] })
+      } catch (err) {
+        // This matches [how Hyperblobs checks if a blob is unavailable][0].
+        // [0]: https://github.com/holepunchto/hyperblobs/blob/518088d2b828082fd70a276fa2c8848a2cf2a56b/index.js#L49
+        if (getErrorMessage(err) === 'Block not available') {
+          reply.code(404)
+          throw new Error('Blob not found')
+        } else {
+          throw err
+        }
       }
 
       // Extract the 'mimeType' property of the metadata and use it for the response header if found
