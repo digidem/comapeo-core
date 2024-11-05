@@ -54,13 +54,13 @@ function getHistoryStream(bee, { live }) {
 
 class AddDriveIds extends Transform {
   #core
-  #discoveryKey
+  #cachedDriveId
 
   /** @param {import('hypercore')} core */
   constructor(core) {
     super({ objectMode: true })
     this.#core = core
-    this.#discoveryKey = core.discoveryKey?.toString('hex')
+    this.#cachedDriveId = core.discoveryKey?.toString('hex')
   }
 
   /** @type {Transform['_transform']} */
@@ -68,8 +68,13 @@ class AddDriveIds extends Transform {
     // Minimal performance optimization to only call toString() once.
     // core.discoveryKey will always be defined by the time it starts
     // streaming, but could be null when the instance is first created.
-    const driveId =
-      this.#discoveryKey || this.#core.discoveryKey?.toString('hex')
+    let driveId
+    if (this.#cachedDriveId) {
+      driveId = this.#cachedDriveId
+    } else {
+      driveId = this.#core.discoveryKey?.toString('hex')
+      this.#cachedDriveId = driveId
+    }
     callback(null, { ...entry, driveId })
   }
 }
