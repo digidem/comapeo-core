@@ -277,6 +277,10 @@ export class MemberApi extends TypedEmitter {
    *   peer. For example, the project must have a name.
    * - `NETWORK_ERROR`: there was an issue connecting to the server. Is the
    *   device online? Is the server online?
+   * - `SERVER_HAS_TOO_MANY_PROJECTS`: the server limits the number of projects
+   *   it can have, and it's at the limit.
+   * - `PROJECT_NOT_IN_SERVER_ALLOWLIST`: the server only allows specific
+   *   projects to be added and ours wasn't one of them.
    * - `INVALID_SERVER_RESPONSE`: we connected to the server but it returned
    *   an unexpected response. Is the server running a compatible version of
    *   CoMapeo Cloud?
@@ -351,32 +355,7 @@ export class MemberApi extends TypedEmitter {
       )
     }
 
-    if (response.status !== 200 && response.status !== 201) {
-      throw new ErrorWithCode(
-        'INVALID_SERVER_RESPONSE',
-        `Failed to add server peer due to HTTP status code ${response.status}`
-      )
-    }
-
-    try {
-      const responseBody = await response.json()
-      assert(
-        responseBody &&
-          typeof responseBody === 'object' &&
-          'data' in responseBody &&
-          responseBody.data &&
-          typeof responseBody.data === 'object' &&
-          'deviceId' in responseBody.data &&
-          typeof responseBody.data.deviceId === 'string',
-        'Response body is valid'
-      )
-      return { serverDeviceId: responseBody.data.deviceId }
-    } catch (err) {
-      throw new ErrorWithCode(
-        'INVALID_SERVER_RESPONSE',
-        "Failed to add server peer because we couldn't parse the response"
-      )
-    }
+    return await parseAddServerResponse(response)
   }
 
   /**
@@ -574,4 +553,67 @@ function isValidServerBaseUrl(
  */
 function encodeBufferForServer(buffer) {
   return buffer ? b4a.toString(buffer, 'hex') : undefined
+}
+
+/**
+ * @param {Response} response
+ * @returns {Promise<{ serverDeviceId: string }>}
+ */
+async function parseAddServerResponse(response) {
+  if (response.status === 200) {
+    try {
+      const responseBody = await response.json()
+      assert(
+        responseBody &&
+          typeof responseBody === 'object' &&
+          'data' in responseBody &&
+          responseBody.data &&
+          typeof responseBody.data === 'object' &&
+          'deviceId' in responseBody.data &&
+          typeof responseBody.data.deviceId === 'string',
+        'Response body is valid'
+      )
+      return { serverDeviceId: responseBody.data.deviceId }
+    } catch (err) {
+      throw new ErrorWithCode(
+        'INVALID_SERVER_RESPONSE',
+        "Failed to add server peer because we couldn't parse the response"
+      )
+    }
+  }
+
+  let responseBody
+  try {
+    responseBody = await response.json()
+  } catch (_) {
+    responseBody = null
+  }
+  if (
+    responseBody &&
+    typeof responseBody === 'object' &&
+    'error' in responseBody &&
+    responseBody.error &&
+    typeof responseBody.error === 'object' &&
+    'code' in responseBody.error
+  ) {
+    switch (responseBody.error.code) {
+      case 'PROJECT_NOT_IN_ALLOWLIST':
+        throw new ErrorWithCode(
+          'PROJECT_NOT_IN_SERVER_ALLOWLIST',
+          "The server only allows specific projects to be added, and this isn't one of them"
+        )
+      case 'TOO_MANY_PROJECTS':
+        throw new ErrorWithCode(
+          'SERVER_HAS_TOO_MANY_PROJECTS',
+          "The server limits the number of projects it can have and it's at the limit"
+        )
+      default:
+        break
+    }
+  }
+
+  throw new ErrorWithCode(
+    'INVALID_SERVER_RESPONSE',
+    `Failed to add server peer due to HTTP status code ${response.status}`
+  )
 }
