@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
 import RAM from 'random-access-memory'
+import { map } from 'iterpal'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import comapeoServer from '@comapeo/cloud'
 import {
@@ -113,6 +114,46 @@ test("fails if we can't connect to the server", async (t) => {
 })
 
 test(
+  "translates some of the server's error codes when adding one",
+  { concurrency: true },
+  async (t) => {
+    const manager = createManager('device0', t)
+    const projectId = await manager.createProject({ name: 'foo' })
+    const project = await manager.getProject(projectId)
+
+    const serverErrorToLocalError = new Map([
+      ['PROJECT_NOT_IN_ALLOWLIST', 'PROJECT_NOT_IN_SERVER_ALLOWLIST'],
+      ['TOO_MANY_PROJECTS', 'SERVER_HAS_TOO_MANY_PROJECTS'],
+      ['__TEST_UNRECOGNIZED_ERROR', 'INVALID_SERVER_RESPONSE'],
+    ])
+    await Promise.all(
+      map(serverErrorToLocalError, ([serverError, expectedCode]) =>
+        t.test(`turns a ${serverError} into ${expectedCode}`, async (t) => {
+          const fastify = createFastify()
+          fastify.put('/projects', (_req, reply) => {
+            reply.status(403).send({
+              error: { code: serverError },
+            })
+          })
+          const serverBaseUrl = await fastify.listen()
+          t.after(() => fastify.close())
+
+          await assert.rejects(
+            () =>
+              project.$member.addServerPeer(serverBaseUrl, {
+                dangerouslyAllowInsecureConnections: true,
+              }),
+            {
+              code: expectedCode,
+            }
+          )
+        })
+      )
+    )
+  }
+)
+
+test(
   "fails if server doesn't return a 200",
   { concurrency: true },
   async (t) => {
@@ -160,6 +201,7 @@ test(
         '{bad_json',
         JSON.stringify({ data: {} }),
         JSON.stringify({ data: { deviceId: 123 } }),
+        JSON.stringify({ error: { deviceId: '123' } }),
         JSON.stringify({ deviceId: 'not under "data"' }),
       ].map((responseData) =>
         t.test(`when returning ${responseData}`, async (t) => {
