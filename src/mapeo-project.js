@@ -49,6 +49,8 @@ import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
 import {
   SyncApi,
+  kAddBlobWantRange,
+  kClearBlobWantRanges,
   kHandleDiscoveryKey,
   kSetBlobDownloadFilter,
   kWaitForInitialSyncWithPeer,
@@ -428,6 +430,27 @@ export class MapeoProject extends TypedEmitter {
         return serverWebsocketUrls
       },
       getReplicationStream,
+    })
+
+    /** @type {Map<string, BlobStoreEntriesStream>} */
+    const entriesReadStreams = new Map()
+    this.#coreManager.on('peer-download-intent', async (filter, peerId) => {
+      entriesReadStreams.get(peerId)?.destroy()
+
+      const entriesReadStream = this.#blobStore.createEntriesReadStream({
+        live: true,
+        filter,
+      })
+      entriesReadStreams.set(peerId, entriesReadStream)
+
+      this.#syncApi[kClearBlobWantRanges](peerId)
+
+      for await (const entry of entriesReadStream) {
+        if (entriesReadStream.destroyed) break
+        const { blockOffset, blockLength } = entry.value.blob
+        this.#syncApi[kAddBlobWantRange](peerId, blockOffset, blockLength)
+        if (entriesReadStream.destroyed) break
+      }
     })
 
     this.#translationApi = new TranslationApi({

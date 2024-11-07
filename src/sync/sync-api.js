@@ -26,6 +26,8 @@ export const kWaitForInitialSyncWithPeer = Symbol(
   'wait for initial sync with peer'
 )
 export const kSetBlobDownloadFilter = Symbol('set isArchiveDevice')
+export const kAddBlobWantRange = Symbol('add blob want range')
+export const kClearBlobWantRanges = Symbol('clear blob want ranges')
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -161,6 +163,28 @@ export class SyncApi extends TypedEmitter {
     for (const peer of this.#coreManager.creatorCore.peers) {
       this.#coreManager.sendDownloadIntents(blobDownloadFilter, peer)
     }
+  }
+
+  /**
+   * Add some blob blocks this peer wants.
+   *
+   * @param {string} peerId
+   * @param {number} start
+   * @param {number} length
+   * @returns {void}
+   */
+  [kAddBlobWantRange](peerId, start, length) {
+    this[kSyncState].addBlobWantRange(peerId, start, length)
+  }
+
+  /**
+   * Clear the blob blocks this peer wants.
+   *
+   * @param {string} peerId
+   * @returns {void}
+   */
+  [kClearBlobWantRanges](peerId) {
+    this[kSyncState].clearBlobWantRanges(peerId)
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */

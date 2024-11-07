@@ -182,13 +182,23 @@ export class CoreSyncState {
    * blocks/ranges that are added here
    *
    * @param {PeerId} peerId
-   * @param {Array<{ start: number, length: number }>} ranges
+   * @param {number} start
+   * @param {number} length
+   * @returns {void}
    */
-  setPeerWants(peerId, ranges) {
+  addWantRange(peerId, start, length) {
     const peerState = this.#getOrCreatePeerState(peerId)
-    for (const { start, length } of ranges) {
-      peerState.setWantRange({ start, length })
-    }
+    peerState.addWantRange(start, length)
+    this.#update()
+  }
+
+  /**
+   * @param {PeerId} peerId
+   * @returns {void}
+   */
+  clearWantRanges(peerId) {
+    const peerState = this.#getOrCreatePeerState(peerId)
+    peerState.clearWantRanges()
     this.#update()
   }
 
