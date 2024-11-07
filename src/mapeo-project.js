@@ -57,7 +57,7 @@ import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
-/** @import { CoreStorage, KeyPair, Namespace, ReplicationStream } from './types.js' */
+/** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream } from './types.js' */
 
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
@@ -152,6 +152,8 @@ export class MapeoProject extends TypedEmitter {
     this.#isArchiveDevice = isArchiveDevice
 
     const getReplicationStream = this[kProjectReplicate].bind(this, true)
+
+    const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
 
     ///////// 1. Setup database
 
@@ -369,9 +371,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
-      downloadFilter: isArchiveDevice
-        ? null
-        : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER,
+      downloadFilter: blobDownloadFilter,
     })
 
     this.#blobStore.on('error', (err) => {
@@ -407,7 +407,7 @@ export class MapeoProject extends TypedEmitter {
       coreManager: this.#coreManager,
       coreOwnership: this.#coreOwnership,
       roles: this.#roles,
-      blobDownloadFilter: null,
+      blobDownloadFilter,
       logger: this.#l,
       getServerWebsocketUrls: async () => {
         const members = await this.#memberApi.getMany()
@@ -744,9 +744,8 @@ export class MapeoProject extends TypedEmitter {
   /** @param {boolean} isArchiveDevice */
   async [kSetIsArchiveDevice](isArchiveDevice) {
     if (this.#isArchiveDevice === isArchiveDevice) return
-    this.#blobStore.setDownloadFilter(
-      isArchiveDevice ? null : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER
-    )
+    const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
+    this.#blobStore.setDownloadFilter(blobDownloadFilter)
     this.#isArchiveDevice = isArchiveDevice
     // TODO: call this.#syncApi[kSetBlobDownloadFilter]()
   }
@@ -1012,6 +1011,14 @@ export class MapeoProject extends TypedEmitter {
       return /** @type Error[] */ []
     }
   }
+}
+
+/**
+ * @param {boolean} isArchiveDevice
+ * @returns {null | BlobFilter}
+ */
+function getBlobDownloadFilter(isArchiveDevice) {
+  return isArchiveDevice ? null : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER
 }
 
 /**
