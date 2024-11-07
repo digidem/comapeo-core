@@ -16,7 +16,7 @@ import { NO_ROLE_ID } from '../roles.js'
 /** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
-/** @import { ReplicationStream } from '../types.js' */
+/** @import { BlobFilter, ReplicationStream } from '../types.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
@@ -91,7 +91,8 @@ export class SyncApi extends TypedEmitter {
   #getReplicationStream
   /** @type {Map<string, WebSocket>} */
   #serverWebsockets = new Map()
-  #blobDownloadFilter
+  /** @type {null | BlobFilter} */
+  #blobDownloadFilter = null
 
   /**
    * @param {object} opts
@@ -100,7 +101,7 @@ export class SyncApi extends TypedEmitter {
    * @param {import('../roles.js').Roles} opts.roles
    * @param {() => Promise<Iterable<string>>} opts.getServerWebsocketUrls
    * @param {() => ReplicationStream} opts.getReplicationStream
-   * @param {import('../types.js').BlobFilter | null} opts.blobDownloadFilter
+   * @param {null | BlobFilter} opts.blobDownloadFilter
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
    */
@@ -116,7 +117,6 @@ export class SyncApi extends TypedEmitter {
   }) {
     super()
     this.#l = Logger.create('syncApi', logger)
-    this.#blobDownloadFilter = blobDownloadFilter
     this.#coreManager = coreManager
     this.#coreOwnership = coreOwnership
     this.#roles = roles
@@ -132,6 +132,8 @@ export class SyncApi extends TypedEmitter {
     this[kSyncState].on('state', (namespaceSyncState) => {
       this.#updateState(namespaceSyncState)
     })
+
+    this[kSetBlobDownloadFilter](blobDownloadFilter)
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
     this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerDisconnect)
