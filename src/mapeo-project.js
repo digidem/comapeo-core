@@ -50,6 +50,7 @@ import { MemberApi } from './member-api.js'
 import {
   SyncApi,
   kHandleDiscoveryKey,
+  kSetBlobDownloadFilter,
   kWaitForInitialSyncWithPeer,
 } from './sync/sync-api.js'
 import { Logger } from './logger.js'
@@ -746,8 +747,8 @@ export class MapeoProject extends TypedEmitter {
     if (this.#isArchiveDevice === isArchiveDevice) return
     const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
     this.#blobStore.setDownloadFilter(blobDownloadFilter)
+    this.#syncApi[kSetBlobDownloadFilter](blobDownloadFilter)
     this.#isArchiveDevice = isArchiveDevice
-    // TODO: call this.#syncApi[kSetBlobDownloadFilter]()
   }
 
   /** @returns {boolean} */
