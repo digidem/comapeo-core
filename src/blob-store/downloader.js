@@ -2,8 +2,8 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { createEntriesStream } from './entries-stream.js'
 import { filePathMatchesFilter } from './utils.js'
 
-/** @import Hyperdrive from 'hyperdrive' */
 /** @import { BlobFilter } from '../types.js' */
+/** @import { THyperdriveIndex } from './hyperdrive-index.js' */
 
 /**
  * Like hyperdrive.download() but 'live', and for multiple drives.
@@ -26,7 +26,7 @@ import { filePathMatchesFilter } from './utils.js'
  * @extends {TypedEmitter<{ error: (error: Error) => void }>}
  */
 export class Downloader extends TypedEmitter {
-  /** @type {import('./index.js').THyperdriveIndex} */
+  /** @type {THyperdriveIndex} */
   #driveIndex
   /** @type {Set<{ done(): Promise<void>, destroy(): void }>} */
   #queuedDownloads = new Set()
@@ -36,7 +36,7 @@ export class Downloader extends TypedEmitter {
   #shouldDownloadFile
 
   /**
-   * @param {import('./index.js').THyperdriveIndex} driveIndex
+   * @param {THyperdriveIndex} driveIndex
    * @param {object} [options]
    * @param {BlobFilter | null} [options.filter] Filter blobs of specific types and/or sizes to download
    */

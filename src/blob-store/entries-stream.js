@@ -5,12 +5,13 @@ import { noop } from '../utils.js'
 
 /** @import Hyperdrive from 'hyperdrive' */
 /** @import { BlobStoreEntriesStream } from '../types.js' */
+/** @import { THyperdriveIndex } from './hyperdrive-index.js' */
 
 const keyEncoding = new SubEncoder('files', 'utf-8')
 
 /**
  *
- * @param {import('./index.js').THyperdriveIndex} driveIndex
+ * @param {THyperdriveIndex} driveIndex
  * @param {object} opts
  * @param {boolean} [opts.live=false]
  * @returns {BlobStoreEntriesStream}
