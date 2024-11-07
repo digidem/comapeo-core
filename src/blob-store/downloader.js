@@ -38,7 +38,7 @@ export class Downloader extends TypedEmitter {
   /**
    * @param {import('./index.js').THyperdriveIndex} driveIndex
    * @param {object} [options]
-   * @param {import('../types.js').BlobFilter | null} [options.filter] Filter blobs of specific types and/or sizes to download
+   * @param {BlobFilter | null} [options.filter] Filter blobs of specific types and/or sizes to download
    */
   constructor(driveIndex, { filter } = {}) {
     super()
