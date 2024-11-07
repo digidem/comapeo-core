@@ -131,7 +131,7 @@ export class BlobStore extends TypedEmitter {
    * @param {object} opts
    * @param {boolean} [opts.live=false] Set to `true` to get a live stream of entries
    * @param {import('./utils.js').GenericBlobFilter | null} [opts.filter] Filter blob types and/or variants in returned entries. Filter is { [BlobType]: BlobVariants[] }.
-   * @returns
+   * @returns {BlobStoreEntriesStream}
    */
   createEntriesReadStream({ live = false, filter } = {}) {
     const entriesStream = createEntriesStream(this.#driveIndex, { live })
