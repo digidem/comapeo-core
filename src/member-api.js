@@ -33,6 +33,7 @@ import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
 /** @import { projectSettingsTable } from './schema/client.js' */
+/** @import { kTestOnlyAllowAnyRoleToBeAssigned } from './roles.js' */
 /** @import { ReplicationStream } from './types.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
@@ -496,10 +497,11 @@ export class MemberApi extends TypedEmitter {
   /**
    * @param {string} deviceId
    * @param {import('./roles.js').RoleIdAssignableToOthers} roleId
+   * @param {{ [kTestOnlyAllowAnyRoleToBeAssigned]?: true }} [options]
    * @returns {Promise<void>}
    */
-  async assignRole(deviceId, roleId) {
-    return this.#roles.assignRole(deviceId, roleId)
+  async assignRole(deviceId, roleId, options) {
+    return this.#roles.assignRole(deviceId, roleId, options)
   }
 }
 

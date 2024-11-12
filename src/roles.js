@@ -13,6 +13,10 @@ export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
 
+export const kTestOnlyAllowAnyRoleToBeAssigned = Symbol(
+  'test-only: allow any role to be assigned'
+)
+
 /**
  * @typedef {T extends Iterable<infer U> ? U : never} ElementOf
  * @template T
@@ -340,8 +344,12 @@ export class Roles extends TypedEmitter {
    *
    * @param {string} deviceId
    * @param {RoleIdAssignableToAnyone} roleId
+   * @param {{ [kTestOnlyAllowAnyRoleToBeAssigned]?: true }} [options]
    */
-  async assignRole(deviceId, roleId) {
+  async assignRole(deviceId, roleId, options) {
+    const testOnlyAllowAnyRoleToBeAssigned =
+      options?.[kTestOnlyAllowAnyRoleToBeAssigned]
+
     assert(
       isRoleIdAssignableToAnyone(roleId),
       `Role ID should be assignable to anyone but got ${roleId}`
@@ -364,7 +372,11 @@ export class Roles extends TypedEmitter {
     }
     const isAssigningProjectCreatorRole =
       authCoreId === this.#projectCreatorAuthCoreId
-    if (isAssigningProjectCreatorRole && !this.#isProjectCreator()) {
+    if (
+      isAssigningProjectCreatorRole &&
+      !this.#isProjectCreator() &&
+      !testOnlyAllowAnyRoleToBeAssigned
+    ) {
       throw new Error(
         "Only the project creator can assign the project creator's role"
       )
@@ -376,7 +388,10 @@ export class Roles extends TypedEmitter {
       }
     } else {
       const ownRole = await this.getRole(this.#ownDeviceId)
-      if (!ownRole.roleAssignment.includes(roleId)) {
+      if (
+        !ownRole.roleAssignment.includes(roleId) &&
+        !testOnlyAllowAnyRoleToBeAssigned
+      ) {
         throw new Error('Lacks permission to assign role ' + roleId)
       }
     }
@@ -403,7 +418,7 @@ export class Roles extends TypedEmitter {
     }
   }
 
-  async #isProjectCreator() {
+  #isProjectCreator() {
     const ownAuthCoreId = this.#coreManager
       .getWriterCore('auth')
       .key.toString('hex')
