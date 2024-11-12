@@ -1,10 +1,8 @@
-import { currentSchemaVersions, parseVersionId } from '@comapeo/schema'
+import { currentSchemaVersions } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
-/** @import { Role as RoleAssignment } from '@comapeo/schema' */
-/** @import { ReadonlyDeep } from 'type-fest' */
 /** @import { Namespace } from './types.js' */
 
 // Randomly generated 8-byte encoded as hex
@@ -266,14 +264,14 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
-    // TODO(evanhahn) Did this need to move?
-    const authCoreIdPromise = this.#coreOwnership.getCoreId(deviceId, 'auth')
-
-    const roleAssignment = await this.#getRoleAssignmentOrNull(deviceId)
-
-    if (!roleAssignment) {
+    /** @type {string} */
+    let roleId
+    try {
+      const roleAssignment = await this.#dataType.getByDocId(deviceId)
+      roleId = roleAssignment.roleId
+    } catch (e) {
       // The project creator will have the creator role
-      const authCoreId = await authCoreIdPromise
+      const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
       if (authCoreId === this.#projectCreatorAuthCoreId) {
         return CREATOR_ROLE
       } else {
@@ -282,75 +280,10 @@ export class Roles extends TypedEmitter {
         return NO_ROLE
       }
     }
-
-    const { roleId } = roleAssignment
     if (!isRoleId(roleId)) {
       return ROLES[BLOCKED_ROLE_ID]
     }
-
-    const isRoleAssignmentValid = await this.#isRoleAssignmentValid(
-      roleAssignment
-    )
-    return ROLES[isRoleAssignmentValid ? roleId : BLOCKED_ROLE_ID]
-  }
-
-  /**
-   * TODO(evanhahn) This should be part of `getByDocId`
-   * @param {string} deviceId
-   * @returns {Promise<null | ReadonlyDeep<RoleAssignment>>}
-   */
-  async #getRoleAssignmentOrNull(deviceId) {
-    try {
-      return await this.#dataType.getByDocId(deviceId)
-    } catch (_) {
-      return null
-    }
-  }
-
-  /**
-   * @param {ReadonlyDeep<RoleAssignment>} roleAssignment
-   * @returns {Promise<boolean>}
-   */
-  async #isRoleAssignmentValid(roleAssignment) {
-    const { coreDiscoveryKey } = parseVersionId(roleAssignment.versionId)
-    const coreDiscoveryKeyString = coreDiscoveryKey.toString('hex')
-
-    const isWrittenToProjectCreatorCore =
-      coreDiscoveryKeyString === this.#projectCreatorAuthCoreId
-    if (isWrittenToProjectCreatorCore) return true
-
-    const grantorRoleAssignment = await this.#getRoleAssignmentOrNull(
-      coreDiscoveryKeyString
-    )
-    if (!grantorRoleAssignment) return false
-
-    for await (const grantorRoleAssignment of this.#chain(roleAssignment)) {
-      const { roleId: grantorRoleId } = grantorRoleAssignment
-      if (!isRoleId(grantorRoleId)) return false
-
-      if (roleAssignment.fromIndex >= grantorRoleAssignment.fromIndex) {
-        const grantorRole = ROLES[grantorRoleId]
-        const canGrantRole = grantorRole.roleAssignment.includes(
-          // TODO(evanhahn) Remove this cast
-          /** @type {any} */ (roleAssignment.roleId)
-        )
-        return canGrantRole
-          ? await this.#isRoleAssignmentValid(grantorRoleAssignment)
-          : false
-      }
-    }
-
-    return false
-  }
-
-  /**
-   * TODO: This could be a better name...
-   * @param {ReadonlyDeep<RoleAssignment>} roleAssignment
-   * @returns {AsyncIterable<ReadonlyDeep<RoleAssignment>>}
-   */
-  async *#chain(roleAssignment) {
-    yield roleAssignment
-    // TODO
+    return ROLES[roleId]
   }
 
   /**
