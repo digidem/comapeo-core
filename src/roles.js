@@ -403,7 +403,7 @@ export class Roles extends TypedEmitter {
     }
   }
 
-  async #isProjectCreator() {
+  #isProjectCreator() {
     const ownAuthCoreId = this.#coreManager
       .getWriterCore('auth')
       .key.toString('hex')
