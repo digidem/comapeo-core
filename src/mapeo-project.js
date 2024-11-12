@@ -599,14 +599,9 @@ export class MapeoProject extends TypedEmitter {
   async $setProjectSettings(settings) {
     const { projectSettings } = this.#dataTypes
 
-    // We only want to catch the error to the getByDocId call
-    // Using try/catch for this is a little verbose when dealing with TS types
-    const existing = await projectSettings
-      .getByDocId(this.#projectId)
-      .catch(() => {
-        // project does not exist so return null
-        return null
-      })
+    const existing = await projectSettings.getByDocId(this.#projectId, {
+      mustBeFound: false,
+    })
 
     if (existing) {
       return extractEditableProjectSettings(
@@ -714,14 +709,14 @@ export class MapeoProject extends TypedEmitter {
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 
-    let existingDoc
-    try {
-      existingDoc = await deviceInfo.getByDocId(configCoreId)
-    } catch (err) {
+    const existingDoc = await deviceInfo.getByDocId(configCoreId, {
+      mustBeFound: false,
+    })
+    if (existingDoc) {
+      return await deviceInfo.update(existingDoc.versionId, doc)
+    } else {
       return await deviceInfo[kCreateWithDocId](configCoreId, doc)
     }
-
-    return deviceInfo.update(existingDoc.versionId, doc)
   }
 
   /** @param {boolean} isArchiveDevice */

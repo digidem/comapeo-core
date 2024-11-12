@@ -1,7 +1,6 @@
 import { and, sql } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { hashObject } from './utils.js'
-import { NotFoundError } from './errors.js'
 import { omit } from './lib/omit.js'
 /** @import { Translation, TranslationValue } from '@comapeo/schema' */
 /** @import { SetOptional } from 'type-fest' */
@@ -50,15 +49,11 @@ export default class TranslationApi {
   async put(value) {
     const identifiers = omit(value, ['message'])
     const docId = hashObject(identifiers)
-    try {
-      const doc = await this.#dataType.getByDocId(docId)
+    const doc = await this.#dataType.getByDocId(docId, { mustBeFound: false })
+    if (doc) {
       return await this.#dataType.update(doc.versionId, value)
-    } catch (e) {
-      if (e instanceof NotFoundError) {
-        return await this.#dataType[kCreateWithDocId](docId, value)
-      } else {
-        throw new Error(`Error on translation ${e}`)
-      }
+    } else {
+      return await this.#dataType[kCreateWithDocId](docId, value)
     }
   }
 

@@ -264,12 +264,10 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
-    /** @type {string} */
-    let roleId
-    try {
-      const roleAssignment = await this.#dataType.getByDocId(deviceId)
-      roleId = roleAssignment.roleId
-    } catch (e) {
+    const roleAssignment = await this.#dataType.getByDocId(deviceId, {
+      mustBeFound: false,
+    })
+    if (!roleAssignment) {
       // The project creator will have the creator role
       const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
       if (authCoreId === this.#projectCreatorAuthCoreId) {
@@ -280,6 +278,8 @@ export class Roles extends TypedEmitter {
         return NO_ROLE
       }
     }
+
+    const { roleId } = roleAssignment
     if (!isRoleId(roleId)) {
       return ROLES[BLOCKED_ROLE_ID]
     }
@@ -381,9 +381,9 @@ export class Roles extends TypedEmitter {
       }
     }
 
-    const existingRoleDoc = await this.#dataType
-      .getByDocId(deviceId)
-      .catch(() => null)
+    const existingRoleDoc = await this.#dataType.getByDocId(deviceId, {
+      mustBeFound: false,
+    })
 
     if (existingRoleDoc) {
       await this.#dataType.update(
