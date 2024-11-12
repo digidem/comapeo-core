@@ -34,11 +34,17 @@ public key of this device as hex string
 
 • **opts.encryptionKeys**: `EncryptionKeys`
 
+• **opts.getProjectName**
+
+• **opts.getReplicationStream**
+
 • **opts.projectKey**: `Buffer`
 
 • **opts.roles**: [`Roles`](Roles.md)
 
 • **opts.rpc**: [`LocalPeers`](LocalPeers.md)
+
+• **opts.waitForInitialSyncWithPeer**
 
 #### Returns
 
@@ -49,6 +55,41 @@ public key of this device as hex string
 `TypedEmitter.constructor`
 
 ## Methods
+
+### addServerPeer()
+
+> **addServerPeer**(`baseUrl`, `options`?): `Promise`\<`void`\>
+
+Add a server peer.
+
+Can reject with any of the following error codes (accessed via `err.code`):
+
+- `INVALID_URL`: the base URL is invalid, likely due to user error.
+- `MISSING_DATA`: some required data is missing in order to add the server
+  peer. For example, the project must have a name.
+- `NETWORK_ERROR`: there was an issue connecting to the server. Is the
+  device online? Is the server online?
+- `INVALID_SERVER_RESPONSE`: we connected to the server but it returned
+  an unexpected response. Is the server running a compatible version of
+  CoMapeo Cloud?
+
+If `err.code` is not specified, that indicates a bug in this module.
+
+#### Parameters
+
+• **baseUrl**: `string`
+
+• **options?** = `{}`
+
+• **options.dangerouslyAllowInsecureConnections?**: `undefined` \| `boolean` = `false`
+
+Allow insecure network connections. Should only be used in tests.
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
 
 ### assignRole()
 

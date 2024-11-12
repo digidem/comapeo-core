@@ -32,6 +32,8 @@
 
 • **opts.namespace**: `TNamespace`
 
+• **opts.reindex**: `boolean`
+
 • **opts.storage**: `StorageParam`
 
 #### Returns
@@ -66,11 +68,11 @@
 
 ### schemas
 
-> `get` **schemas**(): (`"observation"` \| `"track"`)[] \| (`"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`)[] \| (`"coreOwnership"` \| `"role"`)[]
+> `get` **schemas**(): (`"observation"` \| `"track"` \| `"remoteDetectionAlert"`)[] \| (`"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`)[] \| (`"coreOwnership"` \| `"role"`)[]
 
 #### Returns
 
-(`"observation"` \| `"track"`)[] \| (`"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`)[] \| (`"coreOwnership"` \| `"role"`)[]
+(`"observation"` \| `"track"` \| `"remoteDetectionAlert"`)[] \| (`"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`)[] \| (`"coreOwnership"` \| `"role"`)[]
 
 ***
 
@@ -91,16 +93,6 @@
 #### Returns
 
 `Promise`\<`void`\>
-
-***
-
-### getIndexState()
-
-> **getIndexState**(): `IndexState`
-
-#### Returns
-
-`IndexState`
 
 ***
 
@@ -146,7 +138,7 @@ Unlink all index files. This should only be called after `close()` has resolved.
 
 ### write()
 
-> **write**\<`TDoc`\>(`doc`): `Promise`\<`Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\>\>
+> **write**\<`TDoc`\>(`doc`): `Promise`\<`Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\>\>
 
 UNSAFE: Does not check links: [] refer to a valid doc - should only be used
 internally.
@@ -156,7 +148,7 @@ this DataStore.
 
 #### Type Parameters
 
-• **TDoc** *extends* `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object` & `CoreOwnershipSignatures`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object` & `CoreOwnershipSignatures`, `"versionId"`\>
+• **TDoc** *extends* `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object` & `CoreOwnershipSignatures`, `"versionId"` \| `"originalVersionId"` \| `"links"`\> & `object` \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object`, `"versionId"`\> \| `object` & `Omit`\<`object` & `CoreOwnershipSignatures`, `"versionId"`\>
 
 #### Parameters
 
@@ -164,7 +156,7 @@ this DataStore.
 
 #### Returns
 
-`Promise`\<`Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\>\>
+`Promise`\<`Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\> \| `Extract`\<`object`, `TDoc`\>\>
 
 ***
 

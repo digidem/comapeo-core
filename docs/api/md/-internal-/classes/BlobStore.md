@@ -117,7 +117,7 @@ Set to `true` to wait for a blob to download, otherwise will throw if blob is no
 
 • **options?**
 
-• **options.metadata?**: `undefined` \| `object`
+• **options.metadata?**: `undefined` \| `JsonObject`
 
 Metadata to store with the blob
 
@@ -244,7 +244,7 @@ Hyperdrive entry
 
 • **options?**
 
-• **options.metadata?**: `undefined` \| `object`
+• **options.metadata?**: `undefined` \| `JsonObject`
 
 Metadata to store with the blob
 

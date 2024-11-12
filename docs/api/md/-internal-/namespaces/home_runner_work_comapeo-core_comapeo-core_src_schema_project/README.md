@@ -23,6 +23,8 @@
 - [observationTable](variables/observationTable.md)
 - [presetBacklinkTable](variables/presetBacklinkTable.md)
 - [presetTable](variables/presetTable.md)
+- [remoteDetectionAlertBacklinkTable](variables/remoteDetectionAlertBacklinkTable.md)
+- [remoteDetectionAlertTable](variables/remoteDetectionAlertTable.md)
 - [roleBacklinkTable](variables/roleBacklinkTable.md)
 - [roleTable](variables/roleTable.md)
 - [trackBacklinkTable](variables/trackBacklinkTable.md)

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
 import { isDeepStrictEqual } from 'node:util'
 import { pEvent } from 'p-event'
+import pProps from 'p-props'
 import { setTimeout as delay } from 'timers/promises'
 import { request } from 'undici'
 import FakeTimers from '@sinonjs/fake-timers'
@@ -28,6 +29,7 @@ import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { blobMetadata } from '../test/helpers/blob-store.js'
 /** @import { State } from '../src/sync/sync-api.js' */
+/** @import { BlobId } from '../src/types.js' */
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
@@ -137,13 +139,15 @@ test('syncing blobs', async (t) => {
   ])
   const [invitorProject, inviteeProject] = projects
 
-  const fixturePath = new URL(
-    '../test/fixtures/images/02-digidem-logo.jpg',
-    import.meta.url
-  ).pathname
+  const fixturesPath = new URL('../test/fixtures/images/', import.meta.url)
+  const fixturePaths = {
+    original: new URL('02-digidem-logo.jpg', fixturesPath).pathname,
+    preview: new URL('02-digidem-logo-preview.jpg', fixturesPath).pathname,
+    thumbnail: new URL('02-digidem-logo-thumb.jpg', fixturesPath).pathname,
+  }
 
   const blob = await invitorProject.$blobs.create(
-    { original: fixturePath },
+    fixturePaths,
     blobMetadata({ mimeType: 'image/jpeg' })
   )
 
@@ -155,17 +159,25 @@ test('syncing blobs', async (t) => {
 
   await waitForSync(projects, 'full')
 
-  const blobUrl = await inviteeProject.$blobs.getUrl({
-    ...blob,
-    variant: 'original',
+  await pProps(fixturePaths, async (path, variant) => {
+    const expectedBytesPromise = fs.readFile(path)
+
+    // We have to tell TypeScript that the blob's type is "photo", which it
+    // isn't smart enough to figure out.
+    assert.equal(blob.type, 'photo', 'blob should be a photo type')
+    const blobUrl = await inviteeProject.$blobs.getUrl({
+      ...blob,
+      type: 'photo',
+      variant,
+    })
+    const response = await request(blobUrl, { reset: true })
+    assert.equal(response.statusCode, 200)
+    assert.deepEqual(
+      Buffer.from(await response.body.arrayBuffer()),
+      await expectedBytesPromise,
+      'blob makes it to the other side'
+    )
   })
-  const response = await request(blobUrl, { reset: true })
-  assert.equal(response.statusCode, 200)
-  assert.deepEqual(
-    Buffer.from(await response.body.arrayBuffer()),
-    await fs.readFile(fixturePath),
-    'blob makes it to the other side'
-  )
 })
 
 test('start and stop sync', async function (t) {

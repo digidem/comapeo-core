@@ -6,4 +6,4 @@
 
 # Type Alias: BlobFilter
 
-> **BlobFilter**: `RequireAtLeastOne`\<`{ [KeyType in BlobType]: ArrayAtLeastOne<BlobVariant<KeyType>> }`\>
+> **BlobFilter**: `RequireAtLeastOne`\<`{ [KeyType in BlobType]: BlobVariant<KeyType>[] }`\>

@@ -20,9 +20,15 @@
 
 • **opts**
 
+• **opts.blobDownloadFilter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
+
 • **opts.coreManager**: [`CoreManager`](CoreManager.md)
 
 • **opts.coreOwnership**: [`CoreOwnership`](CoreOwnership.md)
+
+• **opts.getReplicationStream**
+
+• **opts.getServerWebsocketUrls**
 
 • **opts.logger**: `undefined` \| [`Logger`](Logger.md)
 
@@ -79,6 +85,56 @@ Request a graceful stop to all sync.
 > **\[kRescindFullStopRequest\]**(): `void`
 
 Rescind any requests for a full stop.
+
+#### Returns
+
+`void`
+
+***
+
+### \[kSetBlobDownloadFilter\]()
+
+> **\[kSetBlobDownloadFilter\]**(`blobDownloadFilter`): `void`
+
+#### Parameters
+
+• **blobDownloadFilter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
+
+#### Returns
+
+`void`
+
+***
+
+### \[kWaitForInitialSyncWithPeer\]()
+
+> **\[kWaitForInitialSyncWithPeer\]**(`deviceId`, `abortSignal`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **deviceId**: `string`
+
+• **abortSignal**: `AbortSignal`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
+### connectServers()
+
+> **connectServers**(): `void`
+
+#### Returns
+
+`void`
+
+***
+
+### disconnectServers()
+
+> **disconnectServers**(): `void`
 
 #### Returns
 
