@@ -264,6 +264,8 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
+    const authCoreIdPromise = this.#coreOwnership.getCoreId(deviceId, 'auth')
+
     /** @type {string} */
     let roleId
     try {
@@ -271,7 +273,7 @@ export class Roles extends TypedEmitter {
       roleId = roleAssignment.roleId
     } catch (e) {
       // The project creator will have the creator role
-      const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
+      const authCoreId = await authCoreIdPromise
       if (authCoreId === this.#projectCreatorAuthCoreId) {
         return CREATOR_ROLE
       } else {
@@ -283,7 +285,30 @@ export class Roles extends TypedEmitter {
     if (!isRoleId(roleId)) {
       return ROLES[BLOCKED_ROLE_ID]
     }
-    return ROLES[roleId]
+
+    const role = ROLES[roleId]
+
+    const isRoleValid = await this.#isRoleValid(role)
+    return isRoleValid ? role : ROLES[BLOCKED_ROLE_ID]
+  }
+
+  /**
+   * @param {Role} role
+   * @returns {Promise<boolean>}
+   */
+  async #isRoleValid(role) {
+    if (isRoleWrittenInProjectCreatorCore) {
+      return true
+    }
+
+    for await (const grantorRole of this.#getRoleHistory()) {
+      if (role.fromIndex >= grantorRole.fromIndex) {
+        const canGrantRole = grantorRole.roleAssignment.includes(role.roleId)
+        return canGrantRole ? await this.#isRoleValid(grantorRole) : false
+      }
+    }
+
+    return false
   }
 
   /**
