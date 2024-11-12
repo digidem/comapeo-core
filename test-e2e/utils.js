@@ -13,7 +13,7 @@ import { MapeoManager as MapeoManager_2_0_1 } from '@comapeo/core2.0.1'
 
 import { MapeoManager, roles } from '../src/index.js'
 import { generate } from '@mapeo/mock-data'
-import { valueOf } from '../src/utils.js'
+import { noop, valueOf } from '../src/utils.js'
 import { randomBytes, randomInt } from 'node:crypto'
 import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
@@ -245,19 +245,21 @@ export function createManager(seed, t, overrides = {}) {
     const directories = [temporaryDirectory(), temporaryDirectory()]
     ;[dbFolder, coreStorage] = directories
     t.after(() =>
-      Promise.all(
-        directories.map((dir) =>
-          fsPromises.rm(dir, {
-            recursive: true,
-            force: true,
-            maxRetries: 2,
-          })
+      fireAndForgetPromise(
+        Promise.all(
+          directories.map((dir) =>
+            fsPromises.rm(dir, {
+              recursive: true,
+              force: true,
+              maxRetries: 2,
+            })
+          )
         )
       )
     )
   }
 
-  return new MapeoManager({
+  const result = new MapeoManager({
     rootKey: getRootKey(seed),
     projectMigrationsFolder,
     clientMigrationsFolder,
@@ -266,6 +268,10 @@ export function createManager(seed, t, overrides = {}) {
     fastify: Fastify(),
     ...overrides,
   })
+
+  t.after(() => fireAndForgetPromise(result.close()))
+
+  return result
 }
 /**
  * @param {string} seed
@@ -477,6 +483,14 @@ function getRootKey(seed) {
     sodium.randombytes_buf_deterministic(key, seedBuf)
   }
   return key
+}
+
+/**
+ * @param {Promise<unknown>} promise
+ * @returns {Promise<void>}
+ */
+function fireAndForgetPromise(promise) {
+  return promise.then(noop).catch(noop)
 }
 
 /**

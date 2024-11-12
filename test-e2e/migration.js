@@ -131,7 +131,7 @@ test('migration of localDeviceInfo table', async (t) => {
     expectedDeviceInfo
   )
 
-  // No manager.close() function yet, but should be ok
+  // No manager.close() function on old versions, but should be okay
 
   const manager = new MapeoManager({
     rootKey,

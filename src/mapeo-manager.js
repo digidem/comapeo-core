@@ -95,6 +95,7 @@ export const DEFAULT_ONLINE_STYLE_URL =
 export class MapeoManager extends TypedEmitter {
   #keyManager
   #projectSettingsIndexWriter
+  #sqlite
   #db
   // Maps project public id -> project instance
   /** @type {Map<string, MapeoProject>} */
@@ -146,12 +147,12 @@ export class MapeoManager extends TypedEmitter {
     this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
     this.#projectMigrationsFolder = projectMigrationsFolder
-    const sqlite = new Database(
+    this.#sqlite = new Database(
       dbFolder === ':memory:'
         ? ':memory:'
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
-    this.#db = drizzle(sqlite)
+    this.#db = drizzle(this.#sqlite)
     migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
 
     this.#localPeers = new LocalPeers({ logger })
@@ -166,7 +167,7 @@ export class MapeoManager extends TypedEmitter {
 
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectSettingsTable],
-      sqlite,
+      sqlite: this.#sqlite,
       logger,
     })
     this.#activeProjects = new Map()
@@ -931,6 +932,15 @@ export class MapeoManager extends TypedEmitter {
   async getMapStyleJsonUrl() {
     await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
     return (await this.#getMediaBaseUrl('maps')) + '/style.json'
+  }
+
+  async close() {
+    /** @type {Promise<unknown>[]} */ const promises = []
+    for (const project of this.#activeProjects.values()) {
+      promises.push(project.close())
+    }
+    await Promise.all(promises)
+    this.#sqlite.close()
   }
 }
 
