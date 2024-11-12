@@ -1,9 +1,14 @@
-import { currentSchemaVersions } from '@comapeo/schema'
+import { currentSchemaVersions, parseVersionId } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
-import { getByDocIdIfExists } from './datatype/get-if-exists.js'
+import {
+  getByDocIdIfExists,
+  getByVersionIdIfExists,
+} from './datatype/get-if-exists.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
+/** @import { Role as RoleRecord } from '@comapeo/schema' */
+/** @import { ReadonlyDeep } from 'type-fest' */
 /** @import { Namespace } from './types.js' */
 
 // Randomly generated 8-byte encoded as hex
@@ -13,6 +18,8 @@ export const MEMBER_ROLE_ID = '012fd2d431c0bf60'
 export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
+
+const CREATOR_ROLE_RECORD = Symbol('creator role assignment')
 
 /**
  * @typedef {T extends Iterable<infer U> ? U : never} ElementOf
@@ -270,24 +277,143 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
-    const roleRecord = await getByDocIdIfExists(this.#dataType, deviceId)
-    if (!roleRecord) {
-      // The project creator will have the creator role
-      const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
-      if (authCoreId === this.#projectCreatorAuthCoreId) {
-        return CREATOR_ROLE
-      } else {
-        // When no role assignment exists, e.g. a newly added device which has
-        // not yet synced role records.
+    const roleRecord = await this.#getRoleRecord(deviceId)
+
+    switch (roleRecord) {
+      case null:
         return NO_ROLE
+      case CREATOR_ROLE_RECORD:
+        return CREATOR_ROLE
+      default: {
+        const { roleId } = roleRecord
+        if (isRoleId(roleId) && (await this.#isRoleChainValid(roleRecord))) {
+          return ROLES[roleId]
+        } else {
+          return BLOCKED_ROLE
+        }
       }
     }
+  }
 
-    const { roleId } = roleRecord
-    if (!isRoleId(roleId)) {
-      return BLOCKED_ROLE
+  /**
+   * @param {string} deviceId
+   * @returns {Promise<null | typeof CREATOR_ROLE_RECORD | RoleRecord>}
+   */
+  async #getRoleRecord(deviceId) {
+    const result = await getByDocIdIfExists(this.#dataType, deviceId)
+    if (result) return result
+
+    // The project creator will have the creator role
+    const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
+    if (authCoreId === this.#projectCreatorAuthCoreId) {
+      return CREATOR_ROLE_RECORD
     }
-    return ROLES[roleId]
+
+    // When no role assignment exists, e.g. a newly added device which has
+    // not yet synced role records.
+    return null
+  }
+
+  /**
+   * @param {ReadonlyDeep<RoleRecord>} roleRecord
+   * @returns {Promise<boolean>}
+   */
+  async #isRoleChainValid(roleRecord) {
+    if (roleRecord.roleId === LEFT_ROLE_ID) return true
+
+    /** @type {null | ReadonlyDeep<RoleRecord>} */
+    let currentRoleRecord = roleRecord
+
+    while (currentRoleRecord) {
+      if (this.#isAssignedByProjectCreator(currentRoleRecord)) {
+        return true
+      }
+
+      const parentRoleRecord = await this.#getParentRoleRecord(
+        currentRoleRecord
+      )
+      switch (parentRoleRecord) {
+        case null:
+          break
+        case CREATOR_ROLE_RECORD:
+          return true
+        default:
+          if (
+            !canAssign({
+              assigner: parentRoleRecord,
+              assignee: currentRoleRecord,
+            })
+          ) {
+            return false
+          }
+          break
+      }
+
+      currentRoleRecord = parentRoleRecord
+    }
+
+    return false
+  }
+
+  /**
+   * @param {ReadonlyDeep<Pick<RoleRecord, 'versionId'>>} roleRecord
+   * @returns {boolean}
+   */
+  #isAssignedByProjectCreator({ versionId }) {
+    const { coreDiscoveryKey } = parseVersionId(versionId)
+    const coreDiscoveryKeyString = coreDiscoveryKey.toString('hex')
+    return coreDiscoveryKeyString === this.#projectCreatorAuthCoreId
+  }
+
+  /**
+   * @param {ReadonlyDeep<RoleRecord>} roleRecord
+   * @returns {Promise<null | typeof CREATOR_ROLE_RECORD | RoleRecord>}
+   */
+  async #getParentRoleRecord(roleRecord) {
+    const {
+      coreDiscoveryKey: assignerCoreDiscoveryKey,
+      index: assignerIndexAtAssignmentTime,
+    } = parseVersionId(roleRecord.versionId)
+
+    const assignerCore = this.#coreManager.getCoreByDiscoveryKey(
+      assignerCoreDiscoveryKey
+    )
+    if (assignerCore?.namespace !== 'auth') return null
+
+    const assignerCoreId = assignerCore.key.toString('hex')
+    const assignerDeviceId = await this.#coreOwnership
+      .getOwner(assignerCoreId)
+      .catch(() => null)
+    if (!assignerDeviceId) return null
+
+    const latestRoleRecord = await this.#getRoleRecord(assignerDeviceId)
+
+    let roleRecordToCheck = latestRoleRecord
+    /** @type {RoleRecord[]} */ const roleRecordsToCheck = []
+    while (roleRecordToCheck) {
+      if (
+        roleRecordToCheck === CREATOR_ROLE_RECORD ||
+        (roleRecordToCheck.fromIndex <= assignerIndexAtAssignmentTime &&
+          roleRecordToCheck.versionId !== roleRecord.versionId)
+      ) {
+        return roleRecordToCheck
+      }
+
+      const linkedRoleRecords = await Promise.all(
+        roleRecordToCheck.links.map((linkedVersionId) =>
+          getByVersionIdIfExists(this.#dataType, linkedVersionId)
+        )
+      )
+      for (const linkedRoleRecord of linkedRoleRecords) {
+        if (linkedRoleRecord) {
+          roleRecordsToCheck.push(linkedRoleRecord)
+        }
+      }
+
+      roleRecordToCheck = roleRecordsToCheck.shift() || null
+    }
+
+    return null
   }
 
   /**
@@ -344,8 +470,14 @@ export class Roles extends TypedEmitter {
    *
    * @param {string} deviceId
    * @param {RoleIdAssignableToAnyone} roleId
+   * @param {object} [options]
+   * @param {boolean} [options.__testOnlyAllowAnyRoleToBeAssigned]
    */
-  async assignRole(deviceId, roleId) {
+  async assignRole(
+    deviceId,
+    roleId,
+    { __testOnlyAllowAnyRoleToBeAssigned = false } = {}
+  ) {
     assert(
       isRoleIdAssignableToAnyone(roleId),
       `Role ID should be assignable to anyone but got ${roleId}`
@@ -368,7 +500,11 @@ export class Roles extends TypedEmitter {
     }
     const isAssigningProjectCreatorRole =
       authCoreId === this.#projectCreatorAuthCoreId
-    if (isAssigningProjectCreatorRole && !this.#isProjectCreator()) {
+    if (
+      isAssigningProjectCreatorRole &&
+      !this.#isProjectCreator() &&
+      !__testOnlyAllowAnyRoleToBeAssigned
+    ) {
       throw new Error(
         "Only the project creator can assign the project creator's role"
       )
@@ -380,7 +516,10 @@ export class Roles extends TypedEmitter {
       }
     } else {
       const ownRole = await this.getRole(this.#ownDeviceId)
-      if (!ownRole.roleAssignment.includes(roleId)) {
+      if (
+        !ownRole.roleAssignment.includes(roleId) &&
+        !__testOnlyAllowAnyRoleToBeAssigned
+      ) {
         throw new Error('Lacks permission to assign role ' + roleId)
       }
     }
@@ -411,4 +550,25 @@ export class Roles extends TypedEmitter {
       .key.toString('hex')
     return ownAuthCoreId === this.#projectCreatorAuthCoreId
   }
+}
+
+/**
+ * @param {object} options
+ * @param {ReadonlyDeep<Pick<RoleRecord, 'roleId'>>} options.assigner
+ * @param {ReadonlyDeep<Pick<RoleRecord, 'roleId'>>} options.assignee
+ * @returns {boolean}
+ */
+function canAssign({ assigner, assignee }) {
+  return (
+    isRoleIdAssignableToOthers(assignee.roleId) &&
+    roleRecordToRole(assigner).roleAssignment.includes(assignee.roleId)
+  )
+}
+
+/**
+ * @param {ReadonlyDeep<Pick<RoleRecord, 'roleId'>>} roleRecord
+ * @returns {Role}
+ */
+function roleRecordToRole({ roleId }) {
+  return isRoleId(roleId) ? ROLES[roleId] : BLOCKED_ROLE
 }
