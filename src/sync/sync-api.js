@@ -442,6 +442,7 @@ export class SyncApi extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async waitForSync(type) {
+    console.log('@@@@', 'project waiting for', type, 'sync')
     const state = this[kSyncState].getState()
     if (isSynced(state, type, this.#peerSyncControllers)) return
     return new Promise((res) => {

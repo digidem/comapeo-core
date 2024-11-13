@@ -328,6 +328,9 @@ export class Roles extends TypedEmitter {
       coreThatWroteAssignmentId
     )
 
+    // TODO: Is this wise?
+    if (deviceIdThatWroteAssignment === this.#ownDeviceId) return true
+
     const grantorRoleAssignment = await this.#getRoleAssignment(
       deviceIdThatWroteAssignment
     )
@@ -347,8 +350,10 @@ export class Roles extends TypedEmitter {
       } else {
         return false
       }
+    } else {
+      // TODO
+      return true
     }
-    // TODO: else
 
     return false
   }

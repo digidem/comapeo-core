@@ -36,10 +36,21 @@ test('role validation', async (t) => {
     'test setup: creator sees correct role for member'
   )
 
+  console.log('@@@@', 'assigning bogus role...')
   await memberProject.$member.assignRole(member.deviceId, COORDINATOR_ROLE_ID, {
     [kTestOnlyAllowAnyRoleToBeAssigned]: true,
   })
-  await waitForSync(projects, 'initial')
+  console.log('@@@@', 'assigned bogus role.')
+  setTimeout(() => {
+    console.log('@@@@', 'in timeout')
+    console.log('@@@@', creatorProject.$sync.getState())
+    console.log('@@@@', memberProject.$sync.getState())
+  }, 3000)
+  console.log('@@@@', 'waiting for initial sync...')
+  const wssPromise = waitForSync(projects, 'initial')
+  console.log('@@@@', 'waiting for initial sync promise started...')
+  await wssPromise
+  console.log('@@@@', 'waited for initial sync.')
 
   assert.equal(
     (await creatorProject.$member.getById(member.deviceId)).role.roleId,
