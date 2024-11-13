@@ -3,6 +3,8 @@ import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { NotFoundError } from './errors.js'
+/** @import { Role as RoleAssignment } from '@comapeo/schema' */
 /** @import { Namespace } from './types.js' */
 
 // Randomly generated 8-byte encoded as hex
@@ -268,12 +270,9 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
-    /** @type {string} */
-    let roleId
-    try {
-      const roleAssignment = await this.#dataType.getByDocId(deviceId)
-      roleId = roleAssignment.roleId
-    } catch (e) {
+    const roleAssignment = await this.#getRoleAssignment(deviceId)
+
+    if (!roleAssignment) {
       // The project creator will have the creator role
       const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
       if (authCoreId === this.#projectCreatorAuthCoreId) {
@@ -284,10 +283,29 @@ export class Roles extends TypedEmitter {
         return NO_ROLE
       }
     }
+
+    const { roleId } = roleAssignment
     if (!isRoleId(roleId)) {
       return ROLES[BLOCKED_ROLE_ID]
     }
+
     return ROLES[roleId]
+  }
+
+  /**
+   * TODO(evanhahn) This should be removed once <https://github.com/digidem/comapeo-core/pull/959> is merged.
+   * @param {string} deviceId
+   * @returns {Promise<null | RoleAssignment>}
+   */
+  async #getRoleAssignment(deviceId) {
+    try {
+      return await this.#dataType.getByDocId(deviceId)
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return null
+      }
+      throw err
+    }
   }
 
   /**
