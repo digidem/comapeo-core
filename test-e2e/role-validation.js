@@ -7,6 +7,8 @@ import {
 } from '../src/roles.js'
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 
+// TODO(evanhahn) This should be moved into another file, probably the members.js tests
+
 test('role validation', async (t) => {
   const managers = await createManagers(2, t)
   const [creator, member] = managers
