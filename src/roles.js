@@ -1,4 +1,4 @@
-import { currentSchemaVersions } from '@comapeo/schema'
+import { currentSchemaVersions, parseVersionId } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
@@ -284,12 +284,73 @@ export class Roles extends TypedEmitter {
       }
     }
 
+    return await this.#getRoleFromRoleAssignment(roleAssignment)
+  }
+
+  /**
+   * TODO(evanhahn) make things readonlydeep?
+   * @param {RoleAssignment} roleAssignment
+   * @returns {Promise<Role>}
+   */
+  async #getRoleFromRoleAssignment(roleAssignment) {
     const { roleId } = roleAssignment
-    if (!isRoleId(roleId)) {
+    if (
+      isRoleId(roleId) &&
+      (await this.#isRoleAssignmentValid(roleAssignment))
+    ) {
+      return ROLES[roleId]
+    } else {
       return ROLES[BLOCKED_ROLE_ID]
     }
+  }
 
-    return ROLES[roleId]
+  /**
+   * TODO(evanhahn) make things readonlydeep?
+   * @param {RoleAssignment} roleAssignment
+   * @returns {Promise<boolean>}
+   */
+  async #isRoleAssignmentValid(roleAssignment) {
+    const { coreDiscoveryKey } = parseVersionId(roleAssignment.versionId)
+    const coreDiscoveryKeyString = coreDiscoveryKey.toString('hex')
+
+    const isAssignedByCreator =
+      coreDiscoveryKeyString === this.#projectCreatorAuthCoreId
+    if (isAssignedByCreator) return true
+
+    const coreThatWroteAssignment =
+      this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
+    if (!coreThatWroteAssignment) return false
+    // TODO(evanhahn) Assert that this core is of namespace "auth"
+
+    const coreThatWroteAssignmentId =
+      coreThatWroteAssignment.key.toString('hex')
+    const deviceIdThatWroteAssignment = await this.#coreOwnership.getOwner(
+      coreThatWroteAssignmentId
+    )
+
+    const grantorRoleAssignment = await this.#getRoleAssignment(
+      deviceIdThatWroteAssignment
+    )
+    if (!grantorRoleAssignment) return false
+
+    if (roleAssignment.fromIndex >= grantorRoleAssignment.fromIndex) {
+      const grantorRoleId = grantorRoleAssignment.roleId
+      const grantorRole = isRoleId(grantorRoleId)
+        ? ROLES[grantorRoleId]
+        : ROLES[BLOCKED_ROLE_ID]
+      const isGrantLegitimate = grantorRole.roleAssignment.includes(
+        // @ts-ignore TODO: fix this error (roleAssignment.roleId is a string)
+        roleAssignment.roleId
+      )
+      if (isGrantLegitimate) {
+        return await this.#isRoleAssignmentValid(grantorRoleAssignment)
+      } else {
+        return false
+      }
+    }
+    // TODO: else
+
+    return false
   }
 
   /**
