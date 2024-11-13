@@ -310,6 +310,7 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<boolean>}
    */
   async #isRoleAssignmentValid(roleAssignment) {
+    console.log('@@@@', 'checking if role', roleAssignment.versionId, 'is valid')
     const { coreDiscoveryKey } = parseVersionId(roleAssignment.versionId)
     const coreDiscoveryKeyString = coreDiscoveryKey.toString('hex')
 
@@ -336,7 +337,7 @@ export class Roles extends TypedEmitter {
     )
     if (!grantorRoleAssignment) return false
 
-    if (roleAssignment.fromIndex >= grantorRoleAssignment.fromIndex) {
+    if (roleAssignment.fromIndex > grantorRoleAssignment.fromIndex) {
       const grantorRoleId = grantorRoleAssignment.roleId
       const grantorRole = isRoleId(grantorRoleId)
         ? ROLES[grantorRoleId]
@@ -346,6 +347,7 @@ export class Roles extends TypedEmitter {
         roleAssignment.roleId
       )
       if (isGrantLegitimate) {
+        console.log('@@@@','recursing')
         return await this.#isRoleAssignmentValid(grantorRoleAssignment)
       } else {
         return false

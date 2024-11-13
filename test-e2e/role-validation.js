@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { setTimeout as delay } from 'node:timers/promises'
 import {
   COORDINATOR_ROLE_ID,
   kTestOnlyAllowAnyRoleToBeAssigned,
@@ -8,6 +9,41 @@ import {
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 
 // TODO(evanhahn) This should be moved into another file, probably the members.js tests
+
+test('TODO: sandbox', async (t) => {
+  const managers = await createManagers(3, t)
+  const [creator, member1, member2] = managers
+
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await creator.createProject({ name: 'role test' })
+  const creatorProject = await creator.getProject(projectId)
+
+  await invite({
+    projectId,
+    invitor: creator,
+    invitees: [member1],
+    roleId: COORDINATOR_ROLE_ID,
+  })
+
+  const member1Project = await member1.getProject(projectId)
+
+  await waitForSync([creatorProject, member1Project], 'initial')
+
+  await invite({
+    projectId,
+    invitor: member1,
+    invitees: [member2],
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  await delay(500)
+
+  const member2Project = await member2.getProject(projectId)
+
+  await waitForSync([creatorProject, member1Project, member2Project], 'initial')
+})
 
 test('role validation', async (t) => {
   const managers = await createManagers(2, t)
