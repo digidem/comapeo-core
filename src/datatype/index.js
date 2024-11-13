@@ -172,7 +172,10 @@ export class DataType extends TypedEmitter {
     const result = /** @type {undefined | MapeoDoc} */ (
       this.#sql.getByDocId.get({ docId })
     )
-    if (!result) throw new NotFoundError()
+    if (!result) {
+      // TODO
+      throw new NotFoundError(`not found: ${this.#schemaName} ${docId}`)
+    }
     return this.#translate(deNullify(result), { lang })
   }
 

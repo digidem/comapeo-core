@@ -1,5 +1,6 @@
 export class NotFoundError extends Error {
-  constructor() {
-    super('Not found')
+  // TODO(evanhahn) revert this change
+  constructor(message = 'Not found') {
+    super(message)
   }
 }
