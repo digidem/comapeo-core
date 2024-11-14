@@ -114,6 +114,15 @@ test('private createWithDocId() method throws when doc exists', async () => {
   )
 })
 
+test('getByVersionId fetches docs by their version ID', async () => {
+  const { dataType } = await testenv()
+
+  const created = await dataType.create(obsFixture)
+  const fetched = await dataType.getByVersionId(created.versionId)
+
+  assert.equal(created.docId, fetched.docId)
+})
+
 test('`originalVersionId` field', async () => {
   const { dataType, dataStore } = await testenv()
 
