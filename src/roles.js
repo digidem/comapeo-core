@@ -99,6 +99,33 @@ export const CREATOR_ROLE = {
 }
 
 /**
+ * @type {Role<typeof BLOCKED_ROLE_ID>}
+ */
+const BLOCKED_ROLE = {
+  roleId: BLOCKED_ROLE_ID,
+  name: 'Blocked',
+  docs: mapObject(currentSchemaVersions, (key) => {
+    return [
+      key,
+      {
+        readOwn: false,
+        writeOwn: false,
+        readOthers: false,
+        writeOthers: false,
+      },
+    ]
+  }),
+  roleAssignment: [],
+  sync: {
+    auth: 'blocked',
+    config: 'blocked',
+    data: 'blocked',
+    blobIndex: 'blocked',
+    blob: 'blocked',
+  },
+}
+
+/**
  * This is the role assumed for a device when no role record can be found. This
  * can happen when an invited device did not manage to sync with the device that
  * invited them, and they then try to sync with someone else. We want them to be
@@ -166,29 +193,7 @@ export const ROLES = {
       blob: 'allowed',
     },
   },
-  [BLOCKED_ROLE_ID]: {
-    roleId: BLOCKED_ROLE_ID,
-    name: 'Blocked',
-    docs: mapObject(currentSchemaVersions, (key) => {
-      return [
-        key,
-        {
-          readOwn: false,
-          writeOwn: false,
-          readOthers: false,
-          writeOthers: false,
-        },
-      ]
-    }),
-    roleAssignment: [],
-    sync: {
-      auth: 'blocked',
-      config: 'blocked',
-      data: 'blocked',
-      blobIndex: 'blocked',
-      blob: 'blocked',
-    },
-  },
+  [BLOCKED_ROLE_ID]: BLOCKED_ROLE,
   [LEFT_ROLE_ID]: {
     roleId: LEFT_ROLE_ID,
     name: 'Left',
@@ -281,7 +286,7 @@ export class Roles extends TypedEmitter {
       }
     }
     if (!isRoleId(roleId)) {
-      return ROLES[BLOCKED_ROLE_ID]
+      return BLOCKED_ROLE
     }
     return ROLES[roleId]
   }
