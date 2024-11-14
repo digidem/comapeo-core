@@ -51,7 +51,7 @@ test('role validation', async (t) => {
   assert.equal(
     (await creatorProject.$member.getById(member.deviceId)).role.roleId,
     BLOCKED_ROLE_ID,
-    "creator is not fooled by member's bogus role assignment"
+    "creator sees member's bogus role assignment, and blocks them"
   )
 
   await creatorProject.$member.assignRole(member.deviceId, COORDINATOR_ROLE_ID)
