@@ -5,6 +5,7 @@ import { assert, setHas } from './utils.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { NotFoundError } from './errors.js'
 /** @import { Role as RoleAssignment } from '@comapeo/schema' */
+/** @import { ReadonlyDeep } from 'type-fest' */
 /** @import { Namespace } from './types.js' */
 
 // Randomly generated 8-byte encoded as hex
@@ -270,16 +271,19 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
+    console.log('@@@@', 'getting role for', deviceId)
     const roleAssignment = await this.#getRoleAssignment(deviceId)
 
     if (!roleAssignment) {
       // The project creator will have the creator role
       const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
       if (authCoreId === this.#projectCreatorAuthCoreId) {
+        console.log('@@@@', 'no role for', deviceId, "but they're the creator")
         return CREATOR_ROLE
       } else {
         // When no role assignment exists, e.g. a newly added device which has
         // not yet synced role records.
+        console.log('@@@@', 'no role for', deviceId)
         return NO_ROLE
       }
     }
@@ -298,8 +302,10 @@ export class Roles extends TypedEmitter {
       isRoleId(roleId) &&
       (await this.#isRoleAssignmentValid(roleAssignment))
     ) {
+      console.log('@@@@', 'got valid role for', roleAssignment.docId)
       return ROLES[roleId]
     } else {
+      console.log('@@@@', 'no valid role for', roleAssignment.docId)
       return ROLES[BLOCKED_ROLE_ID]
     }
   }
@@ -310,54 +316,133 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<boolean>}
    */
   async #isRoleAssignmentValid(roleAssignment) {
-    console.log('@@@@', 'checking if role', roleAssignment.versionId, 'is valid')
-    const { coreDiscoveryKey } = parseVersionId(roleAssignment.versionId)
-    const coreDiscoveryKeyString = coreDiscoveryKey.toString('hex')
+    /** @type {null | RoleAssignment} */
+    let currentRoleAssignment = roleAssignment
 
-    const isAssignedByCreator =
-      coreDiscoveryKeyString === this.#projectCreatorAuthCoreId
-    if (isAssignedByCreator) return true
-
-    const coreThatWroteAssignment =
-      this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-    if (!coreThatWroteAssignment) return false
-    // TODO(evanhahn) Assert that this core is of namespace "auth"
-
-    const coreThatWroteAssignmentId =
-      coreThatWroteAssignment.key.toString('hex')
-    const deviceIdThatWroteAssignment = await this.#coreOwnership.getOwner(
-      coreThatWroteAssignmentId
-    )
-
-    // TODO: Is this wise?
-    if (deviceIdThatWroteAssignment === this.#ownDeviceId) return true
-
-    const grantorRoleAssignment = await this.#getRoleAssignment(
-      deviceIdThatWroteAssignment
-    )
-    if (!grantorRoleAssignment) return false
-
-    if (roleAssignment.fromIndex > grantorRoleAssignment.fromIndex) {
-      const grantorRoleId = grantorRoleAssignment.roleId
-      const grantorRole = isRoleId(grantorRoleId)
-        ? ROLES[grantorRoleId]
-        : ROLES[BLOCKED_ROLE_ID]
-      const isGrantLegitimate = grantorRole.roleAssignment.includes(
-        // @ts-ignore TODO: fix this error (roleAssignment.roleId is a string)
-        roleAssignment.roleId
+    while (currentRoleAssignment) {
+      console.log(
+        '@@@@',
+        'checking role for',
+        currentRoleAssignment.docId,
+        'assignment',
+        currentRoleAssignment.versionId
       )
-      if (isGrantLegitimate) {
-        console.log('@@@@','recursing')
-        return await this.#isRoleAssignmentValid(grantorRoleAssignment)
-      } else {
-        return false
+      const { coreDiscoveryKey: assignerCoreDiscoveryKey } = parseVersionId(
+        currentRoleAssignment.versionId
+      )
+      const assignerCoreDiscoveryKeyString =
+        assignerCoreDiscoveryKey.toString('hex')
+
+      const isAssignedByProjectCreator =
+        assignerCoreDiscoveryKeyString === this.#projectCreatorAuthCoreId
+      if (isAssignedByProjectCreator) {
+        console.log(
+          '@@@@',
+          'role for',
+          currentRoleAssignment.docId,
+          'assignment',
+          currentRoleAssignment.versionId,
+          'was by creator'
+        )
+        return true
       }
-    } else {
-      // TODO
-      return true
+
+      currentRoleAssignment = await this.#findParentRoleAssignment(
+        currentRoleAssignment
+      )
     }
 
     return false
+  }
+
+  /**
+   * TODO(evanhahn) make things readonlydeep?
+   * TODO(evanhahn) tidy comment below
+   *
+   * imagine the following sequence:
+
+1. A invites B as coordinator
+2. B invites C as member
+3. A upgrades B to coordinator
+4. B upgrades C to coordinator
+5. A downgrades B to member
+
+role records:
+
+1. written by A@1, to B@0: coordinator
+2. written by B@1, to C@0: member
+3. written by A@2, to B@1: coordinator
+4. written by B@2, to C@1: coordinator
+5. written by A@3, to B@2: member
+
+algo for validating C:
+
+1. get latest C, which is "written by B@2, to C@1: coordinator"
+2. starting with latest B, go backwards until fromIndex < 2. if not found, false. find "written by A@2, to B@1: coordinator". that was written by the creator so we're done!
+
+algo for validating C (assuming that A was invited by GOD, in an ancient record):
+
+1. get latest C, which is "written by B@2, to C@1: coordinator"
+2. starting with latest B, go backwards until fromIndex < 2. if not found, false. find "written by A@2, to B@1: coordinator"
+3. starting with latest A, go backwards until fromIndex < 2. if not found, false. find record written by god...done!
+   *
+   * @param {RoleAssignment} roleAssignment
+   * @returns {Promise<null | RoleAssignment>}
+   */
+  async #findParentRoleAssignment(roleAssignment) {
+    const {
+      coreDiscoveryKey: assignerCoreDiscoveryKey,
+      index: assignerIndexAtAssignmentTime,
+    } = parseVersionId(roleAssignment.versionId)
+
+    const assignerCore = this.#coreManager.getCoreByDiscoveryKey(
+      assignerCoreDiscoveryKey
+    )
+    if (assignerCore?.namespace !== 'auth') {
+      console.log('@@@@', 'no core found for', roleAssignment.docId)
+      return null
+    }
+
+    const assignerCoreId = assignerCore.key.toString('hex')
+    const assignerDeviceId = await this.#coreOwnership.getOwner(assignerCoreId)
+
+    const latestRoleAssignment = await this.#getRoleAssignment(assignerDeviceId)
+
+    let roleAssignmentToCheck = latestRoleAssignment
+    /** @type {RoleAssignment[]} */ const roleAssignmentsToCheck = []
+    while (roleAssignmentToCheck) {
+      console.log('@@@@', 'looking up parent of', roleAssignmentToCheck.docId)
+      if (roleAssignment.fromIndex < assignerIndexAtAssignmentTime) {
+        return roleAssignmentToCheck
+      }
+
+      // TODO(evanhahn) Maybe this could be made more efficient, because this does
+      // unnecessary lookups.
+      const linkedRoleAssignments = await Promise.all(
+        roleAssignmentToCheck.links.map((linkedVersionId) =>
+          this.#getRoleAssignmentByVersionId(linkedVersionId)
+        )
+      )
+      for (const linkedRoleAssignment of linkedRoleAssignments) {
+        if (linkedRoleAssignment) {
+          console.log(
+            '@@@@',
+            'adding possible parent of',
+            roleAssignmentToCheck.docId,
+            linkedRoleAssignment.versionId
+          )
+          roleAssignmentsToCheck.push(linkedRoleAssignment)
+        }
+      }
+
+      roleAssignmentToCheck = roleAssignmentsToCheck.shift() || null
+    }
+
+    return null
+
+    // while (currentRoleAssignment.fromIndex > assignerIndexAtAssignmentTime) {
+    //   currentRoleAssignment.links
+    // }
   }
 
   /**
@@ -373,6 +458,20 @@ export class Roles extends TypedEmitter {
         return null
       }
       throw err
+    }
+  }
+
+  /**
+   * TODO(evanhahn) This should be removed once <https://github.com/digidem/comapeo-core/pull/959> is merged.
+   * @param {string} versionId
+   * @returns {Promise<null | RoleAssignment>}
+   */
+  async #getRoleAssignmentByVersionId(versionId) {
+    try {
+      return await this.#dataType.getByVersionId(versionId)
+    } catch (_err) {
+      // TODO: Handle only not found errors?
+      return null
     }
   }
 
