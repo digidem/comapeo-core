@@ -41,11 +41,6 @@ test('role validation', async (t) => {
     [kTestOnlyAllowAnyRoleToBeAssigned]: true,
   })
   console.log('@@@@', 'assigned bogus role.')
-  setTimeout(() => {
-    console.log('@@@@', 'in timeout')
-    console.log('@@@@', creatorProject.$sync.getState())
-    console.log('@@@@', memberProject.$sync.getState())
-  }, 3000)
   console.log('@@@@', 'waiting for initial sync...')
   const wssPromise = waitForSync(projects, 'initial')
   console.log('@@@@', 'waiting for initial sync promise started...')

@@ -391,8 +391,12 @@ export class Roles extends TypedEmitter {
         return roleAssignmentToCheck
       }
 
-      if (roleAssignment.fromIndex < assignerIndexAtAssignmentTime) {
-        return roleAssignmentToCheck
+      if (roleAssignmentToCheck.fromIndex < assignerIndexAtAssignmentTime) {
+        const isAssignmentValid = canAssign({
+          assigner: roleAssignmentToCheck,
+          assignee: roleAssignment,
+        })
+        return isAssignmentValid ? roleAssignmentToCheck : null
       }
 
       // TODO(evanhahn) Maybe this could be made more efficient, because this does
