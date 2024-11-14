@@ -16,6 +16,10 @@ export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
 
+// TODO(evanhahn) rename RoleAssignment (etc) to RoleRecord?
+
+const CREATOR_ROLE_ASSIGNMENT = Symbol('creator role assignment')
+
 export const kTestOnlyAllowAnyRoleToBeAssigned = Symbol(
   'test-only: allow any role to be assigned'
 )
@@ -274,122 +278,94 @@ export class Roles extends TypedEmitter {
     console.log('@@@@', 'getting role for', deviceId)
     const roleAssignment = await this.#getRoleAssignment(deviceId)
 
-    if (!roleAssignment) {
-      // The project creator will have the creator role
-      const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
-      if (authCoreId === this.#projectCreatorAuthCoreId) {
-        console.log('@@@@', 'no role for', deviceId, "but they're the creator")
-        return CREATOR_ROLE
-      } else {
-        // When no role assignment exists, e.g. a newly added device which has
-        // not yet synced role records.
-        console.log('@@@@', 'no role for', deviceId)
+    switch (roleAssignment) {
+      case null:
         return NO_ROLE
+      case CREATOR_ROLE_ASSIGNMENT:
+        return CREATOR_ROLE
+      default: {
+        const { roleId } = roleAssignment
+        if (
+          isRoleId(roleId) &&
+          (await this.#isRoleAssignmentChainValid(roleAssignment))
+        ) {
+          return ROLES[roleId]
+        } else {
+          // TODO(evanhahn) It'd be nice to have BLOCKED_ROLE defined
+          return ROLES[BLOCKED_ROLE_ID]
+        }
       }
     }
-
-    return await this.#getRoleFromRoleAssignment(roleAssignment)
   }
 
   /**
-   * TODO(evanhahn) make things readonlydeep?
-   * @param {RoleAssignment} roleAssignment
-   * @returns {Promise<Role>}
+   * @param {string} deviceId
+   * @returns {Promise<null | typeof CREATOR_ROLE_ASSIGNMENT | RoleAssignment>}
    */
-  async #getRoleFromRoleAssignment(roleAssignment) {
-    const { roleId } = roleAssignment
-    if (
-      isRoleId(roleId) &&
-      (await this.#isRoleAssignmentValid(roleAssignment))
-    ) {
-      console.log('@@@@', 'got valid role for', roleAssignment.docId)
-      return ROLES[roleId]
-    } else {
-      console.log('@@@@', 'no valid role for', roleAssignment.docId)
-      return ROLES[BLOCKED_ROLE_ID]
+  async #getRoleAssignment(deviceId) {
+    // TODO(evanhahn) Remove this try/catch once <https://github.com/digidem/comapeo-core/pull/959> is merged.
+    try {
+      return await this.#dataType.getByDocId(deviceId)
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) throw err
     }
+
+    // The project creator will have the creator role
+    const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
+    if (authCoreId === this.#projectCreatorAuthCoreId) {
+      console.log('@@@@', 'no role for', deviceId, "but they're the creator")
+      return CREATOR_ROLE_ASSIGNMENT
+    }
+
+    // When no role assignment exists, e.g. a newly added device which has
+    // not yet synced role records.
+    console.log('@@@@', 'no role for', deviceId)
+    return null
   }
 
   /**
-   * TODO(evanhahn) make things readonlydeep?
-   * @param {RoleAssignment} roleAssignment
+   * @param {ReadonlyDeep<RoleAssignment>} roleAssignment
    * @returns {Promise<boolean>}
    */
-  async #isRoleAssignmentValid(roleAssignment) {
-    /** @type {null | RoleAssignment} */
+  async #isRoleAssignmentChainValid(roleAssignment) {
     let currentRoleAssignment = roleAssignment
 
     while (currentRoleAssignment) {
-      console.log(
-        '@@@@',
-        'checking role for',
-        currentRoleAssignment.docId,
-        'assignment',
-        currentRoleAssignment.versionId
-      )
-      const { coreDiscoveryKey: assignerCoreDiscoveryKey } = parseVersionId(
-        currentRoleAssignment.versionId
-      )
-      const assignerCoreDiscoveryKeyString =
-        assignerCoreDiscoveryKey.toString('hex')
-
-      const isAssignedByProjectCreator =
-        assignerCoreDiscoveryKeyString === this.#projectCreatorAuthCoreId
-      if (isAssignedByProjectCreator) {
-        console.log(
-          '@@@@',
-          'role for',
-          currentRoleAssignment.docId,
-          'assignment',
-          currentRoleAssignment.versionId,
-          'was by creator'
-        )
+      if (this.#isAssignedByProjectCreator(currentRoleAssignment)) {
         return true
       }
 
-      currentRoleAssignment = await this.#findParentRoleAssignment(
+      const parentRoleAssignment = await this.#getParentRoleAssignment(
         currentRoleAssignment
       )
+      switch (parentRoleAssignment) {
+        case null:
+          return false
+        case CREATOR_ROLE_ASSIGNMENT:
+          return true
+        default:
+          if (
+            canAssign({
+              assigner: parentRoleAssignment,
+              assignee: currentRoleAssignment,
+            })
+          ) {
+            currentRoleAssignment = parentRoleAssignment
+          } else {
+            return false
+          }
+          break
+      }
     }
 
     return false
   }
 
   /**
-   * TODO(evanhahn) make things readonlydeep?
-   * TODO(evanhahn) tidy comment below
-   *
-   * imagine the following sequence:
-
-1. A invites B as coordinator
-2. B invites C as member
-3. A upgrades B to coordinator
-4. B upgrades C to coordinator
-5. A downgrades B to member
-
-role records:
-
-1. written by A@1, to B@0: coordinator
-2. written by B@1, to C@0: member
-3. written by A@2, to B@1: coordinator
-4. written by B@2, to C@1: coordinator
-5. written by A@3, to B@2: member
-
-algo for validating C:
-
-1. get latest C, which is "written by B@2, to C@1: coordinator"
-2. starting with latest B, go backwards until fromIndex < 2. if not found, false. find "written by A@2, to B@1: coordinator". that was written by the creator so we're done!
-
-algo for validating C (assuming that A was invited by GOD, in an ancient record):
-
-1. get latest C, which is "written by B@2, to C@1: coordinator"
-2. starting with latest B, go backwards until fromIndex < 2. if not found, false. find "written by A@2, to B@1: coordinator"
-3. starting with latest A, go backwards until fromIndex < 2. if not found, false. find record written by god...done!
-   *
-   * @param {RoleAssignment} roleAssignment
-   * @returns {Promise<null | RoleAssignment>}
+   * @param {ReadonlyDeep<RoleAssignment>} roleAssignment
+   * @returns {Promise<null | typeof CREATOR_ROLE_ASSIGNMENT | RoleAssignment>}
    */
-  async #findParentRoleAssignment(roleAssignment) {
+  async #getParentRoleAssignment(roleAssignment) {
     const {
       coreDiscoveryKey: assignerCoreDiscoveryKey,
       index: assignerIndexAtAssignmentTime,
@@ -411,7 +387,10 @@ algo for validating C (assuming that A was invited by GOD, in an ancient record)
     let roleAssignmentToCheck = latestRoleAssignment
     /** @type {RoleAssignment[]} */ const roleAssignmentsToCheck = []
     while (roleAssignmentToCheck) {
-      console.log('@@@@', 'looking up parent of', roleAssignmentToCheck.docId)
+      if (roleAssignmentToCheck === CREATOR_ROLE_ASSIGNMENT) {
+        return roleAssignmentToCheck
+      }
+
       if (roleAssignment.fromIndex < assignerIndexAtAssignmentTime) {
         return roleAssignmentToCheck
       }
@@ -439,26 +418,17 @@ algo for validating C (assuming that A was invited by GOD, in an ancient record)
     }
 
     return null
-
-    // while (currentRoleAssignment.fromIndex > assignerIndexAtAssignmentTime) {
-    //   currentRoleAssignment.links
-    // }
   }
 
   /**
-   * TODO(evanhahn) This should be removed once <https://github.com/digidem/comapeo-core/pull/959> is merged.
-   * @param {string} deviceId
-   * @returns {Promise<null | RoleAssignment>}
+   * TODO(evanhahn): Reorder this method?
+   * @param {ReadonlyDeep<Pick<RoleAssignment, 'versionId'>>} roleAssignment
+   * @returns {boolean}
    */
-  async #getRoleAssignment(deviceId) {
-    try {
-      return await this.#dataType.getByDocId(deviceId)
-    } catch (err) {
-      if (err instanceof NotFoundError) {
-        return null
-      }
-      throw err
-    }
+  #isAssignedByProjectCreator({ versionId }) {
+    const { coreDiscoveryKey } = parseVersionId(versionId)
+    const coreDiscoveryKeyString = coreDiscoveryKey.toString('hex')
+    return coreDiscoveryKeyString === this.#projectCreatorAuthCoreId
   }
 
   /**
@@ -609,4 +579,24 @@ algo for validating C (assuming that A was invited by GOD, in an ancient record)
       .key.toString('hex')
     return ownAuthCoreId === this.#projectCreatorAuthCoreId
   }
+}
+
+/**
+ * @param {object} options
+ * @param {ReadonlyDeep<Pick<RoleAssignment, 'roleId'>} options.assigner
+ * @param {ReadonlyDeep<Pick<RoleAssignment, 'roleId'>} options.assignee
+ * @returns {boolean}
+ */
+function canAssign({ assigner, assignee }) {
+  // TODO(evanhahn) fix this type error
+  const assigneeRoleId = /** @type {*} */ (assignee.roleId)
+  return roleAssignmentToRole(assigner).roleAssignment.includes(assigneeRoleId)
+}
+
+/**
+ * @param {ReadonlyDeep<Pick<RoleAssignment, 'roleId'>} roleAssignment
+ * @returns {Role}
+ */
+function roleAssignmentToRole({ roleId }) {
+  return ROLES[isRoleId(roleId) ? roleId : BLOCKED_ROLE_ID]
 }
