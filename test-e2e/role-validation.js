@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
   kTestOnlyAllowAnyRoleToBeAssigned,
   MEMBER_ROLE_ID,
@@ -49,7 +50,7 @@ test('role validation', async (t) => {
 
   assert.equal(
     (await creatorProject.$member.getById(member.deviceId)).role.roleId,
-    MEMBER_ROLE_ID,
+    BLOCKED_ROLE_ID,
     "creator is not fooled by member's bogus role assignment"
   )
 
