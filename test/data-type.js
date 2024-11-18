@@ -209,6 +209,14 @@ test('getByDocId() throws if no document exists with that ID', async () => {
   await assert.rejects(() => dataType.getByDocId('foo bar'), NotFoundError)
 })
 
+test('getByDocId() can return null if no document exists with that ID', async () => {
+  const { dataType } = await testenv({ projectKey: randomBytes(32) })
+  assert.equal(
+    await dataType.getByDocId('foo bar', { mustBeFound: false }),
+    null
+  )
+})
+
 test('delete()', async () => {
   const projectKey = randomBytes(32)
   const { dataType } = await testenv({ projectKey })
