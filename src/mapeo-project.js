@@ -56,6 +56,7 @@ import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
+import { NotFoundError } from './errors.js'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
 /** @import { CoreStorage, KeyPair, Namespace, ReplicationStream } from './types.js' */
 
@@ -659,7 +660,7 @@ export class MapeoProject extends TypedEmitter {
     const coreId = this.#coreManager
       .getCoreByDiscoveryKey(coreDiscoveryKey)
       ?.key.toString('hex')
-    if (!coreId) throw new Error('NotFound')
+    if (!coreId) throw new NotFoundError()
     return this.#coreOwnership.getOwner(coreId)
   }
 
@@ -879,7 +880,7 @@ export class MapeoProject extends TypedEmitter {
         const fieldRefs = fieldNames.map((fieldName) => {
           const fieldRef = fieldNameToRef.get(fieldName)
           if (!fieldRef) {
-            throw new Error(
+            throw new NotFoundError(
               `field ${fieldName} not found (referenced by preset ${value.name})})`
             )
           }
@@ -891,7 +892,7 @@ export class MapeoProject extends TypedEmitter {
         }
         const iconRef = iconNameToRef.get(iconName)
         if (!iconRef) {
-          throw new Error(
+          throw new NotFoundError(
             `icon ${iconName} not found (referenced by preset ${value.name})`
           )
         }
@@ -938,7 +939,7 @@ export class MapeoProject extends TypedEmitter {
             })
           )
         } else {
-          throw new Error(
+          throw new NotFoundError(
             `docRef for ${value.docRefType} with name ${name} not found`
           )
         }
