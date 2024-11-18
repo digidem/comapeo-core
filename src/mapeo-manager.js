@@ -51,6 +51,7 @@ import {
   kRequestFullStop,
   kRescindFullStopRequest,
 } from './sync/sync-api.js'
+import { NotFoundError } from './errors.js'
 /** @import { ProjectSettingsValue as ProjectValue } from '@comapeo/schema' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
@@ -456,7 +457,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
 
     if (!projectKeysTableResult) {
-      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
+      throw new NotFoundError(`Project ID ${projectPublicId} not found`)
     }
 
     const { projectId } = projectKeysTableResult
@@ -896,7 +897,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
 
     if (!row) {
-      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
+      throw new NotFoundError(`Project ID ${projectPublicId} not found`)
     }
 
     const { keysCipher, projectId, projectInfo } = row

@@ -56,6 +56,7 @@ import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
+import { NotFoundError } from './errors.js'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
 /** @import { CoreStorage, KeyPair, Namespace, ReplicationStream } from './types.js' */
 
@@ -599,14 +600,9 @@ export class MapeoProject extends TypedEmitter {
   async $setProjectSettings(settings) {
     const { projectSettings } = this.#dataTypes
 
-    // We only want to catch the error to the getByDocId call
-    // Using try/catch for this is a little verbose when dealing with TS types
-    const existing = await projectSettings
-      .getByDocId(this.#projectId)
-      .catch(() => {
-        // project does not exist so return null
-        return null
-      })
+    const existing = await projectSettings.getByDocId(this.#projectId, {
+      mustBeFound: false,
+    })
 
     if (existing) {
       return extractEditableProjectSettings(
@@ -659,7 +655,7 @@ export class MapeoProject extends TypedEmitter {
     const coreId = this.#coreManager
       .getCoreByDiscoveryKey(coreDiscoveryKey)
       ?.key.toString('hex')
-    if (!coreId) throw new Error('NotFound')
+    if (!coreId) throw new NotFoundError()
     return this.#coreOwnership.getOwner(coreId)
   }
 
@@ -714,14 +710,14 @@ export class MapeoProject extends TypedEmitter {
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 
-    let existingDoc
-    try {
-      existingDoc = await deviceInfo.getByDocId(configCoreId)
-    } catch (err) {
+    const existingDoc = await deviceInfo.getByDocId(configCoreId, {
+      mustBeFound: false,
+    })
+    if (existingDoc) {
+      return await deviceInfo.update(existingDoc.versionId, doc)
+    } else {
       return await deviceInfo[kCreateWithDocId](configCoreId, doc)
     }
-
-    return deviceInfo.update(existingDoc.versionId, doc)
   }
 
   /** @param {boolean} isArchiveDevice */
@@ -879,7 +875,7 @@ export class MapeoProject extends TypedEmitter {
         const fieldRefs = fieldNames.map((fieldName) => {
           const fieldRef = fieldNameToRef.get(fieldName)
           if (!fieldRef) {
-            throw new Error(
+            throw new NotFoundError(
               `field ${fieldName} not found (referenced by preset ${value.name})})`
             )
           }
@@ -891,7 +887,7 @@ export class MapeoProject extends TypedEmitter {
         }
         const iconRef = iconNameToRef.get(iconName)
         if (!iconRef) {
-          throw new Error(
+          throw new NotFoundError(
             `icon ${iconName} not found (referenced by preset ${value.name})`
           )
         }
@@ -938,7 +934,7 @@ export class MapeoProject extends TypedEmitter {
             })
           )
         } else {
-          throw new Error(
+          throw new NotFoundError(
             `docRef for ${value.docRefType} with name ${name} not found`
           )
         }

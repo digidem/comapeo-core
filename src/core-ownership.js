@@ -16,6 +16,7 @@ import pDefer from 'p-defer'
 import { NAMESPACES } from './constants.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { omit } from './lib/omit.js'
+import { NotFoundError } from './errors.js'
 /**
  * @import {
  *   CoreOwnershipWithSignatures,
@@ -86,13 +87,10 @@ export class CoreOwnership extends TypedEmitter {
     for (const namespace of NAMESPACES) {
       expressions.push(eq(table[`${namespace}CoreId`], coreId))
     }
-    // prettier-ignore
     const result = (await this.#dataType[kSelect]())
       .where(or.apply(null, expressions))
       .get()
-    if (!result) {
-      throw new Error('NotFound')
-    }
+    if (!result) throw new NotFoundError()
     return result.docId
   }
 

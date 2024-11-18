@@ -87,8 +87,12 @@ export class DataType<
 
   getByDocId(
     docId: string,
-    opts?: { lang?: string }
+    opts?: { mustBeFound?: true; lang?: string }
   ): Promise<TDoc & { forks: string[] }>
+  getByDocId(
+    docId: string,
+    opts?: { mustBeFound?: boolean; lang?: string }
+  ): Promise<null | (TDoc & { forks: string[] })>
 
   getByVersionId(versionId: string, opts?: { lang?: string }): Promise<TDoc>
 

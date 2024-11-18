@@ -5,6 +5,7 @@ import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
 import { NAMESPACE_SCHEMAS } from '../constants.js'
 import { createMap } from '../utils.js'
+import { NotFoundError } from '../errors.js'
 /** @import { MapeoDoc } from '@comapeo/schema' */
 
 /**
@@ -182,7 +183,7 @@ export class DataStore extends TypedEmitter {
     const coreRecord = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
     if (!coreRecord) throw new Error('Invalid versionId')
     const block = await coreRecord.core.get(index, { wait: false })
-    if (!block) throw new Error('Not Found')
+    if (!block) throw new NotFoundError('Not Found')
     return decode(block, { coreDiscoveryKey, index })
   }
 
@@ -202,9 +203,9 @@ export class DataStore extends TypedEmitter {
   async readRaw(versionId) {
     const { coreDiscoveryKey, index } = parseVersionId(versionId)
     const coreRecord = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-    if (!coreRecord) throw new Error('core not found')
+    if (!coreRecord) throw new NotFoundError('core not found')
     const block = await coreRecord.core.get(index, { wait: false })
-    if (!block) throw new Error('Not Found')
+    if (!block) throw new NotFoundError()
     return block
   }
 
