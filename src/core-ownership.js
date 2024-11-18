@@ -86,7 +86,6 @@ export class CoreOwnership extends TypedEmitter {
     for (const namespace of NAMESPACES) {
       expressions.push(eq(table[`${namespace}CoreId`], coreId))
     }
-    // prettier-ignore
     const result = (await this.#dataType[kSelect]())
       .where(or.apply(null, expressions))
       .get()
