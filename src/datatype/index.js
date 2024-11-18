@@ -164,30 +164,16 @@ export class DataType extends TypedEmitter {
   }
 
   /**
-   * @overload
    * @param {string} docId
-   * @param {object} [options]
-   * @param {true} [options.mustBeFound]
-   * @param {string} [options.lang]
-   * @returns {Promise<TDoc & { forks: string[] }>}
+   * @param {{ lang?: string }} [opts]
    */
-  /**
-   * @param {string} docId
-   * @param {object} [options]
-   * @param {boolean} [options.mustBeFound]
-   * @param {string} [options.lang]
-   * @returns {Promise<null | (TDoc & { forks: string[] })>}
-   */
-  async getByDocId(docId, { mustBeFound = true, lang } = {}) {
+  async getByDocId(docId, { lang } = {}) {
     await this.#dataStore.indexer.idle()
-    const result = this.#sql.getByDocId.get({ docId })
-    if (result) {
-      return this.#translate(deNullify(result), { lang })
-    } else if (mustBeFound) {
-      throw new NotFoundError()
-    } else {
-      return null
-    }
+    const result = /** @type {undefined | MapeoDoc} */ (
+      this.#sql.getByDocId.get({ docId })
+    )
+    if (!result) throw new NotFoundError()
+    return this.#translate(deNullify(result), { lang })
   }
 
   /**
@@ -200,7 +186,7 @@ export class DataType extends TypedEmitter {
   }
 
   /**
-   * @param {any} doc
+   * @param {MapeoDoc} doc
    * @param {{ lang?: string }} [opts]
    */
   async #translate(doc, { lang } = {}) {
@@ -292,6 +278,7 @@ export class DataType extends TypedEmitter {
     const doc = {
       ...existingDoc,
       updatedAt: new Date().toISOString(),
+      // @ts-expect-error - TS just doesn't work in this class
       links: [existingDoc.versionId, ...existingDoc.forks],
       deleted: true,
     }
