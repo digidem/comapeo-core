@@ -137,13 +137,7 @@ export class BlobStore extends TypedEmitter {
     const entriesStream = createEntriesStream(this.#driveIndex, { live })
     if (!filter) return entriesStream
     const filterStream = new FilterEntriesStream(filter)
-    const result = pipeline(entriesStream, filterStream, noop)
-    // Destroying the pipeline should destroy the *first* stream, not the
-    // whole pipeline.
-    Object.defineProperty(result, 'destroy', {
-      value: entriesStream.destroy.bind(entriesStream),
-    })
-    return result
+    return pipeline(entriesStream, filterStream, noop)
   }
 
   /**

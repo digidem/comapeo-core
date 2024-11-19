@@ -60,6 +60,7 @@ import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
 import { NotFoundError } from './errors.js'
+import { getErrorCode, getErrorMessage } from './lib/error.js'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
 /** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream } from './types.js' */
 
@@ -435,6 +436,7 @@ export class MapeoProject extends TypedEmitter {
 
     /** @type {Map<string, BlobStoreEntriesStream>} */
     const entriesReadStreams = new Map()
+
     this.#coreManager.on('peer-download-intent', async (filter, peerId) => {
       entriesReadStreams.get(peerId)?.destroy()
 
@@ -444,14 +446,34 @@ export class MapeoProject extends TypedEmitter {
       })
       entriesReadStreams.set(peerId, entriesReadStream)
 
+      entriesReadStream.once('close', () => {
+        if (entriesReadStreams.get(peerId) === entriesReadStream) {
+          entriesReadStreams.delete(peerId)
+        }
+      })
+
       this.#syncApi[kClearBlobWantRanges](peerId)
 
-      for await (const entry of entriesReadStream) {
-        if (entriesReadStream.destroyed) break
-        const { blockOffset, blockLength } = entry.value.blob
-        this.#syncApi[kAddBlobWantRange](peerId, blockOffset, blockLength)
-        if (entriesReadStream.destroyed) break
+      try {
+        for await (const entry of entriesReadStream) {
+          const { blockOffset, blockLength } = entry.value.blob
+          this.#syncApi[kAddBlobWantRange](peerId, blockOffset, blockLength)
+        }
+      } catch (err) {
+        if (getErrorCode(err) === 'ERR_STREAM_PREMATURE_CLOSE') return
+        this.#l.log(
+          'Error getting blob entries stream for peer %h: %s',
+          peerId,
+          getErrorMessage(err)
+        )
       }
+    })
+
+    this.#coreManager.creatorCore.on('peer-remove', (peer) => {
+      const peerKey = peer.protomux.stream.remotePublicKey
+      const peerId = peerKey.toString('hex')
+      entriesReadStreams.get(peerId)?.destroy()
+      entriesReadStreams.delete(peerId)
     })
 
     this.#translationApi = new TranslationApi({
