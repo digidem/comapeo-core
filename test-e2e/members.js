@@ -6,6 +6,7 @@ import { once } from 'node:events'
 import {
   COORDINATOR_ROLE_ID,
   CREATOR_ROLE,
+  CREATOR_ROLE_ID,
   ROLES,
   MEMBER_ROLE_ID,
   NO_ROLE,
@@ -18,6 +19,8 @@ import {
   waitForSync,
 } from './utils.js'
 import { kDataTypes } from '../src/mapeo-project.js'
+/** @import { MapeoProject } from '../src/mapeo-project.js' */
+/** @import { RoleId } from '../src/roles.js' */
 
 test('getting yourself after creating project', async (t) => {
   const [manager] = await createManagers(1, t, 'tablet')
@@ -355,8 +358,8 @@ test('roles - getMany() on newly invited device before sync', async (t) => {
 })
 
 test('roles - assignRole()', async (t) => {
-  const managers = await createManagers(2, t)
-  const [invitor, invitee] = managers
+  const managers = await createManagers(3, t)
+  const [invitor, invitee, invitee2] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
 
@@ -365,7 +368,7 @@ test('roles - assignRole()', async (t) => {
   await invite({
     invitor,
     projectId,
-    invitees: [invitee],
+    invitees: [invitee, invitee2],
     roleId: MEMBER_ROLE_ID,
   })
 
@@ -373,12 +376,39 @@ test('roles - assignRole()', async (t) => {
     managers.map((m) => m.getProject(projectId))
   )
 
-  const [invitorProject, inviteeProject] = projects
+  const [invitorProject, inviteeProject, invitee2Project] = projects
 
-  assert.deepEqual(
-    (await invitorProject.$member.getById(invitee.deviceId)).role,
-    ROLES[MEMBER_ROLE_ID],
+  /**
+   * @param {MapeoProject} project
+   * @param {string} otherDeviceId
+   * @param {RoleId} expectedRoleId
+   * @param {string} message
+   * @returns {Promise<void>}
+   */
+  const assertRole = async (
+    project,
+    otherDeviceId,
+    expectedRoleId,
+    message
+  ) => {
+    assert.equal(
+      (await project.$member.getById(otherDeviceId)).role.roleId,
+      expectedRoleId,
+      message
+    )
+  }
+
+  await assertRole(
+    invitorProject,
+    invitee.deviceId,
+    MEMBER_ROLE_ID,
     'invitee has member role from invitor perspective'
+  )
+  await assertRole(
+    invitorProject,
+    invitee2.deviceId,
+    MEMBER_ROLE_ID,
+    'invitee 2 has member role from invitor perspective'
   )
 
   assert.deepEqual(
@@ -410,9 +440,10 @@ test('roles - assignRole()', async (t) => {
 
     await waitForSync(projects, 'initial')
 
-    assert.deepEqual(
-      (await invitorProject.$member.getById(invitee.deviceId)).role,
-      ROLES[COORDINATOR_ROLE_ID],
+    await assertRole(
+      invitorProject,
+      invitee.deviceId,
+      COORDINATOR_ROLE_ID,
       'invitee now has coordinator role from invitor perspective'
     )
 
@@ -447,9 +478,10 @@ test('roles - assignRole()', async (t) => {
 
     await waitForSync(projects, 'initial')
 
-    assert.deepEqual(
-      (await invitorProject.$member.getById(invitee.deviceId)).role,
-      ROLES[MEMBER_ROLE_ID],
+    await assertRole(
+      invitorProject,
+      invitee.deviceId,
+      MEMBER_ROLE_ID,
       'invitee now has member role from invitor perspective'
     )
 
@@ -459,6 +491,84 @@ test('roles - assignRole()', async (t) => {
       'invitee now has member role from invitee perspective'
     )
   })
+
+  await t.test(
+    'regular members cannot assign roles to coordinator',
+    async () => {
+      await Promise.all(
+        [invitorProject, inviteeProject, invitee2Project].flatMap((project) => [
+          assertRole(
+            project,
+            invitee.deviceId,
+            MEMBER_ROLE_ID,
+            'test setup: everyone believes invitee 1 is a regular member'
+          ),
+          assertRole(
+            project,
+            invitee2.deviceId,
+            MEMBER_ROLE_ID,
+            'test setup: everyone believes invitee 2 is a regular member'
+          ),
+        ])
+      )
+
+      await assert.rejects(() =>
+        inviteeProject.$member.assignRole(invitee.deviceId, COORDINATOR_ROLE_ID)
+      )
+      await assert.rejects(() =>
+        inviteeProject.$member.assignRole(
+          invitee2.deviceId,
+          COORDINATOR_ROLE_ID
+        )
+      )
+
+      await waitForSync(projects, 'initial')
+
+      await Promise.all(
+        [invitorProject, inviteeProject, invitee2Project].flatMap((project) => [
+          assertRole(
+            project,
+            invitee.deviceId,
+            MEMBER_ROLE_ID,
+            'everyone believes invitee 1 is a regular member, even after attempting to assign higher role'
+          ),
+          assertRole(
+            project,
+            invitee2.deviceId,
+            MEMBER_ROLE_ID,
+            'everyone believes invitee 2 is a regular member, even after attempting to assign higher role'
+          ),
+        ])
+      )
+    }
+  )
+
+  await t.test(
+    'non-creator members cannot change roles of creator',
+    async () => {
+      await invitorProject.$member.assignRole(
+        invitee.deviceId,
+        COORDINATOR_ROLE_ID
+      )
+      await waitForSync(projects, 'initial')
+
+      await assert.rejects(() =>
+        inviteeProject.$member.assignRole(invitor.deviceId, COORDINATOR_ROLE_ID)
+      )
+
+      await waitForSync(projects, 'initial')
+      await Promise.all(
+        [invitorProject, inviteeProject, invitee2Project].map((project) =>
+          assertRole(
+            project,
+            invitor.deviceId,
+            CREATOR_ROLE_ID,
+            'everyone still believes creator to be a creator'
+          )
+        )
+      )
+    }
+  )
 })
 
 test('roles - assignRole() with forked role', async (t) => {

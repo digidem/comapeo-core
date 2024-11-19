@@ -114,6 +114,15 @@ test('private createWithDocId() method throws when doc exists', async () => {
   )
 })
 
+test('getByVersionId fetches docs by their version ID', async () => {
+  const { dataType } = await testenv()
+
+  const created = await dataType.create(obsFixture)
+  const fetched = await dataType.getByVersionId(created.versionId)
+
+  assert.equal(created.docId, fetched.docId)
+})
+
 test('`originalVersionId` field', async () => {
   const { dataType, dataStore } = await testenv()
 
@@ -198,6 +207,14 @@ test('validity of `originalVersionId` from another peer', async () => {
 test('getByDocId() throws if no document exists with that ID', async () => {
   const { dataType } = await testenv({ projectKey: randomBytes(32) })
   await assert.rejects(() => dataType.getByDocId('foo bar'), NotFoundError)
+})
+
+test('getByDocId() can return null if no document exists with that ID', async () => {
+  const { dataType } = await testenv({ projectKey: randomBytes(32) })
+  assert.equal(
+    await dataType.getByDocId('foo bar', { mustBeFound: false }),
+    null
+  )
 })
 
 test('delete()', async () => {
