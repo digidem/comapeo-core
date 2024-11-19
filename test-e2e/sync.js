@@ -997,6 +997,12 @@ test('Correct sync state prior to data sync', async function (t) {
     managers.map((m) => m.getProject(projectId))
   )
 
+  for (const project of projects) {
+    const { remoteDeviceSyncState } = project.$sync.getState()
+    const otherDeviceCount = Object.keys(remoteDeviceSyncState).length
+    assert.equal(otherDeviceCount, COUNT - 1)
+  }
+
   const generated = await seedDatabases(projects, { schemas: ['observation'] })
   await waitForSync(projects, 'initial')
 
