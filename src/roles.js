@@ -329,11 +329,6 @@ export class Roles extends TypedEmitter {
     let currentMembershipRecord = membershipRecord
 
     while (currentMembershipRecord) {
-      // TODO(evanhahn): This may be unnecessary?
-      if (this.#isAssignedByProjectCreator(currentMembershipRecord)) {
-        return true
-      }
-
       const parentMembershipRecord = await this.#getParentMembershipRecord(
         currentMembershipRecord
       )
@@ -361,16 +356,6 @@ export class Roles extends TypedEmitter {
   }
 
   /**
-   * @param {ReadonlyDeep<Pick<MembershipRecord, 'versionId'>>} membershipRecord
-   * @returns {boolean}
-   */
-  #isAssignedByProjectCreator({ versionId }) {
-    const { coreDiscoveryKey } = parseVersionId(versionId)
-    const coreDiscoveryKeyString = coreDiscoveryKey.toString('hex')
-    return coreDiscoveryKeyString === this.#projectCreatorAuthCoreId
-  }
-
-  /**
    * @param {ReadonlyDeep<MembershipRecord>} membershipRecord
    * @returns {Promise<null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>}
    */
@@ -379,6 +364,11 @@ export class Roles extends TypedEmitter {
       coreDiscoveryKey: assignerCoreDiscoveryKey,
       index: assignerIndexAtAssignmentTime,
     } = parseVersionId(membershipRecord.versionId)
+
+    const isAssignedByProjectCreator =
+      assignerCoreDiscoveryKey.toString('hex') ===
+      this.#projectCreatorAuthCoreId
+    if (isAssignedByProjectCreator) return CREATOR_MEMBERSHIP_RECORD
 
     const assignerCore = this.#coreManager.getCoreByDiscoveryKey(
       assignerCoreDiscoveryKey
