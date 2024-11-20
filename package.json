@@ -166,6 +166,7 @@
     "@mapeo/crypto": "1.0.0-alpha.10",
     "@mapeo/sqlite-indexer": "1.0.0-alpha.9",
     "@sinclair/typebox": "^0.29.6",
+    "@sindresorhus/merge-streams": "^4.0.0",
     "b4a": "^1.6.3",
     "bcp-47": "^2.1.0",
     "better-sqlite3": "^8.7.0",
@@ -203,6 +204,7 @@
     "tiny-typed-emitter": "^2.1.0",
     "type-fest": "^4.5.0",
     "undici": "^6.13.0",
+    "unix-path-resolve": "^1.0.2",
     "varint": "^6.0.0",
     "ws": "^8.18.0",
     "yauzl-promise": "^4.0.0"
