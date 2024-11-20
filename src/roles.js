@@ -1,9 +1,13 @@
-import { currentSchemaVersions } from '@comapeo/schema'
+import { currentSchemaVersions, parseVersionId } from '@comapeo/schema'
 import mapObject from 'map-obj'
+import pReduce from 'p-reduce'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
 import { nullIfNotFound } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { setIsSubsetOf } from './lib/ponyfills.js'
+/** @import { Role as MembershipRecord } from '@comapeo/schema' */
+/** @import { ReadonlyDeep } from 'type-fest' */
 /** @import { Namespace } from './types.js' */
 
 // Randomly generated 8-byte encoded as hex
@@ -13,6 +17,8 @@ export const MEMBER_ROLE_ID = '012fd2d431c0bf60'
 export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
+
+const CREATOR_MEMBERSHIP_RECORD = Symbol('creator role assignment')
 
 /**
  * @typedef {T extends Iterable<infer U> ? U : never} ElementOf
@@ -127,11 +133,11 @@ const BLOCKED_ROLE = {
 }
 
 /**
- * This is the role assumed for a device when no role record can be found. This
+ * This is the role assumed for a device when no membership record can be found. This
  * can happen when an invited device did not manage to sync with the device that
  * invited them, and they then try to sync with someone else. We want them to be
  * able to sync the auth and config store, because that way they may be able to
- * receive their role record, and they can get the project config so that they
+ * receive their membership record, and they can get the project config so that they
  * can start collecting data.
  *
  * @type {Role<typeof NO_ROLE_ID>}
@@ -223,7 +229,7 @@ export const ROLES = {
 
 /**
  * @typedef {object} RolesEvents
- * @property {(docIds: Set<string>) => void} update Emitted when new role records are indexed
+ * @property {(docIds: Set<string>) => void} update Emitted when new membership records are indexed
  */
 
 /**
@@ -270,31 +276,156 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
-    const roleRecord = await this.#dataType
-      .getByDocId(deviceId)
-      .catch(nullIfNotFound)
-    if (!roleRecord) {
-      // The project creator will have the creator role
-      const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
-      if (authCoreId === this.#projectCreatorAuthCoreId) {
-        return CREATOR_ROLE
-      } else {
-        // When no role assignment exists, e.g. a newly added device which has
-        // not yet synced role records.
+    const membershipRecord = await this.#getMembershipRecord(deviceId)
+
+    switch (membershipRecord) {
+      case null:
         return NO_ROLE
+      case CREATOR_MEMBERSHIP_RECORD:
+        return CREATOR_ROLE
+      default: {
+        const { roleId } = membershipRecord
+        if (
+          isRoleId(roleId) &&
+          (await this.#isRoleChainValid(membershipRecord))
+        ) {
+          return ROLES[roleId]
+        } else {
+          return BLOCKED_ROLE
+        }
       }
     }
+  }
 
-    const { roleId } = roleRecord
-    if (!isRoleId(roleId)) {
-      return BLOCKED_ROLE
+  /**
+   * @param {string} deviceId
+   * @returns {Promise<null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>}
+   */
+  async #getMembershipRecord(deviceId) {
+    const result = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(nullIfNotFound)
+    if (result) return result
+
+    // The project creator will have the creator role
+    const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
+    if (authCoreId === this.#projectCreatorAuthCoreId) {
+      return CREATOR_MEMBERSHIP_RECORD
     }
-    return ROLES[roleId]
+
+    // When no role assignment exists, e.g. a newly added device which has
+    // not yet synced membership records.
+    return null
+  }
+
+  /**
+   * @param {ReadonlyDeep<MembershipRecord>} membershipRecord
+   * @returns {Promise<boolean>}
+   */
+  async #isRoleChainValid(membershipRecord) {
+    if (membershipRecord.roleId === LEFT_ROLE_ID) return true
+
+    /** @type {null | ReadonlyDeep<MembershipRecord>} */
+    let currentMembershipRecord = membershipRecord
+
+    while (currentMembershipRecord) {
+      const parentMembershipRecord = await this.#getParentMembershipRecord(
+        currentMembershipRecord
+      )
+      switch (parentMembershipRecord) {
+        case null:
+          break
+        case CREATOR_MEMBERSHIP_RECORD:
+          return true
+        default:
+          if (
+            !canAssign({
+              assigner: parentMembershipRecord,
+              assignee: currentMembershipRecord,
+            })
+          ) {
+            return false
+          }
+          break
+      }
+
+      currentMembershipRecord = parentMembershipRecord
+    }
+
+    return false
+  }
+
+  /**
+   * @param {ReadonlyDeep<MembershipRecord>} membershipRecord
+   * @returns {Promise<null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>}
+   */
+  async #getParentMembershipRecord(membershipRecord) {
+    const {
+      coreDiscoveryKey: assignerCoreDiscoveryKey,
+      index: assignerIndexAtAssignmentTime,
+    } = parseVersionId(membershipRecord.versionId)
+
+    const isAssignedByProjectCreator =
+      assignerCoreDiscoveryKey.toString('hex') ===
+      this.#projectCreatorAuthCoreId
+    if (isAssignedByProjectCreator) return CREATOR_MEMBERSHIP_RECORD
+
+    const assignerCore = this.#coreManager.getCoreByDiscoveryKey(
+      assignerCoreDiscoveryKey
+    )
+    if (assignerCore?.namespace !== 'auth') return null
+
+    const assignerCoreId = assignerCore.key.toString('hex')
+    const assignerDeviceId = await this.#coreOwnership
+      .getOwner(assignerCoreId)
+      .catch(() => null)
+    if (!assignerDeviceId) return null
+
+    const latestMembershipRecord = await this.#getMembershipRecord(
+      assignerDeviceId
+    )
+
+    /** @type {null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord} */
+    let membershipRecordToCheck = latestMembershipRecord
+    while (membershipRecordToCheck) {
+      if (
+        membershipRecordToCheck === CREATOR_MEMBERSHIP_RECORD ||
+        (membershipRecordToCheck.fromIndex <= assignerIndexAtAssignmentTime &&
+          membershipRecordToCheck.versionId !== membershipRecord.versionId)
+      ) {
+        return membershipRecordToCheck
+      }
+
+      membershipRecordToCheck = await pReduce(
+        membershipRecord.links,
+        /**
+         * @param {null | Readonly<MembershipRecord>} result
+         * @param {string} linkedVersionId
+         * @returns {Promise<null | MembershipRecord>}
+         */
+        async (result, linkedVersionId) => {
+          const linkedMembershipRecord = await this.#dataType
+            .getByVersionId(linkedVersionId)
+            .catch(nullIfNotFound)
+          if (linkedMembershipRecord && result) {
+            return chooseLeastPermissiveMembershipRecord(
+              result,
+              linkedMembershipRecord
+            )
+          } else {
+            return linkedMembershipRecord || result
+          }
+        },
+        null
+      )
+    }
+
+    return null
   }
 
   /**
    * Get roles of all devices in the project. For your own device, if you have
-   * not yet synced your own role record, the "no role" capabilties is
+   * not yet synced your own membership record, the "no role" capabilties is
    * returned. The project creator will have the creator role unless a
    * different one has been assigned.
    *
@@ -346,8 +477,14 @@ export class Roles extends TypedEmitter {
    *
    * @param {string} deviceId
    * @param {RoleIdAssignableToAnyone} roleId
+   * @param {object} [options]
+   * @param {boolean} [options.__testOnlyAllowAnyRoleToBeAssigned]
    */
-  async assignRole(deviceId, roleId) {
+  async assignRole(
+    deviceId,
+    roleId,
+    { __testOnlyAllowAnyRoleToBeAssigned = false } = {}
+  ) {
     assert(
       isRoleIdAssignableToAnyone(roleId),
       `Role ID should be assignable to anyone but got ${roleId}`
@@ -370,7 +507,11 @@ export class Roles extends TypedEmitter {
     }
     const isAssigningProjectCreatorRole =
       authCoreId === this.#projectCreatorAuthCoreId
-    if (isAssigningProjectCreatorRole && !this.#isProjectCreator()) {
+    if (
+      isAssigningProjectCreatorRole &&
+      !this.#isProjectCreator() &&
+      !__testOnlyAllowAnyRoleToBeAssigned
+    ) {
       throw new Error(
         "Only the project creator can assign the project creator's role"
       )
@@ -382,7 +523,10 @@ export class Roles extends TypedEmitter {
       }
     } else {
       const ownRole = await this.getRole(this.#ownDeviceId)
-      if (!ownRole.roleAssignment.includes(roleId)) {
+      if (
+        !ownRole.roleAssignment.includes(roleId) &&
+        !__testOnlyAllowAnyRoleToBeAssigned
+      ) {
         throw new Error('Lacks permission to assign role ' + roleId)
       }
     }
@@ -415,4 +559,51 @@ export class Roles extends TypedEmitter {
       .key.toString('hex')
     return ownAuthCoreId === this.#projectCreatorAuthCoreId
   }
+}
+
+/**
+ * @param {object} options
+ * @param {ReadonlyDeep<Pick<MembershipRecord, 'roleId'>>} options.assigner
+ * @param {ReadonlyDeep<Pick<MembershipRecord, 'roleId'>>} options.assignee
+ * @returns {boolean}
+ */
+function canAssign({ assigner, assignee }) {
+  return (
+    isRoleIdAssignableToOthers(assignee.roleId) &&
+    membershipRecordToRole(assigner).roleAssignment.includes(assignee.roleId)
+  )
+}
+
+/**
+ * @param {ReadonlyDeep<Pick<MembershipRecord, 'roleId'>>} membershipRecord
+ * @returns {Role}
+ */
+function membershipRecordToRole({ roleId }) {
+  return isRoleId(roleId) ? ROLES[roleId] : BLOCKED_ROLE
+}
+
+/**
+ * @param {MembershipRecord} a
+ * @param {MembershipRecord} b
+ * @returns {MembershipRecord}
+ */
+function chooseLeastPermissiveMembershipRecord(a, b) {
+  const aRoleAssignments = new Set(membershipRecordToRole(a).roleAssignment)
+  const bRoleAssignments = new Set(membershipRecordToRole(b).roleAssignment)
+  if (setIsSmallerSubsetOf(aRoleAssignments, bRoleAssignments)) return a
+  if (setIsSmallerSubsetOf(bRoleAssignments, aRoleAssignments)) return b
+
+  if (a.updatedAt > b.updatedAt) return a
+  if (b.updatedAt > a.updatedAt) return b
+
+  return a.versionId > b.versionId ? a : b
+}
+
+/**
+ * @param {ReadonlySet<unknown>} me
+ * @param {ReadonlySet<unknown>} other
+ * @returns {boolean}
+ */
+function setIsSmallerSubsetOf(me, other) {
+  return setIsSubsetOf(me, other) && me.size < other.size
 }

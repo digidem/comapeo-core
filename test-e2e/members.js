@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto'
 import { once } from 'node:events'
 
 import {
+  BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
   CREATOR_ROLE,
   CREATOR_ROLE_ID,
@@ -258,6 +259,59 @@ test('roles - creator role and role assignment', async (t) => {
     member.role,
     ROLES[MEMBER_ROLE_ID],
     'Can assign role to device'
+  )
+})
+
+test('role validation', async (t) => {
+  const managers = await createManagers(2, t)
+  const [creator, member] = managers
+
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await creator.createProject({ name: 'role test' })
+  await invite({
+    projectId,
+    invitor: creator,
+    invitees: [member],
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((manager) => manager.getProject(projectId))
+  )
+  const [creatorProject, memberProject] = projects
+  await waitForSync(projects, 'initial')
+
+  assert.equal(
+    (await creatorProject.$member.getById(member.deviceId)).role.roleId,
+    MEMBER_ROLE_ID,
+    'test setup: creator sees correct role for member'
+  )
+
+  await memberProject.$member.assignRole(member.deviceId, COORDINATOR_ROLE_ID, {
+    __testOnlyAllowAnyRoleToBeAssigned: true,
+  })
+  await waitForSync(projects, 'initial')
+
+  assert.equal(
+    (await creatorProject.$member.getById(member.deviceId)).role.roleId,
+    BLOCKED_ROLE_ID,
+    "creator sees member's bogus role assignment, and blocks them"
+  )
+
+  await creatorProject.$member.assignRole(member.deviceId, COORDINATOR_ROLE_ID)
+  assert.equal(
+    (await creatorProject.$member.getById(member.deviceId)).role.roleId,
+    COORDINATOR_ROLE_ID,
+    "creator can update the member's role"
+  )
+
+  await creatorProject.$member.assignRole(member.deviceId, MEMBER_ROLE_ID)
+  assert.equal(
+    (await creatorProject.$member.getById(member.deviceId)).role.roleId,
+    MEMBER_ROLE_ID,
+    "creator can update the member's role again"
   )
 })
 

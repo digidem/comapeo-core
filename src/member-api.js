@@ -496,10 +496,12 @@ export class MemberApi extends TypedEmitter {
   /**
    * @param {string} deviceId
    * @param {import('./roles.js').RoleIdAssignableToOthers} roleId
+   * @param {object} [options]
+   * @param {boolean} [options.__testOnlyAllowAnyRoleToBeAssigned]
    * @returns {Promise<void>}
    */
-  async assignRole(deviceId, roleId) {
-    return this.#roles.assignRole(deviceId, roleId)
+  async assignRole(deviceId, roleId, options) {
+    return this.#roles.assignRole(deviceId, roleId, options)
   }
 }
 

@@ -23,3 +23,19 @@ export function abortSignalAny(iterable) {
 
   return controller.signal
 }
+
+/**
+ * Ponyfill of `Set.prototype.isSubsetOf()`.
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set/isSubsetOf
+ *
+ * @param {ReadonlySet<unknown>} me
+ * @param {ReadonlySet<unknown>} other
+ * @returns {boolean}
+ */
+export function setIsSubsetOf(me, other) {
+  for (const value of me) {
+    if (!other.has(value)) return false
+  }
+  return true
+}
