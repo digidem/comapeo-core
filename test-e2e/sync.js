@@ -187,6 +187,7 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
   const fastifyController = new FastifyController({ fastify })
   t.after(() => fastifyController.stop())
   const invitee = createManager('invitee', t, { fastify })
+
   invitee.setIsArchiveDevice(false)
 
   const managers = [invitee, invitor]
@@ -209,6 +210,9 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
   const [invitorProject, inviteeProject] = projects
 
   const fixturesPath = new URL('../test/fixtures/', import.meta.url)
+
+  // Test that only previews and thumbnails sync to non-archive devices
+
   const imagesFixturesPath = new URL('images/', fixturesPath)
   const photoFixturePaths = {
     original: new URL('02-digidem-logo.jpg', imagesFixturesPath).pathname,
@@ -233,12 +237,10 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
   invitorProject.$sync.start()
   inviteeProject.$sync.start()
 
-  // TODO: We should replace this with `await waitForSync(projects, 'full')` once
-  // the following issues are merged:
-  //
-  // - <https://github.com/digidem/comapeo-core/issues/682>
-  // - <https://github.com/digidem/comapeo-core/issues/905>
-  await delay(2000)
+  await waitForSync(projects, 'full')
+
+  inviteeProject.$sync.stop()
+  inviteeProject.$sync.stop()
 
   /**
    * @param {BlobId} blobId
@@ -275,6 +277,46 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
     ),
     assertLoads(
       { ...photoBlob, type: 'photo', variant: 'thumbnail' },
+      photoFixturePaths.thumbnail
+    ),
+  ])
+
+  // Devices can become archives again and get all the data
+
+  invitee.setIsArchiveDevice(true)
+
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+
+  await waitForSync(projects, 'full')
+
+  await Promise.all([
+    assertLoads(
+      { ...photoBlob, variant: 'original' },
+      photoFixturePaths.original
+    ),
+    assertLoads({ ...audioBlob, variant: 'original' }, audioFixturePath),
+  ])
+
+  // Devices can toggle whether they're an archive device while sync is running
+
+  invitee.setIsArchiveDevice(false)
+
+  const photoBlob2 = await invitorProject.$blobs.create(
+    photoFixturePaths,
+    blobMetadata({ mimeType: 'image/jpeg' })
+  )
+
+  await waitForSync(projects, 'full')
+
+  await Promise.all([
+    assert404({ ...photoBlob2, variant: 'original' }),
+    assertLoads(
+      { ...photoBlob2, type: 'photo', variant: 'preview' },
+      photoFixturePaths.preview
+    ),
+    assertLoads(
+      { ...photoBlob2, type: 'photo', variant: 'thumbnail' },
       photoFixturePaths.thumbnail
     ),
   ])

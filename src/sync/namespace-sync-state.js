@@ -137,6 +137,28 @@ export class NamespaceSyncState {
   }
 
   /**
+   * @param {string} peerId
+   * @param {number} start
+   * @param {number} length
+   * @returns {void}
+   */
+  addWantRange(peerId, start, length) {
+    for (const coreState of this.#coreStates.values()) {
+      coreState.addWantRange(peerId, start, length)
+    }
+  }
+
+  /**
+   * @param {string} peerId
+   * @returns {void}
+   */
+  clearWantRanges(peerId) {
+    for (const coreState of this.#coreStates.values()) {
+      coreState.clearWantRanges(peerId)
+    }
+  }
+
+  /**
    * @param {string} discoveryId
    */
   #getCoreState(discoveryId) {
