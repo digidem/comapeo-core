@@ -1,9 +1,11 @@
 import { currentSchemaVersions, parseVersionId } from '@comapeo/schema'
 import mapObject from 'map-obj'
+import pReduce from 'p-reduce'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
 import { nullIfNotFound } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { setIsSubsetOf } from './lib/ponyfills.js'
 /** @import { Role as MembershipRecord } from '@comapeo/schema' */
 /** @import { ReadonlyDeep } from 'type-fest' */
 /** @import { Namespace } from './types.js' */
@@ -393,8 +395,8 @@ export class Roles extends TypedEmitter {
       assignerDeviceId
     )
 
+    /** @type {null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord} */
     let membershipRecordToCheck = latestMembershipRecord
-    /** @type {MembershipRecord[]} */ const membershipRecordsToCheck = []
     while (membershipRecordToCheck) {
       if (
         membershipRecordToCheck === CREATOR_MEMBERSHIP_RECORD ||
@@ -404,19 +406,28 @@ export class Roles extends TypedEmitter {
         return membershipRecordToCheck
       }
 
-      const linkedMembershipRecords = await Promise.all(
-        membershipRecordToCheck.links.map((linkedVersionId) =>
-          this.#dataType.getByVersionId(linkedVersionId).catch(nullIfNotFound)
-        )
+      membershipRecordToCheck = await pReduce(
+        membershipRecord.links,
+        /**
+         * @param {null | Readonly<MembershipRecord>} result
+         * @param {string} linkedVersionId
+         * @returns {Promise<null | MembershipRecord>}
+         */
+        async (result, linkedVersionId) => {
+          const linkedMembershipRecord = await this.#dataType
+            .getByVersionId(linkedVersionId)
+            .catch(nullIfNotFound)
+          if (linkedMembershipRecord && result) {
+            return chooseLeastPermissiveMembershipRecord(
+              result,
+              linkedMembershipRecord
+            )
+          } else {
+            return linkedMembershipRecord || result
+          }
+        },
+        null
       )
-      // TODO(evanhahn): rather than this, just find the least permissive one (if possible; then updatedAt, then versionId)
-      for (const linkedMembershipRecord of linkedMembershipRecords) {
-        if (linkedMembershipRecord) {
-          membershipRecordsToCheck.push(linkedMembershipRecord)
-        }
-      }
-
-      membershipRecordToCheck = membershipRecordsToCheck.shift() || null
     }
 
     return null
@@ -579,4 +590,30 @@ function canAssign({ assigner, assignee }) {
  */
 function membershipRecordToRole({ roleId }) {
   return isRoleId(roleId) ? ROLES[roleId] : BLOCKED_ROLE
+}
+
+/**
+ * @param {MembershipRecord} a
+ * @param {MembershipRecord} b
+ * @returns {MembershipRecord}
+ */
+function chooseLeastPermissiveMembershipRecord(a, b) {
+  const aRoleAssignments = new Set(membershipRecordToRole(a).roleAssignment)
+  const bRoleAssignments = new Set(membershipRecordToRole(b).roleAssignment)
+  if (setIsSmallerSubsetOf(aRoleAssignments, bRoleAssignments)) return a
+  if (setIsSmallerSubsetOf(bRoleAssignments, aRoleAssignments)) return b
+
+  if (a.updatedAt > b.updatedAt) return a
+  if (b.updatedAt > a.updatedAt) return b
+
+  return a.versionId > b.versionId ? a : b
+}
+
+/**
+ * @param {ReadonlySet<unknown>} me
+ * @param {ReadonlySet<unknown>} other
+ * @returns {boolean}
+ */
+function setIsSmallerSubsetOf(me, other) {
+  return setIsSubsetOf(me, other) && me.size < other.size
 }
