@@ -49,17 +49,20 @@ import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
 import {
   SyncApi,
+  kAddBlobWantRange,
+  kClearBlobWantRanges,
   kHandleDiscoveryKey,
+  kSetBlobDownloadFilter,
   kWaitForInitialSyncWithPeer,
 } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
-import { NotFoundError } from './errors.js'
-import { getByDocIdIfExists } from './datatype/get-if-exists.js'
+import { NotFoundError, nullIfNotFound } from './errors.js'
+import { getErrorCode, getErrorMessage } from './lib/error.js'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
-/** @import { CoreStorage, KeyPair, Namespace, ReplicationStream } from './types.js' */
+/** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream } from './types.js' */
 
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
@@ -78,6 +81,13 @@ export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
+
+/** @type {import('./types.js').BlobFilter} */
+const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
+  photo: ['preview', 'thumbnail'],
+  // Don't download any audio of video files, since previews and
+  // thumbnails aren't supported yet.
+}
 
 /**
  * @extends {TypedEmitter<{ close: () => void }>}
@@ -147,6 +157,8 @@ export class MapeoProject extends TypedEmitter {
     this.#isArchiveDevice = isArchiveDevice
 
     const getReplicationStream = this[kProjectReplicate].bind(this, true)
+
+    const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
 
     ///////// 1. Setup database
 
@@ -364,6 +376,13 @@ export class MapeoProject extends TypedEmitter {
 
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
+      downloadFilter: blobDownloadFilter,
+    })
+
+    this.#blobStore.on('error', (err) => {
+      // TODO: Handle this error in some way - this error will come from an
+      // unexpected error with background blob downloads
+      console.error('BlobStore error', err)
     })
 
     this.$blobs = new BlobApi({
@@ -393,7 +412,7 @@ export class MapeoProject extends TypedEmitter {
       coreManager: this.#coreManager,
       coreOwnership: this.#coreOwnership,
       roles: this.#roles,
-      blobDownloadFilter: null,
+      blobDownloadFilter,
       logger: this.#l,
       getServerWebsocketUrls: async () => {
         const members = await this.#memberApi.getMany()
@@ -413,6 +432,48 @@ export class MapeoProject extends TypedEmitter {
         return serverWebsocketUrls
       },
       getReplicationStream,
+    })
+
+    /** @type {Map<string, BlobStoreEntriesStream>} */
+    const entriesReadStreams = new Map()
+
+    this.#coreManager.on('peer-download-intent', async (filter, peerId) => {
+      entriesReadStreams.get(peerId)?.destroy()
+
+      const entriesReadStream = this.#blobStore.createEntriesReadStream({
+        live: true,
+        filter,
+      })
+      entriesReadStreams.set(peerId, entriesReadStream)
+
+      entriesReadStream.once('close', () => {
+        if (entriesReadStreams.get(peerId) === entriesReadStream) {
+          entriesReadStreams.delete(peerId)
+        }
+      })
+
+      this.#syncApi[kClearBlobWantRanges](peerId)
+
+      try {
+        for await (const entry of entriesReadStream) {
+          const { blockOffset, blockLength } = entry.value.blob
+          this.#syncApi[kAddBlobWantRange](peerId, blockOffset, blockLength)
+        }
+      } catch (err) {
+        if (getErrorCode(err) === 'ERR_STREAM_PREMATURE_CLOSE') return
+        this.#l.log(
+          'Error getting blob entries stream for peer %h: %s',
+          peerId,
+          getErrorMessage(err)
+        )
+      }
+    })
+
+    this.#coreManager.creatorCore.on('peer-remove', (peer) => {
+      const peerKey = peer.protomux.stream.remotePublicKey
+      const peerId = peerKey.toString('hex')
+      entriesReadStreams.get(peerId)?.destroy()
+      entriesReadStreams.delete(peerId)
     })
 
     this.#translationApi = new TranslationApi({
@@ -508,6 +569,7 @@ export class MapeoProject extends TypedEmitter {
    */
   async close() {
     this.#l.log('closing project %h', this.#projectId)
+    this.#blobStore.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())
@@ -601,7 +663,9 @@ export class MapeoProject extends TypedEmitter {
   async $setProjectSettings(settings) {
     const { projectSettings } = this.#dataTypes
 
-    const existing = await getByDocIdIfExists(projectSettings, this.#projectId)
+    const existing = await projectSettings
+      .getByDocId(this.#projectId)
+      .catch(nullIfNotFound)
 
     if (existing) {
       return extractEditableProjectSettings(
@@ -709,7 +773,9 @@ export class MapeoProject extends TypedEmitter {
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 
-    const existingDoc = await getByDocIdIfExists(deviceInfo, configCoreId)
+    const existingDoc = await deviceInfo
+      .getByDocId(configCoreId)
+      .catch(nullIfNotFound)
     if (existingDoc) {
       return await deviceInfo.update(existingDoc.versionId, doc)
     } else {
@@ -719,8 +785,11 @@ export class MapeoProject extends TypedEmitter {
 
   /** @param {boolean} isArchiveDevice */
   async [kSetIsArchiveDevice](isArchiveDevice) {
+    if (this.#isArchiveDevice === isArchiveDevice) return
+    const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
+    this.#blobStore.setDownloadFilter(blobDownloadFilter)
+    this.#syncApi[kSetBlobDownloadFilter](blobDownloadFilter)
     this.#isArchiveDevice = isArchiveDevice
-    // TODO: call this.#syncApi[kSetBlobDownloadFilter]()
   }
 
   /** @returns {boolean} */
@@ -984,6 +1053,14 @@ export class MapeoProject extends TypedEmitter {
       return /** @type Error[] */ []
     }
   }
+}
+
+/**
+ * @param {boolean} isArchiveDevice
+ * @returns {null | BlobFilter}
+ */
+function getBlobDownloadFilter(isArchiveDevice) {
+  return isArchiveDevice ? null : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER
 }
 
 /**

@@ -2,10 +2,7 @@ import { currentSchemaVersions, parseVersionId } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
-import {
-  getByDocIdIfExists,
-  getByVersionIdIfExists,
-} from './datatype/get-if-exists.js'
+import { nullIfNotFound } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 /** @import { Role as RoleRecord } from '@comapeo/schema' */
 /** @import { ReadonlyDeep } from 'type-fest' */
@@ -300,7 +297,9 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<null | typeof CREATOR_ROLE_RECORD | RoleRecord>}
    */
   async #getRoleRecord(deviceId) {
-    const result = await getByDocIdIfExists(this.#dataType, deviceId)
+    const result = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(nullIfNotFound)
     if (result) return result
 
     // The project creator will have the creator role
@@ -401,7 +400,7 @@ export class Roles extends TypedEmitter {
 
       const linkedRoleRecords = await Promise.all(
         roleRecordToCheck.links.map((linkedVersionId) =>
-          getByVersionIdIfExists(this.#dataType, linkedVersionId)
+          this.#dataType.getByVersionId(linkedVersionId).catch(nullIfNotFound)
         )
       )
       for (const linkedRoleRecord of linkedRoleRecords) {
@@ -524,7 +523,9 @@ export class Roles extends TypedEmitter {
       }
     }
 
-    const existingRoleDoc = await getByDocIdIfExists(this.#dataType, deviceId)
+    const existingRoleDoc = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(nullIfNotFound)
 
     if (existingRoleDoc) {
       await this.#dataType.update(
