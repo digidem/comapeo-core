@@ -4,7 +4,7 @@ import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
 import { nullIfNotFound } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
-/** @import { Role as RoleRecord } from '@comapeo/schema' */
+/** @import { Role as MembershipRecord } from '@comapeo/schema' */
 /** @import { ReadonlyDeep } from 'type-fest' */
 /** @import { Namespace } from './types.js' */
 
@@ -16,7 +16,7 @@ export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
 
-const CREATOR_ROLE_RECORD = Symbol('creator role assignment')
+const CREATOR_MEMBERSHIP_RECORD = Symbol('creator role assignment')
 
 /**
  * @typedef {T extends Iterable<infer U> ? U : never} ElementOf
@@ -131,11 +131,11 @@ const BLOCKED_ROLE = {
 }
 
 /**
- * This is the role assumed for a device when no role record can be found. This
+ * This is the role assumed for a device when no membership record can be found. This
  * can happen when an invited device did not manage to sync with the device that
  * invited them, and they then try to sync with someone else. We want them to be
  * able to sync the auth and config store, because that way they may be able to
- * receive their role record, and they can get the project config so that they
+ * receive their membership record, and they can get the project config so that they
  * can start collecting data.
  *
  * @type {Role<typeof NO_ROLE_ID>}
@@ -227,7 +227,7 @@ export const ROLES = {
 
 /**
  * @typedef {object} RolesEvents
- * @property {(docIds: Set<string>) => void} update Emitted when new role records are indexed
+ * @property {(docIds: Set<string>) => void} update Emitted when new membership records are indexed
  */
 
 /**
@@ -274,16 +274,19 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
-    const roleRecord = await this.#getRoleRecord(deviceId)
+    const membershipRecord = await this.#getMembershipRecord(deviceId)
 
-    switch (roleRecord) {
+    switch (membershipRecord) {
       case null:
         return NO_ROLE
-      case CREATOR_ROLE_RECORD:
+      case CREATOR_MEMBERSHIP_RECORD:
         return CREATOR_ROLE
       default: {
-        const { roleId } = roleRecord
-        if (isRoleId(roleId) && (await this.#isRoleChainValid(roleRecord))) {
+        const { roleId } = membershipRecord
+        if (
+          isRoleId(roleId) &&
+          (await this.#isRoleChainValid(membershipRecord))
+        ) {
           return ROLES[roleId]
         } else {
           return BLOCKED_ROLE
@@ -294,9 +297,9 @@ export class Roles extends TypedEmitter {
 
   /**
    * @param {string} deviceId
-   * @returns {Promise<null | typeof CREATOR_ROLE_RECORD | RoleRecord>}
+   * @returns {Promise<null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>}
    */
-  async #getRoleRecord(deviceId) {
+  async #getMembershipRecord(deviceId) {
     const result = await this.#dataType
       .getByDocId(deviceId)
       .catch(nullIfNotFound)
@@ -305,42 +308,43 @@ export class Roles extends TypedEmitter {
     // The project creator will have the creator role
     const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
     if (authCoreId === this.#projectCreatorAuthCoreId) {
-      return CREATOR_ROLE_RECORD
+      return CREATOR_MEMBERSHIP_RECORD
     }
 
     // When no role assignment exists, e.g. a newly added device which has
-    // not yet synced role records.
+    // not yet synced membership records.
     return null
   }
 
   /**
-   * @param {ReadonlyDeep<RoleRecord>} roleRecord
+   * @param {ReadonlyDeep<MembershipRecord>} membershipRecord
    * @returns {Promise<boolean>}
    */
-  async #isRoleChainValid(roleRecord) {
-    if (roleRecord.roleId === LEFT_ROLE_ID) return true
+  async #isRoleChainValid(membershipRecord) {
+    if (membershipRecord.roleId === LEFT_ROLE_ID) return true
 
-    /** @type {null | ReadonlyDeep<RoleRecord>} */
-    let currentRoleRecord = roleRecord
+    /** @type {null | ReadonlyDeep<MembershipRecord>} */
+    let currentMembershipRecord = membershipRecord
 
-    while (currentRoleRecord) {
-      if (this.#isAssignedByProjectCreator(currentRoleRecord)) {
+    while (currentMembershipRecord) {
+      // TODO(evanhahn): This may be unnecessary?
+      if (this.#isAssignedByProjectCreator(currentMembershipRecord)) {
         return true
       }
 
-      const parentRoleRecord = await this.#getParentRoleRecord(
-        currentRoleRecord
+      const parentMembershipRecord = await this.#getParentMembershipRecord(
+        currentMembershipRecord
       )
-      switch (parentRoleRecord) {
+      switch (parentMembershipRecord) {
         case null:
           break
-        case CREATOR_ROLE_RECORD:
+        case CREATOR_MEMBERSHIP_RECORD:
           return true
         default:
           if (
             !canAssign({
-              assigner: parentRoleRecord,
-              assignee: currentRoleRecord,
+              assigner: parentMembershipRecord,
+              assignee: currentMembershipRecord,
             })
           ) {
             return false
@@ -348,14 +352,14 @@ export class Roles extends TypedEmitter {
           break
       }
 
-      currentRoleRecord = parentRoleRecord
+      currentMembershipRecord = parentMembershipRecord
     }
 
     return false
   }
 
   /**
-   * @param {ReadonlyDeep<Pick<RoleRecord, 'versionId'>>} roleRecord
+   * @param {ReadonlyDeep<Pick<MembershipRecord, 'versionId'>>} membershipRecord
    * @returns {boolean}
    */
   #isAssignedByProjectCreator({ versionId }) {
@@ -365,14 +369,14 @@ export class Roles extends TypedEmitter {
   }
 
   /**
-   * @param {ReadonlyDeep<RoleRecord>} roleRecord
-   * @returns {Promise<null | typeof CREATOR_ROLE_RECORD | RoleRecord>}
+   * @param {ReadonlyDeep<MembershipRecord>} membershipRecord
+   * @returns {Promise<null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>}
    */
-  async #getParentRoleRecord(roleRecord) {
+  async #getParentMembershipRecord(membershipRecord) {
     const {
       coreDiscoveryKey: assignerCoreDiscoveryKey,
       index: assignerIndexAtAssignmentTime,
-    } = parseVersionId(roleRecord.versionId)
+    } = parseVersionId(membershipRecord.versionId)
 
     const assignerCore = this.#coreManager.getCoreByDiscoveryKey(
       assignerCoreDiscoveryKey
@@ -385,31 +389,34 @@ export class Roles extends TypedEmitter {
       .catch(() => null)
     if (!assignerDeviceId) return null
 
-    const latestRoleRecord = await this.#getRoleRecord(assignerDeviceId)
+    const latestMembershipRecord = await this.#getMembershipRecord(
+      assignerDeviceId
+    )
 
-    let roleRecordToCheck = latestRoleRecord
-    /** @type {RoleRecord[]} */ const roleRecordsToCheck = []
-    while (roleRecordToCheck) {
+    let membershipRecordToCheck = latestMembershipRecord
+    /** @type {MembershipRecord[]} */ const membershipRecordsToCheck = []
+    while (membershipRecordToCheck) {
       if (
-        roleRecordToCheck === CREATOR_ROLE_RECORD ||
-        (roleRecordToCheck.fromIndex <= assignerIndexAtAssignmentTime &&
-          roleRecordToCheck.versionId !== roleRecord.versionId)
+        membershipRecordToCheck === CREATOR_MEMBERSHIP_RECORD ||
+        (membershipRecordToCheck.fromIndex <= assignerIndexAtAssignmentTime &&
+          membershipRecordToCheck.versionId !== membershipRecord.versionId)
       ) {
-        return roleRecordToCheck
+        return membershipRecordToCheck
       }
 
-      const linkedRoleRecords = await Promise.all(
-        roleRecordToCheck.links.map((linkedVersionId) =>
+      const linkedMembershipRecords = await Promise.all(
+        membershipRecordToCheck.links.map((linkedVersionId) =>
           this.#dataType.getByVersionId(linkedVersionId).catch(nullIfNotFound)
         )
       )
-      for (const linkedRoleRecord of linkedRoleRecords) {
-        if (linkedRoleRecord) {
-          roleRecordsToCheck.push(linkedRoleRecord)
+      // TODO(evanhahn): rather than this, just find the least permissive one (if possible; then updatedAt, then versionId)
+      for (const linkedMembershipRecord of linkedMembershipRecords) {
+        if (linkedMembershipRecord) {
+          membershipRecordsToCheck.push(linkedMembershipRecord)
         }
       }
 
-      roleRecordToCheck = roleRecordsToCheck.shift() || null
+      membershipRecordToCheck = membershipRecordsToCheck.shift() || null
     }
 
     return null
@@ -417,7 +424,7 @@ export class Roles extends TypedEmitter {
 
   /**
    * Get roles of all devices in the project. For your own device, if you have
-   * not yet synced your own role record, the "no role" capabilties is
+   * not yet synced your own membership record, the "no role" capabilties is
    * returned. The project creator will have the creator role unless a
    * different one has been assigned.
    *
@@ -555,21 +562,21 @@ export class Roles extends TypedEmitter {
 
 /**
  * @param {object} options
- * @param {ReadonlyDeep<Pick<RoleRecord, 'roleId'>>} options.assigner
- * @param {ReadonlyDeep<Pick<RoleRecord, 'roleId'>>} options.assignee
+ * @param {ReadonlyDeep<Pick<MembershipRecord, 'roleId'>>} options.assigner
+ * @param {ReadonlyDeep<Pick<MembershipRecord, 'roleId'>>} options.assignee
  * @returns {boolean}
  */
 function canAssign({ assigner, assignee }) {
   return (
     isRoleIdAssignableToOthers(assignee.roleId) &&
-    roleRecordToRole(assigner).roleAssignment.includes(assignee.roleId)
+    membershipRecordToRole(assigner).roleAssignment.includes(assignee.roleId)
   )
 }
 
 /**
- * @param {ReadonlyDeep<Pick<RoleRecord, 'roleId'>>} roleRecord
+ * @param {ReadonlyDeep<Pick<MembershipRecord, 'roleId'>>} membershipRecord
  * @returns {Role}
  */
-function roleRecordToRole({ roleId }) {
+function membershipRecordToRole({ roleId }) {
   return isRoleId(roleId) ? ROLES[roleId] : BLOCKED_ROLE
 }
