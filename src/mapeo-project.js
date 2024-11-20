@@ -56,8 +56,7 @@ import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
-import { NotFoundError } from './errors.js'
-import { getByDocIdIfExists } from './datatype/get-if-exists.js'
+import { NotFoundError, nullIfNotFound } from './errors.js'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
 /** @import { CoreStorage, KeyPair, Namespace, ReplicationStream } from './types.js' */
 
@@ -601,7 +600,9 @@ export class MapeoProject extends TypedEmitter {
   async $setProjectSettings(settings) {
     const { projectSettings } = this.#dataTypes
 
-    const existing = await getByDocIdIfExists(projectSettings, this.#projectId)
+    const existing = await projectSettings
+      .getByDocId(this.#projectId)
+      .catch(nullIfNotFound)
 
     if (existing) {
       return extractEditableProjectSettings(
@@ -709,7 +710,9 @@ export class MapeoProject extends TypedEmitter {
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 
-    const existingDoc = await getByDocIdIfExists(deviceInfo, configCoreId)
+    const existingDoc = await deviceInfo
+      .getByDocId(configCoreId)
+      .catch(nullIfNotFound)
     if (existingDoc) {
       return await deviceInfo.update(existingDoc.versionId, doc)
     } else {
