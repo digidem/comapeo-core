@@ -18,7 +18,7 @@ import TranslationApi from '../translation-api.js'
 type MapeoDocTableName = `${MapeoDoc['schemaName']}Table`
 type GetMapeoDocTables<T> = T[keyof T & MapeoDocTableName]
 /** Union of Drizzle schema tables that correspond to MapeoDoc types (e.g. excluding backlink tables and other utility tables) */
-export type MapeoDocTables =
+type MapeoDocTables =
   | GetMapeoDocTables<typeof import('../schema/project.js')>
   | GetMapeoDocTables<typeof import('../schema/client.js')>
 type MapeoDocTablesMap = {
@@ -87,8 +87,12 @@ export class DataType<
 
   getByDocId(
     docId: string,
-    opts?: { lang?: string }
+    opts?: { mustBeFound?: true; lang?: string }
   ): Promise<TDoc & { forks: string[] }>
+  getByDocId(
+    docId: string,
+    opts?: { mustBeFound?: boolean; lang?: string }
+  ): Promise<null | (TDoc & { forks: string[] })>
 
   getByVersionId(versionId: string, opts?: { lang?: string }): Promise<TDoc>
 
