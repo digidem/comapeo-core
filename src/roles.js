@@ -2,6 +2,7 @@ import { currentSchemaVersions } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
+import { nullIfNotFound } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 /** @import { Namespace } from './types.js' */
 
@@ -269,10 +270,10 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
-    const roleAssignment = await this.#dataType.getByDocId(deviceId, {
-      mustBeFound: false,
-    })
-    if (!roleAssignment) {
+    const roleRecord = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(nullIfNotFound)
+    if (!roleRecord) {
       // The project creator will have the creator role
       const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
       if (authCoreId === this.#projectCreatorAuthCoreId) {
@@ -284,7 +285,7 @@ export class Roles extends TypedEmitter {
       }
     }
 
-    const { roleId } = roleAssignment
+    const { roleId } = roleRecord
     if (!isRoleId(roleId)) {
       return BLOCKED_ROLE
     }
@@ -386,9 +387,9 @@ export class Roles extends TypedEmitter {
       }
     }
 
-    const existingRoleDoc = await this.#dataType.getByDocId(deviceId, {
-      mustBeFound: false,
-    })
+    const existingRoleDoc = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(nullIfNotFound)
 
     if (existingRoleDoc) {
       await this.#dataType.update(
