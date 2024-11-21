@@ -62,7 +62,7 @@ Write blobs for provided variants of a file
 
 ##### type
 
-> **type**: `"photo"` \| `"audio"` \| `"video"`
+> **type**: `"photo"` \| `"video"` \| `"audio"`
 
 ***
 

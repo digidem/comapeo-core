@@ -24,7 +24,7 @@
 
 • **options.poolSize?**: `number`
 
-• **options.primaryKey?**: `Buffer` \| `Uint8Array`
+• **options.primaryKey?**: `Uint8Array` \| `Buffer`
 
 #### Returns
 
@@ -60,7 +60,7 @@
 
 ##### Parameters
 
-• **key**: `Buffer` \| `Uint8Array`
+• **key**: `Uint8Array` \| `Buffer`
 
 ##### Returns
 

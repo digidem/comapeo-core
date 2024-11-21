@@ -130,47 +130,47 @@ DataTypes object mappings, used for tests
 
 ##### coreOwnership
 
-> **coreOwnership**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"coreOwnership"` \| `"role"`\>, `SQLiteTableWithColumns`\<`object`\>, `"coreOwnership"`, `object`, `object`\>
+> **coreOwnership**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, `SQLiteTableWithColumns`\<`object`\>, `"coreOwnership"`, `object`, `object`\>
 
 ##### deviceInfo
 
-> **deviceInfo**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"deviceInfo"`, `object`, `object`\>
+> **deviceInfo**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"deviceInfo"`, `object`, `object`\>
 
 ##### field
 
-> **field**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"field"`, `object`, `object`\>
+> **field**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"field"`, `object`, `object`\>
 
 ##### icon
 
-> **icon**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"icon"`, `object`, `object`\>
+> **icon**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"icon"`, `object`, `object`\>
 
 ##### observation
 
-> **observation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
+> **observation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
 
 ##### preset
 
-> **preset**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"preset"`, `object`, `object`\>
+> **preset**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"preset"`, `object`, `object`\>
 
 ##### projectSettings
 
-> **projectSettings**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"projectSettings"`, `object`, `object`\>
+> **projectSettings**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"projectSettings"`, `object`, `object`\>
 
 ##### remoteDetectionAlert
 
-> **remoteDetectionAlert**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
+> **remoteDetectionAlert**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
 
 ##### role
 
-> **role**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"coreOwnership"` \| `"role"`\>, `SQLiteTableWithColumns`\<`object`\>, `"role"`, `object`, `object`\>
+> **role**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, `SQLiteTableWithColumns`\<`object`\>, `"role"`, `object`, `object`\>
 
 ##### track
 
-> **track**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+> **track**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
 
 ##### translation
 
-> **translation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"translation"`, `object`, `object`\>
+> **translation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"translation"`, `object`, `object`\>
 
 ***
 
@@ -236,51 +236,51 @@ DataTypes object mappings, used for tests
 
 ### field
 
-> `get` **field**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"field"`, `object`, `object`\>
+> `get` **field**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"field"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"field"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"field"`, `object`, `object`\>
 
 ***
 
 ### observation
 
-> `get` **observation**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
+> `get` **observation**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
 
 ***
 
 ### preset
 
-> `get` **preset**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"preset"`, `object`, `object`\>
+> `get` **preset**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"preset"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, `SQLiteTableWithColumns`\<`object`\>, `"preset"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"preset"`, `object`, `object`\>
 
 ***
 
 ### remoteDetectionAlert
 
-> `get` **remoteDetectionAlert**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
+> `get` **remoteDetectionAlert**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
 
 ***
 
 ### track
 
-> `get` **track**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+> `get` **track**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"observation"` \| `"track"` \| `"remoteDetectionAlert"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
 
 ## Methods
 

@@ -22,7 +22,7 @@
 
 ### namespace
 
-> **namespace**: `"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`
+> **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
 
 ***
 

@@ -11,3 +11,4 @@
 ### Interfaces
 
 - [HyperdriveEntry](interfaces/HyperdriveEntry.md)
+- [HyperdriveEntryValue](interfaces/HyperdriveEntryValue.md)

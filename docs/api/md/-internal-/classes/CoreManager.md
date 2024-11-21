@@ -28,7 +28,7 @@ Immediately start downloading cores - should only be set to false for tests
 
 Drizzle better-sqlite3 database instance
 
-• **options.encryptionKeys**: `undefined` \| `Partial`\<`Record`\<`"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`, `Buffer`\>\> = `{}`
+• **options.encryptionKeys**: `undefined` \| `Partial`\<`Record`\<`"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`, `Buffer`\>\> = `{}`
 
 Encryption keys for each namespace
 
@@ -132,7 +132,7 @@ Add a core to the manager (will be persisted across restarts)
 
 32-byte public key of core to add
 
-• **namespace**: `"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`
+• **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 
@@ -159,7 +159,7 @@ TODO: gracefully close replication streams
 
 #### Parameters
 
-• **namespace**: `"blob"` \| `"config"` \| `"data"` \| `"blobIndex"`
+• **namespace**: `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 
@@ -207,7 +207,7 @@ Get an array of all cores in the given namespace
 
 #### Parameters
 
-• **namespace**: `"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`
+• **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 
@@ -223,7 +223,7 @@ Get the writer core for the given namespace
 
 #### Parameters
 
-• **namespace**: `"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`
+• **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 
