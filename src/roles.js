@@ -19,6 +19,7 @@ export const LEFT_ROLE_ID = '8ced989b1904606b'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
 
 const CREATOR_MEMBERSHIP_RECORD = Symbol('creator role assignment')
+const ROLE_CHAIN_ITERATION_LIMIT = 1000
 
 /**
  * @typedef {T extends Iterable<infer U> ? U : never} ElementOf
@@ -328,7 +329,11 @@ export class Roles extends TypedEmitter {
     /** @type {null | ReadonlyDeep<MembershipRecord>} */
     let currentMembershipRecord = membershipRecord
 
-    while (currentMembershipRecord) {
+    for (
+      let i = 0;
+      currentMembershipRecord && i < ROLE_CHAIN_ITERATION_LIMIT;
+      i++
+    ) {
       const parentMembershipRecord = await this.#getParentMembershipRecord(
         currentMembershipRecord
       )
@@ -387,7 +392,11 @@ export class Roles extends TypedEmitter {
 
     /** @type {null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord} */
     let membershipRecordToCheck = latestMembershipRecord
-    while (membershipRecordToCheck) {
+    for (
+      let i = 0;
+      membershipRecordToCheck && i < ROLE_CHAIN_ITERATION_LIMIT;
+      i++
+    ) {
       if (
         membershipRecordToCheck === CREATOR_MEMBERSHIP_RECORD ||
         (membershipRecordToCheck.fromIndex <= assignerIndexAtAssignmentTime &&
