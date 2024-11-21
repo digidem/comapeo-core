@@ -52,6 +52,42 @@
 
 ## Methods
 
+### \[kAddBlobWantRange\]()
+
+> **\[kAddBlobWantRange\]**(`peerId`, `start`, `length`): `void`
+
+Add some blob blocks this peer wants.
+
+#### Parameters
+
+• **peerId**: `string`
+
+• **start**: `number`
+
+• **length**: `number`
+
+#### Returns
+
+`void`
+
+***
+
+### \[kClearBlobWantRanges\]()
+
+> **\[kClearBlobWantRanges\]**(`peerId`): `void`
+
+Clear the blob blocks this peer wants.
+
+#### Parameters
+
+• **peerId**: `string`
+
+#### Returns
+
+`void`
+
+***
+
 ### \[kHandleDiscoveryKey\]()
 
 > **\[kHandleDiscoveryKey\]**(`discoveryKey`, `protomux`): `void`

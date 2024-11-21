@@ -49,7 +49,7 @@ Hypercore instance
 
 Buffer containing public key of this core
 
-• **options.namespace**: `"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`
+• **options.namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
 
 • **options.writer**: `undefined` \| `boolean` = `false`
 
@@ -101,7 +101,7 @@ Get all known cores in a namespace
 
 #### Parameters
 
-• **namespace**: `"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`
+• **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 
@@ -117,7 +117,7 @@ Get the write core for the given namespace
 
 #### Parameters
 
-• **namespace**: `"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`
+• **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 

@@ -16,9 +16,9 @@
 - ["/home/runner/work/comapeo-core/comapeo-core/src/schema/project"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_schema_project/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/sync/core-sync-state"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_sync_core-sync-state/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/sync/namespace-sync-state"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_sync_namespace-sync-state/README.md)
-- ["hyperdrive"](namespaces/hyperdrive/README.md)
+- [Hyperbee](namespaces/Hyperbee/README.md)
 - [Hyperblobs](namespaces/Hyperblobs/README.md)
-- [Hyperdrive](namespaces/Hyperdrive/README-1.md)
+- [Hyperdrive](namespaces/Hyperdrive/README.md)
 
 ### Classes
 
@@ -38,8 +38,13 @@
 - [default](classes/default.md)
 - [default](classes/default.md)
 - [DenseIndex](classes/DenseIndex.md)
+- [Downloader](classes/Downloader.md)
+- [EntryWatcher](classes/EntryWatcher.md)
+- [Hyperbee](classes/Hyperbee.md)
+- [HyperbeeBatch](classes/HyperbeeBatch.md)
 - [Hyperblobs](classes/Hyperblobs.md)
 - [Hyperdrive](classes/Hyperdrive.md)
+- [HyperdriveIndexImpl](classes/HyperdriveIndexImpl.md)
 - [IconApi](classes/IconApi.md)
 - [Index](classes/Index.md)
 - [IndexWriter](classes/IndexWriter.md)
@@ -62,9 +67,8 @@
 
 ### Interfaces
 
+- [AbstractEncoding](interfaces/AbstractEncoding.md)
 - [BitmapOpts](interfaces/BitmapOpts.md)
-- [BlobDownloadEvents](interfaces/BlobDownloadEvents.md)
-- [BlobDownloadState](interfaces/BlobDownloadState.md)
 - [Channel](interfaces/Channel.md)
 - [CorestoreEvents](interfaces/CorestoreEvents.md)
 - [DataTypeEvents](interfaces/DataTypeEvents.md)
@@ -92,10 +96,10 @@
 ### Type Aliases
 
 - [BitField](type-aliases/BitField.md)
-- [BlobDownloadStateError](type-aliases/BlobDownloadStateError.md)
 - [BlobFilter](type-aliases/BlobFilter.md)
 - [BlobId](type-aliases/BlobId.md)
 - [BlobIdBase](type-aliases/BlobIdBase.md)
+- [BlobStoreEntriesStream](type-aliases/BlobStoreEntriesStream.md)
 - [BlobType](type-aliases/BlobType.md)
 - [BlobVariant](type-aliases/BlobVariant.md)
 - [Chunk](type-aliases/Chunk.md)
@@ -108,6 +112,8 @@
 - [DeviceInfoParam](type-aliases/DeviceInfoParam.md)
 - [EditableProjectSettings](type-aliases/EditableProjectSettings.md)
 - [ElementOf](type-aliases/ElementOf.md)
+- [Encoding](type-aliases/Encoding.md)
+- [GenericBlobFilter](type-aliases/GenericBlobFilter.md)
 - [GenericBlobFilter](type-aliases/GenericBlobFilter.md)
 - [GetMapeoDocTables](type-aliases/GetMapeoDocTables.md)
 - [HypercorePeer](type-aliases/HypercorePeer.md)
@@ -115,7 +121,6 @@
 - [HypercoreRemoteBitfieldPage](type-aliases/HypercoreRemoteBitfieldPage.md)
 - [IconVariant](type-aliases/IconVariant.md)
 - [IndexedDocIds](type-aliases/IndexedDocIds.md)
-- [InternalDriveEmitter](type-aliases/InternalDriveEmitter.md)
 - [InviteInternal](type-aliases/InviteInternal.md)
 - [Keypair](type-aliases/Keypair.md)
 - [KeyPair](type-aliases/KeyPair-1.md)
@@ -160,6 +165,12 @@
 ### BlobId
 
 Re-exports [BlobId](namespaces/Hyperblobs/interfaces/BlobId.md)
+
+***
+
+### HyperbeeEntry
+
+Re-exports [HyperbeeEntry](namespaces/Hyperbee/interfaces/HyperbeeEntry.md)
 
 ***
 
