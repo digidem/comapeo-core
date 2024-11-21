@@ -274,7 +274,7 @@ describe('role validation', { concurrency: true }, () => {
    * @prop {number} postSetupAssignment.assigner
    * @prop {number} postSetupAssignment.assignee
    * @prop {RoleId} postSetupAssignment.newRole
-   * @prop {RoleId[]} expectedRoles
+   * @prop {RoleId[]} expectedRoleIds
    */
 
   /** @type {ReadonlyArray<TestCase>} */
@@ -282,12 +282,12 @@ describe('role validation', { concurrency: true }, () => {
     {
       name: 'normal role chain is valid',
       chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-      expectedRoles: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
     },
     {
       name: "members can't invite coordinators",
       chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID],
-      expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
+      expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
     },
     // {
     //   name: "members can't invite members (1 level deep)",
@@ -317,7 +317,7 @@ describe('role validation', { concurrency: true }, () => {
         assignee: 1,
         newRole: COORDINATOR_ROLE_ID,
       },
-      expectedRoles: [CREATOR_ROLE_ID, BLOCKED_ROLE_ID],
+      expectedRoleIds: [CREATOR_ROLE_ID, BLOCKED_ROLE_ID],
     },
     {
       name: "members can't downgrade coordinators",
@@ -327,7 +327,7 @@ describe('role validation', { concurrency: true }, () => {
         assignee: 1,
         newRole: MEMBER_ROLE_ID,
       },
-      expectedRoles: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
     },
     {
       name: "members can't downgrade creators",
@@ -337,7 +337,7 @@ describe('role validation', { concurrency: true }, () => {
         assignee: 0,
         newRole: COORDINATOR_ROLE_ID,
       },
-      expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
+      expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
     },
     {
       name: "coordinators can't downgrade creators",
@@ -347,7 +347,7 @@ describe('role validation', { concurrency: true }, () => {
         assignee: 0,
         newRole: COORDINATOR_ROLE_ID,
       },
-      expectedRoles: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID],
+      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID],
     },
     // {
     //   name: 'old invalid assignments stay that way',
@@ -367,7 +367,7 @@ describe('role validation', { concurrency: true }, () => {
         assignee: 1,
         newRole: MEMBER_ROLE_ID,
       },
-      expectedRoles: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
     },
     // TODO: member adding coordinator (bad), then creator saying it's fine
     // TODO: forked roles
@@ -419,6 +419,17 @@ describe('role validation', { concurrency: true }, () => {
           }
         )
       }
+
+      // This never completes
+      await waitForSync(projects, 'initial')
+
+      await Promise.all(
+        projects.map(async (project) => {
+          const members = await project.$member.getMany()
+          const roleIds = members.map((m) => m.role.roleId)
+          assert.deepEqual(roleIds, testCase.expectedRoleIds)
+        })
+      )
     })
   }
 })
