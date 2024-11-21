@@ -4,15 +4,12 @@ import { randomBytes } from 'crypto'
 import { once } from 'node:events'
 
 import {
-  BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
   CREATOR_ROLE,
   CREATOR_ROLE_ID,
-  ROLES,
   MEMBER_ROLE_ID,
   NO_ROLE,
-  NO_ROLE_ID,
-  isRoleIdAssignableToOthers,
+  ROLES,
 } from '../src/roles.js'
 import {
   connectPeers,
@@ -22,8 +19,9 @@ import {
   waitForSync,
 } from './utils.js'
 import { kDataTypes } from '../src/mapeo-project.js'
+import { ExhaustivenessError } from '../src/utils.js'
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
-/** @import { RoleId } from '../src/roles.js' */
+/** @import { Role, RoleId, RoleIdAssignableToOthers } from '../src/roles.js' */
 
 test('getting yourself after creating project', async (t) => {
   const [manager] = await createManagers(1, t, 'tablet')
@@ -267,115 +265,156 @@ test('roles - creator role and role assignment', async (t) => {
 describe('role validation', { concurrency: true }, () => {
   /**
    * @internal
+   * @typedef {[
+   *   number,
+   *   'invites',
+   *   number,
+   *   'as role',
+   *   RoleIdAssignableToOthers,
+   * ]} InviteEvent
+   */
+
+  /**
+   * @internal
+   * @typedef {[
+   *   number,
+   *   'assigns',
+   *   number,
+   *   'to role',
+   *   RoleIdAssignableToOthers,
+   * ]} AssignEvent
+   */
+
+  /**
+   * @internal
    * @typedef {object} TestCase
    * @prop {string} name
-   * @prop {RoleId[]} chain
-   * @prop {object} [postSetupAssignment]
-   * @prop {number} postSetupAssignment.assigner
-   * @prop {number} postSetupAssignment.assignee
-   * @prop {RoleId} postSetupAssignment.newRole
+   * @prop {ReadonlyArray<InviteEvent | AssignEvent>} events
    * @prop {RoleId[]} expectedRoleIds
    */
 
   /** @type {ReadonlyArray<TestCase>} */
   const testCases = [
     {
-      name: 'normal role chain is valid',
-      chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+      name: 'normal role chain',
+      events: [
+        [0, 'invites', 1, 'as role', COORDINATOR_ROLE_ID],
+        [1, 'invites', 2, 'as role', MEMBER_ROLE_ID],
+      ],
       expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
     },
     {
-      name: "members can't invite coordinators",
-      chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID],
-      expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
+      name: "members can't make people coordinators",
+      events: [
+        [0, 'invites', 1, 'as role', MEMBER_ROLE_ID],
+        [0, 'invites', 2, 'as role', MEMBER_ROLE_ID],
+        [1, 'assigns', 2, 'to role', COORDINATOR_ROLE_ID],
+      ],
+      expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, MEMBER_ROLE_ID],
     },
-    // {
-    //   name: "members can't invite members (1 level deep)",
-    //   chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, MEMBER_ROLE_ID],
-    //   expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
-    // },
-    // {
-    //   name: "members can't invite members (2 levels deep)",
-    //   chain: [
-    //     CREATOR_ROLE_ID,
-    //     COORDINATOR_ROLE_ID,
-    //     MEMBER_ROLE_ID,
-    //     MEMBER_ROLE_ID,
-    //   ],
-    //   expectedRoles: [
-    //     CREATOR_ROLE_ID,
-    //     COORDINATOR_ROLE_ID,
-    //     MEMBER_ROLE_ID,
-    //     NO_ROLE_ID,
-    //   ],
-    // },
-    {
-      name: "members can't upgrade themselves",
-      chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
-      postSetupAssignment: {
-        assigner: 1,
-        assignee: 1,
-        newRole: COORDINATOR_ROLE_ID,
-      },
-      expectedRoleIds: [CREATOR_ROLE_ID, BLOCKED_ROLE_ID],
-    },
-    {
-      name: "members can't downgrade coordinators",
-      chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-      postSetupAssignment: {
-        assigner: 2,
-        assignee: 1,
-        newRole: MEMBER_ROLE_ID,
-      },
-      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-    },
-    {
-      name: "members can't downgrade creators",
-      chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
-      postSetupAssignment: {
-        assigner: 1,
-        assignee: 0,
-        newRole: COORDINATOR_ROLE_ID,
-      },
-      expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
-    },
-    {
-      name: "coordinators can't downgrade creators",
-      chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID],
-      postSetupAssignment: {
-        assigner: 1,
-        assignee: 0,
-        newRole: COORDINATOR_ROLE_ID,
-      },
-      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID],
-    },
-    // {
-    //   name: 'old invalid assignments stay that way',
-    //   chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, MEMBER_ROLE_ID],
-    //   postSetupAssignment: {
-    //     assigner: 0,
-    //     assignee: 1,
-    //     newRole: COORDINATOR_ROLE_ID,
-    //   },
-    //   expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID],
-    // },
-    {
-      name: 'old valid assignments stay that way',
-      chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-      postSetupAssignment: {
-        assigner: 1,
-        assignee: 1,
-        newRole: MEMBER_ROLE_ID,
-      },
-      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-    },
-    // TODO: member adding coordinator (bad), then creator saying it's fine
-    // TODO: forked roles
   ]
+  // const testCases = [
+  //   {
+  //     name: 'normal role chain is valid',
+  //     chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+  //     expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+  //   },
+  //   {
+  //     name: "members can't invite coordinators",
+  //     chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID],
+  //     expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
+  //   },
+  //   // {
+  //   //   name: "members can't invite members (1 level deep)",
+  //   //   chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, MEMBER_ROLE_ID],
+  //   //   expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
+  //   // },
+  //   // {
+  //   //   name: "members can't invite members (2 levels deep)",
+  //   //   chain: [
+  //   //     CREATOR_ROLE_ID,
+  //   //     COORDINATOR_ROLE_ID,
+  //   //     MEMBER_ROLE_ID,
+  //   //     MEMBER_ROLE_ID,
+  //   //   ],
+  //   //   expectedRoles: [
+  //   //     CREATOR_ROLE_ID,
+  //   //     COORDINATOR_ROLE_ID,
+  //   //     MEMBER_ROLE_ID,
+  //   //     NO_ROLE_ID,
+  //   //   ],
+  //   // },
+  //   {
+  //     name: "members can't upgrade themselves",
+  //     chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
+  //     postSetupAssignment: {
+  //       assigner: 1,
+  //       assignee: 1,
+  //       newRole: COORDINATOR_ROLE_ID,
+  //     },
+  //     expectedRoleIds: [CREATOR_ROLE_ID, BLOCKED_ROLE_ID],
+  //   },
+  //   {
+  //     name: "members can't downgrade coordinators",
+  //     chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+  //     postSetupAssignment: {
+  //       assigner: 2,
+  //       assignee: 1,
+  //       newRole: MEMBER_ROLE_ID,
+  //     },
+  //     expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+  //   },
+  //   {
+  //     name: "members can't downgrade creators",
+  //     chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
+  //     postSetupAssignment: {
+  //       assigner: 1,
+  //       assignee: 0,
+  //       newRole: COORDINATOR_ROLE_ID,
+  //     },
+  //     expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
+  //   },
+  //   {
+  //     name: "coordinators can't downgrade creators",
+  //     chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID],
+  //     postSetupAssignment: {
+  //       assigner: 1,
+  //       assignee: 0,
+  //       newRole: COORDINATOR_ROLE_ID,
+  //     },
+  //     expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID],
+  //   },
+  //   // {
+  //   //   name: 'old invalid assignments stay that way',
+  //   //   chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, MEMBER_ROLE_ID],
+  //   //   postSetupAssignment: {
+  //   //     assigner: 0,
+  //   //     assignee: 1,
+  //   //     newRole: COORDINATOR_ROLE_ID,
+  //   //   },
+  //   //   expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID],
+  //   // },
+  //   {
+  //     name: 'old valid assignments stay that way',
+  //     chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+  //     postSetupAssignment: {
+  //       assigner: 1,
+  //       assignee: 1,
+  //       newRole: MEMBER_ROLE_ID,
+  //     },
+  //     expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+  //   },
+  //   // TODO: member adding coordinator (bad), then creator saying it's fine
+  //   // TODO: forked roles
+  // ]
 
-  for (const testCase of testCases) {
-    test(testCase.name, async (t) => {
-      const managerCount = testCase.chain.length
+  for (const { name, events, expectedRoleIds } of testCases) {
+    test(name, async (t) => {
+      const largestManagerIndex = events.reduce(
+        (result, event) => Math.max(result, event[0], event[2]),
+        0
+      )
+      const managerCount = largestManagerIndex + 1
 
       const managers = await createManagers(managerCount, t)
       const [creator] = managers
@@ -384,52 +423,43 @@ describe('role validation', { concurrency: true }, () => {
       t.after(disconnectPeers)
 
       const projectId = await creator.createProject({ name: 'role test' })
-      for (let i = 1; i < managerCount; i++) {
-        const roleId = testCase.chain[i]
-        assert(
-          isRoleIdAssignableToOthers(roleId),
-          'test setup: role is assignable'
-        )
-        await invite({
-          projectId,
-          invitor: managers[i - 1],
-          invitees: [managers[i]],
-          roleId,
-          testOnlyAllowAnyRoleToBeAssigned: true,
-        })
+
+      for (const event of events) {
+        const [senderIndex, action, recipientIndex, _, roleId] = event
+
+        const sender = managers[senderIndex]
+        const recipient = managers[recipientIndex]
+
+        switch (action) {
+          case 'invites':
+            await invite({
+              projectId,
+              invitor: sender,
+              invitees: [recipient],
+              roleId,
+            })
+            break
+          case 'assigns': {
+            const project = await sender.getProject(projectId)
+            await project.$member.assignRole(recipient.deviceId, roleId, {
+              __testOnlyAllowAnyRoleToBeAssigned: true,
+            })
+            break
+          }
+          default:
+            throw new ExhaustivenessError(action)
+        }
       }
 
       const projects = await Promise.all(
         managers.map((m) => m.getProject(projectId))
       )
-      t.after(() => Promise.all(projects.map((p) => p.close())))
-
-      const { postSetupAssignment } = testCase
-      if (postSetupAssignment) {
-        const { assigner, assignee, newRole } = postSetupAssignment
-        assert(
-          isRoleIdAssignableToOthers(newRole),
-          'test setup: role is assignable'
-        )
-        projects[assigner].$member.assignRole(
-          managers[assignee].deviceId,
-          newRole,
-          {
-            __testOnlyAllowAnyRoleToBeAssigned: true,
-          }
-        )
-      }
-
-      // This never completes
+      const [creatorProject] = projects
       await waitForSync(projects, 'initial')
 
-      await Promise.all(
-        projects.map(async (project) => {
-          const members = await project.$member.getMany()
-          const roleIds = members.map((m) => m.role.roleId)
-          assert.deepEqual(roleIds, testCase.expectedRoleIds)
-        })
-      )
+      const members = await creatorProject.$member.getMany()
+      const roleIds = members.map((m) => m.role.roleId)
+      assert.deepEqual(roleIds, expectedRoleIds)
     })
   }
 })
