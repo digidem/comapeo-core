@@ -11,6 +11,7 @@ import {
   ROLES,
   MEMBER_ROLE_ID,
   NO_ROLE,
+  NO_ROLE_ID,
   isRoleIdAssignableToOthers,
 } from '../src/roles.js'
 import {
@@ -283,11 +284,11 @@ describe('role validation', { concurrency: true }, () => {
       chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
       expectedRoles: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
     },
-    // {
-    //   name: "members can't invite coordinators",
-    //   chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID],
-    //   expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
-    // },
+    {
+      name: "members can't invite coordinators",
+      chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID],
+      expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
+    },
     // {
     //   name: "members can't invite members (1 level deep)",
     //   chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, MEMBER_ROLE_ID],

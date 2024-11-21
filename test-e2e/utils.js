@@ -112,7 +112,7 @@ export async function invite({
 }) {
   const invitorProject = await invitor.getProject(projectId)
 
-  await Promise.all(
+  await Promise.allSettled(
     invitees.map(async (invitee) => {
       const inviteId = randomBytes(32)
 
