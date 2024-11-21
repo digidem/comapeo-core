@@ -383,7 +383,7 @@ export class Roles extends TypedEmitter {
     const assignerCoreId = assignerCore.key.toString('hex')
     const assignerDeviceId = await this.#coreOwnership
       .getOwner(assignerCoreId)
-      .catch(() => null)
+      .catch(nullIfNotFound)
     if (!assignerDeviceId) return null
 
     const latestMembershipRecord = await this.#getMembershipRecord(
