@@ -312,101 +312,79 @@ describe('role validation', { concurrency: true }, () => {
       ],
       expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, MEMBER_ROLE_ID],
     },
+    {
+      name: "members can't upgrade themselves",
+      events: [
+        [0, 'invites', 1, 'as role', MEMBER_ROLE_ID],
+        [1, 'assigns', 1, 'to role', COORDINATOR_ROLE_ID],
+      ],
+      expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
+    },
+    {
+      name: "members can't downgrade coordinators",
+      events: [
+        [0, 'invites', 1, 'as role', COORDINATOR_ROLE_ID],
+        [0, 'invites', 2, 'as role', MEMBER_ROLE_ID],
+        [2, 'assigns', 1, 'to role', MEMBER_ROLE_ID],
+      ],
+      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+    },
+    {
+      name: "members can't downgrade creators",
+      events: [
+        [0, 'invites', 1, 'as role', MEMBER_ROLE_ID],
+        [1, 'assigns', 0, 'to role', COORDINATOR_ROLE_ID],
+      ],
+      expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
+    },
+    {
+      name: "coordinators can't downgrade creators",
+      events: [
+        [0, 'invites', 1, 'as role', COORDINATOR_ROLE_ID],
+        [1, 'assigns', 0, 'to role', COORDINATOR_ROLE_ID],
+      ],
+      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID],
+    },
+    {
+      name: 'old invalid assignments are ignored',
+      events: [
+        [0, 'invites', 1, 'as role', MEMBER_ROLE_ID],
+        [0, 'invites', 2, 'as role', MEMBER_ROLE_ID],
+        [1, 'assigns', 2, 'to role', COORDINATOR_ROLE_ID],
+        [0, 'assigns', 1, 'to role', COORDINATOR_ROLE_ID],
+      ],
+      expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
+    },
+    {
+      name: 'old invalid assignments can be overridden',
+      events: [
+        [0, 'invites', 1, 'as role', MEMBER_ROLE_ID],
+        [0, 'invites', 2, 'as role', MEMBER_ROLE_ID],
+        [1, 'assigns', 2, 'to role', COORDINATOR_ROLE_ID],
+        [0, 'assigns', 2, 'to role', COORDINATOR_ROLE_ID],
+      ],
+      expectedRoleIds: [
+        CREATOR_ROLE_ID,
+        COORDINATOR_ROLE_ID,
+        COORDINATOR_ROLE_ID,
+      ],
+    },
+    {
+      name: 'valid assignments are respected if invalid ones are added later',
+      events: [
+        [0, 'invites', 1, 'as role', COORDINATOR_ROLE_ID],
+        [0, 'invites', 2, 'as role', MEMBER_ROLE_ID],
+        [1, 'assigns', 2, 'to role', COORDINATOR_ROLE_ID],
+        [0, 'assigns', 1, 'to role', MEMBER_ROLE_ID],
+      ],
+      expectedRoleIds: [
+        CREATOR_ROLE_ID,
+        COORDINATOR_ROLE_ID,
+        COORDINATOR_ROLE_ID,
+      ],
+    },
+    // TODO: forked roles
   ]
-  // const testCases = [
-  //   {
-  //     name: 'normal role chain is valid',
-  //     chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-  //     expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-  //   },
-  //   {
-  //     name: "members can't invite coordinators",
-  //     chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID],
-  //     expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
-  //   },
-  //   // {
-  //   //   name: "members can't invite members (1 level deep)",
-  //   //   chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, MEMBER_ROLE_ID],
-  //   //   expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, NO_ROLE_ID],
-  //   // },
-  //   // {
-  //   //   name: "members can't invite members (2 levels deep)",
-  //   //   chain: [
-  //   //     CREATOR_ROLE_ID,
-  //   //     COORDINATOR_ROLE_ID,
-  //   //     MEMBER_ROLE_ID,
-  //   //     MEMBER_ROLE_ID,
-  //   //   ],
-  //   //   expectedRoles: [
-  //   //     CREATOR_ROLE_ID,
-  //   //     COORDINATOR_ROLE_ID,
-  //   //     MEMBER_ROLE_ID,
-  //   //     NO_ROLE_ID,
-  //   //   ],
-  //   // },
-  //   {
-  //     name: "members can't upgrade themselves",
-  //     chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
-  //     postSetupAssignment: {
-  //       assigner: 1,
-  //       assignee: 1,
-  //       newRole: COORDINATOR_ROLE_ID,
-  //     },
-  //     expectedRoleIds: [CREATOR_ROLE_ID, BLOCKED_ROLE_ID],
-  //   },
-  //   {
-  //     name: "members can't downgrade coordinators",
-  //     chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-  //     postSetupAssignment: {
-  //       assigner: 2,
-  //       assignee: 1,
-  //       newRole: MEMBER_ROLE_ID,
-  //     },
-  //     expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-  //   },
-  //   {
-  //     name: "members can't downgrade creators",
-  //     chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
-  //     postSetupAssignment: {
-  //       assigner: 1,
-  //       assignee: 0,
-  //       newRole: COORDINATOR_ROLE_ID,
-  //     },
-  //     expectedRoleIds: [CREATOR_ROLE_ID, MEMBER_ROLE_ID],
-  //   },
-  //   {
-  //     name: "coordinators can't downgrade creators",
-  //     chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID],
-  //     postSetupAssignment: {
-  //       assigner: 1,
-  //       assignee: 0,
-  //       newRole: COORDINATOR_ROLE_ID,
-  //     },
-  //     expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID],
-  //   },
-  //   // {
-  //   //   name: 'old invalid assignments stay that way',
-  //   //   chain: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, MEMBER_ROLE_ID],
-  //   //   postSetupAssignment: {
-  //   //     assigner: 0,
-  //   //     assignee: 1,
-  //   //     newRole: COORDINATOR_ROLE_ID,
-  //   //   },
-  //   //   expectedRoles: [CREATOR_ROLE_ID, MEMBER_ROLE_ID, BLOCKED_ROLE_ID],
-  //   // },
-  //   {
-  //     name: 'old valid assignments stay that way',
-  //     chain: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-  //     postSetupAssignment: {
-  //       assigner: 1,
-  //       assignee: 1,
-  //       newRole: MEMBER_ROLE_ID,
-  //     },
-  //     expectedRoleIds: [CREATOR_ROLE_ID, COORDINATOR_ROLE_ID, MEMBER_ROLE_ID],
-  //   },
-  //   // TODO: member adding coordinator (bad), then creator saying it's fine
-  //   // TODO: forked roles
-  // ]
 
   for (const { name, events, expectedRoleIds } of testCases) {
     test(name, async (t) => {
