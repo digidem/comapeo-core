@@ -99,6 +99,7 @@ export function connectPeers(managers) {
  * @param {import('../src/roles.js').RoleIdAssignableToOthers} [options.roleId]
  * @param {string} [options.roleName]
  * @param {boolean} [options.reject]
+ * @param {boolean} [options.testOnlyAllowAnyRoleToBeAssigned]
  */
 export async function invite({
   invitor,
@@ -107,10 +108,11 @@ export async function invite({
   roleId = roles.MEMBER_ROLE_ID,
   roleName,
   reject = false,
+  testOnlyAllowAnyRoleToBeAssigned = false,
 }) {
   const invitorProject = await invitor.getProject(projectId)
 
-  await Promise.allSettled(
+  await Promise.all(
     invitees.map(async (invitee) => {
       const inviteId = randomBytes(32)
 
@@ -121,6 +123,7 @@ export async function invite({
           roleId,
           roleName,
           __testOnlyInviteId: inviteId,
+          __testOnlyAllowAnyRoleToBeAssigned: testOnlyAllowAnyRoleToBeAssigned,
         }),
         (async () => {
           const invite = await pEvent(

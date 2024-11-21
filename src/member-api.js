@@ -113,6 +113,7 @@ export class MemberApi extends TypedEmitter {
    * @param {string} [opts.roleName]
    * @param {string} [opts.roleDescription]
    * @param {Buffer} [opts.__testOnlyInviteId] Hard-code the invite ID. Only for tests.
+   * @param {boolean} [opts.__testOnlyAllowAnyRoleToBeAssigned]
    * @returns {Promise<(
    *   typeof InviteResponse_Decision.ACCEPT |
    *   typeof InviteResponse_Decision.REJECT |
@@ -126,6 +127,7 @@ export class MemberApi extends TypedEmitter {
       roleName = ROLES[roleId]?.name,
       roleDescription,
       __testOnlyInviteId,
+      __testOnlyAllowAnyRoleToBeAssigned,
     }
   ) {
     assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
@@ -189,7 +191,13 @@ export class MemberApi extends TypedEmitter {
           // so that they're part of the project even if they don't receive the
           // project details message.
 
-          await this.#roles.assignRole(deviceId, roleId)
+          if (__testOnlyAllowAnyRoleToBeAssigned) {
+            await this.#roles.assignRole(deviceId, roleId, {
+              __testOnlyAllowAnyRoleToBeAssigned: true,
+            })
+          } else {
+            await this.#roles.assignRole(deviceId, roleId)
+          }
 
           await this.#rpc.sendProjectJoinDetails(deviceId, {
             inviteId,
