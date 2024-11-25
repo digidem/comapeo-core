@@ -2,7 +2,7 @@ import { currentSchemaVersions, parseVersionId } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import pReduce from 'p-reduce'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
-import { assert, setHas } from './utils.js'
+import { assert, ExhaustivenessError, setHas } from './utils.js'
 import { nullIfNotFound } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { setIsSubsetOf } from './lib/ponyfills.js'
@@ -277,23 +277,44 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<Role>}
    */
   async getRole(deviceId) {
-    const membershipRecord = await this.#getMembershipRecord(deviceId)
+    // TODO(evanhahn) Add iteration limit
 
-    switch (membershipRecord) {
-      case null:
-        return NO_ROLE
-      case CREATOR_MEMBERSHIP_RECORD:
-        return CREATOR_ROLE
-      default: {
-        const { roleId } = membershipRecord
-        if (
-          isRoleId(roleId) &&
-          (await this.#isRoleChainValid(membershipRecord))
-        ) {
-          return ROLES[roleId]
-        } else {
-          return BLOCKED_ROLE
-        }
+    for await (const membershipRecord of this.#getMembershipRecords(deviceId)) {
+      if (await this.#isRoleChainValid(membershipRecord)) {
+        return membershipRecordToRole(membershipRecord)
+      }
+    }
+
+    return NO_ROLE
+  }
+
+  /**
+   * TODO document this
+   *
+   * @param {string} deviceId
+   * @returns {AsyncGenerator<typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>}
+   */
+  async *#getMembershipRecords(deviceId) {
+    const latest = await this.#getLatestMembershipRecord(deviceId)
+    if (!latest) return
+
+    yield latest
+
+    if (latest === CREATOR_MEMBERSHIP_RECORD) return
+
+    // TODO(evanhahn) I wonder if the above can be cleaned up at all
+
+    const linkedRecordIds = [...latest.links]
+    for (let i = 0; i < ROLE_CHAIN_ITERATION_LIMIT; i++) {
+      const linkedRecordId = linkedRecordIds.pop()
+      if (!linkedRecordId) break
+
+      const linkedRecord = await this.#dataType
+        .getByVersionId(linkedRecordId)
+        .catch(nullIfNotFound)
+      if (linkedRecord) {
+        yield linkedRecord
+        linkedRecordIds.push(...linkedRecord.links)
       }
     }
   }
@@ -302,17 +323,17 @@ export class Roles extends TypedEmitter {
    * @param {string} deviceId
    * @returns {Promise<null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>}
    */
-  async #getMembershipRecord(deviceId) {
-    const result = await this.#dataType
-      .getByDocId(deviceId)
-      .catch(nullIfNotFound)
-    if (result) return result
-
+  async #getLatestMembershipRecord(deviceId) {
     // The project creator will have the creator role
     const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
     if (authCoreId === this.#projectCreatorAuthCoreId) {
       return CREATOR_MEMBERSHIP_RECORD
     }
+
+    const result = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(nullIfNotFound)
+    if (result) return result
 
     // When no role assignment exists, e.g. a newly added device which has
     // not yet synced membership records.
@@ -324,8 +345,6 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<boolean>}
    */
   async #isRoleChainValid(membershipRecord) {
-    if (membershipRecord.roleId === LEFT_ROLE_ID) return true
-
     /** @type {null | ReadonlyDeep<MembershipRecord>} */
     let currentMembershipRecord = membershipRecord
 
@@ -386,7 +405,7 @@ export class Roles extends TypedEmitter {
       .catch(nullIfNotFound)
     if (!assignerDeviceId) return null
 
-    const latestMembershipRecord = await this.#getMembershipRecord(
+    const latestMembershipRecord = await this.#getLatestMembershipRecord(
       assignerDeviceId
     )
 
@@ -577,10 +596,25 @@ export class Roles extends TypedEmitter {
  * @returns {boolean}
  */
 function canAssign({ assigner, assignee }) {
-  return (
-    isRoleIdAssignableToOthers(assignee.roleId) &&
-    membershipRecordToRole(assigner).roleAssignment.includes(assignee.roleId)
-  )
+  if (!isRoleId(assignee.roleId)) return false
+
+  if (isRoleIdAssignableToOthers(assignee.roleId)) {
+    return membershipRecordToRole(assigner).roleAssignment.includes(
+      assignee.roleId
+    )
+  }
+
+  switch (assignee.roleId) {
+    case CREATOR_ROLE_ID:
+      return false
+    case LEFT_ROLE_ID:
+      // TODO(evanhahn): Can be assigned if assigner == assignee
+      return false
+    case NO_ROLE_ID:
+      return false
+    default:
+      throw new ExhaustivenessError(assignee.roleId)
+  }
 }
 
 /**
