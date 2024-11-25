@@ -18,8 +18,20 @@ export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
 
-const CREATOR_MEMBERSHIP_RECORD = Symbol('creator role assignment')
+const CREATOR_MEMBERSHIP_RECORD = Object.freeze({
+  roleId: CREATOR_ROLE_ID,
+})
 const ROLE_CHAIN_ITERATION_LIMIT = 1000
+
+// TODO(evanhahn) Move this elsewhere
+// TODO(evanhahn) change the argument to a better name
+/**
+ * @param {ReadonlyDeep<typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>} membership
+ * @returns {membership is typeof CREATOR_MEMBERSHIP_RECORD}
+ */
+function isCreatorMembershipRecord(membership) {
+  return membership.roleId === CREATOR_ROLE_ID
+}
 
 /**
  * @typedef {T extends Iterable<infer U> ? U : never} ElementOf
@@ -297,12 +309,9 @@ export class Roles extends TypedEmitter {
   async *#getMembershipRecords(deviceId) {
     const latest = await this.#getLatestMembershipRecord(deviceId)
     if (!latest) return
-
     yield latest
 
-    if (latest === CREATOR_MEMBERSHIP_RECORD) return
-
-    // TODO(evanhahn) I wonder if the above can be cleaned up at all
+    if (isCreatorMembershipRecord(latest)) return
 
     const linkedRecordIds = [...latest.links]
     for (let i = 0; i < ROLE_CHAIN_ITERATION_LIMIT; i++) {
@@ -324,11 +333,9 @@ export class Roles extends TypedEmitter {
    * @returns {Promise<null | typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>}
    */
   async #getLatestMembershipRecord(deviceId) {
-    // The project creator will have the creator role
     const authCoreId = await this.#coreOwnership.getCoreId(deviceId, 'auth')
-    if (authCoreId === this.#projectCreatorAuthCoreId) {
-      return CREATOR_MEMBERSHIP_RECORD
-    }
+    const isProjectCreator = authCoreId === this.#projectCreatorAuthCoreId
+    if (isProjectCreator) return CREATOR_MEMBERSHIP_RECORD
 
     const result = await this.#dataType
       .getByDocId(deviceId)
@@ -341,11 +348,11 @@ export class Roles extends TypedEmitter {
   }
 
   /**
-   * @param {ReadonlyDeep<MembershipRecord>} membershipRecord
+   * @param {ReadonlyDeep<typeof CREATOR_MEMBERSHIP_RECORD | MembershipRecord>} membershipRecord
    * @returns {Promise<boolean>}
    */
   async #isRoleChainValid(membershipRecord) {
-    /** @type {null | ReadonlyDeep<MembershipRecord>} */
+    /** @type {null | typeof CREATOR_MEMBERSHIP_RECORD | ReadonlyDeep<MembershipRecord>} */
     let currentMembershipRecord = membershipRecord
 
     for (
@@ -353,24 +360,21 @@ export class Roles extends TypedEmitter {
       currentMembershipRecord && i < ROLE_CHAIN_ITERATION_LIMIT;
       i++
     ) {
+      if (isCreatorMembershipRecord(currentMembershipRecord)) return true
+
       const parentMembershipRecord = await this.#getParentMembershipRecord(
         currentMembershipRecord
       )
-      switch (parentMembershipRecord) {
-        case null:
-          break
-        case CREATOR_MEMBERSHIP_RECORD:
-          return true
-        default:
-          if (
-            !canAssign({
-              assigner: parentMembershipRecord,
-              assignee: currentMembershipRecord,
-            })
-          ) {
-            return false
-          }
-          break
+
+      if (!parentMembershipRecord) return false
+
+      if (
+        !canAssign({
+          assigner: parentMembershipRecord,
+          assignee: currentMembershipRecord,
+        })
+      ) {
+        return false
       }
 
       currentMembershipRecord = parentMembershipRecord
@@ -417,7 +421,7 @@ export class Roles extends TypedEmitter {
       i++
     ) {
       if (
-        membershipRecordToCheck === CREATOR_MEMBERSHIP_RECORD ||
+        isCreatorMembershipRecord(membershipRecordToCheck) ||
         (membershipRecordToCheck.fromIndex <= assignerIndexAtAssignmentTime &&
           membershipRecordToCheck.versionId !== membershipRecord.versionId)
       ) {
