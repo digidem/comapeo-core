@@ -72,7 +72,7 @@
 
 ### db
 
-> `readonly` **db**: `any`
+> `readonly` **db**: [`Hyperbee`](Hyperbee.md)\<`any`\>
 
 ***
 
@@ -139,6 +139,16 @@
 #### Returns
 
 `Promise`\<`null` \| `object`\>
+
+***
+
+### close()
+
+> **close**(): `Promise`\<`void`\>
+
+#### Returns
+
+`Promise`\<`void`\>
 
 ***
 
@@ -330,11 +340,11 @@
 
 ### getBlobs()
 
-> **getBlobs**(): `Promise`\<`null` \| [`Hyperblobs`](Hyperblobs.md)\>
+> **getBlobs**(): `Promise`\<[`Hyperblobs`](Hyperblobs.md)\>
 
 #### Returns
 
-`Promise`\<`null` \| [`Hyperblobs`](Hyperblobs.md)\>
+`Promise`\<[`Hyperblobs`](Hyperblobs.md)\>
 
 ***
 

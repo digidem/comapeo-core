@@ -62,6 +62,38 @@ Called when a state update is available (via getState())
 
 ***
 
+### addWantRange()
+
+> **addWantRange**(`peerId`, `start`, `length`): `void`
+
+#### Parameters
+
+• **peerId**: `string`
+
+• **start**: `number`
+
+• **length**: `number`
+
+#### Returns
+
+`void`
+
+***
+
+### clearWantRanges()
+
+> **clearWantRanges**(`peerId`): `void`
+
+#### Parameters
+
+• **peerId**: `string`
+
+#### Returns
+
+`void`
+
+***
+
 ### disconnectPeer()
 
 > **disconnectPeer**(`peerId`): `void`

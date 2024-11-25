@@ -39,7 +39,7 @@ Each peer (including the local peer) has a state of:
 
 • **opts.logger**: `undefined` \| [`Logger`](Logger.md)
 
-• **opts.namespace**: `"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`
+• **opts.namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
 
 • **opts.onUpdate**
 
@@ -67,6 +67,28 @@ Called when a state update is available (via getState())
 
 ***
 
+### addWantRange()
+
+> **addWantRange**(`peerId`, `start`, `length`): `void`
+
+Add a ranges of wanted blocks for a peer. By default a peer wants all
+blocks in a core - calling this will change the peer to only want the
+blocks/ranges that are added here
+
+#### Parameters
+
+• **peerId**: `string`
+
+• **start**: `number`
+
+• **length**: `number`
+
+#### Returns
+
+`void`
+
+***
+
 ### attachCore()
 
 > **attachCore**(`core`): `void`
@@ -78,6 +100,20 @@ before we have the core key that allows us to create a core instance.
 #### Parameters
 
 • **core**: `Hypercore`\<`"binary"`, `Buffer`\>
+
+#### Returns
+
+`void`
+
+***
+
+### clearWantRanges()
+
+> **clearWantRanges**(`peerId`): `void`
+
+#### Parameters
+
+• **peerId**: `string`
 
 #### Returns
 
@@ -124,26 +160,6 @@ peer before the peer actually starts syncing this core
 • **start**: `number`
 
 • **bitfield**: `Uint32Array`
-
-#### Returns
-
-`void`
-
-***
-
-### setPeerWants()
-
-> **setPeerWants**(`peerId`, `ranges`): `void`
-
-Add a ranges of wanted blocks for a peer. By default a peer wants all
-blocks in a core - calling this will change the peer to only want the
-blocks/ranges that are added here
-
-#### Parameters
-
-• **peerId**: `string`
-
-• **ranges**: `object`[]
 
 #### Returns
 
