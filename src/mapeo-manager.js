@@ -739,12 +739,14 @@ export class MapeoManager extends TypedEmitter {
     )
 
     if (deviceInfo.deviceType !== 'selfHostedServer') {
+      /** @type {RPCDeviceType} */
+      const deviceType = deviceInfo.deviceType
       // We have to make a copy of this because TypeScript can't guarantee that
       // `deviceInfo` won't be mutated by the time it gets to the
       // `sendDeviceInfo` call below.
       const deviceInfoToSend = {
         ...deviceInfo,
-        deviceType: deviceInfo.deviceType,
+        deviceType,
       }
       await Promise.all(
         this.#localPeers.peers
