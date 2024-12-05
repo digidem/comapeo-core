@@ -6,6 +6,10 @@
 
 # Class: BlobStore
 
+## Extends
+
+- `TypedEmitter`
+
 ## Constructors
 
 ### new BlobStore()
@@ -18,9 +22,17 @@
 
 • **options.coreManager**: [`CoreManager`](CoreManager.md)
 
+• **options.downloadFilter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
+
+Filter blob types and/or variants to download. Set to `null` to download all blobs.
+
 #### Returns
 
 [`BlobStore`](BlobStore.md)
+
+#### Overrides
+
+`TypedEmitter.constructor`
 
 ## Accessors
 
@@ -54,32 +66,38 @@ Enable to return an object with a `block` property with number of bytes removed
 
 ***
 
-### createEntryReadStream()
+### close()
 
-> **createEntryReadStream**(`driveId`, `entry`, `options`?): `Promise`\<[`Readable`](../type-aliases/Readable.md)\>
-
-Optimization for creating the blobs read stream when you have
-previously read the entry from Hyperdrive using `drive.entry`
-
-#### Parameters
-
-• **driveId**: `string`
-
-Hyperdrive drive discovery id
-
-• **entry**: [`HyperdriveEntry`](../namespaces/Hyperdrive/interfaces/HyperdriveEntry.md)
-
-Hyperdrive entry
-
-• **options?** = `...`
-
-• **options.wait?**: `undefined` \| `boolean`
-
-Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
+> **close**(): `void`
 
 #### Returns
 
-`Promise`\<[`Readable`](../type-aliases/Readable.md)\>
+`void`
+
+***
+
+### createEntriesReadStream()
+
+> **createEntriesReadStream**(`opts`): [`BlobStoreEntriesStream`](../type-aliases/BlobStoreEntriesStream.md)
+
+This is a low-level method to create a stream of entries from all drives.
+It includes entries for unknown blob types and variants.
+
+#### Parameters
+
+• **opts** = `{}`
+
+• **opts.filter**: `undefined` \| `null` \| [`GenericBlobFilter`](../type-aliases/GenericBlobFilter.md)
+
+Filter blob types and/or variants in returned entries. Filter is { [BlobType]: BlobVariants[] }.
+
+• **opts.live**: `undefined` \| `boolean` = `false`
+
+Set to `true` to get a live stream of entries
+
+#### Returns
+
+[`BlobStoreEntriesStream`](../type-aliases/BlobStoreEntriesStream.md)
 
 ***
 
@@ -107,6 +125,35 @@ Set to `true` to wait for a blob to download, otherwise will throw if blob is no
 
 ***
 
+### createReadStreamFromEntry()
+
+> **createReadStreamFromEntry**(`driveId`, `entry`, `options`?): `Promise`\<[`Readable`](../type-aliases/Readable.md)\>
+
+Optimization for creating the blobs read stream when you have
+previously read the entry from Hyperdrive using `drive.entry`
+
+#### Parameters
+
+• **driveId**: `string`
+
+Hyperdrive drive discovery id
+
+• **entry**: [`HyperdriveEntry`](../namespaces/Hyperdrive/interfaces/HyperdriveEntry.md)
+
+Hyperdrive entry
+
+• **options?** = `...`
+
+• **options.wait?**: `undefined` \| `boolean`
+
+Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
+
+#### Returns
+
+`Promise`\<[`Readable`](../type-aliases/Readable.md)\>
+
+***
+
 ### createWriteStream()
 
 > **createWriteStream**(`blobId`, `options`?): `Writable`\<`any`, `any`, `any`, `false`, `true`, `WritableEvents`\<`any`\>\> & `object`
@@ -124,35 +171,6 @@ Metadata to store with the blob
 #### Returns
 
 `Writable`\<`any`, `any`, `any`, `false`, `true`, `WritableEvents`\<`any`\>\> & `object`
-
-***
-
-### download()
-
-> **download**(`filter`?, `options`?): `TypedEmitter`\<[`BlobDownloadEvents`](../interfaces/BlobDownloadEvents.md)\>
-
-Download blobs from all drives, optionally filtering particular blob types
-or blob variants. Download will be 'live' and will continue downloading new
-data as it becomes available from any replicating drive.
-
-If no filter is specified, all blobs will be downloaded. If a filter is
-specified, then _only_ blobs that match the filter will be downloaded.
-
-#### Parameters
-
-• **filter?**: [`BlobFilter`](../type-aliases/BlobFilter.md)
-
-Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
-
-• **options?** = `{}`
-
-• **options.signal?**: `undefined` \| `AbortSignal`
-
-Optional AbortSignal to cancel in-progress download
-
-#### Returns
-
-`TypedEmitter`\<[`BlobDownloadEvents`](../interfaces/BlobDownloadEvents.md)\>
 
 ***
 
@@ -253,3 +271,21 @@ Metadata to store with the blob
 `Promise`\<`string`\>
 
 discovery key as hex string of hyperdrive where blob is stored
+
+***
+
+### setDownloadFilter()
+
+> **setDownloadFilter**(`filter`): `void`
+
+Set the filter for downloading blobs.
+
+#### Parameters
+
+• **filter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
+
+Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
+
+#### Returns
+
+`void`

@@ -14,6 +14,8 @@ import { Duplex } from 'streamx'
 import RandomAccessStorage from 'random-access-storage'
 import { DefaultListener, ListenerSignature } from 'tiny-typed-emitter'
 import type { NAMESPACES } from './constants.js'
+import type { Readable } from 'stream'
+import type { HyperdriveEntry } from 'hyperdrive'
 
 export type Namespace = (typeof NAMESPACES)[number]
 
@@ -146,4 +148,10 @@ export type DefaultEmitterEvents<
 > = {
   newListener: (event: keyof L, listener: L[keyof L]) => void
   removeListener: (event: keyof L, listener: L[keyof L]) => void
+}
+
+export type BlobStoreEntriesStream = Readable & {
+  [Symbol.asyncIterator](): AsyncIterableIterator<
+    HyperdriveEntry & { driveId: string }
+  >
 }

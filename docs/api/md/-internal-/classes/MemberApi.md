@@ -69,6 +69,10 @@ Can reject with any of the following error codes (accessed via `err.code`):
   peer. For example, the project must have a name.
 - `NETWORK_ERROR`: there was an issue connecting to the server. Is the
   device online? Is the server online?
+- `SERVER_HAS_TOO_MANY_PROJECTS`: the server limits the number of projects
+  it can have, and it's at the limit.
+- `PROJECT_NOT_IN_SERVER_ALLOWLIST`: the server only allows specific
+  projects to be added and ours wasn't one of them.
 - `INVALID_SERVER_RESPONSE`: we connected to the server but it returned
   an unexpected response. Is the server running a compatible version of
   CoMapeo Cloud?

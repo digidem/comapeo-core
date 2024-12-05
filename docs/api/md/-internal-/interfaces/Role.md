@@ -14,7 +14,7 @@
 
 ### docs
 
-> **docs**: `Record`\<`"observation"` \| `"track"` \| `"remoteDetectionAlert"` \| `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"` \| `"coreOwnership"` \| `"role"`, [`DocCapability`](DocCapability.md)\>
+> **docs**: `Record`\<`"translation"` \| `"track"` \| `"role"` \| `"remoteDetectionAlert"` \| `"projectSettings"` \| `"preset"` \| `"observation"` \| `"icon"` \| `"field"` \| `"deviceInfo"` \| `"coreOwnership"`, [`DocCapability`](DocCapability.md)\>
 
 ***
 
@@ -38,4 +38,4 @@
 
 ### sync
 
-> **sync**: `Record`\<`"blob"` \| `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"`, `"allowed"` \| `"blocked"`\>
+> **sync**: `Record`\<`"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`, `"allowed"` \| `"blocked"`\>

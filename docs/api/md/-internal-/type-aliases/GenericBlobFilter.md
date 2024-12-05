@@ -6,6 +6,10 @@
 
 # Type Alias: GenericBlobFilter
 
-> **GenericBlobFilter**: `Record`\<`string`, `string`[]\>
+> **GenericBlobFilter**\<\>: `object`
 
-Map of blob types to array of blob variants
+## Type Parameters
+
+## Index Signature
+
+ \[`type`: `string`\]: readonly `string`[]

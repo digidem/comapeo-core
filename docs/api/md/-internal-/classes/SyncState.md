@@ -40,9 +40,41 @@ Emit sync state when it changes
 
 ## Methods
 
+### addBlobWantRange()
+
+> **addBlobWantRange**(`peerId`, `start`, `length`): `void`
+
+#### Parameters
+
+• **peerId**: `string`
+
+• **start**: `number`
+
+• **length**: `number`
+
+#### Returns
+
+`void`
+
+***
+
 ### addPeer()
 
 > **addPeer**(`peerId`): `void`
+
+#### Parameters
+
+• **peerId**: `string`
+
+#### Returns
+
+`void`
+
+***
+
+### clearBlobWantRanges()
+
+> **clearBlobWantRanges**(`peerId`): `void`
 
 #### Parameters
 

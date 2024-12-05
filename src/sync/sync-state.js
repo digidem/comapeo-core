@@ -68,6 +68,24 @@ export class SyncState extends TypedEmitter {
     ])
   }
 
+  /**
+   * @param {string} peerId
+   * @param {number} start
+   * @param {number} length
+   * @returns {void}
+   */
+  addBlobWantRange(peerId, start, length) {
+    this.#syncStates.blob.addWantRange(peerId, start, length)
+  }
+
+  /**
+   * @param {string} peerId
+   * @returns {void}
+   */
+  clearBlobWantRanges(peerId) {
+    this.#syncStates.blob.clearWantRanges(peerId)
+  }
+
   #handleUpdate = () => {
     this.emit('state', this.getState())
   }

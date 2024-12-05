@@ -408,7 +408,7 @@ function createState({ have, prehave, want, status }) {
     // 53 because the max safe integer in JS is 53 bits
     for (let i = 0; i < 53; i++) {
       if ((bigInt >> BigInt(i)) & BigInt(1)) {
-        peerState.setWantRange({ start: i, length: 1 })
+        peerState.addWantRange(i, 1)
       }
     }
   }
@@ -480,16 +480,14 @@ async function downloadCore(core, bits) {
 function setPeerWants(state, peerId, bits) {
   if (typeof bits === 'undefined') return
   if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
+  state.clearWantRanges(peerId)
   const bigInt = BigInt(bits)
-  /** @type {{ start: number, length: number}[]} */
-  const ranges = []
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < 53; i++) {
     if ((bigInt >> BigInt(i)) & BigInt(1)) {
-      ranges.push({ start: i, length: 1 })
+      state.addWantRange(peerId, i, 1)
     }
   }
-  state.setPeerWants(peerId, ranges)
 }
 
 /**

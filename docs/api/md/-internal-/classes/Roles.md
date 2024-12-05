@@ -24,7 +24,7 @@
 
 • **opts.coreOwnership**: [`CoreOwnership`](CoreOwnership.md)
 
-• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"coreOwnership"` \| `"role"`\>, `SQLiteTableWithColumns`\<`object`\>, `"role"`, `object`, `object`\>
+• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, `SQLiteTableWithColumns`\<`object`\>, `"role"`, `object`, `object`\>
 
 • **opts.deviceKey**: `Buffer`
 

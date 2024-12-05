@@ -8,6 +8,8 @@
 
 > `const` **SUPPORTED\_BLOB\_VARIANTS**: `object`
 
+**`Internal`**
+
 ## Type declaration
 
 ### audio

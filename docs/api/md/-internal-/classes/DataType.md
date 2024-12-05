@@ -150,9 +150,11 @@
 
 ### getByDocId()
 
+#### getByDocId(docId, opts)
+
 > **getByDocId**(`docId`, `opts`?): `Promise`\<`TDoc` & `object`\>
 
-#### Parameters
+##### Parameters
 
 • **docId**: `string`
 
@@ -160,9 +162,29 @@
 
 • **opts.lang?**: `string`
 
-#### Returns
+• **opts.mustBeFound?**: `true`
+
+##### Returns
 
 `Promise`\<`TDoc` & `object`\>
+
+#### getByDocId(docId, opts)
+
+> **getByDocId**(`docId`, `opts`?): `Promise`\<`null` \| `TDoc` & `object`\>
+
+##### Parameters
+
+• **docId**: `string`
+
+• **opts?**
+
+• **opts.lang?**: `string`
+
+• **opts.mustBeFound?**: `boolean`
+
+##### Returns
+
+`Promise`\<`null` \| `TDoc` & `object`\>
 
 ***
 
