@@ -1,6 +1,6 @@
 import { and, sql } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
-import { hashObject } from './utils.js'
+import { deNullify, hashObject } from './utils.js'
 import { nullIfNotFound } from './errors.js'
 import { omit } from './lib/omit.js'
 /** @import { Translation, TranslationValue } from '@comapeo/schema' */
@@ -101,6 +101,7 @@ export default class TranslationApi {
       .where(and.apply(null, filters))
       .prepare()
       .all()
+      .map(deNullify)
   }
 
   /**
