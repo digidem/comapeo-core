@@ -3,11 +3,19 @@ import {
   COORDINATOR_ROLE_ID,
   MEMBER_ROLE_ID,
 } from './roles.js'
-export { plugin as MapeoStaticMapsFastifyPlugin } from './fastify-plugins/maps/static-maps.js'
-export { plugin as MapeoOfflineFallbackMapFastifyPlugin } from './fastify-plugins/maps/offline-fallback-map.js'
-export { plugin as MapeoMapsFastifyPlugin } from './fastify-plugins/maps/index.js'
+import { kProjectReplicate } from './mapeo-project.js'
+export { plugin as CoMapeoMapsFastifyPlugin } from './fastify-plugins/maps.js'
 export { FastifyController } from './fastify-controller.js'
 export { MapeoManager } from './mapeo-manager.js'
+/** @import { MapeoProject } from './mapeo-project.js' */
+
+/**
+ * @param {MapeoProject} project
+ * @param {Parameters<MapeoProject.prototype[kProjectReplicate]>} args
+ * @returns {ReturnType<MapeoProject.prototype[kProjectReplicate]>}
+ */
+export const replicateProject = (project, ...args) =>
+  project[kProjectReplicate](...args)
 
 export const roles = /** @type {const} */ ({
   CREATOR_ROLE_ID,

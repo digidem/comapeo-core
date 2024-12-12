@@ -10,7 +10,7 @@ The `DataStore` class is an API over a CoreManager namespace, responsible for re
 
 The `DataStore` class is used internally by the [`DataType`](../datatype/) class.
 
-An example of `DataStore` usage taken from the [datastore tests](../../tests/datastore.js):
+An example of `DataStore` usage taken from the [datastore tests](../../test/datastore.js):
 
 ```js
 const datastore = new DataStore({
@@ -19,6 +19,7 @@ const datastore = new DataStore({
     // Process entries here using an indexer...
   },
   namespace: 'data',
+  reindex: false,
 })
 
 /** @type {MapeoDoc} */
@@ -33,8 +34,6 @@ datastore.on('index-state', ({ current, remaining, entriesPerSecond }) => {
     // show state to user that indexing is happening
   }
 })
-
-const { current, remaining, entriesPerSecond } = datastore.getIndexState()
 ```
 
 ## API docs
@@ -43,4 +42,4 @@ TODO!
 
 ## Tests
 
-Tests for this module are in [tests/datastore.js](../../tests/datastore.js)
+Tests for this module are in [test/datastore.js](../../test/datastore.js)

@@ -14,6 +14,8 @@ import { Duplex } from 'streamx'
 import RandomAccessStorage from 'random-access-storage'
 import { DefaultListener, ListenerSignature } from 'tiny-typed-emitter'
 import type { NAMESPACES } from './constants.js'
+import type { Readable } from 'stream'
+import type { HyperdriveEntry } from 'hyperdrive'
 
 export type Namespace = (typeof NAMESPACES)[number]
 
@@ -41,11 +43,12 @@ export type BlobId = Simplify<
   }>
 >
 
-type ArrayAtLeastOne<T> = [T, ...T[]]
-
 export type BlobFilter = RequireAtLeastOne<{
-  [KeyType in BlobType]: ArrayAtLeastOne<BlobVariant<KeyType>>
+  [KeyType in BlobType]: Array<BlobVariant<KeyType>>
 }>
+
+/** Map of blob types to array of blob variants */
+export type GenericBlobFilter = Record<string, string[]>
 
 export type MapeoDocMap = {
   [K in MapeoDoc['schemaName']]: Extract<MapeoDoc, { schemaName: K }>
@@ -133,7 +136,6 @@ export type HypercorePeer = {
   onrange: (options: { drop: boolean; start: number; length: number }) => void
 }
 
-export { NoiseStream }
 type ProtocolStream = Omit<NoiseStream, 'userData'> & {
   userData: Protomux
 }
@@ -146,4 +148,10 @@ export type DefaultEmitterEvents<
 > = {
   newListener: (event: keyof L, listener: L[keyof L]) => void
   removeListener: (event: keyof L, listener: L[keyof L]) => void
+}
+
+export type BlobStoreEntriesStream = Readable & {
+  [Symbol.asyncIterator](): AsyncIterableIterator<
+    HyperdriveEntry & { driveId: string }
+  >
 }

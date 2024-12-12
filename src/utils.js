@@ -1,22 +1,10 @@
-import b4a from 'b4a'
 import sodium from 'sodium-universal'
 import { keyToPublicId } from '@mapeo/crypto'
 import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
+import { omit } from './lib/omit.js'
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
-
-/**
- * @param {String|Buffer} id
- * @returns {Buffer | Uint8Array}
- */
-export function idToKey(id) {
-  if (b4a.isBuffer(id)) {
-    return /** @type {Buffer} */ (id)
-  }
-
-  return b4a.from(/** @type {String} */ (id), 'hex')
-}
 
 /**
  *
@@ -29,18 +17,6 @@ export function keyToId(key) {
   }
 
   return key.toString('hex')
-}
-
-/**
- * @param {String} version
- * @returns {{coreId: String, blockIndex: Number}}
- */
-export function parseVersion(version) {
-  const [coreId, blockIndex] = version.split('@')
-  return {
-    coreId,
-    blockIndex: Number(blockIndex),
-  }
 }
 
 export class ExhaustivenessError extends Error {
@@ -120,20 +96,16 @@ export function deNullify(obj) {
  * @returns {Omit<T, 'docId' | 'versionId' | 'originalVersionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'deleted'>}
  */
 export function valueOf(doc) {
-  /* eslint-disable no-unused-vars */
-  const {
-    docId,
-    versionId,
-    originalVersionId,
-    links,
-    forks,
-    createdAt,
-    updatedAt,
-    deleted,
-    ...rest
-  } = doc
-  /* eslint-enable no-unused-vars */
-  return rest
+  return omit(doc, [
+    'docId',
+    'versionId',
+    'originalVersionId',
+    'links',
+    'forks',
+    'createdAt',
+    'updatedAt',
+    'deleted',
+  ])
 }
 
 /**

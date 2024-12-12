@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createManager } from './utils.js'
-import { defaultConfigPath } from '../tests/helpers/default-config.js'
+import { defaultConfigPath } from '../test/helpers/default-config.js'
 
 test(' config import - load default config when passed a path to `createProject`', async (t) => {
   const manager = createManager('device0', t)
@@ -78,7 +78,7 @@ test('deletion of data before loading a new config', async (t) => {
 
   // load another config
   await project.importConfig({
-    configPath: './tests/fixtures/config/validConfig.zip',
+    configPath: './test/fixtures/config/validConfig.zip',
   })
 
   // load default config again

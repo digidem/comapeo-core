@@ -30,4 +30,4 @@ TODO!
 
 ## Tests
 
-Tests for this module are in [tests/datatype.js](../../tests/datatype.js)
+Tests for this module are in [test/datatype.js](../../test/datatype.js)

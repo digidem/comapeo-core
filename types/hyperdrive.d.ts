@@ -2,8 +2,10 @@ declare module 'hyperdrive' {
   import Corestore from 'corestore'
   import Hypercore from 'hypercore'
   import Hyperblobs, { BlobId } from 'hyperblobs'
+  import Hyperbee from 'hyperbee'
   import { Readable, Writable } from 'streamx'
   import { TypedEmitter } from 'tiny-typed-emitter'
+  import { JsonValue } from 'type-fest'
 
   interface HyperdriveOptions {
     onwait: () => void
@@ -32,16 +34,14 @@ declare module 'hyperdrive' {
   }
 
   namespace Hyperdrive {
-    export interface HyperdriveEntry {
-      seq: number
-      key: string
-      value: {
-        executable: boolean // whether the blob at path is an executable
-        linkname: null | string // if entry not symlink, otherwise a string to the entry this links to
-        blob: BlobId // a Hyperblob id that can be used to fetch the blob associated with this entry
-        metadata: null | object
-      }
+    interface HyperdriveEntryValue {
+      executable: boolean // whether the blob at path is an executable
+      linkname: null | string // if entry not symlink, otherwise a string to the entry this links to
+      blob: BlobId // a Hyperblob id that can be used to fetch the blob associated with this entry
+      metadata: JsonValue
     }
+    export interface HyperdriveEntry
+      extends Hyperbee.HyperbeeEntry<HyperdriveEntryValue> {}
   }
 
   class Hyperdrive extends TypedEmitter<HyperdriveEvents> {
@@ -57,7 +57,7 @@ declare module 'hyperdrive' {
     readonly key: Buffer | null
     readonly discoveryKey: Buffer | null
     readonly contentKey: Buffer | null // The public key of the Hyperblobs instance holding blobs associated with entries in the drive.
-    readonly db: any // Hyperbee
+    readonly db: Hyperbee
     readonly version: number
     ready(): Promise<void>
     update(options?: { wait?: boolean }): Promise<Boolean>
@@ -69,7 +69,7 @@ declare module 'hyperdrive' {
       path: string,
       opts?: HyperdriveGetOpts
     ): Promise<Hyperdrive.HyperdriveEntry | null>
-    getBlobs(): Promise<Hyperblobs | null>
+    getBlobs(): Promise<Hyperblobs>
     get(
       path: string,
       opts?: { follow?: boolean } & HyperdriveGetOpts
@@ -101,6 +101,7 @@ declare module 'hyperdrive' {
       path: string,
       opts?: { diff?: boolean }
     ): Promise<{ blocks: number } | null>
+    close(): Promise<void>
   }
 
   export = Hyperdrive

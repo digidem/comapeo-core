@@ -32,6 +32,7 @@ export class PeerSyncController {
   #downloadingRanges = new Map()
   /** @type {SyncStatus} */
   #prevSyncStatus = createNamespaceMap('unknown')
+  /** @type {import('debug').Debugger} */
   #log
 
   /**
@@ -43,25 +44,16 @@ export class PeerSyncController {
    * @param {Logger} [opts.logger]
    */
   constructor({ protomux, coreManager, syncState, roles, logger }) {
-    /**
-     * @param {string} formatter
-     * @param {unknown[]} args
-     * @returns {void}
-     */
-    this.#log = (formatter, ...args) => {
-      const log = Logger.create('peer', logger).log
-      return log.apply(null, [
-        `[%h] ${formatter}`,
-        protomux.stream.remotePublicKey,
-        ...args,
-      ])
-    }
+    const logPrefix = `[${protomux.stream.remotePublicKey
+      ?.toString('hex')
+      .slice(0, 7)}] `
+    this.#log = Logger.create('peer', logger, { prefix: logPrefix }).log
     this.#coreManager = coreManager
     this.#protomux = protomux
     this.#roles = roles
 
     // Always need to replicate the project creator core
-    this.#replicateCore(coreManager.creatorCore)
+    this.#replicateCoreRecord(coreManager.creatorCoreRecord)
 
     coreManager.on('add-core', this.#handleAddCore)
     syncState.on('state', this.#handleStateChange)
@@ -98,14 +90,18 @@ export class PeerSyncController {
     // If we already know about this core, then we will add it to the
     // replication stream when we are ready
     if (coreRecord) {
-      this.#log(
-        'Received discovery key %h, but already have core in namespace %s',
-        discoveryKey,
-        coreRecord.namespace
-      )
       if (this.#enabledNamespaces.has(coreRecord.namespace)) {
-        this.#replicateCore(coreRecord.core)
+        this.#replicateCoreRecord(coreRecord)
+      } else {
+        this.#log(
+          'Received discovery key %h, for core %h, but namespace %s is disabled',
+          discoveryKey,
+          coreRecord.key,
+          coreRecord.namespace
+        )
       }
+    } else {
+      this.#log('Received unknown discovery key %h', discoveryKey)
     }
   }
 
@@ -115,9 +111,9 @@ export class PeerSyncController {
    *
    * @param {CoreRecord} coreRecord
    */
-  #handleAddCore = ({ core, namespace }) => {
-    if (!this.#enabledNamespaces.has(namespace)) return
-    this.#replicateCore(core)
+  #handleAddCore = (coreRecord) => {
+    if (!this.#enabledNamespaces.has(coreRecord.namespace)) return
+    this.#replicateCoreRecord(coreRecord)
   }
 
   /**
@@ -156,6 +152,7 @@ export class PeerSyncController {
 
     if (didUpdate.auth) {
       try {
+        this.#log('reading role for %h', this.peerId)
         const cap = await this.#roles.getRole(this.peerId)
         this.#syncCapability = cap.sync
       } catch (e) {
@@ -235,25 +232,36 @@ export class PeerSyncController {
   }
 
   /**
-   * @param {import('hypercore')<'binary', any>} core
+   * @param {CoreRecord} coreRecord
    */
-  #replicateCore(core) {
+  #replicateCoreRecord({ core, namespace }) {
     if (core.closed) return
     if (this.#replicatingCores.has(core)) return
-    this.#log('replicating core %k', core.key)
+    this.#log('replicating %s core %k', namespace, core.key)
     core.replicate(this.#protomux)
-    core.on('peer-remove', (peer) => {
-      if (!peer.remotePublicKey.equals(this.peerKey)) return
-      this.#log('peer-remove %h from core %k', peer.remotePublicKey, core.key)
-    })
     this.#replicatingCores.add(core)
+
+    if (!this.#log.enabled) return
+
+    /** @type {(peer: any) => void} */
+    const handlePeerRemove = (peer) => {
+      if (!peer.remotePublicKey.equals(this.peerKey)) return
+      core.off('peer-remove', handlePeerRemove)
+      this.#log(
+        'peer-remove %h from %s core %k',
+        peer.remotePublicKey,
+        namespace,
+        core.key
+      )
+    }
+    core.on('peer-remove', handlePeerRemove)
   }
 
   /**
-   * @param {import('hypercore')<'binary', any>} core
+   * @param {CoreRecord} coreRecord
    * @returns {Promise<void>}
    */
-  async #unreplicateCore(core) {
+  async #unreplicateCoreRecord({ core, namespace }) {
     if (core === this.#coreManager.creatorCore) return
 
     this.#replicatingCores.delete(core)
@@ -266,7 +274,7 @@ export class PeerSyncController {
     }
 
     unreplicate(core, this.#protomux)
-    this.#log('unreplicated core %k', core.key)
+    this.#log('unreplicated %s core %k', namespace, core.key)
   }
 
   /**
@@ -274,8 +282,8 @@ export class PeerSyncController {
    */
   #enableNamespace(namespace) {
     if (this.#enabledNamespaces.has(namespace)) return
-    for (const { core } of this.#coreManager.getCores(namespace)) {
-      this.#replicateCore(core)
+    for (const coreRecord of this.#coreManager.getCores(namespace)) {
+      this.#replicateCoreRecord(coreRecord)
     }
     this.#enabledNamespaces.add(namespace)
     this.#log('enabled namespace %s', namespace)
@@ -286,8 +294,8 @@ export class PeerSyncController {
    */
   #disableNamespace(namespace) {
     if (!this.#enabledNamespaces.has(namespace)) return
-    for (const { core } of this.#coreManager.getCores(namespace)) {
-      this.#unreplicateCore(core)
+    for (const coreRecord of this.#coreManager.getCores(namespace)) {
+      this.#unreplicateCoreRecord(coreRecord)
     }
     this.#enabledNamespaces.delete(namespace)
     this.#log('disabled namespace %s', namespace)

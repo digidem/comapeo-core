@@ -39,6 +39,18 @@ test('write and read deviceInfo', async () => {
     deviceType: 'mobile',
     deviceId: manager.deviceId,
   })
+
+  await manager.setDeviceInfo({
+    name: 'a little server',
+    deviceType: 'selfHostedServer',
+    selfHostedServerDetails: { baseUrl: 'https://comapeo-test.example/' },
+  })
+  assert.deepEqual(manager.getDeviceInfo(), {
+    name: 'a little server',
+    deviceType: 'selfHostedServer',
+    deviceId: manager.deviceId,
+    selfHostedServerDetails: { baseUrl: 'https://comapeo-test.example/' },
+  })
 })
 
 test('device info written to projects', async (t) => {
@@ -151,7 +163,7 @@ test('device info written to projects', async (t) => {
 
 test('device info sent to peers', async (t) => {
   const managers = await createManagers(3, t)
-  const disconnectPeers = connectPeers(managers, { discovery: true })
+  const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
   await waitForPeers(managers, { waitForDeviceInfo: true })
 

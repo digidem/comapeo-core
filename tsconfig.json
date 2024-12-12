@@ -4,6 +4,7 @@
     "lib": ["es2022"],
     "noImplicitAny": true,
     "noImplicitThis": true,
+    "noUncheckedSideEffectImports": true,
     "strictNullChecks": true,
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
@@ -26,6 +27,6 @@
       "*": ["./types", "./node_modules/@digidem/types/vendor/*/index.d.ts"]
     }
   },
-  "include": ["src/**/*", "types/**/*.d.ts", "tests/**/*", "test-e2e/**/*"],
+  "include": ["src/**/*", "types/**/*.d.ts", "test/**/*", "test-e2e/**/*"],
   "exclude": ["node_modules", "src/generated/*.js"]
 }

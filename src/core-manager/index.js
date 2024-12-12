@@ -4,16 +4,21 @@ import { debounce } from 'throttle-debounce'
 import assert from 'node:assert/strict'
 import { sql, eq } from 'drizzle-orm'
 
-import { HaveExtension, ProjectExtension } from '../generated/extensions.js'
+import {
+  HaveExtension,
+  ProjectExtension,
+  DownloadIntentExtension,
+} from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
 import { noop } from '../utils.js'
 import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
+import mapObject from 'map-obj'
 
 /** @import Hypercore from 'hypercore' */
-/** @import { HypercorePeer, Namespace } from '../types.js' */
+/** @import { BlobFilter, GenericBlobFilter, HypercorePeer, Namespace } from '../types.js' */
 
 const WRITER_CORE_PREHAVES_DEBOUNCE_DELAY = 1000
 
@@ -25,6 +30,7 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
  * @typedef {Object} Events
  * @property {(coreRecord: CoreRecord) => void} add-core
  * @property {(namespace: Namespace, msg: { coreDiscoveryId: string, peerId: string, start: number, bitfield: Uint32Array }) => void} peer-have
+ * @property {(blobFilter: GenericBlobFilter, peerId: string) => void} peer-download-intent
  */
 
 /**
@@ -33,16 +39,19 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
 export class CoreManager extends TypedEmitter {
   #corestore
   #coreIndex
-  /** @type {Core} */
-  #creatorCore
+  /** @type {CoreRecord} */
+  #creatorCoreRecord
   #queries
   #encryptionKeys
   #projectExtension
+  /** @type {'opened' | 'closing' | 'closed'} */
+  #state = 'opened'
   #ready
   #haveExtension
   #deviceId
   #l
   #autoDownload
+  #downloadIntentExtension
 
   static get namespaces() {
     return NAMESPACES
@@ -124,12 +133,12 @@ export class CoreManager extends TypedEmitter {
       }
       const writer = this.#addCore(keyPair, namespace)
       if (namespace === 'auth' && projectSecretKey) {
-        this.#creatorCore = writer.core
+        this.#creatorCoreRecord = writer
       }
     }
 
     // For anyone other than the project creator, creatorCore is readonly
-    this.#creatorCore ??= this.#addCore({ publicKey: projectKey }, 'auth').core
+    this.#creatorCoreRecord ??= this.#addCore({ publicKey: projectKey }, 'auth')
 
     // Load persisted cores
     const rows = db.select().from(coresTable).all()
@@ -137,7 +146,7 @@ export class CoreManager extends TypedEmitter {
       this.#addCore({ publicKey }, namespace)
     }
 
-    this.#projectExtension = this.#creatorCore.registerExtension(
+    this.#projectExtension = this.creatorCore.registerExtension(
       'mapeo/project',
       {
         encoding: ProjectExtensionCodec,
@@ -147,14 +156,24 @@ export class CoreManager extends TypedEmitter {
       }
     )
 
-    this.#haveExtension = this.#creatorCore.registerExtension('mapeo/have', {
+    this.#haveExtension = this.creatorCore.registerExtension('mapeo/have', {
       encoding: HaveExtensionCodec,
       onmessage: (msg, peer) => {
         this.#handleHaveMessage(msg, peer)
       },
     })
 
-    this.#creatorCore.on('peer-add', (peer) => {
+    this.#downloadIntentExtension = this.creatorCore.registerExtension(
+      'mapeo/download-intent',
+      {
+        encoding: DownloadIntentCodec,
+        onmessage: (msg, peer) => {
+          this.#handleDownloadIntentMessage(msg, peer)
+        },
+      }
+    )
+
+    this.creatorCore.on('peer-add', (peer) => {
       this.#sendHaves(peer, this.#coreIndex).catch(() => {
         this.#l.log('Failed to send pre-haves to newly-connected peer')
       })
@@ -175,7 +194,11 @@ export class CoreManager extends TypedEmitter {
   }
 
   get creatorCore() {
-    return this.#creatorCore
+    return this.#creatorCoreRecord.core
+  }
+
+  get creatorCoreRecord() {
+    return this.#creatorCoreRecord
   }
 
   /**
@@ -234,11 +257,13 @@ export class CoreManager extends TypedEmitter {
    * TODO: gracefully close replication streams
    */
   async close() {
+    this.#state = 'closing'
     const promises = []
     for (const { core } of this.#coreIndex) {
       promises.push(core.close())
     }
     await Promise.all(promises)
+    this.#state = 'closed'
   }
 
   /**
@@ -249,7 +274,6 @@ export class CoreManager extends TypedEmitter {
    * @returns {CoreRecord}
    */
   addCore(key, namespace) {
-    this.#l.log('Adding remote core %k to %s', key, namespace)
     return this.#addCore({ publicKey: key }, namespace, true)
   }
 
@@ -272,7 +296,8 @@ export class CoreManager extends TypedEmitter {
       keyPair,
       encryptionKey: this.#encryptionKeys[namespace],
     })
-    if (this.#autoDownload) {
+    if (this.#autoDownload && namespace !== 'blob') {
+      // Blob downloads are managed by BlobStore
       core.download({ start: 0, end: -1 })
     }
     // Every peer adds a listener, so could have many peers
@@ -292,7 +317,7 @@ export class CoreManager extends TypedEmitter {
 
     if (writer) {
       const sendHaves = debounce(WRITER_CORE_PREHAVES_DEBOUNCE_DELAY, () => {
-        for (const peer of this.#creatorCore.peers) {
+        for (const peer of this.creatorCore.peers) {
           this.#sendHaves(peer, [{ core, namespace }]).catch(() => {
             this.#l.log('Failed to send new pre-haves to other peers')
           })
@@ -384,6 +409,23 @@ export class CoreManager extends TypedEmitter {
       start,
       bitfield,
     })
+  }
+
+  /**
+   * @param {GenericBlobFilter} blobFilter
+   * @param {HypercorePeer} peer
+   */
+  #handleDownloadIntentMessage(blobFilter, peer) {
+    const peerId = peer.remotePublicKey.toString('hex')
+    this.emit('peer-download-intent', blobFilter, peerId)
+  }
+
+  /**
+   * @param {BlobFilter} blobFilter
+   * @param {HypercorePeer} peer
+   */
+  sendDownloadIntents(blobFilter, peer) {
+    this.#downloadIntentExtension.send(blobFilter, peer)
   }
 
   /**
@@ -494,5 +536,27 @@ const HaveExtensionCodec = {
       console.error(e)
       return { start, discoveryKey, bitfield: new Uint32Array(), namespace }
     }
+  },
+}
+
+const DownloadIntentCodec = {
+  /** @param {BlobFilter} filter */
+  encode(filter) {
+    const downloadIntents = mapObject(filter, (key, value) => [
+      key,
+      { variants: value || [] },
+    ])
+    return DownloadIntentExtension.encode({ downloadIntents }).finish()
+  },
+  /**
+   * @param {Buffer | Uint8Array} buf
+   * @returns {GenericBlobFilter}
+   */
+  decode(buf) {
+    const msg = DownloadIntentExtension.decode(buf)
+    return mapObject(msg.downloadIntents, (key, value) => [
+      key + '', // keep TS happy
+      value.variants,
+    ])
   },
 }

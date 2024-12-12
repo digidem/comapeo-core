@@ -2,6 +2,7 @@ import { keyToId } from '../utils.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
 } from '../core-manager/remote-bitfield.js'
+import { Logger } from '../logger.js'
 /** @import { HypercorePeer, HypercoreRemoteBitfield, Namespace } from '../types.js' */
 
 /**
@@ -22,7 +23,7 @@ import RemoteBitfield, {
  * @typedef {object} LocalCoreState
  * @property {number} have blocks we have
  * @property {number} want unique blocks we want from any other peer
- * @property {number} wanted blocks we want from this peer
+ * @property {number} wanted unique blocks any other peer wants from us
  */
 /**
  * @typedef {object} PeerNamespaceState
@@ -71,14 +72,18 @@ export class CoreSyncState {
   #update
   #peerSyncControllers
   #namespace
+  #l
 
   /**
    * @param {object} opts
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
    * @param {Namespace} opts.namespace
+   * @param {Logger} [opts.logger]
    */
-  constructor({ onUpdate, peerSyncControllers, namespace }) {
+  constructor({ onUpdate, peerSyncControllers, namespace, logger }) {
+    // The logger parameter is already namespaced by NamespaceSyncState
+    this.#l = logger || Logger.create('css')
     this.#peerSyncControllers = peerSyncControllers
     this.#namespace = namespace
     // Called whenever the state changes, so we clear the cache because next
@@ -150,12 +155,24 @@ export class CoreSyncState {
    * @param {Uint32Array} bitfield
    */
   insertPreHaves(peerId, start, bitfield) {
-    const peerState = this.#getPeerState(peerId)
+    const peerState = this.#getOrCreatePeerState(peerId)
     peerState.insertPreHaves(start, bitfield)
+    const previousLength = Math.max(
+      this.#preHavesLength,
+      this.#core?.length || 0
+    )
     this.#preHavesLength = Math.max(
       this.#preHavesLength,
       peerState.preHavesBitfield.lastSet(start + bitfield.length * 32) + 1
     )
+    if (this.#preHavesLength > previousLength) {
+      this.#l.log(
+        'Updated peer %S pre-haves length from %d to %d',
+        peerId,
+        previousLength,
+        this.#preHavesLength
+      )
+    }
     this.#update()
   }
 
@@ -165,13 +182,23 @@ export class CoreSyncState {
    * blocks/ranges that are added here
    *
    * @param {PeerId} peerId
-   * @param {Array<{ start: number, length: number }>} ranges
+   * @param {number} start
+   * @param {number} length
+   * @returns {void}
    */
-  setPeerWants(peerId, ranges) {
-    const peerState = this.#getPeerState(peerId)
-    for (const { start, length } of ranges) {
-      peerState.setWantRange({ start, length })
-    }
+  addWantRange(peerId, start, length) {
+    const peerState = this.#getOrCreatePeerState(peerId)
+    peerState.addWantRange(start, length)
+    this.#update()
+  }
+
+  /**
+   * @param {PeerId} peerId
+   * @returns {void}
+   */
+  clearWantRanges(peerId) {
+    const peerState = this.#getOrCreatePeerState(peerId)
+    peerState.clearWantRanges()
     this.#update()
   }
 
@@ -187,7 +214,17 @@ export class CoreSyncState {
   /**
    * @param {PeerId} peerId
    */
-  #getPeerState(peerId) {
+  disconnectPeer(peerId) {
+    const wasRemoved = this.#remoteStates.delete(peerId)
+    if (wasRemoved) {
+      this.#update()
+    }
+  }
+
+  /**
+   * @param {PeerId} peerId
+   */
+  #getOrCreatePeerState(peerId) {
     let peerState = this.#remoteStates.get(peerId)
     if (!peerState) {
       peerState = new PeerState()
@@ -207,7 +244,7 @@ export class CoreSyncState {
     const peerId = keyToId(peer.remotePublicKey)
 
     // Update state to ensure this peer is in the state correctly
-    const peerState = this.#getPeerState(peerId)
+    const peerState = this.#getOrCreatePeerState(peerId)
     peerState.status = 'starting'
 
     this.#core?.update({ wait: true }).then(() => {
@@ -243,7 +280,8 @@ export class CoreSyncState {
    */
   #onPeerRemove = (peer) => {
     const peerId = keyToId(peer.remotePublicKey)
-    const peerState = this.#getPeerState(peerId)
+    const peerState = this.#remoteStates.get(peerId)
+    if (!peerState) return
     peerState.status = 'stopped'
     this.#update()
   }
@@ -263,14 +301,13 @@ export class PeerState {
   #preHaves = new RemoteBitfield()
   /** @type {HypercoreRemoteBitfield | undefined} */
   #haves
-  /** @type {Bitfield} */
-  #wants = new RemoteBitfield()
+  /**
+   * What blocks do we want? If `null`, we want everything.
+   * @type {null | Bitfield}
+   */
+  #wants = null
   /** @type {PeerNamespaceState['status']} */
   status = 'stopped'
-  #wantAll
-  constructor({ wantAll = true } = {}) {
-    this.#wantAll = wantAll
-  }
   get preHavesBitfield() {
     return this.#preHaves
   }
@@ -288,17 +325,26 @@ export class PeerState {
     this.#haves = bitfield
   }
   /**
-   * Set a range of blocks that a peer wants. This is not part of the Hypercore
+   * Add a range of blocks that a peer wants. This is not part of the Hypercore
    * protocol, so we need our own extension messages that a peer can use to
    * inform us which blocks they are interested in. For most cores peers always
-   * want all blocks, but for blob cores often peers only want preview or
+   * want all blocks, but for blob cores peers may only want preview or
    * thumbnail versions of media
    *
-   * @param {{ start: number, length: number }} range
+   * @param {number} start
+   * @param {number} length
+   * @returns {void}
    */
-  setWantRange({ start, length }) {
-    this.#wantAll = false
+  addWantRange(start, length) {
+    this.#wants ??= new RemoteBitfield()
     this.#wants.setRange(start, length, true)
+  }
+  /**
+   * Set the range of blocks that this peer wants to the empty set. In other
+   * words, this peer wants nothing from this core.
+   */
+  clearWantRanges() {
+    this.#wants = new RemoteBitfield()
   }
   /**
    * Returns whether the peer has the block at `index`. If a pre-have bitfield
@@ -327,8 +373,7 @@ export class PeerState {
    * @param {number} index
    */
   want(index) {
-    if (this.#wantAll) return true
-    return this.#wants.get(index)
+    return this.#wants ? this.#wants.get(index) : true
   }
   /**
    * Return the "wants" for the 32 blocks from `index`, as a 32-bit integer
@@ -338,11 +383,10 @@ export class PeerState {
    * the 32 blocks from `index`
    */
   wantWord(index) {
-    if (this.#wantAll) {
-      // This is a 32-bit number with all bits set
-      return 2 ** 32 - 1
-    }
-    return getBitfieldWord(this.#wants, index)
+    return this.#wants
+      ? getBitfieldWord(this.#wants, index)
+      : // This is a 32-bit number with all bits set
+        2 ** 32 - 1
   }
 }
 

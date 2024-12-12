@@ -8,6 +8,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
+import { createRequire } from 'module'
 
 import { IndexWriter } from './index-writer/index.js'
 import {
@@ -15,10 +16,11 @@ import {
   kBlobStore,
   kClearDataIfLeft,
   kProjectLeave,
+  kSetIsArchiveDevice,
   kSetOwnDeviceInfo,
 } from './mapeo-project.js'
 import {
-  localDeviceInfoTable,
+  deviceSettingsTable,
   projectKeysTable,
   projectSettingsTable,
 } from './schema/client.js'
@@ -33,26 +35,28 @@ import {
   projectKeyToPublicId,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
+import { omit } from './lib/omit.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
 import IconServerPlugin from './fastify-plugins/icons.js'
+import { plugin as MapServerPlugin } from './fastify-plugins/maps.js'
 import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Roles } from './roles.js'
-import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { Logger } from './logger.js'
 import {
   kSyncState,
   kRequestFullStop,
   kRescindFullStopRequest,
 } from './sync/sync-api.js'
+import { NotFoundError } from './errors.js'
 /** @import { ProjectSettingsValue as ProjectValue } from '@comapeo/schema' */
+/** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { CoreStorage, Namespace } from './types.js' */
 /** @import { DeviceInfoParam } from './schema/client.js' */
-/** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
@@ -67,9 +71,15 @@ const MAX_FILE_DESCRIPTORS = 768
 // Prefix names for routes registered with http server
 const BLOBS_PREFIX = 'blobs'
 const ICONS_PREFIX = 'icons'
+const MAPS_PREFIX = 'maps'
 
-export const kRPC = Symbol('rpc')
-export const kManagerReplicate = Symbol('replicate manager')
+const require = createRequire(import.meta.url)
+export const DEFAULT_FALLBACK_MAP_FILE_PATH = require.resolve(
+  '@comapeo/fallback-smp'
+)
+
+export const DEFAULT_ONLINE_STYLE_URL =
+  'https://demotiles.maplibre.org/style.json'
 
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
@@ -113,6 +123,9 @@ export class MapeoManager extends TypedEmitter {
    * @param {string | CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
    * @param {String} [opts.defaultConfigPath]
+   * @param {string} [opts.customMapPath] File path to a locally stored Styled Map Package (SMP).
+   * @param {string} [opts.fallbackMapPath] File path to a locally stored Styled Map Package (SMP)
+   * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    */
   constructor({
     rootKey,
@@ -122,6 +135,9 @@ export class MapeoManager extends TypedEmitter {
     coreStorage,
     fastify,
     defaultConfigPath,
+    customMapPath,
+    fallbackMapPath = DEFAULT_FALLBACK_MAP_FILE_PATH,
+    defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
@@ -190,6 +206,12 @@ export class MapeoManager extends TypedEmitter {
       prefix: ICONS_PREFIX,
       getProject: this.getProject.bind(this),
     })
+    this.#fastify.register(MapServerPlugin, {
+      prefix: MAPS_PREFIX,
+      customMapPath,
+      defaultOnlineStyleUrl,
+      fallbackMapPath,
+    })
 
     this.#localDiscovery = new LocalDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
@@ -198,31 +220,8 @@ export class MapeoManager extends TypedEmitter {
     this.#localDiscovery.on('connection', this.#replicate.bind(this))
   }
 
-  /**
-   * MapeoRPC instance, used for tests
-   */
-  get [kRPC]() {
-    return this.#localPeers
-  }
-
   get deviceId() {
     return this.#deviceId
-  }
-
-  /**
-   * Create a Mapeo replication stream. This replication connects the Mapeo RPC
-   * channel and allows invites. All active projects will sync automatically to
-   * this replication stream. Only use for local (trusted) connections, because
-   * the RPC channel key is public. To sync a specific project without
-   * connecting RPC, use project[kProjectReplication].
-   *
-   * @param {boolean} isInitiator
-   */
-  [kManagerReplicate](isInitiator) {
-    const noiseStream = new NoiseSecretStream(isInitiator, undefined, {
-      keyPair: this.#keyManager.getIdentityKeypair(),
-    })
-    return this.#replicate(noiseStream)
   }
 
   /**
@@ -240,6 +239,10 @@ export class MapeoManager extends TypedEmitter {
       }
       case 'icons': {
         prefix = ICONS_PREFIX
+        break
+      }
+      case 'maps': {
+        prefix = MAPS_PREFIX
         break
       }
       default: {
@@ -416,9 +419,10 @@ export class MapeoManager extends TypedEmitter {
 
     // 7. Load config, if relevant
     // TODO: see how to expose warnings to frontend
-    /* eslint-disable no-unused-vars */
+    // eslint-disable-next-line no-unused-vars
     let warnings
     if (configPath) {
+      // eslint-disable-next-line no-unused-vars
       warnings = await project.importConfig({ configPath })
     }
 
@@ -453,7 +457,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
 
     if (!projectKeysTableResult) {
-      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
+      throw new NotFoundError(`Project ID ${projectPublicId} not found`)
     }
 
     const { projectId } = projectKeysTableResult
@@ -479,6 +483,7 @@ export class MapeoManager extends TypedEmitter {
   async #createProjectInstance(projectKeys) {
     validateProjectKeys(projectKeys)
     const projectId = keyToId(projectKeys.projectKey)
+    const isArchiveDevice = this.getIsArchiveDevice()
     const project = new MapeoProject({
       ...this.#projectStorage(projectId),
       ...projectKeys,
@@ -489,6 +494,7 @@ export class MapeoManager extends TypedEmitter {
       localPeers: this.#localPeers,
       logger: this.#loggerBase,
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
+      isArchiveDevice,
     })
     await project[kClearDataIfLeft]()
     return project
@@ -551,7 +557,7 @@ export class MapeoManager extends TypedEmitter {
    * downloaded their proof of project membership and the project config.
    *
    * @param {Pick<import('./generated/rpc.js').ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string }} projectJoinDetails
-   * @param {{ waitForSync?: boolean }} [opts] For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject()
+   * @param {{ waitForSync?: boolean }} [opts] Set opts.waitForSync = false to not wait for sync during addProject()
    * @returns {Promise<string>}
    */
   addProject = async (
@@ -675,6 +681,14 @@ export class MapeoManager extends TypedEmitter {
       isConfigSynced
     ) {
       return true
+    } else {
+      this.#l.log(
+        'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
+        isRoleSynced,
+        isProjectSettingsSynced,
+        isAuthSynced,
+        isConfigSynced
+      )
     }
     return new Promise((resolve, reject) => {
       /** @param {import('./sync/sync-state.js').State} syncState */
@@ -697,9 +711,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @typedef {Exclude<
-   * import('./schema/client.js').DeviceInfoParam['deviceType'],
-   * 'selfHostedServer'>} RPCDeviceType
+   * @typedef {import('./schema/client.js').DeviceInfoParam['deviceType']} RPCDeviceType
    */
 
   /**
@@ -710,10 +722,10 @@ export class MapeoManager extends TypedEmitter {
   async setDeviceInfo(deviceInfo) {
     const values = { deviceId: this.#deviceId, deviceInfo }
     this.#db
-      .insert(localDeviceInfoTable)
+      .insert(deviceSettingsTable)
       .values(values)
       .onConflictDoUpdate({
-        target: localDeviceInfoTable.deviceId,
+        target: deviceSettingsTable.deviceId,
         set: values,
       })
       .run()
@@ -726,13 +738,24 @@ export class MapeoManager extends TypedEmitter {
       })
     )
 
-    await Promise.all(
-      this.#localPeers.peers
-        .filter(({ status }) => status === 'connected')
-        .map((peer) =>
-          this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfo)
-        )
-    )
+    if (deviceInfo.deviceType !== 'selfHostedServer') {
+      /** @type {RPCDeviceType} */
+      const deviceType = deviceInfo.deviceType
+      // We have to make a copy of this because TypeScript can't guarantee that
+      // `deviceInfo` won't be mutated by the time it gets to the
+      // `sendDeviceInfo` call below.
+      const deviceInfoToSend = {
+        ...deviceInfo,
+        deviceType,
+      }
+      await Promise.all(
+        this.#localPeers.peers
+          .filter(({ status }) => status === 'connected')
+          .map((peer) =>
+            this.#localPeers.sendDeviceInfo(peer.deviceId, deviceInfoToSend)
+          )
+      )
+    }
 
     this.#l.log('set device info %o', deviceInfo)
   }
@@ -748,13 +771,57 @@ export class MapeoManager extends TypedEmitter {
   getDeviceInfo() {
     const row = this.#db
       .select()
-      .from(localDeviceInfoTable)
-      .where(eq(localDeviceInfoTable.deviceId, this.#deviceId))
+      .from(deviceSettingsTable)
+      .where(eq(deviceSettingsTable.deviceId, this.#deviceId))
       .get()
     return {
       deviceId: this.#deviceId,
       deviceType: 'device_type_unspecified',
       ...row?.deviceInfo,
+    }
+  }
+
+  /**
+   * Set whether this device is an archive device. Archive devices will download
+   * all media during sync, where-as non-archive devices will not download media
+   * original variants, and only download preview and thumbnail variants.
+   * @param {boolean} isArchiveDevice
+   * @returns {void}
+   */
+  setIsArchiveDevice(isArchiveDevice) {
+    const values = { deviceId: this.#deviceId, isArchiveDevice }
+    const result = this.#db
+      .insert(deviceSettingsTable)
+      .values(values)
+      .onConflictDoUpdate({
+        target: deviceSettingsTable.deviceId,
+        set: values,
+      })
+      .run()
+    if (!result || result.changes === 0) {
+      throw new Error('Failed to set isArchiveDevice')
+    }
+    for (const project of this.#activeProjects.values()) {
+      project[kSetIsArchiveDevice](isArchiveDevice)
+    }
+  }
+
+  /**
+   * Get whether this device is an archive device. Archive devices will download
+   * all media during sync, where-as non-archive devices will not download media
+   * original variants, and only download preview and thumbnail variants.
+   * @returns {boolean} isArchiveDevice
+   */
+  getIsArchiveDevice() {
+    const row = this.#db
+      .select()
+      .from(deviceSettingsTable)
+      .where(eq(deviceSettingsTable.deviceId, this.#deviceId))
+      .get()
+    if (typeof row?.isArchiveDevice === 'boolean') {
+      return row.isArchiveDevice
+    } else {
+      return true
     }
   }
 
@@ -832,7 +899,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
 
     if (!row) {
-      throw new Error(`NotFound: project ID ${projectPublicId} not found`)
+      throw new NotFoundError(`Project ID ${projectPublicId} not found`)
     }
 
     const { keysCipher, projectId, projectInfo } = row
@@ -866,7 +933,7 @@ export class MapeoManager extends TypedEmitter {
 
   async getMapStyleJsonUrl() {
     await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
-    return this.#fastify.mapeoMaps.getStyleJsonUrl()
+    return (await this.#getMediaBaseUrl('maps')) + '/style.json'
   }
 }
 
@@ -883,15 +950,8 @@ export class MapeoManager extends TypedEmitter {
  * @returns {PublicPeerInfo[]}
  */
 function omitPeerProtomux(peers) {
-  return peers.map(
-    ({
-      // @ts-ignore
-      // eslint-disable-next-line no-unused-vars
-      protomux,
-      ...publicPeerInfo
-    }) => {
-      return publicPeerInfo
-    }
+  return peers.map((peer) =>
+    'protomux' in peer ? omit(peer, ['protomux']) : peer
   )
 }
 

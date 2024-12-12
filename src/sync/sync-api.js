@@ -1,4 +1,5 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
+import WebSocket from 'ws'
 import { SyncState } from './sync-state.js'
 import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
@@ -8,15 +9,25 @@ import {
   PRESYNC_NAMESPACES,
 } from '../constants.js'
 import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
+import { getOwn } from '../lib/get-own.js'
+import { wsCoreReplicator } from '../lib/ws-core-replicator.js'
 import { NO_ROLE_ID } from '../roles.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
+/** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
+/** @import { BlobFilter, ReplicationStream } from '../types.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
 export const kRequestFullStop = Symbol('background')
 export const kRescindFullStopRequest = Symbol('foreground')
+export const kWaitForInitialSyncWithPeer = Symbol(
+  'wait for initial sync with peer'
+)
+export const kSetBlobDownloadFilter = Symbol('set isArchiveDevice')
+export const kAddBlobWantRange = Symbol('add blob want range')
+export const kClearBlobWantRanges = Symbol('clear blob want ranges')
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -65,6 +76,7 @@ export class SyncApi extends TypedEmitter {
   /** @type {Map<string, PeerSyncController>} */
   #pscByPeerId = new Map()
   #wantsToSyncData = false
+  #wantsToConnectToServers = false
   #hasRequestedFullStop = false
   /** @type {SyncEnabledState} */
   #previousSyncEnabledState = 'none'
@@ -77,34 +89,56 @@ export class SyncApi extends TypedEmitter {
   /** @type {Map<import('protomux'), Set<Buffer>>} */
   #pendingDiscoveryKeys = new Map()
   #l
+  #getServerWebsocketUrls
+  #getReplicationStream
+  /** @type {Map<string, WebSocket>} */
+  #serverWebsockets = new Map()
+  /** @type {null | BlobFilter} */
+  #blobDownloadFilter = null
 
   /**
-   *
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {CoreOwnership} opts.coreOwnership
    * @param {import('../roles.js').Roles} opts.roles
+   * @param {() => Promise<Iterable<string>>} opts.getServerWebsocketUrls
+   * @param {() => ReplicationStream} opts.getReplicationStream
+   * @param {null | BlobFilter} opts.blobDownloadFilter
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
    */
-  constructor({ coreManager, throttleMs = 200, roles, logger, coreOwnership }) {
+  constructor({
+    coreManager,
+    throttleMs = 200,
+    roles,
+    getServerWebsocketUrls,
+    getReplicationStream,
+    logger,
+    coreOwnership,
+    blobDownloadFilter,
+  }) {
     super()
     this.#l = Logger.create('syncApi', logger)
     this.#coreManager = coreManager
     this.#coreOwnership = coreOwnership
     this.#roles = roles
+    this.#getServerWebsocketUrls = getServerWebsocketUrls
+    this.#getReplicationStream = getReplicationStream
     this[kSyncState] = new SyncState({
       coreManager,
       throttleMs,
       peerSyncControllers: this.#pscByPeerId,
+      logger,
     })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
       this.#updateState(namespaceSyncState)
     })
 
+    this[kSetBlobDownloadFilter](blobDownloadFilter)
+
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
-    this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
+    this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerDisconnect)
 
     roles.on('update', this.#handleRoleUpdate)
     coreOwnership.on('update', this.#handleCoreOwnershipUpdate)
@@ -120,6 +154,37 @@ export class SyncApi extends TypedEmitter {
         )
       )
       .catch(noop)
+  }
+
+  /** @param {import('../types.js').BlobFilter | null} blobDownloadFilter */
+  [kSetBlobDownloadFilter](blobDownloadFilter) {
+    this.#blobDownloadFilter = blobDownloadFilter
+    if (!blobDownloadFilter) return // No download intents = intend to download everything
+    for (const peer of this.#coreManager.creatorCore.peers) {
+      this.#coreManager.sendDownloadIntents(blobDownloadFilter, peer)
+    }
+  }
+
+  /**
+   * Add some blob blocks this peer wants.
+   *
+   * @param {string} peerId
+   * @param {number} start
+   * @param {number} length
+   * @returns {void}
+   */
+  [kAddBlobWantRange](peerId, start, length) {
+    this[kSyncState].addBlobWantRange(peerId, start, length)
+  }
+
+  /**
+   * Clear the blob blocks this peer wants.
+   *
+   * @param {string} peerId
+   * @returns {void}
+   */
+  [kClearBlobWantRanges](peerId) {
+    this[kSyncState].clearBlobWantRanges(peerId)
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */
@@ -261,7 +326,9 @@ export class SyncApi extends TypedEmitter {
       syncEnabledState = 'presync'
     }
 
-    this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
+    if (syncEnabledState !== this.#previousSyncEnabledState) {
+      this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
+    }
     for (const peerSyncController of this.#peerSyncControllers.values()) {
       peerSyncController.setSyncEnabledState(syncEnabledState)
     }
@@ -269,6 +336,74 @@ export class SyncApi extends TypedEmitter {
     this.#previousSyncEnabledState = syncEnabledState
 
     this.emit('sync-state', this.#getState(namespaceSyncState))
+  }
+
+  /**
+   * @returns {void}
+   */
+  connectServers() {
+    this.#wantsToConnectToServers = true
+
+    this.#getServerWebsocketUrls()
+      .then((urls) => {
+        const hasDisconnectedSinceWebsocketUrlsRequestFinished =
+          !this.#wantsToConnectToServers
+        if (hasDisconnectedSinceWebsocketUrlsRequestFinished) return
+
+        for (const url of urls) {
+          const existingWebsocket = this.#serverWebsockets.get(url)
+          if (
+            existingWebsocket &&
+            (existingWebsocket.readyState === WebSocket.OPEN ||
+              existingWebsocket.readyState === WebSocket.CONNECTING)
+          ) {
+            continue
+          }
+
+          const websocket = new WebSocket(url)
+
+          /** @param {Error} err */
+          const onWebsocketError = (err) => {
+            this.#l.log('Ignoring WebSocket error to %s: %o', url, err)
+          }
+          websocket.on('error', onWebsocketError)
+
+          /**
+           * @param {unknown} _req
+           * @param {http.IncomingMessage} res
+           */
+          const onWebsocketUnexpectedResponse = (_req, res) => {
+            this.#l.log(
+              'Ignoring unexpected %d WebSocket response to %s',
+              res.statusCode,
+              url
+            )
+          }
+          websocket.on('unexpected-response', onWebsocketUnexpectedResponse)
+
+          const replicationStream = this.#getReplicationStream()
+          wsCoreReplicator(websocket, replicationStream)
+
+          this.#serverWebsockets.set(url, websocket)
+          websocket.once('close', () => {
+            websocket.off('error', onWebsocketError)
+            websocket.off('unexpected-response', onWebsocketUnexpectedResponse)
+            this.#serverWebsockets.delete(url)
+          })
+        }
+      })
+      .catch(noop)
+  }
+
+  /**
+   * @returns {void}
+   */
+  disconnectServers() {
+    for (const websocket of this.#serverWebsockets.values()) {
+      websocket.close()
+    }
+    this.#serverWebsockets.clear()
+    this.#wantsToConnectToServers = false
   }
 
   /**
@@ -345,6 +480,40 @@ export class SyncApi extends TypedEmitter {
     })
   }
 
+  /**
+   * @param {string} deviceId
+   * @param {AbortSignal} abortSignal
+   * @returns {Promise<void>}
+   */
+  async [kWaitForInitialSyncWithPeer](deviceId, abortSignal) {
+    abortSignal.throwIfAborted()
+
+    const state = this[kSyncState].getState()
+    if (isInitiallySyncedWithPeer(state, deviceId)) return
+
+    return new Promise((resolve, reject) => {
+      /** @param {import('./sync-state.js').State} state */
+      const onState = (state) => {
+        if (isInitiallySyncedWithPeer(state, deviceId)) {
+          cleanup()
+          resolve()
+        }
+      }
+      const onAbort = () => {
+        cleanup()
+        reject(abortSignal.reason)
+      }
+
+      const cleanup = () => {
+        this[kSyncState].off('state', onState)
+        abortSignal.removeEventListener('abort', onAbort)
+      }
+
+      this[kSyncState].on('state', onState)
+      abortSignal.addEventListener('abort', onAbort)
+    })
+  }
+
   #clearAutostopDataSyncTimeoutIfExists() {
     if (this.#autostopDataSyncTimeout) {
       clearTimeout(this.#autostopDataSyncTimeout)
@@ -360,7 +529,7 @@ export class SyncApi extends TypedEmitter {
    * will then handle validation of role records to ensure that the peer is
    * actually still part of the project.
    *
-   * @param {{ protomux: import('protomux')<OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<OpenedNoiseStream> }} peer
    */
   #handlePeerAdd = (peer) => {
     const { protomux } = peer
@@ -370,6 +539,9 @@ export class SyncApi extends TypedEmitter {
         protomux.stream.remotePublicKey
       )
       return
+    }
+    if (this.#blobDownloadFilter) {
+      this.#coreManager.sendDownloadIntents(this.#blobDownloadFilter, peer)
     }
     const peerSyncController = new PeerSyncController({
       protomux,
@@ -403,7 +575,7 @@ export class SyncApi extends TypedEmitter {
    *
    * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
    */
-  #handlePeerRemove = (peer) => {
+  #handlePeerDisconnect = (peer) => {
     const { protomux } = peer
     if (!this.#peerSyncControllers.has(protomux)) {
       this.#l.log(
@@ -416,6 +588,8 @@ export class SyncApi extends TypedEmitter {
     const peerId = keyToId(peer.remotePublicKey)
     this.#pscByPeerId.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
+    this[kSyncState].disconnectPeer(peerId)
+    this.#updateState()
   }
 
   /**
@@ -435,7 +609,6 @@ export class SyncApi extends TypedEmitter {
     for (const result of ownershipResults) {
       if (result.status === 'rejected') continue
       await this.#validateRoleAndAddCoresForPeer(result.value)
-      this.#l.log('Added cores for device %S', result.value.docId)
     }
   }
 
@@ -457,10 +630,8 @@ export class SyncApi extends TypedEmitter {
               coreOwnershipDocId
             )
             await this.#validateRoleAndAddCoresForPeer(coreOwnershipDoc)
-            this.#l.log('Added cores for device %S', coreOwnershipDocId)
           } catch (_) {
             // Ignore, we'll add these when the role is added
-            this.#l.log('No role for device %S', coreOwnershipDocId)
           }
         })()
       )
@@ -485,6 +656,7 @@ export class SyncApi extends TypedEmitter {
       const coreKey = Buffer.from(coreOwnership[`${ns}CoreId`], 'hex')
       this.#coreManager.addCore(coreKey, ns)
     }
+    this.#l.log('Added non-auth cores for peer %S', peerDeviceId)
   }
 }
 
@@ -516,6 +688,31 @@ function isSynced(state, type, peerSyncControllers) {
       if (psc.syncCapability[ns] === 'blocked') continue
       if (!(peerId in state[ns].remoteStates)) return false
       if (state[ns].remoteStates[peerId].status === 'starting') return false
+    }
+  }
+  return true
+}
+
+/**
+ * @param {import('./sync-state.js').State} state
+ * @param {string} peerId
+ */
+function isInitiallySyncedWithPeer(state, peerId) {
+  for (const ns of PRESYNC_NAMESPACES) {
+    const remoteDeviceSyncState = getOwn(state[ns].remoteStates, peerId)
+    if (!remoteDeviceSyncState) return false
+
+    switch (remoteDeviceSyncState.status) {
+      case 'starting':
+        return false
+      case 'started':
+      case 'stopped': {
+        const { want, wanted } = remoteDeviceSyncState
+        if (want || wanted) return false
+        break
+      }
+      default:
+        throw new ExhaustivenessError(remoteDeviceSyncState.status)
     }
   }
   return true

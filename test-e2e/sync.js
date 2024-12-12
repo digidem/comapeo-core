@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
 import { isDeepStrictEqual } from 'node:util'
 import { pEvent } from 'p-event'
+import pProps from 'p-props'
 import { setTimeout as delay } from 'timers/promises'
 import { request } from 'undici'
 import FakeTimers from '@sinonjs/fake-timers'
@@ -18,7 +19,7 @@ import {
   waitForSync,
 } from './utils.js'
 import { kCoreManager } from '../src/mapeo-project.js'
-import { getKeys } from '../tests/helpers/core-manager.js'
+import { getKeys } from '../test/helpers/core-manager.js'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../src/constants.js'
 import { FastifyController } from '../src/fastify-controller.js'
 import { generate } from '@mapeo/mock-data'
@@ -26,8 +27,9 @@ import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
-import { blobMetadata } from '../tests/helpers/blob-store.js'
+import { blobMetadata } from '../test/helpers/blob-store.js'
 /** @import { State } from '../src/sync/sync-api.js' */
+/** @import { BlobId } from '../src/types.js' */
 
 const SCHEMAS_INITIAL_SYNC = ['preset', 'field']
 
@@ -35,7 +37,7 @@ test('Create and sync data', { timeout: 100_000 }, async (t) => {
   const COUNT = 10
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
-  const disconnect = connectPeers(managers, { discovery: false })
+  const disconnect = connectPeers(managers)
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
   await disconnect()
@@ -50,7 +52,7 @@ test('Create and sync data', { timeout: 100_000 }, async (t) => {
     return acc
   }, new Set())
 
-  const disconnectPeers = connectPeers(managers, { discovery: false })
+  const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
   await waitForSync(projects, 'initial')
 
@@ -125,7 +127,7 @@ test('syncing blobs', async (t) => {
     fastifyController.start(),
   ])
 
-  let disconnectPeers = connectPeers(managers, { discovery: false })
+  let disconnectPeers = connectPeers(managers)
   t.after(() => disconnectPeers())
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees: [invitee], projectId })
@@ -137,17 +139,19 @@ test('syncing blobs', async (t) => {
   ])
   const [invitorProject, inviteeProject] = projects
 
-  const fixturePath = new URL(
-    '../tests/fixtures/images/02-digidem-logo.jpg',
-    import.meta.url
-  ).pathname
+  const fixturesPath = new URL('../test/fixtures/images/', import.meta.url)
+  const fixturePaths = {
+    original: new URL('02-digidem-logo.jpg', fixturesPath).pathname,
+    preview: new URL('02-digidem-logo-preview.jpg', fixturesPath).pathname,
+    thumbnail: new URL('02-digidem-logo-thumb.jpg', fixturesPath).pathname,
+  }
 
   const blob = await invitorProject.$blobs.create(
-    { original: fixturePath },
+    fixturePaths,
     blobMetadata({ mimeType: 'image/jpeg' })
   )
 
-  disconnectPeers = connectPeers(managers, { discovery: false })
+  disconnectPeers = connectPeers(managers)
   await waitForSync(projects, 'initial')
 
   invitorProject.$sync.start()
@@ -155,17 +159,167 @@ test('syncing blobs', async (t) => {
 
   await waitForSync(projects, 'full')
 
-  const blobUrl = await inviteeProject.$blobs.getUrl({
-    ...blob,
-    variant: 'original',
+  await pProps(fixturePaths, async (path, variant) => {
+    const expectedBytesPromise = fs.readFile(path)
+
+    // We have to tell TypeScript that the blob's type is "photo", which it
+    // isn't smart enough to figure out.
+    assert.equal(blob.type, 'photo', 'blob should be a photo type')
+    const blobUrl = await inviteeProject.$blobs.getUrl({
+      ...blob,
+      type: 'photo',
+      variant,
+    })
+    const response = await request(blobUrl, { reset: true })
+    assert.equal(response.statusCode, 200)
+    assert.deepEqual(
+      Buffer.from(await response.body.arrayBuffer()),
+      await expectedBytesPromise,
+      'blob makes it to the other side'
+    )
   })
-  const response = await request(blobUrl, { reset: true })
-  assert.equal(response.statusCode, 200)
-  assert.deepEqual(
-    Buffer.from(await response.body.arrayBuffer()),
-    await fs.readFile(fixturePath),
-    'blob makes it to the other side'
+})
+
+test('non-archive devices only sync a subset of blobs', async (t) => {
+  const invitor = createManager('invitor', t)
+
+  const fastify = Fastify()
+  const fastifyController = new FastifyController({ fastify })
+  t.after(() => fastifyController.stop())
+  const invitee = createManager('invitee', t, { fastify })
+
+  invitee.setIsArchiveDevice(false)
+
+  const managers = [invitee, invitor]
+
+  await Promise.all([
+    invitor.setDeviceInfo({ name: 'invitor', deviceType: 'mobile' }),
+    invitee.setDeviceInfo({ name: 'invitee', deviceType: 'mobile' }),
+    fastifyController.start(),
+  ])
+
+  const disconnectPeers = connectPeers(managers)
+  t.after(() => disconnectPeers())
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+
+  const projects = await Promise.all([
+    invitor.getProject(projectId),
+    invitee.getProject(projectId),
+  ])
+  const [invitorProject, inviteeProject] = projects
+
+  const fixturesPath = new URL('../test/fixtures/', import.meta.url)
+
+  // Test that only previews and thumbnails sync to non-archive devices
+
+  const imagesFixturesPath = new URL('images/', fixturesPath)
+  const photoFixturePaths = {
+    original: new URL('02-digidem-logo.jpg', imagesFixturesPath).pathname,
+    preview: new URL('02-digidem-logo-preview.jpg', imagesFixturesPath)
+      .pathname,
+    thumbnail: new URL('02-digidem-logo-thumb.jpg', imagesFixturesPath)
+      .pathname,
+  }
+  const audioFixturePath = new URL('blob-api/audio.mp3', fixturesPath).pathname
+
+  const [photoBlob, audioBlob] = await Promise.all([
+    invitorProject.$blobs.create(
+      photoFixturePaths,
+      blobMetadata({ mimeType: 'image/jpeg' })
+    ),
+    invitorProject.$blobs.create(
+      { original: audioFixturePath },
+      blobMetadata({ mimeType: 'audio/mpeg' })
+    ),
+  ])
+
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+
+  await waitForSync(projects, 'full')
+
+  inviteeProject.$sync.stop()
+  inviteeProject.$sync.stop()
+
+  /**
+   * @param {BlobId} blobId
+   * @param {string} path
+   */
+  const assertLoads = async (blobId, path) => {
+    const expectedBytesPromise = fs.readFile(path)
+
+    const originalBlobUrl = await inviteeProject.$blobs.getUrl(blobId)
+    const response = await request(originalBlobUrl, { reset: true })
+    assert.equal(response.statusCode, 200)
+    assert.deepEqual(
+      Buffer.from(await response.body.arrayBuffer()),
+      await expectedBytesPromise,
+      'blob makes it to the other side'
+    )
+  }
+
+  /** @param {BlobId} blobId */
+  const assert404 = async (blobId) => {
+    const originalBlobUrl = await inviteeProject.$blobs.getUrl(blobId)
+    const response = await request(originalBlobUrl, { reset: true })
+    assert.equal(response.statusCode, 404, 'blob is not synced')
+  }
+
+  await Promise.all([
+    assert404({ ...photoBlob, variant: 'original' }),
+    assert404({ ...audioBlob, variant: 'original' }),
+    // We have to tell TypeScript that the blob's type is "photo", which it
+    // isn't smart enough to figure out.
+    assertLoads(
+      { ...photoBlob, type: 'photo', variant: 'preview' },
+      photoFixturePaths.preview
+    ),
+    assertLoads(
+      { ...photoBlob, type: 'photo', variant: 'thumbnail' },
+      photoFixturePaths.thumbnail
+    ),
+  ])
+
+  // Devices can become archives again and get all the data
+
+  invitee.setIsArchiveDevice(true)
+
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+
+  await waitForSync(projects, 'full')
+
+  await Promise.all([
+    assertLoads(
+      { ...photoBlob, variant: 'original' },
+      photoFixturePaths.original
+    ),
+    assertLoads({ ...audioBlob, variant: 'original' }, audioFixturePath),
+  ])
+
+  // Devices can toggle whether they're an archive device while sync is running
+
+  invitee.setIsArchiveDevice(false)
+
+  const photoBlob2 = await invitorProject.$blobs.create(
+    photoFixturePaths,
+    blobMetadata({ mimeType: 'image/jpeg' })
   )
+
+  await waitForSync(projects, 'full')
+
+  await Promise.all([
+    assert404({ ...photoBlob2, variant: 'original' }),
+    assertLoads(
+      { ...photoBlob2, type: 'photo', variant: 'preview' },
+      photoFixturePaths.preview
+    ),
+    assertLoads(
+      { ...photoBlob2, type: 'photo', variant: 'thumbnail' },
+      photoFixturePaths.thumbnail
+    ),
+  ])
 })
 
 test('start and stop sync', async function (t) {
@@ -174,7 +328,7 @@ test('start and stop sync', async function (t) {
   const COUNT = 2
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
-  const disconnect = connectPeers(managers, { discovery: false })
+  const disconnect = connectPeers(managers)
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
 
@@ -240,7 +394,7 @@ test('sync only happens if both sides are enabled', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
 
-  const disconnect = connectPeers(managers, { discovery: false })
+  const disconnect = connectPeers(managers)
   t.after(disconnect)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
@@ -310,7 +464,7 @@ test('auto-stop', async (t) => {
   ])
   t.after(() => fastifyController.stop())
 
-  const disconnect = connectPeers(managers, { discovery: false })
+  const disconnect = connectPeers(managers)
   t.after(disconnect)
 
   const projectId = await invitor.createProject({ name: 'mapeo' })
@@ -347,7 +501,7 @@ test('auto-stop', async (t) => {
   await clock.tickAsync(9000)
 
   const fixturePath = new URL(
-    '../tests/fixtures/images/02-digidem-logo.jpg',
+    '../test/fixtures/images/02-digidem-logo.jpg',
     import.meta.url
   ).pathname
   const blob = await invitorProject.$blobs.create(
@@ -472,7 +626,7 @@ test('disabling auto-stop timeout', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
 
-  const disconnect = connectPeers(managers, { discovery: false })
+  const disconnect = connectPeers(managers)
   t.after(disconnect)
 
   const projectId = await invitor.createProject({ name: 'mapeo' })
@@ -531,7 +685,7 @@ test('gracefully shutting down sync for all projects when backgrounded', async f
   const managers = await createManagers(2, t)
   const [invitor, ...invitees] = managers
 
-  const disconnect = connectPeers(managers, { discovery: false })
+  const disconnect = connectPeers(managers)
   t.after(disconnect)
 
   const projectGroupsAfterFirstStep = await Promise.all(
@@ -625,7 +779,7 @@ test('shares cores', async function (t) {
   const COUNT = 5
   const managers = await createManagers(COUNT, t)
   const [invitor, ...invitees] = managers
-  const disconnectPeers = connectPeers(managers, { discovery: false })
+  const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({ invitor, invitees, projectId })
@@ -670,7 +824,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const COUNT = 3
   const managers = await createManagers(COUNT, t)
   const [invitor, invitee, blocked] = managers
-  const disconnect1 = connectPeers(managers, { discovery: false })
+  const disconnect1 = connectPeers(managers)
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({
     invitor,
@@ -689,6 +843,17 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     managers.map((m) => m.getProject(projectId))
   )
   const [invitorProject, inviteeProject] = projects
+
+  assert.equal(
+    (await invitorProject.$member.getById(blocked.deviceId)).role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitor sees blocked participant as part of the project'
+  )
+  assert.equal(
+    (await inviteeProject.$member.getById(blocked.deviceId)).role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitee sees blocked participant as part of the project'
+  )
 
   const generatedDocs = (await seedDatabases([inviteeProject])).flat()
   const configDocsCount = generatedDocs.filter(
@@ -741,7 +906,7 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
   /** @type {State[]} */ let states = statesBeforeStart
   project.$sync.on('sync-state', (state) => states.push(state))
 
-  const disconnect = connectPeers(managers, { discovery: false })
+  const disconnect = connectPeers(managers)
   t.after(disconnect)
   await invite({ invitor, invitees, projectId })
 
@@ -798,7 +963,7 @@ test('updates sync state when peers are added', async (t) => {
     'data sync state is correct at start'
   )
 
-  const disconnectPeers = connectPeers(managers, { discovery: false })
+  const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
   await invite({ invitor, invitees, projectId })
 
@@ -824,7 +989,7 @@ test('Correct sync state prior to data sync', async function (t) {
   const [invitor, ...invitees] = managers
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
-  const disconnect1 = connectPeers(managers, { discovery: false })
+  const disconnect1 = connectPeers(managers)
 
   await invite({ invitor, invitees, projectId })
 
@@ -832,13 +997,19 @@ test('Correct sync state prior to data sync', async function (t) {
     managers.map((m) => m.getProject(projectId))
   )
 
+  for (const project of projects) {
+    const { remoteDeviceSyncState } = project.$sync.getState()
+    const otherDeviceCount = Object.keys(remoteDeviceSyncState).length
+    assert.equal(otherDeviceCount, COUNT - 1)
+  }
+
   const generated = await seedDatabases(projects, { schemas: ['observation'] })
   await waitForSync(projects, 'initial')
 
   // Disconnect and reconnect, because currently pre-have messages about data
   // sync state are only shared on first connection
   await disconnect1()
-  const disconnect2 = connectPeers(managers, { discovery: false })
+  const disconnect2 = connectPeers(managers)
   await waitForPeers(managers)
 
   const expected = managers.map((manager, index) => {
@@ -1098,3 +1269,98 @@ test('data sync state is properly updated as data sync is enabled and disabled',
     'other invitee is still disabled, still wants something'
   )
 })
+
+test(
+  'Sync state with disconnected peer (disconnected peer wants)',
+  { timeout: 100_000 },
+  async (t) => {
+    // 1. Connect to a peer, invite it
+    // 2. Disconnect from the peer
+    // 3. Connect to a new peer, invite it
+    // 4. Wait for initial sync with new peer
+    // 5. Sync should complete with new peer
+
+    const managers = await createManagers(3, t)
+    const [invitor, inviteeA, inviteeB] = managers
+    const disconnectA = connectPeers([invitor, inviteeA])
+    const projectId = await invitor.createProject({ name: 'Mapeo' })
+    await invite({ invitor, invitees: [inviteeA], projectId })
+
+    const [invitorProject, inviteeAProject] = await Promise.all(
+      [invitor, inviteeA].map((m) => m.getProject(projectId))
+    )
+
+    await Promise.all(
+      [invitorProject, inviteeAProject].map((p) =>
+        p.$sync.waitForSync('initial')
+      )
+    )
+
+    await disconnectA()
+
+    const disconnectB = connectPeers([invitor, inviteeB])
+    await invite({ invitor, invitees: [inviteeB], projectId })
+    await pTimeout(invitorProject.$sync.waitForSync('initial'), {
+      milliseconds: 1000,
+      message: 'invitor should complete initial sync with inviteeB',
+    })
+
+    await disconnectB()
+  }
+)
+
+test(
+  'Sync state with disconnected peer (want data from peer)',
+  { timeout: 100_000 },
+  async (t) => {
+    // 1. Connect to two peers, invite them
+    // 2. One peer adds an observation, does not sync it
+    // 3. Wait until other two peers "know" about that observation
+    // 4. Disconnect peer that added observation
+    // 5. Attempt to sync remaining connected peers
+    // 6. Sync should complete with remaining connected peer
+
+    const managers = await createManagers(3, t)
+    const [invitor, inviteeA, inviteeB] = managers
+    const disconnectA = connectPeers([invitor, inviteeA])
+    const disconnectB = connectPeers([invitor, inviteeB])
+    const projectId = await invitor.createProject({ name: 'Mapeo' })
+    await invite({ invitor, invitees: [inviteeA, inviteeB], projectId })
+
+    const [invitorProject, inviteeAProject, inviteeBProject] =
+      await Promise.all(
+        [invitor, inviteeA, inviteeB].map((m) => m.getProject(projectId))
+      )
+
+    await inviteeAProject.observation.create(
+      valueOf(generate('observation')[0])
+    )
+
+    await Promise.all(
+      [invitorProject, inviteeAProject].map((p) =>
+        p.$sync.waitForSync('initial')
+      )
+    )
+
+    // Need to wait for pre-have of inviteeA observation to be received
+    await new Promise((res) => {
+      invitorProject.$sync[kSyncState].on('state', function onState(state) {
+        if (state.data.localState.want === 1) {
+          invitorProject.$sync[kSyncState].removeListener('state', onState)
+          res(void 0)
+        }
+      })
+    })
+    await disconnectA()
+
+    invitorProject.$sync.start()
+    inviteeBProject.$sync.start()
+
+    await pTimeout(invitorProject.$sync.waitForSync('full'), {
+      milliseconds: 1000,
+      message: 'invitor should complete full sync with inviteeB',
+    })
+
+    await disconnectB()
+  }
+)

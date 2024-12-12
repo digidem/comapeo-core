@@ -1,60 +1,62 @@
+[**API**](../README.md) • **Docs**
+
+***
+
 [API](../README.md) / MapeoManager
 
 # Class: MapeoManager
 
-## Hierarchy
+## Extends
 
 - `TypedEmitter`
 
-  ↳ **`MapeoManager`**
-
-## Table of contents
-
-### Constructors
-
-- [constructor](MapeoManager.md#constructor)
-
-### Accessors
-
-- [[kRPC]](MapeoManager.md#[krpc])
-- [deviceId](MapeoManager.md#deviceid)
-- [invite](MapeoManager.md#invite)
-
-### Methods
-
-- [[kManagerReplicate]](MapeoManager.md#[kmanagerreplicate])
-- [addProject](MapeoManager.md#addproject)
-- [connectPeer](MapeoManager.md#connectpeer)
-- [createProject](MapeoManager.md#createproject)
-- [getDeviceInfo](MapeoManager.md#getdeviceinfo)
-- [getMapStyleJsonUrl](MapeoManager.md#getmapstylejsonurl)
-- [getProject](MapeoManager.md#getproject)
-- [leaveProject](MapeoManager.md#leaveproject)
-- [listLocalPeers](MapeoManager.md#listlocalpeers)
-- [listProjects](MapeoManager.md#listprojects)
-- [setDeviceInfo](MapeoManager.md#setdeviceinfo)
-- [startLocalPeerDiscoveryServer](MapeoManager.md#startlocalpeerdiscoveryserver)
-- [stopLocalPeerDiscoveryServer](MapeoManager.md#stoplocalpeerdiscoveryserver)
-
 ## Constructors
 
-### constructor
+### new MapeoManager()
 
-• **new MapeoManager**(`opts`): [`MapeoManager`](MapeoManager.md)
+> **new MapeoManager**(`opts`): [`MapeoManager`](MapeoManager.md)
 
 #### Parameters
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `opts` | `Object` |  |
-| `opts.clientMigrationsFolder` | `string` | path for drizzle migrations folder for client database |
-| `opts.coreStorage` | `string` \| [`CoreStorage`](../modules/internal_.md#corestorage) | Folder for hypercore storage or a function that returns a RandomAccessStorage instance |
-| `opts.dbFolder` | `string` | Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory |
-| `opts.defaultConfigPath` | `undefined` \| `string` |  |
-| `opts.deviceType` | `undefined` \| `DeviceInfo_DeviceType` | Device type, shared with local peers and project members |
-| `opts.fastify` | `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\> | Fastify server instance |
-| `opts.projectMigrationsFolder` | `string` | path for drizzle migrations folder for project database |
-| `opts.rootKey` | `Buffer` | 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo |
+• **opts**
+
+• **opts.clientMigrationsFolder**: `string`
+
+path for drizzle migrations folder for client database
+
+• **opts.coreStorage**: `string` \| [`CoreStorage`](../-internal-/type-aliases/CoreStorage.md)
+
+Folder for hypercore storage or a function that returns a RandomAccessStorage instance
+
+• **opts.customMapPath**: `undefined` \| `string`
+
+File path to a locally stored Styled Map Package (SMP).
+
+• **opts.dbFolder**: `string`
+
+Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
+
+• **opts.defaultConfigPath**: `undefined` \| `string`
+
+• **opts.defaultOnlineStyleUrl**: `undefined` \| `string` = `DEFAULT_ONLINE_STYLE_URL`
+
+URL for an online-hosted StyleJSON asset.
+
+• **opts.fallbackMapPath**: `undefined` \| `string` = `DEFAULT_FALLBACK_MAP_FILE_PATH`
+
+File path to a locally stored Styled Map Package (SMP)
+
+• **opts.fastify**: `FastifyInstance`\<`RawServerDefault`, `IncomingMessage`, `ServerResponse`\<`IncomingMessage`\>, `FastifyBaseLogger`, `FastifyTypeProviderDefault`\>
+
+Fastify server instance
+
+• **opts.projectMigrationsFolder**: `string`
+
+path for drizzle migrations folder for project database
+
+• **opts.rootKey**: `Buffer`
+
+16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
 
 #### Returns
 
@@ -62,67 +64,33 @@
 
 #### Overrides
 
-TypedEmitter.constructor
+`TypedEmitter.constructor`
 
 ## Accessors
 
-### [kRPC]
-
-• `get` **[kRPC]**(): [`LocalPeers`](internal_.LocalPeers.md)
-
-MapeoRPC instance, used for tests
-
-#### Returns
-
-[`LocalPeers`](internal_.LocalPeers.md)
-
-___
-
 ### deviceId
 
-• `get` **deviceId**(): `string`
+> `get` **deviceId**(): `string`
 
 #### Returns
 
 `string`
 
-___
+***
 
 ### invite
 
-• `get` **invite**(): [`InviteApi`](internal_.InviteApi.md)
+> `get` **invite**(): [`InviteApi`](../-internal-/classes/InviteApi.md)
 
 #### Returns
 
-[`InviteApi`](internal_.InviteApi.md)
+[`InviteApi`](../-internal-/classes/InviteApi.md)
 
 ## Methods
 
-### [kManagerReplicate]
+### addProject()
 
-▸ **[kManagerReplicate]**(`isInitiator`): [`ReplicationStream`](../modules/internal_.md#replicationstream)
-
-Create a Mapeo replication stream. This replication connects the Mapeo RPC
-channel and allows invites. All active projects will sync automatically to
-this replication stream. Only use for local (trusted) connections, because
-the RPC channel key is public. To sync a specific project without
-connecting RPC, use project[kProjectReplication].
-
-#### Parameters
-
-| Name | Type |
-| :------ | :------ |
-| `isInitiator` | `boolean` |
-
-#### Returns
-
-[`ReplicationStream`](../modules/internal_.md#replicationstream)
-
-___
-
-### addProject
-
-▸ **addProject**(`projectJoinDetails`, `opts?`): `Promise`\<`string`\>
+> **addProject**(`projectJoinDetails`, `opts`?): `Promise`\<`string`\>
 
 Add a project to this device. After adding a project the client should
 await `project.$waitForInitialSync()` to ensure that the device has
@@ -130,49 +98,51 @@ downloaded their proof of project membership and the project config.
 
 #### Parameters
 
-| Name | Type | Default value | Description |
-| :------ | :------ | :------ | :------ |
-| `projectJoinDetails` | `Pick`\<`ProjectJoinDetails`, ``"projectKey"`` \| ``"encryptionKeys"``\> & \{ `projectName`: `string`  } | `undefined` |  |
-| `opts?` | `Object` | `{}` | For internal use in tests, set opts.waitForSync = false to not wait for sync during addProject() |
-| `opts.waitForSync?` | `boolean` | `true` | - |
+• **projectJoinDetails**: `Pick`\<`ProjectJoinDetails`, `"projectKey"` \| `"encryptionKeys"`\> & `object`
+
+• **opts?** = `{}`
+
+Set opts.waitForSync = false to not wait for sync during addProject()
+
+• **opts.waitForSync?**: `boolean` = `true`
 
 #### Returns
 
 `Promise`\<`string`\>
 
-___
+***
 
-### connectPeer
+### connectLocalPeer()
 
-▸ **connectPeer**(`peer`): `void`
+> **connectLocalPeer**(`peer`): `void`
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `peer` | `Object` |
-| `peer.address` | `string` |
-| `peer.name` | `string` |
-| `peer.port` | `number` |
+• **peer**
+
+• **peer.address**: `string`
+
+• **peer.name**: `string`
+
+• **peer.port**: `number`
 
 #### Returns
 
 `void`
 
-___
+***
 
-### createProject
+### createProject()
 
-▸ **createProject**(`options?`): `Promise`\<`string`\>
+> **createProject**(`options`?): `Promise`\<`string`\>
 
 Create a new project.
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `options?` | `Object` |
-| `options.configPath?` | `string` |
+• **options?** = `{}`
+
+• **options.configPath?**: `string` = `...`
 
 #### Returns
 
@@ -180,115 +150,185 @@ Create a new project.
 
 Project public id
 
-___
+***
 
-### getDeviceInfo
+### getDeviceInfo()
 
-▸ **getDeviceInfo**(): \{ `deviceId`: `string`  } & `Partial`\<[`DeviceInfoParam`](../modules/internal_.md#deviceinfoparam)\>
+> **getDeviceInfo**(): `object` & `Partial`\<[`DeviceInfoParam`](../-internal-/type-aliases/DeviceInfoParam.md)\>
 
 #### Returns
 
-\{ `deviceId`: `string`  } & `Partial`\<[`DeviceInfoParam`](../modules/internal_.md#deviceinfoparam)\>
+`object` & `Partial`\<[`DeviceInfoParam`](../-internal-/type-aliases/DeviceInfoParam.md)\>
 
-___
+***
 
-### getMapStyleJsonUrl
+### getIsArchiveDevice()
 
-▸ **getMapStyleJsonUrl**(): `Promise`\<`string`\>
+> **getIsArchiveDevice**(): `boolean`
+
+Get whether this device is an archive device. Archive devices will download
+all media during sync, where-as non-archive devices will not download media
+original variants, and only download preview and thumbnail variants.
+
+#### Returns
+
+`boolean`
+
+isArchiveDevice
+
+***
+
+### getMapStyleJsonUrl()
+
+> **getMapStyleJsonUrl**(): `Promise`\<`string`\>
 
 #### Returns
 
 `Promise`\<`string`\>
 
-___
+***
 
-### getProject
+### getProject()
 
-▸ **getProject**(`projectPublicId`): `Promise`\<[`MapeoProject`](internal_.MapeoProject.md)\>
+> **getProject**(`projectPublicId`): `Promise`\<[`MapeoProject`](../-internal-/classes/MapeoProject.md)\>
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `projectPublicId` | `string` |
+• **projectPublicId**: `string`
 
 #### Returns
 
-`Promise`\<[`MapeoProject`](internal_.MapeoProject.md)\>
+`Promise`\<[`MapeoProject`](../-internal-/classes/MapeoProject.md)\>
 
-___
+***
 
-### leaveProject
+### leaveProject()
 
-▸ **leaveProject**(`projectPublicId`): `Promise`\<`void`\>
+> **leaveProject**(`projectPublicId`): `Promise`\<`void`\>
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `projectPublicId` | `string` |
+• **projectPublicId**: `string`
 
 #### Returns
 
 `Promise`\<`void`\>
 
-___
+***
 
-### listLocalPeers
+### listLocalPeers()
 
-▸ **listLocalPeers**(): `Promise`\<[`PublicPeerInfo`](../modules/internal_.md#publicpeerinfo)[]\>
-
-#### Returns
-
-`Promise`\<[`PublicPeerInfo`](../modules/internal_.md#publicpeerinfo)[]\>
-
-___
-
-### listProjects
-
-▸ **listProjects**(): `Promise`\<`Pick`\<{}, ``"name"``\> & \{ `createdAt?`: `string` ; `projectId`: `string` ; `updatedAt?`: `string`  }[]\>
+> **listLocalPeers**(): `Promise`\<[`PublicPeerInfo`](../-internal-/type-aliases/PublicPeerInfo.md)[]\>
 
 #### Returns
 
-`Promise`\<`Pick`\<{}, ``"name"``\> & \{ `createdAt?`: `string` ; `projectId`: `string` ; `updatedAt?`: `string`  }[]\>
+`Promise`\<[`PublicPeerInfo`](../-internal-/type-aliases/PublicPeerInfo.md)[]\>
 
-___
+***
 
-### setDeviceInfo
+### listProjects()
 
-▸ **setDeviceInfo**\<`T`\>(`deviceInfo`): `Promise`\<`void`\>
+> **listProjects**(): `Promise`\<`Pick`\<`object`, `"name"`\> & `object`[]\>
 
-#### Type parameters
+#### Returns
 
-| Name | Type |
-| :------ | :------ |
-| `T` | extends [`DeviceInfoParam`](../modules/internal_.md#deviceinfoparam) \| `ExactObject`\<[`DeviceInfoParam`](../modules/internal_.md#deviceinfoparam), `T`\> |
+`Promise`\<`Pick`\<`object`, `"name"`\> & `object`[]\>
+
+***
+
+### onBackgrounded()
+
+> **onBackgrounded**(): `void`
+
+Call this when the app goes into the background.
+
+Will gracefully shut down sync.
+
+#### Returns
+
+`void`
+
+#### See
+
+[onForegrounded](MapeoManager.md#onforegrounded)
+
+***
+
+### onForegrounded()
+
+> **onForegrounded**(): `void`
+
+Call this when the app goes into the foreground.
+
+Will undo the effects of `onBackgrounded`.
+
+#### Returns
+
+`void`
+
+#### See
+
+[onBackgrounded](MapeoManager.md#onbackgrounded)
+
+***
+
+### setDeviceInfo()
+
+> **setDeviceInfo**\<`T`\>(`deviceInfo`): `Promise`\<`void`\>
+
+#### Type Parameters
+
+• **T** *extends* [`DeviceInfoParam`](../-internal-/type-aliases/DeviceInfoParam.md) & `object` \| `ExactObject`\<[`DeviceInfoParam`](../-internal-/type-aliases/DeviceInfoParam.md) & `object`, `T`\>
 
 #### Parameters
 
-| Name | Type |
-| :------ | :------ |
-| `deviceInfo` | `T` |
+• **deviceInfo**: `T`
 
 #### Returns
 
 `Promise`\<`void`\>
 
-___
+***
 
-### startLocalPeerDiscoveryServer
+### setIsArchiveDevice()
 
-▸ **startLocalPeerDiscoveryServer**(): `Promise`\<\{ `name`: `string` ; `port`: `number`  }\>
+> **setIsArchiveDevice**(`isArchiveDevice`): `void`
+
+Set whether this device is an archive device. Archive devices will download
+all media during sync, where-as non-archive devices will not download media
+original variants, and only download preview and thumbnail variants.
+
+#### Parameters
+
+• **isArchiveDevice**: `boolean`
 
 #### Returns
 
-`Promise`\<\{ `name`: `string` ; `port`: `number`  }\>
+`void`
 
-___
+***
 
-### stopLocalPeerDiscoveryServer
+### startLocalPeerDiscoveryServer()
 
-▸ **stopLocalPeerDiscoveryServer**(`opts?`): `Promise`\<`void`\>
+> **startLocalPeerDiscoveryServer**(): `Promise`\<`object`\>
+
+#### Returns
+
+`Promise`\<`object`\>
+
+##### name
+
+> **name**: `string`
+
+##### port
+
+> **port**: `number`
+
+***
+
+### stopLocalPeerDiscoveryServer()
+
+> **stopLocalPeerDiscoveryServer**(`opts`?): `Promise`\<`void`\>
 
 Close all servers and stop multicast advertising and browsing. Will wait
 for open sockets to close unless opts.force=true in which case open sockets
@@ -296,11 +336,15 @@ are force-closed after opts.timeout milliseconds
 
 #### Parameters
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `opts?` | `Object` |  |
-| `opts.force` | `undefined` \| `boolean` | Force-close open sockets after timeout milliseconds |
-| `opts.timeout` | `undefined` \| `number` | Optional timeout when calling stop() with force=true |
+• **opts?**
+
+• **opts.force?**: `undefined` \| `boolean`
+
+Force-close open sockets after timeout milliseconds
+
+• **opts.timeout?**: `undefined` \| `number`
+
+Optional timeout when calling stop() with force=true
 
 #### Returns
 

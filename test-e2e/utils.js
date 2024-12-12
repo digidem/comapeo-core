@@ -2,22 +2,25 @@ import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
 import { arrayFrom } from 'iterpal'
+import assert from 'node:assert/strict'
 import * as path from 'node:path'
 import { fork } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import * as v8 from 'node:v8'
+import { pEvent } from 'p-event'
+import { MapeoManager as MapeoManager_2_0_1 } from '@comapeo/core2.0.1'
 
 import { MapeoManager, roles } from '../src/index.js'
-import { kManagerReplicate, kRPC } from '../src/mapeo-manager.js'
-import { once } from 'node:events'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
-import { randomInt } from 'node:crypto'
+import { randomBytes, randomInt } from 'node:crypto'
 import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { readConfig } from '../src/config-import.js'
+
+/** @import { MemberApi } from '../src/member-api.js' */
 
 const FAST_TESTS = !!process.env.FAST_TESTS
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -26,65 +29,76 @@ const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
 /**
- * @param {readonly MapeoManager[]} managers
- * @returns {() => void}
+ * @internal
+ * @typedef {Pick<
+ *   MapeoManager,
+ *   'startLocalPeerDiscoveryServer' |
+ *   'stopLocalPeerDiscoveryServer' |
+ *   'connectLocalPeer'
+ * >} ConnectableManager
  */
-export function connectPeers(managers, { discovery = true } = {}) {
-  if (discovery) {
-    for (const manager of managers) {
-      manager.startLocalPeerDiscoveryServer().then(({ name, port }) => {
-        for (const otherManager of managers) {
-          if (otherManager === manager) continue
-          otherManager.connectLocalPeer({ address: '127.0.0.1', name, port })
-        }
-      })
-    }
-    return () =>
-      Promise.all(
-        managers.map((manager) =>
-          manager.stopLocalPeerDiscoveryServer({ force: true })
-        )
+
+/**
+ * @param {ReadonlyArray<ConnectableManager>} managers
+ * @returns {() => Promise<void>}
+ */
+export function connectPeers(managers) {
+  let requestedDisconnect = false
+
+  for (const manager of managers) {
+    manager.startLocalPeerDiscoveryServer().then(({ name, port }) => {
+      if (requestedDisconnect) return
+      for (const otherManager of managers) {
+        if (otherManager === manager) continue
+        otherManager.connectLocalPeer({ address: '127.0.0.1', name, port })
+      }
+    })
+  }
+
+  return async () => {
+    requestedDisconnect = true
+    await Promise.all(
+      managers.map((manager) =>
+        manager.stopLocalPeerDiscoveryServer({ force: true })
       )
-  } else {
-    /** @type {import('../src/types.js').ReplicationStream[]} */
-    const replicationStreams = []
-    for (let i = 0; i < managers.length; i++) {
-      for (let j = i + 1; j < managers.length; j++) {
-        const r1 = managers[i][kManagerReplicate](true)
-        const r2 = managers[j][kManagerReplicate](false)
-        replicationStreams.push(r1, r2)
-        r1.pipe(r2).pipe(r1)
-      }
-    }
-    return function destroy() {
-      const promises = []
-      for (const stream of replicationStreams) {
-        promises.push(
-          /** @type {Promise<void>} */
-          (
-            new Promise((res) => {
-              stream.on('close', res)
-              stream.destroy()
-            })
-          )
-        )
-      }
-      return Promise.all(promises)
-    }
+    )
   }
 }
 
 /**
+ * @internal
+ * @typedef {WaitForPeersManager & {
+ *   getProject(projectId: string): PromiseLike<{
+ *     $member: Pick<MemberApi, 'invite'>
+ *   }>
+ * }} InvitorManager
+ */
+
+/**
+ * @internal
+ * @typedef {WaitForPeersManager & {
+ *   deviceId: string
+ *   invite: {
+ *     on(
+ *       event: 'invite-received',
+ *       listener: (invite: { inviteId: string }
+ *     ) => unknown): void
+ *     accept(invite: unknown): PromiseLike<string>
+ *     reject(invite: unknown): unknown
+ *   }
+ * }} InviteeManager
+ */
+
+/**
  * Invite mapeo clients to a project
  *
- * @param {{
- *   invitor: MapeoManager,
- *   projectId: string,
- *   invitees: MapeoManager[],
- *   roleId?: import('../src/roles.js').RoleIdAssignableToOthers,
- *   roleName?: string
- *   reject?: boolean
- * }} opts
+ * @param {object} options
+ * @param {string} options.projectId
+ * @param {InvitorManager} options.invitor
+ * @param {ReadonlyArray<InviteeManager>} options.invitees
+ * @param {import('../src/roles.js').RoleIdAssignableToOthers} [options.roleId]
+ * @param {string} [options.roleName]
+ * @param {boolean} [options.reject]
  */
 export async function invite({
   invitor,
@@ -96,64 +110,95 @@ export async function invite({
 }) {
   const invitorProject = await invitor.getProject(projectId)
 
-  /** @type {Array<Promise<unknown>>} */
-  const promises = []
+  await Promise.allSettled(
+    invitees.map(async (invitee) => {
+      const inviteId = randomBytes(32)
 
-  for (const invitee of invitees) {
-    promises.push(
-      invitorProject.$member.invite(invitee.deviceId, {
-        roleId,
-        roleName,
-      })
-    )
-    promises.push(
-      once(invitee.invite, 'invite-received').then(async ([invite]) => {
-        await (reject
-          ? invitee.invite.reject(invite)
-          : invitee.invite.accept(invite))
-      })
-    )
-  }
+      await waitForPeers([invitor, invitee])
 
-  await Promise.allSettled(promises)
+      await Promise.all([
+        invitorProject.$member.invite(invitee.deviceId, {
+          roleId,
+          roleName,
+          __testOnlyInviteId: inviteId,
+        }),
+        (async () => {
+          const invite = await pEvent(
+            invitee.invite,
+            'invite-received',
+            (invite) => Buffer.from(invite.inviteId, 'hex').equals(inviteId)
+          )
+          await (reject
+            ? invitee.invite.reject(invite)
+            : invitee.invite.accept(invite))
+        })(),
+      ])
+    })
+  )
 }
+
+/**
+ * A simple Promise-aware version of `Array.prototype.every`.
+ *
+ * Similar to the [p-every package](https://www.npmjs.com/package/p-every),
+ * which I couldn't figure out how to import without type errors.
+ *
+ * @template T
+ * @param {Iterable<T>} iterable
+ * @param {(value: T) => boolean | PromiseLike<boolean>} predicate
+ * @returns {Promise<boolean>}
+ */
+async function pEvery(iterable, predicate) {
+  const results = await Promise.all([...iterable].map(predicate))
+  return results.every(Boolean)
+}
+
+/**
+ * @internal
+ * @typedef {Pick<MapeoManager, 'deviceId' | 'listLocalPeers'> & {
+ *    on(event: 'local-peers', listener: () => unknown): void;
+ *    off(event: 'local-peers', listener: () => unknown): void;
+ * }} WaitForPeersManager
+ */
 
 /**
  * Waits for all manager instances to be connected to each other
  *
- * @param {readonly MapeoManager[]} managers
+ * @param {ReadonlyArray<WaitForPeersManager>} managers
  * @param {{ waitForDeviceInfo?: boolean }} [opts] Optionally wait for device names to be set
  * @returns {Promise<void>}
  */
-export const waitForPeers = (managers, { waitForDeviceInfo = false } = {}) =>
-  new Promise((res) => {
-    const expectedCount = managers.length - 1
-    const isDone = () =>
-      managers.every((manager) => {
-        const { peers } = manager[kRPC]
-        const connectedPeers = peers.filter(
-          ({ status }) => status === 'connected'
-        )
-        return (
-          connectedPeers.length === expectedCount &&
-          (!waitForDeviceInfo || connectedPeers.every(({ name }) => !!name))
-        )
-      })
+export async function waitForPeers(
+  managers,
+  { waitForDeviceInfo = false } = {}
+) {
+  const deviceIds = new Set(managers.map((m) => m.deviceId))
 
-    if (isDone()) {
-      res()
-      return
-    }
+  /** @returns {Promise<boolean>} */
+  const isDone = async () =>
+    pEvery(managers, async (manager) => {
+      const unconnectedDeviceIds = new Set(deviceIds)
+      unconnectedDeviceIds.delete(manager.deviceId)
+      for (const peer of await manager.listLocalPeers()) {
+        if (peer.status === 'connected' && (!waitForDeviceInfo || peer.name)) {
+          unconnectedDeviceIds.delete(peer.deviceId)
+        }
+      }
+      return unconnectedDeviceIds.size === 0
+    })
 
-    const onLocalPeers = () => {
-      if (isDone()) {
+  if (await isDone()) return
+
+  return new Promise((res) => {
+    const onLocalPeers = async () => {
+      if (await isDone()) {
         for (const manager of managers) manager.off('local-peers', onLocalPeers)
         res()
       }
     }
-
     for (const manager of managers) manager.on('local-peers', onLocalPeers)
   })
+}
 
 /**
  * Create `count` manager instances. Each instance has a deterministic identity
@@ -187,6 +232,7 @@ export async function createManagers(
  * @param {string} seed
  * @param {import('node:test').TestContext} t
  * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]>} [overrides]
+ * @returns {MapeoManager}
  */
 export function createManager(seed, t, overrides = {}) {
   /** @type {string} */ let dbFolder
@@ -217,6 +263,31 @@ export function createManager(seed, t, overrides = {}) {
     clientMigrationsFolder,
     dbFolder,
     coreStorage,
+    fastify: Fastify(),
+    ...overrides,
+  })
+}
+/**
+ * @param {string} seed
+ * @param {Partial<ConstructorParameters<typeof MapeoManager_2_0_1>[0]>} [overrides]
+ * @returns {Promise<MapeoManager_2_0_1>}
+ */
+export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
+  const comapeoCorePreMigrationUrl = await import.meta.resolve?.(
+    '@comapeo/core2.0.1'
+  )
+  assert(comapeoCorePreMigrationUrl, 'Could not resolve @comapeo/core2.0.1')
+
+  return new MapeoManager_2_0_1({
+    rootKey: getRootKey(seed),
+    clientMigrationsFolder: fileURLToPath(
+      new URL('../drizzle/client', comapeoCorePreMigrationUrl)
+    ),
+    projectMigrationsFolder: fileURLToPath(
+      new URL('../drizzle/project', comapeoCorePreMigrationUrl)
+    ),
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
     fastify: Fastify(),
     ...overrides,
   })

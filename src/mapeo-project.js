@@ -2,7 +2,6 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
@@ -24,6 +23,7 @@ import {
   roleTable,
   iconTable,
   translationTable,
+  remoteDetectionAlertTable,
 } from './schema/project.js'
 import {
   CoreOwnership,
@@ -38,19 +38,31 @@ import {
 } from './roles.js'
 import {
   assert,
+  ExhaustivenessError,
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
   valueOf,
 } from './utils.js'
+import { migrate } from './lib/drizzle-helpers.js'
+import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
-import { SyncApi, kHandleDiscoveryKey } from './sync/sync-api.js'
+import {
+  SyncApi,
+  kAddBlobWantRange,
+  kClearBlobWantRanges,
+  kHandleDiscoveryKey,
+  kSetBlobDownloadFilter,
+  kWaitForInitialSyncWithPeer,
+} from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
+import { NotFoundError, nullIfNotFound } from './errors.js'
+import { getErrorCode, getErrorMessage } from './lib/error.js'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
-/** @import { CoreStorage, KeyPair, Namespace } from './types.js' */
+/** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream } from './types.js' */
 
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
@@ -65,15 +77,25 @@ export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
 export const kProjectLeave = Symbol('leave project')
 export const kClearDataIfLeft = Symbol('clear data if left project')
+export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
+export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
+
+/** @type {import('./types.js').BlobFilter} */
+const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
+  photo: ['preview', 'thumbnail'],
+  // Don't download any audio of video files, since previews and
+  // thumbnails aren't supported yet.
+}
 
 /**
  * @extends {TypedEmitter<{ close: () => void }>}
  */
 export class MapeoProject extends TypedEmitter {
-  #projectId
+  #projectKey
   #deviceId
+  #identityKeypair
   #coreManager
   #indexWriter
   #dataStores
@@ -90,6 +112,7 @@ export class MapeoProject extends TypedEmitter {
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #loadingConfig
+  #isArchiveDevice
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
@@ -106,6 +129,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
+   * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {Logger} [opts.logger]
    *
    */
@@ -122,20 +146,60 @@ export class MapeoProject extends TypedEmitter {
     getMediaBaseUrl,
     localPeers,
     logger,
+    isArchiveDevice,
   }) {
     super()
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
-    this.#projectId = projectKeyToId(projectKey)
+    this.#projectKey = projectKey
     this.#loadingConfig = false
+    this.#isArchiveDevice = isArchiveDevice
+
+    const getReplicationStream = this[kProjectReplicate].bind(this, true)
+
+    const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
 
     ///////// 1. Setup database
+
     this.#sqlite = new Database(dbPath)
     const db = drizzle(this.#sqlite)
-    migrate(db, { migrationsFolder: projectMigrationsFolder })
+    const migrationResult = migrate(db, {
+      migrationsFolder: projectMigrationsFolder,
+    })
+    let reindex
+    switch (migrationResult) {
+      case 'initialized database':
+      case 'no migration':
+        reindex = false
+        break
+      case 'migrated':
+        reindex = true
+        break
+      default:
+        throw new ExhaustivenessError(migrationResult)
+    }
 
-    ///////// 2. Setup random-access-storage functions
+    const indexedTables = [
+      observationTable,
+      trackTable,
+      presetTable,
+      fieldTable,
+      coreOwnershipTable,
+      roleTable,
+      deviceInfoTable,
+      iconTable,
+      translationTable,
+      remoteDetectionAlertTable,
+    ]
+
+    ///////// 2. Wipe data if we need to re-index
+
+    if (reindex) {
+      for (const table of indexedTables) db.delete(table).run()
+    }
+
+    ///////// 3. Setup random-access-storage functions
 
     /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
     const coreManagerStorage = (name) =>
@@ -145,7 +209,7 @@ export class MapeoProject extends TypedEmitter {
     const indexerStorage = (name) =>
       coreStorage(path.join(INDEXER_STORAGE_FOLDER_NAME, name))
 
-    ///////// 3. Create instances
+    ///////// 4. Create instances
 
     this.#coreManager = new CoreManager({
       projectSecretKey,
@@ -158,17 +222,7 @@ export class MapeoProject extends TypedEmitter {
     })
 
     this.#indexWriter = new IndexWriter({
-      tables: [
-        observationTable,
-        trackTable,
-        presetTable,
-        fieldTable,
-        coreOwnershipTable,
-        roleTable,
-        deviceInfoTable,
-        iconTable,
-        translationTable,
-      ],
+      tables: indexedTables,
       sqlite: this.#sqlite,
       getWinner,
       mapDoc: (doc, version) => {
@@ -190,6 +244,7 @@ export class MapeoProject extends TypedEmitter {
         namespace: 'auth',
         batch: (entries) => this.#indexWriter.batch(entries),
         storage: indexerStorage,
+        reindex,
       }),
       config: new DataStore({
         coreManager: this.#coreManager,
@@ -200,12 +255,14 @@ export class MapeoProject extends TypedEmitter {
             sharedIndexWriter,
           }),
         storage: indexerStorage,
+        reindex,
       }),
       data: new DataStore({
         coreManager: this.#coreManager,
         namespace: 'data',
         batch: (entries) => this.#indexWriter.batch(entries),
         storage: indexerStorage,
+        reindex,
       }),
     }
 
@@ -221,6 +278,12 @@ export class MapeoProject extends TypedEmitter {
       track: new DataType({
         dataStore: this.#dataStores.data,
         table: trackTable,
+        db,
+        getTranslations,
+      }),
+      remoteDetectionAlert: new DataType({
+        dataStore: this.#dataStores.data,
+        table: remoteDetectionAlertTable,
         db,
         getTranslations,
       }),
@@ -275,7 +338,7 @@ export class MapeoProject extends TypedEmitter {
         },
       }),
     }
-    const identityKeypair = keyManager.getIdentityKeypair()
+    this.#identityKeypair = keyManager.getIdentityKeypair()
     const coreKeypairs = getCoreKeypairs({
       projectKey,
       projectSecretKey,
@@ -284,14 +347,14 @@ export class MapeoProject extends TypedEmitter {
     this.#coreOwnership = new CoreOwnership({
       dataType: this.#dataTypes.coreOwnership,
       coreKeypairs,
-      identityKeypair,
+      identityKeypair: this.#identityKeypair,
     })
     this.#roles = new Roles({
       dataType: this.#dataTypes.role,
       coreOwnership: this.#coreOwnership,
       coreManager: this.#coreManager,
       projectKey: projectKey,
-      deviceKey: keyManager.getIdentityKeypair().publicKey,
+      deviceKey: this.#identityKeypair.publicKey,
     })
 
     this.#memberApi = new MemberApi({
@@ -299,18 +362,27 @@ export class MapeoProject extends TypedEmitter {
       roles: this.#roles,
       coreOwnership: this.#coreOwnership,
       encryptionKeys,
+      getProjectName: this.#getProjectName.bind(this),
       projectKey,
       rpc: localPeers,
+      getReplicationStream,
+      waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
+        this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
       dataTypes: {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
       },
     })
 
-    const projectPublicId = projectKeyToPublicId(projectKey)
-
     this.#blobStore = new BlobStore({
       coreManager: this.#coreManager,
+      downloadFilter: blobDownloadFilter,
+    })
+
+    this.#blobStore.on('error', (err) => {
+      // TODO: Handle this error in some way - this error will come from an
+      // unexpected error with background blob downloads
+      console.error('BlobStore error', err)
     })
 
     this.$blobs = new BlobApi({
@@ -320,7 +392,7 @@ export class MapeoProject extends TypedEmitter {
         if (!base.endsWith('/')) {
           base += '/'
         }
-        return base + projectPublicId
+        return base + this.#projectPublicId
       },
     })
 
@@ -332,7 +404,7 @@ export class MapeoProject extends TypedEmitter {
         if (!base.endsWith('/')) {
           base += '/'
         }
-        return base + projectPublicId
+        return base + this.#projectPublicId
       },
     })
 
@@ -340,15 +412,75 @@ export class MapeoProject extends TypedEmitter {
       coreManager: this.#coreManager,
       coreOwnership: this.#coreOwnership,
       roles: this.#roles,
+      blobDownloadFilter,
       logger: this.#l,
+      getServerWebsocketUrls: async () => {
+        const members = await this.#memberApi.getMany()
+        /** @type {string[]} */
+        const serverWebsocketUrls = []
+        for (const member of members) {
+          if (
+            member.deviceType === 'selfHostedServer' &&
+            member.selfHostedServerDetails
+          ) {
+            const { baseUrl } = member.selfHostedServerDetails
+            const wsUrl = new URL(`/sync/${this.#projectPublicId}`, baseUrl)
+            wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
+            serverWebsocketUrls.push(wsUrl.href)
+          }
+        }
+        return serverWebsocketUrls
+      },
+      getReplicationStream,
+    })
+
+    /** @type {Map<string, BlobStoreEntriesStream>} */
+    const entriesReadStreams = new Map()
+
+    this.#coreManager.on('peer-download-intent', async (filter, peerId) => {
+      entriesReadStreams.get(peerId)?.destroy()
+
+      const entriesReadStream = this.#blobStore.createEntriesReadStream({
+        live: true,
+        filter,
+      })
+      entriesReadStreams.set(peerId, entriesReadStream)
+
+      entriesReadStream.once('close', () => {
+        if (entriesReadStreams.get(peerId) === entriesReadStream) {
+          entriesReadStreams.delete(peerId)
+        }
+      })
+
+      this.#syncApi[kClearBlobWantRanges](peerId)
+
+      try {
+        for await (const entry of entriesReadStream) {
+          const { blockOffset, blockLength } = entry.value.blob
+          this.#syncApi[kAddBlobWantRange](peerId, blockOffset, blockLength)
+        }
+      } catch (err) {
+        if (getErrorCode(err) === 'ERR_STREAM_PREMATURE_CLOSE') return
+        this.#l.log(
+          'Error getting blob entries stream for peer %h: %s',
+          peerId,
+          getErrorMessage(err)
+        )
+      }
+    })
+
+    this.#coreManager.creatorCore.on('peer-remove', (peer) => {
+      const peerKey = peer.protomux.stream.remotePublicKey
+      const peerId = peerKey.toString('hex')
+      entriesReadStreams.get(peerId)?.destroy()
+      entriesReadStreams.delete(peerId)
     })
 
     this.#translationApi = new TranslationApi({
       dataType: this.#dataTypes.translation,
-      table: translationTable,
     })
 
-    ///////// 4. Replicate local peers automatically
+    ///////// 5. Replicate local peers automatically
 
     // Replicate already connected local peers
     for (const peer of localPeers.peers) {
@@ -416,6 +548,14 @@ export class MapeoProject extends TypedEmitter {
     return this.#deviceId
   }
 
+  get #projectId() {
+    return projectKeyToId(this.#projectKey)
+  }
+
+  get #projectPublicId() {
+    return projectKeyToPublicId(this.#projectKey)
+  }
+
   /**
    * Resolves when hypercores have all loaded
    *
@@ -429,6 +569,7 @@ export class MapeoProject extends TypedEmitter {
    */
   async close() {
     this.#l.log('closing project %h', this.#projectId)
+    this.#blobStore.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())
@@ -499,6 +640,10 @@ export class MapeoProject extends TypedEmitter {
     return this.#dataTypes.field
   }
 
+  get remoteDetectionAlert() {
+    return this.#dataTypes.remoteDetectionAlert
+  }
+
   get $member() {
     return this.#memberApi
   }
@@ -518,14 +663,9 @@ export class MapeoProject extends TypedEmitter {
   async $setProjectSettings(settings) {
     const { projectSettings } = this.#dataTypes
 
-    // We only want to catch the error to the getByDocId call
-    // Using try/catch for this is a little verbose when dealing with TS types
     const existing = await projectSettings
       .getByDocId(this.#projectId)
-      .catch(() => {
-        // project does not exist so return null
-        return null
-      })
+      .catch(nullIfNotFound)
 
     if (existing) {
       return extractEditableProjectSettings(
@@ -553,9 +693,15 @@ export class MapeoProject extends TypedEmitter {
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
     } catch (e) {
-      this.#l.log('No project settings')
       return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
     }
+  }
+
+  /**
+   * @returns {Promise<undefined | string>}
+   */
+  async #getProjectName() {
+    return (await this.$getProjectSettings()).name
   }
 
   async $getOwnRole() {
@@ -572,35 +718,45 @@ export class MapeoProject extends TypedEmitter {
     const coreId = this.#coreManager
       .getCoreByDiscoveryKey(coreDiscoveryKey)
       ?.key.toString('hex')
-    if (!coreId) throw new Error('NotFound')
+    if (!coreId) throw new NotFoundError()
     return this.#coreOwnership.getOwner(coreId)
   }
 
   /**
    * Replicate a project to a @hyperswarm/secret-stream. Invites will not
    * function because the RPC channel is not connected for project replication,
-   * and only this project will replicate (to replicate multiple projects you
-   * need to replicate the manager instance via manager[kManagerReplicate])
+   * and only this project will replicate.
    *
-   * @param {Parameters<import('hypercore')['replicate']>[0]} stream A duplex stream, a @hyperswarm/secret-stream, or a Protomux instance
+   * @param {(
+   *   boolean |
+   *   import('stream').Duplex |
+   *   import('streamx').Duplex
+   * )} isInitiatorOrStream
+   * @returns {ReplicationStream}
    */
-  [kProjectReplicate](stream) {
-    // @ts-expect-error - hypercore types need updating
-    const replicationStream = this.#coreManager.creatorCore.replicate(stream, {
-      // @ts-ignore - hypercore types do not currently include this option
-      ondiscoverykey: async (discoveryKey) => {
-        const protomux =
-          /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
-            replicationStream.noiseStream.userData
-          )
-        this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
-      },
-    })
+  [kProjectReplicate](isInitiatorOrStream) {
+    const replicationStream = this.#coreManager.creatorCore.replicate(
+      isInitiatorOrStream,
+      /**
+       * Hypercore types need updating.
+       * @type {any}
+       */ ({
+        keyPair: this.#identityKeypair,
+        /** @param {Buffer} discoveryKey */
+        ondiscoverykey: async (discoveryKey) => {
+          const protomux =
+            /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
+              replicationStream.noiseStream.userData
+            )
+          this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
+        },
+      })
+    )
     return replicationStream
   }
 
   /**
-   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType'>} value
+   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType' | 'selfHostedServerDetails'>} value
    * @returns {Promise<import('@comapeo/schema').DeviceInfo>}
    */
   async [kSetOwnDeviceInfo](value) {
@@ -613,17 +769,32 @@ export class MapeoProject extends TypedEmitter {
     const doc = {
       name: value.name,
       deviceType: value.deviceType,
+      selfHostedServerDetails: value.selfHostedServerDetails,
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 
-    let existingDoc
-    try {
-      existingDoc = await deviceInfo.getByDocId(configCoreId)
-    } catch (err) {
+    const existingDoc = await deviceInfo
+      .getByDocId(configCoreId)
+      .catch(nullIfNotFound)
+    if (existingDoc) {
+      return await deviceInfo.update(existingDoc.versionId, doc)
+    } else {
       return await deviceInfo[kCreateWithDocId](configCoreId, doc)
     }
+  }
 
-    return deviceInfo.update(existingDoc.versionId, doc)
+  /** @param {boolean} isArchiveDevice */
+  async [kSetIsArchiveDevice](isArchiveDevice) {
+    if (this.#isArchiveDevice === isArchiveDevice) return
+    const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
+    this.#blobStore.setDownloadFilter(blobDownloadFilter)
+    this.#syncApi[kSetBlobDownloadFilter](blobDownloadFilter)
+    this.#isArchiveDevice = isArchiveDevice
+  }
+
+  /** @returns {boolean} */
+  get [kIsArchiveDevice]() {
+    return this.#isArchiveDevice
   }
 
   /**
@@ -770,7 +941,7 @@ export class MapeoProject extends TypedEmitter {
         const fieldRefs = fieldNames.map((fieldName) => {
           const fieldRef = fieldNameToRef.get(fieldName)
           if (!fieldRef) {
-            throw new Error(
+            throw new NotFoundError(
               `field ${fieldName} not found (referenced by preset ${value.name})})`
             )
           }
@@ -782,7 +953,7 @@ export class MapeoProject extends TypedEmitter {
         }
         const iconRef = iconNameToRef.get(iconName)
         if (!iconRef) {
-          throw new Error(
+          throw new NotFoundError(
             `icon ${iconName} not found (referenced by preset ${value.name})`
           )
         }
@@ -829,7 +1000,7 @@ export class MapeoProject extends TypedEmitter {
             })
           )
         } else {
-          throw new Error(
+          throw new NotFoundError(
             `docRef for ${value.docRefType} with name ${name} not found`
           )
         }
@@ -885,13 +1056,19 @@ export class MapeoProject extends TypedEmitter {
 }
 
 /**
+ * @param {boolean} isArchiveDevice
+ * @returns {null | BlobFilter}
+ */
+function getBlobDownloadFilter(isArchiveDevice) {
+  return isArchiveDevice ? null : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER
+}
+
+/**
  * @param {import("@comapeo/schema").ProjectSettings & { forks: string[] }} projectDoc
  * @returns {EditableProjectSettings}
  */
 function extractEditableProjectSettings(projectDoc) {
-  // eslint-disable-next-line no-unused-vars
-  const { schemaName, ...result } = valueOf(projectDoc)
-  return result
+  return omit(valueOf(projectDoc), ['schemaName'])
 }
 
 /**
