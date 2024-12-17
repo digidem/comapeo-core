@@ -57,6 +57,7 @@ import {
 } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
+import { importLegacyMapeoData } from './import-legacy-mapeo-data.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
 import { NotFoundError, nullIfNotFound } from './errors.js'
@@ -1052,6 +1053,14 @@ export class MapeoProject extends TypedEmitter {
       this.#loadingConfig = false
       return /** @type Error[] */ []
     }
+  }
+
+  /**
+   * @param {string} mlefPath
+   * @returns {Promise<void>}
+   */
+  $importLegacyMapeoData(mlefPath) {
+    return importLegacyMapeoData(this, mlefPath)
   }
 }
 
