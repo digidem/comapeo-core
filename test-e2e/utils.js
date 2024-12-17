@@ -305,10 +305,10 @@ export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
 export async function createIpcManager(seed, t, overrides = {}) {
   const { port1: parentPort, port2: childPort } = new MessageChannel()
 
-  const forkedProcessPath = fileURLToPath(
-    new URL('./forked-process.js', import.meta.url)
+  const workerProcessPath = fileURLToPath(
+    new URL('./worker-process.js', import.meta.url)
   )
-  const worker = new Worker(forkedProcessPath, {
+  const worker = new Worker(workerProcessPath, {
     workerData: {
       managerConstructorOverrides: { rootKey: getRootKey(seed), ...overrides },
       childPort,
