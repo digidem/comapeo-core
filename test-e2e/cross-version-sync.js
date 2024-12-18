@@ -38,6 +38,7 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
   )
 
   const projectId = await oldManager.createProject({ name: 'foo bar' })
+  const oldProject = await oldManager.getProject(projectId)
 
   await invite({
     projectId,
@@ -45,28 +46,23 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
     invitees: [newManager],
   })
 
-  const projects = await Promise.all(
-    managers.map((manager) => manager.getProject(projectId))
-  )
-  const [oldProject, newProject] = projects
+  const newProject = await newManager.getProject(projectId)
+
   assert.equal(
     (await newProject.$getProjectSettings()).name,
     'foo bar',
     'new manager sees the project'
   )
 
-  oldProject.$sync.start()
-  newProject.$sync.start()
+  const [oldObservation, newObservation] = await Promise.all([
+    oldProject.observation.create(generateObservationThatWorksInOldVersion()),
+    newProject.observation.create(valueOf(generate('observation')[0])),
+  ])
 
-  const [oldObservation, newObservation] = await Promise.all(
-    projects.map((project) =>
-      project.observation.create(valueOf(generate('observation')[0]))
-    )
-  )
-
-  await Promise.all(
-    projects.map((project) => project.$sync.waitForSync('full'))
-  )
+  await Promise.all([
+    oldProject.$sync.waitForSync('full'),
+    newProject.$sync.waitForSync('full'),
+  ])
 
   assert(
     await oldProject.observation.getByDocId(newObservation.docId),
@@ -77,3 +73,30 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
     'new project gets observation from old project'
   )
 })
+
+function generateObservationThatWorksInOldVersion() {
+  const observation = generate('observation')[0]
+  return pick(observation, [
+    'schemaName',
+    'lat',
+    'lon',
+    'attachments',
+    'tags',
+    'metadata',
+    'presetRef',
+  ])
+}
+
+/**
+ * @template T
+ * @template {keyof T} K
+ * @param {T} obj
+ * @param {ReadonlyArray<K>} keys
+ * @returns {Pick<T, K>}
+ */
+function pick(obj, keys) {
+  /** @type {Partial<T>} */
+  const result = {}
+  for (const key of keys) result[key] = obj[key]
+  return /** @type {Pick<T, K>} */ (result)
+}
