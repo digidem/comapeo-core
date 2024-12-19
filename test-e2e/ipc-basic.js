@@ -1,8 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createIpcManager } from './utils.js'
-import { valueOf } from '@comapeo/schema'
-import { generate } from '@mapeo/mock-data'
+import {
+  createIpcManager,
+  generateObservationThatWorksInOldVersion,
+} from './utils.js'
 
 test('basic functionality of a manager in a separate process', async (t) => {
   const manager = await createIpcManager('manager', t)
@@ -12,7 +13,12 @@ test('basic functionality of a manager in a separate process', async (t) => {
   const project = await manager.getProject(projectId)
 
   const { docId } = await project.observation.create(
-    valueOf(generate('observation')[0])
+    // We need to do this to satisfy TypeScript.
+    //
+    // Though `@comapeo/ipc`, used by this test, depends on the development
+    // version of `@comapeo/core` in this repo, the types do not. That means
+    // we can't use new observation fields in this test.
+    generateObservationThatWorksInOldVersion()
   )
 
   assert(

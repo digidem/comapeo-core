@@ -1,0 +1,1 @@
+ALTER TABLE observation ADD `migrationMetadata` text;
