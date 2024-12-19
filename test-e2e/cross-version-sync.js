@@ -8,6 +8,7 @@ import {
   createOldManagerOnVersion2_0_1,
   invite,
   waitForPeers,
+  generateObservationThatWorksInOldVersion,
 } from './utils.js'
 
 test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
@@ -38,6 +39,7 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
   )
 
   const projectId = await oldManager.createProject({ name: 'foo bar' })
+  const oldProject = await oldManager.getProject(projectId)
 
   await invite({
     projectId,
@@ -45,28 +47,25 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
     invitees: [newManager],
   })
 
-  const projects = await Promise.all(
-    managers.map((manager) => manager.getProject(projectId))
-  )
-  const [oldProject, newProject] = projects
+  const newProject = await newManager.getProject(projectId)
+
   assert.equal(
     (await newProject.$getProjectSettings()).name,
     'foo bar',
     'new manager sees the project'
   )
 
+  const [oldObservation, newObservation] = await Promise.all([
+    oldProject.observation.create(generateObservationThatWorksInOldVersion()),
+    newProject.observation.create(valueOf(generate('observation')[0])),
+  ])
+
   oldProject.$sync.start()
   newProject.$sync.start()
-
-  const [oldObservation, newObservation] = await Promise.all(
-    projects.map((project) =>
-      project.observation.create(valueOf(generate('observation')[0]))
-    )
-  )
-
-  await Promise.all(
-    projects.map((project) => project.$sync.waitForSync('full'))
-  )
+  await Promise.all([
+    oldProject.$sync.waitForSync('full'),
+    newProject.$sync.waitForSync('full'),
+  ])
 
   assert(
     await oldProject.observation.getByDocId(newObservation.docId),
