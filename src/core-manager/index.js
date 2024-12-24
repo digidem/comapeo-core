@@ -41,7 +41,6 @@ export class CoreManager extends TypedEmitter {
   #coreIndex
   /** @type {CoreRecord} */
   #creatorCoreRecord
-  #projectKey
   #queries
   #encryptionKeys
   #projectExtension
@@ -93,7 +92,6 @@ export class CoreManager extends TypedEmitter {
     this.#l = Logger.create('coreManager', logger)
     const primaryKey = keyManager.getDerivedKey('primaryKey', projectKey)
     this.#deviceId = keyManager.getIdentityKeypair().publicKey.toString('hex')
-    this.#projectKey = projectKey
     this.#encryptionKeys = encryptionKeys
     this.#autoDownload = autoDownload
 

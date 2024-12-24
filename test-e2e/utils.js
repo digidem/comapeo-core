@@ -9,6 +9,8 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import * as v8 from 'node:v8'
 import { pEvent } from 'p-event'
+import { createMapeoClient } from '@comapeo/ipc'
+import { Worker, MessageChannel } from 'node:worker_threads'
 import { MapeoManager as MapeoManager_2_0_1 } from '@comapeo/core2.0.1'
 
 import { MapeoManager, roles } from '../src/index.js'
@@ -267,6 +269,7 @@ export function createManager(seed, t, overrides = {}) {
     ...overrides,
   })
 }
+
 /**
  * @param {string} seed
  * @param {Partial<ConstructorParameters<typeof MapeoManager_2_0_1>[0]>} [overrides]
@@ -291,6 +294,37 @@ export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
     fastify: Fastify(),
     ...overrides,
   })
+}
+
+/**
+ * @param {string} seed
+ * @param {import('node:test').TestContext} t
+ * @param {Partial<ConstructorParameters<typeof MapeoManager_2_0_1>[0]>} [overrides]
+ * @returns {Promise<ReturnType<typeof createMapeoClient>>}
+ */
+export async function createIpcManager(seed, t, overrides = {}) {
+  const { port1: parentPort, port2: childPort } = new MessageChannel()
+
+  const workerProcessPath = fileURLToPath(
+    new URL('./worker-process.js', import.meta.url)
+  )
+  const worker = new Worker(workerProcessPath, {
+    workerData: {
+      managerConstructorOverrides: { rootKey: getRootKey(seed), ...overrides },
+      childPort,
+    },
+    transferList: [childPort],
+  })
+
+  t.after(() => worker.terminate())
+
+  // As an optimization, we can prevent the worker from keeping the test
+  // process alive. This isn't necessary for correctness (the call to
+  // `worker.terminate()` should be enough), but it can speed up tests by
+  // letting the process end early.
+  worker.unref()
+
+  return createMapeoClient(parentPort)
 }
 
 /**
@@ -578,6 +612,31 @@ async function seedProjectDatabase(
     }
   }
   return Promise.all(promises)
+}
+
+export const generateObservationThatWorksInOldVersion = () =>
+  pick(generate('observation')[0], [
+    'schemaName',
+    'lat',
+    'lon',
+    'attachments',
+    'tags',
+    'metadata',
+    'presetRef',
+  ])
+
+/**
+ * @template T
+ * @template {keyof T} K
+ * @param {T} obj
+ * @param {ReadonlyArray<K>} keys
+ * @returns {Pick<T, K>}
+ */
+function pick(obj, keys) {
+  /** @type {Partial<T>} */
+  const result = {}
+  for (const key of keys) result[key] = obj[key]
+  return /** @type {Pick<T, K>} */ (result)
 }
 
 /**
