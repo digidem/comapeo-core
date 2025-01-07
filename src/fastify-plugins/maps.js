@@ -120,6 +120,7 @@ export async function plugin(fastify, opts) {
       if (resp && resp.status === 200) {
         return reply
           .headers({
+            'access-control-allow-origin': '*',
             'cache-control': 'no-cache',
           })
           .redirect(url.toString())
