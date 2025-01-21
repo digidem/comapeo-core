@@ -95,6 +95,12 @@ test('/style.json resolves style.json of custom map when available', async (t) =
     'style response disables caching'
   )
 
+  assert.equal(
+    styleResponse.headers['access-control-allow-origin'],
+    '*',
+    'style response enables CORS'
+  )
+
   const location = styleResponse.headers['location']
 
   assert.equal(
@@ -155,6 +161,12 @@ test('/style.json resolves online style.json when custom is not available', asyn
   )
 
   assert.equal(
+    response.headers['access-control-allow-origin'],
+    '*',
+    'style response enables CORS'
+  )
+
+  assert.equal(
     response.headers['location'],
     DEFAULT_ONLINE_STYLE_URL,
     'location header matches specified default online style url'
@@ -197,6 +209,12 @@ test('/style.json resolves style.json of fallback map when custom and online are
     styleResponse.headers['cache-control'],
     'no-cache',
     'style response disables caching'
+  )
+
+  assert.equal(
+    styleResponse.headers['access-control-allow-origin'],
+    '*',
+    'style response enables CORS'
   )
 
   const location = styleResponse.headers['location']
