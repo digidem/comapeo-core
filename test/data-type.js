@@ -136,7 +136,7 @@ test('getByVersionId fetches docs by their version ID', async () => {
   assert.equal(created.docId, fetched.docId)
 })
 
-test('getByVersionId returns rejects if fetching a version ID in the same store, but with a different type', async () => {
+test('getByVersionId rejects if fetching a version ID in the same store, but with a different type', async () => {
   const {
     dataType: observationDataType,
     dataStore,
