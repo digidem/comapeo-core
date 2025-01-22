@@ -166,6 +166,7 @@
     "@hyperswarm/secret-stream": "^6.6.3",
     "@mapeo/crypto": "1.0.0-alpha.10",
     "@mapeo/sqlite-indexer": "1.0.0-alpha.9",
+    "@node-rs/crc32": "^1.10.6",
     "@sinclair/typebox": "^0.33.17",
     "@sindresorhus/merge-streams": "^4.0.0",
     "b4a": "^1.6.3",
