@@ -614,31 +614,6 @@ async function seedProjectDatabase(
   return Promise.all(promises)
 }
 
-export const generateObservationThatWorksInOldVersion = () =>
-  pick(generate('observation')[0], [
-    'schemaName',
-    'lat',
-    'lon',
-    'attachments',
-    'tags',
-    'metadata',
-    'presetRef',
-  ])
-
-/**
- * @template T
- * @template {keyof T} K
- * @param {T} obj
- * @param {ReadonlyArray<K>} keys
- * @returns {Pick<T, K>}
- */
-function pick(obj, keys) {
-  /** @type {Partial<T>} */
-  const result = {}
-  for (const key of keys) result[key] = obj[key]
-  return /** @type {Pick<T, K>} */ (result)
-}
-
 /**
  * If the path is a regular file, return its size in bytes.
  *
