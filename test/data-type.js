@@ -8,7 +8,11 @@ import {
 } from './helpers/core-manager.js'
 import RAM from 'random-access-memory'
 import crypto from 'hypercore-crypto'
-import { observationTable, translationTable } from '../src/schema/project.js'
+import {
+  observationTable,
+  trackTable,
+  translationTable,
+} from '../src/schema/project.js'
 import { DataType, kCreateWithDocId } from '../src/datatype/index.js'
 import { IndexWriter } from '../src/index-writer/index.js'
 import { NotFoundError } from '../src/errors.js'
@@ -19,7 +23,13 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'crypto'
 import TranslationApi from '../src/translation-api.js'
 import { getProperty } from 'dot-prop'
-import { decode, decodeBlockPrefix, parseVersionId } from '@comapeo/schema'
+import {
+  decode,
+  decodeBlockPrefix,
+  parseVersionId,
+  valueOf,
+} from '@comapeo/schema'
+import { generate } from '@mapeo/mock-data'
 
 /** @type {import('@comapeo/schema').ObservationValue} */
 const obsFixture = {
@@ -40,6 +50,9 @@ const newObsFixture = {
   attachments: [],
   metadata: { manualLocation: false },
 }
+
+/** @type {import('@comapeo/schema').TrackValue} */
+const trackFixture = valueOf(generate('track')[0])
 
 test('private createWithDocId() method', async () => {
   const sqlite = new Database(':memory:')
@@ -121,6 +134,33 @@ test('getByVersionId fetches docs by their version ID', async () => {
   const fetched = await dataType.getByVersionId(created.versionId)
 
   assert.equal(created.docId, fetched.docId)
+})
+
+test('getByVersionId rejects if fetching a version ID in the same store, but with a different type', async () => {
+  const {
+    dataType: observationDataType,
+    dataStore,
+    db,
+    translationApi,
+  } = await testenv()
+  const trackDataType = new DataType({
+    dataStore,
+    table: trackTable,
+    db,
+    getTranslations: translationApi.get.bind(translationApi),
+  })
+
+  const observation = await observationDataType.create(obsFixture)
+  const track = await trackDataType.create(trackFixture)
+
+  await assert.rejects(
+    () => observationDataType.getByVersionId(track.versionId),
+    NotFoundError
+  )
+  await assert.rejects(
+    () => trackDataType.getByVersionId(observation.versionId),
+    NotFoundError
+  )
 })
 
 test('`originalVersionId` field', async () => {
@@ -318,7 +358,7 @@ async function testenv(opts = {}) {
   const coreManager = createCoreManager({ ...opts, db })
 
   const indexWriter = new IndexWriter({
-    tables: [observationTable, translationTable],
+    tables: [observationTable, trackTable, translationTable],
     sqlite,
   })
 
@@ -380,5 +420,5 @@ async function testenv(opts = {}) {
     getTranslations: translationApi.get.bind(translationApi),
   })
 
-  return { coreManager, dataType, dataStore, translationApi }
+  return { coreManager, dataType, dataStore, db, translationApi }
 }

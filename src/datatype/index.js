@@ -231,6 +231,7 @@ export class DataType extends TypedEmitter {
    */
   async getByVersionId(versionId, { lang } = {}) {
     const result = await this.#dataStore.read(versionId)
+    if (result.schemaName !== this.#schemaName) throw new NotFoundError()
     return this.#translate(deNullify(result), { lang })
   }
 
