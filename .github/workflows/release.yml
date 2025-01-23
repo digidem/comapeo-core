@@ -6,10 +6,10 @@ on:
       semver:
         description: 'The semver to use'
         required: true
-        default: 'patch'
+        default: 'auto'
         type: choice
         options:
-          # - auto
+          - auto
           - patch
           - minor
           - major
