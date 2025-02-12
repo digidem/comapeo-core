@@ -6,7 +6,7 @@ import { onTimes } from './helpers/events.js'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { LocalPeers } from '../src/local-peers.js'
-import { InviteApi } from '../src/invite-api.js'
+import { InviteApi } from '../src/invite/invite-api.js'
 import {
   keyToId,
   projectKeyToProjectInviteId,
