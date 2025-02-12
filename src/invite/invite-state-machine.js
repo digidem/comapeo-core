@@ -1,51 +1,41 @@
-import { setup, assign, fromPromise } from 'xstate'
+import { setup, assign, fromPromise, createActor } from 'xstate'
 import { omit } from '../lib/omit.js'
 import ensureError from 'ensure-error'
 
 const RECEIVE_PROJECT_DETAILS_TIMEOUT_MS = 10_000
 const ADD_PROJECT_TIMEOUT_MS = 10_000
 
-/** @import { MapBuffers, StringToTaggedUnion } from '../types.js' */
-/**
- * @import {
- *   Invite as InviteRpcMessage,
- *   ProjectJoinDetails,
- * } from '../generated/rpc.js'
- */
-/** @import { AddProjectQuery } from '../invite-api.js' */
+/** @import { StringToTaggedUnion } from '../types.js' */
+/** @import { ProjectJoinDetails } from '../generated/rpc.js' */
 /**
  * @internal
- * @typedef {InviteRpcMessage & { receivedAt: number, errorMessage: null | string, projectPublicId: null | string }} InviteContext
+ * @typedef {{ errorMessage: null | string, projectPublicId: null | string }} Context
  */
-
 /**
  * @typedef {object} MachineSetupTypes
- * @property {InviteContext} context
+ * @property {Context} context
  * @property {{ projectPublicId: string | null }} output
- * @property {StringToTaggedUnion<'ACCEPT_INVITE' | 'CANCEL_INVITE' | 'REJECT_INVITE' | 'ADDED_PROJECT'> | ({ type: 'RECEIVE_PROJECT_DETAILS' } & ProjectJoinDetails)} events
- * @property {InviteRpcMessage} input
+ * @property {StringToTaggedUnion<'ACCEPT_INVITE' | 'CANCEL_INVITE' | 'REJECT_INVITE' | 'ALREADY_IN_PROJECT' | 'ADDED_PROJECT'> | ({ type: 'RECEIVE_PROJECT_DETAILS' } & ProjectJoinDetails)} events
  */
 
 export const inviteStateMachine = setup({
   types: /** @type {MachineSetupTypes} */ ({}),
   actions: {
-    /** @param {{ inviteId: MachineSetupTypes['input']['inviteId'] }} _params */
-    doAcceptInvite: (_, _params) => {},
-    /** @param {{ inviteId: MachineSetupTypes['input']['inviteId'] }} _params */
-    doRejectInvite: (_, _params) => {},
+    doAcceptInvite: () => {},
+    doRejectInvite: () => {},
+    doRespondAlready: () => {},
   },
   actors: {
     addProject: fromPromise(
       /**
-       * @param {{ input: Parameters<AddProjectQuery>[0] }} _opts
+       * @param {{ input: ProjectJoinDetails }} _opts
        * @returns {Promise<string>} The project public ID
        */
       async (_opts) => ''
     ),
   },
   guards: {
-    /** @param {{ projectInviteId: MachineSetupTypes['input']['projectInviteId'] }} _params */
-    isNotAlreadyJoiningProject: (_, _params) => true,
+    isNotAlreadyJoiningProject: () => true,
   },
   delays: {
     receiveTimeout: RECEIVE_PROJECT_DETAILS_TIMEOUT_MS,
@@ -53,12 +43,10 @@ export const inviteStateMachine = setup({
   },
 }).createMachine({
   id: 'invite',
-  context: ({ input }) => ({
-    ...input,
-    receivedAt: Date.now(),
+  context: {
     errorMessage: null,
     projectPublicId: null,
-  }),
+  },
   initial: 'pending',
   states: {
     pending: {
@@ -68,28 +56,21 @@ export const inviteStateMachine = setup({
         ACCEPT_INVITE: [
           {
             target: 'joining',
-            guard: {
-              type: 'isNotAlreadyJoiningProject',
-              params: ({ context }) => ({
-                projectInviteId: context.projectInviteId,
-              }),
-            },
-            actions: {
-              type: 'doAcceptInvite',
-              params: ({ context }) => ({ inviteId: context.inviteId }),
-            },
+            guard: { type: 'isNotAlreadyJoiningProject' },
+            actions: { type: 'doAcceptInvite' },
           },
           {
             target: 'error',
             actions: assign({ errorMessage: 'Already accepting project' }),
           },
         ],
+        ALREADY_IN_PROJECT: {
+          target: 'respondedAlready',
+          actions: { type: 'doRespondAlready' },
+        },
         REJECT_INVITE: {
           target: 'rejected',
-          actions: {
-            type: 'doRejectInvite',
-            params: ({ context }) => ({ inviteId: context.inviteId }),
-          },
+          actions: { type: 'doRejectInvite' },
         },
       },
     },
@@ -116,14 +97,11 @@ export const inviteStateMachine = setup({
           description: 'Adding project from invite',
           invoke: {
             src: 'addProject',
-            input: ({ event, context }) => {
+            input: ({ event }) => {
               if (event.type !== 'RECEIVE_PROJECT_DETAILS') {
                 throw new Error('Invalid event type: ' + event.type)
               }
-              return {
-                ...omit(event, ['type']),
-                projectName: context.projectName,
-              }
+              return omit(event, ['type'])
             },
             onDone: {
               target: '#invite.joined',
@@ -157,6 +135,10 @@ export const inviteStateMachine = setup({
       description: 'Rejected invite',
       type: 'final',
     },
+    respondedAlready: {
+      description: 'Responded that already in project',
+      type: 'final',
+    },
     joined: {
       description: 'Successfully joined project',
       type: 'final',
@@ -169,47 +151,44 @@ export const inviteStateMachine = setup({
   output: ({ context }) => ({ projectPublicId: context.projectPublicId }),
 })
 
-// const actor = createActor(
-//   inviteStateMachine.provide({
-//     actors: {
-//       addProject: fromPromise(async ({ signal }) => {
-//         // await delay(1000, { signal })
-//         return 'abcd1234'
-//       }),
-//     },
-//   }),
-//   {
-//     input: {
-//       inviteId: '1234',
-//       projectInviteId: 'abcd',
-//       projectName: 'My Project',
-//       invitorName: 'Alice',
-//     },
-//   }
-// )
+Error.stackTraceLimit = 100
 
-// actor.start()
+const actor = createActor(
+  inviteStateMachine.provide({
+    actors: {
+      addProject: fromPromise(async () => 'projectPublicId'),
+    },
+  })
+)
 
-// actor.subscribe((state) => {
-//   console.log({
-//     value: state.value,
-//     context: state.context,
-//     status: state.status,
-//   })
-//   if (state.status === 'done') {
-//     console.log('Project public ID:', state.context.projectPublicId)
-//   }
-// })
+actor.start()
 
-// actor.send({ type: 'ACCEPT_INVITE' })
+actor.subscribe((state) => {
+  console.log({
+    value: state.value,
+    context: state.context,
+    status: state.status,
+  })
+  if (state.status === 'done') {
+    console.log('Project public ID:', state.context.projectPublicId)
+  }
+})
 
-// actor.send({
-//   type: 'RECEIVE_PROJECT_DETAILS',
-//   projectKey: Buffer.from([0]),
-//   inviteId: Buffer.from([0]),
-//   encryptionKeys: {
-//     auth: Buffer.from([0]),
-//   },
-// })
+actor.send({ type: 'ACCEPT_INVITE' })
 
-// console.log('state value', actor.getSnapshot().value)
+process.on('uncaughtException', (e) => {
+  console.log('Uncaught exception:', e.message)
+})
+
+actor.send({ type: 'ACCEPT_INVITE' })
+
+actor.send({
+  type: 'RECEIVE_PROJECT_DETAILS',
+  projectKey: Buffer.from([0]),
+  inviteId: Buffer.from([0]),
+  encryptionKeys: {
+    auth: Buffer.from([0]),
+  },
+})
+
+console.log('state value', actor.getSnapshot().status)
