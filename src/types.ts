@@ -155,3 +155,9 @@ export type BlobStoreEntriesStream = Readable & {
     HyperdriveEntry & { driveId: string }
   >
 }
+
+export type StringToTaggedUnion<T extends string> = {
+  [K in T]: {
+    type: K
+  }
+}[T]
