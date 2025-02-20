@@ -26,5 +26,10 @@ stateDiagram-v2
   state "Responded that already in project" as invite.respondedAlready
   state "Successfully joined project" as invite.joined
   state "Error joining project" as invite.error
+  invite.cancelled --> [*]
+  invite.rejected --> [*]
+  invite.joined --> [*]
+  invite.error --> [*]
+  invite.respondedAlready --> [*]
 
 ```
