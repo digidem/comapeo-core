@@ -35,7 +35,7 @@ export const inviteStateMachine = setup({
     ),
   },
   guards: {
-    isNotAlreadyJoiningProject: () => true,
+    isNotAlreadyJoiningOrInProject: () => true,
   },
   delays: {
     receiveTimeout: RECEIVE_PROJECT_DETAILS_TIMEOUT_MS,
@@ -56,12 +56,12 @@ export const inviteStateMachine = setup({
         ACCEPT_INVITE: [
           {
             target: 'joining',
-            guard: { type: 'isNotAlreadyJoiningProject' },
+            guard: { type: 'isNotAlreadyJoiningOrInProject' },
             actions: { type: 'doAcceptInvite' },
           },
           {
-            target: 'error',
-            actions: assign({ errorMessage: 'Already accepting project' }),
+            target: 'respondedAlready',
+            actions: { type: 'doRespondAlready' },
           },
         ],
         ALREADY_IN_PROJECT: {

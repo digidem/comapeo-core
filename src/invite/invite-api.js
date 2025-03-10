@@ -28,7 +28,7 @@ import { NotFoundError } from '../errors.js'
  * @typedef {InviteRpcMessage & { receivedAt: number }} InviteInternal
  */
 /** @typedef {ExtractStateString<import('xstate').StateValueFrom<typeof inviteStateMachine>>} InviteState */
-/** @typedef {import('type-fest').Simplify<MapBuffers<InviteInternal> & { state: InviteState, invitorDeviceId: string }>} Invite */
+/** @typedef {import('type-fest').Simplify<MapBuffers<InviteInternal> & { invitorDeviceId: string } & ({ state: Exclude<InviteState, 'error'> } | { state: 'error', errorMessage: string })>} Invite */
 
 /**
  * @typedef {import('xstate').ActorRefFrom<typeof inviteStateMachine>} invite.actor
@@ -166,8 +166,12 @@ export class InviteApi extends TypedEmitter {
           }),
         },
         guards: {
-          isNotAlreadyJoiningProject: () => {
-            return !this.#isJoiningProject(projectInviteId)
+          isNotAlreadyJoiningOrInProject: () => {
+            const isJoining = this.#isJoiningProject(projectInviteId)
+            const isAlreadyMember = Boolean(
+              this.#getProjectByInviteId(projectInviteId)
+            )
+            return !isJoining && !isAlreadyMember
           },
         },
       }),
@@ -302,8 +306,11 @@ export class InviteApi extends TypedEmitter {
     const { projectPublicId } = await toPromise(invite.actor)
 
     if (!projectPublicId) {
+      const { context, value } = invite.actor.getSnapshot()
       const errorMsg =
-        invite.actor.getSnapshot().context.errorMessage || 'Unknown error'
+        value === 'respondedAlready'
+          ? 'Already joining or in project'
+          : context.errorMessage || 'Unknown error'
       throw new Error(errorMsg)
     }
 
@@ -333,12 +340,24 @@ export class InviteApi extends TypedEmitter {
  * @returns {Invite}
  */
 function toInvite(internal, snapshot, invitorDeviceId) {
-  return {
-    ...internal,
-    invitorDeviceId,
-    inviteId: internal.inviteId.toString('hex'),
-    projectInviteId: internal.projectInviteId.toString('hex'),
-    state: toStateString(snapshot.value),
+  const state = toStateString(snapshot.value)
+  if (state === 'error') {
+    return {
+      ...internal,
+      invitorDeviceId,
+      inviteId: internal.inviteId.toString('hex'),
+      projectInviteId: internal.projectInviteId.toString('hex'),
+      state,
+      errorMessage: snapshot.context.errorMessage || 'Unknown error',
+    }
+  } else {
+    return {
+      ...internal,
+      invitorDeviceId,
+      inviteId: internal.inviteId.toString('hex'),
+      projectInviteId: internal.projectInviteId.toString('hex'),
+      state,
+    }
   }
 }
 
