@@ -28,7 +28,7 @@ import { NotFoundError } from '../errors.js'
  * @typedef {InviteRpcMessage & { receivedAt: number }} InviteInternal
  */
 /** @typedef {ExtractStateString<import('xstate').StateValueFrom<typeof inviteStateMachine>>} InviteState */
-/** @typedef {MapBuffers<InviteInternal> & { state: InviteState }} Invite */
+/** @typedef {import('type-fest').Simplify<MapBuffers<InviteInternal> & { state: InviteState, invitorDeviceId: string }>} Invite */
 
 /**
  * @typedef {import('xstate').ActorRefFrom<typeof inviteStateMachine>} invite.actor
@@ -120,6 +120,12 @@ export class InviteApi extends TypedEmitter {
 
     this.#l.log('Received invite %h from %S', inviteId, peerId)
 
+    const hasAlreadyReceivedThisInvite = this.#invites.has(inviteId)
+    if (hasAlreadyReceivedThisInvite) {
+      this.#l.log('Invite %h: already received this invite', inviteId)
+      return
+    }
+
     const isAlreadyMember = Boolean(this.#getProjectByInviteId(projectInviteId))
     if (isAlreadyMember) {
       this.#l.log('Invite %h: already in project', inviteId)
@@ -129,12 +135,6 @@ export class InviteApi extends TypedEmitter {
           inviteId,
         })
         .catch(noop)
-      return
-    }
-
-    const hasAlreadyReceivedThisInvite = this.#invites.has(inviteId)
-    if (hasAlreadyReceivedThisInvite) {
-      this.#l.log('Invite %h: already received this invite', inviteId)
       return
     }
 
@@ -178,10 +178,11 @@ export class InviteApi extends TypedEmitter {
 
     this.#invites.set(inviteId, { value: invite, actor, peerId })
 
-    this.emit('invite-received', toInvite(invite, actor.getSnapshot()))
+    this.emit('invite-received', toInvite(invite, actor.getSnapshot(), peerId))
     actor.start()
+    // Subscribe after start so that initial state (invite-received) is not emitted twice
     actor.subscribe((snapshot) => {
-      this.emit('invite-updated', toInvite(invite, snapshot))
+      this.emit('invite-updated', toInvite(invite, snapshot, peerId))
     })
   }
 
@@ -237,15 +238,23 @@ export class InviteApi extends TypedEmitter {
   }
 
   /**
+   * Get all invites (in all)
+   *
    * @returns {Array<Invite>}
    */
   getMany() {
-    return [...this.#invites.values()].map(({ value, actor }) =>
-      toInvite(value, actor.getSnapshot())
-    )
+    /** @type {Array<Invite>} */
+    const invites = []
+    for (const { value, actor, peerId } of this.#invites.values()) {
+      const snapshot = actor.getSnapshot()
+      invites.push(toInvite(value, snapshot, peerId))
+    }
+    return invites
   }
 
   /**
+   * Get an invite by inviteId
+   *
    * @param {string} inviteIdString
    * @returns {Invite}
    */
@@ -255,7 +264,7 @@ export class InviteApi extends TypedEmitter {
     if (!invite) {
       throw new NotFoundError(`Cannot find invite ${inviteIdString}`)
     }
-    return toInvite(invite.value, invite.actor.getSnapshot())
+    return toInvite(invite.value, invite.actor.getSnapshot(), invite.peerId)
   }
 
   /**
@@ -320,11 +329,13 @@ export class InviteApi extends TypedEmitter {
 /**
  * @param {InviteInternal} internal
  * @param {import('xstate').SnapshotFrom<invite.actor>} snapshot
+ * @param {string} invitorDeviceId
  * @returns {Invite}
  */
-function toInvite(internal, snapshot) {
+function toInvite(internal, snapshot, invitorDeviceId) {
   return {
     ...internal,
+    invitorDeviceId,
     inviteId: internal.inviteId.toString('hex'),
     projectInviteId: internal.projectInviteId.toString('hex'),
     state: toStateString(snapshot.value),
@@ -332,6 +343,10 @@ function toInvite(internal, snapshot) {
 }
 
 /**
+ * Assert that a given event type can be sent to the state machine (will throw
+ * if there is no transition defined for this event type for the current state
+ * of the machine)
+ *
  * @template {import('xstate').AnyActorRef} T
  * @param {T} actor
  * @param {import('xstate').EventFrom<T>} eventType
@@ -339,8 +354,8 @@ function toInvite(internal, snapshot) {
 function assertCanSend(actor, eventType) {
   const state = actor.getSnapshot()
   assert(
-    state.can({ type: eventType }),
-    `Cannot send ${eventType} in state ${state.value}`
+    state.can(eventType),
+    `Cannot send ${JSON.stringify(eventType)} in state ${state.value}`
   )
 }
 
@@ -350,6 +365,9 @@ function assertCanSend(actor, eventType) {
  */
 
 /**
+ * "Flatten" nested states into a top-level string, e.g. in our case the state
+ * `{ joining: 'awaitingDetails' }` will be flattened to `'joining'`.
+ *
  * @template {import('xstate').StateValue} T
  * @param {T} stateValue
  * @returns {ExtractStateString<T>}

@@ -4,6 +4,7 @@ import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { once } from 'node:events'
 import { connectPeers, createManagers, waitForPeers } from './utils.js'
 import { roles } from '../src/index.js'
+import { pEvent } from 'p-event'
 
 const { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } = roles
 
@@ -239,7 +240,11 @@ test('cancelation', async (t) => {
   const creatorProject = await creator.getProject(createdProjectId)
 
   const inviteReceivedPromise = once(joiner.invite, 'invite-received')
-  const inviteRemovedPromise = once(joiner.invite, 'invite-removed')
+  const inviteRemovedPromise = pEvent(
+    joiner.invite,
+    'invite-updated',
+    (invite) => invite.state === 'canceled'
+  )
 
   const invitePromise = creatorProject.$member.invite(joiner.deviceId, {
     roleId: MEMBER_ROLE_ID,
@@ -257,14 +262,14 @@ test('cancelation', async (t) => {
   creatorProject.$member.requestCancelInvite(joiner.deviceId)
   await inviteAbortedAssertionPromise
 
-  const [canceledInvite, removalReason] = await inviteRemovedPromise
+  const canceledInvite = await inviteRemovedPromise
 
   assert.deepEqual(
     invite.inviteId,
     canceledInvite.inviteId,
     'removed invite has correct ID'
   )
-  assert.equal(removalReason, 'canceled')
+  assert.equal(canceledInvite.state, 'canceled')
 })
 
 test('canceling nothing', async (t) => {

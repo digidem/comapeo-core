@@ -1,4 +1,4 @@
-import { setup, assign, fromPromise, createActor } from 'xstate'
+import { setup, assign, fromPromise } from 'xstate'
 import { omit } from '../lib/omit.js'
 import ensureError from 'ensure-error'
 
@@ -151,44 +151,44 @@ export const inviteStateMachine = setup({
   output: ({ context }) => ({ projectPublicId: context.projectPublicId }),
 })
 
-Error.stackTraceLimit = 100
+// Error.stackTraceLimit = 100
 
-const actor = createActor(
-  inviteStateMachine.provide({
-    actors: {
-      addProject: fromPromise(async () => 'projectPublicId'),
-    },
-  })
-)
+// const actor = createActor(
+//   inviteStateMachine.provide({
+//     actors: {
+//       addProject: fromPromise(async () => 'projectPublicId'),
+//     },
+//   })
+// )
 
-actor.start()
+// actor.start()
 
-actor.subscribe((state) => {
-  console.log({
-    value: state.value,
-    context: state.context,
-    status: state.status,
-  })
-  if (state.status === 'done') {
-    console.log('Project public ID:', state.context.projectPublicId)
-  }
-})
+// actor.subscribe((state) => {
+//   console.log({
+//     value: state.value,
+//     context: state.context,
+//     status: state.status,
+//   })
+//   if (state.status === 'done') {
+//     console.log('Project public ID:', state.context.projectPublicId)
+//   }
+// })
 
-actor.send({ type: 'ACCEPT_INVITE' })
+// actor.send({ type: 'ACCEPT_INVITE' })
 
-process.on('uncaughtException', (e) => {
-  console.log('Uncaught exception:', e.message)
-})
+// process.on('uncaughtException', (e) => {
+//   console.log('Uncaught exception:', e.message)
+// })
 
-actor.send({ type: 'ACCEPT_INVITE' })
+// actor.send({ type: 'ACCEPT_INVITE' })
 
-actor.send({
-  type: 'RECEIVE_PROJECT_DETAILS',
-  projectKey: Buffer.from([0]),
-  inviteId: Buffer.from([0]),
-  encryptionKeys: {
-    auth: Buffer.from([0]),
-  },
-})
+// actor.send({
+//   type: 'RECEIVE_PROJECT_DETAILS',
+//   projectKey: Buffer.from([0]),
+//   inviteId: Buffer.from([0]),
+//   encryptionKeys: {
+//     auth: Buffer.from([0]),
+//   },
+// })
 
-console.log('state value', actor.getSnapshot().status)
+// console.log('state value', actor.getSnapshot().status)
