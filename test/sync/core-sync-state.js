@@ -281,6 +281,7 @@ test('CoreReplicationState', async () => {
       onUpdate: () => emitter.emit('update'),
       peerSyncControllers: new Map(),
       namespace: 'auth',
+      deviceId: '',
     })
     crs.attachCore(localCore)
     const blocks = new Array(state.length).fill('block')
