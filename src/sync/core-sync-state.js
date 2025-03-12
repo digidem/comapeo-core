@@ -190,6 +190,7 @@ export class CoreSyncState {
    * @returns {void}
    */
   addWantRange(peerId, start, length) {
+    this.#l.log('Peer %S wants range %d-%d', peerId, start, start + length)
     const peerState = this.#getOrCreatePeerState(peerId)
     peerState.addWantRange(start, length)
     this.#update()
@@ -200,6 +201,7 @@ export class CoreSyncState {
    * @returns {void}
    */
   clearWantRanges(peerId) {
+    this.#l.log('Clearing want ranges for peer %S', peerId)
     const peerState = this.#getOrCreatePeerState(peerId)
     peerState.clearWantRanges()
     this.#update()
@@ -211,6 +213,7 @@ export class CoreSyncState {
    * @returns {void}
    */
   wantEverything(peerId) {
+    this.#l.log('Peer %S wants everything', peerId)
     const peerState = this.#getOrCreatePeerState(peerId)
     peerState.wantEverything()
     this.#update()

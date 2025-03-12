@@ -22,6 +22,7 @@ import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { readConfig } from '../src/config-import.js'
+import pTimeout from 'p-timeout'
 
 /** @import { MemberApi } from '../src/member-api.js' */
 
@@ -562,17 +563,25 @@ function hasPeerIds(remoteStates, peerIds) {
  *
  * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
  * @param {'initial' | 'full'} [type]
+ * @param {{ timeout?: number }} [opts]
  */
-export async function waitForSync(projects, type = 'initial') {
+export async function waitForSync(
+  projects,
+  type = 'initial',
+  { timeout = 10_000 } = {}
+) {
   // Need a small delay for any download intents to propogate between peers.
   await delay(100)
-  return Promise.all(
-    projects.map((project) => {
-      const peerIds = projects
-        .filter((p) => p !== project)
-        .map((p) => p.deviceId)
-      return waitForProjectSync(project, peerIds, type)
-    })
+  return pTimeout(
+    Promise.all(
+      projects.map((project) => {
+        const peerIds = projects
+          .filter((p) => p !== project)
+          .map((p) => p.deviceId)
+        return waitForProjectSync(project, peerIds, type)
+      })
+    ),
+    { milliseconds: timeout }
   )
 }
 

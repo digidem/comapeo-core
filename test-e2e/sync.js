@@ -290,6 +290,9 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
 
   await waitForSync(projects, 'full')
 
+  // invitorProject.$sync.stop()
+  // inviteeProject.$sync.stop()
+
   await Promise.all([
     assertLoads(
       { ...photoBlob, variant: 'original' },
@@ -307,7 +310,10 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
     blobMetadata({ mimeType: 'image/jpeg' })
   )
 
-  await pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 })
+  // invitorProject.$sync.start()
+  // inviteeProject.$sync.start()
+
+  await waitForSync(projects, 'full')
 
   await Promise.all([
     assert404({ ...photoBlob2, variant: 'original' }),
@@ -344,7 +350,7 @@ test('start and stop sync', async function (t) {
   inviteeProject.$sync.start()
 
   await assert.rejects(
-    () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
+    () => waitForSync(projects, 'full', { timeout: 1_000 }),
     'wait for sync times out'
   )
 
@@ -356,7 +362,7 @@ test('start and stop sync', async function (t) {
   invitorProject.$sync.start()
 
   // Use the same timeout as above, to check that it would have synced given the timeout
-  await pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 })
+  await waitForSync(projects, 'full', { timeout: 1_000 })
 
   const obs1Synced = await inviteeProject.observation.getByDocId(obs1.docId)
 
@@ -370,7 +376,7 @@ test('start and stop sync', async function (t) {
   await waitForSync(projects, 'initial')
 
   await assert.rejects(
-    () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
+    () => waitForSync(projects, 'full', { timeout: 1_000 }),
     'wait for sync times out'
   )
 
@@ -381,7 +387,7 @@ test('start and stop sync', async function (t) {
 
   inviteeProject.$sync.start()
 
-  await pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 })
+  await waitForSync(projects, 'full')
 
   const obs2Synced = await invitorProject.observation.getByDocId(obs2.docId)
 
@@ -434,7 +440,7 @@ test('sync only happens if both sides are enabled', async (t) => {
   invitorProject.$sync.start()
 
   await assert.rejects(
-    () => pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 }),
+    () => waitForSync(projects, 'full'),
     'wait for sync times out'
   )
 

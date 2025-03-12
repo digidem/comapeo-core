@@ -40,6 +40,15 @@ export const kWantAllBlobs = Symbol('want all blobs')
 
 /**
  * @internal
+ * @typedef {object} BlobWantRange
+ * @property {number} start
+ * @property {number} length
+ * @property {string} blobCoreId
+ * @property {string} peerId
+ */
+
+/**
+ * @internal
  * @typedef {object} RemoteDeviceNamespaceGroupSyncState
  * @property {boolean} isSyncEnabled do we want to sync this namespace group?
  * @property {number} want number of blocks this device wants from us
@@ -173,13 +182,11 @@ export class SyncApi extends TypedEmitter {
   /**
    * Add some blob blocks this peer wants.
    *
-   * @param {string} peerId
-   * @param {number} start
-   * @param {number} length
+   * @param {BlobWantRange} blobWantRange
    * @returns {void}
    */
-  [kAddBlobWantRange](peerId, start, length) {
-    this[kSyncState].addBlobWantRange(peerId, start, length)
+  [kAddBlobWantRange](blobWantRange) {
+    this[kSyncState].addBlobWantRange(blobWantRange)
   }
 
   /**

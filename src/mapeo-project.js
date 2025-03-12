@@ -147,9 +147,17 @@ export class MapeoProject extends TypedEmitter {
 
       this.#syncApi[kClearBlobWantRanges](peerId)
 
-      for await (const entry of entriesReadStream) {
-        const { blockOffset, blockLength } = entry.value.blob
-        this.#syncApi[kAddBlobWantRange](peerId, blockOffset, blockLength)
+      for await (const {
+        blobCoreId,
+        value: { blob },
+      } of entriesReadStream) {
+        const { blockOffset: start, blockLength: length } = blob
+        this.#syncApi[kAddBlobWantRange]({
+          peerId,
+          start,
+          length,
+          blobCoreId,
+        })
       }
     } catch (err) {
       if (getErrorCode(err) === 'ERR_STREAM_PREMATURE_CLOSE') return
@@ -481,6 +489,10 @@ export class MapeoProject extends TypedEmitter {
       getReplicationStream,
     })
 
+    if (!isArchiveDevice) {
+      this.#handleDownloadIntent(blobDownloadFilter, this.#deviceId)
+    }
+
     this.#coreManager.on('peer-download-intent', this.#handleDownloadIntent)
 
     this.#coreManager.creatorCore.on('peer-remove', (peer) => {
@@ -530,7 +542,7 @@ export class MapeoProject extends TypedEmitter {
       localPeers.off('discovery-key', onDiscoverykey)
     })
 
-    this.#l.log('Created project instance %h', projectKey)
+    this.#l.log('Created project instance %h, %s', projectKey, isArchiveDevice)
   }
 
   /**
@@ -799,6 +811,7 @@ export class MapeoProject extends TypedEmitter {
 
   /** @param {boolean} isArchiveDevice */
   async [kSetIsArchiveDevice](isArchiveDevice) {
+    this.#l.log('Setting isArchiveDevice to %s', isArchiveDevice)
     if (this.#isArchiveDevice === isArchiveDevice) return
     const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
     this.#blobStore.setDownloadFilter(blobDownloadFilter)

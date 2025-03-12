@@ -69,13 +69,11 @@ export class SyncState extends TypedEmitter {
   }
 
   /**
-   * @param {string} peerId
-   * @param {number} start
-   * @param {number} length
+   * @param {import('./sync-api.js').BlobWantRange} blobWantRange
    * @returns {void}
    */
-  addBlobWantRange(peerId, start, length) {
-    this.#syncStates.blob.addWantRange(peerId, start, length)
+  addBlobWantRange(blobWantRange) {
+    this.#syncStates.blob.addWantRange(blobWantRange)
   }
 
   /**

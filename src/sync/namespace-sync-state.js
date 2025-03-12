@@ -139,15 +139,12 @@ export class NamespaceSyncState {
   }
 
   /**
-   * @param {string} peerId
-   * @param {number} start
-   * @param {number} length
+   * @param {import('./sync-api.js').BlobWantRange} blobWantRange
    * @returns {void}
    */
-  addWantRange(peerId, start, length) {
-    for (const coreState of this.#coreStates.values()) {
-      coreState.addWantRange(peerId, start, length)
-    }
+  addWantRange({ blobCoreId, start, length, peerId }) {
+    const coreState = this.#getCoreState(blobCoreId)
+    coreState.addWantRange(peerId, start, length)
   }
 
   /**
