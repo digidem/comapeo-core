@@ -54,6 +54,7 @@ import {
   kHandleDiscoveryKey,
   kSetBlobDownloadFilter,
   kWaitForInitialSyncWithPeer,
+  kWantAllBlobs,
 } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
@@ -62,7 +63,7 @@ import TranslationApi from './translation-api.js'
 import { NotFoundError, nullIfNotFound } from './errors.js'
 import { getErrorCode, getErrorMessage } from './lib/error.js'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
-/** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream } from './types.js' */
+/** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter } from './types.js' */
 
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
@@ -113,6 +114,52 @@ export class MapeoProject extends TypedEmitter {
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #loadingConfig
   #isArchiveDevice
+  /** @type {Map<string, BlobStoreEntriesStream>} */
+  #blobStoreEntriesStreams = new Map()
+
+  /**
+   * Bound function for handling download intents for both peers and self
+   * @param {GenericBlobFilter | null} filter
+   * @param {string} peerId
+   */
+  #handleDownloadIntent = async (filter, peerId) => {
+    this.#l.log('Download intent %o for peer %S', filter, peerId)
+    try {
+      const entriesReadStreams = this.#blobStoreEntriesStreams
+      entriesReadStreams.get(peerId)?.destroy()
+
+      if (filter === null) {
+        this.#syncApi[kWantAllBlobs](peerId)
+        return
+      }
+
+      const entriesReadStream = this.#blobStore.createEntriesReadStream({
+        live: true,
+        filter,
+      })
+      entriesReadStreams.set(peerId, entriesReadStream)
+
+      entriesReadStream.once('close', () => {
+        if (entriesReadStreams.get(peerId) === entriesReadStream) {
+          entriesReadStreams.delete(peerId)
+        }
+      })
+
+      this.#syncApi[kClearBlobWantRanges](peerId)
+
+      for await (const entry of entriesReadStream) {
+        const { blockOffset, blockLength } = entry.value.blob
+        this.#syncApi[kAddBlobWantRange](peerId, blockOffset, blockLength)
+      }
+    } catch (err) {
+      if (getErrorCode(err) === 'ERR_STREAM_PREMATURE_CLOSE') return
+      this.#l.log(
+        'Error getting blob entries stream for peer %h: %s',
+        peerId,
+        getErrorMessage(err)
+      )
+    }
+  }
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
@@ -434,46 +481,13 @@ export class MapeoProject extends TypedEmitter {
       getReplicationStream,
     })
 
-    /** @type {Map<string, BlobStoreEntriesStream>} */
-    const entriesReadStreams = new Map()
-
-    this.#coreManager.on('peer-download-intent', async (filter, peerId) => {
-      entriesReadStreams.get(peerId)?.destroy()
-
-      const entriesReadStream = this.#blobStore.createEntriesReadStream({
-        live: true,
-        filter,
-      })
-      entriesReadStreams.set(peerId, entriesReadStream)
-
-      entriesReadStream.once('close', () => {
-        if (entriesReadStreams.get(peerId) === entriesReadStream) {
-          entriesReadStreams.delete(peerId)
-        }
-      })
-
-      this.#syncApi[kClearBlobWantRanges](peerId)
-
-      try {
-        for await (const entry of entriesReadStream) {
-          const { blockOffset, blockLength } = entry.value.blob
-          this.#syncApi[kAddBlobWantRange](peerId, blockOffset, blockLength)
-        }
-      } catch (err) {
-        if (getErrorCode(err) === 'ERR_STREAM_PREMATURE_CLOSE') return
-        this.#l.log(
-          'Error getting blob entries stream for peer %h: %s',
-          peerId,
-          getErrorMessage(err)
-        )
-      }
-    })
+    this.#coreManager.on('peer-download-intent', this.#handleDownloadIntent)
 
     this.#coreManager.creatorCore.on('peer-remove', (peer) => {
       const peerKey = peer.protomux.stream.remotePublicKey
       const peerId = peerKey.toString('hex')
-      entriesReadStreams.get(peerId)?.destroy()
-      entriesReadStreams.delete(peerId)
+      this.#blobStoreEntriesStreams.get(peerId)?.destroy()
+      this.#blobStoreEntriesStreams.delete(peerId)
     })
 
     this.#translationApi = new TranslationApi({
@@ -790,6 +804,7 @@ export class MapeoProject extends TypedEmitter {
     this.#blobStore.setDownloadFilter(blobDownloadFilter)
     this.#syncApi[kSetBlobDownloadFilter](blobDownloadFilter)
     this.#isArchiveDevice = isArchiveDevice
+    this.#handleDownloadIntent(blobDownloadFilter, this.#deviceId)
   }
 
   /** @returns {boolean} */

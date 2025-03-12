@@ -307,9 +307,6 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
     blobMetadata({ mimeType: 'image/jpeg' })
   )
 
-  // Wait to ensure sync metadata is sent first
-  await delay(200)
-
   await pTimeout(waitForSync(projects, 'full'), { milliseconds: 1000 })
 
   await Promise.all([

@@ -86,6 +86,15 @@ export class SyncState extends TypedEmitter {
     this.#syncStates.blob.clearWantRanges(peerId)
   }
 
+  /**
+   * Set the given peer to "want everything" (the default state)
+   * @param {string} peerId
+   * @returns {void}
+   */
+  wantAllBlobs(peerId) {
+    this.#syncStates.blob.wantEverything(peerId)
+  }
+
   #handleUpdate = () => {
     this.emit('state', this.getState())
   }

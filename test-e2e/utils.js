@@ -12,6 +12,7 @@ import { pEvent } from 'p-event'
 import { createMapeoClient } from '@comapeo/ipc'
 import { Worker, MessageChannel } from 'node:worker_threads'
 import { MapeoManager as MapeoManager_2_0_1 } from '@comapeo/core2.0.1'
+import { setTimeout as delay } from 'node:timers/promises'
 
 import { MapeoManager, roles } from '../src/index.js'
 import { generate } from '@mapeo/mock-data'
@@ -562,7 +563,9 @@ function hasPeerIds(remoteStates, peerIds) {
  * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
  * @param {'initial' | 'full'} [type]
  */
-export function waitForSync(projects, type = 'initial') {
+export async function waitForSync(projects, type = 'initial') {
+  // Need a small delay for any download intents to propogate between peers.
+  await delay(100)
   return Promise.all(
     projects.map((project) => {
       const peerIds = projects

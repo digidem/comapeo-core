@@ -20,6 +20,7 @@ export class NamespaceSyncState {
   #cachedState = null
   #peerSyncControllers
   #logger
+  #deviceId
 
   /**
    * @param {object} opts
@@ -40,6 +41,7 @@ export class NamespaceSyncState {
     this.#logger = logger
     this.#namespace = namespace
     this.#peerSyncControllers = peerSyncControllers
+    this.#deviceId = coreManager.deviceId
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#handleUpdate = () => {
@@ -159,6 +161,17 @@ export class NamespaceSyncState {
   }
 
   /**
+   * Set a core to "want everything" (the default state)
+   * @param {string} peerId
+   * @returns {void}
+   */
+  wantEverything(peerId) {
+    for (const coreState of this.#coreStates.values()) {
+      coreState.wantEverything(peerId)
+    }
+  }
+
+  /**
    * @param {string} discoveryId
    */
   #getCoreState(discoveryId) {
@@ -169,6 +182,7 @@ export class NamespaceSyncState {
         onUpdate: this.#handleUpdate,
         peerSyncControllers: this.#peerSyncControllers,
         namespace: this.#namespace,
+        deviceId: this.#deviceId,
         logger: Logger.create('css:' + this.#namespace, this.#logger, {
           prefix: logPrefix,
         }),

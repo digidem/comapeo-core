@@ -72,6 +72,7 @@ export class CoreSyncState {
   #update
   #peerSyncControllers
   #namespace
+  #deviceId
   #l
 
   /**
@@ -79,13 +80,15 @@ export class CoreSyncState {
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
    * @param {Namespace} opts.namespace
+   * @param {string} opts.deviceId
    * @param {Logger} [opts.logger]
    */
-  constructor({ onUpdate, peerSyncControllers, namespace, logger }) {
+  constructor({ onUpdate, peerSyncControllers, namespace, deviceId, logger }) {
     // The logger parameter is already namespaced by NamespaceSyncState
     this.#l = logger || Logger.create('css')
     this.#peerSyncControllers = peerSyncControllers
     this.#namespace = namespace
+    this.#deviceId = deviceId
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#update = () => {
@@ -203,6 +206,17 @@ export class CoreSyncState {
   }
 
   /**
+   * Set a core to "want everything" (the default state)
+   * @param {PeerId} peerId
+   * @returns {void}
+   */
+  wantEverything(peerId) {
+    const peerState = this.#getOrCreatePeerState(peerId)
+    peerState.wantEverything()
+    this.#update()
+  }
+
+  /**
    * @param {PeerId} peerId
    */
   addPeer(peerId) {
@@ -225,6 +239,7 @@ export class CoreSyncState {
    * @param {PeerId} peerId
    */
   #getOrCreatePeerState(peerId) {
+    if (peerId === this.#deviceId) return this.#localState
     let peerState = this.#remoteStates.get(peerId)
     if (!peerState) {
       peerState = new PeerState()
@@ -347,6 +362,12 @@ export class PeerState {
     this.#wants = new RemoteBitfield()
   }
   /**
+   * Set this core as wanting all blocks
+   */
+  wantEverything() {
+    this.#wants = null
+  }
+  /**
    * Returns whether the peer has the block at `index`. If a pre-have bitfield
    * has been passed, this is used if no connected peer bitfield is available.
    * If neither bitfield is available then this defaults to `false`
@@ -427,6 +448,7 @@ export function deriveState(coreState) {
     const truncate = 2 ** Math.min(32, length - i) - 1
 
     const localHaves = coreState.localState.haveWord(i) & truncate
+    const localWants = coreState.localState.wantWord(i) & truncate
     localState.have += bitCount32(localHaves)
 
     let someoneElseWantsFromMe = 0
@@ -440,7 +462,7 @@ export function deriveState(coreState) {
       remoteStates[peerId].want += bitCount32(theyWantFromMe)
       someoneElseWantsFromMe |= theyWantFromMe
 
-      const iWantFromThem = peerHaves & ~localHaves
+      const iWantFromThem = peerHaves & ~localHaves & localWants
       remoteStates[peerId].wanted += bitCount32(iWantFromThem)
       iWantFromSomeoneElse |= iWantFromThem
     }
