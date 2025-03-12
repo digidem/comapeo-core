@@ -290,9 +290,6 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
 
   await waitForSync(projects, 'full')
 
-  // invitorProject.$sync.stop()
-  // inviteeProject.$sync.stop()
-
   await Promise.all([
     assertLoads(
       { ...photoBlob, variant: 'original' },
@@ -309,9 +306,6 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
     photoFixturePaths,
     blobMetadata({ mimeType: 'image/jpeg' })
   )
-
-  // invitorProject.$sync.start()
-  // inviteeProject.$sync.start()
 
   await waitForSync(projects, 'full')
 
