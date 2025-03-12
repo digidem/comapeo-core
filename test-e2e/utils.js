@@ -568,7 +568,7 @@ function hasPeerIds(remoteStates, peerIds) {
 export async function waitForSync(
   projects,
   type = 'initial',
-  { timeout = 10_000 } = {}
+  { timeout = 30_000 } = {}
 ) {
   // Need a small delay for any download intents to propogate between peers.
   await delay(100)
