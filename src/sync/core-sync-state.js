@@ -190,7 +190,6 @@ export class CoreSyncState {
    * @returns {void}
    */
   addWantRange(peerId, start, length) {
-    this.#l.log('Peer %S wants range %d-%d', peerId, start, start + length)
     const peerState = this.#getOrCreatePeerState(peerId)
     peerState.addWantRange(start, length)
     this.#update()
