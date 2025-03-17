@@ -68,7 +68,7 @@ export class BlobApi {
   }
 
   /**
-   * Get meatdata for a blob based on its BlobId
+   * Get metadata for a blob based on its BlobId
    * @param {BlobId} blobId
    * @returns {Promise<JsonObject|null>}
    */
