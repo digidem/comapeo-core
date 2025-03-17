@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
 /** @import { BlobId, BlobType } from './types.js' */
-/** @import { JsonObject, JsonValue } from 'type-fest' */
+/** @import { PartialDeep } from 'type-fest' */
 
 /**
  * Location coordinate data. Based on [Expo's `LocationObjectCoords`][0].
@@ -70,7 +70,7 @@ export class BlobApi {
   /**
    * Get metadata for a blob based on its BlobId
    * @param {BlobId} blobId
-   * @returns {Promise<JsonObject|null>}
+   * @returns {Promise<PartialDeep<Metadata>|null>}
    */
   async getMetadata(blobId) {
     const entry = await this.#blobStore.entry(blobId)
@@ -90,7 +90,7 @@ export class BlobApi {
       return null
     }
 
-    return /** @type {JsonObject} */ (metadata)
+    return /** @type {PartialDeep<Metadata>} */ (metadata)
   }
 
   /**
