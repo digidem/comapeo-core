@@ -328,6 +328,9 @@ test('Can switch to non-archive device after creating or joining project', async
       hashes.original
     )
   }
+  if (invitorIncorrectHaves.size) {
+    console.error([...invitorIncorrectHaves])
+  }
   assert.deepEqual(
     invitorIncorrectHaves,
     new Set(),
