@@ -291,11 +291,13 @@ test('Can switch to non-archive device after creating or joining project', async
   invitor.setIsArchiveDevice(false)
   invitees[1].setIsArchiveDevice(false)
 
+  await delay(1000)
+
   await syncProjects(projects)
 
   // Stopping sync does not happen immediately, so we need to wait for it to
   // stop before checking the blobs
-  await delay(200)
+  await delay(1000)
 
   const invitorIncorrectHaves = new Set()
   const invitee2IncorrectHaves = new Set()
