@@ -297,15 +297,22 @@ test('Can switch to non-archive device after creating or joining project', async
   // stop before checking the blobs
   await delay(200)
 
+  let invitorIncorrectHaveCount = 0
+  let invitee2IncorrectHaveCount = 0
+
   for (const { blobId, hashes } of invitee1Blobs) {
     // Non-archive devices should not have the original variants
     await assertDoesNotHaveBlob(projects[0], {
       ...blobId,
       variant: 'original',
+    }).catch(() => {
+      invitorIncorrectHaveCount++
     })
     await assertDoesNotHaveBlob(projects[2], {
       ...blobId,
       variant: 'original',
+    }).catch(() => {
+      invitee2IncorrectHaveCount++
     })
     // Archive devices should have all blobs
     await assertHasBlob(
@@ -319,6 +326,16 @@ test('Can switch to non-archive device after creating or joining project', async
       hashes.original
     )
   }
+  assert.equal(
+    invitorIncorrectHaveCount,
+    0,
+    'Invitor has incorrect have count for original blobs'
+  )
+  assert.equal(
+    invitee2IncorrectHaveCount,
+    0,
+    'Invitee2 has incorrect have count for original blobs'
+  )
 })
 
 test('start and stop sync', async function (t) {
