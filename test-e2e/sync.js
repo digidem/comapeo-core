@@ -333,7 +333,7 @@ test('Can switch to non-archive device after creating or joining project', async
     new Set(),
     'Invitor has incorrect have count for original blobs'
   )
-  assert.equal(
+  assert.deepEqual(
     invitee2IncorrectHaves,
     new Set(),
     'Invitee2 has incorrect have count for original blobs'
