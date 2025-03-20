@@ -814,7 +814,7 @@ export async function createBlobFixture(type, t) {
   if (type !== 'photo') {
     const size =
       type === 'audio'
-        ? randomInt(4 * 2 ** 20, 5 * 2 ** 20)
+        ? randomInt(2 * 2 ** 20, 4 * 2 ** 20)
         : randomInt(10 * 2 ** 20, 20 * 2 ** 20)
     const [original, hash] = await randomFileAndHash(type, size)
     t.after(() => fsPromises.rm(original))
@@ -825,7 +825,7 @@ export async function createBlobFixture(type, t) {
       type,
     }
   }
-  const originalSize = randomInt(5 * 2 ** 20, 10 * 2 ** 20)
+  const originalSize = randomInt(2 * 2 ** 20, 5 * 2 ** 20)
   const previewSize = randomInt(500 * 2 ** 10, 1 * 2 ** 20)
   const thumbSize = randomInt(50 * 2 ** 10, 200 * 2 ** 10)
   const [original, originalHash] = await randomFileAndHash(type, originalSize)
@@ -871,8 +871,8 @@ export async function createBlobFixture(type, t) {
  */
 export async function seedProjectBlobs(project, t) {
   const promises = []
-  const photoCount = randomInt(10, 20)
-  const audioCount = 0 // randomInt(10, 20)
+  const photoCount = 0 // randomInt(10, 20)
+  const audioCount = randomInt(20, 20)
   for (let i = 0; i < photoCount; i++) {
     promises.push(createBlobFixture('photo', t))
   }
