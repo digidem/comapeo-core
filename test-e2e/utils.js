@@ -825,7 +825,7 @@ export async function createBlobFixture(type, t) {
       type,
     }
   }
-  const originalSize = randomInt(2 * 2 ** 20, 5 * 2 ** 20)
+  const originalSize = randomInt(5 * 2 ** 20, 10 * 2 ** 20)
   const previewSize = randomInt(500 * 2 ** 10, 1 * 2 ** 20)
   const thumbSize = randomInt(50 * 2 ** 10, 200 * 2 ** 10)
   const [original, originalHash] = await randomFileAndHash(type, originalSize)
