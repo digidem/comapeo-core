@@ -872,7 +872,7 @@ export async function createBlobFixture(type, t) {
 export async function seedProjectBlobs(project, t) {
   const promises = []
   const photoCount = randomInt(10, 20)
-  const audioCount = randomInt(1, 10)
+  const audioCount = randomInt(10, 20)
   for (let i = 0; i < photoCount; i++) {
     promises.push(createBlobFixture('photo', t))
   }
