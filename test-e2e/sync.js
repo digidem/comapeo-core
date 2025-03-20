@@ -297,22 +297,22 @@ test('Can switch to non-archive device after creating or joining project', async
   // stop before checking the blobs
   await delay(200)
 
-  let invitorIncorrectHaveCount = 0
-  let invitee2IncorrectHaveCount = 0
+  const invitorIncorrectHaves = new Set()
+  const invitee2IncorrectHaves = new Set()
 
-  for (const { blobId, hashes } of invitee1Blobs) {
+  for (const [idx, { blobId, hashes }] of invitee1Blobs.entries()) {
     // Non-archive devices should not have the original variants
     await assertDoesNotHaveBlob(projects[0], {
       ...blobId,
       variant: 'original',
     }).catch(() => {
-      invitorIncorrectHaveCount++
+      invitorIncorrectHaves.add({ blobId, idx })
     })
     await assertDoesNotHaveBlob(projects[2], {
       ...blobId,
       variant: 'original',
     }).catch(() => {
-      invitee2IncorrectHaveCount++
+      invitee2IncorrectHaves.add({ blobId, idx })
     })
     // Archive devices should have all blobs
     await assertHasBlob(
@@ -326,14 +326,14 @@ test('Can switch to non-archive device after creating or joining project', async
       hashes.original
     )
   }
-  assert.equal(
-    invitorIncorrectHaveCount,
-    0,
+  assert.deepEqual(
+    invitorIncorrectHaves,
+    new Set(),
     'Invitor has incorrect have count for original blobs'
   )
   assert.equal(
-    invitee2IncorrectHaveCount,
-    0,
+    invitee2IncorrectHaves,
+    new Set(),
     'Invitee2 has incorrect have count for original blobs'
   )
 })
