@@ -291,10 +291,11 @@ test('Can switch to non-archive device after creating or joining project', async
   invitor.setIsArchiveDevice(false)
   invitees[1].setIsArchiveDevice(false)
 
-  // Must wait for devices to communicate their new archive state
-  await delay(200)
-
   await syncProjects(projects)
+
+  // Stopping sync does not happen immediately, so we need to wait for it to
+  // stop before checking the blobs
+  await delay(200)
 
   for (const { blobId, hashes } of invitee1Blobs) {
     // Non-archive devices should not have the original variants
