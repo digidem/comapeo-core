@@ -130,7 +130,10 @@ test('syncing blobs', async (t) => {
   )
   const [invitorProject] = projects
 
-  const blobs = await seedProjectBlobs(invitorProject, t)
+  const blobs = await seedProjectBlobs(invitorProject, t, {
+    photoCount: 50,
+    audioCount: 20,
+  })
 
   disconnectPeers = connectPeers(managers)
   await syncProjects(projects)
@@ -168,7 +171,9 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
   )
   const [invitorProject, invitee1Project, invitee2Project] = projects
   const [invitorBlobs, invitee1Blobs, invitee2Blobs] = await Promise.all(
-    projects.map((p) => seedProjectBlobs(p, t))
+    projects.map((p) =>
+      seedProjectBlobs(p, t, { photoCount: 50, audioCount: 20 })
+    )
   )
 
   await t.test('originals do not sync to non-archive devices', async () => {
@@ -238,7 +243,10 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
     await waitForSync(projects, 'full')
 
     invitee2.setIsArchiveDevice(false)
-    const newInvitorBlobs = await seedProjectBlobs(invitorProject, t)
+    const newInvitorBlobs = await seedProjectBlobs(invitorProject, t, {
+      photoCount: 10,
+      audioCount: 5,
+    })
     await waitForSync(projects, 'full')
 
     for (const { blobId, hashes } of newInvitorBlobs) {
@@ -271,6 +279,75 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
   })
 })
 
+// This test catches a bug where when a peer does not want any blobs from a
+// particular core, the sync state thinks the peer still wants all blobs, if
+// that core is added via sync after the device has already set themselves as a
+// non-archive device. We simulate this scenario by only writing audio blobs to
+// seed the database, which do not have any previews or thumbnails, so nothing
+// should sync with a non-archive device.
+test('non-archive devices sync subset when nothing to downlad', async (t) => {
+  const managers = await createManagers(3, t)
+  const [invitor, invitee1, invitee2] = managers
+
+  invitee1.setIsArchiveDevice(false)
+
+  const disconnectPeers = connectPeers(managers)
+  t.after(() => disconnectPeers())
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee1, invitee2], projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  const [invitorProject, invitee1Project, invitee2Project] = projects
+  const [invitorBlobs, invitee1Blobs, invitee2Blobs] = await Promise.all(
+    projects.map((p) =>
+      seedProjectBlobs(p, t, { photoCount: 0, audioCount: 50 })
+    )
+  )
+
+  await syncProjects(projects)
+
+  // Invitee1 should not have the original variants
+  for (const { blobId } of [invitorBlobs, invitee2Blobs].flat()) {
+    await assertDoesNotHaveBlob(invitee1Project, {
+      ...blobId,
+      variant: 'original',
+    })
+  }
+
+  // Invitor and invitee2 should have all blobs, invitee1 should only have
+  // the preview and thumbnail variants
+  for (const { blobId, hashes } of [
+    invitorBlobs,
+    invitee1Blobs,
+    invitee2Blobs,
+  ].flat()) {
+    await assertHasBlob(
+      invitorProject,
+      { ...blobId, variant: 'original' },
+      hashes.original
+    )
+    await assertHasBlob(
+      invitee2Project,
+      { ...blobId, variant: 'original' },
+      hashes.original
+    )
+    if (blobId.type !== 'photo') continue
+    for (const variant of /** @type {const} */ (['preview', 'thumbnail'])) {
+      for (const project of projects) {
+        await assertHasBlob(
+          project,
+          { ...blobId, variant },
+          // @ts-expect-error
+          hashes[variant]
+        )
+      }
+    }
+  }
+})
+
 test('Can switch to non-archive device after creating or joining project', async (t) => {
   const managers = await createManagers(4, t)
   const [invitor, ...invitees] = managers
@@ -284,7 +361,10 @@ test('Can switch to non-archive device after creating or joining project', async
   const projects = await Promise.all(
     managers.map((m) => m.getProject(projectId))
   )
-  const invitee1Blobs = await seedProjectBlobs(projects[1], t)
+  const invitee1Blobs = await seedProjectBlobs(projects[1], t, {
+    photoCount: 50,
+    audioCount: 20,
+  })
 
   await waitForSync(projects, 'initial')
 
@@ -293,22 +373,15 @@ test('Can switch to non-archive device after creating or joining project', async
 
   await syncProjects(projects)
 
-  const invitorIncorrectHaves = new Set()
-  const invitee2IncorrectHaves = new Set()
-
-  for (const [idx, { blobId, hashes }] of invitee1Blobs.entries()) {
+  for (const { blobId, hashes } of invitee1Blobs) {
     // Non-archive devices should not have the original variants
     await assertDoesNotHaveBlob(projects[0], {
       ...blobId,
       variant: 'original',
-    }).catch(() => {
-      invitorIncorrectHaves.add({ blobId, idx })
     })
     await assertDoesNotHaveBlob(projects[2], {
       ...blobId,
       variant: 'original',
-    }).catch(() => {
-      invitee2IncorrectHaves.add({ blobId, idx })
     })
     // Archive devices should have all blobs
     await assertHasBlob(
@@ -322,22 +395,6 @@ test('Can switch to non-archive device after creating or joining project', async
       hashes.original
     )
   }
-  if (invitorIncorrectHaves.size) {
-    console.log([...invitorIncorrectHaves])
-  }
-  if (invitee2IncorrectHaves.size) {
-    console.log([...invitee2IncorrectHaves])
-  }
-  assert.deepEqual(
-    invitorIncorrectHaves,
-    new Set(),
-    'Invitor has incorrect have count for original blobs'
-  )
-  assert.deepEqual(
-    invitee2IncorrectHaves,
-    new Set(),
-    'Invitee2 has incorrect have count for original blobs'
-  )
 })
 
 test('start and stop sync', async function (t) {

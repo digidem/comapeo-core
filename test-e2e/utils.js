@@ -868,11 +868,10 @@ export async function createBlobFixture(type, t) {
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject} project
  * @param {import('node:test').TestContext} t
+ * @param {{ photoCount: number, audioCount: number }} opts
  */
-export async function seedProjectBlobs(project, t) {
+export async function seedProjectBlobs(project, t, { photoCount, audioCount }) {
   const promises = []
-  const photoCount = 0 // randomInt(10, 20)
-  const audioCount = randomInt(40, 45)
   for (let i = 0; i < photoCount; i++) {
     promises.push(createBlobFixture('photo', t))
   }
