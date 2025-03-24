@@ -17,6 +17,7 @@ import {
 import { concat } from '../helpers/blob-store.js'
 import { discoveryKey } from 'hypercore-crypto'
 import { setTimeout as delay } from 'node:timers/promises'
+import { Logger } from '../../src/logger.js'
 
 // Test with buffers that are 3 times the default blockSize for hyperblobs
 const TEST_BUF_SIZE = 3 * 64 * 1024
@@ -341,7 +342,7 @@ test('filtered download, filter changed', async function () {
   const { blobStore: bs1, coreManager: cm1 } = testenv({ projectKey })
   const { blobStore: bs2, coreManager: cm2 } = testenv({
     projectKey,
-    downloadFilter: { photo: ['thumbnail', 'preview'] },
+    isArchiveDevice: false,
   })
 
   const blob1 = randomBytes(TEST_BUF_SIZE)
@@ -388,7 +389,7 @@ test('filtered download, filter changed', async function () {
   )
 
   // Change the filter to download all
-  bs2.setDownloadFilter(null)
+  bs2.setIsArchiveDevice(true)
 
   // Wait for blobs to be downloaded
   await delay(200)
@@ -622,10 +623,14 @@ function blobIdToKey({ name, type, variant }) {
 }
 
 /**
- * @param {Parameters<typeof createCoreManager>[0] & { downloadFilter?: ConstructorParameters<typeof BlobStore>[0]['downloadFilter'] }} opts
+ * @param {Parameters<typeof createCoreManager>[0] & { isArchiveDevice?: boolean }} opts
  */
-function testenv({ downloadFilter = null, ...coreManagerOpts } = {}) {
+function testenv({ isArchiveDevice = true, ...coreManagerOpts } = {}) {
   const coreManager = createCoreManager(coreManagerOpts)
-  const blobStore = new BlobStore({ coreManager, downloadFilter })
+  const blobStore = new BlobStore({
+    coreManager,
+    isArchiveDevice,
+    logger: Logger.create('blobStore'),
+  })
   return { blobStore, coreManager }
 }

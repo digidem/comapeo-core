@@ -23,10 +23,17 @@ export class SyncState extends TypedEmitter {
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
+   * @param {import('../blob-store/index.js').BlobStore} opts.blobStore
    * @param {number} [opts.throttleMs]
    * @param {import('../logger.js').Logger} [opts.logger]
    */
-  constructor({ coreManager, peerSyncControllers, throttleMs = 200, logger }) {
+  constructor({
+    coreManager,
+    peerSyncControllers,
+    blobStore,
+    throttleMs = 200,
+    logger,
+  }) {
     super()
     const throttledHandleUpdate = throttle(throttleMs, this.#handleUpdate)
     for (const namespace of NAMESPACES) {
@@ -35,6 +42,7 @@ export class SyncState extends TypedEmitter {
         coreManager,
         onUpdate: throttledHandleUpdate,
         peerSyncControllers,
+        blobStore,
         logger,
       })
     }
@@ -66,31 +74,6 @@ export class SyncState extends TypedEmitter {
       namespace,
       nss.getState(),
     ])
-  }
-
-  /**
-   * @param {import('./sync-api.js').BlobWantRange} blobWantRange
-   * @returns {void}
-   */
-  addBlobWantRange(blobWantRange) {
-    this.#syncStates.blob.addWantRange(blobWantRange)
-  }
-
-  /**
-   * @param {string} peerId
-   * @returns {void}
-   */
-  clearBlobWantRanges(peerId) {
-    this.#syncStates.blob.clearWantRanges(peerId)
-  }
-
-  /**
-   * Set the given peer to "want everything" (the default state)
-   * @param {string} peerId
-   * @returns {void}
-   */
-  wantAllBlobs(peerId) {
-    this.#syncStates.blob.wantEverything(peerId)
   }
 
   #handleUpdate = () => {

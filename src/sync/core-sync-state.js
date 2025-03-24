@@ -67,13 +67,14 @@ export class CoreSyncState {
   /** @type {InternalState['remoteStates']} */
   #remoteStates = new Map()
   /** @type {InternalState['localState']} */
-  #localState = new PeerState()
+  #localState
   #preHavesLength = 0
   #update
   #peerSyncControllers
   #namespace
   #deviceId
   #l
+  #hasDownloadFilter
 
   /**
    * @param {object} opts
@@ -81,14 +82,26 @@ export class CoreSyncState {
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
    * @param {Namespace} opts.namespace
    * @param {string} opts.deviceId
+   * @param {(peerId: string) => boolean} opts.hasDownloadFilter
    * @param {Logger} [opts.logger]
    */
-  constructor({ onUpdate, peerSyncControllers, namespace, deviceId, logger }) {
+  constructor({
+    onUpdate,
+    peerSyncControllers,
+    namespace,
+    deviceId,
+    hasDownloadFilter,
+    logger,
+  }) {
     // The logger parameter is already namespaced by NamespaceSyncState
     this.#l = logger || Logger.create('css')
     this.#peerSyncControllers = peerSyncControllers
     this.#namespace = namespace
     this.#deviceId = deviceId
+    this.#hasDownloadFilter = hasDownloadFilter
+    this.#localState = new PeerState({
+      wantsEverything: !hasDownloadFilter(deviceId),
+    })
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
     this.#update = () => {
@@ -190,31 +203,21 @@ export class CoreSyncState {
    * @returns {void}
    */
   addWantRange(peerId, start, length) {
+    this.#l.log('Peer %S wants range %d-%d', peerId, start, start + length)
     const peerState = this.#getOrCreatePeerState(peerId)
     peerState.addWantRange(start, length)
     this.#update()
   }
 
   /**
+   * Set whether a peer wants everything or only blocks specified by addWantRange()
    * @param {PeerId} peerId
-   * @returns {void}
+   * @param {boolean} wantsEverything
    */
-  clearWantRanges(peerId) {
-    this.#l.log('Clearing want ranges for peer %S', peerId)
+  setWantsEverything(peerId, wantsEverything) {
+    this.#l.log('Peer %S wants everything: %s', peerId, wantsEverything)
     const peerState = this.#getOrCreatePeerState(peerId)
-    peerState.clearWantRanges()
-    this.#update()
-  }
-
-  /**
-   * Set a core to "want everything" (the default state)
-   * @param {PeerId} peerId
-   * @returns {void}
-   */
-  wantEverything(peerId) {
-    this.#l.log('Peer %S wants everything', peerId)
-    const peerState = this.#getOrCreatePeerState(peerId)
-    peerState.wantEverything()
+    peerState.setWantsEverything(wantsEverything)
     this.#update()
   }
 
@@ -222,8 +225,7 @@ export class CoreSyncState {
    * @param {PeerId} peerId
    */
   addPeer(peerId) {
-    if (this.#remoteStates.has(peerId)) return
-    this.#remoteStates.set(peerId, new PeerState())
+    this.#getOrCreatePeerState(peerId)
     this.#update()
   }
 
@@ -244,7 +246,9 @@ export class CoreSyncState {
     if (peerId === this.#deviceId) return this.#localState
     let peerState = this.#remoteStates.get(peerId)
     if (!peerState) {
-      peerState = new PeerState()
+      peerState = new PeerState({
+        wantsEverything: !this.#hasDownloadFilter(peerId),
+      })
       this.#remoteStates.set(peerId, peerState)
     }
     return peerState
@@ -322,9 +326,14 @@ export class PeerState {
    * What blocks do we want? If `null`, we want everything.
    * @type {null | Bitfield}
    */
-  #wants = null
+  #wants
   /** @type {PeerNamespaceState['status']} */
   status = 'stopped'
+
+  constructor({ wantsEverything = true } = {}) {
+    this.#wants = wantsEverything ? null : new RemoteBitfield()
+  }
+
   get preHavesBitfield() {
     return this.#preHaves
   }
@@ -357,17 +366,11 @@ export class PeerState {
     this.#wants.setRange(start, length, true)
   }
   /**
-   * Set the range of blocks that this peer wants to the empty set. In other
-   * words, this peer wants nothing from this core.
+   * Set whether this peer wants everything or only blocks specified by addWantRange()
+   * @param {boolean} wantsEverything
    */
-  clearWantRanges() {
-    this.#wants = new RemoteBitfield()
-  }
-  /**
-   * Set this core as wanting all blocks
-   */
-  wantEverything() {
-    this.#wants = null
+  setWantsEverything(wantsEverything) {
+    this.#wants = wantsEverything ? null : new RemoteBitfield()
   }
   /**
    * Returns whether the peer has the block at `index`. If a pre-have bitfield

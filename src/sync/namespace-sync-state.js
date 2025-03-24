@@ -21,6 +21,7 @@ export class NamespaceSyncState {
   #peerSyncControllers
   #logger
   #deviceId
+  #blobStore
 
   /**
    * @param {object} opts
@@ -28,6 +29,7 @@ export class NamespaceSyncState {
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
    * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
+   * @param {import('../blob-store/index.js').BlobStore} opts.blobStore
    * @param {Logger} [opts.logger]
    */
   constructor({
@@ -35,12 +37,14 @@ export class NamespaceSyncState {
     coreManager,
     onUpdate,
     peerSyncControllers,
+    blobStore,
     logger,
   }) {
     // Currently we don't create a logger for this class, just pass it down
     this.#logger = logger
     this.#namespace = namespace
     this.#peerSyncControllers = peerSyncControllers
+    this.#blobStore = blobStore
     this.#deviceId = coreManager.deviceId
     // Called whenever the state changes, so we clear the cache because next
     // call to getState() will need to re-derive the state
@@ -61,6 +65,18 @@ export class NamespaceSyncState {
     coreManager.on('peer-have', (namespace, msg) => {
       if (namespace !== this.#namespace) return
       this.#insertPreHaves(msg)
+    })
+
+    if (this.#namespace !== 'blob') return
+    blobStore.on('blob-filter', (peerId, filter) => {
+      const wantsEverything = !filter
+      for (const css of this.#coreStates.values()) {
+        css.setWantsEverything(peerId, wantsEverything)
+      }
+    })
+    blobStore.on('want-blob-range', ({ blobCoreId, peerId, start, length }) => {
+      const coreState = this.#getCoreState(blobCoreId)
+      coreState.addWantRange(peerId, start, length)
     })
   }
 
@@ -139,36 +155,6 @@ export class NamespaceSyncState {
   }
 
   /**
-   * @param {import('./sync-api.js').BlobWantRange} blobWantRange
-   * @returns {void}
-   */
-  addWantRange({ blobCoreId, start, length, peerId }) {
-    const coreState = this.#getCoreState(blobCoreId)
-    coreState.addWantRange(peerId, start, length)
-  }
-
-  /**
-   * @param {string} peerId
-   * @returns {void}
-   */
-  clearWantRanges(peerId) {
-    for (const coreState of this.#coreStates.values()) {
-      coreState.clearWantRanges(peerId)
-    }
-  }
-
-  /**
-   * Set a core to "want everything" (the default state)
-   * @param {string} peerId
-   * @returns {void}
-   */
-  wantEverything(peerId) {
-    for (const coreState of this.#coreStates.values()) {
-      coreState.wantEverything(peerId)
-    }
-  }
-
-  /**
    * @param {string} discoveryId
    */
   #getCoreState(discoveryId) {
@@ -180,6 +166,12 @@ export class NamespaceSyncState {
         peerSyncControllers: this.#peerSyncControllers,
         namespace: this.#namespace,
         deviceId: this.#deviceId,
+        hasDownloadFilter: (peerId) => {
+          return (
+            this.#namespace === 'blob' &&
+            !!this.#blobStore.getBlobFilter(peerId)
+          )
+        },
         logger: Logger.create('css:' + this.#namespace, this.#logger, {
           prefix: logPrefix,
         }),
