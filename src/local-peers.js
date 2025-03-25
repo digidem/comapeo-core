@@ -64,6 +64,7 @@ class Peer {
   #deviceType
   #connectedAt = 0
   #disconnectedAt = 0
+  #drainedListeners = new Set()
   #protomux
   #log
 
@@ -157,53 +158,91 @@ class Peer {
     this.#disconnectedAt = Date.now()
     // This promise should have already resolved, but if the peer never connected then we reject here
     this.#connected.reject(new PeerFailedConnectionError())
+    for (const listener of this.#drainedListeners) {
+      listener.reject(new Error('RPC Disconnected before sending'))
+    }
     this.#log('disconnected')
   }
+
+  // Call this when the stream has drained all data to the network
+  drained() {
+    for (const listener of this.#drainedListeners) {
+      listener.resolve()
+    }
+    this.#drainedListeners.clear()
+  }
+
+  /**
+   * @param {boolean} didWrite
+   * @returns {Promise<void>}
+   */
+  async #waitForDrain(didWrite) {
+    if (didWrite) return
+    const onDrain = pDefer()
+
+    this.#drainedListeners.add(onDrain)
+
+    await onDrain.promise
+  }
+
   /**
    * @param {Buffer} buf
+   * @returns {Promise<void>}
    */
-  [kTestOnlySendRawInvite](buf) {
+  async [kTestOnlySendRawInvite](buf) {
     this.#assertConnected()
     const messageType = MESSAGE_TYPES.Invite
-    this.#channel.messages[messageType].send(buf)
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
   }
-  /** @param {Invite} invite */
-  sendInvite(invite) {
+  /**
+   * @param {Invite} invite
+   * @returns {Promise<void>}
+   */
+  async sendInvite(invite) {
     this.#assertConnected()
     const buf = Buffer.from(Invite.encode(invite).finish())
     const messageType = MESSAGE_TYPES.Invite
-    this.#channel.messages[messageType].send(buf)
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
     this.#log('sent invite %h', invite.inviteId)
   }
-  /** @param {InviteCancel} inviteCancel */
-  sendInviteCancel(inviteCancel) {
+  /**
+   * @param {InviteCancel} inviteCancel
+   * @returns {Promise<void>}
+   */
+  async sendInviteCancel(inviteCancel) {
     this.#assertConnected()
     const buf = Buffer.from(InviteCancel.encode(inviteCancel).finish())
     const messageType = MESSAGE_TYPES.InviteCancel
-    this.#channel.messages[messageType].send(buf)
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
     this.#log('sent invite cancel %h', inviteCancel.inviteId)
   }
-  /** @param {InviteResponse} response */
-  sendInviteResponse(response) {
+  /**
+   * @param {InviteResponse} response
+   * @returns {Promise<void>}
+   */
+  async sendInviteResponse(response) {
     this.#assertConnected()
     const buf = Buffer.from(InviteResponse.encode(response).finish())
     const messageType = MESSAGE_TYPES.InviteResponse
-    this.#channel.messages[messageType].send(buf)
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
     this.#log('sent response for %h: %s', response.inviteId, response.decision)
   }
   /** @param {ProjectJoinDetails} details */
-  sendProjectJoinDetails(details) {
+  async sendProjectJoinDetails(details) {
     this.#assertConnected()
     const buf = Buffer.from(ProjectJoinDetails.encode(details).finish())
     const messageType = MESSAGE_TYPES.ProjectJoinDetails
-    this.#channel.messages[messageType].send(buf)
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
     this.#log('sent project join details for %h', details.projectKey)
   }
-  /** @param {DeviceInfo} deviceInfo */
-  sendDeviceInfo(deviceInfo) {
+  /**
+   * @param {DeviceInfo} deviceInfo
+   * @returns {Promise<void>}
+   */
+  async sendDeviceInfo(deviceInfo) {
     const buf = Buffer.from(DeviceInfo.encode(deviceInfo).finish())
     const messageType = MESSAGE_TYPES.DeviceInfo
-    this.#channel.messages[messageType].send(buf)
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
     this.#log('sent deviceInfo %o', deviceInfo)
   }
   /** @param {DeviceInfo} deviceInfo */
@@ -270,7 +309,7 @@ export class LocalPeers extends TypedEmitter {
   async sendInvite(deviceId, invite) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
-    peer.sendInvite(invite)
+    await peer.sendInvite(invite)
   }
 
   /**
@@ -281,7 +320,7 @@ export class LocalPeers extends TypedEmitter {
   async sendInviteCancel(deviceId, inviteCancel) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
-    peer.sendInviteCancel(inviteCancel)
+    await peer.sendInviteCancel(inviteCancel)
   }
 
   /**
@@ -293,7 +332,7 @@ export class LocalPeers extends TypedEmitter {
   async sendInviteResponse(deviceId, inviteResponse) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
-    peer.sendInviteResponse(inviteResponse)
+    await peer.sendInviteResponse(inviteResponse)
   }
 
   /**
@@ -303,7 +342,7 @@ export class LocalPeers extends TypedEmitter {
   async sendProjectJoinDetails(deviceId, details) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
-    peer.sendProjectJoinDetails(details)
+    await peer.sendProjectJoinDetails(details)
   }
 
   /**
@@ -314,7 +353,7 @@ export class LocalPeers extends TypedEmitter {
   async sendDeviceInfo(deviceId, deviceInfo) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
-    peer.sendDeviceInfo(deviceInfo)
+    await peer.sendDeviceInfo(deviceInfo)
   }
 
   /**
@@ -445,6 +484,9 @@ export class LocalPeers extends TypedEmitter {
         this.#attached.delete(peer.protomux)
         this.#emitPeers()
         done()
+      },
+      ondrain: () => {
+        peer.drained()
       },
     })
     channel.open()
