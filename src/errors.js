@@ -4,6 +4,30 @@ export class NotFoundError extends Error {
   }
 }
 
+export class AlreadyJoinedError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'AlreadyJoinedError') {
+    super(message)
+    this.name = 'AlreadyJoinedError'
+  }
+}
+
+export class InviteAbortedError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'Invite Aborted') {
+    super(message)
+    this.name = 'InviteAbortedError'
+  }
+}
+
+export class TimeoutError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'TimeoutError') {
+    super(message)
+    this.name = 'TimeoutError'
+  }
+}
+
 /**
  * @param {unknown} err
  * @returns {null}

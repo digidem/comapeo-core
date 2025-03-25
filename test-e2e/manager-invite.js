@@ -5,10 +5,11 @@ import { once } from 'node:events'
 import { connectPeers, createManagers, waitForPeers } from './utils.js'
 import { roles } from '../src/index.js'
 import { pEvent } from 'p-event'
+import FakeTimers from '@sinonjs/fake-timers'
 
 const { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } = roles
 
-test('member invite accepted', async (t) => {
+test('member invite accepted & invite states', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
   const disconnectPeers = connectPeers([creator, joiner])
   t.after(disconnectPeers)
@@ -21,11 +22,17 @@ test('member invite accepted', async (t) => {
     async () => joiner.getProject(createdProjectId),
     'joiner cannot get project instance before being invited and added to project'
   )
+  const inviteStates = new Set()
+  const expectedInviteStates = ['responding', 'joining', 'joined']
+  joiner.invite.on('invite-updated', (invite) => {
+    inviteStates.add(invite.state)
+  })
 
   const responsePromise = creatorProject.$member.invite(joiner.deviceId, {
     roleId: MEMBER_ROLE_ID,
   })
-  const [invite] = await once(joiner.invite, 'invite-received')
+  const invite = await pEvent(joiner.invite, 'invite-received')
+  assert.equal(invite.state, 'pending', 'invite is in pending state')
   assert.equal(typeof invite.inviteId, 'string', 'inviteId is string')
   assert(
     Buffer.from(invite.inviteId, 'hex').byteLength >= 32,
@@ -33,7 +40,16 @@ test('member invite accepted', async (t) => {
   )
   assert.equal(invite.projectName, 'Mapeo', 'project name of invite matches')
 
-  const acceptResult = await joiner.invite.accept(invite)
+  const acceptPromise = joiner.invite.accept(invite)
+
+  const inviteJoining = await pEvent(
+    joiner.invite,
+    'invite-updated',
+    (invite) => invite.state === 'joining'
+  )
+  assert.equal(inviteJoining.state, 'joining', 'invite is now in joining state')
+
+  const acceptResult = await acceptPromise
 
   assert.equal(
     await responsePromise,
@@ -63,6 +79,18 @@ test('member invite accepted', async (t) => {
     await joinerProject.$member.getMany(),
     'Project members match'
   )
+
+  assert.deepEqual(
+    joiner.invite.getMany(),
+    [{ ...invite, state: 'joined' }],
+    'Invite is now in joined state'
+  )
+
+  assert.deepEqual(
+    [...inviteStates],
+    expectedInviteStates,
+    'invite was updated with expected states'
+  )
 })
 
 test('chain of invites', async (t) => {
@@ -80,7 +108,7 @@ test('chain of invites', async (t) => {
     const responsePromise = invitorProject.$member.invite(joiner.deviceId, {
       roleId: COORDINATOR_ROLE_ID,
     })
-    const [invite] = await once(joiner.invite, 'invite-received')
+    const invite = await pEvent(joiner.invite, 'invite-received')
     const acceptResult = await joiner.invite.accept(invite)
     assert.equal(acceptResult, createdProjectId, 'accept returns invite ID')
     assert.equal(
@@ -110,6 +138,12 @@ test('chain of invites', async (t) => {
       joinerMembers.sort(memberSort),
       expectedMembers.sort(memberSort),
       'Project members match'
+    )
+
+    assert.deepEqual(
+      joiner.invite.getMany().map((i) => i.state),
+      ['joined'],
+      'Invite is now in joined state'
     )
   }
 })
@@ -194,6 +228,12 @@ test('member invite rejected', async (t) => {
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
 
+  const inviteStates = new Set()
+  const expectedInviteStates = ['responding', 'rejected']
+  joiner.invite.on('invite-updated', (invite) => {
+    inviteStates.add(invite.state)
+  })
+
   await assert.rejects(
     async () => joiner.getProject(createdProjectId),
     'joiner cannot get project instance before being invited and added to project'
@@ -228,9 +268,21 @@ test('member invite rejected', async (t) => {
     1,
     'Only 1 member in project still'
   )
+
+  assert.deepEqual(
+    joiner.invite.getMany(),
+    [{ ...invite, state: 'rejected' }],
+    'Invite is in rejected state'
+  )
+
+  assert.deepEqual(
+    [...inviteStates],
+    expectedInviteStates,
+    'invite was updated with expected states'
+  )
 })
 
-test('cancelation', async (t) => {
+test('cancelation (before response)', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
   const disconnectPeers = connectPeers([creator, joiner])
   t.after(disconnectPeers)
@@ -239,8 +291,14 @@ test('cancelation', async (t) => {
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
 
-  const inviteReceivedPromise = once(joiner.invite, 'invite-received')
-  const inviteRemovedPromise = pEvent(
+  const inviteStates = new Set()
+  const expectedInviteStates = ['canceled']
+  joiner.invite.on('invite-updated', (invite) => {
+    inviteStates.add(invite.state)
+  })
+
+  const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
+  const inviteCanceledPromise = pEvent(
     joiner.invite,
     'invite-updated',
     (invite) => invite.state === 'canceled'
@@ -252,17 +310,18 @@ test('cancelation', async (t) => {
   const inviteAbortedAssertionPromise = assert.rejects(
     invitePromise,
     {
-      message: /Invite aborted/,
+      message: /Invite Aborted/,
+      name: 'InviteAbortedError',
     },
     'should throw after being aborted'
   )
 
-  const [invite] = await inviteReceivedPromise
+  const invite = await inviteReceivedPromise
 
   creatorProject.$member.requestCancelInvite(joiner.deviceId)
   await inviteAbortedAssertionPromise
 
-  const canceledInvite = await inviteRemovedPromise
+  const canceledInvite = await inviteCanceledPromise
 
   assert.deepEqual(
     invite.inviteId,
@@ -270,6 +329,11 @@ test('cancelation', async (t) => {
     'removed invite has correct ID'
   )
   assert.equal(canceledInvite.state, 'canceled')
+  assert.deepEqual(
+    [...inviteStates],
+    expectedInviteStates,
+    'invite was updated with expected states'
+  )
 })
 
 test('canceling nothing', async (t) => {
@@ -296,12 +360,12 @@ test('canceling, then re-inviting', async (t) => {
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
 
-  const invite1ReceivedPromise = once(joiner.invite, 'invite-received')
+  const invite1ReceivedPromise = pEvent(joiner.invite, 'invite-received')
   const invite1Promise = creatorProject.$member.invite(joiner.deviceId, {
     roleId: MEMBER_ROLE_ID,
   })
   const invite1AbortedPromise = assert.rejects(invite1Promise)
-  await invite1ReceivedPromise
+  const invite1 = await invite1ReceivedPromise
   creatorProject.$member.requestCancelInvite(joiner.deviceId)
   await invite1AbortedPromise
 
@@ -314,7 +378,7 @@ test('canceling, then re-inviting', async (t) => {
   const invite2Promise = creatorProject.$member.invite(joiner.deviceId, {
     roleId: MEMBER_ROLE_ID,
   })
-  const [invite2] = await once(joiner.invite, 'invite-received')
+  const invite2 = await pEvent(joiner.invite, 'invite-received')
   await joiner.invite.accept(invite2)
 
   assert.equal(
@@ -327,6 +391,14 @@ test('canceling, then re-inviting', async (t) => {
     await creator.listProjects(),
     'project info recorded in joiner successfully'
   )
+  assert.deepEqual(
+    joiner.invite.getMany(),
+    [
+      { ...invite1, state: 'canceled' },
+      { ...invite2, state: 'joined' },
+    ],
+    'Canceled and joined invites in state'
+  )
 })
 
 test('rejecting, then accepting', async (t) => {
@@ -338,11 +410,11 @@ test('rejecting, then accepting', async (t) => {
   const createdProjectId = await creator.createProject({ name: 'Mapeo' })
   const creatorProject = await creator.getProject(createdProjectId)
 
-  const invite1ReceivedPromise = once(joiner.invite, 'invite-received')
+  const invite1ReceivedPromise = pEvent(joiner.invite, 'invite-received')
   const invite1Promise = creatorProject.$member.invite(joiner.deviceId, {
     roleId: MEMBER_ROLE_ID,
   })
-  const [invite1] = await invite1ReceivedPromise
+  const invite1 = await invite1ReceivedPromise
   await joiner.invite.reject(invite1)
   assert.equal(
     await invite1Promise,
@@ -356,11 +428,11 @@ test('rejecting, then accepting', async (t) => {
     "joiner doesn't have project yet"
   )
 
-  const invite2ReceivedPromise = once(joiner.invite, 'invite-received')
+  const invite2ReceivedPromise = pEvent(joiner.invite, 'invite-received')
   const invite2Promise = creatorProject.$member.invite(joiner.deviceId, {
     roleId: MEMBER_ROLE_ID,
   })
-  const [invite2] = await invite2ReceivedPromise
+  const invite2 = await invite2ReceivedPromise
   await joiner.invite.accept(invite2)
 
   assert.equal(
@@ -373,7 +445,106 @@ test('rejecting, then accepting', async (t) => {
     await creator.listProjects(),
     'project info recorded in joiner successfully'
   )
+  assert.deepEqual(
+    joiner.invite.getMany(),
+    [
+      { ...invite1, state: 'rejected' },
+      { ...invite2, state: 'joined' },
+    ],
+    'Rejected and joined invites in state'
+  )
 })
+
+test('disconnect before invite accept', async (t) => {
+  const [creator, joiner] = await createManagers(2, t)
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(() => disconnectPeers())
+  await waitForPeers([creator, joiner])
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+
+  const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
+  const invitePromise = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  let inviteHasResolved = false
+  invitePromise
+    .then(() => {
+      inviteHasResolved = true
+    })
+    .catch(() => {})
+  const invite = await inviteReceivedPromise
+  await disconnectPeers()
+  await assert.rejects(
+    () => joiner.invite.accept(invite),
+    {
+      name: 'PeerDisconnectedError',
+      message: 'Peer disconnected before sending invite response',
+    },
+    'accepting invite rejects when peer is disconnected'
+  )
+  assert.equal(
+    joiner.invite.getById(invite.inviteId).state,
+    'error',
+    'Invite ends in error state'
+  )
+  assert(!inviteHasResolved, 'invite promise has not resolved')
+  creatorProject.$member.requestCancelInvite(joiner.deviceId)
+  await assert.rejects(
+    invitePromise,
+    {
+      name: 'InviteAbortedError',
+      message: 'Invite Aborted',
+    },
+    'invite promise rejects after being aborted'
+  )
+})
+
+// TODO: It's not possible in e2e tests to disconnect peers at the right moment.
+// This test is flaky, and sometimes the project details are sent before the
+// peers disconnect, so skipping this test for now.
+test(
+  'disconnect before sending project join details',
+  { skip: true },
+  async (t) => {
+    const clock = FakeTimers.install({ shouldAdvanceTime: true })
+    t.after(() => clock.uninstall())
+    const [creator, joiner] = await createManagers(2, t)
+    const disconnectPeers = connectPeers([creator, joiner])
+    t.after(() => disconnectPeers())
+    await waitForPeers([creator, joiner])
+
+    const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+    const creatorProject = await creator.getProject(createdProjectId)
+
+    const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
+    const invitePromise = creatorProject.$member.invite(joiner.deviceId, {
+      roleId: MEMBER_ROLE_ID,
+    })
+    const assertInviteRejectsPromise = assert.rejects(
+      invitePromise,
+      {
+        name: 'PeerDisconnectedError',
+        message: 'Peer disconnected before sending project join details',
+      },
+      'invite promise rejects when peer disconnects'
+    )
+    const invite = await inviteReceivedPromise
+    const assertAcceptRejectsPromise = assert.rejects(
+      () => joiner.invite.accept(invite),
+      {
+        name: 'TimeoutError',
+        message: 'Timed out waiting for project details',
+      },
+      'accepting invite times out when project details are not received'
+    )
+    await disconnectPeers()
+    // Run down the timeout waiting for project details
+    clock.runAll()
+    await Promise.all([assertInviteRejectsPromise, assertAcceptRejectsPromise])
+  }
+)
 
 /**
  * @param {import('../src/member-api.js').MemberInfo} a

@@ -6,7 +6,7 @@ import timingSafeEqual from 'string-timing-safe-equal'
 import { Logger } from '../logger.js'
 import { createActor, fromPromise, toPromise } from 'xstate'
 import { inviteStateMachine } from './invite-state-machine.js'
-import { NotFoundError } from '../errors.js'
+import { NotFoundError, AlreadyJoinedError } from '../errors.js'
 
 /** @import { MapBuffers } from '../types.js' */
 /**
@@ -28,7 +28,7 @@ import { NotFoundError } from '../errors.js'
  * @typedef {InviteRpcMessage & { receivedAt: number }} InviteInternal
  */
 /** @typedef {ExtractStateString<import('xstate').StateValueFrom<typeof inviteStateMachine>>} InviteState */
-/** @typedef {import('type-fest').Simplify<MapBuffers<InviteInternal> & { invitorDeviceId: string } & ({ state: Exclude<InviteState, 'error'> } | { state: 'error', errorMessage: string })>} Invite */
+/** @typedef {import('type-fest').Simplify<MapBuffers<InviteInternal> & { invitorDeviceId: string } & ({ state: Exclude<InviteState, 'error'> } | { state: 'error', error: Error })>} Invite */
 
 /**
  * @typedef {import('xstate').ActorRefFrom<typeof inviteStateMachine>} invite.actor
@@ -140,27 +140,10 @@ export class InviteApi extends TypedEmitter {
 
     const actor = createActor(
       inviteStateMachine.provide({
-        actions: {
-          doAcceptInvite: () => {
-            this.rpc.sendInviteResponse(peerId, {
-              decision: InviteResponse_Decision.ACCEPT,
-              inviteId,
-            })
-          },
-          doRejectInvite: () => {
-            this.rpc.sendInviteResponse(peerId, {
-              decision: InviteResponse_Decision.REJECT,
-              inviteId,
-            })
-          },
-          doRespondAlready: () => {
-            this.rpc.sendInviteResponse(peerId, {
-              decision: InviteResponse_Decision.ALREADY,
-              inviteId,
-            })
-          },
-        },
         actors: {
+          sendInviteResponse: fromPromise(async ({ input: { decision } }) => {
+            return this.rpc.sendInviteResponse(peerId, { decision, inviteId })
+          }),
           addProject: fromPromise(async ({ input: projectDetails }) => {
             return this.#addProject({ ...projectDetails, projectName })
           }),
@@ -174,10 +157,7 @@ export class InviteApi extends TypedEmitter {
             return !isJoining && !isAlreadyMember
           },
         },
-      }),
-      {
-        input: inviteRpcMessage,
-      }
+      })
     )
 
     this.#invites.set(inviteId, { value: invite, actor, peerId })
@@ -307,11 +287,9 @@ export class InviteApi extends TypedEmitter {
 
     if (!projectPublicId) {
       const { context, value } = invite.actor.getSnapshot()
-      const errorMsg =
-        value === 'respondedAlready'
-          ? 'Already joining or in project'
-          : context.errorMessage || 'Unknown error'
-      throw new Error(errorMsg)
+      throw value === 'respondedAlready'
+        ? new AlreadyJoinedError('Already joining or in project')
+        : context.error || new Error('Unknown error')
     }
 
     return projectPublicId
@@ -348,7 +326,7 @@ function toInvite(internal, snapshot, invitorDeviceId) {
       inviteId: internal.inviteId.toString('hex'),
       projectInviteId: internal.projectInviteId.toString('hex'),
       state,
-      errorMessage: snapshot.context.errorMessage || 'Unknown error',
+      error: snapshot.context.error || new Error('Unknown error'),
     }
   } else {
     return {
