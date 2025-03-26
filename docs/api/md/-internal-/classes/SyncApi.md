@@ -20,7 +20,7 @@
 
 • **opts**
 
-• **opts.blobDownloadFilter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
+• **opts.blobStore**: [`BlobStore`](BlobStore.md)
 
 • **opts.coreManager**: [`CoreManager`](CoreManager.md)
 
@@ -51,42 +51,6 @@
 > **\[kSyncState\]**: [`SyncState`](SyncState.md)
 
 ## Methods
-
-### \[kAddBlobWantRange\]()
-
-> **\[kAddBlobWantRange\]**(`peerId`, `start`, `length`): `void`
-
-Add some blob blocks this peer wants.
-
-#### Parameters
-
-• **peerId**: `string`
-
-• **start**: `number`
-
-• **length**: `number`
-
-#### Returns
-
-`void`
-
-***
-
-### \[kClearBlobWantRanges\]()
-
-> **\[kClearBlobWantRanges\]**(`peerId`): `void`
-
-Clear the blob blocks this peer wants.
-
-#### Parameters
-
-• **peerId**: `string`
-
-#### Returns
-
-`void`
-
-***
 
 ### \[kHandleDiscoveryKey\]()
 
@@ -121,20 +85,6 @@ Request a graceful stop to all sync.
 > **\[kRescindFullStopRequest\]**(): `void`
 
 Rescind any requests for a full stop.
-
-#### Returns
-
-`void`
-
-***
-
-### \[kSetBlobDownloadFilter\]()
-
-> **\[kSetBlobDownloadFilter\]**(`blobDownloadFilter`): `void`
-
-#### Parameters
-
-• **blobDownloadFilter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
 
 #### Returns
 
