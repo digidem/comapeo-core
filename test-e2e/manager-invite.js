@@ -6,6 +6,8 @@ import { connectPeers, createManagers, waitForPeers } from './utils.js'
 import { roles } from '../src/index.js'
 import { pEvent } from 'p-event'
 import FakeTimers from '@sinonjs/fake-timers'
+import { randomBytes } from 'node:crypto'
+import { noop } from '../src/utils.js'
 
 const { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } = roles
 
@@ -146,6 +148,118 @@ test('chain of invites', async (t) => {
       'Invite is now in joined state'
     )
   }
+})
+
+test('Two invites to same project, accepting first responds "already" to other', async (t) => {
+  const managers = await createManagers(3, t)
+  const [creator, coord, member] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+  await waitForPeers(managers)
+
+  // Test setup: add coordinator to the project
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+  creatorProject.$member.invite(coord.deviceId, {
+    roleId: COORDINATOR_ROLE_ID,
+  })
+  const invite = await pEvent(coord.invite, 'invite-received')
+  await coord.invite.accept(invite)
+  const coordProject = await coord.getProject(createdProjectId)
+
+  const creatorInvitePromise = creatorProject.$member.invite(member.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  const receivedCreatorInvite = await pEvent(member.invite, 'invite-received')
+  const coordInvitePromise = coordProject.$member.invite(member.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  const receivedCoordInvite = await pEvent(member.invite, 'invite-received')
+
+  assert.equal(member.invite.getMany().length, 2, 'member has two invites')
+  assert.ok(
+    member.invite.getMany().every((i) => i.state === 'pending'),
+    'both invites are pending'
+  )
+
+  const acceptResult = await member.invite.accept(receivedCreatorInvite)
+  assert.equal(acceptResult, createdProjectId, 'accept returns project ID')
+
+  assert.equal(
+    member.invite.getById(receivedCreatorInvite.inviteId).state,
+    'joined'
+  )
+  assert.equal(
+    member.invite.getById(receivedCoordInvite.inviteId).state,
+    'respondedAlready'
+  )
+
+  assert.equal(
+    await creatorInvitePromise,
+    'ACCEPT',
+    'Expected response to invite on invitor'
+  )
+  assert.equal(
+    await coordInvitePromise,
+    'ALREADY',
+    'Expected response to invite on invitor'
+  )
+})
+
+test('Two invites to same project, accepting second responds "already" to other', async (t) => {
+  const managers = await createManagers(3, t)
+  const [creator, coord, member] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+  await waitForPeers(managers)
+
+  // Test setup: add coordinator to the project
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+  creatorProject.$member.invite(coord.deviceId, {
+    roleId: COORDINATOR_ROLE_ID,
+  })
+  const invite = await pEvent(coord.invite, 'invite-received')
+  await coord.invite.accept(invite)
+  const coordProject = await coord.getProject(createdProjectId)
+
+  const creatorInvitePromise = creatorProject.$member.invite(member.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  const receivedCreatorInvite = await pEvent(member.invite, 'invite-received')
+  const coordInvitePromise = coordProject.$member.invite(member.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  const receivedCoordInvite = await pEvent(member.invite, 'invite-received')
+
+  assert.equal(member.invite.getMany().length, 2, 'member has two invites')
+  assert.ok(
+    member.invite.getMany().every((i) => i.state === 'pending'),
+    'both invites are pending'
+  )
+
+  const acceptResult = await member.invite.accept(receivedCoordInvite)
+  assert.equal(acceptResult, createdProjectId, 'accept returns project ID')
+
+  assert.equal(
+    member.invite.getById(receivedCreatorInvite.inviteId).state,
+    'respondedAlready'
+  )
+  assert.equal(
+    member.invite.getById(receivedCoordInvite.inviteId).state,
+    'joined'
+  )
+
+  assert.equal(
+    await creatorInvitePromise,
+    'ALREADY',
+    'Expected response to invite on invitor'
+  )
+  assert.equal(
+    await coordInvitePromise,
+    'ACCEPT',
+    'Expected response to invite on invitor'
+  )
 })
 
 test('generates new invite IDs for each invite', async (t) => {
@@ -545,6 +659,211 @@ test(
     await Promise.all([assertInviteRejectsPromise, assertAcceptRejectsPromise])
   }
 )
+
+test('Attempting to accept unknown inviteId throws', async (t) => {
+  const [creator, joiner] = await createManagers(2, t)
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(() => disconnectPeers())
+  await waitForPeers([creator, joiner])
+
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
+
+  const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
+  creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  await inviteReceivedPromise
+  await assert.rejects(
+    () => joiner.invite.accept({ inviteId: randomBytes(32).toString('hex') }),
+    {
+      name: 'NotFoundError',
+      message: /Cannot find invite/,
+    },
+    'accepting unknown inviteId throws'
+  )
+})
+
+test('Attempting to accept or reject an invite not in pending state throws', async (t) => {
+  for (const action of /** @type {const} */ (['accept', 'reject'])) {
+    await t.test(action + 'ing a canceled invite throws', async (t) => {
+      const [creator, joiner] = await createManagers(2, t)
+      const disconnectPeers = connectPeers([creator, joiner])
+      t.after(() => disconnectPeers())
+      await waitForPeers([creator, joiner])
+
+      const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+      const creatorProject = await creator.getProject(createdProjectId)
+
+      const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
+      creatorProject.$member
+        .invite(joiner.deviceId, {
+          roleId: MEMBER_ROLE_ID,
+        })
+        // This will throw when canceled, but we're not interested in that here
+        .catch(noop)
+      const invite = await inviteReceivedPromise
+      creatorProject.$member.requestCancelInvite(joiner.deviceId)
+      await pEvent(
+        joiner.invite,
+        'invite-updated',
+        (i) => i.state === 'canceled'
+      )
+      await assert.rejects(
+        async () => joiner.invite[action](invite),
+        {
+          name: 'InviteSendError',
+          message: /Cannot send/,
+        },
+        action + 'ing a canceled invite throws'
+      )
+    })
+    await t.test(action + 'ing a rejected invite throws', async (t) => {
+      const [creator, joiner] = await createManagers(2, t)
+      const disconnectPeers = connectPeers([creator, joiner])
+      t.after(() => disconnectPeers())
+      await waitForPeers([creator, joiner])
+
+      const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+      const creatorProject = await creator.getProject(createdProjectId)
+
+      const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
+      creatorProject.$member.invite(joiner.deviceId, {
+        roleId: MEMBER_ROLE_ID,
+      })
+      const invite = await inviteReceivedPromise
+      await joiner.invite.reject(invite)
+      await assert.rejects(
+        async () => joiner.invite[action](invite),
+        {
+          name: 'InviteSendError',
+          message: /Cannot send/,
+        },
+        action + 'ing a rejected invite throws'
+      )
+    })
+    await t.test(
+      action + 'ing an already-responded invite throws',
+      async (t) => {
+        const managers = await createManagers(3, t)
+        const [creator, coord, member] = managers
+        const disconnectPeers = connectPeers(managers)
+        t.after(disconnectPeers)
+        await waitForPeers(managers)
+
+        // Test setup: add coordinator to the project
+        const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+        const creatorProject = await creator.getProject(createdProjectId)
+        creatorProject.$member.invite(coord.deviceId, {
+          roleId: COORDINATOR_ROLE_ID,
+        })
+        const invite = await pEvent(coord.invite, 'invite-received')
+        await coord.invite.accept(invite)
+        const coordProject = await coord.getProject(createdProjectId)
+
+        creatorProject.$member.invite(member.deviceId, {
+          roleId: MEMBER_ROLE_ID,
+        })
+        const receivedCreatorInvite = await pEvent(
+          member.invite,
+          'invite-received'
+        )
+        coordProject.$member.invite(member.deviceId, {
+          roleId: MEMBER_ROLE_ID,
+        })
+        const receivedCoordInvite = await pEvent(
+          member.invite,
+          'invite-received'
+        )
+
+        await member.invite.accept(receivedCreatorInvite)
+
+        assert.equal(
+          member.invite.getById(receivedCoordInvite.inviteId).state,
+          'respondedAlready'
+        )
+
+        await assert.rejects(
+          async () => member.invite[action](receivedCoordInvite),
+          {
+            name: 'InviteSendError',
+            message: /Cannot send/,
+          },
+          action + 'ing an already-responded invite throws'
+        )
+      }
+    )
+    await t.test(action + 'ing a joined invite throws', async (t) => {
+      const [creator, joiner] = await createManagers(2, t)
+      const disconnectPeers = connectPeers([creator, joiner])
+      t.after(() => disconnectPeers())
+      await waitForPeers([creator, joiner])
+
+      const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+      const creatorProject = await creator.getProject(createdProjectId)
+
+      const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
+      creatorProject.$member.invite(joiner.deviceId, {
+        roleId: MEMBER_ROLE_ID,
+      })
+      const invite = await inviteReceivedPromise
+      await joiner.invite.accept(invite)
+
+      await assert.rejects(
+        async () => joiner.invite[action](invite),
+        {
+          name: 'InviteSendError',
+          message: /Cannot send/,
+        },
+        action + 'ing an already-joined invite throws'
+      )
+    })
+    for (const interruptState of /** @type {const} */ ([
+      'responding',
+      'joining',
+    ])) {
+      await t.test(
+        `${action}ing an invite in ${interruptState} state throws`,
+        async (t) => {
+          const [creator, joiner] = await createManagers(2, t)
+          const disconnectPeers = connectPeers([creator, joiner])
+          t.after(() => disconnectPeers())
+          await waitForPeers([creator, joiner])
+
+          const createdProjectId = await creator.createProject({
+            name: 'Mapeo',
+          })
+          const creatorProject = await creator.getProject(createdProjectId)
+
+          const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
+          creatorProject.$member.invite(joiner.deviceId, {
+            roleId: MEMBER_ROLE_ID,
+          })
+          const invite = await inviteReceivedPromise
+          const inviteRespondingPromise = pEvent(
+            joiner.invite,
+            'invite-updated',
+            (i) => i.state === interruptState
+          )
+          const inviteAcceptPromise = joiner.invite.accept(invite)
+          await inviteRespondingPromise
+          await assert.rejects(
+            async () => joiner.invite[action](invite),
+            {
+              name: 'InviteSendError',
+              message: new RegExp(
+                `Cannot send.*in state ${interruptState}`,
+                'i'
+              ),
+            },
+            `${action}ing an invite in ${interruptState} state throws`
+          )
+          await inviteAcceptPromise
+        }
+      )
+    }
+  }
+})
 
 /**
  * @param {import('../src/member-api.js').MemberInfo} a

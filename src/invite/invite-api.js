@@ -6,7 +6,11 @@ import timingSafeEqual from 'string-timing-safe-equal'
 import { Logger } from '../logger.js'
 import { createActor, fromPromise, toPromise } from 'xstate'
 import { inviteStateMachine } from './invite-state-machine.js'
-import { NotFoundError, AlreadyJoinedError } from '../errors.js'
+import {
+  NotFoundError,
+  AlreadyJoinedError,
+  InviteSendError,
+} from '../errors.js'
 
 /** @import { MapBuffers } from '../types.js' */
 /**
@@ -268,13 +272,14 @@ export class InviteApi extends TypedEmitter {
     const inviteId = Buffer.from(inviteIdString, 'hex')
 
     const invite = this.#invites.get(inviteId)
-    assert(!!invite, `Cannot find invite ${inviteIdString}`)
+    assert(!!invite, new NotFoundError(`Cannot find invite ${inviteIdString}`))
     assertCanSend(invite.actor, { type: 'ACCEPT_INVITE' })
 
     this.#l.log('Accepting invite %h', inviteId)
     invite.actor.send({ type: 'ACCEPT_INVITE' })
 
     for (const { value, actor } of this.#invites.values()) {
+      if (value.inviteId.equals(inviteId)) continue
       const inviteIsForSameProject = value.projectInviteId.equals(
         invite.value.projectInviteId
       )
@@ -344,15 +349,18 @@ function toInvite(internal, snapshot, invitorDeviceId) {
  * if there is no transition defined for this event type for the current state
  * of the machine)
  *
- * @template {import('xstate').AnyActorRef} T
- * @param {T} actor
- * @param {import('xstate').EventFrom<T>} eventType
+ * @param {invite.actor} actor
+ * @param {import('xstate').EventFrom<invite.actor>} eventType
  */
 function assertCanSend(actor, eventType) {
   const state = actor.getSnapshot()
   assert(
     state.can(eventType),
-    `Cannot send ${JSON.stringify(eventType)} in state ${state.value}`
+    new InviteSendError(
+      `Cannot send ${JSON.stringify(eventType)} in state ${toStateString(
+        state.value
+      )}`
+    )
   )
 }
 

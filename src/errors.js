@@ -1,6 +1,7 @@
 export class NotFoundError extends Error {
   constructor(message = 'Not found') {
     super(message)
+    this.name = 'NotFoundError'
   }
 }
 
@@ -9,6 +10,14 @@ export class AlreadyJoinedError extends Error {
   constructor(message = 'AlreadyJoinedError') {
     super(message)
     this.name = 'AlreadyJoinedError'
+  }
+}
+
+export class InviteSendError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'Invite Send Error') {
+    super(message)
+    this.name = 'InviteSendError'
   }
 }
 
