@@ -169,7 +169,7 @@ class Peer {
   }
   /** @param {Invite} invite */
   sendInvite(invite) {
-    this.#assertConnected()
+    this.#assertConnected('Peer disconnected before sending invite')
     const buf = Buffer.from(Invite.encode(invite).finish())
     const messageType = MESSAGE_TYPES.Invite
     this.#channel.messages[messageType].send(buf)
@@ -177,7 +177,7 @@ class Peer {
   }
   /** @param {InviteCancel} inviteCancel */
   sendInviteCancel(inviteCancel) {
-    this.#assertConnected()
+    this.#assertConnected('Peer disconnected before sending invite cancel')
     const buf = Buffer.from(InviteCancel.encode(inviteCancel).finish())
     const messageType = MESSAGE_TYPES.InviteCancel
     this.#channel.messages[messageType].send(buf)
@@ -185,7 +185,7 @@ class Peer {
   }
   /** @param {InviteResponse} response */
   sendInviteResponse(response) {
-    this.#assertConnected()
+    this.#assertConnected('Peer disconnected before sending invite response')
     const buf = Buffer.from(InviteResponse.encode(response).finish())
     const messageType = MESSAGE_TYPES.InviteResponse
     this.#channel.messages[messageType].send(buf)
@@ -193,7 +193,9 @@ class Peer {
   }
   /** @param {ProjectJoinDetails} details */
   sendProjectJoinDetails(details) {
-    this.#assertConnected()
+    this.#assertConnected(
+      'Peer disconnected before sending project join details'
+    )
     const buf = Buffer.from(ProjectJoinDetails.encode(details).finish())
     const messageType = MESSAGE_TYPES.ProjectJoinDetails
     this.#channel.messages[messageType].send(buf)
@@ -212,10 +214,11 @@ class Peer {
     this.#deviceType = deviceInfo.deviceType
     this.#log('received deviceInfo %o', deviceInfo)
   }
-  #assertConnected() {
+  /** @param {string} [message] */
+  #assertConnected(message) {
     if (this.#state === 'connected' && !this.#channel.closed) return
     /* c8 ignore next */
-    throw new PeerDisconnectedError() // TODO: report error - this should not happen
+    throw new PeerDisconnectedError(message) // TODO: report error - this should not happen
   }
 }
 
@@ -614,7 +617,7 @@ export { TimeoutError }
 
 export class UnknownPeerError extends Error {
   /** @param {string} [message] */
-  constructor(message) {
+  constructor(message = 'UnknownPeerError') {
     super(message)
     this.name = 'UnknownPeerError'
   }
@@ -622,7 +625,7 @@ export class UnknownPeerError extends Error {
 
 export class PeerDisconnectedError extends Error {
   /** @param {string} [message] */
-  constructor(message) {
+  constructor(message = 'Peer disconnected') {
     super(message)
     this.name = 'PeerDisconnectedError'
   }
@@ -630,7 +633,7 @@ export class PeerDisconnectedError extends Error {
 
 export class PeerFailedConnectionError extends Error {
   /** @param {string} [message] */
-  constructor(message) {
+  constructor(message = 'PeerFailedConnectionError') {
     super(message)
     this.name = 'PeerFailedConnectionError'
   }
