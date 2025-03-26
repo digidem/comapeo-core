@@ -249,7 +249,7 @@ Resolves when all cores have finished loading
 
 #### Parameters
 
-• **blobFilter**: [`BlobFilter`](../type-aliases/BlobFilter.md)
+• **blobFilter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
 
 • **peer**: [`HypercorePeer`](../type-aliases/HypercorePeer.md)
 
