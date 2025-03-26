@@ -133,3 +133,32 @@ test('get blob metadata', async () => {
 
   assert.equal(metadata.mimeType, 'image/example')
 })
+
+test('invalid metadata returns null', async () => {
+  const variant = 'original'
+
+  const { blobStore } = createBlobStore()
+
+  const blobApi = new BlobApi({
+    blobStore,
+    getMediaBaseUrl: async () => 'http://127.0.0.1:8080/blobs',
+  })
+
+  const directory = fileURLToPath(
+    new URL('./fixtures/blob-api/', import.meta.url)
+  )
+
+  const attachment = await blobApi.create(
+    {
+      original: join(directory, 'original.png'),
+      preview: join(directory, 'preview.png'),
+      thumbnail: join(directory, 'thumbnail.png'),
+    },
+    // @ts-ignore
+    { hello: 'World!', mimeType: 'image/example' }
+  )
+
+  const metadata = await blobApi.getMetadata({ ...attachment, variant })
+
+  assert.equal(metadata, null)
+})

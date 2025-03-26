@@ -2,37 +2,38 @@ import fs from 'node:fs'
 // @ts-expect-error - pipelinePromise missing from streamx types
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
+import { Type as T } from '@sinclair/typebox'
+import { Value } from '@sinclair/typebox/value'
 /** @import { BlobId, BlobType } from './types.js' */
 
-/**
- * Location coordinate data. Based on [Expo's `LocationObjectCoords`][0].
- * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobjectcoords
- *
- * @typedef {object} LocationObjectCoords
- * @prop {number | null} accuracy
- * @prop {number | null} altitude
- * @prop {number | null} altitudeAccuracy
- * @prop {number | null} heading
- * @prop {number} latitude
- * @prop {number} longitude
- * @prop {number | null} speed
- */
+const LocationObjectCoordsSchema = T.Object({
+  accuracy: T.Union([T.Number(), T.Null()]),
+  altitude: T.Union([T.Number(), T.Null()]),
+  altitudeAccuracy: T.Union([T.Number(), T.Null()]),
+  heading: T.Union([T.Number(), T.Null()]),
+  latitude: T.Number(),
+  longitude: T.Number(),
+  speed: T.Union([T.Number(), T.Null()]),
+})
+
+const LocationObjectSchema = T.Object({
+  coords: LocationObjectCoordsSchema,
+  mocked: T.Optional(T.Boolean()),
+  timestamp: T.Number(),
+})
+
+const MetadataSchema = T.Object({
+  mimeType: T.String(),
+  timestamp: T.Number(),
+  location: T.Optional(LocationObjectSchema),
+})
 
 /**
- * Location metadata for a blob. Based on [Expo's `LocationObject`][0].
- * [0]: https://docs.expo.dev/versions/latest/sdk/location/#locationobject
+ * @import {Static} from '@sinclair/typebox'
  *
- * @typedef {object} LocationObject
- * @prop {LocationObjectCoords} coords
- * @prop {boolean} [mocked]
- * @prop {number} timestamp
- */
-
-/**
- * @typedef {object} Metadata
- * @prop {string} mimeType
- * @prop {number} timestamp
- * @prop {LocationObject} [location]
+ * @typedef {Static<typeof LocationObjectCoordsSchema>} LocationObjectCoords
+ * @typedef {Static<typeof LocationObjectSchema>} LocationObject
+ * @typedef {Static<typeof MetadataSchema>} Metadata
  */
 
 export class BlobApi {
@@ -84,12 +85,11 @@ export class BlobApi {
       return null
     }
 
-    // This should never happen but is there cause of types
-    if (typeof metadata !== 'object' || Array.isArray(metadata)) {
+    if (!Value.Check(MetadataSchema, metadata)) {
       return null
     }
 
-    return /** @type {Metadata} */ (metadata)
+    return metadata
   }
 
   /**
