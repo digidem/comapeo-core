@@ -10,6 +10,7 @@ import {
   replicate,
 } from '../helpers/core-manager.js'
 import { randomBytes } from 'crypto'
+import { BlobStore } from '../../src/blob-store/index.js'
 
 test('sync cores in a namespace', async () => {
   const projectKeyPair = KeyManager.generateProjectKeypair()
@@ -43,6 +44,7 @@ test('sync cores in a namespace', async () => {
 
   const syncState1 = new NamespaceSyncState({
     coreManager: cm1,
+    blobStore: new BlobStore({ coreManager: cm1 }),
     namespace: 'auth',
     onUpdate: () => {
       const state = syncState1.getState()
@@ -59,6 +61,7 @@ test('sync cores in a namespace', async () => {
 
   const syncState2 = new NamespaceSyncState({
     coreManager: cm2,
+    blobStore: new BlobStore({ coreManager: cm2 }),
     namespace: 'auth',
     onUpdate: () => {
       const state = syncState2.getState()
@@ -157,6 +160,7 @@ test('replicate with updating data', async function () {
 
   const syncState1 = new NamespaceSyncState({
     coreManager: cm1,
+    blobStore: new BlobStore({ coreManager: cm1 }),
     namespace: 'auth',
     onUpdate: () => {
       const { localState } = syncState1.getState()
@@ -169,6 +173,7 @@ test('replicate with updating data', async function () {
 
   const syncState2 = new NamespaceSyncState({
     coreManager: cm2,
+    blobStore: new BlobStore({ coreManager: cm2 }),
     namespace: 'auth',
     onUpdate: () => {
       const { localState } = syncState2.getState()

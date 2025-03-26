@@ -281,6 +281,8 @@ test('CoreReplicationState', async () => {
       onUpdate: () => emitter.emit('update'),
       peerSyncControllers: new Map(),
       namespace: 'auth',
+      deviceId: '',
+      hasDownloadFilter: () => false,
     })
     crs.attachCore(localCore)
     const blocks = new Array(state.length).fill('block')
@@ -480,7 +482,7 @@ async function downloadCore(core, bits) {
 function setPeerWants(state, peerId, bits) {
   if (typeof bits === 'undefined') return
   if (bits > Number.MAX_SAFE_INTEGER) throw new Error()
-  state.clearWantRanges(peerId)
+  state.setWantsEverything(peerId, false)
   const bigInt = BigInt(bits)
   // 53 because the max safe integer in JS is 53 bits
   for (let i = 0; i < 53; i++) {

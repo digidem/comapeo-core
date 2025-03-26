@@ -152,7 +152,7 @@ export type DefaultEmitterEvents<
 
 export type BlobStoreEntriesStream = Readable & {
   [Symbol.asyncIterator](): AsyncIterableIterator<
-    HyperdriveEntry & { driveId: string }
+    HyperdriveEntry & { driveId: string; blobCoreId: string }
   >
 }
 
