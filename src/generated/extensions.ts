@@ -69,6 +69,13 @@ export function haveExtension_NamespaceToNumber(object: HaveExtension_Namespace)
 /** A map of blob types and variants that a peer intends to download */
 export interface DownloadIntentExtension {
   downloadIntents: { [key: string]: DownloadIntentExtension_DownloadIntent };
+  /**
+   * If true, the peer intends to download all blobs - this is the default
+   * assumption when a peer has not sent a download intent, but if a peer
+   * changes their intent while connected, we need to send the new intent to
+   * download everything.
+   */
+  everything: boolean;
 }
 
 export interface DownloadIntentExtension_DownloadIntent {
@@ -209,7 +216,7 @@ export const HaveExtension = {
 };
 
 function createBaseDownloadIntentExtension(): DownloadIntentExtension {
-  return { downloadIntents: {} };
+  return { downloadIntents: {}, everything: false };
 }
 
 export const DownloadIntentExtension = {
@@ -218,6 +225,9 @@ export const DownloadIntentExtension = {
       DownloadIntentExtension_DownloadIntentsEntry.encode({ key: key as any, value }, writer.uint32(10).fork())
         .ldelim();
     });
+    if (message.everything === true) {
+      writer.uint32(16).bool(message.everything);
+    }
     return writer;
   },
 
@@ -237,6 +247,13 @@ export const DownloadIntentExtension = {
           if (entry1.value !== undefined) {
             message.downloadIntents[entry1.key] = entry1.value;
           }
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.everything = reader.bool();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -260,6 +277,7 @@ export const DownloadIntentExtension = {
       }
       return acc;
     }, {});
+    message.everything = object.everything ?? false;
     return message;
   },
 };

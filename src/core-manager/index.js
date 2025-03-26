@@ -30,7 +30,7 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
  * @typedef {Object} Events
  * @property {(coreRecord: CoreRecord) => void} add-core
  * @property {(namespace: Namespace, msg: { coreDiscoveryId: string, peerId: string, start: number, bitfield: Uint32Array }) => void} peer-have
- * @property {(blobFilter: GenericBlobFilter, peerId: string) => void} peer-download-intent
+ * @property {(blobFilter: GenericBlobFilter | null, peerId: string) => void} peer-download-intent
  */
 
 /**
@@ -412,7 +412,7 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
-   * @param {GenericBlobFilter} blobFilter
+   * @param {GenericBlobFilter | null} blobFilter
    * @param {HypercorePeer} peer
    */
   #handleDownloadIntentMessage(blobFilter, peer) {
@@ -421,7 +421,7 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
-   * @param {BlobFilter} blobFilter
+   * @param {BlobFilter | null} blobFilter
    * @param {HypercorePeer} peer
    */
   sendDownloadIntents(blobFilter, peer) {
@@ -540,20 +540,27 @@ const HaveExtensionCodec = {
 }
 
 const DownloadIntentCodec = {
-  /** @param {BlobFilter} filter */
+  /** @param {BlobFilter | null} filter */
   encode(filter) {
-    const downloadIntents = mapObject(filter, (key, value) => [
+    const downloadIntents = mapObject(filter || {}, (key, value) => [
       key,
       { variants: value || [] },
     ])
-    return DownloadIntentExtension.encode({ downloadIntents }).finish()
+    // If filter is null, we want to download everything
+    const everything = !filter
+    return DownloadIntentExtension.encode({
+      downloadIntents,
+      everything,
+    }).finish()
   },
   /**
    * @param {Buffer | Uint8Array} buf
-   * @returns {GenericBlobFilter}
+   * @returns {GenericBlobFilter | null}
    */
   decode(buf) {
     const msg = DownloadIntentExtension.decode(buf)
+    // If everything is true, we ignore the downloadIntents and return null, which means download everything
+    if (msg.everything) return null
     return mapObject(msg.downloadIntents, (key, value) => [
       key + '', // keep TS happy
       value.variants,

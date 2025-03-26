@@ -25,9 +25,6 @@ export const kRescindFullStopRequest = Symbol('foreground')
 export const kWaitForInitialSyncWithPeer = Symbol(
   'wait for initial sync with peer'
 )
-export const kSetBlobDownloadFilter = Symbol('set isArchiveDevice')
-export const kAddBlobWantRange = Symbol('add blob want range')
-export const kClearBlobWantRanges = Symbol('clear blob want ranges')
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -35,6 +32,15 @@ export const kClearBlobWantRanges = Symbol('clear blob want ranges')
 
 /**
  * @typedef {'none' | 'presync' | 'all'} SyncEnabledState
+ */
+
+/**
+ * @internal
+ * @typedef {object} BlobWantRange
+ * @property {number} start
+ * @property {number} length
+ * @property {string} blobCoreId
+ * @property {string} peerId
  */
 
 /**
@@ -93,8 +99,6 @@ export class SyncApi extends TypedEmitter {
   #getReplicationStream
   /** @type {Map<string, WebSocket>} */
   #serverWebsockets = new Map()
-  /** @type {null | BlobFilter} */
-  #blobDownloadFilter = null
 
   /**
    * @param {object} opts
@@ -103,7 +107,7 @@ export class SyncApi extends TypedEmitter {
    * @param {import('../roles.js').Roles} opts.roles
    * @param {() => Promise<Iterable<string>>} opts.getServerWebsocketUrls
    * @param {() => ReplicationStream} opts.getReplicationStream
-   * @param {null | BlobFilter} opts.blobDownloadFilter
+   * @param {import('../blob-store/index.js').BlobStore} opts.blobStore
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
    */
@@ -115,7 +119,7 @@ export class SyncApi extends TypedEmitter {
     getReplicationStream,
     logger,
     coreOwnership,
-    blobDownloadFilter,
+    blobStore,
   }) {
     super()
     this.#l = Logger.create('syncApi', logger)
@@ -128,14 +132,13 @@ export class SyncApi extends TypedEmitter {
       coreManager,
       throttleMs,
       peerSyncControllers: this.#pscByPeerId,
+      blobStore,
       logger,
     })
     this[kSyncState].setMaxListeners(0)
     this[kSyncState].on('state', (namespaceSyncState) => {
       this.#updateState(namespaceSyncState)
     })
-
-    this[kSetBlobDownloadFilter](blobDownloadFilter)
 
     this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
     this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerDisconnect)
@@ -154,37 +157,6 @@ export class SyncApi extends TypedEmitter {
         )
       )
       .catch(noop)
-  }
-
-  /** @param {import('../types.js').BlobFilter | null} blobDownloadFilter */
-  [kSetBlobDownloadFilter](blobDownloadFilter) {
-    this.#blobDownloadFilter = blobDownloadFilter
-    if (!blobDownloadFilter) return // No download intents = intend to download everything
-    for (const peer of this.#coreManager.creatorCore.peers) {
-      this.#coreManager.sendDownloadIntents(blobDownloadFilter, peer)
-    }
-  }
-
-  /**
-   * Add some blob blocks this peer wants.
-   *
-   * @param {string} peerId
-   * @param {number} start
-   * @param {number} length
-   * @returns {void}
-   */
-  [kAddBlobWantRange](peerId, start, length) {
-    this[kSyncState].addBlobWantRange(peerId, start, length)
-  }
-
-  /**
-   * Clear the blob blocks this peer wants.
-   *
-   * @param {string} peerId
-   * @returns {void}
-   */
-  [kClearBlobWantRanges](peerId) {
-    this[kSyncState].clearBlobWantRanges(peerId)
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */
@@ -539,9 +511,6 @@ export class SyncApi extends TypedEmitter {
         protomux.stream.remotePublicKey
       )
       return
-    }
-    if (this.#blobDownloadFilter) {
-      this.#coreManager.sendDownloadIntents(this.#blobDownloadFilter, peer)
     }
     const peerSyncController = new PeerSyncController({
       protomux,
