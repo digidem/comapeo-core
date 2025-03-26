@@ -170,7 +170,7 @@ export var HaveExtension = {
     },
 };
 function createBaseDownloadIntentExtension() {
-    return { downloadIntents: {} };
+    return { downloadIntents: {}, everything: false };
 }
 export var DownloadIntentExtension = {
     encode: function (message, writer) {
@@ -180,6 +180,9 @@ export var DownloadIntentExtension = {
             DownloadIntentExtension_DownloadIntentsEntry.encode({ key: key, value: value }, writer.uint32(10).fork())
                 .ldelim();
         });
+        if (message.everything === true) {
+            writer.uint32(16).bool(message.everything);
+        }
         return writer;
     },
     decode: function (input, length) {
@@ -198,6 +201,12 @@ export var DownloadIntentExtension = {
                         message.downloadIntents[entry1.key] = entry1.value;
                     }
                     continue;
+                case 2:
+                    if (tag !== 16) {
+                        break;
+                    }
+                    message.everything = reader.bool();
+                    continue;
             }
             if ((tag & 7) === 4 || tag === 0) {
                 break;
@@ -210,7 +219,7 @@ export var DownloadIntentExtension = {
         return DownloadIntentExtension.fromPartial(base !== null && base !== void 0 ? base : {});
     },
     fromPartial: function (object) {
-        var _a;
+        var _a, _b;
         var message = createBaseDownloadIntentExtension();
         message.downloadIntents = Object.entries((_a = object.downloadIntents) !== null && _a !== void 0 ? _a : {}).reduce(function (acc, _a) {
             var key = _a[0], value = _a[1];
@@ -219,6 +228,7 @@ export var DownloadIntentExtension = {
             }
             return acc;
         }, {});
+        message.everything = (_b = object.everything) !== null && _b !== void 0 ? _b : false;
         return message;
     },
 };

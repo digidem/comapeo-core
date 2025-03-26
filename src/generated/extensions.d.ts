@@ -24,6 +24,13 @@ export interface DownloadIntentExtension {
     downloadIntents: {
         [key: string]: DownloadIntentExtension_DownloadIntent;
     };
+    /**
+     * If true, the peer intends to download all blobs - this is the default
+     * assumption when a peer has not sent a download intent, but if a peer
+     * changes their intent while connected, we need to send the new intent to
+     * download everything.
+     */
+    everything: boolean;
 }
 export interface DownloadIntentExtension_DownloadIntent {
     variants: string[];
