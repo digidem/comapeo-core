@@ -22,9 +22,11 @@
 
 • **options.coreManager**: [`CoreManager`](CoreManager.md)
 
-• **options.downloadFilter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
+• **options.isArchiveDevice**: `undefined` \| `boolean` = `true`
 
-Filter blob types and/or variants to download. Set to `null` to download all blobs.
+Set to `true` if this is an archive device which should download all blobs, or just a selection of blobs
+
+• **options.logger**: `undefined` \| [`Logger`](Logger.md)
 
 #### Returns
 
@@ -35,6 +37,16 @@ Filter blob types and/or variants to download. Set to `null` to download all blo
 `TypedEmitter.constructor`
 
 ## Accessors
+
+### isArchiveDevice
+
+> `get` **isArchiveDevice**(): `boolean`
+
+#### Returns
+
+`boolean`
+
+***
 
 ### writerDriveId
 
@@ -226,6 +238,20 @@ Set to `true` to wait for a blob to download, otherwise will throw if blob is no
 
 ***
 
+### getBlobFilter()
+
+> **getBlobFilter**(`peerId`): `null` \| [`GenericBlobFilter`](../type-aliases/GenericBlobFilter.md)
+
+#### Parameters
+
+• **peerId**: `string`
+
+#### Returns
+
+`null` \| [`GenericBlobFilter`](../type-aliases/GenericBlobFilter.md)
+
+***
+
 ### getEntryBlob()
 
 > **getEntryBlob**(`driveId`, `entry`, `opts`?): `Promise`\<`null` \| `Buffer`\>
@@ -274,18 +300,14 @@ discovery key as hex string of hyperdrive where blob is stored
 
 ***
 
-### setDownloadFilter()
+### setIsArchiveDevice()
 
-> **setDownloadFilter**(`filter`): `void`
-
-Set the filter for downloading blobs.
+> **setIsArchiveDevice**(`isArchiveDevice`): `Promise`\<`void`\>
 
 #### Parameters
 
-• **filter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
-
-Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
+• **isArchiveDevice**: `boolean`
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
