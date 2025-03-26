@@ -161,6 +161,7 @@ class Peer {
     for (const listener of this.#drainedListeners) {
       listener.reject(new Error('RPC Disconnected before sending'))
     }
+    this.#drainedListeners.clear()
     this.#log('disconnected')
   }
 
