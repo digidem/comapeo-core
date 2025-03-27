@@ -291,7 +291,7 @@ test('Reconnect peer and send device info', async () => {
   assert.equal(r1.peers.length, 1)
   assert.equal(r1peers[0].status, 'connected')
 
-  r1.sendDeviceInfo(r1peers[0].deviceId, expectedDeviceInfo)
+  await r1.sendDeviceInfo(r1peers[0].deviceId, expectedDeviceInfo)
 
   const [r2Peers] = await once(r2, 'peers')
   assert.equal(r2Peers[0].name, expectedDeviceInfo.name)
