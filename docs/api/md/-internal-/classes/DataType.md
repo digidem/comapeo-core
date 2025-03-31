@@ -8,37 +8,37 @@
 
 ## Extends
 
-- `TypedEmitter`\<[`DataTypeEvents`](../interfaces/DataTypeEvents.md)\<`TDoc`\>\>
+- `TypedEmitter`
 
 ## Type Parameters
 
-• **TDataStore** *extends* [`"/home/runner/work/comapeo-core/comapeo-core/src/datastore/index"`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_datastore_index/README.md)
+• **TDataStore**
 
-• **TTable** *extends* [`MapeoDocTables`](../type-aliases/MapeoDocTables.md)
+• **TTable**
 
-• **TSchemaName** *extends* `TTable`\[`"_"`\]\[`"name"`\]
+• **TSchemaName**
 
-• **TDoc** *extends* [`MapeoDocMap`](../type-aliases/MapeoDocMap.md)\[`TSchemaName`\]
+• **TDoc**
 
-• **TValue** *extends* [`MapeoValueMap`](../type-aliases/MapeoValueMap.md)\[`TSchemaName`\]
+• **TValue**
 
 ## Constructors
 
 ### new DataType()
 
-> **new DataType**\<`TDataStore`, `TTable`, `TSchemaName`, `TDoc`, `TValue`\>(`__namedParameters`): [`DataType`](DataType.md)\<`TDataStore`, `TTable`, `TSchemaName`, `TDoc`, `TValue`\>
+> **new DataType**\<`TDataStore`, `TTable`, `TSchemaName`, `TDoc`, `TValue`\>(`opts`): [`DataType`](DataType.md)\<`TDataStore`, `TTable`, `TSchemaName`, `TDoc`, `TValue`\>
 
 #### Parameters
 
-• **\_\_namedParameters**
+• **opts**
 
-• **\_\_namedParameters.dataStore**: `TDataStore`
+• **opts.dataStore**: `TDataStore`
 
-• **\_\_namedParameters.db**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>\>
+• **opts.db**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>\>
 
-• **\_\_namedParameters.getTranslations**
+• **opts.getTranslations**
 
-• **\_\_namedParameters.table**: `TTable`
+• **opts.table**: `TTable`
 
 #### Returns
 
@@ -46,7 +46,7 @@
 
 #### Overrides
 
-`TypedEmitter<DataTypeEvents<TDoc>>.constructor`
+`TypedEmitter.constructor`
 
 ## Accessors
 
@@ -72,11 +72,11 @@
 
 ### namespace
 
-> `get` **namespace**(): `namespace`
+> `get` **namespace**(): `TDataStore`\[`"namespace"`\]
 
 #### Returns
 
-`namespace`
+`TDataStore`\[`"namespace"`\]
 
 ***
 
@@ -92,13 +92,19 @@
 
 ### \[kCreateWithDocId\]()
 
-> **\[kCreateWithDocId\]**(`docId`, `value`): `Promise`\<`TDoc` & `object`\>
+> **\[kCreateWithDocId\]**(`docId`, `value`, `opts`?): `Promise`\<`TDoc` & `object`\>
 
 #### Parameters
 
 • **docId**: `string`
 
 • **value**: `Exclude`\<`TValue`, `object`\> \| [`CoreOwnershipWithSignaturesValue`](../type-aliases/CoreOwnershipWithSignaturesValue.md)
+
+• **opts?** = `{}`
+
+only used internally to skip the checkExisting check when creating a document with a random ID (collisions should be too small probability to be worth checking for)
+
+• **opts.checkExisting?**: `boolean` = `true`
 
 #### Returns
 
@@ -108,11 +114,11 @@
 
 ### \[kSelect\]()
 
-> **\[kSelect\]**(): `Promise`\<`any`\>
+> **\[kSelect\]**(): `Promise`\<`Omit`\<`SQLiteSelectBase`\<`GetSelectTableName`\<`TTable`\>, `"sync"`, `RunResult`, `GetSelectTableSelection`\<`TTable`\>, `"single"`, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`, `false`, `never`, `{ [K in string]: { [Key in string]: SelectResultField<GetSelectTableSelection<(...)>[Key], true> }[K] }`[], `BuildSubquerySelection`\<`GetSelectTableSelection`\<`TTable`\>, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`\>\>, `"then"` \| `"catch"` \| `"finally"`\> & `object`\>
 
 #### Returns
 
-`Promise`\<`any`\>
+`Promise`\<`Omit`\<`SQLiteSelectBase`\<`GetSelectTableName`\<`TTable`\>, `"sync"`, `RunResult`, `GetSelectTableSelection`\<`TTable`\>, `"single"`, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`, `false`, `never`, `{ [K in string]: { [Key in string]: SelectResultField<GetSelectTableSelection<(...)>[Key], true> }[K] }`[], `BuildSubquerySelection`\<`GetSelectTableSelection`\<`TTable`\>, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`\>\>, `"then"` \| `"catch"` \| `"finally"`\> & `object`\>
 
 ***
 
@@ -150,41 +156,21 @@
 
 ### getByDocId()
 
-#### getByDocId(docId, opts)
+> **getByDocId**(`docId`, `options`?): `Promise`\<`TDoc` & `object`\>
 
-> **getByDocId**(`docId`, `opts`?): `Promise`\<`TDoc` & `object`\>
-
-##### Parameters
+#### Parameters
 
 • **docId**: `string`
 
-• **opts?**
+• **options?**
 
-• **opts.lang?**: `string`
+• **options.lang?**: `undefined` \| `string`
 
-• **opts.mustBeFound?**: `true`
+• **options.mustBeFound?**: `undefined` \| `true`
 
-##### Returns
+#### Returns
 
 `Promise`\<`TDoc` & `object`\>
-
-#### getByDocId(docId, opts)
-
-> **getByDocId**(`docId`, `opts`?): `Promise`\<`null` \| `TDoc` & `object`\>
-
-##### Parameters
-
-• **docId**: `string`
-
-• **opts?**
-
-• **opts.lang?**: `string`
-
-• **opts.mustBeFound?**: `boolean`
-
-##### Returns
-
-`Promise`\<`null` \| `TDoc` & `object`\>
 
 ***
 
@@ -196,7 +182,7 @@
 
 • **versionId**: `string`
 
-• **opts?**
+• **opts?** = `{}`
 
 • **opts.lang?**: `string`
 
@@ -208,15 +194,15 @@
 
 ### getMany()
 
-> **getMany**(`opts`?): `Promise`\<`TDoc` & `object`[]\>
+> **getMany**(`opts`): `Promise`\<`TDoc` & `object`[]\>
 
 #### Parameters
 
-• **opts?**
+• **opts** = `{}`
 
-• **opts.includeDeleted?**: `boolean`
+• **opts.includeDeleted**: `undefined` \| `boolean` = `false`
 
-• **opts.lang?**: `string`
+• **opts.lang**: `undefined` \| `string`
 
 #### Returns
 

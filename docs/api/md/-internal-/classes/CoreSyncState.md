@@ -37,6 +37,10 @@ Each peer (including the local peer) has a state of:
 
 • **opts**
 
+• **opts.deviceId**: `string`
+
+• **opts.hasDownloadFilter**
+
 • **opts.logger**: `undefined` \| [`Logger`](Logger.md)
 
 • **opts.namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
@@ -107,20 +111,6 @@ before we have the core key that allows us to create a core instance.
 
 ***
 
-### clearWantRanges()
-
-> **clearWantRanges**(`peerId`): `void`
-
-#### Parameters
-
-• **peerId**: `string`
-
-#### Returns
-
-`void`
-
-***
-
 ### disconnectPeer()
 
 > **disconnectPeer**(`peerId`): `void`
@@ -160,6 +150,24 @@ peer before the peer actually starts syncing this core
 • **start**: `number`
 
 • **bitfield**: `Uint32Array`
+
+#### Returns
+
+`void`
+
+***
+
+### setWantsEverything()
+
+> **setWantsEverything**(`peerId`, `wantsEverything`): `void`
+
+Set whether a peer wants everything or only blocks specified by addWantRange()
+
+#### Parameters
+
+• **peerId**: `string`
+
+• **wantsEverything**: `boolean`
 
 #### Returns
 

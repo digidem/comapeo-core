@@ -22,6 +22,8 @@ Emit sync state when it changes
 
 • **opts**
 
+• **opts.blobStore**: [`BlobStore`](BlobStore.md)
+
 • **opts.coreManager**: [`CoreManager`](CoreManager.md)
 
 • **opts.logger**: `undefined` \| [`Logger`](Logger.md)
@@ -40,41 +42,9 @@ Emit sync state when it changes
 
 ## Methods
 
-### addBlobWantRange()
-
-> **addBlobWantRange**(`peerId`, `start`, `length`): `void`
-
-#### Parameters
-
-• **peerId**: `string`
-
-• **start**: `number`
-
-• **length**: `number`
-
-#### Returns
-
-`void`
-
-***
-
 ### addPeer()
 
 > **addPeer**(`peerId`): `void`
-
-#### Parameters
-
-• **peerId**: `string`
-
-#### Returns
-
-`void`
-
-***
-
-### clearBlobWantRanges()
-
-> **clearBlobWantRanges**(`peerId`): `void`
 
 #### Parameters
 

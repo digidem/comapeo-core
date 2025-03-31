@@ -6,12 +6,26 @@ import { FilterEntriesStream } from './utils.js'
 import { noop } from '../utils.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { HyperdriveIndexImpl as HyperdriveIndex } from './hyperdrive-index.js'
+import { Logger } from '../logger.js'
+import { getErrorCode, getErrorMessage } from '../lib/error.js'
 
 /** @import Hyperdrive from 'hyperdrive' */
 /** @import { JsonObject } from 'type-fest' */
 /** @import { Readable as NodeReadable } from 'node:stream' */
 /** @import { Readable as StreamxReadable, Writable } from 'streamx' */
-/** @import { BlobFilter, BlobId, BlobStoreEntriesStream } from '../types.js' */
+/** @import { GenericBlobFilter, BlobFilter, BlobId, BlobStoreEntriesStream } from '../types.js' */
+
+/**
+ * @typedef {object} BlobStoreEvents
+ * @prop {(peerId: string, blobFilter: GenericBlobFilter | null) => void} blob-filter
+ * @prop {(opts: {
+ *   peerId: string
+ *   start: number
+ *   length: number
+ *   blobCoreId: string
+ * }) => void} want-blob-range
+ * @prop {(error: Error) => void} error
+ */
 
 /**
  * @internal
@@ -31,6 +45,13 @@ const SUPPORTED_BLOB_VARIANTS = /** @type {const} */ ({
 // the type with JSDoc
 export { SUPPORTED_BLOB_VARIANTS }
 
+/** @type {import('../types.js').BlobFilter} */
+const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
+  photo: ['preview', 'thumbnail'],
+  // Don't download any audio of video files, since previews and
+  // thumbnails aren't supported yet.
+}
+
 class ErrNotFound extends Error {
   constructor(message = 'NotFound') {
     super(message)
@@ -38,24 +59,117 @@ class ErrNotFound extends Error {
   }
 }
 
-/** @extends {TypedEmitter<{ error: (error: Error) => void }>} */
+/** @extends {TypedEmitter<BlobStoreEvents>} */
 export class BlobStore extends TypedEmitter {
   #driveIndex
   /** @type {Downloader} */
   #downloader
+  /** @type {Map<string, GenericBlobFilter | null>} */
+  #blobFilters = new Map()
+  #l
+  /** @type {Map<string, BlobStoreEntriesStream>} */
+  #entriesStreams = new Map()
+  #isArchiveDevice
+  #deviceId
+
+  /**
+   * Bound function for handling download intents for both peers and self
+   * @param {GenericBlobFilter | null} filter
+   * @param {string} peerId
+   */
+  #handleDownloadIntent = async (filter, peerId) => {
+    this.#l.log('Download intent %o for peer %S', filter, peerId)
+    try {
+      this.#entriesStreams.get(peerId)?.destroy()
+      this.emit('blob-filter', peerId, filter)
+      this.#blobFilters.set(peerId, filter)
+
+      if (filter === null) return
+
+      const entriesReadStream = this.createEntriesReadStream({
+        live: true,
+        filter,
+      })
+      this.#entriesStreams.set(peerId, entriesReadStream)
+
+      entriesReadStream.once('close', () => {
+        if (this.#entriesStreams.get(peerId) === entriesReadStream) {
+          this.#entriesStreams.delete(peerId)
+        }
+      })
+
+      for await (const {
+        blobCoreId,
+        value: { blob },
+      } of entriesReadStream) {
+        const { blockOffset: start, blockLength: length } = blob
+        this.emit('want-blob-range', {
+          peerId,
+          start,
+          length,
+          blobCoreId,
+        })
+      }
+    } catch (err) {
+      if (getErrorCode(err) === 'ERR_STREAM_PREMATURE_CLOSE') return
+      this.#l.log(
+        'Error getting blob entries stream for peer %h: %s',
+        peerId,
+        getErrorMessage(err)
+      )
+    }
+  }
+
+  /**
+   * Bound to `this`
+   * This will be called whenever a peer is successfully added to the creatorcore
+   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<import('../lib/noise-secret-stream-helpers.js').OpenedNoiseStream> }} peer
+   */
+  #handlePeerAdd = (peer) => {
+    const downloadFilter = getBlobDownloadFilter(this.#isArchiveDevice)
+    this.#coreManager.sendDownloadIntents(downloadFilter, peer)
+  }
+
+  /**
+   * Bound to `this`
+   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<import('../lib/noise-secret-stream-helpers.js').OpenedNoiseStream> }} peer
+   */
+  #handlePeerRemove = (peer) => {
+    const peerKey = peer.protomux.stream.remotePublicKey
+    const peerId = peerKey.toString('hex')
+    this.#entriesStreams.get(peerId)?.destroy()
+    this.#entriesStreams.delete(peerId)
+  }
+
+  #coreManager
+  #logger
 
   /**
    * @param {object} options
    * @param {import('../core-manager/index.js').CoreManager} options.coreManager
-   * @param {BlobFilter | null} options.downloadFilter - Filter blob types and/or variants to download. Set to `null` to download all blobs.
+   * @param {boolean} [options.isArchiveDevice] Set to `true` if this is an archive device which should download all blobs, or just a selection of blobs
+   * @param {import('../logger.js').Logger} [options.logger]
    */
-  constructor({ coreManager, downloadFilter }) {
+  constructor({ coreManager, isArchiveDevice = true, logger }) {
     super()
+    this.#logger = logger
+    this.#l = Logger.create('blobStore', logger)
+    this.#isArchiveDevice = isArchiveDevice
     this.#driveIndex = new HyperdriveIndex(coreManager)
+    this.#coreManager = coreManager
+    this.#deviceId = coreManager.deviceId
+    const downloadFilter = getBlobDownloadFilter(isArchiveDevice)
+    if (downloadFilter) {
+      this.#handleDownloadIntent(downloadFilter, this.#deviceId)
+    }
     this.#downloader = new Downloader(this.#driveIndex, {
       filter: downloadFilter,
     })
     this.#downloader.on('error', (error) => this.emit('error', error))
+
+    coreManager.on('peer-download-intent', this.#handleDownloadIntent)
+    coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
+    coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
   }
 
   /**
@@ -63,6 +177,38 @@ export class BlobStore extends TypedEmitter {
    */
   get writerDriveId() {
     return getDiscoveryId(this.#driveIndex.writerKey)
+  }
+
+  get isArchiveDevice() {
+    return this.#isArchiveDevice
+  }
+
+  /**
+   * @param {string} peerId
+   * @returns {GenericBlobFilter | null}
+   */
+  getBlobFilter(peerId) {
+    return this.#blobFilters.get(peerId) ?? null
+  }
+
+  /** @param {boolean} isArchiveDevice */
+  async setIsArchiveDevice(isArchiveDevice) {
+    this.#l.log('Setting isArchiveDevice to %s', isArchiveDevice)
+    if (this.#isArchiveDevice === isArchiveDevice) return
+    this.#isArchiveDevice = isArchiveDevice
+    const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
+    this.#downloader.removeAllListeners()
+    this.#downloader.destroy()
+    this.#downloader = new Downloader(this.#driveIndex, {
+      filter: blobDownloadFilter,
+    })
+    this.#downloader.on('error', (error) => this.emit('error', error))
+    // Even if blobFilter is null, e.g. we plan to download everything, we still
+    // need to inform connected peers of the change.
+    for (const peer of this.#coreManager.creatorCore.peers) {
+      this.#coreManager.sendDownloadIntents(blobDownloadFilter, peer)
+    }
+    this.#handleDownloadIntent(blobDownloadFilter, this.#deviceId)
   }
 
   /**
@@ -88,21 +234,6 @@ export class BlobStore extends TypedEmitter {
     const blob = await drive.get(path, { wait, timeout })
     if (!blob) throw new ErrNotFound()
     return blob
-  }
-
-  /**
-   * Set the filter for downloading blobs.
-   *
-   * @param {import('../types.js').BlobFilter | null} filter Filter blob types and/or variants to download. Filter is { [BlobType]: BlobVariants[] }. At least one blob variant must be specified for each blob type.
-   * @returns {void}
-   */
-  setDownloadFilter(filter) {
-    this.#downloader.removeAllListeners()
-    this.#downloader.destroy()
-    this.#downloader = new Downloader(this.#driveIndex, {
-      filter,
-    })
-    this.#downloader.on('error', (error) => this.emit('error', error))
   }
 
   /**
@@ -245,6 +376,9 @@ export class BlobStore extends TypedEmitter {
   close() {
     this.#downloader.removeAllListeners()
     this.#downloader.destroy()
+    this.#coreManager.off('peer-download-intent', this.#handleDownloadIntent)
+    this.#coreManager.creatorCore.off('peer-add', this.#handlePeerAdd)
+    this.#coreManager.creatorCore.off('peer-remove', this.#handlePeerRemove)
   }
 }
 
@@ -279,4 +413,12 @@ function makePath({ type, variant, name }) {
  */
 function getDiscoveryId(key) {
   return discoveryKey(key).toString('hex')
+}
+
+/**
+ * @param {boolean} isArchiveDevice
+ * @returns {null | BlobFilter}
+ */
+function getBlobDownloadFilter(isArchiveDevice) {
+  return isArchiveDevice ? null : NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER
 }

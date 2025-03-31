@@ -1,3 +1,4 @@
+import randomBytesReadableStream from 'random-bytes-readable-stream'
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
@@ -12,15 +13,20 @@ import { pEvent } from 'p-event'
 import { createMapeoClient } from '@comapeo/ipc'
 import { Worker, MessageChannel } from 'node:worker_threads'
 import { MapeoManager as MapeoManager_2_0_1 } from '@comapeo/core2.0.1'
+import { setTimeout as delay } from 'node:timers/promises'
 
 import { MapeoManager, roles } from '../src/index.js'
 import { generate } from '@mapeo/mock-data'
-import { valueOf } from '../src/utils.js'
-import { randomBytes, randomInt } from 'node:crypto'
+import { ExhaustivenessError, valueOf } from '../src/utils.js'
+import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
+import fs from 'node:fs'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { readConfig } from '../src/config-import.js'
+import pTimeout from 'p-timeout'
+import { pipeline } from 'node:stream/promises'
+import { Transform } from 'node:stream'
 
 /** @import { MemberApi } from '../src/member-api.js' */
 
@@ -259,13 +265,17 @@ export function createManager(seed, t, overrides = {}) {
     )
   }
 
+  const fastify = Fastify()
+  fastify.listen()
+  t.after(() => fastify.close())
+
   return new MapeoManager({
     rootKey: getRootKey(seed),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder,
     coreStorage,
-    fastify: Fastify(),
+    fastify,
     ...overrides,
   })
 }
@@ -561,15 +571,25 @@ function hasPeerIds(remoteStates, peerIds) {
  *
  * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
  * @param {'initial' | 'full'} [type]
+ * @param {{ timeout?: number }} [opts]
  */
-export function waitForSync(projects, type = 'initial') {
-  return Promise.all(
-    projects.map((project) => {
-      const peerIds = projects
-        .filter((p) => p !== project)
-        .map((p) => p.deviceId)
-      return waitForProjectSync(project, peerIds, type)
-    })
+export async function waitForSync(
+  projects,
+  type = 'initial',
+  { timeout = 30_000 } = {}
+) {
+  // Need a small delay for any download intents to propogate between peers.
+  await delay(100)
+  return pTimeout(
+    Promise.all(
+      projects.map((project) => {
+        const peerIds = projects
+          .filter((p) => p !== project)
+          .map((p) => p.deviceId)
+        return waitForProjectSync(project, peerIds, type)
+      })
+    ),
+    { milliseconds: timeout }
   )
 }
 
@@ -612,31 +632,6 @@ async function seedProjectDatabase(
     }
   }
   return Promise.all(promises)
-}
-
-export const generateObservationThatWorksInOldVersion = () =>
-  pick(generate('observation')[0], [
-    'schemaName',
-    'lat',
-    'lon',
-    'attachments',
-    'tags',
-    'metadata',
-    'presetRef',
-  ])
-
-/**
- * @template T
- * @template {keyof T} K
- * @param {T} obj
- * @param {ReadonlyArray<K>} keys
- * @returns {Pick<T, K>}
- */
-function pick(obj, keys) {
-  /** @type {Partial<T>} */
-  const result = {}
-  for (const key of keys) result[key] = obj[key]
-  return /** @type {Pick<T, K>} */ (result)
 }
 
 /**
@@ -745,4 +740,155 @@ export function randomNum({ min = 0, max = 1, precision } = {}) {
  */
 export function sample(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
+}
+
+/**
+ * @param {import('../src/types.js').BlobId['type']} type
+ * @param {number} size
+ */
+function randomBlobStream(type, size) {
+  assert(size > 4, 'blob must be at least 4 bytes')
+  const stream = randomBytesReadableStream({ size })
+  switch (type) {
+    case 'audio':
+      stream.push(Buffer.from('ID3'))
+      break
+    case 'photo':
+      stream.push(Buffer.from([0xff, 0xd8, 0xff]))
+      break
+    case 'video':
+      stream.push(Buffer.from('ftyp'))
+      break
+    default:
+      throw new ExhaustivenessError(type)
+  }
+  return stream
+}
+
+/**
+ * @param {import('../src/types.js').BlobId['type']} type
+ * @param {number} size
+ * @returns {Promise<[string, Buffer]>}
+ */
+async function randomFileAndHash(type, size) {
+  const filepath = temporaryFile()
+  const hash = createHash('sha256')
+  await pipeline(
+    randomBlobStream(type, size),
+    hashPassthrough(hash),
+    fs.createWriteStream(filepath)
+  )
+  return [filepath, hash.digest()]
+}
+
+/**
+ * @param {import('node:crypto').Hash} hash
+ */
+function hashPassthrough(hash) {
+  return new Transform({
+    transform(chunk, encoding, cb) {
+      hash.update(chunk)
+      cb(null, chunk)
+    },
+  })
+}
+
+/**
+ * @template {import('../src/types.js').BlobId['type']} T
+ * @param {T} type
+ * @param {import('node:test').TestContext} t
+ * @returns {Promise<T extends 'photo'
+ *   ? {
+ *       filepaths: { original: string, preview: string, thumbnail: string },
+ *       hashes: { original: Buffer, preview: Buffer, thumbnail: Buffer }
+ *       type: T
+ *     }
+ *  : {
+ *     filepaths: { original: string }
+ *     hashes: { original: Buffer }
+ *     type: T
+ *    }>
+ * }
+ */
+export async function createBlobFixture(type, t) {
+  if (type !== 'photo') {
+    const size =
+      type === 'audio'
+        ? randomInt(2 * 2 ** 20, 4 * 2 ** 20)
+        : randomInt(10 * 2 ** 20, 20 * 2 ** 20)
+    const [original, hash] = await randomFileAndHash(type, size)
+    t.after(() => fsPromises.rm(original))
+    // @ts-expect-error - TS can't return type based on arg within fn
+    return {
+      filepaths: { original },
+      hashes: { original: hash },
+      type,
+    }
+  }
+  const originalSize = randomInt(2 * 2 ** 20, 5 * 2 ** 20)
+  const previewSize = randomInt(500 * 2 ** 10, 1 * 2 ** 20)
+  const thumbSize = randomInt(50 * 2 ** 10, 200 * 2 ** 10)
+  const [original, originalHash] = await randomFileAndHash(type, originalSize)
+  const [preview, previewHash] = await randomFileAndHash(type, previewSize)
+  const [thumb, thumbHash] = await randomFileAndHash(type, thumbSize)
+  t.after(() =>
+    Promise.all([
+      fsPromises.rm(original),
+      fsPromises.rm(preview),
+      fsPromises.rm(thumb),
+    ])
+  )
+  // @ts-expect-error - TS can't return type based on arg within fn
+  return {
+    filepaths: { original, preview, thumbnail: thumb },
+    hashes: {
+      original: originalHash,
+      preview: previewHash,
+      thumbnail: thumbHash,
+    },
+    type,
+  }
+}
+
+/** @import { BlobId } from '../src/types.js' */
+/**
+ * @typedef {Object} SeededPhotoBlob
+ * @property {Omit<Extract<BlobId, { type: 'photo' }>, 'variant'>} blobId
+ * @property {{ original: Buffer, preview: Buffer, thumbnail: Buffer }} hashes
+ */
+/**
+ * @typedef {Object} SeededAudioBlob
+ * @property {Omit<Extract<BlobId, { type: 'audio' }>, 'variant'>} blobId
+ * @property {{ original: Buffer }} hashes
+ */
+/**
+ * @typedef {SeededPhotoBlob | SeededAudioBlob} SeededBlob
+ */
+
+/**
+ * @param {import('../src/mapeo-project.js').MapeoProject} project
+ * @param {import('node:test').TestContext} t
+ * @param {{ photoCount: number, audioCount: number }} opts
+ */
+export async function seedProjectBlobs(project, t, { photoCount, audioCount }) {
+  const promises = []
+  for (let i = 0; i < photoCount; i++) {
+    promises.push(createBlobFixture('photo', t))
+  }
+  for (let i = 0; i < audioCount; i++) {
+    promises.push(createBlobFixture('audio', t))
+  }
+  const blobs = await Promise.all(promises)
+  /** @type {SeededBlob[]} */
+  const output = []
+  for (const { filepaths, hashes, type } of blobs) {
+    const mimeType = type === 'photo' ? 'image/jpeg' : 'audio/mpeg'
+    const blobId = await project.$blobs.create(filepaths, {
+      mimeType,
+      timestamp: randomDate().valueOf(),
+    })
+    // @ts-expect-error - TS doesn't know
+    output.push({ blobId, hashes })
+  }
+  return output
 }

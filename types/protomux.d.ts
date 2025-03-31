@@ -5,7 +5,7 @@ declare module 'protomux' {
 
   interface Message {
     type: number
-    send(msg: any): void
+    send(msg: any): boolean
     onmessage: (message: any) => void
     encoding: cenc.Encoder
   }
@@ -53,6 +53,7 @@ declare module 'protomux' {
       onopen?(handshake?: any): Promise<void> | void
       onclose?(): Promise<void> | void
       ondestroy?(): Promise<void> | void
+      ondrain?(): Promise<void> | void
     }): Channel
     destroy(err: Error): void
   }
