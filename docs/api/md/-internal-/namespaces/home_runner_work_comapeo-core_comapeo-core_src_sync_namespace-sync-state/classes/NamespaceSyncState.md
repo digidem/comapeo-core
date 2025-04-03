@@ -20,6 +20,8 @@
 
 • **opts**
 
+• **opts.blobStore**: [`BlobStore`](../../../classes/BlobStore.md)
+
 • **opts.coreManager**: [`CoreManager`](../../../classes/CoreManager.md)
 
 • **opts.logger**: `undefined` \| [`Logger`](../../../classes/Logger.md)
@@ -51,38 +53,6 @@ Called when a state update is available (via getState())
 ### addPeer()
 
 > **addPeer**(`peerId`): `void`
-
-#### Parameters
-
-• **peerId**: `string`
-
-#### Returns
-
-`void`
-
-***
-
-### addWantRange()
-
-> **addWantRange**(`peerId`, `start`, `length`): `void`
-
-#### Parameters
-
-• **peerId**: `string`
-
-• **start**: `number`
-
-• **length**: `number`
-
-#### Returns
-
-`void`
-
-***
-
-### clearWantRanges()
-
-> **clearWantRanges**(`peerId`): `void`
 
 #### Parameters
 
