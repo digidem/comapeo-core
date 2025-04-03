@@ -36,7 +36,7 @@
 
 ### send()
 
-> **send**(`msg`): `void`
+> **send**(`msg`): `boolean`
 
 #### Parameters
 
@@ -44,4 +44,4 @@
 
 #### Returns
 
-`void`
+`boolean`
