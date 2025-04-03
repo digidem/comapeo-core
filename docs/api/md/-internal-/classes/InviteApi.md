@@ -24,7 +24,7 @@
 
 • **options.queries**
 
-• **options.queries.addProject**
+• **options.queries.addProject**: [`AddProjectQuery`](../type-aliases/AddProjectQuery.md)
 
 • **options.queries.getProjectByInviteId**
 
@@ -61,7 +61,7 @@ part of this project.
 
 #### Parameters
 
-• **invite**: `Pick`\<[`MapBuffers`](../type-aliases/MapBuffers.md)\<[`InviteInternal`](../type-aliases/InviteInternal.md)\>, `"inviteId"`\>
+• **invite**: `Pick`\<[`Invite`](../type-aliases/Invite.md), `"inviteId"`\>
 
 #### Returns
 
@@ -69,13 +69,31 @@ part of this project.
 
 ***
 
-### getPending()
+### getById()
 
-> **getPending**(): [`MapBuffers`](../type-aliases/MapBuffers.md)\<[`InviteInternal`](../type-aliases/InviteInternal.md)\>[]
+> **getById**(`inviteIdString`): [`Invite`](../type-aliases/Invite.md)
+
+Get an invite by inviteId
+
+#### Parameters
+
+• **inviteIdString**: `string`
 
 #### Returns
 
-[`MapBuffers`](../type-aliases/MapBuffers.md)\<[`InviteInternal`](../type-aliases/InviteInternal.md)\>[]
+[`Invite`](../type-aliases/Invite.md)
+
+***
+
+### getMany()
+
+> **getMany**(): [`Invite`](../type-aliases/Invite.md)[]
+
+Get all invites (in all)
+
+#### Returns
+
+[`Invite`](../type-aliases/Invite.md)[]
 
 ***
 
@@ -85,7 +103,7 @@ part of this project.
 
 #### Parameters
 
-• **invite**: `Pick`\<[`MapBuffers`](../type-aliases/MapBuffers.md)\<[`InviteInternal`](../type-aliases/InviteInternal.md)\>, `"inviteId"`\>
+• **invite**: `Pick`\<[`Invite`](../type-aliases/Invite.md), `"inviteId"`\>
 
 #### Returns
 
