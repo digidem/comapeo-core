@@ -18,7 +18,7 @@
 
 #### Parameters
 
-• **message?**: `string`
+• **message?**: `string` = `'PeerFailedConnectionError'`
 
 #### Returns
 
