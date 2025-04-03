@@ -34,11 +34,16 @@ export function noop() {}
 
 /**
  * @param {unknown} condition
- * @param {string} message
+ * @param {string | Error} messageOrError
  * @returns {asserts condition}
  */
-export function assert(condition, message) {
-  if (!condition) throw new Error(message)
+export function assert(condition, messageOrError) {
+  if (condition) return
+  if (typeof messageOrError === 'string') {
+    throw new Error(messageOrError)
+  } else {
+    throw messageOrError
+  }
 }
 
 /**
