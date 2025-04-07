@@ -8,11 +8,12 @@ import {
 } from '../src/local-peers.js'
 import { on, once } from 'events'
 import { Duplex } from 'streamx'
-import { replicate } from './helpers/local-peers.js'
+import { replicate, breakableReplicate } from './helpers/local-peers.js'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { KeyManager } from '@mapeo/crypto'
 import Protomux from 'protomux'
+import { setTimeout as delay } from 'node:timers/promises'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 
 test('sending and receiving invites', async () => {
@@ -296,6 +297,65 @@ test('Reconnect peer and send device info', async () => {
   const [r2Peers] = await once(r2, 'peers')
   assert.equal(r2Peers[0].name, expectedDeviceInfo.name)
   assert.equal(r2Peers[0].deviceType, expectedDeviceInfo.deviceType)
+})
+
+test.skip('Retry RPC after failed send', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  // Connect the peers
+  // Listen for invite on r2
+  // Pause r1
+  // R1 try send
+  // Destroy R1
+  // Re-connect peers
+  // Should get invite
+
+  /** @type {import('../src/generated/rpc.js').DeviceInfo} */
+  const expectedDeviceInfo = { name: 'mapeo', deviceType: 'mobile' }
+
+  const { pauseable1 } = breakableReplicate(r1, r2)
+  const [r1peers] = await once(r1, 'peers')
+
+  // Pause any data from being sent
+  pauseable1.toggle()
+
+  console.log('waiting')
+
+  let gotInfo = false
+  const onGotInfo = once(r2, 'got-project-details').then(() => {
+    console.log('got details')
+    gotInfo = true
+  })
+
+  // Try sending the invite
+  let hasSent = false
+  const onSent = r1
+    .sendDeviceInfo(r1peers[0].deviceId, expectedDeviceInfo)
+    .then(() => {
+      console.log('Has Sent')
+      hasSent = true
+    })
+
+  // Wait a bit for stuff to settle
+  await delay(100)
+
+  // Make sure the pause worked
+  assert.ok(!hasSent, 'Invite not sent yet')
+  assert.ok(!gotInfo, 'Info not recieved yet')
+
+  pauseable1.destroy()
+
+  await delay(10)
+
+  replicate(r1, r2)
+
+  await Promise.race([
+    Promise.all([onGotInfo, onSent]),
+    delay(5000).then(() => {
+      throw new Error('Timed Out Waiting For Retry')
+    }),
+  ])
 })
 
 test('connected peer has protomux instance', async () => {
