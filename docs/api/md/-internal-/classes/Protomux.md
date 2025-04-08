@@ -84,6 +84,8 @@
 
 • **opts.ondestroy?**
 
+• **opts.ondrain?**
+
 • **opts.onopen?**
 
 #### Returns

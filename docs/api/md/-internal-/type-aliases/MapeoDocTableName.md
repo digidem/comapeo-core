@@ -6,4 +6,6 @@
 
 # Type Alias: MapeoDocTableName
 
-> **MapeoDocTableName**: \`$\{MapeoDoc\["schemaName"\]\}Table\`
+> **MapeoDocTableName**\<\>: \`$\{MapeoDoc\["schemaName"\]\}Table\`
+
+## Type Parameters

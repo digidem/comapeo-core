@@ -10,7 +10,6 @@
 
 ### Namespaces
 
-- ["/home/runner/work/comapeo-core/comapeo-core/src/datastore/index"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_datastore_index/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/local-peers"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/schema/client"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_schema_client/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/schema/project"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_schema_project/README.md)
@@ -56,7 +55,6 @@
 - [MemberApi](classes/MemberApi.md)
 - [Peer](classes/Peer.md)
 - [PeerSyncController](classes/PeerSyncController.md)
-- [PendingInvites](classes/PendingInvites.md)
 - [Protomux](classes/Protomux.md)
 - [RemoteBitfieldPage](classes/RemoteBitfieldPage.md)
 - [RemoteBitfieldSegment](classes/RemoteBitfieldSegment.md)
@@ -70,8 +68,8 @@
 - [AbstractEncoding](interfaces/AbstractEncoding.md)
 - [BitmapOpts](interfaces/BitmapOpts.md)
 - [Channel](interfaces/Channel.md)
+- [Context](interfaces/Context.md)
 - [CorestoreEvents](interfaces/CorestoreEvents.md)
-- [DataTypeEvents](interfaces/DataTypeEvents.md)
 - [DocCapability](interfaces/DocCapability.md)
 - [HaveMsg](interfaces/HaveMsg.md)
 - [HyperdriveEvents](interfaces/HyperdriveEvents.md)
@@ -85,7 +83,6 @@
 - [Message](interfaces/Message.md)
 - [Metadata](interfaces/Metadata.md)
 - [PeerInfoBase](interfaces/PeerInfoBase.md)
-- [PendingInvite](interfaces/PendingInvite.md)
 - [RemoteDeviceNamespaceGroupSyncState](interfaces/RemoteDeviceNamespaceGroupSyncState.md)
 - [RemoteDeviceSyncState](interfaces/RemoteDeviceSyncState.md)
 - [Role](interfaces/Role.md)
@@ -95,6 +92,7 @@
 
 ### Type Aliases
 
+- [AddProjectQuery](type-aliases/AddProjectQuery.md)
 - [BitField](type-aliases/BitField.md)
 - [BlobFilter](type-aliases/BlobFilter.md)
 - [BlobId](type-aliases/BlobId.md)
@@ -121,14 +119,12 @@
 - [HypercoreRemoteBitfieldPage](type-aliases/HypercoreRemoteBitfieldPage.md)
 - [IconVariant](type-aliases/IconVariant.md)
 - [IndexedDocIds](type-aliases/IndexedDocIds.md)
+- [Invite](type-aliases/Invite.md)
 - [InviteInternal](type-aliases/InviteInternal.md)
 - [Keypair](type-aliases/Keypair.md)
 - [KeyPair](type-aliases/KeyPair-1.md)
-- [MapBuffers](type-aliases/MapBuffers.md)
-- [MapeoDocMap](type-aliases/MapeoDocMap.md)
 - [MapeoDocTableName](type-aliases/MapeoDocTableName.md)
 - [MapeoDocTables](type-aliases/MapeoDocTables.md)
-- [MapeoValueMap](type-aliases/MapeoValueMap.md)
 - [Namespace](type-aliases/Namespace.md)
 - [NamespaceSchemas](type-aliases/NamespaceSchemas.md)
 - [OpenedNetNoiseStream](type-aliases/OpenedNetNoiseStream.md)

@@ -26,4 +26,9 @@ message DownloadIntentExtension {
     repeated string variants = 1;
   }
   map<string, DownloadIntent> downloadIntents = 1;
+  // If true, the peer intends to download all blobs - this is the default
+  // assumption when a peer has not sent a download intent, but if a peer
+  // changes their intent while connected, we need to send the new intent to
+  // download everything.
+  bool everything = 2;
 }
