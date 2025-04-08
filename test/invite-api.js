@@ -6,13 +6,16 @@ import { onTimes } from './helpers/events.js'
 import { randomBytes } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import { LocalPeers } from '../src/local-peers.js'
-import { InviteApi } from '../src/invite-api.js'
+import { InviteApi } from '../src/invite/invite-api.js'
 import {
   keyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from '../src/utils.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
+import { pEvent } from 'p-event'
+import pTimeout from 'p-timeout'
+import FakeTimers from '@sinonjs/fake-timers'
 /** @import { InviteResponse } from '../src/generated/rpc.js' */
 
 class MockLocalPeers extends LocalPeers {
@@ -38,7 +41,7 @@ test('has no invites to start', () => {
     },
   })
 
-  assert.deepEqual(inviteApi.getPending(), [])
+  assert.deepEqual(inviteApi.getMany(), [])
 })
 
 test('invite-received event has expected payload', async () => {
@@ -84,23 +87,29 @@ test('invite-received event has expected payload', async () => {
     {
       inviteId: bareInvite.inviteId.toString('hex'),
       projectInviteId: projectInviteId.toString('hex'),
+      invitorDeviceId: invitorPeerId,
       projectName,
       invitorName: 'Your Friend',
+      state: 'pending',
     },
     {
       inviteId: partialInvite.inviteId.toString('hex'),
       projectInviteId: projectInviteId.toString('hex'),
+      invitorDeviceId: invitorPeerId,
       projectName,
       roleDescription: 'Cool Role',
       invitorName: 'Your Friend',
+      state: 'pending',
     },
     {
       inviteId: fullInvite.inviteId.toString('hex'),
       projectInviteId: projectInviteId.toString('hex'),
+      invitorDeviceId: invitorPeerId,
       projectName,
       roleName: 'Superfan',
       roleDescription: 'This Cool Role',
       invitorName: 'Your Friend',
+      state: 'pending',
     },
   ]
   const receivedInvitesArgs = (await invitesReceivedPromise).map(first)
@@ -110,7 +119,7 @@ test('invite-received event has expected payload', async () => {
     'received expected invites'
   )
   assertInvitesAlike(
-    inviteApi.getPending(),
+    inviteApi.getMany(),
     expectedInvites,
     'pending invites are expected'
   )
@@ -142,7 +151,7 @@ test('Accept invite', async () => {
   })
 
   const inviteReceivedPromise = once(inviteApi, 'invite-received')
-  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+  const inviteJoinedPromise = onceInviteState(inviteApi, 'joined')
 
   // Invitor: send the invite
 
@@ -153,7 +162,7 @@ test('Accept invite', async () => {
   await inviteReceivedPromise
 
   assertInvitesAlike(
-    inviteApi.getPending(),
+    inviteApi.getMany(),
     [inviteExternal],
     'has one pending invite'
   )
@@ -198,10 +207,10 @@ test('Accept invite', async () => {
     'added to project'
   )
 
-  const [removedInvite, removalReason] = await inviteRemovedPromise
-  assertInvitesAlike(removedInvite, inviteExternal, 'invite was removed')
-  assert.equal(removalReason, 'accepted')
-  assertInvitesAlike(inviteApi.getPending(), [], 'no invites remain')
+  const removedInvite = await inviteJoinedPromise
+  assert.equal(removedInvite.state, 'joined')
+  assert.deepEqual(getPending(inviteApi), [], 'no pending invites remain')
+  assert(inviteApi.getMany().every((invite) => invite.state === 'joined'))
 })
 
 test('Reject invite', async () => {
@@ -228,7 +237,7 @@ test('Reject invite', async () => {
   await inviteReceivedPromise
 
   assertInvitesAlike(
-    inviteApi.getPending(),
+    getPending(inviteApi),
     [inviteExternal],
     'has one pending invite'
   )
@@ -239,14 +248,18 @@ test('Reject invite', async () => {
 
   // Invitee: reject
 
-  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+  const inviteRejectedPromise = onceInviteState(inviteApi, 'rejected')
 
   inviteApi.reject(inviteExternal)
 
-  const [removedInvite, removalReason] = await inviteRemovedPromise
-  assertInvitesAlike(removedInvite, inviteExternal, 'invite was removed')
-  assert.equal(removalReason, 'rejected')
-  assertInvitesAlike(inviteApi.getPending(), [], 'pending invites removed')
+  const rejectedInvite = await inviteRejectedPromise
+  assertInvitesAlike(
+    rejectedInvite,
+    { ...inviteExternal, state: 'rejected' },
+    'expected invite state'
+  )
+  assert.equal(rejectedInvite.state, 'rejected')
+  assertInvitesAlike(getPending(inviteApi), [], 'pending invites removed')
 
   // Invitor: check rejection
 
@@ -297,7 +310,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
     rpc.emit('invite', invitorPeerId, invite)
 
-    assertInvitesAlike(inviteApi.getPending(), [], 'has no pending invites')
+    assert.deepEqual(getPending(inviteApi), [], 'has no pending invites')
 
     // Invitor: check invite response
 
@@ -319,7 +332,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       'got "already" response'
     )
 
-    assertInvitesAlike(inviteApi.getPending(), [], 'has no pending invites')
+    assert.deepEqual(getPending(inviteApi), [], 'has no pending invites')
   })
 
   await t.test(
@@ -352,7 +365,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       await inviteReceivedPromise
 
       assertInvitesAlike(
-        inviteApi.getPending(),
+        getPending(inviteApi),
         [inviteExternal],
         'has a pending invite'
       )
@@ -365,14 +378,20 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
       // Invitee: attempt accept, which should send a rejection
 
-      const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+      const inviteRespondedAlready = onceInviteState(
+        inviteApi,
+        'respondedAlready'
+      )
 
-      await inviteApi.accept(inviteExternal)
+      await assert.rejects(
+        () => inviteApi.accept(inviteExternal),
+        { message: 'Already joining or in project' },
+        'accepting rejects with an error'
+      )
 
-      const [removedInvite, removalReason] = await inviteRemovedPromise
-      assertInvitesAlike(removedInvite, inviteExternal, 'invite was removed')
-      assert.equal(removalReason, 'accepted')
-      assertInvitesAlike(inviteApi.getPending(), [], 'has no pending invites')
+      const respondedAlreadyInvite = await inviteRespondedAlready
+      assert.equal(respondedAlreadyInvite.state, 'respondedAlready')
+      assertInvitesAlike(getPending(inviteApi), [], 'has no pending invites')
 
       // Invitor: check invite response
 
@@ -427,11 +446,13 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     const firstInviteFromPeer2 = { ...invite, inviteId: randomBytes(32) }
     const firstInviteExternalFromPeer2 = {
       ...inviteExternal,
+      invitorDeviceId: invitor2PeerId,
       inviteId: firstInviteFromPeer2.inviteId.toString('hex'),
     }
     const secondInviteFromPeer2 = { ...invite, inviteId: randomBytes(32) }
     const secondInviteExternalFromPeer2 = {
       ...inviteExternal,
+      invitorDeviceId: invitor2PeerId,
       inviteId: secondInviteFromPeer2.inviteId.toString('hex'),
     }
     rpc.emit('invite', invitor2PeerId, firstInviteFromPeer2)
@@ -447,6 +468,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     const firstInviteFromPeer3 = { ...invite, inviteId: randomBytes(32) }
     const firstInviteExternalFromPeer3 = {
       ...inviteExternal,
+      invitorDeviceId: invitor3PeerId,
       inviteId: firstInviteFromPeer3.inviteId.toString('hex'),
     }
     rpc.emit('invite', invitor3PeerId, firstInviteFromPeer3)
@@ -457,7 +479,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
     await invitesReceivedPromise
 
     assertInvitesAlike(
-      inviteApi.getPending(),
+      getPending(inviteApi),
       [
         inviteExternal,
         secondInviteExternalFromPeer1,
@@ -492,7 +514,14 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
     // Invitee: accept an invite
 
-    const invitesRemovedPromise = onTimes(inviteApi, 'invite-removed', 5)
+    const invitesDonePromise = pEvent(inviteApi, 'invite-updated', () => {
+      const invites = inviteApi.getMany()
+      const joinedCount = invites.filter((i) => i.state === 'joined').length
+      const respondedAlreadyCount = invites.filter(
+        (i) => i.state === 'respondedAlready'
+      ).length
+      return joinedCount === 1 && respondedAlreadyCount === 4
+    })
 
     await inviteApi.accept(inviteExternal)
 
@@ -538,42 +567,15 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       'got expected responses'
     )
 
-    const invitesRemovedArgs = await invitesRemovedPromise
+    await invitesDonePromise
 
-    const removedInvites = invitesRemovedArgs.map((args) => args[0])
-    const removalReasons = invitesRemovedArgs.map((args) => args[1])
-    const allButLastRemoved = removedInvites.slice(0, -1)
-    const lastRemoved = removedInvites[removedInvites.length - 1]
-    assertInvitesAlike(
-      new Set(allButLastRemoved),
-      new Set([
-        secondInviteExternalFromPeer1,
-        firstInviteExternalFromPeer2,
-        secondInviteExternalFromPeer2,
-        firstInviteExternalFromPeer3,
-      ]),
-      'other invites are removed first, to avoid UI jitter'
+    assert.equal(
+      inviteApi.getById(unrelatedInviteExternal.inviteId).state,
+      'pending'
     )
-    assertInvitesAlike(
-      lastRemoved,
-      inviteExternal,
-      'accepted invite was removed last, to avoid UI jitter'
-    )
-    assertInvitesAlike(
-      inviteApi.getPending(),
-      [unrelatedInviteExternal],
-      'unaffected invites stick around'
-    )
-    assert.deepEqual(
-      removalReasons,
-      [
-        'accepted other',
-        'accepted other',
-        'accepted other',
-        'accepted other',
-        'accepted',
-      ],
-      'invites are removed with the right reasons'
+    assert.equal(
+      inviteApi.getById(invite.inviteId.toString('hex')).state,
+      'joined'
     )
   })
 })
@@ -594,14 +596,14 @@ test('trying to accept or reject non-existent invite throws', async () => {
   inviteApi.on('invite-received', () => {
     assert.fail('should not emit an "added" event')
   })
-  inviteApi.on('invite-removed', () => {
-    assert.fail('should not emit an "removed" event')
+  inviteApi.on('invite-updated', () => {
+    assert.fail('should not emit an "invite-updated" event')
   })
 
   await assert.rejects(() => inviteApi.accept(inviteExternal))
   assert.throws(() => inviteApi.reject(inviteExternal))
 
-  assertInvitesAlike(inviteApi.getPending(), [], 'has no pending invites')
+  assertInvitesAlike(inviteApi.getMany(), [], 'has no invites')
 })
 
 test('throws when quickly double-accepting the same invite', async () => {
@@ -798,7 +800,7 @@ test('throws when quickly accepting two invites for the same project', async () 
   assert.equal(inviteResponseCount, 1, 'only sent one invite response')
 })
 
-test('receiving project join details from an unknown peer is a no-op', async () => {
+test('receiving project join details from an unknown peer is a no-op', async (t) => {
   const {
     rpc,
     invitorPeerId,
@@ -807,6 +809,8 @@ test('receiving project join details from an unknown peer is a no-op', async () 
     projectKey,
     encryptionKeys,
   } = setup()
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
 
   const inviteApi = new InviteApi({
     rpc,
@@ -829,7 +833,7 @@ test('receiving project join details from an unknown peer is a no-op', async () 
   await inviteReceivedPromise
 
   assertInvitesAlike(
-    inviteApi.getPending(),
+    inviteApi.getMany(),
     [inviteExternal],
     'has one pending invite'
   )
@@ -847,7 +851,7 @@ test('receiving project join details from an unknown peer is a no-op', async () 
 
   // Invitee: try to accept
 
-  inviteApi.accept(inviteExternal)
+  const acceptPromise = inviteApi.accept(inviteExternal)
 
   // Send and reject another invite
 
@@ -855,20 +859,35 @@ test('receiving project join details from an unknown peer is a no-op', async () 
   const invite2ReceivedPromise = once(inviteApi, 'invite-received')
   rpc.emit('invite', invitorPeerId, invite2)
   await invite2ReceivedPromise
-  const invite2RemovedPromise = once(inviteApi, 'invite-removed')
+  const invite2RemovedPromise = pEvent(
+    inviteApi,
+    'invite-updated',
+    (invite) => {
+      return (
+        invite.inviteId === invite2External.inviteId &&
+        invite.state === 'rejected'
+      )
+    }
+  )
   inviteApi.reject(invite2External)
   await invite2RemovedPromise
 
   // The original invite should still be around
 
-  assertInvitesAlike(
-    inviteApi.getPending(),
-    [inviteExternal],
-    'has original pending invite'
+  assert.equal(
+    inviteApi.getById(inviteExternal.inviteId).state,
+    'joining',
+    'has original invite in joining state'
   )
+
+  const assertAcceptTimeoutPromise = assert.rejects(() => acceptPromise, {
+    message: 'Timed out waiting for project details',
+  })
+  clock.runAll()
+  await assertAcceptTimeoutPromise
 })
 
-test('receiving project join details for an unknown invite ID is a no-op', async () => {
+test('receiving project join details for an unknown invite ID is a no-op', async (t) => {
   const {
     rpc,
     invitorPeerId,
@@ -877,6 +896,8 @@ test('receiving project join details for an unknown invite ID is a no-op', async
     projectKey,
     encryptionKeys,
   } = setup()
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
 
   const inviteApi = new InviteApi({
     rpc,
@@ -899,7 +920,7 @@ test('receiving project join details for an unknown invite ID is a no-op', async
   await inviteReceivedPromise
 
   assertInvitesAlike(
-    inviteApi.getPending(),
+    inviteApi.getMany(),
     [inviteExternal],
     'has one pending invite'
   )
@@ -916,7 +937,7 @@ test('receiving project join details for an unknown invite ID is a no-op', async
 
   // Invitee: try to accept
 
-  inviteApi.accept(inviteExternal)
+  const acceptPromise = inviteApi.accept(inviteExternal)
 
   // Send and reject another invite
 
@@ -924,17 +945,32 @@ test('receiving project join details for an unknown invite ID is a no-op', async
   const invite2ReceivedPromise = once(inviteApi, 'invite-received')
   rpc.emit('invite', invitorPeerId, invite2)
   await invite2ReceivedPromise
-  const invite2RemovedPromise = once(inviteApi, 'invite-removed')
+  const invite2RemovedPromise = pEvent(
+    inviteApi,
+    'invite-updated',
+    (invite) => {
+      return (
+        invite.inviteId === invite2External.inviteId &&
+        invite.state === 'rejected'
+      )
+    }
+  )
   inviteApi.reject(invite2External)
   await invite2RemovedPromise
 
   // The original invite should still be around
 
-  assertInvitesAlike(
-    inviteApi.getPending(),
-    [inviteExternal],
-    'has original pending invite'
+  assert.equal(
+    inviteApi.getById(inviteExternal.inviteId).state,
+    'joining',
+    'has original invite still in joining state'
   )
+
+  const assertAcceptTimeoutPromise = assert.rejects(() => acceptPromise, {
+    message: 'Timed out waiting for project details',
+  })
+  clock.runAll()
+  await assertAcceptTimeoutPromise
 })
 
 test('ignores duplicate invite IDs', async () => {
@@ -958,13 +994,13 @@ test('ignores duplicate invite IDs', async () => {
 
   await twoInvitesPromise
 
-  const invites = inviteApi.getPending()
+  const invites = inviteApi.getMany()
   assert.equal(invites.length, 2, 'two invites')
   const inviteIds = invites.map((i) => i.inviteId)
   assert.notDeepEqual(inviteIds[0], inviteIds[1], 'got different invite IDs')
 })
 
-test('failures to send acceptances cause accept to reject, no project to be added, and invite to be removed', async () => {
+test('failures to send acceptances cause accept to reject, no project to be added, and invite to be in error state', async () => {
   const { rpc, invitorPeerId, invite, inviteExternal } = setup()
 
   const inviteApi = new InviteApi({
@@ -985,7 +1021,7 @@ test('failures to send acceptances cause accept to reject, no project to be adde
     throw new Error('Failed to accept invite')
   }
 
-  const inviteReceivedPromise = once(inviteApi, 'invite-received')
+  const inviteReceivedPromise = pEvent(inviteApi, 'invite-received')
 
   // Invitor: send the invite
 
@@ -993,12 +1029,10 @@ test('failures to send acceptances cause accept to reject, no project to be adde
 
   // Invitee: receive and try to accept the invite
 
-  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
-
   await inviteReceivedPromise
 
   assertInvitesAlike(
-    inviteApi.getPending(),
+    inviteApi.getMany(),
     [inviteExternal],
     'has a pending invite'
   )
@@ -1009,17 +1043,12 @@ test('failures to send acceptances cause accept to reject, no project to be adde
   )
 
   assert.equal(acceptsAttempted, 1)
-  const [removedInvite, removalReason] = await inviteRemovedPromise
-  assertInvitesAlike(removedInvite, inviteExternal, 'invite was removed')
-  assert.equal(
-    removalReason,
-    'connection error',
-    'invite was removed with connection error reason'
-  )
-  assertInvitesAlike(inviteApi.getPending(), [], 'has no pending invites')
+  const inviteFinal = inviteApi.getById(inviteExternal.inviteId)
+  assert.equal(inviteFinal.state, 'error')
+  assert.equal(inviteFinal.error.message, 'Failed to accept invite')
 })
 
-test('failures to send rejections are ignored, but invite is still removed', async () => {
+test('failures to send rejections are ignored, but invite ends in error state', async () => {
   const { rpc, invitorPeerId, invite, inviteExternal } = setup()
 
   const inviteApi = new InviteApi({
@@ -1048,18 +1077,24 @@ test('failures to send rejections are ignored, but invite is still removed', asy
 
   // Invitee: receive and reject the invite
 
-  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+  const inviteErroredPromise = pEvent(
+    inviteApi,
+    'invite-updated',
+    (invite) =>
+      invite.inviteId === inviteExternal.inviteId && invite.state === 'error'
+  )
 
   await inviteReceivedPromise
   assert.doesNotThrow(() => inviteApi.reject(inviteExternal))
 
   assert.equal(rejectionsAttempted, 1)
-  const [removedInvite, removalReason] = await inviteRemovedPromise
-  assertInvitesAlike(removedInvite, inviteExternal, 'invite was removed')
-  assert.equal(removalReason, 'rejected', 'removal reason was "rejected"')
+
+  const erroredInvite = await inviteErroredPromise
+  assert.equal(erroredInvite.state, 'error')
+  assert.equal(erroredInvite.error.message, 'Failed to reject invite')
 })
 
-test('failures to add project cause accept() to reject and invite to be removed', async () => {
+test('failures to add project cause accept() to reject and invite to be in error state', async () => {
   const {
     rpc,
     invitorPeerId,
@@ -1107,20 +1142,21 @@ test('failures to add project cause accept() to reject and invite to be removed'
 
   // Invitee: try to accept
 
-  const inviteRemovedPromise = once(inviteApi, 'invite-removed')
+  const inviteErroredPromise = pEvent(
+    inviteApi,
+    'invite-updated',
+    (invite) =>
+      invite.inviteId === inviteExternal.inviteId && invite.state === 'error'
+  )
 
   await assert.rejects(
     () => inviteApi.accept(inviteExternal),
     'accept should fail'
   )
 
-  const [removedInvite, removalReason] = await inviteRemovedPromise
-  assertInvitesAlike(removedInvite, inviteExternal, 'invite was removed')
-  assert.equal(
-    removalReason,
-    'internal error',
-    'invite was removed with correct reason'
-  )
+  const erroredInvite = await inviteErroredPromise
+  assert.equal(erroredInvite.state, 'error')
+  assert.equal(erroredInvite.error.message, 'Failed to add project')
 })
 
 function setup() {
@@ -1129,6 +1165,7 @@ function setup() {
 
   const projectPublicId = projectKeyToPublicId(projectKey)
   const projectInviteId = projectKeyToProjectInviteId(projectKey)
+  const invitorPeerId = keyToId(randomBytes(16))
 
   const invite = {
     inviteId: randomBytes(32),
@@ -1139,11 +1176,12 @@ function setup() {
   }
   const inviteExternal = {
     ...invite,
+    invitorDeviceId: invitorPeerId,
+    state: 'pending',
     inviteId: invite.inviteId.toString('hex'),
     projectInviteId: projectInviteId.toString('hex'),
   }
 
-  const invitorPeerId = keyToId(randomBytes(16))
   const rpc = new MockLocalPeers()
 
   return {
@@ -1232,4 +1270,24 @@ function getReceivedAt(value) {
     typeof value.receivedAt === 'number'
     ? value.receivedAt
     : null
+}
+
+/**
+ * @param {InviteApi} inviteApi
+ */
+function getPending(inviteApi) {
+  return inviteApi.getMany().filter((i) => i.state === 'pending')
+}
+
+/**
+ *
+ * @param {InviteApi} inviteApi
+ * @param {import('../src/invite/invite-api.js').Invite['state']} state
+ * @returns
+ */
+function onceInviteState(inviteApi, state) {
+  return pTimeout(
+    pEvent(inviteApi, 'invite-updated', (invite) => invite.state === state),
+    { milliseconds: 1000 }
+  )
 }

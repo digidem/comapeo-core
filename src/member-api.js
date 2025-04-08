@@ -17,6 +17,7 @@ import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { ErrorWithCode, getErrorMessage } from './lib/error.js'
+import { InviteAbortedError } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
 /**
@@ -212,9 +213,9 @@ export class MemberApi extends TypedEmitter {
    * @param {AbortSignal} signal
    */
   async #sendInviteAndGetResponse(deviceId, invite, signal) {
-    const inviteAbortedError = new Error('Invite aborted')
-
-    if (signal.aborted) throw inviteAbortedError
+    if (signal.aborted) {
+      throw new InviteAbortedError()
+    }
 
     const abortController = new AbortController()
 
@@ -246,7 +247,7 @@ export class MemberApi extends TypedEmitter {
       return await responsePromise
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        throw inviteAbortedError
+        throw new InviteAbortedError()
       } else {
         throw err
       }

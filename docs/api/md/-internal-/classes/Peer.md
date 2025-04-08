@@ -65,7 +65,7 @@ fails to connect
 
 ### \[kTestOnlySendRawInvite\]()
 
-> **\[kTestOnlySendRawInvite\]**(`buf`): `void`
+> **\[kTestOnlySendRawInvite\]**(`buf`): `Promise`\<`void`\>
 
 #### Parameters
 
@@ -73,7 +73,7 @@ fails to connect
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
 
 ***
 
@@ -97,6 +97,16 @@ fails to connect
 
 ***
 
+### drained()
+
+> **drained**(): `void`
+
+#### Returns
+
+`void`
+
+***
+
 ### receiveDeviceInfo()
 
 > **receiveDeviceInfo**(`deviceInfo`): `void`
@@ -113,7 +123,7 @@ fails to connect
 
 ### sendDeviceInfo()
 
-> **sendDeviceInfo**(`deviceInfo`): `void`
+> **sendDeviceInfo**(`deviceInfo`): `Promise`\<`void`\>
 
 #### Parameters
 
@@ -121,13 +131,13 @@ fails to connect
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
 
 ***
 
 ### sendInvite()
 
-> **sendInvite**(`invite`): `void`
+> **sendInvite**(`invite`): `Promise`\<`void`\>
 
 #### Parameters
 
@@ -135,13 +145,13 @@ fails to connect
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
 
 ***
 
 ### sendInviteCancel()
 
-> **sendInviteCancel**(`inviteCancel`): `void`
+> **sendInviteCancel**(`inviteCancel`): `Promise`\<`void`\>
 
 #### Parameters
 
@@ -149,13 +159,13 @@ fails to connect
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
 
 ***
 
 ### sendInviteResponse()
 
-> **sendInviteResponse**(`response`): `void`
+> **sendInviteResponse**(`response`): `Promise`\<`void`\>
 
 #### Parameters
 
@@ -163,13 +173,13 @@ fails to connect
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
 
 ***
 
 ### sendProjectJoinDetails()
 
-> **sendProjectJoinDetails**(`details`): `void`
+> **sendProjectJoinDetails**(`details`): `Promise`\<`void`\>
 
 #### Parameters
 
@@ -177,4 +187,4 @@ fails to connect
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
