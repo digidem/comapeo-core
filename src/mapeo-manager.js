@@ -26,6 +26,10 @@ import {
 } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 import {
+  DeviceInfo_RPCFeatures,
+  DeviceInfo_DeviceType,
+} from './generated/rpc.js'
+import {
   deNullify,
   getDeviceId,
   keyToId,
@@ -57,6 +61,7 @@ import { NotFoundError } from './errors.js'
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { CoreStorage, Namespace } from './types.js' */
 /** @import { DeviceInfoParam } from './schema/client.js' */
+/** @import { DeviceInfo } from './generated/rpc.js' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 
@@ -720,7 +725,10 @@ export class MapeoManager extends TypedEmitter {
    * @param {T} deviceInfo
    */
   async setDeviceInfo(deviceInfo) {
-    const values = { deviceId: this.#deviceId, deviceInfo }
+    const values = {
+      deviceId: this.#deviceId,
+      deviceInfo,
+    }
     this.#db
       .insert(deviceSettingsTable)
       .values(values)
@@ -747,6 +755,7 @@ export class MapeoManager extends TypedEmitter {
       const deviceInfoToSend = {
         ...deviceInfo,
         deviceType,
+        features: [DeviceInfo_RPCFeatures.ack],
       }
       await Promise.all(
         this.#localPeers.peers
@@ -764,7 +773,7 @@ export class MapeoManager extends TypedEmitter {
    * @returns {(
    *   {
    *     deviceId: string;
-   *     deviceType: DeviceInfoParam['deviceType']
+   *     deviceType: DeviceInfoParam['deviceType'];
    *   } & Partial<DeviceInfoParam>
    * )}
    */
@@ -776,7 +785,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
     return {
       deviceId: this.#deviceId,
-      deviceType: 'device_type_unspecified',
+      deviceType: DeviceInfo_DeviceType.device_type_unspecified,
       ...row?.deviceInfo,
     }
   }

@@ -156,6 +156,7 @@ test('messages to unknown peers', async () => {
     r1.sendDeviceInfo(unknownPeerId, {
       name: 'mapeo',
       deviceType: 'mobile',
+      features: [],
     }),
     UnknownPeerError
   )
@@ -228,7 +229,11 @@ test('Send device info', async () => {
   const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
-  const expectedDeviceInfo = { name: 'mapeo', deviceType: 'mobile' }
+  const expectedDeviceInfo = {
+    name: 'mapeo',
+    deviceType: 'mobile',
+    features: [],
+  }
 
   r1.on('peers', async (peers) => {
     assert.equal(peers.length, 1)
@@ -252,7 +257,11 @@ test('Send device info immediately', async () => {
   const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
-  const expectedDeviceInfo = { name: 'mapeo', deviceType: 'mobile' }
+  const expectedDeviceInfo = {
+    name: 'mapeo',
+    deviceType: 'mobile',
+    features: [],
+  }
 
   const kp1 = NoiseSecretStream.keyPair()
   const kp2 = NoiseSecretStream.keyPair()
@@ -276,7 +285,11 @@ test('Reconnect peer and send device info', async () => {
   const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
-  const expectedDeviceInfo = { name: 'mapeo', deviceType: 'mobile' }
+  const expectedDeviceInfo = {
+    name: 'mapeo',
+    deviceType: 'mobile',
+    features: [],
+  }
 
   const destroy = replicate(r1, r2)
   await once(r1, 'peers')
