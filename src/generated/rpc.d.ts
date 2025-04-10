@@ -33,6 +33,7 @@ export interface ProjectJoinDetails {
 export interface DeviceInfo {
     name: string;
     deviceType?: DeviceInfo_DeviceType | undefined;
+    features: DeviceInfo_RPCFeatures[];
 }
 export declare const DeviceInfo_DeviceType: {
     readonly device_type_unspecified: "device_type_unspecified";
@@ -44,6 +45,26 @@ export declare const DeviceInfo_DeviceType: {
 export type DeviceInfo_DeviceType = typeof DeviceInfo_DeviceType[keyof typeof DeviceInfo_DeviceType];
 export declare function deviceInfo_DeviceTypeFromJSON(object: any): DeviceInfo_DeviceType;
 export declare function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceType): number;
+export declare const DeviceInfo_RPCFeatures: {
+    readonly features_unspecified: "features_unspecified";
+    readonly ack: "ack";
+    readonly UNRECOGNIZED: "UNRECOGNIZED";
+};
+export type DeviceInfo_RPCFeatures = typeof DeviceInfo_RPCFeatures[keyof typeof DeviceInfo_RPCFeatures];
+export declare function deviceInfo_RPCFeaturesFromJSON(object: any): DeviceInfo_RPCFeatures;
+export declare function deviceInfo_RPCFeaturesToNumber(object: DeviceInfo_RPCFeatures): number;
+export interface InviteAck {
+    inviteId: Buffer;
+}
+export interface InviteCancelAck {
+    inviteId: Buffer;
+}
+export interface InviteResponseAck {
+    inviteId: Buffer;
+}
+export interface ProjectJoinDetailsAck {
+    inviteId: Buffer;
+}
 export declare const Invite: {
     encode(message: Invite, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): Invite;
@@ -73,6 +94,30 @@ export declare const DeviceInfo: {
     decode(input: _m0.Reader | Uint8Array, length?: number): DeviceInfo;
     create<I extends Exact<DeepPartial<DeviceInfo>, I>>(base?: I): DeviceInfo;
     fromPartial<I extends Exact<DeepPartial<DeviceInfo>, I>>(object: I): DeviceInfo;
+};
+export declare const InviteAck: {
+    encode(message: InviteAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): InviteAck;
+    create<I extends Exact<DeepPartial<InviteAck>, I>>(base?: I): InviteAck;
+    fromPartial<I extends Exact<DeepPartial<InviteAck>, I>>(object: I): InviteAck;
+};
+export declare const InviteCancelAck: {
+    encode(message: InviteCancelAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): InviteCancelAck;
+    create<I extends Exact<DeepPartial<InviteCancelAck>, I>>(base?: I): InviteCancelAck;
+    fromPartial<I extends Exact<DeepPartial<InviteCancelAck>, I>>(object: I): InviteCancelAck;
+};
+export declare const InviteResponseAck: {
+    encode(message: InviteResponseAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): InviteResponseAck;
+    create<I extends Exact<DeepPartial<InviteResponseAck>, I>>(base?: I): InviteResponseAck;
+    fromPartial<I extends Exact<DeepPartial<InviteResponseAck>, I>>(object: I): InviteResponseAck;
+};
+export declare const ProjectJoinDetailsAck: {
+    encode(message: ProjectJoinDetailsAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): ProjectJoinDetailsAck;
+    create<I extends Exact<DeepPartial<ProjectJoinDetailsAck>, I>>(base?: I): ProjectJoinDetailsAck;
+    fromPartial<I extends Exact<DeepPartial<ProjectJoinDetailsAck>, I>>(object: I): ProjectJoinDetailsAck;
 };
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 type DeepPartial<T> = T extends Builtin ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {

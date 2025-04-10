@@ -39,6 +39,27 @@ message DeviceInfo {
     tablet = 2;
     desktop = 3;
   }
+  enum RPCFeatures {
+    features_unspecified = 0;
+    ack = 1;
+  }
   string name = 1;
   optional DeviceType deviceType = 2;
+  repeated RPCFeatures features = 3;
+}
+
+message InviteAck {
+  bytes inviteId = 1;
+}
+
+message InviteCancelAck {
+  bytes inviteId = 1;
+}
+
+message InviteResponseAck {
+  bytes inviteId = 1;
+}
+
+message ProjectJoinDetailsAck {
+  bytes inviteId = 1;
 }

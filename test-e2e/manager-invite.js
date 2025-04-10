@@ -358,7 +358,13 @@ test('member invite rejected', async (t) => {
   })
   const [invite] = await once(joiner.invite, 'invite-received')
 
+  const onInviteUpdated = pEvent(joiner.invite, 'invite-updated', (invite) =>
+    ['rejected', 'error'].includes(invite.state)
+  )
+
   await joiner.invite.reject(invite)
+
+  await onInviteUpdated
 
   assert.equal(
     await responsePromise,

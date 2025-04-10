@@ -85,6 +85,36 @@ export function deviceInfo_DeviceTypeToNumber(object) {
             return -1;
     }
 }
+export var DeviceInfo_RPCFeatures = {
+    features_unspecified: "features_unspecified",
+    ack: "ack",
+    UNRECOGNIZED: "UNRECOGNIZED",
+};
+export function deviceInfo_RPCFeaturesFromJSON(object) {
+    switch (object) {
+        case 0:
+        case "features_unspecified":
+            return DeviceInfo_RPCFeatures.features_unspecified;
+        case 1:
+        case "ack":
+            return DeviceInfo_RPCFeatures.ack;
+        case -1:
+        case "UNRECOGNIZED":
+        default:
+            return DeviceInfo_RPCFeatures.UNRECOGNIZED;
+    }
+}
+export function deviceInfo_RPCFeaturesToNumber(object) {
+    switch (object) {
+        case DeviceInfo_RPCFeatures.features_unspecified:
+            return 0;
+        case DeviceInfo_RPCFeatures.ack:
+            return 1;
+        case DeviceInfo_RPCFeatures.UNRECOGNIZED:
+        default:
+            return -1;
+    }
+}
 function createBaseInvite() {
     return { inviteId: Buffer.alloc(0), projectInviteId: Buffer.alloc(0), projectName: "", invitorName: "" };
 }
@@ -336,7 +366,7 @@ export var ProjectJoinDetails = {
     },
 };
 function createBaseDeviceInfo() {
-    return { name: "" };
+    return { name: "", features: [] };
 }
 export var DeviceInfo = {
     encode: function (message, writer) {
@@ -347,6 +377,12 @@ export var DeviceInfo = {
         if (message.deviceType !== undefined) {
             writer.uint32(16).int32(deviceInfo_DeviceTypeToNumber(message.deviceType));
         }
+        writer.uint32(26).fork();
+        for (var _i = 0, _a = message.features; _i < _a.length; _i++) {
+            var v = _a[_i];
+            writer.int32(deviceInfo_RPCFeaturesToNumber(v));
+        }
+        writer.ldelim();
         return writer;
     },
     decode: function (input, length) {
@@ -368,6 +404,19 @@ export var DeviceInfo = {
                     }
                     message.deviceType = deviceInfo_DeviceTypeFromJSON(reader.int32());
                     continue;
+                case 3:
+                    if (tag === 24) {
+                        message.features.push(deviceInfo_RPCFeaturesFromJSON(reader.int32()));
+                        continue;
+                    }
+                    if (tag === 26) {
+                        var end2 = reader.uint32() + reader.pos;
+                        while (reader.pos < end2) {
+                            message.features.push(deviceInfo_RPCFeaturesFromJSON(reader.int32()));
+                        }
+                        continue;
+                    }
+                    break;
             }
             if ((tag & 7) === 4 || tag === 0) {
                 break;
@@ -380,10 +429,179 @@ export var DeviceInfo = {
         return DeviceInfo.fromPartial(base !== null && base !== void 0 ? base : {});
     },
     fromPartial: function (object) {
-        var _a, _b;
+        var _a, _b, _c;
         var message = createBaseDeviceInfo();
         message.name = (_a = object.name) !== null && _a !== void 0 ? _a : "";
         message.deviceType = (_b = object.deviceType) !== null && _b !== void 0 ? _b : undefined;
+        message.features = ((_c = object.features) === null || _c === void 0 ? void 0 : _c.map(function (e) { return e; })) || [];
+        return message;
+    },
+};
+function createBaseInviteAck() {
+    return { inviteId: Buffer.alloc(0) };
+}
+export var InviteAck = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.inviteId.length !== 0) {
+            writer.uint32(10).bytes(message.inviteId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseInviteAck();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.inviteId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return InviteAck.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseInviteAck();
+        message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        return message;
+    },
+};
+function createBaseInviteCancelAck() {
+    return { inviteId: Buffer.alloc(0) };
+}
+export var InviteCancelAck = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.inviteId.length !== 0) {
+            writer.uint32(10).bytes(message.inviteId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseInviteCancelAck();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.inviteId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return InviteCancelAck.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseInviteCancelAck();
+        message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        return message;
+    },
+};
+function createBaseInviteResponseAck() {
+    return { inviteId: Buffer.alloc(0) };
+}
+export var InviteResponseAck = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.inviteId.length !== 0) {
+            writer.uint32(10).bytes(message.inviteId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseInviteResponseAck();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.inviteId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return InviteResponseAck.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseInviteResponseAck();
+        message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        return message;
+    },
+};
+function createBaseProjectJoinDetailsAck() {
+    return { inviteId: Buffer.alloc(0) };
+}
+export var ProjectJoinDetailsAck = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.inviteId.length !== 0) {
+            writer.uint32(10).bytes(message.inviteId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseProjectJoinDetailsAck();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.inviteId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return ProjectJoinDetailsAck.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseProjectJoinDetailsAck();
+        message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
         return message;
     },
 };
