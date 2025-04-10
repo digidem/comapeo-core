@@ -1,5 +1,6 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
+import timingSafeEqual from 'string-timing-safe-equal'
 import { assert, ExhaustivenessError, keyToId, noop } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
@@ -288,9 +289,8 @@ class Peer {
     const buf = Buffer.from(Invite.encode(invite).finish())
     const messageType = MESSAGE_TYPES.Invite
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck(
-      'InviteAck',
-      ({ inviteId }) => inviteId === invite.inviteId
+    await this.#waitForAck('InviteAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, invite.inviteId)
     )
     this.#log('sent invite %h', invite.inviteId)
   }
@@ -316,9 +316,8 @@ class Peer {
     const buf = Buffer.from(InviteCancel.encode(inviteCancel).finish())
     const messageType = MESSAGE_TYPES.InviteCancel
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck(
-      'InviteCancelAck',
-      ({ inviteId }) => inviteId === inviteCancel.inviteId
+    await this.#waitForAck('InviteCancelAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, inviteCancel.inviteId)
     )
     this.#log('sent invite cancel %h', inviteCancel.inviteId)
   }
@@ -344,9 +343,8 @@ class Peer {
     const buf = Buffer.from(InviteResponse.encode(response).finish())
     const messageType = MESSAGE_TYPES.InviteResponse
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck(
-      'InviteResponseAck',
-      ({ inviteId }) => inviteId === response.inviteId
+    await this.#waitForAck('InviteResponseAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, response.inviteId)
     )
     this.#log('sent response for %h: %s', response.inviteId, response.decision)
   }
@@ -373,9 +371,8 @@ class Peer {
     const buf = Buffer.from(ProjectJoinDetails.encode(details).finish())
     const messageType = MESSAGE_TYPES.ProjectJoinDetails
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck(
-      'ProjectJoinDetailsAck',
-      ({ inviteId }) => inviteId === details.inviteId
+    await this.#waitForAck('ProjectJoinDetailsAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, details.inviteId)
     )
     this.#log('sent project join details for %h', details.projectKey)
   }
@@ -512,6 +509,9 @@ export class LocalPeers extends TypedEmitter {
    * @param {DeviceInfo} deviceInfo device info to send
    */
   async sendDeviceInfo(deviceId, deviceInfo) {
+    if (!deviceInfo.features) {
+      deviceInfo.features = []
+    }
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
     await peer.sendDeviceInfo(deviceInfo)
@@ -729,7 +729,9 @@ export class LocalPeers extends TypedEmitter {
         const invite = parseInvite(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite', peerId, invite)
-        peer.sendInviteAck(invite)
+        peer.sendInviteAck(invite).catch((e) => {
+          this.#l.log(`Error sending invite ack ${e.stack}`)
+        })
         this.#l.log(
           'Invite %h from %S for %h',
           invite.inviteId,
@@ -742,7 +744,9 @@ export class LocalPeers extends TypedEmitter {
         const inviteCancel = parseInviteCancel(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-cancel', peerId, inviteCancel)
-        peer.sendInviteCancelAck(inviteCancel)
+        peer.sendInviteCancelAck(inviteCancel).catch((e) => {
+          this.#l.log(`Error sending invite cancel ack ${e.stack}`)
+        })
         this.#l.log(
           'Invite cancel from %S for %h',
           peerId,
@@ -753,15 +757,19 @@ export class LocalPeers extends TypedEmitter {
       case 'InviteResponse': {
         const inviteResponse = parseInviteResponse(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
-        peer.sendInviteResponseAck(inviteResponse)
         this.emit('invite-response', peerId, inviteResponse)
+        peer.sendInviteResponseAck(inviteResponse).catch((e) => {
+          this.#l.log(`Error sending invite response ack ${e.stack}`)
+        })
         break
       }
       case 'ProjectJoinDetails': {
         const details = parseProjectJoinDetails(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('got-project-details', peerId, details)
-        peer.sendProjectJoinDetailsAck(details)
+        peer.sendProjectJoinDetailsAck(details).catch((e) => {
+          this.#l.log(`Error sending project details ack ${e.stack}`)
+        })
         break
       }
       case 'DeviceInfo': {

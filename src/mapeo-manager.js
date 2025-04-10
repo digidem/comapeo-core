@@ -275,9 +275,14 @@ export class MapeoManager extends TypedEmitter {
         const deviceInfo = this.getDeviceInfo()
         if (!hasSavedDeviceInfo(deviceInfo)) return
 
+        const deviceInfoToSend = {
+          ...deviceInfo,
+          features: [DeviceInfo_RPCFeatures.ack],
+        }
+
         const peerId = keyToId(openedNoiseStream.remotePublicKey)
 
-        return this.#localPeers.sendDeviceInfo(peerId, deviceInfo)
+        return this.#localPeers.sendDeviceInfo(peerId, deviceInfoToSend)
       })
       .catch((e) => {
         // Ignore error but log
