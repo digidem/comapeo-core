@@ -420,9 +420,13 @@ class Peer {
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
  * @property {(peer: PeerInfoConnected) => void} peer-add Emitted when a new peer is connected
  * @property {(peerId: string, invite: Invite) => void} invite Emitted when an invite is received
+ * @property {(peerId: string, invite: InviteAck) => void} invite-ack Emitted when an invite acknowledgement is received
  * @property {(peerId: string, invite: InviteCancel) => void} invite-cancel Emitted when we receive a cancelation for an invite
+ * @property {(peerId: string, invite: InviteCancelAck) => void} invite-cancel-ack Emitted when we receive a cancelation acknowledgement for an invite
  * @property {(peerId: string, inviteResponse: InviteResponse) => void} invite-response Emitted when an invite response is received
+ * @property {(peerId: string, inviteResponse: InviteResponseAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
+ * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
  * @property {(messageType: string, errorMessage?: string) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
  */
@@ -725,6 +729,7 @@ export class LocalPeers extends TypedEmitter {
         const invite = parseInvite(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite', peerId, invite)
+        peer.sendInviteAck(invite)
         this.#l.log(
           'Invite %h from %S for %h',
           invite.inviteId,
@@ -737,6 +742,7 @@ export class LocalPeers extends TypedEmitter {
         const inviteCancel = parseInviteCancel(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-cancel', peerId, inviteCancel)
+        peer.sendInviteCancelAck(inviteCancel)
         this.#l.log(
           'Invite cancel from %S for %h',
           peerId,
@@ -747,6 +753,7 @@ export class LocalPeers extends TypedEmitter {
       case 'InviteResponse': {
         const inviteResponse = parseInviteResponse(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
+        peer.sendInviteResponseAck(inviteResponse)
         this.emit('invite-response', peerId, inviteResponse)
         break
       }
@@ -754,6 +761,7 @@ export class LocalPeers extends TypedEmitter {
         const details = parseProjectJoinDetails(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('got-project-details', peerId, details)
+        peer.sendProjectJoinDetailsAck(details)
         break
       }
       case 'DeviceInfo': {
@@ -765,21 +773,29 @@ export class LocalPeers extends TypedEmitter {
       case 'InviteAck': {
         const ack = InviteAck.decode(value)
         peer.receiveAck('InviteAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('invite-ack', peerId, ack)
         break
       }
       case 'InviteCancelAck': {
         const ack = InviteCancelAck.decode(value)
         peer.receiveAck('InviteCancelAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('invite-cancel-ack', peerId, ack)
         break
       }
       case 'InviteResponseAck': {
         const ack = InviteResponseAck.decode(value)
         peer.receiveAck('InviteResponseAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('invite-response-ack', peerId, ack)
         break
       }
       case 'ProjectJoinDetailsAck': {
         const ack = ProjectJoinDetailsAck.decode(value)
         peer.receiveAck('ProjectJoinDetailsAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('got-project-details-ack', peerId, ack)
         break
       }
       /* c8 ignore next 2 */

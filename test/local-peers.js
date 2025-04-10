@@ -13,7 +13,11 @@ import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { KeyManager } from '@mapeo/crypto'
 import Protomux from 'protomux'
-import { InviteResponse_Decision } from '../src/generated/rpc.js'
+import {
+  DeviceInfo_RPCFeatures,
+  InviteResponse_Decision,
+} from '../src/generated/rpc.js'
+import { pEvent } from 'p-event'
 
 test('sending and receiving invites', async () => {
   const r1 = new LocalPeers()
@@ -232,7 +236,7 @@ test('Send device info', async () => {
   const expectedDeviceInfo = {
     name: 'mapeo',
     deviceType: 'mobile',
-    features: [],
+    features: [DeviceInfo_RPCFeatures.ack],
   }
 
   r1.on('peers', async (peers) => {
@@ -318,6 +322,130 @@ test('connected peer has protomux instance', async () => {
   const [[peer]] = await once(r1, 'peers')
   assert.equal(peer.status, 'connected')
   assert(Protomux.isProtomux(peer.protomux))
+})
+
+test('Device info with ack results in acks sent', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  /** @type {import('../src/generated/rpc.js').DeviceInfo} */
+  const expectedDeviceInfo = {
+    name: 'mapeo',
+    deviceType: 'mobile',
+    features: [DeviceInfo_RPCFeatures.ack],
+  }
+
+  const inviteId = testInviteId()
+
+  const validInvite = {
+    inviteId,
+    projectInviteId: testProjectInviteId(),
+    projectName: 'Mapeo Project',
+    invitorName: 'device0',
+  }
+
+  const validProjectJoinDetails = {
+    inviteId,
+    projectKey: testProjectKey(),
+    encryptionKeys: { auth: randomBytes(16) },
+  }
+
+  replicate(r1, r2)
+
+  const peers = await pEvent(r1, 'peers')
+
+  r1.sendDeviceInfo(peers[0].deviceId, expectedDeviceInfo)
+
+  const timeout = 100
+
+  const onInviteAck = pEvent(r1, 'invite-ack', { timeout })
+  const onInviteCancelAck = pEvent(r1, 'invite-cancel-ack', { timeout })
+  const onInviteResponseAck = pEvent(r1, 'invite-response-ack', { timeout })
+  const onProjectJoinDetailsAck = pEvent(r1, 'got-project-details-ack', {
+    timeout,
+  })
+
+  const { deviceId } = peers[0]
+
+  await Promise.all([
+    r1.sendInvite(deviceId, validInvite),
+    r1.sendInviteCancel(deviceId, {
+      inviteId,
+    }),
+    r1.sendInviteResponse(deviceId, {
+      inviteId,
+      decision: InviteResponse_Decision.DECISION_UNSPECIFIED,
+    }),
+    r1.sendProjectJoinDetails(deviceId, validProjectJoinDetails),
+  ])
+
+  await Promise.all([
+    onInviteAck,
+    onInviteCancelAck,
+    onInviteResponseAck,
+    onProjectJoinDetailsAck,
+  ])
+})
+
+test('Device info without ack results in no acks sent', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  /** @type {import('../src/generated/rpc.js').DeviceInfo} */
+  const expectedDeviceInfo = {
+    name: 'mapeo',
+    deviceType: 'mobile',
+    features: [],
+  }
+
+  const inviteId = testInviteId()
+
+  const validInvite = {
+    inviteId,
+    projectInviteId: testProjectInviteId(),
+    projectName: 'Mapeo Project',
+    invitorName: 'device0',
+  }
+
+  const validProjectJoinDetails = {
+    inviteId,
+    projectKey: testProjectKey(),
+    encryptionKeys: { auth: randomBytes(16) },
+  }
+
+  replicate(r1, r2)
+
+  const peers = await pEvent(r1, 'peers')
+
+  r1.sendDeviceInfo(peers[0].deviceId, expectedDeviceInfo)
+
+  const timeout = 100
+
+  const onInviteAck = pEvent(r1, 'invite-ack', { timeout })
+  const onInviteCancelAck = pEvent(r1, 'invite-cancel-ack', { timeout })
+  const onInviteResponseAck = pEvent(r1, 'invite-response-ack', { timeout })
+  const onProjectJoinDetailsAck = pEvent(r1, 'got-project-details-ack', {
+    timeout,
+  })
+
+  const { deviceId } = peers[0]
+
+  await Promise.all([
+    r1.sendInvite(deviceId, validInvite),
+    r1.sendInviteCancel(deviceId, {
+      inviteId,
+    }),
+    r1.sendInviteResponse(deviceId, {
+      inviteId,
+      decision: InviteResponse_Decision.DECISION_UNSPECIFIED,
+    }),
+    r1.sendProjectJoinDetails(deviceId, validProjectJoinDetails),
+  ])
+
+  assert.rejects(() => onInviteAck)
+  assert.rejects(() => onInviteCancelAck)
+  assert.rejects(() => onInviteResponseAck)
+  assert.rejects(() => onProjectJoinDetailsAck)
 })
 
 function testInviteId() {
