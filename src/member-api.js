@@ -19,7 +19,12 @@ import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { ErrorWithCode, getErrorMessage } from './lib/error.js'
 import { InviteAbortedError } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
-import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
+import {
+  BLOCKED_ROLE_ID,
+  MEMBER_ROLE_ID,
+  ROLES,
+  isRoleIdForNewInvite,
+} from './roles.js'
 /**
  * @import {
  *   DeviceInfo,
@@ -58,7 +63,9 @@ export class MemberApi extends TypedEmitter {
   #projectKey
   #rpc
   #getReplicationStream
+  #isConnectedToServer
   #waitForInitialSyncWithPeer
+  #waitForSyncAndDisconnect
   #dataTypes
 
   /** @type {Map<string, { abortController: AbortController }>} */
@@ -75,6 +82,8 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
+   * @param {(deviceId: string) => Promise<void>} opts.waitForSyncAndDisconnect
+   * @param {(deviceId: string) => boolean} opts.isConnectedToServer
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
@@ -90,6 +99,8 @@ export class MemberApi extends TypedEmitter {
     getReplicationStream,
     waitForInitialSyncWithPeer,
     dataTypes,
+    isConnectedToServer,
+    waitForSyncAndDisconnect,
   }) {
     super()
     this.#ownDeviceId = deviceId
@@ -100,7 +111,9 @@ export class MemberApi extends TypedEmitter {
     this.#projectKey = projectKey
     this.#rpc = rpc
     this.#getReplicationStream = getReplicationStream
+    this.#isConnectedToServer = isConnectedToServer
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
+    this.#waitForSyncAndDisconnect = waitForSyncAndDisconnect
     this.#dataTypes = dataTypes
   }
 
@@ -314,6 +327,24 @@ export class MemberApi extends TypedEmitter {
     })
   }
 
+  async removeServerPeer(baseUrl) {
+    // Get device ID for URL
+    // Prase through URL to ensure end pathname if missing
+    const { deviceId } = await this.#getForServer(new URL(baseUrl).href)
+
+    // Check if connected
+    if (!this.#isConnectedToServer(baseUrl)) {
+      throw new Error('Cannot Remove Server: Must be connected')
+    }
+
+    // Add blocked role to project
+    await this.#roles.assignRole(deviceId, BLOCKED_ROLE_ID)
+
+    // Wait for role data to sync
+    // Disconnect from server peer
+    await this.#waitForSyncAndDisconnect(baseUrl)
+  }
+
   /**
    * @param {string} baseUrl Server base URL. Should already be validated.
    * @returns {Promise<{ serverDeviceId: string }>}
@@ -452,6 +483,18 @@ export class MemberApi extends TypedEmitter {
     }
 
     return result
+  }
+
+  async #getForServer(baseUrl) {
+    for (const info of await this.getMany()) {
+      if (!info.selfHostedServerDetails) continue
+      if (info.selfHostedServerDetails.baseUrl === baseUrl) {
+        return info
+      }
+    }
+
+    // TODO: proper error object
+    throw new Error('Device not found')
   }
 
   /**

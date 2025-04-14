@@ -10,7 +10,7 @@ import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
 import RAM from 'random-access-memory'
 import { map } from 'iterpal'
-import { MEMBER_ROLE_ID } from '../src/roles.js'
+import { BLOCKED_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
 import comapeoServer from '@comapeo/cloud'
 import {
   connectPeers,
@@ -21,6 +21,7 @@ import {
   waitForSync,
 } from './utils.js'
 import { fileURLToPath } from 'node:url'
+import { baseUrlToWS } from '../src/mapeo-project.js'
 /** @import { FastifyInstance } from 'fastify' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -369,6 +370,49 @@ test('data can be synced via a server', async (t) => {
   assert(
     await managerBProject.observation.getByDocId(observation.docId),
     'manager B now sees data'
+  )
+})
+
+test('add server, remove server, check that it knows it got blocked', async (t) => {
+  const manager = createManager('seed', t)
+  await manager.setDeviceInfo({ name: 'manager', deviceType: 'mobile' })
+
+  // Because we need to stop the server, we can't use a remote server here.
+  const { server, serverBaseUrl } = await createLocalTestServer(t)
+  t.after(() => server.close())
+
+  const projectId = await manager.createProject({ name: 'foo' })
+  const project = await manager.getProject(projectId)
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+  assert(await findServerPeer(project), 'test setup: server peer exists')
+
+  const serverURL = baseUrlToWS(serverBaseUrl, projectId)
+
+  assert(
+    !project.$sync.isServerConnected(serverURL),
+    'server not yet connected'
+  )
+
+  project.$sync.connectServers()
+
+  // Wait for the sockets to open up
+  await delay(200)
+
+  assert(project.$sync.isServerConnected(serverURL), 'server connected')
+
+  await project.$member.removeServerPeer(serverBaseUrl)
+
+  // Wait for the disconnect
+  await delay(200)
+
+  const serverMember = await findServerPeer(project)
+
+  assert.equal(serverMember?.role.roleId, BLOCKED_ROLE_ID, 'server now blocked')
+  assert(
+    !project.$sync.isServerConnected(serverURL),
+    'server no longer connected'
   )
 })
 
