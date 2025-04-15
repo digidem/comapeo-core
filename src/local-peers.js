@@ -36,7 +36,7 @@ import pTimeout, { TimeoutError } from 'p-timeout'
 /**
  * @typedef {object} AckWaiter
  * @property {AckFilter} filter
- * @property {DeferredPromise<void>} deffered
+ * @property {DeferredPromise<void>} deferred
  */
 
 // Unique identifier for the mapeo rpc protocol
