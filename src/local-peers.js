@@ -229,7 +229,7 @@ class Peer {
    * @returns {boolean}
    */
   supportsAck() {
-    return this.#features?.includes(DeviceInfo_RPCFeatures.ack) ?? false
+    return this.#features.includes(DeviceInfo_RPCFeatures.ack) ?? false
   }
 
   /**
