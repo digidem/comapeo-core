@@ -1,20 +1,43 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
+import timingSafeEqual from 'string-timing-safe-equal'
 import { assert, ExhaustivenessError, keyToId, noop } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
   DeviceInfo,
   Invite,
+  InviteAck,
   InviteCancel,
+  InviteCancelAck,
   InviteResponse,
+  InviteResponseAck,
   ProjectJoinDetails,
+  ProjectJoinDetailsAck,
+  DeviceInfo_RPCFeatures,
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
 import pTimeout, { TimeoutError } from 'p-timeout'
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
+/** @import {DeferredPromise} from 'p-defer' */
+
+/**
+ * @typedef {InviteAck|InviteCancelAck|InviteResponseAck|ProjectJoinDetailsAck} AckResponse
+ */
+
+/**
+ * @callback AckFilter
+ * @param {AckResponse} ack
+ * @returns {boolean}
+ */
+
+/**
+ * @typedef {object} AckWaiter
+ * @property {AckFilter} filter
+ * @property {DeferredPromise<void>} deferred
+ */
 
 // Unique identifier for the mapeo rpc protocol
 const PROTOCOL_NAME = 'mapeo/rpc'
@@ -33,6 +56,10 @@ const MESSAGE_TYPES = {
   InviteResponse: 2,
   ProjectJoinDetails: 3,
   DeviceInfo: 4,
+  InviteAck: 5,
+  InviteCancelAck: 6,
+  InviteResponseAck: 7,
+  ProjectJoinDetailsAck: 8,
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
@@ -62,9 +89,14 @@ class Peer {
   #name
   /** @type {DeviceInfo['deviceType']} */
   #deviceType
+  /** @type {DeviceInfo['features']} */
+  #features = []
   #connectedAt = 0
   #disconnectedAt = 0
   #drainedListeners = new Set()
+  // Map of type -> Set<{filter, deferred}>
+  /** @type Map<keyof typeof MESSAGE_TYPES, Set<AckWaiter>>*/
+  #ackWaiters = new Map()
   #protomux
   #log
 
@@ -161,6 +193,12 @@ class Peer {
     for (const listener of this.#drainedListeners) {
       listener.reject(new Error('RPC Disconnected before sending'))
     }
+    for (const waiters of this.#ackWaiters.values()) {
+      for (const { deferred } of waiters) {
+        deferred.reject(new Error('RPC disconnected before receiving ACK'))
+      }
+    }
+    this.#ackWaiters.clear()
     this.#drainedListeners.clear()
     this.#log('disconnected')
   }
@@ -187,6 +225,53 @@ class Peer {
   }
 
   /**
+   * Check if RPC Acknowledgement messages are supported by this peer
+   * @returns {boolean}
+   */
+  supportsAck() {
+    return this.#features.includes(DeviceInfo_RPCFeatures.ack) ?? false
+  }
+
+  /**
+   * @param {keyof typeof MESSAGE_TYPES} type
+   * @param {AckFilter} filter
+   * @returns {Promise<void>}
+   */
+  async #waitForAck(type, filter) {
+    if (!this.supportsAck()) return
+    if (!this.#ackWaiters.has(type)) {
+      this.#ackWaiters.set(type, new Set())
+    }
+    const deferred = pDefer()
+    this.#ackWaiters.get(type)?.add({
+      deferred,
+      filter,
+    })
+
+    await deferred.promise
+  }
+
+  /**
+   * @param {keyof typeof MESSAGE_TYPES} type
+   * @param {AckResponse} ack
+   */
+  receiveAck(type, ack) {
+    if (!this.supportsAck()) return
+    if (!this.#ackWaiters.has(type)) return
+    const waiters = this.#ackWaiters.get(type)
+    if (!waiters || !waiters.size) {
+      return
+    }
+
+    for (const waiter of waiters) {
+      if (waiter.filter(ack)) {
+        waiter.deferred.resolve()
+        waiters.delete(waiter)
+      }
+    }
+  }
+
+  /**
    * @param {Buffer} buf
    * @returns {Promise<void>}
    */
@@ -204,8 +289,24 @@ class Peer {
     const buf = Buffer.from(Invite.encode(invite).finish())
     const messageType = MESSAGE_TYPES.Invite
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+    await this.#waitForAck('InviteAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, invite.inviteId)
+    )
     this.#log('sent invite %h', invite.inviteId)
   }
+
+  /**
+   * @param {Invite} invite
+   * @returns {Promise<void>}
+   */
+  async sendInviteAck({ inviteId }) {
+    this.#assertConnected('Peer disconnected before sending invite ack')
+    if (!this.supportsAck()) return
+    const buf = Buffer.from(InviteAck.encode({ inviteId }).finish())
+    const messageType = MESSAGE_TYPES.InviteAck
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+  }
+
   /**
    * @param {InviteCancel} inviteCancel
    * @returns {Promise<void>}
@@ -215,8 +316,24 @@ class Peer {
     const buf = Buffer.from(InviteCancel.encode(inviteCancel).finish())
     const messageType = MESSAGE_TYPES.InviteCancel
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+    await this.#waitForAck('InviteCancelAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, inviteCancel.inviteId)
+    )
     this.#log('sent invite cancel %h', inviteCancel.inviteId)
   }
+
+  /**
+   * @param {InviteCancel} inviteCancel
+   * @returns {Promise<void>}
+   */
+  async sendInviteCancelAck({ inviteId }) {
+    this.#assertConnected('Peer disconnected before sending invite cancel ack')
+    if (!this.supportsAck()) return
+    const buf = Buffer.from(InviteCancelAck.encode({ inviteId }).finish())
+    const messageType = MESSAGE_TYPES.InviteCancelAck
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+  }
+
   /**
    * @param {InviteResponse} response
    * @returns {Promise<void>}
@@ -226,8 +343,26 @@ class Peer {
     const buf = Buffer.from(InviteResponse.encode(response).finish())
     const messageType = MESSAGE_TYPES.InviteResponse
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+    await this.#waitForAck('InviteResponseAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, response.inviteId)
+    )
     this.#log('sent response for %h: %s', response.inviteId, response.decision)
   }
+
+  /**
+   * @param {InviteResponse} response
+   * @returns {Promise<void>}
+   */
+  async sendInviteResponseAck({ inviteId }) {
+    this.#assertConnected(
+      'Peer disconnected before sending invite response ack'
+    )
+    if (!this.supportsAck()) return
+    const buf = Buffer.from(InviteResponseAck.encode({ inviteId }).finish())
+    const messageType = MESSAGE_TYPES.InviteResponseAck
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+  }
+
   /** @param {ProjectJoinDetails} details */
   async sendProjectJoinDetails(details) {
     this.#assertConnected(
@@ -236,8 +371,22 @@ class Peer {
     const buf = Buffer.from(ProjectJoinDetails.encode(details).finish())
     const messageType = MESSAGE_TYPES.ProjectJoinDetails
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+    await this.#waitForAck('ProjectJoinDetailsAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, details.inviteId)
+    )
     this.#log('sent project join details for %h', details.projectKey)
   }
+  /** @param {ProjectJoinDetails} details */
+  async sendProjectJoinDetailsAck({ inviteId }) {
+    this.#assertConnected(
+      'Peer disconnected before sending project join details ack'
+    )
+    if (!this.supportsAck()) return
+    const buf = Buffer.from(ProjectJoinDetailsAck.encode({ inviteId }).finish())
+    const messageType = MESSAGE_TYPES.ProjectJoinDetailsAck
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+  }
+
   /**
    * @param {DeviceInfo} deviceInfo
    * @returns {Promise<void>}
@@ -252,6 +401,7 @@ class Peer {
   receiveDeviceInfo(deviceInfo) {
     this.#name = deviceInfo.name
     this.#deviceType = deviceInfo.deviceType
+    this.#features = deviceInfo.features
     this.#log('received deviceInfo %o', deviceInfo)
   }
   /** @param {string} [message] */
@@ -267,9 +417,13 @@ class Peer {
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
  * @property {(peer: PeerInfoConnected) => void} peer-add Emitted when a new peer is connected
  * @property {(peerId: string, invite: Invite) => void} invite Emitted when an invite is received
+ * @property {(peerId: string, invite: InviteAck) => void} invite-ack Emitted when an invite acknowledgement is received
  * @property {(peerId: string, invite: InviteCancel) => void} invite-cancel Emitted when we receive a cancelation for an invite
+ * @property {(peerId: string, invite: InviteCancelAck) => void} invite-cancel-ack Emitted when we receive a cancelation acknowledgement for an invite
  * @property {(peerId: string, inviteResponse: InviteResponse) => void} invite-response Emitted when an invite response is received
+ * @property {(peerId: string, inviteResponse: InviteResponseAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
+ * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
  * @property {(messageType: string, errorMessage?: string) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
  */
@@ -572,6 +726,9 @@ export class LocalPeers extends TypedEmitter {
         const invite = parseInvite(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite', peerId, invite)
+        peer.sendInviteAck(invite).catch((e) => {
+          this.#l.log(`Error sending invite ack ${e.stack}`)
+        })
         this.#l.log(
           'Invite %h from %S for %h',
           invite.inviteId,
@@ -584,6 +741,9 @@ export class LocalPeers extends TypedEmitter {
         const inviteCancel = parseInviteCancel(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-cancel', peerId, inviteCancel)
+        peer.sendInviteCancelAck(inviteCancel).catch((e) => {
+          this.#l.log(`Error sending invite cancel ack ${e.stack}`)
+        })
         this.#l.log(
           'Invite cancel from %S for %h',
           peerId,
@@ -595,18 +755,52 @@ export class LocalPeers extends TypedEmitter {
         const inviteResponse = parseInviteResponse(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-response', peerId, inviteResponse)
+        peer.sendInviteResponseAck(inviteResponse).catch((e) => {
+          this.#l.log(`Error sending invite response ack ${e.stack}`)
+        })
         break
       }
       case 'ProjectJoinDetails': {
         const details = parseProjectJoinDetails(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('got-project-details', peerId, details)
+        peer.sendProjectJoinDetailsAck(details).catch((e) => {
+          this.#l.log(`Error sending project details ack ${e.stack}`)
+        })
         break
       }
       case 'DeviceInfo': {
         const deviceInfo = DeviceInfo.decode(value)
         peer.receiveDeviceInfo(deviceInfo)
         this.#emitPeers()
+        break
+      }
+      case 'InviteAck': {
+        const ack = InviteAck.decode(value)
+        peer.receiveAck('InviteAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('invite-ack', peerId, ack)
+        break
+      }
+      case 'InviteCancelAck': {
+        const ack = InviteCancelAck.decode(value)
+        peer.receiveAck('InviteCancelAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('invite-cancel-ack', peerId, ack)
+        break
+      }
+      case 'InviteResponseAck': {
+        const ack = InviteResponseAck.decode(value)
+        peer.receiveAck('InviteResponseAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('invite-response-ack', peerId, ack)
+        break
+      }
+      case 'ProjectJoinDetailsAck': {
+        const ack = ProjectJoinDetailsAck.decode(value)
+        peer.receiveAck('ProjectJoinDetailsAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('got-project-details-ack', peerId, ack)
         break
       }
       /* c8 ignore next 2 */

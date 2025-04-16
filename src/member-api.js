@@ -186,17 +186,15 @@ export class MemberApi extends TypedEmitter {
         case InviteResponse_Decision.DECISION_UNSPECIFIED:
           return InviteResponse_Decision.REJECT
         case InviteResponse_Decision.ACCEPT:
-          // We should assign the role locally *before* sharing the project details
-          // so that they're part of the project even if they don't receive the
-          // project details message.
-
-          await this.#roles.assignRole(deviceId, roleId)
-
           await this.#rpc.sendProjectJoinDetails(deviceId, {
             inviteId,
             projectKey: this.#projectKey,
             encryptionKeys: this.#encryptionKeys,
           })
+
+          // Only add after we know they got the details
+          // Otherwise the joiner will be stuck unable to join
+          await this.#roles.assignRole(deviceId, roleId)
 
           return inviteResponse.decision
         default:
