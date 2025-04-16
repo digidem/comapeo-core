@@ -194,8 +194,8 @@ class Peer {
       listener.reject(new Error('RPC Disconnected before sending'))
     }
     for (const waiters of this.#ackWaiters.values()) {
-      for (const { deffered } of waiters) {
-        deffered.reject(new Error('RPC disconnected before receiving ACK'))
+      for (const { deferred } of waiters) {
+        deferred.reject(new Error('RPC disconnected before receiving ACK'))
       }
     }
     this.#ackWaiters.clear()
@@ -242,13 +242,13 @@ class Peer {
     if (!this.#ackWaiters.has(type)) {
       this.#ackWaiters.set(type, new Set())
     }
-    const deffered = pDefer()
+    const deferred = pDefer()
     this.#ackWaiters.get(type)?.add({
-      deffered,
+      deferred,
       filter,
     })
 
-    await deffered.promise
+    await deferred.promise
   }
 
   /**
@@ -265,7 +265,7 @@ class Peer {
 
     for (const waiter of waiters) {
       if (waiter.filter(ack)) {
-        waiter.deffered.resolve()
+        waiter.deferred.resolve()
         waiters.delete(waiter)
       }
     }
