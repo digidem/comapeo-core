@@ -10,7 +10,7 @@ import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
 import RAM from 'random-access-memory'
 import { map } from 'iterpal'
-import { MEMBER_ROLE_ID } from '../src/roles.js'
+import { BLOCKED_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
 import comapeoServer from '@comapeo/cloud'
 import {
   connectPeers,
@@ -369,6 +369,41 @@ test('data can be synced via a server', async (t) => {
   assert(
     await managerBProject.observation.getByDocId(observation.docId),
     'manager B now sees data'
+  )
+})
+
+test('add server, remove server, check that it knows it got blocked', async (t) => {
+  const manager = createManager('seed', t)
+  await manager.setDeviceInfo({ name: 'manager', deviceType: 'mobile' })
+
+  // Because we need to stop the server, we can't use a remote server here.
+  const { server, serverBaseUrl } = await createLocalTestServer(t)
+  t.after(() => server.close())
+
+  const projectId = await manager.createProject({ name: 'foo' })
+  const project = await manager.getProject(projectId)
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+  const serverPeer = await findServerPeer(project)
+  assert(serverPeer, 'test setup: server peer exists')
+
+  await project.$member.removeServerPeer(serverPeer.deviceId, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+
+  const serverMember = await findServerPeer(project)
+
+  assert.equal(serverMember?.role.roleId, BLOCKED_ROLE_ID, 'server now blocked')
+
+  // @ts-expect-error - does not exist on type
+  const serverManager = /** @type {MapeoManager} */ server.comapeo
+  const serverProject = await serverManager.getProject(projectId)
+  const serverMemberState = await findServerPeer(serverProject)
+  assert.equal(
+    serverMemberState?.role.roleId,
+    BLOCKED_ROLE_ID,
+    'server knows it is blocked'
   )
 })
 
