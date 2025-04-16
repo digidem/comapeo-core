@@ -329,7 +329,7 @@ test('Device info with ack results in acks sent', async () => {
   const r2 = new LocalPeers()
 
   /** @type {import('../src/generated/rpc.js').DeviceInfo} */
-  const expectedDeviceInfo = {
+  const validDeviceInfo = {
     name: 'mapeo',
     deviceType: 'mobile',
     features: [DeviceInfo_RPCFeatures.ack],
@@ -354,7 +354,7 @@ test('Device info with ack results in acks sent', async () => {
 
   const peers = await pEvent(r1, 'peers')
 
-  r1.sendDeviceInfo(peers[0].deviceId, expectedDeviceInfo)
+  r1.sendDeviceInfo(peers[0].deviceId, validDeviceInfo)
 
   const timeout = 100
 

@@ -509,9 +509,6 @@ export class LocalPeers extends TypedEmitter {
    * @param {DeviceInfo} deviceInfo device info to send
    */
   async sendDeviceInfo(deviceId, deviceInfo) {
-    if (!deviceInfo.features) {
-      deviceInfo.features = []
-    }
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
     await peer.sendDeviceInfo(deviceInfo)
