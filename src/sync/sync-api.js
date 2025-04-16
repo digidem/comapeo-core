@@ -379,26 +379,6 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
-   * @param {string} url
-   * @returns {void}
-   */
-  disconnectServer(url) {
-    if (this.#serverWebsockets.has(url)) {
-      this.#serverWebsockets.get(url)?.close()
-      return true
-    }
-    return false
-  }
-
-  /**
-   * @param {string} url
-   * @returns {boolean}
-   */
-  isServerConnected(url) {
-    return this.#serverWebsockets.has(url)
-  }
-
-  /**
    * Start syncing data cores.
    *
    * If the app is backgrounded and sync has already completed, this will do

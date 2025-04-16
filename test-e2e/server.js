@@ -21,7 +21,6 @@ import {
   waitForSync,
 } from './utils.js'
 import { fileURLToPath } from 'node:url'
-import { baseUrlToWS } from '../src/mapeo-project.js'
 /** @import { FastifyInstance } from 'fastify' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -386,33 +385,25 @@ test('add server, remove server, check that it knows it got blocked', async (t) 
   await project.$member.addServerPeer(serverBaseUrl, {
     dangerouslyAllowInsecureConnections: true,
   })
-  assert(await findServerPeer(project), 'test setup: server peer exists')
+  const serverPeer = await findServerPeer(project)
+  assert(serverPeer, 'test setup: server peer exists')
 
-  const serverURL = baseUrlToWS(serverBaseUrl, projectId)
-
-  assert(
-    !project.$sync.isServerConnected(serverURL),
-    'server not yet connected'
-  )
-
-  project.$sync.connectServers()
-
-  // Wait for the sockets to open up
-  await delay(200)
-
-  assert(project.$sync.isServerConnected(serverURL), 'server connected')
-
-  await project.$member.removeServerPeer(serverBaseUrl)
-
-  // Wait for the disconnect
-  await delay(200)
+  await project.$member.removeServerPeer(serverPeer.deviceId, {
+    dangerouslyAllowInsecureConnections: true,
+  })
 
   const serverMember = await findServerPeer(project)
 
   assert.equal(serverMember?.role.roleId, BLOCKED_ROLE_ID, 'server now blocked')
-  assert(
-    !project.$sync.isServerConnected(serverURL),
-    'server no longer connected'
+
+  // @ts-expect-error - does not exist on type
+  const serverManager = /** @type {MapeoManager} */ server.comapeo
+  const serverProject = await serverManager.getProject(projectId)
+  const serverMemberState = await findServerPeer(serverProject)
+  assert.equal(
+    serverMemberState?.role.roleId,
+    BLOCKED_ROLE_ID,
+    'server knows it is blocked'
   )
 })
 

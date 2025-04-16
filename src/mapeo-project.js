@@ -357,18 +357,6 @@ export class MapeoProject extends TypedEmitter {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
       },
-      isConnectedToServer: (baseUrl) => {
-        return this.#syncApi.isServerConnected(
-          baseUrlToWS(baseUrl, this.#projectPublicId)
-        )
-      },
-      waitForSyncAndDisconnect: async (baseUrl) => {
-        // TODO: Sync with the one device ID?
-        await this.$sync.waitForSync('full')
-        await this.$sync.disconnectServer(
-          baseUrlToWS(baseUrl, this.#projectPublicId)
-        )
-      },
     })
 
     this.#blobStore = new BlobStore({

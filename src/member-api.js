@@ -63,9 +63,7 @@ export class MemberApi extends TypedEmitter {
   #projectKey
   #rpc
   #getReplicationStream
-  #isConnectedToServer
   #waitForInitialSyncWithPeer
-  #waitForSyncAndDisconnect
   #dataTypes
 
   /** @type {Map<string, { abortController: AbortController }>} */
@@ -82,8 +80,6 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
-   * @param {(deviceId: string) => Promise<void>} opts.waitForSyncAndDisconnect
-   * @param {(deviceId: string) => boolean} opts.isConnectedToServer
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
@@ -99,8 +95,6 @@ export class MemberApi extends TypedEmitter {
     getReplicationStream,
     waitForInitialSyncWithPeer,
     dataTypes,
-    isConnectedToServer,
-    waitForSyncAndDisconnect,
   }) {
     super()
     this.#ownDeviceId = deviceId
@@ -111,9 +105,7 @@ export class MemberApi extends TypedEmitter {
     this.#projectKey = projectKey
     this.#rpc = rpc
     this.#getReplicationStream = getReplicationStream
-    this.#isConnectedToServer = isConnectedToServer
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
-    this.#waitForSyncAndDisconnect = waitForSyncAndDisconnect
     this.#dataTypes = dataTypes
   }
 
@@ -327,22 +319,44 @@ export class MemberApi extends TypedEmitter {
     })
   }
 
-  async removeServerPeer(baseUrl) {
+  /**
+   * Remove a server peer. Only works when the peer is reachable
+   *
+   * @param {string} serverDeviceId
+   * @param {object} [options]
+   * @param {boolean} [options.dangerouslyAllowInsecureConnections] Allow insecure network connections. Should only be used in tests.
+   * @returns {Promise<void>}
+   */
+  async removeServerPeer(
+    serverDeviceId,
+    { dangerouslyAllowInsecureConnections = false } = {}
+  ) {
     // Get device ID for URL
     // Prase through URL to ensure end pathname if missing
-    const { deviceId } = await this.#getForServer(new URL(baseUrl).href)
+    const member = await this.getById(serverDeviceId)
 
-    // Check if connected
-    if (!this.#isConnectedToServer(baseUrl)) {
-      throw new Error('Cannot Remove Server: Must be connected')
+    if (!member.selfHostedServerDetails) {
+      throw new ErrorWithCode(
+        'DEVICE_ID_NOT_FOR_SERVER',
+        'DeviceId is not for a server peer'
+      )
     }
 
-    // Add blocked role to project
-    await this.#roles.assignRole(deviceId, BLOCKED_ROLE_ID)
+    if (member.role.roleId === BLOCKED_ROLE_ID) {
+      throw new ErrorWithCode('ALREADY_BLOCKED', 'Server peer already blocked')
+    }
 
-    // Wait for role data to sync
-    // Disconnect from server peer
-    await this.#waitForSyncAndDisconnect(baseUrl)
+    const { baseUrl } = member.selfHostedServerDetails
+
+    // Add blocked role to project
+    await this.#roles.assignRole(serverDeviceId, BLOCKED_ROLE_ID)
+
+    // TODO: Catch fail and sync with server after
+    await this.#waitForInitialSyncWithServer({
+      baseUrl,
+      serverDeviceId,
+      dangerouslyAllowInsecureConnections,
+    })
   }
 
   /**
@@ -476,6 +490,7 @@ export class MemberApi extends TypedEmitter {
       result.name = deviceInfo.name
       result.deviceType = deviceInfo.deviceType
       result.joinedAt = deviceInfo.createdAt
+      result.selfHostedServerDetails = deviceInfo.selfHostedServerDetails
     } catch (err) {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
@@ -483,18 +498,6 @@ export class MemberApi extends TypedEmitter {
     }
 
     return result
-  }
-
-  async #getForServer(baseUrl) {
-    for (const info of await this.getMany()) {
-      if (!info.selfHostedServerDetails) continue
-      if (info.selfHostedServerDetails.baseUrl === baseUrl) {
-        return info
-      }
-    }
-
-    // TODO: proper error object
-    throw new Error('Device not found')
   }
 
   /**
