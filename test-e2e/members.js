@@ -116,6 +116,27 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
   )
 })
 
+test('cannot invite when project is missing critical details', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  // Note: no name for created project
+  const projectId = await invitor.createProject()
+  const project = await invitor.getProject(projectId)
+
+  await assert.rejects(
+    () => {
+      return project.$member.invite(invitee.deviceId, {
+        roleId: MEMBER_ROLE_ID,
+      })
+    },
+    /Error: Project must have a name to invite people/,
+    'Cannot invite when project is missing name'
+  )
+})
+
 test('getting invited member after invite rejected', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers

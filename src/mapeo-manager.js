@@ -56,14 +56,16 @@ import {
   kRescindFullStopRequest,
 } from './sync/sync-api.js'
 import { NotFoundError } from './errors.js'
-/** @import { ProjectSettingsValue as ProjectValue } from '@comapeo/schema' */
+
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
+/** @import { ProjectJoinDetails, } from './generated/rpc.js' */
 /** @import { CoreStorage, Namespace } from './types.js' */
-/** @import { DeviceInfoParam } from './schema/client.js' */
-/** @import { DeviceInfo } from './generated/rpc.js' */
+/** @import { DeviceInfoParam, ProjectInfo } from './schema/client.js' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
+/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string }} ProjectToAddDetails */
+/** @typedef {{ projectId: string, createdAt?: string, updatedAt?: string, name?: string, projectColor?: string, projectDescription?: string }} ListedProject */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -328,7 +330,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.projectPublicId
    * @param {Readonly<Buffer>} opts.projectInviteId
    * @param {ProjectKeys} opts.projectKeys
-   * @param {Readonly<{ name?: string }>} [opts.projectInfo]
+   * @param {Readonly<ProjectInfo>} [opts.projectInfo]
    */
   #saveToProjectKeysTable({
     projectId,
@@ -363,15 +365,16 @@ export class MapeoManager extends TypedEmitter {
 
   /**
    * Create a new project.
-   * @param {(
-   *   import('type-fest').Simplify<(
-   *     Partial<Pick<ProjectValue, 'name'>> &
-   *     { configPath?: string }
-   *   )>
-   * )} [options]
+   *
+   * @param {{ name?: string, configPath?: string, projectColor?: string, projectDescription?: string }} [options]
    * @returns {Promise<string>} Project public id
    */
-  async createProject({ name, configPath = this.#defaultConfigPath } = {}) {
+  async createProject({
+    name,
+    configPath = this.#defaultConfigPath,
+    projectColor,
+    projectDescription,
+  } = {}) {
     // 1. Create project keypair
     const projectKeypair = KeyManager.generateProjectKeypair()
 
@@ -416,7 +419,11 @@ export class MapeoManager extends TypedEmitter {
     })
 
     // 5. Write project settings to project instance
-    await project.$setProjectSettings({ name })
+    await project.$setProjectSettings({
+      name,
+      projectColor,
+      projectDescription,
+    })
 
     // 6. Write device info into project
     const deviceInfo = this.getDeviceInfo()
@@ -511,7 +518,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @returns {Promise<Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string}>>}
+   * @returns {Promise<Array<ListedProject>>}
    */
   async listProjects() {
     // We use the project keys table as the source of truth for projects that exist
@@ -532,11 +539,13 @@ export class MapeoManager extends TypedEmitter {
         createdAt: projectSettingsTable.createdAt,
         updatedAt: projectSettingsTable.updatedAt,
         name: projectSettingsTable.name,
+        projectColor: projectSettingsTable.projectColor,
+        projectDescription: projectSettingsTable.projectDescription,
       })
       .from(projectSettingsTable)
       .all()
 
-    /** @type {Array<Pick<ProjectValue, 'name'> & { projectId: string, createdAt?: string, updatedAt?: string, createdBy?: string }>} */
+    /** @type {Array<ListedProject>} */
     const result = []
 
     for (const {
@@ -554,6 +563,11 @@ export class MapeoManager extends TypedEmitter {
           createdAt: existingProject?.createdAt,
           updatedAt: existingProject?.updatedAt,
           name: existingProject?.name || projectInfo.name,
+          projectColor:
+            existingProject?.projectColor || projectInfo.projectColor,
+          projectDescription:
+            existingProject?.projectDescription ||
+            projectInfo.projectDescription,
         })
       )
     }
@@ -566,12 +580,18 @@ export class MapeoManager extends TypedEmitter {
    * await `project.$waitForInitialSync()` to ensure that the device has
    * downloaded their proof of project membership and the project config.
    *
-   * @param {Pick<import('./generated/rpc.js').ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string }} projectJoinDetails
+   * @param {ProjectToAddDetails} projectToAddDetails
    * @param {{ waitForSync?: boolean }} [opts] Set opts.waitForSync = false to not wait for sync during addProject()
    * @returns {Promise<string>}
    */
   addProject = async (
-    { projectKey, encryptionKeys, projectName },
+    {
+      projectKey,
+      encryptionKeys,
+      projectName,
+      projectColor,
+      projectDescription,
+    },
     { waitForSync = true } = {}
   ) => {
     const projectPublicId = projectKeyToPublicId(projectKey)
@@ -609,7 +629,7 @@ export class MapeoManager extends TypedEmitter {
         projectKey,
         encryptionKeys,
       },
-      projectInfo: { name: projectName },
+      projectInfo: { name: projectName, projectColor, projectDescription },
     })
 
     // Any errors from here we need to remove project from db because it has not

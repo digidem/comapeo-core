@@ -15,6 +15,13 @@
       "when": 1729605656745,
       "tag": "0001_chubby_cargill",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1744822575870,
+      "tag": "0002_brief_demogoblin",
+      "breakpoints": true
     }
   ]
 }

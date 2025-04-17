@@ -12,6 +12,7 @@ import {
   InviteSendError,
 } from '../errors.js'
 
+/** @import { ProjectToAddDetails } from '../mapeo-manager.js' */
 /** @import { MapBuffers } from '../types.js' */
 /**
  * @import {
@@ -45,7 +46,7 @@ import {
  */
 
 /**
- * @typedef {(projectDetails: Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string }) => Promise<string>} AddProjectQuery
+ * @typedef {(projectDetails: ProjectToAddDetails) => Promise<string>} AddProjectQuery
  */
 
 /**
@@ -119,7 +120,13 @@ export class InviteApi extends TypedEmitter {
    * @param {InviteRpcMessage} inviteRpcMessage
    */
   #handleNewInvite(peerId, inviteRpcMessage) {
-    const { inviteId, projectInviteId, projectName } = inviteRpcMessage
+    const {
+      inviteId,
+      projectInviteId,
+      projectName,
+      projectColor,
+      projectDescription,
+    } = inviteRpcMessage
     const invite = { ...inviteRpcMessage, receivedAt: Date.now() }
 
     this.#l.log('Received invite %h from %S', inviteId, peerId)
@@ -149,7 +156,12 @@ export class InviteApi extends TypedEmitter {
             return this.rpc.sendInviteResponse(peerId, { decision, inviteId })
           }),
           addProject: fromPromise(async ({ input: projectDetails }) => {
-            return this.#addProject({ ...projectDetails, projectName })
+            return this.#addProject({
+              ...projectDetails,
+              projectName,
+              projectColor,
+              projectDescription,
+            })
           }),
         },
         guards: {

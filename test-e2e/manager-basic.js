@@ -65,6 +65,8 @@ test('Managing created projects', async (t) => {
       settings1,
       {
         name: undefined,
+        projectColor: undefined,
+        projectDescription: undefined,
         defaultPresets: undefined,
         configMetadata: undefined,
       },
@@ -74,6 +76,8 @@ test('Managing created projects', async (t) => {
       settings2,
       {
         name: 'project 2',
+        projectColor: undefined,
+        projectDescription: undefined,
         defaultPresets: undefined,
         configMetadata: undefined,
       },
@@ -84,15 +88,31 @@ test('Managing created projects', async (t) => {
   await t.test('after updating project settings', async () => {
     await project1.$setProjectSettings({
       name: 'project 1',
+      projectColor: '#123456',
     })
     await project2.$setProjectSettings({
       name: 'project 2 updated',
+      projectDescription: 'project 2 description',
     })
 
     const settings1 = await project1.$getProjectSettings()
     const settings2 = await project2.$getProjectSettings()
 
-    assert.equal(settings1.name, 'project 1')
+    assert.deepEqual(settings1, {
+      name: 'project 1',
+      projectColor: '#123456',
+      projectDescription: undefined,
+      defaultPresets: undefined,
+      configMetadata: undefined,
+    })
+
+    assert.deepEqual(settings2, {
+      name: 'project 2 updated',
+      projectColor: undefined,
+      projectDescription: 'project 2 description',
+      defaultPresets: undefined,
+      configMetadata: undefined,
+    })
 
     assert.equal(settings2.name, 'project 2 updated')
 
@@ -109,14 +129,38 @@ test('Managing created projects', async (t) => {
     )
 
     assert(project1FromListed)
-    assert.equal(project1FromListed?.name, 'project 1')
-    assert(project1FromListed?.createdAt)
-    assert(project1FromListed?.updatedAt)
+
+    const {
+      createdAt: project1CreatedAt,
+      updatedAt: project1UpdatedAt,
+      ...project1OtherInfo
+    } = project1FromListed
+
+    assert(project1CreatedAt)
+    assert(project1UpdatedAt)
+    assert.deepEqual(project1OtherInfo, {
+      projectId: project1Id,
+      name: 'project 1',
+      projectColor: '#123456',
+      projectDescription: undefined,
+    })
 
     assert(project2FromListed)
-    assert.equal(project2FromListed?.name, 'project 2 updated')
-    assert(project2FromListed?.createdAt)
-    assert(project2FromListed?.updatedAt)
+
+    const {
+      createdAt: project2CreatedAt,
+      updatedAt: project2UpdatedAt,
+      ...project2OtherInfo
+    } = project2FromListed
+
+    assert(project2CreatedAt)
+    assert(project2UpdatedAt)
+    assert.deepEqual(project2OtherInfo, {
+      projectId: project2Id,
+      name: 'project 2 updated',
+      projectColor: undefined,
+      projectDescription: 'project 2 description',
+    })
   })
 })
 
@@ -304,11 +348,15 @@ test('Managing added projects', async (t) => {
       assert.deepEqual(settings1, {
         name: 'project 1',
         defaultPresets: undefined,
+        projectColor: undefined,
+        projectDescription: undefined,
       })
 
       assert.deepEqual(settings2, {
         name: 'project 2',
         defaultPresets: undefined,
+        projectColor: undefined,
+        projectDescription: undefined,
       })
     }
   )
