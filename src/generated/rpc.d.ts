@@ -7,7 +7,6 @@ export interface Invite {
     roleName?: string | undefined;
     roleDescription?: string | undefined;
     invitorName: string;
-    /** TODO: Should this be required? */
     projectColor?: string | undefined;
     projectDescription?: string | undefined;
 }
