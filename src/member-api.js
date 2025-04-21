@@ -330,7 +330,7 @@ export class MemberApi extends TypedEmitter {
     { dangerouslyAllowInsecureConnections = false } = {}
   ) {
     // Get device ID for URL
-    // Prase through URL to ensure end pathname if missing
+    // Parse through URL to ensure end pathname if missing
     const member = await this.getById(serverDeviceId)
 
     if (!member.selfHostedServerDetails) {
