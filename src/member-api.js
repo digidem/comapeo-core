@@ -157,12 +157,17 @@ export class MemberApi extends TypedEmitter {
       const projectName = project.name
       assert(projectName, 'Project must have a name to invite people')
 
+      const projectColor = project.projectColor
+      const projectDescription = project.projectDescription
+
       abortSignal.throwIfAborted()
 
       const invite = {
         inviteId,
         projectInviteId,
         projectName,
+        projectColor,
+        projectDescription,
         roleName,
         roleDescription,
         invitorName,

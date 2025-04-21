@@ -9,6 +9,8 @@ message Invite {
   optional string roleName = 4;
   optional string roleDescription = 5;
   string invitorName = 6;
+  optional string projectColor = 7;
+  optional string projectDescription = 8;
 }
 
 message InviteCancel {

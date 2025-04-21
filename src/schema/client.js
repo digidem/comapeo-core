@@ -7,9 +7,10 @@ import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable, customJson } from './utils.js'
 
 /**
+ * @import { ProjectSettings } from '@comapeo/schema'
+ *
  * @internal
- * @typedef {object} ProjectInfo
- * @prop {string} [name]
+ * @typedef {Pick<ProjectSettings, 'name' | 'projectColor' | 'projectDescription'>} ProjectInfo
  */
 
 const projectInfoColumn =
