@@ -155,8 +155,6 @@ export class MemberApi extends TypedEmitter {
       const projectInviteId = projectKeyToProjectInviteId(this.#projectKey)
       const project = await this.#dataTypes.project.getByDocId(projectId)
       const projectName = project.name
-
-      // TODO: Require projectColor to be set as well?
       assert(projectName, 'Project must have a name to invite people')
 
       const projectColor = project.projectColor
