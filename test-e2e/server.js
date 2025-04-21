@@ -21,6 +21,7 @@ import {
   waitForSync,
 } from './utils.js'
 import { fileURLToPath } from 'node:url'
+import WebSocket from 'ws'
 /** @import { FastifyInstance } from 'fastify' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -287,6 +288,45 @@ test('adding a server peer', async (t) => {
     new URL(serverBaseUrl),
     'server peer stores base URL'
   )
+})
+
+test('adding a server peer and getting stream errors in connectServers', async (t) => {
+  let shouldFail = false
+  /**
+   * @param {string} url
+   * @returns {WebSocket}
+   */
+  function makeWebsocket(url) {
+    if (shouldFail) {
+      const ws = new WebSocket(url)
+      process.nextTick(() => {
+        ws.emit('error', new Error('Unexpected error'))
+      })
+      return ws
+    } else {
+      shouldFail = true
+      return new WebSocket(url)
+    }
+  }
+
+  const manager = createManager('device0', t, {
+    makeWebsocket,
+  })
+
+  const projectId = await manager.createProject({ name: 'foo' })
+  const project = await manager.getProject(projectId)
+
+  const { serverBaseUrl } = await createTestServer(t)
+
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+
+  const serverPeer = await findServerPeer(project)
+  assert(serverPeer, 'expected a server peer to be found by the client')
+
+  project.$sync.disconnectServers()
+  project.$sync.connectServers()
 })
 
 test("can't add a server to two different projects", async (t) => {

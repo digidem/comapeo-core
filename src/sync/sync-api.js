@@ -99,12 +99,14 @@ export class SyncApi extends TypedEmitter {
   #getReplicationStream
   /** @type {Map<string, WebSocket>} */
   #serverWebsockets = new Map()
+  #makeWebsocket
 
   /**
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {CoreOwnership} opts.coreOwnership
    * @param {import('../roles.js').Roles} opts.roles
+   * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => Promise<Iterable<string>>} opts.getServerWebsocketUrls
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {import('../blob-store/index.js').BlobStore} opts.blobStore
@@ -115,6 +117,7 @@ export class SyncApi extends TypedEmitter {
     coreManager,
     throttleMs = 200,
     roles,
+    makeWebsocket = (url) => new WebSocket(url),
     getServerWebsocketUrls,
     getReplicationStream,
     logger,
@@ -126,6 +129,7 @@ export class SyncApi extends TypedEmitter {
     this.#coreManager = coreManager
     this.#coreOwnership = coreOwnership
     this.#roles = roles
+    this.#makeWebsocket = makeWebsocket
     this.#getServerWebsocketUrls = getServerWebsocketUrls
     this.#getReplicationStream = getReplicationStream
     this[kSyncState] = new SyncState({
@@ -332,7 +336,7 @@ export class SyncApi extends TypedEmitter {
             continue
           }
 
-          const websocket = new WebSocket(url)
+          const websocket = this.#makeWebsocket(url)
 
           /** @param {Error} err */
           const onWebsocketError = (err) => {
@@ -354,7 +358,7 @@ export class SyncApi extends TypedEmitter {
           websocket.on('unexpected-response', onWebsocketUnexpectedResponse)
 
           const replicationStream = this.#getReplicationStream()
-          wsCoreReplicator(websocket, replicationStream)
+          wsCoreReplicator(websocket, replicationStream).catch(noop)
 
           this.#serverWebsockets.set(url, websocket)
           websocket.once('close', () => {
