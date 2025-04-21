@@ -71,6 +71,7 @@ test('invite-received event has expected payload', async () => {
   const partialInvite = {
     ...bareInvite,
     inviteId: randomBytes(32),
+    projectColor: '#123456',
     roleDescription: 'Cool Role',
   }
   rpc.emit('invite', invitorPeerId, partialInvite)
@@ -80,6 +81,7 @@ test('invite-received event has expected payload', async () => {
     inviteId: randomBytes(32),
     roleName: 'Superfan',
     roleDescription: 'This Cool Role',
+    projectDescription: 'cool project',
   }
   rpc.emit('invite', invitorPeerId, fullInvite)
 
@@ -99,6 +101,7 @@ test('invite-received event has expected payload', async () => {
       projectName,
       roleDescription: 'Cool Role',
       invitorName: 'Your Friend',
+      projectColor: '#123456',
       state: 'pending',
     },
     {
@@ -109,6 +112,7 @@ test('invite-received event has expected payload', async () => {
       roleName: 'Superfan',
       roleDescription: 'This Cool Role',
       invitorName: 'Your Friend',
+      projectDescription: 'cool project',
       state: 'pending',
     },
   ]

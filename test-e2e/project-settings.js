@@ -46,6 +46,8 @@ test('Project settings create, read, and update operations', async () => {
 
   const expectedSettings = {
     name: 'updated',
+    projectColor: '#123456',
+    projectDescription: 'cool project',
   }
 
   const updatedSettings = await project.$setProjectSettings(expectedSettings)

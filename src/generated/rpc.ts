@@ -9,6 +9,8 @@ export interface Invite {
   roleName?: string | undefined;
   roleDescription?: string | undefined;
   invitorName: string;
+  projectColor?: string | undefined;
+  projectDescription?: string | undefined;
 }
 
 export interface InviteCancel {
@@ -201,6 +203,12 @@ export const Invite = {
     if (message.invitorName !== "") {
       writer.uint32(50).string(message.invitorName);
     }
+    if (message.projectColor !== undefined) {
+      writer.uint32(58).string(message.projectColor);
+    }
+    if (message.projectDescription !== undefined) {
+      writer.uint32(66).string(message.projectDescription);
+    }
     return writer;
   },
 
@@ -253,6 +261,20 @@ export const Invite = {
 
           message.invitorName = reader.string();
           continue;
+        case 7:
+          if (tag !== 58) {
+            break;
+          }
+
+          message.projectColor = reader.string();
+          continue;
+        case 8:
+          if (tag !== 66) {
+            break;
+          }
+
+          message.projectDescription = reader.string();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -273,6 +295,8 @@ export const Invite = {
     message.roleName = object.roleName ?? undefined;
     message.roleDescription = object.roleDescription ?? undefined;
     message.invitorName = object.invitorName ?? "";
+    message.projectColor = object.projectColor ?? undefined;
+    message.projectDescription = object.projectDescription ?? undefined;
     return message;
   },
 };

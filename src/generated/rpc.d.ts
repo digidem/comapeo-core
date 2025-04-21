@@ -7,6 +7,8 @@ export interface Invite {
     roleName?: string | undefined;
     roleDescription?: string | undefined;
     invitorName: string;
+    projectColor?: string | undefined;
+    projectDescription?: string | undefined;
 }
 export interface InviteCancel {
     inviteId: Buffer;

@@ -17,7 +17,11 @@ test('member invite accepted & invite states', async (t) => {
   t.after(disconnectPeers)
   await waitForPeers([creator, joiner])
 
-  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const createdProjectId = await creator.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
   const creatorProject = await creator.getProject(createdProjectId)
 
   await assert.rejects(
@@ -41,6 +45,16 @@ test('member invite accepted & invite states', async (t) => {
     'inviteId has at least 256 bits of entropy'
   )
   assert.equal(invite.projectName, 'Mapeo', 'project name of invite matches')
+  assert.equal(
+    invite.projectColor,
+    '#123456',
+    'project color of invite matches'
+  )
+  assert.equal(
+    invite.projectDescription,
+    'fun project',
+    'project description of invite matches'
+  )
 
   const acceptPromise = joiner.invite.accept(invite)
 
