@@ -19,7 +19,12 @@ import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { ErrorWithCode, getErrorMessage } from './lib/error.js'
 import { InviteAbortedError } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
-import { MEMBER_ROLE_ID, ROLES, isRoleIdForNewInvite } from './roles.js'
+import {
+  BLOCKED_ROLE_ID,
+  MEMBER_ROLE_ID,
+  ROLES,
+  isRoleIdForNewInvite,
+} from './roles.js'
 /**
  * @import {
  *   DeviceInfo,
@@ -318,6 +323,46 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
+   * Remove a server peer. Only works when the peer is reachable
+   *
+   * @param {string} serverDeviceId
+   * @param {object} [options]
+   * @param {boolean} [options.dangerouslyAllowInsecureConnections] Allow insecure network connections. Should only be used in tests.
+   * @returns {Promise<void>}
+   */
+  async removeServerPeer(
+    serverDeviceId,
+    { dangerouslyAllowInsecureConnections = false } = {}
+  ) {
+    // Get device ID for URL
+    // Parse through URL to ensure end pathname if missing
+    const member = await this.getById(serverDeviceId)
+
+    if (!member.selfHostedServerDetails) {
+      throw new ErrorWithCode(
+        'DEVICE_ID_NOT_FOR_SERVER',
+        'DeviceId is not for a server peer'
+      )
+    }
+
+    if (member.role.roleId === BLOCKED_ROLE_ID) {
+      throw new ErrorWithCode('ALREADY_BLOCKED', 'Server peer already blocked')
+    }
+
+    const { baseUrl } = member.selfHostedServerDetails
+
+    // Add blocked role to project
+    await this.#roles.assignRole(serverDeviceId, BLOCKED_ROLE_ID)
+
+    // TODO: Catch fail and sync with server after
+    await this.#waitForInitialSyncWithServer({
+      baseUrl,
+      serverDeviceId,
+      dangerouslyAllowInsecureConnections,
+    })
+  }
+
+  /**
    * @param {string} baseUrl Server base URL. Should already be validated.
    * @returns {Promise<{ serverDeviceId: string }>}
    */
@@ -448,6 +493,7 @@ export class MemberApi extends TypedEmitter {
       result.name = deviceInfo.name
       result.deviceType = deviceInfo.deviceType
       result.joinedAt = deviceInfo.createdAt
+      result.selfHostedServerDetails = deviceInfo.selfHostedServerDetails
     } catch (err) {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available

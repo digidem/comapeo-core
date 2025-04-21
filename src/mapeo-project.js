@@ -410,9 +410,9 @@ export class MapeoProject extends TypedEmitter {
             member.selfHostedServerDetails
           ) {
             const { baseUrl } = member.selfHostedServerDetails
-            const wsUrl = new URL(`/sync/${this.#projectPublicId}`, baseUrl)
-            wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
-            serverWebsocketUrls.push(wsUrl.href)
+            serverWebsocketUrls.push(
+              baseUrlToWS(baseUrl, this.#projectPublicId)
+            )
           }
         }
         return serverWebsocketUrls
@@ -1085,4 +1085,17 @@ function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
     )
   }
   return doc
+}
+
+/**
+ *
+ * @param {string} baseUrl
+ * @param {string} projectPublicId
+ * @returns {string}
+ */
+export function baseUrlToWS(baseUrl, projectPublicId) {
+  const wsUrl = new URL(`/sync/${projectPublicId}`, baseUrl)
+  wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
+
+  return wsUrl.href
 }
