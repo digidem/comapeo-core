@@ -1,0 +1,25 @@
+[**API**](../../README.md) • **Docs**
+
+***
+
+[API](../../README.md) / [\<internal\>](../README.md) / ProjectToAddDetails
+
+# Type Alias: ProjectToAddDetails
+
+> **ProjectToAddDetails**\<\>: `Pick`\<`ProjectJoinDetails`, `"projectKey"` \| `"encryptionKeys"`\> & `object`
+
+## Type declaration
+
+### projectColor?
+
+> `optional` **projectColor**: `string`
+
+### projectDescription?
+
+> `optional` **projectDescription**: `string`
+
+### projectName
+
+> **projectName**: `string`
+
+## Type Parameters

@@ -32,6 +32,8 @@
 
 • **opts.logger**: `undefined` \| [`Logger`](Logger.md)
 
+• **opts.makeWebsocket**: `undefined` \| (`url`) => `WebSocket` = `...`
+
 • **opts.roles**: [`Roles`](Roles.md)
 
 • **opts.throttleMs**: `undefined` \| `number` = `200`

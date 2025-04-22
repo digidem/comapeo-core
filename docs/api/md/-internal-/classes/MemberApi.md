@@ -38,6 +38,8 @@ public key of this device as hex string
 
 • **opts.getReplicationStream**
 
+• **opts.makeWebsocket**: `undefined` \| (`url`) => `WebSocket` = `...`
+
 • **opts.projectKey**: `Buffer`
 
 • **opts.roles**: [`Roles`](Roles.md)
@@ -161,6 +163,28 @@ Hard-code the invite ID. Only for tests.
 #### Returns
 
 `Promise`\<`"REJECT"` \| `"ACCEPT"` \| `"ALREADY"`\>
+
+***
+
+### removeServerPeer()
+
+> **removeServerPeer**(`serverDeviceId`, `options`?): `Promise`\<`void`\>
+
+Remove a server peer. Only works when the peer is reachable
+
+#### Parameters
+
+• **serverDeviceId**: `string`
+
+• **options?** = `{}`
+
+• **options.dangerouslyAllowInsecureConnections?**: `undefined` \| `boolean` = `false`
+
+Allow insecure network connections. Should only be used in tests.
+
+#### Returns
+
+`Promise`\<`void`\>
 
 ***
 

@@ -107,6 +107,22 @@ fails to connect
 
 ***
 
+### receiveAck()
+
+> **receiveAck**(`type`, `ack`): `void`
+
+#### Parameters
+
+• **type**: `"DeviceInfo"` \| `"Invite"` \| `"InviteCancel"` \| `"InviteResponse"` \| `"ProjectJoinDetails"` \| `"InviteAck"` \| `"InviteCancelAck"` \| `"InviteResponseAck"` \| `"ProjectJoinDetailsAck"`
+
+• **ack**: [`AckResponse`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/type-aliases/AckResponse.md)
+
+#### Returns
+
+`void`
+
+***
+
 ### receiveDeviceInfo()
 
 > **receiveDeviceInfo**(`deviceInfo`): `void`
@@ -149,9 +165,37 @@ fails to connect
 
 ***
 
+### sendInviteAck()
+
+> **sendInviteAck**(`invite`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **invite**: `Invite`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### sendInviteCancel()
 
 > **sendInviteCancel**(`inviteCancel`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **inviteCancel**: `InviteCancel`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
+### sendInviteCancelAck()
+
+> **sendInviteCancelAck**(`inviteCancel`): `Promise`\<`void`\>
 
 #### Parameters
 
@@ -177,6 +221,20 @@ fails to connect
 
 ***
 
+### sendInviteResponseAck()
+
+> **sendInviteResponseAck**(`response`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **response**: `InviteResponse`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### sendProjectJoinDetails()
 
 > **sendProjectJoinDetails**(`details`): `Promise`\<`void`\>
@@ -188,3 +246,29 @@ fails to connect
 #### Returns
 
 `Promise`\<`void`\>
+
+***
+
+### sendProjectJoinDetailsAck()
+
+> **sendProjectJoinDetailsAck**(`details`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **details**: `ProjectJoinDetails`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
+### supportsAck()
+
+> **supportsAck**(): `boolean`
+
+Check if RPC Acknowledgement messages are supported by this peer
+
+#### Returns
+
+`boolean`

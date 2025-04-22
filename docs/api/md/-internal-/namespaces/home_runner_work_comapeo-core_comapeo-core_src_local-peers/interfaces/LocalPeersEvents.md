@@ -62,6 +62,24 @@ Emitted when project details are received
 
 ***
 
+### got-project-details-ack()
+
+> **got-project-details-ack**: (`peerId`, `details`) => `void`
+
+Emitted when project details are acknowledged as received
+
+#### Parameters
+
+• **peerId**: `string`
+
+• **details**: `ProjectJoinDetailsAck`
+
+#### Returns
+
+`void`
+
+***
+
 ### invite()
 
 > **invite**: (`peerId`, `invite`) => `void`
@@ -73,6 +91,24 @@ Emitted when an invite is received
 • **peerId**: `string`
 
 • **invite**: `Invite`
+
+#### Returns
+
+`void`
+
+***
+
+### invite-ack()
+
+> **invite-ack**: (`peerId`, `invite`) => `void`
+
+Emitted when an invite acknowledgement is received
+
+#### Parameters
+
+• **peerId**: `string`
+
+• **invite**: `InviteAck`
 
 #### Returns
 
@@ -98,6 +134,24 @@ Emitted when we receive a cancelation for an invite
 
 ***
 
+### invite-cancel-ack()
+
+> **invite-cancel-ack**: (`peerId`, `invite`) => `void`
+
+Emitted when we receive a cancelation acknowledgement for an invite
+
+#### Parameters
+
+• **peerId**: `string`
+
+• **invite**: `InviteCancelAck`
+
+#### Returns
+
+`void`
+
+***
+
 ### invite-response()
 
 > **invite-response**: (`peerId`, `inviteResponse`) => `void`
@@ -109,6 +163,24 @@ Emitted when an invite response is received
 • **peerId**: `string`
 
 • **inviteResponse**: `InviteResponse`
+
+#### Returns
+
+`void`
+
+***
+
+### invite-response-ack()
+
+> **invite-response-ack**: (`peerId`, `inviteResponse`) => `void`
+
+Emitted when an invite response acknowledgement is received
+
+#### Parameters
+
+• **peerId**: `string`
+
+• **inviteResponse**: `InviteResponseAck`
 
 #### Returns
 
