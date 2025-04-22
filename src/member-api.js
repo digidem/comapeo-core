@@ -62,6 +62,7 @@ export class MemberApi extends TypedEmitter {
   #getProjectName
   #projectKey
   #rpc
+  #makeWebsocket
   #getReplicationStream
   #waitForInitialSyncWithPeer
   #dataTypes
@@ -78,6 +79,7 @@ export class MemberApi extends TypedEmitter {
    * @param {() => Promisable<undefined | string>} opts.getProjectName
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
+   * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {Object} opts.dataTypes
@@ -92,6 +94,7 @@ export class MemberApi extends TypedEmitter {
     getProjectName,
     projectKey,
     rpc,
+    makeWebsocket = (url) => new WebSocket(url),
     getReplicationStream,
     waitForInitialSyncWithPeer,
     dataTypes,
@@ -104,6 +107,7 @@ export class MemberApi extends TypedEmitter {
     this.#getProjectName = getProjectName
     this.#projectKey = projectKey
     this.#rpc = rpc
+    this.#makeWebsocket = makeWebsocket
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
     this.#dataTypes = dataTypes
@@ -426,7 +430,7 @@ export class MemberApi extends TypedEmitter {
         ? 'ws:'
         : 'wss:'
 
-    const websocket = new WebSocket(websocketUrl)
+    const websocket = this.#makeWebsocket(websocketUrl.href)
 
     try {
       await pEvent(websocket, 'open', { rejectionEvents: ['error'] })
@@ -448,7 +452,7 @@ export class MemberApi extends TypedEmitter {
     const onErrorPromise = pEvent(websocket, 'error')
 
     const replicationStream = this.#getReplicationStream()
-    wsCoreReplicator(websocket, replicationStream)
+    const streamPromise = wsCoreReplicator(websocket, replicationStream)
 
     const syncAbortController = new AbortController()
     const syncPromise = this.#waitForInitialSyncWithPeer(
@@ -456,7 +460,11 @@ export class MemberApi extends TypedEmitter {
       syncAbortController.signal
     )
 
-    const errorEvent = await Promise.race([onErrorPromise, syncPromise])
+    const errorEvent = await Promise.race([
+      onErrorPromise,
+      syncPromise,
+      streamPromise,
+    ])
 
     if (errorEvent) {
       syncAbortController.abort()

@@ -57,6 +57,7 @@ import { IconApi } from './icon-api.js'
 import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
 import { NotFoundError, nullIfNotFound } from './errors.js'
+import { WebSocket } from 'ws'
 /** @import { ProjectSettingsValue } from '@comapeo/schema' */
 /** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter } from './types.js' */
 
@@ -116,6 +117,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
+   * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {Logger} [opts.logger]
@@ -132,6 +134,7 @@ export class MapeoProject extends TypedEmitter {
     projectSecretKey,
     encryptionKeys,
     getMediaBaseUrl,
+    makeWebsocket = (url) => new WebSocket(url),
     localPeers,
     logger,
     isArchiveDevice,
@@ -350,6 +353,7 @@ export class MapeoProject extends TypedEmitter {
       getProjectName: this.#getProjectName.bind(this),
       projectKey,
       rpc: localPeers,
+      makeWebsocket,
       getReplicationStream,
       waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
         this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
@@ -400,6 +404,7 @@ export class MapeoProject extends TypedEmitter {
       roles: this.#roles,
       blobStore: this.#blobStore,
       logger: this.#l,
+      makeWebsocket,
       getServerWebsocketUrls: async () => {
         const members = await this.#memberApi.getMany()
         /** @type {string[]} */

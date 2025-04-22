@@ -56,6 +56,7 @@ import {
   kRescindFullStopRequest,
 } from './sync/sync-api.js'
 import { NotFoundError } from './errors.js'
+import { WebSocket } from 'ws'
 
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
@@ -120,6 +121,7 @@ export class MapeoManager extends TypedEmitter {
   #loggerBase
   #l
   #defaultConfigPath
+  #makeWebsocket
 
   /**
    * @param {Object} opts
@@ -133,6 +135,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.customMapPath] File path to a locally stored Styled Map Package (SMP).
    * @param {string} [opts.fallbackMapPath] File path to a locally stored Styled Map Package (SMP)
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
+   * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    */
   constructor({
     rootKey,
@@ -145,11 +148,13 @@ export class MapeoManager extends TypedEmitter {
     customMapPath,
     fallbackMapPath = DEFAULT_FALLBACK_MAP_FILE_PATH,
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
+    makeWebsocket = (url) => new WebSocket(url),
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#defaultConfigPath = defaultConfigPath
+    this.#makeWebsocket = makeWebsocket
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
@@ -512,6 +517,7 @@ export class MapeoManager extends TypedEmitter {
       logger: this.#loggerBase,
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
       isArchiveDevice,
+      makeWebsocket: this.#makeWebsocket,
     })
     await project[kClearDataIfLeft]()
     return project
