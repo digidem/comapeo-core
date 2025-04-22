@@ -46,6 +46,8 @@ mapeo/crypto KeyManager instance
 
 • **opts.logger**: `undefined` \| [`Logger`](Logger.md)
 
+• **opts.makeWebsocket**: `undefined` \| (`url`) => `WebSocket` = `...`
+
 • **opts.projectKey**: `Buffer`
 
 32-byte public key of the project creator core

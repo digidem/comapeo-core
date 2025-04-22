@@ -12,7 +12,7 @@
 
 ## Parameters
 
-• **projectDetails**: `Pick`\<`ProjectJoinDetails`, `"projectKey"` \| `"encryptionKeys"`\> & `object`
+• **projectDetails**: [`ProjectToAddDetails`](ProjectToAddDetails.md)
 
 ## Returns
 

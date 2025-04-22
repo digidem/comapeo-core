@@ -16,10 +16,13 @@
 
 ### Interfaces
 
+- [AckWaiter](interfaces/AckWaiter.md)
 - [LocalPeersEvents](interfaces/LocalPeersEvents.md)
 
 ### Type Aliases
 
+- [AckFilter](type-aliases/AckFilter.md)
+- [AckResponse](type-aliases/AckResponse.md)
 - [PeerInfo](type-aliases/PeerInfo.md)
 - [PeerInfoConnecting](type-aliases/PeerInfoConnecting.md)
 - [PeerInfoInternal](type-aliases/PeerInfoInternal.md)

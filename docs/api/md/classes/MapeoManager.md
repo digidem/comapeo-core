@@ -50,6 +50,8 @@ File path to a locally stored Styled Map Package (SMP)
 
 Fastify server instance
 
+• **opts.makeWebsocket**: `undefined` \| (`url`) => `WebSocket` = `...`
+
 • **opts.projectMigrationsFolder**: `string`
 
 path for drizzle migrations folder for project database
@@ -90,7 +92,7 @@ path for drizzle migrations folder for project database
 
 ### addProject()
 
-> **addProject**(`projectJoinDetails`, `opts`?): `Promise`\<`string`\>
+> **addProject**(`projectToAddDetails`, `opts`?): `Promise`\<`string`\>
 
 Add a project to this device. After adding a project the client should
 await `project.$waitForInitialSync()` to ensure that the device has
@@ -98,7 +100,7 @@ downloaded their proof of project membership and the project config.
 
 #### Parameters
 
-• **projectJoinDetails**: `Pick`\<`ProjectJoinDetails`, `"projectKey"` \| `"encryptionKeys"`\> & `object`
+• **projectToAddDetails**: [`ProjectToAddDetails`](../-internal-/type-aliases/ProjectToAddDetails.md)
 
 • **opts?** = `{}`
 
@@ -143,6 +145,12 @@ Create a new project.
 • **options?** = `{}`
 
 • **options.configPath?**: `string` = `...`
+
+• **options.name?**: `string`
+
+• **options.projectColor?**: `string`
+
+• **options.projectDescription?**: `string`
 
 #### Returns
 
@@ -228,11 +236,11 @@ isArchiveDevice
 
 ### listProjects()
 
-> **listProjects**(): `Promise`\<`Pick`\<`object`, `"name"`\> & `object`[]\>
+> **listProjects**(): `Promise`\<[`ListedProject`](../-internal-/type-aliases/ListedProject.md)[]\>
 
 #### Returns
 
-`Promise`\<`Pick`\<`object`, `"name"`\> & `object`[]\>
+`Promise`\<[`ListedProject`](../-internal-/type-aliases/ListedProject.md)[]\>
 
 ***
 

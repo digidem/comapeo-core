@@ -8,10 +8,6 @@
 
 ## Index
 
-### Interfaces
-
-- [ProjectInfo](interfaces/ProjectInfo.md)
-
 ### Variables
 
 - [deviceSettingsTable](variables/deviceSettingsTable.md)
@@ -24,3 +20,9 @@
 ### DeviceInfoParam
 
 Re-exports [DeviceInfoParam](../../type-aliases/DeviceInfoParam.md)
+
+***
+
+### ProjectInfo
+
+Re-exports [ProjectInfo](../../type-aliases/ProjectInfo.md)
