@@ -17,7 +17,11 @@ import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { ErrorWithCode, getErrorMessage } from './lib/error.js'
-import { InviteAbortedError } from './errors.js'
+import {
+  InviteAbortedError,
+  InviteInitialSyncFail,
+  ProjectDetailsSendFail,
+} from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
@@ -200,15 +204,25 @@ export class MemberApi extends TypedEmitter {
         case InviteResponse_Decision.DECISION_UNSPECIFIED:
           return InviteResponse_Decision.REJECT
         case InviteResponse_Decision.ACCEPT:
-          await this.#rpc.sendProjectJoinDetails(deviceId, {
-            inviteId,
-            projectKey: this.#projectKey,
-            encryptionKeys: this.#encryptionKeys,
-          })
+          try {
+            await this.#rpc.sendProjectJoinDetails(deviceId, {
+              inviteId,
+              projectKey: this.#projectKey,
+              encryptionKeys: this.#encryptionKeys,
+            })
+          } catch {
+            throw new ProjectDetailsSendFail()
+          }
 
           // Only add after we know they got the details
           // Otherwise the joiner will be stuck unable to join
           await this.#roles.assignRole(deviceId, roleId)
+
+          try {
+            await this.#waitForInitialSyncWithPeer(deviceId, abortSignal)
+          } catch {
+            throw InviteInitialSyncFail()
+          }
 
           return inviteResponse.decision
         default:

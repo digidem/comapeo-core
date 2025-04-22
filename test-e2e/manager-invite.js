@@ -637,48 +637,37 @@ test('disconnect before invite accept', async (t) => {
 
 // TODO: It's not possible in e2e tests to disconnect peers at the right moment.
 // This test is flaky, and sometimes the project details are sent before the
-// peers disconnect, so skipping this test for now.
-test(
-  'disconnect before sending project join details',
-  { skip: true },
-  async (t) => {
-    const clock = FakeTimers.install({ shouldAdvanceTime: true })
-    t.after(() => clock.uninstall())
-    const [creator, joiner] = await createManagers(2, t)
-    const disconnectPeers = connectPeers([creator, joiner])
-    t.after(() => disconnectPeers())
-    await waitForPeers([creator, joiner])
+// peers disconnect, so can't expect specific errors.
+test('disconnect before sending project join details', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
+  const [creator, joiner] = await createManagers(2, t)
+  const disconnectPeers = connectPeers([creator, joiner])
+  t.after(() => disconnectPeers())
+  await waitForPeers([creator, joiner])
 
-    const createdProjectId = await creator.createProject({ name: 'Mapeo' })
-    const creatorProject = await creator.getProject(createdProjectId)
+  const createdProjectId = await creator.createProject({ name: 'Mapeo' })
+  const creatorProject = await creator.getProject(createdProjectId)
 
-    const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
-    const invitePromise = creatorProject.$member.invite(joiner.deviceId, {
-      roleId: MEMBER_ROLE_ID,
-    })
-    const assertInviteRejectsPromise = assert.rejects(
-      invitePromise,
-      {
-        name: 'PeerDisconnectedError',
-        message: 'Peer disconnected before sending project join details',
-      },
-      'invite promise rejects when peer disconnects'
-    )
-    const invite = await inviteReceivedPromise
-    const assertAcceptRejectsPromise = assert.rejects(
-      () => joiner.invite.accept(invite),
-      {
-        name: 'TimeoutError',
-        message: 'Timed out waiting for project details',
-      },
-      'accepting invite times out when project details are not received'
-    )
-    await disconnectPeers()
-    // Run down the timeout waiting for project details
-    clock.runAll()
-    await Promise.all([assertInviteRejectsPromise, assertAcceptRejectsPromise])
-  }
-)
+  const inviteReceivedPromise = pEvent(joiner.invite, 'invite-received')
+  const invitePromise = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+  // Specific error can be different due to race conditions
+  const assertInviteRejectsPromise = assert.rejects(
+    invitePromise,
+    'invite promise rejects when peer disconnects'
+  )
+  const invite = await inviteReceivedPromise
+  const assertAcceptRejectsPromise = assert.rejects(
+    () => joiner.invite.accept(invite),
+    'accepting invite rejects when project details are not received'
+  )
+  await disconnectPeers()
+  // Run down the timeout waiting for project details
+  clock.runAll()
+  await Promise.all([assertInviteRejectsPromise, assertAcceptRejectsPromise])
+})
 
 test('Attempting to accept unknown inviteId throws', async (t) => {
   const [creator, joiner] = await createManagers(2, t)

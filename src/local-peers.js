@@ -19,6 +19,7 @@ import {
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
 import pTimeout, { TimeoutError } from 'p-timeout'
+import { RPCDisconnectBeforeAck, RPCDisconnectBeforeSending } from './errors.js'
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 /** @import {DeferredPromise} from 'p-defer' */
@@ -191,11 +192,11 @@ class Peer {
     // This promise should have already resolved, but if the peer never connected then we reject here
     this.#connected.reject(new PeerFailedConnectionError())
     for (const listener of this.#drainedListeners) {
-      listener.reject(new Error('RPC Disconnected before sending'))
+      listener.reject(new RPCDisconnectBeforeSending())
     }
     for (const waiters of this.#ackWaiters.values()) {
       for (const { deferred } of waiters) {
-        deferred.reject(new Error('RPC disconnected before receiving ACK'))
+        deferred.reject(new RPCDisconnectBeforeAck())
       }
     }
     this.#ackWaiters.clear()
