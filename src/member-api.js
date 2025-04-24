@@ -224,7 +224,7 @@ export class MemberApi extends TypedEmitter {
           } catch {
             // Mark them as "left" so we can retry the flow
             await this.#roles.assignRole(deviceId, LEFT_ROLE_ID)
-            throw InviteInitialSyncFail()
+            throw new InviteInitialSyncFail()
           }
 
           return inviteResponse.decision
