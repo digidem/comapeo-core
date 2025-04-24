@@ -55,7 +55,7 @@ export class RPCDisconnectBeforeSending extends Error {
 
 export class RPCDisconnectBeforeAck extends Error {
   /** @param {string} [message] */
-  constructor(message = 'RPC disconnected before recieving acknowledgement') {
+  constructor(message = 'RPC disconnected before receiving acknowledgement') {
     super(message)
     this.name = 'RPCDisconnectBeforeAck'
   }
