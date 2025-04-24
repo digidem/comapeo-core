@@ -31,7 +31,7 @@ export class InviteAbortedError extends Error {
 
 export class ProjectDetailsSendFail extends Error {
   /** @param {string} [message] */
-  constructor(message = 'Project Details Failed to send') {
+  constructor(message = 'Project details failed to send') {
     super(message)
     this.name = 'ProjectDetailsSendFail'
   }
