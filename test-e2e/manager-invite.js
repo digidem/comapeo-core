@@ -667,6 +667,10 @@ test('disconnect before sending project join details', async (t) => {
   // Run down the timeout waiting for project details
   clock.runAll()
   await Promise.all([assertInviteRejectsPromise, assertAcceptRejectsPromise])
+
+  const members = await creatorProject.$member.getMany()
+
+  assert.equal(members.length, 1, 'Member did not get added after fail')
 })
 
 test('Attempting to accept unknown inviteId throws', async (t) => {

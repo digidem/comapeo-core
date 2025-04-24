@@ -25,6 +25,7 @@ import {
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
+  LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
   ROLES,
   isRoleIdForNewInvite,
@@ -221,6 +222,8 @@ export class MemberApi extends TypedEmitter {
           try {
             await this.#waitForInitialSyncWithPeer(deviceId, abortSignal)
           } catch {
+            // Mark them as "left" so we can retry the flow
+            await this.#roles.assignRole(deviceId, LEFT_ROLE_ID)
             throw InviteInitialSyncFail()
           }
 
