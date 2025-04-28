@@ -219,7 +219,7 @@ export class MemberApi extends TypedEmitter {
             })
           } catch {
             try {
-              // Mark them as "left" so we can retry the flow
+              // Mark them as "failed" so we can retry the flow
               await this.#roles.assignRole(deviceId, FAILED_ROLE_ID)
             } catch (e) {
               console.error(e)
