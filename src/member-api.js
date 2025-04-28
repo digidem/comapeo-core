@@ -230,7 +230,7 @@ export class MemberApi extends TypedEmitter {
           try {
             await this.#waitForInitialSyncWithPeer(deviceId, abortSignal)
           } catch {
-            // Mark them as "left" so we can retry the flow
+            // Mark them as "failed" so we can retry the flow
             await this.#roles.assignRole(deviceId, FAILED_ROLE_ID)
             throw new InviteInitialSyncFailError()
           }
