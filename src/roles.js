@@ -135,7 +135,7 @@ const BLOCKED_ROLE = {
  */
 const FAILED_ROLE = {
   roleId: FAILED_ROLE_ID,
-  name: 'Blocked',
+  name: 'Failed',
   docs: mapObject(currentSchemaVersions, (key) => {
     return [
       key,
