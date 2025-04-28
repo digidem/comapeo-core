@@ -29,35 +29,35 @@ export class InviteAbortedError extends Error {
   }
 }
 
-export class ProjectDetailsSendFail extends Error {
+export class ProjectDetailsSendFailError extends Error {
   /** @param {string} [message] */
   constructor(message = 'Project details failed to send') {
     super(message)
-    this.name = 'ProjectDetailsSendFail'
+    this.name = 'ProjectDetailsSendFailError'
   }
 }
 
-export class InviteInitialSyncFail extends Error {
+export class InviteInitialSyncFailError extends Error {
   /** @param {string} [message] */
   constructor(message = 'Failed to sync config for invite') {
     super(message)
-    this.name = 'InviteInitialSyncFail'
+    this.name = 'InviteInitialSyncFailError'
   }
 }
 
-export class RPCDisconnectBeforeSending extends Error {
+export class RPCDisconnectBeforeSendingError extends Error {
   /** @param {string} [message] */
   constructor(message = 'RPC disconnected before sending') {
     super(message)
-    this.name = 'RPCDisconnectBeforeSending'
+    this.name = 'RPCDisconnectBeforeSendingError'
   }
 }
 
-export class RPCDisconnectBeforeAck extends Error {
+export class RPCDisconnectBeforeAckError extends Error {
   /** @param {string} [message] */
   constructor(message = 'RPC disconnected before receiving acknowledgement') {
     super(message)
-    this.name = 'RPCDisconnectBeforeAck'
+    this.name = 'RPCDisconnectBeforeAckError'
   }
 }
 

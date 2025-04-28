@@ -638,7 +638,7 @@ test('disconnect before invite accept', async (t) => {
 // TODO: It's not possible in e2e tests to disconnect peers at the right moment.
 // This test is flaky, and sometimes the project details are sent before the
 // peers disconnect, so can't expect specific errors.
-test('disconnect before sending project join details', async (t) => {
+test.only('disconnect before sending project join details', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
   const [creator, joiner] = await createManagers(2, t)
@@ -668,9 +668,27 @@ test('disconnect before sending project join details', async (t) => {
   clock.runAll()
   await Promise.all([assertInviteRejectsPromise, assertAcceptRejectsPromise])
 
-  const members = await creatorProject.$member.getMany()
+  const members = await creatorProject.$member.getActive()
 
   assert.equal(members.length, 1, 'Member did not get added after fail')
+
+  const disconnectPeers2 = connectPeers([creator, joiner])
+  t.after(() => disconnectPeers2())
+  await waitForPeers([creator, joiner])
+
+  const inviteReceivedPromise2 = pEvent(joiner.invite, 'invite-received')
+  const invitePromise2 = creatorProject.$member.invite(joiner.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const invite2 = await inviteReceivedPromise2
+  await joiner.invite.accept(invite2)
+
+  await invitePromise2
+
+  const members2 = await creatorProject.$member.getActive()
+
+  assert.equal(members2.length, 2, 'Member got added after retry')
 })
 
 test('Attempting to accept unknown inviteId throws', async (t) => {

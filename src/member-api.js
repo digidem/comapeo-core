@@ -19,13 +19,15 @@ import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { ErrorWithCode, getErrorMessage } from './lib/error.js'
 import {
   InviteAbortedError,
-  InviteInitialSyncFail,
-  ProjectDetailsSendFail,
+  InviteInitialSyncFailError,
+  ProjectDetailsSendFailError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
-  LEFT_ROLE_ID,
+  COORDINATOR_ROLE_ID,
+  CREATOR_ROLE_ID,
+  FAILED_ROLE_ID,
   MEMBER_ROLE_ID,
   ROLES,
   isRoleIdForNewInvite,
@@ -205,6 +207,10 @@ export class MemberApi extends TypedEmitter {
         case InviteResponse_Decision.DECISION_UNSPECIFIED:
           return InviteResponse_Decision.REJECT
         case InviteResponse_Decision.ACCEPT:
+          // Technically we can assign after sending project details
+          // This lets us test role removal
+          await this.#roles.assignRole(deviceId, roleId)
+
           try {
             await this.#rpc.sendProjectJoinDetails(deviceId, {
               inviteId,
@@ -212,19 +218,21 @@ export class MemberApi extends TypedEmitter {
               encryptionKeys: this.#encryptionKeys,
             })
           } catch {
-            throw new ProjectDetailsSendFail()
+            try {
+              // Mark them as "left" so we can retry the flow
+              await this.#roles.assignRole(deviceId, FAILED_ROLE_ID)
+            } catch (e) {
+              console.error(e)
+            }
+            throw new ProjectDetailsSendFailError()
           }
-
-          // Only add after we know they got the details
-          // Otherwise the joiner will be stuck unable to join
-          await this.#roles.assignRole(deviceId, roleId)
 
           try {
             await this.#waitForInitialSyncWithPeer(deviceId, abortSignal)
           } catch {
             // Mark them as "left" so we can retry the flow
-            await this.#roles.assignRole(deviceId, LEFT_ROLE_ID)
-            throw new InviteInitialSyncFail()
+            await this.#roles.assignRole(deviceId, FAILED_ROLE_ID)
+            throw new InviteInitialSyncFailError()
           }
 
           return inviteResponse.decision
@@ -526,6 +534,19 @@ export class MemberApi extends TypedEmitter {
     }
 
     return result
+  }
+
+  /**
+   * Get active members, excludes no role, blocked, and removed
+   * @returns {Promise<Array<MemberInfo>>}
+   */
+  async getActive() {
+    const members = await this.getMany()
+    return members.filter(({ role }) =>
+      [MEMBER_ROLE_ID, COORDINATOR_ROLE_ID, CREATOR_ROLE_ID].includes(
+        role.roleId
+      )
+    )
   }
 
   /**
