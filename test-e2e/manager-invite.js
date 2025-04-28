@@ -638,7 +638,7 @@ test('disconnect before invite accept', async (t) => {
 // TODO: It's not possible in e2e tests to disconnect peers at the right moment.
 // This test is flaky, and sometimes the project details are sent before the
 // peers disconnect, so can't expect specific errors.
-test.only('disconnect before sending project join details', async (t) => {
+test('disconnect before sending project join details', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
   const [creator, joiner] = await createManagers(2, t)
