@@ -25,8 +25,6 @@ import {
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
-  COORDINATOR_ROLE_ID,
-  CREATOR_ROLE_ID,
   FAILED_ROLE_ID,
   MEMBER_ROLE_ID,
   ROLES,
@@ -534,19 +532,6 @@ export class MemberApi extends TypedEmitter {
     }
 
     return result
-  }
-
-  /**
-   * Get active members, excludes no role, blocked, and removed
-   * @returns {Promise<Array<MemberInfo>>}
-   */
-  async getActive() {
-    const members = await this.getMany()
-    return members.filter(({ role }) =>
-      [MEMBER_ROLE_ID, COORDINATOR_ROLE_ID, CREATOR_ROLE_ID].includes(
-        role.roleId
-      )
-    )
   }
 
   /**

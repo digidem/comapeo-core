@@ -9,7 +9,7 @@ import FakeTimers from '@sinonjs/fake-timers'
 import { randomBytes } from 'node:crypto'
 import { noop } from '../src/utils.js'
 
-const { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } = roles
+const { COORDINATOR_ROLE_ID, CREATOR_ROLE_ID, MEMBER_ROLE_ID } = roles
 
 test('member invite accepted & invite states', async (t) => {
   const [creator, joiner] = await createManagers(2, t)
@@ -668,7 +668,10 @@ test('disconnect before sending project join details', async (t) => {
   clock.runAll()
   await Promise.all([assertInviteRejectsPromise, assertAcceptRejectsPromise])
 
-  const members = await creatorProject.$member.getActive()
+  const members = (await creatorProject.$member.getMany()).filter(({ role }) =>
+    // @ts-ignore - TS2345
+    [MEMBER_ROLE_ID, COORDINATOR_ROLE_ID, CREATOR_ROLE_ID].includes(role.roleId)
+  )
 
   assert.equal(members.length, 1, 'Member did not get added after fail')
 
@@ -686,7 +689,10 @@ test('disconnect before sending project join details', async (t) => {
 
   await invitePromise2
 
-  const members2 = await creatorProject.$member.getActive()
+  const members2 = (await creatorProject.$member.getMany()).filter(({ role }) =>
+    // @ts-ignore - TS2345
+    [MEMBER_ROLE_ID, COORDINATOR_ROLE_ID, CREATOR_ROLE_ID].includes(role.roleId)
+  )
 
   assert.equal(members2.length, 2, 'Member got added after retry')
 })
