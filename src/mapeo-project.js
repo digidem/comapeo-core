@@ -4,6 +4,8 @@ import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import * as b4a from 'b4a'
+import { Readable } from 'streamx'
 
 import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
@@ -747,6 +749,109 @@ export class MapeoProject extends TypedEmitter {
    */
   get $icons() {
     return this.#iconApi
+  }
+
+  async *#exportGeoJSONObservationsIterator(
+    observations,
+    { seenObservations = new Set() }
+  ) {
+    for (const observation of observations) {
+      const { lat, lon, docId } = observation
+      if (seenObservations.has(docId)) continue
+      seenObservations.add(docId)
+      yield b4a.from(
+        '      ' +
+          JSON.stringify({
+            type: 'Feature',
+            properties: observation,
+            geometry: {
+              type: 'Point',
+              // TODO: Altitude?
+              coordinates: [lon, lat],
+            },
+          }) +
+          '\n'
+      )
+    }
+  }
+
+  async *#exportGeoJSONTracksIterator(
+    tracks,
+    { lang, seenObservations = new Set() }
+  ) {
+    for (const track of tracks) {
+      const { observationRefs } = track
+
+      const observations = await Promise.all(
+        observationRefs.map(({ docId }) =>
+          this.#dataTypes.observation.getByDocId(docId, { lang })
+        )
+      )
+
+      // TODO: Altitude?
+      const coordinates = observations.map(({ lon, lat }) => [lon, lat])
+
+      yield b4a.from(
+        '      ' +
+          JSON.stringify({
+            type: 'Feature',
+            properties: track,
+            geometry: {
+              type: 'LineString',
+              coordinates,
+            },
+          }) +
+          '\n'
+      )
+
+      yield* this.#exportGeoJSONObservationsIterator(observations, {
+        lang,
+        seenObservations,
+      })
+    }
+  }
+
+  async *#exportGeoJSONIterator({
+    observations = true,
+    tracks = true,
+    lang,
+  } = {}) {
+    yield b4a.from(`{
+  "type": "FeatureCollection",
+  "features": [
+`)
+
+    const seenObservations = new Set()
+
+    if (tracks) {
+      const rows = await this.#dataTypes.track.getMany({ lang })
+      yield* this.#exportGeoJSONTracksIterator(rows, { lang, seenObservations })
+    }
+
+    if (observations) {
+      const rows = await this.#dataTypes.observation.getMany({ lang })
+      yield* this.#exportGeoJSONObservationsIterator(rows, {
+        seenObservations,
+      })
+    }
+
+    yield b4a.from(`
+  ]
+}
+`)
+  }
+
+  /**
+   *
+   * @param {*} param0
+   * @returns {Readable<Buffer>}
+   */
+  exportGeoJSONStream({ observations = true, tracks = true, lang } = {}) {
+    // Format based on https://doc.arcgis.com/en/arcgis-online/reference/geojson.htm
+
+    return Readable.from(
+      this.#exportGeoJSONIterator({ observations, tracks, lang })
+    )
   }
 
   /**
