@@ -60,9 +60,8 @@ import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
 import { NotFoundError, nullIfNotFound } from './errors.js'
 import { WebSocket } from 'ws'
-/** @import { ProjectSettingsValue } from '@comapeo/schema' */
-/** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter } from './types.js' */
-
+/** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
+/** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 
@@ -751,16 +750,22 @@ export class MapeoProject extends TypedEmitter {
     return this.#iconApi
   }
 
-  async *#exportGeoJSONObservationsIterator(
-    observations,
-    { seenObservations = new Set() }
-  ) {
+  /**
+   * @param {Iterable<Observation>} observations
+   * @param {Object} options
+   * @param {Set<string>} [options.seenObservations=new Set()]
+   * @returns {AsyncIterable<Buffer | Uint8Array>}
+   */
+  async *#exportObservations(observations, { seenObservations = new Set() }) {
+    let first = true
     for (const observation of observations) {
       const { lat, lon, docId } = observation
       if (seenObservations.has(docId)) continue
       seenObservations.add(docId)
+      const comma = first ? '' : ','
+      first = false
       yield b4a.from(
-        '      ' +
+        `${comma}\n      ` +
           JSON.stringify({
             type: 'Feature',
             properties: observation,
@@ -769,16 +774,20 @@ export class MapeoProject extends TypedEmitter {
               // TODO: Altitude?
               coordinates: [lon, lat],
             },
-          }) +
-          '\n'
+          })
       )
     }
   }
 
-  async *#exportGeoJSONTracksIterator(
-    tracks,
-    { lang, seenObservations = new Set() }
-  ) {
+  /**
+   * @param {Iterable<Track>} tracks
+   * @param {Object} options
+   * @param {Set<string>} [options.seenObservations=new Set()]
+   * @param {string} [options.lang]
+   * @returns {AsyncIterable<Buffer | Uint8Array>}
+   */
+  async *#exportTracks(tracks, { lang, seenObservations = new Set() }) {
+    let first = true
     for (const track of tracks) {
       const { observationRefs } = track
 
@@ -790,9 +799,10 @@ export class MapeoProject extends TypedEmitter {
 
       // TODO: Altitude?
       const coordinates = observations.map(({ lon, lat }) => [lon, lat])
-
+      const comma = first ? '' : ','
+      first = false
       yield b4a.from(
-        '      ' +
+        `${comma}\n      ` +
           JSON.stringify({
             type: 'Feature',
             properties: track,
@@ -804,13 +814,22 @@ export class MapeoProject extends TypedEmitter {
           '\n'
       )
 
-      yield* this.#exportGeoJSONObservationsIterator(observations, {
-        lang,
+      for await (const chunk of this.#exportObservations(observations, {
         seenObservations,
-      })
+      })) {
+        yield b4a.from(',')
+        yield chunk
+      }
     }
   }
 
+  /**
+   * @param {Object} [options={}]
+   * @param {boolean} [options.observations=true] Whether observations should be exported
+   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
+   * @param {string} [options.lang]
+   * @returns {AsyncIterable<Buffer | Uint8Array>}
+   */
   async *#exportGeoJSONIterator({
     observations = true,
     tracks = true,
@@ -823,14 +842,25 @@ export class MapeoProject extends TypedEmitter {
 
     const seenObservations = new Set()
 
+    let hadTracks = false
     if (tracks) {
       const rows = await this.#dataTypes.track.getMany({ lang })
-      yield* this.#exportGeoJSONTracksIterator(rows, { lang, seenObservations })
+      for await (const chunk of this.#exportTracks(rows, {
+        lang,
+        seenObservations,
+      })) {
+        hadTracks = true
+        yield chunk
+      }
+    }
+
+    if (hadTracks) {
+      yield b4a.from(',')
     }
 
     if (observations) {
       const rows = await this.#dataTypes.observation.getMany({ lang })
-      yield* this.#exportGeoJSONObservationsIterator(rows, {
+      yield* this.#exportObservations(rows, {
         seenObservations,
       })
     }
@@ -842,9 +872,12 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   *
-   * @param {*} param0
-   * @returns {Readable<Buffer>}
+   * Export observations and or tracks as a strean of GeoJSON data
+   * @param {Object} [options={}]
+   * @param {boolean} [options.observations=true] Whether observations should be exported
+   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
+   * @param {string} [options.lang]
+   * @returns {Readable<Buffer | Uint8Array>}
    */
   exportGeoJSONStream({ observations = true, tracks = true, lang } = {}) {
     // Format based on https://doc.arcgis.com/en/arcgis-online/reference/geojson.htm
