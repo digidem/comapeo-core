@@ -182,7 +182,7 @@ test('Project export tracks and observations GeoJSON to file', async () => {
 })
 
 /**
- * @param {Readable<Buffer|Uint8Array>} stream
+ * @param {AsyncIterable<Buffer|Uint8Array>} stream
  * @returns {Promise<any>}
  */
 async function parseGeoJSON(stream) {
@@ -229,7 +229,9 @@ async function setupProject(
     )
   }
 
+  /** @type {import('@comapeo/schema').Track[]} */
   let tracks = []
+
   if (makeTracks) {
     const count = DEFAULT_TRACKS
     const generated = generate('track', { count }).map(valueOf)

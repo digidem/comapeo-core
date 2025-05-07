@@ -5,6 +5,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import * as b4a from 'b4a'
+// @ts-ignore
 import { Readable, pipelinePromise } from 'streamx'
 
 import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
@@ -802,7 +803,11 @@ export class MapeoProject extends TypedEmitter {
 
       // TODO: use "locations" field
       const coordinates = track.locations.map(
-        ({ longitude, latitude, altitude }) => [longitude, latitude, altitude]
+        ({ coords: { longitude, latitude, altitude } }) => [
+          longitude,
+          latitude,
+          altitude,
+        ]
       )
       const comma = first ? '' : ','
       first = false
