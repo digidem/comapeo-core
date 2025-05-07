@@ -6,12 +6,15 @@ import Fastify from 'fastify'
 import * as b4a from 'b4a'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
+import { temporaryFileTask } from 'tempy'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
+import { createReadStream } from 'node:fs'
 /** @import { Readable } from 'streamx' */
 
-const DEFAULT_OBSERVATIONS = 32
-//const OBSERVATIONS_PER_TRACK = 32
+const DEFAULT_OBSERVATIONS = 2
+const DEFAULT_TRACKS = 2
+const OBSERVATIONS_PER_TRACK = 2
 
 test('Project export empty GeoJSON to stream', async () => {
   const manager = await setupManager()
@@ -52,6 +55,132 @@ test('Project export observations GeoJSON to stream', async () => {
   )
 })
 
+test('Project export ignore observations', async () => {
+  const manager = await setupManager()
+  const { project } = await setupProject(manager, { makeObservations: true })
+
+  const stream = project.exportGeoJSONStream({
+    observations: false,
+    tracks: false,
+  })
+  const parsed = await parseGeoJSON(stream)
+
+  assert.equal(
+    parsed.type,
+    'FeatureCollection',
+    'Exported GeoJSON is a FeatureCollection'
+  )
+  assert.deepEqual(
+    parsed.features.length,
+    0,
+    'Exported GeoJSON has no features'
+  )
+})
+
+test('Project export tracks GeoJSON to stream', async () => {
+  const manager = await setupManager()
+  const { project } = await setupProject(manager, { makeTracks: true })
+
+  const stream = project.exportGeoJSONStream({
+    tracks: true,
+    observations: false,
+  })
+  const parsed = await parseGeoJSON(stream)
+
+  assert.equal(
+    parsed.type,
+    'FeatureCollection',
+    'Exported GeoJSON is a FeatureCollection'
+  )
+  assert.deepEqual(
+    parsed.features.length,
+    DEFAULT_TRACKS + DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
+    'Exported GeoJSON has expected number of features'
+  )
+})
+
+test('Project export ignore tracks', async () => {
+  const manager = await setupManager()
+  const { project } = await setupProject(manager, { makeTracks: true })
+
+  const stream = project.exportGeoJSONStream({
+    observations: false,
+    tracks: false,
+  })
+  const parsed = await parseGeoJSON(stream)
+
+  assert.equal(
+    parsed.type,
+    'FeatureCollection',
+    'Exported GeoJSON is a FeatureCollection'
+  )
+  assert.deepEqual(
+    parsed.features.length,
+    0,
+    'Exported GeoJSON has no features'
+  )
+})
+
+test('Project export tracks and observations GeoJSON to stream', async () => {
+  const manager = await setupManager()
+  const { project } = await setupProject(manager, {
+    makeTracks: true,
+    makeObservations: true,
+  })
+
+  const stream = project.exportGeoJSONStream({
+    tracks: true,
+    observations: true,
+  })
+  const parsed = await parseGeoJSON(stream)
+
+  assert.equal(
+    parsed.type,
+    'FeatureCollection',
+    'Exported GeoJSON is a FeatureCollection'
+  )
+  assert.deepEqual(
+    parsed.features.length,
+    DEFAULT_OBSERVATIONS +
+      DEFAULT_TRACKS +
+      DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
+    'Exported GeoJSON has expected number of features'
+  )
+})
+
+test('Project export tracks and observations GeoJSON to file', async () => {
+  const manager = await setupManager()
+  const { project } = await setupProject(manager, {
+    makeTracks: true,
+    makeObservations: true,
+  })
+
+  await temporaryFileTask(
+    async (geoJSONFile) => {
+      await project.exportGeoJSONFile(geoJSONFile, {
+        tracks: true,
+        observations: true,
+      })
+      const stream = createReadStream(geoJSONFile)
+      const parsed = await parseGeoJSON(stream)
+
+      assert.equal(
+        parsed.type,
+        'FeatureCollection',
+        'Exported GeoJSON is a FeatureCollection'
+      )
+      assert.deepEqual(
+        parsed.features.length,
+        DEFAULT_OBSERVATIONS +
+          DEFAULT_TRACKS +
+          DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
+        'Exported GeoJSON has expected number of features'
+      )
+    },
+    { extension: 'json' }
+  )
+})
+
 /**
  * @param {Readable<Buffer|Uint8Array>} stream
  * @returns {Promise<any>}
@@ -79,11 +208,12 @@ async function parseGeoJSON(stream) {
  * @param {MapeoManager} manager
  * @param {object} options
  * @param {boolean} [options.makeObservations=false]
+ * @param {boolean} [options.makeTracks=false]
  * @returns
  */
 async function setupProject(
   manager,
-  { makeObservations = false /*, makeTracks = false*/ } = {}
+  { makeObservations = false, makeTracks = false } = {}
 ) {
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
@@ -92,16 +222,45 @@ async function setupProject(
   let observations = []
   if (makeObservations) {
     const count = DEFAULT_OBSERVATIONS
-    const generated = generate('observation', { count })
+    const generated = generate('observation', { count }).map(valueOf)
 
     observations = await Promise.all(
-      generated.map((observation) =>
-        project.observation.create(valueOf(observation))
-      )
+      generated.map((observation) => project.observation.create(observation))
     )
   }
 
-  return { project, observations }
+  let tracks = []
+  if (makeTracks) {
+    const count = DEFAULT_TRACKS
+    const generated = generate('track', { count }).map(valueOf)
+
+    tracks = await Promise.all(
+      generated.map(async (track) => {
+        const generatedObservations = generate('observation', {
+          count: OBSERVATIONS_PER_TRACK,
+        }).map(valueOf)
+
+        const trackObservations = await Promise.all(
+          generatedObservations.map((observation) =>
+            project.observation.create(observation)
+          )
+        )
+
+        observations.push(...trackObservations)
+
+        track.observationRefs = trackObservations.map(
+          ({ docId, versionId }) => ({
+            docId,
+            versionId,
+          })
+        )
+
+        return project.track.create(track)
+      })
+    )
+  }
+
+  return { project, observations, tracks }
 }
 
 /**

@@ -5,7 +5,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import * as b4a from 'b4a'
-import { Readable } from 'streamx'
+import { Readable, pipelinePromise } from 'streamx'
 
 import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
@@ -60,6 +60,7 @@ import { readConfig } from './config-import.js'
 import TranslationApi from './translation-api.js'
 import { NotFoundError, nullIfNotFound } from './errors.js'
 import { WebSocket } from 'ws'
+import { createWriteStream } from 'fs'
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
@@ -760,7 +761,9 @@ export class MapeoProject extends TypedEmitter {
     let first = true
     for (const observation of observations) {
       const { lat, lon, docId } = observation
-      if (seenObservations.has(docId)) continue
+      if (seenObservations.has(docId)) {
+        continue
+      }
       seenObservations.add(docId)
       const comma = first ? '' : ','
       first = false
@@ -786,7 +789,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {string} [options.lang]
    * @returns {AsyncIterable<Buffer | Uint8Array>}
    */
-  async *#exportTracks(tracks, { lang, seenObservations = new Set() }) {
+  async *#exportTracks(tracks, { lang, seenObservations = new Set() } = {}) {
     let first = true
     for (const track of tracks) {
       const { observationRefs } = track
@@ -797,8 +800,10 @@ export class MapeoProject extends TypedEmitter {
         )
       )
 
-      // TODO: Altitude?
-      const coordinates = observations.map(({ lon, lat }) => [lon, lat])
+      // TODO: use "locations" field
+      const coordinates = track.locations.map(
+        ({ longitude, latitude, altitude }) => [longitude, latitude, altitude]
+      )
       const comma = first ? '' : ','
       first = false
       yield b4a.from(
@@ -814,10 +819,14 @@ export class MapeoProject extends TypedEmitter {
           '\n'
       )
 
+      let firstObs = true
       for await (const chunk of this.#exportObservations(observations, {
         seenObservations,
       })) {
-        yield b4a.from(',')
+        if (firstObs) {
+          yield b4a.from(',')
+          firstObs = false
+        }
         yield chunk
       }
     }
@@ -854,11 +863,10 @@ export class MapeoProject extends TypedEmitter {
       }
     }
 
-    if (hadTracks) {
-      yield b4a.from(',')
-    }
-
     if (observations) {
+      if (hadTracks) {
+        yield b4a.from(',')
+      }
       const rows = await this.#dataTypes.observation.getMany({ lang })
       yield* this.#exportObservations(rows, {
         seenObservations,
@@ -885,6 +893,24 @@ export class MapeoProject extends TypedEmitter {
     return Readable.from(
       this.#exportGeoJSONIterator({ observations, tracks, lang })
     )
+  }
+
+  /**
+   * Export observations and or tracks as a GeoJSON file
+   * @param {string} filePath Path to save the file (including the file name)
+   * @param {Object} [options={}]
+   * @param {boolean} [options.observations=true] Whether observations should be exported
+   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
+   * @param {string} [options.lang]
+   * @returns {Promise<void>}
+   */
+  async exportGeoJSONFile(
+    filePath,
+    { observations = true, tracks = true, lang } = {}
+  ) {
+    const source = this.exportGeoJSONStream({ observations, tracks, lang })
+    const sink = createWriteStream(filePath)
+    await pipelinePromise(source, sink)
   }
 
   /**
