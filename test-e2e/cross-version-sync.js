@@ -17,15 +17,14 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
   const newManager = createManager('new', t)
   await newManager.setDeviceInfo({ name: 'new', deviceType: 'desktop' })
 
-  const managers = [oldManager, newManager]
-
-  const disconnect = connectPeers(managers)
+  const disconnect = connectPeers([oldManager, newManager])
   t.after(disconnect)
-  await waitForPeers(managers)
+  await waitForPeers([oldManager, newManager])
 
-  const [oldManagerPeers, newManagerPeers] = await Promise.all(
-    managers.map((manager) => manager.listLocalPeers())
-  )
+  const [oldManagerPeers, newManagerPeers] = await Promise.all([
+    oldManager.listLocalPeers(),
+    newManager.listLocalPeers(),
+  ])
   assert.equal(oldManagerPeers.length, 1, 'old manager sees 1 peer')
   assert.equal(newManagerPeers.length, 1, 'new manager sees 1 peer')
   assert(
@@ -45,10 +44,11 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
     invitees: [newManager],
   })
 
-  const projects = await Promise.all(
-    managers.map((manager) => manager.getProject(projectId))
-  )
-  const [oldProject, newProject] = projects
+  const [oldProject, newProject] = await Promise.all([
+    oldManager.getProject(projectId),
+    newManager.getProject(projectId),
+  ])
+
   assert.equal(
     (await newProject.$getProjectSettings()).name,
     'foo bar',
@@ -58,15 +58,15 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
   oldProject.$sync.start()
   newProject.$sync.start()
 
-  const [oldObservation, newObservation] = await Promise.all(
-    projects.map((project) =>
-      project.observation.create(valueOf(generate('observation')[0]))
-    )
-  )
+  const [oldObservation, newObservation] = await Promise.all([
+    oldProject.observation.create(valueOf(generate('observation')[0])),
+    newProject.observation.create(valueOf(generate('observation')[0])),
+  ])
 
-  await Promise.all(
-    projects.map((project) => project.$sync.waitForSync('full'))
-  )
+  await Promise.all([
+    oldProject.$sync.waitForSync('full'),
+    newProject.$sync.waitForSync('full'),
+  ])
 
   assert(
     await oldProject.observation.getByDocId(newObservation.docId),
