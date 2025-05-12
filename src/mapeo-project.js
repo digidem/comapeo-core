@@ -4,6 +4,7 @@ import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
 // @ts-ignore
 import { Readable, pipelinePromise } from 'streamx'
@@ -79,6 +80,7 @@ export const kProjectLeave = Symbol('leave project')
 export const kClearDataIfLeft = Symbol('clear data if left project')
 export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
+export const kGeoJSONFileName = Symbol('geoJSONFileName')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
@@ -901,21 +903,123 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
+   *
+   * @param {string} type Type of export this will be
+   * @returns {Promise<string>}
+   */
+  async #exportPrefix(type = '') {
+    const name = await this.#getProjectName()
+    const date = new Date()
+    const dateSection = date
+      .toLocaleDateString('nu', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+      })
+      .replaceAll('-', '_')
+    return `CoMapeo_${name}_${type}_${dateSection}`
+  }
+
+  async [kGeoJSONFileName]({ observations, tracks }) {
+    let exportType = ''
+    if (observations) exportType += 'Obsvns'
+    if (tracks) {
+      if (observations) exportType += '_'
+      exportType += 'Tracks'
+    }
+    const prefix = await this.#exportPrefix(exportType)
+
+    return prefix + '.geojson'
+  }
+
+  async #zipFileName({ observations, tracks }) {
+    let exportType = ''
+    if (observations) exportType += 'Obsvns'
+    if (tracks) {
+      if (observations) exportType += '_'
+      exportType += 'Tracks'
+    }
+    const prefix = await this.#exportPrefix(exportType)
+
+    return prefix + '.zip'
+  }
+
+  /**
    * Export observations and or tracks as a GeoJSON file
-   * @param {string} filePath Path to save the file (including the file name)
+   * @param {string} exportFolder Path to save the file. The file name is auto-generated
    * @param {Object} [options={}]
    * @param {boolean} [options.observations=true] Whether observations should be exported
    * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
    * @param {string} [options.lang]
-   * @returns {Promise<void>}
+   * @returns {Promise<string>} The full path that the file was exported at
    */
   async exportGeoJSONFile(
-    filePath,
+    exportFolder,
     { observations = true, tracks = true, lang } = {}
   ) {
+    const fileName = await this[kGeoJSONFileName]({ observations, tracks })
+    const filePath = path.join(exportFolder, fileName)
     const source = this.exportGeoJSONStream({ observations, tracks, lang })
     const sink = createWriteStream(filePath)
     await pipelinePromise(source, sink)
+
+    return filePath
+  }
+
+  async #exportToArchive(
+    archive,
+    { observations = true, tracks = true, lang } = {}
+  ) {
+    // GeoJSON
+    const geoJSONFileName = await this[kGeoJSONFileName]({
+      observations,
+      tracks,
+    })
+    const geoJSONStream = this.exportGeoJSONStream({
+      observations,
+      tracks,
+      lang,
+    })
+    await archive.entry(geoJSONStream, { name: geoJSONFileName })
+    // Attachments
+    // Finalize
+    archive.finalize()
+  }
+
+  exportZipStream({
+    observations = true,
+    tracks = true,
+    attachments = true,
+    lang,
+  } = {}) {
+    const archive = new ZipArchive()
+
+    this.#exportToArchive(archive, {
+      observations,
+      tracks,
+      attachments,
+      lang,
+    }).catch((e) => archive.emit('error', e))
+
+    return archive
+  }
+
+  async exportZipFile(
+    exportFolder,
+    { observations = true, tracks = true, attachments = true, lang } = {}
+  ) {
+    const fileName = await this.#zipFileName({ observations, tracks })
+    const filePath = path.join(exportFolder, fileName)
+    const source = this.exportZipStream({
+      observations,
+      tracks,
+      attachments,
+      lang,
+    })
+    const sink = createWriteStream(filePath)
+    await pipelinePromise(source, sink)
+
+    return filePath
   }
 
   /**

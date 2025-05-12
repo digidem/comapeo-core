@@ -6,9 +6,11 @@ import Fastify from 'fastify'
 import * as b4a from 'b4a'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
-import { temporaryFileTask } from 'tempy'
+import { temporaryDirectoryTask } from 'tempy'
+import StreamZip from 'node-stream-zip'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
+import { kGeoJSONFileName } from '../src/mapeo-project.js'
 import { createReadStream } from 'node:fs'
 /** @import { Readable } from 'streamx' */
 
@@ -155,15 +157,56 @@ test('Project export tracks and observations GeoJSON to file', async () => {
     makeObservations: true,
   })
 
-  await temporaryFileTask(
-    async (geoJSONFile) => {
-      await project.exportGeoJSONFile(geoJSONFile, {
+  await temporaryDirectoryTask(
+    async (dir) => {
+      const geoJSONFile = await project.exportGeoJSONFile(dir, {
         tracks: true,
         observations: true,
       })
       const stream = createReadStream(geoJSONFile)
       const parsed = await parseGeoJSON(stream)
 
+      assert.equal(
+        parsed.type,
+        'FeatureCollection',
+        'Exported GeoJSON is a FeatureCollection'
+      )
+      assert.deepEqual(
+        parsed.features.length,
+        DEFAULT_OBSERVATIONS +
+          DEFAULT_TRACKS +
+          DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
+        'Exported GeoJSON has expected number of features'
+      )
+    },
+    { extension: 'json' }
+  )
+})
+
+test.only('Project export tracks and observations to zip stream', async () => {
+  const manager = await setupManager()
+  const { project } = await setupProject(manager, {
+    makeTracks: true,
+    makeObservations: true,
+  })
+
+  await temporaryDirectoryTask(
+    async (dir) => {
+      const zipFile = await project.exportZipFile(dir, {
+        tracks: true,
+        observations: true,
+        attachments: true,
+      })
+      const zip = new StreamZip.async({ file: zipFile })
+      const geoJSONFile = await project[kGeoJSONFileName]({
+        attachments: true,
+        observations: true,
+        tracks: true,
+      })
+
+      const stream = await zip.stream(geoJSONFile)
+      const parsed = await parseGeoJSON(stream)
+      await zip.close()
       assert.equal(
         parsed.type,
         'FeatureCollection',
