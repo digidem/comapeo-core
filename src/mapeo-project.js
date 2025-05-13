@@ -42,6 +42,7 @@ import {
 } from './roles.js'
 import {
   assert,
+  buildBlobId,
   ExhaustivenessError,
   getDeviceId,
   projectKeyToId,
@@ -64,9 +65,10 @@ import { NotFoundError, nullIfNotFound } from './errors.js'
 import { WebSocket } from 'ws'
 import { createWriteStream } from 'fs'
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
-/** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
+/** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
+/** @typedef {Map<string,Attachment>} SeenAttachments*/
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -83,6 +85,9 @@ export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 export const kGeoJSONFileName = Symbol('geoJSONFileName')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
+
+/** @type BlobId['variant'][]*/
+const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
 
 /**
  * @extends {TypedEmitter<{ close: () => void }>}
@@ -758,9 +763,13 @@ export class MapeoProject extends TypedEmitter {
    * @param {Iterable<Observation>} observations
    * @param {Object} options
    * @param {Set<string>} [options.seenObservations=new Set()]
+   * @param {SeenAttachments} [options.seenAttachments]
    * @returns {AsyncIterable<Buffer | Uint8Array>}
    */
-  async *#exportObservations(observations, { seenObservations = new Set() }) {
+  async *#exportObservations(
+    observations,
+    { seenObservations = new Set(), seenAttachments = new Map() }
+  ) {
     let first = true
     for (const observation of observations) {
       const { lat, lon, docId } = observation
@@ -768,6 +777,12 @@ export class MapeoProject extends TypedEmitter {
         continue
       }
       seenObservations.add(docId)
+      for (const attachment of observation.attachments) {
+        const { hash } = attachment
+        if (!seenAttachments.has(hash)) {
+          seenAttachments.set(hash, attachment)
+        }
+      }
       const comma = first ? '' : ','
       first = false
       yield b4a.from(
@@ -789,10 +804,14 @@ export class MapeoProject extends TypedEmitter {
    * @param {Iterable<Track>} tracks
    * @param {Object} options
    * @param {Set<string>} [options.seenObservations=new Set()]
+   * @param {SeenAttachments} [options.seenAttachments]
    * @param {string} [options.lang]
    * @returns {AsyncIterable<Buffer | Uint8Array>}
    */
-  async *#exportTracks(tracks, { lang, seenObservations = new Set() } = {}) {
+  async *#exportTracks(
+    tracks,
+    { lang, seenObservations = new Set(), seenAttachments = new Map() } = {}
+  ) {
     let first = true
     for (const track of tracks) {
       const { observationRefs } = track
@@ -829,6 +848,7 @@ export class MapeoProject extends TypedEmitter {
       let firstObs = true
       for await (const chunk of this.#exportObservations(observations, {
         seenObservations,
+        seenAttachments,
       })) {
         if (firstObs) {
           yield b4a.from(',')
@@ -843,6 +863,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {Object} [options={}]
    * @param {boolean} [options.observations=true] Whether observations should be exported
    * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
+   * @param {SeenAttachments} [options.seenAttachments]
    * @param {string} [options.lang]
    * @returns {AsyncIterable<Buffer | Uint8Array>}
    */
@@ -850,6 +871,7 @@ export class MapeoProject extends TypedEmitter {
     observations = true,
     tracks = true,
     lang,
+    seenAttachments = new Map(),
   } = {}) {
     yield b4a.from(`{
   "type": "FeatureCollection",
@@ -864,6 +886,7 @@ export class MapeoProject extends TypedEmitter {
       for await (const chunk of this.#exportTracks(rows, {
         lang,
         seenObservations,
+        seenAttachments,
       })) {
         hadTracks = true
         yield chunk
@@ -877,6 +900,7 @@ export class MapeoProject extends TypedEmitter {
       const rows = await this.#dataTypes.observation.getMany({ lang })
       yield* this.#exportObservations(rows, {
         seenObservations,
+        seenAttachments,
       })
     }
 
@@ -891,14 +915,25 @@ export class MapeoProject extends TypedEmitter {
    * @param {Object} [options={}]
    * @param {boolean} [options.observations=true] Whether observations should be exported
    * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
+   * @param {SeenAttachments} [options.seenAttachments]
    * @param {string} [options.lang]
    * @returns {Readable<Buffer | Uint8Array>}
    */
-  exportGeoJSONStream({ observations = true, tracks = true, lang } = {}) {
+  exportGeoJSONStream({
+    observations = true,
+    tracks = true,
+    lang,
+    seenAttachments = new Map(),
+  } = {}) {
     // Format based on https://doc.arcgis.com/en/arcgis-online/reference/geojson.htm
 
     return Readable.from(
-      this.#exportGeoJSONIterator({ observations, tracks, lang })
+      this.#exportGeoJSONIterator({
+        observations,
+        tracks,
+        lang,
+        seenAttachments,
+      })
     )
   }
 
@@ -920,7 +955,12 @@ export class MapeoProject extends TypedEmitter {
     return `CoMapeo_${name}_${type}_${dateSection}`
   }
 
-  async [kGeoJSONFileName]({ observations, tracks }) {
+  /**
+   * @param {boolean} observations
+   * @param {boolean} tracks
+   * @returns {Promise<string>}
+   */
+  async [kGeoJSONFileName](observations, tracks) {
     let exportType = ''
     if (observations) exportType += 'Obsvns'
     if (tracks) {
@@ -932,7 +972,12 @@ export class MapeoProject extends TypedEmitter {
     return prefix + '.geojson'
   }
 
-  async #zipFileName({ observations, tracks }) {
+  /**
+   * @param {boolean} observations
+   * @param {boolean} tracks
+   * @returns {Promise<string>}
+   */
+  async #zipFileName(observations, tracks) {
     let exportType = ''
     if (observations) exportType += 'Obsvns'
     if (tracks) {
@@ -957,7 +1002,7 @@ export class MapeoProject extends TypedEmitter {
     exportFolder,
     { observations = true, tracks = true, lang } = {}
   ) {
-    const fileName = await this[kGeoJSONFileName]({ observations, tracks })
+    const fileName = await this[kGeoJSONFileName](observations, tracks)
     const filePath = path.join(exportFolder, fileName)
     const source = this.exportGeoJSONStream({ observations, tracks, lang })
     const sink = createWriteStream(filePath)
@@ -966,26 +1011,85 @@ export class MapeoProject extends TypedEmitter {
     return filePath
   }
 
+  /**
+   * @param {Attachment} attachment
+   * @returns {Promise<null | Readable<Uint8Array|Buffer>>}
+   */
+  async #tryExportBlob(attachment) {
+    // Audio must not have variants
+    for (const variant of VARIANT_EXPORT_ORDER) {
+      const blobId = buildBlobId(attachment, variant)
+      const entry = await this.#blobStore.entry(blobId)
+      if (!entry) continue
+      // Download
+      // @ts-expect-error
+      return this.#blobStore.createReadStream(blobId)
+    }
+
+    return null
+  }
+
+  /**
+   * @param {ZipArchive} archive
+   * @param {Object} [options={}]
+   * @param {boolean} [options.observations=true] Whether observations should be exported
+   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
+   * @param {boolean} [options.attachments=true] Whether all attachments for observations should be exported
+   * @param {string} [options.lang]
+   * @returns {Promise<void>}
+   */
   async #exportToArchive(
     archive,
-    { observations = true, tracks = true, lang } = {}
+    { observations = true, tracks = true, attachments = true, lang } = {}
   ) {
     // GeoJSON
-    const geoJSONFileName = await this[kGeoJSONFileName]({
-      observations,
-      tracks,
-    })
+    const geoJSONFileName = await this[kGeoJSONFileName](observations, tracks)
+    const seenAttachments = new Map()
     const geoJSONStream = this.exportGeoJSONStream({
       observations,
       tracks,
       lang,
+      seenAttachments,
     })
     await archive.entry(geoJSONStream, { name: geoJSONFileName })
+
+    const missingAttachments = []
     // Attachments
+    if (attachments) {
+      const mediaFolder = this.#exportPrefix('Media') + '/'
+      for (const attachment of seenAttachments.values()) {
+        const stream = await this.#tryExportBlob(attachment)
+        if (stream === null) {
+          missingAttachments.push(attachment)
+          continue
+        }
+        await archive.entry(stream, { name: mediaFolder + attachment.name })
+      }
+
+      if (missingAttachments.length) {
+        this.#l.log(`Found missing attachments during export`)
+        const missingContent = missingAttachments
+          .map((attachment) => JSON.stringify(attachment))
+          .join('\n')
+
+        await archive.entry(missingContent, {
+          name: mediaFolder + 'missing.ndjson',
+        })
+      }
+    }
     // Finalize
     archive.finalize()
   }
 
+  /**
+   * Export observations, tracks, and or attachments as a zip file stream.
+   * @param {Object} [options={}]
+   * @param {boolean} [options.observations=true] Whether observations should be exported
+   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
+   * @param {boolean} [options.attachments=true] Whether all attachments for observations should be exported
+   * @param {string} [options.lang]
+   * @returns {Readable<Buffer | Uint8Array>}
+   */
   exportZipStream({
     observations = true,
     tracks = true,
@@ -1004,11 +1108,21 @@ export class MapeoProject extends TypedEmitter {
     return archive
   }
 
+  /**
+   * Export observations, tracks, and or attachments as a zip file.
+   * @param {string} exportFolder Path to save the file. The file name is auto-generated
+   * @param {Object} [options={}]
+   * @param {boolean} [options.observations=true] Whether observations should be exported
+   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
+   * @param {boolean} [options.attachments=true] Whether all attachments for observations should be exported
+   * @param {string} [options.lang]
+   * @returns {Promise<string>} The full path that the file was exported at
+   */
   async exportZipFile(
     exportFolder,
     { observations = true, tracks = true, attachments = true, lang } = {}
   ) {
-    const fileName = await this.#zipFileName({ observations, tracks })
+    const fileName = await this.#zipFileName(observations, tracks)
     const filePath = path.join(exportFolder, fileName)
     const source = this.exportZipStream({
       observations,

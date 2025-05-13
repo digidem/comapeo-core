@@ -8,15 +8,23 @@ import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
 import { temporaryDirectoryTask } from 'tempy'
 import StreamZip from 'node-stream-zip'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createReadStream } from 'node:fs'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { kGeoJSONFileName } from '../src/mapeo-project.js'
-import { createReadStream } from 'node:fs'
+import { blobMetadata } from '../test//helpers/blob-store.js'
+
 /** @import { Readable } from 'streamx' */
 
 const DEFAULT_OBSERVATIONS = 2
 const DEFAULT_TRACKS = 2
 const OBSERVATIONS_PER_TRACK = 2
+
+const BLOB_FIXTURES = fileURLToPath(
+  new URL('../test/fixtures/blob-api/', import.meta.url)
+)
 
 test('Project export empty GeoJSON to stream', async () => {
   const manager = await setupManager()
@@ -157,30 +165,27 @@ test('Project export tracks and observations GeoJSON to file', async () => {
     makeObservations: true,
   })
 
-  await temporaryDirectoryTask(
-    async (dir) => {
-      const geoJSONFile = await project.exportGeoJSONFile(dir, {
-        tracks: true,
-        observations: true,
-      })
-      const stream = createReadStream(geoJSONFile)
-      const parsed = await parseGeoJSON(stream)
+  await temporaryDirectoryTask(async (dir) => {
+    const geoJSONFile = await project.exportGeoJSONFile(dir, {
+      tracks: true,
+      observations: true,
+    })
+    const stream = createReadStream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
 
-      assert.equal(
-        parsed.type,
-        'FeatureCollection',
-        'Exported GeoJSON is a FeatureCollection'
-      )
-      assert.deepEqual(
-        parsed.features.length,
-        DEFAULT_OBSERVATIONS +
-          DEFAULT_TRACKS +
-          DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
-        'Exported GeoJSON has expected number of features'
-      )
-    },
-    { extension: 'json' }
-  )
+    assert.equal(
+      parsed.type,
+      'FeatureCollection',
+      'Exported GeoJSON is a FeatureCollection'
+    )
+    assert.deepEqual(
+      parsed.features.length,
+      DEFAULT_OBSERVATIONS +
+        DEFAULT_TRACKS +
+        DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
+      'Exported GeoJSON has expected number of features'
+    )
+  })
 })
 
 test.only('Project export tracks and observations to zip stream', async () => {
@@ -188,50 +193,48 @@ test.only('Project export tracks and observations to zip stream', async () => {
   const { project } = await setupProject(manager, {
     makeTracks: true,
     makeObservations: true,
+    makeAttachments: true,
   })
 
-  await temporaryDirectoryTask(
-    async (dir) => {
-      const zipFile = await project.exportZipFile(dir, {
-        tracks: true,
-        observations: true,
-        attachments: true,
-      })
-      const zip = new StreamZip.async({ file: zipFile })
-      const geoJSONFile = await project[kGeoJSONFileName]({
-        attachments: true,
-        observations: true,
-        tracks: true,
-      })
+  await temporaryDirectoryTask(async (dir) => {
+    const zipFile = await project.exportZipFile(dir, {
+      tracks: true,
+      observations: true,
+      attachments: true,
+    })
+    const zip = new StreamZip.async({ file: zipFile })
+    const geoJSONFile = await project[kGeoJSONFileName](true, true)
 
-      const stream = await zip.stream(geoJSONFile)
-      const parsed = await parseGeoJSON(stream)
-      await zip.close()
-      assert.equal(
-        parsed.type,
-        'FeatureCollection',
-        'Exported GeoJSON is a FeatureCollection'
-      )
-      assert.deepEqual(
-        parsed.features.length,
-        DEFAULT_OBSERVATIONS +
-          DEFAULT_TRACKS +
-          DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
-        'Exported GeoJSON has expected number of features'
-      )
-    },
-    { extension: 'json' }
-  )
+    const stream = await zip.stream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
+    await zip.close()
+    assert.equal(
+      parsed.type,
+      'FeatureCollection',
+      'Exported GeoJSON is a FeatureCollection'
+    )
+    assert.deepEqual(
+      parsed.features.length,
+      DEFAULT_OBSERVATIONS +
+        DEFAULT_TRACKS +
+        DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
+      'Exported GeoJSON has expected number of features'
+    )
+
+    const entriesCount = await zip.entriesCount
+    assert.equal(entriesCount, 2, 'Zip has geoJSON and one attachment')
+  })
 })
 
 /**
- * @param {AsyncIterable<Buffer|Uint8Array>} stream
+ * @param {AsyncIterable<Buffer|Uint8Array|string>} stream
  * @returns {Promise<any>}
  */
 async function parseGeoJSON(stream) {
   const chunks = []
   for await (const chunk of stream) {
-    chunks.push(chunk)
+    if (typeof chunk === 'string') chunks.push(b4a.from(chunk))
+    else chunks.push(chunk)
   }
 
   const wholeBuffer = b4a.concat(chunks)
@@ -252,14 +255,30 @@ async function parseGeoJSON(stream) {
  * @param {object} options
  * @param {boolean} [options.makeObservations=false]
  * @param {boolean} [options.makeTracks=false]
+ * @param {boolean} [options.makeAttachments=false]
  * @returns
  */
 async function setupProject(
   manager,
-  { makeObservations = false, makeTracks = false } = {}
+  { makeObservations = false, makeTracks = false, makeAttachments = false } = {}
 ) {
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
+
+  let attachment = null
+
+  if (makeAttachments) {
+    const { driveId, type, hash, name } = await project.$blobs.create(
+      {
+        original: join(BLOB_FIXTURES, 'original.png'),
+        preview: join(BLOB_FIXTURES, 'preview.png'),
+        thumbnail: join(BLOB_FIXTURES, 'thumbnail.png'),
+      },
+      blobMetadata({ mimeType: 'image/png' })
+    )
+
+    attachment = { hash, type, name, driveDiscoveryId: driveId }
+  }
 
   /** @type {import('@comapeo/schema').Observation[]} */
   let observations = []
@@ -268,7 +287,14 @@ async function setupProject(
     const generated = generate('observation', { count }).map(valueOf)
 
     observations = await Promise.all(
-      generated.map((observation) => project.observation.create(observation))
+      generated.map((observation) => {
+        if (attachment !== null) {
+          observation.attachments = [attachment]
+        } else {
+          observation.attachments = []
+        }
+        return project.observation.create(observation)
+      })
     )
   }
 
@@ -286,9 +312,15 @@ async function setupProject(
         }).map(valueOf)
 
         const trackObservations = await Promise.all(
-          generatedObservations.map((observation) =>
-            project.observation.create(observation)
-          )
+          generatedObservations.map((observation) => {
+            if (attachment !== null) {
+              observation.attachments = [attachment]
+            } else {
+              observation.attachments = []
+            }
+
+            return project.observation.create(observation)
+          })
         )
 
         observations.push(...trackObservations)
