@@ -212,6 +212,6 @@
     "ws": "^8.18.0",
     "xstate": "^5.19.2",
     "yauzl-promise": "^4.0.0",
-    "zip-stream-promise": "^1.0.1"
+    "zip-stream-promise": "^1.0.2"
   }
 }

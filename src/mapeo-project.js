@@ -1051,6 +1051,8 @@ export class MapeoProject extends TypedEmitter {
       lang,
       seenAttachments,
     })
+
+    // @ts-expect-error
     await archive.entry(geoJSONStream, { name: geoJSONFileName })
 
     const missingAttachments = []
@@ -1063,6 +1065,8 @@ export class MapeoProject extends TypedEmitter {
           missingAttachments.push(attachment)
           continue
         }
+
+        // @ts-expect-error
         await archive.entry(stream, { name: mediaFolder + attachment.name })
       }
 
@@ -1105,6 +1109,7 @@ export class MapeoProject extends TypedEmitter {
       lang,
     }).catch((e) => archive.emit('error', e))
 
+    // @ts-expect-error
     return archive
   }
 
