@@ -951,6 +951,7 @@ export class MapeoProject extends TypedEmitter {
         month: 'numeric',
         day: 'numeric',
       })
+      .replaceAll('/', '_')
       .replaceAll('-', '_')
     return `CoMapeo_${name}_${type}_${dateSection}`
   }

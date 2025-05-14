@@ -188,7 +188,7 @@ test('Project export tracks and observations GeoJSON to file', async () => {
   })
 })
 
-test.only('Project export tracks and observations to zip stream', async () => {
+test('Project export tracks and observations to zip stream', async () => {
   const manager = await setupManager()
   const { project } = await setupProject(manager, {
     makeTracks: true,
