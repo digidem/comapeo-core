@@ -6,7 +6,13 @@ import type {
   SetOptional,
 } from 'type-fest'
 import { SUPPORTED_BLOB_VARIANTS } from './blob-store/index.js'
-import { MapeoCommon, MapeoDoc, MapeoValue, decode } from '@comapeo/schema'
+import {
+  MapeoCommon,
+  MapeoDoc,
+  MapeoValue,
+  Observation,
+  decode,
+} from '@comapeo/schema'
 import type BigSparseArray from 'big-sparse-array'
 import type Protomux from 'protomux'
 import type NoiseStream from '@hyperswarm/secret-stream'
@@ -155,6 +161,8 @@ export type BlobStoreEntriesStream = Readable & {
     HyperdriveEntry & { driveId: string; blobCoreId: string }
   >
 }
+
+export type Attachment = Observation['attachments'][0]
 
 export type StringToTaggedUnion<T extends string> = {
   [K in T]: {
