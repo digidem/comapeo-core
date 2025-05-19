@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { createReadStream } from 'node:fs'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
-import { kGeoJSONFileName } from '../src/mapeo-project.js'
+import { kGeoJSONFileName, kExportGeoJSONStream } from '../src/mapeo-project.js'
 import { blobMetadata } from '../test//helpers/blob-store.js'
 
 /** @import { Readable } from 'streamx' */
@@ -30,7 +30,7 @@ test('Project export empty GeoJSON to stream', async () => {
   const manager = await setupManager()
   const { project } = await setupProject(manager)
 
-  const stream = project.exportGeoJSONStream()
+  const stream = project[kExportGeoJSONStream]()
 
   const parsed = await parseGeoJSON(stream)
 
@@ -50,7 +50,7 @@ test('Project export observations GeoJSON to stream', async () => {
   const manager = await setupManager()
   const { project } = await setupProject(manager, { makeObservations: true })
 
-  const stream = project.exportGeoJSONStream()
+  const stream = project[kExportGeoJSONStream]()
   const parsed = await parseGeoJSON(stream)
 
   assert.equal(
@@ -69,7 +69,7 @@ test('Project export ignore observations', async () => {
   const manager = await setupManager()
   const { project } = await setupProject(manager, { makeObservations: true })
 
-  const stream = project.exportGeoJSONStream({
+  const stream = project[kExportGeoJSONStream]({
     observations: false,
     tracks: false,
   })
@@ -91,7 +91,7 @@ test('Project export tracks GeoJSON to stream', async () => {
   const manager = await setupManager()
   const { project } = await setupProject(manager, { makeTracks: true })
 
-  const stream = project.exportGeoJSONStream({
+  const stream = project[kExportGeoJSONStream]({
     tracks: true,
     observations: false,
   })
@@ -113,7 +113,7 @@ test('Project export ignore tracks', async () => {
   const manager = await setupManager()
   const { project } = await setupProject(manager, { makeTracks: true })
 
-  const stream = project.exportGeoJSONStream({
+  const stream = project[kExportGeoJSONStream]({
     observations: false,
     tracks: false,
   })
@@ -138,7 +138,7 @@ test('Project export tracks and observations GeoJSON to stream', async () => {
     makeObservations: true,
   })
 
-  const stream = project.exportGeoJSONStream({
+  const stream = project[kExportGeoJSONStream]({
     tracks: true,
     observations: true,
   })
