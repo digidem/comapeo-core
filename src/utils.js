@@ -189,7 +189,7 @@ export function hashObject(obj) {
 }
 
 /**
- * Convert attachments to BlobIds for use in the BlobStore, adapted from compaeo-mobile
+ * Convert attachments to BlobIds for use in the BlobStore, adapted from comapeo-mobile
  * @param {Attachment} attachment
  * @param {'original' | 'thumbnail' | 'preview'} requestedVariant
  * @returns {BlobId}
