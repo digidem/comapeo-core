@@ -913,7 +913,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * Export observations and or tracks as a strean of GeoJSON data
+   * Export observations and or tracks as a stream of GeoJSON data
    * @param {Object} [options={}]
    * @param {boolean} [options.observations=true] Whether observations should be exported
    * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
