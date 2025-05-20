@@ -4,6 +4,8 @@ import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
 import { omit } from './lib/omit.js'
 
+/** @import {Attachment, BlobId} from "./types.js" */
+
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
 
 /**
@@ -184,4 +186,36 @@ export function hashObject(obj) {
     .update(stableStringify(obj))
     .digest()
     .toString('hex')
+}
+
+/**
+ * Convert attachments to BlobIds for use in the BlobStore, adapted from comapeo-mobile
+ * @param {Attachment} attachment
+ * @param {'original' | 'thumbnail' | 'preview'} requestedVariant
+ * @returns {BlobId}
+ */
+export function buildBlobId(attachment, requestedVariant) {
+  if (
+    attachment.type !== 'photo' &&
+    attachment.type !== 'audio' &&
+    attachment.type !== 'video'
+  ) {
+    throw new Error(`Cannot fetch URL for attachment type "${attachment.type}"`)
+  }
+
+  if (attachment.type === 'photo') {
+    return {
+      type: 'photo',
+      variant: requestedVariant,
+      name: attachment.name,
+      driveId: attachment.driveDiscoveryId,
+    }
+  }
+
+  return {
+    type: attachment.type,
+    variant: 'original',
+    name: attachment.name,
+    driveId: attachment.driveDiscoveryId,
+  }
 }
