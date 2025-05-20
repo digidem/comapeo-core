@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fetch } from 'undici'
-import { ReaderWatch, Server as SMPServerPlugin } from 'styled-map-package'
+import { ReaderWatch, createServer } from 'styled-map-package'
 
 import { noop } from '../utils.js'
 import { NotFoundError, ENOENTError } from './utils.js'
@@ -81,7 +81,7 @@ export async function plugin(fastify, opts) {
       }
     })
 
-    fastify.register(SMPServerPlugin, {
+    fastify.register(createServer, {
       prefix: CUSTOM_MAP_PREFIX,
       reader: customMapReader,
     })
@@ -91,7 +91,7 @@ export async function plugin(fastify, opts) {
 
   fastify.addHook('onClose', () => fallbackMapReader.close().catch(noop))
 
-  fastify.register(SMPServerPlugin, {
+  fastify.register(createServer, {
     prefix: FALLBACK_MAP_PREFIX,
     reader: fallbackMapReader,
   })
