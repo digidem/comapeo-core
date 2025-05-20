@@ -298,6 +298,80 @@ Clear data if we've left the project. No-op if you're still in the project.
 
 ***
 
+### \[kExportGeoJSONStream\]()
+
+> **\[kExportGeoJSONStream\]**(`options`?): `Readable`\<`Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `true`, `false`, `ReadableEvents`\<`Uint8Array` \| `Buffer`\>\>
+
+Export observations and or tracks as a stream of GeoJSON data
+
+#### Parameters
+
+• **options?** = `{}`
+
+• **options.lang?**: `undefined` \| `string`
+
+• **options.observations?**: `undefined` \| `boolean` = `true`
+
+Whether observations should be exported
+
+• **options.seenAttachments?**: `undefined` \| [`SeenAttachments`](../type-aliases/SeenAttachments.md) = `...`
+
+• **options.tracks?**: `undefined` \| `boolean` = `true`
+
+Whether all tracks and their observations should be exported
+
+#### Returns
+
+`Readable`\<`Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `true`, `false`, `ReadableEvents`\<`Uint8Array` \| `Buffer`\>\>
+
+***
+
+### \[kExportZipStream\]()
+
+> **\[kExportZipStream\]**(`options`?): `Readable`\<`Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `true`, `false`, `ReadableEvents`\<`Uint8Array` \| `Buffer`\>\>
+
+Export observations, tracks, and or attachments as a zip file stream.
+
+#### Parameters
+
+• **options?** = `{}`
+
+• **options.attachments?**: `undefined` \| `boolean` = `true`
+
+Whether all attachments for observations should be exported
+
+• **options.lang?**: `undefined` \| `string`
+
+• **options.observations?**: `undefined` \| `boolean` = `true`
+
+Whether observations should be exported
+
+• **options.tracks?**: `undefined` \| `boolean` = `true`
+
+Whether all tracks and their observations should be exported
+
+#### Returns
+
+`Readable`\<`Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `true`, `false`, `ReadableEvents`\<`Uint8Array` \| `Buffer`\>\>
+
+***
+
+### \[kGeoJSONFileName\]()
+
+> **\[kGeoJSONFileName\]**(`observations`, `tracks`): `Promise`\<`string`\>
+
+#### Parameters
+
+• **observations**: `boolean`
+
+• **tracks**: `boolean`
+
+#### Returns
+
+`Promise`\<`string`\>
+
+***
+
 ### \[kProjectLeave\]()
 
 > **\[kProjectLeave\]**(): `Promise`\<`void`\>
@@ -417,6 +491,74 @@ When device ID cannot be found.
 #### Returns
 
 `Promise`\<`void`\>
+
+***
+
+### exportGeoJSONFile()
+
+> **exportGeoJSONFile**(`exportFolder`, `options`?): `Promise`\<`string`\>
+
+Export observations and or tracks as a GeoJSON file
+
+#### Parameters
+
+• **exportFolder**: `string`
+
+Path to save the file. The file name is auto-generated
+
+• **options?** = `{}`
+
+• **options.lang?**: `undefined` \| `string`
+
+• **options.observations?**: `undefined` \| `boolean` = `true`
+
+Whether observations should be exported
+
+• **options.tracks?**: `undefined` \| `boolean` = `true`
+
+Whether all tracks and their observations should be exported
+
+#### Returns
+
+`Promise`\<`string`\>
+
+The full path that the file was exported at
+
+***
+
+### exportZipFile()
+
+> **exportZipFile**(`exportFolder`, `options`?): `Promise`\<`string`\>
+
+Export observations, tracks, and or attachments as a zip file.
+
+#### Parameters
+
+• **exportFolder**: `string`
+
+Path to save the file. The file name is auto-generated
+
+• **options?** = `{}`
+
+• **options.attachments?**: `undefined` \| `boolean` = `true`
+
+Whether all attachments for observations should be exported
+
+• **options.lang?**: `undefined` \| `string`
+
+• **options.observations?**: `undefined` \| `boolean` = `true`
+
+Whether observations should be exported
+
+• **options.tracks?**: `undefined` \| `boolean` = `true`
+
+Whether all tracks and their observations should be exported
+
+#### Returns
+
+`Promise`\<`string`\>
+
+The full path that the file was exported at
 
 ***
 
