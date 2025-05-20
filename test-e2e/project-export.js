@@ -27,7 +27,7 @@ const BLOB_FIXTURES = fileURLToPath(
 )
 
 test('Project export empty GeoJSON to stream', async () => {
-  const manager = await setupManager()
+  const manager = setupManager()
   const { project } = await setupProject(manager)
 
   const stream = project[kExportGeoJSONStream]()
@@ -47,7 +47,7 @@ test('Project export empty GeoJSON to stream', async () => {
 })
 
 test('Project export observations GeoJSON to stream', async () => {
-  const manager = await setupManager()
+  const manager = setupManager()
   const { project } = await setupProject(manager, { makeObservations: true })
 
   const stream = project[kExportGeoJSONStream]()
@@ -66,7 +66,7 @@ test('Project export observations GeoJSON to stream', async () => {
 })
 
 test('Project export ignore observations', async () => {
-  const manager = await setupManager()
+  const manager = setupManager()
   const { project } = await setupProject(manager, { makeObservations: true })
 
   const stream = project[kExportGeoJSONStream]({
@@ -88,7 +88,7 @@ test('Project export ignore observations', async () => {
 })
 
 test('Project export tracks GeoJSON to stream', async () => {
-  const manager = await setupManager()
+  const manager = setupManager()
   const { project } = await setupProject(manager, { makeTracks: true })
 
   const stream = project[kExportGeoJSONStream]({
@@ -110,7 +110,7 @@ test('Project export tracks GeoJSON to stream', async () => {
 })
 
 test('Project export ignore tracks', async () => {
-  const manager = await setupManager()
+  const manager = setupManager()
   const { project } = await setupProject(manager, { makeTracks: true })
 
   const stream = project[kExportGeoJSONStream]({
@@ -132,7 +132,7 @@ test('Project export ignore tracks', async () => {
 })
 
 test('Project export tracks and observations GeoJSON to stream', async () => {
-  const manager = await setupManager()
+  const manager = setupManager()
   const { project } = await setupProject(manager, {
     makeTracks: true,
     makeObservations: true,
@@ -159,7 +159,7 @@ test('Project export tracks and observations GeoJSON to stream', async () => {
 })
 
 test('Project export tracks and observations GeoJSON to file', async () => {
-  const manager = await setupManager()
+  const manager = setupManager()
   const { project } = await setupProject(manager, {
     makeTracks: true,
     makeObservations: true,
@@ -189,7 +189,7 @@ test('Project export tracks and observations GeoJSON to file', async () => {
 })
 
 test('Project export tracks and observations to zip stream', async () => {
-  const manager = await setupManager()
+  const manager = setupManager()
   const { project } = await setupProject(manager, {
     makeTracks: true,
     makeObservations: true,
@@ -248,7 +248,6 @@ async function parseGeoJSON(stream) {
   return parsed
 }
 
-// TODO: Create tracks and assign them observations
 /**
  *
  * @param {MapeoManager} manager

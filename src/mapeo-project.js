@@ -824,7 +824,6 @@ export class MapeoProject extends TypedEmitter {
         )
       )
 
-      // TODO: use "locations" field
       const coordinates = track.locations.map(
         ({ coords: { longitude, latitude, altitude } }) => [
           longitude,
@@ -1016,17 +1015,15 @@ export class MapeoProject extends TypedEmitter {
 
   /**
    * @param {Attachment} attachment
-   * @returns {Promise<null | Readable<Uint8Array|Buffer>>}
+   * @returns {Promise<null | BlobId>}
    */
-  async #tryExportBlob(attachment) {
+  async #tryGetBlobId(attachment) {
     // Audio must not have variants
     for (const variant of VARIANT_EXPORT_ORDER) {
       const blobId = buildBlobId(attachment, variant)
       const entry = await this.#blobStore.entry(blobId)
       if (!entry) continue
-      // Download
-      // @ts-expect-error
-      return this.#blobStore.createReadStream(blobId)
+      return blobId
     }
 
     return null
@@ -1063,14 +1060,17 @@ export class MapeoProject extends TypedEmitter {
     if (attachments) {
       const mediaFolder = this.#exportPrefix('Media') + '/'
       for (const attachment of seenAttachments.values()) {
-        const stream = await this.#tryExportBlob(attachment)
-        if (stream === null) {
+        const blobId = await this.#tryGetBlobId(attachment)
+        if (blobId === null) {
           missingAttachments.push(attachment)
           continue
         }
 
+        const stream = this.#blobStore.createReadStream(blobId)
+        const name = mediaFolder + blobId.variant + '/' + attachment.name
+
         // @ts-expect-error
-        await archive.entry(stream, { name: mediaFolder + attachment.name })
+        await archive.entry(stream, { name })
       }
 
       if (missingAttachments.length) {
