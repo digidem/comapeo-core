@@ -785,6 +785,31 @@ export class MapeoProject extends TypedEmitter {
           seenAttachments.set(hash, attachment)
         }
       }
+
+      let latitude = lat
+      let longitude = lon
+      let altitude = null
+      const position = observation?.metadata?.position?.coords
+      if (position) {
+        latitude = position.latitude
+        longitude = position.longitude
+        if (position.altitude !== undefined) {
+          altitude = position.altitude
+        }
+      }
+
+      const coordinates = [longitude, latitude]
+      if (typeof altitude === 'number') {
+        coordinates.push(altitude)
+      }
+      const hasLatLon =
+        typeof longitude === 'number' && typeof latitude === 'number'
+      const geometry = hasLatLon
+        ? {
+            type: 'Point',
+            coordinates,
+          }
+        : null
       const comma = first ? '' : ','
       first = false
       yield b4a.from(
@@ -792,11 +817,7 @@ export class MapeoProject extends TypedEmitter {
           JSON.stringify({
             type: 'Feature',
             properties: observation,
-            geometry: {
-              type: 'Point',
-              // TODO: Altitude?
-              coordinates: [lon, lat],
-            },
+            geometry,
           })
       )
     }
