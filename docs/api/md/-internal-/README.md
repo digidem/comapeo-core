@@ -93,6 +93,7 @@
 ### Type Aliases
 
 - [AddProjectQuery](type-aliases/AddProjectQuery.md)
+- [Attachment](type-aliases/Attachment.md)
 - [BitField](type-aliases/BitField.md)
 - [BlobFilter](type-aliases/BlobFilter.md)
 - [BlobId](type-aliases/BlobId.md)
@@ -145,6 +146,7 @@
 - [RoleId](type-aliases/RoleId.md)
 - [SchemaName](type-aliases/SchemaName.md)
 - [SecretKey](type-aliases/SecretKey.md)
+- [SeenAttachments](type-aliases/SeenAttachments.md)
 - [State](type-aliases/State.md)
 - [SupportedBlobVariants](type-aliases/SupportedBlobVariants.md)
 - [SyncCapability](type-aliases/SyncCapability.md)
