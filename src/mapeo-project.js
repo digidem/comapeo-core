@@ -1050,15 +1050,26 @@ export class MapeoProject extends TypedEmitter {
   async #tryGetAttachmentBlob(attachment) {
     // Audio must not have variants
     for (const variant of VARIANT_EXPORT_ORDER) {
-      const blobId = buildBlobId(attachment, variant)
-      const entry = await this.#blobStore.entry(blobId)
-      if (!entry) continue
-      const mimeType = entry?.value?.metadata?.mimeType
-      if (typeof mimeType !== 'string') {
-        this.#l.log('Blob missing mime type', blobId, entry)
+      try {
+        const blobId = buildBlobId(attachment, variant)
+        const entry = await this.#blobStore.entry(blobId)
+        if (!entry) continue
+        const mimeType = entry?.value?.metadata?.mimeType
+        if (typeof mimeType !== 'string') {
+          this.#l.log('Blob missing mime type', blobId, entry)
+          continue
+        }
+        return { blobId, mimeType }
+      } catch (e) {
+        if (!(e instanceof Error)) throw e
+        this.#l.log(
+          'Error loading blob id for attachment',
+          attachment,
+          variant,
+          e.message
+        )
         continue
       }
-      return { blobId, mimeType }
     }
 
     return null
