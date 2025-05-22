@@ -6,6 +6,7 @@ import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
+import mime from 'mime/lite'
 // @ts-expect-error
 import { Readable, pipelinePromise } from 'streamx'
 
@@ -69,6 +70,10 @@ import { createWriteStream } from 'fs'
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 /** @typedef {Map<string,Attachment>} SeenAttachments*/
+/** @typedef {object} BlobRef
+ * @prop {string} mimeType
+ * @prop {BlobId} blobId
+ */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -1036,15 +1041,20 @@ export class MapeoProject extends TypedEmitter {
 
   /**
    * @param {Attachment} attachment
-   * @returns {Promise<null | BlobId>}
+   * @returns {Promise<null | BlobRef>}
    */
-  async #tryGetBlobId(attachment) {
+  async #tryGetAttachmentBlob(attachment) {
     // Audio must not have variants
     for (const variant of VARIANT_EXPORT_ORDER) {
       const blobId = buildBlobId(attachment, variant)
       const entry = await this.#blobStore.entry(blobId)
       if (!entry) continue
-      return blobId
+      const mimeType = entry?.value?.metadata?.mimeType
+      if (typeof mimeType !== 'string') {
+        this.#l.log('Blob missing mime type', blobId, entry)
+        continue
+      }
+      return { blobId, mimeType }
     }
 
     return null
@@ -1079,16 +1089,24 @@ export class MapeoProject extends TypedEmitter {
     const missingAttachments = []
     // Attachments
     if (attachments) {
-      const mediaFolder = this.#exportPrefix('Media') + '/'
+      const mediaFolder = (await this.#exportPrefix('Media')) + '/'
       for (const attachment of seenAttachments.values()) {
-        const blobId = await this.#tryGetBlobId(attachment)
-        if (blobId === null) {
+        const ref = await this.#tryGetAttachmentBlob(attachment)
+        if (ref === null) {
           missingAttachments.push(attachment)
           continue
         }
 
+        const { blobId, mimeType } = ref
+
         const stream = this.#blobStore.createReadStream(blobId)
-        const name = mediaFolder + blobId.variant + '/' + attachment.name
+        const name =
+          mediaFolder +
+          blobId.variant +
+          '/' +
+          attachment.name +
+          '.' +
+          mime.getExtension(mimeType)
 
         // @ts-expect-error
         await archive.entry(stream, { name })

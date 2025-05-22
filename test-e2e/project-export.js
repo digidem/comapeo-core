@@ -221,8 +221,11 @@ test('Project export tracks and observations to zip stream', async () => {
       'Exported GeoJSON has expected number of features'
     )
 
-    const entriesCount = await zip.entriesCount
-    assert.equal(entriesCount, 2, 'Zip has geoJSON and one attachment')
+    const entries = Object.keys(await zip.entries())
+    assert.equal(entries.length, 2, 'Zip has geoJSON and one attachment')
+
+    const hasPng = entries.some((name) => name.endsWith('.png'))
+    assert(hasPng, 'Zip has exported PNG')
   })
 })
 
