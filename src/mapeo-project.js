@@ -1054,7 +1054,10 @@ export class MapeoProject extends TypedEmitter {
         const blobId = buildBlobId(attachment, variant)
         const entry = await this.#blobStore.entry(blobId)
         if (!entry) continue
-        const mimeType = entry?.value?.metadata?.mimeType
+        const metadata = entry.value.metadata
+        if (!metadata || typeof metadata !== 'object') continue
+        // @ts-expect-error
+        const mimeType = metadata.mimeType
         if (typeof mimeType !== 'string') {
           this.#l.log('Blob missing mime type', blobId, entry)
           continue
