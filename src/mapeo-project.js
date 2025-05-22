@@ -794,10 +794,16 @@ export class MapeoProject extends TypedEmitter {
       let latitude = lat
       let longitude = lon
       let altitude = null
+      let hasLatLon =
+        typeof longitude === 'number' && typeof latitude === 'number'
+
       const position = observation?.metadata?.position?.coords
-      if (position) {
+      if (!hasLatLon && position) {
         latitude = position.latitude
         longitude = position.longitude
+        hasLatLon =
+          typeof longitude === 'number' && typeof latitude === 'number'
+
         if (position.altitude !== undefined) {
           altitude = position.altitude
         }
@@ -807,8 +813,6 @@ export class MapeoProject extends TypedEmitter {
       if (typeof altitude === 'number') {
         coordinates.push(altitude)
       }
-      const hasLatLon =
-        typeof longitude === 'number' && typeof latitude === 'number'
       const geometry = hasLatLon
         ? {
             type: 'Point',
