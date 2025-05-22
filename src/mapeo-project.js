@@ -88,8 +88,6 @@ export const kClearDataIfLeft = Symbol('clear data if left project')
 export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 export const kGeoJSONFileName = Symbol('geoJSONFileName')
-export const kExportGeoJSONStream = Symbol('exportGeoJSONStream')
-export const kExportZipStream = Symbol('exportZipStream')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
@@ -950,7 +948,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {string} [options.lang]
    * @returns {Readable<Buffer | Uint8Array>}
    */
-  [kExportGeoJSONStream]({
+  #exportGeoJSONStream({
     observations = true,
     tracks = true,
     lang,
@@ -1036,7 +1034,7 @@ export class MapeoProject extends TypedEmitter {
   ) {
     const fileName = await this[kGeoJSONFileName](observations, tracks)
     const filePath = path.join(exportFolder, fileName)
-    const source = this[kExportGeoJSONStream]({ observations, tracks, lang })
+    const source = this.#exportGeoJSONStream({ observations, tracks, lang })
     const sink = createWriteStream(filePath)
     await pipelinePromise(source, sink)
 
@@ -1094,7 +1092,7 @@ export class MapeoProject extends TypedEmitter {
     // GeoJSON
     const geoJSONFileName = await this[kGeoJSONFileName](observations, tracks)
     const seenAttachments = new Map()
-    const geoJSONStream = this[kExportGeoJSONStream]({
+    const geoJSONStream = this.#exportGeoJSONStream({
       observations,
       tracks,
       lang,
@@ -1154,7 +1152,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {string} [options.lang]
    * @returns {Readable<Buffer | Uint8Array>}
    */
-  [kExportZipStream]({
+  #exportZipStream({
     observations = true,
     tracks = true,
     attachments = true,
@@ -1189,7 +1187,7 @@ export class MapeoProject extends TypedEmitter {
   ) {
     const fileName = await this.#zipFileName(observations, tracks)
     const filePath = path.join(exportFolder, fileName)
-    const source = this[kExportZipStream]({
+    const source = this.#exportZipStream({
       observations,
       tracks,
       attachments,
