@@ -14,7 +14,6 @@ import { createReadStream } from 'node:fs'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { kGeoJSONFileName, kExportGeoJSONStream } from '../src/mapeo-project.js'
-import { blobMetadata } from '../test//helpers/blob-store.js'
 
 /** @import { Readable } from 'streamx' */
 
@@ -273,7 +272,7 @@ async function setupProject(
         preview: join(BLOB_FIXTURES, 'preview.png'),
         thumbnail: join(BLOB_FIXTURES, 'thumbnail.png'),
       },
-      blobMetadata({ mimeType: 'image/png' })
+      { mimeType: 'image/png' }
     )
 
     attachment = { hash, type, name, driveDiscoveryId: driveId }
