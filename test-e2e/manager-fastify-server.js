@@ -12,7 +12,6 @@ import Fastify from 'fastify'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { FastifyController } from '../src/fastify-controller.js'
-import { blobMetadata } from '../test/helpers/blob-store.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../test/fixtures/blob-api/', import.meta.url)
@@ -140,7 +139,7 @@ test('retrieving blobs using url', async (t) => {
   await t.test('blob exists', async () => {
     const blobId = await project.$blobs.create(
       { original: join(BLOB_FIXTURES_DIR, 'original.png') },
-      blobMetadata({ mimeType: 'image/png' })
+      { mimeType: 'image/png' }
     )
 
     const blobUrl = await project.$blobs.getUrl({
@@ -304,7 +303,7 @@ test('retrieving audio file', async (t) => {
   await t.test('creating audio', async () => {
     const blobId = await project.$blobs.create(
       { original: join(BLOB_FIXTURES_DIR, 'audio.mp3') },
-      blobMetadata({ mimeType: 'audio/mpeg' })
+      { mimeType: 'audio/mpeg' }
     )
     const blobUrl = await project.$blobs.getUrl({
       ...blobId,
