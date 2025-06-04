@@ -812,7 +812,7 @@ export class MapeoProject extends TypedEmitter {
         }
       }
 
-      /** @type {import('geojson').Feature<import('geojson').Point | null>} */
+      /** @type {import('@types/geojson').Feature<import('@types/geojson').Point | null>} */
       const feature = {
         type: 'Feature',
         properties: observation,
