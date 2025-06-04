@@ -1114,12 +1114,19 @@ export class MapeoProject extends TypedEmitter {
         }
 
         const { blobId, mimeType } = ref
+        const extension = mime.getExtension(mimeType)
+
+        if (!extension) {
+          missingAttachments.push(attachment)
+          this.#l.log('Got unknown mime type in attachment blob', attachment)
+          continue
+        }
 
         const stream = this.#blobStore.createReadStream(blobId)
-        const name = path.join(
+        const name = path.posix.join(
           mediaFolder,
           blobId.variant,
-          `${attachment.name}.${mime.getExtension(mimeType)}`
+          `${attachment.name}.${extension}`
         )
 
         // @ts-expect-error
