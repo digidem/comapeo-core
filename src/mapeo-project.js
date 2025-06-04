@@ -1054,13 +1054,13 @@ export class MapeoProject extends TypedEmitter {
         if (!entry) continue
         const metadata = entry.value.metadata
         if (!metadata || typeof metadata !== 'object') continue
-        // @ts-expect-error
-        const mimeType = metadata.mimeType
-        if (typeof mimeType !== 'string') {
+        if (
+          !('mimeType' in metadata && typeof metadata.mimeType === 'string')
+        ) {
           this.#l.log('Blob missing mime type', blobId, entry)
           continue
         }
-        return { blobId, mimeType }
+        return { blobId, mimeType: metadata.mimeType }
       } catch (e) {
         if (!(e instanceof Error)) throw e
         this.#l.log(
