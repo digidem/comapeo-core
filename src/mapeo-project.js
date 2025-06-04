@@ -1116,13 +1116,11 @@ export class MapeoProject extends TypedEmitter {
         const { blobId, mimeType } = ref
 
         const stream = this.#blobStore.createReadStream(blobId)
-        const name =
-          mediaFolder +
-          blobId.variant +
-          '/' +
-          attachment.name +
-          '.' +
-          mime.getExtension(mimeType)
+        const name = path.join(
+          mediaFolder,
+          blobId.variant,
+          `${attachment.name}.${mime.getExtension(mimeType)}`
+        )
 
         // @ts-expect-error
         await archive.entry(stream, { name })
