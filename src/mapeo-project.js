@@ -789,44 +789,43 @@ export class MapeoProject extends TypedEmitter {
         }
       }
 
-      let latitude = lat
-      let longitude = lon
-      let altitude = null
-      let hasLatLon =
-        typeof longitude === 'number' && typeof latitude === 'number'
+      const metadataCoords = observation.metadata?.position?.coords
+      const altitude = metadataCoords?.altitude
 
-      const position = observation?.metadata?.position?.coords
-      if (!hasLatLon && position) {
-        latitude = position.latitude
-        longitude = position.longitude
-        hasLatLon =
-          typeof longitude === 'number' && typeof latitude === 'number'
+      /** @type {[number, number] | [number, number, number] | null} */
+      let coordinates = null
 
-        if (position.altitude !== undefined) {
-          altitude = position.altitude
+      // Prioritize using the observation's `lat` and `lon` fields
+      if (typeof lat === 'number' && typeof lon === 'number') {
+        coordinates =
+          typeof altitude === 'number' ? [lon, lat, altitude] : [lon, lat]
+      } else {
+        // Fall back to using the observation metadata's position if possible
+        if (
+          typeof metadataCoords?.latitude === 'number' &&
+          typeof metadataCoords?.longitude === 'number'
+        ) {
+          coordinates =
+            typeof altitude === 'number'
+              ? [metadataCoords.longitude, metadataCoords.latitude, altitude]
+              : [metadataCoords.longitude, metadataCoords.latitude]
         }
       }
 
-      const coordinates = [longitude, latitude]
-      if (typeof altitude === 'number') {
-        coordinates.push(altitude)
+      /** @type {import('geojson').Feature<import('geojson').Point | null>} */
+      const feature = {
+        type: 'Feature',
+        properties: observation,
+        geometry: coordinates
+          ? {
+              type: 'Point',
+              coordinates,
+            }
+          : null,
       }
-      const geometry = hasLatLon
-        ? {
-            type: 'Point',
-            coordinates,
-          }
-        : null
       const comma = first ? '' : ','
       first = false
-      yield b4a.from(
-        `${comma}\n      ` +
-          JSON.stringify({
-            type: 'Feature',
-            properties: observation,
-            geometry,
-          })
-      )
+      yield b4a.from(`${comma}\n      ` + JSON.stringify(feature))
     }
   }
 
