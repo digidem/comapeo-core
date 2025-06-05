@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'url'
 import { BlobApi } from '../src/blob-api.js'
 
-import { createBlobStore, blobMetadata } from './helpers/blob-store.js'
+import { createBlobStore } from './helpers/blob-store.js'
 
 test('create blobs', async () => {
   const { blobStore } = createBlobStore()
@@ -31,7 +31,7 @@ test('create blobs', async () => {
       preview: join(directory, 'preview.png'),
       thumbnail: join(directory, 'thumbnail.png'),
     },
-    blobMetadata({ mimeType: 'image/png' })
+    { mimeType: 'image/png' }
   )
 
   assert.equal(attachment.driveId, blobStore.writerDriveId)

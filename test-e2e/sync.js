@@ -27,7 +27,6 @@ import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
-import { blobMetadata } from '../test/helpers/blob-store.js'
 import { createHash } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 /** @import { State } from '../src/sync/sync-api.js' */
@@ -581,7 +580,7 @@ test('auto-stop', async (t) => {
   ).pathname
   const blob = await invitorProject.$blobs.create(
     { original: fixturePath },
-    blobMetadata({ mimeType: 'image/jpeg' })
+    { mimeType: 'image/jpeg' }
   )
   await waitForSync(projects, 'full')
   const blobUrl = await inviteeProject.$blobs.getUrl({

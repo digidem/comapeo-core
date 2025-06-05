@@ -885,7 +885,6 @@ export async function seedProjectBlobs(project, t, { photoCount, audioCount }) {
     const mimeType = type === 'photo' ? 'image/jpeg' : 'audio/mpeg'
     const blobId = await project.$blobs.create(filepaths, {
       mimeType,
-      timestamp: randomDate().valueOf(),
     })
     // @ts-expect-error - TS doesn't know
     output.push({ blobId, hashes })
