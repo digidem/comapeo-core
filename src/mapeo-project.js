@@ -71,7 +71,7 @@ import { createWriteStream } from 'fs'
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 /** @typedef {Map<string,Attachment>} SeenAttachments*/
 /** @typedef {object} BlobRef
- * @prop {string} mimeType
+ * @prop {string|undefined} mimeType
  * @prop {BlobId} blobId
  */
 
@@ -812,7 +812,7 @@ export class MapeoProject extends TypedEmitter {
         }
       }
 
-      /** @type {import('@types/geojson').Feature<import('@types/geojson').Point | null>} */
+      /** @type {import('geojson').Feature<import('geojson').Point | null>} */
       const feature = {
         type: 'Feature',
         properties: observation,
@@ -1053,13 +1053,16 @@ export class MapeoProject extends TypedEmitter {
         if (!entry) continue
         const metadata = entry.value.metadata
         if (!metadata || typeof metadata !== 'object') continue
-        if (
-          !('mimeType' in metadata && typeof metadata.mimeType === 'string')
-        ) {
-          this.#l.log('Blob missing mime type', blobId, entry)
-          continue
+        let mimeType = undefined
+        if ('mimeType' in metadata) {
+          if (typeof metadata.mimeType === 'string') {
+            mimeType = metadata.mimeType
+          } else {
+            this.#l.log('Invalid type for mimeType in blob', blobId, entry)
+            continue
+          }
         }
-        return { blobId, mimeType: metadata.mimeType }
+        return { blobId, mimeType }
       } catch (e) {
         if (!(e instanceof Error)) throw e
         this.#l.log(
@@ -1113,19 +1116,21 @@ export class MapeoProject extends TypedEmitter {
         }
 
         const { blobId, mimeType } = ref
-        const extension = mime.getExtension(mimeType)
-
-        if (!extension) {
-          missingAttachments.push(attachment)
-          this.#l.log('Got unknown mime type in attachment blob', attachment)
-          continue
+        let extensionString = ''
+        if (mimeType) {
+          const extension = mime.getExtension(mimeType)
+          if (extension) {
+            extensionString = '.' + extension
+          } else {
+            this.#l.log('Got unknown mime type in attachment blob', attachment)
+          }
         }
 
         const stream = this.#blobStore.createReadStream(blobId)
         const name = path.posix.join(
           mediaFolder,
           blobId.variant,
-          `${attachment.name}.${extension}`
+          `${attachment.name}${extensionString}`
         )
 
         // @ts-expect-error
