@@ -263,6 +263,7 @@ async function setupProject(
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
+  /** @type {import('../src/types.js').Attachment | null} */
   let attachment = null
 
   if (makeAttachments) {
@@ -275,7 +276,13 @@ async function setupProject(
       { mimeType: 'image/png' }
     )
 
-    attachment = { hash, type, name, driveDiscoveryId: driveId }
+    attachment = {
+      hash,
+      type,
+      name,
+      driveDiscoveryId: driveId,
+      external: false,
+    }
   }
 
   /** @type {import('@comapeo/schema').Observation[]} */
