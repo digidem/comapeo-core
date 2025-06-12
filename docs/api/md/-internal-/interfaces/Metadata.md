@@ -8,18 +8,6 @@
 
 ## Properties
 
-### location
-
-> **location**: `undefined` \| [`LocationObject`](LocationObject.md)
-
-***
-
 ### mimeType
 
 > **mimeType**: `string`
-
-***
-
-### timestamp
-
-> **timestamp**: `number`

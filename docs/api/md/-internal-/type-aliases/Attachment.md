@@ -6,4 +6,4 @@
 
 # Type Alias: Attachment
 
-> **Attachment**: `Observation`\[`"attachments"`\]\[`0`\]
+> **Attachment**: `Observation`\[`"attachments"`\]\[`number`\]

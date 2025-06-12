@@ -67,6 +67,7 @@
 
 - [AbstractEncoding](interfaces/AbstractEncoding.md)
 - [BitmapOpts](interfaces/BitmapOpts.md)
+- [BlobRef](interfaces/BlobRef.md)
 - [Channel](interfaces/Channel.md)
 - [Context](interfaces/Context.md)
 - [CorestoreEvents](interfaces/CorestoreEvents.md)
@@ -76,8 +77,6 @@
 - [HyperdriveGetOpts](interfaces/HyperdriveGetOpts.md)
 - [HyperdriveOptions](interfaces/HyperdriveOptions.md)
 - [LocalCoreState](interfaces/LocalCoreState.md)
-- [LocationObject](interfaces/LocationObject.md)
-- [LocationObjectCoords](interfaces/LocationObjectCoords.md)
 - [MapsPluginOpts](interfaces/MapsPluginOpts.md)
 - [MemberInfo](interfaces/MemberInfo.md)
 - [Message](interfaces/Message.md)
