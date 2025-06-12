@@ -266,7 +266,7 @@ async function setupProject(
         preview: join(BLOB_FIXTURES, 'preview.png'),
         thumbnail: join(BLOB_FIXTURES, 'thumbnail.png'),
       },
-      blobMetadata({ mimeType: 'image/png' })
+      { mimeType: 'image/png' }
     )
 
     attachment = { hash, type, name, driveDiscoveryId: driveId }
