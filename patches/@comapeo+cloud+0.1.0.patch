@@ -1,0 +1,15 @@
+diff --git a/node_modules/@comapeo/cloud/Dockerfile b/node_modules/@comapeo/cloud/Dockerfile
+index 228a8bb..7c3931d 100644
+--- a/node_modules/@comapeo/cloud/Dockerfile
++++ b/node_modules/@comapeo/cloud/Dockerfile
+@@ -12,8 +12,8 @@ RUN npm ci --omit=dev
+ # --------------> The production image__
+ FROM node:${NODE_VERSION}-bullseye-slim
+ 
+-ENV NODE_ENV production
+-ENV PORT 8080
++ENV NODE_ENV=production
++ENV PORT=8080
+ EXPOSE 8080
+ COPY --from=build /usr/bin/dumb-init /usr/bin/dumb-init
+ USER node
