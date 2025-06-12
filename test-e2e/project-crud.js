@@ -38,10 +38,7 @@ const fixtures = [
     schemaName: 'preset',
     name: 'myPreset',
     tags: {},
-    iconRef: {
-      docId: randomBytes(32).toString('hex'),
-      versionId: `${randomBytes(32).toString('hex')}/0`,
-    },
+    iconRef: createDocumentRef(),
     geometry: ['point'],
     addTags: {},
     removeTags: {},
@@ -58,9 +55,10 @@ const fixtures = [
   },
   {
     schemaName: 'track',
-    observationRefs: [],
+    observationRefs: [createDocumentRef(), createDocumentRef()],
     tags: {},
     locations: Array.from({ length: 10 }, trackPositionFixture),
+    presetRef: createDocumentRef(),
   },
   {
     schemaName: 'remoteDetectionAlert',
@@ -452,5 +450,12 @@ function trackPositionFixture() {
       heading: randomNum({ min: 0, max: 360, precision: 6 }),
       speed: randomNum({ min: 0, max: 100, precision: 2 }),
     },
+  }
+}
+
+function createDocumentRef(versionIdNumber = 0) {
+  return {
+    docId: randomBytes(32).toString('hex'),
+    versionId: `${randomBytes(32).toString('hex')}/${versionIdNumber}`,
   }
 }

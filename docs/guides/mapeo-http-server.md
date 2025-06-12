@@ -58,6 +58,7 @@ const observation = await project.observation.create({
       type: blobId.type, // media type ('photo' in this case)
       name: blobId.name, // random 8 byte hex string
       hash: blobId.hash, // content hash
+      external: false, // indicates whether media for attachment comes from external source (e.g. uploaded from storage, downloaded from remote URL, etc.) 
       createdAt: new Date().toISOString(), // (optional) timestamp indicating creation
       position: { timestamp: new Date().toISOString(), longitude: 0, latitude: 0 }, // (optional) geographic position information
     },

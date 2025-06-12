@@ -94,6 +94,7 @@ test('attachment creation', async (t) => {
       driveDiscoveryId: blobId.driveId,
       name: blobId.name,
       hash: blobId.hash,
+      external: false,
     }))
   })
 

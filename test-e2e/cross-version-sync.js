@@ -74,12 +74,17 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
       if (attachment.type === 'photo') {
         return excludeKeys(
           attachment,
-          /** @type {const} */ (['position', 'createdAt', 'photoExif'])
+          /** @type {const} */ ([
+            'position',
+            'createdAt',
+            'photoExif',
+            'external',
+          ])
         )
       } else {
         return excludeKeys(
           attachment,
-          /** @type {const} */ (['position', 'createdAt'])
+          /** @type {const} */ (['position', 'createdAt', 'external'])
         )
       }
     }),

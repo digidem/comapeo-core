@@ -162,7 +162,7 @@ export type BlobStoreEntriesStream = Readable & {
   >
 }
 
-export type Attachment = Observation['attachments'][0]
+export type Attachment = Observation['attachments'][number]
 
 export type StringToTaggedUnion<T extends string> = {
   [K in T]: {
