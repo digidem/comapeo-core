@@ -13,7 +13,6 @@ import { fileURLToPath } from 'node:url'
 import { createReadStream } from 'node:fs'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
-import { blobMetadata } from '../test//helpers/blob-store.js'
 
 /** @import { Readable } from 'streamx' */
 
