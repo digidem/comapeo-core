@@ -13,7 +13,6 @@ import { fileURLToPath } from 'node:url'
 import { createReadStream } from 'node:fs'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
-import { kGeoJSONFileName, kExportGeoJSONStream } from '../src/mapeo-project.js'
 
 /** @import { Readable } from 'streamx' */
 
@@ -29,132 +28,120 @@ test('Project export empty GeoJSON to stream', async () => {
   const manager = setupManager()
   const { project } = await setupProject(manager)
 
-  const stream = project[kExportGeoJSONStream]()
+  await temporaryDirectoryTask(async (dir) => {
+    const geoJSONFile = await project.exportGeoJSONFile(dir)
+    const stream = createReadStream(geoJSONFile)
 
-  const parsed = await parseGeoJSON(stream)
+    const parsed = await parseGeoJSON(stream)
 
-  assert.equal(
-    parsed.type,
-    'FeatureCollection',
-    'Exported GeoJSON is a FeatureCollection'
-  )
-  assert.deepEqual(
-    parsed.features,
-    [],
-    'Exported GeoJSON has empty features array'
-  )
+    assert.equal(
+      parsed.type,
+      'FeatureCollection',
+      'Exported GeoJSON is a FeatureCollection'
+    )
+    assert.deepEqual(
+      parsed.features,
+      [],
+      'Exported GeoJSON has empty features array'
+    )
+  })
 })
 
 test('Project export observations GeoJSON to stream', async () => {
   const manager = setupManager()
   const { project } = await setupProject(manager, { makeObservations: true })
 
-  const stream = project[kExportGeoJSONStream]()
-  const parsed = await parseGeoJSON(stream)
+  await temporaryDirectoryTask(async (dir) => {
+    const geoJSONFile = await project.exportGeoJSONFile(dir)
+    const stream = createReadStream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
 
-  assert.equal(
-    parsed.type,
-    'FeatureCollection',
-    'Exported GeoJSON is a FeatureCollection'
-  )
-  assert.deepEqual(
-    parsed.features.length,
-    DEFAULT_OBSERVATIONS,
-    'Exported GeoJSON has expected number of features'
-  )
+    assert.equal(
+      parsed.type,
+      'FeatureCollection',
+      'Exported GeoJSON is a FeatureCollection'
+    )
+    assert.deepEqual(
+      parsed.features.length,
+      DEFAULT_OBSERVATIONS,
+      'Exported GeoJSON has expected number of features'
+    )
+  })
 })
 
 test('Project export ignore observations', async () => {
   const manager = setupManager()
   const { project } = await setupProject(manager, { makeObservations: true })
 
-  const stream = project[kExportGeoJSONStream]({
-    observations: false,
-    tracks: false,
-  })
-  const parsed = await parseGeoJSON(stream)
+  await temporaryDirectoryTask(async (dir) => {
+    const geoJSONFile = await project.exportGeoJSONFile(dir, {
+      tracks: false,
+      observations: false,
+    })
+    const stream = createReadStream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
 
-  assert.equal(
-    parsed.type,
-    'FeatureCollection',
-    'Exported GeoJSON is a FeatureCollection'
-  )
-  assert.deepEqual(
-    parsed.features.length,
-    0,
-    'Exported GeoJSON has no features'
-  )
+    assert.equal(
+      parsed.type,
+      'FeatureCollection',
+      'Exported GeoJSON is a FeatureCollection'
+    )
+    assert.deepEqual(
+      parsed.features.length,
+      0,
+      'Exported GeoJSON has no features'
+    )
+  })
 })
 
 test('Project export tracks GeoJSON to stream', async () => {
   const manager = setupManager()
   const { project } = await setupProject(manager, { makeTracks: true })
 
-  const stream = project[kExportGeoJSONStream]({
-    tracks: true,
-    observations: false,
-  })
-  const parsed = await parseGeoJSON(stream)
+  await temporaryDirectoryTask(async (dir) => {
+    const geoJSONFile = await project.exportGeoJSONFile(dir, {
+      tracks: true,
+      observations: false,
+    })
+    const stream = createReadStream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
 
-  assert.equal(
-    parsed.type,
-    'FeatureCollection',
-    'Exported GeoJSON is a FeatureCollection'
-  )
-  assert.deepEqual(
-    parsed.features.length,
-    DEFAULT_TRACKS + DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
-    'Exported GeoJSON has expected number of features'
-  )
+    assert.equal(
+      parsed.type,
+      'FeatureCollection',
+      'Exported GeoJSON is a FeatureCollection'
+    )
+    assert.deepEqual(
+      parsed.features.length,
+      DEFAULT_TRACKS + DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
+      'Exported GeoJSON has expected number of features'
+    )
+  })
 })
 
 test('Project export ignore tracks', async () => {
   const manager = setupManager()
   const { project } = await setupProject(manager, { makeTracks: true })
 
-  const stream = project[kExportGeoJSONStream]({
-    observations: false,
-    tracks: false,
+  await temporaryDirectoryTask(async (dir) => {
+    const geoJSONFile = await project.exportGeoJSONFile(dir, {
+      tracks: false,
+      observations: false,
+    })
+    const stream = createReadStream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
+
+    assert.equal(
+      parsed.type,
+      'FeatureCollection',
+      'Exported GeoJSON is a FeatureCollection'
+    )
+    assert.deepEqual(
+      parsed.features.length,
+      0,
+      'Exported GeoJSON has no features'
+    )
   })
-  const parsed = await parseGeoJSON(stream)
-
-  assert.equal(
-    parsed.type,
-    'FeatureCollection',
-    'Exported GeoJSON is a FeatureCollection'
-  )
-  assert.deepEqual(
-    parsed.features.length,
-    0,
-    'Exported GeoJSON has no features'
-  )
-})
-
-test('Project export tracks and observations GeoJSON to stream', async () => {
-  const manager = setupManager()
-  const { project } = await setupProject(manager, {
-    makeTracks: true,
-    makeObservations: true,
-  })
-
-  const stream = project[kExportGeoJSONStream]({
-    tracks: true,
-    observations: true,
-  })
-  const parsed = await parseGeoJSON(stream)
-
-  assert.equal(
-    parsed.type,
-    'FeatureCollection',
-    'Exported GeoJSON is a FeatureCollection'
-  )
-  assert.deepEqual(
-    parsed.features.length,
-    DEFAULT_OBSERVATIONS +
-      DEFAULT_TRACKS +
-      DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
-    'Exported GeoJSON has expected number of features'
-  )
 })
 
 test('Project export tracks and observations GeoJSON to file', async () => {
@@ -202,7 +189,11 @@ test('Project export tracks and observations to zip stream', async () => {
       attachments: true,
     })
     const zip = new StreamZip.async({ file: zipFile })
-    const geoJSONFile = await project[kGeoJSONFileName](true, true)
+    const entries = Object.keys(await zip.entries())
+
+    const geoJSONFile = entries.find((name) => name.endsWith('.geojson'))
+
+    assert(geoJSONFile, 'Zip file contains geojson file')
 
     const stream = await zip.stream(geoJSONFile)
     const parsed = await parseGeoJSON(stream)
@@ -220,8 +211,10 @@ test('Project export tracks and observations to zip stream', async () => {
       'Exported GeoJSON has expected number of features'
     )
 
-    const entriesCount = await zip.entriesCount
-    assert.equal(entriesCount, 2, 'Zip has geoJSON and one attachment')
+    assert.equal(entries.length, 2, 'Zip has geoJSON and one attachment')
+
+    const hasPng = entries.some((name) => name.endsWith('.png'))
+    assert(hasPng, 'Zip has exported PNG')
   })
 })
 

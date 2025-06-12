@@ -6,6 +6,7 @@ import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
+import mime from 'mime/lite'
 // @ts-expect-error
 import { Readable, pipelinePromise } from 'streamx'
 
@@ -69,6 +70,10 @@ import { createWriteStream } from 'fs'
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 /** @typedef {Map<string,Attachment>} SeenAttachments*/
+/** @typedef {object} BlobRef
+ * @prop {string|undefined} mimeType
+ * @prop {BlobId} blobId
+ */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -83,8 +88,6 @@ export const kClearDataIfLeft = Symbol('clear data if left project')
 export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 export const kGeoJSONFileName = Symbol('geoJSONFileName')
-export const kExportGeoJSONStream = Symbol('exportGeoJSONStream')
-export const kExportZipStream = Symbol('exportZipStream')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
@@ -786,40 +789,43 @@ export class MapeoProject extends TypedEmitter {
         }
       }
 
-      let latitude = lat
-      let longitude = lon
-      let altitude = null
-      const position = observation?.metadata?.position?.coords
-      if (position) {
-        latitude = position.latitude
-        longitude = position.longitude
-        if (position.altitude !== undefined) {
-          altitude = position.altitude
+      const metadataCoords = observation.metadata?.position?.coords
+      const altitude = metadataCoords?.altitude
+
+      /** @type {[number, number] | [number, number, number] | null} */
+      let coordinates = null
+
+      // Prioritize using the observation's `lat` and `lon` fields
+      if (typeof lat === 'number' && typeof lon === 'number') {
+        coordinates =
+          typeof altitude === 'number' ? [lon, lat, altitude] : [lon, lat]
+      } else {
+        // Fall back to using the observation metadata's position if possible
+        if (
+          typeof metadataCoords?.latitude === 'number' &&
+          typeof metadataCoords?.longitude === 'number'
+        ) {
+          coordinates =
+            typeof altitude === 'number'
+              ? [metadataCoords.longitude, metadataCoords.latitude, altitude]
+              : [metadataCoords.longitude, metadataCoords.latitude]
         }
       }
 
-      const coordinates = [longitude, latitude]
-      if (typeof altitude === 'number') {
-        coordinates.push(altitude)
+      /** @type {import('geojson').Feature<import('geojson').Point | null>} */
+      const feature = {
+        type: 'Feature',
+        properties: observation,
+        geometry: coordinates
+          ? {
+              type: 'Point',
+              coordinates,
+            }
+          : null,
       }
-      const hasLatLon =
-        typeof longitude === 'number' && typeof latitude === 'number'
-      const geometry = hasLatLon
-        ? {
-            type: 'Point',
-            coordinates,
-          }
-        : null
       const comma = first ? '' : ','
       first = false
-      yield b4a.from(
-        `${comma}\n      ` +
-          JSON.stringify({
-            type: 'Feature',
-            properties: observation,
-            geometry,
-          })
-      )
+      yield b4a.from(`${comma}\n      ` + JSON.stringify(feature))
     }
   }
 
@@ -941,7 +947,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {string} [options.lang]
    * @returns {Readable<Buffer | Uint8Array>}
    */
-  [kExportGeoJSONStream]({
+  #exportGeoJSONStream({
     observations = true,
     tracks = true,
     lang,
@@ -1027,7 +1033,7 @@ export class MapeoProject extends TypedEmitter {
   ) {
     const fileName = await this[kGeoJSONFileName](observations, tracks)
     const filePath = path.join(exportFolder, fileName)
-    const source = this[kExportGeoJSONStream]({ observations, tracks, lang })
+    const source = this.#exportGeoJSONStream({ observations, tracks, lang })
     const sink = createWriteStream(filePath)
     await pipelinePromise(source, sink)
 
@@ -1036,15 +1042,37 @@ export class MapeoProject extends TypedEmitter {
 
   /**
    * @param {Attachment} attachment
-   * @returns {Promise<null | BlobId>}
+   * @returns {Promise<null | BlobRef>}
    */
-  async #tryGetBlobId(attachment) {
+  async #tryGetAttachmentBlob(attachment) {
     // Audio must not have variants
     for (const variant of VARIANT_EXPORT_ORDER) {
-      const blobId = buildBlobId(attachment, variant)
-      const entry = await this.#blobStore.entry(blobId)
-      if (!entry) continue
-      return blobId
+      try {
+        const blobId = buildBlobId(attachment, variant)
+        const entry = await this.#blobStore.entry(blobId)
+        if (!entry) continue
+        const metadata = entry.value.metadata
+        if (!metadata || typeof metadata !== 'object') continue
+        let mimeType = undefined
+        if ('mimeType' in metadata) {
+          if (typeof metadata.mimeType === 'string') {
+            mimeType = metadata.mimeType
+          } else {
+            this.#l.log('Invalid type for mimeType in blob', blobId, entry)
+            continue
+          }
+        }
+        return { blobId, mimeType }
+      } catch (e) {
+        if (!(e instanceof Error)) throw e
+        this.#l.log(
+          'Error loading blob id for attachment',
+          attachment,
+          variant,
+          e.message
+        )
+        continue
+      }
     }
 
     return null
@@ -1066,7 +1094,7 @@ export class MapeoProject extends TypedEmitter {
     // GeoJSON
     const geoJSONFileName = await this[kGeoJSONFileName](observations, tracks)
     const seenAttachments = new Map()
-    const geoJSONStream = this[kExportGeoJSONStream]({
+    const geoJSONStream = this.#exportGeoJSONStream({
       observations,
       tracks,
       lang,
@@ -1079,16 +1107,31 @@ export class MapeoProject extends TypedEmitter {
     const missingAttachments = []
     // Attachments
     if (attachments) {
-      const mediaFolder = this.#exportPrefix('Media') + '/'
+      const mediaFolder = (await this.#exportPrefix('Media')) + '/'
       for (const attachment of seenAttachments.values()) {
-        const blobId = await this.#tryGetBlobId(attachment)
-        if (blobId === null) {
+        const ref = await this.#tryGetAttachmentBlob(attachment)
+        if (ref === null) {
           missingAttachments.push(attachment)
           continue
         }
 
+        const { blobId, mimeType } = ref
+        let extensionString = ''
+        if (mimeType) {
+          const extension = mime.getExtension(mimeType)
+          if (extension) {
+            extensionString = '.' + extension
+          } else {
+            this.#l.log('Got unknown mime type in attachment blob', attachment)
+          }
+        }
+
         const stream = this.#blobStore.createReadStream(blobId)
-        const name = mediaFolder + blobId.variant + '/' + attachment.name
+        const name = path.posix.join(
+          mediaFolder,
+          blobId.variant,
+          `${attachment.name}${extensionString}`
+        )
 
         // @ts-expect-error
         await archive.entry(stream, { name })
@@ -1118,7 +1161,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {string} [options.lang]
    * @returns {Readable<Buffer | Uint8Array>}
    */
-  [kExportZipStream]({
+  #exportZipStream({
     observations = true,
     tracks = true,
     attachments = true,
@@ -1153,7 +1196,7 @@ export class MapeoProject extends TypedEmitter {
   ) {
     const fileName = await this.#zipFileName(observations, tracks)
     const filePath = path.join(exportFolder, fileName)
-    const source = this[kExportZipStream]({
+    const source = this.#exportZipStream({
       observations,
       tracks,
       attachments,
