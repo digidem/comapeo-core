@@ -298,64 +298,6 @@ Clear data if we've left the project. No-op if you're still in the project.
 
 ***
 
-### \[kExportGeoJSONStream\]()
-
-> **\[kExportGeoJSONStream\]**(`options`?): `Readable`\<`Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `true`, `false`, `ReadableEvents`\<`Uint8Array` \| `Buffer`\>\>
-
-Export observations and or tracks as a stream of GeoJSON data
-
-#### Parameters
-
-• **options?** = `{}`
-
-• **options.lang?**: `undefined` \| `string`
-
-• **options.observations?**: `undefined` \| `boolean` = `true`
-
-Whether observations should be exported
-
-• **options.seenAttachments?**: `undefined` \| [`SeenAttachments`](../type-aliases/SeenAttachments.md) = `...`
-
-• **options.tracks?**: `undefined` \| `boolean` = `true`
-
-Whether all tracks and their observations should be exported
-
-#### Returns
-
-`Readable`\<`Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `true`, `false`, `ReadableEvents`\<`Uint8Array` \| `Buffer`\>\>
-
-***
-
-### \[kExportZipStream\]()
-
-> **\[kExportZipStream\]**(`options`?): `Readable`\<`Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `true`, `false`, `ReadableEvents`\<`Uint8Array` \| `Buffer`\>\>
-
-Export observations, tracks, and or attachments as a zip file stream.
-
-#### Parameters
-
-• **options?** = `{}`
-
-• **options.attachments?**: `undefined` \| `boolean` = `true`
-
-Whether all attachments for observations should be exported
-
-• **options.lang?**: `undefined` \| `string`
-
-• **options.observations?**: `undefined` \| `boolean` = `true`
-
-Whether observations should be exported
-
-• **options.tracks?**: `undefined` \| `boolean` = `true`
-
-Whether all tracks and their observations should be exported
-
-#### Returns
-
-`Readable`\<`Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `Uint8Array` \| `Buffer`, `true`, `false`, `ReadableEvents`\<`Uint8Array` \| `Buffer`\>\>
-
-***
-
 ### \[kGeoJSONFileName\]()
 
 > **\[kGeoJSONFileName\]**(`observations`, `tracks`): `Promise`\<`string`\>
