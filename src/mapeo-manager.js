@@ -563,6 +563,8 @@ export class MapeoManager extends TypedEmitter {
         (p) => p.projectId === projectId
       )
 
+      if (!existingProject) continue
+
       result.push(
         deNullify({
           projectId: projectPublicId,
