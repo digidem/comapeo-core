@@ -15,6 +15,14 @@ export type HrTime = [number, number]
 
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'query'
 
+export type DecoratorsFor<T extends object> = {
+  [K in keyof T as T[K] extends (...args: any) => any
+    ? K
+    : never]?: T[K] extends (...args: infer P) => any
+    ? ((...args: P) => ExtendedSpanOptions) | ExtendedSpanOptions
+    : never
+}
+
 export interface TracingHelper {
   isEnabled(): boolean
   getTraceParent(context?: Context): string
@@ -25,6 +33,8 @@ export interface TracingHelper {
     nameOrOptions: string | ExtendedSpanOptions,
     callback: SpanCallback<R>
   ): R
+
+  instrument<T extends object>(instance: T, decorators: DecoratorsFor<T>): T
 }
 
 export type ComapeoCoreInstrumentationGlobalValue = {

@@ -19,6 +19,10 @@ export const disabledTracingHelper = {
   runInChildSpan(_, callback) {
     return callback()
   },
+
+  instrument(instance) {
+    return instance
+  },
 }
 
 /**
@@ -43,6 +47,11 @@ class DynamicTracingHelper {
   /** @type {TracingHelper['runInChildSpan']} */
   runInChildSpan(options, callback) {
     return this.#getGlobalTracingHelper().runInChildSpan(options, callback)
+  }
+
+  /** @type {TracingHelper['instrument']} */
+  instrument(instance, decorators) {
+    return this.#getGlobalTracingHelper().instrument(instance, decorators)
   }
 
   /** @returns {TracingHelper} */
