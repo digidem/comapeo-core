@@ -17,15 +17,10 @@ import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { ErrorWithCode, getErrorMessage } from './lib/error.js'
-import {
-  InviteAbortedError,
-  InviteInitialSyncFailError,
-  ProjectDetailsSendFailError,
-} from './errors.js'
+import { InviteAbortedError, ProjectDetailsSendFailError } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
-  FAILED_ROLE_ID,
   MEMBER_ROLE_ID,
   ROLES,
   isRoleIdForNewInvite,
@@ -207,7 +202,6 @@ export class MemberApi extends TypedEmitter {
         case InviteResponse_Decision.ACCEPT:
           // Technically we can assign after sending project details
           // This lets us test role removal
-          await this.#roles.assignRole(deviceId, roleId)
 
           try {
             await this.#rpc.sendProjectJoinDetails(deviceId, {
@@ -216,21 +210,14 @@ export class MemberApi extends TypedEmitter {
               encryptionKeys: this.#encryptionKeys,
             })
           } catch {
-            try {
-              // Mark them as "failed" so we can retry the flow
-              await this.#roles.assignRole(deviceId, FAILED_ROLE_ID)
-            } catch (e) {
-              console.error(e)
-            }
             throw new ProjectDetailsSendFailError()
           }
+          await this.#roles.assignRole(deviceId, roleId)
 
           try {
             await this.#waitForInitialSyncWithPeer(deviceId, abortSignal)
-          } catch {
-            // Mark them as "failed" so we can retry the flow
-            await this.#roles.assignRole(deviceId, FAILED_ROLE_ID)
-            throw new InviteInitialSyncFailError()
+          } catch (e) {
+            this.$.log('ERROR: Could not initial sync with peer', e)
           }
 
           return inviteResponse.decision

@@ -80,6 +80,7 @@ const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
 export const kCoreManager = Symbol('coreManager')
 export const kCoreOwnership = Symbol('coreOwnership')
 export const kSetOwnDeviceInfo = Symbol('kSetOwnDeviceInfo')
+export const kSetNewDeviceInfo = Symbol('kSetNewDeviceInfo')
 export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
@@ -717,6 +718,30 @@ export class MapeoProject extends TypedEmitter {
       })
     )
     return replicationStream
+  }
+
+  /**
+   * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType' | 'selfHostedServerDetails'>} value
+   * @returns {Promise<import('@comapeo/schema').DeviceInfo>}
+   */
+  async [kSetNewDeviceInfo](value, configCoreId) {
+    const { deviceInfo } = this.#dataTypes
+
+    const doc = {
+      name: value.name,
+      deviceType: value.deviceType,
+      selfHostedServerDetails: value.selfHostedServerDetails,
+      schemaName: /** @type {const} */ ('deviceInfo'),
+    }
+
+    const existingDoc = await deviceInfo
+      .getByDocId(configCoreId)
+      .catch(nullIfNotFound)
+    if (existingDoc) {
+      throw new Error('Device already set')
+    }
+
+    return await deviceInfo[kCreateWithDocId](configCoreId, doc)
   }
 
   /**
