@@ -219,6 +219,10 @@ test('Member can leave project if creator exists', async (t) => {
     ROLES[LEFT_ROLE_ID],
     'creator can still retrieve info about member who left'
   )
+
+  const list = await member.listProjects()
+
+  assert.equal(list.length, 0, 'member has no projects after leaving')
 })
 
 test('Data access after leaving project', async (t) => {
