@@ -233,19 +233,6 @@ export class MapeoManager extends TypedEmitter {
       logger,
     })
     this.#localDiscovery.on('connection', this.#replicate.bind(this))
-
-    return this.#tracingHelper.instrument(/** @type {MapeoManager} */ (this), {
-      createProject({ name, projectColor, projectDescription } = {}) {
-        return {
-          name: 'createProject',
-          attributes: {
-            'comapeo.project.name': name,
-            'comapeo.project.color': projectColor,
-            'comapeo.project.description': projectDescription,
-          },
-        }
-      },
-    })
   }
 
   get deviceId() {
@@ -360,28 +347,37 @@ export class MapeoManager extends TypedEmitter {
     projectKeys,
     projectInfo,
   }) {
-    const encoded = ProjectKeys.encode(projectKeys).finish()
-    const nonce = projectIdToNonce(projectId)
-
-    const keysCipher = this.#keyManager.encryptLocalMessage(
-      Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
-      nonce
-    )
-
-    this.#db
-      .insert(projectKeysTable)
-      .values({
+    /** @type {import('./instrumentation/types.js').ExtendedSpanOptions} */
+    const spanOptions = {
+      name: 'saveToProjectKeysTable',
+      attributes: {
         projectId,
-        projectPublicId,
-        projectInviteId,
-        keysCipher,
-        projectInfo,
-      })
-      .onConflictDoUpdate({
-        target: projectKeysTable.projectId,
-        set: { projectPublicId, projectInviteId, keysCipher, projectInfo },
-      })
-      .run()
+      },
+    }
+    return this.#tracingHelper.runInChildSpan(spanOptions, async () => {
+      const encoded = ProjectKeys.encode(projectKeys).finish()
+      const nonce = projectIdToNonce(projectId)
+
+      const keysCipher = this.#keyManager.encryptLocalMessage(
+        Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
+        nonce
+      )
+
+      this.#db
+        .insert(projectKeysTable)
+        .values({
+          projectId,
+          projectPublicId,
+          projectInviteId,
+          keysCipher,
+          projectInfo,
+        })
+        .onConflictDoUpdate({
+          target: projectKeysTable.projectId,
+          set: { projectPublicId, projectInviteId, keysCipher, projectInfo },
+        })
+        .run()
+    })
   }
 
   /**
@@ -396,82 +392,93 @@ export class MapeoManager extends TypedEmitter {
     projectColor,
     projectDescription,
   } = {}) {
-    // 1. Create project keypair
-    const projectKeypair = KeyManager.generateProjectKeypair()
-
-    // 2. Create namespace encryption keys
-    /** @type {Record<Namespace, Buffer>} */
-    const encryptionKeys = {
-      auth: randomBytes(32),
-      blob: randomBytes(32),
-      blobIndex: randomBytes(32),
-      config: randomBytes(32),
-      data: randomBytes(32),
+    /** @type {import('./instrumentation/types.js').ExtendedSpanOptions } */
+    const spanOptions = {
+      name: 'createProject',
+      attributes: {
+        'comapeo.project.name': name,
+        'comapeo.project.color': projectColor,
+        'comapeo.project.description': projectDescription,
+      },
     }
+    return this.#tracingHelper.runInChildSpan(spanOptions, async () => {
+      // 1. Create project keypair
+      const projectKeypair = KeyManager.generateProjectKeypair()
 
-    // 3. Save keys to client db  projectKeys table
-    /** @type {ProjectKeys} */
-    const keys = {
-      projectKey: projectKeypair.publicKey,
-      projectSecretKey: projectKeypair.secretKey,
-      encryptionKeys,
-    }
+      // 2. Create namespace encryption keys
+      /** @type {Record<Namespace, Buffer>} */
+      const encryptionKeys = {
+        auth: randomBytes(32),
+        blob: randomBytes(32),
+        blobIndex: randomBytes(32),
+        config: randomBytes(32),
+        data: randomBytes(32),
+      }
 
-    const projectId = projectKeyToId(keys.projectKey)
-    const projectPublicId = projectKeyToPublicId(keys.projectKey)
-    const projectInviteId = projectKeyToProjectInviteId(keys.projectKey)
+      // 3. Save keys to client db  projectKeys table
+      /** @type {ProjectKeys} */
+      const keys = {
+        projectKey: projectKeypair.publicKey,
+        projectSecretKey: projectKeypair.secretKey,
+        encryptionKeys,
+      }
 
-    this.#saveToProjectKeysTable({
-      projectId,
-      projectPublicId,
-      projectInviteId,
-      projectKeys: keys,
-    })
+      const projectId = projectKeyToId(keys.projectKey)
+      const projectPublicId = projectKeyToPublicId(keys.projectKey)
+      const projectInviteId = projectKeyToProjectInviteId(keys.projectKey)
 
-    // 4. Create MapeoProject instance
-    const project = await this.#createProjectInstance({
-      encryptionKeys,
-      projectKey: projectKeypair.publicKey,
-      projectSecretKey: projectKeypair.secretKey,
-    })
+      this.#saveToProjectKeysTable({
+        projectId,
+        projectPublicId,
+        projectInviteId,
+        projectKeys: keys,
+      })
 
-    project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
-    })
+      // 4. Create MapeoProject instance
+      const project = await this.#createProjectInstance({
+        encryptionKeys,
+        projectKey: projectKeypair.publicKey,
+        projectSecretKey: projectKeypair.secretKey,
+      })
 
-    // 5. Write project settings to project instance
-    await project.$setProjectSettings({
-      name,
-      projectColor,
-      projectDescription,
-    })
+      project.once('close', () => {
+        this.#activeProjects.delete(projectPublicId)
+      })
 
-    // 6. Write device info into project
-    const deviceInfo = this.getDeviceInfo()
-    if (hasSavedDeviceInfo(deviceInfo)) {
-      await project[kSetOwnDeviceInfo](deviceInfo)
-    }
+      // 5. Write project settings to project instance
+      await project.$setProjectSettings({
+        name,
+        projectColor,
+        projectDescription,
+      })
 
-    // TODO: Close the project instance instead of keeping it around
-    this.#activeProjects.set(projectPublicId, project)
+      // 6. Write device info into project
+      const deviceInfo = this.getDeviceInfo()
+      if (hasSavedDeviceInfo(deviceInfo)) {
+        await project[kSetOwnDeviceInfo](deviceInfo)
+      }
 
-    // 7. Load config, if relevant
-    // TODO: see how to expose warnings to frontend
-    // eslint-disable-next-line no-unused-vars
-    let warnings
-    if (configPath) {
+      // TODO: Close the project instance instead of keeping it around
+      this.#activeProjects.set(projectPublicId, project)
+
+      // 7. Load config, if relevant
+      // TODO: see how to expose warnings to frontend
       // eslint-disable-next-line no-unused-vars
-      warnings = await project.importConfig({ configPath })
-    }
+      let warnings
+      if (configPath) {
+        // eslint-disable-next-line no-unused-vars
+        warnings = await project.importConfig({ configPath })
+      }
 
-    this.#l.log(
-      'created project %h, public id: %S',
-      projectKeypair.publicKey,
-      projectPublicId
-    )
+      this.#l.log(
+        'created project %h, public id: %S',
+        projectKeypair.publicKey,
+        projectPublicId
+      )
 
-    // 7. Return project public id
-    return projectPublicId
+      // 7. Return project public id
+      return projectPublicId
+    })
   }
 
   /**

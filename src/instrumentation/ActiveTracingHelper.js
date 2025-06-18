@@ -76,42 +76,6 @@ export class ActiveTracingHelper {
       endSpan(span, callback(span, context))
     )
   }
-
-  /**
-   * @template {object} T
-   * @param {T} instance
-   * @param {import('./types.js').DecoratorsFor<T>} decorators
-   * @returns {T}
-   */
-  instrument(instance, decorators) {
-    const _this = this
-    /** @type {ProxyHandler<T>} */
-    const handler = {
-      get(target, prop) {
-        const value = Reflect.get(target, prop)
-        if (
-          !_this.isEnabled() ||
-          typeof value !== 'function' ||
-          !(prop in decorators)
-        ) {
-          return value
-        }
-
-        /** @param {any} args */
-        return function (...args) {
-          const spanOptionsGenerator =
-            decorators[/** @type {keyof typeof decorators} */ (prop)]
-          if (!spanOptionsGenerator) return value.apply(target, args)
-          const spanOptions =
-            typeof spanOptionsGenerator === 'function'
-              ? spanOptionsGenerator(...args)
-              : spanOptionsGenerator
-          return _this.runInChildSpan(spanOptions, value.bind(target, ...args))
-        }
-      },
-    }
-    return new Proxy(instance, handler)
-  }
 }
 
 /**
