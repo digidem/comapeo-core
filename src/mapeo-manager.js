@@ -643,6 +643,19 @@ export class MapeoManager extends TypedEmitter {
     try {
       // 4. Write device info into project
       const project = await this.getProject(projectPublicId)
+      try {
+        const deviceInfo = this.getDeviceInfo()
+        if (hasSavedDeviceInfo(deviceInfo)) {
+          await project[kSetOwnDeviceInfo](deviceInfo)
+        }
+      } catch (e) {
+        // Can ignore an error trying to write device info
+        this.#l.log(
+          'ERROR: failed to write project %h deviceInfo %o',
+          projectKey,
+          e
+        )
+      }
 
       this.#activeProjects.set(projectPublicId, project)
 
