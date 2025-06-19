@@ -660,6 +660,11 @@ export class MapeoManager extends TypedEmitter {
         )
       }
 
+      await project.$setProjectSettings({
+        name: projectName,
+        projectDescription: projectDescription,
+      })
+
       // 5. Wait for initial project sync
       if (waitForSync) {
         await this.#waitForInitialSync(project)
@@ -694,17 +699,12 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<boolean>}
    */
   async #waitForInitialSync(project, { timeoutMs = 5000 } = {}) {
-    const [ownRole, projectSettings] = await Promise.all([
-      project.$getOwnRole(),
-      project.$getProjectSettings(),
-    ])
+    const ownRole = await project.$getOwnRole()
     const {
       auth: { localState: authState },
       config: { localState: configState },
     } = project.$sync[kSyncState].getState()
     const isRoleSynced = ownRole !== Roles.NO_ROLE
-    const isProjectSettingsSynced =
-      projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
     // Assumes every project that someone is invited to has at least one record
     // in the auth store - the row record for the invited device
     const isAuthSynced = authState.want === 0 && authState.have > 0
@@ -712,18 +712,12 @@ export class MapeoManager extends TypedEmitter {
     // in the config store - defining the name of the project.
     // TODO: Enforce adding a project name in the invite method
     const isConfigSynced = configState.want === 0 && configState.have > 0
-    if (
-      isRoleSynced &&
-      isProjectSettingsSynced &&
-      isAuthSynced &&
-      isConfigSynced
-    ) {
+    if (isRoleSynced && isAuthSynced && isConfigSynced) {
       return true
     } else {
       this.#l.log(
         'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
         isRoleSynced,
-        isProjectSettingsSynced,
         isAuthSynced,
         isConfigSynced
       )
