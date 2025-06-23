@@ -660,10 +660,28 @@ export class MapeoManager extends TypedEmitter {
         )
       }
 
-      await project.$setProjectSettings({
+      // Oldest possible time, ensure it gets overwritten with any updates
+      const unixEpochDate = new Date(0).toISOString()
+
+      /** @type {"projectSettings"} */
+      const schemaName = 'projectSettings'
+
+      /** at-type import('@comapeo/schema').ProjectSettingsValue */
+      const settingsDoc = {
+        schemaName,
+        docId: projectId,
+        versionId: 'unknown',
+        originalVersionId: 'unknown',
+        createdAt: unixEpochDate,
+        updatedAt: unixEpochDate,
+        deleted: false,
+        links: [],
+        forks: [],
         name: projectName,
-        projectDescription: projectDescription,
-      })
+        projectDescription,
+      }
+
+      await this.#db.insert(projectSettingsTable).values([settingsDoc])
 
       // 5. Wait for initial project sync
       if (waitForSync) {
