@@ -12,6 +12,7 @@ import {
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
+import { Logger } from './logger.js'
 import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
@@ -66,6 +67,7 @@ export class MemberApi extends TypedEmitter {
   #getReplicationStream
   #waitForInitialSyncWithPeer
   #dataTypes
+  #l
 
   /** @type {Map<string, { abortController: AbortController }>} */
   #outboundInvitesByDevice = new Map()
@@ -85,6 +87,7 @@ export class MemberApi extends TypedEmitter {
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
+   * @param {Logger} [opts.logger]
    */
   constructor({
     deviceId,
@@ -98,8 +101,10 @@ export class MemberApi extends TypedEmitter {
     getReplicationStream,
     waitForInitialSyncWithPeer,
     dataTypes,
+    logger,
   }) {
     super()
+    this.#l = Logger.create('member-api', logger)
     this.#ownDeviceId = deviceId
     this.#roles = roles
     this.#coreOwnership = coreOwnership
@@ -217,7 +222,7 @@ export class MemberApi extends TypedEmitter {
           try {
             await this.#waitForInitialSyncWithPeer(deviceId, abortSignal)
           } catch (e) {
-            this.$.log('ERROR: Could not initial sync with peer', e)
+            this.#l.log('ERROR: Could not initial sync with peer', e)
           }
 
           return inviteResponse.decision
