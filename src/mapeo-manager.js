@@ -89,6 +89,9 @@ export const DEFAULT_FALLBACK_MAP_FILE_PATH = require.resolve(
 export const DEFAULT_ONLINE_STYLE_URL =
   'https://demotiles.maplibre.org/style.json'
 
+// Oldest possible time, ensure it gets overwritten with any updates
+export const UNIX_EPOCH_DATE = new Date(0).toISOString()
+
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
  */
@@ -568,8 +571,8 @@ export class MapeoManager extends TypedEmitter {
       result.push(
         deNullify({
           projectId: projectPublicId,
-          createdAt: existingProject?.createdAt,
-          updatedAt: existingProject?.updatedAt,
+          createdAt: ignoreUnixDate(existingProject?.createdAt),
+          updatedAt: ignoreUnixDate(existingProject?.updatedAt),
           name: existingProject?.name || projectInfo.name,
           projectColor:
             existingProject?.projectColor || projectInfo.projectColor,
@@ -660,9 +663,6 @@ export class MapeoManager extends TypedEmitter {
         )
       }
 
-      // Oldest possible time, ensure it gets overwritten with any updates
-      const unixEpochDate = new Date(0).toISOString()
-
       /** @type {"projectSettings"} */
       const schemaName = 'projectSettings'
 
@@ -672,8 +672,8 @@ export class MapeoManager extends TypedEmitter {
         docId: projectId,
         versionId: 'unknown',
         originalVersionId: 'unknown',
-        createdAt: unixEpochDate,
-        updatedAt: unixEpochDate,
+        createdAt: UNIX_EPOCH_DATE,
+        updatedAt: UNIX_EPOCH_DATE,
         deleted: false,
         links: [],
         forks: [],
@@ -1025,4 +1025,14 @@ function validateProjectKeys(projectKeys) {
  */
 function hasSavedDeviceInfo(partialDeviceInfo) {
   return Boolean(partialDeviceInfo.name)
+}
+
+/**
+ * @param {string|undefined} date
+ * @returns {string|null}
+ */
+function ignoreUnixDate(date) {
+  if (date === UNIX_EPOCH_DATE) return null
+  if (date === undefined) return null
+  return date
 }
