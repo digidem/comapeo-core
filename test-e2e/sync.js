@@ -916,55 +916,58 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const projects = await Promise.all(
     managers.map((m) => m.getProject(projectId))
   )
-  const [invitorProject, inviteeProject] = projects
 
-  assert.equal(
-    (await invitorProject.$member.getById(blocked.deviceId)).role.roleId,
-    BLOCKED_ROLE_ID,
-    'invitor sees blocked participant as part of the project'
-  )
-  assert.equal(
-    (await inviteeProject.$member.getById(blocked.deviceId)).role.roleId,
-    BLOCKED_ROLE_ID,
-    'invitee sees blocked participant as part of the project'
-  )
+  try {
+    const [invitorProject, inviteeProject] = projects
 
-  const generatedDocs = (await seedDatabases([inviteeProject])).flat()
-  const configDocsCount = generatedDocs.filter(
-    (doc) => doc.schemaName !== 'observation'
-  ).length
-  const dataDocsCount = generatedDocs.length - configDocsCount
-
-  for (const project of projects) {
-    project.$sync.start()
-  }
-
-  await waitForSync([inviteeProject, invitorProject], 'full')
-
-  // Reaching into internals here, but only to validate the result of the test, so not fully e2e
-  const [invitorState, inviteeState, blockedState] = projects.map((p) =>
-    p.$sync[kSyncState].getState()
-  )
-
-  assert.equal(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
-  assert.equal(invitorState.data.localState.have, dataDocsCount)
-  assert.equal(blockedState.config.localState.have, 1) // just the device info doc
-  assert.equal(blockedState.data.localState.have, 0) // no data docs synced
-
-  for (const ns of NAMESPACES) {
-    assert.equal(invitorState[ns].coreCount, 3, ns)
-    assert.equal(inviteeState[ns].coreCount, 3, ns)
-    assert.equal(blockedState[ns].coreCount, 3, ns)
-    assert.deepEqual(
-      invitorState[ns].localState,
-      inviteeState[ns].localState,
-      ns
+    assert.equal(
+      (await invitorProject.$member.getById(blocked.deviceId)).role.roleId,
+      BLOCKED_ROLE_ID,
+      'invitor sees blocked participant as part of the project'
     )
+    assert.equal(
+      (await inviteeProject.$member.getById(blocked.deviceId)).role.roleId,
+      BLOCKED_ROLE_ID,
+      'invitee sees blocked participant as part of the project'
+    )
+
+    const generatedDocs = (await seedDatabases([inviteeProject])).flat()
+    const configDocsCount = generatedDocs.filter(
+      (doc) => doc.schemaName !== 'observation'
+    ).length
+    const dataDocsCount = generatedDocs.length - configDocsCount
+
+    for (const project of projects) {
+      project.$sync.start()
+    }
+
+    await waitForSync([inviteeProject, invitorProject], 'full')
+
+    // Reaching into internals here, but only to validate the result of the test, so not fully e2e
+    const [invitorState, inviteeState, blockedState] = projects.map((p) =>
+      p.$sync[kSyncState].getState()
+    )
+
+    assert.equal(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
+    assert.equal(invitorState.data.localState.have, dataDocsCount)
+    assert.equal(blockedState.config.localState.have, 1) // just the device info doc
+    assert.equal(blockedState.data.localState.have, 0) // no data docs synced
+
+    for (const ns of NAMESPACES) {
+      assert.equal(invitorState[ns].coreCount, 3, ns)
+      assert.equal(inviteeState[ns].coreCount, 3, ns)
+      assert.equal(blockedState[ns].coreCount, 3, ns)
+      assert.deepEqual(
+        invitorState[ns].localState,
+        inviteeState[ns].localState,
+        ns
+      )
+    }
+  } finally {
+    await disconnect1()
+
+    await Promise.all(projects.map((p) => p.close()))
   }
-
-  await disconnect1()
-
-  await Promise.all(projects.map((p) => p.close()))
 })
 
 test('Sync state emitted when starting and stopping sync', async function (t) {
