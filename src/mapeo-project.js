@@ -376,6 +376,7 @@ export class MapeoProject extends TypedEmitter {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
       },
+      logger: this.#l,
     })
 
     this.#blobStore = new BlobStore({
