@@ -640,33 +640,10 @@ export class MapeoManager extends TypedEmitter {
 
     // Any errors from here we need to remove project from db because it has not
     // been fully added and synced
+    let project = null
     try {
       // 4. Write device info into project
-      const project = await this.getProject(projectPublicId)
-      try {
-        const deviceInfo = this.getDeviceInfo()
-        if (hasSavedDeviceInfo(deviceInfo)) {
-          await project[kSetOwnDeviceInfo](deviceInfo)
-        }
-      } catch (e) {
-        // Can ignore an error trying to write device info
-        this.#l.log(
-          'ERROR: failed to write project %h deviceInfo %o',
-          projectKey,
-          e
-        )
-      }
-
-      this.#activeProjects.set(projectPublicId, project)
-
-      // 5. Wait for initial project sync
-      if (waitForSync) {
-        try {
-          await this.#waitForInitialSync(project)
-        } catch (e) {
-          this.#l.log('ERROR: could not do initial project sync', e)
-        }
-      }
+      project = await this.getProject(projectPublicId)
     } catch (e) {
       // Only happens if getProject fails
       this.#l.log('ERROR: could not add project', e)
@@ -675,6 +652,31 @@ export class MapeoManager extends TypedEmitter {
         .where(eq(projectKeysTable.projectId, projectId))
         .run()
       throw e
+    }
+
+    try {
+      const deviceInfo = this.getDeviceInfo()
+      if (hasSavedDeviceInfo(deviceInfo)) {
+        await project[kSetOwnDeviceInfo](deviceInfo)
+      }
+    } catch (e) {
+      // Can ignore an error trying to write device info
+      this.#l.log(
+        'ERROR: failed to write project %h deviceInfo %o',
+        projectKey,
+        e
+      )
+    }
+
+    this.#activeProjects.set(projectPublicId, project)
+
+    // 5. Wait for initial project sync
+    if (waitForSync) {
+      try {
+        await this.#waitForInitialSync(project)
+      } catch (e) {
+        this.#l.log('ERROR: could not do initial project sync', e)
+      }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
     return projectPublicId
