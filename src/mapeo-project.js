@@ -973,15 +973,12 @@ export class MapeoProject extends TypedEmitter {
   async #exportPrefix(type = '') {
     const name = await this.#getProjectName()
     const date = new Date()
-    const dateSection = date
-      .toLocaleDateString('nu', {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-      })
-      .replaceAll('/', '_')
-      .replaceAll('-', '_')
-    return `CoMapeo_${name}_${type}_${dateSection}`
+    const yyyy = date.getFullYear()
+    let mm = date.getMonth() + 1
+    if (mm < 10) mm = `0${mm}`
+    let dd = date.getDate()
+    if (dd < 10) dd = `0${dd}`
+    return `CoMapeo_${name}_${type}_${yyyy}_${mm}_${dd}`
   }
 
   /**
@@ -1129,10 +1126,8 @@ export class MapeoProject extends TypedEmitter {
         const stream = this.#blobStore.createReadStream(blobId)
         const name = path.posix.join(
           mediaFolder,
-          blobId.variant,
-          `${attachment.name}${extensionString}`
+          `${attachment.name}_${blobId.variant}${extensionString}`
         )
-
         // @ts-expect-error
         await archive.entry(stream, { name })
       }
