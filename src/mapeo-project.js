@@ -974,10 +974,10 @@ export class MapeoProject extends TypedEmitter {
     const name = await this.#getProjectName()
     const date = new Date()
     const yyyy = date.getFullYear()
-    let mm = date.getMonth() + 1
-    if (mm < 10) mm = `0${mm}`
-    let dd = date.getDate()
-    if (dd < 10) dd = `0${dd}`
+    const _mm = date.getMonth() + 1
+    const mm = _mm < 10 ? `0${_mm}` : _mm.toString()
+    const _dd = date.getDate()
+    const dd = _dd < 10 ? `0${_dd}` : _dd.toString()
     return `CoMapeo_${name}_${type}_${yyyy}_${mm}_${dd}`
   }
 
