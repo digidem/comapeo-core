@@ -38,6 +38,7 @@ import {
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
+import { UNIX_EPOCH_DATE } from './constants.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
@@ -88,9 +89,6 @@ export const DEFAULT_FALLBACK_MAP_FILE_PATH = require.resolve(
 
 export const DEFAULT_ONLINE_STYLE_URL =
   'https://demotiles.maplibre.org/style.json'
-
-// Oldest possible time, ensure it gets overwritten with any updates
-const UNIX_EPOCH_DATE = new Date(0).toISOString()
 
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
@@ -714,7 +712,10 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<boolean>}
    */
   async #waitForInitialSync(project, { timeoutMs = 5000 } = {}) {
-    const ownRole = await project.$getOwnRole()
+    const [ownRole, isProjectSettingsSynced] = await Promise.all([
+      project.$getOwnRole(),
+      project.$hasSyncedProjectSettings(),
+    ])
     const {
       auth: { localState: authState },
       config: { localState: configState },
@@ -727,7 +728,12 @@ export class MapeoManager extends TypedEmitter {
     // in the config store - defining the name of the project.
     // TODO: Enforce adding a project name in the invite method
     const isConfigSynced = configState.want === 0 && configState.have > 0
-    if (isRoleSynced && isAuthSynced && isConfigSynced) {
+    if (
+      isRoleSynced &&
+      isProjectSettingsSynced &&
+      isAuthSynced &&
+      isConfigSynced
+    ) {
       return true
     } else {
       this.#l.log(
