@@ -663,12 +663,9 @@ export class MapeoManager extends TypedEmitter {
         )
       }
 
-      /** @type {"projectSettings"} */
-      const schemaName = 'projectSettings'
-
-      /** at-type import('@comapeo/schema').ProjectSettingsValue */
+      /** @type {import('drizzle-orm').InferInsertModel<typeof projectSettingsTable>} */
       const settingsDoc = {
-        schemaName,
+        schemaName: 'projectSettings',
         docId: projectId,
         versionId: 'unknown',
         originalVersionId: 'unknown',
