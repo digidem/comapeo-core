@@ -920,10 +920,6 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     managers.map((m) => m.getProject(projectId))
   )
 
-  t.after(async () => {
-    await Promise.all(projects.map((p) => p.close()))
-  })
-
   const [invitorProject, inviteeProject] = projects
 
   assert.equal(
