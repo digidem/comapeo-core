@@ -90,7 +90,7 @@ export const DEFAULT_ONLINE_STYLE_URL =
   'https://demotiles.maplibre.org/style.json'
 
 // Oldest possible time, ensure it gets overwritten with any updates
-export const UNIX_EPOCH_DATE = new Date(0).toISOString()
+const UNIX_EPOCH_DATE = new Date(0).toISOString()
 
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
