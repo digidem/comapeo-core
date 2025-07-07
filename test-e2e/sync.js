@@ -899,6 +899,9 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const managers = await createManagers(COUNT, t)
   const [invitor, invitee, blocked] = managers
   const disconnect1 = connectPeers(managers)
+
+  t.after(disconnect1)
+
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({
     invitor,
@@ -917,56 +920,54 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     managers.map((m) => m.getProject(projectId))
   )
 
-  try {
-    const [invitorProject, inviteeProject] = projects
-
-    assert.equal(
-      (await invitorProject.$member.getById(blocked.deviceId)).role.roleId,
-      BLOCKED_ROLE_ID,
-      'invitor sees blocked participant as part of the project'
-    )
-    assert.equal(
-      (await inviteeProject.$member.getById(blocked.deviceId)).role.roleId,
-      BLOCKED_ROLE_ID,
-      'invitee sees blocked participant as part of the project'
-    )
-
-    const generatedDocs = (await seedDatabases([inviteeProject])).flat()
-    const configDocsCount = generatedDocs.filter(
-      (doc) => doc.schemaName !== 'observation'
-    ).length
-    const dataDocsCount = generatedDocs.length - configDocsCount
-
-    for (const project of projects) {
-      project.$sync.start()
-    }
-
-    await waitForSync([inviteeProject, invitorProject], 'full')
-
-    // Reaching into internals here, but only to validate the result of the test, so not fully e2e
-    const [invitorState, inviteeState, blockedState] = projects.map((p) =>
-      p.$sync[kSyncState].getState()
-    )
-
-    assert.equal(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
-    assert.equal(invitorState.data.localState.have, dataDocsCount)
-    assert.equal(blockedState.config.localState.have, 1) // just the device info doc
-    assert.equal(blockedState.data.localState.have, 0) // no data docs synced
-
-    for (const ns of NAMESPACES) {
-      assert.equal(invitorState[ns].coreCount, 3, ns)
-      assert.equal(inviteeState[ns].coreCount, 3, ns)
-      assert.equal(blockedState[ns].coreCount, 3, ns)
-      assert.deepEqual(
-        invitorState[ns].localState,
-        inviteeState[ns].localState,
-        ns
-      )
-    }
-  } finally {
-    await disconnect1()
-
+  t.after(async () => {
     await Promise.all(projects.map((p) => p.close()))
+  })
+
+  const [invitorProject, inviteeProject] = projects
+
+  assert.equal(
+    (await invitorProject.$member.getById(blocked.deviceId)).role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitor sees blocked participant as part of the project'
+  )
+  assert.equal(
+    (await inviteeProject.$member.getById(blocked.deviceId)).role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitee sees blocked participant as part of the project'
+  )
+
+  const generatedDocs = (await seedDatabases([inviteeProject])).flat()
+  const configDocsCount = generatedDocs.filter(
+    (doc) => doc.schemaName !== 'observation'
+  ).length
+  const dataDocsCount = generatedDocs.length - configDocsCount
+
+  for (const project of projects) {
+    project.$sync.start()
+  }
+
+  await waitForSync([inviteeProject, invitorProject], 'full')
+
+  // Reaching into internals here, but only to validate the result of the test, so not fully e2e
+  const [invitorState, inviteeState, blockedState] = projects.map((p) =>
+    p.$sync[kSyncState].getState()
+  )
+
+  assert.equal(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
+  assert.equal(invitorState.data.localState.have, dataDocsCount)
+  assert.equal(blockedState.config.localState.have, 1) // just the device info doc
+  assert.equal(blockedState.data.localState.have, 0) // no data docs synced
+
+  for (const ns of NAMESPACES) {
+    assert.equal(invitorState[ns].coreCount, 3, ns)
+    assert.equal(inviteeState[ns].coreCount, 3, ns)
+    assert.equal(blockedState[ns].coreCount, 3, ns)
+    assert.deepEqual(
+      invitorState[ns].localState,
+      inviteeState[ns].localState,
+      ns
+    )
   }
 })
 
