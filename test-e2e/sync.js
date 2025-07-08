@@ -899,12 +899,8 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const managers = await createManagers(COUNT, t)
   const [invitor, invitee, blocked] = managers
   const disconnect1 = connectPeers(managers)
-  let projects = []
 
-  t.after(async () => {
-    await disconnect1()
-    await Promise.all(projects.map((p) => p.close()))
-  })
+  t.after(() => disconnect1())
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({
@@ -920,7 +916,10 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     roleId: COORDINATOR_ROLE_ID,
   })
 
-  projects = await Promise.all(managers.map((m) => m.getProject(projectId)))
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  t.after(() => Promise.all(projects.map((p) => p.close())))
 
   const [invitorProject, inviteeProject] = projects
 

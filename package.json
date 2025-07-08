@@ -192,7 +192,7 @@
     "magic-bytes.js": "^1.10.0",
     "map-obj": "^5.0.2",
     "mime": "^4.0.7",
-    "multi-core-indexer": "^1.0.0",
+    "multi-core-indexer": "file:multi-core-indexer-1.0.0.tgz",
     "p-defer": "^4.0.0",
     "p-event": "^6.0.1",
     "p-timeout": "^6.1.2",
