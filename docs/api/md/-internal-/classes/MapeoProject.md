@@ -390,6 +390,16 @@ and only this project will replicate.
 
 ***
 
+### $hasSyncedProjectSettings()
+
+> **$hasSyncedProjectSettings**(): `Promise`\<`boolean`\>
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+***
+
 ### $originalVersionIdToDeviceId()
 
 > **$originalVersionIdToDeviceId**(`originalVersionId`): `Promise`\<`string`\>
