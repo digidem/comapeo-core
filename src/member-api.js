@@ -469,6 +469,7 @@ export class MemberApi extends TypedEmitter {
       )
     }
 
+    const onClosePromise = pEvent(websocket, 'close')
     const onErrorPromise = pEvent(websocket, 'error')
 
     const replicationStream = this.#getReplicationStream()
@@ -491,7 +492,6 @@ export class MemberApi extends TypedEmitter {
       websocket.close()
       throw errorEvent.error
     } else {
-      const onClosePromise = pEvent(websocket, 'close')
       onErrorPromise.cancel()
       websocket.close()
       await onClosePromise

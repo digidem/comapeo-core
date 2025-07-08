@@ -38,6 +38,7 @@ import {
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
+import { UNIX_EPOCH_DATE } from './constants.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
@@ -563,11 +564,13 @@ export class MapeoManager extends TypedEmitter {
         (p) => p.projectId === projectId
       )
 
+      if (!existingProject) continue
+
       result.push(
         deNullify({
           projectId: projectPublicId,
-          createdAt: existingProject?.createdAt,
-          updatedAt: existingProject?.updatedAt,
+          createdAt: ignoreUnixDate(existingProject?.createdAt),
+          updatedAt: ignoreUnixDate(existingProject?.updatedAt),
           name: existingProject?.name || projectInfo.name,
           projectColor:
             existingProject?.projectColor || projectInfo.projectColor,
@@ -642,10 +645,27 @@ export class MapeoManager extends TypedEmitter {
     // been fully added and synced
     let project = null
     try {
-      // 4. Write device info into project
       project = await this.getProject(projectPublicId)
+            
+      /** @type {import('drizzle-orm').InferInsertModel<typeof projectSettingsTable>} */
+      const settingsDoc = {
+        schemaName: 'projectSettings',
+        docId: projectId,
+        versionId: 'unknown',
+        originalVersionId: 'unknown',
+        createdAt: UNIX_EPOCH_DATE,
+        updatedAt: UNIX_EPOCH_DATE,
+        deleted: false,
+        links: [],
+        forks: [],
+        name: projectName,
+        projectDescription,
+      }
+
+      await this.#db.insert(projectSettingsTable).values([settingsDoc])
+      this.#activeProjects.set(projectPublicId, project)
     } catch (e) {
-      // Only happens if getProject fails
+      // Only happens if getProject or the the DB insert fails
       this.#l.log('ERROR: could not add project', e)
       this.#db
         .delete(projectKeysTable)
@@ -653,7 +673,7 @@ export class MapeoManager extends TypedEmitter {
         .run()
       throw e
     }
-
+    
     try {
       const deviceInfo = this.getDeviceInfo()
       if (hasSavedDeviceInfo(deviceInfo)) {
@@ -667,8 +687,6 @@ export class MapeoManager extends TypedEmitter {
         e
       )
     }
-
-    this.#activeProjects.set(projectPublicId, project)
 
     // 5. Wait for initial project sync
     if (waitForSync) {
@@ -698,17 +716,15 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<boolean>}
    */
   async #waitForInitialSync(project, { timeoutMs = 5000 } = {}) {
-    const [ownRole, projectSettings] = await Promise.all([
+    const [ownRole, isProjectSettingsSynced] = await Promise.all([
       project.$getOwnRole(),
-      project.$getProjectSettings(),
+      project.$hasSyncedProjectSettings(),
     ])
     const {
       auth: { localState: authState },
       config: { localState: configState },
     } = project.$sync[kSyncState].getState()
     const isRoleSynced = ownRole !== Roles.NO_ROLE
-    const isProjectSettingsSynced =
-      projectSettings !== MapeoProject.EMPTY_PROJECT_SETTINGS
     // Assumes every project that someone is invited to has at least one record
     // in the auth store - the row record for the invited device
     const isAuthSynced = authState.want === 0 && authState.have > 0
@@ -727,7 +743,6 @@ export class MapeoManager extends TypedEmitter {
       this.#l.log(
         'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
         isRoleSynced,
-        isProjectSettingsSynced,
         isAuthSynced,
         isConfigSynced
       )
@@ -1017,4 +1032,14 @@ function validateProjectKeys(projectKeys) {
  */
 function hasSavedDeviceInfo(partialDeviceInfo) {
   return Boolean(partialDeviceInfo.name)
+}
+
+/**
+ * @param {string|undefined} date
+ * @returns {string|null}
+ */
+function ignoreUnixDate(date) {
+  if (date === UNIX_EPOCH_DATE) return null
+  if (date === undefined) return null
+  return date
 }
