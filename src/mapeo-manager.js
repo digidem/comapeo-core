@@ -646,7 +646,7 @@ export class MapeoManager extends TypedEmitter {
     let project = null
     try {
       project = await this.getProject(projectPublicId)
-            
+
       /** @type {import('drizzle-orm').InferInsertModel<typeof projectSettingsTable>} */
       const settingsDoc = {
         schemaName: 'projectSettings',
@@ -673,7 +673,7 @@ export class MapeoManager extends TypedEmitter {
         .run()
       throw e
     }
-    
+
     try {
       const deviceInfo = this.getDeviceInfo()
       if (hasSavedDeviceInfo(deviceInfo)) {
