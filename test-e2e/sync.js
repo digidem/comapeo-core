@@ -900,8 +900,6 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const [invitor, invitee, blocked] = managers
   const disconnect1 = connectPeers(managers)
 
-  t.after(() => disconnect1())
-
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   await invite({
     invitor,
@@ -919,7 +917,6 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const projects = await Promise.all(
     managers.map((m) => m.getProject(projectId))
   )
-  t.after(() => Promise.all(projects.map((p) => p.close())))
 
   const [invitorProject, inviteeProject] = projects
 
@@ -966,6 +963,9 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
       ns
     )
   }
+
+  await disconnect1()
+  await Promise.all(projects.map((p) => p.close()))
 })
 
 test('Sync state emitted when starting and stopping sync', async function (t) {
