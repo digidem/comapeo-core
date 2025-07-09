@@ -643,23 +643,9 @@ export class MapeoManager extends TypedEmitter {
 
     // Any errors from here we need to remove project from db because it has not
     // been fully added and synced
+    let project = null
     try {
-      // 4. Write device info into project
-      const project = await this.getProject(projectPublicId)
-
-      try {
-        const deviceInfo = this.getDeviceInfo()
-        if (hasSavedDeviceInfo(deviceInfo)) {
-          await project[kSetOwnDeviceInfo](deviceInfo)
-        }
-      } catch (e) {
-        // Can ignore an error trying to write device info
-        this.#l.log(
-          'ERROR: failed to write project %h deviceInfo %o',
-          projectKey,
-          e
-        )
-      }
+      project = await this.getProject(projectPublicId)
 
       /** @type {import('drizzle-orm').InferInsertModel<typeof projectSettingsTable>} */
       const settingsDoc = {
@@ -677,20 +663,38 @@ export class MapeoManager extends TypedEmitter {
       }
 
       await this.#db.insert(projectSettingsTable).values([settingsDoc])
-
-      // 5. Wait for initial project sync
-      if (waitForSync) {
-        await this.#waitForInitialSync(project)
-      }
-
       this.#activeProjects.set(projectPublicId, project)
     } catch (e) {
+      // Only happens if getProject or the the DB insert fails
       this.#l.log('ERROR: could not add project', e)
       this.#db
         .delete(projectKeysTable)
         .where(eq(projectKeysTable.projectId, projectId))
         .run()
       throw e
+    }
+
+    try {
+      const deviceInfo = this.getDeviceInfo()
+      if (hasSavedDeviceInfo(deviceInfo)) {
+        await project[kSetOwnDeviceInfo](deviceInfo)
+      }
+    } catch (e) {
+      // Can ignore an error trying to write device info
+      this.#l.log(
+        'ERROR: failed to write project %h deviceInfo %o',
+        projectKey,
+        e
+      )
+    }
+
+    // 5. Wait for initial project sync
+    if (waitForSync) {
+      try {
+        await this.#waitForInitialSync(project)
+      } catch (e) {
+        this.#l.log('ERROR: could not do initial project sync', e)
+      }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
     return projectPublicId
