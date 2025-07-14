@@ -37,14 +37,6 @@ export class ProjectDetailsSendFailError extends Error {
   }
 }
 
-export class InviteInitialSyncFailError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Failed to sync config for invite') {
-    super(message)
-    this.name = 'InviteInitialSyncFailError'
-  }
-}
-
 export class RPCDisconnectBeforeSendingError extends Error {
   /** @param {string} [message] */
   constructor(message = 'RPC disconnected before sending') {
