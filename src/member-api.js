@@ -233,6 +233,11 @@ export class MemberApi extends TypedEmitter {
         default:
           throw new ExhaustivenessError(inviteResponse.decision)
       }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'RPCDisconnectBeforeAckError') {
+        throw new InviteAbortedError()
+      }
+      throw err
     } finally {
       this.#outboundInvitesByDevice.delete(deviceId)
     }
