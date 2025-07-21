@@ -128,7 +128,7 @@ export class MemberApi extends TypedEmitter {
    * @param {string} [opts.roleName]
    * @param {string} [opts.roleDescription]
    * @param {Buffer} [opts.__testOnlyInviteId] Hard-code the invite ID. Only for tests.
-   * @param {number} [opts.timeoutMs=5000]
+   * @param {number} [opts.initialSyncTimeoutMs=5000]
    * @returns {Promise<(
    *   typeof InviteResponse_Decision.ACCEPT |
    *   typeof InviteResponse_Decision.REJECT |
@@ -142,7 +142,7 @@ export class MemberApi extends TypedEmitter {
       roleName = ROLES[roleId]?.name,
       roleDescription,
       __testOnlyInviteId,
-      timeoutMs = 5000,
+      initialSyncTimeoutMs = 5000,
     }
   ) {
     assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
@@ -219,13 +219,12 @@ export class MemberApi extends TypedEmitter {
           await this.#roles.assignRole(deviceId, roleId)
 
           try {
-            if (timeoutMs) {
-              setTimeout(() => {
-                abortController.abort(new Error('Sync timeout'))
-              }, timeoutMs)
+            let abortSync = new AbortController().signal
+            if (initialSyncTimeoutMs) {
+              abortSync = AbortSignal.timeout(initialSyncTimeoutMs)
             }
 
-            await this.#waitForInitialSyncWithPeer(deviceId, abortSignal)
+            await this.#waitForInitialSyncWithPeer(deviceId, abortSync)
           } catch (e) {
             this.#l.log('ERROR: Could not initial sync with peer', e)
           }
