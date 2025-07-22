@@ -276,15 +276,25 @@ export class LocalDiscovery extends TypedEmitter {
     const { port } = getAddress(this.#server)
     this.#server.close()
     const closePromise = once(this.#server, 'close')
-    await pTimeout(closePromise, {
-      milliseconds: force ? (timeout === 0 ? 1 : timeout) : Infinity,
-      fallback: () => {
-        for (const socket of this.#noiseConnections.values()) {
-          socket.destroy()
-        }
-        return pTimeout(closePromise, { milliseconds: 500 })
-      },
-    })
+
+    const forceClose = () => {
+      for (const socket of this.#noiseConnections.values()) {
+        socket.destroy()
+      }
+      return pTimeout(closePromise, { milliseconds: 500 })
+    }
+
+    if (!force) {
+      await closePromise
+    } else if (timeout === 0) {
+      // If timeout is 0, we force-close immediately
+      await forceClose()
+    } else {
+      await pTimeout(closePromise, {
+        milliseconds: timeout,
+        fallback: forceClose,
+      })
+    }
     this.#log(`stopped for ${port}`)
   }
 }

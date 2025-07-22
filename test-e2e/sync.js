@@ -901,6 +901,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const disconnect1 = connectPeers(managers)
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
+
   await invite({
     invitor,
     invitees: [blocked],

@@ -12,7 +12,6 @@ export const COORDINATOR_ROLE_ID = 'f7c150f5a3a9a855'
 export const MEMBER_ROLE_ID = '012fd2d431c0bf60'
 export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
-export const FAILED_ROLE_ID = 'a24eaca65ab5d5d0'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
 
 /**
@@ -28,7 +27,6 @@ const ROLE_IDS = new Set(
     MEMBER_ROLE_ID,
     BLOCKED_ROLE_ID,
     LEFT_ROLE_ID,
-    FAILED_ROLE_ID,
     NO_ROLE_ID,
   ])
 )
@@ -53,7 +51,6 @@ const ROLE_IDS_ASSIGNABLE_TO_ANYONE = new Set(
     MEMBER_ROLE_ID,
     BLOCKED_ROLE_ID,
     LEFT_ROLE_ID,
-    FAILED_ROLE_ID,
   ])
 )
 const isRoleIdAssignableToAnyone = setHas(ROLE_IDS_ASSIGNABLE_TO_ANYONE)
@@ -108,34 +105,6 @@ export const CREATOR_ROLE = {
 const BLOCKED_ROLE = {
   roleId: BLOCKED_ROLE_ID,
   name: 'Blocked',
-  docs: mapObject(currentSchemaVersions, (key) => {
-    return [
-      key,
-      {
-        readOwn: false,
-        writeOwn: false,
-        readOthers: false,
-        writeOthers: false,
-      },
-    ]
-  }),
-  roleAssignment: [],
-  sync: {
-    auth: 'blocked',
-    config: 'blocked',
-    data: 'blocked',
-    blobIndex: 'blocked',
-    blob: 'blocked',
-  },
-}
-
-/**
- * This role is used for devices that failed to sync after accepting an invite and being added
- * @type {Role<typeof FAILED_ROLE_ID>}
- */
-const FAILED_ROLE = {
-  roleId: FAILED_ROLE_ID,
-  name: 'Failed',
   docs: mapObject(currentSchemaVersions, (key) => {
     return [
       key,
@@ -250,7 +219,6 @@ export const ROLES = {
     },
   },
   [NO_ROLE_ID]: NO_ROLE,
-  [FAILED_ROLE_ID]: FAILED_ROLE,
 }
 
 /**
@@ -411,11 +379,6 @@ export class Roles extends TypedEmitter {
     if (roleId === LEFT_ROLE_ID) {
       if (deviceId !== this.#ownDeviceId) {
         throw new Error('Cannot assign LEFT role to another device')
-      }
-    } else if (roleId === FAILED_ROLE_ID) {
-      const ownRole = await this.getRole(this.#ownDeviceId)
-      if (!ownRole.roleAssignment.includes(COORDINATOR_ROLE_ID)) {
-        throw new Error('Lacks permission to assign role ' + roleId)
       }
     } else {
       const ownRole = await this.getRole(this.#ownDeviceId)
