@@ -235,6 +235,7 @@ export class MemberApi extends TypedEmitter {
       }
     } catch (err) {
       if (err instanceof Error && err.name === 'RPCDisconnectBeforeAckError') {
+        this.#l.log('ERROR: Disconnect before ack', err)
         throw new InviteAbortedError()
       }
       throw err
@@ -283,8 +284,10 @@ export class MemberApi extends TypedEmitter {
       return await responsePromise
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
+        this.#l.log('ERROR: Timed out sending invite', err)
         throw new InviteAbortedError()
       } else {
+        this.#l.log('ERROR: Unexpected error during invite send', err)
         throw err
       }
     } finally {
