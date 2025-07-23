@@ -40,6 +40,7 @@ export class LocalDiscovery extends TypedEmitter {
   /** @type {(e: Error) => void} */
   #handleSocketError
   #l
+  #port = 0
 
   /**
    * @param {Object} opts
@@ -76,9 +77,19 @@ export class LocalDiscovery extends TypedEmitter {
   /** @returns {Promise<void>} */
   async #start() {
     // Let OS choose port, listen on ip4, all interfaces
-    this.#server.listen(0, '0.0.0.0')
-    await once(this.#server, 'listening')
+    const onListening = once(this.#server, 'listening')
+
+    try {
+      this.#server.listen(this.#port, '0.0.0.0')
+      await onListening
+    } catch (e) {
+      if (this.#port === 0) throw e
+      // Account for errors from re-binding the port failing
+      this.#port = 0
+      return this.#start()
+    }
     const addr = getAddress(this.#server)
+    this.#port = addr.port
     this.#log('server listening on port ' + addr.port)
   }
 
