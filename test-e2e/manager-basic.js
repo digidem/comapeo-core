@@ -471,6 +471,26 @@ test('Consistent storage folders', async () => {
   )
 })
 
+test('Reusing port after start/stop of discovery', async (t) => {
+  const manager = new MapeoManager({
+    rootKey: KeyManager.generateRootKey(),
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder: ':memory:',
+    coreStorage: () => new RAM(),
+    fastify: Fastify(),
+  })
+
+  t.after(() => manager.stopLocalPeerDiscoveryServer())
+
+  const { port } = await manager.startLocalPeerDiscoveryServer()
+
+  await manager.stopLocalPeerDiscoveryServer({ force: true })
+
+  const { port: newPort } = await manager.startLocalPeerDiscoveryServer()
+  assert.equal(newPort, port, 'Port got reused')
+})
+
 /**
  * Generate a deterministic random bytes
  *
