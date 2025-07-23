@@ -38,6 +38,8 @@ public key of this device as hex string
 
 • **opts.getReplicationStream**
 
+• **opts.logger**: `undefined` \| [`Logger`](Logger.md)
+
 • **opts.makeWebsocket**: `undefined` \| (`url`) => `WebSocket` = `...`
 
 • **opts.projectKey**: `Buffer`
@@ -153,6 +155,8 @@ is canceled, or if something else goes wrong.
 • **opts.\_\_testOnlyInviteId**: `undefined` \| `Buffer`
 
 Hard-code the invite ID. Only for tests.
+
+• **opts.initialSyncTimeoutMs**: `undefined` \| `number` = `5000`
 
 • **opts.roleDescription**: `undefined` \| `string`
 

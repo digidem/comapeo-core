@@ -61,7 +61,7 @@ role cannot assign the role by consulting `roleAssignment`.
 
 • **deviceId**: `string`
 
-• **roleId**: `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"a24eaca65ab5d5d0"`
+• **roleId**: `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"`
 
 #### Returns
 
@@ -71,7 +71,7 @@ role cannot assign the role by consulting `roleAssignment`.
 
 ### getAll()
 
-> **getAll**(): `Promise`\<`Map`\<`string`, [`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"a24eaca65ab5d5d0"` \| `"08e4251e36f6e7ed"`\>\>\>
+> **getAll**(): `Promise`\<`Map`\<`string`, [`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"08e4251e36f6e7ed"`\>\>\>
 
 Get roles of all devices in the project. For your own device, if you have
 not yet synced your own role record, the "no role" capabilties is
@@ -80,7 +80,7 @@ different one has been assigned.
 
 #### Returns
 
-`Promise`\<`Map`\<`string`, [`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"a24eaca65ab5d5d0"` \| `"08e4251e36f6e7ed"`\>\>\>
+`Promise`\<`Map`\<`string`, [`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"08e4251e36f6e7ed"`\>\>\>
 
 Map of deviceId to Role
 
@@ -88,7 +88,7 @@ Map of deviceId to Role
 
 ### getRole()
 
-> **getRole**(`deviceId`): `Promise`\<[`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"a24eaca65ab5d5d0"` \| `"08e4251e36f6e7ed"`\>\>
+> **getRole**(`deviceId`): `Promise`\<[`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"08e4251e36f6e7ed"`\>\>
 
 Get the role for device `deviceId`.
 
@@ -98,4 +98,4 @@ Get the role for device `deviceId`.
 
 #### Returns
 
-`Promise`\<[`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"a24eaca65ab5d5d0"` \| `"08e4251e36f6e7ed"`\>\>
+`Promise`\<[`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"08e4251e36f6e7ed"`\>\>
