@@ -12,20 +12,16 @@ import {
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
+import { Logger } from './logger.js'
 import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import { ErrorWithCode, getErrorMessage } from './lib/error.js'
-import {
-  InviteAbortedError,
-  InviteInitialSyncFailError,
-  ProjectDetailsSendFailError,
-} from './errors.js'
+import { InviteAbortedError, ProjectDetailsSendFailError } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
-  FAILED_ROLE_ID,
   MEMBER_ROLE_ID,
   ROLES,
   isRoleIdForNewInvite,
@@ -71,6 +67,7 @@ export class MemberApi extends TypedEmitter {
   #getReplicationStream
   #waitForInitialSyncWithPeer
   #dataTypes
+  #l
 
   /** @type {Map<string, { abortController: AbortController }>} */
   #outboundInvitesByDevice = new Map()
@@ -90,6 +87,7 @@ export class MemberApi extends TypedEmitter {
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
+   * @param {Logger} [opts.logger]
    */
   constructor({
     deviceId,
@@ -103,8 +101,10 @@ export class MemberApi extends TypedEmitter {
     getReplicationStream,
     waitForInitialSyncWithPeer,
     dataTypes,
+    logger,
   }) {
     super()
+    this.#l = Logger.create('member-api', logger)
     this.#ownDeviceId = deviceId
     this.#roles = roles
     this.#coreOwnership = coreOwnership
@@ -128,6 +128,7 @@ export class MemberApi extends TypedEmitter {
    * @param {string} [opts.roleName]
    * @param {string} [opts.roleDescription]
    * @param {Buffer} [opts.__testOnlyInviteId] Hard-code the invite ID. Only for tests.
+   * @param {number} [opts.initialSyncTimeoutMs=5000]
    * @returns {Promise<(
    *   typeof InviteResponse_Decision.ACCEPT |
    *   typeof InviteResponse_Decision.REJECT |
@@ -141,6 +142,7 @@ export class MemberApi extends TypedEmitter {
       roleName = ROLES[roleId]?.name,
       roleDescription,
       __testOnlyInviteId,
+      initialSyncTimeoutMs = 5000,
     }
   ) {
     assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
@@ -205,10 +207,6 @@ export class MemberApi extends TypedEmitter {
         case InviteResponse_Decision.DECISION_UNSPECIFIED:
           return InviteResponse_Decision.REJECT
         case InviteResponse_Decision.ACCEPT:
-          // Technically we can assign after sending project details
-          // This lets us test role removal
-          await this.#roles.assignRole(deviceId, roleId)
-
           try {
             await this.#rpc.sendProjectJoinDetails(deviceId, {
               inviteId,
@@ -216,27 +214,31 @@ export class MemberApi extends TypedEmitter {
               encryptionKeys: this.#encryptionKeys,
             })
           } catch {
-            try {
-              // Mark them as "failed" so we can retry the flow
-              await this.#roles.assignRole(deviceId, FAILED_ROLE_ID)
-            } catch (e) {
-              console.error(e)
-            }
             throw new ProjectDetailsSendFailError()
           }
+          await this.#roles.assignRole(deviceId, roleId)
 
           try {
-            await this.#waitForInitialSyncWithPeer(deviceId, abortSignal)
-          } catch {
-            // Mark them as "failed" so we can retry the flow
-            await this.#roles.assignRole(deviceId, FAILED_ROLE_ID)
-            throw new InviteInitialSyncFailError()
+            let abortSync = new AbortController().signal
+            if (initialSyncTimeoutMs) {
+              abortSync = AbortSignal.timeout(initialSyncTimeoutMs)
+            }
+
+            await this.#waitForInitialSyncWithPeer(deviceId, abortSync)
+          } catch (e) {
+            this.#l.log('ERROR: Could not initial sync with peer', e)
           }
 
           return inviteResponse.decision
         default:
           throw new ExhaustivenessError(inviteResponse.decision)
       }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'RPCDisconnectBeforeAckError') {
+        this.#l.log('ERROR: Disconnect before ack', err)
+        throw new InviteAbortedError()
+      }
+      throw err
     } finally {
       this.#outboundInvitesByDevice.delete(deviceId)
     }
@@ -282,8 +284,10 @@ export class MemberApi extends TypedEmitter {
       return await responsePromise
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
+        this.#l.log('ERROR: Timed out sending invite', err)
         throw new InviteAbortedError()
       } else {
+        this.#l.log('ERROR: Unexpected error during invite send', err)
         throw err
       }
     } finally {

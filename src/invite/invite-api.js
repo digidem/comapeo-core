@@ -281,35 +281,43 @@ export class InviteApi extends TypedEmitter {
    * @returns {Promise<string>}
    */
   async accept({ inviteId: inviteIdString }) {
-    const inviteId = Buffer.from(inviteIdString, 'hex')
+    try {
+      const inviteId = Buffer.from(inviteIdString, 'hex')
 
-    const invite = this.#invites.get(inviteId)
-    assert(!!invite, new NotFoundError(`Cannot find invite ${inviteIdString}`))
-    assertCanSend(invite.actor, { type: 'ACCEPT_INVITE' })
-
-    this.#l.log('Accepting invite %h', inviteId)
-    invite.actor.send({ type: 'ACCEPT_INVITE' })
-
-    for (const { value, actor } of this.#invites.values()) {
-      if (value.inviteId.equals(inviteId)) continue
-      const inviteIsForSameProject = value.projectInviteId.equals(
-        invite.value.projectInviteId
+      const invite = this.#invites.get(inviteId)
+      assert(
+        !!invite,
+        new NotFoundError(`Cannot find invite ${inviteIdString}`)
       )
-      if (inviteIsForSameProject) {
-        actor.send({ type: 'ALREADY_IN_PROJECT' })
+      assertCanSend(invite.actor, { type: 'ACCEPT_INVITE' })
+
+      this.#l.log('Accepting invite %h', inviteId)
+      invite.actor.send({ type: 'ACCEPT_INVITE' })
+
+      for (const { value, actor } of this.#invites.values()) {
+        if (value.inviteId.equals(inviteId)) continue
+        const inviteIsForSameProject = value.projectInviteId.equals(
+          invite.value.projectInviteId
+        )
+        if (inviteIsForSameProject) {
+          actor.send({ type: 'ALREADY_IN_PROJECT' })
+        }
       }
+
+      const { projectPublicId } = await toPromise(invite.actor)
+
+      if (!projectPublicId) {
+        const { context, value } = invite.actor.getSnapshot()
+        throw value === 'respondedAlready'
+          ? new AlreadyJoinedError('Already joining or in project')
+          : context.error || new Error('Unknown error')
+      }
+
+      return projectPublicId
+    } catch (err) {
+      this.#l.log('ERROR: Unable to accept invite', err)
+      throw err
     }
-
-    const { projectPublicId } = await toPromise(invite.actor)
-
-    if (!projectPublicId) {
-      const { context, value } = invite.actor.getSnapshot()
-      throw value === 'respondedAlready'
-        ? new AlreadyJoinedError('Already joining or in project')
-        : context.error || new Error('Unknown error')
-    }
-
-    return projectPublicId
   }
 
   /**
