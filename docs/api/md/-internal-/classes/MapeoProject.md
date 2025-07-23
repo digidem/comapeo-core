@@ -372,11 +372,11 @@ and only this project will replicate.
 
 ### $getOwnRole()
 
-> **$getOwnRole**(): `Promise`\<[`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"a24eaca65ab5d5d0"` \| `"08e4251e36f6e7ed"`\>\>
+> **$getOwnRole**(): `Promise`\<[`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"08e4251e36f6e7ed"`\>\>
 
 #### Returns
 
-`Promise`\<[`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"a24eaca65ab5d5d0"` \| `"08e4251e36f6e7ed"`\>\>
+`Promise`\<[`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"08e4251e36f6e7ed"`\>\>
 
 ***
 
