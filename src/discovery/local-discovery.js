@@ -39,6 +39,10 @@ export class LocalDiscovery extends TypedEmitter {
   #server
   /** @type {Map<string, OpenedNetNoiseStream>} */
   #noiseConnections = new Map()
+  /** @type {Set<string>} */
+  #connectionsToName = new Set()
+  /** @type {Set<string>} */
+  #connectionsFromIP = new Set()
   #sm
   #log
   /** @type {(e: Error) => void} */
@@ -107,8 +111,13 @@ export class LocalDiscovery extends TypedEmitter {
   connectPeer({ address, port, name }) {
     if (this.#name === name) return
     this.#log('peer connected', name.slice(0, 7), address, port)
-    if (this.#noiseConnections.has(name)) {
+    if (this.#connectionsToName.has(name)) {
       this.#log(`Already connected to ${name.slice(0, 7)}`)
+      return
+    }
+    const ipId = `${address}:${port}`
+    if (this.#connectionsFromIP.has(ipId)) {
+      this.#log(`Already connected to ${ipId}`)
       return
     }
     const socket = net.connect({
@@ -118,6 +127,8 @@ export class LocalDiscovery extends TypedEmitter {
     })
     socket.on('error', this.#handleSocketError)
     socket.once('connect', () => {
+      this.#connectionsToName.add(name)
+      socket.once('close', () => this.#connectionsToName.delete(name))
       this.#handleTcpConnection(true, socket)
     })
   }
@@ -141,11 +152,16 @@ export class LocalDiscovery extends TypedEmitter {
       }
     }
 
-    const { remoteAddress } = socket
+    const { remoteAddress, remotePort } = socket
     if (!remoteAddress || !isPrivate(remoteAddress)) {
       socket.destroy(new Error('Invalid remoteAddress ' + remoteAddress))
       return
     }
+
+    // TODO: What if we already have an incoming connection from them?
+    const ipId = `${remoteAddress}:${remotePort}`
+    this.#connectionsFromIP.add(ipId)
+
     this.#log(
       `${isInitiator ? 'outgoing' : 'incoming'} tcp connection ${
         isInitiator ? 'to' : 'from'
@@ -157,6 +173,7 @@ export class LocalDiscovery extends TypedEmitter {
     })
 
     secretStream.on('error', this.#handleSocketError)
+    secretStream.once('close', () => this.#connectionsFromIP.delete(ipId))
 
     secretStream.on('connect', () => {
       // Further errors will be handled in #handleNoiseStreamConnection()
