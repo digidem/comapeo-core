@@ -17,7 +17,7 @@ import { getErrorCode } from '../lib/error.js'
 
 const TCP_KEEP_ALIVE_OPTIONS = {
   keepAlive: true,
-  keepAliveInitialDelay: 10_000,
+  keepAliveInitialDelay: 30_000,
 }
 export const ERR_DUPLICATE = 'Duplicate connection'
 
