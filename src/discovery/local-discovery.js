@@ -21,7 +21,7 @@ const TCP_KEEP_ALIVE_OPTIONS = {
   keepAliveInitialDelay: 10_000,
   // Turn off Nagle's algorythm, to reduce latency
   // https://github.com/digidem/comapeo-core/issues/1070
-  noDelay: false,
+  noDelay: true,
 }
 export const ERR_DUPLICATE = 'Duplicate connection'
 
