@@ -18,7 +18,7 @@ import { getErrorCode } from '../lib/error.js'
 /** @satisfies {import('node:net').ServerOpts | import('node:net').TcpNetConnectOpts} */
 const TCP_KEEP_ALIVE_OPTIONS = {
   keepAlive: true,
-  keepAliveInitialDelay: 10_000,
+  keepAliveInitialDelay: 30_000,
   // Turn off Nagle's algorythm, to reduce latency
   // https://github.com/digidem/comapeo-core/issues/1070
   noDelay: true,
