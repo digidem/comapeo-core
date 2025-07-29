@@ -15,9 +15,13 @@ import { getErrorCode } from '../lib/error.js'
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
 /** @typedef {OpenedNoiseStream<net.Socket>} OpenedNetNoiseStream */
 
+/** @satisfies {import('node:net').ServerOpts | import('node:net').TcpNetConnectOpts} */
 const TCP_KEEP_ALIVE_OPTIONS = {
   keepAlive: true,
   keepAliveInitialDelay: 30_000,
+  // Turn off Nagle's algorythm, to reduce latency
+  // https://github.com/digidem/comapeo-core/issues/1070
+  noDelay: true,
 }
 export const ERR_DUPLICATE = 'Duplicate connection'
 
@@ -108,9 +112,9 @@ export class LocalDiscovery extends TypedEmitter {
       return
     }
     const socket = net.connect({
+      ...TCP_KEEP_ALIVE_OPTIONS,
       host: address,
       port,
-      ...TCP_KEEP_ALIVE_OPTIONS,
     })
     socket.on('error', this.#handleSocketError)
     socket.once('connect', () => {
