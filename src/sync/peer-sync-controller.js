@@ -132,7 +132,9 @@ export class PeerSyncController {
     const localState = mapObject(state, (ns, nsState) => {
       return [ns, nsState.localState]
     })
-    this.#log('state %X', state)
+    // TODO: Turn this on when log level is 'trace' or 'debug'
+    // This logs _a lot_ of data, which has a performance overhead
+    // this.#log('state %X', state)
 
     // Map of which namespaces have received new data since last sync change
     const didUpdate = mapObject(state, (ns) => {

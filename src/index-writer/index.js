@@ -97,16 +97,18 @@ export class IndexWriter {
       const indexer = this.#indexers.get(schemaName)
       if (!indexer) continue // Won't happen, but TS doesn't know that
       indexer.batch(docs)
-      if (this.#l.log.enabled) {
-        for (const doc of docs) {
-          this.#l.log(
-            'Indexed %s %S @ %S',
-            doc.schemaName,
-            doc.docId,
-            doc.versionId
-          )
-        }
-      }
+      // TODO: selectively turn this on when log level is 'trace' or 'debug'
+      // Otherwise this has a big performance overhead because this is all synchronous
+      // if (this.#l.log.enabled) {
+      //   for (const doc of docs) {
+      //     this.#l.log(
+      //       'Indexed %s %S @ %S',
+      //       doc.schemaName,
+      //       doc.docId,
+      //       doc.versionId
+      //     )
+      //   }
+      // }
     }
     return indexed
   }
