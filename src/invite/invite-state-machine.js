@@ -4,8 +4,8 @@ import { InviteResponse_Decision } from '../generated/rpc.js'
 import ensureError from 'ensure-error'
 import { TimeoutError } from '../errors.js'
 
-const RECEIVE_PROJECT_DETAILS_TIMEOUT_MS = 10_000
-const ADD_PROJECT_TIMEOUT_MS = 10_000
+const RECEIVE_PROJECT_DETAILS_TIMEOUT_MS = 45_000
+const ADD_PROJECT_TIMEOUT_MS = 45_000
 
 /** @import { StringToTaggedUnion } from '../types.js' */
 /** @import { ProjectJoinDetails } from '../generated/rpc.js' */
