@@ -1,8 +1,8 @@
-[**API**](../../README.md) • **Docs**
+[**API**](../README.md) • **Docs**
 
 ***
 
-[API](../../README.md) / [\<internal\>](../README.md) / EditableProjectSettings
+[API](../README.md) / EditableProjectSettings
 
 # Type Alias: EditableProjectSettings
 

@@ -36,7 +36,7 @@
 
 • **iconId**: `string`
 
-• **opts**: [`BitmapOpts`](../interfaces/BitmapOpts.md) \| [`SvgOpts`](../interfaces/SvgOpts.md)
+• **opts**: [`BitmapOpts`](../../namespaces/IconApi/interfaces/BitmapOpts.md) \| [`SvgOpts`](../../namespaces/IconApi/interfaces/SvgOpts.md)
 
 #### Returns
 
@@ -54,7 +54,7 @@
 
 • **icon.name**: `string`
 
-• **icon.variants**: [`BitmapOpts`](../interfaces/BitmapOpts.md) \| [`SvgOpts`](../interfaces/SvgOpts.md) & `object`[]
+• **icon.variants**: [`BitmapOpts`](../../namespaces/IconApi/interfaces/BitmapOpts.md) \| [`SvgOpts`](../../namespaces/IconApi/interfaces/SvgOpts.md) & `object`[]
 
 #### Returns
 
@@ -70,7 +70,7 @@
 
 • **iconId**: `string`
 
-• **opts**: [`BitmapOpts`](../interfaces/BitmapOpts.md) \| [`SvgOpts`](../interfaces/SvgOpts.md)
+• **opts**: [`BitmapOpts`](../../namespaces/IconApi/interfaces/BitmapOpts.md) \| [`SvgOpts`](../../namespaces/IconApi/interfaces/SvgOpts.md)
 
 #### Returns
 

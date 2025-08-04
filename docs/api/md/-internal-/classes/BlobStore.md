@@ -64,7 +64,7 @@ Set to `true` if this is an archive device which should download all blobs, or j
 
 #### Parameters
 
-• **blobId**: [`BlobId`](../type-aliases/BlobId.md)
+• **blobId**: [`BlobId`](../../namespaces/BlobApi/type-aliases/BlobId.md)
 
 • **options?** = `{}`
 
@@ -119,7 +119,7 @@ Set to `true` to get a live stream of entries
 
 #### Parameters
 
-• **blobId**: [`BlobId`](../type-aliases/BlobId.md)
+• **blobId**: [`BlobId`](../../namespaces/BlobApi/type-aliases/BlobId.md)
 
 • **options?** = `...`
 
@@ -172,7 +172,7 @@ Set to `true` to wait for a blob to download, otherwise will throw if blob is no
 
 #### Parameters
 
-• **blobId**: `Omit`\<[`BlobId`](../type-aliases/BlobId.md), `"driveId"`\>
+• **blobId**: `Omit`\<[`BlobId`](../../namespaces/BlobApi/type-aliases/BlobId.md), `"driveId"`\>
 
 • **options?**
 
@@ -192,7 +192,7 @@ Metadata to store with the blob
 
 #### Parameters
 
-• **blobId**: [`BlobId`](../type-aliases/BlobId.md)
+• **blobId**: [`BlobId`](../../namespaces/BlobApi/type-aliases/BlobId.md)
 
 • **options?** = `...`
 
@@ -220,7 +220,7 @@ Set to `true` to wait for a blob to download, otherwise will throw if blob is no
 
 #### Parameters
 
-• **blobId**: [`BlobId`](../type-aliases/BlobId.md)
+• **blobId**: [`BlobId`](../../namespaces/BlobApi/type-aliases/BlobId.md)
 
 • **opts** = `{}`
 
@@ -282,7 +282,7 @@ Hyperdrive entry
 
 #### Parameters
 
-• **blobId**: `Omit`\<[`BlobId`](../type-aliases/BlobId.md), `"driveId"`\>
+• **blobId**: `Omit`\<[`BlobId`](../../namespaces/BlobApi/type-aliases/BlobId.md), `"driveId"`\>
 
 • **blob**: `Buffer`
 
