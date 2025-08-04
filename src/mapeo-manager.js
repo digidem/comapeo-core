@@ -708,14 +708,14 @@ export class MapeoManager extends TypedEmitter {
    *
    * @param {MapeoProject} project
    * @param {object} [opts]
-   * @param {number} [opts.timeoutMs=300_000] Timeout in milliseconds for max time
+   * @param {number} [opts.timeoutMs=45_000] Timeout in milliseconds for max time
    * to wait between sync status updates before giving up. As long as syncing is
    * happening, this will never timeout, but if more than timeoutMs passes
    * without any sync activity, then this will resolve `false` e.g. data has not
    * synced
    * @returns {Promise<boolean>}
    */
-  async #waitForInitialSync(project, { timeoutMs = 300_000 } = {}) {
+  async #waitForInitialSync(project, { timeoutMs = 45_000 } = {}) {
     const [ownRole, isProjectSettingsSynced] = await Promise.all([
       project.$getOwnRole(),
       project.$hasSyncedProjectSettings(),
