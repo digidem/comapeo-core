@@ -8,7 +8,7 @@
 
 ## Type Parameters
 
-• **T** *extends* [`RoleId`](../type-aliases/RoleId.md) = [`RoleId`](../type-aliases/RoleId.md)
+• **T** *extends* [`RoleId`](../../namespaces/MemberApi/type-aliases/RoleId.md) = [`RoleId`](../../namespaces/MemberApi/type-aliases/RoleId.md)
 
 ## Properties
 

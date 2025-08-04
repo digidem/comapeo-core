@@ -382,11 +382,11 @@ and only this project will replicate.
 
 ### $getProjectSettings()
 
-> **$getProjectSettings**(): `Promise`\<[`EditableProjectSettings`](../type-aliases/EditableProjectSettings.md)\>
+> **$getProjectSettings**(): `Promise`\<[`EditableProjectSettings`](../../type-aliases/EditableProjectSettings.md)\>
 
 #### Returns
 
-`Promise`\<[`EditableProjectSettings`](../type-aliases/EditableProjectSettings.md)\>
+`Promise`\<[`EditableProjectSettings`](../../type-aliases/EditableProjectSettings.md)\>
 
 ***
 
@@ -424,15 +424,15 @@ When device ID cannot be found.
 
 ### $setProjectSettings()
 
-> **$setProjectSettings**(`settings`): `Promise`\<[`EditableProjectSettings`](../type-aliases/EditableProjectSettings.md)\>
+> **$setProjectSettings**(`settings`): `Promise`\<[`EditableProjectSettings`](../../type-aliases/EditableProjectSettings.md)\>
 
 #### Parameters
 
-• **settings**: `Partial`\<[`EditableProjectSettings`](../type-aliases/EditableProjectSettings.md)\>
+• **settings**: `Partial`\<[`EditableProjectSettings`](../../type-aliases/EditableProjectSettings.md)\>
 
 #### Returns
 
-`Promise`\<[`EditableProjectSettings`](../type-aliases/EditableProjectSettings.md)\>
+`Promise`\<[`EditableProjectSettings`](../../type-aliases/EditableProjectSettings.md)\>
 
 ***
 

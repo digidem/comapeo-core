@@ -34,6 +34,6 @@ Type of blob
 
 ### variant
 
-> **variant**: [`BlobVariant`](BlobVariant.md)\<`T`\>
+> **variant**: [`BlobVariant`](../../namespaces/BlobApi/type-aliases/BlobVariant.md)\<`T`\>
 
 Blob variant (some blob types have smaller previews and thumbnails available)

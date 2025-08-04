@@ -1,8 +1,8 @@
-[**API**](../../README.md) • **Docs**
+[**API**](../../../README.md) • **Docs**
 
 ***
 
-[API](../../README.md) / [\<internal\>](../README.md) / BlobId
+[API](../../../README.md) / [BlobApi](../README.md) / BlobId
 
 # Type Alias: BlobId
 

@@ -11,6 +11,7 @@
 ### Namespaces
 
 - ["/home/runner/work/comapeo-core/comapeo-core/src/local-peers"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/README.md)
+- ["/home/runner/work/comapeo-core/comapeo-core/src/mapeo-project"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_mapeo-project/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/schema/client"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_schema_client/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/schema/project"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_schema_project/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/sync/core-sync-state"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_sync_core-sync-state/README.md)
@@ -66,8 +67,6 @@
 ### Interfaces
 
 - [AbstractEncoding](interfaces/AbstractEncoding.md)
-- [BitmapOpts](interfaces/BitmapOpts.md)
-- [BlobRef](interfaces/BlobRef.md)
 - [Channel](interfaces/Channel.md)
 - [Context](interfaces/Context.md)
 - [CorestoreEvents](interfaces/CorestoreEvents.md)
@@ -78,16 +77,13 @@
 - [HyperdriveOptions](interfaces/HyperdriveOptions.md)
 - [LocalCoreState](interfaces/LocalCoreState.md)
 - [MapsPluginOpts](interfaces/MapsPluginOpts.md)
-- [MemberInfo](interfaces/MemberInfo.md)
 - [Message](interfaces/Message.md)
-- [Metadata](interfaces/Metadata.md)
 - [PeerInfoBase](interfaces/PeerInfoBase.md)
 - [RemoteDeviceNamespaceGroupSyncState](interfaces/RemoteDeviceNamespaceGroupSyncState.md)
 - [RemoteDeviceSyncState](interfaces/RemoteDeviceSyncState.md)
 - [Role](interfaces/Role.md)
 - [StartOpts](interfaces/StartOpts.md)
 - [State](interfaces/State.md)
-- [SvgOpts](interfaces/SvgOpts.md)
 
 ### Type Aliases
 
@@ -95,11 +91,9 @@
 - [Attachment](type-aliases/Attachment.md)
 - [BitField](type-aliases/BitField.md)
 - [BlobFilter](type-aliases/BlobFilter.md)
-- [BlobId](type-aliases/BlobId.md)
 - [BlobIdBase](type-aliases/BlobIdBase.md)
 - [BlobStoreEntriesStream](type-aliases/BlobStoreEntriesStream.md)
 - [BlobType](type-aliases/BlobType.md)
-- [BlobVariant](type-aliases/BlobVariant.md)
 - [Chunk](type-aliases/Chunk.md)
 - [Core](type-aliases/Core.md)
 - [CoreOwnershipWithSignatures](type-aliases/CoreOwnershipWithSignatures.md)
@@ -108,7 +102,6 @@
 - [CoreStorage](type-aliases/CoreStorage.md)
 - [DeviceInfoDataType](type-aliases/DeviceInfoDataType.md)
 - [DeviceInfoParam](type-aliases/DeviceInfoParam.md)
-- [EditableProjectSettings](type-aliases/EditableProjectSettings.md)
 - [ElementOf](type-aliases/ElementOf.md)
 - [Encoding](type-aliases/Encoding.md)
 - [GenericBlobFilter](type-aliases/GenericBlobFilter.md)
@@ -119,7 +112,6 @@
 - [HypercoreRemoteBitfieldPage](type-aliases/HypercoreRemoteBitfieldPage.md)
 - [IconVariant](type-aliases/IconVariant.md)
 - [IndexedDocIds](type-aliases/IndexedDocIds.md)
-- [Invite](type-aliases/Invite.md)
 - [InviteInternal](type-aliases/InviteInternal.md)
 - [Keypair](type-aliases/Keypair.md)
 - [KeyPair](type-aliases/KeyPair-1.md)
@@ -142,10 +134,8 @@
 - [RawStream](type-aliases/RawStream.md)
 - [Readable](type-aliases/Readable.md)
 - [ReplicationStream](type-aliases/ReplicationStream.md)
-- [RoleId](type-aliases/RoleId.md)
 - [SchemaName](type-aliases/SchemaName.md)
 - [SecretKey](type-aliases/SecretKey.md)
-- [SeenAttachments](type-aliases/SeenAttachments.md)
 - [State](type-aliases/State.md)
 - [SupportedBlobVariants](type-aliases/SupportedBlobVariants.md)
 - [SyncCapability](type-aliases/SyncCapability.md)
@@ -158,6 +148,7 @@
 - [NAMESPACE\_SCHEMAS](variables/NAMESPACE_SCHEMAS.md)
 - [NAMESPACES](variables/NAMESPACES.md)
 - [ROLE\_IDS](variables/ROLE_IDS.md)
+- [ROLE\_IDS\_FOR\_NEW\_INVITE](variables/ROLE_IDS_FOR_NEW_INVITE.md)
 - [SUPPORTED\_BLOB\_VARIANTS](variables/SUPPORTED_BLOB_VARIANTS.md)
 
 ## References

@@ -42,7 +42,7 @@ Write blobs for provided variants of a file
 
 • **filepaths.thumbnail?**: `string`
 
-• **metadata**: [`Metadata`](../interfaces/Metadata.md)
+• **metadata**: [`Metadata`](../../namespaces/BlobApi/interfaces/Metadata.md)
 
 #### Returns
 
@@ -74,7 +74,7 @@ Get a url for a blob based on its BlobId
 
 #### Parameters
 
-• **blobId**: [`BlobId`](../type-aliases/BlobId.md)
+• **blobId**: [`BlobId`](../../namespaces/BlobApi/type-aliases/BlobId.md)
 
 #### Returns
 

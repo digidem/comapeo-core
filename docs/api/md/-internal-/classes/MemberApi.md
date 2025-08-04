@@ -117,7 +117,7 @@ Allow insecure network connections. Should only be used in tests.
 
 ### getById()
 
-> **getById**(`deviceId`): `Promise`\<[`MemberInfo`](../interfaces/MemberInfo.md)\>
+> **getById**(`deviceId`): `Promise`\<[`MemberInfo`](../../namespaces/MemberApi/interfaces/MemberInfo.md)\>
 
 #### Parameters
 
@@ -125,17 +125,17 @@ Allow insecure network connections. Should only be used in tests.
 
 #### Returns
 
-`Promise`\<[`MemberInfo`](../interfaces/MemberInfo.md)\>
+`Promise`\<[`MemberInfo`](../../namespaces/MemberApi/interfaces/MemberInfo.md)\>
 
 ***
 
 ### getMany()
 
-> **getMany**(): `Promise`\<[`MemberInfo`](../interfaces/MemberInfo.md)[]\>
+> **getMany**(): `Promise`\<[`MemberInfo`](../../namespaces/MemberApi/interfaces/MemberInfo.md)[]\>
 
 #### Returns
 
-`Promise`\<[`MemberInfo`](../interfaces/MemberInfo.md)[]\>
+`Promise`\<[`MemberInfo`](../../namespaces/MemberApi/interfaces/MemberInfo.md)[]\>
 
 ***
 

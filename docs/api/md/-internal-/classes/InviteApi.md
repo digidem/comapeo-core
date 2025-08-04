@@ -61,7 +61,7 @@ part of this project.
 
 #### Parameters
 
-• **invite**: `Pick`\<[`Invite`](../type-aliases/Invite.md), `"inviteId"`\>
+• **invite**: `Pick`\<[`Invite`](../../namespaces/InviteApi/type-aliases/Invite.md), `"inviteId"`\>
 
 #### Returns
 
@@ -71,7 +71,7 @@ part of this project.
 
 ### getById()
 
-> **getById**(`inviteIdString`): [`Invite`](../type-aliases/Invite.md)
+> **getById**(`inviteIdString`): [`Invite`](../../namespaces/InviteApi/type-aliases/Invite.md)
 
 Get an invite by inviteId
 
@@ -81,19 +81,19 @@ Get an invite by inviteId
 
 #### Returns
 
-[`Invite`](../type-aliases/Invite.md)
+[`Invite`](../../namespaces/InviteApi/type-aliases/Invite.md)
 
 ***
 
 ### getMany()
 
-> **getMany**(): [`Invite`](../type-aliases/Invite.md)[]
+> **getMany**(): [`Invite`](../../namespaces/InviteApi/type-aliases/Invite.md)[]
 
 Get all invites (in all)
 
 #### Returns
 
-[`Invite`](../type-aliases/Invite.md)[]
+[`Invite`](../../namespaces/InviteApi/type-aliases/Invite.md)[]
 
 ***
 
@@ -103,7 +103,7 @@ Get all invites (in all)
 
 #### Parameters
 
-• **invite**: `Pick`\<[`Invite`](../type-aliases/Invite.md), `"inviteId"`\>
+• **invite**: `Pick`\<[`Invite`](../../namespaces/InviteApi/type-aliases/Invite.md), `"inviteId"`\>
 
 #### Returns
 
