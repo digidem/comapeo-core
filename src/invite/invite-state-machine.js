@@ -5,7 +5,7 @@ import ensureError from 'ensure-error'
 import { TimeoutError } from '../errors.js'
 
 const RECEIVE_PROJECT_DETAILS_TIMEOUT_MS = 45_000
-const ADD_PROJECT_TIMEOUT_MS = 45_000
+const ADD_PROJECT_TIMEOUT_MS = 300_000
 
 /** @import { StringToTaggedUnion } from '../types.js' */
 /** @import { ProjectJoinDetails } from '../generated/rpc.js' */
