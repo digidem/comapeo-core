@@ -9,8 +9,8 @@ import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
 import { createRequire } from 'module'
-
-import { IndexWriter } from './index-writer/index.js'
+import * as clientSchema from './schema/client.js'
+import { IndexWriterWrapper as IndexWriter } from './index-writer/index.js'
 import {
   MapeoProject,
   kBlobStore,
@@ -123,6 +123,7 @@ export class MapeoManager extends TypedEmitter {
   #l
   #defaultConfigPath
   #makeWebsocket
+  #useIndexWorkers
 
   /**
    * @param {Object} opts
@@ -137,6 +138,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.fallbackMapPath] File path to a locally stored Styled Map Package (SMP)
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
+   * @param {boolean} [opts.useIndexWorkers] if true, use a worker thread for each project for indexing cores to sqlite
    */
   constructor({
     rootKey,
@@ -150,6 +152,7 @@ export class MapeoManager extends TypedEmitter {
     fallbackMapPath = DEFAULT_FALLBACK_MAP_FILE_PATH,
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
     makeWebsocket = (url) => new WebSocket(url),
+    useIndexWorkers = false,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
@@ -160,12 +163,14 @@ export class MapeoManager extends TypedEmitter {
     this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
     this.#projectMigrationsFolder = projectMigrationsFolder
+    this.#useIndexWorkers = useIndexWorkers
+
     const sqlite = new Database(
       dbFolder === ':memory:'
         ? ':memory:'
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
-    this.#db = drizzle(sqlite)
+    this.#db = drizzle(sqlite, { schema: clientSchema })
     migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
 
     this.#localPeers = new LocalPeers({ logger })
@@ -519,6 +524,7 @@ export class MapeoManager extends TypedEmitter {
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
       isArchiveDevice,
       makeWebsocket: this.#makeWebsocket,
+      useIndexWorkers: this.#useIndexWorkers,
     })
     await project[kClearDataIfLeft]()
     return project

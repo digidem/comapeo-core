@@ -5,6 +5,7 @@ import { blob, sqliteTable, text, int } from 'drizzle-orm/sqlite-core'
 import { dereferencedDocSchemas as schemas } from '@comapeo/schema'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable, customJson } from './utils.js'
+import { NAMESPACES } from '../constants.js'
 
 /**
  * @import { ProjectSettings } from '@comapeo/schema'
@@ -54,4 +55,10 @@ export const deviceSettingsTable = sqliteTable('deviceSettings', {
   deviceId: text('deviceId').notNull().unique(),
   deviceInfo: deviceInfoColumn('deviceInfo'),
   isArchiveDevice: int('isArchiveDevice', { mode: 'boolean' }),
+})
+
+export const coresTable = sqliteTable('cores', {
+  projectPublicId: text('projectPublicId').notNull(),
+  publicKey: blob('publicKey', { mode: 'buffer' }).notNull(),
+  namespace: text('namespace', { enum: NAMESPACES }).notNull(),
 })

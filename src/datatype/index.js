@@ -96,7 +96,7 @@ export class DataType extends TypedEmitter {
    * @param {object} opts
    * @param {TTable} opts.table
    * @param {TDataStore} opts.dataStore
-   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.db
+   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database<Record<string, any>>} opts.db
    * @param {import('../translation-api.js').default['get']} opts.getTranslations
    */
   constructor({ dataStore, table, db, getTranslations }) {
