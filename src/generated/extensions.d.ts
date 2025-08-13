@@ -39,6 +39,19 @@ export interface DownloadIntentExtension_DownloadIntentsEntry {
     key: string;
     value: DownloadIntentExtension_DownloadIntent | undefined;
 }
+export interface KnownSyncStates {
+    states: KnownSyncStates_SyncState[];
+}
+export interface KnownSyncStates_SyncState {
+    /** Peer ID that this sync state represents */
+    originId: Buffer;
+    /** Auth core ID of author this peer synced with */
+    coreId: Buffer;
+    /** Latest block this peer synced */
+    authIndex: number;
+    dataIndex: number;
+    blobIndex: number;
+}
 export declare const ProjectExtension: {
     encode(message: ProjectExtension, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): ProjectExtension;
@@ -68,6 +81,18 @@ export declare const DownloadIntentExtension_DownloadIntentsEntry: {
     decode(input: _m0.Reader | Uint8Array, length?: number): DownloadIntentExtension_DownloadIntentsEntry;
     create<I extends Exact<DeepPartial<DownloadIntentExtension_DownloadIntentsEntry>, I>>(base?: I): DownloadIntentExtension_DownloadIntentsEntry;
     fromPartial<I extends Exact<DeepPartial<DownloadIntentExtension_DownloadIntentsEntry>, I>>(object: I): DownloadIntentExtension_DownloadIntentsEntry;
+};
+export declare const KnownSyncStates: {
+    encode(message: KnownSyncStates, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): KnownSyncStates;
+    create<I extends Exact<DeepPartial<KnownSyncStates>, I>>(base?: I): KnownSyncStates;
+    fromPartial<I extends Exact<DeepPartial<KnownSyncStates>, I>>(object: I): KnownSyncStates;
+};
+export declare const KnownSyncStates_SyncState: {
+    encode(message: KnownSyncStates_SyncState, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): KnownSyncStates_SyncState;
+    create<I extends Exact<DeepPartial<KnownSyncStates_SyncState>, I>>(base?: I): KnownSyncStates_SyncState;
+    fromPartial<I extends Exact<DeepPartial<KnownSyncStates_SyncState>, I>>(object: I): KnownSyncStates_SyncState;
 };
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 type DeepPartial<T> = T extends Builtin ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {
