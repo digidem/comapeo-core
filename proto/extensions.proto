@@ -32,3 +32,18 @@ message DownloadIntentExtension {
   // download everything.
   bool everything = 2;
 }
+
+message KnownSyncStates {
+  message SyncState {
+    // Peer ID that this sync state represents
+    bytes originId = 1;
+    // Auth core ID of author this peer synced with
+    bytes coreId = 2;
+    // Latest block this peer synced
+    uint64 authIndex = 3;
+    uint64 dataIndex = 4;
+    uint64 blobIndex = 5;
+  }
+
+  repeated SyncState states = 1;
+}
