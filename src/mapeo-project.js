@@ -867,6 +867,7 @@ export class MapeoProject extends TypedEmitter {
         )
       )
 
+      /** @type {([number, number] | [number, number, number])[]} */
       const coordinates = track.locations.map(
         ({ coords: { longitude, latitude, altitude } }) =>
           typeof altitude === 'number'
