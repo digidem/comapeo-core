@@ -13,7 +13,7 @@ import { Readable, pipelinePromise } from 'streamx'
 import { NAMESPACES, NAMESPACE_SCHEMAS, UNIX_EPOCH_DATE } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
-import { DataType, kCreateWithDocId } from './datatype/index.js'
+import { DataType, kCreateWithDocId, kSelect } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
@@ -48,6 +48,7 @@ import {
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
+  projectKeyToStatsId,
   valueOf,
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
@@ -482,6 +483,8 @@ export class MapeoProject extends TypedEmitter {
     })
 
     this.#l.log('Created project instance %h, %s', projectKey, isArchiveDevice)
+
+    this.#trySendStats()
   }
 
   /**
@@ -778,6 +781,53 @@ export class MapeoProject extends TypedEmitter {
    */
   get $icons() {
     return this.#iconApi
+  }
+
+  #makeStats() {
+    // Get timestamp for 3 months ago
+    // Find members with createdAt > timestamp
+    // Bucket by week
+    // Same for obs, tracks
+
+    const stats = [
+      {
+        start: Date.now(), // Timestamp for when week starts
+        members: 0, // Number of new members this week
+        observations: 0, // New observations this week
+        tracks: 0, // New tracks this week
+      },
+    ]
+
+    const project = projectKeyToStatsId(this.#projectKey)
+
+    return { project, stats }
+  }
+
+  async #trySendStats() {
+    const { collectStats } = await this.$getProjectSettings()
+    if (!collectStats) return
+    await this.#sendStats()
+  }
+
+  async #sendStats() {
+    try {
+      const stats = this.#makeStats()
+      // Send to metrics-proxy
+      // https://github.com/digidem/metrics-proxy
+      // TODO: Pass this URL in constructor
+      const statsEndpoint = 'http://example.com/prod'
+      const response = await fetch(statsEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data: stats }),
+      })
+      if (!response.ok) throw new Error(await response.text())
+    } catch (e) {
+      if (!(e instanceof Error)) throw e
+      this.#l.log(`ERROR: could not send project stats ${e.message}`)
+    }
   }
 
   /**
