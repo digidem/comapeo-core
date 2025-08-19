@@ -145,6 +145,9 @@ export var Invite = {
         if (message.projectDescription !== undefined) {
             writer.uint32(66).string(message.projectDescription);
         }
+        if (message.collectStats !== undefined) {
+            writer.uint32(72).bool(message.collectStats);
+        }
         return writer;
     },
     decode: function (input, length) {
@@ -202,6 +205,12 @@ export var Invite = {
                     }
                     message.projectDescription = reader.string();
                     continue;
+                case 9:
+                    if (tag !== 72) {
+                        break;
+                    }
+                    message.collectStats = reader.bool();
+                    continue;
             }
             if ((tag & 7) === 4 || tag === 0) {
                 break;
@@ -214,7 +223,7 @@ export var Invite = {
         return Invite.fromPartial(base !== null && base !== void 0 ? base : {});
     },
     fromPartial: function (object) {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j;
         var message = createBaseInvite();
         message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
         message.projectInviteId = (_b = object.projectInviteId) !== null && _b !== void 0 ? _b : Buffer.alloc(0);
@@ -224,6 +233,7 @@ export var Invite = {
         message.invitorName = (_f = object.invitorName) !== null && _f !== void 0 ? _f : "";
         message.projectColor = (_g = object.projectColor) !== null && _g !== void 0 ? _g : undefined;
         message.projectDescription = (_h = object.projectDescription) !== null && _h !== void 0 ? _h : undefined;
+        message.collectStats = (_j = object.collectStats) !== null && _j !== void 0 ? _j : undefined;
         return message;
     },
 };

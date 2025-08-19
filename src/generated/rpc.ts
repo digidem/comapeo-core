@@ -11,6 +11,7 @@ export interface Invite {
   invitorName: string;
   projectColor?: string | undefined;
   projectDescription?: string | undefined;
+  collectStats?: boolean | undefined;
 }
 
 export interface InviteCancel {
@@ -209,6 +210,9 @@ export const Invite = {
     if (message.projectDescription !== undefined) {
       writer.uint32(66).string(message.projectDescription);
     }
+    if (message.collectStats !== undefined) {
+      writer.uint32(72).bool(message.collectStats);
+    }
     return writer;
   },
 
@@ -275,6 +279,13 @@ export const Invite = {
 
           message.projectDescription = reader.string();
           continue;
+        case 9:
+          if (tag !== 72) {
+            break;
+          }
+
+          message.collectStats = reader.bool();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -297,6 +308,7 @@ export const Invite = {
     message.invitorName = object.invitorName ?? "";
     message.projectColor = object.projectColor ?? undefined;
     message.projectDescription = object.projectDescription ?? undefined;
+    message.collectStats = object.collectStats ?? undefined;
     return message;
   },
 };
