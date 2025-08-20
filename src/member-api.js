@@ -175,7 +175,7 @@ export class MemberApi extends TypedEmitter {
 
       const projectColor = project.projectColor
       const projectDescription = project.projectDescription
-      const collectStats = project.collectStats
+      const sendStats = project.sendStats
 
       abortSignal.throwIfAborted()
 
@@ -188,7 +188,7 @@ export class MemberApi extends TypedEmitter {
         roleName,
         roleDescription,
         invitorName,
-        collectStats,
+        sendStats,
       }
 
       const inviteResponse = await this.#sendInviteAndGetResponse(

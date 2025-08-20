@@ -804,8 +804,8 @@ export class MapeoProject extends TypedEmitter {
   }
 
   async #trySendStats() {
-    const { collectStats } = await this.$getProjectSettings()
-    if (!collectStats) return
+    const { sendStats } = await this.$getProjectSettings()
+    if (!sendStats) return
     await this.#sendStats()
   }
 

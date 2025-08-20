@@ -145,8 +145,8 @@ export var Invite = {
         if (message.projectDescription !== undefined) {
             writer.uint32(66).string(message.projectDescription);
         }
-        if (message.collectStats !== undefined) {
-            writer.uint32(72).bool(message.collectStats);
+        if (message.sendStats !== undefined) {
+            writer.uint32(72).bool(message.sendStats);
         }
         return writer;
     },
@@ -209,7 +209,7 @@ export var Invite = {
                     if (tag !== 72) {
                         break;
                     }
-                    message.collectStats = reader.bool();
+                    message.sendStats = reader.bool();
                     continue;
             }
             if ((tag & 7) === 4 || tag === 0) {
@@ -233,7 +233,7 @@ export var Invite = {
         message.invitorName = (_f = object.invitorName) !== null && _f !== void 0 ? _f : "";
         message.projectColor = (_g = object.projectColor) !== null && _g !== void 0 ? _g : undefined;
         message.projectDescription = (_h = object.projectDescription) !== null && _h !== void 0 ? _h : undefined;
-        message.collectStats = (_j = object.collectStats) !== null && _j !== void 0 ? _j : undefined;
+        message.sendStats = (_j = object.sendStats) !== null && _j !== void 0 ? _j : undefined;
         return message;
     },
 };

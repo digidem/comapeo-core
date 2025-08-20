@@ -9,7 +9,7 @@ export interface Invite {
     invitorName: string;
     projectColor?: string | undefined;
     projectDescription?: string | undefined;
-    collectStats?: boolean | undefined;
+    sendStats?: boolean | undefined;
 }
 export interface InviteCancel {
     inviteId: Buffer;
