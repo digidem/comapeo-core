@@ -2,6 +2,7 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { sql, count } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
@@ -13,7 +14,7 @@ import { Readable, pipelinePromise } from 'streamx'
 import { NAMESPACES, NAMESPACE_SCHEMAS, UNIX_EPOCH_DATE } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
-import { DataType, kCreateWithDocId, kSelect } from './datatype/index.js'
+import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
@@ -110,6 +111,7 @@ export class MapeoProject extends TypedEmitter {
   #coreOwnership
   #roles
   #sqlite
+  #db
   #memberApi
   #iconApi
   #syncApi
@@ -168,6 +170,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#sqlite = new Database(dbPath)
     const db = drizzle(this.#sqlite)
+    this.#db = db
     const migrationResult = migrate(db, {
       migrationsFolder: projectMigrationsFolder,
     })
@@ -483,8 +486,6 @@ export class MapeoProject extends TypedEmitter {
     })
 
     this.#l.log('Created project instance %h, %s', projectKey, isArchiveDevice)
-
-    this.#trySendStats()
   }
 
   /**
@@ -783,51 +784,31 @@ export class MapeoProject extends TypedEmitter {
     return this.#iconApi
   }
 
-  #makeStats() {
+  $getStats() {
     // Get timestamp for 3 months ago
     // Find members with createdAt > timestamp
     // Bucket by week
     // Same for obs, tracks
+    const observations = countWeeks(this.#db, observationTable)
+    const tracks = countWeeks(this.#db, trackTable)
+    const members = countWeeks(this.#db, roleTable)
 
-    const stats = [
-      {
-        start: Date.now(), // Timestamp for when week starts
-        members: 0, // Number of new members this week
-        observations: 0, // New observations this week
-        tracks: 0, // New tracks this week
-      },
-    ]
+    const knownWeeks = new Set([
+      ...observations.keys(),
+      ...tracks.keys(),
+      ...members.keys(),
+    ])
+
+    const stats = [...knownWeeks].map((week) => ({
+      week,
+      members: members.get(week) ?? 0,
+      tracks: tracks.get(week) ?? 0,
+      observations: observations.get(week) ?? 0,
+    }))
 
     const project = projectKeyToStatsId(this.#projectKey)
 
     return { project, stats }
-  }
-
-  async #trySendStats() {
-    const { sendStats } = await this.$getProjectSettings()
-    if (!sendStats) return
-    await this.#sendStats()
-  }
-
-  async #sendStats() {
-    try {
-      const stats = this.#makeStats()
-      // Send to metrics-proxy
-      // https://github.com/digidem/metrics-proxy
-      // TODO: Pass this URL in constructor
-      const statsEndpoint = 'http://example.com/prod'
-      const response = await fetch(statsEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ data: stats }),
-      })
-      if (!response.ok) throw new Error(await response.text())
-    } catch (e) {
-      if (!(e instanceof Error)) throw e
-      this.#l.log(`ERROR: could not send project stats ${e.message}`)
-    }
   }
 
   /**
@@ -1621,4 +1602,30 @@ export function baseUrlToWS(baseUrl, projectPublicId) {
   wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
 
   return wsUrl.href
+}
+
+/**
+ * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
+ * @param {import('./datatype/index.js').MapeoDocTables} table
+ * @returns {Map<string, number>}
+ */
+function countWeeks(db, table) {
+  return new Map(
+    db
+      .select({
+        weekYear: sql`strftime('%Y-%W', date(${table.createdAt}, '+00:00'))`.as(
+          'week_year'
+        ),
+        count: count().as('count'),
+      })
+      .from(table)
+      .where(
+        sql`date(${table.createdAt}, '+00:00') >= date('now', '-6 months')`
+      )
+      .groupBy(sql`week_year`)
+      .orderBy(sql`week_year`)
+      .all()
+      // Convert to k-v pairs for map constructor
+      .map(({ weekYear, count }) => [weekYear, count])
+  )
 }
