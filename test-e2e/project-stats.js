@@ -1,14 +1,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager } from '@mapeo/crypto'
-import RAM from 'random-access-memory'
-import Fastify from 'fastify'
-import { generate } from '@mapeo/mock-data'
-import { valueOf } from '@comapeo/schema'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { MapeoManager } from '../src/mapeo-manager.js'
+import RAM from 'random-access-memory'
+import Fastify from 'fastify'
+import { pEvent } from 'p-event'
+
+import { KeyManager } from '@mapeo/crypto'
+import { generate } from '@mapeo/mock-data'
+import { valueOf } from '@comapeo/schema'
+
+import { createManagers, connectPeers } from './utils.js'
+import { MapeoManager, roles } from '../src/index.js'
 
 /** @import { Readable } from 'streamx' */
 
@@ -42,6 +46,43 @@ test('Tracks exist for project', async () => {
   assert.equal(observations, expectedObservations, 'Count of observations')
   assert.equal(tracks, DEFAULT_TRACKS, 'Count of tracks')
   assert(members !== undefined, 'Members exists')
+})
+
+test('sendStats state persists', async () => {
+  const manager = setupManager()
+
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  const { sendStats: initialSendStats } = await project.$getProjectSettings()
+
+  assert(initialSendStats !== true, 'default sendStats not true')
+
+  await project.$setProjectSettings({ sendStats: true })
+
+  const { sendStats: updatedSendStats } = await project.$getProjectSettings()
+
+  assert(updatedSendStats, 'send stats got updated')
+})
+
+test('sendStats set inside invite', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  const project = await invitor.getProject(projectId)
+  await project.$setProjectSettings({ sendStats: true })
+
+  const gotInvite = pEvent(invitee.invite, 'invite-received')
+  project.$member.invite(invitee.deviceId, {
+    roleId: roles.MEMBER_ROLE_ID,
+  })
+
+  const invite = await gotInvite
+
+  assert(invite.sendStats, 'Invite mentions send stats')
 })
 
 /**
