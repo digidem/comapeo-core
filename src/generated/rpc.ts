@@ -11,7 +11,7 @@ export interface Invite {
   invitorName: string;
   projectColor?: string | undefined;
   projectDescription?: string | undefined;
-  sendStats?: boolean | undefined;
+  sendStats: boolean;
 }
 
 export interface InviteCancel {
@@ -181,7 +181,13 @@ export interface ProjectJoinDetailsAck {
 }
 
 function createBaseInvite(): Invite {
-  return { inviteId: Buffer.alloc(0), projectInviteId: Buffer.alloc(0), projectName: "", invitorName: "" };
+  return {
+    inviteId: Buffer.alloc(0),
+    projectInviteId: Buffer.alloc(0),
+    projectName: "",
+    invitorName: "",
+    sendStats: false,
+  };
 }
 
 export const Invite = {
@@ -210,7 +216,7 @@ export const Invite = {
     if (message.projectDescription !== undefined) {
       writer.uint32(66).string(message.projectDescription);
     }
-    if (message.sendStats !== undefined) {
+    if (message.sendStats === true) {
       writer.uint32(72).bool(message.sendStats);
     }
     return writer;
@@ -308,7 +314,7 @@ export const Invite = {
     message.invitorName = object.invitorName ?? "";
     message.projectColor = object.projectColor ?? undefined;
     message.projectDescription = object.projectDescription ?? undefined;
-    message.sendStats = object.sendStats ?? undefined;
+    message.sendStats = object.sendStats ?? false;
     return message;
   },
 };

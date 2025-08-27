@@ -116,7 +116,13 @@ export function deviceInfo_RPCFeaturesToNumber(object) {
     }
 }
 function createBaseInvite() {
-    return { inviteId: Buffer.alloc(0), projectInviteId: Buffer.alloc(0), projectName: "", invitorName: "" };
+    return {
+        inviteId: Buffer.alloc(0),
+        projectInviteId: Buffer.alloc(0),
+        projectName: "",
+        invitorName: "",
+        sendStats: false,
+    };
 }
 export var Invite = {
     encode: function (message, writer) {
@@ -145,7 +151,7 @@ export var Invite = {
         if (message.projectDescription !== undefined) {
             writer.uint32(66).string(message.projectDescription);
         }
-        if (message.sendStats !== undefined) {
+        if (message.sendStats === true) {
             writer.uint32(72).bool(message.sendStats);
         }
         return writer;
@@ -233,7 +239,7 @@ export var Invite = {
         message.invitorName = (_f = object.invitorName) !== null && _f !== void 0 ? _f : "";
         message.projectColor = (_g = object.projectColor) !== null && _g !== void 0 ? _g : undefined;
         message.projectDescription = (_h = object.projectDescription) !== null && _h !== void 0 ? _h : undefined;
-        message.sendStats = (_j = object.sendStats) !== null && _j !== void 0 ? _j : undefined;
+        message.sendStats = (_j = object.sendStats) !== null && _j !== void 0 ? _j : false;
         return message;
     },
 };
