@@ -1,0 +1,26 @@
+name: Update CoMapeo Apps
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PR_BOT_APP_ID }}
+          private-key: ${{ secrets.PR_BOT_PRIVATE_KEY }}
+      - name: Trigger comapeo-mobile update-core workflow
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/digidem/comapeo-mobile/dispatches \
+            -f event_type=update-core
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
