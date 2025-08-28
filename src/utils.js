@@ -7,7 +7,6 @@ import { omit } from './lib/omit.js'
 /** @import {Attachment, BlobId} from "./types.js" */
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
-const PROJECT_STATS_SALT = Buffer.from('mapeo project stats id', 'ascii')
 
 /**
  *
@@ -142,17 +141,6 @@ export function projectKeyToPublicId(projectKey) {
 export function projectKeyToProjectInviteId(projectKey) {
   const result = Buffer.allocUnsafe(32)
   sodium.crypto_generichash(result, PROJECT_INVITE_ID_SALT, projectKey)
-  return result
-}
-
-/**
- * Generate an anon stats ID from a project key
- * @param {Readonly<Buffer>} projectKey
- * @returns {Buffer}
- */
-export function projectKeyToStatsId(projectKey) {
-  const result = Buffer.allocUnsafe(32)
-  sodium.crypto_generichash(result, PROJECT_STATS_SALT, projectKey)
   return result
 }
 

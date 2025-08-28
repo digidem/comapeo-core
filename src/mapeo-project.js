@@ -49,7 +49,6 @@ import {
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
-  projectKeyToStatsId,
   valueOf,
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
@@ -75,6 +74,10 @@ import { createWriteStream } from 'fs'
 /** @typedef {object} BlobRef
  * @prop {string|undefined} mimeType
  * @prop {BlobId} blobId
+ */
+/** @typedef {object} StatItem
+ * @prop {string} week
+ * @prop {number} count
  */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
@@ -649,6 +652,7 @@ export class MapeoProject extends TypedEmitter {
       await projectSettings[kCreateWithDocId](this.#projectId, {
         ...settings,
         schemaName: 'projectSettings',
+        sendStats: settings.sendStats ?? false,
       })
     )
   }
@@ -793,22 +797,13 @@ export class MapeoProject extends TypedEmitter {
     const tracks = countWeeks(this.#db, trackTable)
     const members = countWeeks(this.#db, roleTable)
 
-    const knownWeeks = new Set([
-      ...observations.keys(),
-      ...tracks.keys(),
-      ...members.keys(),
-    ])
+    const stats = {
+      observations,
+      tracks,
+      members,
+    }
 
-    const stats = [...knownWeeks].map((week) => ({
-      week,
-      members: members.get(week) ?? 0,
-      tracks: tracks.get(week) ?? 0,
-      observations: observations.get(week) ?? 0,
-    }))
-
-    const project = projectKeyToStatsId(this.#projectKey)
-
-    return { project, stats }
+    return stats
   }
 
   /**
@@ -1607,25 +1602,19 @@ export function baseUrlToWS(baseUrl, projectPublicId) {
 /**
  * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
  * @param {import('./datatype/index.js').MapeoDocTables} table
- * @returns {Map<string, number>}
+ * @returns {StatItem[]}
  */
 function countWeeks(db, table) {
-  return new Map(
-    db
-      .select({
-        weekYear: sql`strftime('%Y-%W', date(${table.createdAt}, '+00:00'))`.as(
-          'week_year'
-        ),
-        count: count().as('count'),
-      })
-      .from(table)
-      .where(
-        sql`date(${table.createdAt}, '+00:00') >= date('now', '-6 months')`
-      )
-      .groupBy(sql`week_year`)
-      .orderBy(sql`week_year`)
-      .all()
-      // Convert to k-v pairs for map constructor
-      .map(({ weekYear, count }) => [weekYear, count])
-  )
+  return db
+    .select({
+      week: sql`strftime('%Y-%W', date(${table.createdAt}, '+00:00'))`.as(
+        'week'
+      ),
+      count: count().as('count'),
+    })
+    .from(table)
+    .where(sql`date(${table.createdAt}, '+00:00') >= date('now', '-6 months')`)
+    .groupBy(sql`week`)
+    .orderBy(sql`week`)
+    .all()
 }
