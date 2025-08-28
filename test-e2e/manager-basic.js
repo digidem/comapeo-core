@@ -69,7 +69,7 @@ test('Managing created projects', async (t) => {
         projectDescription: undefined,
         defaultPresets: undefined,
         configMetadata: undefined,
-        sendStats: undefined,
+        sendStats: false,
       },
       'undefined name and default presets for project1'
     )
@@ -81,7 +81,7 @@ test('Managing created projects', async (t) => {
         projectDescription: undefined,
         defaultPresets: undefined,
         configMetadata: undefined,
-        sendStats: undefined,
+        sendStats: false,
       },
       'matched name for project2 with undefined default presets'
     )
@@ -106,7 +106,7 @@ test('Managing created projects', async (t) => {
       projectDescription: undefined,
       defaultPresets: undefined,
       configMetadata: undefined,
-      sendStats: undefined,
+      sendStats: false,
     })
 
     assert.deepEqual(settings2, {
@@ -115,7 +115,7 @@ test('Managing created projects', async (t) => {
       projectDescription: 'project 2 description',
       defaultPresets: undefined,
       configMetadata: undefined,
-      sendStats: undefined,
+      sendStats: false,
     })
 
     assert.equal(settings2.name, 'project 2 updated')
@@ -354,7 +354,7 @@ test('Managing added projects', async (t) => {
         defaultPresets: undefined,
         projectColor: undefined,
         projectDescription: undefined,
-        sendStats: undefined,
+        sendStats: false,
       })
 
       assert.deepEqual(settings2, {
@@ -362,7 +362,7 @@ test('Managing added projects', async (t) => {
         defaultPresets: undefined,
         projectColor: undefined,
         projectDescription: undefined,
-        sendStats: undefined,
+        sendStats: false,
       })
     }
   )

@@ -1,1 +1,0 @@
-ALTER TABLE projectSettings ADD `sendStats` integer;

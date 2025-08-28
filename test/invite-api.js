@@ -65,6 +65,7 @@ test('invite-received event has expected payload', async () => {
     projectInviteId,
     projectName,
     invitorName: 'Your Friend',
+    sendStats: false,
   }
   rpc.emit('invite', invitorPeerId, bareInvite)
 
@@ -93,6 +94,7 @@ test('invite-received event has expected payload', async () => {
       projectName,
       invitorName: 'Your Friend',
       state: 'pending',
+      sendStats: false,
     },
     {
       inviteId: partialInvite.inviteId.toString('hex'),
@@ -103,6 +105,7 @@ test('invite-received event has expected payload', async () => {
       invitorName: 'Your Friend',
       projectColor: '#123456',
       state: 'pending',
+      sendStats: false,
     },
     {
       inviteId: fullInvite.inviteId.toString('hex'),
@@ -114,6 +117,7 @@ test('invite-received event has expected payload', async () => {
       invitorName: 'Your Friend',
       projectDescription: 'cool project',
       state: 'pending',
+      sendStats: false,
     },
   ]
   const receivedInvitesArgs = (await invitesReceivedPromise).map(first)
@@ -1177,6 +1181,7 @@ function setup() {
     projectName: 'Mapeo Project',
     roleName: 'Superfan',
     invitorName: 'Host',
+    sendStats: false,
   }
   const inviteExternal = {
     ...invite,
@@ -1184,6 +1189,7 @@ function setup() {
     state: 'pending',
     inviteId: invite.inviteId.toString('hex'),
     projectInviteId: projectInviteId.toString('hex'),
+    sendStats: false,
   }
 
   const rpc = new MockLocalPeers()

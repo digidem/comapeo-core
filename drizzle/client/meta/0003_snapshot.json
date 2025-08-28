@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "970188ee-47d3-4efc-9479-1fc116ec2565",
+  "id": "3b7b9e2d-3a35-47e3-977e-b5dcbe2fd302",
   "prevId": "facbbc92-fe5b-4ce0-9bcd-189143af55f9",
   "tables": {
     "deviceSettings": {
@@ -187,7 +187,7 @@
           "name": "sendStats",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "defaultPresets": {
