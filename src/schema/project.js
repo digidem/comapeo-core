@@ -45,7 +45,7 @@ export const roleBacklinkTable = backlinkTable(roleTable)
 export const deviceInfoBacklinkTable = backlinkTable(deviceInfoTable)
 export const iconBacklinkTable = backlinkTable(iconTable)
 
-export const coresTable = sqliteTable('cores', {
+export const coresTable_Deprecated = sqliteTable('cores', {
   publicKey: blob('publicKey', { mode: 'buffer' }).notNull(),
   namespace: text('namespace', { enum: NAMESPACES }).notNull(),
 })

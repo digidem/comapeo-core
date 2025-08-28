@@ -2,7 +2,6 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
@@ -16,7 +15,7 @@ import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
-import { IndexWriter } from './index-writer/index.js'
+import { IndexWriterWrapper as IndexWriter } from './index-writer/index.js'
 import { projectSettingsTable } from './schema/client.js'
 import {
   coreOwnershipTable,
@@ -30,11 +29,7 @@ import {
   translationTable,
   remoteDetectionAlertTable,
 } from './schema/project.js'
-import {
-  CoreOwnership,
-  getWinner,
-  mapAndValidateCoreOwnership,
-} from './core-ownership.js'
+import { CoreOwnership } from './core-ownership.js'
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
@@ -50,7 +45,7 @@ import {
   projectKeyToPublicId,
   valueOf,
 } from './utils.js'
-import { migrate } from './lib/drizzle-helpers.js'
+import { migrate, migrateCoresTable } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
 import {
@@ -65,6 +60,7 @@ import TranslationApi from './translation-api.js'
 import { NotFoundError, nullIfNotFound } from './errors.js'
 import { WebSocket } from 'ws'
 import { createWriteStream } from 'fs'
+import * as projectSchema from './schema/project.js'
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
@@ -128,7 +124,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
-   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
+   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database<import('./schema/client.js')>} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
@@ -136,6 +132,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {Logger} [opts.logger]
+   * @param {boolean} [opts.useIndexWorkers] if true, use a worker thread for each project for indexing cores to sqlite
    *
    */
   constructor({
@@ -153,6 +150,7 @@ export class MapeoProject extends TypedEmitter {
     localPeers,
     logger,
     isArchiveDevice,
+    useIndexWorkers = false,
   }) {
     super()
 
@@ -166,10 +164,16 @@ export class MapeoProject extends TypedEmitter {
     ///////// 1. Setup database
 
     this.#sqlite = new Database(dbPath)
-    const db = drizzle(this.#sqlite)
+    let db = drizzle(this.#sqlite, { schema: projectSchema })
     const migrationResult = migrate(db, {
       migrationsFolder: projectMigrationsFolder,
     })
+    if (useIndexWorkers && !this.#sqlite.memory) {
+      // Re-open the db as read-only, because all writes will be done in the worker thread
+      this.#sqlite.close()
+      this.#sqlite = new Database(dbPath, { readonly: true })
+      db = drizzle(this.#sqlite, { schema: projectSchema })
+    }
     let reindex
     switch (migrationResult) {
       case 'initialized database':
@@ -182,6 +186,14 @@ export class MapeoProject extends TypedEmitter {
       default:
         throw new ExhaustivenessError(migrationResult)
     }
+
+    // Above v4.1.4 we moved the cores table from the project db to the shared
+    // client db, so the project db can be opened read-only in the main thread.
+    migrateCoresTable({
+      clientDb: sharedDb,
+      projectDb: db,
+      projectPublicId: this.#projectPublicId,
+    })
 
     const indexedTables = [
       observationTable,
@@ -220,25 +232,15 @@ export class MapeoProject extends TypedEmitter {
       projectKey,
       keyManager,
       storage: coreManagerStorage,
-      db,
+      db: sharedDb,
       logger: this.#l,
     })
 
     this.#indexWriter = new IndexWriter({
       tables: indexedTables,
       sqlite: this.#sqlite,
-      getWinner,
-      mapDoc: (doc, version) => {
-        switch (doc.schemaName) {
-          case 'coreOwnership':
-            return mapAndValidateCoreOwnership(doc, version)
-          case 'deviceInfo':
-            return mapAndValidateDeviceInfo(doc, version)
-          default:
-            return doc
-        }
-      },
       logger: this.#l,
+      useWorker: useIndexWorkers,
     })
 
     this.#dataStores = {
@@ -1297,7 +1299,7 @@ export class MapeoProject extends TypedEmitter {
     const authSchemas = new Set(NAMESPACE_SCHEMAS.auth)
     for (const schemaName of this.#indexWriter.schemas) {
       const isAuthSchema = authSchemas.has(schemaName)
-      if (!isAuthSchema) this.#indexWriter.deleteSchema(schemaName)
+      if (!isAuthSchema) await this.#indexWriter.deleteSchema(schemaName)
     }
   }
 
@@ -1541,23 +1543,6 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
   }
 
   return keypairs
-}
-
-/**
- * Validate that a deviceInfo record is written by the device that is it about,
- * e.g. version.coreKey should equal docId
- *
- * @param {import('@comapeo/schema').DeviceInfo} doc
- * @param {import('@comapeo/schema').VersionIdObject} version
- * @returns {import('@comapeo/schema').DeviceInfo}
- */
-function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
-  if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
-    throw new Error(
-      'Invalid deviceInfo record, cannot write deviceInfo for another device'
-    )
-  }
-  return doc
 }
 
 /**
