@@ -869,12 +869,12 @@ export class MapeoProject extends TypedEmitter {
         )
       )
 
+      /** @type {([number, number] | [number, number, number])[]} */
       const coordinates = track.locations.map(
-        ({ coords: { longitude, latitude, altitude } }) => [
-          longitude,
-          latitude,
-          altitude,
-        ]
+        ({ coords: { longitude, latitude, altitude } }) =>
+          typeof altitude === 'number'
+            ? [longitude, latitude, altitude]
+            : [longitude, latitude]
       )
       const comma = first ? '' : ','
       first = false
