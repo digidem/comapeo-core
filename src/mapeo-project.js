@@ -75,9 +75,11 @@ import { createWriteStream } from 'fs'
  * @prop {string|undefined} mimeType
  * @prop {BlobId} blobId
  */
-/** @typedef {object} StatItem
- * @prop {string} week
- * @prop {number} count
+
+/**
+ * @typedef {Object} Stats
+ * @property {string[]} columns
+ * @property {Array<[string, number]>} values
  */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
@@ -1602,10 +1604,11 @@ export function baseUrlToWS(baseUrl, projectPublicId) {
 /**
  * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
  * @param {import('./datatype/index.js').MapeoDocTables} table
- * @returns {StatItem[]}
+ * @returns {Stats}
  */
 function countWeeks(db, table) {
-  return db
+  /** @type {Array<[string, number]>}*/
+  const values = db
     .select({
       week: sql`strftime('%Y-%W', date(${table.createdAt}, '+00:00'))`.as(
         'week'
@@ -1617,4 +1620,8 @@ function countWeeks(db, table) {
     .groupBy(sql`week`)
     .orderBy(sql`week`)
     .all()
+    .map(({ week, count }) => [week, count])
+  const columns = ['week', 'count']
+
+  return { columns, values }
 }

@@ -32,15 +32,17 @@ test('Tracks exist for project', async (t) => {
   const stats = project.$getStats()
 
   assert(
-    stats.observations[0].week.startsWith(new Date().getFullYear().toString()),
+    stats.observations.values[0][0].startsWith(
+      new Date().getFullYear().toString()
+    ),
     'Week for this year'
   )
   assert.equal(
-    stats.observations[0].count,
+    stats.observations.values[0][1],
     DEFAULT_OBSERVATIONS,
     'Count of observations'
   )
-  assert.equal(stats.tracks[0].count, DEFAULT_TRACKS, 'Count of tracks')
+  assert.equal(stats.tracks.values[0][1], DEFAULT_TRACKS, 'Count of tracks')
   assert(stats.members !== undefined, 'Members exists')
 })
 
