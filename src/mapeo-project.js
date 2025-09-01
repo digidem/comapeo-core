@@ -82,7 +82,7 @@ import { createWriteStream } from 'fs'
  */
 /**
  * @typedef {Object} ProjectStats
- * @property {string} timezone
+ * @property {number} timezoneOffset
  * @property {Stats} observations
  * @property {Stats} tracks
  * @property {Stats} members
@@ -809,7 +809,7 @@ export class MapeoProject extends TypedEmitter {
     const members = countWeeks(this.#db, roleTable)
 
     const stats = {
-      timezone: getCurrentTimezoneOffset(),
+      timezoneOffset: new Date().getTimezoneOffset(),
       observations,
       tracks,
       members,
@@ -1617,34 +1617,24 @@ export function baseUrlToWS(baseUrl, projectPublicId) {
  * @returns {Stats}
  */
 function countWeeks(db, table) {
-  //const timezone = getCurrentTimezoneOffset()
   /** @type {Array<[string, number]>}*/
-  const values = db
-    .select({
-      week: sql`strftime('%Y-%W', date(${table.createdAt}, 'localtime'))`.as(
-        'week'
-      ),
-      count: count().as('count'),
-    })
-    .from(table)
-    .where(
-      sql`date(${table.createdAt}, 'localtime') >= date('now', '-6 months')`
-    )
-    .groupBy(sql`week`)
-    .orderBy(sql`week`)
-    .all()
-    .map(({ week, count }) => [week, count])
+  const values = /** @type {Array<[string, number]>}*/ (
+    db
+      .select({
+        week: sql`strftime('%Y-%W', date(${table.createdAt}, 'localtime'))`.as(
+          'week'
+        ),
+        count: count().as('count'),
+      })
+      .from(table)
+      .where(
+        sql`date(${table.createdAt}, 'localtime') >= date('now', '-6 months')`
+      )
+      .groupBy(sql`week`)
+      .orderBy(sql`week`)
+      .values()
+  )
   const columns = ['week', 'count']
 
   return { columns, values }
-}
-
-function getCurrentTimezoneOffset() {
-  const offset = new Date().getTimezoneOffset()
-  const hours = Math.floor(Math.abs(offset / 60))
-  const minutes = Math.floor(Math.abs(offset % 60))
-  const sign = offset < 0 ? '+' : '-'
-  return `${sign}${hours.toString().padStart(2, '0')}:${minutes
-    .toString()
-    .padStart(2, '0')}`
 }
