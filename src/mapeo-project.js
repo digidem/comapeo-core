@@ -1628,7 +1628,7 @@ function countWeeks(db, table) {
       })
       .from(table)
       .where(
-        sql`date(${table.createdAt}, 'localtime') >= date('now', '-6 months')`
+        sql`date(${table.createdAt}, 'localtime', '-1 week', 'weekday 0') >= date('now', '-6 months', 'weekday 0')`
       )
       .groupBy(sql`week`)
       .orderBy(sql`week`)
