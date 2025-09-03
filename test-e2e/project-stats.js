@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
-
+import FakeTimers from '@sinonjs/fake-timers'
 import {
   createManagers,
   createManager,
@@ -46,57 +46,57 @@ test('Tracks exist for project', async (t) => {
   assert(stats.members !== undefined, 'Members exists')
 })
 
-// Skip test for node <20
-if (!process.version.startsWith('v1')) {
-  test('sendStats buckets by week', async (t) => {
-    const manager = createManager('test', t)
+test('sendStats buckets by week', async (t) => {
+  const manager = createManager('test', t)
 
-    const projectId = await manager.createProject()
-    const project = await manager.getProject(projectId)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
 
-    const sevenDaysInMilliseconds = 7 * 24 * 60 * 60 * 1000
-    const lastWeek = Date.now() - sevenDaysInMilliseconds
+  const sevenDaysInMilliseconds = 7 * 24 * 60 * 60 * 1000
+  const lastWeek = Date.now() - sevenDaysInMilliseconds
 
-    // @ts-ignore
-    t.mock.timers.enable({ apis: ['Date'], now: lastWeek })
-
-    await seedProjectDatabase(project, {
-      schemas: ['observation', 'track'],
-      seedCounts: new Map([
-        ['observation', DEFAULT_OBSERVATIONS],
-        ['track', DEFAULT_TRACKS],
-      ]),
-    })
-
-    t.mock.timers.tick(sevenDaysInMilliseconds)
-
-    await seedProjectDatabase(project, {
-      schemas: ['observation', 'track'],
-      seedCounts: new Map([
-        ['observation', DEFAULT_OBSERVATIONS],
-        ['track', DEFAULT_TRACKS],
-      ]),
-    })
-
-    const stats = project.$getStats()
-
-    assert.equal(stats.observations.values.length, 2, 'two weeks of stats')
-
-    assert.equal(
-      stats.observations.values[0][1],
-      DEFAULT_OBSERVATIONS,
-      'Count of observations'
-    )
-    assert.equal(stats.tracks.values[0][1], DEFAULT_TRACKS, 'Count of tracks')
-
-    assert.equal(
-      stats.observations.values[1][1],
-      DEFAULT_OBSERVATIONS,
-      'Count of observations'
-    )
-    assert.equal(stats.tracks.values[1][1], DEFAULT_TRACKS, 'Count of tracks')
+  const clock = FakeTimers.install({
+    now: lastWeek,
+    shouldClearNativeTimers: true,
   })
-}
+  t.after(() => clock.uninstall())
+
+  await seedProjectDatabase(project, {
+    schemas: ['observation', 'track'],
+    seedCounts: new Map([
+      ['observation', DEFAULT_OBSERVATIONS],
+      ['track', DEFAULT_TRACKS],
+    ]),
+  })
+
+  clock.tick(sevenDaysInMilliseconds)
+
+  await seedProjectDatabase(project, {
+    schemas: ['observation', 'track'],
+    seedCounts: new Map([
+      ['observation', DEFAULT_OBSERVATIONS],
+      ['track', DEFAULT_TRACKS],
+    ]),
+  })
+
+  const stats = project.$getStats()
+
+  assert.equal(stats.observations.values.length, 2, 'two weeks of stats')
+
+  assert.equal(
+    stats.observations.values[0][1],
+    DEFAULT_OBSERVATIONS,
+    'Count of observations'
+  )
+  assert.equal(stats.tracks.values[0][1], DEFAULT_TRACKS, 'Count of tracks')
+
+  assert.equal(
+    stats.observations.values[1][1],
+    DEFAULT_OBSERVATIONS,
+    'Count of observations'
+  )
+  assert.equal(stats.tracks.values[1][1], DEFAULT_TRACKS, 'Count of tracks')
+})
 
 test('sendStats state persists', async (t) => {
   const manager = createManager('test', t)
