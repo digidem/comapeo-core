@@ -46,6 +46,55 @@ test('Tracks exist for project', async (t) => {
   assert(stats.members !== undefined, 'Members exists')
 })
 
+test('sendStats buckets by week', async (t) => {
+  const manager = createManager('test', t)
+
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+
+  const sevenDaysInMilliseconds = 7 * 24 * 60 * 60 * 1000
+  const lastWeek = Date.now() - sevenDaysInMilliseconds
+
+  // @ts-ignore
+  t.mock.timers.enable({ apis: ['Date'], now: lastWeek })
+
+  await seedProjectDatabase(project, {
+    schemas: ['observation', 'track'],
+    seedCounts: new Map([
+      ['observation', DEFAULT_OBSERVATIONS],
+      ['track', DEFAULT_TRACKS],
+    ]),
+  })
+
+  t.mock.timers.tick(sevenDaysInMilliseconds)
+
+  await seedProjectDatabase(project, {
+    schemas: ['observation', 'track'],
+    seedCounts: new Map([
+      ['observation', DEFAULT_OBSERVATIONS],
+      ['track', DEFAULT_TRACKS],
+    ]),
+  })
+
+  const stats = project.$getStats()
+
+  assert.equal(stats.observations.values.length, 2, 'two weeks of stats')
+
+  assert.equal(
+    stats.observations.values[0][1],
+    DEFAULT_OBSERVATIONS,
+    'Count of observations'
+  )
+  assert.equal(stats.tracks.values[0][1], DEFAULT_TRACKS, 'Count of tracks')
+
+  assert.equal(
+    stats.observations.values[1][1],
+    DEFAULT_OBSERVATIONS,
+    'Count of observations'
+  )
+  assert.equal(stats.tracks.values[1][1], DEFAULT_TRACKS, 'Count of tracks')
+})
+
 test('sendStats state persists', async (t) => {
   const manager = createManager('test', t)
 
