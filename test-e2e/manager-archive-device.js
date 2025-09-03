@@ -41,6 +41,26 @@ test('Set & Get isArchiveDevice', async (t) => {
   )
 })
 
+test('Default isArchiveDevice', async (t) => {
+  const manager = createManager('seed', t, {
+    defaultIsArchiveDevice: false,
+  })
+  assert.strictEqual(
+    manager.getIsArchiveDevice(),
+    false,
+    'isArchiveDevice is false initially'
+  )
+
+  // Ensure at least one project exists (tests internal setting on project)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+  assert.strictEqual(
+    project[kIsArchiveDevice],
+    false,
+    'Project isArchiveDevice is false initially'
+  )
+})
+
 test('isArchiveDevice persists', async (t) => {
   const custodian = new ManagerCustodian(t)
 
