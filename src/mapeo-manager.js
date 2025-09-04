@@ -171,6 +171,7 @@ export class MapeoManager extends TypedEmitter {
         ? ':memory:'
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
+    sqlite.pragma('journal_mode=WAL')
     this.#db = drizzle(sqlite)
     migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
 
