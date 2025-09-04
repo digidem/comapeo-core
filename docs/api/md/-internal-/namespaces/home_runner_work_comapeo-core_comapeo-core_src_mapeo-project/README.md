@@ -11,6 +11,8 @@
 ### Interfaces
 
 - [BlobRef](interfaces/BlobRef.md)
+- [ProjectStats](interfaces/ProjectStats.md)
+- [Stats](interfaces/Stats.md)
 
 ### Type Aliases
 
