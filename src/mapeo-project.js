@@ -2,6 +2,7 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { sql, count } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
@@ -74,6 +75,18 @@ import { createWriteStream } from 'fs'
  * @prop {string|undefined} mimeType
  * @prop {BlobId} blobId
  */
+/**
+ * @typedef {Object} Stats
+ * @property {string[]} columns
+ * @property {Array<[string, number]>} values
+ */
+/**
+ * @typedef {Object} ProjectStats
+ * @property {number} timezoneOffset
+ * @property {Stats} observations
+ * @property {Stats} tracks
+ * @property {Stats} members
+ */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -109,6 +122,7 @@ export class MapeoProject extends TypedEmitter {
   #coreOwnership
   #roles
   #sqlite
+  #db
   #memberApi
   #iconApi
   #syncApi
@@ -167,6 +181,7 @@ export class MapeoProject extends TypedEmitter {
 
     this.#sqlite = new Database(dbPath)
     const db = drizzle(this.#sqlite)
+    this.#db = db
     const migrationResult = migrate(db, {
       migrationsFolder: projectMigrationsFolder,
     })
@@ -645,6 +660,7 @@ export class MapeoProject extends TypedEmitter {
       await projectSettings[kCreateWithDocId](this.#projectId, {
         ...settings,
         schemaName: 'projectSettings',
+        sendStats: settings.sendStats ?? false,
       })
     )
   }
@@ -778,6 +794,28 @@ export class MapeoProject extends TypedEmitter {
    */
   get $icons() {
     return this.#iconApi
+  }
+
+  /**
+   * @returns {ProjectStats}
+   */
+  $getStats() {
+    // Get timestamp for 3 months ago
+    // Find members with createdAt > timestamp
+    // Bucket by week
+    // Same for obs, tracks
+    const observations = countWeeks(this.#db, observationTable)
+    const tracks = countWeeks(this.#db, trackTable)
+    const members = countWeeks(this.#db, roleTable)
+
+    const stats = {
+      timezoneOffset: new Date().getTimezoneOffset(),
+      observations,
+      tracks,
+      members,
+    }
+
+    return stats
   }
 
   /**
@@ -1571,4 +1609,32 @@ export function baseUrlToWS(baseUrl, projectPublicId) {
   wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
 
   return wsUrl.href
+}
+
+/**
+ * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
+ * @param {import('./datatype/index.js').MapeoDocTables} table
+ * @returns {Stats}
+ */
+function countWeeks(db, table) {
+  /** @type {Array<[string, number]>}*/
+  const values = /** @type {Array<[string, number]>}*/ (
+    db
+      .select({
+        week: sql`strftime('%Y-%W', date(${table.createdAt}, 'localtime'))`.as(
+          'week'
+        ),
+        count: count().as('count'),
+      })
+      .from(table)
+      .where(
+        sql`date(${table.createdAt}, 'localtime') >= date('now', '-6 months', 'weekday 0')`
+      )
+      .groupBy(sql`week`)
+      .orderBy(sql`week`)
+      .values()
+  )
+  const columns = ['week', 'count']
+
+  return { columns, values }
 }

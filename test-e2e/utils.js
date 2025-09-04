@@ -608,20 +608,25 @@ const SCHEMAS_TO_SEED = /** @type {const} */ ([
   'field',
 ])
 
+/** @typedef {import('@comapeo/schema').MapeoDoc['schemaName']} SchemaNames */
+
 /**
  * @param {import('../src/mapeo-project.js').MapeoProject} project
  * @param {object} [opts]
- * @param {readonly import('@comapeo/schema').MapeoDoc['schemaName'][]} [opts.schemas]
+ * @param {readonly SchemaNames[]} [opts.schemas]
+ * @param {Map<SchemaNames, number>} [opts.seedCounts]
  * @returns {Promise<Array<import('@comapeo/schema').MapeoDoc & { forks: string[] }>>}
  */
-async function seedProjectDatabase(
+export async function seedProjectDatabase(
   project,
-  { schemas = SCHEMAS_TO_SEED } = {}
+  {
+    schemas = SCHEMAS_TO_SEED,
+    seedCounts = new Map([['observation', randomInt(20, 100)]]),
+  } = {}
 ) {
   const promises = []
   for (const schemaName of schemas) {
-    const count =
-      schemaName === 'observation' ? randomInt(20, 100) : randomInt(0, 10)
+    const count = seedCounts.get(schemaName) ?? randomInt(0, 10)
     let i = 0
     while (i++ < count) {
       const value = valueOf(generate(schemaName)[0])
