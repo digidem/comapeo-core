@@ -180,6 +180,7 @@ export class MapeoProject extends TypedEmitter {
     ///////// 1. Setup database
 
     this.#sqlite = new Database(dbPath)
+    this.#sqlite.pragma('journal_mode=WAL')
     const db = drizzle(this.#sqlite)
     this.#db = db
     const migrationResult = migrate(db, {
