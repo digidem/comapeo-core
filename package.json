@@ -168,7 +168,7 @@
     "@fastify/type-provider-typebox": "^4.1.0",
     "@hyperswarm/secret-stream": "^6.6.3",
     "@mapeo/crypto": "1.0.0-alpha.10",
-    "@mapeo/sqlite-indexer": "1.0.0-alpha.9",
+    "@mapeo/sqlite-indexer": "^1.0.2",
     "@sinclair/typebox": "^0.33.17",
     "@sindresorhus/merge-streams": "^4.0.0",
     "b4a": "^1.6.3",
@@ -215,5 +215,8 @@
     "xstate": "^5.19.2",
     "yauzl-promise": "^4.0.0",
     "zip-stream-promise": "^1.0.2"
+  },
+  "overrides": {
+    "better-sqlite3": "$better-sqlite3"
   }
 }
