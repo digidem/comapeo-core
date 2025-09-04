@@ -663,6 +663,7 @@ export class MapeoManager extends TypedEmitter {
         createdAt: UNIX_EPOCH_DATE,
         updatedAt: UNIX_EPOCH_DATE,
         deleted: false,
+        sendStats: false,
         links: [],
         forks: [],
         name: projectName,
