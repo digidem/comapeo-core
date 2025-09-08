@@ -82,6 +82,9 @@ test('private createWithDocId() method', async () => {
     getTranslations() {
       throw new Error('Translations should not be fetched in this test')
     },
+    async getDeviceIdForVersionId() {
+      return ''
+    },
   })
   const customId = randomBytes(8).toString('hex')
   const obs = await dataType[kCreateWithDocId](customId, obsFixture)
@@ -118,6 +121,9 @@ test('private createWithDocId() method throws when doc exists', async () => {
     getTranslations() {
       throw new Error('Translations should not be fetched in this test')
     },
+    async getDeviceIdForVersionId() {
+      return ''
+    },
   })
   const customId = randomBytes(8).toString('hex')
   await dataType[kCreateWithDocId](customId, obsFixture)
@@ -148,6 +154,9 @@ test('getByVersionId rejects if fetching a version ID in the same store, but wit
     table: trackTable,
     db,
     getTranslations: translationApi.get.bind(translationApi),
+    async getDeviceIdForVersionId() {
+      return ''
+    },
   })
 
   const observation = await observationDataType.create(obsFixture)
@@ -409,6 +418,9 @@ async function testenv(opts = {}) {
     getTranslations: () => {
       throw new Error('Cannot get translations for translations')
     },
+    async getDeviceIdForVersionId() {
+      return ''
+    },
   })
 
   const translationApi = new TranslationApi({ dataType: translationDataType })
@@ -418,6 +430,9 @@ async function testenv(opts = {}) {
     table: observationTable,
     db,
     getTranslations: translationApi.get.bind(translationApi),
+    async getDeviceIdForVersionId() {
+      return ''
+    },
   })
 
   return { coreManager, dataType, dataStore, db, translationApi }

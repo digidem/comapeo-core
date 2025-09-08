@@ -254,6 +254,16 @@ test('CRUD operations', async (t) => {
         sortById(written),
         'updated-docs emitted'
       )
+      assert.equal(
+        read[0].createdBy,
+        manager.deviceId,
+        'Doc marked with createdBy'
+      )
+      assert.equal(
+        read[0].updatedBy,
+        manager.deviceId,
+        'Doc marked with updatedBy'
+      )
     })
     await t.test('update', async () => {
       const projectId = await manager.createProject()
