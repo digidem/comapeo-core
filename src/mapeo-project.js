@@ -346,14 +346,14 @@ export class MapeoProject extends TypedEmitter {
         table: roleTable,
         db,
         getTranslations,
-        getDeviceIdForVersionId,
+        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       deviceInfo: new DataType({
         dataStore: this.#dataStores.config,
         table: deviceInfoTable,
         db,
         getTranslations,
-        getDeviceIdForVersionId,
+        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       icon: new DataType({
         dataStore: this.#dataStores.config,
