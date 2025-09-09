@@ -721,6 +721,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
+   * @deprecated
    * @param {string} originalVersionId The `originalVersionId` from a document.
    * @returns {Promise<string>} The device ID for this creator.
    * @throws When device ID cannot be found.
