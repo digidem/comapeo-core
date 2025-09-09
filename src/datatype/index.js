@@ -253,15 +253,24 @@ export class DataType extends TypedEmitter {
 
   /**
    * @param {any} doc
-   * @param {{ lang?: string }} [opts]
    * @returns {Promise<TDoc & DerivedDocFields>}
    */
-  async #translate(doc, { lang } = {}) {
+  async #addCreators(doc) {
     doc.createdBy = await this.#getDeviceIdForVersionId(doc.originalVersionId)
     doc.updatedBy =
       doc.originalVersionId === doc.versionId
         ? doc.createdBy
         : await this.#getDeviceIdForVersionId(doc.versionId)
+    return doc
+  }
+
+  /**
+   * @param {any} doc
+   * @param {{ lang?: string }} [opts]
+   * @returns {Promise<TDoc & DerivedDocFields>}
+   */
+  async #translate(doc, { lang } = {}) {
+    await this.#addCreators(doc)
 
     if (!lang) return doc
 
@@ -406,15 +415,15 @@ export class DataType extends TypedEmitter {
    */
   #handleDataStoreUpdate = (docIds) => {
     if (this.listenerCount('updated-docs') === 0) return
-    const updatedDocs = /** @type {TDoc[]} */ (
+    const updatedDocs = /** @type {Promise<TDoc[]>} */ Promise.all(
       this.#db
         .select()
         .from(this.#table)
         .where(inArray(this.#table.docId, [...docIds]))
         .all()
-        .map((doc) => deNullify(doc))
+        .map((doc) => this.#addCreators(deNullify(doc)))
     )
-    this.emit('updated-docs', updatedDocs)
+    updatedDocs.then((docs) => this.emit('updated-docs', docs))
   }
 }
 
