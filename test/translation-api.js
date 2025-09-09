@@ -147,6 +147,9 @@ function setup() {
     getTranslations() {
       throw new Error('Cannot get translations from translations')
     },
+    async getDeviceIdForVersionId() {
+      return ''
+    },
   })
 
   return new TranslationApi({ dataType })

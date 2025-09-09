@@ -98,9 +98,9 @@ export function deNullify(obj) {
 }
 
 /**
- * @template {import('@comapeo/schema').MapeoDoc & { forks?: string[] }} T
+ * @template {import('@comapeo/schema').MapeoDoc & { forks?: string[], createdBy?: string, updatedBy?: string }} T
  * @param {T} doc
- * @returns {Omit<T, 'docId' | 'versionId' | 'originalVersionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'deleted'>}
+ * @returns {Omit<T, 'docId' | 'versionId' | 'originalVersionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'deleted' >}
  */
 export function valueOf(doc) {
   return omit(doc, [
@@ -111,6 +111,8 @@ export function valueOf(doc) {
     'forks',
     'createdAt',
     'updatedAt',
+    'createdBy',
+    'updatedBy',
     'deleted',
   ])
 }

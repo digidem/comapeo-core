@@ -15,15 +15,15 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import RAM from 'random-access-memory'
 import { IndexWriter } from '../dist/index-writer/index.js'
+import { DerivedDocFields } from '../dist/datatype/index.js'
 import { projectSettingsTable } from '../dist/schema/client.js'
 import { LocalPeers } from '../dist/local-peers.js'
 import { Expect, type Equal } from './utils.js'
 
-type Forks = { forks: string[] }
-type ObservationWithForks = Observation & Forks
-type PresetWithForks = Preset & Forks
-type FieldWithForks = Field & Forks
-type TrackWithForks = Track & Forks
+type ObservationWithDerivedDocFields = Observation & DerivedDocFields
+type PresetWithDerivedDocFields = Preset & DerivedDocFields
+type FieldWithDerivedDocFields = Field & DerivedDocFields
+type TrackWithDerivedDocFields = Track & DerivedDocFields
 
 const sqlite = new Database(':memory:')
 
@@ -51,24 +51,26 @@ const mapeoProject = new MapeoProject({
 const createdObservation = await mapeoProject.observation.create(
   {} as ObservationValue
 )
-Expect<Equal<ObservationWithForks, typeof createdObservation>>
+Expect<Equal<ObservationWithDerivedDocFields, typeof createdObservation>>
 
 const updatedObservation = await mapeoProject.observation.update(
   'abc',
   {} as ObservationValue
 )
-Expect<Equal<ObservationWithForks, typeof updatedObservation>>
+Expect<Equal<ObservationWithDerivedDocFields, typeof updatedObservation>>
 
 const manyObservations = await mapeoProject.observation.getMany()
-Expect<Equal<ObservationWithForks[], typeof manyObservations>>
+Expect<Equal<ObservationWithDerivedDocFields[], typeof manyObservations>>
 
 const manyObservationsWithDeleted = await mapeoProject.observation.getMany({
   includeDeleted: true,
 })
-Expect<Equal<ObservationWithForks[], typeof manyObservationsWithDeleted>>
+Expect<
+  Equal<ObservationWithDerivedDocFields[], typeof manyObservationsWithDeleted>
+>
 
 const observationByDocId = await mapeoProject.observation.getByDocId('abc')
-Expect<Equal<Observation & { forks: string[] }, typeof observationByDocId>>
+Expect<Equal<Observation & DerivedDocFields, typeof observationByDocId>>
 
 const observationByVersionId = await mapeoProject.observation.getByVersionId(
   'abc'
@@ -80,26 +82,26 @@ mapeoProject.observation.on('updated-docs', (docs) => {
 })
 
 const deletedObservation = await mapeoProject.observation.delete('abc')
-Expect<Equal<Observation & { forks: string[] }, typeof deletedObservation>>
+Expect<Equal<Observation & DerivedDocFields, typeof deletedObservation>>
 
 ///// Tracks
 
 const createdTrack = await mapeoProject.track.create({} as TrackValue)
-Expect<Equal<TrackWithForks, typeof createdTrack>>
+Expect<Equal<TrackWithDerivedDocFields, typeof createdTrack>>
 
 const updatedTrack = await mapeoProject.track.update('abc', {} as TrackValue)
-Expect<Equal<TrackWithForks, typeof updatedTrack>>
+Expect<Equal<TrackWithDerivedDocFields, typeof updatedTrack>>
 
 const manyTracks = await mapeoProject.track.getMany()
-Expect<Equal<TrackWithForks[], typeof manyTracks>>
+Expect<Equal<TrackWithDerivedDocFields[], typeof manyTracks>>
 
 const manyTracksWithDeleted = await mapeoProject.track.getMany({
   includeDeleted: true,
 })
-Expect<Equal<TrackWithForks[], typeof manyTracksWithDeleted>>
+Expect<Equal<TrackWithDerivedDocFields[], typeof manyTracksWithDeleted>>
 
 const trackByDocId = await mapeoProject.track.getByDocId('abc')
-Expect<Equal<Track & { forks: string[] }, typeof trackByDocId>>
+Expect<Equal<Track & DerivedDocFields, typeof trackByDocId>>
 
 const trackByVersionId = await mapeoProject.track.getByVersionId('abc')
 Expect<Equal<Track, typeof trackByVersionId>>
@@ -109,26 +111,26 @@ mapeoProject.track.on('updated-docs', (docs) => {
 })
 
 const deletedTrack = await mapeoProject.track.delete('abc')
-Expect<Equal<Track & { forks: string[] }, typeof deletedTrack>>
+Expect<Equal<Track & DerivedDocFields, typeof deletedTrack>>
 
 ///// Presets
 
 const createdPreset = await mapeoProject.preset.create({} as PresetValue)
-Expect<Equal<PresetWithForks, typeof createdPreset>>
+Expect<Equal<PresetWithDerivedDocFields, typeof createdPreset>>
 
 const updatedPreset = await mapeoProject.preset.update('abc', {} as PresetValue)
-Expect<Equal<PresetWithForks, typeof updatedPreset>>
+Expect<Equal<PresetWithDerivedDocFields, typeof updatedPreset>>
 
 const manyPresets = await mapeoProject.preset.getMany()
-Expect<Equal<PresetWithForks[], typeof manyPresets>>
+Expect<Equal<PresetWithDerivedDocFields[], typeof manyPresets>>
 
 const manyPresetsWithDeleted = await mapeoProject.preset.getMany({
   includeDeleted: true,
 })
-Expect<Equal<PresetWithForks[], typeof manyPresetsWithDeleted>>
+Expect<Equal<PresetWithDerivedDocFields[], typeof manyPresetsWithDeleted>>
 
 const presetByDocId = await mapeoProject.preset.getByDocId('abc')
-Expect<Equal<Preset & { forks: string[] }, typeof presetByDocId>>
+Expect<Equal<Preset & DerivedDocFields, typeof presetByDocId>>
 
 const presetByVersionId = await mapeoProject.preset.getByVersionId('abc')
 Expect<Equal<Preset, typeof presetByVersionId>>
@@ -140,21 +142,21 @@ mapeoProject.preset.on('updated-docs', (docs) => {
 ///// Fields
 
 const createdField = await mapeoProject.field.create({} as FieldValue)
-Expect<Equal<FieldWithForks, typeof createdField>>
+Expect<Equal<FieldWithDerivedDocFields, typeof createdField>>
 
 const updatedField = await mapeoProject.field.update('abc', {} as FieldValue)
-Expect<Equal<FieldWithForks, typeof updatedField>>
+Expect<Equal<FieldWithDerivedDocFields, typeof updatedField>>
 
 const manyFields = await mapeoProject.field.getMany()
-Expect<Equal<FieldWithForks[], typeof manyFields>>
+Expect<Equal<FieldWithDerivedDocFields[], typeof manyFields>>
 
 const manyFieldsWithDeleted = await mapeoProject.field.getMany({
   includeDeleted: true,
 })
-Expect<Equal<FieldWithForks[], typeof manyFieldsWithDeleted>>
+Expect<Equal<FieldWithDerivedDocFields[], typeof manyFieldsWithDeleted>>
 
 const fieldByDocId = await mapeoProject.field.getByDocId('abc')
-Expect<Equal<Field & { forks: string[] }, typeof fieldByDocId>>
+Expect<Equal<Field & DerivedDocFields, typeof fieldByDocId>>
 
 const fieldByVersionId = await mapeoProject.field.getByVersionId('abc')
 Expect<Equal<Field, typeof fieldByVersionId>>
