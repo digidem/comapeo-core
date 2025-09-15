@@ -14,7 +14,6 @@ import {
   translationTable,
 } from '../src/schema/project.js'
 import * as projectSchema from '../src/schema/project.js'
-import * as clientSchema from '../src/schema/client.js'
 import { DataType, kCreateWithDocId } from '../src/datatype/index.js'
 import { IndexWriterWrapper } from '../src/index-writer/index.js'
 import { NotFoundError } from '../src/errors.js'
@@ -361,12 +360,12 @@ test('translation', async () => {
  */
 async function testenv(opts = {}) {
   const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite, { schema: clientSchema })
+  const db = drizzle(sqlite, { schema: projectSchema })
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
-  const coreManager = createCoreManager({ ...opts, db })
+  const coreManager = createCoreManager({ ...opts })
 
   const indexWriter = new IndexWriterWrapper({
     tables: [observationTable, trackTable, translationTable],

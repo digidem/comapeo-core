@@ -18,6 +18,7 @@ import { createCoreManager } from './helpers/core-manager.js'
 import { iconTable } from '../src/schema/project.js'
 import { IndexWriterWrapper } from '../src/index-writer/index.js'
 import * as clientSchema from '../src/schema/client.js'
+import * as projectSchema from '../src/schema/project.js'
 
 test('create()', async () => {
   const { iconApi, iconDataType } = setup()
@@ -666,18 +667,23 @@ test('constructIconPath() - good inputs', () => {
 function setup({
   getMediaBaseUrl = async () => 'http://127.0.0.1:8080/icons',
 } = {}) {
-  const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite, { schema: clientSchema })
+  const clientSqlite = new Database(':memory:')
+  const projectSqlite = new Database(':memory:')
+  const clientDb = drizzle(clientSqlite, { schema: clientSchema })
+  const projectDb = drizzle(projectSqlite, { schema: projectSchema })
 
-  migrate(db, {
+  migrate(clientDb, {
+    migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
+  })
+  migrate(projectDb, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
-  const cm = createCoreManager({ db })
+  const cm = createCoreManager({ db: clientDb })
 
   const indexWriter = new IndexWriterWrapper({
     tables: [iconTable],
-    sqlite,
+    sqlite: projectSqlite,
   })
 
   const iconDataStore = new DataStore({
@@ -691,7 +697,7 @@ function setup({
   const iconDataType = new DataType({
     dataStore: iconDataStore,
     table: iconTable,
-    db,
+    db: projectDb,
     getTranslations() {
       throw new Error('Translations should not be fetched in this test')
     },
