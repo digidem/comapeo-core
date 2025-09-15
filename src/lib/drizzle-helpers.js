@@ -106,12 +106,15 @@ export function migrateCoresTable({ clientDb, projectDb, projectPublicId }) {
     // No cores to migrate
     return
   }
+
   clientDb.transaction((tx) => {
     for (const core of projectCores) {
-      tx.insert(coresTable).values({
-        ...core,
-        projectPublicId,
-      })
+      tx.insert(coresTable)
+        .values({
+          ...core,
+          projectPublicId,
+        })
+        .run()
     }
   })
   // Verify that the migration was successful

@@ -187,6 +187,14 @@ export class MapeoProject extends TypedEmitter {
       migrationsFolder: projectMigrationsFolder,
     })
 
+    // Above v4.1.4 we moved the cores table from the project db to the shared
+    // client db, so the project db can be opened read-only in the main thread.
+    migrateCoresTable({
+      clientDb: sharedDb,
+      projectDb: db,
+      projectPublicId: this.#projectPublicId,
+    })
+
     if (useIndexWorkers && !this.#sqlite.memory) {
       // Re-open the db as read-only, because all writes will be done in the worker thread
       this.#sqlite.close()
@@ -207,14 +215,6 @@ export class MapeoProject extends TypedEmitter {
       default:
         throw new ExhaustivenessError(migrationResult)
     }
-
-    // Above v4.1.4 we moved the cores table from the project db to the shared
-    // client db, so the project db can be opened read-only in the main thread.
-    migrateCoresTable({
-      clientDb: sharedDb,
-      projectDb: db,
-      projectPublicId: this.#projectPublicId,
-    })
 
     const indexedTables = [
       observationTable,
