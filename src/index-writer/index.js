@@ -1,6 +1,9 @@
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { IndexWriter } from './index-writer.js'
 import { IndexWriterProxy } from './index-writer-proxy.js'
+
+export { IndexWriter, IndexWriterProxy }
+
 /** @import { MapeoDoc } from '@comapeo/schema' */
 /** @import { MapeoDocTables } from '../datatype/index.js' */
 

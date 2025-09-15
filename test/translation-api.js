@@ -10,7 +10,8 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { createCoreManager } from './helpers/core-manager.js'
-import { IndexWriter } from '../src/index-writer/index.js'
+import { IndexWriterWrapper } from '../src/index-writer/index.js'
+import * as clientSchema from '../src/schema/client.js'
 import RAM from 'random-access-memory'
 import { hashObject } from '../src/utils.js'
 import { omit } from '../src/lib/omit.js'
@@ -119,7 +120,7 @@ test('translation api - put() and get()', async () => {
 
 function setup() {
   const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite)
+  const db = drizzle(sqlite, { schema: clientSchema })
 
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
@@ -127,7 +128,7 @@ function setup() {
 
   const cm = createCoreManager({ db })
 
-  const indexWriter = new IndexWriter({
+  const indexWriter = new IndexWriterWrapper({
     tables: [table],
     sqlite,
   })

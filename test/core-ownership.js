@@ -2,10 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { KeyManager, sign } from '@mapeo/crypto'
 import sodium from 'sodium-universal'
-import {
-  mapAndValidateCoreOwnership,
-  getWinner,
-} from '../src/core-ownership.js'
+import { mapAndValidateCoreOwnership } from '../src/core-ownership.js'
+import { getWinner } from '../src/index-writer/get-winner.js'
 import { randomBytes } from 'node:crypto'
 import { parseVersionId, getVersionId } from '@comapeo/schema'
 import { discoveryKey } from 'hypercore-crypto'

@@ -16,7 +16,8 @@ import { DataType } from '../src/datatype/index.js'
 import { DataStore } from '../src/datastore/index.js'
 import { createCoreManager } from './helpers/core-manager.js'
 import { iconTable } from '../src/schema/project.js'
-import { IndexWriter } from '../src/index-writer/index.js'
+import { IndexWriterWrapper } from '../src/index-writer/index.js'
+import * as clientSchema from '../src/schema/client.js'
 
 test('create()', async () => {
   const { iconApi, iconDataType } = setup()
@@ -666,7 +667,7 @@ function setup({
   getMediaBaseUrl = async () => 'http://127.0.0.1:8080/icons',
 } = {}) {
   const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite)
+  const db = drizzle(sqlite, { schema: clientSchema })
 
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
@@ -674,7 +675,7 @@ function setup({
 
   const cm = createCoreManager({ db })
 
-  const indexWriter = new IndexWriter({
+  const indexWriter = new IndexWriterWrapper({
     tables: [iconTable],
     sqlite,
   })

@@ -3,7 +3,6 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { sql, count } from 'drizzle-orm'
-import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
@@ -180,17 +179,22 @@ export class MapeoProject extends TypedEmitter {
 
     this.#sqlite = new Database(dbPath)
     this.#sqlite.pragma('journal_mode=WAL')
-    const db = drizzle(this.#sqlite, { schema: projectSchema })
+
+    let db = drizzle(this.#sqlite, { schema: projectSchema })
     this.#db = db
+
     const migrationResult = migrate(db, {
       migrationsFolder: projectMigrationsFolder,
     })
+
     if (useIndexWorkers && !this.#sqlite.memory) {
       // Re-open the db as read-only, because all writes will be done in the worker thread
       this.#sqlite.close()
       this.#sqlite = new Database(dbPath, { readonly: true })
       db = drizzle(this.#sqlite, { schema: projectSchema })
+      this.#db = db
     }
+
     let reindex
     switch (migrationResult) {
       case 'initialized database':
@@ -1615,7 +1619,7 @@ export function baseUrlToWS(baseUrl, projectPublicId) {
 }
 
 /**
- * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
+ * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database<import('./schema/project.js')>} db
  * @param {import('./datatype/index.js').MapeoDocTables} table
  * @returns {Stats}
  */

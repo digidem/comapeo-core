@@ -13,8 +13,10 @@ import {
   trackTable,
   translationTable,
 } from '../src/schema/project.js'
+import * as projectSchema from '../src/schema/project.js'
+import * as clientSchema from '../src/schema/client.js'
 import { DataType, kCreateWithDocId } from '../src/datatype/index.js'
-import { IndexWriter } from '../src/index-writer/index.js'
+import { IndexWriterWrapper } from '../src/index-writer/index.js'
 import { NotFoundError } from '../src/errors.js'
 
 import Database from 'better-sqlite3'
@@ -56,13 +58,13 @@ const trackFixture = valueOf(generate('track')[0])
 
 test('private createWithDocId() method', async () => {
   const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite)
+  const db = drizzle(sqlite, { schema: projectSchema })
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
   const coreManager = createCoreManager()
-  const indexWriter = new IndexWriter({
+  const indexWriter = new IndexWriterWrapper({
     tables: [observationTable],
     sqlite,
   })
@@ -95,13 +97,13 @@ test('private createWithDocId() method', async () => {
 
 test('private createWithDocId() method throws when doc exists', async () => {
   const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite)
+  const db = drizzle(sqlite, { schema: projectSchema })
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
   const coreManager = createCoreManager()
-  const indexWriter = new IndexWriter({
+  const indexWriter = new IndexWriterWrapper({
     tables: [observationTable],
     sqlite,
   })
@@ -359,14 +361,14 @@ test('translation', async () => {
  */
 async function testenv(opts = {}) {
   const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite)
+  const db = drizzle(sqlite, { schema: clientSchema })
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
   const coreManager = createCoreManager({ ...opts, db })
 
-  const indexWriter = new IndexWriter({
+  const indexWriter = new IndexWriterWrapper({
     tables: [observationTable, trackTable, translationTable],
     sqlite,
   })
