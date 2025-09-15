@@ -40,7 +40,9 @@ test('Project settings create, read, and update operations', async () => {
 
   assert.deepEqual(
     removeUndefinedFields(initialSettings),
-    {},
+    {
+      sendStats: false,
+    },
     'project has no settings after creation'
   )
 

@@ -11,6 +11,7 @@ message Invite {
   string invitorName = 6;
   optional string projectColor = 7;
   optional string projectDescription = 8;
+  bool sendStats = 9;
 }
 
 message InviteCancel {

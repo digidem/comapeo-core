@@ -29,6 +29,7 @@ test('sending and receiving invites', async () => {
     projectInviteId: testProjectInviteId(),
     projectName: 'Mapeo Project',
     invitorName: 'device0',
+    sendStats: false,
   }
   const invalidInvites = [
     { ...validInvite, inviteId: testInviteId().slice(0, 31) },
@@ -138,6 +139,7 @@ test('messages to unknown peers', async () => {
       projectInviteId: testProjectInviteId(),
       projectName: 'Mapeo Project',
       invitorName: 'device0',
+      sendStats: false,
     }),
     UnknownPeerError
   )
@@ -342,6 +344,7 @@ test('Device info with ack results in acks sent', async () => {
     projectInviteId: testProjectInviteId(),
     projectName: 'Mapeo Project',
     invitorName: 'device0',
+    sendStats: false,
   }
 
   const validProjectJoinDetails = {
@@ -405,6 +408,7 @@ test('Device info without ack results in no acks sent', async () => {
     projectInviteId: testProjectInviteId(),
     projectName: 'Mapeo Project',
     invitorName: 'device0',
+    sendStats: false,
   }
 
   const validProjectJoinDetails = {

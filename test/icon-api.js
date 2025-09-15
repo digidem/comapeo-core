@@ -694,6 +694,9 @@ function setup({
     getTranslations() {
       throw new Error('Translations should not be fetched in this test')
     },
+    async getDeviceIdForVersionId() {
+      return ''
+    },
   })
 
   const iconApi = new IconApi({

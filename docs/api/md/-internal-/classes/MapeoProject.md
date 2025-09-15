@@ -390,6 +390,16 @@ and only this project will replicate.
 
 ***
 
+### $getStats()
+
+> **$getStats**(): [`ProjectStats`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_mapeo-project/interfaces/ProjectStats.md)
+
+#### Returns
+
+[`ProjectStats`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_mapeo-project/interfaces/ProjectStats.md)
+
+***
+
 ### $hasSyncedProjectSettings()
 
 > **$hasSyncedProjectSettings**(): `Promise`\<`boolean`\>
