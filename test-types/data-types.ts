@@ -14,7 +14,7 @@ import {
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import RAM from 'random-access-memory'
-import { IndexWriter } from '../dist/index-writer/index.js'
+import { IndexWriterWrapper as IndexWriter } from '../dist/index-writer/index.js'
 import { DerivedDocFields } from '../dist/datatype/index.js'
 import { projectSettingsTable } from '../dist/schema/client.js'
 import { LocalPeers } from '../dist/local-peers.js'
