@@ -288,26 +288,34 @@ export class DataType extends TypedEmitter {
     const { language, region } = parseBCP47(lang)
     if (!language) return doc
 
-    const value = {
+    const translations = await this.#getTranslations({
       languageCode: language,
       docRef: {
         docId: doc.docId,
         versionId: doc.versionId,
       },
       docRefType: doc.schemaName,
-      regionCode: region !== null ? region : undefined,
-    }
-    let translations = await this.#getTranslations(value)
-    // if passing a region code returns no matches,
-    // fallback to matching only languageCode
-    if (translations.length === 0 && value.regionCode) {
-      value.regionCode = undefined
-      translations = await this.#getTranslations(value)
-    }
+    })
 
+    /** @type {Set<string>} */
+    const translationsWithMatchingRegion = new Set()
     for (const translation of translations) {
       if (typeof getProperty(doc, translation.propertyRef) === 'string') {
-        setProperty(doc, translation.propertyRef, translation.message)
+        const isMatchingRegion = region
+          ? translation.regionCode === region
+          : false
+        // Prefer translations with a matching region code, but fall back to
+        // translations without a region code if no matching region code has
+        // been found yet for this propertyRef
+        if (
+          isMatchingRegion ||
+          !translationsWithMatchingRegion.has(translation.propertyRef)
+        ) {
+          setProperty(doc, translation.propertyRef, translation.message)
+        }
+        if (isMatchingRegion) {
+          translationsWithMatchingRegion.add(translation.propertyRef)
+        }
       }
     }
 
