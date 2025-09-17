@@ -35,7 +35,7 @@ export default class TranslationApi {
         docs.map((doc) => this.index(doc))
       })
       .catch((err) => {
-        throw new Error(`error loading Translation cache: ${err}`)
+        console.error(`error loading Translation cache: ${err}`)
       })
   }
 

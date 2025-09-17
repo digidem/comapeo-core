@@ -75,7 +75,7 @@ Expect<Equal<Observation & DerivedDocFields, typeof observationByDocId>>
 const observationByVersionId = await mapeoProject.observation.getByVersionId(
   'abc'
 )
-Expect<Equal<Observation, typeof observationByVersionId>>
+Expect<Equal<Observation & DerivedDocFields, typeof observationByVersionId>>
 
 mapeoProject.observation.on('updated-docs', (docs) => {
   Expect<Equal<Observation[], typeof docs>>
@@ -104,7 +104,7 @@ const trackByDocId = await mapeoProject.track.getByDocId('abc')
 Expect<Equal<Track & DerivedDocFields, typeof trackByDocId>>
 
 const trackByVersionId = await mapeoProject.track.getByVersionId('abc')
-Expect<Equal<Track, typeof trackByVersionId>>
+Expect<Equal<Track & DerivedDocFields, typeof trackByVersionId>>
 
 mapeoProject.track.on('updated-docs', (docs) => {
   Expect<Equal<Track[], typeof docs>>
@@ -133,7 +133,7 @@ const presetByDocId = await mapeoProject.preset.getByDocId('abc')
 Expect<Equal<Preset & DerivedDocFields, typeof presetByDocId>>
 
 const presetByVersionId = await mapeoProject.preset.getByVersionId('abc')
-Expect<Equal<Preset, typeof presetByVersionId>>
+Expect<Equal<Preset & DerivedDocFields, typeof presetByVersionId>>
 
 mapeoProject.preset.on('updated-docs', (docs) => {
   Expect<Equal<Preset[], typeof docs>>
@@ -159,7 +159,7 @@ const fieldByDocId = await mapeoProject.field.getByDocId('abc')
 Expect<Equal<Field & DerivedDocFields, typeof fieldByDocId>>
 
 const fieldByVersionId = await mapeoProject.field.getByVersionId('abc')
-Expect<Equal<Field, typeof fieldByVersionId>>
+Expect<Equal<Field & DerivedDocFields, typeof fieldByVersionId>>
 
 mapeoProject.field.on('updated-docs', (docs) => {
   Expect<Equal<Field[], typeof docs>>

@@ -87,7 +87,6 @@ export function isDefined(value) {
  * @param {T} obj
  * @returns {import('./types.js').NullableToOptional<T>}
  */
-
 export function deNullify(obj) {
   /** @type {Record<string, any>} */
   const objNoNulls = {}
@@ -95,6 +94,26 @@ export function deNullify(obj) {
     objNoNulls[key] = value === null ? undefined : value
   }
   return /** @type {import('./types.js').NullableToOptional<T>} */ (objNoNulls)
+}
+
+/**
+ * __Mutating__
+ * When reading from SQLite, any optional properties are set to `null`. This
+ * converts `null` back to `undefined` to match the input types (e.g. the types
+ * defined in @comapeo/schema)
+ * @template {{}} T
+ * @param {T} obj
+ * @returns {import('./types.js').NullableToOptional<T>}
+ */
+export function mutatingDeNullify(obj) {
+  for (const key of Object.keys(obj)) {
+    // @ts-expect-error
+    if (obj[key] === null) {
+      // @ts-expect-error
+      obj[key] = undefined
+    }
+  }
+  return /** @type {import('./types.js').NullableToOptional<T>} */ (obj)
 }
 
 /**
