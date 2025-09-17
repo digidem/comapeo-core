@@ -105,7 +105,7 @@ export class DataType extends TypedEmitter {
    * @param {TTable} opts.table
    * @param {TDataStore} opts.dataStore
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.db
-   * @param {import('../translation-api.js').default['get']} opts.getTranslations
+   * @param {import('../translation-api.js').default['get']} [opts.getTranslations]
    * @param {(versionId: string) => Promise<string>} opts.getDeviceIdForVersionId
    */
   constructor({
@@ -272,7 +272,7 @@ export class DataType extends TypedEmitter {
   async #translate(doc, { lang } = {}) {
     await this.#addCreators(doc)
 
-    if (!lang) return doc
+    if (!lang || !this.#getTranslations) return doc
 
     const { language, region } = parseBCP47(lang)
     if (!language) return doc
