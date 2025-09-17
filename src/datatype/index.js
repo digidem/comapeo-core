@@ -2,7 +2,7 @@ import { validate } from '@comapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
-import { noop, deNullify } from '../utils.js'
+import { noop, mutatingDeNullify } from '../utils.js'
 import { NotFoundError } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
@@ -232,7 +232,7 @@ export class DataType extends TypedEmitter {
     await this.#dataStore.indexer.idle()
     const result = this.#sql.getByDocId.get({ docId })
     if (result) {
-      return this.#translate(deNullify(result), { lang })
+      return this.#mutatingAddDerivedFields(result, { lang })
     } else if (mustBeFound) {
       throw new NotFoundError()
     } else {
@@ -243,48 +243,58 @@ export class DataType extends TypedEmitter {
   /**
    * @param {string} versionId
    * @param {{ lang?: string }} [opts]
-   * @returns {Promise<TDoc>}
+   * @returns {Promise<TDoc & DerivedDocFields>}
    */
   async getByVersionId(versionId, { lang } = {}) {
     const result = await this.#dataStore.read(versionId)
     if (result.schemaName !== this.#schemaName) throw new NotFoundError()
-    return this.#translate(deNullify(result), { lang })
+    return this.#mutatingAddDerivedFields(result, { lang })
   }
 
   /**
-   * @param {any} doc
+   * @param {any} doc - not typesafe - this should be a MapeoDoc with nullable fields in place of optional fields, read from SQLite
+   * @param {{ lang?: string }} [opts]
    * @returns {Promise<TDoc & DerivedDocFields>}
    */
-  async #addCreators(doc) {
-    doc.createdBy = await this.#getDeviceIdForVersionId(doc.originalVersionId)
-    doc.updatedBy =
+  async #mutatingAddDerivedFields(doc, { lang } = {}) {
+    mutatingDeNullify(doc)
+    const createdByPromise = this.#getDeviceIdForVersionId(
+      doc.originalVersionId
+    )
+    const updatedByPromise =
       doc.originalVersionId === doc.versionId
-        ? doc.createdBy
-        : await this.#getDeviceIdForVersionId(doc.versionId)
+        ? createdByPromise
+        : this.#getDeviceIdForVersionId(doc.versionId)
+    if (lang) {
+      await this.#mutatingAddTranslations(doc, { lang })
+    }
+    const [createdBy, updatedBy] = await Promise.all([
+      createdByPromise,
+      updatedByPromise,
+    ])
+    doc.createdBy = createdBy
+    doc.updatedBy = updatedBy
     return doc
   }
 
   /**
    * @param {any} doc
-   * @param {{ lang?: string }} [opts]
-   * @returns {Promise<TDoc & DerivedDocFields>}
+   * @param {{ lang: string }} opts
+   * @returns {Promise<any>}
    */
-  async #translate(doc, { lang } = {}) {
-    await this.#addCreators(doc)
-
-    if (!lang || !this.#getTranslations) return doc
+  async #mutatingAddTranslations(doc, { lang }) {
+    if (!this.#getTranslations) return doc
 
     const { language, region } = parseBCP47(lang)
     if (!language) return doc
-    const translatedDoc = JSON.parse(JSON.stringify(doc))
 
     const value = {
       languageCode: language,
       docRef: {
-        docId: translatedDoc.docId,
-        versionId: translatedDoc.versionId,
+        docId: doc.docId,
+        versionId: doc.versionId,
       },
-      docRefType: translatedDoc.schemaName,
+      docRefType: doc.schemaName,
       regionCode: region !== null ? region : undefined,
     }
     let translations = await this.#getTranslations(value)
@@ -316,7 +326,7 @@ export class DataType extends TypedEmitter {
       ? this.#sql.getManyWithDeleted.all()
       : this.#sql.getMany.all()
     return await Promise.all(
-      rows.map((doc) => this.#translate(deNullify(doc), { lang }))
+      rows.map((doc) => this.#mutatingAddDerivedFields(doc, { lang }))
     )
   }
 
@@ -421,7 +431,7 @@ export class DataType extends TypedEmitter {
         .from(this.#table)
         .where(inArray(this.#table.docId, [...docIds]))
         .all()
-        .map((doc) => this.#addCreators(deNullify(doc)))
+        .map((doc) => this.#mutatingAddDerivedFields(doc))
     )
     updatedDocs.then((docs) => this.emit('updated-docs', docs))
   }
