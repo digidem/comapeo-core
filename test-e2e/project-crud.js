@@ -4,6 +4,11 @@ import { randomBytes } from 'crypto'
 import { ExhaustivenessError, valueOf } from '../src/utils.js'
 import {
   createManager,
+  createManagers,
+  connectPeers,
+  invite,
+  waitForPeers,
+  waitForSync,
   sortById,
   removeUndefinedFields,
   randomBool,
@@ -446,6 +451,124 @@ test('CRUD operations', async (t) => {
       assert.equal(deletedReRead.forks.length, 0, 'forks are deleted')
     })
   }
+})
+
+test('updatedBy shows correct device ID when document updated by different device', async (t) => {
+  // Test for #1117: We need to verify that updatedBy shows the device that performed the update
+  const managers = await createManagers(2, t)
+  const [deviceA, deviceB] = managers
+
+  const disconnect = connectPeers(managers)
+  t.after(disconnect)
+  await waitForPeers(managers, { waitForDeviceInfo: true })
+
+  // Create project on Device A
+  const projectId = await deviceA.createProject({ name: 'Test Project' })
+
+  // Invite Device B to the project
+  await invite({
+    projectId,
+    invitor: deviceA,
+    invitees: [deviceB],
+  })
+
+  const [projectA, projectB] = await Promise.all([
+    deviceA.getProject(projectId),
+    deviceB.getProject(projectId),
+  ])
+
+  // Wait for initial sync to complete
+  await waitForSync([projectA, projectB], 'initial')
+
+  // Device A creates an observation
+  const observationValue = {
+    schemaName: 'observation',
+    lat: -3,
+    lon: 37,
+    tags: {},
+    attachments: [],
+    metadata: { manualLocation: false },
+  }
+
+  const createdDoc = await projectA.observation.create(observationValue)
+
+  // Start data sync on both projects
+  projectA.$sync.start()
+  projectB.$sync.start()
+
+  // Wait for the document to sync to Device B
+  await Promise.all([
+    projectA.$sync.waitForSync('full'),
+    projectB.$sync.waitForSync('full'),
+  ])
+
+  // Verify Device B can see the document and it has correct createdBy
+  const docOnDeviceB = await projectB.observation.getByDocId(createdDoc.docId)
+  assert.equal(
+    docOnDeviceB.createdBy,
+    deviceA.deviceId,
+    'createdBy should be Device A'
+  )
+  assert.equal(
+    docOnDeviceB.updatedBy,
+    deviceA.deviceId,
+    'updatedBy should be Device A initially'
+  )
+
+  // Device B updates the document
+  const updateValue = {
+    ...observationValue,
+    lat: -5, // Change latitude
+  }
+
+  await delay(1) // Ensure updatedAt is different
+  await projectB.observation.update(docOnDeviceB.versionId, updateValue)
+
+  // Wait for the update to sync back to Device A
+  await Promise.all([
+    projectA.$sync.waitForSync('full'),
+    projectB.$sync.waitForSync('full'),
+  ])
+
+  // Verify both devices see the correct createdBy and updatedBy
+  const updatedDocOnA = await projectA.observation.getByDocId(createdDoc.docId)
+  const updatedDocOnB = await projectB.observation.getByDocId(createdDoc.docId)
+
+  // Verify createdBy remains Device A ID
+  assert.equal(
+    updatedDocOnA.createdBy,
+    deviceA.deviceId,
+    'createdBy should remain Device A on Device A'
+  )
+  assert.equal(
+    updatedDocOnB.createdBy,
+    deviceA.deviceId,
+    'createdBy should remain Device A on Device B'
+  )
+
+  // Verify updatedBy is Device B ID (the device that performed the update)
+  assert.equal(
+    updatedDocOnA.updatedBy,
+    deviceB.deviceId,
+    'updatedBy should be Device B on Device A'
+  )
+  assert.equal(
+    updatedDocOnB.updatedBy,
+    deviceB.deviceId,
+    'updatedBy should be Device B on Device B'
+  )
+
+  // Verify the update content is correct
+  assert.equal(
+    updatedDocOnA.lat,
+    -5,
+    'Updated latitude should be synced to Device A'
+  )
+  assert.equal(
+    updatedDocOnB.lat,
+    -5,
+    'Updated latitude should be correct on Device B'
+  )
 })
 
 function trackPositionFixture() {
