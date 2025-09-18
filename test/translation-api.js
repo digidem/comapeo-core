@@ -10,7 +10,9 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { createCoreManager } from './helpers/core-manager.js'
-import { IndexWriter } from '../src/index-writer/index.js'
+import { IndexWriterWrapper } from '../src/index-writer/index.js'
+import * as clientSchema from '../src/schema/client.js'
+import * as projectSchema from '../src/schema/project.js'
 import RAM from 'random-access-memory'
 import { hashObject } from '../src/utils.js'
 import { omit } from '../src/lib/omit.js'
@@ -118,18 +120,23 @@ test('translation api - put() and get()', async () => {
 })
 
 function setup() {
-  const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite)
+  const clientSqlite = new Database(':memory:')
+  const projectSqlite = new Database(':memory:')
+  const clientDb = drizzle(clientSqlite, { schema: clientSchema })
+  const projectDb = drizzle(projectSqlite, { schema: projectSchema })
 
-  migrate(db, {
+  migrate(clientDb, {
+    migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
+  })
+  migrate(projectDb, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
-  const cm = createCoreManager({ db })
+  const cm = createCoreManager({ db: clientDb })
 
-  const indexWriter = new IndexWriter({
+  const indexWriter = new IndexWriterWrapper({
     tables: [table],
-    sqlite,
+    sqlite: projectSqlite,
   })
 
   const dataStore = new DataStore({
@@ -143,7 +150,7 @@ function setup() {
   const dataType = new DataType({
     dataStore,
     table,
-    db,
+    db: projectDb,
     getTranslations() {
       throw new Error('Cannot get translations from translations')
     },
