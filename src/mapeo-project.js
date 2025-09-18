@@ -304,21 +304,18 @@ export class MapeoProject extends TypedEmitter {
         dataStore: this.#dataStores.data,
         table: observationTable,
         db,
-        getTranslations,
         getDeviceIdForVersionId,
       }),
       track: new DataType({
         dataStore: this.#dataStores.data,
         table: trackTable,
         db,
-        getTranslations,
         getDeviceIdForVersionId,
       }),
       remoteDetectionAlert: new DataType({
         dataStore: this.#dataStores.data,
         table: remoteDetectionAlertTable,
         db,
-        getTranslations,
         getDeviceIdForVersionId,
       }),
       preset: new DataType({
@@ -339,44 +336,36 @@ export class MapeoProject extends TypedEmitter {
         dataStore: this.#dataStores.config,
         table: projectSettingsTable,
         db: sharedDb,
-        getTranslations,
         getDeviceIdForVersionId,
       }),
       coreOwnership: new DataType({
         dataStore: this.#dataStores.auth,
         table: coreOwnershipTable,
         db,
-        getTranslations,
         getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       role: new DataType({
         dataStore: this.#dataStores.auth,
         table: roleTable,
         db,
-        getTranslations,
         getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       deviceInfo: new DataType({
         dataStore: this.#dataStores.config,
         table: deviceInfoTable,
         db,
-        getTranslations,
         getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       icon: new DataType({
         dataStore: this.#dataStores.config,
         table: iconTable,
         db,
-        getTranslations,
         getDeviceIdForVersionId,
       }),
       translation: new DataType({
         dataStore: this.#dataStores.config,
         table: translationTable,
         db,
-        getTranslations: () => {
-          throw new Error('Cannot get translation for translations')
-        },
         getDeviceIdForVersionId,
       }),
     }
