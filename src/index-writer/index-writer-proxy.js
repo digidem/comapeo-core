@@ -10,7 +10,7 @@ import { pEvent } from 'p-event'
  */
 /**
  * @template T
- * @typedef {{ id: number, data: T } | { id: number, error: string }} WorkerResponse
+ * @typedef {{ id: number, data: T } | { id: number, error: string, errorStack: string }} WorkerResponse
  */
 /** @typedef {SchemaName} DeleteSchemaRequestData */
 /** @typedef {null} DeleteSchemaResponseData */
@@ -51,10 +51,10 @@ export class IndexWriterProxy {
       parentLoggerNamespace: logger?.ns,
       deviceId: logger?.deviceId,
     }
-    this.#worker = new Worker(
-      new URL('./index-writer-worker.js', import.meta.url),
-      { workerData }
-    )
+    this.#worker = new Worker(new URL('./index-worker.js', import.meta.url), {
+      workerData,
+    })
+    this.#worker.unref()
   }
 
   /**
@@ -87,7 +87,7 @@ export class IndexWriterProxy {
     this.#worker.postMessage(request, transferList)
     const response = /** @type {WorkerResponse<any>} */ (await responsePromise)
     if ('error' in response) {
-      throw new Error(response.error)
+      throw new Error(response.error + '\n\n' + response.errorStack)
     }
     return response.data
   }
@@ -97,7 +97,7 @@ export class IndexWriterProxy {
    * @returns {Promise<IndexedDocIds>} map of indexed docIds by schemaName
    */
   async batch(entries) {
-    const transferList = entries.map((entry) => entry.block)
+    const transferList = entries.map((entry) => entry.block.buffer)
     return this.#workerRequest('batch', entries, transferList)
   }
 

@@ -199,6 +199,7 @@ export class MapeoProject extends TypedEmitter {
       // Re-open the db as read-only, because all writes will be done in the worker thread
       this.#sqlite.close()
       this.#sqlite = new Database(dbPath, { readonly: true })
+      this.#sqlite.pragma('journal_mode=WAL')
       db = drizzle(this.#sqlite, { schema: projectSchema })
       this.#db = db
     }

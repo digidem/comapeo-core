@@ -9,9 +9,12 @@ import Database from 'better-sqlite3'
 const { schemas, dbPath, parentLoggerNamespace, deviceId } =
   /** @type {WorkerData} */ (workerData)
 
+const sqlite = new Database(dbPath)
+sqlite.pragma('journal_mode=WAL')
+
 const indexWriter = new IndexWriter({
   schemas,
-  sqlite: new Database(dbPath),
+  sqlite,
   logger: new Logger({
     ns: parentLoggerNamespace,
     deviceId: deviceId || '<unknown>',
@@ -35,6 +38,10 @@ async function handleMessage({ id, type, data }) {
   try {
     switch (type) {
       case 'batch': {
+        // Need to convert b
+        for (const item of data) {
+          item.block = new Buffer(item.block)
+        }
         const result = await indexWriter.batch(data)
         /** @type {WorkerResponse<BatchResponseData>} */
         const msg = { id, data: result }
@@ -52,6 +59,10 @@ async function handleMessage({ id, type, data }) {
         throw new Error(`Unknown message type: ${type}`)
     }
   } catch (error) {
-    parentPort.postMessage({ id, error: ensureError(error).message })
+    parentPort.postMessage({
+      id,
+      error: ensureError(error).message,
+      errorStack: ensureError(error).stack,
+    })
   }
 }
