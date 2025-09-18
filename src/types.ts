@@ -74,25 +74,6 @@ export type CoreOwnershipWithSignaturesValue = Omit<
   Exclude<keyof MapeoCommon, 'schemaName'>
 >
 
-type NullToOptional<T> = SetOptional<T, NullKeys<T>>
-type RemoveNull<T> = {
-  [K in keyof T]: Exclude<T[K], null>
-}
-
-type NullKeys<Base> = NonNullable<
-  // Wrap in `NonNullable` to strip away the `undefined` type from the produced union.
-  {
-    // Map through all the keys of the given base type.
-    [Key in keyof Base]: null extends Base[Key] // Pick only keys with types extending the given `Condition` type.
-      ? // Retain this key since the condition passes.
-        Key
-      : // Discard this key since the condition fails.
-        never
-
-    // Convert the produced object into a union type of the keys which passed the conditional test.
-  }[keyof Base]
->
-
 /**
  * Replace an object's `Buffer` values with `string`s. Useful for serialization.
  */
@@ -106,7 +87,17 @@ export type MapBuffers<T> = {
  * top-level optional props set to `null`) to the original types in
  * @comapeo/schema
  */
-export type NullableToOptional<T> = Simplify<RemoveNull<NullToOptional<T>>>
+export type NullableToOptional<T> = Simplify<
+  {
+    [K in keyof T as null extends T[K] ? K : never]?: Exclude<T[K], null>
+  } & {
+    [K in keyof T as null extends T[K] ? never : K]: T[K]
+  }
+>
+export type OptionalToNullable<T> = Simplify<{
+  [K in keyof T]-?: T[K] | (undefined extends T[K] ? null : never)
+}>
+
 export type KeyPair = {
   publicKey: PublicKey
   secretKey: SecretKey
