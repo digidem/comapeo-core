@@ -11,9 +11,9 @@ test('indexer-worker - create project', async (t) => {
   )
 })
 
-test.skip('indexer-worker - perf comparison for config imports', async (t) => {
-  performance.mark('pre-nonworker')
-  const manager = createManager('device0', t)
+test('indexer-worker - perf comparison for config imports', async (t) => {
+  performance.mark('pre-nonworker', { detail: performance.nodeTiming })
+  const manager = createManager('device1', t)
   const project = await manager.getProject(
     await manager.createProject({ configPath: defaultConfigPath })
   )
@@ -27,12 +27,11 @@ test.skip('indexer-worker - perf comparison for config imports', async (t) => {
     870,
     'correct number of loaded translations'
   )
-  performance.mark('post-nonworker')
-  performance.measure('nonworker', 'pre-nonworker', 'post-nonworker')
+  performance.mark('post-nonworker', { detail: performance.nodeTiming })
 
-  performance.mark('pre-worker')
-  const workerManager = createManager('device1', t)
-  const workerProject = await manager.getProject(
+  performance.mark('pre-worker', { detail: performance.nodeTiming })
+  const workerManager = createManager('device2', t, { useIndexWorkers: true })
+  const workerProject = await workerManager.getProject(
     await workerManager.createProject({ configPath: defaultConfigPath })
   )
   const workerPresets = await workerProject.preset.getMany()
@@ -45,9 +44,50 @@ test.skip('indexer-worker - perf comparison for config imports', async (t) => {
     870,
     'correct number of loaded translations'
   )
-  performance.mark('post-worker')
+  performance.mark('post-worker', { detail: performance.nodeTiming })
 
-  performance.measure('worker', 'pre-worker', 'post-worker')
+  const nonworkerDiff = calcDiff(
+    /** @type Mark */ (performance.getEntriesByName('pre-nonworker')[0]),
+    /** @type Mark */ (performance.getEntriesByName('post-nonworker')[0])
+  )
 
-  console.log(performance.getEntries())
+  const workerDiff = calcDiff(
+    /** @type Mark */ (performance.getEntriesByName('pre-worker')[0]),
+    /** @type Mark */ (performance.getEntriesByName('post-worker')[0])
+  )
+
+  assert(
+    nonworkerDiff.idleTime < workerDiff.idleTime,
+    'Worker idles main thread more'
+  )
+  assert(nonworkerDiff.duration > workerDiff.duration, 'Worker is faster')
 })
+
+/**
+ * @typedef {Object} MarkDetail
+ * @property {number} idleTime
+ */
+
+/**
+ * @typedef {Object} Mark
+ * @property {number} startTime
+ * @property {MarkDetail} detail
+ */
+
+/**
+ * @typedef {Object} Diff
+ * @property {number} duration
+ * @property {number} idleTime
+ */
+
+/**
+ * @param {Mark} mark1
+ * @param {Mark} mark2
+ * @returns {Diff}
+ */
+function calcDiff(mark1, mark2) {
+  const idleTime = mark2.detail.idleTime - mark1.detail.idleTime
+  const duration = mark2.startTime - mark1.startTime
+
+  return { idleTime, duration }
+}
