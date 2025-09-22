@@ -39,7 +39,6 @@ import {
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
-import { UNIX_EPOCH_DATE } from './constants.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
@@ -577,8 +576,8 @@ export class MapeoManager extends TypedEmitter {
       result.push(
         deNullify({
           projectId: projectPublicId,
-          createdAt: ignoreUnixDate(existingProject?.createdAt),
-          updatedAt: ignoreUnixDate(existingProject?.updatedAt),
+          createdAt: existingProject?.createdAt,
+          updatedAt: existingProject?.updatedAt,
           name: existingProject?.name || projectInfo.name,
           projectColor:
             existingProject?.projectColor || projectInfo.projectColor,
@@ -1032,14 +1031,4 @@ function validateProjectKeys(projectKeys) {
  */
 function hasSavedDeviceInfo(partialDeviceInfo) {
   return Boolean(partialDeviceInfo.name)
-}
-
-/**
- * @param {string|undefined} date
- * @returns {string|null}
- */
-function ignoreUnixDate(date) {
-  if (date === UNIX_EPOCH_DATE) return null
-  if (date === undefined) return null
-  return date
 }

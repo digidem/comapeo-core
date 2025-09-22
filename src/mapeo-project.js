@@ -11,7 +11,7 @@ import mime from 'mime/lite'
 // @ts-expect-error
 import { Readable, pipelinePromise } from 'streamx'
 
-import { NAMESPACES, NAMESPACE_SCHEMAS, UNIX_EPOCH_DATE } from './constants.js'
+import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
@@ -706,11 +706,9 @@ export class MapeoProject extends TypedEmitter {
    */
   async $hasSyncedProjectSettings() {
     try {
-      const settings = await this.#dataTypes.projectSettings.getByDocId(
-        this.#projectId
-      )
-
-      return settings.createdAt !== UNIX_EPOCH_DATE
+      // Should error if we haven't synced before
+      await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
+      return true
     } catch (e) {
       return false
     }

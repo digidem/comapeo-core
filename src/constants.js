@@ -35,6 +35,3 @@ export const SUPPORTED_CONFIG_VERSION = 1
 
 // WARNING: This value is persisted. Be careful when changing it.
 export const DRIZZLE_MIGRATIONS_TABLE = '__drizzle_migrations'
-
-// Oldest possible time, ensure it gets overwritten with any updates
-export const UNIX_EPOCH_DATE = new Date(0).toISOString()
