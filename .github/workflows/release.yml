@@ -29,6 +29,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      id-token: write
     steps:
       - uses: nearform-actions/optic-release-automation-action@a2785548e8bdafab7e628c2317b604278e460434 # v4.12.2
         with:
