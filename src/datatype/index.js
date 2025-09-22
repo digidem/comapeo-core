@@ -2,7 +2,7 @@ import { validate } from '@comapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
-import { noop, deNullify } from '../utils.js'
+import { noop, mutatingDeNullify } from '../utils.js'
 import { NotFoundError } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { parse as parseBCP47 } from 'bcp-47'
@@ -64,6 +64,13 @@ import { setProperty, getProperty } from 'dot-prop'
  * @property {(docs: TDoc[]) => void} updated-docs
  */
 
+/**
+ * @typedef {object} DerivedDocFields
+ * @property {string[]} forks
+ * @property {string} createdBy
+ * @property {string} updatedBy
+ */
+
 function generateId() {
   return randomBytes(32).toString('hex')
 }
@@ -90,6 +97,7 @@ export class DataType extends TypedEmitter {
   #sql
   #db
   #getTranslations
+  #getDeviceIdForVersionId
 
   /**
    *
@@ -97,15 +105,23 @@ export class DataType extends TypedEmitter {
    * @param {TTable} opts.table
    * @param {TDataStore} opts.dataStore
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.db
-   * @param {import('../translation-api.js').default['get']} opts.getTranslations
+   * @param {import('../translation-api.js').default['get']} [opts.getTranslations]
+   * @param {(versionId: string) => Promise<string>} opts.getDeviceIdForVersionId
    */
-  constructor({ dataStore, table, db, getTranslations }) {
+  constructor({
+    dataStore,
+    table,
+    db,
+    getTranslations,
+    getDeviceIdForVersionId,
+  }) {
     super()
     this.#dataStore = dataStore
     this.#table = table
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
     this.#db = db
     this.#getTranslations = getTranslations
+    this.#getDeviceIdForVersionId = getDeviceIdForVersionId
     this.#sql = {
       getByDocId: db
         .select()
@@ -157,7 +173,7 @@ export class DataType extends TypedEmitter {
   /**
    * @template {Exact<ExcludeSchema<TValue, 'coreOwnership'>, T>} T
    * @param {T} value
-   * @returns {Promise<TDoc & { forks: string[] }>}
+   * @returns {Promise<TDoc & DerivedDocFields>}
    */
   async create(value) {
     const docId = generateId()
@@ -169,7 +185,7 @@ export class DataType extends TypedEmitter {
    * @param {string} docId
    * @param {ExcludeSchema<TValue, 'coreOwnership'> | CoreOwnershipWithSignaturesValue} value
    * @param {{ checkExisting?: boolean }} [opts] - only used internally to skip the checkExisting check when creating a document with a random ID (collisions should be too small probability to be worth checking for)
-   * @returns {Promise<TDoc & { forks: string[] }>}
+   * @returns {Promise<TDoc & DerivedDocFields>}
    */
   async [kCreateWithDocId](docId, value, { checkExisting = true } = {}) {
     if (!validate(this.#schemaName, value)) {
@@ -203,20 +219,20 @@ export class DataType extends TypedEmitter {
    * @param {object} [options]
    * @param {true} [options.mustBeFound]
    * @param {string} [options.lang]
-   * @returns {Promise<TDoc & { forks: string[] }>}
+   * @returns {Promise<TDoc & DerivedDocFields>}
    */
   /**
    * @param {string} docId
    * @param {object} [options]
    * @param {boolean} [options.mustBeFound]
    * @param {string} [options.lang]
-   * @returns {Promise<null | (TDoc & { forks: string[] })>}
+   * @returns {Promise<null | (TDoc & DerivedDocFields)>}
    */
   async getByDocId(docId, { mustBeFound = true, lang } = {}) {
     await this.#dataStore.indexer.idle()
     const result = this.#sql.getByDocId.get({ docId })
     if (result) {
-      return this.#translate(deNullify(result), { lang })
+      return this.#mutatingAddDerivedFields(result, { lang })
     } else if (mustBeFound) {
       throw new NotFoundError()
     } else {
@@ -227,48 +243,82 @@ export class DataType extends TypedEmitter {
   /**
    * @param {string} versionId
    * @param {{ lang?: string }} [opts]
-   * @returns {Promise<TDoc>}
+   * @returns {Promise<TDoc & DerivedDocFields>}
    */
   async getByVersionId(versionId, { lang } = {}) {
     const result = await this.#dataStore.read(versionId)
     if (result.schemaName !== this.#schemaName) throw new NotFoundError()
-    return this.#translate(deNullify(result), { lang })
+    return this.#mutatingAddDerivedFields(result, { lang })
+  }
+
+  /**
+   * @param {any} doc - not typesafe - this should be a MapeoDoc with nullable fields in place of optional fields, read from SQLite
+   * @param {{ lang?: string }} [opts]
+   * @returns {Promise<TDoc & DerivedDocFields>}
+   */
+  async #mutatingAddDerivedFields(doc, { lang } = {}) {
+    mutatingDeNullify(doc)
+    const createdByPromise = this.#getDeviceIdForVersionId(
+      doc.originalVersionId
+    )
+    const updatedByPromise =
+      doc.originalVersionId === doc.versionId
+        ? createdByPromise
+        : this.#getDeviceIdForVersionId(doc.versionId)
+    if (lang) {
+      await this.#mutatingAddTranslations(doc, { lang })
+    }
+    const [createdBy, updatedBy] = await Promise.all([
+      createdByPromise,
+      updatedByPromise,
+    ])
+    doc.createdBy = createdBy
+    doc.updatedBy = updatedBy
+    return doc
   }
 
   /**
    * @param {any} doc
-   * @param {{ lang?: string }} [opts]
-   * @returns {Promise<TDoc & { forks: string[] }>}
+   * @param {{ lang: string }} opts
+   * @returns {Promise<any>}
    */
-  async #translate(doc, { lang } = {}) {
-    if (!lang) return doc
+  async #mutatingAddTranslations(doc, { lang }) {
+    if (!this.#getTranslations) return doc
 
     const { language, region } = parseBCP47(lang)
     if (!language) return doc
-    const translatedDoc = JSON.parse(JSON.stringify(doc))
 
-    const value = {
+    const translations = await this.#getTranslations({
       languageCode: language,
       docRef: {
-        docId: translatedDoc.docId,
-        versionId: translatedDoc.versionId,
+        docId: doc.docId,
+        versionId: doc.versionId,
       },
-      docRefType: translatedDoc.schemaName,
-      regionCode: region !== null ? region : undefined,
-    }
-    let translations = await this.#getTranslations(value)
-    // if passing a region code returns no matches,
-    // fallback to matching only languageCode
-    if (translations.length === 0 && value.regionCode) {
-      value.regionCode = undefined
-      translations = await this.#getTranslations(value)
-    }
+      docRefType: doc.schemaName,
+    })
 
+    /** @type {Set<string>} */
+    const translationsWithMatchingRegion = new Set()
     for (const translation of translations) {
       if (typeof getProperty(doc, translation.propertyRef) === 'string') {
-        setProperty(doc, translation.propertyRef, translation.message)
+        const isMatchingRegion = region
+          ? translation.regionCode === region
+          : false
+        // Prefer translations with a matching region code, but fall back to
+        // translations without a region code if no matching region code has
+        // been found yet for this propertyRef
+        if (
+          isMatchingRegion ||
+          !translationsWithMatchingRegion.has(translation.propertyRef)
+        ) {
+          setProperty(doc, translation.propertyRef, translation.message)
+        }
+        if (isMatchingRegion) {
+          translationsWithMatchingRegion.add(translation.propertyRef)
+        }
       }
     }
+
     return doc
   }
 
@@ -276,7 +326,7 @@ export class DataType extends TypedEmitter {
    * @param {object} opts
    * @param {boolean} [opts.includeDeleted]
    * @param {string} [opts.lang]
-   * @returns {Promise<Array<TDoc & { forks: string[] }>>}
+   * @returns {Promise<Array<TDoc & DerivedDocFields>>}
    */
   async getMany({ includeDeleted = false, lang } = {}) {
     await this.#dataStore.indexer.idle()
@@ -284,7 +334,7 @@ export class DataType extends TypedEmitter {
       ? this.#sql.getManyWithDeleted.all()
       : this.#sql.getMany.all()
     return await Promise.all(
-      rows.map((doc) => this.#translate(deNullify(doc), { lang }))
+      rows.map((doc) => this.#mutatingAddDerivedFields(doc, { lang }))
     )
   }
 
@@ -292,7 +342,7 @@ export class DataType extends TypedEmitter {
    * @template {Exact<ExcludeSchema<TValue, 'coreOwnership'>, T>} T
    * @param {string | string[]} versionId
    * @param {T} value
-   * @returns {Promise<TDoc & { forks: string[] }>}
+   * @returns {Promise<TDoc & DerivedDocFields>}
    */
   async update(versionId, value) {
     await this.#dataStore.indexer.idle()
@@ -316,7 +366,7 @@ export class DataType extends TypedEmitter {
 
   /**
    * @param {string} docId
-   * @returns {Promise<TDoc & { forks: string[] }>}
+   * @returns {Promise<TDoc & DerivedDocFields>}
    */
   async delete(docId) {
     await this.#dataStore.indexer.idle()
@@ -383,15 +433,15 @@ export class DataType extends TypedEmitter {
    */
   #handleDataStoreUpdate = (docIds) => {
     if (this.listenerCount('updated-docs') === 0) return
-    const updatedDocs = /** @type {TDoc[]} */ (
+    const updatedDocs = /** @type {Promise<TDoc[]>} */ Promise.all(
       this.#db
         .select()
         .from(this.#table)
         .where(inArray(this.#table.docId, [...docIds]))
         .all()
-        .map((doc) => deNullify(doc))
+        .map((doc) => this.#mutatingAddDerivedFields(doc))
     )
-    this.emit('updated-docs', updatedDocs)
+    updatedDocs.then((docs) => this.emit('updated-docs', docs))
   }
 }
 

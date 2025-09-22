@@ -2,6 +2,7 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { sql, count } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
@@ -74,6 +75,18 @@ import { createWriteStream } from 'fs'
  * @prop {string|undefined} mimeType
  * @prop {BlobId} blobId
  */
+/**
+ * @typedef {Object} Stats
+ * @property {string[]} columns
+ * @property {Array<[string, number]>} values
+ */
+/**
+ * @typedef {Object} ProjectStats
+ * @property {number} timezoneOffset
+ * @property {Stats} observations
+ * @property {Stats} tracks
+ * @property {Stats} members
+ */
 
 const CORESTORE_STORAGE_FOLDER_NAME = 'corestore'
 const INDEXER_STORAGE_FOLDER_NAME = 'indexer'
@@ -109,6 +122,7 @@ export class MapeoProject extends TypedEmitter {
   #coreOwnership
   #roles
   #sqlite
+  #db
   #memberApi
   #iconApi
   #syncApi
@@ -166,7 +180,9 @@ export class MapeoProject extends TypedEmitter {
     ///////// 1. Setup database
 
     this.#sqlite = new Database(dbPath)
+    this.#sqlite.pragma('journal_mode=WAL')
     const db = drizzle(this.#sqlite)
+    this.#db = db
     const migrationResult = migrate(db, {
       migrationsFolder: projectMigrationsFolder,
     })
@@ -271,74 +287,78 @@ export class MapeoProject extends TypedEmitter {
 
     /** @type {typeof TranslationApi.prototype.get} */
     const getTranslations = (...args) => this.$translation.get(...args)
+    /** @type {(versionId: string) => Promise<string>} */
+    const getDeviceIdForVersionId = (...args) =>
+      this.$originalVersionIdToDeviceId(...args)
+
     this.#dataTypes = {
       observation: new DataType({
         dataStore: this.#dataStores.data,
         table: observationTable,
         db,
-        getTranslations,
+        getDeviceIdForVersionId,
       }),
       track: new DataType({
         dataStore: this.#dataStores.data,
         table: trackTable,
         db,
-        getTranslations,
+        getDeviceIdForVersionId,
       }),
       remoteDetectionAlert: new DataType({
         dataStore: this.#dataStores.data,
         table: remoteDetectionAlertTable,
         db,
-        getTranslations,
+        getDeviceIdForVersionId,
       }),
       preset: new DataType({
         dataStore: this.#dataStores.config,
         table: presetTable,
         db,
         getTranslations,
+        getDeviceIdForVersionId,
       }),
       field: new DataType({
         dataStore: this.#dataStores.config,
         table: fieldTable,
         db,
         getTranslations,
+        getDeviceIdForVersionId,
       }),
       projectSettings: new DataType({
         dataStore: this.#dataStores.config,
         table: projectSettingsTable,
         db: sharedDb,
-        getTranslations,
+        getDeviceIdForVersionId,
       }),
       coreOwnership: new DataType({
         dataStore: this.#dataStores.auth,
         table: coreOwnershipTable,
         db,
-        getTranslations,
+        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       role: new DataType({
         dataStore: this.#dataStores.auth,
         table: roleTable,
         db,
-        getTranslations,
+        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       deviceInfo: new DataType({
         dataStore: this.#dataStores.config,
         table: deviceInfoTable,
         db,
-        getTranslations,
+        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       icon: new DataType({
         dataStore: this.#dataStores.config,
         table: iconTable,
         db,
-        getTranslations,
+        getDeviceIdForVersionId,
       }),
       translation: new DataType({
         dataStore: this.#dataStores.config,
         table: translationTable,
         db,
-        getTranslations: () => {
-          throw new Error('Cannot get translation for translations')
-        },
+        getDeviceIdForVersionId,
       }),
     }
     this.#identityKeypair = keyManager.getIdentityKeypair()
@@ -645,6 +665,7 @@ export class MapeoProject extends TypedEmitter {
       await projectSettings[kCreateWithDocId](this.#projectId, {
         ...settings,
         schemaName: 'projectSettings',
+        sendStats: settings.sendStats ?? false,
       })
     )
   }
@@ -689,6 +710,7 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
+   * @deprecated
    * @param {string} originalVersionId The `originalVersionId` from a document.
    * @returns {Promise<string>} The device ID for this creator.
    * @throws When device ID cannot be found.
@@ -778,6 +800,28 @@ export class MapeoProject extends TypedEmitter {
    */
   get $icons() {
     return this.#iconApi
+  }
+
+  /**
+   * @returns {ProjectStats}
+   */
+  $getStats() {
+    // Get timestamp for 3 months ago
+    // Find members with createdAt > timestamp
+    // Bucket by week
+    // Same for obs, tracks
+    const observations = countWeeks(this.#db, observationTable)
+    const tracks = countWeeks(this.#db, trackTable)
+    const members = countWeeks(this.#db, roleTable)
+
+    const stats = {
+      timezoneOffset: new Date().getTimezoneOffset(),
+      observations,
+      tracks,
+      members,
+    }
+
+    return stats
   }
 
   /**
@@ -1571,4 +1615,32 @@ export function baseUrlToWS(baseUrl, projectPublicId) {
   wsUrl.protocol = wsUrl.protocol === 'http:' ? 'ws:' : 'wss:'
 
   return wsUrl.href
+}
+
+/**
+ * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
+ * @param {import('./datatype/index.js').MapeoDocTables} table
+ * @returns {Stats}
+ */
+function countWeeks(db, table) {
+  /** @type {Array<[string, number]>}*/
+  const values = /** @type {Array<[string, number]>}*/ (
+    db
+      .select({
+        week: sql`strftime('%Y-%W', date(${table.createdAt}, 'localtime'))`.as(
+          'week'
+        ),
+        count: count().as('count'),
+      })
+      .from(table)
+      .where(
+        sql`date(${table.createdAt}, 'localtime') >= date('now', '-6 months', 'weekday 0')`
+      )
+      .groupBy(sql`week`)
+      .orderBy(sql`week`)
+      .values()
+  )
+  const columns = ['week', 'count']
+
+  return { columns, values }
 }

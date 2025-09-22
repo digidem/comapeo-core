@@ -90,6 +90,8 @@ export const DEFAULT_FALLBACK_MAP_FILE_PATH = require.resolve(
 export const DEFAULT_ONLINE_STYLE_URL =
   'https://demotiles.maplibre.org/style.json'
 
+export const DEFAULT_IS_ARCHIVE_DEVICE = true
+
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
  */
@@ -123,6 +125,7 @@ export class MapeoManager extends TypedEmitter {
   #l
   #defaultConfigPath
   #makeWebsocket
+  #defaultIsArchiveDevice
 
   /**
    * @param {Object} opts
@@ -136,6 +139,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.customMapPath] File path to a locally stored Styled Map Package (SMP).
    * @param {string} [opts.fallbackMapPath] File path to a locally stored Styled Map Package (SMP)
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
+   * @param {boolean} [opts.defaultIsArchiveDevice] Whether the node is an archive device by default
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    */
   constructor({
@@ -149,12 +153,14 @@ export class MapeoManager extends TypedEmitter {
     customMapPath,
     fallbackMapPath = DEFAULT_FALLBACK_MAP_FILE_PATH,
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
+    defaultIsArchiveDevice = DEFAULT_IS_ARCHIVE_DEVICE,
     makeWebsocket = (url) => new WebSocket(url),
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#defaultConfigPath = defaultConfigPath
+    this.#defaultIsArchiveDevice = defaultIsArchiveDevice
     this.#makeWebsocket = makeWebsocket
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
@@ -165,6 +171,7 @@ export class MapeoManager extends TypedEmitter {
         ? ':memory:'
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
+    sqlite.pragma('journal_mode=WAL')
     this.#db = drizzle(sqlite)
     migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
 
@@ -656,6 +663,7 @@ export class MapeoManager extends TypedEmitter {
         createdAt: UNIX_EPOCH_DATE,
         updatedAt: UNIX_EPOCH_DATE,
         deleted: false,
+        sendStats: false,
         links: [],
         forks: [],
         name: projectName,
@@ -882,7 +890,7 @@ export class MapeoManager extends TypedEmitter {
     if (typeof row?.isArchiveDevice === 'boolean') {
       return row.isArchiveDevice
     } else {
-      return true
+      return this.#defaultIsArchiveDevice
     }
   }
 

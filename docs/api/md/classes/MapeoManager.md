@@ -38,6 +38,10 @@ Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-
 
 • **opts.defaultConfigPath**: `undefined` \| `string`
 
+• **opts.defaultIsArchiveDevice**: `undefined` \| `boolean` = `DEFAULT_IS_ARCHIVE_DEVICE`
+
+Whether the node is an archive device by default
+
 • **opts.defaultOnlineStyleUrl**: `undefined` \| `string` = `DEFAULT_ONLINE_STYLE_URL`
 
 URL for an online-hosted StyleJSON asset.

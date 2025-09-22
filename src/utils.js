@@ -87,7 +87,6 @@ export function isDefined(value) {
  * @param {T} obj
  * @returns {import('./types.js').NullableToOptional<T>}
  */
-
 export function deNullify(obj) {
   /** @type {Record<string, any>} */
   const objNoNulls = {}
@@ -98,9 +97,29 @@ export function deNullify(obj) {
 }
 
 /**
- * @template {import('@comapeo/schema').MapeoDoc & { forks?: string[] }} T
+ * __Mutating__
+ * When reading from SQLite, any optional properties are set to `null`. This
+ * converts `null` back to `undefined` to match the input types (e.g. the types
+ * defined in @comapeo/schema)
+ * @template {{}} T
+ * @param {T} obj
+ * @returns {import('./types.js').NullableToOptional<T>}
+ */
+export function mutatingDeNullify(obj) {
+  for (const key of Object.keys(obj)) {
+    // @ts-expect-error
+    if (obj[key] === null) {
+      // @ts-expect-error
+      obj[key] = undefined
+    }
+  }
+  return /** @type {import('./types.js').NullableToOptional<T>} */ (obj)
+}
+
+/**
+ * @template {import('@comapeo/schema').MapeoDoc & { forks?: string[], createdBy?: string, updatedBy?: string }} T
  * @param {T} doc
- * @returns {Omit<T, 'docId' | 'versionId' | 'originalVersionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'deleted'>}
+ * @returns {Omit<T, 'docId' | 'versionId' | 'originalVersionId' | 'links' | 'forks' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'deleted' >}
  */
 export function valueOf(doc) {
   return omit(doc, [
@@ -111,6 +130,8 @@ export function valueOf(doc) {
     'forks',
     'createdAt',
     'updatedAt',
+    'createdBy',
+    'updatedBy',
     'deleted',
   ])
 }
