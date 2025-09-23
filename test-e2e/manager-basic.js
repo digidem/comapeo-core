@@ -4,6 +4,7 @@ import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
+import { MapeoProject } from '../src/mapeo-project.js'
 import Fastify from 'fastify'
 import { getExpectedConfig } from './utils.js'
 import { defaultConfigPath } from '../test/helpers/default-config.js'
@@ -57,6 +58,9 @@ test('Managing created projects', async (t) => {
 
   assert(project1)
   assert(project2)
+
+  assert(project1 instanceof MapeoProject)
+  assert(project2 instanceof MapeoProject)
 
   await t.test('initial settings from project instances', async () => {
     const settings1 = await project1.$getProjectSettings()
