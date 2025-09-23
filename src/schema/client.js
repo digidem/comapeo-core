@@ -40,6 +40,12 @@ export const projectKeysTable = sqliteTable('projectKeys', {
     .notNull(),
 })
 
+export const backupProjectInfoTable = sqliteTable('backupProjectInfo', {
+  projectId: text('projectId').notNull().primaryKey(),
+  name: text('projectName').notNull(),
+  projectDescription: text('projectDescription'),
+})
+
 /**
  * @typedef {Omit<import('@comapeo/schema').DeviceInfoValue, 'schemaName'>} DeviceInfoParam
  */

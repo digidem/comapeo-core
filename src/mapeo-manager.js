@@ -23,6 +23,7 @@ import {
   deviceSettingsTable,
   projectKeysTable,
   projectSettingsTable,
+  backupProjectInfoTable,
 } from './schema/client.js'
 import { ProjectKeys } from './generated/keys.js'
 import {
@@ -654,23 +655,14 @@ export class MapeoManager extends TypedEmitter {
     try {
       project = await this.getProject(projectPublicId)
 
-      /** @type {import('drizzle-orm').InferInsertModel<typeof projectSettingsTable>} */
-      const settingsDoc = {
-        schemaName: 'projectSettings',
-        docId: projectId,
-        versionId: 'unknown',
-        originalVersionId: 'unknown',
-        createdAt: UNIX_EPOCH_DATE,
-        updatedAt: UNIX_EPOCH_DATE,
-        deleted: false,
-        sendStats: false,
-        links: [],
-        forks: [],
+      /** @type {import('drizzle-orm').InferInsertModel<typeof backupProjectInfoTable>} */
+      const backupProjectInfo = {
+        projectId,
         name: projectName,
         projectDescription,
       }
 
-      await this.#db.insert(projectSettingsTable).values([settingsDoc])
+      await this.#db.insert(backupProjectInfoTable).values([backupProjectInfo])
       this.#activeProjects.set(projectPublicId, project)
     } catch (e) {
       // Only happens if getProject or the the DB insert fails

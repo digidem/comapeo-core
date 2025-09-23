@@ -2,7 +2,7 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { sql, count } from 'drizzle-orm'
+import { sql, count, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
@@ -18,7 +18,10 @@ import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
-import { projectSettingsTable } from './schema/client.js'
+import {
+  projectSettingsTable,
+  backupProjectInfoTable,
+} from './schema/client.js'
 import {
   coreOwnershipTable,
   deviceInfoTable,
@@ -131,6 +134,7 @@ export class MapeoProject extends TypedEmitter {
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #loadingConfig
+  #getBackupInfo
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
 
@@ -174,6 +178,12 @@ export class MapeoProject extends TypedEmitter {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectKey = projectKey
     this.#loadingConfig = false
+
+    this.#getBackupInfo = sharedDb
+      .select()
+      .from(backupProjectInfoTable)
+      .where(eq(backupProjectInfoTable.projectId, this.#projectId))
+      .prepare()
 
     const getReplicationStream = this[kProjectReplicate].bind(this, true)
 
@@ -679,7 +689,15 @@ export class MapeoProject extends TypedEmitter {
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
     } catch (e) {
-      return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
+      const backupInfo = this.#getBackupInfo.get()
+      if (backupInfo === undefined) {
+        return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
+      }
+      return {
+        name: backupInfo.name,
+        projectDescription: backupInfo.projectDescription ?? undefined,
+        sendStats: false,
+      }
     }
   }
 
