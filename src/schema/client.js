@@ -44,6 +44,7 @@ export const backupProjectInfoTable = sqliteTable('backupProjectInfo', {
   projectId: text('projectId').notNull().primaryKey(),
   name: text('projectName').notNull(),
   projectDescription: text('projectDescription'),
+  sendStats: int('sendStats', { mode: 'boolean' }).notNull().default(false),
 })
 
 /**

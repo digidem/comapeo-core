@@ -696,7 +696,7 @@ export class MapeoProject extends TypedEmitter {
       return {
         name: backupInfo.name,
         projectDescription: backupInfo.projectDescription ?? undefined,
-        sendStats: false,
+        sendStats: backupInfo.sendStats,
       }
     }
   }

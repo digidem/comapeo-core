@@ -66,7 +66,7 @@ import { WebSocket } from 'ws'
 /** @import { DeviceInfoParam, ProjectInfo } from './schema/client.js' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
-/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string }} ProjectToAddDetails */
+/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean }} ProjectToAddDetails */
 /** @typedef {{ projectId: string, createdAt?: string, updatedAt?: string, name?: string, projectColor?: string, projectDescription?: string }} ListedProject */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
@@ -619,6 +619,7 @@ export class MapeoManager extends TypedEmitter {
       projectName,
       projectColor,
       projectDescription,
+      sendStats = false,
     },
     { waitForSync = true } = {}
   ) => {
@@ -671,6 +672,7 @@ export class MapeoManager extends TypedEmitter {
         projectId,
         name: projectName,
         projectDescription,
+        sendStats,
       }
 
       await this.#db.insert(backupProjectInfoTable).values([backupProjectInfo])

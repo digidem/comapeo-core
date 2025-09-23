@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "4695b766-f079-40fe-b858-90e36d8b0cad",
+  "id": "ac5d31dc-4925-4afd-944c-4dddd7dd21c5",
   "prevId": "3b7b9e2d-3a35-47e3-977e-b5dcbe2fd302",
   "tables": {
     "backupProjectInfo": {
@@ -27,6 +27,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "sendStats": {
+          "name": "sendStats",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         }
       },
       "indexes": {},
