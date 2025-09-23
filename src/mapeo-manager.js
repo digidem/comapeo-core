@@ -559,6 +559,11 @@ export class MapeoManager extends TypedEmitter {
       .from(projectSettingsTable)
       .all()
 
+    const allBackupProjects = this.#db
+      .select()
+      .from(backupProjectInfoTable)
+      .all()
+
     /** @type {Array<ListedProject>} */
     const result = []
 
@@ -570,19 +575,26 @@ export class MapeoManager extends TypedEmitter {
       const existingProject = allProjectsResult.find(
         (p) => p.projectId === projectId
       )
+      const backupProjectInfo = allBackupProjects.find(
+        (p) => p.projectId === projectId
+      )
 
-      if (!existingProject) continue
+      if (!existingProject && !backupProjectInfo) continue
 
       result.push(
         deNullify({
           projectId: projectPublicId,
           createdAt: existingProject?.createdAt,
           updatedAt: existingProject?.updatedAt,
-          name: existingProject?.name || projectInfo.name,
+          name:
+            existingProject?.name ??
+            backupProjectInfo?.name ??
+            projectInfo.name,
           projectColor:
-            existingProject?.projectColor || projectInfo.projectColor,
+            existingProject?.projectColor ?? projectInfo.projectColor,
           projectDescription:
-            existingProject?.projectDescription ||
+            existingProject?.projectDescription ??
+            backupProjectInfo?.projectDescription ??
             projectInfo.projectDescription,
         })
       )
@@ -986,6 +998,11 @@ export class MapeoManager extends TypedEmitter {
     this.#db
       .delete(projectSettingsTable)
       .where(eq(projectSettingsTable.docId, projectId))
+      .run()
+
+    this.#db
+      .delete(backupProjectInfoTable)
+      .where(eq(backupProjectInfoTable.projectId, projectId))
       .run()
 
     this.#activeProjects.delete(projectPublicId)
