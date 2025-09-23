@@ -64,7 +64,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} options.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
-   * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
+   * @param {string} options.storage Folder to store all hypercore data
    * @param {boolean} [options.autoDownload=true] Immediately start downloading cores - should only be set to false for tests
    * @param {Logger} [options.logger]
    */
@@ -290,11 +290,13 @@ export class CoreManager extends TypedEmitter {
     const existingCore = this.#coreIndex.getByCoreKey(keyPair.publicKey)
     if (existingCore) return existingCore
 
+    const encryptionKey = this.#encryptionKeys[namespace]
+
     const { publicKey: key, secretKey } = keyPair
     const writer = !!secretKey
     const core = this.#corestore.get({
       keyPair,
-      encryptionKey: this.#encryptionKeys[namespace],
+      encryptionKey: encryptionKey ? { key: encryptionKey } : undefined,
     })
     if (this.#autoDownload && namespace !== 'blob') {
       // Blob downloads are managed by BlobStore
@@ -302,8 +304,8 @@ export class CoreManager extends TypedEmitter {
     }
     // Every peer adds a listener, so could have many peers
     core.setMaxListeners(0)
-    // @ts-ignore - ensure key is defined before hypercore is ready
-    core.key = key
+    // // @ts-ignore - ensure key is defined before hypercore is ready
+    // core.key = key
     this.#coreIndex.add({ core, key, namespace, writer })
 
     // **Hack** As soon as a peer is added, eagerly send a "want" for the entire

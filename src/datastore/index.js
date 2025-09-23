@@ -146,6 +146,7 @@ export class DataStore extends TypedEmitter {
       )
     }
     const block = encode(doc)
+    console.log({ block })
     // The indexer batch can sometimes complete before the append below
     // resolves, so in the batch function we await any pending appends. We can't
     // know the versionId before the append, because docs can be written in the
@@ -166,6 +167,7 @@ export class DataStore extends TypedEmitter {
     const deferred = pDefer()
     this.#pendingIndex.set(versionId, deferred)
     await deferred.promise
+    console.log('wrote', doc)
     this.#pendingIndex.delete(versionId)
 
     return /** @type {Extract<MapeoDoc, TDoc>} */ (
