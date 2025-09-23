@@ -226,6 +226,11 @@ export class MapeoProject extends TypedEmitter {
 
     if (reindex) {
       for (const table of indexedTables) db.delete(table).run()
+
+      sharedDb
+        .delete(projectSettingsTable)
+        .where(eq(projectSettingsTable.docId, this.#projectId))
+        .run()
     }
 
     ///////// 3. Setup random-access-storage functions
