@@ -89,6 +89,10 @@ class PretendCorestore {
       // @ts-ignore
       opts.publicKey = opts.key
     }
+    if ('keyPair' in opts) {
+      // @ts-ignore
+      opts.publicKey = opts.keyPair.publicKey
+    }
     if ('publicKey' in opts) {
       // NB! We should always add blobIndex (Hyperbee) cores to the core manager
       // before we use them here. We would only reach the addCore path if the

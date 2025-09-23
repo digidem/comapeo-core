@@ -10,6 +10,7 @@ import * as b4a from 'b4a'
 import mime from 'mime/lite'
 // @ts-expect-error
 import { Readable, pipelinePromise } from 'streamx'
+import RandomAccessFile from 'random-access-file'
 
 import { NAMESPACES, NAMESPACE_SCHEMAS, UNIX_EPOCH_DATE } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
@@ -220,13 +221,16 @@ export class MapeoProject extends TypedEmitter {
 
     ///////// 3. Setup random-access-storage functions
 
-    /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
-    const coreManagerStorage = (name) =>
-      coreStorage(path.join(CORESTORE_STORAGE_FOLDER_NAME, name))
+    const coreManagerStorage = path.join(
+      coreStorage,
+      CORESTORE_STORAGE_FOLDER_NAME
+    )
 
     /** @type {ConstructorParameters<typeof DataStore>[0]['storage']} */
     const indexerStorage = (name) =>
-      coreStorage(path.join(INDEXER_STORAGE_FOLDER_NAME, name))
+      new RandomAccessFile(
+        path.join(coreStorage, INDEXER_STORAGE_FOLDER_NAME, name)
+      )
 
     ///////// 4. Create instances
 
