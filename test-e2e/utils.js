@@ -216,12 +216,14 @@ export async function waitForPeers(
  * @param {T} count
  * @param {import('node:test').TestContext} t
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
+ * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]>} [overrides]
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
 export async function createManagers(
   count,
   t,
-  deviceType = 'device_type_unspecified'
+  deviceType = 'device_type_unspecified',
+  overrides = {}
 ) {
   // @ts-ignore
   return Promise.all(
@@ -229,7 +231,7 @@ export async function createManagers(
       .fill(null)
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
-        const manager = createManager(name, t)
+        const manager = createManager(name, t, overrides)
         await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
@@ -276,6 +278,7 @@ export function createManager(seed, t, overrides = {}) {
     dbFolder,
     coreStorage,
     fastify,
+    useIndexWorkers: true,
     ...overrides,
   })
 }
