@@ -40,7 +40,7 @@ async function handleMessage({ id, type, data }) {
       case 'batch': {
         // Need to convert b
         for (const item of data) {
-          item.block = new Buffer(item.block)
+          item.block = Buffer.from(item.block)
         }
         const result = await indexWriter.batch(data)
         /** @type {WorkerResponse<BatchResponseData>} */
