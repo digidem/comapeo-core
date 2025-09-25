@@ -17,6 +17,7 @@ import {
   connectPeers,
   createManager,
   createManagers,
+  createOldManager,
   getDiskUsage,
   invite,
   waitForPeers,
@@ -440,6 +441,28 @@ test('partly-left projects are cleaned up on startup', async (t) => {
     !couldGetObservations,
     "Shouldn't be able to fetch observations after leaving"
   )
+})
+
+test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+  t.after(() => fs.rm(dbFolder, { recursive: true }))
+  t.after(() => fs.rm(coreStorage, { recursive: true }))
+
+  const manager4_1_4 = await createOldManager('4.1.4', 'a', {
+    dbFolder,
+    coreStorage,
+  })
+
+  const projectId = await manager4_1_4.createProject({ name: 'foo' })
+  const project = await manager4_1_4.getProject(projectId)
+  await manager4_1_4.leaveProject(projectId)
+  await project.close()
+
+  const managerNew = await createManager('a', t, { dbFolder, coreStorage })
+
+  const projectsList = await managerNew.listProjects()
+  assert.equal(projectsList.length, 0, 'no projects listed')
 })
 
 // TODO: Add test for leaving and rejoining a project
