@@ -288,6 +288,11 @@ export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
   return createOldManager('2.0.1', seed, overrides)
 }
 
+// To add support for other versions of @comapeo/core:
+// 1. Install the version with `npm install -D @comapeo/coreX.Y.Z@npm:@comapeo/core@X.Y.Z`
+// 2. Add an overload to the `createOldManager` function below
+// It's best to use the version that was in the previous release of the mobile and/or desktop apps.
+
 /**
  * @overload
  * @param {'4.1.4'} version
