@@ -13,7 +13,7 @@ test('indexer-worker - create project', async (t) => {
 
 test('indexer-worker - perf comparison for config imports', async (t) => {
   performance.mark('pre-nonworker', { detail: performance.nodeTiming })
-  const manager = createManager('device1', t)
+  const manager = createManager('device1', t, { useIndexWorkers: false })
   const project = await manager.getProject(
     await manager.createProject({ configPath: defaultConfigPath })
   )

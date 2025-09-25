@@ -1,26 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager } from '@mapeo/crypto'
-import RAM from 'random-access-memory'
-import Fastify from 'fastify'
 
-import { MapeoManager } from '../src/mapeo-manager.js'
 import { MapeoProject } from '../src/mapeo-project.js'
-import { removeUndefinedFields } from './utils.js'
+import { removeUndefinedFields, createManager } from './utils.js'
 
-test('Project settings create, read, and update operations', async () => {
-  const fastify = Fastify()
-
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
-      .pathname,
-    clientMigrationsFolder: new URL('../drizzle/client', import.meta.url)
-      .pathname,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify,
-  })
+test('Project settings create, read, and update operations', async (t) => {
+  const manager = createManager('test', t)
 
   const projectId = await manager.createProject()
 
