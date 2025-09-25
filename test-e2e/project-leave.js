@@ -12,7 +12,6 @@ import {
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
 } from '../src/roles.js'
-import { MapeoProject } from '../src/mapeo-project.js'
 import {
   ManagerCustodian,
   connectPeers,
@@ -222,6 +221,8 @@ test('Member can leave project if creator exists', async (t) => {
 
   const list = await member.listProjects()
 
+  console.dir(list, { depth: null })
+
   assert.equal(list.length, 0, 'member has no projects after leaving')
 })
 
@@ -281,14 +282,14 @@ test('Data access after leaving project', async (t) => {
 
   assert.deepEqual(
     await memberProject.$getProjectSettings(),
-    MapeoProject.EMPTY_PROJECT_SETTINGS,
-    'member getting project settings returns empty settings'
+    { name: 'mapeo', sendStats: false },
+    'member can still get name and sendStats after leaving'
   )
 
   assert.deepEqual(
     await coordinatorProject.$getProjectSettings(),
-    MapeoProject.EMPTY_PROJECT_SETTINGS,
-    'coordinator getting project settings returns empty settings'
+    { name: 'mapeo', sendStats: false },
+    'coordinator can still get name and sendStats after leaving'
   )
 
   await assert.rejects(async () => {
@@ -403,27 +404,26 @@ test('leaving a project while disconnected', async (t) => {
   )
 })
 
+// NB: This test was checked to fail by temporarily commenting out the
+// `if (projectKeysTableResult.hasLeftProject) { await project[kClearData()] }`
+// block in MapeoManager#getProject.
 test('partly-left projects are cleaned up on startup', async (t) => {
   const custodian = new ManagerCustodian(t)
 
   const projectId = await custodian.withManagerInSeparateProcess(
-    async (manager, { observation, LEFT_ROLE_ID }) => {
+    async (manager, { observation }) => {
       const projectId = await manager.createProject({ name: 'foo' })
       const project = await manager.getProject(projectId)
       await project.observation.create(observation)
-      await project.$member.assignRole(
-        manager.getDeviceInfo().deviceId,
-        /**
-         * This test-only hack assigns the "left" role ID without actually
-         * cleaning up the project.
-         * @type {any}
-         */ (LEFT_ROLE_ID)
-      )
+      manager.leaveProject(projectId)
+      // Exit the process before the async clear project data has completed
+      setImmediate(() => {
+        process.exit(0)
+      })
       return projectId
     },
     {
       observation: valueOf(generate('observation')[0]),
-      LEFT_ROLE_ID,
     }
   )
 

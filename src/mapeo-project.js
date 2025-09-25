@@ -18,10 +18,7 @@ import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
-import {
-  projectSettingsTable,
-  backupProjectInfoTable,
-} from './schema/client.js'
+import { projectSettingsTable } from './schema/client.js'
 import {
   coreOwnershipTable,
   deviceInfoTable,
@@ -100,12 +97,12 @@ export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
 export const kProjectLeave = Symbol('leave project')
-export const kClearDataIfLeft = Symbol('clear data if left project')
+export const kClearData = Symbol('clear project data')
 export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 export const kGeoJSONFileName = Symbol('geoJSONFileName')
 
-const EMPTY_PROJECT_SETTINGS = Object.freeze({})
+const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
 
 /** @type BlobId['variant'][]*/
 const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
@@ -134,9 +131,9 @@ export class MapeoProject extends TypedEmitter {
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #loadingConfig
-  #getBackupInfo
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
+  #getFallbackProjectInfo
 
   /**
    * @param {Object} opts
@@ -153,6 +150,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
+   * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
    * @param {Logger} [opts.logger]
    *
    */
@@ -171,6 +169,7 @@ export class MapeoProject extends TypedEmitter {
     localPeers,
     logger,
     isArchiveDevice,
+    getFallbackProjectInfo,
   }) {
     super()
 
@@ -178,12 +177,7 @@ export class MapeoProject extends TypedEmitter {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectKey = projectKey
     this.#loadingConfig = false
-
-    this.#getBackupInfo = sharedDb
-      .select()
-      .from(backupProjectInfoTable)
-      .where(eq(backupProjectInfoTable.projectId, this.#projectId))
-      .prepare()
+    this.#getFallbackProjectInfo = getFallbackProjectInfo
 
     const getReplicationStream = this[kProjectReplicate].bind(this, true)
 
@@ -694,15 +688,12 @@ export class MapeoProject extends TypedEmitter {
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
     } catch (e) {
-      const backupInfo = this.#getBackupInfo.get()
-      if (backupInfo === undefined) {
-        return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
-      }
-      return {
-        name: backupInfo.name,
-        projectDescription: backupInfo.projectDescription ?? undefined,
-        sendStats: backupInfo.sendStats,
-      }
+      // if (e instanceof Error && e.name !== 'NotFoundError') throw e
+      // If the project has not completed an initial sync, project settings will
+      // not be available, so use fallback project info which is set from the
+      // invite that was used to join the project.
+      const fallbackInfo = this.#getFallbackProjectInfo()
+      return fallbackInfo || EMPTY_PROJECT_SETTINGS
     }
   }
 
@@ -1323,19 +1314,14 @@ export class MapeoProject extends TypedEmitter {
 
     await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
 
-    await this[kClearDataIfLeft]()
+    await this[kClearData]()
   }
 
   /**
-   * Clear data if we've left the project. No-op if you're still in the project.
+   * Clear synced data, but keep auth data and own data
    * @returns {Promise<void>}
    */
-  async [kClearDataIfLeft]() {
-    const role = await this.$getOwnRole()
-    if (role.roleId !== LEFT_ROLE_ID) {
-      return
-    }
-
+  async [kClearData]() {
     const namespacesWithoutAuth =
       /** @satisfies {Exclude<Namespace, 'auth'>[]} */ ([
         'config',

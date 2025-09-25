@@ -36,6 +36,13 @@
       "when": 1758640418795,
       "tag": "0004_fresh_pestilence",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1758807178583,
+      "tag": "0005_military_paper_doll",
+      "breakpoints": true
     }
   ]
 }
