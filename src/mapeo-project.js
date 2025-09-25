@@ -195,15 +195,6 @@ export class MapeoProject extends TypedEmitter {
       projectPublicId: this.#projectPublicId,
     })
 
-    if (useIndexWorkers && !this.#sqlite.memory) {
-      // Re-open the db as read-only, because all writes will be done in the worker thread
-      this.#sqlite.close()
-      this.#sqlite = new Database(dbPath, { readonly: true })
-      this.#sqlite.pragma('journal_mode=WAL')
-      db = drizzle(this.#sqlite, { schema: projectSchema })
-      this.#db = db
-    }
-
     let reindex
     switch (migrationResult) {
       case 'initialized database':
@@ -234,6 +225,15 @@ export class MapeoProject extends TypedEmitter {
 
     if (reindex) {
       for (const table of indexedTables) db.delete(table).run()
+    }
+
+    if (useIndexWorkers && !this.#sqlite.memory) {
+      // Re-open the db as read-only, because all writes will be done in the worker thread
+      this.#sqlite.close()
+      this.#sqlite = new Database(dbPath, { readonly: true })
+      this.#sqlite.pragma('journal_mode=WAL')
+      db = drizzle(this.#sqlite, { schema: projectSchema })
+      this.#db = db
     }
 
     ///////// 3. Setup random-access-storage functions
@@ -569,6 +569,8 @@ export class MapeoProject extends TypedEmitter {
     }
     await Promise.all(dataStorePromises)
     await this.#coreManager.close()
+
+    await this.#indexWriter.close()
 
     this.#sqlite.close()
 

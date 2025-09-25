@@ -4,7 +4,19 @@ import { IndexWriter } from './index-writer.js'
 import { Logger } from '../logger.js'
 import Database from 'better-sqlite3'
 
-/** @import {WorkerRequest, BatchRequestData, DeleteSchemaRequestData, BatchResponseData, DeleteSchemaResponseData, WorkerData, WorkerResponse} from './index-writer-proxy.js' */
+/** @import {
+  WorkerRequest,
+  BatchRequestData, DeleteSchemaRequestData, CloseRequestData,
+  BatchResponseData, DeleteSchemaResponseData, CloseResponseData,
+  WorkerData, WorkerResponse
+ } from './index-writer-proxy.js' */
+
+/** @typedef {
+  WorkerRequest<'batch', BatchRequestData> |
+  WorkerRequest<'close', CloseRequestData> |
+  WorkerRequest<'deleteSchema', DeleteSchemaRequestData>
+ } ExpectedRequestMessage
+*/
 
 const { schemas, dbPath, parentLoggerNamespace, deviceId } =
   /** @type {WorkerData} */ (workerData)
@@ -28,7 +40,7 @@ if (!parentPort) {
 parentPort.on('message', handleMessage)
 
 /**
- * @param {WorkerRequest<'batch', BatchRequestData> | WorkerRequest<'deleteSchema', DeleteSchemaRequestData>} msg
+ * @param {ExpectedRequestMessage} msg
  * @returns {Promise<void>}
  */
 async function handleMessage({ id, type, data }) {
@@ -53,6 +65,12 @@ async function handleMessage({ id, type, data }) {
         /** @type {WorkerResponse<DeleteSchemaResponseData>} */
         const msg = { id, data: null }
         parentPort.postMessage(msg)
+        return
+      }
+      case 'close': {
+        sqlite.close()
+        parentPort.postMessage({ id, data: 'ok' })
+        process.exit(0)
         return
       }
       default:

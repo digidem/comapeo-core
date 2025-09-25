@@ -14,6 +14,8 @@ import { pEvent } from 'p-event'
  */
 /** @typedef {SchemaName} DeleteSchemaRequestData */
 /** @typedef {null} DeleteSchemaResponseData */
+/** @typedef {null} CloseRequestData */
+/** @typedef {string} CloseResponseData */
 /** @typedef {import('multi-core-indexer').Entry[]} BatchRequestData */
 /** @typedef {IndexedDocIds} BatchResponseData */
 /**
@@ -72,6 +74,13 @@ export class IndexWriterProxy {
    * @returns {Promise<DeleteSchemaResponseData>}
    */
   /**
+   * @overload
+   * @param {'close'} type
+   * @param {CloseRequestData} data
+   * @param {import('worker_threads').TransferListItem[]} [transferList]
+   * @returns {Promise<CloseResponseData>}
+   */
+  /**
    * @param {string} type
    * @param {any} data
    * @param {import('worker_threads').TransferListItem[]} [transferList]
@@ -107,5 +116,13 @@ export class IndexWriterProxy {
    */
   async deleteSchema(schemaName) {
     await this.#workerRequest('deleteSchema', schemaName)
+  }
+
+  /**
+   * Clean up any remaining index writer resources
+   * @returns {Promise<void>}
+   */
+  async close() {
+    await this.#workerRequest('close', null)
   }
 }

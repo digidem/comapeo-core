@@ -102,4 +102,12 @@ export class IndexWriter {
     }
     await indexer.deleteAll()
   }
+
+  /**
+   * Clean up any remaining index writer resources
+   * @returns {Promise<void>}
+   */
+  async close() {
+    // Nothing to do, everything is synchronous
+  }
 }

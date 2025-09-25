@@ -76,4 +76,12 @@ export class IndexWriterWrapper {
   async deleteSchema(schemaName) {
     return this.#indexWriter.deleteSchema(schemaName)
   }
+
+  /**
+   * Clean up any remaining index writer resources
+   * @returns {Promise<void>}
+   */
+  async close() {
+    await this.#indexWriter.close()
+  }
 }
