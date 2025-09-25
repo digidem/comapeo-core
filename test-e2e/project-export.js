@@ -239,7 +239,7 @@ async function parseGeoJSON(stream) {
 
 /**
  *
- * @param {MapeoManager} manager
+ * @param {import('../src/mapeo-manager.js').MapeoManager} manager
  * @param {object} options
  * @param {boolean} [options.makeObservations=false]
  * @param {boolean} [options.makeTracks=false]
