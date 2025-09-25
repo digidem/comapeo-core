@@ -221,8 +221,6 @@ test('Member can leave project if creator exists', async (t) => {
 
   const list = await member.listProjects()
 
-  console.dir(list, { depth: null })
-
   assert.equal(list.length, 0, 'member has no projects after leaving')
 })
 
