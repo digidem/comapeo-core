@@ -4,7 +4,6 @@ import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
@@ -58,6 +57,7 @@ import {
 import { NotFoundError } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
+import { migrate } from './lib/drizzle-helpers.js'
 
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
@@ -175,7 +175,12 @@ export class MapeoManager extends TypedEmitter {
     )
     sqlite.pragma('journal_mode=WAL')
     this.#db = drizzle(sqlite)
-    migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
+    migrate(this.#db, {
+      migrationsFolder: clientMigrationsFolder,
+      migrationFns: {
+        '0005_military_paper_doll': this.#migrateLeftProjects.bind(this),
+      },
+    })
 
     this.#localPeers = new LocalPeers({ logger })
     this.#localPeers.on('peers', (peers) => {
@@ -337,6 +342,49 @@ export class MapeoManager extends TypedEmitter {
           : path.join(this.#dbFolder, projectId + '.db'),
       coreStorage: (name) => this.#coreStorage(path.join(projectId, name)),
     }
+  }
+
+  /**
+   * The migration in file `0005_military_paper_doll.sql` adds a new
+   * `hasLeftProject` that is used to track if a user has left a project.
+   * Previously we did not have a way to track if a user had left a project,
+   * other than checking their own role within a project. However, we can also
+   * use the presence of an encryption key for the data cores as an indication
+   * of whether a user has left, because we delete this as part of the leave
+   * process, and we do not, prior to this migration, have any code which
+   * deletes that for other reasons.
+   */
+  #migrateLeftProjects() {
+    const existingProjectKeys = this.#db
+      .select({
+        projectId: projectKeysTable.projectId,
+        hasLeftProject: projectKeysTable.hasLeftProject,
+        keysCipher: projectKeysTable.keysCipher,
+      })
+      .from(projectKeysTable)
+      .all()
+    /** @type {{ projectId: string, hasLeftProject: boolean }[]} */
+    const toMigrate = []
+    for (const {
+      projectId,
+      hasLeftProject,
+      keysCipher,
+    } of existingProjectKeys) {
+      if (hasLeftProject) continue
+      const projectKeys = this.#decodeProjectKeysCipher(keysCipher, projectId)
+      if (projectKeys.encryptionKeys && !projectKeys.encryptionKeys.data) {
+        toMigrate.push({ projectId, hasLeftProject: true })
+      }
+    }
+    if (toMigrate.length === 0) return
+    this.#db.transaction((tx) => {
+      for (const { projectId, hasLeftProject } of toMigrate) {
+        tx.update(projectKeysTable)
+          .set({ hasLeftProject })
+          .where(eq(projectKeysTable.projectId, projectId))
+          .run()
+      }
+    })
   }
 
   /**
