@@ -4,6 +4,7 @@ import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
+import { MapeoProject } from '../src/mapeo-project.js'
 import Fastify from 'fastify'
 import { getExpectedConfig } from './utils.js'
 import { defaultConfigPath } from '../test/helpers/default-config.js'
@@ -42,12 +43,14 @@ test('Managing created projects', async (t) => {
     )
 
     assert(listedProject1)
-    assert(!listedProject1?.name)
+    assert(!listedProject1.name)
+    assert.equal(listedProject1.status, 'joined')
     assert(listedProject1?.createdAt)
     assert(listedProject1?.updatedAt)
 
     assert(listedProject2)
-    assert.equal(listedProject2?.name, 'project 2')
+    assert.equal(listedProject2.name, 'project 2')
+    assert.equal(listedProject2.status, 'joined')
     assert(listedProject2?.createdAt)
     assert(listedProject2?.updatedAt)
   })
@@ -57,6 +60,9 @@ test('Managing created projects', async (t) => {
 
   assert(project1)
   assert(project2)
+
+  assert(project1 instanceof MapeoProject)
+  assert(project2 instanceof MapeoProject)
 
   await t.test('initial settings from project instances', async () => {
     const settings1 = await project1.$getProjectSettings()
@@ -133,6 +139,7 @@ test('Managing created projects', async (t) => {
     )
 
     assert(project1FromListed)
+    assert(project1FromListed.status === 'joined')
 
     const {
       createdAt: project1CreatedAt,
@@ -147,9 +154,12 @@ test('Managing created projects', async (t) => {
       name: 'project 1',
       projectColor: '#123456',
       projectDescription: undefined,
+      sendStats: false,
+      status: 'joined',
     })
 
     assert(project2FromListed)
+    assert.equal(project2FromListed.status, 'joined')
 
     const {
       createdAt: project2CreatedAt,
@@ -164,6 +174,8 @@ test('Managing created projects', async (t) => {
       name: 'project 2 updated',
       projectColor: undefined,
       projectDescription: 'project 2 description',
+      sendStats: false,
+      status: 'joined',
     })
   })
 })
@@ -326,14 +338,16 @@ test('Managing added projects', async (t) => {
     )
 
     assert(listedProject1)
-    assert.equal(listedProject1?.name, 'project 1')
-    assert(!listedProject1?.createdAt)
-    assert(!listedProject1?.updatedAt)
+    assert.equal(listedProject1.name, 'project 1')
+    assert.equal(listedProject1.status, 'joining')
+    assert(!('createdAt' in listedProject1))
+    assert(!('updatedAt' in listedProject1))
 
     assert(listedProject2)
-    assert.equal(listedProject2?.name, 'project 2')
-    assert(!listedProject2?.createdAt)
-    assert(!listedProject2?.updatedAt)
+    assert.equal(listedProject2.name, 'project 2')
+    assert.equal(listedProject2.status, 'joining')
+    assert(!('createdAt' in listedProject2))
+    assert(!('updatedAt' in listedProject2))
   })
 
   await t.test(

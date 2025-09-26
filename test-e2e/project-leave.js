@@ -12,12 +12,12 @@ import {
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
 } from '../src/roles.js'
-import { MapeoProject } from '../src/mapeo-project.js'
 import {
   ManagerCustodian,
   connectPeers,
   createManager,
   createManagers,
+  createOldManager,
   getDiskUsage,
   invite,
   waitForPeers,
@@ -281,14 +281,14 @@ test('Data access after leaving project', async (t) => {
 
   assert.deepEqual(
     await memberProject.$getProjectSettings(),
-    MapeoProject.EMPTY_PROJECT_SETTINGS,
-    'member getting project settings returns empty settings'
+    { name: 'mapeo', sendStats: false },
+    'member can still get name and sendStats after leaving'
   )
 
   assert.deepEqual(
     await coordinatorProject.$getProjectSettings(),
-    MapeoProject.EMPTY_PROJECT_SETTINGS,
-    'coordinator getting project settings returns empty settings'
+    { name: 'mapeo', sendStats: false },
+    'coordinator can still get name and sendStats after leaving'
   )
 
   await assert.rejects(async () => {
@@ -403,27 +403,26 @@ test('leaving a project while disconnected', async (t) => {
   )
 })
 
+// NB: This test was checked to fail by temporarily commenting out the
+// `if (projectKeysTableResult.hasLeftProject) { await project[kClearData()] }`
+// block in MapeoManager#getProject.
 test('partly-left projects are cleaned up on startup', async (t) => {
   const custodian = new ManagerCustodian(t)
 
   const projectId = await custodian.withManagerInSeparateProcess(
-    async (manager, { observation, LEFT_ROLE_ID }) => {
+    async (manager, { observation }) => {
       const projectId = await manager.createProject({ name: 'foo' })
       const project = await manager.getProject(projectId)
       await project.observation.create(observation)
-      await project.$member.assignRole(
-        manager.getDeviceInfo().deviceId,
-        /**
-         * This test-only hack assigns the "left" role ID without actually
-         * cleaning up the project.
-         * @type {any}
-         */ (LEFT_ROLE_ID)
-      )
+      manager.leaveProject(projectId)
+      // Exit the process before the async clear project data has completed
+      setImmediate(() => {
+        process.exit(0)
+      })
       return projectId
     },
     {
       observation: valueOf(generate('observation')[0]),
-      LEFT_ROLE_ID,
     }
   )
 
@@ -442,6 +441,28 @@ test('partly-left projects are cleaned up on startup', async (t) => {
     !couldGetObservations,
     "Shouldn't be able to fetch observations after leaving"
   )
+})
+
+test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+  t.after(() => fs.rm(dbFolder, { recursive: true }))
+  t.after(() => fs.rm(coreStorage, { recursive: true }))
+
+  const manager4_1_4 = await createOldManager('4.1.4', 'a', {
+    dbFolder,
+    coreStorage,
+  })
+
+  const projectId = await manager4_1_4.createProject({ name: 'foo' })
+  const project = await manager4_1_4.getProject(projectId)
+  await manager4_1_4.leaveProject(projectId)
+  await project.close()
+
+  const managerNew = await createManager('a', t, { dbFolder, coreStorage })
+
+  const projectsList = await managerNew.listProjects()
+  assert.equal(projectsList.length, 0, 'no projects listed')
 })
 
 // TODO: Add test for leaving and rejoining a project
