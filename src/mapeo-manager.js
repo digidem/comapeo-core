@@ -178,7 +178,7 @@ export class MapeoManager extends TypedEmitter {
     migrate(this.#db, {
       migrationsFolder: clientMigrationsFolder,
       migrationFns: {
-        '0005_military_paper_doll': this.#migrateLeftProjects.bind(this),
+        '0004_glorious_shape': this.#migrateLeftProjects.bind(this),
       },
     })
 
