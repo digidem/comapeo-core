@@ -894,7 +894,7 @@ test('shares cores', async function (t) {
   }
 })
 
-test.only('no sync capabilities === no namespaces sync apart from auth', async (t) => {
+test('no sync capabilities === no namespaces sync apart from auth', async (t) => {
   const COUNT = 3
   const managers = await createManagers(COUNT, t)
   const [invitor, invitee, blocked] = managers
@@ -960,13 +960,13 @@ test.only('no sync capabilities === no namespaces sync apart from auth', async (
   assert.equal(blockedState.data.localState.have, 0) // no data docs synced
 
   for (const ns of NAMESPACES) {
-    assert.equal(invitorState[ns].coreCount, 3, `invitor got cores ${ns}`)
-    assert.equal(inviteeState[ns].coreCount, 3, `invitee got cores ${ns}`)
-    assert.equal(blockedState[ns].coreCount, 3, `blocked got cores ${ns}`)
+    assert.equal(invitorState[ns].coreCount, 3, `invitor got cores for ${ns}`)
+    assert.equal(inviteeState[ns].coreCount, 3, `invitee got cores for ${ns}`)
+    assert.equal(blockedState[ns].coreCount, 3, `blocked got cores for ${ns}`)
     assert.deepEqual(
       invitorState[ns].localState,
       inviteeState[ns].localState,
-      ns
+      `invitor/invitee have same local state for ${ns}`
     )
   }
 })
