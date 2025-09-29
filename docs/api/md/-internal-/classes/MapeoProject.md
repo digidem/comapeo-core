@@ -410,7 +410,7 @@ and only this project will replicate.
 
 ***
 
-### $originalVersionIdToDeviceId()
+### ~~$originalVersionIdToDeviceId()~~
 
 > **$originalVersionIdToDeviceId**(`originalVersionId`): `Promise`\<`string`\>
 
@@ -425,6 +425,8 @@ The `originalVersionId` from a document.
 `Promise`\<`string`\>
 
 The device ID for this creator.
+
+#### Deprecated
 
 #### Throws
 
