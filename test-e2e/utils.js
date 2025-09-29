@@ -12,7 +12,6 @@ import * as v8 from 'node:v8'
 import { pEvent } from 'p-event'
 import { createMapeoClient } from '@comapeo/ipc'
 import { Worker, MessageChannel } from 'node:worker_threads'
-import { MapeoManager as MapeoManager_2_0_1 } from '@comapeo/core2.0.1'
 import { setTimeout as delay } from 'node:timers/promises'
 
 import { MapeoManager, roles } from '../src/index.js'
@@ -282,16 +281,50 @@ export function createManager(seed, t, overrides = {}) {
 
 /**
  * @param {string} seed
- * @param {Partial<ConstructorParameters<typeof MapeoManager_2_0_1>[0]>} [overrides]
- * @returns {Promise<MapeoManager_2_0_1>}
+ * @param {Partial<ConstructorParameters<typeof import('@comapeo/core2.0.1').MapeoManager>[0]>} [overrides]
+ * @returns {Promise<import('@comapeo/core2.0.1').MapeoManager>}
  */
 export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
-  const comapeoCorePreMigrationUrl = await import.meta.resolve?.(
-    '@comapeo/core2.0.1'
-  )
-  assert(comapeoCorePreMigrationUrl, 'Could not resolve @comapeo/core2.0.1')
+  return createOldManager('2.0.1', seed, overrides)
+}
 
-  return new MapeoManager_2_0_1({
+// To add support for other versions of @comapeo/core:
+// 1. Install the version with `npm install -D @comapeo/coreX.Y.Z@npm:@comapeo/core@X.Y.Z`
+// 2. Add an overload to the `createOldManager` function below
+// It's best to use the version that was in the previous release of the mobile and/or desktop apps.
+
+/**
+ * @overload
+ * @param {'4.1.4'} version
+ * @param {string} seed
+ * @param {Partial<ConstructorParameters<typeof import('@comapeo/core4.1.4').MapeoManager>[0]>} [overrides]
+ * @returns {Promise<import('@comapeo/core4.1.4').MapeoManager>}
+ */
+/**
+ * @overload
+ * @param {'2.0.1'} version
+ * @param {string} seed
+ * @param {Partial<ConstructorParameters<typeof import('@comapeo/core2.0.1').MapeoManager>[0]>} [overrides]
+ * @returns {Promise<import('@comapeo/core2.0.1').MapeoManager>}
+ */
+/**
+ * @param {string} version
+ * @param {string} seed
+ * @param {any} [overrides]
+ * @returns {Promise<any>}
+ */
+export async function createOldManager(version, seed, overrides = {}) {
+  const comapeoCorePreMigrationUrl = await import.meta.resolve?.(
+    '@comapeo/core' + version
+  )
+  assert(
+    comapeoCorePreMigrationUrl,
+    'Could not resolve @comapeo/core' + version
+  )
+
+  const { MapeoManager } = await import('@comapeo/core' + version)
+
+  return new MapeoManager({
     rootKey: getRootKey(seed),
     clientMigrationsFolder: fileURLToPath(
       new URL('../drizzle/client', comapeoCorePreMigrationUrl)
@@ -309,7 +342,7 @@ export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
 /**
  * @param {string} seed
  * @param {import('node:test').TestContext} t
- * @param {Partial<ConstructorParameters<typeof MapeoManager_2_0_1>[0]>} [overrides]
+ * @param {Partial<ConstructorParameters<typeof import('@comapeo/core2.0.1').MapeoManager>[0]>} [overrides]
  * @returns {Promise<ReturnType<typeof createMapeoClient>>}
  */
 export async function createIpcManager(seed, t, overrides = {}) {

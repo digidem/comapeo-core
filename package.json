@@ -110,6 +110,7 @@
     "@bufbuild/buf": "^1.26.1",
     "@comapeo/cloud": "^0.2.1",
     "@comapeo/core2.0.1": "npm:@comapeo/core@2.0.1",
+    "@comapeo/core4.1.4": "npm:@comapeo/core@^4.1.4",
     "@comapeo/ipc": "^2.1.0",
     "@mapeo/default-config": "5.0.0",
     "@mapeo/mock-data": "^5.0.0",
