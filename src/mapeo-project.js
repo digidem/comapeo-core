@@ -97,6 +97,7 @@ export const kClearDataIfLeft = Symbol('clear data if left project')
 export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 export const kGeoJSONFileName = Symbol('geoJSONFileName')
+export const kWaitForDataStoresIdle = Symbol('waitForDataStoresIdle')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({})
 
@@ -1353,6 +1354,16 @@ export class MapeoProject extends TypedEmitter {
       const isAuthSchema = authSchemas.has(schemaName)
       if (!isAuthSchema) await this.#indexWriter.deleteSchema(schemaName)
     }
+  }
+
+  /**
+   * Wait for the datastore to flush data to the indexer fully
+   * @returns {Promise<void>}
+   */
+  async [kWaitForDataStoresIdle]() {
+    await Promise.all(
+      Object.values(this.#dataStores).map((store) => store.waitIdle())
+    )
   }
 
   /** @param {Object} opts
