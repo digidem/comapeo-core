@@ -49,7 +49,7 @@ import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
-import { Roles } from './roles.js'
+import { Roles, BLOCKED_ROLE } from './roles.js'
 import { Logger } from './logger.js'
 import {
   kSyncState,
@@ -707,7 +707,9 @@ export class MapeoManager extends TypedEmitter {
       try {
         await this.#waitForInitialSync(project)
       } catch (e) {
-        this.#l.log('ERROR: could not do initial project sync', e)
+        // Needed for TS to allow e.stack 🙄
+        if (!(e instanceof Error)) throw e
+        this.#l.log('ERROR: could not do initial project sync', e.stack)
       }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
@@ -746,6 +748,8 @@ export class MapeoManager extends TypedEmitter {
     // in the config store - defining the name of the project.
     // TODO: Enforce adding a project name in the invite method
     const isConfigSynced = configState.want === 0 && configState.have > 0
+    // Blocked members only get auth cores
+    if (ownRole === BLOCKED_ROLE && isAuthSynced) return true
     if (
       isRoleSynced &&
       isProjectSettingsSynced &&
@@ -756,7 +760,8 @@ export class MapeoManager extends TypedEmitter {
     } else {
       this.#l.log(
         'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
-        isRoleSynced,
+        ownRole.name,
+        isProjectSettingsSynced,
         isAuthSynced,
         isConfigSynced
       )
@@ -770,7 +775,7 @@ export class MapeoManager extends TypedEmitter {
           return
         }
         project.$sync[kSyncState].off('state', onSyncState)
-        resolve(this.#waitForInitialSync(project, { timeoutMs }))
+        this.#waitForInitialSync(project, { timeoutMs }).then(resolve, reject)
       }
       const onTimeout = () => {
         project.$sync[kSyncState].off('state', onSyncState)
