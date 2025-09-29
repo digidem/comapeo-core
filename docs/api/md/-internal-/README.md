@@ -70,6 +70,7 @@
 - [Channel](interfaces/Channel.md)
 - [Context](interfaces/Context.md)
 - [CorestoreEvents](interfaces/CorestoreEvents.md)
+- [DerivedDocFields](interfaces/DerivedDocFields.md)
 - [DocCapability](interfaces/DocCapability.md)
 - [HaveMsg](interfaces/HaveMsg.md)
 - [HyperdriveEvents](interfaces/HyperdriveEvents.md)

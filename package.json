@@ -1,6 +1,6 @@
 {
   "name": "@comapeo/core",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",

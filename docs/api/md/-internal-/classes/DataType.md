@@ -36,7 +36,9 @@
 
 • **opts.db**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>\>
 
-• **opts.getTranslations**
+• **opts.getDeviceIdForVersionId**
+
+• **opts.getTranslations**: `undefined` \| (`value`) => `Promise`\<`object`[]\>
 
 • **opts.table**: `TTable`
 
@@ -92,7 +94,7 @@
 
 ### \[kCreateWithDocId\]()
 
-> **\[kCreateWithDocId\]**(`docId`, `value`, `opts`?): `Promise`\<`TDoc` & `object`\>
+> **\[kCreateWithDocId\]**(`docId`, `value`, `opts`?): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 #### Parameters
 
@@ -108,7 +110,7 @@ only used internally to skip the checkExisting check when creating a document wi
 
 #### Returns
 
-`Promise`\<`TDoc` & `object`\>
+`Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 ***
 
@@ -124,7 +126,7 @@ only used internally to skip the checkExisting check when creating a document wi
 
 ### create()
 
-> **create**\<`T`\>(`value`): `Promise`\<`TDoc` & `object`\>
+> **create**\<`T`\>(`value`): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 #### Type Parameters
 
@@ -136,13 +138,13 @@ only used internally to skip the checkExisting check when creating a document wi
 
 #### Returns
 
-`Promise`\<`TDoc` & `object`\>
+`Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 ***
 
 ### delete()
 
-> **delete**(`docId`): `Promise`\<`TDoc` & `object`\>
+> **delete**(`docId`): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 #### Parameters
 
@@ -150,13 +152,13 @@ only used internally to skip the checkExisting check when creating a document wi
 
 #### Returns
 
-`Promise`\<`TDoc` & `object`\>
+`Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 ***
 
 ### getByDocId()
 
-> **getByDocId**(`docId`, `options`?): `Promise`\<`TDoc` & `object`\>
+> **getByDocId**(`docId`, `options`?): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 #### Parameters
 
@@ -170,13 +172,13 @@ only used internally to skip the checkExisting check when creating a document wi
 
 #### Returns
 
-`Promise`\<`TDoc` & `object`\>
+`Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 ***
 
 ### getByVersionId()
 
-> **getByVersionId**(`versionId`, `opts`?): `Promise`\<`TDoc`\>
+> **getByVersionId**(`versionId`, `opts`?): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 #### Parameters
 
@@ -188,13 +190,13 @@ only used internally to skip the checkExisting check when creating a document wi
 
 #### Returns
 
-`Promise`\<`TDoc`\>
+`Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 ***
 
 ### getMany()
 
-> **getMany**(`opts`): `Promise`\<`TDoc` & `object`[]\>
+> **getMany**(`opts`): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)[]\>
 
 #### Parameters
 
@@ -206,13 +208,13 @@ only used internally to skip the checkExisting check when creating a document wi
 
 #### Returns
 
-`Promise`\<`TDoc` & `object`[]\>
+`Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)[]\>
 
 ***
 
 ### update()
 
-> **update**\<`T`\>(`versionId`, `value`): `Promise`\<`TDoc` & `object`\>
+> **update**\<`T`\>(`versionId`, `value`): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 #### Type Parameters
 
@@ -226,4 +228,4 @@ only used internally to skip the checkExisting check when creating a document wi
 
 #### Returns
 
-`Promise`\<`TDoc` & `object`\>
+`Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
