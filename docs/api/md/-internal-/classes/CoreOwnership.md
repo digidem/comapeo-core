@@ -38,7 +38,7 @@
 
 ### get()
 
-> **get**(`deviceId`): `Promise`\<`object` & `object`\>
+> **get**(`deviceId`): `Promise`\<`object` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 Get capabilities for a given deviceId
 
@@ -48,17 +48,17 @@ Get capabilities for a given deviceId
 
 #### Returns
 
-`Promise`\<`object` & `object`\>
+`Promise`\<`object` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 ***
 
 ### getAll()
 
-> **getAll**(): `Promise`\<`object` & `object`[]\>
+> **getAll**(): `Promise`\<`object` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)[]\>
 
 #### Returns
 
-`Promise`\<`object` & `object`[]\>
+`Promise`\<`object` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)[]\>
 
 ***
 

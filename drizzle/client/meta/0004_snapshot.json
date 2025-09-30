@@ -1,39 +1,9 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "a57dce0f-063c-47f6-b86b-4cc85722ad07",
+  "id": "2dec4710-70ac-4857-b889-2bc3586695ee",
   "prevId": "3b7b9e2d-3a35-47e3-977e-b5dcbe2fd302",
   "tables": {
-    "cores": {
-      "name": "cores",
-      "columns": {
-        "projectPublicId": {
-          "name": "projectPublicId",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "publicKey": {
-          "name": "publicKey",
-          "type": "blob",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "namespace": {
-          "name": "namespace",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
     "deviceSettings": {
       "name": "deviceSettings",
       "columns": {
@@ -125,7 +95,15 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'{}'"
+          "default": "'{\"sendStats\":false}'"
+        },
+        "hasLeftProject": {
+          "name": "hasLeftProject",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         }
       },
       "indexes": {},

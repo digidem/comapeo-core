@@ -11,7 +11,7 @@ import { NAMESPACES } from '../constants.js'
  * @import { ProjectSettings } from '@comapeo/schema'
  *
  * @internal
- * @typedef {Pick<ProjectSettings, 'name' | 'projectColor' | 'projectDescription'>} ProjectInfo
+ * @typedef {Pick<ProjectSettings, 'name' | 'projectColor' | 'projectDescription' | 'sendStats'>} ProjectInfo
  */
 
 const projectInfoColumn =
@@ -20,7 +20,7 @@ const projectInfoColumn =
   )
 
 /** @type {ProjectInfo} */
-const PROJECT_INFO_DEFAULT_VALUE = {}
+const PROJECT_INFO_DEFAULT_VALUE = { sendStats: false }
 
 export const projectSettingsTable = sqliteTable(
   'projectSettings',
@@ -30,7 +30,7 @@ export const projectBacklinkTable = backlinkTable(projectSettingsTable)
 export const projectKeysTable = sqliteTable('projectKeys', {
   projectId: text('projectId').notNull().primaryKey(),
   projectPublicId: text('projectPublicId').notNull(),
-  projectInviteId: blob('projectInviteId').notNull(),
+  projectInviteId: blob('projectInviteId', { mode: 'buffer' }).notNull(),
   keysCipher: blob('keysCipher', { mode: 'buffer' }).notNull(),
   projectInfo: projectInfoColumn('projectInfo')
     .default(
@@ -39,6 +39,9 @@ export const projectKeysTable = sqliteTable('projectKeys', {
       JSON.stringify(PROJECT_INFO_DEFAULT_VALUE)
     )
     .notNull(),
+  hasLeftProject: int('hasLeftProject', { mode: 'boolean' })
+    .notNull()
+    .default(false),
 })
 
 /**

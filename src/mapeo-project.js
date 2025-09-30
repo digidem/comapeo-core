@@ -2,7 +2,8 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { sql, count } from 'drizzle-orm'
+import { sql, count, eq } from 'drizzle-orm'
+import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
@@ -10,7 +11,7 @@ import mime from 'mime/lite'
 // @ts-expect-error
 import { Readable, pipelinePromise } from 'streamx'
 
-import { NAMESPACES, NAMESPACE_SCHEMAS, UNIX_EPOCH_DATE } from './constants.js'
+import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
@@ -93,13 +94,13 @@ export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
 export const kProjectLeave = Symbol('leave project')
-export const kClearDataIfLeft = Symbol('clear data if left project')
+export const kClearData = Symbol('clear project data')
 export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 export const kGeoJSONFileName = Symbol('geoJSONFileName')
 export const kWaitForDataStoresIdle = Symbol('waitForDataStoresIdle')
 
-const EMPTY_PROJECT_SETTINGS = Object.freeze({})
+const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
 
 /** @type BlobId['variant'][]*/
 const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
@@ -130,6 +131,7 @@ export class MapeoProject extends TypedEmitter {
   #loadingConfig
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
+  #getFallbackProjectInfo
 
   /**
    * @param {Object} opts
@@ -146,6 +148,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
+   * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
    * @param {Logger} [opts.logger]
    * @param {boolean} [opts.useIndexWorkers] if true, use a worker thread for each project for indexing cores to sqlite
    *
@@ -166,6 +169,7 @@ export class MapeoProject extends TypedEmitter {
     logger,
     isArchiveDevice,
     useIndexWorkers = false,
+    getFallbackProjectInfo,
   }) {
     super()
 
@@ -173,6 +177,7 @@ export class MapeoProject extends TypedEmitter {
     this.#deviceId = getDeviceId(keyManager)
     this.#projectKey = projectKey
     this.#loadingConfig = false
+    this.#getFallbackProjectInfo = getFallbackProjectInfo
 
     const getReplicationStream = this[kProjectReplicate].bind(this, true)
 
@@ -226,6 +231,11 @@ export class MapeoProject extends TypedEmitter {
 
     if (reindex) {
       for (const table of indexedTables) db.delete(table).run()
+
+      sharedDb
+        .delete(projectSettingsTable)
+        .where(eq(projectSettingsTable.docId, this.#projectId))
+        .run()
     }
 
     if (useIndexWorkers && !this.#sqlite.memory) {
@@ -690,7 +700,12 @@ export class MapeoProject extends TypedEmitter {
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
     } catch (e) {
-      return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
+      // if (e instanceof Error && e.name !== 'NotFoundError') throw e
+      // If the project has not completed an initial sync, project settings will
+      // not be available, so use fallback project info which is set from the
+      // invite that was used to join the project.
+      const fallbackInfo = this.#getFallbackProjectInfo()
+      return fallbackInfo || EMPTY_PROJECT_SETTINGS
     }
   }
 
@@ -699,11 +714,9 @@ export class MapeoProject extends TypedEmitter {
    */
   async $hasSyncedProjectSettings() {
     try {
-      const settings = await this.#dataTypes.projectSettings.getByDocId(
-        this.#projectId
-      )
-
-      return settings.createdAt !== UNIX_EPOCH_DATE
+      // Should error if we haven't synced before
+      await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
+      return true
     } catch (e) {
       return false
     }
@@ -1313,19 +1326,14 @@ export class MapeoProject extends TypedEmitter {
 
     await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
 
-    await this[kClearDataIfLeft]()
+    await this[kClearData]()
   }
 
   /**
-   * Clear data if we've left the project. No-op if you're still in the project.
+   * Clear synced data, but keep auth data and own data
    * @returns {Promise<void>}
    */
-  async [kClearDataIfLeft]() {
-    const role = await this.$getOwnRole()
-    if (role.roleId !== LEFT_ROLE_ID) {
-      return
-    }
-
+  async [kClearData]() {
     const namespacesWithoutAuth =
       /** @satisfies {Exclude<Namespace, 'auth'>[]} */ ([
         'config',

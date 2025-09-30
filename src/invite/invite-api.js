@@ -126,6 +126,7 @@ export class InviteApi extends TypedEmitter {
       projectName,
       projectColor,
       projectDescription,
+      sendStats,
     } = inviteRpcMessage
     const invite = { ...inviteRpcMessage, receivedAt: Date.now() }
 
@@ -161,6 +162,7 @@ export class InviteApi extends TypedEmitter {
               projectName,
               projectColor,
               projectDescription,
+              sendStats,
             })
           }),
         },

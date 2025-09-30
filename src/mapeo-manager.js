@@ -4,7 +4,6 @@ import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
@@ -14,7 +13,7 @@ import { IndexWriterWrapper as IndexWriter } from './index-writer/index.js'
 import {
   MapeoProject,
   kBlobStore,
-  kClearDataIfLeft,
+  kClearData,
   kProjectLeave,
   kSetIsArchiveDevice,
   kSetOwnDeviceInfo,
@@ -38,7 +37,6 @@ import {
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
-import { UNIX_EPOCH_DATE } from './constants.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
@@ -58,16 +56,20 @@ import {
 } from './sync/sync-api.js'
 import { NotFoundError } from './errors.js'
 import { WebSocket } from 'ws'
+import { excludeKeys } from 'filter-obj'
+import { migrate } from './lib/drizzle-helpers.js'
 
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { ProjectJoinDetails, } from './generated/rpc.js' */
 /** @import { CoreStorage, Namespace } from './types.js' */
 /** @import { DeviceInfoParam, ProjectInfo } from './schema/client.js' */
+/** @import { ProjectSettings, ProjectSettingsValue } from '@comapeo/schema' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
-/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string }} ProjectToAddDetails */
-/** @typedef {{ projectId: string, createdAt?: string, updatedAt?: string, name?: string, projectColor?: string, projectDescription?: string }} ListedProject */
+/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean }} ProjectToAddDetails */
+/** @typedef {Pick<ProjectSettings, 'createdAt' | 'updatedAt' | 'name' | 'projectColor' | 'projectDescription' | 'sendStats'>} ListedProjectSettings */
+/** @typedef {ListedProjectSettings & { status: 'joined', projectId: string } | ProjectInfo & { status: 'joining' | 'left', projectId: string }} ListedProject */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -178,7 +180,12 @@ export class MapeoManager extends TypedEmitter {
     )
     sqlite.pragma('journal_mode=WAL')
     this.#db = drizzle(sqlite, { schema: clientSchema })
-    migrate(this.#db, { migrationsFolder: clientMigrationsFolder })
+    migrate(this.#db, {
+      migrationsFolder: clientMigrationsFolder,
+      migrationFns: {
+        '0004_glorious_shape': this.#migrateLeftProjects.bind(this),
+      },
+    })
 
     this.#localPeers = new LocalPeers({ logger })
     this.#localPeers.on('peers', (peers) => {
@@ -343,22 +350,55 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @param {Object} opts
-   * @param {string} opts.projectId
-   * @param {string} opts.projectPublicId
-   * @param {Readonly<Buffer>} opts.projectInviteId
-   * @param {ProjectKeys} opts.projectKeys
-   * @param {Readonly<ProjectInfo>} [opts.projectInfo]
+   * The migration in file `0005_military_paper_doll.sql` adds a new
+   * `hasLeftProject` that is used to track if a user has left a project.
+   * Previously we did not have a way to track if a user had left a project,
+   * other than checking their own role within a project. However, we can also
+   * use the presence of an encryption key for the data cores as an indication
+   * of whether a user has left, because we delete this as part of the leave
+   * process, and we do not, prior to this migration, have any code which
+   * deletes that for other reasons.
    */
-  #saveToProjectKeysTable({
-    projectId,
-    projectPublicId,
-    projectInviteId,
-    projectKeys,
-    projectInfo,
-  }) {
+  #migrateLeftProjects() {
+    const existingProjectKeys = this.#db
+      .select({
+        projectId: projectKeysTable.projectId,
+        hasLeftProject: projectKeysTable.hasLeftProject,
+        keysCipher: projectKeysTable.keysCipher,
+      })
+      .from(projectKeysTable)
+      .all()
+    /** @type {{ projectId: string, hasLeftProject: boolean }[]} */
+    const toMigrate = []
+    for (const {
+      projectId,
+      hasLeftProject,
+      keysCipher,
+    } of existingProjectKeys) {
+      if (hasLeftProject) continue
+      const projectKeys = this.#decodeProjectKeysCipher(keysCipher, projectId)
+      if (projectKeys.encryptionKeys && !projectKeys.encryptionKeys.data) {
+        toMigrate.push({ projectId, hasLeftProject: true })
+      }
+    }
+    if (toMigrate.length === 0) return
+    this.#db.transaction((tx) => {
+      for (const { projectId, hasLeftProject } of toMigrate) {
+        tx.update(projectKeysTable)
+          .set({ hasLeftProject })
+          .where(eq(projectKeysTable.projectId, projectId))
+          .run()
+      }
+    })
+  }
+
+  /**
+   * Helper to encrypt project keys when saving to the projectKeys table
+   * @param {Omit<typeof projectKeysTable.$inferInsert, 'keysCipher'> & { projectKeys: ProjectKeys }} opts
+   */
+  #saveToProjectKeysTable({ projectKeys, ...values }) {
     const encoded = ProjectKeys.encode(projectKeys).finish()
-    const nonce = projectIdToNonce(projectId)
+    const nonce = projectIdToNonce(values.projectId)
 
     const keysCipher = this.#keyManager.encryptLocalMessage(
       Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength),
@@ -368,15 +408,12 @@ export class MapeoManager extends TypedEmitter {
     this.#db
       .insert(projectKeysTable)
       .values({
-        projectId,
-        projectPublicId,
-        projectInviteId,
         keysCipher,
-        projectInfo,
+        ...values,
       })
       .onConflictDoUpdate({
         target: projectKeysTable.projectId,
-        set: { projectPublicId, projectInviteId, keysCipher, projectInfo },
+        set: { keysCipher, ...values },
       })
       .run()
   }
@@ -486,6 +523,7 @@ export class MapeoManager extends TypedEmitter {
       .select({
         projectId: projectKeysTable.projectId,
         keysCipher: projectKeysTable.keysCipher,
+        hasLeftProject: projectKeysTable.hasLeftProject,
       })
       .from(projectKeysTable)
       .where(eq(projectKeysTable.projectPublicId, projectPublicId))
@@ -503,6 +541,13 @@ export class MapeoManager extends TypedEmitter {
     )
 
     const project = await this.#createProjectInstance(projectKeys)
+    // The leaveProject action could fail before completing, which would mean
+    // that data would not be cleared. To be safe, attempt to clear data when
+    // trying to create a project instance if we have marked the project as
+    // "left".
+    if (projectKeysTableResult.hasLeftProject) {
+      await project[kClearData]()
+    }
 
     project.once('close', () => {
       this.#activeProjects.delete(projectPublicId)
@@ -532,15 +577,22 @@ export class MapeoManager extends TypedEmitter {
       isArchiveDevice,
       makeWebsocket: this.#makeWebsocket,
       useIndexWorkers: this.#useIndexWorkers,
+      getFallbackProjectInfo: () => {
+        return this.#db
+          .select({ projectInfo: projectKeysTable.projectInfo })
+          .from(projectKeysTable)
+          .where(eq(projectKeysTable.projectId, projectId))
+          .get()?.projectInfo
+      },
     })
-    await project[kClearDataIfLeft]()
     return project
   }
 
   /**
+   * @param {{ includeLeft?: boolean }} [opts]
    * @returns {Promise<Array<ListedProject>>}
    */
-  async listProjects() {
+  async listProjects({ includeLeft = false } = {}) {
     // We use the project keys table as the source of truth for projects that exist
     // because we will always update this table when doing a create or add
     // whereas the project table will only have projects that have been created, or added + synced
@@ -549,21 +601,27 @@ export class MapeoManager extends TypedEmitter {
         projectId: projectKeysTable.projectId,
         projectPublicId: projectKeysTable.projectPublicId,
         projectInfo: projectKeysTable.projectInfo,
+        hasLeftProject: projectKeysTable.hasLeftProject,
       })
       .from(projectKeysTable)
       .all()
 
-    const allProjectsResult = this.#db
-      .select({
-        projectId: projectSettingsTable.docId,
-        createdAt: projectSettingsTable.createdAt,
-        updatedAt: projectSettingsTable.updatedAt,
-        name: projectSettingsTable.name,
-        projectColor: projectSettingsTable.projectColor,
-        projectDescription: projectSettingsTable.projectDescription,
-      })
-      .from(projectSettingsTable)
-      .all()
+    const allProjectSettingsResult =
+      /** @satisfies {Array<ListedProjectSettings>} */ (
+        this.#db
+          .select({
+            docId: projectSettingsTable.docId,
+            createdAt: projectSettingsTable.createdAt,
+            updatedAt: projectSettingsTable.updatedAt,
+            name: projectSettingsTable.name,
+            projectColor: projectSettingsTable.projectColor,
+            projectDescription: projectSettingsTable.projectDescription,
+            sendStats: projectSettingsTable.sendStats,
+          })
+          .from(projectSettingsTable)
+          .all()
+          .map((p) => deNullify(p))
+      )
 
     /** @type {Array<ListedProject>} */
     const result = []
@@ -572,26 +630,31 @@ export class MapeoManager extends TypedEmitter {
       projectId,
       projectPublicId,
       projectInfo,
+      hasLeftProject,
     } of allProjectKeysResult) {
-      const existingProject = allProjectsResult.find(
-        (p) => p.projectId === projectId
+      const projectSettings = allProjectSettingsResult.find(
+        (p) => p.docId === projectId
       )
 
-      if (!existingProject) continue
-
-      result.push(
-        deNullify({
+      if (hasLeftProject && includeLeft) {
+        result.push({
+          ...projectInfo,
           projectId: projectPublicId,
-          createdAt: ignoreUnixDate(existingProject?.createdAt),
-          updatedAt: ignoreUnixDate(existingProject?.updatedAt),
-          name: existingProject?.name || projectInfo.name,
-          projectColor:
-            existingProject?.projectColor || projectInfo.projectColor,
-          projectDescription:
-            existingProject?.projectDescription ||
-            projectInfo.projectDescription,
+          status: 'left',
         })
-      )
+      } else if (projectSettings) {
+        result.push({
+          ...excludeKeys(projectSettings, ['docId']),
+          projectId: projectPublicId,
+          status: 'joined',
+        })
+      } else if (!hasLeftProject) {
+        result.push({
+          ...projectInfo,
+          projectId: projectPublicId,
+          status: 'joining',
+        })
+      }
     }
 
     return result
@@ -613,6 +676,7 @@ export class MapeoManager extends TypedEmitter {
       projectName,
       projectColor,
       projectDescription,
+      sendStats = false,
     },
     { waitForSync = true } = {}
   ) => {
@@ -637,6 +701,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
 
     if (projectExists) {
+      // TODO: Define behavior for adding a project that the user has left
       throw new Error(`Project with ID ${projectPublicId} already exists`)
     }
 
@@ -651,7 +716,12 @@ export class MapeoManager extends TypedEmitter {
         projectKey,
         encryptionKeys,
       },
-      projectInfo: { name: projectName, projectColor, projectDescription },
+      projectInfo: {
+        name: projectName,
+        projectColor,
+        projectDescription,
+        sendStats,
+      },
     })
 
     // Any errors from here we need to remove project from db because it has not
@@ -659,24 +729,6 @@ export class MapeoManager extends TypedEmitter {
     let project = null
     try {
       project = await this.getProject(projectPublicId)
-
-      /** @type {import('drizzle-orm').InferInsertModel<typeof projectSettingsTable>} */
-      const settingsDoc = {
-        schemaName: 'projectSettings',
-        docId: projectId,
-        versionId: 'unknown',
-        originalVersionId: 'unknown',
-        createdAt: UNIX_EPOCH_DATE,
-        updatedAt: UNIX_EPOCH_DATE,
-        deleted: false,
-        sendStats: false,
-        links: [],
-        forks: [],
-        name: projectName,
-        projectDescription,
-      }
-
-      await this.#db.insert(projectSettingsTable).values([settingsDoc])
       this.#activeProjects.set(projectPublicId, project)
     } catch (e) {
       // Only happens if getProject or the the DB insert fails
@@ -964,10 +1016,6 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} projectPublicId
    */
   async leaveProject(projectPublicId) {
-    const project = await this.getProject(projectPublicId)
-
-    await project[kProjectLeave]()
-
     const row = this.#db
       .select({
         keysCipher: projectKeysTable.keysCipher,
@@ -1001,12 +1049,17 @@ export class MapeoManager extends TypedEmitter {
         ...projectKeys,
         encryptionKeys: updatedEncryptionKeys,
       },
+      hasLeftProject: true,
     })
 
     this.#db
       .delete(projectSettingsTable)
       .where(eq(projectSettingsTable.docId, projectId))
       .run()
+
+    const project = await this.getProject(projectPublicId)
+
+    await project[kProjectLeave]()
 
     this.#activeProjects.delete(projectPublicId)
   }
@@ -1051,14 +1104,4 @@ function validateProjectKeys(projectKeys) {
  */
 function hasSavedDeviceInfo(partialDeviceInfo) {
   return Boolean(partialDeviceInfo.name)
-}
-
-/**
- * @param {string|undefined} date
- * @returns {string|null}
- */
-function ignoreUnixDate(date) {
-  if (date === UNIX_EPOCH_DATE) return null
-  if (date === undefined) return null
-  return date
 }

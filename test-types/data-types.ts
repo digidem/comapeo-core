@@ -44,6 +44,7 @@ const mapeoProject = new MapeoProject({
   getMediaBaseUrl: async (mediaType: 'blobs' | 'icons') =>
     `http://127.0.0.1:8080/${mediaType}`,
   localPeers: new LocalPeers(),
+  getFallbackProjectInfo: () => ({ sendStats: false }),
 })
 
 ///// Observations
