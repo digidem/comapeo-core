@@ -29,7 +29,6 @@ const getNumberResult = (queryResult) => {
  *
  * @template {Record<string, unknown>} TSchema
  * @param {BetterSQLite3Database<TSchema>} db
- * @param {string} tableName
  * @returns {number}
  */
 const safeGetLatestMigrationMillis = (db) =>
@@ -69,7 +68,7 @@ const safeGetLatestMigrationMillis = (db) =>
  * @param {BetterSQLite3Database<TSchema>} db
  * @param {object} options
  * @param {string} options.migrationsFolder
- * @param {Record<string, (db: BetterSQLite3Database) => void>} [options.migrationFns]
+ * @param {Record<string, (db: BetterSQLite3Database<TSchema>) => void>} [options.migrationFns]
  * @returns {MigrationResult}
  */
 export function migrate(db, { migrationsFolder, migrationFns = {} }) {
@@ -155,6 +154,7 @@ export function migrateCoresTable({ clientDb, projectDb, projectPublicId }) {
   )
 }
 
+/**
  * Assert that the migration journal is the expected format.
  * @param {unknown} journal
  * @returns {asserts journal is { version: '5', entries: { tag: string, when: number }[] }}
