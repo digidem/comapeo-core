@@ -277,7 +277,8 @@ test('Consistent loading of config', async (t) => {
 })
 
 test('Managing added projects', async (t) => {
-  const manager = createManager('test', t)
+  // Workers init slower than this test and lead to race conditions
+  const manager = createManager('test', t, { useIndexWorkers: false })
 
   const project1Id = await manager.addProject(
     {
