@@ -2,7 +2,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
 import { debounce } from 'throttle-debounce'
 import assert from 'node:assert/strict'
-import { sql, eq } from 'drizzle-orm'
+import { sql, eq, and } from 'drizzle-orm'
 
 import {
   HaveExtension,
@@ -11,8 +11,8 @@ import {
 } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { noop } from '../utils.js'
-import { coresTable } from '../schema/project.js'
+import { noop, projectKeyToPublicId } from '../utils.js'
+import { coresTable } from '../schema/client.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 import mapObject from 'map-obj'
@@ -59,7 +59,7 @@ export class CoreManager extends TypedEmitter {
 
   /**
    * @param {Object} options
-   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} options.db Drizzle better-sqlite3 database instance
+   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database<import('../schema/client.js')>} options.db Drizzle better-sqlite3 database instance
    * @param {import('@mapeo/crypto').KeyManager} options.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} options.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
@@ -95,11 +95,14 @@ export class CoreManager extends TypedEmitter {
     this.#encryptionKeys = encryptionKeys
     this.#autoDownload = autoDownload
 
+    const projectPublicId = projectKeyToPublicId(projectKey)
+
     // Pre-prepare SQL statement for better performance
     this.#queries = {
       addCore: db
         .insert(coresTable)
         .values({
+          projectPublicId,
           publicKey: sql.placeholder('publicKey'),
           namespace: sql.placeholder('namespace'),
         })
@@ -107,7 +110,12 @@ export class CoreManager extends TypedEmitter {
         .prepare(),
       removeCores: db
         .delete(coresTable)
-        .where(eq(coresTable.namespace, sql.placeholder('namespace')))
+        .where(
+          and(
+            eq(coresTable.namespace, sql.placeholder('namespace')),
+            eq(coresTable.projectPublicId, projectPublicId)
+          )
+        )
         .prepare(),
     }
 

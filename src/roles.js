@@ -102,7 +102,7 @@ export const CREATOR_ROLE = {
 /**
  * @type {Role<typeof BLOCKED_ROLE_ID>}
  */
-const BLOCKED_ROLE = {
+export const BLOCKED_ROLE = {
   roleId: BLOCKED_ROLE_ID,
   name: 'Blocked',
   docs: mapObject(currentSchemaVersions, (key) => {
