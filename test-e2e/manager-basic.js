@@ -449,7 +449,7 @@ test('Consistent storage folders', async (t) => {
 test('Reusing port after start/stop of discovery', async (t) => {
   const manager = createManager('test', t)
 
-  t.after(() => manager.stopLocalPeerDiscoveryServer())
+  t.after(() => manager.stopLocalPeerDiscoveryServer({ force: true }))
 
   const { port } = await manager.startLocalPeerDiscoveryServer()
 
