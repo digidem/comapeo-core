@@ -15,6 +15,7 @@ import { Worker, MessageChannel } from 'node:worker_threads'
 import { setTimeout as delay } from 'node:timers/promises'
 
 import { MapeoManager, roles } from '../src/index.js'
+import { kWaitForDataStoresIdle } from '../src/mapeo-project.js'
 import { generate } from '@mapeo/mock-data'
 import { ExhaustivenessError, valueOf } from '../src/utils.js'
 import { createHash, randomBytes, randomInt } from 'node:crypto'
@@ -215,12 +216,14 @@ export async function waitForPeers(
  * @param {T} count
  * @param {import('node:test').TestContext} t
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
+ * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]>} [overrides]
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
 export async function createManagers(
   count,
   t,
-  deviceType = 'device_type_unspecified'
+  deviceType = 'device_type_unspecified',
+  overrides = {}
 ) {
   // @ts-ignore
   return Promise.all(
@@ -228,7 +231,7 @@ export async function createManagers(
       .fill(null)
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
-        const manager = createManager(name, t)
+        const manager = createManager(name, t, overrides)
         await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
@@ -245,14 +248,17 @@ export function createManager(seed, t, overrides = {}) {
   /** @type {string} */ let dbFolder
   /** @type {string | import('../src/types.js').CoreStorage} */ let coreStorage
 
+  /* @returns {Promise<void>}**/
+  let closeDirs = () => Promise.resolve()
+
   if (FAST_TESTS) {
     dbFolder = ':memory:'
     coreStorage = () => new RAM()
   } else {
     const directories = [temporaryDirectory(), temporaryDirectory()]
     ;[dbFolder, coreStorage] = directories
-    t.after(() =>
-      Promise.all(
+    closeDirs = async () => {
+      await Promise.all(
         directories.map((dir) =>
           fsPromises.rm(dir, {
             recursive: true,
@@ -261,22 +267,30 @@ export function createManager(seed, t, overrides = {}) {
           })
         )
       )
-    )
+    }
   }
 
   const fastify = Fastify()
   fastify.listen()
-  t.after(() => fastify.close())
 
-  return new MapeoManager({
+  const manager = new MapeoManager({
     rootKey: getRootKey(seed),
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder,
     coreStorage,
     fastify,
+    useIndexWorkers: true,
     ...overrides,
   })
+
+  t.after(async () => {
+    await manager.close()
+    await fastify.close()
+    await closeDirs()
+  })
+
+  return manager
 }
 
 /**
@@ -578,13 +592,17 @@ async function waitForProjectSync(project, peerIds, type = 'initial') {
   if (hasPeerIds(state.auth.remoteStates, peerIds)) {
     return project.$sync.waitForSync(type)
   }
-  return new Promise((res) => {
+  const result = await new Promise((res) => {
     project.$sync[kSyncState].on('state', function onState(state) {
       if (!hasPeerIds(state.auth.remoteStates, peerIds)) return
       project.$sync[kSyncState].off('state', onState)
       res(project.$sync.waitForSync(type))
     })
   })
+
+  await project[kWaitForDataStoresIdle]()
+
+  return result
 }
 
 /**

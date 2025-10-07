@@ -8,8 +8,8 @@ import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
 import { createRequire } from 'module'
-
-import { IndexWriter } from './index-writer/index.js'
+import * as clientSchema from './schema/client.js'
+import { IndexWriterWrapper as IndexWriter } from './index-writer/index.js'
 import {
   MapeoProject,
   kBlobStore,
@@ -47,7 +47,7 @@ import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
-import { Roles } from './roles.js'
+import { Roles, BLOCKED_ROLE } from './roles.js'
 import { Logger } from './logger.js'
 import {
   kSyncState,
@@ -110,6 +110,7 @@ export class MapeoManager extends TypedEmitter {
   #keyManager
   #projectSettingsIndexWriter
   #db
+  #sqlite
   // Maps project public id -> project instance
   /** @type {Map<string, MapeoProject>} */
   #activeProjects
@@ -127,6 +128,7 @@ export class MapeoManager extends TypedEmitter {
   #l
   #defaultConfigPath
   #makeWebsocket
+  #useIndexWorkers
   #defaultIsArchiveDevice
 
   /**
@@ -143,6 +145,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    * @param {boolean} [opts.defaultIsArchiveDevice] Whether the node is an archive device by default
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
+   * @param {boolean} [opts.useIndexWorkers] if true, use a worker thread for each project for indexing cores to sqlite
    */
   constructor({
     rootKey,
@@ -157,6 +160,7 @@ export class MapeoManager extends TypedEmitter {
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
     defaultIsArchiveDevice = DEFAULT_IS_ARCHIVE_DEVICE,
     makeWebsocket = (url) => new WebSocket(url),
+    useIndexWorkers = false,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
@@ -168,19 +172,23 @@ export class MapeoManager extends TypedEmitter {
     this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
     this.#projectMigrationsFolder = projectMigrationsFolder
+    this.#useIndexWorkers = useIndexWorkers
+
     const sqlite = new Database(
       dbFolder === ':memory:'
         ? ':memory:'
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
     sqlite.pragma('journal_mode=WAL')
-    this.#db = drizzle(sqlite)
+    this.#db = drizzle(sqlite, { schema: clientSchema })
     migrate(this.#db, {
       migrationsFolder: clientMigrationsFolder,
       migrationFns: {
         '0004_glorious_shape': this.#migrateLeftProjects.bind(this),
       },
     })
+
+    this.#sqlite = sqlite
 
     this.#localPeers = new LocalPeers({ logger })
     this.#localPeers.on('peers', (peers) => {
@@ -571,6 +579,7 @@ export class MapeoManager extends TypedEmitter {
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
       isArchiveDevice,
       makeWebsocket: this.#makeWebsocket,
+      useIndexWorkers: this.#useIndexWorkers,
       getFallbackProjectInfo: () => {
         return this.#db
           .select({ projectInfo: projectKeysTable.projectInfo })
@@ -734,6 +743,10 @@ export class MapeoManager extends TypedEmitter {
       throw e
     }
 
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+    })
+
     try {
       const deviceInfo = this.getDeviceInfo()
       if (hasSavedDeviceInfo(deviceInfo)) {
@@ -753,7 +766,9 @@ export class MapeoManager extends TypedEmitter {
       try {
         await this.#waitForInitialSync(project)
       } catch (e) {
-        this.#l.log('ERROR: could not do initial project sync', e)
+        // Needed for TS to allow e.stack 🙄
+        if (!(e instanceof Error)) throw e
+        this.#l.log('ERROR: could not do initial project sync', e.stack)
       }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
@@ -792,6 +807,8 @@ export class MapeoManager extends TypedEmitter {
     // in the config store - defining the name of the project.
     // TODO: Enforce adding a project name in the invite method
     const isConfigSynced = configState.want === 0 && configState.have > 0
+    // Blocked members only get auth cores
+    if (ownRole === BLOCKED_ROLE && isAuthSynced) return true
     if (
       isRoleSynced &&
       isProjectSettingsSynced &&
@@ -802,7 +819,8 @@ export class MapeoManager extends TypedEmitter {
     } else {
       this.#l.log(
         'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
-        isRoleSynced,
+        ownRole.name,
+        isProjectSettingsSynced,
         isAuthSynced,
         isConfigSynced
       )
@@ -816,7 +834,7 @@ export class MapeoManager extends TypedEmitter {
           return
         }
         project.$sync[kSyncState].off('state', onSyncState)
-        resolve(this.#waitForInitialSync(project, { timeoutMs }))
+        this.#waitForInitialSync(project, { timeoutMs }).then(resolve, reject)
       }
       const onTimeout = () => {
         project.$sync[kSyncState].off('state', onSyncState)
@@ -1056,6 +1074,18 @@ export class MapeoManager extends TypedEmitter {
   async getMapStyleJsonUrl() {
     await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
     return (await this.#getMediaBaseUrl('maps')) + '/style.json'
+  }
+
+  /**
+   * Cleans up open resorces and closes open projects
+   * @returns {Promise<void>}
+   */
+  async close() {
+    await this.#projectSettingsIndexWriter.close()
+    await Promise.all(
+      [...this.#activeProjects.values()].map((project) => project.close())
+    )
+    this.#sqlite.close()
   }
 }
 
