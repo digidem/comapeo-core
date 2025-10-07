@@ -110,6 +110,7 @@ export class MapeoManager extends TypedEmitter {
   #keyManager
   #projectSettingsIndexWriter
   #db
+  #sqlite
   // Maps project public id -> project instance
   /** @type {Map<string, MapeoProject>} */
   #activeProjects
@@ -186,6 +187,8 @@ export class MapeoManager extends TypedEmitter {
         '0004_glorious_shape': this.#migrateLeftProjects.bind(this),
       },
     })
+
+    this.#sqlite = sqlite
 
     this.#localPeers = new LocalPeers({ logger })
     this.#localPeers.on('peers', (peers) => {
@@ -740,6 +743,10 @@ export class MapeoManager extends TypedEmitter {
       throw e
     }
 
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+    })
+
     try {
       const deviceInfo = this.getDeviceInfo()
       if (hasSavedDeviceInfo(deviceInfo)) {
@@ -1067,6 +1074,18 @@ export class MapeoManager extends TypedEmitter {
   async getMapStyleJsonUrl() {
     await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
     return (await this.#getMediaBaseUrl('maps')) + '/style.json'
+  }
+
+  /**
+   * Cleans up open resorces and closes open projects
+   * @returns {Promise<void>}
+   */
+  async close() {
+    await this.#projectSettingsIndexWriter.close()
+    await Promise.all(
+      [...this.#activeProjects.values()].map((project) => project.close())
+    )
+    this.#sqlite.close()
   }
 }
 

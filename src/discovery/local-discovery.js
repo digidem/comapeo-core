@@ -290,9 +290,8 @@ export class LocalDiscovery extends TypedEmitter {
   async #stop({ force = false, timeout = 0 } = {}) {
     this.#log('stopping')
     const port = this.#port
-    this.#server.close()
     const closePromise = once(this.#server, 'close')
-
+    this.#server.close()
     const forceClose = () => {
       for (const socket of this.#noiseConnections.values()) {
         socket.destroy()
@@ -311,6 +310,7 @@ export class LocalDiscovery extends TypedEmitter {
         fallback: forceClose,
       })
     }
+
     this.#log(`stopped for ${port}`)
   }
 }

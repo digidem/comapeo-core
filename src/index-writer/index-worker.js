@@ -38,6 +38,11 @@ if (!parentPort) {
 }
 
 parentPort.on('message', handleMessage)
+parentPort.start()
+// Message queuing on the parentPort isn't happening
+// This lets the worker proxy know we can get messages
+const readyData = { id: -1, data: null }
+parentPort.postMessage(readyData)
 
 /**
  * @param {ExpectedRequestMessage} msg

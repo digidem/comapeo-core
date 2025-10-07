@@ -32,6 +32,7 @@ import { pEvent } from 'p-event'
 export class IndexWriterProxy {
   #worker
   #nextId = 0
+  #onLoaded
 
   /**
    *
@@ -55,6 +56,10 @@ export class IndexWriterProxy {
     }
     this.#worker = new Worker(new URL('./index-worker.js', import.meta.url), {
       workerData,
+    })
+    this.#onLoaded = pEvent(this.#worker, 'message', {
+      // Signifies "ready"
+      filter: (msg) => msg.id === -1,
     })
     this.#worker.unref()
   }
@@ -123,6 +128,7 @@ export class IndexWriterProxy {
    * @returns {Promise<void>}
    */
   async close() {
+    await this.#onLoaded
     await this.#workerRequest('close', null)
   }
 }

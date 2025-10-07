@@ -579,9 +579,7 @@ export class MapeoProject extends TypedEmitter {
     }
     await Promise.all(dataStorePromises)
     await this.#coreManager.close()
-
     await this.#indexWriter.close()
-
     this.#sqlite.close()
 
     this.emit('close')
