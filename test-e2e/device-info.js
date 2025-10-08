@@ -1,30 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'crypto'
-import { KeyManager } from '@mapeo/crypto'
-import RAM from 'random-access-memory'
-import Fastify from 'fastify'
 import { pEvent } from 'p-event'
-import { connectPeers, createManagers, waitForPeers } from './utils.js'
 
-import { MapeoManager } from '../src/mapeo-manager.js'
+import {
+  connectPeers,
+  createManagers,
+  createManager,
+  waitForPeers,
+} from './utils.js'
 
-const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
-  .pathname
-const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
-  .pathname
-
-test('write and read deviceInfo', async () => {
-  const fastify = Fastify()
-  const rootKey = KeyManager.generateRootKey()
-  const manager = new MapeoManager({
-    rootKey,
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify,
-  })
+test('write and read deviceInfo', async (t) => {
+  const manager = createManager('test', t)
 
   await manager.setDeviceInfo({ name: 'my device', deviceType: 'tablet' })
   assert.deepEqual(manager.getDeviceInfo(), {
@@ -55,15 +42,7 @@ test('write and read deviceInfo', async () => {
 
 test('device info written to projects', async (t) => {
   await t.test('when creating project', async () => {
-    const fastify = Fastify()
-    const manager = new MapeoManager({
-      rootKey: KeyManager.generateRootKey(),
-      projectMigrationsFolder,
-      clientMigrationsFolder,
-      dbFolder: ':memory:',
-      coreStorage: () => new RAM(),
-      fastify,
-    })
+    const manager = createManager('test', t)
 
     await manager.setDeviceInfo({ name: 'mapeo', deviceType: 'tablet' })
 
@@ -78,15 +57,7 @@ test('device info written to projects', async (t) => {
   })
 
   await t.test('when adding project', async () => {
-    const fastify = Fastify()
-    const manager = new MapeoManager({
-      rootKey: KeyManager.generateRootKey(),
-      projectMigrationsFolder,
-      clientMigrationsFolder,
-      dbFolder: ':memory:',
-      coreStorage: () => new RAM(),
-      fastify,
-    })
+    const manager = createManager('test', t)
 
     await manager.setDeviceInfo({ name: 'mapeo', deviceType: 'tablet' })
 
@@ -108,15 +79,7 @@ test('device info written to projects', async (t) => {
   })
 
   await t.test('after updating global device info', async () => {
-    const fastify = Fastify()
-    const manager = new MapeoManager({
-      rootKey: KeyManager.generateRootKey(),
-      projectMigrationsFolder,
-      clientMigrationsFolder,
-      dbFolder: ':memory:',
-      coreStorage: () => new RAM(),
-      fastify,
-    })
+    const manager = createManager('test', t)
 
     await manager.setDeviceInfo({ name: 'before', deviceType: 'tablet' })
 
