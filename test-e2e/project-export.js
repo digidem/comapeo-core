@@ -1,8 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager } from '@mapeo/crypto'
-import RAM from 'random-access-memory'
-import Fastify from 'fastify'
 import * as b4a from 'b4a'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
@@ -12,7 +9,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createReadStream } from 'node:fs'
 
-import { MapeoManager } from '../src/mapeo-manager.js'
+import { createManager } from './utils.js'
 
 /** @import { Readable } from 'streamx' */
 
@@ -24,8 +21,8 @@ const BLOB_FIXTURES = fileURLToPath(
   new URL('../test/fixtures/blob-api/', import.meta.url)
 )
 
-test('Project export empty GeoJSON to stream', async () => {
-  const manager = setupManager()
+test('Project export empty GeoJSON to stream', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager)
 
   await temporaryDirectoryTask(async (dir) => {
@@ -47,8 +44,8 @@ test('Project export empty GeoJSON to stream', async () => {
   })
 })
 
-test('Project export observations GeoJSON to stream', async () => {
-  const manager = setupManager()
+test('Project export observations GeoJSON to stream', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, { makeObservations: true })
 
   await temporaryDirectoryTask(async (dir) => {
@@ -69,8 +66,8 @@ test('Project export observations GeoJSON to stream', async () => {
   })
 })
 
-test('Project export ignore observations', async () => {
-  const manager = setupManager()
+test('Project export ignore observations', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, { makeObservations: true })
 
   await temporaryDirectoryTask(async (dir) => {
@@ -94,8 +91,8 @@ test('Project export ignore observations', async () => {
   })
 })
 
-test('Project export tracks GeoJSON to stream', async () => {
-  const manager = setupManager()
+test('Project export tracks GeoJSON to stream', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, { makeTracks: true })
 
   await temporaryDirectoryTask(async (dir) => {
@@ -119,8 +116,8 @@ test('Project export tracks GeoJSON to stream', async () => {
   })
 })
 
-test('Project export ignore tracks', async () => {
-  const manager = setupManager()
+test('Project export ignore tracks', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, { makeTracks: true })
 
   await temporaryDirectoryTask(async (dir) => {
@@ -144,8 +141,8 @@ test('Project export ignore tracks', async () => {
   })
 })
 
-test('Project export tracks and observations GeoJSON to file', async () => {
-  const manager = setupManager()
+test('Project export tracks and observations GeoJSON to file', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, {
     makeTracks: true,
     makeObservations: true,
@@ -174,8 +171,8 @@ test('Project export tracks and observations GeoJSON to file', async () => {
   })
 })
 
-test('Project export tracks and observations to zip stream', async () => {
-  const manager = setupManager()
+test('Project export tracks and observations to zip stream', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, {
     makeTracks: true,
     makeObservations: true,
@@ -242,7 +239,7 @@ async function parseGeoJSON(stream) {
 
 /**
  *
- * @param {MapeoManager} manager
+ * @param {import('../src/mapeo-manager.js').MapeoManager} manager
  * @param {object} options
  * @param {boolean} [options.makeObservations=false]
  * @param {boolean} [options.makeTracks=false]
@@ -336,24 +333,4 @@ async function setupProject(
   }
 
   return { project, observations, tracks }
-}
-
-/**
- * @returns {MapeoManager}
- */
-function setupManager() {
-  const fastify = Fastify()
-
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
-      .pathname,
-    clientMigrationsFolder: new URL('../drizzle/client', import.meta.url)
-      .pathname,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify,
-  })
-
-  return manager
 }
