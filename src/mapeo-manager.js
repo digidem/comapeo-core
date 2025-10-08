@@ -47,7 +47,7 @@ import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
-import { Roles } from './roles.js'
+import { Roles, BLOCKED_ROLE } from './roles.js'
 import { Logger } from './logger.js'
 import {
   kSyncState,
@@ -792,6 +792,7 @@ export class MapeoManager extends TypedEmitter {
     // in the config store - defining the name of the project.
     // TODO: Enforce adding a project name in the invite method
     const isConfigSynced = configState.want === 0 && configState.have > 0
+    if (ownRole === BLOCKED_ROLE && isAuthSynced) return true
     if (
       isRoleSynced &&
       isProjectSettingsSynced &&
@@ -803,6 +804,7 @@ export class MapeoManager extends TypedEmitter {
       this.#l.log(
         'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
         isRoleSynced,
+        isProjectSettingsSynced,
         isAuthSynced,
         isConfigSynced
       )
@@ -816,7 +818,7 @@ export class MapeoManager extends TypedEmitter {
           return
         }
         project.$sync[kSyncState].off('state', onSyncState)
-        resolve(this.#waitForInitialSync(project, { timeoutMs }))
+        this.#waitForInitialSync(project, { timeoutMs }).then(resolve, reject)
       }
       const onTimeout = () => {
         project.$sync[kSyncState].off('state', onSyncState)
