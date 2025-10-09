@@ -27,6 +27,12 @@
       "*": ["./types", "./node_modules/@digidem/types/vendor/*/index.d.ts"]
     }
   },
-  "include": ["src/**/*", "types/**/*.d.ts", "test/**/*", "test-e2e/**/*"],
+  "include": [
+    "src/**/*",
+    "types/**/*.d.ts",
+    "test/**/*",
+    "test-e2e/**/*",
+    "scripts/build-iso6393.mjs"
+  ],
   "exclude": ["node_modules", "src/generated/*.js"]
 }

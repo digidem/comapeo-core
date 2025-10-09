@@ -5,7 +5,7 @@ import { temporaryFileTask } from 'tempy'
 import { arrayFrom, size } from 'iterpal'
 import { ZipFile } from 'yazl'
 import { defaultConfigPath } from './helpers/default-config.js'
-import { readConfig } from '../src/config-import.js'
+import { readConfig } from '../src/import-categories.js'
 
 test('config import - loading', async () => {
   await assert.rejects(
