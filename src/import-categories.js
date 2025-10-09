@@ -1,9 +1,10 @@
 import { Reader } from 'comapeocat/reader.js'
 import { NotFoundError } from './errors.js'
 import { typedEntries } from './utils.js'
-import { parse as parseBcp47 } from 'bcp-47'
+import { parseBcp47 } from './intl/parse-bcp-47.js'
 
 /** @import {MapeoProject} from './mapeo-project.js' */
+/** @typedef {{ docId: string, versionId: string }} Ref */
 /**
  * @param {MapeoProject} project
  * @param {object} options
@@ -23,15 +24,16 @@ export async function importCategories(project, { filePath, logger }) {
   })
   const reader = new Reader(filePath)
 
-  /** @type {Map<string, import('./icon-api.js').IconRef>} */
+  /** @type {Map<string, Ref>} */
   const iconNameToRef = new Map()
-  /** @type {Map<string, import('@comapeo/schema').PresetValue['fieldRefs'][1]>} */
+  /** @type {Map<string, Ref>} */
   const fieldNameToRef = new Map()
-  /** @type {Map<string,import('@comapeo/schema').TranslationValue['docRef']>} */
+  /** @type {Map<string, Ref>} */
   const presetNameToRef = new Map()
 
   const categories = await reader.categories()
   // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
+  // Only import icons that are referenced by categories
   for (const category of categories.values()) {
     if (!('icon' in category && category.icon)) continue
     const iconName = category.icon
@@ -60,6 +62,7 @@ export async function importCategories(project, { filePath, logger }) {
   // Ok to create fields and presets in parallel
   const fieldPromises = []
   const fields = await reader.fields()
+  // Only import fields that are referenced by categories
   for (const category of categories.values()) {
     for (const fieldName of category.fields) {
       if (fieldNameToRef.has(fieldName)) continue // already have this field
@@ -127,8 +130,8 @@ export async function importCategories(project, { filePath, logger }) {
     lang,
     translations: translationsByDocType,
   } of reader.translations()) {
-    const languageTags = parseBcp47(lang)
-    if (!languageTags || !languageTags.language) {
+    const { language: languageCode, region: regionCode } = parseBcp47(lang)
+    if (!languageCode) {
       logger.log(`ignoring invalid language tag: ${lang}`)
       continue
     }
@@ -152,8 +155,8 @@ export async function importCategories(project, { filePath, logger }) {
           translationPromises.push(
             project.$translation.put({
               schemaName: 'translation',
-              languageCode: languageTags.language,
-              regionCode: languageTags.region ?? undefined,
+              languageCode: languageCode,
+              regionCode: regionCode ?? undefined,
               docRefType: docType === 'category' ? 'preset' : 'field',
               docRef,
               propertyRef,
