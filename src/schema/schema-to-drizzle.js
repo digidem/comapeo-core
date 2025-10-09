@@ -1,6 +1,7 @@
 import { text, integer, real } from 'drizzle-orm/sqlite-core'
 import { ExhaustivenessError } from '../utils.js'
 import { customJson } from './utils.js'
+import { sql } from 'drizzle-orm'
 /** @import { MapeoDoc } from '@comapeo/schema' */
 /** @import { MapeoDocMap } from '../types.js' */
 
@@ -68,6 +69,23 @@ export function jsonSchemaToDrizzleColumns(schema) {
       if (typeof defaultValue !== 'undefined') {
         columns[key] = columns[key].default(defaultValue)
       }
+    }
+    if (
+      key.endsWith('Ref') &&
+      // Don't do this for docRef or propertyRef on translations table
+      key !== 'docRef' &&
+      key !== 'propertyRef'
+    ) {
+      const docRefKey = key.slice(0, -3) + 'DocId'
+      columns[docRefKey] = text(docRefKey).generatedAlwaysAs(
+        () => sql.raw(`(json_extract(\`${key}\`, '$.docId'))`),
+        { mode: 'virtual' }
+      )
+      const versionRefKey = key.slice(0, -3) + 'VersionId'
+      columns[versionRefKey] = text(versionRefKey).generatedAlwaysAs(
+        () => sql.raw(`(json_extract(\`${key}\`, '$.versionId'))`),
+        { mode: 'virtual' }
+      )
     }
   }
   // Not yet in @comapeo/schema

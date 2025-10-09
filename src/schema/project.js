@@ -1,51 +1,75 @@
 // These schemas are all in a "project" database. Each project in Mapeo has an
 // independent "project" database.
-import { blob, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { blob, sqliteTable, sqliteView, text } from 'drizzle-orm/sqlite-core'
 import { dereferencedDocSchemas as schemas } from '@comapeo/schema'
 import { NAMESPACES } from '../constants.js'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
 import { backlinkTable } from './utils.js'
+import { extractRelations } from './relations.js'
+import { getTableColumns, sql } from 'drizzle-orm'
 
-export const translationTable = sqliteTable(
-  'translation',
-  toColumns(schemas.translation)
-)
-export const observationTable = sqliteTable(
+/** @type {Array<keyof typeof schemas>} */
+const PROJECT_SCHEMAS = [
   'observation',
-  toColumns(schemas.observation)
-)
-export const trackTable = sqliteTable('track', toColumns(schemas.track))
-export const remoteDetectionAlertTable = sqliteTable(
+  'preset',
+  'field',
+  'translation',
+  'icon',
   'remoteDetectionAlert',
-  toColumns(schemas.remoteDetectionAlert)
-)
-export const presetTable = sqliteTable('preset', toColumns(schemas.preset))
-export const fieldTable = sqliteTable('field', toColumns(schemas.field))
-export const coreOwnershipTable = sqliteTable(
-  'coreOwnership',
-  toColumns(schemas.coreOwnership)
-)
-export const roleTable = sqliteTable('role', toColumns(schemas.role))
-export const deviceInfoTable = sqliteTable(
+  'track',
   'deviceInfo',
-  toColumns(schemas.deviceInfo)
-)
-export const iconTable = sqliteTable('icon', toColumns(schemas.icon))
+  'role',
+  'coreOwnership',
+]
 
-export const translationBacklinkTable = backlinkTable(translationTable)
-export const observationBacklinkTable = backlinkTable(observationTable)
-export const trackBacklinkTable = backlinkTable(trackTable)
-export const remoteDetectionAlertBacklinkTable = backlinkTable(
-  remoteDetectionAlertTable
-)
-export const presetBacklinkTable = backlinkTable(presetTable)
-export const fieldBacklinkTable = backlinkTable(fieldTable)
-export const coreOwnershipBacklinkTable = backlinkTable(coreOwnershipTable)
-export const roleBacklinkTable = backlinkTable(roleTable)
-export const deviceInfoBacklinkTable = backlinkTable(deviceInfoTable)
-export const iconBacklinkTable = backlinkTable(iconTable)
+/** @type {Record<string, unknown>} */
+const drizzleSchema = {}
+/** @type {Record<string, unknown>} */
+const tablesForRelations = {}
+for (const schemaName of PROJECT_SCHEMAS) {
+  const table = sqliteTable(schemaName, toColumns(schemas[schemaName]))
+  drizzleSchema[`${schemaName}Table`] = table
+  if (schemaName !== 'translation') {
+    tablesForRelations[schemaName] = table
+  }
+  drizzleSchema[`${schemaName}BacklinkTable`] = backlinkTable(table)
+}
 
-export const coresTable = sqliteTable('cores', {
+for (const [fromName, fromTable] of Object.entries(tablesForRelations)) {
+  const columns = getTableColumns(fromTable)
+  for (const col of Object.values(columns)) {
+    if (!col.name.endsWith('Refs')) continue
+    const toName = col.name.slice(0, -4)
+    const toTable = tablesForRelations[toName]
+    if (!toTable) {
+      throw new Error(
+        `Table ${toName}, referenced by ${fromName}.${col.name} not found`
+      )
+    }
+    const junctionTableName = `${fromName}To${capitalizeFirst(toName)}`
+    drizzleSchema[junctionTableName] = sqliteView(junctionTableName, {
+      [`${fromName}DocId`]: text(`${fromName}DocId`).notNull(),
+      [`${toName}DocId`]: text(`${toName}DocId`).notNull(),
+    }).as(sql`
+SELECT
+    ${fromName}.docId AS ${fromName}DocId,
+    json_extract(ref.value, '$.docId') AS ${toName}DocId
+FROM
+    ${fromTable},
+    json_each(${fromTable[col.name]}) ref`)
+    tablesForRelations[junctionTableName] = drizzleSchema[junctionTableName]
+  }
+}
+
+drizzleSchema['coresTable'] = sqliteTable('cores', {
   publicKey: blob('publicKey', { mode: 'buffer' }).notNull(),
   namespace: text('namespace', { enum: NAMESPACES }).notNull(),
 })
+
+drizzleSchema['relations'] = extractRelations(tablesForRelations)
+
+export default drizzleSchema
+
+function capitalizeFirst(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
