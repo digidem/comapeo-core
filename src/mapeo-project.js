@@ -1390,6 +1390,7 @@ export class MapeoProject extends TypedEmitter {
     }
   }
 }
+
 /**
  * @param {import("@comapeo/schema").ProjectSettings & { forks: string[] }} projectDoc
  * @returns {EditableProjectSettings}
