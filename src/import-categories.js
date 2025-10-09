@@ -128,6 +128,7 @@ export async function importCategories(project, { filePath, logger }) {
     await reader.categorySelection()
   )
   const { buildDateValue, ...readerMetadata } = await reader.metadata()
+  const fileVersion = await reader.fileVersion()
 
   // Don't throw errors after here, because we will have created the new docs,
   // and need to delete the old.
@@ -181,7 +182,7 @@ export async function importCategories(project, { filePath, logger }) {
     defaultPresets,
     configMetadata: {
       ...readerMetadata,
-      fileVersion: '', // TODO: use reader.fileVersion()
+      fileVersion,
       importDate: new Date().toISOString(),
       buildDate: new Date(buildDateValue).toISOString(),
     },
