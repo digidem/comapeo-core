@@ -1,3 +1,4 @@
+import PQueue from 'p-queue'
 import { Reader } from 'comapeocat/reader.js'
 import { NotFoundError } from './errors.js'
 import { typedEntries } from './utils.js'
@@ -13,6 +14,10 @@ import { parseBcp47 } from './intl/parse-bcp-47.js'
  * @returns {Promise<void>}
  */
 export async function importCategories(project, { filePath, logger }) {
+  // Queue promises to create docs and limit concurrency to 10. Start queue
+  // stopped, and only run once we've verified there are not any parsing errors
+  // reading the file.
+  const queue = new PQueue({ concurrency: 10, autoStart: false })
   const presetsToDelete = await grabDocsToDelete(project.preset)
   const fieldsToDelete = await grabDocsToDelete(project.field)
   // delete only translations that refer to deleted fields and presets
@@ -59,8 +64,6 @@ export async function importCategories(project, { filePath, logger }) {
     iconNameToRef.set(iconName, { docId, versionId })
   }
 
-  // Ok to create fields and presets in parallel
-  const fieldPromises = []
   const fields = await reader.fields()
   // Only import fields that are referenced by categories
   for (const category of categories.values()) {
@@ -74,16 +77,14 @@ export async function importCategories(project, { filePath, logger }) {
       }
       /** @type {import('@comapeo/schema').FieldValue} */
       const fieldValue = { ...field, schemaName: 'field' }
-      fieldPromises.push(
+      queue.add(() =>
         project.field.create(fieldValue).then(({ docId, versionId }) => {
           fieldNameToRef.set(fieldName, { docId, versionId })
         })
       )
     }
   }
-  await Promise.all(fieldPromises)
 
-  const presetPromises = []
   for (const [categoryName, category] of categories) {
     const { fields: fieldNames, icon: iconName, appliesTo, ...rest } = category
     const fieldRefs = fieldNames.map((fieldName) => {
@@ -116,14 +117,21 @@ export async function importCategories(project, { filePath, logger }) {
       schemaName: 'preset',
     }
 
-    presetPromises.push(
+    queue.add(() =>
       project.preset.create(presetValue).then(({ docId, versionId }) => {
         presetNameToRef.set(categoryName, { docId, versionId })
       })
     )
   }
 
-  await Promise.all(presetPromises)
+  const defaultPresets = categorySelectionToDefaultPresets(
+    await reader.categorySelection()
+  )
+  const { buildDateValue, ...readerMetadata } = await reader.metadata()
+
+  // Don't throw errors after here, because we will have created the new docs,
+  // and need to delete the old.
+  await queue.start().onEmpty()
 
   const translationPromises = []
   for await (const {
@@ -169,10 +177,6 @@ export async function importCategories(project, { filePath, logger }) {
   }
   await Promise.all(translationPromises)
 
-  const defaultPresets = categorySelectionToDefaultPresets(
-    await reader.categorySelection()
-  )
-  const { buildDateValue, ...readerMetadata } = await reader.metadata()
   await project.$setProjectSettings({
     defaultPresets,
     configMetadata: {
