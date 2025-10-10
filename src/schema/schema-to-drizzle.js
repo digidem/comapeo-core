@@ -1,6 +1,5 @@
 import { text, integer, real } from 'drizzle-orm/sqlite-core'
 import { ExhaustivenessError } from '../utils.js'
-import { customJson } from './utils.js'
 /** @import { MapeoDoc } from '@comapeo/schema' */
 /** @import { MapeoDocMap } from '../types.js' */
 
@@ -53,7 +52,7 @@ export function jsonSchemaToDrizzleColumns(schema) {
       }
       case 'array':
       case 'object':
-        columns[key] = customJson(key)
+        columns[key] = text(key, { mode: 'json' })
         break
       case 'null':
         // Skip handling this right now
@@ -71,7 +70,7 @@ export function jsonSchemaToDrizzleColumns(schema) {
     }
   }
   // Not yet in @comapeo/schema
-  columns.forks = customJson('forks').notNull()
+  columns.forks = text('forks', { mode: 'json' }).notNull()
   return /** @type {any} */ (columns)
 }
 

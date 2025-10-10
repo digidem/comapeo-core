@@ -4,19 +4,16 @@
 import { blob, sqliteTable, text, int } from 'drizzle-orm/sqlite-core'
 import { dereferencedDocSchemas as schemas } from '@comapeo/schema'
 import { jsonSchemaToDrizzleColumns as toColumns } from './schema-to-drizzle.js'
-import { backlinkTable, customJson } from './utils.js'
+import { backlinkTable } from './utils.js'
 
 /**
  * @import { ProjectSettings } from '@comapeo/schema'
+ * @import { $Type } from 'drizzle-orm'
+ * @import { SQLiteTextJsonBuilder } from 'drizzle-orm/sqlite-core'
  *
  * @internal
  * @typedef {Pick<ProjectSettings, 'name' | 'projectColor' | 'projectDescription' | 'sendStats'>} ProjectInfo
  */
-
-const projectInfoColumn =
-  /** @type {ReturnType<typeof import('drizzle-orm/sqlite-core').customType<{data: ProjectInfo}>>} */ (
-    customJson
-  )
 
 /** @type {ProjectInfo} */
 const PROJECT_INFO_DEFAULT_VALUE = { sendStats: false }
@@ -31,13 +28,11 @@ export const projectKeysTable = sqliteTable('projectKeys', {
   projectPublicId: text('projectPublicId').notNull(),
   projectInviteId: blob('projectInviteId', { mode: 'buffer' }).notNull(),
   keysCipher: blob('keysCipher', { mode: 'buffer' }).notNull(),
-  projectInfo: projectInfoColumn('projectInfo')
-    .default(
-      // TODO: There's a bug in Drizzle where the default value does not get transformed by the custom type
-      // @ts-expect-error
-      JSON.stringify(PROJECT_INFO_DEFAULT_VALUE)
-    )
-    .notNull(),
+  projectInfo:
+    /** @type {$Type<SQLiteTextJsonBuilder, ProjectInfo>} */
+    (text('projectInfo', { mode: 'json' }))
+      .default(PROJECT_INFO_DEFAULT_VALUE)
+      .notNull(),
   hasLeftProject: int('hasLeftProject', { mode: 'boolean' })
     .notNull()
     .default(false),
@@ -47,14 +42,11 @@ export const projectKeysTable = sqliteTable('projectKeys', {
  * @typedef {Omit<import('@comapeo/schema').DeviceInfoValue, 'schemaName'>} DeviceInfoParam
  */
 
-const deviceInfoColumn =
-  /** @type {ReturnType<typeof import('drizzle-orm/sqlite-core').customType<{data: DeviceInfoParam }>>} */ (
-    customJson
-  )
-
 // This table only ever has one row in it.
 export const deviceSettingsTable = sqliteTable('deviceSettings', {
   deviceId: text('deviceId').notNull().unique(),
-  deviceInfo: deviceInfoColumn('deviceInfo'),
+  deviceInfo:
+    /** @type {$Type<SQLiteTextJsonBuilder, DeviceInfoParam>} */
+    (text('deviceInfo', { mode: 'json' })),
   isArchiveDevice: int('isArchiveDevice', { mode: 'boolean' }),
 })
