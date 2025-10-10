@@ -110,7 +110,7 @@ export function migrate(db, { migrationsFolder, migrationFns = {} }) {
 function assertValidJournal(journal) {
   assert(journal && typeof journal === 'object', 'invalid journal')
   assert(
-    'version' in journal && journal.version === '5',
+    'version' in journal && journal.version === '6',
     'unexpected journal version'
   )
   assert(
