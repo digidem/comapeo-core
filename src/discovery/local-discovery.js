@@ -75,7 +75,9 @@ export class LocalDiscovery extends TypedEmitter {
   /** @returns {Promise<{ name: string, port: number }>} */
   async start() {
     await this.#sm.start()
-    const port = this.#port
+    const { port } = getAddress(this.#server)
+    this.#port = port
+    this.#log('server listening on port ' + port)
     return { name: this.#name, port }
   }
 
@@ -93,9 +95,6 @@ export class LocalDiscovery extends TypedEmitter {
       this.#port = 0
       return this.#start()
     }
-    const addr = getAddress(this.#server)
-    this.#port = addr.port
-    this.#log('server listening on port ' + addr.port)
   }
 
   /**
