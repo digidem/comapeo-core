@@ -4,7 +4,7 @@
 import { blob, sqliteTable, text, int } from 'drizzle-orm/sqlite-core'
 import { dereferencedDocSchemas as schemas } from '@comapeo/schema'
 import {
-  comapeoSchemaToDrizzleTable,
+  comapeoSchemaToDrizzleTable as toDrizzle,
   backlinkTable,
 } from './comapeo-to-drizzle.js'
 
@@ -20,9 +20,7 @@ import {
 /** @type {ProjectInfo} */
 const PROJECT_INFO_DEFAULT_VALUE = { sendStats: false }
 
-export const projectSettingsTable = comapeoSchemaToDrizzleTable(
-  schemas.projectSettings
-)
+export const projectSettingsTable = toDrizzle(schemas.projectSettings)
 export const projectBacklinkTable = backlinkTable('projectSettings')
 export const projectKeysTable = sqliteTable('projectKeys', {
   projectId: text('projectId').notNull().primaryKey(),
