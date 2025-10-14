@@ -900,6 +900,8 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const [invitor, invitee, blocked] = managers
   const disconnect1 = connectPeers(managers)
 
+  t.after(() => disconnect1())
+
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
   await invite({
@@ -918,6 +920,8 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   const projects = await Promise.all(
     managers.map((m) => m.getProject(projectId))
   )
+
+  t.after(() => Promise.all(projects.map((p) => p.close())))
 
   const [invitorProject, inviteeProject] = projects
 
@@ -955,18 +959,15 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
   assert.equal(blockedState.data.localState.have, 0) // no data docs synced
 
   for (const ns of NAMESPACES) {
-    assert.equal(invitorState[ns].coreCount, 3, ns)
-    assert.equal(inviteeState[ns].coreCount, 3, ns)
-    assert.equal(blockedState[ns].coreCount, 3, ns)
+    assert.equal(invitorState[ns].coreCount, 3, `invitor got cores for ${ns}`)
+    assert.equal(inviteeState[ns].coreCount, 3, `invitee got cores for ${ns}`)
+    assert.equal(blockedState[ns].coreCount, 3, `blocked got cores for ${ns}`)
     assert.deepEqual(
       invitorState[ns].localState,
       inviteeState[ns].localState,
-      ns
+      `invitor/invitee have same local state for ${ns}`
     )
   }
-
-  await disconnect1()
-  await Promise.all(projects.map((p) => p.close()))
 })
 
 test('Sync state emitted when starting and stopping sync', async function (t) {

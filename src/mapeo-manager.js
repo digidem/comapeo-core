@@ -792,6 +792,9 @@ export class MapeoManager extends TypedEmitter {
     // in the config store - defining the name of the project.
     // TODO: Enforce adding a project name in the invite method
     const isConfigSynced = configState.want === 0 && configState.have > 0
+    if (isRoleSynced && ownRole.sync.config === 'blocked' && isAuthSynced) {
+      return true
+    }
     if (
       isRoleSynced &&
       isProjectSettingsSynced &&
@@ -803,6 +806,7 @@ export class MapeoManager extends TypedEmitter {
       this.#l.log(
         'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
         isRoleSynced,
+        isProjectSettingsSynced,
         isAuthSynced,
         isConfigSynced
       )
@@ -811,12 +815,15 @@ export class MapeoManager extends TypedEmitter {
       /** @param {import('./sync/sync-state.js').State} syncState */
       const onSyncState = (syncState) => {
         clearTimeout(timeoutId)
-        if (syncState.auth.dataToSync || syncState.config.dataToSync) {
+        if (
+          syncState.auth.dataToSync ||
+          (syncState.config.dataToSync && ownRole.sync.config === 'allowed')
+        ) {
           timeoutId = setTimeout(onTimeout, timeoutMs)
           return
         }
         project.$sync[kSyncState].off('state', onSyncState)
-        resolve(this.#waitForInitialSync(project, { timeoutMs }))
+        this.#waitForInitialSync(project, { timeoutMs }).then(resolve, reject)
       }
       const onTimeout = () => {
         project.$sync[kSyncState].off('state', onSyncState)
