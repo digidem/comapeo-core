@@ -1,31 +1,65 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { jsonSchemaToDrizzleColumns } from '../../src/schema/schema-to-drizzle.js'
-import { sqliteTable } from 'drizzle-orm/sqlite-core'
+import { jsonSchemaToDrizzleSqliteTable as toDrizzle } from '../../src/schema/json-schema-to-drizzle.js'
+import { text } from 'drizzle-orm/sqlite-core'
+import { getTableColumns } from 'drizzle-orm'
 
 test('throws if not passed an object schema', () => {
   assert.throws(() => {
-    jsonSchemaToDrizzleColumns({ type: 'number', properties: {} })
+    toDrizzle('myTable', {
+      // @ts-expect-error
+      type: 'number',
+      properties: {},
+    })
   })
 })
 
-test('always adds "forks" column', () => {
-  assert(
-    'forks' in jsonSchemaToDrizzleColumns({ type: 'object', properties: {} }),
-    'forks column is added'
+test('Add additional columns', () => {
+  const table = toDrizzle(
+    'myTable',
+    {
+      type: 'object',
+      properties: {},
+    },
+    {
+      additionalColumns: {
+        forks: text('forks', { mode: 'json' }),
+      },
+    }
   )
+  const columns = getTableColumns(table)
+  assert('forks' in columns, 'forks column is added')
+  assert(columns.forks.getSQLType() === 'text', 'forks is text column')
+})
+
+test('primary key option', () => {
+  const table = toDrizzle(
+    'myTable',
+    {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+      },
+    },
+    {
+      primaryKey: 'id',
+    }
+  )
+  const columns = getTableColumns(table)
+  assert.equal(columns.id.primary, true, 'id is primary key')
 })
 
 test('skips null', () => {
-  assert(
-    !(
-      'foo' in
-      jsonSchemaToDrizzleColumns({
-        type: 'object',
-        properties: { foo: { type: 'null' } },
-      })
-    )
-  )
+  const table = toDrizzle('myTable', {
+    type: 'object',
+    properties: {
+      foo: { type: 'null' },
+      bar: { type: 'string' },
+    },
+  })
+  const config = getTableColumns(table)
+  assert(!('foo' in config), 'null property is skipped')
+  assert('bar' in config, 'other properties are added')
 })
 
 test('boolean', () => {
@@ -87,13 +121,13 @@ test('default values', () => {
 
 /**
  * @param {import('../../src/schema/types.js').JSONSchema7} property
- * @param {Omit<import('../../src/schema/types.js').JSONSchema7WithProps, 'type' | 'properties'>} [additionalSchema={}]
+ * @param {Omit<import('../../src/schema/types.js').JSONSchema7Object, 'type' | 'properties'>} [additionalSchema={}]
  */
 function getColumn(property, additionalSchema = {}) {
-  const cols = jsonSchemaToDrizzleColumns({
+  const table = toDrizzle('myTable', {
     type: 'object',
     properties: { property },
     ...additionalSchema,
   })
-  return sqliteTable('test', cols).property
+  return getTableColumns(table).property
 }

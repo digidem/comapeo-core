@@ -7,7 +7,7 @@ import { dereferencedDocSchemas as jsonSchemas } from '@comapeo/schema'
 import {
   BACKLINK_TABLE_POSTFIX,
   getBacklinkTableName,
-} from '../src/schema/utils.js'
+} from '../src/schema/comapeo-to-drizzle.js'
 
 const MAPEO_DATATYPE_NAMES = Object.keys(jsonSchemas)
 
@@ -16,12 +16,19 @@ test('Expected table config', () => {
     ...Object.values(clientTableSchemas),
     ...Object.values(projectTableSchemas),
   ]
+  const datatypesToCheck = new Set(MAPEO_DATATYPE_NAMES)
 
   for (const tableSchema of allTableSchemas) {
     const config = getTableConfig(tableSchema)
 
     // Only test Mapeo Schema data types in this test
     if (!MAPEO_DATATYPE_NAMES.includes(config.name)) continue
+    datatypesToCheck.delete(config.name)
+
+    assert(
+      config.columns.find((col) => col.name === 'forks'),
+      'has forks column'
+    )
 
     const schemaName = config.name
     assert(schemaName in jsonSchemas)
@@ -48,6 +55,7 @@ test('Expected table config', () => {
       assert.equal(columnConfig.default, expectedDefault, 'Default is correct')
     }
   }
+  assert.equal(datatypesToCheck.size, 0, 'All datatypes have tables')
 })
 
 test('backlink table exists for every indexed data type', () => {
