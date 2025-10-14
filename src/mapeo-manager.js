@@ -792,7 +792,9 @@ export class MapeoManager extends TypedEmitter {
     // in the config store - defining the name of the project.
     // TODO: Enforce adding a project name in the invite method
     const isConfigSynced = configState.want === 0 && configState.have > 0
-    if (ownRole.sync.config === 'blocked' && isAuthSynced) return true
+    if (isRoleSynced && ownRole.sync.config === 'blocked' && isAuthSynced) {
+      return true
+    }
     if (
       isRoleSynced &&
       isProjectSettingsSynced &&
