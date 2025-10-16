@@ -12,6 +12,7 @@ import { pEvent } from 'p-event'
 import { createMapeoClient } from '@comapeo/ipc'
 import { Worker, MessageChannel } from 'node:worker_threads'
 import { setTimeout as delay } from 'node:timers/promises'
+import { getProperty } from 'dot-prop-extra'
 
 import { MapeoManager, roles } from '../src/index.js'
 import { generate } from '@mapeo/mock-data'
@@ -993,6 +994,62 @@ export async function assertProjectHasImportedCategories(project, reader) {
       Buffer.from(iconsFromConfig.get(icon.name) || '', 'utf-8'),
       `icon matches config`
     )
+  }
+
+  // Check all the translations are present
+  for await (const { lang, translations } of reader.translations()) {
+    if (
+      !Object.keys(translations?.field || {}).length &&
+      !Object.keys(translations?.category || {}).length
+    ) {
+      continue
+    }
+    const translatedDocCounts = {
+      category: 0,
+      field: 0,
+    }
+    const translatedPresets = await project.preset.getMany({ lang })
+    const translatedFields = await project.field.getMany({ lang })
+    for (const [docType, translatedDocs] of Object.entries(translations)) {
+      for (const [docId, translatedDoc] of Object.entries(translatedDocs)) {
+        let projectDoc
+        if (docType === 'category') {
+          const category = expectedPresets.get(docId)
+          if (!category) {
+            continue
+          }
+          projectDoc = translatedPresets.find(
+            (p) => p.name === translatedDoc.name
+          )
+        } else if (docType === 'field') {
+          const field = fieldsFromConfig.get(docId)
+          if (!field) continue
+          projectDoc = translatedFields.find((f) => f.tagKey === field.tagKey)
+        } else {
+          continue
+        }
+        if (!projectDoc) continue
+        translatedDocCounts[docType]++
+        for (const [propertyRef, message] of Object.entries(translatedDoc)) {
+          if (propertyRef === 'terms') continue // TODO: support preset.terms
+          assert.equal(
+            getProperty(projectDoc, propertyRef),
+            message,
+            `translated ${docType} ${docId} property ${propertyRef} matches`
+          )
+        }
+      }
+    }
+    // The category archive can include translations which are not imported,
+    // because our import code ignores translations that refer to docs or
+    // properties that do not exist, so we can't match the count here. Instead
+    // we check that at least one translation was checked, as a check that this
+    // test is actually testing something.
+    assert(
+      translatedDocCounts.category > 0,
+      `some ${lang} category translations`
+    )
+    assert(translatedDocCounts.field > 0, `some ${lang} field translations`)
   }
 }
 

@@ -184,6 +184,7 @@
     "corestore": "6.8.4",
     "debug": "^4.3.4",
     "dot-prop": "^9.0.0",
+    "dot-prop-extra": "^10.2.0",
     "drizzle-orm": "^0.30.8",
     "ensure-error": "^4.0.0",
     "fastify": "^4.0.0",

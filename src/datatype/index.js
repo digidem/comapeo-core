@@ -5,8 +5,8 @@ import { randomBytes } from 'node:crypto'
 import { noop, mutatingDeNullify } from '../utils.js'
 import { NotFoundError } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
-import { parse as parseBCP47 } from 'bcp-47'
-import { setProperty, getProperty } from 'dot-prop'
+import { setProperty, getProperty } from 'dot-prop-extra'
+import { parseBcp47 } from '../intl/parse-bcp-47.js'
 /** @import { MapeoDoc, MapeoValue } from '@comapeo/schema' */
 /** @import { RunResult } from 'better-sqlite3' */
 /** @import { SQLiteSelectBase } from 'drizzle-orm/sqlite-core' */
@@ -285,7 +285,7 @@ export class DataType extends TypedEmitter {
   async #mutatingAddTranslations(doc, { lang }) {
     if (!this.#getTranslations) return doc
 
-    const { language, region } = parseBCP47(lang)
+    const { language, region } = parseBcp47(lang)
     if (!language) return doc
 
     const translations = await this.#getTranslations({
