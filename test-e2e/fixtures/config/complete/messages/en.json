@@ -1,0 +1,26 @@
+{
+  "category.preset1.name": {
+    "description": "The name of category 'preset1'",
+    "message": "Dr. Tonya Jacobs"
+  },
+  "category.preset2.name": {
+    "description": "The name of category 'preset2'",
+    "message": "Grace O'Reilly"
+  },
+  "field.field1.label": {
+    "description": "Label for field 'field1'",
+    "message": "exercitationem"
+  },
+  "field.field1.placeholder": {
+    "description": "Example input for field 'field1' (only visible for text and number fields)",
+    "message": "crudelis"
+  },
+  "field.field2.helperText": {
+    "description": "Descriptive text shown under the label for field 'field2'",
+    "message": "canto"
+  },
+  "field.field2.label": {
+    "description": "Label for field 'field2'",
+    "message": "provident"
+  }
+}

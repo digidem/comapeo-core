@@ -1,0 +1,17 @@
+{
+  "name": "Dr. Tonya Jacobs",
+  "appliesTo": [
+    "observation"
+  ],
+  "tags": {
+    "vorago": 3.526101757793178
+  },
+  "addTags": {},
+  "removeTags": {},
+  "fields": [
+    "field1",
+    "field2"
+  ],
+  "icon": "icon1",
+  "terms": []
+}
