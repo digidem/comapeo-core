@@ -1,7 +1,0 @@
-{
-    "presets": {
-        "noObjectPreset": "a string",
-        "nullPreset": null
-  },
-    "fields": {}
-}

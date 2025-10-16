@@ -1,0 +1,17 @@
+{
+  "name": "Grace O'Reilly",
+  "appliesTo": [
+    "track"
+  ],
+  "tags": {
+    "cedo": null
+  },
+  "addTags": {},
+  "removeTags": {},
+  "fields": [
+    "field2"
+  ],
+  "icon": "icon2",
+  "terms": [],
+  "color": "#6df4d2"
+}

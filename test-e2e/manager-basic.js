@@ -1,4 +1,4 @@
-import test from 'node:test'
+import test, { describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
@@ -6,15 +6,21 @@ import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { MapeoProject } from '../src/mapeo-project.js'
 import Fastify from 'fastify'
-import { getExpectedConfig } from './utils.js'
 import { defaultConfigPath } from '../test/helpers/default-config.js'
-import { kDataTypes } from '../src/mapeo-project.js'
 import { hashObject } from '../src/utils.js'
+import { Reader } from 'comapeocat'
+import {
+  assertProjectHasImportedCategories,
+  categoriesArchiveFromFolder,
+} from './utils.js'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 test('Managing created projects', async (t) => {
   const manager = new MapeoManager({
@@ -180,120 +186,69 @@ test('Managing created projects', async (t) => {
   })
 })
 
-test('Consistent loading of config', async (t) => {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify: Fastify(),
-    defaultConfigPath,
+describe('Consistent loading of config', async () => {
+  test('loading default config when creating project', async () => {
+    const manager = new MapeoManager({
+      rootKey: KeyManager.generateRootKey(),
+      projectMigrationsFolder,
+      clientMigrationsFolder,
+      dbFolder: ':memory:',
+      coreStorage: () => new RAM(),
+      fastify: Fastify(),
+      defaultConfigPath,
+    })
+    const reader = new Reader(defaultConfigPath)
+    const projectId = await manager.createProject()
+    const project = await manager.getProject(projectId)
+    await assertProjectHasImportedCategories(project, reader)
   })
 
-  const expectedDefault = await getExpectedConfig(defaultConfigPath)
-  const expectedMinimal = await getExpectedConfig(
-    'test/fixtures/config/completeConfig.zip'
-  )
-  const projectId = await manager.createProject()
-  const project = await manager.getProject(projectId)
-  const projectSettings = await project.$getProjectSettings()
+  test('load config from path when creating project', async (t) => {
+    const manager = new MapeoManager({
+      rootKey: KeyManager.generateRootKey(),
+      projectMigrationsFolder,
+      clientMigrationsFolder,
+      dbFolder: ':memory:',
+      coreStorage: () => new RAM(),
+      fastify: Fastify(),
+      defaultConfigPath,
+    })
+    const fixturePath = path.join(__dirname, 'fixtures/config/complete')
+    const archivePath = await categoriesArchiveFromFolder(t, fixturePath)
+    const reader = new Reader(archivePath)
+    const projectId = await manager.createProject({ configPath: archivePath })
+    const project = await manager.getProject(projectId)
+    await assertProjectHasImportedCategories(project, reader)
+  })
 
-  const projectPresets = await project.preset.getMany()
-  await t.test(
-    'load default config and check if correctly loaded',
-    async () => {
-      assert.equal(
-        //@ts-ignore
-        projectSettings.defaultPresets.point.length,
-        expectedDefault.presets.length,
-        'the default presets loaded is equal to the number of presets in the default config'
-      )
-
-      assert.deepEqual(
-        projectPresets.map((preset) => preset.name),
-        expectedDefault.presets.map((preset) => preset.value.name),
-        'project is loading the default presets correctly'
-      )
-
-      const projectFields = await project.field.getMany()
-      assert.deepEqual(
-        projectFields.map((field) => field.tagKey),
-        expectedDefault.fields.map((field) => field.value.tagKey),
-        'project is loading the default fields correctly'
-      )
-
-      const projectIcons = await project[kDataTypes].icon.getMany()
-      assert.deepEqual(
-        projectIcons.map((icon) => icon.name),
-        expectedDefault.icons.map((icon) => icon.name),
-        'project is loading the default icons correctly'
-      )
-    }
-  )
-
-  await t.test('loading non-default config when creating project', async () => {
-    const configPath = 'test/fixtures/config/completeConfig.zip'
-    const projectId = await manager.createProject({ configPath })
-
+  test('load different config after project creation', async (t) => {
+    const manager = new MapeoManager({
+      rootKey: KeyManager.generateRootKey(),
+      projectMigrationsFolder,
+      clientMigrationsFolder,
+      dbFolder: ':memory:',
+      coreStorage: () => new RAM(),
+      fastify: Fastify(),
+      defaultConfigPath,
+    })
+    const projectId = await manager.createProject()
     const project = await manager.getProject(projectId)
 
-    const projectSettings = await project.$getProjectSettings()
-    assert.equal(
-      projectSettings.defaultPresets?.point.length,
-      expectedMinimal.presets.length,
-      'the default presets loaded is equal to the number of presets in the default config'
-    )
-
-    const projectPresets = await project.preset.getMany()
-    assert.deepEqual(
-      projectPresets.map((preset) => preset.name),
-      expectedMinimal.presets.map((preset) => preset.value.name),
-      'project is loading the default presets correctly'
-    )
-
-    const projectFields = await project.field.getMany()
-    assert.deepEqual(
-      projectFields.map((field) => field.tagKey),
-      expectedMinimal.fields.map((field) => field.value.tagKey),
-      'project is loading the default fields correctly'
-    )
-
-    const projectIcons = await project[kDataTypes].icon.getMany()
-    assert.deepEqual(
-      projectIcons.map((icon) => icon.name),
-      expectedMinimal.icons.map((icon) => icon.name),
-      'project is loading the default icons correctly'
-    )
-  })
-
-  await t.test(
-    'load different config and check if correctly loaded',
-    async () => {
-      const configPath = 'test/fixtures/config/completeConfig.zip'
-      await project.importConfig({ configPath })
-      const projectPresets = await project.preset.getMany()
-      assert.deepEqual(
-        projectPresets.map((preset) => preset.name),
-        expectedMinimal.presets.map((preset) => preset.value.name),
-        'project presets explicitly loaded match expected config'
-      )
-
-      const projectFields = await project.field.getMany()
-      assert.deepEqual(
-        projectFields.map((field) => field.tagKey),
-        expectedMinimal.fields.map((field) => field.value.tagKey),
-        'project fields explicitly loaded match expected config'
-      )
-
-      // TODO: since we don't delete icons, this wouldn't match
-      // const projectIcons = await project1[kDataTypes].icon.getMany()
-      // assert.deepEqual(
-      //   projectIcons.map((icon) => icon.name),
-      //   loadedIcons.map((icon) => icon.name)
-      // )
+    {
+      // Project should start with default config
+      const reader = new Reader(defaultConfigPath)
+      await assertProjectHasImportedCategories(project, reader)
     }
-  )
+
+    {
+      // After importing new config, project should have the new config
+      const fixturePath = path.join(__dirname, 'fixtures/config/complete')
+      const archivePath = await categoriesArchiveFromFolder(t, fixturePath)
+      const reader = new Reader(archivePath)
+      await project.$importCategories({ filePath: archivePath })
+      await assertProjectHasImportedCategories(project, reader)
+    }
+  })
 })
 
 test('Managing added projects', async (t) => {
