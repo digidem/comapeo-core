@@ -302,7 +302,10 @@ export class DataType extends TypedEmitter {
     for (const translation of translations) {
       if (typeof getProperty(doc, translation.propertyRef) === 'string') {
         const isMatchingRegion = region
-          ? translation.regionCode === region
+          ? // Previous versions did not normalize region codes stored in the
+            // translations db to uppercase, so we need to transform the case
+            // here (the parsed `region` is always uppercase).
+            translation.regionCode?.toUpperCase() === region
           : false
         // Prefer translations with a matching region code, but fall back to
         // translations without a region code if no matching region code has
