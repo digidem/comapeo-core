@@ -1,9 +1,10 @@
-import { and, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { deNullify, hashObject } from './utils.js'
 import { nullIfNotFound } from './errors.js'
 import { omit } from './lib/omit.js'
 import { iso6391To6393, iso6393To6391 } from './intl/iso639.js'
+import { translationTable } from './schema/project.js'
 /** @import { MapeoDoc, Translation, TranslationValue } from '@comapeo/schema' */
 /** @import { SetOptional } from 'type-fest' */
 
@@ -113,8 +114,8 @@ export default class TranslationApi {
     if (!docTypeIsTranslatedToLanguage) return []
 
     const filters = [
-      sql`docRefType = ${value.docRefType}`,
-      sql`languageCode IN (${sql.join(languageCodesToQuery, ', ')})`,
+      eq(translationTable.docRefType, value.docRefType),
+      inArray(translationTable.languageCode, languageCodesToQuery),
       sql`json_extract(docRef, '$.docId') = ${value.docRef.docId}`,
     ]
 

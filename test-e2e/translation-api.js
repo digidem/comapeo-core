@@ -388,3 +388,194 @@ test('translation api - re-loading from disk', async (t) => {
 
   assert(hasExpectedNumberOfTranslations)
 })
+
+test('translation api - backwards compat with ISO 639-1 translations', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create a preset fixture to translate
+  const preset = await project.preset.create({
+    schemaName: 'preset',
+    name: 'Test Preset',
+    geometry: ['point'],
+    tags: {},
+    addTags: {},
+    removeTags: {},
+    terms: [],
+    fieldRefs: [],
+  })
+
+  // Put a translation with a two-letter language code (ISO 639-1)
+  const translationDoc = {
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'fr', // Two-letter ISO 639-1 code
+    propertyRef: 'name',
+    message: 'Nom traduit en français',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  }
+
+  await project.$translation.put(translationDoc)
+
+  // Get with three-letter language code (ISO 639-3)
+  const translations = await project.$translation.get({
+    docRefType: 'preset',
+    languageCode: 'fra', // Three-letter ISO 639-3 code
+    propertyRef: 'name',
+    docRef: { docId: preset.docId },
+  })
+
+  assert.equal(
+    translations.length,
+    1,
+    'should retrieve translation when querying with ISO 639-3 code'
+  )
+  assert.equal(
+    translations[0].message,
+    'Nom traduit en français',
+    'translation message should match'
+  )
+  const untranslatedPreset = await project.preset.getByDocId(preset.docId)
+  assert.equal(
+    untranslatedPreset.name,
+    'Test Preset',
+    'preset name without lang should be original'
+  )
+  const translatedPreset = await project.preset.getByDocId(preset.docId, {
+    lang: 'fra',
+  })
+  assert.equal(
+    translatedPreset.name,
+    'Nom traduit en français',
+    'preset name with lang should be translated'
+  )
+})
+
+test('translation api - backwards compat lower-case region code', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create a preset fixture to translate
+  const preset = await project.preset.create({
+    schemaName: 'preset',
+    name: 'Test Preset',
+    geometry: ['point'],
+    tags: {},
+    addTags: {},
+    removeTags: {},
+    terms: [],
+    fieldRefs: [],
+  })
+
+  // Add a non-region-specific French translation to ensure we don't get the fallback
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'fra',
+    propertyRef: 'name',
+    message: 'Nom traduit en français',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  })
+
+  // Put a region-specific translation with a lower-case region code
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'fra',
+    regionCode: 'gf', // Lower-case ISO 3166-1 alpha-2 code
+    propertyRef: 'name',
+    message: 'Nom traduit en français de Guyane',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  })
+
+  // Get translated preset with a language tag (fr-GF - French Guiana)
+  /** @type {Record<string, unknown>} */
+  const translatedPreset = await project.preset.getByDocId(preset.docId, {
+    lang: 'fr-GF',
+  })
+
+  assert.equal(
+    translatedPreset.name,
+    'Nom traduit en français de Guyane',
+    'preset should be translated when requesting with language tag'
+  )
+})
+
+test('translation api - region-specific vs language-only translation priority', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create a preset fixture to translate
+  const preset = await project.preset.create({
+    schemaName: 'preset',
+    name: 'Test Preset',
+    geometry: ['point'],
+    tags: {},
+    addTags: {},
+    removeTags: {},
+    terms: [],
+    fieldRefs: [],
+  })
+
+  // Put a translation with language code only (no region)
+  const translationDocWithoutRegion = {
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'por', // Three-letter ISO 639-3 code for Portuguese
+    propertyRef: 'name',
+    message: 'Nome em português geral',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  }
+
+  await project.$translation.put(translationDocWithoutRegion)
+
+  // Put a translation with language code and region code
+  const translationDocWithRegion = {
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'por', // Three-letter ISO 639-3 code for Portuguese
+    regionCode: 'PT', // ISO 3166-1 alpha-2 code for Portugal
+    propertyRef: 'name',
+    message: 'Nome em português de Portugal',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  }
+
+  await project.$translation.put(translationDocWithRegion)
+
+  // Get translated preset with matching region code (pt-PT)
+  /** @type {Record<string, unknown>} */
+  const translatedPresetPT = await project.preset.getByDocId(preset.docId, {
+    lang: 'pt-PT',
+  })
+
+  assert.equal(
+    translatedPresetPT.name,
+    'Nome em português de Portugal',
+    'preset should return region-specific translation when region matches'
+  )
+
+  // Get translated preset with language only (pt)
+  /** @type {Record<string, unknown>} */
+  const translatedPresetLanguageOnly = await project.preset.getByDocId(
+    preset.docId,
+    { lang: 'pt' }
+  )
+
+  assert.equal(
+    translatedPresetLanguageOnly.name,
+    'Nome em português geral',
+    'preset should return language-only translation when no region is specified'
+  )
+
+  // Get translated preset with non-matching region code (pt-BR)
+  /** @type {Record<string, unknown>} */
+  const translatedPresetBR = await project.preset.getByDocId(preset.docId, {
+    lang: 'pt-BR',
+  })
+
+  assert.equal(
+    translatedPresetBR.name,
+    'Nome em português geral',
+    'preset should fall back to language-only translation when region does not match'
+  )
+})

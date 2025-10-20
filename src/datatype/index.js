@@ -306,7 +306,7 @@ export class DataType extends TypedEmitter {
             // translations db to uppercase, so we need to transform the case
             // here (the parsed `region` is always uppercase).
             translation.regionCode?.toUpperCase() === region
-          : false
+          : !translation.regionCode // No region code means it's a match for any region
         // Prefer translations with a matching region code, but fall back to
         // translations without a region code if no matching region code has
         // been found yet for this propertyRef
