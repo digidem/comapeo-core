@@ -148,7 +148,7 @@ export const NO_ROLE = {
   roleAssignment: [],
   sync: {
     auth: 'allowed',
-    config: 'allowed',
+    config: 'blocked',
     data: 'blocked',
     blobIndex: 'blocked',
     blob: 'blocked',
