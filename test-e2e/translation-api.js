@@ -534,3 +534,102 @@ test('translation api - region-specific vs language-only translation priority', 
     'preset should fall back to language-only translation when region does not match'
   )
 })
+
+test('translation api - field option labels translation', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create a selectOne field with options
+  const field = await project.field.create({
+    schemaName: 'field',
+    tagKey: 'animal_type',
+    label: 'Animal Type',
+    type: 'selectOne',
+    options: [
+      { value: 'dog', label: 'Dog' },
+      { value: 'cat', label: 'Cat' },
+      { value: 'bird', label: 'Bird' },
+    ],
+  })
+
+  // Translate the field label
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('field'),
+    languageCode: 'spa',
+    regionCode: 'AR',
+    propertyRef: 'label',
+    message: 'Tipo de Animal',
+    docRef: { docId: field.docId, versionId: field.versionId },
+  })
+
+  // Translate option labels using propertyRef format: options[value="foo"].label
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('field'),
+    languageCode: 'spa',
+    regionCode: 'AR',
+    propertyRef: 'options[value="dog"].label',
+    message: 'Perro',
+    docRef: { docId: field.docId, versionId: field.versionId },
+  })
+
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('field'),
+    languageCode: 'spa',
+    regionCode: 'AR',
+    propertyRef: 'options[value="cat"].label',
+    message: 'Gato',
+    docRef: { docId: field.docId, versionId: field.versionId },
+  })
+
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('field'),
+    languageCode: 'spa',
+    regionCode: 'AR',
+    propertyRef: 'options[value="bird"].label',
+    message: 'Pájaro',
+    docRef: { docId: field.docId, versionId: field.versionId },
+  })
+
+  // Get the field without translation
+  /** @type {Record<string, unknown>} */
+  const untranslatedField = await project.field.getByDocId(field.docId)
+  assert.equal(
+    untranslatedField.label,
+    'Animal Type',
+    'field label should be in English'
+  )
+  assert.deepEqual(
+    untranslatedField.options,
+    [
+      { value: 'dog', label: 'Dog' },
+      { value: 'cat', label: 'Cat' },
+      { value: 'bird', label: 'Bird' },
+    ],
+    'option labels should be in English'
+  )
+
+  // Get the field with Spanish (Argentina) translation
+  /** @type {Record<string, unknown>} */
+  const translatedField = await project.field.getByDocId(field.docId, {
+    lang: 'es-AR',
+  })
+
+  assert.equal(
+    translatedField.label,
+    'Tipo de Animal',
+    'field label should be translated to Spanish'
+  )
+  assert.deepEqual(
+    translatedField.options,
+    [
+      { value: 'dog', label: 'Perro' },
+      { value: 'cat', label: 'Gato' },
+      { value: 'bird', label: 'Pájaro' },
+    ],
+    'option labels should be translated to Spanish'
+  )
+})
