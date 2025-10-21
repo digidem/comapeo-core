@@ -32,6 +32,8 @@ Path to store project sqlite db. Use `:memory:` for memory storage
 
 Encryption keys for each namespace
 
+• **opts.getFallbackProjectInfo**
+
 • **opts.getMediaBaseUrl**
 
 • **opts.isArchiveDevice**: `boolean`
@@ -60,7 +62,7 @@ path for drizzle migration folder for project
 
 32-byte secret key of the project creator core
 
-• **opts.sharedDb**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>\>
+• **opts.sharedDb**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>, `any`\>
 
 • **opts.sharedIndexWriter**: [`IndexWriter`](IndexWriter.md)\<[`MapeoDocTables`](../type-aliases/MapeoDocTables.md)\>
 
@@ -83,6 +85,12 @@ path for drizzle migration folder for project
 ### EMPTY\_PROJECT\_SETTINGS
 
 > `static` **EMPTY\_PROJECT\_SETTINGS**: `Readonly`\<`object`\>
+
+#### Type declaration
+
+##### sendStats
+
+> **sendStats**: `false` = `false`
 
 ## Accessors
 
@@ -286,11 +294,11 @@ DataTypes object mappings, used for tests
 
 ## Methods
 
-### \[kClearDataIfLeft\]()
+### \[kClearData\]()
 
-> **\[kClearDataIfLeft\]**(): `Promise`\<`void`\>
+> **\[kClearData\]**(): `Promise`\<`void`\>
 
-Clear data if we've left the project. No-op if you're still in the project.
+Clear synced data, but keep auth data and own data
 
 #### Returns
 
@@ -410,6 +418,22 @@ and only this project will replicate.
 
 ***
 
+### $importCategories()
+
+> **$importCategories**(`opts`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **opts**
+
+• **opts.filePath**: `string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### ~~$originalVersionIdToDeviceId()~~
 
 > **$originalVersionIdToDeviceId**(`originalVersionId`): `Promise`\<`string`\>
@@ -526,7 +550,7 @@ The full path that the file was exported at
 
 ***
 
-### importConfig()
+### ~~importConfig()~~
 
 > **importConfig**(`opts`): `Promise`\<`Error`[]\>
 
@@ -539,6 +563,8 @@ The full path that the file was exported at
 #### Returns
 
 `Promise`\<`Error`[]\>
+
+#### Deprecated
 
 ***
 
