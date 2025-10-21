@@ -302,7 +302,7 @@ test('roles - new device without role', async (t) => {
     ownRole.sync,
     {
       auth: 'allowed',
-      config: 'allowed',
+      config: 'blocked',
       data: 'blocked',
       blobIndex: 'blocked',
       blob: 'blocked',
