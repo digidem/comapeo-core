@@ -2,6 +2,22 @@ import PQueue from 'p-queue'
 import { Reader } from 'comapeocat/reader.js'
 import { typedEntries } from './utils.js'
 import { parseBcp47 } from './intl/parse-bcp-47.js'
+import ensureError from 'ensure-error'
+
+// The main reason for the concurrency limit is to avoid run-away memory usage.
+// The comapeocat Reader limits icon size to 2Mb (as-per the specification), and
+// it's likely that as SVGs, most icons will be much smaller than that, but we
+// don't want a file with 1,000 icons of 2Mb each to bring a device to its
+// knees. The choice of 4 is somewhat arbitrary, but should keep memory usage
+// reasonable even in the worst case (8Mb of icon data in memory at once), while
+// still allowing some parallelism to speed up the import.
+const ICON_QUEUE_CONCURRENCY = 4
+// Because fields and presets are all stored in a single file in the categories
+// archive, they all need to be loaded into memory at once anyway (each file,
+// with all docs, is limited to 1Mb). The concurrency limit here is somewhat
+// arbitrary also, but it's to avoid a performance bottleneck if a user tries to
+// import a file with thousands of categories or fields.
+const DOC_QUEUE_CONCURRENCY = 32
 
 /** @import {MapeoProject} from './mapeo-project.js' */
 /** @typedef {{ docId: string, versionId: string }} Ref */
@@ -15,7 +31,7 @@ import { parseBcp47 } from './intl/parse-bcp-47.js'
 export async function importCategories(project, { filePath, logger }) {
   // Queue promises to create icons and docs, initially with concurrency of 4
   // for icons, to minimize memory usage.
-  const queue = new PQueue({ concurrency: 4 })
+  const queue = new PQueue({ concurrency: ICON_QUEUE_CONCURRENCY })
 
   // TODO: We should use something like a hash to avoid deleting and
   // re-importing presets and fields that have not changed, and try to identify
@@ -51,32 +67,49 @@ export async function importCategories(project, { filePath, logger }) {
       if (!('icon' in category && category.icon)) continue
       iconsToAdd.add(category.icon)
     }
+    /** @type {Error[]} */
+    const errors = []
     for (const iconName of iconsToAdd) {
-      const iconXml = await reader.getIcon(iconName)
-      if (!iconXml) {
-        // This should never happen because of the validate() call above
-        throw new Error(`Icon ${iconName} not found in import file`)
-      }
-      /** @type {Parameters<typeof project.$icons.create>[0]} */
-      const icon = {
-        name: iconName,
-        variants: [
-          {
-            mimeType: 'image/svg+xml',
-            size: 'medium',
-            blob: Buffer.from(iconXml, 'utf-8'),
-          },
-        ],
-      }
-      queue.add(() =>
-        project.$icons.create(icon).then(({ docId, versionId }) => {
-          iconNameToRef.set(iconName, { docId, versionId })
+      queue
+        .add(async () => {
+          const iconXml = await reader.getIcon(iconName)
+          if (!iconXml) {
+            // This should never happen because of the validate() call above
+            throw new Error(`Icon ${iconName} not found in import file`)
+          }
+          /** @type {Parameters<typeof project.$icons.create>[0]} */
+          const icon = {
+            name: iconName,
+            variants: [
+              {
+                mimeType: 'image/svg+xml',
+                size: 'medium',
+                blob: Buffer.from(iconXml, 'utf-8'),
+              },
+            ],
+          }
+
+          await project.$icons.create(icon).then(({ docId, versionId }) => {
+            iconNameToRef.set(iconName, { docId, versionId })
+          })
         })
-      )
+        .catch((e) => {
+          // The queue task added above could throw (it shouldn't!), and the
+          // promise for that task is returned by `queue.add()`. We don't await
+          // this (because we want to keep adding items to the queue), but we need
+          // to avoid an uncaught error, so we catch it here and store it for later.
+          errors.push(ensureError(e))
+        })
     }
 
     await queue.onIdle()
-    queue.concurrency = 12 // increase concurrency for creating fields and presets
+    if (errors.length > 0) {
+      throw new AggregateError(
+        errors,
+        'Errors occurred creating icons during import'
+      )
+    }
+    queue.concurrency = DOC_QUEUE_CONCURRENCY // increase concurrency for creating fields and presets
 
     const fields = await reader.fields()
     /** @type {Set<string>} */
@@ -91,16 +124,26 @@ export async function importCategories(project, { filePath, logger }) {
       const field = getOrThrow(fields, fieldName)
       /** @type {import('@comapeo/schema').FieldValue} */
       const fieldValue = { ...field, schemaName: 'field' }
-      queue.add(() =>
-        project.field.create(fieldValue).then(({ docId, versionId }) => {
-          fieldNameToRef.set(fieldName, { docId, versionId })
+      queue
+        .add(() =>
+          project.field.create(fieldValue).then(({ docId, versionId }) => {
+            fieldNameToRef.set(fieldName, { docId, versionId })
+          })
+        )
+        .catch((e) => {
+          errors.push(ensureError(e))
         })
-      )
     }
 
     // Must wait for all fields and icons to be created before creating presets,
     // because we need the field and icon refs
     await queue.onIdle()
+    if (errors.length > 0) {
+      throw new AggregateError(
+        errors,
+        'Errors occurred creating fields during import'
+      )
+    }
 
     for (const [categoryName, category] of categories) {
       const {
@@ -131,11 +174,15 @@ export async function importCategories(project, { filePath, logger }) {
         schemaName: 'preset',
       }
 
-      queue.add(() =>
-        project.preset.create(presetValue).then(({ docId, versionId }) => {
-          presetNameToRef.set(categoryName, { docId, versionId })
+      queue
+        .add(() =>
+          project.preset.create(presetValue).then(({ docId, versionId }) => {
+            presetNameToRef.set(categoryName, { docId, versionId })
+          })
+        )
+        .catch((e) => {
+          errors.push(ensureError(e))
         })
-      )
     }
 
     const { buildDateValue, ...readerMetadata } = await reader.metadata()
@@ -177,7 +224,18 @@ export async function importCategories(project, { filePath, logger }) {
               propertyRef,
               message,
             }
-            queue.add(() => project.$translation.put(translationValue))
+            queue
+              .add(() => project.$translation.put(translationValue))
+              .catch((e) => {
+                errors.push(ensureError(e))
+              })
+            // Since translations are stored in separate files in the archive,
+            // and there could potentially be hundreds of them in the future,
+            // and the async iterator in this loop will load a new file for
+            // every iteration, we pause here when there are queued tasks (up to
+            // DOCS_QUEUE_CONCURRENCY tasks could be pending however) to avoid
+            // run-away memory usage.
+            await queue.onSizeLessThan(0)
           }
         }
       }
@@ -185,6 +243,12 @@ export async function importCategories(project, { filePath, logger }) {
 
     // Need to wait for all presets to be created so that we can read the refs for the defaultPresets
     await queue.onIdle()
+    if (errors.length > 0) {
+      throw new AggregateError(
+        errors,
+        'Errors occurred creating presets or translations during import'
+      )
+    }
     /** @type {import('@comapeo/schema').ProjectSettings['defaultPresets']} */
     const defaultPresets = {
       point: [],
@@ -214,12 +278,26 @@ export async function importCategories(project, { filePath, logger }) {
     })
 
     for (const docId of presetsToDelete) {
-      queue.add(() => project.preset.delete(docId))
+      queue
+        .add(() => project.preset.delete(docId))
+        .catch((e) => {
+          errors.push(ensureError(e))
+        })
     }
     for (const docId of fieldsToDelete) {
-      queue.add(() => project.field.delete(docId))
+      queue
+        .add(() => project.field.delete(docId))
+        .catch((e) => {
+          errors.push(ensureError(e))
+        })
     }
     await queue.onIdle()
+    if (errors.length > 0) {
+      throw new AggregateError(
+        errors,
+        'Errors occurred deleting old presets or fields during import'
+      )
+    }
   } finally {
     // Don't throw errors from closing the reader, because if the import was
     // successful we don't want to throw an error, and if there was an error
