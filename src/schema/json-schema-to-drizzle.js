@@ -1,23 +1,24 @@
-import { text, integer, real } from 'drizzle-orm/sqlite-core'
+import { text, integer, real, sqliteTable } from 'drizzle-orm/sqlite-core'
 import { ExhaustivenessError } from '../utils.js'
-/** @import { MapeoDoc } from '@comapeo/schema' */
-/** @import { MapeoDocMap } from '../types.js' */
 
 /**
-Convert a JSONSchema definition to a Drizzle Columns Map (the parameter for
-`sqliteTable()`).
-
-**NOTE**: The return of this function is _not_ type-checked (it is coerced with
-`as`, because it's not possible to type-check what this function is doing), but
-the return type _should_ be correct when using this function.
-@template {import('./types.js').JSONSchema7WithProps} TSchema
-NB: The inline typescript checker often marks this next line as an error, but this seems to be a bug with JSDoc parsing - running `tsc` does not show this as an error.
-@template {import('type-fest').Get<TSchema, 'properties.schemaName.const'>} TSchemaName
-@template {TSchemaName extends MapeoDoc['schemaName'] ? MapeoDocMap[TSchemaName] : any} TObjectType
-@param {TSchema} schema
-@returns {import('./types.js').SchemaToDrizzleColumns<TSchema, TObjectType>}
+ * @template {{ [ K in keyof TSchema['properties'] ]?: any }} TObjectType
+ * @template {import('./types.js').JSONSchema7Object} TSchema
+ * @template {string} TTableName
+ * @template {Record<string, import('drizzle-orm').ColumnBuilderBase>} TColumnsMap
+ * @template {keyof TSchema['properties']} TPrimaryKey
+ * @param {TTableName} tableName
+ * @param {TSchema} schema
+ * @param {object} [opts]
+ * @param {TColumnsMap} [opts.additionalColumns]
+ * @param {TPrimaryKey} [opts.primaryKey] - Column name to use as primary key, if not specified in schema
+ * @returns {import('./types.js').JsonSchemaToDrizzleSqliteTable<TObjectType, TSchema, TTableName, TColumnsMap, TPrimaryKey>}
  */
-export function jsonSchemaToDrizzleColumns(schema) {
+export function jsonSchemaToDrizzleSqliteTable(
+  tableName,
+  schema,
+  { additionalColumns, primaryKey } = {}
+) {
   if (schema.type !== 'object' || !schema.properties) {
     throw new Error('Cannot process JSONSchema as SQL table')
   }
@@ -45,9 +46,6 @@ export function jsonSchemaToDrizzleColumns(schema) {
           ? /** @type {[typeof value.const]} */ ([value.const])
           : undefined
         columns[key] = text(key, { enum: enumValue })
-        if (key === 'docId') {
-          columns[key] = columns[key].primaryKey()
-        }
         break
       }
       case 'array':
@@ -68,10 +66,13 @@ export function jsonSchemaToDrizzleColumns(schema) {
         columns[key] = columns[key].default(defaultValue)
       }
     }
+    if (key === primaryKey) {
+      columns[key] = columns[key].primaryKey()
+    }
   }
-  // Not yet in @comapeo/schema
-  columns.forks = text('forks', { mode: 'json' }).notNull()
-  return /** @type {any} */ (columns)
+  return /** @type {any} */ (
+    sqliteTable(tableName, { ...columns, ...additionalColumns })
+  )
 }
 
 /**
@@ -84,7 +85,7 @@ function getDefault(value) {
 }
 
 /**
- * @param {import('./types.js').JSONSchema7WithProps} schema
+ * @param {import('./types.js').JSONSchema7Object} schema
  * @param {string} key
  * @returns {boolean}
  */
