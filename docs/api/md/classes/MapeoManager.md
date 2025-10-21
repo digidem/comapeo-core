@@ -240,7 +240,13 @@ isArchiveDevice
 
 ### listProjects()
 
-> **listProjects**(): `Promise`\<[`ListedProject`](../-internal-/type-aliases/ListedProject.md)[]\>
+> **listProjects**(`opts`?): `Promise`\<[`ListedProject`](../-internal-/type-aliases/ListedProject.md)[]\>
+
+#### Parameters
+
+• **opts?** = `{}`
+
+• **opts.includeLeft?**: `boolean` = `false`
 
 #### Returns
 

@@ -6,4 +6,4 @@
 
 # Variable: iconTable
 
-> `const` **iconTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **iconTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"icon"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>

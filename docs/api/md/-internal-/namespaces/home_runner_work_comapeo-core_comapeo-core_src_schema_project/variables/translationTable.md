@@ -6,4 +6,4 @@
 
 # Variable: translationTable
 
-> `const` **translationTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **translationTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"translation"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>
