@@ -25,18 +25,15 @@ jobs:
     if: >-
       ${{
         (
-          startsWith(github.event.inputs.semver, 'pre') ||
-          github.ref == format(
-            'refs/heads/{0}',
-            github.event.repository.default_branch
-          )
-        ) &&
-        (
-          github.event_name != 'pull_request' ||
+          github.event_name != 'pull_request' &&
           (
-            github.event.pull_request.merged &&
-            github.event.pull_request.user.login == 'optic-release-automation[bot]'
+            startsWith(github.event.inputs.semver, 'pre') ||
+            github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
           )
+        ) ||
+        (
+          github.event.pull_request.merged &&
+          github.event.pull_request.user.login == 'optic-release-automation[bot]'
         )
       }}
     runs-on: ubuntu-latest
@@ -51,8 +48,8 @@ jobs:
           commit-message: 'Release {version}'
           sync-semver-tags: false
           access: 'public'
-          # This prefix is added before the prerelease number, e.g. `v3.0.0-next.0`
-          prerelease-prefix: 'next'
+          # This prefix is added before the prerelease number, e.g. `v3.0.0-pre.0`
+          prerelease-prefix: 'pre'
           semver: ${{ github.event.inputs.semver }}
           # Prereleases are published under the `next` npm dist-tag
           npm-tag: ${{ startsWith(github.event.inputs.semver, 'pre') && 'next' || 'latest' }}
