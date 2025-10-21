@@ -6,6 +6,6 @@
 
 # Type Alias: ProjectInfo
 
-> **ProjectInfo**\<\>: `Pick`\<`ProjectSettings`, `"name"` \| `"projectColor"` \| `"projectDescription"`\>
+> **ProjectInfo**\<\>: `Pick`\<`ProjectSettings`, `"name"` \| `"projectColor"` \| `"projectDescription"` \| `"sendStats"`\>
 
 ## Type Parameters

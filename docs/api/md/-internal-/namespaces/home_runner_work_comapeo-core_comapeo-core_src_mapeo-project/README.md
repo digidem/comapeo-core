@@ -22,7 +22,7 @@
 ### Variables
 
 - [kBlobStore](variables/kBlobStore.md)
-- [kClearDataIfLeft](variables/kClearDataIfLeft.md)
+- [kClearData](variables/kClearData.md)
 - [kCoreManager](variables/kCoreManager.md)
 - [kCoreOwnership](variables/kCoreOwnership.md)
 - [kDataTypes](variables/kDataTypes.md)

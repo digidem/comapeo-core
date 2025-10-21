@@ -24,7 +24,7 @@
 
 Immediately start downloading cores - should only be set to false for tests
 
-• **options.db**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>\>
+• **options.db**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>, `any`\>
 
 Drizzle better-sqlite3 database instance
 
@@ -249,7 +249,7 @@ Resolves when all cores have finished loading
 
 #### Parameters
 
-• **blobFilter**: `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
+• **blobFilter**: `null` \| `_RequireAtLeastOne`\<`object`, `"photo"` \| `"video"` \| `"audio"`\>
 
 • **peer**: [`HypercorePeer`](../type-aliases/HypercorePeer.md)
 

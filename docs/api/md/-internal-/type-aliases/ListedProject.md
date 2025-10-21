@@ -6,32 +6,6 @@
 
 # Type Alias: ListedProject
 
-> **ListedProject**\<\>: `object`
+> **ListedProject**\<\>: [`ListedProjectSettings`](ListedProjectSettings.md) & `object` \| [`ProjectInfo`](ProjectInfo.md) & `object`
 
 ## Type Parameters
-
-## Type declaration
-
-### createdAt?
-
-> `optional` **createdAt**: `string`
-
-### name?
-
-> `optional` **name**: `string`
-
-### projectColor?
-
-> `optional` **projectColor**: `string`
-
-### projectDescription?
-
-> `optional` **projectDescription**: `string`
-
-### projectId
-
-> **projectId**: `string`
-
-### updatedAt?
-
-> `optional` **updatedAt**: `string`
