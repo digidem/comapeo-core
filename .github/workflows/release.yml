@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       semver:
-        description: "The semver to use"
+        description: 'The semver to use'
         required: true
-        default: "auto"
+        default: 'auto'
         type: choice
         options:
           - auto
@@ -33,14 +33,14 @@ jobs:
     steps:
       - uses: nearform-actions/optic-release-automation-action@a2785548e8bdafab7e628c2317b604278e460434 # v4.12.2
         with:
-          commit-message: "Release {version}"
+          commit-message: 'Release {version}'
           sync-semver-tags: false
-          access: "public"
-          # This prefix is added before the prerelease number, e.g. `v3.0.0-alpha.0`
-          # prerelease-prefix: 'alpha'
+          access: 'public'
+          # This prefix is added before the prerelease number, e.g. `v3.0.0-next.0`
+          prerelease-prefix: 'next'
           semver: ${{ github.event.inputs.semver }}
-          # Prereleases are published under the `alpha` npm dist-tag
-          # npm-tag: ${{ startsWith(github.event.inputs.semver, 'pre') && 'alpha' || 'latest' }}
+          # Prereleases are published under the `next` npm dist-tag
+          npm-tag: ${{ startsWith(github.event.inputs.semver, 'pre') && 'next' || 'latest' }}
           # Don't notify linked issues
           notify-linked-issues: false
           publish-mode: oidc
