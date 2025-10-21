@@ -101,8 +101,10 @@ export async function importCategories(project, { filePath, logger }) {
           errors.push(ensureError(e))
         })
     }
+    console.log('Waiting for icons to be created...')
 
     await queue.onIdle()
+    console.log('All icons created successfully.')
     if (errors.length > 0) {
       throw new AggregateError(
         errors,
@@ -188,6 +190,8 @@ export async function importCategories(project, { filePath, logger }) {
     const { buildDateValue, ...readerMetadata } = await reader.metadata()
     const fileVersion = await reader.fileVersion()
 
+    console.log('Waiting for translations to be created...')
+
     for await (const {
       lang,
       translations: translationsByDocType,
@@ -235,7 +239,7 @@ export async function importCategories(project, { filePath, logger }) {
             // every iteration, we pause here when there are queued tasks (up to
             // DOCS_QUEUE_CONCURRENCY tasks could be pending however) to avoid
             // run-away memory usage.
-            await queue.onSizeLessThan(0)
+            await queue.onSizeLessThan(1)
           }
         }
       }
