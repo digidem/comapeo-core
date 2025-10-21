@@ -12,14 +12,22 @@ import { normalizeRegionSubtag } from './region-subtag.js'
  * equivalent. UN M.49 region codes are converted to their ISO 3166-1 alpha-2
  * equivalent if one exists.
  *
+ * Will throw an error if the input is not a valid BCP 47 language tag, but will
+ * return language: null without throwing if the primary language subtag does
+ * not match our stricter criteria of requiring an ISO 639-1 or ISO 639-3
+ * subtag.
+ *
  * @param {string} languageTag - A BCP 47 language tag.
  * @returns {{language: string | null | undefined, region: string | null | undefined}} - The parsed and normalized language and region subtags, or null if the input is not valid.
  */
 export function parseBcp47(languageTag) {
   const normalized = bcp47Normalize(languageTag)
   const { language, region } = simpleParseBcp47(normalized)
+  if (!language) {
+    throw new Error(`Invalid BCP 47 language tag: ${languageTag}`)
+  }
   return {
-    language: language && normalizePrimaryLanguageSubtag(language),
+    language: normalizePrimaryLanguageSubtag(language),
     region: region && normalizeRegionSubtag(region),
   }
 }
