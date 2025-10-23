@@ -6,4 +6,4 @@
 
 # Variable: coreOwnershipTable
 
-> `const` **coreOwnershipTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **coreOwnershipTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"coreOwnership"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>

@@ -20,7 +20,7 @@
 
 • **opts.iconDataStore**: [`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>
 
-• **opts.iconDataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"icon"`, `object`, `object`\>
+• **opts.iconDataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"icon"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"icon"`, `object`, `object`\>
 
 #### Returns
 

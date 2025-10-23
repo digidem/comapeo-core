@@ -34,7 +34,7 @@
 
 • **opts.dataStore**: `TDataStore`
 
-• **opts.db**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>\>
+• **opts.db**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>, `any`\>
 
 • **opts.getDeviceIdForVersionId**
 
@@ -116,11 +116,11 @@ only used internally to skip the checkExisting check when creating a document wi
 
 ### \[kSelect\]()
 
-> **\[kSelect\]**(): `Promise`\<`Omit`\<`SQLiteSelectBase`\<`GetSelectTableName`\<`TTable`\>, `"sync"`, `RunResult`, `GetSelectTableSelection`\<`TTable`\>, `"single"`, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`, `false`, `never`, `{ [K in string]: { [Key in string]: SelectResultField<GetSelectTableSelection<(...)>[Key], true> }[K] }`[], `BuildSubquerySelection`\<`GetSelectTableSelection`\<`TTable`\>, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`\>\>, `"then"` \| `"catch"` \| `"finally"`\> & `object`\>
+> **\[kSelect\]**(): `Promise`\<`Omit`\<`SQLiteSelectBase`\<`GetSelectTableName`\<`TTable`\>, `"sync"`, `RunResult`, `GetSelectTableSelection`\<`TTable`\>, `"single"`, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`, `false`, `never`, \{ \[K in string \| number \| symbol\]: \{ \[Key in string \| number \| symbol\]: SelectResultField\<GetSelectTableSelection\<(...)\>\[Key\], true\> \}\[K\] \}[], `BuildSubquerySelection`\<`GetSelectTableSelection`\<`TTable`\>, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`\>\>, `"then"` \| `"catch"` \| `"finally"`\> & `object`\>
 
 #### Returns
 
-`Promise`\<`Omit`\<`SQLiteSelectBase`\<`GetSelectTableName`\<`TTable`\>, `"sync"`, `RunResult`, `GetSelectTableSelection`\<`TTable`\>, `"single"`, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`, `false`, `never`, `{ [K in string]: { [Key in string]: SelectResultField<GetSelectTableSelection<(...)>[Key], true> }[K] }`[], `BuildSubquerySelection`\<`GetSelectTableSelection`\<`TTable`\>, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`\>\>, `"then"` \| `"catch"` \| `"finally"`\> & `object`\>
+`Promise`\<`Omit`\<`SQLiteSelectBase`\<`GetSelectTableName`\<`TTable`\>, `"sync"`, `RunResult`, `GetSelectTableSelection`\<`TTable`\>, `"single"`, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`, `false`, `never`, \{ \[K in string \| number \| symbol\]: \{ \[Key in string \| number \| symbol\]: SelectResultField\<GetSelectTableSelection\<(...)\>\[Key\], true\> \}\[K\] \}[], `BuildSubquerySelection`\<`GetSelectTableSelection`\<`TTable`\>, `GetSelectTableName`\<`TTable`\> *extends* `string` ? `Record`\<`string` & `GetSelectTableName`\<`TTable`\>, `"not-null"`\> : `object`\>\>, `"then"` \| `"catch"` \| `"finally"`\> & `object`\>
 
 ***
 

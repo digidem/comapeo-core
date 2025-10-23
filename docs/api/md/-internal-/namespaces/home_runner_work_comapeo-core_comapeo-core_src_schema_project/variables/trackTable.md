@@ -6,4 +6,4 @@
 
 # Variable: trackTable
 
-> `const` **trackTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **trackTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"track"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>

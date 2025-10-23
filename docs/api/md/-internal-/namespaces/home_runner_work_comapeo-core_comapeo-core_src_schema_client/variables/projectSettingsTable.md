@@ -6,4 +6,4 @@
 
 # Variable: projectSettingsTable
 
-> `const` **projectSettingsTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **projectSettingsTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"projectSettings"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>
