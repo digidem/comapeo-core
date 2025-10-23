@@ -10,6 +10,7 @@ import {
   ROLES,
   MEMBER_ROLE_ID,
   NO_ROLE,
+  BLOCKED_ROLE_ID,
 } from '../src/roles.js'
 import {
   connectPeers,
@@ -19,6 +20,7 @@ import {
   waitForSync,
 } from './utils.js'
 import { kDataTypes } from '../src/mapeo-project.js'
+import { pEvent } from 'p-event'
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 /** @import { RoleId } from '../src/roles.js' */
 
@@ -643,4 +645,38 @@ test('roles - assignRole() with forked role', async (t) => {
     invitee2.deviceId
   )
   assert.equal(invitee2RoleMerged.forks.length, 0, 'invitee2 role has no forks')
+})
+
+test.only('remove member from project while connected', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  const inviteeProject = await invitee.getProject(projectId)
+  const invitorProject = await invitor.getProject(projectId)
+
+  const onRoleChange = pEvent(inviteeProject, 'own-role-change', {
+    timeout: 20_000,
+  })
+
+  await invitorProject.$member.remove(invitee.deviceId)
+
+  await waitForSync([inviteeProject, invitorProject], 'initial')
+
+  const updatedRole = await onRoleChange
+
+  assert.equal(
+    updatedRole.role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitee sees they were removed'
+  )
 })
