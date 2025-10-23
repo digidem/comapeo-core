@@ -69,6 +69,7 @@ import { createWriteStream } from 'fs'
 import ensureError from 'ensure-error'
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
+/** @import {Role} from './roles.js' */
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 /** @typedef {Map<string,Attachment>} SeenAttachments*/
@@ -109,7 +110,18 @@ const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
 const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
 
 /**
- * @extends {TypedEmitter<{ close: () => void }>}
+ * @typedef RoleChangeEvent
+ * @property {Role} role
+ */
+
+/**
+ * @typedef {object} ProjectEvents
+ * @property {() => void} close Project resources have been cleared up
+ * @property {(changeEvent: RoleChangeEvent) => void} own-role-change
+ */
+
+/**
+ * @extends {TypedEmitter<ProjectEvents>}
  */
 export class MapeoProject extends TypedEmitter {
   #projectKey
@@ -506,6 +518,17 @@ export class MapeoProject extends TypedEmitter {
     // for the core.
     localPeers.on('discovery-key', onDiscoverykey)
 
+    this.#roles.on('update', (roleDocIds) => {
+      for (const roleDocId of roleDocIds) {
+        // Ignore docs not about ourselves
+        if (roleDocId !== this.#deviceId) continue
+        this.#handleRoleChange().catch((e) => {
+          if (!(e instanceof Error)) throw e
+          this.#l.log(`Error: Could not handle role change`, e)
+        })
+      }
+    })
+
     this.once('close', () => {
       localPeers.off('peer-add', onPeerAdd)
       localPeers.off('discovery-key', onDiscoverykey)
@@ -720,6 +743,12 @@ export class MapeoProject extends TypedEmitter {
 
   async $getOwnRole() {
     return this.#roles.getRole(this.#deviceId)
+  }
+
+  async #handleRoleChange() {
+    const role = await this.$getOwnRole()
+    this.emit('own-role-change', { role })
+    console.log('emitted own role change')
   }
 
   /**
