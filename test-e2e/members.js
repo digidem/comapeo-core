@@ -647,7 +647,7 @@ test('roles - assignRole() with forked role', async (t) => {
   assert.equal(invitee2RoleMerged.forks.length, 0, 'invitee2 role has no forks')
 })
 
-test.only('remove member from project while connected', async (t) => {
+test('remove member from project while connected', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
@@ -665,7 +665,7 @@ test.only('remove member from project while connected', async (t) => {
   const invitorProject = await invitor.getProject(projectId)
 
   const onRoleChange = pEvent(inviteeProject, 'own-role-change', {
-    timeout: 20_000,
+    timeout: 1_000,
   })
 
   await invitorProject.$member.remove(invitee.deviceId)
@@ -678,5 +678,48 @@ test.only('remove member from project while connected', async (t) => {
     updatedRole.role.roleId,
     BLOCKED_ROLE_ID,
     'invitee sees they were removed'
+  )
+})
+
+test('remove member from project while disconnected and reconnect', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  let disconnectPeers = connectPeers(managers)
+  t.after(() => disconnectPeers())
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  const inviteeProject = await invitee.getProject(projectId)
+  const invitorProject = await invitor.getProject(projectId)
+
+  await disconnectPeers()
+
+  const firstOnRoleChange = pEvent(inviteeProject, 'own-role-change', {
+    timeout: 1_000,
+  })
+
+  await invitorProject.$member.remove(invitee.deviceId)
+
+  await assert.rejects(() => firstOnRoleChange)
+
+  const onRoleChange = pEvent(inviteeProject, 'own-role-change', {
+    timeout: 1_000,
+  })
+  disconnectPeers = connectPeers(managers)
+
+  await waitForSync([inviteeProject, invitorProject], 'initial')
+
+  const updatedRole = await onRoleChange
+
+  assert.equal(
+    updatedRole.role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitee sees they were removed after reconnect'
   )
 })

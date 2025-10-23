@@ -748,7 +748,6 @@ export class MapeoProject extends TypedEmitter {
   async #handleRoleChange() {
     const role = await this.$getOwnRole()
     this.emit('own-role-change', { role })
-    console.log('emitted own role change')
   }
 
   /**
