@@ -22,6 +22,7 @@ import { InviteAbortedError, ProjectDetailsSendFailError } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
+  LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
   ROLES,
   isRoleIdForNewInvite,
@@ -353,6 +354,23 @@ export class MemberApi extends TypedEmitter {
       serverDeviceId,
       dangerouslyAllowInsecureConnections,
     })
+  }
+
+  /**
+   * Remove a member from the project
+   * @param {string} deviceId Device id of member to remove
+   */
+  async remove(deviceId) {
+    const member = await this.getById(deviceId)
+    const { roleId } = member.role
+
+    if (roleId === BLOCKED_ROLE_ID || roleId === LEFT_ROLE_ID) {
+      throw new ErrorWithCode('ALREADY_BLOCKED', 'Member already blocked')
+    }
+
+    // Add blocked role to project
+    // Should error if you don't have permission to do so
+    await this.#roles.assignRole(deviceId, BLOCKED_ROLE_ID)
   }
 
   /**
