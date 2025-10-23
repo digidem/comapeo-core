@@ -32,6 +32,8 @@ Path to store project sqlite db. Use `:memory:` for memory storage
 
 Encryption keys for each namespace
 
+• **opts.getFallbackProjectInfo**
+
 • **opts.getMediaBaseUrl**
 
 • **opts.isArchiveDevice**: `boolean`
@@ -60,7 +62,7 @@ path for drizzle migration folder for project
 
 32-byte secret key of the project creator core
 
-• **opts.sharedDb**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>\>
+• **opts.sharedDb**: `BetterSQLite3Database`\<`Record`\<`string`, `never`\>, `any`\>
 
 • **opts.sharedIndexWriter**: [`IndexWriter`](IndexWriter.md)\<[`MapeoDocTables`](../type-aliases/MapeoDocTables.md)\>
 
@@ -83,6 +85,12 @@ path for drizzle migration folder for project
 ### EMPTY\_PROJECT\_SETTINGS
 
 > `static` **EMPTY\_PROJECT\_SETTINGS**: `Readonly`\<`object`\>
+
+#### Type declaration
+
+##### sendStats
+
+> **sendStats**: `false` = `false`
 
 ## Accessors
 
@@ -132,47 +140,47 @@ DataTypes object mappings, used for tests
 
 ##### coreOwnership
 
-> **coreOwnership**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, `SQLiteTableWithColumns`\<`object`\>, `"coreOwnership"`, `object`, `object`\>
+> **coreOwnership**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"coreOwnership"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"coreOwnership"`, `object`, `object`\>
 
 ##### deviceInfo
 
-> **deviceInfo**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"deviceInfo"`, `object`, `object`\>
+> **deviceInfo**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"deviceInfo"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"deviceInfo"`, `object`, `object`\>
 
 ##### field
 
-> **field**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"field"`, `object`, `object`\>
+> **field**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"field"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"field"`, `object`, `object`\>
 
 ##### icon
 
-> **icon**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"icon"`, `object`, `object`\>
+> **icon**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"icon"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"icon"`, `object`, `object`\>
 
 ##### observation
 
-> **observation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
+> **observation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"observation"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"observation"`, `object`, `object`\>
 
 ##### preset
 
-> **preset**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"preset"`, `object`, `object`\>
+> **preset**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"preset"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"preset"`, `object`, `object`\>
 
 ##### projectSettings
 
-> **projectSettings**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"projectSettings"`, `object`, `object`\>
+> **projectSettings**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"projectSettings"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"projectSettings"`, `object`, `object`\>
 
 ##### remoteDetectionAlert
 
-> **remoteDetectionAlert**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
+> **remoteDetectionAlert**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"remoteDetectionAlert"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"remoteDetectionAlert"`, `object`, `object`\>
 
 ##### role
 
-> **role**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, `SQLiteTableWithColumns`\<`object`\>, `"role"`, `object`, `object`\>
+> **role**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"role"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"role"`, `object`, `object`\>
 
 ##### track
 
-> **track**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+> **track**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"track"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"track"`, `object`, `object`\>
 
 ##### translation
 
-> **translation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"translation"`, `object`, `object`\>
+> **translation**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"translation"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"translation"`, `object`, `object`\>
 
 ***
 
@@ -238,59 +246,59 @@ DataTypes object mappings, used for tests
 
 ### field
 
-> `get` **field**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"field"`, `object`, `object`\>
+> `get` **field**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"field"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"field"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"field"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"field"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"field"`, `object`, `object`\>
 
 ***
 
 ### observation
 
-> `get` **observation**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
+> `get` **observation**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"observation"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"observation"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"observation"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"observation"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"observation"`, `object`, `object`\>
 
 ***
 
 ### preset
 
-> `get` **preset**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"preset"`, `object`, `object`\>
+> `get` **preset**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"preset"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"preset"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, `SQLiteTableWithColumns`\<`object`\>, `"preset"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"preset"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"preset"`, `object`, `object`\>
 
 ***
 
 ### remoteDetectionAlert
 
-> `get` **remoteDetectionAlert**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
+> `get` **remoteDetectionAlert**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"remoteDetectionAlert"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"remoteDetectionAlert"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"remoteDetectionAlert"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"remoteDetectionAlert"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"remoteDetectionAlert"`, `object`, `object`\>
 
 ***
 
 ### track
 
-> `get` **track**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+> `get` **track**(): [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"track"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"track"`, `object`, `object`\>
 
 #### Returns
 
-[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, `SQLiteTableWithColumns`\<`object`\>, `"track"`, `object`, `object`\>
+[`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"data"`, `"track"` \| `"remoteDetectionAlert"` \| `"observation"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"track"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"track"`, `object`, `object`\>
 
 ## Methods
 
-### \[kClearDataIfLeft\]()
+### \[kClearData\]()
 
-> **\[kClearDataIfLeft\]**(): `Promise`\<`void`\>
+> **\[kClearData\]**(): `Promise`\<`void`\>
 
-Clear data if we've left the project. No-op if you're still in the project.
+Clear synced data, but keep auth data and own data
 
 #### Returns
 
@@ -410,6 +418,22 @@ and only this project will replicate.
 
 ***
 
+### $importCategories()
+
+> **$importCategories**(`opts`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **opts**
+
+• **opts.filePath**: `string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### ~~$originalVersionIdToDeviceId()~~
 
 > **$originalVersionIdToDeviceId**(`originalVersionId`): `Promise`\<`string`\>
@@ -526,7 +550,7 @@ The full path that the file was exported at
 
 ***
 
-### importConfig()
+### ~~importConfig()~~
 
 > **importConfig**(`opts`): `Promise`\<`Error`[]\>
 
@@ -539,6 +563,8 @@ The full path that the file was exported at
 #### Returns
 
 `Promise`\<`Error`[]\>
+
+#### Deprecated
 
 ***
 

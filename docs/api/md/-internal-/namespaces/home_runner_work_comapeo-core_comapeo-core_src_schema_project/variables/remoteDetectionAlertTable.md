@@ -6,4 +6,4 @@
 
 # Variable: remoteDetectionAlertTable
 
-> `const` **remoteDetectionAlertTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **remoteDetectionAlertTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"remoteDetectionAlert"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>
