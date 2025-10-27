@@ -22,17 +22,32 @@ on:
 
 jobs:
   release:
+    # When this workflow is triggered by workflow_dispatch, the optic release
+    # action will create the release PR targeting the branch that the workflow
+    # is dispatched from.
+    #
+    # We only run this job when it's triggered by workflow_dispatch targeting
+    # the default branch, unless it's a prerelease, where we allow releases
+    # against branches other than the default. This is to ensure that actual
+    # releases tag commits on the main branch, to avoid confusion about where a
+    # release has come from.
+    #
+    # The workflow also runs when either a PR is closed or merged (the `types:
+    # [closed]` triggers this on both). We skip this job on PRs by authors other
+    # than optic-release-automation[bot]. When a PR is merged, the bot will
+    # publish the release to npm. When it's closed, the bot will delete the
+    # draft release that's created when the PR is opened.
     if: >-
       ${{
         (
-          github.event_name != 'pull_request' &&
+          github.event_name == 'workflow_dispatch' &&
           (
             startsWith(github.event.inputs.semver, 'pre') ||
             github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
           )
         ) ||
         (
-          github.event.pull_request.merged &&
+          github.event_name == 'pull_request' &&
           github.event.pull_request.user.login == 'optic-release-automation[bot]'
         )
       }}
