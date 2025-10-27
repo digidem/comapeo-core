@@ -1,37 +1,26 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { isDefined } from '../src/utils.js'
 import { createManagers, ManagerCustodian } from './utils.js'
-import { defaultConfigPath } from '../test/helpers/default-config.js'
 import {
-  fieldsTranslationMap,
-  fieldTranslations,
-  presetsTranslationMap,
-  presetTranslations,
+  presetFixtures,
+  fieldFixtures,
+  createPresetTranslations,
+  createFieldTranslations,
+  presetTranslationMessages,
+  fieldTranslationMessages,
 } from './fixtures/translations.js'
 
 test('translation api - put() and get() presets', async (t) => {
   const [manager] = await createManagers(1, t, 'mobile')
-  const project = await manager.getProject(
-    await manager.createProject({
-      configPath: defaultConfigPath,
-    })
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create preset fixtures
+  const presets = await Promise.all(
+    presetFixtures.map((fixture) => project.preset.create(fixture))
   )
 
-  const presets = await project.preset.getMany()
-  const presetTranslationsDoc = presets
-    .map((preset) => {
-      const matchingTranslation = presetTranslations.find((translation) => {
-        return translation.message === presetsTranslationMap[preset.name]
-      })
-      if (matchingTranslation) {
-        return {
-          docRef: { docId: preset.docId, versionId: preset.versionId },
-          ...matchingTranslation,
-        }
-      }
-    })
-    .filter(isDefined)
+  // Create translations for the presets
+  const presetTranslationsDoc = createPresetTranslations(presets)
 
   assert(
     presetTranslationsDoc.length > 0,
@@ -46,7 +35,7 @@ test('translation api - put() and get() presets', async (t) => {
       await project.preset.getByDocId(translationDoc.docRef.docId)
     const expectedTranslations = await project.$translation.get({
       docRefType: 'preset',
-      languageCode: 'es',
+      languageCode: 'spa',
       regionCode: 'AR',
       docRef: translationDoc.docRef,
       propertyRef: translationDoc.propertyRef,
@@ -59,7 +48,7 @@ test('translation api - put() and get() presets', async (t) => {
     )
 
     assert.equal(
-      presetsTranslationMap[presetName],
+      presetTranslationMessages[presetName],
       expectedTranslations[0].message,
       `the translated message matches what is expected ${presetName} -> ${expectedTranslations[0].message}`
     )
@@ -80,7 +69,7 @@ test('translation api - put() and get() presets', async (t) => {
         await project.$translation.get({
           docRef: translationDoc.docRef,
           docRefType: 'preset',
-          languageCode: 'es',
+          languageCode: 'spa',
         })
       ).length,
       0,
@@ -91,26 +80,15 @@ test('translation api - put() and get() presets', async (t) => {
 
 test('translation api - put() and get() fields', async (t) => {
   const [manager] = await createManagers(1, t, 'mobile')
-  const project = await manager.getProject(
-    await manager.createProject({
-      configPath: defaultConfigPath,
-    })
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create field fixtures
+  const fields = await Promise.all(
+    fieldFixtures.map((fixture) => project.field.create(fixture))
   )
 
-  const fields = await project.field.getMany()
-  const fieldTranslationsDoc = fields
-    .map((field) => {
-      const matchingTranslation = fieldTranslations.find((translation) => {
-        return translation.message === fieldsTranslationMap[field.label]
-      })
-      if (matchingTranslation) {
-        return {
-          docRef: { docId: field.docId, versionId: field.versionId },
-          ...matchingTranslation,
-        }
-      }
-    })
-    .filter(isDefined)
+  // Create translations for the fields
+  const fieldTranslationsDoc = createFieldTranslations(fields)
 
   assert(
     fieldTranslationsDoc.length > 0,
@@ -125,7 +103,7 @@ test('translation api - put() and get() fields', async (t) => {
       await project.field.getByDocId(translationDoc.docRef.docId)
     const expectedTranslations = await project.$translation.get({
       docRefType: 'field',
-      languageCode: 'es',
+      languageCode: 'spa',
       propertyRef: translationDoc.propertyRef,
       regionCode: 'AR',
       docRef: translationDoc.docRef,
@@ -138,7 +116,7 @@ test('translation api - put() and get() fields', async (t) => {
     )
 
     assert.equal(
-      fieldsTranslationMap[fieldLabel],
+      fieldTranslationMessages[fieldLabel],
       expectedTranslations[0].message,
       `the translated message matches what is expected ${fieldLabel} -> ${expectedTranslations[0].message}`
     )
@@ -159,27 +137,16 @@ test('translation api - put() and get() fields', async (t) => {
 
 test('translation api - passing `lang` to dataType', async (t) => {
   const [manager] = await createManagers(1, t, 'mobile')
-  const project = await manager.getProject(
-    await manager.createProject({
-      configPath: defaultConfigPath,
-    })
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create field fixtures
+  const fields = await Promise.all(
+    fieldFixtures.map((fixture) => project.field.create(fixture))
   )
 
-  // fields
-  const fields = await project.field.getMany()
-  const fieldTranslationsDoc = fields
-    .map((field) => {
-      const matchingTranslation = fieldTranslations.find((translation) => {
-        return translation.message === fieldsTranslationMap[field.label]
-      })
-      if (matchingTranslation) {
-        return {
-          docRef: { docId: field.docId, versionId: field.versionId },
-          ...matchingTranslation,
-        }
-      }
-    })
-    .filter(isDefined)
+  // Create translations for the fields
+  const fieldTranslationsDoc = createFieldTranslations(fields)
+
   for (const translationDoc of fieldTranslationsDoc) {
     const { docRef, message, propertyRef } = await project.$translation.put(
       translationDoc
@@ -215,21 +182,14 @@ test('translation api - passing `lang` to dataType', async (t) => {
     )
   }
 
-  // presets
-  const presets = await project.preset.getMany()
-  const presetTranslationsDoc = presets
-    .map((preset) => {
-      const matchingTranslation = presetTranslations.find((translation) => {
-        return translation.message === presetsTranslationMap[preset.name]
-      })
-      if (matchingTranslation) {
-        return {
-          docRef: { docId: preset.docId, versionId: preset.versionId },
-          ...matchingTranslation,
-        }
-      }
-    })
-    .filter(isDefined)
+  // Create preset fixtures
+  const presets = await Promise.all(
+    presetFixtures.map((fixture) => project.preset.create(fixture))
+  )
+
+  // Create translations for the presets
+  const presetTranslationsDoc = createPresetTranslations(presets)
+
   for (const translationDoc of presetTranslationsDoc) {
     const { docRef, message, propertyRef } = await project.$translation.put(
       translationDoc
@@ -269,79 +229,74 @@ test('translation api - passing `lang` to dataType', async (t) => {
 test('translation api - re-loading from disk', async (t) => {
   const custodian = new ManagerCustodian(t)
   const deps = {
-    defaultConfigPath,
-    presetsTranslationMap,
-    presetTranslations,
-    fieldsTranslationMap,
-    fieldTranslations,
+    presetFixtures,
+    fieldFixtures,
+    presetTranslationMessages,
+    fieldTranslationMessages,
   }
   const { projectId, presetTranslationsDoc, fieldTranslationsDoc } =
     await custodian.withManagerInSeparateProcess(
       async (
         manager1,
         {
-          defaultConfigPath,
-          presetsTranslationMap,
-          presetTranslations,
-          fieldsTranslationMap,
-          fieldTranslations,
+          presetFixtures,
+          fieldFixtures,
+          presetTranslationMessages,
+          fieldTranslationMessages,
         }
       ) => {
-        const projectId = await manager1.createProject({
-          configPath: defaultConfigPath,
-        })
-
-        /**
-         * @template T
-         * @param {undefined | T} value
-         * @returns {value is T}
-         */
-        function isDefined(value) {
-          return value !== undefined
-        }
+        const projectId = await manager1.createProject()
 
         const project = await manager1.getProject(projectId)
 
-        // translate presets
-        const presets = await project.preset.getMany()
+        // Create preset fixtures
+        const presets = await Promise.all(
+          presetFixtures.map((fixture) => project.preset.create(fixture))
+        )
+
+        // Create and save translations for the presets
         const presetTranslationsDoc = presets
           .map((preset) => {
-            const matchingTranslation = presetTranslations.find(
-              (translation) => {
-                return (
-                  translation.message === presetsTranslationMap[preset.name]
-                )
-              }
-            )
-            if (matchingTranslation) {
-              return {
-                docRef: { docId: preset.docId, versionId: preset.versionId },
-                ...matchingTranslation,
-              }
+            const translation = presetTranslationMessages[preset.name]
+            if (!translation) return undefined
+            return {
+              schemaName: /** @type {const} */ ('translation'),
+              docRefType: /** @type {const} */ ('preset'),
+              languageCode: 'spa',
+              regionCode: 'AR',
+              propertyRef: 'name',
+              message: translation,
+              docRef: { docId: preset.docId, versionId: preset.versionId },
             }
           })
-          .filter(isDefined)
+          .filter((t) => t !== undefined)
+
         for (const translationDoc of presetTranslationsDoc) {
           await project.$translation.put(translationDoc)
         }
 
-        // translate fields
-        const fields = await project.field.getMany()
+        // Create field fixtures
+        const fields = await Promise.all(
+          fieldFixtures.map((fixture) => project.field.create(fixture))
+        )
+
+        // Create and save translations for the fields
         const fieldTranslationsDoc = fields
           .map((field) => {
-            const matchingTranslation = fieldTranslations.find(
-              (translation) => {
-                return translation.message === fieldsTranslationMap[field.label]
-              }
-            )
-            if (matchingTranslation) {
-              return {
-                docRef: { docId: field.docId, versionId: field.versionId },
-                ...matchingTranslation,
-              }
+            const translation = fieldTranslationMessages[field.label]
+            if (!translation) return undefined
+            return {
+              schemaName: /** @type {const} */ ('translation'),
+              docRefType: /** @type {const} */ ('field'),
+              languageCode: 'spa',
+              regionCode: 'AR',
+              propertyRef: 'label',
+              message: translation,
+              docRef: { docId: field.docId, versionId: field.versionId },
             }
           })
-          .filter(isDefined)
+          .filter((t) => t !== undefined)
+
         for (const translationDoc of fieldTranslationsDoc) {
           await project.$translation.put(translationDoc)
         }
@@ -363,7 +318,7 @@ test('translation api - re-loading from disk', async (t) => {
           const translations = await project.$translation.get({
             docRef,
             docRefType: 'preset',
-            languageCode: 'es',
+            languageCode: 'spa',
           })
           if (translations.length === 0) return false
         }
@@ -372,7 +327,7 @@ test('translation api - re-loading from disk', async (t) => {
           const translations = await project.$translation.get({
             docRef,
             docRefType: 'field',
-            languageCode: 'es',
+            languageCode: 'spa',
           })
           if (translations.length === 0) return false
         }
@@ -387,4 +342,294 @@ test('translation api - re-loading from disk', async (t) => {
     )
 
   assert(hasExpectedNumberOfTranslations)
+})
+
+test('translation api - backwards compat with ISO 639-1 translations', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create a preset fixture to translate
+  const preset = await project.preset.create({
+    schemaName: 'preset',
+    name: 'Test Preset',
+    geometry: ['point'],
+    tags: {},
+    addTags: {},
+    removeTags: {},
+    terms: [],
+    fieldRefs: [],
+  })
+
+  // Put a translation with a two-letter language code (ISO 639-1)
+  const translationDoc = {
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'fr', // Two-letter ISO 639-1 code
+    propertyRef: 'name',
+    message: 'Nom traduit en français',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  }
+
+  await project.$translation.put(translationDoc)
+
+  // Get with three-letter language code (ISO 639-3)
+  const translations = await project.$translation.get({
+    docRefType: 'preset',
+    languageCode: 'fra', // Three-letter ISO 639-3 code
+    propertyRef: 'name',
+    docRef: { docId: preset.docId },
+  })
+
+  assert.equal(
+    translations.length,
+    1,
+    'should retrieve translation when querying with ISO 639-3 code'
+  )
+  assert.equal(
+    translations[0].message,
+    'Nom traduit en français',
+    'translation message should match'
+  )
+  const untranslatedPreset = await project.preset.getByDocId(preset.docId)
+  assert.equal(
+    untranslatedPreset.name,
+    'Test Preset',
+    'preset name without lang should be original'
+  )
+  const translatedPreset = await project.preset.getByDocId(preset.docId, {
+    lang: 'fra',
+  })
+  assert.equal(
+    translatedPreset.name,
+    'Nom traduit en français',
+    'preset name with lang should be translated'
+  )
+})
+
+test('translation api - backwards compat lower-case region code', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create a preset fixture to translate
+  const preset = await project.preset.create({
+    schemaName: 'preset',
+    name: 'Test Preset',
+    geometry: ['point'],
+    tags: {},
+    addTags: {},
+    removeTags: {},
+    terms: [],
+    fieldRefs: [],
+  })
+
+  // Add a non-region-specific French translation to ensure we don't get the fallback
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'fra',
+    propertyRef: 'name',
+    message: 'Nom traduit en français',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  })
+
+  // Put a region-specific translation with a lower-case region code
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'fra',
+    regionCode: 'gf', // Lower-case ISO 3166-1 alpha-2 code
+    propertyRef: 'name',
+    message: 'Nom traduit en français de Guyane',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  })
+
+  // Get translated preset with a language tag (fr-GF - French Guiana)
+  /** @type {Record<string, unknown>} */
+  const translatedPreset = await project.preset.getByDocId(preset.docId, {
+    lang: 'fr-GF',
+  })
+
+  assert.equal(
+    translatedPreset.name,
+    'Nom traduit en français de Guyane',
+    'preset should be translated when requesting with language tag'
+  )
+})
+
+test('translation api - region-specific vs language-only translation priority', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create a preset fixture to translate
+  const preset = await project.preset.create({
+    schemaName: 'preset',
+    name: 'Test Preset',
+    geometry: ['point'],
+    tags: {},
+    addTags: {},
+    removeTags: {},
+    terms: [],
+    fieldRefs: [],
+  })
+
+  // Put a translation with language code only (no region)
+  const translationDocWithoutRegion = {
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'por', // Three-letter ISO 639-3 code for Portuguese
+    propertyRef: 'name',
+    message: 'Nome em português geral',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  }
+
+  await project.$translation.put(translationDocWithoutRegion)
+
+  // Put a translation with language code and region code
+  const translationDocWithRegion = {
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('preset'),
+    languageCode: 'por', // Three-letter ISO 639-3 code for Portuguese
+    regionCode: 'PT', // ISO 3166-1 alpha-2 code for Portugal
+    propertyRef: 'name',
+    message: 'Nome em português de Portugal',
+    docRef: { docId: preset.docId, versionId: preset.versionId },
+  }
+
+  await project.$translation.put(translationDocWithRegion)
+
+  // Get translated preset with matching region code (pt-PT)
+  /** @type {Record<string, unknown>} */
+  const translatedPresetPT = await project.preset.getByDocId(preset.docId, {
+    lang: 'pt-PT',
+  })
+
+  assert.equal(
+    translatedPresetPT.name,
+    'Nome em português de Portugal',
+    'preset should return region-specific translation when region matches'
+  )
+
+  // Get translated preset with language only (pt)
+  /** @type {Record<string, unknown>} */
+  const translatedPresetLanguageOnly = await project.preset.getByDocId(
+    preset.docId,
+    { lang: 'pt' }
+  )
+
+  assert.equal(
+    translatedPresetLanguageOnly.name,
+    'Nome em português geral',
+    'preset should return language-only translation when no region is specified'
+  )
+
+  // Get translated preset with non-matching region code (pt-BR)
+  /** @type {Record<string, unknown>} */
+  const translatedPresetBR = await project.preset.getByDocId(preset.docId, {
+    lang: 'pt-BR',
+  })
+
+  assert.equal(
+    translatedPresetBR.name,
+    'Nome em português geral',
+    'preset should fall back to language-only translation when region does not match'
+  )
+})
+
+test('translation api - field option labels translation', async (t) => {
+  const [manager] = await createManagers(1, t, 'mobile')
+  const project = await manager.getProject(await manager.createProject())
+
+  // Create a selectOne field with options
+  const field = await project.field.create({
+    schemaName: 'field',
+    tagKey: 'animal_type',
+    label: 'Animal Type',
+    type: 'selectOne',
+    options: [
+      { value: 'dog', label: 'Dog' },
+      { value: 'cat', label: 'Cat' },
+      { value: 'bird', label: 'Bird' },
+    ],
+  })
+
+  // Translate the field label
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('field'),
+    languageCode: 'spa',
+    regionCode: 'AR',
+    propertyRef: 'label',
+    message: 'Tipo de Animal',
+    docRef: { docId: field.docId, versionId: field.versionId },
+  })
+
+  // Translate option labels using propertyRef format: options[value="foo"].label
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('field'),
+    languageCode: 'spa',
+    regionCode: 'AR',
+    propertyRef: 'options[value="dog"].label',
+    message: 'Perro',
+    docRef: { docId: field.docId, versionId: field.versionId },
+  })
+
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('field'),
+    languageCode: 'spa',
+    regionCode: 'AR',
+    propertyRef: 'options[value="cat"].label',
+    message: 'Gato',
+    docRef: { docId: field.docId, versionId: field.versionId },
+  })
+
+  await project.$translation.put({
+    schemaName: /** @type {const} */ ('translation'),
+    docRefType: /** @type {const} */ ('field'),
+    languageCode: 'spa',
+    regionCode: 'AR',
+    propertyRef: 'options[value="bird"].label',
+    message: 'Pájaro',
+    docRef: { docId: field.docId, versionId: field.versionId },
+  })
+
+  // Get the field without translation
+  /** @type {Record<string, unknown>} */
+  const untranslatedField = await project.field.getByDocId(field.docId)
+  assert.equal(
+    untranslatedField.label,
+    'Animal Type',
+    'field label should be in English'
+  )
+  assert.deepEqual(
+    untranslatedField.options,
+    [
+      { value: 'dog', label: 'Dog' },
+      { value: 'cat', label: 'Cat' },
+      { value: 'bird', label: 'Bird' },
+    ],
+    'option labels should be in English'
+  )
+
+  // Get the field with Spanish (Argentina) translation
+  /** @type {Record<string, unknown>} */
+  const translatedField = await project.field.getByDocId(field.docId, {
+    lang: 'es-AR',
+  })
+
+  assert.equal(
+    translatedField.label,
+    'Tipo de Animal',
+    'field label should be translated to Spanish'
+  )
+  assert.deepEqual(
+    translatedField.options,
+    [
+      { value: 'dog', label: 'Perro' },
+      { value: 'cat', label: 'Gato' },
+      { value: 'bird', label: 'Pájaro' },
+    ],
+    'option labels should be translated to Spanish'
+  )
 })

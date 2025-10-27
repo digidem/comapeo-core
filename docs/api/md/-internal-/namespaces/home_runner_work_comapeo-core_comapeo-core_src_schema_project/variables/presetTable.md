@@ -6,4 +6,4 @@
 
 # Variable: presetTable
 
-> `const` **presetTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **presetTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"preset"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>
