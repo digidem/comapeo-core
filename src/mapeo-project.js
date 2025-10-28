@@ -112,6 +112,7 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
 /**
  * @typedef RoleChangeEvent
  * @property {Role} role
+ * @property {string | null} reason
  */
 
 /**
@@ -744,9 +745,14 @@ export class MapeoProject extends TypedEmitter {
     return this.#roles.getRole(this.#deviceId)
   }
 
+  async $getOwnRoleReason() {
+    return this.#roles.getRoleReason(this.#deviceId)
+  }
+
   async #handleRoleChange() {
     const role = await this.$getOwnRole()
-    this.emit('own-role-change', { role })
+    const reason = await this.$getOwnRoleReason()
+    this.emit('own-role-change', { role, reason })
   }
 
   /**

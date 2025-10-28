@@ -727,3 +727,43 @@ test('remove member from project while disconnected and reconnect', async (t) =>
 
   await invitee.leaveProject(projectId)
 })
+
+test('remove member from project with reason', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  const inviteeProject = await invitee.getProject(projectId)
+  const invitorProject = await invitor.getProject(projectId)
+
+  const onRoleChange = pEvent(inviteeProject, 'own-role-change', {
+    timeout: 1_000,
+  })
+
+  const reason = 'example removal reason'
+
+  await invitorProject.$member.remove(invitee.deviceId, {
+    reason,
+  })
+
+  await waitForSync([inviteeProject, invitorProject], 'initial')
+
+  const updatedRole = await onRoleChange
+
+  assert.equal(
+    updatedRole.role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitee sees they were removed'
+  )
+
+  assert.equal(updatedRole.reason, reason, 'reason got propogated')
+})
