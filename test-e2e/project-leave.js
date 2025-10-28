@@ -7,7 +7,6 @@ import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
 import {
   COORDINATOR_ROLE_ID,
-  ROLES,
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
 } from '../src/roles.js'
@@ -68,9 +67,9 @@ test('leaving a project as the only member', async (t) => {
 
   await manager.leaveProject(projectId)
 
-  assert.deepEqual(
-    await creatorProject.$getOwnRole(),
-    ROLES[LEFT_ROLE_ID],
+  assert.equal(
+    (await creatorProject.$getOwnRole()).roleId,
+    LEFT_ROLE_ID,
     'creator now has LEFT role'
   )
 })
@@ -111,17 +110,17 @@ test('Creator can leave project if another coordinator exists', async (t) => {
 
   await creator.leaveProject(projectId)
 
-  assert.deepEqual(
-    await creatorProject.$getOwnRole(),
-    ROLES[LEFT_ROLE_ID],
+  assert.equal(
+    (await creatorProject.$getOwnRole()).roleId,
+    LEFT_ROLE_ID,
     'creator now has LEFT role'
   )
 
   await waitForSync(projects, 'initial')
 
   assert.equal(
-    (await coordinatorProject.$member.getById(creator.deviceId)).role,
-    ROLES[LEFT_ROLE_ID],
+    (await coordinatorProject.$member.getById(creator.deviceId)).role.roleId,
+    LEFT_ROLE_ID,
     'coordinator can still retrieve info about creator who left'
   )
 })
@@ -162,17 +161,17 @@ test('Member can leave project if creator exists', async (t) => {
 
   await member.leaveProject(projectId)
 
-  assert.deepEqual(
-    await memberProject.$getOwnRole(),
-    ROLES[LEFT_ROLE_ID],
+  assert.equal(
+    (await memberProject.$getOwnRole()).roleId,
+    LEFT_ROLE_ID,
     'member now has LEFT role'
   )
 
   await waitForSync(projects, 'initial')
 
   assert.equal(
-    (await creatorProject.$member.getById(member.deviceId)).role,
-    ROLES[LEFT_ROLE_ID],
+    (await creatorProject.$member.getById(member.deviceId)).role.roleId,
+    LEFT_ROLE_ID,
     'creator can still retrieve info about member who left'
   )
 

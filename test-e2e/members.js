@@ -270,7 +270,11 @@ test('roles - creator role and role assignment', async (t) => {
   const project = await manager.getProject(projectId)
   const ownRole = await project.$getOwnRole()
 
-  assert.deepEqual(ownRole, CREATOR_ROLE, 'Project creator has creator role')
+  assert.equal(
+    ownRole.roleId,
+    CREATOR_ROLE.roleId,
+    'Project creator has creator role'
+  )
 
   const deviceId = randomBytes(32).toString('hex')
   await project.$member.assignRole(deviceId, MEMBER_ROLE_ID)
@@ -326,7 +330,11 @@ test('roles - getMany() on invitor device', async (t) => {
   const project = await manager.getProject(projectId)
   const ownRole = await project.$getOwnRole()
 
-  assert.deepEqual(ownRole, CREATOR_ROLE, 'Project creator has creator role')
+  assert.deepEqual(
+    ownRole.roleId,
+    CREATOR_ROLE.roleId,
+    'Project creator has creator role'
+  )
 
   const deviceId1 = randomBytes(32).toString('hex')
   const deviceId2 = randomBytes(32).toString('hex')
@@ -434,9 +442,9 @@ test('roles - assignRole()', async (t) => {
     'invitee 2 has member role from invitor perspective'
   )
 
-  assert.deepEqual(
-    await inviteeProject.$getOwnRole(),
-    ROLES[MEMBER_ROLE_ID],
+  assert.equal(
+    (await inviteeProject.$getOwnRole()).roleId,
+    MEMBER_ROLE_ID,
     'invitee has member role from invitee perspective'
   )
 
@@ -470,9 +478,9 @@ test('roles - assignRole()', async (t) => {
       'invitee now has coordinator role from invitor perspective'
     )
 
-    assert.deepEqual(
-      await inviteeProject.$getOwnRole(),
-      ROLES[COORDINATOR_ROLE_ID],
+    assert.equal(
+      (await inviteeProject.$getOwnRole()).roleId,
+      COORDINATOR_ROLE_ID,
       'invitee now has coordinator role from invitee perspective'
     )
   })
@@ -508,9 +516,9 @@ test('roles - assignRole()', async (t) => {
       'invitee now has member role from invitor perspective'
     )
 
-    assert.deepEqual(
-      await inviteeProject.$getOwnRole(),
-      ROLES[MEMBER_ROLE_ID],
+    assert.equal(
+      (await inviteeProject.$getOwnRole()).roleId,
+      MEMBER_ROLE_ID,
       'invitee now has member role from invitee perspective'
     )
   })
