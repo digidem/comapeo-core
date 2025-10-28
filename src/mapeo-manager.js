@@ -1056,8 +1056,6 @@ export class MapeoManager extends TypedEmitter {
     const project = await this.getProject(projectPublicId)
 
     await project[kProjectLeave]()
-
-    this.#activeProjects.delete(projectPublicId)
   }
 
   async getMapStyleJsonUrl() {

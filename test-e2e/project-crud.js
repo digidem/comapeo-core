@@ -57,6 +57,7 @@ const fixtures = [
     schemaName: 'track',
     observationRefs: [createDocumentRef(), createDocumentRef()],
     tags: {},
+    // @ts-ignore TS doesn't realize this is an array
     locations: Array.from({ length: 10 }, trackPositionFixture),
     presetRef: createDocumentRef(),
   },
