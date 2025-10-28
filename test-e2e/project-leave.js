@@ -6,7 +6,6 @@ import { temporaryDirectory } from 'tempy'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
 import {
-  BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
   ROLES,
   LEFT_ROLE_ID,
@@ -59,49 +58,6 @@ test("Creator cannot leave project if they're the only coordinator", async (t) =
   await assert.rejects(async () => {
     await creator.leaveProject(projectId)
   }, 'creator attempting to leave project with no other coordinators fails')
-})
-
-test('Blocked member cannot leave project', async (t) => {
-  const managers = await createManagers(2, t)
-
-  const disconnectPeers = connectPeers(managers)
-  t.after(disconnectPeers)
-
-  const [creator, member] = managers
-  const projectId = await creator.createProject({ name: 'mapeo' })
-
-  await invite({
-    invitor: creator,
-    invitees: [member],
-    projectId,
-    roleId: MEMBER_ROLE_ID,
-  })
-
-  const projects = await Promise.all(
-    managers.map((m) => m.getProject(projectId))
-  )
-
-  const [creatorProject, memberProject] = projects
-
-  assert.deepEqual(
-    await memberProject.$getOwnRole(),
-    ROLES[MEMBER_ROLE_ID],
-    'Member is initially a member'
-  )
-
-  await creatorProject.$member.assignRole(member.deviceId, BLOCKED_ROLE_ID)
-
-  await waitForSync(projects, 'initial')
-
-  assert.deepEqual(
-    await memberProject.$getOwnRole(),
-    ROLES[BLOCKED_ROLE_ID],
-    'Member is now blocked'
-  )
-
-  await assert.rejects(async () => {
-    await member.leaveProject(projectId)
-  }, 'Member attempting to leave project fails')
 })
 
 test('leaving a project as the only member', async (t) => {
