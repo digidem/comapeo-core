@@ -523,8 +523,7 @@ export class MapeoProject extends TypedEmitter {
         // Ignore docs not about ourselves
         if (roleDocId !== this.#deviceId) continue
         this.#handleRoleChange().catch((e) => {
-          if (!(e instanceof Error)) throw e
-          this.#l.log(`Error: Could not handle role change`, e)
+          this.#l.log(`Error: Could not handle role change`, ensureError(e))
         })
       }
     })
