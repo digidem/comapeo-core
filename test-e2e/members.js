@@ -679,6 +679,8 @@ test('remove member from project while connected', async (t) => {
     BLOCKED_ROLE_ID,
     'invitee sees they were removed'
   )
+
+  await invitee.leaveProject(projectId)
 })
 
 test('remove member from project while disconnected and reconnect', async (t) => {
@@ -722,4 +724,6 @@ test('remove member from project while disconnected and reconnect', async (t) =>
     BLOCKED_ROLE_ID,
     'invitee sees they were removed after reconnect'
   )
+
+  await invitee.leaveProject(projectId)
 })

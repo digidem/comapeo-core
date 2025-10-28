@@ -1308,12 +1308,6 @@ export class MapeoProject extends TypedEmitter {
   async #throwIfCannotLeaveProject() {
     const roleDocs = await this.#dataTypes.role.getMany()
 
-    const ownRole = roleDocs.find(({ docId }) => this.#deviceId === docId)
-
-    if (ownRole?.roleId === BLOCKED_ROLE_ID) {
-      throw new Error('Cannot leave a project as a blocked device')
-    }
-
     const allRoles = await this.#roles.getAll()
 
     const isOnlyDevice = allRoles.size <= 1
@@ -1339,9 +1333,13 @@ export class MapeoProject extends TypedEmitter {
   }
 
   async [kProjectLeave]() {
+    const ownRole = await this.$getOwnRole()
+
     await this.#throwIfCannotLeaveProject()
 
-    await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+    if (ownRole.roleId !== BLOCKED_ROLE_ID) {
+      await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+    }
 
     await this[kClearData]()
   }
