@@ -359,8 +359,10 @@ export class MemberApi extends TypedEmitter {
   /**
    * Remove a member from the project
    * @param {string} deviceId Device id of member to remove
+   * @param {object} [opts]
+   * @param {string} opts.reason
    */
-  async remove(deviceId) {
+  async remove(deviceId, opts) {
     const member = await this.getById(deviceId)
     const { roleId } = member.role
 
@@ -370,7 +372,7 @@ export class MemberApi extends TypedEmitter {
 
     // Add blocked role to project
     // Should error if you don't have permission to do so
-    await this.#roles.assignRole(deviceId, BLOCKED_ROLE_ID)
+    await this.#roles.assignRole(deviceId, BLOCKED_ROLE_ID, opts)
   }
 
   /**
