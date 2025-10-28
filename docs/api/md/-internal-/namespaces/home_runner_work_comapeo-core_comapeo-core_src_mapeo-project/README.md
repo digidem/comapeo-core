@@ -11,7 +11,9 @@
 ### Interfaces
 
 - [BlobRef](interfaces/BlobRef.md)
+- [ProjectEvents](interfaces/ProjectEvents.md)
 - [ProjectStats](interfaces/ProjectStats.md)
+- [RoleChangeEvent](interfaces/RoleChangeEvent.md)
 - [Stats](interfaces/Stats.md)
 
 ### Type Aliases
