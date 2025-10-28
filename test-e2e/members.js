@@ -680,6 +680,8 @@ test('remove member from project while connected', async (t) => {
     'invitee sees they were removed'
   )
 
+  assert.equal(updatedRole.role.reason, null, 'No reason for removal')
+
   await invitee.leaveProject(projectId)
 })
 
@@ -765,5 +767,11 @@ test('remove member from project with reason', async (t) => {
     'invitee sees they were removed'
   )
 
-  assert.equal(updatedRole.reason, reason, 'reason got propogated')
+  assert.equal(updatedRole.role.reason, reason, 'reason got propogated')
+
+  const ownRole = await inviteeProject.$getOwnRole()
+
+  assert.deepEqual(ownRole, updatedRole.role, 'see own role change')
+
+  await invitee.leaveProject(projectId)
 })
