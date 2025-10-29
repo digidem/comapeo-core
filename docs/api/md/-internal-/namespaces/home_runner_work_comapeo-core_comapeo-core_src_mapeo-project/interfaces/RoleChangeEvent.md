@@ -16,4 +16,4 @@
 
 ##### reason
 
-> **reason**: `null` \| `string`
+> **reason**: `undefined` \| `string`
