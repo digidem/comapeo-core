@@ -296,13 +296,13 @@ export class Roles extends TypedEmitter {
    * Get the reason for the role of `deviceId` (if it exists).
    *
    * @param {string} deviceId
-   * @returns {Promise<string | null>}
+   * @returns {Promise<string | undefined>}
    */
   async getRoleReason(deviceId) {
     const roleRecord = await this.#dataType
       .getByDocId(deviceId)
       .catch(nullIfNotFound)
-    return roleRecord?.reason ?? null
+    return roleRecord?.reason ?? undefined
   }
 
   /**

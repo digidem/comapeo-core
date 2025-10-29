@@ -688,7 +688,7 @@ test('remove member from project while connected', async (t) => {
     'invitee sees they were removed'
   )
 
-  assert.equal(updatedRole.role.reason, null, 'No reason for removal')
+  assert.equal(updatedRole.role.reason, undefined, 'No reason for removal')
 
   await invitee.leaveProject(projectId)
 })
