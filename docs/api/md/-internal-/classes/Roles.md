@@ -108,7 +108,7 @@ Get the role for device `deviceId`.
 
 ### getRoleReason()
 
-> **getRoleReason**(`deviceId`): `Promise`\<`null` \| `string`\>
+> **getRoleReason**(`deviceId`): `Promise`\<`undefined` \| `string`\>
 
 Get the reason for the role of `deviceId` (if it exists).
 
@@ -118,4 +118,4 @@ Get the reason for the role of `deviceId` (if it exists).
 
 #### Returns
 
-`Promise`\<`null` \| `string`\>
+`Promise`\<`undefined` \| `string`\>
