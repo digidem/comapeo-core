@@ -829,6 +829,8 @@ test.only('remove member from project, add them back', async (t) => {
 
   const reinviteeProject = await invitee.getProject(projectId)
 
+  await waitForSync([reinviteeProject, invitorProject], 'initial')
+
   const reRole = await reinviteeProject.$getOwnRole()
   assert.equal(reRole.roleId, MEMBER_ROLE_ID, 'Sees self as a member again')
 })

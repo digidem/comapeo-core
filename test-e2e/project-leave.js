@@ -420,4 +420,61 @@ test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
   assert.equal(projectsList.length, 0, 'no projects listed')
 })
 
-// TODO: Add test for leaving and rejoining a project
+test.only('Member can join project again after leaving', async (t) => {
+  const managers = await createManagers(2, t)
+
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const [creator, member] = managers
+  const projectId = await creator.createProject({ name: 'mapeo' })
+
+  await invite({
+    invitor: creator,
+    invitees: [member],
+    projectId,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const [creatorProject, memberProject] = projects
+
+  assert(
+    await creatorProject.$member.getById(member.deviceId),
+    'member successfully added from creator perspective'
+  )
+
+  assert(
+    await memberProject.$member.getById(member.deviceId),
+    'creator successfully added from creator perspective'
+  )
+
+  await waitForSync(projects, 'initial')
+
+  await member.leaveProject(projectId)
+
+  await waitForSync(projects, 'initial')
+
+  await invite({
+    invitor: creator,
+    invitees: [member],
+    projectId,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const reMemberProject = await member.getProject(projectId)
+  await waitForSync([creatorProject, reMemberProject], 'initial')
+
+  assert(
+    await creatorProject.$member.getById(member.deviceId),
+    'member successfully added from creator perspective'
+  )
+
+  assert(
+    await reMemberProject.$member.getById(member.deviceId),
+    'creator successfully added from creator perspective'
+  )
+})
