@@ -783,3 +783,52 @@ test('remove member from project with reason', async (t) => {
 
   await invitee.leaveProject(projectId)
 })
+
+test.only('remove member from project, add them back', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  const inviteeProject = await invitee.getProject(projectId)
+  const invitorProject = await invitor.getProject(projectId)
+
+  const onRoleChange = pEvent(inviteeProject, 'own-role-change', {
+    timeout: 1_000,
+  })
+
+  await invitorProject.$member.remove(invitee.deviceId)
+
+  await waitForSync([inviteeProject, invitorProject], 'initial')
+
+  const updatedRole = await onRoleChange
+
+  assert.equal(
+    updatedRole.role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitee sees they were removed'
+  )
+
+  assert.equal(updatedRole.role.reason, undefined, 'No reason for removal')
+
+  await invitee.leaveProject(projectId)
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  const reinviteeProject = await invitee.getProject(projectId)
+
+  const reRole = await reinviteeProject.$getOwnRole()
+  assert.equal(reRole.roleId, MEMBER_ROLE_ID, 'Sees self as a member again')
+})
