@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto'
 import path from 'path'
 import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
@@ -206,7 +206,12 @@ export class MapeoManager extends TypedEmitter {
           this.#db
             .select()
             .from(projectKeysTable)
-            .where(eq(projectKeysTable.projectInviteId, projectInviteId))
+            .where(
+              and(
+                eq(projectKeysTable.projectInviteId, projectInviteId),
+                eq(projectKeysTable.hasLeftProject, false)
+              )
+            )
             .get(),
         addProject: this.addProject,
       },

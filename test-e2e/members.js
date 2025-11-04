@@ -784,7 +784,7 @@ test('remove member from project with reason', async (t) => {
   await invitee.leaveProject(projectId)
 })
 
-test.only('remove member from project, add them back', async (t) => {
+test('remove member from project, add them back', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
