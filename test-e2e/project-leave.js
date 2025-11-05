@@ -420,7 +420,7 @@ test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
   assert.equal(projectsList.length, 0, 'no projects listed')
 })
 
-test('Member can join project again after leaving', async (t) => {
+test.only('Member can join project again after leaving', async (t) => {
   const managers = await createManagers(2, t)
 
   const disconnectPeers = connectPeers(managers)
@@ -458,6 +458,10 @@ test('Member can join project again after leaving', async (t) => {
 
   await waitForSync(projects, 'initial')
 
+  // Close the project after you leave and sync
+  // This clears up resources so we can be reinvited
+  await memberProject.close()
+
   await invite({
     invitor: creator,
     invitees: [member],
@@ -466,6 +470,9 @@ test('Member can join project again after leaving', async (t) => {
   })
 
   const reMemberProject = await member.getProject(projectId)
+
+  assert.notEqual(reMemberProject, memberProject, 'new project on rejoin')
+
   await waitForSync([creatorProject, reMemberProject], 'initial')
 
   assert(
