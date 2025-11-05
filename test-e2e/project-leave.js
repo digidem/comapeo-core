@@ -420,7 +420,7 @@ test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
   assert.equal(projectsList.length, 0, 'no projects listed')
 })
 
-test.only('Member can join project again after leaving', async (t) => {
+test('Member can join project again after leaving', async (t) => {
   const managers = await createManagers(2, t)
 
   const disconnectPeers = connectPeers(managers)
