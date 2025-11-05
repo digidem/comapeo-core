@@ -63,7 +63,7 @@ export class InviteApi extends TypedEmitter {
    * @param {Object} options
    * @param {import('../local-peers.js').LocalPeers} options.rpc
    * @param {object} options.queries
-   * @param {(projectInviteId: Readonly<Buffer>) => undefined | { projectPublicId: string }} options.queries.getProjectByInviteId
+   * @param {(projectInviteId: Readonly<Buffer>) => undefined | { projectPublicId: string, hasLeftProject: boolean }} options.queries.getProjectByInviteId
    * @param {AddProjectQuery} options.queries.addProject
    * @param {Logger} [options.logger]
    */
@@ -138,7 +138,11 @@ export class InviteApi extends TypedEmitter {
       return
     }
 
-    const isAlreadyMember = Boolean(this.#getProjectByInviteId(projectInviteId))
+    const existingProject = this.#getProjectByInviteId(projectInviteId)
+    const isAlreadyMember = existingProject
+      ? !existingProject.hasLeftProject
+      : false
+
     if (isAlreadyMember) {
       this.#l.log('Invite %h: already in project', inviteId)
       this.rpc
@@ -169,9 +173,10 @@ export class InviteApi extends TypedEmitter {
         guards: {
           isNotAlreadyJoiningOrInProject: () => {
             const isJoining = this.#isJoiningProject(projectInviteId)
-            const isAlreadyMember = Boolean(
-              this.#getProjectByInviteId(projectInviteId)
-            )
+            const existingProject = this.#getProjectByInviteId(projectInviteId)
+            const isAlreadyMember = existingProject
+              ? !existingProject.hasLeftProject
+              : false
             return !isJoining && !isAlreadyMember
           },
         },

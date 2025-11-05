@@ -206,12 +206,7 @@ export class MapeoManager extends TypedEmitter {
           this.#db
             .select()
             .from(projectKeysTable)
-            .where(
-              and(
-                eq(projectKeysTable.projectInviteId, projectInviteId),
-                eq(projectKeysTable.hasLeftProject, false)
-              )
-            )
+            .where(eq(projectKeysTable.projectInviteId, projectInviteId))
             .get(),
         addProject: this.addProject,
       },
@@ -696,11 +691,15 @@ export class MapeoManager extends TypedEmitter {
     const projectExists = this.#db
       .select()
       .from(projectKeysTable)
-      .where(eq(projectKeysTable.projectId, projectId))
+      .where(
+        and(
+          eq(projectKeysTable.projectId, projectId),
+          eq(projectKeysTable.hasLeftProject, false)
+        )
+      )
       .get()
 
     if (projectExists) {
-      // TODO: Define behavior for adding a project that the user has left
       throw new Error(`Project with ID ${projectPublicId} already exists`)
     }
 
@@ -721,6 +720,7 @@ export class MapeoManager extends TypedEmitter {
         projectDescription,
         sendStats,
       },
+      hasLeftProject: false,
     })
 
     // Any errors from here we need to remove project from db because it has not
