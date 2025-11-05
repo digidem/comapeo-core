@@ -1061,6 +1061,9 @@ export class MapeoManager extends TypedEmitter {
     const project = await this.getProject(projectPublicId)
 
     await project[kProjectLeave]()
+
+    // Sync any role changes from prpoject leave
+    await this.#waitForInitialSync(project)
   }
 
   async getMapStyleJsonUrl() {

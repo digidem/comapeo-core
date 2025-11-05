@@ -167,8 +167,6 @@ test('Member can leave project if creator exists', async (t) => {
     'member now has LEFT role'
   )
 
-  await waitForSync(projects, 'initial')
-
   assert.equal(
     (await creatorProject.$member.getById(member.deviceId)).role.roleId,
     LEFT_ROLE_ID,
@@ -223,8 +221,6 @@ test('Data access after leaving project', async (t) => {
     coordinator.leaveProject(projectId),
     member.leaveProject(projectId),
   ])
-
-  await waitForSync(projects, 'initial')
 
   await assert.rejects(async () => {
     await memberProject.observation.create(valueOf(generate('observation')[0]))
@@ -455,8 +451,6 @@ test('Member can join project again after leaving', async (t) => {
   await waitForSync(projects, 'initial')
 
   await member.leaveProject(projectId)
-
-  await waitForSync(projects, 'initial')
 
   // Close the project after you leave and sync
   // This clears up resources so we can be reinvited
