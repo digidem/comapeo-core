@@ -428,6 +428,8 @@ export class MapeoProject extends TypedEmitter {
     })
 
     this.#blobStore.on('error', (err) => {
+      // Ignore hypercore inflight request cahcellation
+      if (ensureError(err).message.includes('REQUEST_CANCELLED')) return
       // TODO: Handle this error in some way - this error will come from an
       // unexpected error with background blob downloads
       console.error('BlobStore error', err)
