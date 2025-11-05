@@ -691,6 +691,15 @@ test('remove member from project while connected', async (t) => {
   assert.equal(updatedRole.role.reason, undefined, 'No reason for removal')
 
   await invitee.leaveProject(projectId)
+
+  const projects = await invitee.listProjects()
+
+  assert.equal(projects.length, 0, 'No projects after leave')
+
+  const allProjects = await invitee.listProjects({ includeLeft: true })
+
+  assert.equal(allProjects.length, 1, 'see one project we left')
+  assert.equal(allProjects[0].status, 'left', 'sees project as left')
 })
 
 test('remove member from project while disconnected and reconnect', async (t) => {
