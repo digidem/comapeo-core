@@ -258,11 +258,7 @@ export class CoreManager extends TypedEmitter {
    */
   async close() {
     this.#state = 'closing'
-    const promises = []
-    for (const { core } of this.#coreIndex) {
-      promises.push(core.close())
-    }
-    await Promise.all(promises)
+    await this.#corestore.close()
     this.#state = 'closed'
   }
 
