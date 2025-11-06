@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'crypto'
 import { pEvent } from 'p-event'
+
 import {
   connectPeers,
   createManagers,
@@ -79,6 +80,7 @@ test('device info written to projects', async (t) => {
 
   await t.test('after updating global device info', async () => {
     const manager = createManager('test', t)
+
     await manager.setDeviceInfo({ name: 'before', deviceType: 'tablet' })
 
     const projectIds = await Promise.all([

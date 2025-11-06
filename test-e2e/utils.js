@@ -265,8 +265,6 @@ export function createManager(seed, t, overrides = {}) {
         directories.map((dir) =>
           fsPromises.rm(dir, {
             recursive: true,
-            force: true,
-            maxRetries: 2,
           })
         )
       )
@@ -288,8 +286,11 @@ export function createManager(seed, t, overrides = {}) {
   })
 
   t.after(async () => {
-    await manager.close()
     await fastify.close()
+    // Needed to overcome race condition in fastify
+    // If tests run too quick it won't actually close
+    await fastify.server.close()
+    await manager.close()
     await closeDirs()
   })
 

@@ -743,6 +743,7 @@ export class MapeoManager extends TypedEmitter {
       throw e
     }
 
+    // Make sure to clean up when closed
     project.once('close', () => {
       this.#activeProjects.delete(projectPublicId)
     })
