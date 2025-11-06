@@ -285,6 +285,9 @@ export function createManager(seed, t, overrides = {}) {
 
   t.after(async () => {
     await fastify.close()
+    // Needed to overcome race condition in fastify
+    // If tests run too quick it won't actually close
+    await fastify.server.close()
     await manager.close()
     await closeDirs()
   })
