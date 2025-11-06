@@ -3,9 +3,8 @@ import assert from 'node:assert/strict'
 import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
-import { MapeoManager } from '../src/mapeo-manager.js'
+import { createManager } from './utils.js'
 import { MapeoProject } from '../src/mapeo-project.js'
-import Fastify from 'fastify'
 import { defaultConfigPath } from '../test/helpers/default-config.js'
 import { hashObject } from '../src/utils.js'
 import { Reader } from 'comapeocat'
@@ -16,21 +15,10 @@ import {
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
-const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
-  .pathname
-const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
-  .pathname
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 test('Managing created projects', async (t) => {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify: Fastify(),
-  })
+  const manager = createManager('test', t)
 
   const project1Id = await manager.createProject()
   const project2Id = await manager.createProject({ name: 'project 2' })
@@ -187,14 +175,8 @@ test('Managing created projects', async (t) => {
 })
 
 describe('Consistent loading of config', async () => {
-  test('loading default config when creating project', async () => {
-    const manager = new MapeoManager({
-      rootKey: KeyManager.generateRootKey(),
-      projectMigrationsFolder,
-      clientMigrationsFolder,
-      dbFolder: ':memory:',
-      coreStorage: () => new RAM(),
-      fastify: Fastify(),
+  test('loading default config when creating project', async (t) => {
+    const manager = createManager('test', t, {
       defaultConfigPath,
     })
     const reader = new Reader(defaultConfigPath)
@@ -204,13 +186,7 @@ describe('Consistent loading of config', async () => {
   })
 
   test('load config from path when creating project', async (t) => {
-    const manager = new MapeoManager({
-      rootKey: KeyManager.generateRootKey(),
-      projectMigrationsFolder,
-      clientMigrationsFolder,
-      dbFolder: ':memory:',
-      coreStorage: () => new RAM(),
-      fastify: Fastify(),
+    const manager = createManager('test', t, {
       defaultConfigPath,
     })
     const fixturePath = path.join(__dirname, 'fixtures/config/complete')
@@ -222,13 +198,7 @@ describe('Consistent loading of config', async () => {
   })
 
   test('load different config after project creation', async (t) => {
-    const manager = new MapeoManager({
-      rootKey: KeyManager.generateRootKey(),
-      projectMigrationsFolder,
-      clientMigrationsFolder,
-      dbFolder: ':memory:',
-      coreStorage: () => new RAM(),
-      fastify: Fastify(),
+    const manager = createManager('test', t, {
       defaultConfigPath,
     })
     const projectId = await manager.createProject()
@@ -252,14 +222,7 @@ describe('Consistent loading of config', async () => {
 })
 
 test('Managing added projects', async (t) => {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify: Fastify(),
-  })
+  const manager = createManager('test', t)
 
   const project1Id = await manager.addProject(
     {
@@ -337,15 +300,8 @@ test('Managing added projects', async (t) => {
   )
 })
 
-test('Managing both created and added projects', async () => {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify: Fastify(),
-  })
+test('Managing both created and added projects', async (t) => {
+  const manager = createManager('test', t)
 
   const createdProjectId = await manager.createProject({
     name: 'created project',
@@ -381,16 +337,8 @@ test('Managing both created and added projects', async () => {
   assert(addedProject)
 })
 
-test('Manager cannot add project that already exists', async () => {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify: Fastify(),
-  })
-
+test('Manager cannot add project that already exists', async (t) => {
+  const manager = createManager('test', t)
   const existingProjectId = await manager.createProject()
 
   const existingProjectsCountBefore = (await manager.listProjects()).length
@@ -410,15 +358,11 @@ test('Manager cannot add project that already exists', async () => {
   assert.equal(existingProjectsCountBefore, existingProjectsCountAfter)
 })
 
-test('Consistent storage folders', async () => {
+test('Consistent storage folders', async (t) => {
   /** @type {string[]} */
   const storageNames = []
-  const manager = new MapeoManager({
+  const manager = createManager('test', t, {
     rootKey: randomBytesSeed('root_key').subarray(0, 16),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    fastify: Fastify(),
     coreStorage: (name) => {
       storageNames.push(name)
       return new RAM()
@@ -447,14 +391,7 @@ test('Consistent storage folders', async () => {
 })
 
 test('Reusing port after start/stop of discovery', async (t) => {
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify: Fastify(),
-  })
+  const manager = createManager('test', t)
 
   t.after(() => manager.stopLocalPeerDiscoveryServer())
 
