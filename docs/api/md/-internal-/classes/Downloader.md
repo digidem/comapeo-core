@@ -39,7 +39,7 @@ downloading deleted and previous versions may be desirable behavior anyway
 
 • **options?** = `{}`
 
-• **options.filter?**: `undefined` \| `null` \| [`BlobFilter`](../type-aliases/BlobFilter.md)
+• **options.filter?**: `undefined` \| `null` \| `_RequireAtLeastOne`\<`object`, `"photo"` \| `"video"` \| `"audio"`\>
 
 Filter blobs of specific types and/or sizes to download
 

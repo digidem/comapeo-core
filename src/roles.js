@@ -148,7 +148,7 @@ export const NO_ROLE = {
   roleAssignment: [],
   sync: {
     auth: 'allowed',
-    config: 'allowed',
+    config: 'blocked',
     data: 'blocked',
     blobIndex: 'blocked',
     blob: 'blocked',
@@ -293,6 +293,19 @@ export class Roles extends TypedEmitter {
   }
 
   /**
+   * Get the reason for the role of `deviceId` (if it exists).
+   *
+   * @param {string} deviceId
+   * @returns {Promise<string | undefined>}
+   */
+  async getRoleReason(deviceId) {
+    const roleRecord = await this.#dataType
+      .getByDocId(deviceId)
+      .catch(nullIfNotFound)
+    return roleRecord?.reason ?? undefined
+  }
+
+  /**
    * Get roles of all devices in the project. For your own device, if you have
    * not yet synced your own role record, the "no role" capabilties is
    * returned. The project creator will have the creator role unless a
@@ -346,8 +359,10 @@ export class Roles extends TypedEmitter {
    *
    * @param {string} deviceId
    * @param {RoleIdAssignableToAnyone} roleId
+   * @param {object} [opts]
+   * @param {string} opts.reason
    */
-  async assignRole(deviceId, roleId) {
+  async assignRole(deviceId, roleId, opts) {
     assert(
       isRoleIdAssignableToAnyone(roleId),
       `Role ID should be assignable to anyone but got ${roleId}`
@@ -398,6 +413,7 @@ export class Roles extends TypedEmitter {
           schemaName: 'role',
           roleId,
           fromIndex,
+          reason: opts?.reason,
         }
       )
     } else {

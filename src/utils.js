@@ -240,3 +240,16 @@ export function buildBlobId(attachment, requestedVariant) {
     driveId: attachment.driveDiscoveryId,
   }
 }
+
+/**
+ * Get typed entries from an object. Use this only on objects that you are
+ * certain have no extra properties - TS does not check for extra properties on
+ * an object, which is why Object.entries is untyped by default.
+ *
+ * @template {Record<string, unknown>} T
+ * @param {T} obj - The object to get entries from (must _not_ have extra properties)
+ * @returns {import('type-fest').Entries<T>}
+ */
+export function typedEntries(obj) {
+  return /** @type {import('type-fest').Entries<T>} */ (Object.entries(obj))
+}

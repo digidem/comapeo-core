@@ -6,4 +6,4 @@
 
 # Variable: roleTable
 
-> `const` **roleTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **roleTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"role"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>

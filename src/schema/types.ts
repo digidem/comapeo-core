@@ -3,100 +3,85 @@ import {
   JSONSchema7 as JSONSchema7Writable,
   JSONSchema7Type,
 } from 'json-schema'
+import type {
+  SQLiteBooleanBuilder,
+  SQLiteIntegerBuilder,
+  SQLiteRealBuilder,
+  SQLiteTableWithColumns,
+  SQLiteTextBuilder,
+  SQLiteTextJsonBuilder,
+} from 'drizzle-orm/sqlite-core'
+import type {
+  $Type,
+  BuildColumns,
+  ColumnBuilderBase,
+  HasDefault,
+  IsPrimaryKey,
+  NotNull,
+} from 'drizzle-orm'
 
-/** Convert optional properties to nullable */
-export type OptionalToNull<T extends {}> = {
-  [K in keyof T]-?: undefined extends T[K] ? T[K] | null : T[K]
-}
 /** Convert a readonly array/object to writeable */
 type Writable<T> = { -readonly [P in keyof T]: T[P] }
-/** Type returned by text(columnName, { enum: [] }) */
-type TextBuilder<
-  TName extends string,
-  TEnum extends readonly [string, ...string[]],
-  TNotNull extends boolean,
-  THasDefault extends boolean
-> = import('drizzle-orm/sqlite-core').SQLiteTextBuilder<{
-  name: TName
-  data: Writable<TEnum>[number]
-  driverParam: string
-  columnType: 'SQLiteText'
-  dataType: 'string'
-  enumValues: Writable<TEnum>
-  notNull: TNotNull
-  hasDefault: THasDefault
-}>
-
-/** Type returned by integer(columnName, { mode: 'boolean' }) */
-type BooleanBuilder<
-  TName extends string,
-  TNotNull extends boolean,
-  THasDefault extends boolean
-> = import('drizzle-orm/sqlite-core').SQLiteBooleanBuilder<{
-  name: TName
-  data: boolean
-  driverParam: number
-  columnType: 'SQLiteBoolean'
-  dataType: 'boolean'
-  notNull: TNotNull
-  hasDefault: THasDefault
-  enumValues: undefined
-}>
-
-/** Type returned by real(columnName) */
-type RealBuilder<
-  TName extends string,
-  TNotNull extends boolean,
-  THasDefault extends boolean
-> = import('drizzle-orm/sqlite-core').SQLiteRealBuilder<{
-  name: TName
-  data: number
-  driverParam: number
-  columnType: 'SQLiteReal'
-  dataType: 'number'
-  notNull: TNotNull
-  hasDefault: THasDefault
-  enumValues: undefined
-}>
-
-/** Type returned by integer(columnName) */
-type IntegerBuilder<
-  TName extends string,
-  TNotNull extends boolean,
-  THasDefault extends boolean
-> = import('drizzle-orm/sqlite-core').SQLiteIntegerBuilder<{
-  name: TName
-  data: number
-  driverParam: number
-  columnType: 'SQLiteInteger'
-  dataType: 'number'
-  notNull: TNotNull
-  hasDefault: THasDefault
-  enumValues: undefined
-}>
-
-/** Type returned by the `customJson` custom type */
-type JsonBuilder<
-  TName extends string,
-  TData extends unknown,
-  TNotNull extends boolean,
-  THasDefault extends boolean
-> = import('drizzle-orm/sqlite-core').SQLiteCustomColumnBuilder<{
-  name: TName
-  data: TData
-  dataType: 'custom'
-  driverParam: string
-  columnType: 'SQLiteCustomColumn'
-  notNull: TNotNull
-  hasDefault: THasDefault
-  enumValues: undefined
-}>
 
 export type JSONSchema7 = ReadonlyDeep<JSONSchema7Writable>
 type JsonSchema7Properties = { readonly [K: string]: JSONSchema7 }
-export type JSONSchema7WithProps = Omit<JSONSchema7, 'properties'> & {
+export type JSONSchema7Object = Omit<JSONSchema7, 'properties' | 'type'> & {
+  readonly type: 'object'
   readonly properties: JsonSchema7Properties
 }
+
+/**
+ * Create a Drizzle SQLite table definition from a JSONSchema object. All
+ * top-level properties map to SQLite columns, with `required` properties marked
+ * as `NOT NULL`, and JSONSchema `default` will map to SQLite defaults.
+ *
+ * Any properties that are of type `object` or `array` in the JSONSchema will be
+ * mapped to a text field, which drizzle will parse and stringify. Types for
+ * `object` and `array` properties will be derived from `TObjectType`.
+ */
+export type JsonSchemaToDrizzleSqliteTable<
+  /** Typescript type for the object defined in the JSONSchema */
+  TObjectType extends { [K in keyof TSchema['properties']]?: any },
+  /** The JSONSchema object schema */
+  TSchema extends JSONSchema7Object,
+  /** Name of the table to create */
+  TTableName extends string,
+  /** Additional columns to add to the table definition (e.g. not defined in JSONSchema ) */
+  TColumnsMap extends Record<string, ColumnBuilderBase> = {},
+  /** Name of the property to use as primary key */
+  TPrimaryKey extends keyof TSchema['properties'] | undefined = undefined
+> = SQLiteTableWithColumns<{
+  name: TTableName
+  schema: undefined
+  columns: BuildColumns<
+    TTableName,
+    JsonSchemaToDrizzleColumns<TObjectType, TSchema, TPrimaryKey> & TColumnsMap,
+    'sqlite'
+  >
+  dialect: 'sqlite'
+}>
+
+/**
+ * Convert a JSONSchema Object Schema to a Drizzle Columns map (e.g. parameter
+ * for `sqliteTable()`). All top-level properties map to SQLite columns, with
+ * `required` properties marked as `NOT NULL`, and JSONSchema `default` will map
+ * to SQLite defaults.
+ *
+ * Any properties that are of type `object` or `array` in the JSONSchema will be
+ * mapped to a text field, which drizzle will parse and stringify. Types for
+ * `object` and `array` properties will be derived from `TObjectType`.
+ */
+type JsonSchemaToDrizzleColumns<
+  TObjectType extends { [K in keyof TSchema['properties']]?: any },
+  TSchema extends JSONSchema7Object,
+  TPrimaryKey extends keyof TSchema['properties'] | undefined = undefined
+> = AddJSONSchemaDefaults<
+  TSchema,
+  AddJSONSchemaRequired<
+    TSchema,
+    SchemaToDrizzleColumnsBase<TSchema, TObjectType>
+  >
+>
 
 /** Get the type of a JSONSchema string: array of constants for an enum,
 otherwise string[]. Strangeness is to convert it into the format expected by
@@ -111,13 +96,12 @@ type Enum<
   : [string, ...string[]]
 
 /** True if JSONSchema object has a default */
-type HasDefault<T extends JSONSchema7> = T['default'] extends JSONSchema7Type
-  ? true
-  : false
+type HasJSONSchemaDefault<T extends JSONSchema7> =
+  T['default'] extends JSONSchema7Type ? true : false
 
 /** True if JSONSchema value is required */
-type IsRequired<
-  T extends JSONSchema7WithProps,
+type IsJSONSchemaRequired<
+  T extends JSONSchema7Object,
   U extends string,
   V extends JSONSchema7['required'] = T['required']
 > = V extends readonly any[] ? Includes<V, U> : false
@@ -131,23 +115,78 @@ type IsRequired<
  * stringify. Types for parsed JSON will be derived from MapeoDoc types.
  */
 export type SchemaToDrizzleColumns<
-  T extends JSONSchema7WithProps,
+  TSchema extends JSONSchema7Object,
+  /** This is the type matching the JSONSchema */
+  TObjectType extends { [K in keyof TSchema['properties']]?: any },
+  TPrimaryKey extends keyof TSchema['properties'] | undefined = undefined
+> = AddPrimaryKey<
+  AddJSONSchemaDefaults<
+    TSchema,
+    AddJSONSchemaRequired<
+      TSchema,
+      SchemaToDrizzleColumnsBase<TSchema, TObjectType>
+    >
+  >,
+  TPrimaryKey
+>
+
+/**
+ * Add `HasDefault` to columns if the JSONSchema has a default for that property
+ */
+type AddJSONSchemaDefaults<
+  TJSONSchema extends JSONSchema7Object,
+  TColumns extends Record<string, ColumnBuilderBase>,
+  U extends JsonSchema7Properties = TJSONSchema['properties']
+> = {
+  [K in keyof TColumns]: K extends keyof U
+    ? HasJSONSchemaDefault<U[K]> extends true
+      ? HasDefault<TColumns[K]>
+      : TColumns[K]
+    : TColumns[K]
+}
+
+/**
+ * Mark columns as NotNull if they are required in the JSONSchema
+ */
+type AddJSONSchemaRequired<
+  TJSONSchema extends JSONSchema7Object,
+  TColumns extends Record<string, ColumnBuilderBase>
+> = {
+  [K in keyof TColumns]: K extends string
+    ? IsJSONSchemaRequired<TJSONSchema, K> extends true
+      ? NotNull<TColumns[K]>
+      : TColumns[K]
+    : TColumns[K]
+}
+
+type AddPrimaryKey<
+  TColumns extends Record<string, ColumnBuilderBase>,
+  TKey extends keyof TColumns | undefined
+> = TKey extends string
+  ? Omit<TColumns, TKey> & { [K in TKey]: IsPrimaryKey<TColumns[TKey]> }
+  : TColumns
+
+/**
+ * Map JSONSchema object properties to Drizzle column types.
+ */
+type SchemaToDrizzleColumnsBase<
+  TSchema extends JSONSchema7Object,
   TObjectType extends { [K in keyof U]?: any },
-  U extends JsonSchema7Properties = T['properties']
+  U extends JsonSchema7Properties = TSchema['properties']
 > = {
   [K in keyof U]: K extends string
     ? U[K]['type'] extends 'string'
-      ? TextBuilder<K, Enum<U[K]>, IsRequired<T, K>, HasDefault<U[K]>>
+      ? SQLiteTextBuilder<Enum<U[K]>>
       : U[K]['type'] extends 'boolean'
-      ? BooleanBuilder<K, IsRequired<T, K>, HasDefault<U[K]>>
+      ? SQLiteBooleanBuilder
       : U[K]['type'] extends 'number'
-      ? RealBuilder<K, IsRequired<T, K>, HasDefault<U[K]>>
+      ? SQLiteRealBuilder
       : U[K]['type'] extends 'integer'
-      ? IntegerBuilder<K, IsRequired<T, K>, HasDefault<U[K]>>
+      ? SQLiteIntegerBuilder
       : U[K]['type'] extends 'array' | 'object'
-      ? JsonBuilder<K, TObjectType[K], IsRequired<T, K>, HasDefault<U[K]>>
+      ? $Type<SQLiteTextJsonBuilder, TObjectType[K]>
       : never
     : never
-} & { forks: JsonBuilder<'forks', string[], true, false> }
+} & { forks: $Type<SQLiteTextJsonBuilder, string[]> }
 
 export type NonEmptyArray<T> = [T, ...T[]]
