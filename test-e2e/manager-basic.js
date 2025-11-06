@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
-import { getExpectedConfig, createManager } from './utils.js'
+import { createManager } from './utils.js'
 import { MapeoProject } from '../src/mapeo-project.js'
 import { defaultConfigPath } from '../test/helpers/default-config.js'
 import { hashObject } from '../src/utils.js'
@@ -175,7 +175,7 @@ test('Managing created projects', async (t) => {
 })
 
 describe('Consistent loading of config', async () => {
-  test('loading default config when creating project', async () => {
+  test('loading default config when creating project', async (t) => {
     const manager = createManager('test', t, {
       defaultConfigPath,
     })
