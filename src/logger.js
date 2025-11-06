@@ -118,6 +118,9 @@ export class Logger {
       this.#log = log
     }
   }
+  get ns() {
+    return this.#baseLogger.namespace
+  }
   get log() {
     return this.#log
   }

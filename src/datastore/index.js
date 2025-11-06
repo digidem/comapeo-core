@@ -95,6 +95,19 @@ export class DataStore extends TypedEmitter {
   }
 
   /**
+   * Wait for any data to be fully flushed to the indexer
+   * @returns {Promise<void>}
+   */
+  async waitIdle() {
+    while (this.#pendingAppends.size || this.#pendingIndex.size) {
+      const pendingIndexes = [...this.#pendingIndex.values()].map(
+        ({ promise }) => promise
+      )
+      await Promise.all([...this.#pendingAppends].concat(pendingIndexes))
+    }
+  }
+
+  /**
    *
    * @param {MultiCoreIndexer.Entry<'binary'>[]} entries
    */

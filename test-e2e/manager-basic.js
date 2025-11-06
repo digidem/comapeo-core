@@ -222,7 +222,8 @@ describe('Consistent loading of config', async () => {
 })
 
 test('Managing added projects', async (t) => {
-  const manager = createManager('test', t)
+  // Workers init slower than this test and lead to race conditions
+  const manager = createManager('test', t, { useIndexWorkers: false })
 
   const project1Id = await manager.addProject(
     {
@@ -339,6 +340,7 @@ test('Managing both created and added projects', async (t) => {
 
 test('Manager cannot add project that already exists', async (t) => {
   const manager = createManager('test', t)
+
   const existingProjectId = await manager.createProject()
 
   const existingProjectsCountBefore = (await manager.listProjects()).length
@@ -393,7 +395,9 @@ test('Consistent storage folders', async (t) => {
 test('Reusing port after start/stop of discovery', async (t) => {
   const manager = createManager('test', t)
 
-  t.after(() => manager.stopLocalPeerDiscoveryServer())
+  t.after(() =>
+    manager.stopLocalPeerDiscoveryServer({ force: true, timeout: 0 })
+  )
 
   const { port } = await manager.startLocalPeerDiscoveryServer()
 

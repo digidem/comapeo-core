@@ -3,7 +3,6 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { sql, count, eq } from 'drizzle-orm'
-import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
@@ -17,7 +16,7 @@ import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
-import { IndexWriter } from './index-writer/index.js'
+import { IndexWriterWrapper as IndexWriter } from './index-writer/index.js'
 import { projectSettingsTable } from './schema/client.js'
 import {
   coreOwnershipTable,
@@ -31,11 +30,7 @@ import {
   translationTable,
   remoteDetectionAlertTable,
 } from './schema/project.js'
-import {
-  CoreOwnership,
-  getWinner,
-  mapAndValidateCoreOwnership,
-} from './core-ownership.js'
+import { CoreOwnership } from './core-ownership.js'
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
@@ -51,7 +46,7 @@ import {
   projectKeyToPublicId,
   valueOf,
 } from './utils.js'
-import { migrate } from './lib/drizzle-helpers.js'
+import { migrate, migrateCoresTable } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
 import { MemberApi } from './member-api.js'
 import {
@@ -66,6 +61,7 @@ import TranslationApi from './translation-api.js'
 import { NotFoundError, nullIfNotFound } from './errors.js'
 import { WebSocket } from 'ws'
 import { createWriteStream } from 'fs'
+import * as projectSchema from './schema/project.js'
 import ensureError from 'ensure-error'
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
@@ -103,6 +99,7 @@ export const kClearData = Symbol('clear project data')
 export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 export const kGeoJSONFileName = Symbol('geoJSONFileName')
+export const kWaitForDataStoresIdle = Symbol('waitForDataStoresIdle')
 
 const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
 
@@ -156,7 +153,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
-   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
+   * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database<import('./schema/client.js')>} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
    * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
@@ -165,6 +162,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
    * @param {Logger} [opts.logger]
+   * @param {boolean} [opts.useIndexWorkers] if true, use a worker thread for each project for indexing cores to sqlite
    *
    */
   constructor({
@@ -182,6 +180,7 @@ export class MapeoProject extends TypedEmitter {
     localPeers,
     logger,
     isArchiveDevice,
+    useIndexWorkers = false,
     getFallbackProjectInfo,
   }) {
     super()
@@ -198,11 +197,22 @@ export class MapeoProject extends TypedEmitter {
 
     this.#sqlite = new Database(dbPath)
     this.#sqlite.pragma('journal_mode=WAL')
-    const db = drizzle(this.#sqlite)
+
+    let db = drizzle(this.#sqlite, { schema: projectSchema })
     this.#db = db
+
     const migrationResult = migrate(db, {
       migrationsFolder: projectMigrationsFolder,
     })
+
+    // Above v4.1.4 we moved the cores table from the project db to the shared
+    // client db, so the project db can be opened read-only in the main thread.
+    migrateCoresTable({
+      clientDb: sharedDb,
+      projectDb: db,
+      projectPublicId: this.#projectPublicId,
+    })
+
     let reindex
     switch (migrationResult) {
       case 'initialized database':
@@ -240,6 +250,15 @@ export class MapeoProject extends TypedEmitter {
         .run()
     }
 
+    if (useIndexWorkers && !this.#sqlite.memory) {
+      // Re-open the db as read-only, because all writes will be done in the worker thread
+      this.#sqlite.close()
+      this.#sqlite = new Database(dbPath, { readonly: true })
+      this.#sqlite.pragma('journal_mode=WAL')
+      db = drizzle(this.#sqlite, { schema: projectSchema })
+      this.#db = db
+    }
+
     ///////// 3. Setup random-access-storage functions
 
     /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
@@ -258,25 +277,15 @@ export class MapeoProject extends TypedEmitter {
       projectKey,
       keyManager,
       storage: coreManagerStorage,
-      db,
+      db: sharedDb,
       logger: this.#l,
     })
 
     this.#indexWriter = new IndexWriter({
       tables: indexedTables,
       sqlite: this.#sqlite,
-      getWinner,
-      mapDoc: (doc, version) => {
-        switch (doc.schemaName) {
-          case 'coreOwnership':
-            return mapAndValidateCoreOwnership(doc, version)
-          case 'deviceInfo':
-            return mapAndValidateDeviceInfo(doc, version)
-          default:
-            return doc
-        }
-      },
       logger: this.#l,
+      useWorker: useIndexWorkers,
     })
 
     this.#dataStores = {
@@ -593,7 +602,7 @@ export class MapeoProject extends TypedEmitter {
     }
     await Promise.all(dataStorePromises)
     await this.#coreManager.close()
-
+    await this.#indexWriter.close()
     this.#sqlite.close()
 
     this.emit('close')
@@ -1379,8 +1388,18 @@ export class MapeoProject extends TypedEmitter {
     const authSchemas = new Set(NAMESPACE_SCHEMAS.auth)
     for (const schemaName of this.#indexWriter.schemas) {
       const isAuthSchema = authSchemas.has(schemaName)
-      if (!isAuthSchema) this.#indexWriter.deleteSchema(schemaName)
+      if (!isAuthSchema) await this.#indexWriter.deleteSchema(schemaName)
     }
+  }
+
+  /**
+   * Wait for the datastore to flush data to the indexer fully
+   * @returns {Promise<void>}
+   */
+  async [kWaitForDataStoresIdle]() {
+    await Promise.all(
+      Object.values(this.#dataStores).map((store) => store.waitIdle())
+    )
   }
 
   /**
@@ -1456,23 +1475,6 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
 }
 
 /**
- * Validate that a deviceInfo record is written by the device that is it about,
- * e.g. version.coreKey should equal docId
- *
- * @param {import('@comapeo/schema').DeviceInfo} doc
- * @param {import('@comapeo/schema').VersionIdObject} version
- * @returns {import('@comapeo/schema').DeviceInfo}
- */
-function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
-  if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
-    throw new Error(
-      'Invalid deviceInfo record, cannot write deviceInfo for another device'
-    )
-  }
-  return doc
-}
-
-/**
  *
  * @param {string} baseUrl
  * @param {string} projectPublicId
@@ -1486,7 +1488,7 @@ export function baseUrlToWS(baseUrl, projectPublicId) {
 }
 
 /**
- * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} db
+ * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database<import('./schema/project.js')>} db
  * @param {import('./datatype/index.js').MapeoDocTables} table
  * @returns {Stats}
  */

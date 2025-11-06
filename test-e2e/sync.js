@@ -910,6 +910,7 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     projectId,
     roleId: BLOCKED_ROLE_ID,
   })
+
   await invite({
     invitor,
     invitees: [invitee],

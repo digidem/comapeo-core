@@ -24,7 +24,8 @@ import path from 'path'
 import { Transform } from 'streamx'
 import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { coresTable } from '../src/schema/project.js'
+import { coresTable } from '../src/schema/client.js'
+import * as clientSchema from '../src/schema/client.js'
 import { eq } from 'drizzle-orm'
 /** @import { Namespace } from '../src/types.js' */
 
@@ -216,7 +217,7 @@ test('Added cores are persisted', async () => {
   const keyManager = new KeyManager(randomBytes(16))
   const projectKey = randomBytes(32)
 
-  const db = drizzle(new Sqlite(':memory:'))
+  const db = drizzle(new Sqlite(':memory:'), { schema: clientSchema })
 
   const cm1 = createCoreManager({
     db,
@@ -525,7 +526,7 @@ test('deleteOthersData()', async (t) => {
     const peer1TempPath = path.join(tempPath, 'peer1')
 
     /// Set up core managers
-    const db1 = drizzle(new Sqlite(':memory:'))
+    const db1 = drizzle(new Sqlite(':memory:'), { schema: clientSchema })
     const cm1 = createCoreManager({
       db: db1,
       projectKey,
@@ -536,7 +537,7 @@ test('deleteOthersData()', async (t) => {
       autoDownload: true,
     })
 
-    const db2 = drizzle(new Sqlite(':memory:'))
+    const db2 = drizzle(new Sqlite(':memory:'), { schema: clientSchema })
     const cm2 = createCoreManager({
       db: db2,
       projectKey,

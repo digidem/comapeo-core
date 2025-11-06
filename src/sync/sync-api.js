@@ -160,7 +160,9 @@ export class SyncApi extends TypedEmitter {
           })
         )
       )
-      .catch(noop)
+      .catch((e) => {
+        this.#l.log('ERROR: Unable to init sync API', e)
+      })
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */

@@ -2,10 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { KeyManager, sign } from '@mapeo/crypto'
 import sodium from 'sodium-universal'
-import {
-  mapAndValidateCoreOwnership,
-  getWinner,
-} from '../src/core-ownership.js'
+import { mapDoc } from '../src/index-writer/map-doc.js'
+import { getWinner } from '../src/index-writer/get-winner.js'
 import { randomBytes } from 'node:crypto'
 import { parseVersionId, getVersionId } from '@comapeo/schema'
 import { discoveryKey } from 'hypercore-crypto'
@@ -16,7 +14,7 @@ test('Valid coreOwnership record', () => {
   const validDoc = generateValidDoc()
   const version = parseVersionId(validDoc.versionId)
 
-  const mappedDoc = mapAndValidateCoreOwnership(validDoc, version)
+  const mappedDoc = mapDoc(validDoc, version)
 
   assert(validDoc.links.length > 0, 'original doc has links')
   assert.deepEqual(mappedDoc.links, [], 'links are stripped from mapped doc')
@@ -42,14 +40,14 @@ test('Invalid coreOwnership signatures', () => {
         [key]: randomBytes(sodium.crypto_sign_BYTES),
       },
     }
-    assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
+    assert.throws(() => mapDoc(invalidDoc, version))
   }
 
   const invalidDoc = {
     ...validDoc,
     identitySignature: randomBytes(sodium.crypto_sign_BYTES),
   }
-  assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
+  assert.throws(() => mapDoc(invalidDoc, version))
 })
 
 test('Invalid coreOwnership docId and coreIds', () => {
@@ -61,14 +59,14 @@ test('Invalid coreOwnership docId and coreIds', () => {
       ...validDoc,
       [`${key}CoreId`]: randomBytes(32).toString('hex'),
     }
-    assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
+    assert.throws(() => mapDoc(invalidDoc, version))
   }
 
   const invalidDoc = {
     ...validDoc,
     docId: randomBytes(32).toString('hex'),
   }
-  assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
+  assert.throws(() => mapDoc(invalidDoc, version))
 })
 
 test('Invalid coreOwnership docId and coreIds (wrong length)', () => {
@@ -81,14 +79,14 @@ test('Invalid coreOwnership docId and coreIds (wrong length)', () => {
       ...validDoc,
       [`${namespace}CoreId`]: validDoc[`${namespace}CoreId`].slice(0, -1),
     }
-    assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
+    assert.throws(() => mapDoc(invalidDoc, version))
   }
 
   const invalidDoc = {
     ...validDoc,
     docId: validDoc.docId.slice(0, -1),
   }
-  assert.throws(() => mapAndValidateCoreOwnership(invalidDoc, version))
+  assert.throws(() => mapDoc(invalidDoc, version))
 })
 
 test('Invalid - different coreKey', () => {
@@ -97,7 +95,7 @@ test('Invalid - different coreKey', () => {
     ...parseVersionId(validDoc.versionId),
     coreDiscoveryKey: discoveryKey(randomBytes(32)),
   }
-  assert.throws(() => mapAndValidateCoreOwnership(validDoc, version))
+  assert.throws(() => mapDoc(validDoc, version))
 })
 
 test('getWinner (coreOwnership)', () => {

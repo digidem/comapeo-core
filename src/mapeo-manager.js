@@ -8,8 +8,8 @@ import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import pTimeout from 'p-timeout'
 import { createRequire } from 'module'
-
-import { IndexWriter } from './index-writer/index.js'
+import * as clientSchema from './schema/client.js'
+import { IndexWriterWrapper as IndexWriter } from './index-writer/index.js'
 import {
   MapeoProject,
   kBlobStore,
@@ -128,6 +128,7 @@ export class MapeoManager extends TypedEmitter {
   #l
   #defaultConfigPath
   #makeWebsocket
+  #useIndexWorkers
   #defaultIsArchiveDevice
 
   /**
@@ -144,6 +145,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    * @param {boolean} [opts.defaultIsArchiveDevice] Whether the node is an archive device by default
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
+   * @param {boolean} [opts.useIndexWorkers] if true, use a worker thread for each project for indexing cores to sqlite
    */
   constructor({
     rootKey,
@@ -158,6 +160,7 @@ export class MapeoManager extends TypedEmitter {
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
     defaultIsArchiveDevice = DEFAULT_IS_ARCHIVE_DEVICE,
     makeWebsocket = (url) => new WebSocket(url),
+    useIndexWorkers = false,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
@@ -169,13 +172,15 @@ export class MapeoManager extends TypedEmitter {
     this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
     this.#projectMigrationsFolder = projectMigrationsFolder
+    this.#useIndexWorkers = useIndexWorkers
+
     const sqlite = new Database(
       dbFolder === ':memory:'
         ? ':memory:'
         : path.join(dbFolder, CLIENT_SQLITE_FILE_NAME)
     )
     sqlite.pragma('journal_mode=WAL')
-    this.#db = drizzle(sqlite)
+    this.#db = drizzle(sqlite, { schema: clientSchema })
     migrate(this.#db, {
       migrationsFolder: clientMigrationsFolder,
       migrationFns: {
@@ -574,6 +579,7 @@ export class MapeoManager extends TypedEmitter {
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
       isArchiveDevice,
       makeWebsocket: this.#makeWebsocket,
+      useIndexWorkers: this.#useIndexWorkers,
       getFallbackProjectInfo: () => {
         return this.#db
           .select({ projectInfo: projectKeysTable.projectInfo })
@@ -761,7 +767,9 @@ export class MapeoManager extends TypedEmitter {
       try {
         await this.#waitForInitialSync(project)
       } catch (e) {
-        this.#l.log('ERROR: could not do initial project sync', e)
+        // Needed for TS to allow e.stack 🙄
+        if (!(e instanceof Error)) throw e
+        this.#l.log('ERROR: could not do initial project sync', e.stack)
       }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
@@ -813,7 +821,7 @@ export class MapeoManager extends TypedEmitter {
     } else {
       this.#l.log(
         'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
-        isRoleSynced,
+        ownRole.name,
         isProjectSettingsSynced,
         isAuthSynced,
         isConfigSynced
@@ -1076,8 +1084,7 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async close() {
-    // This added for workers PR
-    // await this.#projectSettingsIndexWriter.close()
+    await this.#projectSettingsIndexWriter.close()
     await Promise.all(
       [...this.#activeProjects.values()].map((project) => project.close())
     )

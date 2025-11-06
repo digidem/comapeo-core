@@ -15,6 +15,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { getProperty } from 'dot-prop-extra'
 
 import { MapeoManager, roles } from '../src/index.js'
+import { kWaitForDataStoresIdle } from '../src/mapeo-project.js'
 import { generate } from '@mapeo/mock-data'
 import { ExhaustivenessError, valueOf } from '../src/utils.js'
 import { createHash, randomBytes, randomInt } from 'node:crypto'
@@ -280,6 +281,7 @@ export function createManager(seed, t, overrides = {}) {
     dbFolder,
     coreStorage,
     fastify,
+    useIndexWorkers: true,
     ...overrides,
   })
 
@@ -594,13 +596,17 @@ async function waitForProjectSync(project, peerIds, type = 'initial') {
   if (hasPeerIds(state.auth.remoteStates, peerIds)) {
     return project.$sync.waitForSync(type)
   }
-  return new Promise((res) => {
+  const result = await new Promise((res) => {
     project.$sync[kSyncState].on('state', function onState(state) {
       if (!hasPeerIds(state.auth.remoteStates, peerIds)) return
       project.$sync[kSyncState].off('state', onState)
       res(project.$sync.waitForSync(type))
     })
   })
+
+  await project[kWaitForDataStoresIdle]()
+
+  return result
 }
 
 /**

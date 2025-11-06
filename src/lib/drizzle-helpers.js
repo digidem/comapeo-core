@@ -1,9 +1,11 @@
-import { sql } from 'drizzle-orm'
+import { count, eq, sql } from 'drizzle-orm'
 import fs from 'node:fs'
 import path from 'node:path'
 import { assert } from '../utils.js'
 import { migrate as drizzleMigrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { DRIZZLE_MIGRATIONS_TABLE } from '../constants.js'
+import { coresTable } from '../schema/client.js'
+import { coresTable_Deprecated } from '../schema/project.js'
 /** @import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
 
 /**
@@ -25,7 +27,8 @@ const getNumberResult = (queryResult) => {
  * Get the latest migration time, or 0 if no migrations have been run or the
  * migrations table has not been created yet.
  *
- * @param {BetterSQLite3Database} db
+ * @template {Record<string, unknown>} TSchema
+ * @param {BetterSQLite3Database<TSchema>} db
  * @returns {number}
  */
 const safeGetLatestMigrationMillis = (db) =>
@@ -61,10 +64,11 @@ const safeGetLatestMigrationMillis = (db) =>
  *
  * Returns what happened during migration; did a migration occur?
  *
- * @param {BetterSQLite3Database} db
+ * @template {Record<string, unknown>} TSchema
+ * @param {BetterSQLite3Database<TSchema>} db
  * @param {object} options
  * @param {string} options.migrationsFolder
- * @param {Record<string, (db: BetterSQLite3Database) => void>} [options.migrationFns]
+ * @param {Record<string, (db: BetterSQLite3Database<TSchema>) => void>} [options.migrationFns]
  * @returns {MigrationResult}
  */
 export function migrate(db, { migrationsFolder, migrationFns = {} }) {
@@ -100,6 +104,54 @@ export function migrate(db, { migrationsFolder, migrationFns = {} }) {
   if (prevMigrationMillis === 0) return 'initialized database'
 
   return 'migrated'
+}
+
+/**
+ * Copy the `cores` table from the project database to the client database.
+ * @param {object} options
+ * @param {BetterSQLite3Database<import('../schema/client.js')>} options.clientDb
+ * @param {BetterSQLite3Database<import('../schema/project.js')>} options.projectDb
+ * @param {string} options.projectPublicId
+ * @returns {void}
+ */
+export function migrateCoresTable({ clientDb, projectDb, projectPublicId }) {
+  const migratedRowCount =
+    clientDb
+      .select({ count: count() })
+      .from(coresTable)
+      .where(eq(coresTable.projectPublicId, projectPublicId))
+      .get()?.count || 0
+  if (migratedRowCount > 0) {
+    // Already migrated, nothing to do
+    return
+  }
+  const projectCores = projectDb.select().from(coresTable_Deprecated).all()
+  if (projectCores.length === 0) {
+    // No cores to migrate
+    return
+  }
+
+  clientDb.transaction((tx) => {
+    for (const core of projectCores) {
+      tx.insert(coresTable)
+        .values({
+          ...core,
+          projectPublicId,
+        })
+        .run()
+    }
+  })
+  // Verify that the migration was successful
+  const migratedCount =
+    clientDb
+      .select({ count: count() })
+      .from(coresTable)
+      .where(eq(coresTable.projectPublicId, projectPublicId))
+      .get()?.count || 0
+  assert(
+    migratedCount === projectCores.length,
+    `Expected to migrate ${projectCores.length} cores, but migrated ${migratedCount}`
+  )
 }
 
 /**

@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-
 import { COORDINATOR_ROLE_ID } from '../src/roles.js'
 
 import {

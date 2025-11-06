@@ -10,6 +10,7 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { NAMESPACES } from '../../src/constants.js'
+import * as clientSchema from '../../src/schema/client.js'
 /** @import { Namespace } from '../../src/types.js' */
 
 /**
@@ -20,12 +21,11 @@ import { NAMESPACES } from '../../src/constants.js'
 export function createCoreManager({
   rootKey = randomBytes(16),
   projectKey = randomBytes(32),
-  db = drizzle(new Sqlite(':memory:')),
+  db = drizzle(new Sqlite(':memory:'), { schema: clientSchema }),
   ...opts
 } = {}) {
   migrate(db, {
-    migrationsFolder: new URL('../../drizzle/project', import.meta.url)
-      .pathname,
+    migrationsFolder: new URL('../../drizzle/client', import.meta.url).pathname,
   })
 
   const keyManager = new KeyManager(rootKey)
