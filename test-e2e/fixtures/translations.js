@@ -1,76 +1,84 @@
-const commonPreset = {
-  /** @type {'translation'} */
-  schemaName: 'translation',
-  /** @type {import('@comapeo/schema').TranslationValue['docRefType']} */
-  docRefType: 'preset',
-  languageCode: 'es',
-  regionCode: 'AR',
-  propertyRef: 'name',
-}
+import { generate } from '@mapeo/mock-data'
+import { valueOf } from '@comapeo/schema'
 
-const commonField = {
-  /** @type {'translation'} */
-  schemaName: 'translation',
-  /** @type {import('@comapeo/schema').TranslationValue['docRefType']} */
-  docRefType: 'field',
-  languageCode: 'es',
-  regionCode: 'AR',
-  propertyRef: 'label',
-}
+// Preset fixtures for testing
+export const presetFixtures = [
+  {
+    ...valueOf(generate('preset')[0]),
+    name: 'Building',
+  },
+  {
+    ...valueOf(generate('preset')[0]),
+    name: 'River',
+  },
+]
 
+// Field fixtures for testing
+export const fieldFixtures = [
+  {
+    ...valueOf(generate('field')[0]),
+    label: 'Note',
+  },
+  {
+    ...valueOf(generate('field')[0]),
+    label: 'Owner',
+  },
+]
+
+// Translation messages for presets (Spanish - Argentina)
 /** @type {Object.<string,string>} */
-export const presetsTranslationMap = {
-  Airstrip: 'Pista de Aterrizaje',
-  Boundry: 'Límite',
-  Cave: 'Cueva',
+export const presetTranslationMessages = {
   Building: 'Edificio',
-  Clay: 'Arcilla',
-  'New Area': 'Nueva Área',
-  Camp: 'Campamento',
-  Community: 'Comunidad',
-  'Gathering Site': 'Zona de recolección',
-  Hills: 'Colinas',
-  House: 'Casa',
-  'Hunting Site': 'Sitio de Caza',
-  'Fishing Site': 'Sitio de Pesca',
-  Palm: 'Palma',
-  Plant: 'Planta',
-  Path: 'Camino',
-  'New point': 'Nuevo punto',
   River: 'Río',
-  'New line': 'Nueva línea',
-  Lake: 'Lago',
-  Stream: 'Cauce',
-  'Special site': 'Sitio especial',
-  Farmland: 'Tierra de cultivo',
-  Threat: 'Amenaza',
-  Waterfall: 'Cascada',
-  Tree: 'Árbol',
 }
 
+// Translation messages for fields (Spanish - Argentina)
 /** @type {Object.<string,string>} */
-export const fieldsTranslationMap = {
-  'Animal type': 'Tipo de animal',
-  'Building type': 'Tipo de edificio',
-  'What is gathered here?': '¿Qué se recolecta aquí?',
+export const fieldTranslationMessages = {
   Note: 'Nota',
   Owner: 'Dueño',
-  'Plant species': 'Especie de planta',
-  'What kind of path?': '¿Qué clase de camino?',
-  Name: 'Nombre',
-  'Tree species': 'Especie de árbol',
 }
 
-export const presetTranslations = Object.keys(presetsTranslationMap).map(
-  (key) => {
-    const translation = presetsTranslationMap[key]
-    return { ...commonPreset, message: translation }
-  }
-)
+/**
+ * Create translation documents for presets
+ * @param {Array<{docId: string, versionId: string, name: string}>} presets
+ */
+export function createPresetTranslations(presets) {
+  return presets
+    .map((preset) => {
+      const translation = presetTranslationMessages[preset.name]
+      if (!translation) return undefined
+      return {
+        schemaName: /** @type {const} */ ('translation'),
+        docRefType: /** @type {const} */ ('preset'),
+        languageCode: 'spa',
+        regionCode: 'AR',
+        propertyRef: 'name',
+        message: translation,
+        docRef: { docId: preset.docId, versionId: preset.versionId },
+      }
+    })
+    .filter((t) => t !== undefined)
+}
 
-export const fieldTranslations = Object.keys(fieldsTranslationMap).map(
-  (key) => {
-    const translation = fieldsTranslationMap[key]
-    return { ...commonField, message: translation }
-  }
-)
+/**
+ * Create translation documents for fields
+ * @param {Array<{docId: string, versionId: string, label: string}>} fields
+ */
+export function createFieldTranslations(fields) {
+  return fields
+    .map((field) => {
+      const translation = fieldTranslationMessages[field.label]
+      if (!translation) return undefined
+      return {
+        schemaName: /** @type {const} */ ('translation'),
+        docRefType: /** @type {const} */ ('field'),
+        languageCode: 'spa',
+        regionCode: 'AR',
+        propertyRef: 'label',
+        message: translation,
+        docRef: { docId: field.docId, versionId: field.versionId },
+      }
+    })
+    .filter((t) => t !== undefined)
+}

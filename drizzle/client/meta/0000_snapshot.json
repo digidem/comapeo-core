@@ -1,8 +1,6 @@
 {
-  "version": "5",
+  "version": "6",
   "dialect": "sqlite",
-  "id": "e75103ab-bbcb-4ca9-a0c4-2d9095b63add",
-  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "localDeviceInfo": {
       "name": "localDeviceInfo",
@@ -33,7 +31,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "projectSettings_backlink": {
       "name": "projectSettings_backlink",
@@ -49,7 +48,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "projectKeys": {
       "name": "projectKeys",
@@ -94,7 +94,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
     "projectSettings": {
       "name": "projectSettings",
@@ -187,13 +188,16 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     }
   },
   "enums": {},
   "_meta": {
-    "schemas": {},
     "tables": {},
     "columns": {}
-  }
+  },
+  "id": "e75103ab-bbcb-4ca9-a0c4-2d9095b63add",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "views": {}
 }

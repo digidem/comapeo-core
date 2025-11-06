@@ -6,4 +6,4 @@
 
 # Variable: fieldTable
 
-> `const` **fieldTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **fieldTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"field"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>

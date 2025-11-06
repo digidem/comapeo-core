@@ -11,7 +11,9 @@
 ### Interfaces
 
 - [BlobRef](interfaces/BlobRef.md)
+- [ProjectEvents](interfaces/ProjectEvents.md)
 - [ProjectStats](interfaces/ProjectStats.md)
+- [RoleChangeEvent](interfaces/RoleChangeEvent.md)
 - [Stats](interfaces/Stats.md)
 
 ### Type Aliases
@@ -22,7 +24,7 @@
 ### Variables
 
 - [kBlobStore](variables/kBlobStore.md)
-- [kClearDataIfLeft](variables/kClearDataIfLeft.md)
+- [kClearData](variables/kClearData.md)
 - [kCoreManager](variables/kCoreManager.md)
 - [kCoreOwnership](variables/kCoreOwnership.md)
 - [kDataTypes](variables/kDataTypes.md)

@@ -1,9 +1,11 @@
-import { and, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { kCreateWithDocId, kSelect } from './datatype/index.js'
 import { deNullify, hashObject } from './utils.js'
 import { nullIfNotFound } from './errors.js'
 import { omit } from './lib/omit.js'
-/** @import { Translation, TranslationValue } from '@comapeo/schema' */
+import { iso6391To6393, iso6393To6391 } from './intl/iso639.js'
+import { translationTable } from './schema/project.js'
+/** @import { MapeoDoc, Translation, TranslationValue } from '@comapeo/schema' */
 /** @import { SetOptional } from 'type-fest' */
 
 export const ktranslatedLanguageCodeToSchemaNames = Symbol(
@@ -14,6 +16,9 @@ export default class TranslationApi {
    * TranslationValue['languageCode'],
    * Set<import('@comapeo/schema/dist/types.js').SchemaName>>} */
   #translatedLanguageCodeToSchemaNames = new Map()
+  // A bug in previous versions meant that translations were stored with ISO
+  // 639-1 codes, so we need to handle backwards compatibility for that case.
+  #hasLegacyIso6391Translations = false
   #dataType
   #indexPromise
 
@@ -69,19 +74,48 @@ export default class TranslationApi {
   async get(value) {
     await this.ready()
 
-    const docTypeIsTranslatedToLanguage =
-      this.#translatedLanguageCodeToSchemaNames
-        .get(value.languageCode)
-        ?.has(
-          /** @type {import('@comapeo/schema/dist/types.js').SchemaName} */ (
-            value.docRefType
-          )
+    // Allow this API to accept both ISO 639-1 and ISO 639-3 codes for languageCode
+    const normalizedLanguageCode =
+      value.languageCode.length === 2
+        ? iso6391To6393.get(value.languageCode)
+        : value.languageCode
+    if (!normalizedLanguageCode) return [] // invalid language code
+
+    const languageCodesToQuery = [normalizedLanguageCode]
+
+    // A bug in previous versions meant that translations could be stored with
+    // ISO 639-1 codes, so we need to query for both in this case by looking up
+    // the ISO 639-1 code for the langauge, and then checking whether there are
+    // translations for that language (looking up in our in-memory index saves
+    // an extra sqlite query when unnecessary)
+    if (this.#hasLegacyIso6391Translations) {
+      const iso6391LanguageCode =
+        value.languageCode.length === 2
+          ? value.languageCode
+          : iso6393To6391.get(value.languageCode)
+      const isTranslationStoredWithIso6391Code =
+        iso6391LanguageCode &&
+        this.#isTranslated(
+          /** @type {MapeoDoc['schemaName']} */
+          (value.docRefType),
+          iso6391LanguageCode
         )
+      if (isTranslationStoredWithIso6391Code) {
+        languageCodesToQuery.push(iso6391LanguageCode)
+      }
+    }
+
+    const docTypeIsTranslatedToLanguage =
+      this.#isTranslated(
+        /** @type {MapeoDoc['schemaName']} */
+        (value.docRefType),
+        normalizedLanguageCode
+      ) || languageCodesToQuery.length > 1
     if (!docTypeIsTranslatedToLanguage) return []
 
     const filters = [
-      sql`docRefType = ${value.docRefType}`,
-      sql`languageCode = ${value.languageCode}`,
+      eq(translationTable.docRefType, value.docRefType),
+      inArray(translationTable.languageCode, languageCodesToQuery),
       sql`json_extract(docRef, '$.docId') = ${value.docRef.docId}`,
     ]
 
@@ -94,7 +128,9 @@ export default class TranslationApi {
       filters.push(sql`propertyRef = ${value.propertyRef}`)
     }
     if (value.regionCode) {
-      filters.push(sql`regionCode = ${value.regionCode}`)
+      // Use COLLATE NOCASE for case-insensitive matching because in previous
+      // versions we did not normalize regionCode to uppercase.
+      filters.push(sql`regionCode = ${value.regionCode} COLLATE NOCASE`)
     }
 
     return (await this.#dataType[kSelect]())
@@ -118,10 +154,26 @@ export default class TranslationApi {
         translatedSchemas
       )
     }
+    if (doc.languageCode.length === 2) {
+      this.#hasLegacyIso6391Translations = true
+    }
     translatedSchemas.add(
       /** @type {import('@comapeo/schema/dist/types.js').SchemaName} */ (
         doc.docRefType
       )
+    )
+  }
+
+  /**
+   * @param {MapeoDoc['schemaName']} docType
+   * @param {string} languageCode
+   * @returns {boolean}
+   */
+  #isTranslated(docType, languageCode) {
+    return (
+      this.#translatedLanguageCodeToSchemaNames
+        .get(languageCode)
+        ?.has(docType) || false
     )
   }
 

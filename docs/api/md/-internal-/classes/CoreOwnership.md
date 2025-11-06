@@ -22,7 +22,7 @@
 
 • **opts.coreKeypairs**: `Record`\<`"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`, [`KeyPair`](../type-aliases/KeyPair-1.md)\>
 
-• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, `SQLiteTableWithColumns`\<`object`\>, `"coreOwnership"`, `object`, `object`\>
+• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"coreOwnership"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"coreOwnership"`, `object`, `object`\>
 
 • **opts.identityKeypair**: [`KeyPair`](../type-aliases/KeyPair-1.md)
 

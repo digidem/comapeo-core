@@ -5,8 +5,8 @@ import { randomBytes } from 'node:crypto'
 import { noop, mutatingDeNullify } from '../utils.js'
 import { NotFoundError } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
-import { parse as parseBCP47 } from 'bcp-47'
-import { setProperty, getProperty } from 'dot-prop'
+import { setProperty, getProperty } from 'dot-prop-extra'
+import { parseBcp47 } from '../intl/parse-bcp-47.js'
 /** @import { MapeoDoc, MapeoValue } from '@comapeo/schema' */
 /** @import { RunResult } from 'better-sqlite3' */
 /** @import { SQLiteSelectBase } from 'drizzle-orm/sqlite-core' */
@@ -285,7 +285,7 @@ export class DataType extends TypedEmitter {
   async #mutatingAddTranslations(doc, { lang }) {
     if (!this.#getTranslations) return doc
 
-    const { language, region } = parseBCP47(lang)
+    const { language, region } = parseBcp47(lang)
     if (!language) return doc
 
     const translations = await this.#getTranslations({
@@ -302,8 +302,11 @@ export class DataType extends TypedEmitter {
     for (const translation of translations) {
       if (typeof getProperty(doc, translation.propertyRef) === 'string') {
         const isMatchingRegion = region
-          ? translation.regionCode === region
-          : false
+          ? // Previous versions did not normalize region codes stored in the
+            // translations db to uppercase, so we need to transform the case
+            // here (the parsed `region` is always uppercase).
+            translation.regionCode?.toUpperCase() === region
+          : !translation.regionCode // No region code means it's a match for any region
         // Prefer translations with a matching region code, but fall back to
         // translations without a region code if no matching region code has
         // been found yet for this propertyRef

@@ -2,6 +2,7 @@
 /drizzle/*/meta/
 /src/generated/
 /test/fixtures/
+/test-e2e/fixtures/
 /docs/
 /coverage/
 /proto/build/

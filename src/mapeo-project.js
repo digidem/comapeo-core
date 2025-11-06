@@ -56,14 +56,16 @@ import {
 } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
-import { readConfig } from './config-import.js'
+import { importCategories } from './import-categories.js'
 import TranslationApi from './translation-api.js'
 import { NotFoundError, nullIfNotFound } from './errors.js'
 import { WebSocket } from 'ws'
 import { createWriteStream } from 'fs'
 import * as projectSchema from './schema/project.js'
+import ensureError from 'ensure-error'
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
+/** @import {Role} from './roles.js' */
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 /** @typedef {Map<string,Attachment>} SeenAttachments*/
@@ -105,7 +107,18 @@ const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
 const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
 
 /**
- * @extends {TypedEmitter<{ close: () => void }>}
+ * @typedef RoleChangeEvent
+ * @property {Role & {reason: string | undefined}} role
+ */
+
+/**
+ * @typedef {object} ProjectEvents
+ * @property {() => void} close Project resources have been cleared up
+ * @property {(changeEvent: RoleChangeEvent) => void} own-role-change
+ */
+
+/**
+ * @extends {TypedEmitter<ProjectEvents>}
  */
 export class MapeoProject extends TypedEmitter {
   #projectKey
@@ -127,7 +140,7 @@ export class MapeoProject extends TypedEmitter {
   #translationApi
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
-  #loadingConfig
+  #importingCategories
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
   #getFallbackProjectInfo
@@ -175,7 +188,7 @@ export class MapeoProject extends TypedEmitter {
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectKey = projectKey
-    this.#loadingConfig = false
+    this.#importingCategories = false
     this.#getFallbackProjectInfo = getFallbackProjectInfo
 
     const getReplicationStream = this[kProjectReplicate].bind(this, true)
@@ -514,6 +527,16 @@ export class MapeoProject extends TypedEmitter {
     // for the core.
     localPeers.on('discovery-key', onDiscoverykey)
 
+    this.#roles.on('update', (roleDocIds) => {
+      for (const roleDocId of roleDocIds) {
+        // Ignore docs not about ourselves
+        if (roleDocId !== this.#deviceId) continue
+        this.#handleRoleChange().catch((e) => {
+          this.#l.log(`Error: Could not handle role change`, ensureError(e))
+        })
+      }
+    })
+
     this.once('close', () => {
       localPeers.off('peer-add', onPeerAdd)
       localPeers.off('discovery-key', onDiscoverykey)
@@ -726,8 +749,18 @@ export class MapeoProject extends TypedEmitter {
     return (await this.$getProjectSettings()).name
   }
 
+  /**
+   * @returns {Promise<Role & {reason: string | undefined}>}
+   */
   async $getOwnRole() {
-    return this.#roles.getRole(this.#deviceId)
+    const reason = await this.#roles.getRoleReason(this.#deviceId)
+    const role = await this.#roles.getRole(this.#deviceId)
+    return { ...role, reason }
+  }
+
+  async #handleRoleChange() {
+    const role = await this.$getOwnRole()
+    this.emit('own-role-change', { role })
   }
 
   /**
@@ -1288,12 +1321,6 @@ export class MapeoProject extends TypedEmitter {
   async #throwIfCannotLeaveProject() {
     const roleDocs = await this.#dataTypes.role.getMany()
 
-    const ownRole = roleDocs.find(({ docId }) => this.#deviceId === docId)
-
-    if (ownRole?.roleId === BLOCKED_ROLE_ID) {
-      throw new Error('Cannot leave a project as a blocked device')
-    }
-
     const allRoles = await this.#roles.getAll()
 
     const isOnlyDevice = allRoles.size <= 1
@@ -1319,9 +1346,13 @@ export class MapeoProject extends TypedEmitter {
   }
 
   async [kProjectLeave]() {
+    const ownRole = await this.$getOwnRole()
+
     await this.#throwIfCannotLeaveProject()
 
-    await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+    if (ownRole.roleId !== BLOCKED_ROLE_ID) {
+      await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+    }
 
     await this[kClearData]()
   }
@@ -1371,220 +1402,50 @@ export class MapeoProject extends TypedEmitter {
     )
   }
 
-  /** @param {Object} opts
-   *  @param {string} opts.configPath
-   *  @returns {Promise<Error[]>}
+  /** 
+   * @deprecated
+   * @param {object} opts
+   * @param {string} opts.configPath
+   * @returns {Promise<Error[]>}
    */
   async importConfig({ configPath }) {
+    try {
+      await this.$importCategories({ filePath: configPath })
+      return []
+    } catch (e) {
+      return [ensureError(e)]
+    }
+  }
+
+  /**
+   * @param {object} opts
+   * @param {string} opts.filePath
+   * @returns {Promise<void>}
+   */
+  async $importCategories({ filePath }) {
     assert(
-      !this.#loadingConfig,
-      'Cannot run multiple config imports at the same time'
+      !this.#importingCategories,
+      'Cannot run multiple category imports at the same time'
     )
-    this.#loadingConfig = true
+    this.#importingCategories = true
 
     try {
-      // check for already present fields and presets and delete them if exist
-      const presetsToDelete = await grabDocsToDelete(this.preset)
-      const fieldsToDelete = await grabDocsToDelete(this.field)
-      // delete only translations that refer to deleted fields and presets
-      const translationsToDelete = await grabTranslationsToDelete({
-        logger: this.#l,
-        translation: this.$translation.dataType,
-        preset: this.preset,
-        field: this.field,
-      })
-
-      const config = await readConfig(configPath)
-      /** @type {Map<string, import('./icon-api.js').IconRef>} */
-      const iconNameToRef = new Map()
-      /** @type {Map<string, import('@comapeo/schema').PresetValue['fieldRefs'][1]>} */
-      const fieldNameToRef = new Map()
-      /** @type {Map<string,import('@comapeo/schema').TranslationValue['docRef']>} */
-      const presetNameToRef = new Map()
-
-      // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
-      for await (const icon of config.icons()) {
-        const { docId, versionId } = await this.#iconApi.create(icon)
-        iconNameToRef.set(icon.name, { docId, versionId })
-      }
-
-      // Ok to create fields and presets in parallel
-      const fieldPromises = []
-      for (const { name, value } of config.fields()) {
-        fieldPromises.push(
-          this.#dataTypes.field.create(value).then(({ docId, versionId }) => {
-            fieldNameToRef.set(name, { docId, versionId })
-          })
-        )
-      }
-      await Promise.all(fieldPromises)
-
-      const presetsWithRefs = []
-      for (const { fieldNames, iconName, value, name } of config.presets()) {
-        const fieldRefs = fieldNames.map((fieldName) => {
-          const fieldRef = fieldNameToRef.get(fieldName)
-          if (!fieldRef) {
-            throw new NotFoundError(
-              `field ${fieldName} not found (referenced by preset ${value.name})})`
-            )
-          }
-          return fieldRef
-        })
-
-        if (!iconName) {
-          throw new Error(`preset ${value.name} is missing an icon name`)
-        }
-        const iconRef = iconNameToRef.get(iconName)
-        if (!iconRef) {
-          throw new NotFoundError(
-            `icon ${iconName} not found (referenced by preset ${value.name})`
-          )
-        }
-
-        presetsWithRefs.push({
-          preset: {
-            ...value,
-            iconRef,
-            fieldRefs,
-          },
-          name,
-        })
-      }
-
-      const presetPromises = []
-      for (const { preset, name } of presetsWithRefs) {
-        presetPromises.push(
-          this.preset.create(preset).then(({ docId, versionId }) => {
-            presetNameToRef.set(name, { docId, versionId })
-          })
-        )
-      }
-
-      await Promise.all(presetPromises)
-
-      const translationPromises = []
-      for (const { name, value } of config.translations()) {
-        let docRef
-        if (value.docRefType === 'field') {
-          docRef = { ...fieldNameToRef.get(name) }
-        } else if (value.docRefType === 'preset') {
-          docRef = { ...presetNameToRef.get(name) }
-        } else {
-          throw new Error(`invalid docRefType ${value.docRefType}`)
-        }
-        if (docRef.docId && docRef.versionId) {
-          translationPromises.push(
-            this.$translation.put({
-              ...value,
-              docRef: {
-                docId: docRef.docId,
-                versionId: docRef.versionId,
-              },
-            })
-          )
-        } else {
-          throw new NotFoundError(
-            `docRef for ${value.docRefType} with name ${name} not found`
-          )
-        }
-      }
-      await Promise.all(translationPromises)
-
-      // close the zip handles after we know we won't be needing them anymore
-      await config.close()
-      const presetIds = [...presetNameToRef.values()].map((val) => val.docId)
-
-      await this.$setProjectSettings({
-        defaultPresets: {
-          point: presetIds,
-          line: [],
-          area: [],
-          vertex: [],
-          relation: [],
-        },
-        configMetadata: config.metadata,
-      })
-
-      const deletePresetsPromise = Promise.all(
-        presetsToDelete.map(async (docId) => {
-          const { deleted } = await this.preset.getByDocId(docId)
-          if (!deleted) await this.preset.delete(docId)
-        })
-      )
-      const deleteFieldsPromise = Promise.all(
-        fieldsToDelete.map(async (docId) => {
-          const { deleted } = await this.field.getByDocId(docId)
-          if (!deleted) await this.field.delete(docId)
-        })
-      )
-      const deleteTranslationsPromise = Promise.all(
-        [...translationsToDelete].map(async (docId) => {
-          const { deleted } = await this.$translation.dataType.getByDocId(docId)
-          if (!deleted) await this.$translation.dataType.delete(docId)
-        })
-      )
-      await Promise.all([
-        deletePresetsPromise,
-        deleteFieldsPromise,
-        deleteTranslationsPromise,
-      ])
-      this.#loadingConfig = false
-      return config.warnings
+      await importCategories(this, { filePath, logger: this.#l })
     } catch (e) {
       this.#l.log('error loading config', e)
-      this.#loadingConfig = false
-      return /** @type Error[] */ []
+      throw e
+    } finally {
+      this.#importingCategories = false
     }
   }
 }
+
 /**
  * @param {import("@comapeo/schema").ProjectSettings & { forks: string[] }} projectDoc
  * @returns {EditableProjectSettings}
  */
 function extractEditableProjectSettings(projectDoc) {
   return omit(valueOf(projectDoc), ['schemaName'])
-}
-
-/**
- @param {MapeoProject['field'] | MapeoProject['preset']} dataType
- @returns {Promise<String[]>}
- */
-async function grabDocsToDelete(dataType) {
-  const toDelete = []
-  for (const { docId } of await dataType.getMany()) {
-    toDelete.push(docId)
-  }
-  return toDelete
-}
-
-/**
- * @param {Object} opts
- * @param {Logger} opts.logger
- * @param {MapeoProject['$translation']['dataType']} opts.translation
- * @param {MapeoProject['preset']} opts.preset
- * @param {MapeoProject['field']} opts.field
- * @returns {Promise<Set<String>>}
- */
-async function grabTranslationsToDelete(opts) {
-  /** @type {Set<String>} */
-  const toDelete = new Set()
-  const translations = await opts.translation.getMany()
-  await Promise.all(
-    translations.map(async ({ docRefType, docRef, docId }) => {
-      if (docRefType === 'field' || docRefType === 'preset') {
-        let doc
-        try {
-          doc = await opts[docRefType].getByVersionId(docRef.versionId)
-        } catch (e) {
-          opts.logger.log(`referred ${docRef.versionId} is not found`)
-        }
-        if (doc) {
-          toDelete.add(docId)
-        }
-      }
-    })
-  )
-  return toDelete
 }
 
 /**

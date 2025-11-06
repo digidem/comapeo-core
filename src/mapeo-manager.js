@@ -807,8 +807,9 @@ export class MapeoManager extends TypedEmitter {
     // in the config store - defining the name of the project.
     // TODO: Enforce adding a project name in the invite method
     const isConfigSynced = configState.want === 0 && configState.have > 0
-    // Blocked members only get auth cores
-    if (ownRole === BLOCKED_ROLE && isAuthSynced) return true
+    if (isRoleSynced && ownRole.sync.config === 'blocked' && isAuthSynced) {
+      return true
+    }
     if (
       isRoleSynced &&
       isProjectSettingsSynced &&
@@ -829,7 +830,10 @@ export class MapeoManager extends TypedEmitter {
       /** @param {import('./sync/sync-state.js').State} syncState */
       const onSyncState = (syncState) => {
         clearTimeout(timeoutId)
-        if (syncState.auth.dataToSync || syncState.config.dataToSync) {
+        if (
+          syncState.auth.dataToSync ||
+          (syncState.config.dataToSync && ownRole.sync.config === 'allowed')
+        ) {
           timeoutId = setTimeout(onTimeout, timeoutMs)
           return
         }
@@ -1067,8 +1071,6 @@ export class MapeoManager extends TypedEmitter {
     const project = await this.getProject(projectPublicId)
 
     await project[kProjectLeave]()
-
-    this.#activeProjects.delete(projectPublicId)
   }
 
   async getMapStyleJsonUrl() {
