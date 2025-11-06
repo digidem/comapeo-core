@@ -47,7 +47,7 @@ import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
-import { Roles, BLOCKED_ROLE } from './roles.js'
+import { Roles } from './roles.js'
 import { Logger } from './logger.js'
 import {
   kSyncState,

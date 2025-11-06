@@ -1402,7 +1402,7 @@ export class MapeoProject extends TypedEmitter {
     )
   }
 
-  /** 
+  /**
    * @deprecated
    * @param {object} opts
    * @param {string} opts.configPath
