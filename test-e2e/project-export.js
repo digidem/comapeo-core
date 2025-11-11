@@ -14,7 +14,6 @@ import {
   createManager,
   createManagers,
   invite,
-  waitForPeers,
   waitForSync,
 } from './utils.js'
 
@@ -227,7 +226,6 @@ test('Async project and export tracks and observations to zip stream', async (t)
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers(managers)
 
   const { project: invitorProject, projectId } = await setupProject(invitor, {
     makeTracks: true,
@@ -242,6 +240,10 @@ test('Async project and export tracks and observations to zip stream', async (t)
   })
 
   const project = await invitee.getProject(projectId)
+
+  project.$sync.start({ autostopDataSyncAfter: 10_000 })
+
+  invitorProject.$sync.start({ autostopDataSyncAfter: 10_000 })
 
   await waitForSync([invitorProject, project], 'full')
 
@@ -316,7 +318,7 @@ async function setupProject(
   manager,
   { makeObservations = false, makeTracks = false, makeAttachments = false } = {}
 ) {
-  const projectId = await manager.createProject()
+  const projectId = await manager.createProject({ name: 'Export test' })
   const project = await manager.getProject(projectId)
 
   /** @type {import('../src/types.js').Attachment | null} */
