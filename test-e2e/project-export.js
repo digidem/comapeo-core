@@ -12,6 +12,7 @@ import { createReadStream } from 'node:fs'
 import {
   connectPeers,
   createManager,
+  createManagers,
   invite,
   waitForPeers,
   waitForSync,
@@ -222,12 +223,11 @@ test('Project export tracks and observations to zip stream', async (t) => {
 })
 
 test('Async project and export tracks and observations to zip stream', async (t) => {
-  const invitor = createManager('test', t)
-  const invitee = createManager('sync', t)
-
-  const disconnectPeers = connectPeers([invitor, invitee])
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
-  await waitForPeers([invitor, invitee])
+  await waitForPeers(managers)
 
   const { project: invitorProject, projectId } = await setupProject(invitor, {
     makeTracks: true,
