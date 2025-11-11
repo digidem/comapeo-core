@@ -1070,7 +1070,7 @@ export class MapeoManager extends TypedEmitter {
 
     await project[kProjectLeave]()
 
-    // Sync any role changes from prpoject leave
+    // Sync any role changes from project leave
     await this.#waitForInitialSync(project)
   }
 
