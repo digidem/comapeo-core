@@ -9,7 +9,13 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createReadStream } from 'node:fs'
 
-import { createManager } from './utils.js'
+import {
+  connectPeers,
+  createManager,
+  invite,
+  waitForPeers,
+  waitForSync,
+} from './utils.js'
 
 /** @import { Readable } from 'streamx' */
 
@@ -215,6 +221,66 @@ test('Project export tracks and observations to zip stream', async (t) => {
   })
 })
 
+test('Async project and export tracks and observations to zip stream', async (t) => {
+  const invitor = createManager('test', t)
+  const invitee = createManager('sync', t)
+
+  const disconnectPeers = connectPeers([invitor, invitee])
+  t.after(disconnectPeers)
+  await waitForPeers([invitor, invitee])
+
+  const { project: invitorProject, projectId } = await setupProject(invitor, {
+    makeTracks: true,
+    makeObservations: true,
+    makeAttachments: true,
+  })
+
+  await invite({
+    invitor,
+    invitees: [invitee],
+    projectId,
+  })
+
+  const project = await invitee.getProject(projectId)
+
+  await waitForSync([invitorProject, project], 'full')
+
+  await temporaryDirectoryTask(async (dir) => {
+    const zipFile = await project.exportZipFile(dir, {
+      tracks: true,
+      observations: true,
+      attachments: true,
+    })
+    const zip = new StreamZip.async({ file: zipFile })
+    const entries = Object.keys(await zip.entries())
+
+    const geoJSONFile = entries.find((name) => name.endsWith('.geojson'))
+
+    assert(geoJSONFile, 'Zip file contains geojson file')
+
+    const stream = await zip.stream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
+    await zip.close()
+    assert.equal(
+      parsed.type,
+      'FeatureCollection',
+      'Exported GeoJSON is a FeatureCollection'
+    )
+    assert.deepEqual(
+      parsed.features.length,
+      DEFAULT_OBSERVATIONS +
+        DEFAULT_TRACKS +
+        DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
+      'Exported GeoJSON has expected number of features'
+    )
+
+    assert.equal(entries.length, 2, 'Zip has geoJSON and one attachment')
+
+    const hasPng = entries.some((name) => name.endsWith('.png'))
+    assert(hasPng, 'Zip has exported PNG')
+  })
+})
+
 /**
  * @param {AsyncIterable<Buffer|Uint8Array|string>} stream
  * @returns {Promise<any>}
@@ -332,5 +398,5 @@ async function setupProject(
     )
   }
 
-  return { project, observations, tracks }
+  return { project, projectId, observations, tracks }
 }
