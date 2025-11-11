@@ -314,6 +314,32 @@ export class BlobStore extends TypedEmitter {
   }
 
   /**
+   * Check if all the blocks for a given blob entry have been downloaded
+   * @param {BlobId['driveId']} driveId Hyperdrive drive id
+   * @param {import('hyperdrive').HyperdriveEntry} entry Hyperdrive entry
+   * @returns {Promise<boolean>}
+   */
+  async hasDownloadedBlobEntry(driveId, entry) {
+    const drive = this.#getDrive(driveId)
+    const blobs = await drive.getBlobs()
+
+    if (!blobs) {
+      return false
+    }
+
+    const { blockOffset, blockLength } = entry.value.blob
+
+    const core = blobs.core.session()
+    try {
+      const start = blockOffset
+      const end = blockOffset + blockLength
+      return core.has(start, end)
+    } catch {
+      return false
+    }
+  }
+
+  /**
    *
    * @param {Omit<BlobId, 'driveId'>} blobId
    * @param {Buffer} blob

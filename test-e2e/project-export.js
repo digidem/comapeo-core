@@ -222,7 +222,10 @@ test('Project export tracks and observations to zip stream', async (t) => {
 })
 
 test('Sync project and export tracks and observations to zip stream', async (t) => {
-  const managers = await createManagers(2, t)
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    // Mobile is not archive device by default and we should support that.
+    defaultIsArchiveDevice: false,
+  })
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
