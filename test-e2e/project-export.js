@@ -221,7 +221,7 @@ test('Project export tracks and observations to zip stream', async (t) => {
   })
 })
 
-test('Async project and export tracks and observations to zip stream', async (t) => {
+test('Sync project and export tracks and observations to zip stream', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
