@@ -276,6 +276,28 @@ Hyperdrive entry
 
 ***
 
+### hasDownloadedBlobEntry()
+
+> **hasDownloadedBlobEntry**(`driveId`, `entry`): `Promise`\<`boolean`\>
+
+Check if all the blocks for a given blob entry have been downloaded
+
+#### Parameters
+
+• **driveId**: `string`
+
+Hyperdrive drive id
+
+• **entry**: [`HyperdriveEntry`](../namespaces/Hyperdrive/interfaces/HyperdriveEntry.md)
+
+Hyperdrive entry
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+***
+
 ### put()
 
 > **put**(`blobId`, `blob`, `options`?): `Promise`\<`string`\>

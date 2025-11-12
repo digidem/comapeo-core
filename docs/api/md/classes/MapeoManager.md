@@ -118,6 +118,18 @@ Set opts.waitForSync = false to not wait for sync during addProject()
 
 ***
 
+### close()
+
+> **close**(): `Promise`\<`void`\>
+
+Cleans up open resorces and closes open projects
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### connectLocalPeer()
 
 > **connectLocalPeer**(`peer`): `void`
