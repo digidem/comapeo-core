@@ -21,6 +21,7 @@ import {
 } from './utils.js'
 import { kDataTypes } from '../src/mapeo-project.js'
 import { pEvent } from 'p-event'
+import { InviteResponse_Decision } from '../src/generated/rpc.js'
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 /** @import { RoleId } from '../src/roles.js' */
 
@@ -791,4 +792,94 @@ test('remove member from project with reason', async (t) => {
   assert.deepEqual(ownRole, updatedRole.role, 'see own role change')
 
   await invitee.leaveProject(projectId)
+})
+
+test('remove member from project, add them back', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  const inviteeProject = await invitee.getProject(projectId)
+  const invitorProject = await invitor.getProject(projectId)
+
+  const onRoleChange = pEvent(inviteeProject, 'own-role-change', {
+    timeout: 1_000,
+  })
+
+  await invitorProject.$member.remove(invitee.deviceId)
+
+  await waitForSync([inviteeProject, invitorProject], 'initial')
+
+  const updatedRole = await onRoleChange
+
+  assert.equal(
+    updatedRole.role.roleId,
+    BLOCKED_ROLE_ID,
+    'invitee sees they were removed'
+  )
+
+  assert.equal(updatedRole.role.reason, undefined, 'No reason for removal')
+
+  await invitee.leaveProject(projectId)
+  await inviteeProject.close()
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  const reinviteeProject = await invitee.getProject(projectId)
+
+  await waitForSync([reinviteeProject, invitorProject], 'initial')
+
+  const reRole = await reinviteeProject.$getOwnRole()
+  assert.equal(reRole.roleId, MEMBER_ROLE_ID, 'Sees self as a member again')
+})
+
+test('Auto deny invites if invited before remove is processed', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  const onRoleChange = pEvent(inviteeProject, 'own-role-change', {
+    timeout: 1_000,
+  })
+
+  await invitorProject.$member.remove(invitee.deviceId)
+
+  await waitForSync([inviteeProject, invitorProject], 'initial')
+
+  await onRoleChange
+
+  const response = await invitorProject.$member.invite(invitee.deviceId, {
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  assert.equal(
+    response,
+    InviteResponse_Decision.ALREADY,
+    'Auto rejects before leave project is called'
+  )
 })

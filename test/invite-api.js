@@ -299,7 +299,9 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
       rpc,
       queries: {
         getProjectByInviteId: (p) =>
-          p === projectInviteId ? { projectPublicId } : undefined,
+          p === projectInviteId
+            ? { projectPublicId, hasLeftProject: false }
+            : undefined,
         addProject: async () => {
           assert.fail('should not add project')
         },
@@ -355,7 +357,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
         rpc,
         queries: {
           getProjectByInviteId: () =>
-            isMember ? { projectPublicId } : undefined,
+            isMember ? { projectPublicId, hasLeftProject: false } : undefined,
           addProject: async () => {
             assert.fail('should not add project')
           },

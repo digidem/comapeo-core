@@ -167,8 +167,6 @@ test('Member can leave project if creator exists', async (t) => {
     'member now has LEFT role'
   )
 
-  await waitForSync(projects, 'initial')
-
   assert.equal(
     (await creatorProject.$member.getById(member.deviceId)).role.roleId,
     LEFT_ROLE_ID,
@@ -223,8 +221,6 @@ test('Data access after leaving project', async (t) => {
     coordinator.leaveProject(projectId),
     member.leaveProject(projectId),
   ])
-
-  await waitForSync(projects, 'initial')
 
   await assert.rejects(async () => {
     await memberProject.observation.create(valueOf(generate('observation')[0]))
@@ -420,4 +416,67 @@ test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
   assert.equal(projectsList.length, 0, 'no projects listed')
 })
 
-// TODO: Add test for leaving and rejoining a project
+test('Member can join project again after leaving', async (t) => {
+  const managers = await createManagers(2, t)
+
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const [creator, member] = managers
+  const projectId = await creator.createProject({ name: 'mapeo' })
+
+  await invite({
+    invitor: creator,
+    invitees: [member],
+    projectId,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const [creatorProject, memberProject] = projects
+
+  assert(
+    await creatorProject.$member.getById(member.deviceId),
+    'member successfully added from creator perspective'
+  )
+
+  assert(
+    await memberProject.$member.getById(member.deviceId),
+    'creator successfully added from creator perspective'
+  )
+
+  await waitForSync(projects, 'initial')
+
+  await member.leaveProject(projectId)
+
+  // Close the project after you leave and sync
+  // This clears up resources so we can be reinvited
+  await memberProject.close()
+
+  await invite({
+    invitor: creator,
+    invitees: [member],
+    projectId,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  // We need to re-get the project since it was closed
+  const reMemberProject = await member.getProject(projectId)
+
+  assert.notEqual(reMemberProject, memberProject, 'new project on rejoin')
+
+  await waitForSync([creatorProject, reMemberProject], 'initial')
+
+  assert(
+    await creatorProject.$member.getById(member.deviceId),
+    'member successfully added from creator perspective'
+  )
+
+  assert(
+    await reMemberProject.$member.getById(member.deviceId),
+    'creator successfully added from creator perspective'
+  )
+})

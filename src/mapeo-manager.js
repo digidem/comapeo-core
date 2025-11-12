@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto'
 import path from 'path'
 import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
@@ -694,11 +694,15 @@ export class MapeoManager extends TypedEmitter {
     const projectExists = this.#db
       .select()
       .from(projectKeysTable)
-      .where(eq(projectKeysTable.projectId, projectId))
+      .where(
+        and(
+          eq(projectKeysTable.projectId, projectId),
+          eq(projectKeysTable.hasLeftProject, false)
+        )
+      )
       .get()
 
     if (projectExists) {
-      // TODO: Define behavior for adding a project that the user has left
       throw new Error(`Project with ID ${projectPublicId} already exists`)
     }
 
@@ -719,6 +723,7 @@ export class MapeoManager extends TypedEmitter {
         projectDescription,
         sendStats,
       },
+      hasLeftProject: false,
     })
 
     // Any errors from here we need to remove project from db because it has not
@@ -1064,6 +1069,9 @@ export class MapeoManager extends TypedEmitter {
     const project = await this.getProject(projectPublicId)
 
     await project[kProjectLeave]()
+
+    // Sync any role changes from project leave
+    await this.#waitForInitialSync(project)
   }
 
   async getMapStyleJsonUrl() {
