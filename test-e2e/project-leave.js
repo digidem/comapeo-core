@@ -463,6 +463,7 @@ test('Member can join project again after leaving', async (t) => {
     roleId: MEMBER_ROLE_ID,
   })
 
+  // We need to re-get the project since it was closed
   const reMemberProject = await member.getProject(projectId)
 
   assert.notEqual(reMemberProject, memberProject, 'new project on rejoin')
