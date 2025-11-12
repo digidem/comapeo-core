@@ -1164,6 +1164,13 @@ export class MapeoProject extends TypedEmitter {
             continue
           }
         }
+        const hasDownloaded = await this.#blobStore.hasDownloadedBlobEntry(
+          blobId.driveId,
+          entry
+        )
+        if (!hasDownloaded) {
+          continue
+        }
         return { blobId, mimeType }
       } catch (e) {
         if (!(e instanceof Error)) throw e
