@@ -18,9 +18,9 @@ test('Plugin throws error if missing getBlobStore option', async () => {
   })
 })
 
-test('Plugin handles prefix option properly', async () => {
+test('Plugin handles prefix option properly', async (t) => {
   const prefix = '/blobs'
-  const { data, server, projectPublicId } = await setup({ prefix })
+  const { data, server, projectPublicId } = await setup(t, { prefix })
 
   for (const { blobId } of data) {
     const res = await server.inject({
@@ -36,8 +36,8 @@ test('Plugin handles prefix option properly', async () => {
   }
 })
 
-test('Unsupported blob type and variant params are handled properly', async () => {
-  const { data, server, projectPublicId } = await setup()
+test('Unsupported blob type and variant params are handled properly', async (t) => {
+  const { data, server, projectPublicId } = await setup(t)
 
   for (const { blobId } of data) {
     const unsupportedVariantRes = await server.inject({
@@ -66,8 +66,8 @@ test('Unsupported blob type and variant params are handled properly', async () =
   }
 })
 
-test('Invalid variant-type combination returns error', async () => {
-  const { server, projectPublicId } = await setup()
+test('Invalid variant-type combination returns error', async (t) => {
+  const { server, projectPublicId } = await setup(t)
 
   const url = buildRouteUrl({
     projectPublicId,
@@ -83,8 +83,8 @@ test('Invalid variant-type combination returns error', async () => {
   assert(response.json().message.startsWith('Unsupported variant'))
 })
 
-test('Incorrect project public id returns 404', async () => {
-  const { data, server } = await setup()
+test('Incorrect project public id returns 404', async (t) => {
+  const { data, server } = await setup(t)
 
   const incorrectProjectPublicId = projectKeyToPublicId(randomBytes(32))
 
@@ -101,8 +101,8 @@ test('Incorrect project public id returns 404', async () => {
   }
 })
 
-test('Incorrectly formatted project public id returns 400', async () => {
-  const { data, server } = await setup()
+test('Incorrectly formatted project public id returns 400', async (t) => {
+  const { data, server } = await setup(t)
 
   const hexString = randomBytes(32).toString('hex')
 
@@ -119,8 +119,8 @@ test('Incorrectly formatted project public id returns 400', async () => {
   }
 })
 
-test('Missing blob name or variant returns 404', async () => {
-  const { data, server, projectPublicId } = await setup()
+test('Missing blob name or variant returns 404', async (t) => {
+  const { data, server, projectPublicId } = await setup(t)
 
   for (const { blobId } of data) {
     const nameMismatchRes = await server.inject({
@@ -147,8 +147,8 @@ test('Missing blob name or variant returns 404', async () => {
   }
 })
 
-test('GET photo returns correct blob payload', async () => {
-  const { data, server, projectPublicId } = await setup()
+test('GET photo returns correct blob payload', async (t) => {
+  const { data, server, projectPublicId } = await setup(t)
 
   for (const { blobId, image } of data) {
     const res = await server.inject({
@@ -163,8 +163,8 @@ test('GET photo returns correct blob payload', async () => {
   }
 })
 
-test('GET photo returns inferred content header if metadata is not found', async () => {
-  const { data, server, projectPublicId } = await setup()
+test('GET photo returns inferred content header if metadata is not found', async (t) => {
+  const { data, server, projectPublicId } = await setup(t)
 
   for (const { blobId, image } of data) {
     const res = await server.inject({
@@ -186,8 +186,8 @@ test('GET photo returns inferred content header if metadata is not found', async
   }
 })
 
-test('GET photo uses mime type from metadata if found', async () => {
-  const { data, server, projectPublicId, blobStore } = await setup()
+test('GET photo uses mime type from metadata if found', async (t) => {
+  const { data, server, projectPublicId, blobStore } = await setup(t)
 
   for (const { blobId, image } of data) {
     const imageMimeType = getImageMimeType(image.ext)
@@ -218,16 +218,16 @@ test('GET photo uses mime type from metadata if found', async () => {
   }
 })
 
-test('GET photo returns 404 when trying to get non-replicated blob', async () => {
+test('GET photo returns 404 when trying to get non-replicated blob', async (t) => {
   const projectKey = randomBytes(32)
 
   const {
     data,
     projectPublicId,
     coreManager: cm1,
-  } = await setup({ projectKey })
+  } = await setup(t, { projectKey })
 
-  const { blobStore: bs2, coreManager: cm2 } = createBlobStore({
+  const { blobStore: bs2, coreManager: cm2 } = createBlobStore(t, {
     projectKey,
   })
 
@@ -255,10 +255,10 @@ test('GET photo returns 404 when trying to get non-replicated blob', async () =>
   assert.equal(res.statusCode, 404)
 })
 
-test('GET photo returns 404 when trying to get non-existent blob', async () => {
+test('GET photo returns 404 when trying to get non-existent blob', async (t) => {
   const projectKey = randomBytes(32)
 
-  const { projectPublicId, blobStore } = await setup({ projectKey })
+  const { projectPublicId, blobStore } = await setup(t, { projectKey })
 
   const expected = await readFile(new URL(import.meta.url))
 
@@ -319,12 +319,13 @@ function createServer(opts) {
 }
 
 /**
+ * @param {import('node:test').TestContext} t
  * @param {object} [opts]
  * @param {string} [opts.prefix]
  * @param {Buffer} [opts.projectKey]
  */
-async function setup({ prefix, projectKey = randomBytes(32) } = {}) {
-  const { blobStore, coreManager } = createBlobStore({ projectKey })
+async function setup(t, { prefix, projectKey = randomBytes(32) } = {}) {
+  const { blobStore, coreManager } = createBlobStore(t, { projectKey })
   const data = await populateStore(blobStore)
 
   const server = createServer({ prefix, blobStore, projectKey })

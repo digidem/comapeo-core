@@ -16,8 +16,8 @@ import { hashObject } from '../src/utils.js'
 import { omit } from '../src/lib/omit.js'
 import { randomBytes } from 'node:crypto'
 
-test('translation api - put() and get()', async () => {
-  const api = setup()
+test('translation api - put() and get()', async (t) => {
+  const api = setup(t)
 
   const doc = {
     /** @type {'translation'} */
@@ -117,7 +117,10 @@ test('translation api - put() and get()', async () => {
   )
 })
 
-function setup() {
+/**
+ * @param {import('node:test').TestContext} t
+ */
+function setup(t) {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
 
@@ -125,7 +128,7 @@ function setup() {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
-  const cm = createCoreManager({ db })
+  const cm = createCoreManager(t, { db })
 
   const indexWriter = new IndexWriter({
     tables: [table],

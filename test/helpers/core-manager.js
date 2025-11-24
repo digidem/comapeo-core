@@ -1,39 +1,53 @@
+import { randomBytes } from 'node:crypto'
+import fsPromises from 'node:fs/promises'
+
+import Sqlite from 'better-sqlite3'
+import { KeyManager } from '@mapeo/crypto'
+import NoiseSecretStream from '@hyperswarm/secret-stream'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import { temporaryDirectory } from 'tempy'
+
 import {
   CoreManager,
   kCoreManagerReplicate,
 } from '../../src/core-manager/index.js'
-import Sqlite from 'better-sqlite3'
-import { randomBytes } from 'crypto'
-import { KeyManager } from '@mapeo/crypto'
-import RAM from 'random-access-memory'
-import NoiseSecretStream from '@hyperswarm/secret-stream'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { NAMESPACES } from '../../src/constants.js'
 /** @import { Namespace } from '../../src/types.js' */
 
 /**
- *
+ * @param {import('node:test').TestContext} t
  * @param {Partial<ConstructorParameters<typeof CoreManager>[0]> & { rootKey?: Buffer }} param0
  * @returns {CoreManager}
  */
-export function createCoreManager({
-  rootKey = randomBytes(16),
-  projectKey = randomBytes(32),
-  db = drizzle(new Sqlite(':memory:')),
-  ...opts
-} = {}) {
+export function createCoreManager(
+  t,
+  {
+    rootKey = randomBytes(16),
+    projectKey = randomBytes(32),
+    db = drizzle(new Sqlite(':memory:')),
+    ...opts
+  } = {}
+) {
   migrate(db, {
     migrationsFolder: new URL('../../drizzle/project', import.meta.url)
       .pathname,
   })
+
+  const storage = temporaryDirectory()
+
+  t.after(async () =>
+    fsPromises.rm(storage, {
+      recursive: true,
+    })
+  )
 
   const keyManager = new KeyManager(rootKey)
 
   return new CoreManager({
     db,
     keyManager,
-    storage: () => new RAM(),
+    storage,
     projectKey,
     autoDownload: false,
     ...opts,

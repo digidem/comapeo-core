@@ -7,11 +7,11 @@ import { KeyManager } from '@mapeo/crypto'
 import FakeTimers from '@sinonjs/fake-timers'
 import { Agent, fetch as uFetch } from 'undici'
 import fs from 'fs/promises'
-import RAM from 'random-access-memory'
 import Fastify from 'fastify'
 
 import { MapeoManager } from '../src/mapeo-manager.js'
 import { FastifyController } from '../src/fastify-controller.js'
+import { makeManagerStorage } from './utils.js'
 
 const BLOB_FIXTURES_DIR = fileURLToPath(
   new URL('../test/fixtures/blob-api/', import.meta.url)
@@ -22,16 +22,18 @@ const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
   .pathname
 
-test('start/stop lifecycle', async () => {
+test('start/stop lifecycle', async (t) => {
   const fastify = Fastify()
   const fastifyController = new FastifyController({ fastify })
+
+  const { dbFolder, coreStorage } = makeManagerStorage(t)
 
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
+    dbFolder,
+    coreStorage,
     fastify,
   })
 
@@ -92,12 +94,15 @@ test('retrieving blobs using url', async (t) => {
 
   const fastify = Fastify()
   const fastifyController = new FastifyController({ fastify })
+
+  const { dbFolder, coreStorage } = makeManagerStorage(t)
+
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
+    dbFolder,
+    coreStorage,
     fastify,
   })
 
@@ -187,12 +192,15 @@ test('retrieving icons using url', async (t) => {
 
   const fastify = Fastify()
   const fastifyController = new FastifyController({ fastify })
+
+  const { dbFolder, coreStorage } = makeManagerStorage(t)
+
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
+    dbFolder,
+    coreStorage,
     fastify,
   })
 
@@ -287,12 +295,15 @@ test('retrieving audio file', async (t) => {
 
   const fastify = Fastify()
   const fastifyController = new FastifyController({ fastify })
+
+  const { dbFolder, coreStorage } = makeManagerStorage(t)
+
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
+    dbFolder,
+    coreStorage,
     fastify,
   })
 
@@ -338,12 +349,14 @@ test('retrieving style.json using stable url', async (t) => {
   const fastify = Fastify()
 
   const fastifyController = new FastifyController({ fastify })
+  const { dbFolder, coreStorage } = makeManagerStorage(t)
+
   const manager = new MapeoManager({
     rootKey: KeyManager.generateRootKey(),
     projectMigrationsFolder,
     clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
+    dbFolder,
+    coreStorage,
     fastify,
   })
 

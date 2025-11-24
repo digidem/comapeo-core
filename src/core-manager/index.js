@@ -302,7 +302,7 @@ export class CoreManager extends TypedEmitter {
     const writer = !!secretKey
     const core = this.#corestore.get({
       keyPair,
-      encryptionKey: encryptionKey ? { key: encryptionKey } : undefined,
+      encryption: encryptionKey ? { key: encryptionKey } : undefined,
     })
     if (this.#autoDownload && namespace !== 'blob') {
       // Blob downloads are managed by BlobStore

@@ -1,6 +1,5 @@
 import randomBytesReadableStream from 'random-bytes-readable-stream'
 import sodium from 'sodium-universal'
-import RAM from 'random-access-memory'
 import Fastify from 'fastify'
 import assert from 'node:assert/strict'
 import * as path from 'node:path'
@@ -32,7 +31,6 @@ import { execa } from 'execa'
 
 /** @import { MemberApi } from '../src/member-api.js' */
 
-const FAST_TESTS = !!process.env.FAST_TESTS
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
 const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
@@ -247,27 +245,17 @@ export async function createManagers(
  * @returns {MapeoManager}
  */
 export function createManager(seed, t, overrides = {}) {
-  /** @type {string} */ let dbFolder
-  /** @type {string | import('../src/types.js').CoreStorage} */ let coreStorage
-
-  /* @returns {Promise<void>}**/
-  let closeDirs = () => Promise.resolve()
-
-  if (FAST_TESTS) {
-    dbFolder = ':memory:'
-    coreStorage = () => new RAM()
-  } else {
-    const directories = [temporaryDirectory(), temporaryDirectory()]
-    ;[dbFolder, coreStorage] = directories
-    closeDirs = async () => {
-      await Promise.all(
-        directories.map((dir) =>
-          fsPromises.rm(dir, {
-            recursive: true,
-          })
-        )
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+  const directories = [dbFolder, coreStorage]
+  async function closeDirs() {
+    await Promise.all(
+      directories.map((dir) =>
+        fsPromises.rm(dir, {
+          recursive: true,
+        })
       )
-    }
+    )
   }
 
   const fastify = Fastify()
@@ -296,12 +284,13 @@ export function createManager(seed, t, overrides = {}) {
 }
 
 /**
+ * @param {import('node:test').TestContext} t
  * @param {string} seed
  * @param {Partial<ConstructorParameters<typeof import('@comapeo/core2.0.1').MapeoManager>[0]>} [overrides]
  * @returns {Promise<import('@comapeo/core2.0.1').MapeoManager>}
  */
-export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
-  return createOldManager('2.0.1', seed, overrides)
+export async function createOldManagerOnVersion2_0_1(t, seed, overrides = {}) {
+  return createOldManager(t, '2.0.1', seed, overrides)
 }
 
 // To add support for other versions of @comapeo/core:
@@ -311,6 +300,7 @@ export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
 
 /**
  * @overload
+ * @param {import('node:test').TestContext} t
  * @param {'4.1.4'} version
  * @param {string} seed
  * @param {Partial<ConstructorParameters<typeof import('@comapeo/core4.1.4').MapeoManager>[0]>} [overrides]
@@ -318,18 +308,20 @@ export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
  */
 /**
  * @overload
+ * @param {import('node:test').TestContext} t
  * @param {'2.0.1'} version
  * @param {string} seed
  * @param {Partial<ConstructorParameters<typeof import('@comapeo/core2.0.1').MapeoManager>[0]>} [overrides]
  * @returns {Promise<import('@comapeo/core2.0.1').MapeoManager>}
  */
 /**
+ * @param {import('node:test').TestContext} t
  * @param {string} version
  * @param {string} seed
  * @param {any} [overrides]
  * @returns {Promise<any>}
  */
-export async function createOldManager(version, seed, overrides = {}) {
+export async function createOldManager(t, version, seed, overrides = {}) {
   const comapeoCorePreMigrationUrl = await import.meta.resolve?.(
     '@comapeo/core' + version
   )
@@ -340,6 +332,8 @@ export async function createOldManager(version, seed, overrides = {}) {
 
   const { MapeoManager } = await import('@comapeo/core' + version)
 
+  const { dbFolder, coreStorage } = makeManagerStorage(t)
+
   return new MapeoManager({
     rootKey: getRootKey(seed),
     clientMigrationsFolder: fileURLToPath(
@@ -348,8 +342,8 @@ export async function createOldManager(version, seed, overrides = {}) {
     projectMigrationsFolder: fileURLToPath(
       new URL('../drizzle/project', comapeoCorePreMigrationUrl)
     ),
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
+    dbFolder,
+    coreStorage,
     fastify: Fastify(),
     ...overrides,
   })
@@ -367,9 +361,17 @@ export async function createIpcManager(seed, t, overrides = {}) {
   const workerProcessPath = fileURLToPath(
     new URL('./worker-process.js', import.meta.url)
   )
+
+  const { dbFolder, coreStorage } = makeManagerStorage(t)
+
   const worker = new Worker(workerProcessPath, {
     workerData: {
-      managerConstructorOverrides: { rootKey: getRootKey(seed), ...overrides },
+      managerConstructorOverrides: {
+        rootKey: getRootKey(seed),
+        dbFolder,
+        coreStorage,
+        ...overrides,
+      },
       childPort,
     },
     transferList: [childPort],
@@ -384,6 +386,26 @@ export async function createIpcManager(seed, t, overrides = {}) {
   worker.unref()
 
   return createMapeoClient(parentPort)
+}
+
+/**
+ * @param {import('node:test').TestContext} t
+ */
+export function makeManagerStorage(t) {
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+  const directories = [dbFolder, coreStorage]
+  async function closeDirs() {
+    await Promise.all(
+      directories.map((dir) =>
+        fsPromises.rm(dir, {
+          recursive: true,
+        })
+      )
+    )
+  }
+  t.after(closeDirs)
+  return { dbFolder, coreStorage }
 }
 
 /**

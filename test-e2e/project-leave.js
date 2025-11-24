@@ -400,7 +400,7 @@ test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
   t.after(() => fs.rm(dbFolder, { recursive: true }))
   t.after(() => fs.rm(coreStorage, { recursive: true }))
 
-  const manager4_1_4 = await createOldManager('4.1.4', 'a', {
+  const manager4_1_4 = await createOldManager(t, '4.1.4', 'a', {
     dbFolder,
     coreStorage,
   })

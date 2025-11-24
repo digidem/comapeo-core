@@ -18,8 +18,8 @@ import { createCoreManager } from './helpers/core-manager.js'
 import { iconTable } from '../src/schema/project.js'
 import { IndexWriter } from '../src/index-writer/index.js'
 
-test('create()', async () => {
-  const { iconApi, iconDataType } = setup()
+test('create()', async (t) => {
+  const { iconApi, iconDataType } = setup(t)
 
   const expectedName = 'myIcon'
 
@@ -82,8 +82,8 @@ test('create()', async () => {
   }
 })
 
-test('[kGetIconBlob]()', async () => {
-  const { iconApi } = setup()
+test('[kGetIconBlob]()', async (t) => {
+  const { iconApi } = setup(t)
 
   const expectedName = 'myIcon'
 
@@ -155,10 +155,10 @@ test('[kGetIconBlob]()', async () => {
   }
 })
 
-test(`getIconUrl()`, async () => {
+test(`getIconUrl()`, async (t) => {
   let mediaBaseUrl = 'http://127.0.0.1:8080/icons/'
 
-  const { iconApi } = setup({
+  const { iconApi } = setup(t, {
     getMediaBaseUrl: async () => mediaBaseUrl,
   })
 
@@ -659,12 +659,13 @@ test('constructIconPath() - good inputs', () => {
 })
 
 /**
- *
+ * @param {import('node:test').TestContext} t
  * @param {{ getMediaBaseUrl?: () => Promise<string> }} [opts]
  */
-function setup({
-  getMediaBaseUrl = async () => 'http://127.0.0.1:8080/icons',
-} = {}) {
+function setup(
+  t,
+  { getMediaBaseUrl = async () => 'http://127.0.0.1:8080/icons' } = {}
+) {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
 
@@ -672,7 +673,7 @@ function setup({
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
-  const cm = createCoreManager({ db })
+  const cm = createCoreManager(t, { db })
 
   const indexWriter = new IndexWriter({
     tables: [iconTable],
