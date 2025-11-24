@@ -5,7 +5,6 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Hypercore from 'hypercore'
 import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
-import fsPromises from 'node:fs/promises'
 import Sqlite from 'better-sqlite3'
 import { KeyManager } from '@mapeo/crypto'
 import {
@@ -20,29 +19,12 @@ import { temporaryDirectoryTask } from 'tempy'
 import { exec } from 'child_process'
 import path from 'path'
 import { Transform } from 'streamx'
-import { temporaryDirectory } from 'tempy'
 import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
+import { createCore } from './helpers/create-core.js'
 /** @import { Namespace } from '../src/types.js' */
-
-/**
- * @param {import('node:test').TestContext} t
- * @param {any} [key]
- * */
-async function createCore(t, key) {
-  const storage = temporaryDirectory()
-
-  t.after(async () =>
-    fsPromises.rm(storage, {
-      recursive: true,
-    })
-  )
-  const core = new Hypercore(storage, key)
-  await core.ready()
-  return core
-}
 
 test('project creator auth core has project key', async function (t) {
   const keyManager = new KeyManager(randomBytes(16))
