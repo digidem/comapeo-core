@@ -115,7 +115,8 @@ export class CoreManager extends TypedEmitter {
     // corestore for key storage (i.e. we do not get cores from corestore via a
     // name, which would derive the keypair from the primary key), but setting
     // this just in case a dependency does (e.g. hyperdrive) and we miss it.
-    this.#corestore = new Corestore(storage, { primaryKey })
+    // Need to set unsafe flag if we manually supply the primary key
+    this.#corestore = new Corestore(storage, { primaryKey, unsafe: true })
     // Persistent index of core keys and namespaces in the project
     this.#coreIndex = new CoreIndex()
 
