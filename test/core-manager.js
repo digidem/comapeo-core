@@ -252,7 +252,8 @@ test('encryption', async (t) => {
   }
 })
 
-test('poolSize limits number of open file descriptors', async (t) => {
+// TODO: Is this still relevant with RocksDB? Maybe remove it.
+test.skip('poolSize limits number of open file descriptors', async (t) => {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))

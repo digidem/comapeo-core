@@ -301,7 +301,9 @@ export class CoreManager extends TypedEmitter {
 
     const { publicKey: key, secretKey } = keyPair
     const writer = !!secretKey
+
     const core = this.#corestore.get({
+      key: keyPair.publicKey,
       keyPair,
       encryption: encryptionKey ? { key: encryptionKey } : undefined,
     })
