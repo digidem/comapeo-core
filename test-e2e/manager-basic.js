@@ -1,22 +1,24 @@
-import test from 'node:test'
+import test, { describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes, createHash } from 'crypto'
 import { KeyManager } from '@mapeo/crypto'
 import RAM from 'random-access-memory'
-import { MapeoManager } from '../src/mapeo-manager.js'
-import Fastify from 'fastify'
-import { getExpectedConfig, createManager } from './utils.js'
+import { createManager } from './utils.js'
+import { MapeoProject } from '../src/mapeo-project.js'
 import { defaultConfigPath } from '../test/helpers/default-config.js'
-import { kDataTypes } from '../src/mapeo-project.js'
 import { hashObject } from '../src/utils.js'
+import { Reader } from 'comapeocat'
+import {
+  assertProjectHasImportedCategories,
+  categoriesArchiveFromFolder,
+} from './utils.js'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 
-const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
-  .pathname
-const clientMigrationsFolder = new URL('../drizzle/client', import.meta.url)
-  .pathname
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
-test.only('Managing created projects', async (t) => {
-  const manager = createManager('t1', t)
+test('Managing created projects', async (t) => {
+  const manager = createManager('test', t)
 
   const project1Id = await manager.createProject()
   const project2Id = await manager.createProject({ name: 'project 2' })
@@ -35,12 +37,14 @@ test.only('Managing created projects', async (t) => {
     )
 
     assert(listedProject1)
-    assert(!listedProject1?.name)
+    assert(!listedProject1.name)
+    assert.equal(listedProject1.status, 'joined')
     assert(listedProject1?.createdAt)
     assert(listedProject1?.updatedAt)
 
     assert(listedProject2)
-    assert.equal(listedProject2?.name, 'project 2')
+    assert.equal(listedProject2.name, 'project 2')
+    assert.equal(listedProject2.status, 'joined')
     assert(listedProject2?.createdAt)
     assert(listedProject2?.updatedAt)
   })
@@ -50,6 +54,9 @@ test.only('Managing created projects', async (t) => {
 
   assert(project1)
   assert(project2)
+
+  assert(project1 instanceof MapeoProject)
+  assert(project2 instanceof MapeoProject)
 
   await t.test('initial settings from project instances', async () => {
     const settings1 = await project1.$getProjectSettings()
@@ -126,6 +133,7 @@ test.only('Managing created projects', async (t) => {
     )
 
     assert(project1FromListed)
+    assert(project1FromListed.status === 'joined')
 
     const {
       createdAt: project1CreatedAt,
@@ -140,9 +148,12 @@ test.only('Managing created projects', async (t) => {
       name: 'project 1',
       projectColor: '#123456',
       projectDescription: undefined,
+      sendStats: false,
+      status: 'joined',
     })
 
     assert(project2FromListed)
+    assert.equal(project2FromListed.status, 'joined')
 
     const {
       createdAt: project2CreatedAt,
@@ -157,120 +168,61 @@ test.only('Managing created projects', async (t) => {
       name: 'project 2 updated',
       projectColor: undefined,
       projectDescription: 'project 2 description',
+      sendStats: false,
+      status: 'joined',
     })
   })
 })
 
-test('Consistent loading of config', async (t) => {
-  const manager = createManager('t2', t)
-
-  const expectedDefault = await getExpectedConfig(defaultConfigPath)
-  const expectedMinimal = await getExpectedConfig(
-    'test/fixtures/config/completeConfig.zip'
-  )
-  const projectId = await manager.createProject()
-  const project = await manager.getProject(projectId)
-  const projectSettings = await project.$getProjectSettings()
-
-  const projectPresets = await project.preset.getMany()
-  await t.test(
-    'load default config and check if correctly loaded',
-    async () => {
-      assert.equal(
-        //@ts-ignore
-        projectSettings.defaultPresets.point.length,
-        expectedDefault.presets.length,
-        'the default presets loaded is equal to the number of presets in the default config'
-      )
-
-      assert.deepEqual(
-        projectPresets.map((preset) => preset.name),
-        expectedDefault.presets.map((preset) => preset.value.name),
-        'project is loading the default presets correctly'
-      )
-
-      const projectFields = await project.field.getMany()
-      assert.deepEqual(
-        projectFields.map((field) => field.tagKey),
-        expectedDefault.fields.map((field) => field.value.tagKey),
-        'project is loading the default fields correctly'
-      )
-
-      const projectIcons = await project[kDataTypes].icon.getMany()
-      assert.deepEqual(
-        projectIcons.map((icon) => icon.name),
-        expectedDefault.icons.map((icon) => icon.name),
-        'project is loading the default icons correctly'
-      )
-    }
-  )
-
-  await t.test('loading non-default config when creating project', async () => {
-    const configPath = 'test/fixtures/config/completeConfig.zip'
-    const projectId = await manager.createProject({ configPath })
-
+describe('Consistent loading of config', async () => {
+  test('loading default config when creating project', async (t) => {
+    const manager = createManager('test', t, {
+      defaultConfigPath,
+    })
+    const reader = new Reader(defaultConfigPath)
+    const projectId = await manager.createProject()
     const project = await manager.getProject(projectId)
-
-    const projectSettings = await project.$getProjectSettings()
-    assert.equal(
-      projectSettings.defaultPresets?.point.length,
-      expectedMinimal.presets.length,
-      'the default presets loaded is equal to the number of presets in the default config'
-    )
-
-    const projectPresets = await project.preset.getMany()
-    assert.deepEqual(
-      projectPresets.map((preset) => preset.name),
-      expectedMinimal.presets.map((preset) => preset.value.name),
-      'project is loading the default presets correctly'
-    )
-
-    const projectFields = await project.field.getMany()
-    assert.deepEqual(
-      projectFields.map((field) => field.tagKey),
-      expectedMinimal.fields.map((field) => field.value.tagKey),
-      'project is loading the default fields correctly'
-    )
-
-    const projectIcons = await project[kDataTypes].icon.getMany()
-    assert.deepEqual(
-      projectIcons.map((icon) => icon.name),
-      expectedMinimal.icons.map((icon) => icon.name),
-      'project is loading the default icons correctly'
-    )
+    await assertProjectHasImportedCategories(project, reader)
   })
 
-  await t.test(
-    'load different config and check if correctly loaded',
-    async () => {
-      const configPath = 'test/fixtures/config/completeConfig.zip'
-      await project.importConfig({ configPath })
-      const projectPresets = await project.preset.getMany()
-      assert.deepEqual(
-        projectPresets.map((preset) => preset.name),
-        expectedMinimal.presets.map((preset) => preset.value.name),
-        'project presets explicitly loaded match expected config'
-      )
+  test('load config from path when creating project', async (t) => {
+    const manager = createManager('test', t, {
+      defaultConfigPath,
+    })
+    const fixturePath = path.join(__dirname, 'fixtures/config/complete')
+    const archivePath = await categoriesArchiveFromFolder(t, fixturePath)
+    const reader = new Reader(archivePath)
+    const projectId = await manager.createProject({ configPath: archivePath })
+    const project = await manager.getProject(projectId)
+    await assertProjectHasImportedCategories(project, reader)
+  })
 
-      const projectFields = await project.field.getMany()
-      assert.deepEqual(
-        projectFields.map((field) => field.tagKey),
-        expectedMinimal.fields.map((field) => field.value.tagKey),
-        'project fields explicitly loaded match expected config'
-      )
+  test('load different config after project creation', async (t) => {
+    const manager = createManager('test', t, {
+      defaultConfigPath,
+    })
+    const projectId = await manager.createProject()
+    const project = await manager.getProject(projectId)
 
-      // TODO: since we don't delete icons, this wouldn't match
-      // const projectIcons = await project1[kDataTypes].icon.getMany()
-      // assert.deepEqual(
-      //   projectIcons.map((icon) => icon.name),
-      //   loadedIcons.map((icon) => icon.name)
-      // )
+    {
+      // Project should start with default config
+      const reader = new Reader(defaultConfigPath)
+      await assertProjectHasImportedCategories(project, reader)
     }
-  )
+
+    {
+      // After importing new config, project should have the new config
+      const fixturePath = path.join(__dirname, 'fixtures/config/complete')
+      const archivePath = await categoriesArchiveFromFolder(t, fixturePath)
+      const reader = new Reader(archivePath)
+      await project.$importCategories({ filePath: archivePath })
+      await assertProjectHasImportedCategories(project, reader)
+    }
+  })
 })
 
 test('Managing added projects', async (t) => {
-  const manager = createManager('t3', t)
+  const manager = createManager('test', t)
 
   const project1Id = await manager.addProject(
     {
@@ -304,14 +256,16 @@ test('Managing added projects', async (t) => {
     )
 
     assert(listedProject1)
-    assert.equal(listedProject1?.name, 'project 1')
-    assert(!listedProject1?.createdAt)
-    assert(!listedProject1?.updatedAt)
+    assert.equal(listedProject1.name, 'project 1')
+    assert.equal(listedProject1.status, 'joining')
+    assert(!('createdAt' in listedProject1))
+    assert(!('updatedAt' in listedProject1))
 
     assert(listedProject2)
-    assert.equal(listedProject2?.name, 'project 2')
-    assert(!listedProject2?.createdAt)
-    assert(!listedProject2?.updatedAt)
+    assert.equal(listedProject2.name, 'project 2')
+    assert.equal(listedProject2.status, 'joining')
+    assert(!('createdAt' in listedProject2))
+    assert(!('updatedAt' in listedProject2))
   })
 
   await t.test(
@@ -347,7 +301,7 @@ test('Managing added projects', async (t) => {
 })
 
 test('Managing both created and added projects', async (t) => {
-  const manager = createManager('t4', t)
+  const manager = createManager('test', t)
 
   const createdProjectId = await manager.createProject({
     name: 'created project',
@@ -384,8 +338,7 @@ test('Managing both created and added projects', async (t) => {
 })
 
 test('Manager cannot add project that already exists', async (t) => {
-  const manager = createManager('t4', t)
-
+  const manager = createManager('test', t)
   const existingProjectId = await manager.createProject()
 
   const existingProjectsCountBefore = (await manager.listProjects()).length
@@ -405,15 +358,11 @@ test('Manager cannot add project that already exists', async (t) => {
   assert.equal(existingProjectsCountBefore, existingProjectsCountAfter)
 })
 
-test.skip('Consistent storage folders', async () => {
+test('Consistent storage folders', async (t) => {
   /** @type {string[]} */
   const storageNames = []
-  const manager = new MapeoManager({
+  const manager = createManager('test', t, {
     rootKey: randomBytesSeed('root_key').subarray(0, 16),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder: ':memory:',
-    fastify: Fastify(),
     coreStorage: (name) => {
       storageNames.push(name)
       return new RAM()
@@ -442,7 +391,7 @@ test.skip('Consistent storage folders', async () => {
 })
 
 test('Reusing port after start/stop of discovery', async (t) => {
-  const manager = createManager('t1', t)
+  const manager = createManager('test', t)
 
   t.after(() => manager.stopLocalPeerDiscoveryServer())
 

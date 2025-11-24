@@ -24,7 +24,7 @@
 
 • **opts.coreOwnership**: [`CoreOwnership`](CoreOwnership.md)
 
-• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, `SQLiteTableWithColumns`\<`object`\>, `"role"`, `object`, `object`\>
+• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"role"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"role"`, `object`, `object`\>
 
 • **opts.deviceKey**: `Buffer`
 
@@ -50,7 +50,7 @@ public key of this device
 
 ### assignRole()
 
-> **assignRole**(`deviceId`, `roleId`): `Promise`\<`void`\>
+> **assignRole**(`deviceId`, `roleId`, `opts`?): `Promise`\<`void`\>
 
 Assign a role to the specified `deviceId`. Devices without an assigned role
 are unable to sync, except the project creator who can do anything. Only
@@ -62,6 +62,10 @@ role cannot assign the role by consulting `roleAssignment`.
 • **deviceId**: `string`
 
 • **roleId**: `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"`
+
+• **opts?**
+
+• **opts.reason?**: `string`
 
 #### Returns
 
@@ -99,3 +103,19 @@ Get the role for device `deviceId`.
 #### Returns
 
 `Promise`\<[`Role`](../interfaces/Role.md)\<`"a12a6702b93bd7ff"` \| `"f7c150f5a3a9a855"` \| `"012fd2d431c0bf60"` \| `"9e6d29263cba36c9"` \| `"8ced989b1904606b"` \| `"08e4251e36f6e7ed"`\>\>
+
+***
+
+### getRoleReason()
+
+> **getRoleReason**(`deviceId`): `Promise`\<`undefined` \| `string`\>
+
+Get the reason for the role of `deviceId` (if it exists).
+
+#### Parameters
+
+• **deviceId**: `string`
+
+#### Returns
+
+`Promise`\<`undefined` \| `string`\>

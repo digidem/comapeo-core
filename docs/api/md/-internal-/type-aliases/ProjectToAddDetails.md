@@ -22,4 +22,8 @@
 
 > **projectName**: `string`
 
+### sendStats?
+
+> `optional` **sendStats**: `boolean`
+
 ## Type Parameters

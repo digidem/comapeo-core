@@ -22,7 +22,7 @@
 
 • **opts.coreKeypairs**: `Record`\<`"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`, [`KeyPair`](../type-aliases/KeyPair-1.md)\>
 
-• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, `SQLiteTableWithColumns`\<`object`\>, `"coreOwnership"`, `object`, `object`\>
+• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"coreOwnership"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"coreOwnership"`, `object`, `object`\>
 
 • **opts.identityKeypair**: [`KeyPair`](../type-aliases/KeyPair-1.md)
 
@@ -38,7 +38,7 @@
 
 ### get()
 
-> **get**(`deviceId`): `Promise`\<`object` & `object`\>
+> **get**(`deviceId`): `Promise`\<`object` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 Get capabilities for a given deviceId
 
@@ -48,17 +48,17 @@ Get capabilities for a given deviceId
 
 #### Returns
 
-`Promise`\<`object` & `object`\>
+`Promise`\<`object` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 ***
 
 ### getAll()
 
-> **getAll**(): `Promise`\<`object` & `object`[]\>
+> **getAll**(): `Promise`\<`object` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)[]\>
 
 #### Returns
 
-`Promise`\<`object` & `object`[]\>
+`Promise`\<`object` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)[]\>
 
 ***
 

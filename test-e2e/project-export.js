@@ -1,8 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager } from '@mapeo/crypto'
-import RAM from 'random-access-memory'
-import Fastify from 'fastify'
 import * as b4a from 'b4a'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
@@ -12,7 +9,13 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createReadStream } from 'node:fs'
 
-import { MapeoManager } from '../src/mapeo-manager.js'
+import {
+  connectPeers,
+  createManager,
+  createManagers,
+  invite,
+  waitForSync,
+} from './utils.js'
 
 /** @import { Readable } from 'streamx' */
 
@@ -24,8 +27,8 @@ const BLOB_FIXTURES = fileURLToPath(
   new URL('../test/fixtures/blob-api/', import.meta.url)
 )
 
-test('Project export empty GeoJSON to stream', async () => {
-  const manager = setupManager()
+test('Project export empty GeoJSON to stream', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager)
 
   await temporaryDirectoryTask(async (dir) => {
@@ -47,8 +50,8 @@ test('Project export empty GeoJSON to stream', async () => {
   })
 })
 
-test('Project export observations GeoJSON to stream', async () => {
-  const manager = setupManager()
+test('Project export observations GeoJSON to stream', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, { makeObservations: true })
 
   await temporaryDirectoryTask(async (dir) => {
@@ -69,8 +72,8 @@ test('Project export observations GeoJSON to stream', async () => {
   })
 })
 
-test('Project export ignore observations', async () => {
-  const manager = setupManager()
+test('Project export ignore observations', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, { makeObservations: true })
 
   await temporaryDirectoryTask(async (dir) => {
@@ -94,8 +97,8 @@ test('Project export ignore observations', async () => {
   })
 })
 
-test('Project export tracks GeoJSON to stream', async () => {
-  const manager = setupManager()
+test('Project export tracks GeoJSON to stream', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, { makeTracks: true })
 
   await temporaryDirectoryTask(async (dir) => {
@@ -119,8 +122,8 @@ test('Project export tracks GeoJSON to stream', async () => {
   })
 })
 
-test('Project export ignore tracks', async () => {
-  const manager = setupManager()
+test('Project export ignore tracks', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, { makeTracks: true })
 
   await temporaryDirectoryTask(async (dir) => {
@@ -144,8 +147,8 @@ test('Project export ignore tracks', async () => {
   })
 })
 
-test('Project export tracks and observations GeoJSON to file', async () => {
-  const manager = setupManager()
+test('Project export tracks and observations GeoJSON to file', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, {
     makeTracks: true,
     makeObservations: true,
@@ -174,13 +177,78 @@ test('Project export tracks and observations GeoJSON to file', async () => {
   })
 })
 
-test('Project export tracks and observations to zip stream', async () => {
-  const manager = setupManager()
+test('Project export tracks and observations to zip stream', async (t) => {
+  const manager = createManager('test', t)
   const { project } = await setupProject(manager, {
     makeTracks: true,
     makeObservations: true,
     makeAttachments: true,
   })
+
+  await temporaryDirectoryTask(async (dir) => {
+    const zipFile = await project.exportZipFile(dir, {
+      tracks: true,
+      observations: true,
+      attachments: true,
+    })
+    const zip = new StreamZip.async({ file: zipFile })
+    const entries = Object.keys(await zip.entries())
+
+    const geoJSONFile = entries.find((name) => name.endsWith('.geojson'))
+
+    assert(geoJSONFile, 'Zip file contains geojson file')
+
+    const stream = await zip.stream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
+    await zip.close()
+    assert.equal(
+      parsed.type,
+      'FeatureCollection',
+      'Exported GeoJSON is a FeatureCollection'
+    )
+    assert.deepEqual(
+      parsed.features.length,
+      DEFAULT_OBSERVATIONS +
+        DEFAULT_TRACKS +
+        DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
+      'Exported GeoJSON has expected number of features'
+    )
+
+    assert.equal(entries.length, 2, 'Zip has geoJSON and one attachment')
+
+    const hasPng = entries.some((name) => name.endsWith('.png'))
+    assert(hasPng, 'Zip has exported PNG')
+  })
+})
+
+test('Sync project and export tracks and observations to zip stream', async (t) => {
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    // Mobile is not archive device by default and we should support that.
+    defaultIsArchiveDevice: false,
+  })
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const { project: invitorProject, projectId } = await setupProject(invitor, {
+    makeTracks: true,
+    makeObservations: true,
+    makeAttachments: true,
+  })
+
+  await invite({
+    invitor,
+    invitees: [invitee],
+    projectId,
+  })
+
+  const project = await invitee.getProject(projectId)
+
+  project.$sync.start({ autostopDataSyncAfter: 10_000 })
+
+  invitorProject.$sync.start({ autostopDataSyncAfter: 10_000 })
+
+  await waitForSync([invitorProject, project], 'full')
 
   await temporaryDirectoryTask(async (dir) => {
     const zipFile = await project.exportZipFile(dir, {
@@ -242,7 +310,7 @@ async function parseGeoJSON(stream) {
 
 /**
  *
- * @param {MapeoManager} manager
+ * @param {import('../src/mapeo-manager.js').MapeoManager} manager
  * @param {object} options
  * @param {boolean} [options.makeObservations=false]
  * @param {boolean} [options.makeTracks=false]
@@ -253,7 +321,7 @@ async function setupProject(
   manager,
   { makeObservations = false, makeTracks = false, makeAttachments = false } = {}
 ) {
-  const projectId = await manager.createProject()
+  const projectId = await manager.createProject({ name: 'Export test' })
   const project = await manager.getProject(projectId)
 
   /** @type {import('../src/types.js').Attachment | null} */
@@ -335,25 +403,5 @@ async function setupProject(
     )
   }
 
-  return { project, observations, tracks }
-}
-
-/**
- * @returns {MapeoManager}
- */
-function setupManager() {
-  const fastify = Fastify()
-
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
-      .pathname,
-    clientMigrationsFolder: new URL('../drizzle/client', import.meta.url)
-      .pathname,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify,
-  })
-
-  return manager
+  return { project, projectId, observations, tracks }
 }

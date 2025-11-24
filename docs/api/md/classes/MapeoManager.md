@@ -118,6 +118,18 @@ Set opts.waitForSync = false to not wait for sync during addProject()
 
 ***
 
+### close()
+
+> **close**(): `Promise`\<`void`\>
+
+Cleans up open resorces and closes open projects
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### connectLocalPeer()
 
 > **connectLocalPeer**(`peer`): `void`
@@ -240,7 +252,13 @@ isArchiveDevice
 
 ### listProjects()
 
-> **listProjects**(): `Promise`\<[`ListedProject`](../-internal-/type-aliases/ListedProject.md)[]\>
+> **listProjects**(`opts`?): `Promise`\<[`ListedProject`](../-internal-/type-aliases/ListedProject.md)[]\>
+
+#### Parameters
+
+• **opts?** = `{}`
+
+• **opts.includeLeft?**: `boolean` = `false`
 
 #### Returns
 

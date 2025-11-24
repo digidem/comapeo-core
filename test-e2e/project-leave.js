@@ -6,18 +6,16 @@ import { temporaryDirectory } from 'tempy'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
 import {
-  BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
-  ROLES,
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
 } from '../src/roles.js'
-import { MapeoProject } from '../src/mapeo-project.js'
 import {
   ManagerCustodian,
   connectPeers,
   createManager,
   createManagers,
+  createOldManager,
   getDiskUsage,
   invite,
   waitForPeers,
@@ -61,49 +59,6 @@ test("Creator cannot leave project if they're the only coordinator", async (t) =
   }, 'creator attempting to leave project with no other coordinators fails')
 })
 
-test('Blocked member cannot leave project', async (t) => {
-  const managers = await createManagers(2, t)
-
-  const disconnectPeers = connectPeers(managers)
-  t.after(disconnectPeers)
-
-  const [creator, member] = managers
-  const projectId = await creator.createProject({ name: 'mapeo' })
-
-  await invite({
-    invitor: creator,
-    invitees: [member],
-    projectId,
-    roleId: MEMBER_ROLE_ID,
-  })
-
-  const projects = await Promise.all(
-    managers.map((m) => m.getProject(projectId))
-  )
-
-  const [creatorProject, memberProject] = projects
-
-  assert.deepEqual(
-    await memberProject.$getOwnRole(),
-    ROLES[MEMBER_ROLE_ID],
-    'Member is initially a member'
-  )
-
-  await creatorProject.$member.assignRole(member.deviceId, BLOCKED_ROLE_ID)
-
-  await waitForSync(projects, 'initial')
-
-  assert.deepEqual(
-    await memberProject.$getOwnRole(),
-    ROLES[BLOCKED_ROLE_ID],
-    'Member is now blocked'
-  )
-
-  await assert.rejects(async () => {
-    await member.leaveProject(projectId)
-  }, 'Member attempting to leave project fails')
-})
-
 test('leaving a project as the only member', async (t) => {
   const [manager] = await createManagers(1, t)
 
@@ -112,9 +67,9 @@ test('leaving a project as the only member', async (t) => {
 
   await manager.leaveProject(projectId)
 
-  assert.deepEqual(
-    await creatorProject.$getOwnRole(),
-    ROLES[LEFT_ROLE_ID],
+  assert.equal(
+    (await creatorProject.$getOwnRole()).roleId,
+    LEFT_ROLE_ID,
     'creator now has LEFT role'
   )
 })
@@ -155,17 +110,17 @@ test('Creator can leave project if another coordinator exists', async (t) => {
 
   await creator.leaveProject(projectId)
 
-  assert.deepEqual(
-    await creatorProject.$getOwnRole(),
-    ROLES[LEFT_ROLE_ID],
+  assert.equal(
+    (await creatorProject.$getOwnRole()).roleId,
+    LEFT_ROLE_ID,
     'creator now has LEFT role'
   )
 
   await waitForSync(projects, 'initial')
 
   assert.equal(
-    (await coordinatorProject.$member.getById(creator.deviceId)).role,
-    ROLES[LEFT_ROLE_ID],
+    (await coordinatorProject.$member.getById(creator.deviceId)).role.roleId,
+    LEFT_ROLE_ID,
     'coordinator can still retrieve info about creator who left'
   )
 })
@@ -206,17 +161,15 @@ test('Member can leave project if creator exists', async (t) => {
 
   await member.leaveProject(projectId)
 
-  assert.deepEqual(
-    await memberProject.$getOwnRole(),
-    ROLES[LEFT_ROLE_ID],
+  assert.equal(
+    (await memberProject.$getOwnRole()).roleId,
+    LEFT_ROLE_ID,
     'member now has LEFT role'
   )
 
-  await waitForSync(projects, 'initial')
-
   assert.equal(
-    (await creatorProject.$member.getById(member.deviceId)).role,
-    ROLES[LEFT_ROLE_ID],
+    (await creatorProject.$member.getById(member.deviceId)).role.roleId,
+    LEFT_ROLE_ID,
     'creator can still retrieve info about member who left'
   )
 
@@ -269,8 +222,6 @@ test('Data access after leaving project', async (t) => {
     member.leaveProject(projectId),
   ])
 
-  await waitForSync(projects, 'initial')
-
   await assert.rejects(async () => {
     await memberProject.observation.create(valueOf(generate('observation')[0]))
   }, 'member cannot create new data after leaving')
@@ -281,14 +232,14 @@ test('Data access after leaving project', async (t) => {
 
   assert.deepEqual(
     await memberProject.$getProjectSettings(),
-    MapeoProject.EMPTY_PROJECT_SETTINGS,
-    'member getting project settings returns empty settings'
+    { name: 'mapeo', sendStats: false },
+    'member can still get name and sendStats after leaving'
   )
 
   assert.deepEqual(
     await coordinatorProject.$getProjectSettings(),
-    MapeoProject.EMPTY_PROJECT_SETTINGS,
-    'coordinator getting project settings returns empty settings'
+    { name: 'mapeo', sendStats: false },
+    'coordinator can still get name and sendStats after leaving'
   )
 
   await assert.rejects(async () => {
@@ -403,27 +354,26 @@ test('leaving a project while disconnected', async (t) => {
   )
 })
 
+// NB: This test was checked to fail by temporarily commenting out the
+// `if (projectKeysTableResult.hasLeftProject) { await project[kClearData()] }`
+// block in MapeoManager#getProject.
 test('partly-left projects are cleaned up on startup', async (t) => {
   const custodian = new ManagerCustodian(t)
 
   const projectId = await custodian.withManagerInSeparateProcess(
-    async (manager, { observation, LEFT_ROLE_ID }) => {
+    async (manager, { observation }) => {
       const projectId = await manager.createProject({ name: 'foo' })
       const project = await manager.getProject(projectId)
       await project.observation.create(observation)
-      await project.$member.assignRole(
-        manager.getDeviceInfo().deviceId,
-        /**
-         * This test-only hack assigns the "left" role ID without actually
-         * cleaning up the project.
-         * @type {any}
-         */ (LEFT_ROLE_ID)
-      )
+      manager.leaveProject(projectId)
+      // Exit the process before the async clear project data has completed
+      setImmediate(() => {
+        process.exit(0)
+      })
       return projectId
     },
     {
       observation: valueOf(generate('observation')[0]),
-      LEFT_ROLE_ID,
     }
   )
 
@@ -444,4 +394,89 @@ test('partly-left projects are cleaned up on startup', async (t) => {
   )
 })
 
-// TODO: Add test for leaving and rejoining a project
+test('leaving a project before PR#1125 persists after PR#1125', async (t) => {
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+  t.after(() => fs.rm(dbFolder, { recursive: true }))
+  t.after(() => fs.rm(coreStorage, { recursive: true }))
+
+  const manager4_1_4 = await createOldManager('4.1.4', 'a', {
+    dbFolder,
+    coreStorage,
+  })
+
+  const projectId = await manager4_1_4.createProject({ name: 'foo' })
+  const project = await manager4_1_4.getProject(projectId)
+  await manager4_1_4.leaveProject(projectId)
+  await project.close()
+
+  const managerNew = await createManager('a', t, { dbFolder, coreStorage })
+
+  const projectsList = await managerNew.listProjects()
+  assert.equal(projectsList.length, 0, 'no projects listed')
+})
+
+test('Member can join project again after leaving', async (t) => {
+  const managers = await createManagers(2, t)
+
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const [creator, member] = managers
+  const projectId = await creator.createProject({ name: 'mapeo' })
+
+  await invite({
+    invitor: creator,
+    invitees: [member],
+    projectId,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+
+  const [creatorProject, memberProject] = projects
+
+  assert(
+    await creatorProject.$member.getById(member.deviceId),
+    'member successfully added from creator perspective'
+  )
+
+  assert(
+    await memberProject.$member.getById(member.deviceId),
+    'creator successfully added from creator perspective'
+  )
+
+  await waitForSync(projects, 'initial')
+
+  await member.leaveProject(projectId)
+
+  // Close the project after you leave and sync
+  // This clears up resources so we can be reinvited
+  await memberProject.close()
+
+  await invite({
+    invitor: creator,
+    invitees: [member],
+    projectId,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  // We need to re-get the project since it was closed
+  const reMemberProject = await member.getProject(projectId)
+
+  assert.notEqual(reMemberProject, memberProject, 'new project on rejoin')
+
+  await waitForSync([creatorProject, reMemberProject], 'initial')
+
+  assert(
+    await creatorProject.$member.getById(member.deviceId),
+    'member successfully added from creator perspective'
+  )
+
+  assert(
+    await reMemberProject.$member.getById(member.deviceId),
+    'creator successfully added from creator perspective'
+  )
+})

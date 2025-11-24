@@ -2,7 +2,6 @@ import randomBytesReadableStream from 'random-bytes-readable-stream'
 import sodium from 'sodium-universal'
 import RAM from 'random-access-memory'
 import Fastify from 'fastify'
-import { arrayFrom } from 'iterpal'
 import assert from 'node:assert/strict'
 import * as path from 'node:path'
 import { fork } from 'node:child_process'
@@ -12,8 +11,8 @@ import * as v8 from 'node:v8'
 import { pEvent } from 'p-event'
 import { createMapeoClient } from '@comapeo/ipc'
 import { Worker, MessageChannel } from 'node:worker_threads'
-import { MapeoManager as MapeoManager_2_0_1 } from '@comapeo/core2.0.1'
 import { setTimeout as delay } from 'node:timers/promises'
+import { getProperty } from 'dot-prop-extra'
 
 import { MapeoManager, roles } from '../src/index.js'
 import { generate } from '@mapeo/mock-data'
@@ -23,10 +22,13 @@ import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import fs from 'node:fs'
 import { kSyncState } from '../src/sync/sync-api.js'
-import { readConfig } from '../src/config-import.js'
 import pTimeout from 'p-timeout'
 import { pipeline } from 'node:stream/promises'
 import { Transform } from 'node:stream'
+import { excludeKeys } from 'filter-obj'
+import { kDataTypes } from '../src/mapeo-project.js'
+import { kGetIconBlob } from '../src/icon-api.js'
+import { execa } from 'execa'
 
 /** @import { MemberApi } from '../src/member-api.js' */
 
@@ -216,12 +218,14 @@ export async function waitForPeers(
  * @param {T} count
  * @param {import('node:test').TestContext} t
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
+ * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]>} [overrides]
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
 export async function createManagers(
   count,
   t,
-  deviceType = 'device_type_unspecified'
+  deviceType = 'device_type_unspecified',
+  overrides = {}
 ) {
   // @ts-ignore
   return Promise.all(
@@ -229,7 +233,7 @@ export async function createManagers(
       .fill(null)
       .map(async (_, i) => {
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
-        const manager = createManager(name, t)
+        const manager = createManager(name, t, overrides)
         await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
@@ -246,30 +250,30 @@ export function createManager(seed, t, overrides = {}) {
   /** @type {string} */ let dbFolder
   /** @type {string | import('../src/types.js').CoreStorage} */ let coreStorage
 
+  /* @returns {Promise<void>}**/
+  let closeDirs = () => Promise.resolve()
+
   if (FAST_TESTS) {
     dbFolder = ':memory:'
     coreStorage = () => new RAM()
   } else {
     const directories = [temporaryDirectory(), temporaryDirectory()]
     ;[dbFolder, coreStorage] = directories
-    t.after(() =>
-      Promise.all(
+    closeDirs = async () => {
+      await Promise.all(
         directories.map((dir) =>
           fsPromises.rm(dir, {
             recursive: true,
-            force: true,
-            maxRetries: 2,
           })
         )
       )
-    )
+    }
   }
 
   const fastify = Fastify()
   fastify.listen()
-  t.after(() => fastify.close())
 
-  return new MapeoManager({
+  const manager = new MapeoManager({
     rootKey: getRootKey(seed),
     projectMigrationsFolder,
     clientMigrationsFolder,
@@ -278,20 +282,65 @@ export function createManager(seed, t, overrides = {}) {
     fastify,
     ...overrides,
   })
+
+  t.after(async () => {
+    await fastify.close()
+    // Needed to overcome race condition in fastify
+    // If tests run too quick it won't actually close
+    await fastify.server.close()
+    await manager.close()
+    await closeDirs()
+  })
+
+  return manager
 }
 
 /**
  * @param {string} seed
- * @param {Partial<ConstructorParameters<typeof MapeoManager_2_0_1>[0]>} [overrides]
- * @returns {Promise<MapeoManager_2_0_1>}
+ * @param {Partial<ConstructorParameters<typeof import('@comapeo/core2.0.1').MapeoManager>[0]>} [overrides]
+ * @returns {Promise<import('@comapeo/core2.0.1').MapeoManager>}
  */
 export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
-  const comapeoCorePreMigrationUrl = await import.meta.resolve?.(
-    '@comapeo/core2.0.1'
-  )
-  assert(comapeoCorePreMigrationUrl, 'Could not resolve @comapeo/core2.0.1')
+  return createOldManager('2.0.1', seed, overrides)
+}
 
-  return new MapeoManager_2_0_1({
+// To add support for other versions of @comapeo/core:
+// 1. Install the version with `npm install -D @comapeo/coreX.Y.Z@npm:@comapeo/core@X.Y.Z`
+// 2. Add an overload to the `createOldManager` function below
+// It's best to use the version that was in the previous release of the mobile and/or desktop apps.
+
+/**
+ * @overload
+ * @param {'4.1.4'} version
+ * @param {string} seed
+ * @param {Partial<ConstructorParameters<typeof import('@comapeo/core4.1.4').MapeoManager>[0]>} [overrides]
+ * @returns {Promise<import('@comapeo/core4.1.4').MapeoManager>}
+ */
+/**
+ * @overload
+ * @param {'2.0.1'} version
+ * @param {string} seed
+ * @param {Partial<ConstructorParameters<typeof import('@comapeo/core2.0.1').MapeoManager>[0]>} [overrides]
+ * @returns {Promise<import('@comapeo/core2.0.1').MapeoManager>}
+ */
+/**
+ * @param {string} version
+ * @param {string} seed
+ * @param {any} [overrides]
+ * @returns {Promise<any>}
+ */
+export async function createOldManager(version, seed, overrides = {}) {
+  const comapeoCorePreMigrationUrl = await import.meta.resolve?.(
+    '@comapeo/core' + version
+  )
+  assert(
+    comapeoCorePreMigrationUrl,
+    'Could not resolve @comapeo/core' + version
+  )
+
+  const { MapeoManager } = await import('@comapeo/core' + version)
+
+  return new MapeoManager({
     rootKey: getRootKey(seed),
     clientMigrationsFolder: fileURLToPath(
       new URL('../drizzle/client', comapeoCorePreMigrationUrl)
@@ -309,7 +358,7 @@ export async function createOldManagerOnVersion2_0_1(seed, overrides = {}) {
 /**
  * @param {string} seed
  * @param {import('node:test').TestContext} t
- * @param {Partial<ConstructorParameters<typeof MapeoManager_2_0_1>[0]>} [overrides]
+ * @param {Partial<ConstructorParameters<typeof import('@comapeo/core2.0.1').MapeoManager>[0]>} [overrides]
  * @returns {Promise<ReturnType<typeof createMapeoClient>>}
  */
 export async function createIpcManager(seed, t, overrides = {}) {
@@ -686,16 +735,6 @@ export function sortBy(arr, key) {
   })
 }
 
-/** @param {String} path */
-export async function getExpectedConfig(path) {
-  const config = await readConfig(path)
-  return {
-    presets: arrayFrom(config.presets()),
-    fields: arrayFrom(config.fields()),
-    icons: await arrayFrom(config.icons()),
-  }
-}
-
 /** @param {import('@comapeo/schema').MapeoDoc[]} docs */
 export function sortById(docs) {
   return sortBy(docs, 'docId')
@@ -895,4 +934,151 @@ export async function seedProjectBlobs(project, t, { photoCount, audioCount }) {
     output.push({ blobId, hashes })
   }
   return output
+}
+
+/**
+ * @param {import('../src/mapeo-project.js').MapeoProject} project
+ * @param {import('comapeocat').Reader} reader
+ */
+export async function assertProjectHasImportedCategories(project, reader) {
+  const projectSettings = await project.$getProjectSettings()
+
+  const projectPresets = await project.preset.getMany()
+
+  const expectedCategorySelection = await reader.categorySelection()
+  assert.equal(
+    projectSettings.defaultPresets?.point.length,
+    expectedCategorySelection.observation.length,
+    'the default point presets loaded is equal to the number of presets in the default config'
+  )
+  assert.equal(
+    projectSettings.defaultPresets?.line.length,
+    expectedCategorySelection.track.length,
+    'the default line presets loaded is equal to the number of track presets in the default config'
+  )
+
+  const expectedPresets = await reader.categories()
+  const expectedPresetsNames = new Set(
+    [...expectedPresets.values()].map((preset) => preset.name)
+  )
+  assert.deepEqual(
+    new Set(projectPresets.map((preset) => preset.name)),
+    expectedPresetsNames,
+    'project is loading the presets correctly'
+  )
+
+  const fieldsFromConfig = await reader.fields()
+  const projectFields = await project.field.getMany()
+  for (const preset of projectPresets) {
+    for (const fieldRef of preset.fieldRefs) {
+      const field = projectFields.find(
+        (f) => f.docId === fieldRef.docId && f.versionId === fieldRef.versionId
+      )
+      assert(field, `field ${fieldRef.docId} exists for preset ${preset.name}`)
+      const fieldFromConfig = [...fieldsFromConfig.values()].find(
+        (f) => f.tagKey === field.tagKey
+      )
+      const fieldForCompare = excludeKeys(
+        valueOf(field),
+        (key, value) =>
+          value === undefined || ['universal', 'schemaName'].includes(key)
+      )
+      assert.deepEqual(fieldForCompare, fieldFromConfig, `field matches config`)
+    }
+  }
+
+  /** @type {Map<string, string>} */
+  const iconsFromConfig = new Map()
+  for await (const { name, iconXml } of reader.icons()) {
+    iconsFromConfig.set(name, iconXml)
+  }
+  const projectIcons = await project[kDataTypes].icon.getMany()
+  for (const { iconRef, name: presetName } of projectPresets) {
+    if (!iconRef) continue
+    const icon = projectIcons.find(
+      (i) => i.docId === iconRef.docId && i.versionId === iconRef.versionId
+    )
+    assert(icon, `icon ${iconRef.docId} exists for preset ${presetName}`)
+    assert.deepEqual(
+      await project.$icons[kGetIconBlob](iconRef.docId, {
+        mimeType: 'image/svg+xml',
+        size: 'medium',
+      }),
+      Buffer.from(iconsFromConfig.get(icon.name) || '', 'utf-8'),
+      `icon matches config`
+    )
+  }
+
+  // Check all the translations are present
+  for await (const { lang, translations } of reader.translations()) {
+    if (
+      !Object.keys(translations?.field || {}).length &&
+      !Object.keys(translations?.category || {}).length
+    ) {
+      continue
+    }
+    const translatedDocCounts = {
+      category: 0,
+      field: 0,
+    }
+    const translatedPresets = await project.preset.getMany({ lang })
+    const translatedFields = await project.field.getMany({ lang })
+    for (const [docType, translatedDocs] of Object.entries(translations)) {
+      for (const [docId, translatedDoc] of Object.entries(translatedDocs)) {
+        let projectDoc
+        if (docType === 'category') {
+          const category = expectedPresets.get(docId)
+          if (!category) {
+            continue
+          }
+          projectDoc = translatedPresets.find(
+            (p) => p.name === translatedDoc.name
+          )
+        } else if (docType === 'field') {
+          const field = fieldsFromConfig.get(docId)
+          if (!field) continue
+          projectDoc = translatedFields.find((f) => f.tagKey === field.tagKey)
+        } else {
+          continue
+        }
+        if (!projectDoc) continue
+        translatedDocCounts[docType]++
+        for (const [propertyRef, message] of Object.entries(translatedDoc)) {
+          if (propertyRef === 'terms') continue // TODO: support preset.terms
+          assert.equal(
+            getProperty(projectDoc, propertyRef),
+            message,
+            `translated ${docType} ${docId} property ${propertyRef} matches`
+          )
+        }
+      }
+    }
+    // The category archive can include translations which are not imported,
+    // because our import code ignores translations that refer to docs or
+    // properties that do not exist, so we can't match the count here. Instead
+    // we check that at least one translation was checked, as a check that this
+    // test is actually testing something.
+    assert(
+      translatedDocCounts.category > 0,
+      `some ${lang} category translations`
+    )
+    assert(translatedDocCounts.field > 0, `some ${lang} field translations`)
+  }
+}
+
+/**
+ * Create a temporary categories archive from a folder, cleanup after test
+ *
+ * @param {import('node:test').TestContext} t
+ * @param {string} folder
+ * @returns {Promise<string>}
+ */
+export async function categoriesArchiveFromFolder(t, folder) {
+  const archivePath = temporaryFile()
+  t.after(() => fs.unlinkSync(archivePath))
+  await pipeline(
+    execa`npx comapeocat build ${folder}`.readable(),
+    fs.createWriteStream(archivePath)
+  )
+  return archivePath
 }

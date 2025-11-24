@@ -6,4 +6,4 @@
 
 # Variable: deviceInfoTable
 
-> `const` **deviceInfoTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **deviceInfoTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"deviceInfo"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>

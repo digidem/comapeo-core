@@ -170,6 +170,28 @@ Hard-code the invite ID. Only for tests.
 
 ***
 
+### remove()
+
+> **remove**(`deviceId`, `opts`?): `Promise`\<`void`\>
+
+Remove a member from the project
+
+#### Parameters
+
+• **deviceId**: `string`
+
+Device id of member to remove
+
+• **opts?**
+
+• **opts.reason?**: `string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### removeServerPeer()
 
 > **removeServerPeer**(`serverDeviceId`, `options`?): `Promise`\<`void`\>

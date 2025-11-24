@@ -6,4 +6,4 @@
 
 # Variable: observationTable
 
-> `const` **observationTable**: `SQLiteTableWithColumns`\<`object`\>
+> `const` **observationTable**: [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"observation"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>

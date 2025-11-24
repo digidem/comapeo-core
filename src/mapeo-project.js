@@ -2,7 +2,7 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { sql, count } from 'drizzle-orm'
+import { sql, count, eq } from 'drizzle-orm'
 import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
@@ -12,7 +12,7 @@ import mime from 'mime/lite'
 import { Readable, pipelinePromise } from 'streamx'
 import RandomAccessFile from 'random-access-file'
 
-import { NAMESPACES, NAMESPACE_SCHEMAS, UNIX_EPOCH_DATE } from './constants.js'
+import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
 import { DataType, kCreateWithDocId } from './datatype/index.js'
@@ -62,13 +62,15 @@ import {
 } from './sync/sync-api.js'
 import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
-import { readConfig } from './config-import.js'
+import { importCategories } from './import-categories.js'
 import TranslationApi from './translation-api.js'
 import { NotFoundError, nullIfNotFound } from './errors.js'
 import { WebSocket } from 'ws'
 import { createWriteStream } from 'fs'
+import ensureError from 'ensure-error'
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
+/** @import {Role} from './roles.js' */
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 /** @typedef {Map<string,Attachment>} SeenAttachments*/
@@ -98,18 +100,29 @@ export const kBlobStore = Symbol('blobStore')
 export const kProjectReplicate = Symbol('replicate project')
 export const kDataTypes = Symbol('dataTypes')
 export const kProjectLeave = Symbol('leave project')
-export const kClearDataIfLeft = Symbol('clear data if left project')
+export const kClearData = Symbol('clear project data')
 export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
 export const kGeoJSONFileName = Symbol('geoJSONFileName')
 
-const EMPTY_PROJECT_SETTINGS = Object.freeze({})
+const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
 
 /** @type BlobId['variant'][]*/
 const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
 
 /**
- * @extends {TypedEmitter<{ close: () => void }>}
+ * @typedef RoleChangeEvent
+ * @property {Role & {reason: string | undefined}} role
+ */
+
+/**
+ * @typedef {object} ProjectEvents
+ * @property {() => void} close Project resources have been cleared up
+ * @property {(changeEvent: RoleChangeEvent) => void} own-role-change
+ */
+
+/**
+ * @extends {TypedEmitter<ProjectEvents>}
  */
 export class MapeoProject extends TypedEmitter {
   #projectKey
@@ -131,9 +144,10 @@ export class MapeoProject extends TypedEmitter {
   #translationApi
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
-  #loadingConfig
+  #importingCategories
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
+  #getFallbackProjectInfo
 
   /**
    * @param {Object} opts
@@ -150,6 +164,7 @@ export class MapeoProject extends TypedEmitter {
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
+   * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
    * @param {Logger} [opts.logger]
    *
    */
@@ -168,13 +183,15 @@ export class MapeoProject extends TypedEmitter {
     localPeers,
     logger,
     isArchiveDevice,
+    getFallbackProjectInfo,
   }) {
     super()
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
     this.#projectKey = projectKey
-    this.#loadingConfig = false
+    this.#importingCategories = false
+    this.#getFallbackProjectInfo = getFallbackProjectInfo
 
     const getReplicationStream = this[kProjectReplicate].bind(this, true)
 
@@ -217,6 +234,11 @@ export class MapeoProject extends TypedEmitter {
 
     if (reindex) {
       for (const table of indexedTables) db.delete(table).run()
+
+      sharedDb
+        .delete(projectSettingsTable)
+        .where(eq(projectSettingsTable.docId, this.#projectId))
+        .run()
     }
 
     ///////// 3. Setup random-access-storage functions
@@ -410,6 +432,8 @@ export class MapeoProject extends TypedEmitter {
     })
 
     this.#blobStore.on('error', (err) => {
+      // Ignore hypercore inflight request cancellation
+      if (ensureError(err).message.includes('REQUEST_CANCELLED')) return
       // TODO: Handle this error in some way - this error will come from an
       // unexpected error with background blob downloads
       console.error('BlobStore error', err)
@@ -499,6 +523,16 @@ export class MapeoProject extends TypedEmitter {
     // handles replicating this core if we also have it, or requesting the key
     // for the core.
     localPeers.on('discovery-key', onDiscoverykey)
+
+    this.#roles.on('update', (roleDocIds) => {
+      for (const roleDocId of roleDocIds) {
+        // Ignore docs not about ourselves
+        if (roleDocId !== this.#deviceId) continue
+        this.#handleRoleChange().catch((e) => {
+          this.#l.log(`Error: Could not handle role change`, ensureError(e))
+        })
+      }
+    })
 
     this.once('close', () => {
       localPeers.off('peer-add', onPeerAdd)
@@ -683,7 +717,12 @@ export class MapeoProject extends TypedEmitter {
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
     } catch (e) {
-      return /** @type {EditableProjectSettings} */ (EMPTY_PROJECT_SETTINGS)
+      // if (e instanceof Error && e.name !== 'NotFoundError') throw e
+      // If the project has not completed an initial sync, project settings will
+      // not be available, so use fallback project info which is set from the
+      // invite that was used to join the project.
+      const fallbackInfo = this.#getFallbackProjectInfo()
+      return fallbackInfo || EMPTY_PROJECT_SETTINGS
     }
   }
 
@@ -692,11 +731,9 @@ export class MapeoProject extends TypedEmitter {
    */
   async $hasSyncedProjectSettings() {
     try {
-      const settings = await this.#dataTypes.projectSettings.getByDocId(
-        this.#projectId
-      )
-
-      return settings.createdAt !== UNIX_EPOCH_DATE
+      // Should error if we haven't synced before
+      await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
+      return true
     } catch (e) {
       return false
     }
@@ -709,8 +746,18 @@ export class MapeoProject extends TypedEmitter {
     return (await this.$getProjectSettings()).name
   }
 
+  /**
+   * @returns {Promise<Role & {reason: string | undefined}>}
+   */
   async $getOwnRole() {
-    return this.#roles.getRole(this.#deviceId)
+    const reason = await this.#roles.getRoleReason(this.#deviceId)
+    const role = await this.#roles.getRole(this.#deviceId)
+    return { ...role, reason }
+  }
+
+  async #handleRoleChange() {
+    const role = await this.$getOwnRole()
+    this.emit('own-role-change', { role })
   }
 
   /**
@@ -1121,6 +1168,13 @@ export class MapeoProject extends TypedEmitter {
             continue
           }
         }
+        const hasDownloaded = await this.#blobStore.hasDownloadedBlobEntry(
+          blobId.driveId,
+          entry
+        )
+        if (!hasDownloaded) {
+          continue
+        }
         return { blobId, mimeType }
       } catch (e) {
         if (!(e instanceof Error)) throw e
@@ -1271,12 +1325,6 @@ export class MapeoProject extends TypedEmitter {
   async #throwIfCannotLeaveProject() {
     const roleDocs = await this.#dataTypes.role.getMany()
 
-    const ownRole = roleDocs.find(({ docId }) => this.#deviceId === docId)
-
-    if (ownRole?.roleId === BLOCKED_ROLE_ID) {
-      throw new Error('Cannot leave a project as a blocked device')
-    }
-
     const allRoles = await this.#roles.getAll()
 
     const isOnlyDevice = allRoles.size <= 1
@@ -1302,23 +1350,22 @@ export class MapeoProject extends TypedEmitter {
   }
 
   async [kProjectLeave]() {
+    const ownRole = await this.$getOwnRole()
+
     await this.#throwIfCannotLeaveProject()
 
-    await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+    if (ownRole.roleId !== BLOCKED_ROLE_ID) {
+      await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+    }
 
-    await this[kClearDataIfLeft]()
+    await this[kClearData]()
   }
 
   /**
-   * Clear data if we've left the project. No-op if you're still in the project.
+   * Clear synced data, but keep auth data and own data
    * @returns {Promise<void>}
    */
-  async [kClearDataIfLeft]() {
-    const role = await this.$getOwnRole()
-    if (role.roleId !== LEFT_ROLE_ID) {
-      return
-    }
-
+  async [kClearData]() {
     const namespacesWithoutAuth =
       /** @satisfies {Exclude<Namespace, 'auth'>[]} */ ([
         'config',
@@ -1349,220 +1396,50 @@ export class MapeoProject extends TypedEmitter {
     }
   }
 
-  /** @param {Object} opts
-   *  @param {string} opts.configPath
-   *  @returns {Promise<Error[]>}
+  /**
+   * @deprecated
+   * @param {object} opts
+   * @param {string} opts.configPath
+   * @returns {Promise<Error[]>}
    */
   async importConfig({ configPath }) {
+    try {
+      await this.$importCategories({ filePath: configPath })
+      return []
+    } catch (e) {
+      return [ensureError(e)]
+    }
+  }
+
+  /**
+   * @param {object} opts
+   * @param {string} opts.filePath
+   * @returns {Promise<void>}
+   */
+  async $importCategories({ filePath }) {
     assert(
-      !this.#loadingConfig,
-      'Cannot run multiple config imports at the same time'
+      !this.#importingCategories,
+      'Cannot run multiple category imports at the same time'
     )
-    this.#loadingConfig = true
+    this.#importingCategories = true
 
     try {
-      // check for already present fields and presets and delete them if exist
-      const presetsToDelete = await grabDocsToDelete(this.preset)
-      const fieldsToDelete = await grabDocsToDelete(this.field)
-      // delete only translations that refer to deleted fields and presets
-      const translationsToDelete = await grabTranslationsToDelete({
-        logger: this.#l,
-        translation: this.$translation.dataType,
-        preset: this.preset,
-        field: this.field,
-      })
-
-      const config = await readConfig(configPath)
-      /** @type {Map<string, import('./icon-api.js').IconRef>} */
-      const iconNameToRef = new Map()
-      /** @type {Map<string, import('@comapeo/schema').PresetValue['fieldRefs'][1]>} */
-      const fieldNameToRef = new Map()
-      /** @type {Map<string,import('@comapeo/schema').TranslationValue['docRef']>} */
-      const presetNameToRef = new Map()
-
-      // Do this in serial not parallel to avoid memory issues (avoid keeping all icon buffers in memory)
-      for await (const icon of config.icons()) {
-        const { docId, versionId } = await this.#iconApi.create(icon)
-        iconNameToRef.set(icon.name, { docId, versionId })
-      }
-
-      // Ok to create fields and presets in parallel
-      const fieldPromises = []
-      for (const { name, value } of config.fields()) {
-        fieldPromises.push(
-          this.#dataTypes.field.create(value).then(({ docId, versionId }) => {
-            fieldNameToRef.set(name, { docId, versionId })
-          })
-        )
-      }
-      await Promise.all(fieldPromises)
-
-      const presetsWithRefs = []
-      for (const { fieldNames, iconName, value, name } of config.presets()) {
-        const fieldRefs = fieldNames.map((fieldName) => {
-          const fieldRef = fieldNameToRef.get(fieldName)
-          if (!fieldRef) {
-            throw new NotFoundError(
-              `field ${fieldName} not found (referenced by preset ${value.name})})`
-            )
-          }
-          return fieldRef
-        })
-
-        if (!iconName) {
-          throw new Error(`preset ${value.name} is missing an icon name`)
-        }
-        const iconRef = iconNameToRef.get(iconName)
-        if (!iconRef) {
-          throw new NotFoundError(
-            `icon ${iconName} not found (referenced by preset ${value.name})`
-          )
-        }
-
-        presetsWithRefs.push({
-          preset: {
-            ...value,
-            iconRef,
-            fieldRefs,
-          },
-          name,
-        })
-      }
-
-      const presetPromises = []
-      for (const { preset, name } of presetsWithRefs) {
-        presetPromises.push(
-          this.preset.create(preset).then(({ docId, versionId }) => {
-            presetNameToRef.set(name, { docId, versionId })
-          })
-        )
-      }
-
-      await Promise.all(presetPromises)
-
-      const translationPromises = []
-      for (const { name, value } of config.translations()) {
-        let docRef
-        if (value.docRefType === 'field') {
-          docRef = { ...fieldNameToRef.get(name) }
-        } else if (value.docRefType === 'preset') {
-          docRef = { ...presetNameToRef.get(name) }
-        } else {
-          throw new Error(`invalid docRefType ${value.docRefType}`)
-        }
-        if (docRef.docId && docRef.versionId) {
-          translationPromises.push(
-            this.$translation.put({
-              ...value,
-              docRef: {
-                docId: docRef.docId,
-                versionId: docRef.versionId,
-              },
-            })
-          )
-        } else {
-          throw new NotFoundError(
-            `docRef for ${value.docRefType} with name ${name} not found`
-          )
-        }
-      }
-      await Promise.all(translationPromises)
-
-      // close the zip handles after we know we won't be needing them anymore
-      await config.close()
-      const presetIds = [...presetNameToRef.values()].map((val) => val.docId)
-
-      await this.$setProjectSettings({
-        defaultPresets: {
-          point: presetIds,
-          line: [],
-          area: [],
-          vertex: [],
-          relation: [],
-        },
-        configMetadata: config.metadata,
-      })
-
-      const deletePresetsPromise = Promise.all(
-        presetsToDelete.map(async (docId) => {
-          const { deleted } = await this.preset.getByDocId(docId)
-          if (!deleted) await this.preset.delete(docId)
-        })
-      )
-      const deleteFieldsPromise = Promise.all(
-        fieldsToDelete.map(async (docId) => {
-          const { deleted } = await this.field.getByDocId(docId)
-          if (!deleted) await this.field.delete(docId)
-        })
-      )
-      const deleteTranslationsPromise = Promise.all(
-        [...translationsToDelete].map(async (docId) => {
-          const { deleted } = await this.$translation.dataType.getByDocId(docId)
-          if (!deleted) await this.$translation.dataType.delete(docId)
-        })
-      )
-      await Promise.all([
-        deletePresetsPromise,
-        deleteFieldsPromise,
-        deleteTranslationsPromise,
-      ])
-      this.#loadingConfig = false
-      return config.warnings
+      await importCategories(this, { filePath, logger: this.#l })
     } catch (e) {
       this.#l.log('error loading config', e)
-      this.#loadingConfig = false
-      return /** @type Error[] */ []
+      throw e
+    } finally {
+      this.#importingCategories = false
     }
   }
 }
+
 /**
  * @param {import("@comapeo/schema").ProjectSettings & { forks: string[] }} projectDoc
  * @returns {EditableProjectSettings}
  */
 function extractEditableProjectSettings(projectDoc) {
   return omit(valueOf(projectDoc), ['schemaName'])
-}
-
-/**
- @param {MapeoProject['field'] | MapeoProject['preset']} dataType
- @returns {Promise<String[]>}
- */
-async function grabDocsToDelete(dataType) {
-  const toDelete = []
-  for (const { docId } of await dataType.getMany()) {
-    toDelete.push(docId)
-  }
-  return toDelete
-}
-
-/**
- * @param {Object} opts
- * @param {Logger} opts.logger
- * @param {MapeoProject['$translation']['dataType']} opts.translation
- * @param {MapeoProject['preset']} opts.preset
- * @param {MapeoProject['field']} opts.field
- * @returns {Promise<Set<String>>}
- */
-async function grabTranslationsToDelete(opts) {
-  /** @type {Set<String>} */
-  const toDelete = new Set()
-  const translations = await opts.translation.getMany()
-  await Promise.all(
-    translations.map(async ({ docRefType, docRef, docId }) => {
-      if (docRefType === 'field' || docRefType === 'preset') {
-        let doc
-        try {
-          doc = await opts[docRefType].getByVersionId(docRef.versionId)
-        } catch (e) {
-          opts.logger.log(`referred ${docRef.versionId} is not found`)
-        }
-        if (doc) {
-          toDelete.add(docId)
-        }
-      }
-    })
-  )
-  return toDelete
 }
 
 /**

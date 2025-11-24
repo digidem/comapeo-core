@@ -1,0 +1,1 @@
+ALTER TABLE `role` ADD `reason` text;
