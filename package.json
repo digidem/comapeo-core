@@ -181,7 +181,7 @@
     "bogon": "^1.1.0",
     "comapeocat": "^1.0.0",
     "compact-encoding": "^2.12.0",
-    "corestore": "^7.4.7",
+    "corestore": "^7.6.1",
     "debug": "^4.3.4",
     "dot-prop": "^9.0.0",
     "dot-prop-extra": "^10.2.0",
