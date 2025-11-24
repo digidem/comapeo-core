@@ -106,7 +106,7 @@ export class MapeoManager extends TypedEmitter {
   // Maps project public id -> project instance
   /** @type {Map<string, MapeoProject>} */
   #activeProjects
-  /** @type {CoreStorage} */
+  /** @type {string} */
   #coreStorage
   #dbFolder
   /** @type {string} */
