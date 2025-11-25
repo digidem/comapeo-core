@@ -105,6 +105,7 @@ test('index events', async (t) => {
     storage: () => new RAM(),
     reindex: false,
   })
+  await dataStore.indexer.idle()
   dataStore.indexer.on('index-state', (state) => {
     indexStates.push(omit(state, ['entriesPerSecond']))
   })
