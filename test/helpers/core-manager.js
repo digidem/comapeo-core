@@ -18,6 +18,7 @@ import { NAMESPACES } from '../../src/constants.js'
 /**
  * @param {import('node:test').TestContext} t
  * @param {Partial<ConstructorParameters<typeof CoreManager>[0]> & { rootKey?: Buffer }} param0
+ * @param {boolean?} cleanup
  * @returns {CoreManager}
  */
 export function createCoreManager(
@@ -27,7 +28,8 @@ export function createCoreManager(
     projectKey = randomBytes(32),
     db = drizzle(new Sqlite(':memory:')),
     ...opts
-  } = {}
+  } = {},
+  cleanup = true
 ) {
   migrate(db, {
     migrationsFolder: new URL('../../drizzle/project', import.meta.url)
@@ -36,15 +38,9 @@ export function createCoreManager(
 
   const storage = temporaryDirectory()
 
-  t.after(async () =>
-    fsPromises.rm(storage, {
-      recursive: true,
-    })
-  )
-
   const keyManager = new KeyManager(rootKey)
 
-  return new CoreManager({
+  const manager = new CoreManager({
     db,
     keyManager,
     storage,
@@ -52,6 +48,17 @@ export function createCoreManager(
     autoDownload: false,
     ...opts,
   })
+
+  t.after(async () => {
+    if (cleanup) {
+      await manager.close()
+    }
+    await fsPromises.rm(storage, {
+      recursive: true,
+    })
+  })
+
+  return manager
 }
 
 /**

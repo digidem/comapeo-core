@@ -36,6 +36,7 @@ test('blobStore.put(blobId, buf) and blobStore.get(blobId)', async (t) => {
 })
 
 test('get(), driveId not found', async (t) => {
+  process.on('uncaughtException', (e) => console.log(e.stack))
   const { blobStore } = testenv(t)
   await assert.rejects(
     async () =>
@@ -627,11 +628,15 @@ function blobIdToKey({ name, type, variant }) {
  * @param {Parameters<typeof createCoreManager>[1] & { isArchiveDevice?: boolean }} opts
  */
 function testenv(t, { isArchiveDevice = true, ...coreManagerOpts } = {}) {
-  const coreManager = createCoreManager(t, coreManagerOpts)
+  const coreManager = createCoreManager(t, coreManagerOpts, false)
   const blobStore = new BlobStore({
     coreManager,
     isArchiveDevice,
     logger: Logger.create('blobStore'),
+  })
+  t.after(async () => {
+    await blobStore.close()
+    await coreManager.close()
   })
   return { blobStore, coreManager }
 }
