@@ -12,8 +12,13 @@ import { createCoreManager } from './core-manager.js'
  * @param {Buffer} [opts.projectKey]
  */
 export function createBlobStore(t, opts) {
-  const coreManager = createCoreManager(t, opts)
+  const coreManager = createCoreManager(t, opts, false)
   const blobStore = new BlobStore({ coreManager })
+
+  t.after(async () => {
+    await blobStore.close()
+    await coreManager.close()
+  })
   return { blobStore, coreManager }
 }
 
