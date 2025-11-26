@@ -1045,8 +1045,15 @@ export async function assertProjectHasImportedCategories(project, reader) {
         translatedDocCounts[docType]++
         for (const [propertyRef, message] of Object.entries(translatedDoc)) {
           if (propertyRef === 'terms') continue // TODO: support preset.terms
+          /** @type {unknown} */
+          const value = getProperty(projectDoc, propertyRef)
+          if (typeof value !== 'string') {
+            // The translation code ignores non-string properties, so we ignore them here too
+            // https://github.com/digidem/comapeo-core/blob/9acefe6d0015acd008f526186f3740ce6a28ab0d/src/datatype/index.js#L303
+            continue
+          }
           assert.equal(
-            getProperty(projectDoc, propertyRef),
+            value,
             message,
             `translated ${docType} ${docId} property ${propertyRef} matches`
           )
