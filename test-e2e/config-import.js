@@ -19,6 +19,21 @@ test('config import - load and re-load config manually', async (t) => {
   await assertProjectHasImportedCategories(project, reader)
 })
 
+test('config import - translated category names', async (t) => {
+  const configPath = new URL(
+    './fixtures/config/category-name-translation-test.comapeocat',
+    import.meta.url
+  ).pathname
+  const manager = createManager('device0', t)
+  const project = await manager.getProject(await manager.createProject())
+
+  const reader = new Reader(configPath)
+  t.after(() => reader.close())
+
+  await project.$importCategories({ filePath: configPath })
+  await assertProjectHasImportedCategories(project, reader)
+})
+
 test('failing on loading a second config should not delete any data', async (t) => {
   const manager = createManager('device0', t)
   const projectId = await manager.createProject()

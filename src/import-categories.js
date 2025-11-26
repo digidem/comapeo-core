@@ -188,6 +188,9 @@ export async function importCategories(project, { filePath, logger }) {
     const { buildDateValue, ...readerMetadata } = await reader.metadata()
     const fileVersion = await reader.fileVersion()
 
+    // Need to wait for all presets to be created so that we can read the refs for the translations
+    await queue.onIdle()
+
     for await (const {
       lang,
       translations: translationsByDocType,
