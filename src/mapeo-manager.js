@@ -679,14 +679,7 @@ export class MapeoManager extends TypedEmitter {
   ) => {
     const projectPublicId = projectKeyToPublicId(projectKey)
 
-    // 1. Check for an active project
-    const activeProject = this.#activeProjects.get(projectPublicId)
-
-    if (activeProject) {
-      throw new Error(`Project with ID ${projectPublicId} already exists`)
-    }
-
-    // 2. Check if the project exists in the project keys table
+    // 3. Check if the project exists in the project keys table
     // If it does, that means the project has already been either created or added before
     const projectId = projectKeyToId(projectKey)
     const projectInviteId = projectKeyToProjectInviteId(projectKey)
@@ -704,6 +697,16 @@ export class MapeoManager extends TypedEmitter {
 
     if (projectExists) {
       throw new Error(`Project with ID ${projectPublicId} already exists`)
+    }
+
+    // 2. Check for an active project
+    const activeProject = this.#activeProjects.get(projectPublicId)
+
+    // If the project keys don't exist or have left and we have an active project
+    // It means we must have left the project and it's still loaded in memory but cleared
+    // We should close it so we can open a fresh copy
+    if (activeProject) {
+      await activeProject.close()
     }
 
     // No awaits here - need to update table in same tick as the projectExists check
