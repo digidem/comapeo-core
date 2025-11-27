@@ -452,10 +452,7 @@ test('Member can join project again after leaving', async (t) => {
 
   await member.leaveProject(projectId)
 
-  // Close the project after you leave and sync
-  // This clears up resources so we can be reinvited
-  await memberProject.close()
-
+  // The project will auto close when we get a new invite
   await invite({
     invitor: creator,
     invitees: [member],
