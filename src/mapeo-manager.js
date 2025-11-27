@@ -679,7 +679,7 @@ export class MapeoManager extends TypedEmitter {
   ) => {
     const projectPublicId = projectKeyToPublicId(projectKey)
 
-    // 3. Check if the project exists in the project keys table
+    // 1. Check if the project exists in the project keys table
     // If it does, that means the project has already been either created or added before
     const projectId = projectKeyToId(projectKey)
     const projectInviteId = projectKeyToProjectInviteId(projectKey)
