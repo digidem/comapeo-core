@@ -441,18 +441,34 @@ export class SyncApi extends TypedEmitter {
 
   /**
    * @param {SyncType} type
+   * @param {object} [options]
+   * @param {number} [options.timeoutMs] Timeout in milliseconds for max time
+   * to wait between sync state updates before giving up. As long as syncing is
+   * happening, this will never timeout, but if more than timeoutMs passes
+   * without any sync activity, then this will reject.
    * @returns {Promise<void>}
    */
-  async waitForSync(type) {
-    const state = this[kSyncState].getState()
-    if (isSynced(state, type, this.#peerSyncControllers)) return
-    return new Promise((res) => {
-      const _this = this
-      this[kSyncState].on('state', function onState(state) {
-        if (!isSynced(state, type, _this.#peerSyncControllers)) return
-        _this[kSyncState].off('state', onState)
-        res()
-      })
+  async waitForSync(type, { timeoutMs } = {}) {
+    return new Promise((resolve, reject) => {
+      /** @type {NodeJS.Timeout | undefined} */
+      let timeoutId
+      const onTimeout = () => {
+        this[kSyncState].off('state', onState)
+        reject(new Error('Sync timeout'))
+      }
+      /** @param {import('./sync-state.js').State} state */
+      const onState = (state) => {
+        clearTimeout(timeoutId)
+        if (typeof timeoutMs === 'number') {
+          timeoutId = setTimeout(onTimeout, timeoutMs)
+        }
+        if (isSynced(state, type, this.#peerSyncControllers)) {
+          this[kSyncState].off('state', onState)
+          resolve()
+        }
+      }
+      this[kSyncState].on('state', onState)
+      onState(this[kSyncState].getState())
     })
   }
 
