@@ -883,3 +883,42 @@ test('Auto deny invites if invited before remove is processed', async (t) => {
     'Auto rejects before leave project is called'
   )
 })
+
+test('Invite a bunch of users and list only active ones', async (t) => {
+  const managers = await createManagers(5, t)
+  const [creator, member, coordinator, blocked, left] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await creator.createProject({ name: 'Mapeo' })
+  const project = await creator.getProject(projectId)
+  await invite({
+    invitor: creator,
+    projectId,
+    invitees: [member, left, blocked],
+  })
+
+  await invite({
+    invitor: creator,
+    projectId,
+    invitees: [coordinator],
+    roleId: COORDINATOR_ROLE_ID,
+  })
+
+  await left.leaveProject(projectId)
+  await project.$member.remove(blocked.deviceId)
+
+  const projects = await Promise.all(
+    [creator, member, coordinator].map((manager) =>
+      manager.getProject(projectId)
+    )
+  )
+
+  await waitForSync(projects, 'initial')
+
+  const activeMembers = await project.$member.getMany()
+  const allMembers = await project.$member.getMany({ includeInactive: true })
+
+  assert.equal(activeMembers.length, 3, 'only active members listed by default')
+  assert.equal(allMembers.length, 5, 'inactive members listed when included')
+})
