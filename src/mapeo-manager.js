@@ -74,6 +74,9 @@ const CLIENT_SQLITE_FILE_NAME = 'client.db'
 // other things e.g. SQLite and other parts of the app.
 const MAX_FILE_DESCRIPTORS = 768
 
+// This is the timeout for waiting for sync state updates during initial sync (when adding a project or leaving a project)
+const INITIAL_SYNC_TIMEOUT_MS = 45_000 // 45 seconds
+
 // Prefix names for routes registered with http server
 const BLOBS_PREFIX = 'blobs'
 const ICONS_PREFIX = 'icons'
@@ -763,7 +766,7 @@ export class MapeoManager extends TypedEmitter {
     if (waitForSync) {
       try {
         await project.$sync.waitForSync('initial', {
-          signal: AbortSignal.timeout(45_000),
+          timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
         })
       } catch (e) {
         this.#l.log('ERROR: could not do initial project sync', e)
@@ -997,7 +1000,9 @@ export class MapeoManager extends TypedEmitter {
     await project[kProjectLeave]()
 
     // Sync any role changes from project leave
-    await project.$sync.waitForSync('initial')
+    await project.$sync.waitForSync('initial', {
+      timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
+    })
   }
 
   async getMapStyleJsonUrl() {

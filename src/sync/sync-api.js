@@ -442,27 +442,33 @@ export class SyncApi extends TypedEmitter {
   /**
    * @param {SyncType} type
    * @param {object} [options]
-   * @param {AbortSignal} [options.signal]
+   * @param {number} [options.timeoutMs] Timeout in milliseconds for max time
+   * to wait between sync state updates before giving up. As long as syncing is
+   * happening, this will never timeout, but if more than timeoutMs passes
+   * without any sync activity, then this will reject.
    * @returns {Promise<void>}
    */
-  async waitForSync(type, { signal } = {}) {
-    signal?.throwIfAborted()
+  async waitForSync(type, { timeoutMs } = {}) {
     return new Promise((resolve, reject) => {
+      /** @type {NodeJS.Timeout | undefined} */
+      let timeoutId
+      const onTimeout = () => {
+        this[kSyncState].off('state', onState)
+        reject(new Error('Sync timeout'))
+      }
       /** @param {import('./sync-state.js').State} state */
       const onState = (state) => {
+        clearTimeout(timeoutId)
+        if (typeof timeoutMs === 'number') {
+          timeoutId = setTimeout(onTimeout, timeoutMs)
+        }
         if (isSynced(state, type, this.#peerSyncControllers)) {
           this[kSyncState].off('state', onState)
-          signal?.removeEventListener('abort', onAbort)
           resolve()
         }
       }
-      const onAbort = () => {
-        this[kSyncState].off('state', onState)
-        reject(signal?.reason || new DOMException('Aborted', 'AbortError'))
-      }
       this[kSyncState].on('state', onState)
       onState(this[kSyncState].getState())
-      signal?.addEventListener('abort', onAbort, { once: true })
     })
   }
 
