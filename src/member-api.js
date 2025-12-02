@@ -23,13 +23,14 @@ import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
+  CREATOR_ROLE_ID,
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
 
-const ACTIVE_ROLE_IDS = [MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
+const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /**
  * @import {
  *   DeviceInfo,
@@ -569,19 +570,19 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * @overload
-   * @param {object} opts
+   * @param {object} [opts]
    * @param {true} [opts.includeInactive]
    * @returns {Promise<Array<MemberInfo>>}
    */
   /**
    * @overload
-   * @param {object} opts
+   * @param {object} [opts]
    * @param {false} [opts.includeInactive=false]
    * @returns {Promise<Array<ActiveMemberInfo>>}
    */
   /**
    * List members in the project. By default only active Members and Coordinators are returned
-   * @param {object} opts
+   * @param {object} [opts]
    * @param {boolean} [opts.includeInactive=false] Set to true to list removed members
    */
   async getMany({ includeInactive = false } = {}) {

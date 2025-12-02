@@ -103,7 +103,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
     'has expected member info with no role'
   )
 
-  const members = await project.$member.getMany()
+  const members = await project.$member.getMany({ includeInactive: true })
   const { joinedAt: _, ...member } = members[0]
 
   assert.equal(members.length, 1)
@@ -377,7 +377,7 @@ test('roles - getMany() on newly invited device before sync', async (t) => {
 
   const expected = { [deviceId]: NO_ROLE }
 
-  const allMembers = await project.$member.getMany()
+  const allMembers = await project.$member.getMany({ includeInactive: true })
 
   /** @type {Record<string, import('../src/roles.js').Role>} */
   const actual = {}
