@@ -47,13 +47,8 @@ import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
 import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
-import { Roles } from './roles.js'
 import { Logger } from './logger.js'
-import {
-  kSyncState,
-  kRequestFullStop,
-  kRescindFullStopRequest,
-} from './sync/sync-api.js'
+import { kRequestFullStop, kRescindFullStopRequest } from './sync/sync-api.js'
 import { NotFoundError } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
@@ -767,87 +762,15 @@ export class MapeoManager extends TypedEmitter {
     // 5. Wait for initial project sync
     if (waitForSync) {
       try {
-        await this.#waitForInitialSync(project)
+        await project.$sync.waitForSync('initial', {
+          signal: AbortSignal.timeout(45_000),
+        })
       } catch (e) {
         this.#l.log('ERROR: could not do initial project sync', e)
       }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
     return projectPublicId
-  }
-
-  /**
-   * Sync initial data: the `auth` cores which contain the role messages,
-   * and the `config` cores which contain the project name & custom config (if
-   * it exists). The API consumer should await this after `client.addProject()`
-   * to ensure that the device is fully added to the project.
-   *
-   * @param {MapeoProject} project
-   * @param {object} [opts]
-   * @param {number} [opts.timeoutMs=45_000] Timeout in milliseconds for max time
-   * to wait between sync status updates before giving up. As long as syncing is
-   * happening, this will never timeout, but if more than timeoutMs passes
-   * without any sync activity, then this will resolve `false` e.g. data has not
-   * synced
-   * @returns {Promise<boolean>}
-   */
-  async #waitForInitialSync(project, { timeoutMs = 45_000 } = {}) {
-    const [ownRole, isProjectSettingsSynced] = await Promise.all([
-      project.$getOwnRole(),
-      project.$hasSyncedProjectSettings(),
-    ])
-    const {
-      auth: { localState: authState },
-      config: { localState: configState },
-    } = project.$sync[kSyncState].getState()
-    const isRoleSynced = ownRole !== Roles.NO_ROLE
-    // Assumes every project that someone is invited to has at least one record
-    // in the auth store - the row record for the invited device
-    const isAuthSynced = authState.want === 0 && authState.have > 0
-    // Assumes every project that someone is invited to has at least one record
-    // in the config store - defining the name of the project.
-    // TODO: Enforce adding a project name in the invite method
-    const isConfigSynced = configState.want === 0 && configState.have > 0
-    if (isRoleSynced && ownRole.sync.config === 'blocked' && isAuthSynced) {
-      return true
-    }
-    if (
-      isRoleSynced &&
-      isProjectSettingsSynced &&
-      isAuthSynced &&
-      isConfigSynced
-    ) {
-      return true
-    } else {
-      this.#l.log(
-        'Pending initial sync: role %s, projectSettings %o, auth %o, config %o',
-        isRoleSynced,
-        isProjectSettingsSynced,
-        isAuthSynced,
-        isConfigSynced
-      )
-    }
-    return new Promise((resolve, reject) => {
-      /** @param {import('./sync/sync-state.js').State} syncState */
-      const onSyncState = (syncState) => {
-        clearTimeout(timeoutId)
-        if (
-          syncState.auth.dataToSync ||
-          (syncState.config.dataToSync && ownRole.sync.config === 'allowed')
-        ) {
-          timeoutId = setTimeout(onTimeout, timeoutMs)
-          return
-        }
-        project.$sync[kSyncState].off('state', onSyncState)
-        this.#waitForInitialSync(project, { timeoutMs }).then(resolve, reject)
-      }
-      const onTimeout = () => {
-        project.$sync[kSyncState].off('state', onSyncState)
-        reject(new Error('Sync timeout'))
-      }
-      let timeoutId = setTimeout(onTimeout, timeoutMs)
-      project.$sync[kSyncState].on('state', onSyncState)
-    })
   }
 
   /**
@@ -1074,7 +997,7 @@ export class MapeoManager extends TypedEmitter {
     await project[kProjectLeave]()
 
     // Sync any role changes from project leave
-    await this.#waitForInitialSync(project)
+    await project.$sync.waitForSync('initial')
   }
 
   async getMapStyleJsonUrl() {

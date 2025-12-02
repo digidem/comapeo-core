@@ -271,7 +271,7 @@ export function createManager(seed, t, overrides = {}) {
   }
 
   const fastify = Fastify()
-  fastify.listen()
+  const listenPromise = fastify.listen()
 
   const manager = new MapeoManager({
     rootKey: getRootKey(seed),
@@ -284,6 +284,7 @@ export function createManager(seed, t, overrides = {}) {
   })
 
   t.after(async () => {
+    await listenPromise
     await fastify.close()
     // Needed to overcome race condition in fastify
     // If tests run too quick it won't actually close

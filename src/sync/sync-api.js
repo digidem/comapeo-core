@@ -441,18 +441,28 @@ export class SyncApi extends TypedEmitter {
 
   /**
    * @param {SyncType} type
+   * @param {object} [options]
+   * @param {AbortSignal} [options.signal]
    * @returns {Promise<void>}
    */
-  async waitForSync(type) {
-    const state = this[kSyncState].getState()
-    if (isSynced(state, type, this.#peerSyncControllers)) return
-    return new Promise((res) => {
-      const _this = this
-      this[kSyncState].on('state', function onState(state) {
-        if (!isSynced(state, type, _this.#peerSyncControllers)) return
-        _this[kSyncState].off('state', onState)
-        res()
-      })
+  async waitForSync(type, { signal } = {}) {
+    signal?.throwIfAborted()
+    return new Promise((resolve, reject) => {
+      /** @param {import('./sync-state.js').State} state */
+      const onState = (state) => {
+        if (isSynced(state, type, this.#peerSyncControllers)) {
+          this[kSyncState].off('state', onState)
+          signal?.removeEventListener('abort', onAbort)
+          resolve()
+        }
+      }
+      const onAbort = () => {
+        this[kSyncState].off('state', onState)
+        reject(signal?.reason || new DOMException('Aborted', 'AbortError'))
+      }
+      this[kSyncState].on('state', onState)
+      onState(this[kSyncState].getState())
+      signal?.addEventListener('abort', onAbort, { once: true })
     })
   }
 
