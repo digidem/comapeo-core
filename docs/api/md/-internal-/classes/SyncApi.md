@@ -197,11 +197,20 @@ Pre-sync cores will continue syncing unless the app is backgrounded.
 
 ### waitForSync()
 
-> **waitForSync**(`type`): `Promise`\<`void`\>
+> **waitForSync**(`type`, `options`?): `Promise`\<`void`\>
 
 #### Parameters
 
 • **type**: [`SyncType`](../type-aliases/SyncType.md)
+
+• **options?** = `{}`
+
+• **options.timeoutMs?**: `undefined` \| `number`
+
+Timeout in milliseconds for max time
+to wait between sync state updates before giving up. As long as syncing is
+happening, this will never timeout, but if more than timeoutMs passes
+without any sync activity, then this will reject.
 
 #### Returns
 
