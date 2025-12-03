@@ -22,7 +22,7 @@ import {
   waitForSync,
 } from './utils.js'
 
-test("Creator cannot leave project if they're the only coordinator", async (t) => {
+test("Creator can leave project if they're the only coordinator", async (t) => {
   const managers = await createManagers(2, t)
 
   const disconnectPeers = connectPeers(managers)
@@ -54,9 +54,13 @@ test("Creator cannot leave project if they're the only coordinator", async (t) =
     'creator successfully added from member perspective'
   )
 
-  await assert.rejects(async () => {
-    await creator.leaveProject(projectId)
-  }, 'creator attempting to leave project with no other coordinators fails')
+  await creator.leaveProject(projectId)
+
+  assert.equal(
+    (await creatorProject.$getOwnRole()).roleId,
+    LEFT_ROLE_ID,
+    'creator now has LEFT role'
+  )
 })
 
 test('leaving a project as the only member', async (t) => {
@@ -452,10 +456,7 @@ test('Member can join project again after leaving', async (t) => {
 
   await member.leaveProject(projectId)
 
-  // Close the project after you leave and sync
-  // This clears up resources so we can be reinvited
-  await memberProject.close()
-
+  // The project will auto close when we get a new invite
   await invite({
     invitor: creator,
     invitees: [member],
