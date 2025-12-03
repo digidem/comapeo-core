@@ -570,20 +570,22 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * @overload
-   * @param {object} [opts]
-   * @param {true} [opts.includeLeft]
+   * @param {object} opts
+   * @param {true} opts.includeLeft
    * @returns {Promise<Array<MemberInfo>>}
    */
   /**
    * @overload
-   * @param {object} [opts]
-   * @param {false} [opts.includeLeft=false]
+   * @returns {Promise<Array<ActiveMemberInfo>>}
+   */
+  /**
+   * @overload
+   * @param {object} opts
+   * @param {false} opts.includeLeft
    * @returns {Promise<Array<ActiveMemberInfo>>}
    */
   /**
    * List members in the project. By default only active Members and Coordinators are returned
-   * @param {object} [opts]
-   * @param {boolean} [opts.includeLeft=false] Set to true to list removed members
    */
   async getMany({ includeLeft = false } = {}) {
     const [allRoles, allDeviceInfo] = await Promise.all([
