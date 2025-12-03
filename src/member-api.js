@@ -571,21 +571,21 @@ export class MemberApi extends TypedEmitter {
   /**
    * @overload
    * @param {object} [opts]
-   * @param {true} [opts.includeInactive]
+   * @param {true} [opts.includeLeft]
    * @returns {Promise<Array<MemberInfo>>}
    */
   /**
    * @overload
    * @param {object} [opts]
-   * @param {false} [opts.includeInactive=false]
+   * @param {false} [opts.includeLeft=false]
    * @returns {Promise<Array<ActiveMemberInfo>>}
    */
   /**
    * List members in the project. By default only active Members and Coordinators are returned
    * @param {object} [opts]
-   * @param {boolean} [opts.includeInactive=false] Set to true to list removed members
+   * @param {boolean} [opts.includeLeft=false] Set to true to list removed members
    */
-  async getMany({ includeInactive = false } = {}) {
+  async getMany({ includeLeft = false } = {}) {
     const [allRoles, allDeviceInfo] = await Promise.all([
       this.#roles.getAll(),
       this.#dataTypes.deviceInfo.getMany(),
@@ -596,8 +596,7 @@ export class MemberApi extends TypedEmitter {
     return Promise.all(
       [...allRoles.entries()]
         .filter(
-          ([_, { roleId }]) =>
-            includeInactive || ACTIVE_ROLE_IDS.includes(roleId)
+          ([_, { roleId }]) => includeLeft || ACTIVE_ROLE_IDS.includes(roleId)
         )
         .map(async ([deviceId, role]) => {
           /** @type {MemberInfo} */
