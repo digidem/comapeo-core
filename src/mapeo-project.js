@@ -36,12 +36,7 @@ import {
   getWinner,
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
-import {
-  BLOCKED_ROLE_ID,
-  COORDINATOR_ROLE_ID,
-  Roles,
-  LEFT_ROLE_ID,
-} from './roles.js'
+import { BLOCKED_ROLE_ID, Roles, LEFT_ROLE_ID } from './roles.js'
 import {
   assert,
   buildBlobId,
@@ -1315,40 +1310,8 @@ export class MapeoProject extends TypedEmitter {
     return filePath
   }
 
-  /**
-   * @returns {Promise<void>}
-   */
-  async #throwIfCannotLeaveProject() {
-    const roleDocs = await this.#dataTypes.role.getMany()
-
-    const allRoles = await this.#roles.getAll()
-
-    const isOnlyDevice = allRoles.size <= 1
-    if (isOnlyDevice) return
-
-    const projectCreatorDeviceId = await this.#coreOwnership.getOwner(
-      this.#projectId
-    )
-
-    for (const deviceId of allRoles.keys()) {
-      if (deviceId === this.#deviceId) continue
-      const isCreatorOrCoordinator =
-        deviceId === projectCreatorDeviceId ||
-        roleDocs.some(
-          (doc) => doc.docId === deviceId && doc.roleId === COORDINATOR_ROLE_ID
-        )
-      if (isCreatorOrCoordinator) return
-    }
-
-    throw new Error(
-      'Cannot leave a project that does not have an external creator or another coordinator'
-    )
-  }
-
   async [kProjectLeave]() {
     const ownRole = await this.$getOwnRole()
-
-    await this.#throwIfCannotLeaveProject()
 
     if (ownRole.roleId !== BLOCKED_ROLE_ID) {
       await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
