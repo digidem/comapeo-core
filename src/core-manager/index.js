@@ -64,7 +64,7 @@ export class CoreManager extends TypedEmitter {
    * @param {Buffer} options.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
-   * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
+   * @param {string} options.storage Folder to store all hypercore data
    * @param {boolean} [options.autoDownload=true] Immediately start downloading cores - should only be set to false for tests
    * @param {Logger} [options.logger]
    */
@@ -115,7 +115,8 @@ export class CoreManager extends TypedEmitter {
     // corestore for key storage (i.e. we do not get cores from corestore via a
     // name, which would derive the keypair from the primary key), but setting
     // this just in case a dependency does (e.g. hyperdrive) and we miss it.
-    this.#corestore = new Corestore(storage, { primaryKey })
+    // Need to set unsafe flag if we manually supply the primary key
+    this.#corestore = new Corestore(storage, { primaryKey, unsafe: true })
     // Persistent index of core keys and namespaces in the project
     this.#coreIndex = new CoreIndex()
 
@@ -296,11 +297,15 @@ export class CoreManager extends TypedEmitter {
     const existingCore = this.#coreIndex.getByCoreKey(keyPair.publicKey)
     if (existingCore) return existingCore
 
+    const encryptionKey = this.#encryptionKeys[namespace]
+
     const { publicKey: key, secretKey } = keyPair
     const writer = !!secretKey
+
     const core = this.#corestore.get({
+      key: keyPair.publicKey,
       keyPair,
-      encryptionKey: this.#encryptionKeys[namespace],
+      encryption: encryptionKey ? { key: encryptionKey } : undefined,
     })
     if (this.#autoDownload && namespace !== 'blob') {
       // Blob downloads are managed by BlobStore
@@ -308,8 +313,8 @@ export class CoreManager extends TypedEmitter {
     }
     // Every peer adds a listener, so could have many peers
     core.setMaxListeners(0)
-    // @ts-ignore - ensure key is defined before hypercore is ready
-    core.key = key
+    // // @ts-ignore - ensure key is defined before hypercore is ready
+    // core.key = key
     this.#coreIndex.add({ core, key, namespace, writer })
 
     // **Hack** As soon as a peer is added, eagerly send a "want" for the entire
