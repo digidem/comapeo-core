@@ -916,9 +916,29 @@ test('Invite a bunch of users and list only active ones', async (t) => {
 
   await waitForSync(projects, 'initial')
 
-  const activeMembers = await project.$member.getMany()
-  const allMembers = await project.$member.getMany({ includeInactive: true })
+  const activeMembers = (await project.$member.getMany())
+    .map(({ deviceId }) => deviceId)
+    .sort()
+  const allMembers = (await project.$member.getMany({ includeInactive: true }))
+    .map(({ deviceId }) => deviceId)
+    .sort()
 
-  assert.equal(activeMembers.length, 3, 'only active members listed by default')
-  assert.equal(allMembers.length, 5, 'inactive members listed when included')
+  const activeMemberIds = [
+    creator.deviceId,
+    member.deviceId,
+    coordinator.deviceId,
+  ].sort()
+
+  const allMemberIds = managers.map(({ deviceId }) => deviceId).sort()
+
+  assert.deepEqual(
+    activeMembers,
+    activeMemberIds,
+    'only active members listed by default'
+  )
+  assert.deepEqual(
+    allMembers,
+    allMemberIds,
+    'inactive members listed when included'
+  )
 })
