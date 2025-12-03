@@ -61,7 +61,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 
 /**
- * @typedef {Omit<MemberInfo, 'role'> & {role: ROLES[MEMBER_ROLE_ID] | ROLES[COORDINATOR_ROLE_ID] | ROLES[CREATOR_ROLE_ID]}} ActiveMemberInfo
+ * @typedef {Omit<MemberInfo, 'role'> & {role: import('./roles.js').Role<typeof MEMBER_ROLE_ID | typeof COORDINATOR_ROLE_ID | typeof CREATOR_ROLE_ID>}} ActiveMemberInfo
  */
 
 export class MemberApi extends TypedEmitter {
