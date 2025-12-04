@@ -68,6 +68,48 @@ export interface InviteResponseAck {
 export interface ProjectJoinDetailsAck {
     inviteId: Buffer;
 }
+export interface MapShareRequest {
+    shareId: string;
+    mapId: string;
+    mapName: string;
+    bounds: number[];
+    minzoom: number;
+    maxzoom: number;
+    estimatedSizeBytes: number;
+}
+export interface MapShareAccept {
+    shareId: Buffer;
+}
+export interface MapShareReject {
+    shareId: Buffer;
+    reason: MapShareReject_Reason;
+}
+export declare const MapShareReject_Reason: {
+    readonly DISK_SPACE: "DISK_SPACE";
+    readonly USER_REJECTED: "USER_REJECTED";
+    readonly ALREADY: "ALREADY";
+    readonly UNRECOGNIZED: "UNRECOGNIZED";
+};
+export type MapShareReject_Reason = typeof MapShareReject_Reason[keyof typeof MapShareReject_Reason];
+export declare function mapShareReject_ReasonFromJSON(object: any): MapShareReject_Reason;
+export declare function mapShareReject_ReasonToNumber(object: MapShareReject_Reason): number;
+export interface MapShareURL {
+    shareId: Buffer;
+    serverPublicKey: Buffer;
+    url: string;
+}
+export interface MapShareRequestAck {
+    shareId: Buffer;
+}
+export interface MapShareAcceptAck {
+    shareId: Buffer;
+}
+export interface MapShareRejectAck {
+    shareId: Buffer;
+}
+export interface MapShareURLAck {
+    shareId: Buffer;
+}
 export declare const Invite: {
     encode(message: Invite, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): Invite;
@@ -121,6 +163,54 @@ export declare const ProjectJoinDetailsAck: {
     decode(input: _m0.Reader | Uint8Array, length?: number): ProjectJoinDetailsAck;
     create<I extends Exact<DeepPartial<ProjectJoinDetailsAck>, I>>(base?: I): ProjectJoinDetailsAck;
     fromPartial<I extends Exact<DeepPartial<ProjectJoinDetailsAck>, I>>(object: I): ProjectJoinDetailsAck;
+};
+export declare const MapShareRequest: {
+    encode(message: MapShareRequest, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareRequest;
+    create<I extends Exact<DeepPartial<MapShareRequest>, I>>(base?: I): MapShareRequest;
+    fromPartial<I extends Exact<DeepPartial<MapShareRequest>, I>>(object: I): MapShareRequest;
+};
+export declare const MapShareAccept: {
+    encode(message: MapShareAccept, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareAccept;
+    create<I extends Exact<DeepPartial<MapShareAccept>, I>>(base?: I): MapShareAccept;
+    fromPartial<I extends Exact<DeepPartial<MapShareAccept>, I>>(object: I): MapShareAccept;
+};
+export declare const MapShareReject: {
+    encode(message: MapShareReject, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareReject;
+    create<I extends Exact<DeepPartial<MapShareReject>, I>>(base?: I): MapShareReject;
+    fromPartial<I extends Exact<DeepPartial<MapShareReject>, I>>(object: I): MapShareReject;
+};
+export declare const MapShareURL: {
+    encode(message: MapShareURL, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareURL;
+    create<I extends Exact<DeepPartial<MapShareURL>, I>>(base?: I): MapShareURL;
+    fromPartial<I extends Exact<DeepPartial<MapShareURL>, I>>(object: I): MapShareURL;
+};
+export declare const MapShareRequestAck: {
+    encode(message: MapShareRequestAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareRequestAck;
+    create<I extends Exact<DeepPartial<MapShareRequestAck>, I>>(base?: I): MapShareRequestAck;
+    fromPartial<I extends Exact<DeepPartial<MapShareRequestAck>, I>>(object: I): MapShareRequestAck;
+};
+export declare const MapShareAcceptAck: {
+    encode(message: MapShareAcceptAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareAcceptAck;
+    create<I extends Exact<DeepPartial<MapShareAcceptAck>, I>>(base?: I): MapShareAcceptAck;
+    fromPartial<I extends Exact<DeepPartial<MapShareAcceptAck>, I>>(object: I): MapShareAcceptAck;
+};
+export declare const MapShareRejectAck: {
+    encode(message: MapShareRejectAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareRejectAck;
+    create<I extends Exact<DeepPartial<MapShareRejectAck>, I>>(base?: I): MapShareRejectAck;
+    fromPartial<I extends Exact<DeepPartial<MapShareRejectAck>, I>>(object: I): MapShareRejectAck;
+};
+export declare const MapShareURLAck: {
+    encode(message: MapShareURLAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareURLAck;
+    create<I extends Exact<DeepPartial<MapShareURLAck>, I>>(base?: I): MapShareURLAck;
+    fromPartial<I extends Exact<DeepPartial<MapShareURLAck>, I>>(object: I): MapShareURLAck;
 };
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 type DeepPartial<T> = T extends Builtin ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {
