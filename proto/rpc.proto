@@ -97,3 +97,19 @@ message MapShareURL {
   bytes serverPublicKey = 2;
   string url = 3;
 }
+
+message MapShareRequestAck {
+  bytes shareId = 1;
+}
+
+message MapShareAcceptAck {
+  bytes shareId = 1;
+}
+
+message MapShareRejectAck {
+  bytes shareId = 1;
+}
+
+message MapShareURLAck {
+  bytes shareId = 1;
+}

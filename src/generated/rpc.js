@@ -946,6 +946,174 @@ export var MapShareURL = {
         return message;
     },
 };
+function createBaseMapShareRequestAck() {
+    return { shareId: Buffer.alloc(0) };
+}
+export var MapShareRequestAck = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.shareId.length !== 0) {
+            writer.uint32(10).bytes(message.shareId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseMapShareRequestAck();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.shareId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return MapShareRequestAck.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseMapShareRequestAck();
+        message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        return message;
+    },
+};
+function createBaseMapShareAcceptAck() {
+    return { shareId: Buffer.alloc(0) };
+}
+export var MapShareAcceptAck = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.shareId.length !== 0) {
+            writer.uint32(10).bytes(message.shareId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseMapShareAcceptAck();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.shareId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return MapShareAcceptAck.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseMapShareAcceptAck();
+        message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        return message;
+    },
+};
+function createBaseMapShareRejectAck() {
+    return { shareId: Buffer.alloc(0) };
+}
+export var MapShareRejectAck = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.shareId.length !== 0) {
+            writer.uint32(10).bytes(message.shareId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseMapShareRejectAck();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.shareId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return MapShareRejectAck.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseMapShareRejectAck();
+        message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        return message;
+    },
+};
+function createBaseMapShareURLAck() {
+    return { shareId: Buffer.alloc(0) };
+}
+export var MapShareURLAck = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.shareId.length !== 0) {
+            writer.uint32(10).bytes(message.shareId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseMapShareURLAck();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.shareId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return MapShareURLAck.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseMapShareURLAck();
+        message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        return message;
+    },
+};
 var tsProtoGlobalThis = (function () {
     if (typeof globalThis !== "undefined") {
         return globalThis;
