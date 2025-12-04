@@ -1,4 +1,5 @@
 /* eslint-disable */
+import Long from "long";
 import _m0 from "protobufjs/minimal.js";
 import { EncryptionKeys } from "./keys.js";
 
@@ -178,6 +179,72 @@ export interface InviteResponseAck {
 
 export interface ProjectJoinDetailsAck {
   inviteId: Buffer;
+}
+
+export interface MapShareRequest {
+  shareId: string;
+  mapId: string;
+  mapName: string;
+  bounds: number[];
+  minzoom: number;
+  maxzoom: number;
+  estimatedSizeBytes: number;
+}
+
+export interface MapShareAccept {
+  shareId: Buffer;
+}
+
+export interface MapShareReject {
+  shareId: Buffer;
+  reason: MapShareReject_Reason;
+}
+
+export const MapShareReject_Reason = {
+  DISK_SPACE: "DISK_SPACE",
+  USER_REJECTED: "USER_REJECTED",
+  ALREADY: "ALREADY",
+  UNRECOGNIZED: "UNRECOGNIZED",
+} as const;
+
+export type MapShareReject_Reason = typeof MapShareReject_Reason[keyof typeof MapShareReject_Reason];
+
+export function mapShareReject_ReasonFromJSON(object: any): MapShareReject_Reason {
+  switch (object) {
+    case 0:
+    case "DISK_SPACE":
+      return MapShareReject_Reason.DISK_SPACE;
+    case 1:
+    case "USER_REJECTED":
+      return MapShareReject_Reason.USER_REJECTED;
+    case 2:
+    case "ALREADY":
+      return MapShareReject_Reason.ALREADY;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return MapShareReject_Reason.UNRECOGNIZED;
+  }
+}
+
+export function mapShareReject_ReasonToNumber(object: MapShareReject_Reason): number {
+  switch (object) {
+    case MapShareReject_Reason.DISK_SPACE:
+      return 0;
+    case MapShareReject_Reason.USER_REJECTED:
+      return 1;
+    case MapShareReject_Reason.ALREADY:
+      return 2;
+    case MapShareReject_Reason.UNRECOGNIZED:
+    default:
+      return -1;
+  }
+}
+
+export interface MapShareURL {
+  shareId: Buffer;
+  serverPublicKey: Buffer;
+  url: string;
 }
 
 function createBaseInvite(): Invite {
@@ -748,6 +815,316 @@ export const ProjectJoinDetailsAck = {
   },
 };
 
+function createBaseMapShareRequest(): MapShareRequest {
+  return { shareId: "", mapId: "", mapName: "", bounds: [], minzoom: 0, maxzoom: 0, estimatedSizeBytes: 0 };
+}
+
+export const MapShareRequest = {
+  encode(message: MapShareRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.shareId !== "") {
+      writer.uint32(10).string(message.shareId);
+    }
+    if (message.mapId !== "") {
+      writer.uint32(18).string(message.mapId);
+    }
+    if (message.mapName !== "") {
+      writer.uint32(26).string(message.mapName);
+    }
+    writer.uint32(34).fork();
+    for (const v of message.bounds) {
+      writer.float(v);
+    }
+    writer.ldelim();
+    if (message.minzoom !== 0) {
+      writer.uint32(45).float(message.minzoom);
+    }
+    if (message.maxzoom !== 0) {
+      writer.uint32(53).float(message.maxzoom);
+    }
+    if (message.estimatedSizeBytes !== 0) {
+      writer.uint32(56).uint64(message.estimatedSizeBytes);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMapShareRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.shareId = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.mapId = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.mapName = reader.string();
+          continue;
+        case 4:
+          if (tag === 37) {
+            message.bounds.push(reader.float());
+
+            continue;
+          }
+
+          if (tag === 34) {
+            const end2 = reader.uint32() + reader.pos;
+            while (reader.pos < end2) {
+              message.bounds.push(reader.float());
+            }
+
+            continue;
+          }
+
+          break;
+        case 5:
+          if (tag !== 45) {
+            break;
+          }
+
+          message.minzoom = reader.float();
+          continue;
+        case 6:
+          if (tag !== 53) {
+            break;
+          }
+
+          message.maxzoom = reader.float();
+          continue;
+        case 7:
+          if (tag !== 56) {
+            break;
+          }
+
+          message.estimatedSizeBytes = longToNumber(reader.uint64() as Long);
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<MapShareRequest>, I>>(base?: I): MapShareRequest {
+    return MapShareRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<MapShareRequest>, I>>(object: I): MapShareRequest {
+    const message = createBaseMapShareRequest();
+    message.shareId = object.shareId ?? "";
+    message.mapId = object.mapId ?? "";
+    message.mapName = object.mapName ?? "";
+    message.bounds = object.bounds?.map((e) => e) || [];
+    message.minzoom = object.minzoom ?? 0;
+    message.maxzoom = object.maxzoom ?? 0;
+    message.estimatedSizeBytes = object.estimatedSizeBytes ?? 0;
+    return message;
+  },
+};
+
+function createBaseMapShareAccept(): MapShareAccept {
+  return { shareId: Buffer.alloc(0) };
+}
+
+export const MapShareAccept = {
+  encode(message: MapShareAccept, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.shareId.length !== 0) {
+      writer.uint32(10).bytes(message.shareId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareAccept {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMapShareAccept();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.shareId = reader.bytes() as Buffer;
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<MapShareAccept>, I>>(base?: I): MapShareAccept {
+    return MapShareAccept.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<MapShareAccept>, I>>(object: I): MapShareAccept {
+    const message = createBaseMapShareAccept();
+    message.shareId = object.shareId ?? Buffer.alloc(0);
+    return message;
+  },
+};
+
+function createBaseMapShareReject(): MapShareReject {
+  return { shareId: Buffer.alloc(0), reason: MapShareReject_Reason.DISK_SPACE };
+}
+
+export const MapShareReject = {
+  encode(message: MapShareReject, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.shareId.length !== 0) {
+      writer.uint32(10).bytes(message.shareId);
+    }
+    if (message.reason !== MapShareReject_Reason.DISK_SPACE) {
+      writer.uint32(16).int32(mapShareReject_ReasonToNumber(message.reason));
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareReject {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMapShareReject();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.shareId = reader.bytes() as Buffer;
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.reason = mapShareReject_ReasonFromJSON(reader.int32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<MapShareReject>, I>>(base?: I): MapShareReject {
+    return MapShareReject.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<MapShareReject>, I>>(object: I): MapShareReject {
+    const message = createBaseMapShareReject();
+    message.shareId = object.shareId ?? Buffer.alloc(0);
+    message.reason = object.reason ?? MapShareReject_Reason.DISK_SPACE;
+    return message;
+  },
+};
+
+function createBaseMapShareURL(): MapShareURL {
+  return { shareId: Buffer.alloc(0), serverPublicKey: Buffer.alloc(0), url: "" };
+}
+
+export const MapShareURL = {
+  encode(message: MapShareURL, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.shareId.length !== 0) {
+      writer.uint32(10).bytes(message.shareId);
+    }
+    if (message.serverPublicKey.length !== 0) {
+      writer.uint32(18).bytes(message.serverPublicKey);
+    }
+    if (message.url !== "") {
+      writer.uint32(26).string(message.url);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareURL {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMapShareURL();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.shareId = reader.bytes() as Buffer;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.serverPublicKey = reader.bytes() as Buffer;
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.url = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<MapShareURL>, I>>(base?: I): MapShareURL {
+    return MapShareURL.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<MapShareURL>, I>>(object: I): MapShareURL {
+    const message = createBaseMapShareURL();
+    message.shareId = object.shareId ?? Buffer.alloc(0);
+    message.serverPublicKey = object.serverPublicKey ?? Buffer.alloc(0);
+    message.url = object.url ?? "";
+    return message;
+  },
+};
+
+declare const self: any | undefined;
+declare const window: any | undefined;
+declare const global: any | undefined;
+const tsProtoGlobalThis: any = (() => {
+  if (typeof globalThis !== "undefined") {
+    return globalThis;
+  }
+  if (typeof self !== "undefined") {
+    return self;
+  }
+  if (typeof window !== "undefined") {
+    return window;
+  }
+  if (typeof global !== "undefined") {
+    return global;
+  }
+  throw "Unable to locate global object";
+})();
+
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
 type DeepPartial<T> = T extends Builtin ? T
@@ -758,3 +1135,15 @@ type DeepPartial<T> = T extends Builtin ? T
 type KeysOfUnion<T> = T extends T ? keyof T : never;
 type Exact<P, I extends P> = P extends Builtin ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
+
+function longToNumber(long: Long): number {
+  if (long.gt(Number.MAX_SAFE_INTEGER)) {
+    throw new tsProtoGlobalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
+  }
+  return long.toNumber();
+}
+
+if (_m0.util.Long !== Long) {
+  _m0.util.Long = Long as any;
+  _m0.configure();
+}
