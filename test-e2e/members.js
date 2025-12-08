@@ -883,3 +883,42 @@ test('Auto deny invites if invited before remove is processed', async (t) => {
     'Auto rejects before leave project is called'
   )
 })
+
+test('change event emitted on role change', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  const invitorProject = await invitor.getProject(projectId)
+
+  let onChange = pEvent(invitorProject.$member, 'change', {
+    timeout: 1_000,
+  })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  assert.doesNotReject(onChange, 'change emitted')
+
+  onChange = pEvent(invitorProject.$member, 'change', {
+    timeout: 1_000,
+  })
+
+  await invitorProject.$member.assignRole(invitee.deviceId, COORDINATOR_ROLE_ID)
+
+  assert.doesNotReject(onChange, 'change emitted')
+
+  onChange = pEvent(invitorProject.$member, 'change', {
+    timeout: 1_000,
+  })
+
+  await invitorProject.$member.remove(invitee.deviceId)
+
+  assert.doesNotReject(onChange, 'change emitted')
+})

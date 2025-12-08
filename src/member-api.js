@@ -56,6 +56,12 @@ import {
  * @prop {string} selfHostedServerDetails.baseUrl
  */
 
+/**
+ * @typedef {object} MemberEvents
+ * @property {(arg0: null) => void} change Emitted whenever there are changes in the member roles
+ */
+
+/** @extends {TypedEmitter<MemberEvents>} */
 export class MemberApi extends TypedEmitter {
   #ownDeviceId
   #roles
@@ -117,6 +123,8 @@ export class MemberApi extends TypedEmitter {
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
     this.#dataTypes = dataTypes
+
+    roles.on('update', () => this.emit('change', null))
   }
 
   /**
