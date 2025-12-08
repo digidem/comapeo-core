@@ -10,7 +10,11 @@ import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
 import RAM from 'random-access-memory'
 import { map } from 'iterpal'
-import { BLOCKED_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
+import {
+  BLOCKED_ROLE_ID,
+  COORDINATOR_ROLE_ID,
+  MEMBER_ROLE_ID,
+} from '../src/roles.js'
 import comapeoServer from '@comapeo/cloud'
 import {
   connectPeers,
@@ -500,6 +504,71 @@ test('connecting and then immediately disconnecting (and then immediately connec
     anyRequestHandler.mock.calls.length,
     1,
     'a connection was made to the server'
+  )
+})
+
+test('duplicate add server from more than one device', async (t) => {
+  const [managers, { serverBaseUrl }] = await Promise.all([
+    createManagers(2, t, 'mobile'),
+    createTestServer(t),
+  ])
+  const [managerA, managerB] = managers
+
+  // Manager A: create project and add the server to it
+  const projectId = await managerA.createProject({ name: 'foo' })
+  const managerAProject = await managerA.getProject(projectId)
+  t.after(() => managerAProject.$sync.disconnectServers())
+
+  // Add Manager B to project
+  const disconnectManagers1 = connectPeers(managers)
+  await waitForPeers(managers)
+  await invite({
+    invitor: managerA,
+    invitees: [managerB],
+    projectId,
+    roleId: COORDINATOR_ROLE_ID,
+  })
+  const managerBProject = await managerB.getProject(projectId)
+  t.after(() => managerBProject.$sync.disconnectServers())
+  await disconnectManagers1()
+
+  // Both managers add the server at the same time
+  await Promise.all([
+    managerAProject.$member.addServerPeer(serverBaseUrl, {
+      dangerouslyAllowInsecureConnections: true,
+    }),
+
+    managerBProject.$member.addServerPeer(serverBaseUrl, {
+      dangerouslyAllowInsecureConnections: true,
+    }),
+  ])
+
+  // Sync managers so that duplicate server entries sync
+  const disconnectManagers2 = connectPeers(managers)
+  t.after(disconnectManagers2)
+  await waitForPeers(managers)
+  const projects = [managerAProject, managerBProject]
+  await waitForSync(projects, 'initial')
+
+  // manager A tries to remove server peer
+  const serverPeerA = await findServerPeer(managerAProject)
+  assert(serverPeerA, 'Manager A must have a server peer')
+  await managerAProject.$member.removeServerPeer(serverPeerA.deviceId, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+
+  // Sync managers so that removal syncs
+  await waitForSync(projects, 'initial')
+
+  const serverPeerInA = await findServerPeer(managerAProject)
+  assert(
+    serverPeerInA?.role.roleId === BLOCKED_ROLE_ID,
+    'server in A is blocked'
+  )
+  const serverPeerInB = await findServerPeer(managerBProject)
+  assert(
+    serverPeerInB?.role.roleId === BLOCKED_ROLE_ID,
+    'server in B is blocked'
   )
 })
 
