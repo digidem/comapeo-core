@@ -116,38 +116,44 @@ export function deviceInfo_RPCFeaturesToNumber(object) {
             return -1;
     }
 }
-export var MapShareReject_Reason = {
-    DISK_SPACE: "DISK_SPACE",
+export var MapShareResponse_Reason = {
+    ACCEPT: "ACCEPT",
     USER_REJECTED: "USER_REJECTED",
     ALREADY: "ALREADY",
+    DISK_SPACE: "DISK_SPACE",
     UNRECOGNIZED: "UNRECOGNIZED",
 };
-export function mapShareReject_ReasonFromJSON(object) {
+export function mapShareResponse_ReasonFromJSON(object) {
     switch (object) {
         case 0:
-        case "DISK_SPACE":
-            return MapShareReject_Reason.DISK_SPACE;
+        case "ACCEPT":
+            return MapShareResponse_Reason.ACCEPT;
         case 1:
         case "USER_REJECTED":
-            return MapShareReject_Reason.USER_REJECTED;
+            return MapShareResponse_Reason.USER_REJECTED;
         case 2:
         case "ALREADY":
-            return MapShareReject_Reason.ALREADY;
+            return MapShareResponse_Reason.ALREADY;
+        case 3:
+        case "DISK_SPACE":
+            return MapShareResponse_Reason.DISK_SPACE;
         case -1:
         case "UNRECOGNIZED":
         default:
-            return MapShareReject_Reason.UNRECOGNIZED;
+            return MapShareResponse_Reason.UNRECOGNIZED;
     }
 }
-export function mapShareReject_ReasonToNumber(object) {
+export function mapShareResponse_ReasonToNumber(object) {
     switch (object) {
-        case MapShareReject_Reason.DISK_SPACE:
+        case MapShareResponse_Reason.ACCEPT:
             return 0;
-        case MapShareReject_Reason.USER_REJECTED:
+        case MapShareResponse_Reason.USER_REJECTED:
             return 1;
-        case MapShareReject_Reason.ALREADY:
+        case MapShareResponse_Reason.ALREADY:
             return 2;
-        case MapShareReject_Reason.UNRECOGNIZED:
+        case MapShareResponse_Reason.DISK_SPACE:
+            return 3;
+        case MapShareResponse_Reason.UNRECOGNIZED:
         default:
             return -1;
     }
@@ -798,66 +804,24 @@ export var MapShareRequest = {
         return message;
     },
 };
-function createBaseMapShareAccept() {
-    return { shareId: Buffer.alloc(0) };
+function createBaseMapShareResponse() {
+    return { shareId: Buffer.alloc(0), reason: MapShareResponse_Reason.ACCEPT };
 }
-export var MapShareAccept = {
+export var MapShareResponse = {
     encode: function (message, writer) {
         if (writer === void 0) { writer = _m0.Writer.create(); }
         if (message.shareId.length !== 0) {
             writer.uint32(10).bytes(message.shareId);
+        }
+        if (message.reason !== MapShareResponse_Reason.ACCEPT) {
+            writer.uint32(16).int32(mapShareResponse_ReasonToNumber(message.reason));
         }
         return writer;
     },
     decode: function (input, length) {
         var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
         var end = length === undefined ? reader.len : reader.pos + length;
-        var message = createBaseMapShareAccept();
-        while (reader.pos < end) {
-            var tag = reader.uint32();
-            switch (tag >>> 3) {
-                case 1:
-                    if (tag !== 10) {
-                        break;
-                    }
-                    message.shareId = reader.bytes();
-                    continue;
-            }
-            if ((tag & 7) === 4 || tag === 0) {
-                break;
-            }
-            reader.skipType(tag & 7);
-        }
-        return message;
-    },
-    create: function (base) {
-        return MapShareAccept.fromPartial(base !== null && base !== void 0 ? base : {});
-    },
-    fromPartial: function (object) {
-        var _a;
-        var message = createBaseMapShareAccept();
-        message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
-        return message;
-    },
-};
-function createBaseMapShareReject() {
-    return { shareId: Buffer.alloc(0), reason: MapShareReject_Reason.DISK_SPACE };
-}
-export var MapShareReject = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = _m0.Writer.create(); }
-        if (message.shareId.length !== 0) {
-            writer.uint32(10).bytes(message.shareId);
-        }
-        if (message.reason !== MapShareReject_Reason.DISK_SPACE) {
-            writer.uint32(16).int32(mapShareReject_ReasonToNumber(message.reason));
-        }
-        return writer;
-    },
-    decode: function (input, length) {
-        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = createBaseMapShareReject();
+        var message = createBaseMapShareResponse();
         while (reader.pos < end) {
             var tag = reader.uint32();
             switch (tag >>> 3) {
@@ -871,7 +835,7 @@ export var MapShareReject = {
                     if (tag !== 16) {
                         break;
                     }
-                    message.reason = mapShareReject_ReasonFromJSON(reader.int32());
+                    message.reason = mapShareResponse_ReasonFromJSON(reader.int32());
                     continue;
             }
             if ((tag & 7) === 4 || tag === 0) {
@@ -882,13 +846,13 @@ export var MapShareReject = {
         return message;
     },
     create: function (base) {
-        return MapShareReject.fromPartial(base !== null && base !== void 0 ? base : {});
+        return MapShareResponse.fromPartial(base !== null && base !== void 0 ? base : {});
     },
     fromPartial: function (object) {
         var _a, _b;
-        var message = createBaseMapShareReject();
+        var message = createBaseMapShareResponse();
         message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
-        message.reason = (_b = object.reason) !== null && _b !== void 0 ? _b : MapShareReject_Reason.DISK_SPACE;
+        message.reason = (_b = object.reason) !== null && _b !== void 0 ? _b : MapShareResponse_Reason.ACCEPT;
         return message;
     },
 };
@@ -996,10 +960,10 @@ export var MapShareRequestAck = {
         return message;
     },
 };
-function createBaseMapShareAcceptAck() {
+function createBaseMapShareResponseAck() {
     return { shareId: Buffer.alloc(0) };
 }
-export var MapShareAcceptAck = {
+export var MapShareResponseAck = {
     encode: function (message, writer) {
         if (writer === void 0) { writer = _m0.Writer.create(); }
         if (message.shareId.length !== 0) {
@@ -1010,7 +974,7 @@ export var MapShareAcceptAck = {
     decode: function (input, length) {
         var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
         var end = length === undefined ? reader.len : reader.pos + length;
-        var message = createBaseMapShareAcceptAck();
+        var message = createBaseMapShareResponseAck();
         while (reader.pos < end) {
             var tag = reader.uint32();
             switch (tag >>> 3) {
@@ -1029,53 +993,11 @@ export var MapShareAcceptAck = {
         return message;
     },
     create: function (base) {
-        return MapShareAcceptAck.fromPartial(base !== null && base !== void 0 ? base : {});
+        return MapShareResponseAck.fromPartial(base !== null && base !== void 0 ? base : {});
     },
     fromPartial: function (object) {
         var _a;
-        var message = createBaseMapShareAcceptAck();
-        message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
-        return message;
-    },
-};
-function createBaseMapShareRejectAck() {
-    return { shareId: Buffer.alloc(0) };
-}
-export var MapShareRejectAck = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = _m0.Writer.create(); }
-        if (message.shareId.length !== 0) {
-            writer.uint32(10).bytes(message.shareId);
-        }
-        return writer;
-    },
-    decode: function (input, length) {
-        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = createBaseMapShareRejectAck();
-        while (reader.pos < end) {
-            var tag = reader.uint32();
-            switch (tag >>> 3) {
-                case 1:
-                    if (tag !== 10) {
-                        break;
-                    }
-                    message.shareId = reader.bytes();
-                    continue;
-            }
-            if ((tag & 7) === 4 || tag === 0) {
-                break;
-            }
-            reader.skipType(tag & 7);
-        }
-        return message;
-    },
-    create: function (base) {
-        return MapShareRejectAck.fromPartial(base !== null && base !== void 0 ? base : {});
-    },
-    fromPartial: function (object) {
-        var _a;
-        var message = createBaseMapShareRejectAck();
+        var message = createBaseMapShareResponseAck();
         message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
         return message;
     },

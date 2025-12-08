@@ -191,51 +191,53 @@ export interface MapShareRequest {
   estimatedSizeBytes: number;
 }
 
-export interface MapShareAccept {
+export interface MapShareResponse {
   shareId: Buffer;
+  reason: MapShareResponse_Reason;
 }
 
-export interface MapShareReject {
-  shareId: Buffer;
-  reason: MapShareReject_Reason;
-}
-
-export const MapShareReject_Reason = {
-  DISK_SPACE: "DISK_SPACE",
+export const MapShareResponse_Reason = {
+  ACCEPT: "ACCEPT",
   USER_REJECTED: "USER_REJECTED",
   ALREADY: "ALREADY",
+  DISK_SPACE: "DISK_SPACE",
   UNRECOGNIZED: "UNRECOGNIZED",
 } as const;
 
-export type MapShareReject_Reason = typeof MapShareReject_Reason[keyof typeof MapShareReject_Reason];
+export type MapShareResponse_Reason = typeof MapShareResponse_Reason[keyof typeof MapShareResponse_Reason];
 
-export function mapShareReject_ReasonFromJSON(object: any): MapShareReject_Reason {
+export function mapShareResponse_ReasonFromJSON(object: any): MapShareResponse_Reason {
   switch (object) {
     case 0:
-    case "DISK_SPACE":
-      return MapShareReject_Reason.DISK_SPACE;
+    case "ACCEPT":
+      return MapShareResponse_Reason.ACCEPT;
     case 1:
     case "USER_REJECTED":
-      return MapShareReject_Reason.USER_REJECTED;
+      return MapShareResponse_Reason.USER_REJECTED;
     case 2:
     case "ALREADY":
-      return MapShareReject_Reason.ALREADY;
+      return MapShareResponse_Reason.ALREADY;
+    case 3:
+    case "DISK_SPACE":
+      return MapShareResponse_Reason.DISK_SPACE;
     case -1:
     case "UNRECOGNIZED":
     default:
-      return MapShareReject_Reason.UNRECOGNIZED;
+      return MapShareResponse_Reason.UNRECOGNIZED;
   }
 }
 
-export function mapShareReject_ReasonToNumber(object: MapShareReject_Reason): number {
+export function mapShareResponse_ReasonToNumber(object: MapShareResponse_Reason): number {
   switch (object) {
-    case MapShareReject_Reason.DISK_SPACE:
+    case MapShareResponse_Reason.ACCEPT:
       return 0;
-    case MapShareReject_Reason.USER_REJECTED:
+    case MapShareResponse_Reason.USER_REJECTED:
       return 1;
-    case MapShareReject_Reason.ALREADY:
+    case MapShareResponse_Reason.ALREADY:
       return 2;
-    case MapShareReject_Reason.UNRECOGNIZED:
+    case MapShareResponse_Reason.DISK_SPACE:
+      return 3;
+    case MapShareResponse_Reason.UNRECOGNIZED:
     default:
       return -1;
   }
@@ -251,11 +253,7 @@ export interface MapShareRequestAck {
   shareId: Buffer;
 }
 
-export interface MapShareAcceptAck {
-  shareId: Buffer;
-}
-
-export interface MapShareRejectAck {
+export interface MapShareResponseAck {
   shareId: Buffer;
 }
 
@@ -962,70 +960,25 @@ export const MapShareRequest = {
   },
 };
 
-function createBaseMapShareAccept(): MapShareAccept {
-  return { shareId: Buffer.alloc(0) };
+function createBaseMapShareResponse(): MapShareResponse {
+  return { shareId: Buffer.alloc(0), reason: MapShareResponse_Reason.ACCEPT };
 }
 
-export const MapShareAccept = {
-  encode(message: MapShareAccept, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+export const MapShareResponse = {
+  encode(message: MapShareResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.shareId.length !== 0) {
       writer.uint32(10).bytes(message.shareId);
+    }
+    if (message.reason !== MapShareResponse_Reason.ACCEPT) {
+      writer.uint32(16).int32(mapShareResponse_ReasonToNumber(message.reason));
     }
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareAccept {
+  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareResponse {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMapShareAccept();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 10) {
-            break;
-          }
-
-          message.shareId = reader.bytes() as Buffer;
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  create<I extends Exact<DeepPartial<MapShareAccept>, I>>(base?: I): MapShareAccept {
-    return MapShareAccept.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<MapShareAccept>, I>>(object: I): MapShareAccept {
-    const message = createBaseMapShareAccept();
-    message.shareId = object.shareId ?? Buffer.alloc(0);
-    return message;
-  },
-};
-
-function createBaseMapShareReject(): MapShareReject {
-  return { shareId: Buffer.alloc(0), reason: MapShareReject_Reason.DISK_SPACE };
-}
-
-export const MapShareReject = {
-  encode(message: MapShareReject, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.shareId.length !== 0) {
-      writer.uint32(10).bytes(message.shareId);
-    }
-    if (message.reason !== MapShareReject_Reason.DISK_SPACE) {
-      writer.uint32(16).int32(mapShareReject_ReasonToNumber(message.reason));
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareReject {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMapShareReject();
+    const message = createBaseMapShareResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -1041,7 +994,7 @@ export const MapShareReject = {
             break;
           }
 
-          message.reason = mapShareReject_ReasonFromJSON(reader.int32());
+          message.reason = mapShareResponse_ReasonFromJSON(reader.int32());
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -1052,13 +1005,13 @@ export const MapShareReject = {
     return message;
   },
 
-  create<I extends Exact<DeepPartial<MapShareReject>, I>>(base?: I): MapShareReject {
-    return MapShareReject.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<MapShareResponse>, I>>(base?: I): MapShareResponse {
+    return MapShareResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<MapShareReject>, I>>(object: I): MapShareReject {
-    const message = createBaseMapShareReject();
+  fromPartial<I extends Exact<DeepPartial<MapShareResponse>, I>>(object: I): MapShareResponse {
+    const message = createBaseMapShareResponse();
     message.shareId = object.shareId ?? Buffer.alloc(0);
-    message.reason = object.reason ?? MapShareReject_Reason.DISK_SPACE;
+    message.reason = object.reason ?? MapShareResponse_Reason.ACCEPT;
     return message;
   },
 };
@@ -1175,22 +1128,22 @@ export const MapShareRequestAck = {
   },
 };
 
-function createBaseMapShareAcceptAck(): MapShareAcceptAck {
+function createBaseMapShareResponseAck(): MapShareResponseAck {
   return { shareId: Buffer.alloc(0) };
 }
 
-export const MapShareAcceptAck = {
-  encode(message: MapShareAcceptAck, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+export const MapShareResponseAck = {
+  encode(message: MapShareResponseAck, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.shareId.length !== 0) {
       writer.uint32(10).bytes(message.shareId);
     }
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareAcceptAck {
+  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareResponseAck {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMapShareAcceptAck();
+    const message = createBaseMapShareResponseAck();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -1210,56 +1163,11 @@ export const MapShareAcceptAck = {
     return message;
   },
 
-  create<I extends Exact<DeepPartial<MapShareAcceptAck>, I>>(base?: I): MapShareAcceptAck {
-    return MapShareAcceptAck.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<MapShareResponseAck>, I>>(base?: I): MapShareResponseAck {
+    return MapShareResponseAck.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<MapShareAcceptAck>, I>>(object: I): MapShareAcceptAck {
-    const message = createBaseMapShareAcceptAck();
-    message.shareId = object.shareId ?? Buffer.alloc(0);
-    return message;
-  },
-};
-
-function createBaseMapShareRejectAck(): MapShareRejectAck {
-  return { shareId: Buffer.alloc(0) };
-}
-
-export const MapShareRejectAck = {
-  encode(message: MapShareRejectAck, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.shareId.length !== 0) {
-      writer.uint32(10).bytes(message.shareId);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareRejectAck {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMapShareRejectAck();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 10) {
-            break;
-          }
-
-          message.shareId = reader.bytes() as Buffer;
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  create<I extends Exact<DeepPartial<MapShareRejectAck>, I>>(base?: I): MapShareRejectAck {
-    return MapShareRejectAck.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<MapShareRejectAck>, I>>(object: I): MapShareRejectAck {
-    const message = createBaseMapShareRejectAck();
+  fromPartial<I extends Exact<DeepPartial<MapShareResponseAck>, I>>(object: I): MapShareResponseAck {
+    const message = createBaseMapShareResponseAck();
     message.shareId = object.shareId ?? Buffer.alloc(0);
     return message;
   },
