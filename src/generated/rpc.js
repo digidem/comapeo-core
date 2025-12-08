@@ -679,13 +679,21 @@ export var ProjectJoinDetailsAck = {
     },
 };
 function createBaseMapShareRequest() {
-    return { shareId: "", mapId: "", mapName: "", bounds: [], minzoom: 0, maxzoom: 0, estimatedSizeBytes: 0 };
+    return {
+        shareId: Buffer.alloc(0),
+        mapId: "",
+        mapName: "",
+        bounds: [],
+        minzoom: 0,
+        maxzoom: 0,
+        estimatedSizeBytes: 0,
+    };
 }
 export var MapShareRequest = {
     encode: function (message, writer) {
         if (writer === void 0) { writer = _m0.Writer.create(); }
-        if (message.shareId !== "") {
-            writer.uint32(10).string(message.shareId);
+        if (message.shareId.length !== 0) {
+            writer.uint32(10).bytes(message.shareId);
         }
         if (message.mapId !== "") {
             writer.uint32(18).string(message.mapId);
@@ -721,7 +729,7 @@ export var MapShareRequest = {
                     if (tag !== 10) {
                         break;
                     }
-                    message.shareId = reader.string();
+                    message.shareId = reader.bytes();
                     continue;
                 case 2:
                     if (tag !== 18) {
@@ -780,7 +788,7 @@ export var MapShareRequest = {
     fromPartial: function (object) {
         var _a, _b, _c, _d, _e, _f, _g;
         var message = createBaseMapShareRequest();
-        message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : "";
+        message.shareId = (_a = object.shareId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
         message.mapId = (_b = object.mapId) !== null && _b !== void 0 ? _b : "";
         message.mapName = (_c = object.mapName) !== null && _c !== void 0 ? _c : "";
         message.bounds = ((_d = object.bounds) === null || _d === void 0 ? void 0 : _d.map(function (e) { return e; })) || [];

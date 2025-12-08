@@ -34,15 +34,26 @@ import {
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 /** @import {DeferredPromise} from 'p-defer' */
+/** @import * as RPC from './generated/rpc.js'*/
 
 /**
- * @typedef {InviteAck|InviteCancelAck|InviteResponseAck|ProjectJoinDetailsAck} AckResponse
+ * @typedef {InviteAck|InviteCancelAck|InviteResponseAck|ProjectJoinDetailsAck} ProjectAckResponse
+ */
+/**
+ * @typedef {"InviteAck"|"InviteCancelAck"|"InviteResponseAck"|"ProjectJoinDetailsAck"} ProjectAckNames
+ */
+
+/**
+ * @typedef {MapShareRequestAck|MapShareAcceptAck|MapShareRejectAck|MapShareURLAck} MapShareAckResponse
+ */
+/**
+ * @typedef {"MapShareRequestAck"|"MapShareAcceptAck"|"MapShareRejectAck"|"MapShareURLAck"} MapShareAckNames
  */
 
 /**
  * @callback AckFilter
- * @param {AckResponse} ack
- * @returns {boolean}
+ * @param {{shareId?: Buffer, inviteId?: Buffer}} ack
+ * @returns {boolean|undefined}
  */
 
 /**
@@ -61,7 +72,7 @@ const DEDUPE_TIMEOUT = 1000
 // Protomux message types depend on the order that messages are added to a
 // channel (this needs to remain consistent). To avoid breaking changes, the
 // types here should not change.
-/** @satisfies {{ [k in keyof typeof import('./generated/rpc.js')]?: number }} */
+/** @satisfies {{ [k in keyof typeof RPC]?: number }} */
 const MESSAGE_TYPES = {
   Invite: 0,
   InviteCancel: 1,
@@ -253,7 +264,7 @@ class Peer {
   }
 
   /**
-   * @param {keyof typeof MESSAGE_TYPES} type
+   * @param {ProjectAckNames|MapShareAckNames} type
    * @param {AckFilter} filter
    * @returns {Promise<void>}
    */
@@ -273,7 +284,7 @@ class Peer {
 
   /**
    * @param {keyof typeof MESSAGE_TYPES} type
-   * @param {AckResponse} ack
+   * @param {ProjectAckResponse|MapShareAckResponse} ack
    */
   receiveAck(type, ack) {
     if (!this.supportsAck()) return
@@ -283,8 +294,11 @@ class Peer {
       return
     }
 
+    const shareId = 'shareId' in ack ? ack.shareId : undefined
+    const inviteId = 'inviteId' in ack ? ack.inviteId : undefined
+
     for (const waiter of waiters) {
-      if (waiter.filter(ack)) {
+      if (waiter.filter({ shareId, inviteId })) {
         waiter.deferred.resolve()
         waiters.delete(waiter)
       }
@@ -300,6 +314,7 @@ class Peer {
     const messageType = MESSAGE_TYPES.Invite
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
   }
+
   /**
    * @param {Invite} invite
    * @returns {Promise<void>}
@@ -309,8 +324,9 @@ class Peer {
     const buf = Buffer.from(Invite.encode(invite).finish())
     const messageType = MESSAGE_TYPES.Invite
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('InviteAck', ({ inviteId }) =>
-      timingSafeEqual(inviteId, invite.inviteId)
+    await this.#waitForAck(
+      'InviteAck',
+      ({ inviteId }) => inviteId && timingSafeEqual(inviteId, invite.inviteId)
     )
     this.#log('sent invite %h', invite.inviteId)
   }
@@ -336,8 +352,10 @@ class Peer {
     const buf = Buffer.from(InviteCancel.encode(inviteCancel).finish())
     const messageType = MESSAGE_TYPES.InviteCancel
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('InviteCancelAck', ({ inviteId }) =>
-      timingSafeEqual(inviteId, inviteCancel.inviteId)
+    await this.#waitForAck(
+      'InviteCancelAck',
+      ({ inviteId }) =>
+        inviteId && timingSafeEqual(inviteId, inviteCancel.inviteId)
     )
     this.#log('sent invite cancel %h', inviteCancel.inviteId)
   }
@@ -363,8 +381,9 @@ class Peer {
     const buf = Buffer.from(InviteResponse.encode(response).finish())
     const messageType = MESSAGE_TYPES.InviteResponse
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('InviteResponseAck', ({ inviteId }) =>
-      timingSafeEqual(inviteId, response.inviteId)
+    await this.#waitForAck(
+      'InviteResponseAck',
+      ({ inviteId }) => inviteId && timingSafeEqual(inviteId, response.inviteId)
     )
     this.#log('sent response for %h: %s', response.inviteId, response.decision)
   }
@@ -391,8 +410,9 @@ class Peer {
     const buf = Buffer.from(ProjectJoinDetails.encode(details).finish())
     const messageType = MESSAGE_TYPES.ProjectJoinDetails
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('ProjectJoinDetailsAck', ({ inviteId }) =>
-      timingSafeEqual(inviteId, details.inviteId)
+    await this.#waitForAck(
+      'ProjectJoinDetailsAck',
+      ({ inviteId }) => inviteId && timingSafeEqual(inviteId, details.inviteId)
     )
     this.#log('sent project join details for %h', details.projectKey)
   }
@@ -416,8 +436,10 @@ class Peer {
     const buf = Buffer.from(MapShareRequest.encode(mapShareRequest).finish())
     const messageType = MESSAGE_TYPES.MapShareRequest
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('MapShareRequestAck', ({ shareId }) =>
-      timingSafeEqual(shareId, mapShareRequest.shareId)
+    await this.#waitForAck(
+      'MapShareRequestAck',
+      ({ shareId }) =>
+        shareId && timingSafeEqual(shareId, mapShareRequest.shareId)
     )
     this.#log('sent map share request %h', mapShareRequest.shareId)
   }
@@ -445,8 +467,10 @@ class Peer {
     const buf = Buffer.from(MapShareAccept.encode(mapShareAccept).finish())
     const messageType = MESSAGE_TYPES.MapShareAccept
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('MapShareAcceptAck', ({ shareId }) =>
-      timingSafeEqual(shareId, mapShareAccept.shareId)
+    await this.#waitForAck(
+      'MapShareAcceptAck',
+      ({ shareId }) =>
+        shareId && timingSafeEqual(shareId, mapShareAccept.shareId)
     )
     this.#log('sent map share accept %h', mapShareAccept.shareId)
   }
@@ -474,8 +498,10 @@ class Peer {
     const buf = Buffer.from(MapShareReject.encode(mapShareReject).finish())
     const messageType = MESSAGE_TYPES.MapShareReject
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('MapShareRejectAck', ({ shareId }) =>
-      timingSafeEqual(shareId, mapShareReject.shareId)
+    await this.#waitForAck(
+      'MapShareRejectAck',
+      ({ shareId }) =>
+        shareId && timingSafeEqual(shareId, mapShareReject.shareId)
     )
     this.#log('sent map share reject %h', mapShareReject.shareId)
   }
@@ -495,18 +521,19 @@ class Peer {
   }
 
   /**
-   * @param {MapShareURL} mapShareURLRequest
+   * @param {MapShareURL} mapShareURL
    * @returns {Promise<void>}
    */
-  async sendMapShareURLRequest(mapShareURLRequest) {
+  async sendMapShareURL(mapShareURL) {
     this.#assertConnected('Peer disconnected before sending map share URL')
-    const buf = Buffer.from(MapShareURL.encode(mapShareURLRequest).finish())
+    const buf = Buffer.from(MapShareURL.encode(mapShareURL).finish())
     const messageType = MESSAGE_TYPES.MapShareURL
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('MapShareURLAck', ({ shareId }) =>
-      timingSafeEqual(shareId, mapShareURLRequest.shareId)
+    await this.#waitForAck(
+      'MapShareURLAck',
+      ({ shareId }) => shareId && timingSafeEqual(shareId, mapShareURL.shareId)
     )
-    this.#log('sent map share URL %h', mapShareURLRequest.shareId)
+    this.#log('sent map share URL %h', mapShareURL.shareId)
   }
 
   /**
@@ -560,6 +587,14 @@ class Peer {
  * @property {(peerId: string, inviteResponse: InviteResponseAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
+ * @property {(peerId: string, request: MapShareRequest) => void} map-share-request Emitted when a map share request is received
+ * @property {(peerId: string, requestAck: MapShareRequestAck) => void} map-share-request-ack Emitted when a map share request acknowledgement is received
+ * @property {(peerId: string, accept: MapShareAccept) => void} map-share-accept Emitted when a map share acceptance is received
+ * @property {(peerId: string, acceptAck: MapShareAcceptAck) => void} map-share-accept-ack Emitted when a map share acceptance acknowledgement is received
+ * @property {(peerId: string, reject: MapShareReject) => void} map-share-reject Emitted when a map share rejection is received
+ * @property {(peerId: string, rejectAck: MapShareRejectAck) => void} map-share-reject-ack Emitted when a map share rejection acknowledgement is received
+ * @property {(peerId: string, url: MapShareURL) => void} map-share-url Emitted when a map share URL is received
+ * @property {(peerId: string, url: MapShareURLAck) => void} map-share-url-ack Emitted when a map share url acknowledgement is received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
  * @property {(messageType: string, errorMessage?: string) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
  */
@@ -905,6 +940,59 @@ export class LocalPeers extends TypedEmitter {
         })
         break
       }
+      case 'MapShareRequest': {
+        const mapShareRequest = parseMapShareRequest(value)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('map-share-request', peerId, mapShareRequest)
+        peer.sendMapShareRequestAck(mapShareRequest).catch((e) => {
+          this.#l.log(`Error sending map share request ack ${e.stack}`)
+        })
+        this.#l.log(
+          'Map share request from %S for %h',
+          peerId,
+          mapShareRequest.shareId
+        )
+        break
+      }
+
+      case 'MapShareAccept': {
+        const mapShareAccept = parseMapShareAccept(value)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('map-share-accept', peerId, mapShareAccept)
+        peer.sendMapShareAcceptAck(mapShareAccept).catch((e) => {
+          this.#l.log(`Error sending map share accept ack ${e.stack}`)
+        })
+        this.#l.log(
+          'Map share accept from %S for %h',
+          peerId,
+          mapShareAccept.shareId
+        )
+        break
+      }
+      case 'MapShareReject': {
+        const mapShareReject = parseMapShareReject(value)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('map-share-reject', peerId, mapShareReject)
+        peer.sendMapShareRejectAck(mapShareReject).catch((e) => {
+          this.#l.log(`Error sending map share reject ack ${e.stack}`)
+        })
+        this.#l.log(
+          'Map share reject from %S for %h',
+          peerId,
+          mapShareReject.shareId
+        )
+        break
+      }
+      case 'MapShareURL': {
+        const mapShareURL = parseMapShareURL(value)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('map-share-url', peerId, mapShareURL)
+        peer.sendMapShareURL(mapShareURL).catch((e) => {
+          this.#l.log(`Error sending map share URL ack ${e.stack}`)
+        })
+        this.#l.log('Map share URL from %S for %h', peerId, mapShareURL.shareId)
+        break
+      }
       case 'DeviceInfo': {
         const deviceInfo = DeviceInfo.decode(value)
         peer.receiveDeviceInfo(deviceInfo)
@@ -937,6 +1025,34 @@ export class LocalPeers extends TypedEmitter {
         peer.receiveAck('ProjectJoinDetailsAck', ack)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('got-project-details-ack', peerId, ack)
+        break
+      }
+      case 'MapShareRequestAck': {
+        const ack = MapShareRequestAck.decode(value)
+        peer.receiveAck('MapShareRequestAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('map-share-request-ack', peerId, ack)
+        break
+      }
+      case 'MapShareAcceptAck': {
+        const ack = MapShareAcceptAck.decode(value)
+        peer.receiveAck('MapShareAcceptAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('map-share-accept-ack', peerId, ack)
+        break
+      }
+      case 'MapShareRejectAck': {
+        const ack = MapShareRejectAck.decode(value)
+        peer.receiveAck('MapShareRejectAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('map-share-reject-ack', peerId, ack)
+        break
+      }
+      case 'MapShareURLAck': {
+        const ack = MapShareURLAck.decode(value)
+        peer.receiveAck('MapShareURLAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('map-share-url-ack', peerId, ack)
         break
       }
       /* c8 ignore next 2 */
@@ -1021,6 +1137,14 @@ function assertInviteIdIsValid(id) {
 }
 
 /**
+ * @param {Readonly<Uint8Array>} id
+ * @throws if the invite ID is too short
+ */
+function assertShareIdIsValid(id) {
+  assert(id.byteLength >= 32, 'Share ID must be >= 32 bytes')
+}
+
+/**
  * @param {Readonly<Uint8Array>} data
  * @throws if the data is invalid
  * @returns {Invite}
@@ -1069,6 +1193,50 @@ function parseProjectJoinDetails(data) {
     result.encryptionKeys?.auth?.byteLength,
     'Project join details must have auth encryption keys'
   )
+  return result
+}
+
+/**
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {MapShareRequest}
+ */
+function parseMapShareRequest(data) {
+  const result = MapShareRequest.decode(data)
+  assertShareIdIsValid(result.shareId)
+  return result
+}
+
+/**
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {MapShareAccept}
+ */
+function parseMapShareAccept(data) {
+  const result = MapShareAccept.decode(data)
+  assertShareIdIsValid(result.shareId)
+  return result
+}
+
+/**
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {MapShareReject}
+ */
+function parseMapShareReject(data) {
+  const result = MapShareReject.decode(data)
+  assertShareIdIsValid(result.shareId)
+  return result
+}
+
+/**
+ * @param {Readonly<Uint8Array>} data
+ * @throws if the data is invalid
+ * @returns {MapShareURL}
+ */
+function parseMapShareURL(data) {
+  const result = MapShareURL.decode(data)
+  assertShareIdIsValid(result.shareId)
   return result
 }
 

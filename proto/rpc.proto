@@ -68,7 +68,7 @@ message ProjectJoinDetailsAck {
 }
 
 message MapShareRequest {
-  string shareId = 1;
+  bytes shareId = 1;
   string mapId = 2;
   string mapName = 3;
   repeated float bounds = 4;

@@ -182,7 +182,7 @@ export interface ProjectJoinDetailsAck {
 }
 
 export interface MapShareRequest {
-  shareId: string;
+  shareId: Buffer;
   mapId: string;
   mapName: string;
   bounds: number[];
@@ -832,13 +832,21 @@ export const ProjectJoinDetailsAck = {
 };
 
 function createBaseMapShareRequest(): MapShareRequest {
-  return { shareId: "", mapId: "", mapName: "", bounds: [], minzoom: 0, maxzoom: 0, estimatedSizeBytes: 0 };
+  return {
+    shareId: Buffer.alloc(0),
+    mapId: "",
+    mapName: "",
+    bounds: [],
+    minzoom: 0,
+    maxzoom: 0,
+    estimatedSizeBytes: 0,
+  };
 }
 
 export const MapShareRequest = {
   encode(message: MapShareRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.shareId !== "") {
-      writer.uint32(10).string(message.shareId);
+    if (message.shareId.length !== 0) {
+      writer.uint32(10).bytes(message.shareId);
     }
     if (message.mapId !== "") {
       writer.uint32(18).string(message.mapId);
@@ -875,7 +883,7 @@ export const MapShareRequest = {
             break;
           }
 
-          message.shareId = reader.string();
+          message.shareId = reader.bytes() as Buffer;
           continue;
         case 2:
           if (tag !== 18) {
@@ -943,7 +951,7 @@ export const MapShareRequest = {
   },
   fromPartial<I extends Exact<DeepPartial<MapShareRequest>, I>>(object: I): MapShareRequest {
     const message = createBaseMapShareRequest();
-    message.shareId = object.shareId ?? "";
+    message.shareId = object.shareId ?? Buffer.alloc(0);
     message.mapId = object.mapId ?? "";
     message.mapName = object.mapName ?? "";
     message.bounds = object.bounds?.map((e) => e) || [];
