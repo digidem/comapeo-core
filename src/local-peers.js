@@ -44,10 +44,10 @@ import {
  */
 
 /**
- * @typedef {MapShareRequestAck|MapShareResponseAck|MapShareCancelAck|MapShareURLAck} MapShareAckResponse
+ * @typedef {MapShareRequestAck|MapShareResponseAck|MapShareURLAck} MapShareAckResponse
  */
 /**
- * @typedef {"MapShareRequestAck"|"MapShareResponseAck"|"MapShareCancelAck"|"MapShareURLAck"} MapShareAckNames
+ * @typedef {"MapShareRequestAck"|"MapShareResponseAck"|"MapShareURLAck"} MapShareAckNames
  */
 
 /**
@@ -476,23 +476,6 @@ class Peer {
   }
 
   /**
-   * @param {MapShareCancel} mapShareCancel
-   * @returns {Promise<void>}
-   */
-  async sendMapShareCancel(mapShareCancel) {
-    this.#assertConnected('Peer disconnected before sending map share cancel')
-    const buf = Buffer.from(MapShareCancel.encode(mapShareCancel).finish())
-    const messageType = MESSAGE_TYPES.MapShareCancel
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck(
-      'MapShareCancelAck',
-      ({ shareId }) =>
-        shareId && timingSafeEqual(shareId, mapShareCancel.shareId)
-    )
-    this.#log('sent map share cancel %h', mapShareCancel.shareId)
-  }
-
-  /**
    * @param {MapShareResponse} mapShareResponse
    * @returns {Promise<void>}
    */
@@ -684,17 +667,6 @@ export class LocalPeers extends TypedEmitter {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
     await peer.sendMapShareResponse(mapShareResponse)
-  }
-
-  /**
-   * @param {string} deviceId
-   * @param {MapShareCancel} mapShareCancel
-   * @returns {Promise<void>}
-   */
-  async sendMapShareCancel(deviceId, mapShareCancel) {
-    await this.#waitForPendingConnections()
-    const peer = await this.#getPeerByDeviceId(deviceId)
-    await peer.sendMapShareCancel(mapShareCancel)
   }
 
   /**
