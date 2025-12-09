@@ -69,7 +69,7 @@ export interface ProjectJoinDetailsAck {
     inviteId: Buffer;
 }
 export interface MapShareRequest {
-    shareId: Buffer;
+    shareId: string;
     mapId: string;
     mapName: string;
     bounds: number[];
