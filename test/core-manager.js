@@ -26,6 +26,8 @@ import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
+import { pEvent } from 'p-event'
+/** @import { MapShareExtension } from '../src/generated/extensions.js' */
 /** @import { Namespace } from '../src/types.js' */
 
 /** @param {any} [key] */
@@ -665,6 +667,79 @@ test('deleteOthersData()', async (t) => {
       'peer 1 `cores` table has no info about `data` core from peer 2'
     )
   })
+})
+
+test('Map share extension events', async (t) => {
+  const projectKey = randomBytes(32)
+  const keyManager1 = new KeyManager(randomBytes(16))
+  const keyManager2 = new KeyManager(randomBytes(16))
+  const cm1 = createCoreManager({ keyManager: keyManager1, projectKey })
+  const cm2 = createCoreManager({ keyManager: keyManager2, projectKey })
+
+  await cm1.creatorCore.ready()
+  await cm2.creatorCore.ready()
+
+  const onPeer = pEvent(cm1.creatorCore, 'peer-add', {
+    timeout: 1000,
+  })
+
+  const { destroy } = replicate(cm1, cm2, {
+    kp1: keyManager1.getIdentityKeypair(),
+    kp2: keyManager2.getIdentityKeypair(),
+  })
+  t.after(destroy)
+
+  await onPeer
+
+  const onShare = pEvent(cm2, 'map-share', {
+    timeout: 1000,
+  })
+
+  /**
+   * @type {MapShareExtension}
+   */
+  const testShare = {
+    url: 'https://mapserver.example.com',
+    senderDeviceId: 'dev12345',
+    senderDeviceName: "Alice's Phone",
+    shareId: 'share001',
+    mapName: 'City Map',
+    mapId: 'map12345',
+    receivedAt: Date.now(),
+    bounds: [-122.4194, 37.7749, -122.4176, 37.7762],
+    minzoom: 10,
+    maxzoom: 20,
+    estimatedSizeBytes: 5000000,
+  }
+
+  await cm1.sendMapShare(testShare, Buffer.from(cm2.deviceId, 'hex'))
+
+  const gotShare = await onShare
+
+  assert.deepEqual(gotShare, testShare, 'share sent over extension message')
+})
+
+test('Map share errors if peer not found', async () => {
+  const cm = createCoreManager()
+
+  /**
+   * @type {MapShareExtension}
+   */
+  const testShare = {
+    url: 'https://mapserver.example.com',
+    senderDeviceId: 'dev12345',
+    senderDeviceName: "Alice's Phone",
+    shareId: 'share001',
+    mapName: 'City Map',
+    mapId: 'map12345',
+    receivedAt: Date.now(),
+    bounds: [-122.4194, 37.7749, -122.4176, 37.7762],
+    minzoom: 10,
+    maxzoom: 20,
+    estimatedSizeBytes: 5000000,
+  }
+
+  assert.rejects(cm.sendMapShare(testShare, randomBytes(32)))
 })
 
 const DEBUG = process.env.DEBUG
