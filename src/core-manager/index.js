@@ -18,6 +18,7 @@ import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 import mapObject from 'map-obj'
 import timingSafeEqual from 'string-timing-safe-equal'
+import { PeerNotFoundError } from '../errors.js'
 
 /** @import Hypercore from 'hypercore' */
 /** @import { BlobFilter, GenericBlobFilter, HypercorePeer, Namespace } from '../types.js' */
@@ -497,8 +498,10 @@ export class CoreManager extends TypedEmitter {
     for (const peer of this.creatorCore.peers) {
       if (timingSafeEqual(peer.remotePublicKey, peerId)) {
         this.#mapShareExtension.send(mapShare, peer)
+        return
       }
     }
+    throw new PeerNotFoundError()
   }
 
   /**
