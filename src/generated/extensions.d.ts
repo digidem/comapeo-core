@@ -43,17 +43,17 @@ export interface MapShareExtension {
     /** The URL of the server to perform map shares over */
     url: string;
     /** The ID of the device that sent the map share */
-    sender_device_id: string;
+    senderDeviceId: string;
     /** The name of the device that sent the map share */
-    sender_device_name: string;
+    senderDeviceName: string;
     /** The ID of the map share */
-    share_id: string;
+    shareId: string;
     /** The name of the map being shared */
-    map_name: string;
+    mapName: string;
     /** The ID of the map being shared */
-    map_id: string;
+    mapId: string;
     /** The timestamp when the map share invite was received */
-    received_at: number;
+    receivedAt: number;
     /** The bounding box of the map data being shared */
     bounds: number[];
     /** The minimum zoom level of the map data being shared */
@@ -61,7 +61,7 @@ export interface MapShareExtension {
     /** The maximum zoom level of the map data being shared */
     maxzoom: number;
     /** Estimated size of the map data being shared in bytes */
-    estimated_size_bytes: number;
+    estimatedSizeBytes: number;
 }
 export declare const ProjectExtension: {
     encode(message: ProjectExtension, writer?: _m0.Writer): _m0.Writer;

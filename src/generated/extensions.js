@@ -332,16 +332,16 @@ export var DownloadIntentExtension_DownloadIntentsEntry = {
 function createBaseMapShareExtension() {
     return {
         url: "",
-        sender_device_id: "",
-        sender_device_name: "",
-        share_id: "",
-        map_name: "",
-        map_id: "",
-        received_at: 0,
+        senderDeviceId: "",
+        senderDeviceName: "",
+        shareId: "",
+        mapName: "",
+        mapId: "",
+        receivedAt: 0,
         bounds: [],
         minzoom: 0,
         maxzoom: 0,
-        estimated_size_bytes: 0,
+        estimatedSizeBytes: 0,
     };
 }
 export var MapShareExtension = {
@@ -350,23 +350,23 @@ export var MapShareExtension = {
         if (message.url !== "") {
             writer.uint32(10).string(message.url);
         }
-        if (message.sender_device_id !== "") {
-            writer.uint32(18).string(message.sender_device_id);
+        if (message.senderDeviceId !== "") {
+            writer.uint32(18).string(message.senderDeviceId);
         }
-        if (message.sender_device_name !== "") {
-            writer.uint32(26).string(message.sender_device_name);
+        if (message.senderDeviceName !== "") {
+            writer.uint32(26).string(message.senderDeviceName);
         }
-        if (message.share_id !== "") {
-            writer.uint32(34).string(message.share_id);
+        if (message.shareId !== "") {
+            writer.uint32(34).string(message.shareId);
         }
-        if (message.map_name !== "") {
-            writer.uint32(42).string(message.map_name);
+        if (message.mapName !== "") {
+            writer.uint32(42).string(message.mapName);
         }
-        if (message.map_id !== "") {
-            writer.uint32(50).string(message.map_id);
+        if (message.mapId !== "") {
+            writer.uint32(50).string(message.mapId);
         }
-        if (message.received_at !== 0) {
-            writer.uint32(56).int64(message.received_at);
+        if (message.receivedAt !== 0) {
+            writer.uint32(56).int32(message.receivedAt);
         }
         writer.uint32(66).fork();
         for (var _i = 0, _a = message.bounds; _i < _a.length; _i++) {
@@ -380,8 +380,8 @@ export var MapShareExtension = {
         if (message.maxzoom !== 0) {
             writer.uint32(80).int32(message.maxzoom);
         }
-        if (message.estimated_size_bytes !== 0) {
-            writer.uint32(88).int64(message.estimated_size_bytes);
+        if (message.estimatedSizeBytes !== 0) {
+            writer.uint32(88).uint64(message.estimatedSizeBytes);
         }
         return writer;
     },
@@ -402,37 +402,37 @@ export var MapShareExtension = {
                     if (tag !== 18) {
                         break;
                     }
-                    message.sender_device_id = reader.string();
+                    message.senderDeviceId = reader.string();
                     continue;
                 case 3:
                     if (tag !== 26) {
                         break;
                     }
-                    message.sender_device_name = reader.string();
+                    message.senderDeviceName = reader.string();
                     continue;
                 case 4:
                     if (tag !== 34) {
                         break;
                     }
-                    message.share_id = reader.string();
+                    message.shareId = reader.string();
                     continue;
                 case 5:
                     if (tag !== 42) {
                         break;
                     }
-                    message.map_name = reader.string();
+                    message.mapName = reader.string();
                     continue;
                 case 6:
                     if (tag !== 50) {
                         break;
                     }
-                    message.map_id = reader.string();
+                    message.mapId = reader.string();
                     continue;
                 case 7:
                     if (tag !== 56) {
                         break;
                     }
-                    message.received_at = longToNumber(reader.int64());
+                    message.receivedAt = reader.int32();
                     continue;
                 case 8:
                     if (tag === 65) {
@@ -463,7 +463,7 @@ export var MapShareExtension = {
                     if (tag !== 88) {
                         break;
                     }
-                    message.estimated_size_bytes = longToNumber(reader.int64());
+                    message.estimatedSizeBytes = longToNumber(reader.uint64());
                     continue;
             }
             if ((tag & 7) === 4 || tag === 0) {
@@ -480,16 +480,16 @@ export var MapShareExtension = {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
         var message = createBaseMapShareExtension();
         message.url = (_a = object.url) !== null && _a !== void 0 ? _a : "";
-        message.sender_device_id = (_b = object.sender_device_id) !== null && _b !== void 0 ? _b : "";
-        message.sender_device_name = (_c = object.sender_device_name) !== null && _c !== void 0 ? _c : "";
-        message.share_id = (_d = object.share_id) !== null && _d !== void 0 ? _d : "";
-        message.map_name = (_e = object.map_name) !== null && _e !== void 0 ? _e : "";
-        message.map_id = (_f = object.map_id) !== null && _f !== void 0 ? _f : "";
-        message.received_at = (_g = object.received_at) !== null && _g !== void 0 ? _g : 0;
+        message.senderDeviceId = (_b = object.senderDeviceId) !== null && _b !== void 0 ? _b : "";
+        message.senderDeviceName = (_c = object.senderDeviceName) !== null && _c !== void 0 ? _c : "";
+        message.shareId = (_d = object.shareId) !== null && _d !== void 0 ? _d : "";
+        message.mapName = (_e = object.mapName) !== null && _e !== void 0 ? _e : "";
+        message.mapId = (_f = object.mapId) !== null && _f !== void 0 ? _f : "";
+        message.receivedAt = (_g = object.receivedAt) !== null && _g !== void 0 ? _g : 0;
         message.bounds = ((_h = object.bounds) === null || _h === void 0 ? void 0 : _h.map(function (e) { return e; })) || [];
         message.minzoom = (_j = object.minzoom) !== null && _j !== void 0 ? _j : 0;
         message.maxzoom = (_k = object.maxzoom) !== null && _k !== void 0 ? _k : 0;
-        message.estimated_size_bytes = (_l = object.estimated_size_bytes) !== null && _l !== void 0 ? _l : 0;
+        message.estimatedSizeBytes = (_l = object.estimatedSizeBytes) !== null && _l !== void 0 ? _l : 0;
         return message;
     },
 };
