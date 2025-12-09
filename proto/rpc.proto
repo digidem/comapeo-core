@@ -96,14 +96,6 @@ message MapShareURL {
   string url = 3;
 }
 
-message MapShareCancel {
-  bytes shareId = 1;
-}
-
-message MapShareCancelAck {
-  bytes shareId = 1;
-}
-
 message MapShareRequestAck {
   bytes shareId = 1;
 }

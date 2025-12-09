@@ -249,14 +249,6 @@ export interface MapShareURL {
   url: string;
 }
 
-export interface MapShareCancel {
-  shareId: Buffer;
-}
-
-export interface MapShareCancelAck {
-  shareId: Buffer;
-}
-
 export interface MapShareRequestAck {
   shareId: Buffer;
 }
@@ -1087,96 +1079,6 @@ export const MapShareURL = {
     message.shareId = object.shareId ?? Buffer.alloc(0);
     message.serverPublicKey = object.serverPublicKey ?? Buffer.alloc(0);
     message.url = object.url ?? "";
-    return message;
-  },
-};
-
-function createBaseMapShareCancel(): MapShareCancel {
-  return { shareId: Buffer.alloc(0) };
-}
-
-export const MapShareCancel = {
-  encode(message: MapShareCancel, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.shareId.length !== 0) {
-      writer.uint32(10).bytes(message.shareId);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareCancel {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMapShareCancel();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 10) {
-            break;
-          }
-
-          message.shareId = reader.bytes() as Buffer;
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  create<I extends Exact<DeepPartial<MapShareCancel>, I>>(base?: I): MapShareCancel {
-    return MapShareCancel.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<MapShareCancel>, I>>(object: I): MapShareCancel {
-    const message = createBaseMapShareCancel();
-    message.shareId = object.shareId ?? Buffer.alloc(0);
-    return message;
-  },
-};
-
-function createBaseMapShareCancelAck(): MapShareCancelAck {
-  return { shareId: Buffer.alloc(0) };
-}
-
-export const MapShareCancelAck = {
-  encode(message: MapShareCancelAck, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.shareId.length !== 0) {
-      writer.uint32(10).bytes(message.shareId);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareCancelAck {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMapShareCancelAck();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 10) {
-            break;
-          }
-
-          message.shareId = reader.bytes() as Buffer;
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  create<I extends Exact<DeepPartial<MapShareCancelAck>, I>>(base?: I): MapShareCancelAck {
-    return MapShareCancelAck.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<MapShareCancelAck>, I>>(object: I): MapShareCancelAck {
-    const message = createBaseMapShareCancelAck();
-    message.shareId = object.shareId ?? Buffer.alloc(0);
     return message;
   },
 };

@@ -96,12 +96,6 @@ export interface MapShareURL {
     serverPublicKey: Buffer;
     url: string;
 }
-export interface MapShareCancel {
-    shareId: Buffer;
-}
-export interface MapShareCancelAck {
-    shareId: Buffer;
-}
 export interface MapShareRequestAck {
     shareId: Buffer;
 }
@@ -182,18 +176,6 @@ export declare const MapShareURL: {
     decode(input: _m0.Reader | Uint8Array, length?: number): MapShareURL;
     create<I extends Exact<DeepPartial<MapShareURL>, I>>(base?: I): MapShareURL;
     fromPartial<I extends Exact<DeepPartial<MapShareURL>, I>>(object: I): MapShareURL;
-};
-export declare const MapShareCancel: {
-    encode(message: MapShareCancel, writer?: _m0.Writer): _m0.Writer;
-    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareCancel;
-    create<I extends Exact<DeepPartial<MapShareCancel>, I>>(base?: I): MapShareCancel;
-    fromPartial<I extends Exact<DeepPartial<MapShareCancel>, I>>(object: I): MapShareCancel;
-};
-export declare const MapShareCancelAck: {
-    encode(message: MapShareCancelAck, writer?: _m0.Writer): _m0.Writer;
-    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareCancelAck;
-    create<I extends Exact<DeepPartial<MapShareCancelAck>, I>>(base?: I): MapShareCancelAck;
-    fromPartial<I extends Exact<DeepPartial<MapShareCancelAck>, I>>(object: I): MapShareCancelAck;
 };
 export declare const MapShareRequestAck: {
     encode(message: MapShareRequestAck, writer?: _m0.Writer): _m0.Writer;
