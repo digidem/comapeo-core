@@ -15,14 +15,6 @@ import {
   ProjectJoinDetails,
   ProjectJoinDetailsAck,
   DeviceInfo_RPCFeatures,
-  MapShareRequest,
-  MapShareRequestAck,
-  MapShareAccept,
-  MapShareAcceptAck,
-  MapShareReject,
-  MapShareRejectAck,
-  MapShareURL,
-  MapShareURLAck,
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
@@ -72,14 +64,6 @@ const MESSAGE_TYPES = {
   InviteCancelAck: 6,
   InviteResponseAck: 7,
   ProjectJoinDetailsAck: 8,
-  MapShareRequest: 9,
-  MapShareAccept: 10,
-  MapShareReject: 11,
-  MapShareURL: 12,
-  MapShareRequestAck: 13,
-  MapShareAcceptAck: 14,
-  MapShareRejectAck: 15,
-  MapShareURLAck: 16,
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
@@ -404,122 +388,6 @@ class Peer {
     if (!this.supportsAck()) return
     const buf = Buffer.from(ProjectJoinDetailsAck.encode({ inviteId }).finish())
     const messageType = MESSAGE_TYPES.ProjectJoinDetailsAck
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-  }
-
-  /**
-   * @param {MapShareRequest} mapShareRequest
-   * @returns {Promise<void>}
-   */
-  async sendMapShareRequest(mapShareRequest) {
-    this.#assertConnected('Peer disconnected before sending map share request')
-    const buf = Buffer.from(MapShareRequest.encode(mapShareRequest).finish())
-    const messageType = MESSAGE_TYPES.MapShareRequest
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('MapShareRequestAck', ({ shareId }) =>
-      timingSafeEqual(shareId, mapShareRequest.shareId)
-    )
-    this.#log('sent map share request %h', mapShareRequest.shareId)
-  }
-
-  /**
-   * @param {MapShareRequest} mapShareRequest
-   * @returns {Promise<void>}
-   */
-  async sendMapShareRequestAck({ shareId }) {
-    this.#assertConnected(
-      'Peer disconnected before sending map share request ack'
-    )
-    if (!this.supportsAck()) return
-    const buf = Buffer.from(MapShareRequestAck.encode({ shareId }).finish())
-    const messageType = MESSAGE_TYPES.MapShareRequestAck
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-  }
-
-  /**
-   * @param {MapShareAccept} mapShareAccept
-   * @returns {Promise<void>}
-   */
-  async sendMapShareAccept(mapShareAccept) {
-    this.#assertConnected('Peer disconnected before sending map share accept')
-    const buf = Buffer.from(MapShareAccept.encode(mapShareAccept).finish())
-    const messageType = MESSAGE_TYPES.MapShareAccept
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('MapShareAcceptAck', ({ shareId }) =>
-      timingSafeEqual(shareId, mapShareAccept.shareId)
-    )
-    this.#log('sent map share accept %h', mapShareAccept.shareId)
-  }
-
-  /**
-   * @param {MapShareAccept} mapShareAccept
-   * @returns {Promise<void>}
-   */
-  async sendMapShareAcceptAck({ shareId }) {
-    this.#assertConnected(
-      'Peer disconnected before sending map share accept ack'
-    )
-    if (!this.supportsAck()) return
-    const buf = Buffer.from(MapShareAcceptAck.encode({ shareId }).finish())
-    const messageType = MESSAGE_TYPES.MapShareAcceptAck
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-  }
-
-  /**
-   * @param {MapShareReject} mapShareReject
-   * @returns {Promise<void>}
-   */
-  async sendMapShareReject(mapShareReject) {
-    this.#assertConnected('Peer disconnected before sending map share reject')
-    const buf = Buffer.from(MapShareReject.encode(mapShareReject).finish())
-    const messageType = MESSAGE_TYPES.MapShareReject
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('MapShareRejectAck', ({ shareId }) =>
-      timingSafeEqual(shareId, mapShareReject.shareId)
-    )
-    this.#log('sent map share reject %h', mapShareReject.shareId)
-  }
-
-  /**
-   * @param {MapShareReject} mapShareReject
-   * @returns {Promise<void>}
-   */
-  async sendMapShareRejectAck({ shareId }) {
-    this.#assertConnected(
-      'Peer disconnected before sending map share reject ack'
-    )
-    if (!this.supportsAck()) return
-    const buf = Buffer.from(MapShareRejectAck.encode({ shareId }).finish())
-    const messageType = MESSAGE_TYPES.MapShareRejectAck
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-  }
-
-  /**
-   * @param {MapShareURL} mapShareURLRequest
-   * @returns {Promise<void>}
-   */
-  async sendMapShareURLRequest(mapShareURLRequest) {
-    this.#assertConnected('Peer disconnected before sending map share URL')
-    const buf = Buffer.from(MapShareURL.encode(mapShareURLRequest).finish())
-    const messageType = MESSAGE_TYPES.MapShareURL
-    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
-    await this.#waitForAck('MapShareURLAck', ({ shareId }) =>
-      timingSafeEqual(shareId, mapShareURLRequest.shareId)
-    )
-    this.#log('sent map share URL %h', mapShareURLRequest.shareId)
-  }
-
-  /**
-   * @param {MapShareURL} mapShareURLRequest
-   * @returns {Promise<void>}
-   */
-  async sendMapShareURLRequestAck({ shareId }) {
-    this.#assertConnected(
-      'Peer disconnected before sending map share URL request ack'
-    )
-    if (!this.supportsAck()) return
-    const buf = Buffer.from(MapShareURLAck.encode({ shareId }).finish())
-    const messageType = MESSAGE_TYPES.MapShareURLAck
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
   }
 
