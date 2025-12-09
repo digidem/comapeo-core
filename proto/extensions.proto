@@ -47,7 +47,7 @@ message MapShareExtension {
   // The ID of the map being shared 
   string mapId = 6;
   // The timestamp when the map share invite was received
-  int32 receivedAt = 7;
+  uint64 receivedAt = 7;
   // The bounding box of the map data being shared 
   repeated double bounds = 8;
   // The minimum zoom level of the map data being shared 

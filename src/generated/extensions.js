@@ -366,7 +366,7 @@ export var MapShareExtension = {
             writer.uint32(50).string(message.mapId);
         }
         if (message.receivedAt !== 0) {
-            writer.uint32(56).int32(message.receivedAt);
+            writer.uint32(56).uint64(message.receivedAt);
         }
         writer.uint32(66).fork();
         for (var _i = 0, _a = message.bounds; _i < _a.length; _i++) {
@@ -432,7 +432,7 @@ export var MapShareExtension = {
                     if (tag !== 56) {
                         break;
                     }
-                    message.receivedAt = reader.int32();
+                    message.receivedAt = longToNumber(reader.uint64());
                     continue;
                 case 8:
                     if (tag === 65) {
