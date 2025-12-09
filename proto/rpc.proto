@@ -77,13 +77,15 @@ message MapShareRequest {
   uint64 estimatedSizeBytes = 7;
 }
 
+message MapShareAccept {
+  bytes shareId = 1;
+}
 
-message MapShareResponse {
+message MapShareReject {
   enum Reason {
-    ACCEPT = 0;
+    DISK_SPACE = 0;
     USER_REJECTED = 1;
     ALREADY = 2;
-    DISK_SPACE = 3;
   }
 
   bytes shareId = 1;
@@ -100,7 +102,11 @@ message MapShareRequestAck {
   bytes shareId = 1;
 }
 
-message MapShareResponseAck {
+message MapShareAcceptAck {
+  bytes shareId = 1;
+}
+
+message MapShareRejectAck {
   bytes shareId = 1;
 }
 
