@@ -62,6 +62,7 @@ import { NotFoundError, nullIfNotFound } from './errors.js'
 import { WebSocket } from 'ws'
 import { createWriteStream } from 'fs'
 import ensureError from 'ensure-error'
+/** @import { MapShareExtension } from './generated/extensions.js' */
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
 /** @import {Role} from './roles.js' */
@@ -113,6 +114,7 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  * @typedef {object} ProjectEvents
  * @property {() => void} close Project resources have been cleared up
  * @property {(changeEvent: RoleChangeEvent) => void} own-role-change
+ * @property {(mapShare: MapShareExtension) => void} map-share
  */
 
 /**
@@ -1390,6 +1392,16 @@ export class MapeoProject extends TypedEmitter {
     } finally {
       this.#importingCategories = false
     }
+  }
+
+  /**
+   * Send a map share offer to a member of the project
+   * @param {MapShareExtension} mapShare
+   * @param {string} deviceId ID of the project memeber you wish to send the map share to
+   */
+  async $sendMapShare(mapShare, deviceId) {
+    const peerId = Buffer.from(deviceId, 'hex')
+    await this.#coreManager.sendMapShare(mapShare, peerId)
   }
 }
 

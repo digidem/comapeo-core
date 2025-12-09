@@ -32,3 +32,28 @@ message DownloadIntentExtension {
   // download everything.
   bool everything = 2;
 }
+
+message MapShareExtension {
+    // The URL of the server to perform map shares over
+    string url = 1;
+    // The ID of the device that sent the map share
+    string sender_device_id = 2;
+    // The name of the device that sent the map share
+    string sender_device_name = 3;
+    // The ID of the map share
+    string share_id = 4;
+    // The name of the map being shared
+    string map_name = 5;
+    // The ID of the map being shared
+    string map_id = 6;
+    // The timestamp when the map share invite was received
+    int64 received_at = 7;
+    // The bounding box of the map data being shared
+    repeated double bounds = 8;
+    // The minimum zoom level of the map data being shared
+    int32 minzoom = 9;
+    // The maximum zoom level of the map data being shared
+    int32 maxzoom = 10;
+    // Estimated size of the map data being shared in bytes
+    int64 estimated_size_bytes = 11;
+}

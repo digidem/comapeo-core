@@ -8,6 +8,7 @@ import {
   HaveExtension,
   ProjectExtension,
   DownloadIntentExtension,
+  MapShareExtension,
 } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
@@ -16,6 +17,7 @@ import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 import mapObject from 'map-obj'
+import timingSafeEqual from 'string-timing-safe-equal'
 
 /** @import Hypercore from 'hypercore' */
 /** @import { BlobFilter, GenericBlobFilter, HypercorePeer, Namespace } from '../types.js' */
@@ -31,6 +33,7 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
  * @property {(coreRecord: CoreRecord) => void} add-core
  * @property {(namespace: Namespace, msg: { coreDiscoveryId: string, peerId: string, start: number, bitfield: Uint32Array }) => void} peer-have
  * @property {(blobFilter: GenericBlobFilter | null, peerId: string) => void} peer-download-intent
+ * @property {(mapShare: MapShareExtension) => void} map-share
  */
 
 /**
@@ -52,6 +55,7 @@ export class CoreManager extends TypedEmitter {
   #l
   #autoDownload
   #downloadIntentExtension
+  #mapShareExtension
 
   static get namespaces() {
     return NAMESPACES
@@ -169,6 +173,16 @@ export class CoreManager extends TypedEmitter {
         encoding: DownloadIntentCodec,
         onmessage: (msg, peer) => {
           this.#handleDownloadIntentMessage(msg, peer)
+        },
+      }
+    )
+
+    this.#mapShareExtension = this.creatorCore.registerExtension(
+      'mapeo/map-share',
+      {
+        encoding: MapShareCodec,
+        onmessage: (msg) => {
+          this.#handleMapShareMessage(msg)
         },
       }
     )
@@ -385,6 +399,14 @@ export class CoreManager extends TypedEmitter {
   }
 
   /**
+   * @param {MapShareExtension} mapShare
+   */
+  #handleMapShareMessage(mapShare) {
+    // TODO: Fetch device name or device ID for peer?
+    this.emit('map-share', mapShare)
+  }
+
+  /**
    * Sends auth core keys to the given peer, skipping any keys that we know the
    * peer has already (depends on the peer having already replicated the auth
    * cores it has)
@@ -464,6 +486,19 @@ export class CoreManager extends TypedEmitter {
     }
 
     peer.protomux.uncork()
+  }
+
+  /**
+   * Send a map share to a peer
+   * @param {MapShareExtension} mapShare
+   * @param {HypercorePeer['remotePublicKey']} peerId
+   */
+  async sendMapShare(mapShare, peerId) {
+    for (const peer of this.creatorCore.peers) {
+      if (timingSafeEqual(peer.remotePublicKey, peerId)) {
+        this.#mapShareExtension.send(mapShare, peer)
+      }
+    }
   }
 
   /**
@@ -571,5 +606,16 @@ const DownloadIntentCodec = {
       key + '', // keep TS happy
       value.variants,
     ])
+  },
+}
+
+const MapShareCodec = {
+  /** @param {Parameters<typeof MapShareExtension.encode>[0]} msg */
+  encode(msg) {
+    return MapShareExtension.encode(msg).finish()
+  },
+  /** @param {Buffer | Uint8Array} buf */
+  decode(buf) {
+    return MapShareExtension.decode(buf)
   },
 }
