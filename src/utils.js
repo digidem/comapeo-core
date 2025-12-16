@@ -287,24 +287,24 @@ export function validateMapShareExtension(mapShare) {
   if (bounds.length !== 4) {
     throw new Error('Bounds must be bounding box with 4 values')
   }
-  if (bounds[0] >= MAX_BOUNDS[0]) {
+  if (bounds[0] < MAX_BOUNDS[0]) {
     throw new Error(
-      `Bounds must be within max of spherical mercator projection ${MAX_BOUNDS}`
+      `Bounds at ${0} must be within max of spherical mercator projection ${MAX_BOUNDS}`
     )
   }
-  if (bounds[1] >= MAX_BOUNDS[1]) {
+  if (bounds[1] < MAX_BOUNDS[1]) {
     throw new Error(
-      `Bounds must be within max of spherical mercator projection ${MAX_BOUNDS}`
+      `Bounds at ${1} must be within max of spherical mercator projection ${MAX_BOUNDS}`
     )
   }
-  if (bounds[2] <= MAX_BOUNDS[2]) {
+  if (bounds[2] > MAX_BOUNDS[2]) {
     throw new Error(
-      `Bounds must be within max of spherical mercator projection ${MAX_BOUNDS}`
+      `Bounds at ${2} must be within max of spherical mercator projection ${MAX_BOUNDS}`
     )
   }
-  if (bounds[3] <= MAX_BOUNDS[3]) {
+  if (bounds[3] > MAX_BOUNDS[3]) {
     throw new Error(
-      `Bounds must be within max of spherical mercator projection ${MAX_BOUNDS}`
+      `Bounds at ${3} must be within max of spherical mercator projection ${MAX_BOUNDS}`
     )
   }
   if (maxzoom < minzoom) {

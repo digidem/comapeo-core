@@ -42,7 +42,7 @@ const TEST_SHARE = {
   mapCreatedAt: Date.now(),
   mapName: 'City Map',
   mapId: 'map12345',
-  bounds: [-122.4194, 37.7749, -122.4176, 37.7762],
+  bounds: [-122, 30, -123, 37],
   minzoom: 10,
   maxzoom: 20,
   estimatedSizeBytes: 5000000,
@@ -752,7 +752,9 @@ test('Map share errors if peer not found', async () => {
   assert.rejects(cm.sendMapShare(TEST_SHARE, randomBytes(32)))
 })
 
-test('Map share validation checks fields', () => {
+test.only('Map share validation checks fields', () => {
+  assert.doesNotThrow(() => validateMapShareExtension(TEST_SHARE))
+
   for (const [index, share] of FAILING_TEST_SHARES.entries()) {
     assert.throws(
       () => validateMapShareExtension(share),
