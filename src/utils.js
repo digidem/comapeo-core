@@ -280,7 +280,6 @@ export function validateMapShareExtension(mapShare) {
   if (!mapId.length) throw new Error('Map ID must not be empty')
   if (!shareId.length) throw new Error('Share ID must not be empty')
   if (!mapName.length) throw new Error('Map Name must not be empty')
-  if (!estimatedSizeBytes) throw new Error('Map size bytes must not be empty')
   if (!downloadURLs.length) throw new Error('Download URLs must not be empty')
   if (!declineURLs.length) throw new Error('Decline URLs must not be empty')
   if (!mapCreatedAt) throw new Error('mapCreatedAt must be set')
@@ -316,5 +315,8 @@ export function validateMapShareExtension(mapShare) {
   }
   if (minzoom < 0 || minzoom > 22) {
     throw new Error('Min zoom must be between 0 and 22')
+  }
+  if (estimatedSizeBytes <= 0) {
+    throw new Error('Map size bytes must greater than zero')
   }
 }

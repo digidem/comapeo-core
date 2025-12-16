@@ -27,6 +27,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
 import { pEvent } from 'p-event'
+import { MAX_BOUNDS, validateMapShareExtension } from '../src/utils.js'
 /** @import { MapShareExtension } from '../src/generated/extensions.js' */
 /** @import { Namespace } from '../src/types.js' */
 
@@ -37,8 +38,8 @@ const TEST_SHARE = {
   downloadURLs: ['https://mapserver.example.com'],
   declineURLs: ['https://mapserver.example.com'],
   shareId: 'share001',
-  mapShareCreated: Date.now(),
-  mapCreated: Date.now(),
+  mapShareCreatedAt: Date.now(),
+  mapCreatedAt: Date.now(),
   mapName: 'City Map',
   mapId: 'map12345',
   bounds: [-122.4194, 37.7749, -122.4176, 37.7762],
@@ -46,6 +47,32 @@ const TEST_SHARE = {
   maxzoom: 20,
   estimatedSizeBytes: 5000000,
 }
+
+/**
+ * @type {MapShareExtension[]}
+ */
+const FAILING_TEST_SHARES = [
+  { ...TEST_SHARE, downloadURLs: [] },
+  { ...TEST_SHARE, declineURLs: [] },
+  { ...TEST_SHARE, shareId: '' },
+  { ...TEST_SHARE, mapShareCreatedAt: 0 },
+  { ...TEST_SHARE, mapCreatedAt: 0 },
+  { ...TEST_SHARE, mapName: '' },
+  { ...TEST_SHARE, mapId: '' },
+  { ...TEST_SHARE, bounds: [] },
+  { ...TEST_SHARE, bounds: makeBound(4, 0) }, // Make bounds array of length 5
+  { ...TEST_SHARE, bounds: makeBound(0, MAX_BOUNDS[0] - 1) }, // Make bounds array of length 5
+  { ...TEST_SHARE, bounds: makeBound(1, MAX_BOUNDS[1] - 1) }, // Make bounds array of length 5
+  { ...TEST_SHARE, bounds: makeBound(2, MAX_BOUNDS[2] + 1) }, // Make bounds array of length 5
+  { ...TEST_SHARE, bounds: makeBound(3, MAX_BOUNDS[3] + 1) }, // Make bounds array of length 5
+  { ...TEST_SHARE, minzoom: -1 },
+  { ...TEST_SHARE, minzoom: 420, maxzoom: 421 },
+  { ...TEST_SHARE, maxzoom: -1, minzoom: 0 },
+  { ...TEST_SHARE, maxzoom: 300 },
+  { ...TEST_SHARE, maxzoom: 4, minzoom: 20 },
+  { ...TEST_SHARE, estimatedSizeBytes: 0 },
+  { ...TEST_SHARE, estimatedSizeBytes: -1 },
+]
 
 /** @param {any} [key] */
 async function createCore(key) {
@@ -725,6 +752,15 @@ test('Map share errors if peer not found', async () => {
   assert.rejects(cm.sendMapShare(TEST_SHARE, randomBytes(32)))
 })
 
+test('Map share validation checks fields', () => {
+  for (const [index, share] of FAILING_TEST_SHARES.entries()) {
+    assert.throws(
+      () => validateMapShareExtension(share),
+      `Validation caught error in ${index}`
+    )
+  }
+})
+
 const DEBUG = process.env.DEBUG
 
 /**
@@ -824,4 +860,16 @@ async function checkExistenceForFiles(files) {
         .catch(() => false)
     )
   )
+}
+
+/**
+ * Make bounds to test map share extensions
+ * @param {number} index Where in the bounds to place it
+ * @param {number} value Value to place into bounds
+ * @returns {number[]}
+ */
+function makeBound(index, value) {
+  const bounds = [...MAX_BOUNDS]
+  bounds[index] = value
+  return bounds
 }
