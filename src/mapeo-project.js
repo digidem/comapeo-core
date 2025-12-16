@@ -36,7 +36,12 @@ import {
   getWinner,
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
-import { BLOCKED_ROLE_ID, Roles, LEFT_ROLE_ID } from './roles.js'
+import {
+  BLOCKED_ROLE_ID,
+  Roles,
+  LEFT_ROLE_ID,
+  INACTIVE_MEMBER_ROLE_IDS,
+} from './roles.js'
 import {
   assert,
   buildBlobId,
@@ -133,8 +138,8 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  * @typedef {object} ProjectEvents
  * @property {() => void} close Project resources have been cleared up
  * @property {(changeEvent: RoleChangeEvent) => void} own-role-change
- * @property {(mapShare: MapShare) => void} map-share Emitted when a map share is recieved from someone on the project
- * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error  Emitted when an incoming map share fails to be recieved due to formatting issues
+ * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error - Emitted when an incoming map share fails to be recieved due to formatting issues
+ * @property {(mapShare: MapShare) => void} map-share - Emitted when a map share is recieved from someone on the project
  */
 
 /**
@@ -809,6 +814,13 @@ export class MapeoProject extends TypedEmitter {
     const memberInfo = await this.$member.getById(senderDeviceId)
 
     const senderDeviceName = memberInfo.name
+    const senderRole = memberInfo.role
+
+    if (INACTIVE_MEMBER_ROLE_IDS.includes(senderRole.roleId)) {
+      throw new Error(
+        `Map Share Sender has inactive role ID "${senderRole.name}" ${senderRole.roleId}`
+      )
+    }
 
     if (!senderDeviceName) {
       throw new Error('Map Share senders must have a name')
@@ -1481,8 +1493,17 @@ export class MapeoProject extends TypedEmitter {
    * Send a map share offer to a member of the project
    * @param {MapShareExtension} mapShare
    * @param {string} deviceId ID of the project memeber you wish to send the map share to
+   * @param {object} [options]
+   * @param {boolean} [options.__testOnlyBypassValidation=false] Warning: Do not use!
    */
-  async $sendMapShare(mapShare, deviceId) {
+  async $sendMapShare(
+    mapShare,
+    deviceId,
+    { __testOnlyBypassValidation = false } = {}
+  ) {
+    if (!__testOnlyBypassValidation) {
+      validateMapShareExtension(mapShare)
+    }
     const peerId = Buffer.from(deviceId, 'hex')
     await this.#coreManager.sendMapShare(mapShare, peerId)
   }
