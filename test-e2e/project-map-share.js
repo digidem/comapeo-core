@@ -67,6 +67,17 @@ test('Able to send map share to other member', async (t) => {
     const gotValue = gotShare[key]
     assert.deepEqual(gotValue, value, `${key} matches original value`)
   }
+
+  const { name } = await invitor.getDeviceInfo()
+
+  assert.equal(
+    gotShare.senderDeviceId,
+    invitor.deviceId,
+    'Share came from sender'
+  )
+
+  assert.equal(gotShare.senderDeviceName, name, 'Got sender name')
+  assert(gotShare.receivedAt, 'Timestamp is not 0')
 })
 
 test('Do not allow sending invalid map shares', async (t) => {
