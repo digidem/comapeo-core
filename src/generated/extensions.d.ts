@@ -40,20 +40,20 @@ export interface DownloadIntentExtension_DownloadIntentsEntry {
     value: DownloadIntentExtension_DownloadIntent | undefined;
 }
 export interface MapShareExtension {
-    /** The URL of the server to perform map shares over */
-    url: string;
-    /** The ID of the device that sent the map share */
-    senderDeviceId: string;
-    /** The name of the device that sent the map share */
-    senderDeviceName: string;
+    /** URLs to do map downloads over */
+    downloadURLs: string[];
+    /** URLs to decline the map share with */
+    declineURLs: string[];
     /** The ID of the map share */
     shareId: string;
     /** The name of the map being shared */
     mapName: string;
     /** The ID of the map being shared */
     mapId: string;
-    /** The timestamp when the map share invite was received */
-    receivedAt: number;
+    /** When ths share was created */
+    mapShareCreatedAt: number;
+    /** When the map was created */
+    mapCreatedAt: number;
     /** The bounding box of the map data being shared */
     bounds: number[];
     /** The minimum zoom level of the map data being shared */

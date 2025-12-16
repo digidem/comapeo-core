@@ -30,6 +30,23 @@ import { pEvent } from 'p-event'
 /** @import { MapShareExtension } from '../src/generated/extensions.js' */
 /** @import { Namespace } from '../src/types.js' */
 
+/**
+ * @type {MapShareExtension}
+ */
+const TEST_SHARE = {
+  downloadURLs: ['https://mapserver.example.com'],
+  declineURLs: ['https://mapserver.example.com'],
+  shareId: 'share001',
+  mapShareCreated: Date.now(),
+  mapCreated: Date.now(),
+  mapName: 'City Map',
+  mapId: 'map12345',
+  bounds: [-122.4194, 37.7749, -122.4176, 37.7762],
+  minzoom: 10,
+  maxzoom: 20,
+  estimatedSizeBytes: 5000000,
+}
+
 /** @param {any} [key] */
 async function createCore(key) {
   const core = new Hypercore(() => new RAM(), key)
@@ -695,51 +712,17 @@ test('Map share extension events', async (t) => {
     timeout: 1000,
   })
 
-  /**
-   * @type {MapShareExtension}
-   */
-  const testShare = {
-    url: 'https://mapserver.example.com',
-    senderDeviceId: 'dev12345',
-    senderDeviceName: "Alice's Phone",
-    shareId: 'share001',
-    mapName: 'City Map',
-    mapId: 'map12345',
-    receivedAt: Date.now(),
-    bounds: [-122.4194, 37.7749, -122.4176, 37.7762],
-    minzoom: 10,
-    maxzoom: 20,
-    estimatedSizeBytes: 5000000,
-  }
-
-  await cm1.sendMapShare(testShare, Buffer.from(cm2.deviceId, 'hex'))
+  await cm1.sendMapShare(TEST_SHARE, Buffer.from(cm2.deviceId, 'hex'))
 
   const gotShare = await onShare
 
-  assert.deepEqual(gotShare, testShare, 'share sent over extension message')
+  assert.deepEqual(gotShare, TEST_SHARE, 'share sent over extension message')
 })
 
 test('Map share errors if peer not found', async () => {
   const cm = createCoreManager()
 
-  /**
-   * @type {MapShareExtension}
-   */
-  const testShare = {
-    url: 'https://mapserver.example.com',
-    senderDeviceId: 'dev12345',
-    senderDeviceName: "Alice's Phone",
-    shareId: 'share001',
-    mapName: 'City Map',
-    mapId: 'map12345',
-    receivedAt: Date.now(),
-    bounds: [-122.4194, 37.7749, -122.4176, 37.7762],
-    minzoom: 10,
-    maxzoom: 20,
-    estimatedSizeBytes: 5000000,
-  }
-
-  assert.rejects(cm.sendMapShare(testShare, randomBytes(32)))
+  assert.rejects(cm.sendMapShare(TEST_SHARE, randomBytes(32)))
 })
 
 const DEBUG = process.env.DEBUG

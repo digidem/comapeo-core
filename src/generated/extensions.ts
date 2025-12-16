@@ -88,20 +88,20 @@ export interface DownloadIntentExtension_DownloadIntentsEntry {
 }
 
 export interface MapShareExtension {
-  /** The URL of the server to perform map shares over */
-  url: string;
-  /** The ID of the device that sent the map share */
-  senderDeviceId: string;
-  /** The name of the device that sent the map share */
-  senderDeviceName: string;
+  /** URLs to do map downloads over */
+  downloadURLs: string[];
+  /** URLs to decline the map share with */
+  declineURLs: string[];
   /** The ID of the map share */
   shareId: string;
   /** The name of the map being shared */
   mapName: string;
   /** The ID of the map being shared */
   mapId: string;
-  /** The timestamp when the map share invite was received */
-  receivedAt: number;
+  /** When ths share was created */
+  mapShareCreatedAt: number;
+  /** When the map was created */
+  mapCreatedAt: number;
   /** The bounding box of the map data being shared */
   bounds: number[];
   /** The minimum zoom level of the map data being shared */
@@ -420,13 +420,13 @@ export const DownloadIntentExtension_DownloadIntentsEntry = {
 
 function createBaseMapShareExtension(): MapShareExtension {
   return {
-    url: "",
-    senderDeviceId: "",
-    senderDeviceName: "",
+    downloadURLs: [],
+    declineURLs: [],
     shareId: "",
     mapName: "",
     mapId: "",
-    receivedAt: 0,
+    mapShareCreatedAt: 0,
+    mapCreatedAt: 0,
     bounds: [],
     minzoom: 0,
     maxzoom: 0,
@@ -436,26 +436,26 @@ function createBaseMapShareExtension(): MapShareExtension {
 
 export const MapShareExtension = {
   encode(message: MapShareExtension, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.url !== "") {
-      writer.uint32(10).string(message.url);
+    for (const v of message.downloadURLs) {
+      writer.uint32(10).string(v!);
     }
-    if (message.senderDeviceId !== "") {
-      writer.uint32(18).string(message.senderDeviceId);
-    }
-    if (message.senderDeviceName !== "") {
-      writer.uint32(26).string(message.senderDeviceName);
+    for (const v of message.declineURLs) {
+      writer.uint32(18).string(v!);
     }
     if (message.shareId !== "") {
-      writer.uint32(34).string(message.shareId);
+      writer.uint32(26).string(message.shareId);
     }
     if (message.mapName !== "") {
-      writer.uint32(42).string(message.mapName);
+      writer.uint32(34).string(message.mapName);
     }
     if (message.mapId !== "") {
-      writer.uint32(50).string(message.mapId);
+      writer.uint32(42).string(message.mapId);
     }
-    if (message.receivedAt !== 0) {
-      writer.uint32(56).uint64(message.receivedAt);
+    if (message.mapShareCreatedAt !== 0) {
+      writer.uint32(48).uint64(message.mapShareCreatedAt);
+    }
+    if (message.mapCreatedAt !== 0) {
+      writer.uint32(56).uint64(message.mapCreatedAt);
     }
     writer.uint32(66).fork();
     for (const v of message.bounds) {
@@ -486,49 +486,49 @@ export const MapShareExtension = {
             break;
           }
 
-          message.url = reader.string();
+          message.downloadURLs.push(reader.string());
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.senderDeviceId = reader.string();
+          message.declineURLs.push(reader.string());
           continue;
         case 3:
           if (tag !== 26) {
             break;
           }
 
-          message.senderDeviceName = reader.string();
+          message.shareId = reader.string();
           continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
-          message.shareId = reader.string();
+          message.mapName = reader.string();
           continue;
         case 5:
           if (tag !== 42) {
             break;
           }
 
-          message.mapName = reader.string();
+          message.mapId = reader.string();
           continue;
         case 6:
-          if (tag !== 50) {
+          if (tag !== 48) {
             break;
           }
 
-          message.mapId = reader.string();
+          message.mapShareCreatedAt = longToNumber(reader.uint64() as Long);
           continue;
         case 7:
           if (tag !== 56) {
             break;
           }
 
-          message.receivedAt = longToNumber(reader.uint64() as Long);
+          message.mapCreatedAt = longToNumber(reader.uint64() as Long);
           continue;
         case 8:
           if (tag === 65) {
@@ -582,13 +582,13 @@ export const MapShareExtension = {
   },
   fromPartial<I extends Exact<DeepPartial<MapShareExtension>, I>>(object: I): MapShareExtension {
     const message = createBaseMapShareExtension();
-    message.url = object.url ?? "";
-    message.senderDeviceId = object.senderDeviceId ?? "";
-    message.senderDeviceName = object.senderDeviceName ?? "";
+    message.downloadURLs = object.downloadURLs?.map((e) => e) || [];
+    message.declineURLs = object.declineURLs?.map((e) => e) || [];
     message.shareId = object.shareId ?? "";
     message.mapName = object.mapName ?? "";
     message.mapId = object.mapId ?? "";
-    message.receivedAt = object.receivedAt ?? 0;
+    message.mapShareCreatedAt = object.mapShareCreatedAt ?? 0;
+    message.mapCreatedAt = object.mapCreatedAt ?? 0;
     message.bounds = object.bounds?.map((e) => e) || [];
     message.minzoom = object.minzoom ?? 0;
     message.maxzoom = object.maxzoom ?? 0;

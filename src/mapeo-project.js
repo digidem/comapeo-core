@@ -44,6 +44,7 @@ import {
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
+  validateMapShareExtension,
   valueOf,
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
@@ -111,10 +112,29 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  */
 
 /**
+ * @typedef {object} MapShare
+ * @property {string[]} downloadURLs - URLs to attempt to download the share from, match to local interfaces
+ * @property {string[]} declineURLs - URLS to decline the share at
+ * @property {string} senderDeviceId - The ID of the device that sent the map share.
+ * @property {string} senderDeviceName - The name of the device that sent the map share.
+ * @property {string} shareId - The ID of the map share.
+ * @property {string} mapName - The name of the map being shared.
+ * @property {string} mapId - The ID of the map being shared.
+ * @property {number} receivedAt - The timestamp when the map share invite was received.
+ * @property {number} mapShareCreatedAt - The timestamp when the map share was created
+ * @property {number} mapCreatedAt: - The timestamp when the map share was created
+ * @property {[number, number, number, number]} bounds - The bounding box of the map data being shared.
+ * @property {number} minzoom - The minimum zoom level of the map data being shared.
+ * @property {number} maxzoom - The maximum zoom level of the map data being shared.
+ * @property {number} estimatedSizeBytes - Estimated size of the map data being shared in bytes.
+ */
+
+/**
  * @typedef {object} ProjectEvents
  * @property {() => void} close Project resources have been cleared up
  * @property {(changeEvent: RoleChangeEvent) => void} own-role-change
- * @property {(mapShare: MapShareExtension) => void} map-share
+ * @property {(mapShare: MapShare) => void} map-share Emitted when a map share is recieved from someone on the project
+ * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error  Emitted when an incoming map share fails to be recieved due to formatting issues
  */
 
 /**
@@ -527,6 +547,16 @@ export class MapeoProject extends TypedEmitter {
       }
     })
 
+    this.#coreManager.on('map-share', (mapShareBase, senderDeviceId) =>
+      this.#handleMapShare(mapShareBase, senderDeviceId).catch((e) => {
+        this.emit('map-share-error', e, mapShareBase)
+        this.#l.log(
+          'Error: Unable to handle incoming Map Share',
+          ensureError(e)
+        )
+      })
+    )
+
     this.once('close', () => {
       localPeers.off('peer-add', onPeerAdd)
       localPeers.off('discovery-key', onDiscoverykey)
@@ -751,6 +781,59 @@ export class MapeoProject extends TypedEmitter {
   async #handleRoleChange() {
     const role = await this.$getOwnRole()
     this.emit('own-role-change', { role })
+  }
+
+  /**
+   * @param {MapShareExtension} mapShareBase
+   * @param {string} senderDeviceId
+   */
+  async #handleMapShare(mapShareBase, senderDeviceId) {
+    const receivedAt = Date.now()
+
+    validateMapShareExtension(mapShareBase)
+
+    const {
+      downloadURLs,
+      declineURLs,
+      mapId,
+      mapName,
+      shareId,
+      bounds,
+      minzoom,
+      maxzoom,
+      estimatedSizeBytes,
+      mapCreatedAt,
+      mapShareCreatedAt,
+    } = mapShareBase
+
+    const memberInfo = await this.$member.getById(senderDeviceId)
+
+    const senderDeviceName = memberInfo.name
+
+    if (!senderDeviceName) {
+      throw new Error('Map Share senders must have a name')
+    }
+
+    /** @type {MapShare} */
+    const mapShare = {
+      senderDeviceId,
+      senderDeviceName,
+      shareId,
+      downloadURLs,
+      declineURLs,
+      mapName,
+      mapId,
+      receivedAt,
+      mapCreatedAt,
+      mapShareCreatedAt,
+      // Bounds get checked inside validate function
+      bounds: /** @type {MapShare['bounds']} */ (bounds),
+      minzoom,
+      maxzoom,
+      estimatedSizeBytes,
+    }
+
+    this.emit('map-share', mapShare)
   }
 
   /**

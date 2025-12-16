@@ -17,7 +17,6 @@ import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 import mapObject from 'map-obj'
-import timingSafeEqual from 'string-timing-safe-equal'
 import { PeerNotFoundError } from '../errors.js'
 
 /** @import Hypercore from 'hypercore' */
@@ -34,7 +33,7 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
  * @property {(coreRecord: CoreRecord) => void} add-core
  * @property {(namespace: Namespace, msg: { coreDiscoveryId: string, peerId: string, start: number, bitfield: Uint32Array }) => void} peer-have
  * @property {(blobFilter: GenericBlobFilter | null, peerId: string) => void} peer-download-intent
- * @property {(mapShare: MapShareExtension) => void} map-share
+ * @property {(mapShare: MapShareExtension, deviceId: string) => void} map-share
  */
 
 /**
@@ -182,8 +181,8 @@ export class CoreManager extends TypedEmitter {
       'mapeo/map-share',
       {
         encoding: MapShareCodec,
-        onmessage: (msg) => {
-          this.#handleMapShareMessage(msg)
+        onmessage: (msg, peer) => {
+          this.#handleMapShareMessage(msg, peer)
         },
       }
     )
@@ -401,10 +400,11 @@ export class CoreManager extends TypedEmitter {
 
   /**
    * @param {MapShareExtension} mapShare
+   * @param {HypercorePeer} peer
    */
-  #handleMapShareMessage(mapShare) {
+  #handleMapShareMessage(mapShare, peer) {
     // TODO: Fetch device name or device ID for peer?
-    this.emit('map-share', mapShare)
+    this.emit('map-share', mapShare, peer.remotePublicKey.toString('hex'))
   }
 
   /**
@@ -496,7 +496,7 @@ export class CoreManager extends TypedEmitter {
    */
   async sendMapShare(mapShare, peerId) {
     for (const peer of this.creatorCore.peers) {
-      if (timingSafeEqual(peer.remotePublicKey, peerId)) {
+      if (peer.remotePublicKey.equals(peerId)) {
         this.#mapShareExtension.send(mapShare, peer)
         return
       }
