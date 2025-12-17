@@ -26,7 +26,53 @@ import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
+import { pEvent } from 'p-event'
+import { MAX_BOUNDS, validateMapShareExtension } from '../src/utils.js'
+/** @import { MapShareExtension } from '../src/generated/extensions.js' */
 /** @import { Namespace } from '../src/types.js' */
+
+/**
+ * @type {MapShareExtension}
+ */
+const TEST_SHARE = {
+  downloadURLs: ['https://mapserver.example.com'],
+  declineURLs: ['https://mapserver.example.com'],
+  shareId: 'share001',
+  mapShareCreatedAt: Date.now(),
+  mapCreatedAt: Date.now(),
+  mapName: 'City Map',
+  mapId: 'map12345',
+  bounds: [-122, 30, -123, 37],
+  minzoom: 10,
+  maxzoom: 20,
+  estimatedSizeBytes: 5000000,
+}
+
+/**
+ * @type {MapShareExtension[]}
+ */
+const FAILING_TEST_SHARES = [
+  { ...TEST_SHARE, downloadURLs: [] },
+  { ...TEST_SHARE, declineURLs: [] },
+  { ...TEST_SHARE, shareId: '' },
+  { ...TEST_SHARE, mapShareCreatedAt: 0 },
+  { ...TEST_SHARE, mapCreatedAt: 0 },
+  { ...TEST_SHARE, mapName: '' },
+  { ...TEST_SHARE, mapId: '' },
+  { ...TEST_SHARE, bounds: [] },
+  { ...TEST_SHARE, bounds: makeBound(4, 0) }, // Make bounds array of length 5
+  { ...TEST_SHARE, bounds: makeBound(0, MAX_BOUNDS[0] - 1) }, // Make bounds array of length 5
+  { ...TEST_SHARE, bounds: makeBound(1, MAX_BOUNDS[1] - 1) }, // Make bounds array of length 5
+  { ...TEST_SHARE, bounds: makeBound(2, MAX_BOUNDS[2] + 1) }, // Make bounds array of length 5
+  { ...TEST_SHARE, bounds: makeBound(3, MAX_BOUNDS[3] + 1) }, // Make bounds array of length 5
+  { ...TEST_SHARE, minzoom: -1 },
+  { ...TEST_SHARE, minzoom: 420, maxzoom: 421 },
+  { ...TEST_SHARE, maxzoom: -1, minzoom: 0 },
+  { ...TEST_SHARE, maxzoom: 300 },
+  { ...TEST_SHARE, maxzoom: 4, minzoom: 20 },
+  { ...TEST_SHARE, estimatedSizeBytes: 0 },
+  { ...TEST_SHARE, estimatedSizeBytes: -1 },
+]
 
 /** @param {any} [key] */
 async function createCore(key) {
@@ -667,6 +713,56 @@ test('deleteOthersData()', async (t) => {
   })
 })
 
+test('Map share extension events', async (t) => {
+  const projectKey = randomBytes(32)
+  const keyManager1 = new KeyManager(randomBytes(16))
+  const keyManager2 = new KeyManager(randomBytes(16))
+  const cm1 = createCoreManager({ keyManager: keyManager1, projectKey })
+  const cm2 = createCoreManager({ keyManager: keyManager2, projectKey })
+
+  await cm1.creatorCore.ready()
+  await cm2.creatorCore.ready()
+
+  const onPeer = pEvent(cm1.creatorCore, 'peer-add', {
+    timeout: 1000,
+  })
+
+  const { destroy } = replicate(cm1, cm2, {
+    kp1: keyManager1.getIdentityKeypair(),
+    kp2: keyManager2.getIdentityKeypair(),
+  })
+  t.after(destroy)
+
+  await onPeer
+
+  const onShare = pEvent(cm2, 'map-share', {
+    timeout: 1000,
+  })
+
+  await cm1.sendMapShare(TEST_SHARE, Buffer.from(cm2.deviceId, 'hex'))
+
+  const gotShare = await onShare
+
+  assert.deepEqual(gotShare, TEST_SHARE, 'share sent over extension message')
+})
+
+test('Map share errors if peer not found', async () => {
+  const cm = createCoreManager()
+
+  assert.rejects(cm.sendMapShare(TEST_SHARE, randomBytes(32)))
+})
+
+test.only('Map share validation checks fields', () => {
+  assert.doesNotThrow(() => validateMapShareExtension(TEST_SHARE))
+
+  for (const [index, share] of FAILING_TEST_SHARES.entries()) {
+    assert.throws(
+      () => validateMapShareExtension(share),
+      `Validation caught error in ${index}`
+    )
+  }
+})
+
 const DEBUG = process.env.DEBUG
 
 /**
@@ -766,4 +862,16 @@ async function checkExistenceForFiles(files) {
         .catch(() => false)
     )
   )
+}
+
+/**
+ * Make bounds to test map share extensions
+ * @param {number} index Where in the bounds to place it
+ * @param {number} value Value to place into bounds
+ * @returns {number[]}
+ */
+function makeBound(index, value) {
+  const bounds = [...MAX_BOUNDS]
+  bounds[index] = value
+  return bounds
 }

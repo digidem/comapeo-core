@@ -22,6 +22,7 @@ import { DefaultListener, ListenerSignature } from 'tiny-typed-emitter'
 import type { NAMESPACES } from './constants.js'
 import type { Readable } from 'stream'
 import type { HyperdriveEntry } from 'hyperdrive'
+import { MapShareExtension } from './generated/extensions.js'
 
 export type Namespace = (typeof NAMESPACES)[number]
 

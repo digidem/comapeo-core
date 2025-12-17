@@ -39,6 +39,30 @@ export interface DownloadIntentExtension_DownloadIntentsEntry {
     key: string;
     value: DownloadIntentExtension_DownloadIntent | undefined;
 }
+export interface MapShareExtension {
+    /** URLs to do map downloads over */
+    downloadURLs: string[];
+    /** URLs to decline the map share with */
+    declineURLs: string[];
+    /** The ID of the map share */
+    shareId: string;
+    /** The name of the map being shared */
+    mapName: string;
+    /** The ID of the map being shared */
+    mapId: string;
+    /** When ths share was created */
+    mapShareCreatedAt: number;
+    /** When the map was created */
+    mapCreatedAt: number;
+    /** The bounding box of the map data being shared */
+    bounds: number[];
+    /** The minimum zoom level of the map data being shared */
+    minzoom: number;
+    /** The maximum zoom level of the map data being shared */
+    maxzoom: number;
+    /** Estimated size of the map data being shared in bytes */
+    estimatedSizeBytes: number;
+}
 export declare const ProjectExtension: {
     encode(message: ProjectExtension, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): ProjectExtension;
@@ -68,6 +92,12 @@ export declare const DownloadIntentExtension_DownloadIntentsEntry: {
     decode(input: _m0.Reader | Uint8Array, length?: number): DownloadIntentExtension_DownloadIntentsEntry;
     create<I extends Exact<DeepPartial<DownloadIntentExtension_DownloadIntentsEntry>, I>>(base?: I): DownloadIntentExtension_DownloadIntentsEntry;
     fromPartial<I extends Exact<DeepPartial<DownloadIntentExtension_DownloadIntentsEntry>, I>>(object: I): DownloadIntentExtension_DownloadIntentsEntry;
+};
+export declare const MapShareExtension: {
+    encode(message: MapShareExtension, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): MapShareExtension;
+    create<I extends Exact<DeepPartial<MapShareExtension>, I>>(base?: I): MapShareExtension;
+    fromPartial<I extends Exact<DeepPartial<MapShareExtension>, I>>(object: I): MapShareExtension;
 };
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 type DeepPartial<T> = T extends Builtin ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {

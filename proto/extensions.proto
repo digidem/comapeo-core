@@ -32,3 +32,28 @@ message DownloadIntentExtension {
   // download everything.
   bool everything = 2;
 }
+
+message MapShareExtension {
+  // URLs to do map downloads over
+  repeated string downloadURLs = 1;
+  // URLs to decline the map share with
+  repeated string declineURLs = 2;
+  // The ID of the map share
+  string shareId = 3;
+  // The name of the map being shared
+  string mapName = 4;
+  // The ID of the map being shared 
+  string mapId = 5;
+  // When ths share was created
+  uint64 mapShareCreatedAt = 6;
+  // When the map was created
+  uint64 mapCreatedAt = 7;
+  // The bounding box of the map data being shared 
+  repeated double bounds = 8;
+  // The minimum zoom level of the map data being shared 
+  int32 minzoom = 9;
+  // The maximum zoom level of the map data being shared
+  int32 maxzoom = 10;
+  // Estimated size of the map data being shared in bytes 
+  uint64 estimatedSizeBytes = 11;
+}

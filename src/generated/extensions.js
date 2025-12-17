@@ -329,6 +329,172 @@ export var DownloadIntentExtension_DownloadIntentsEntry = {
         return message;
     },
 };
+function createBaseMapShareExtension() {
+    return {
+        downloadURLs: [],
+        declineURLs: [],
+        shareId: "",
+        mapName: "",
+        mapId: "",
+        mapShareCreatedAt: 0,
+        mapCreatedAt: 0,
+        bounds: [],
+        minzoom: 0,
+        maxzoom: 0,
+        estimatedSizeBytes: 0,
+    };
+}
+export var MapShareExtension = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        for (var _i = 0, _a = message.downloadURLs; _i < _a.length; _i++) {
+            var v = _a[_i];
+            writer.uint32(10).string(v);
+        }
+        for (var _b = 0, _c = message.declineURLs; _b < _c.length; _b++) {
+            var v = _c[_b];
+            writer.uint32(18).string(v);
+        }
+        if (message.shareId !== "") {
+            writer.uint32(26).string(message.shareId);
+        }
+        if (message.mapName !== "") {
+            writer.uint32(34).string(message.mapName);
+        }
+        if (message.mapId !== "") {
+            writer.uint32(42).string(message.mapId);
+        }
+        if (message.mapShareCreatedAt !== 0) {
+            writer.uint32(48).uint64(message.mapShareCreatedAt);
+        }
+        if (message.mapCreatedAt !== 0) {
+            writer.uint32(56).uint64(message.mapCreatedAt);
+        }
+        writer.uint32(66).fork();
+        for (var _d = 0, _e = message.bounds; _d < _e.length; _d++) {
+            var v = _e[_d];
+            writer.double(v);
+        }
+        writer.ldelim();
+        if (message.minzoom !== 0) {
+            writer.uint32(72).int32(message.minzoom);
+        }
+        if (message.maxzoom !== 0) {
+            writer.uint32(80).int32(message.maxzoom);
+        }
+        if (message.estimatedSizeBytes !== 0) {
+            writer.uint32(88).uint64(message.estimatedSizeBytes);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseMapShareExtension();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.downloadURLs.push(reader.string());
+                    continue;
+                case 2:
+                    if (tag !== 18) {
+                        break;
+                    }
+                    message.declineURLs.push(reader.string());
+                    continue;
+                case 3:
+                    if (tag !== 26) {
+                        break;
+                    }
+                    message.shareId = reader.string();
+                    continue;
+                case 4:
+                    if (tag !== 34) {
+                        break;
+                    }
+                    message.mapName = reader.string();
+                    continue;
+                case 5:
+                    if (tag !== 42) {
+                        break;
+                    }
+                    message.mapId = reader.string();
+                    continue;
+                case 6:
+                    if (tag !== 48) {
+                        break;
+                    }
+                    message.mapShareCreatedAt = longToNumber(reader.uint64());
+                    continue;
+                case 7:
+                    if (tag !== 56) {
+                        break;
+                    }
+                    message.mapCreatedAt = longToNumber(reader.uint64());
+                    continue;
+                case 8:
+                    if (tag === 65) {
+                        message.bounds.push(reader.double());
+                        continue;
+                    }
+                    if (tag === 66) {
+                        var end2 = reader.uint32() + reader.pos;
+                        while (reader.pos < end2) {
+                            message.bounds.push(reader.double());
+                        }
+                        continue;
+                    }
+                    break;
+                case 9:
+                    if (tag !== 72) {
+                        break;
+                    }
+                    message.minzoom = reader.int32();
+                    continue;
+                case 10:
+                    if (tag !== 80) {
+                        break;
+                    }
+                    message.maxzoom = reader.int32();
+                    continue;
+                case 11:
+                    if (tag !== 88) {
+                        break;
+                    }
+                    message.estimatedSizeBytes = longToNumber(reader.uint64());
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return MapShareExtension.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+        var message = createBaseMapShareExtension();
+        message.downloadURLs = ((_a = object.downloadURLs) === null || _a === void 0 ? void 0 : _a.map(function (e) { return e; })) || [];
+        message.declineURLs = ((_b = object.declineURLs) === null || _b === void 0 ? void 0 : _b.map(function (e) { return e; })) || [];
+        message.shareId = (_c = object.shareId) !== null && _c !== void 0 ? _c : "";
+        message.mapName = (_d = object.mapName) !== null && _d !== void 0 ? _d : "";
+        message.mapId = (_e = object.mapId) !== null && _e !== void 0 ? _e : "";
+        message.mapShareCreatedAt = (_f = object.mapShareCreatedAt) !== null && _f !== void 0 ? _f : 0;
+        message.mapCreatedAt = (_g = object.mapCreatedAt) !== null && _g !== void 0 ? _g : 0;
+        message.bounds = ((_h = object.bounds) === null || _h === void 0 ? void 0 : _h.map(function (e) { return e; })) || [];
+        message.minzoom = (_j = object.minzoom) !== null && _j !== void 0 ? _j : 0;
+        message.maxzoom = (_k = object.maxzoom) !== null && _k !== void 0 ? _k : 0;
+        message.estimatedSizeBytes = (_l = object.estimatedSizeBytes) !== null && _l !== void 0 ? _l : 0;
+        return message;
+    },
+};
 var tsProtoGlobalThis = (function () {
     if (typeof globalThis !== "undefined") {
         return globalThis;
