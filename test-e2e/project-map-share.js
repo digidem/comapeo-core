@@ -10,6 +10,8 @@ import {
 import { pEvent } from 'p-event'
 
 /** @import { MapShareExtension } from '../src/generated/extensions.js' */
+/** @import {MapShare} from '../src/mapeo-project.js' */
+/** @import {CancelablePromise} from 'p-event' */
 
 /**
  * @type {MapShareExtension}
@@ -60,7 +62,9 @@ test('Able to send map share to other member', async (t) => {
 
   await project.$sendMapShare(TEST_SHARE, invitee.deviceId)
 
-  const gotShare = await onMapShare
+  const gotShare = /** @type MapShare */ (
+    /** @type unknown */ (await onMapShare)
+  )
 
   for (const [key, value] of Object.entries(TEST_SHARE)) {
     // @ts-ignore
