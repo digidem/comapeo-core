@@ -12,19 +12,19 @@ import {
 import { randomBytes } from 'crypto'
 import { BlobStore } from '../../src/blob-store/index.js'
 
-test('sync cores in a namespace', async () => {
+test('sync cores in a namespace', async (t) => {
   const projectKeyPair = KeyManager.generateProjectKeypair()
   const rootKey1 = randomBytes(16)
   const rootKey2 = randomBytes(16)
   const km1 = new KeyManager(rootKey1)
   const km2 = new KeyManager(rootKey2)
 
-  const cm1 = createCoreManager({
+  const cm1 = createCoreManager(t, {
     rootKey: rootKey1,
     projectKey: projectKeyPair.publicKey,
     projectSecretKey: projectKeyPair.secretKey,
   })
-  const cm2 = createCoreManager({
+  const cm2 = createCoreManager(t, {
     rootKey: rootKey2,
     projectKey: projectKeyPair.publicKey,
   })
@@ -125,16 +125,16 @@ test('sync cores in a namespace', async () => {
   )
 })
 
-test('replicate with updating data', async function () {
+test('replicate with updating data', async function (t) {
   const fillLength = 5000
 
   const projectKeyPair = KeyManager.generateProjectKeypair()
 
-  const cm1 = createCoreManager({
+  const cm1 = createCoreManager(t, {
     projectKey: projectKeyPair.publicKey,
     projectSecretKey: projectKeyPair.secretKey,
   })
-  const cm2 = createCoreManager({ projectKey: projectKeyPair.publicKey })
+  const cm2 = createCoreManager(t, { projectKey: projectKeyPair.publicKey })
 
   const writer1 = cm1.getWriterCore('auth')
   for (let i = 0; i < fillLength; i = i + 100) {

@@ -12,7 +12,7 @@ import {
 } from './utils.js'
 
 test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
-  const oldManager = await createOldManagerOnVersion2_0_1('old')
+  const oldManager = await createOldManagerOnVersion2_0_1(t, 'old')
   await oldManager.setDeviceInfo({ name: 'old', deviceType: 'mobile' })
 
   const newManager = createManager('new', t)

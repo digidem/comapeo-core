@@ -85,11 +85,15 @@ class PretendCorestore {
     if (b4a.isBuffer(opts)) {
       opts = { publicKey: opts }
     }
-    if ('key' in opts) {
+    if ('key' in opts && opts.key !== null) {
       // @ts-ignore
       opts.publicKey = opts.key
     }
-    if ('publicKey' in opts) {
+    if ('keyPair' in opts && opts.keyPair !== null) {
+      // @ts-ignore
+      opts.publicKey = opts.keyPair.publicKey
+    }
+    if ('publicKey' in opts && opts.publicKey !== null) {
       // NB! We should always add blobIndex (Hyperbee) cores to the core manager
       // before we use them here. We would only reach the addCore path if the
       // blob core is read from the hyperbee header (before it is added to the
@@ -98,9 +102,9 @@ class PretendCorestore {
         this.#coreManager.getCoreByKey(opts.publicKey) ||
         this.#coreManager.addCore(opts.publicKey, 'blob').core
       )
-    } else if (opts.name === 'db') {
+    } else if ('name' in opts && opts.name === 'db') {
       return this.#coreManager.getWriterCore('blobIndex').core
-    } else if (opts.name.includes('blobs')) {
+    } else if ('name' in opts && opts.name.includes('blobs')) {
       return this.#coreManager.getWriterCore('blob').core
     } else {
       throw new Error(
