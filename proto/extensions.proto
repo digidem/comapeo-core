@@ -32,3 +32,22 @@ message DownloadIntentExtension {
   // download everything.
   bool everything = 2;
 }
+
+message KnownSyncStates {
+  message PeerKnows {
+    // ID of peer that knows these states
+    bytes deviceId = 1;
+    repeated SyncState states = 2;
+  }
+
+  message SyncState {
+    // Owner of these cores
+    bytes writerDeviceId = 1;
+    // Latest block this peer synced
+    uint64 authIndex = 2;
+    uint64 configIndex = 3;
+    uint64 dataIndex = 4;
+  }
+
+  repeated PeerKnows peers = 1;
+}
