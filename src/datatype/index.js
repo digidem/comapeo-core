@@ -1,6 +1,6 @@
 import { validate } from '@comapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { eq, inArray, sql, Columns } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { noop, mutatingDeNullify } from '../utils.js'
 import { NotFoundError } from '../errors.js'
@@ -114,6 +114,8 @@ export class DataType extends TypedEmitter {
     db,
     getTranslations,
     getDeviceIdForVersionId,
+    // Which properties can be hydrated e.g. `observationTable.presetRef ->  presetTable`
+    hydratedRefs = [],
   }) {
     super()
     this.#dataStore = dataStore
@@ -134,6 +136,44 @@ export class DataType extends TypedEmitter {
         .where(eq(table.deleted, false))
         .prepare(),
       getManyWithDeleted: db.select().from(table).prepare(),
+    }
+    if (hydratedRefs.length) {
+      // select all fields
+      // we will add more
+      const toSelect = { ...this.#table[Columns] }
+      for (const { field, table } of hydratedRefs) {
+        const { name } = field
+        if (!name.endsWith('Ref')) {
+          throw new Error('Only fields that end with `Ref` can be hydrated')
+        }
+        // Strip out Ref
+        const propertyName = name.slice(0, -3)
+        toSelect[propertyName] = table
+      }
+
+      let getManyHydrated = db
+        .select(toSelect)
+        .from(table)
+        .where(eq(table.deleted, false))
+
+      let getByDocIdHydrated = db
+        .select()
+        .from(table)
+        .where(eq(table.docId, sql.placeholder('docId')))
+
+      for (const { field, table } of hydratedRefs) {
+        getManyHydrated = getManyHydrated.fulljoin(
+          table,
+          eq(field, table.docId)
+        )
+        getByDocIdHydrated = getByDocIdHydrated.fulljoin(
+          table,
+          eq(field, table.docId)
+        )
+      }
+
+      this.#sql.getManyHydrated = getManyHydrated.prepare()
+      this.#sql.getByDocIdHydrated = getByDocIdHydrated.prepare()
     }
     this.on('newListener', (eventName) => {
       if (eventName !== 'updated-docs') return
@@ -228,9 +268,14 @@ export class DataType extends TypedEmitter {
    * @param {string} [options.lang]
    * @returns {Promise<null | (TDoc & DerivedDocFields)>}
    */
-  async getByDocId(docId, { mustBeFound = true, lang } = {}) {
+  async getByDocId(docId, { mustBeFound = true, lang, hydrate = false } = {}) {
     await this.#dataStore.indexer.idle()
-    const result = this.#sql.getByDocId.get({ docId })
+    let result = null
+    if (hydrate) {
+      result = this.#sql.getByDocIdHydrated.get({ docId })
+    } else {
+      result = this.#sql.getByDocId.get({ docId })
+    }
     if (result) {
       return this.#mutatingAddDerivedFields(result, { lang })
     } else if (mustBeFound) {
