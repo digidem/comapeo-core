@@ -17,8 +17,18 @@ import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
-import { ErrorWithCode, getErrorMessage } from './lib/error.js'
-import { InviteAbortedError, ProjectDetailsSendFailError } from './errors.js'
+import {
+  AlreadyBlockedError,
+  DeviceIdNotForServerError,
+  InvalidServerResponseError,
+  InvalidUrlError,
+  InviteAbortedError,
+  MissingDataError,
+  NetworkError,
+  ProjectDetailsSendFailError,
+  ProjectNotInAllowlistError,
+  ServerTooManyProjectsError,
+} from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
@@ -342,7 +352,7 @@ export class MemberApi extends TypedEmitter {
     if (
       !isValidServerBaseUrl(baseUrl, { dangerouslyAllowInsecureConnections })
     ) {
-      throw new ErrorWithCode('INVALID_URL', 'Server base URL is invalid')
+      throw new InvalidUrlError()
     }
 
     const { serverDeviceId } = await this.#addServerToProject(baseUrl)
@@ -367,7 +377,7 @@ export class MemberApi extends TypedEmitter {
     const { roleId } = member.role
 
     if (roleId === BLOCKED_ROLE_ID || roleId === LEFT_ROLE_ID) {
-      throw new ErrorWithCode('ALREADY_BLOCKED', 'Member already blocked')
+      throw new AlreadyBlockedError()
     }
 
     // Add blocked role to project
@@ -391,15 +401,10 @@ export class MemberApi extends TypedEmitter {
     // Parse through URL to ensure end pathname if missing
     const member = await this.getById(serverDeviceId)
 
-    if (!member.selfHostedServerDetails) {
-      throw new ErrorWithCode(
-        'DEVICE_ID_NOT_FOR_SERVER',
-        'DeviceId is not for a server peer'
-      )
-    }
+    if (!member.selfHostedServerDetails) throw new DeviceIdNotForServerError()
 
     if (member.role.roleId === BLOCKED_ROLE_ID) {
-      throw new ErrorWithCode('ALREADY_BLOCKED', 'Server peer already blocked')
+      throw new AlreadyBlockedError()
     }
 
     const { baseUrl } = member.selfHostedServerDetails
@@ -422,10 +427,7 @@ export class MemberApi extends TypedEmitter {
   async #addServerToProject(baseUrl) {
     const projectName = await this.#getProjectName()
     if (!projectName) {
-      throw new ErrorWithCode(
-        'MISSING_DATA',
-        'Project must have name to add server peer'
-      )
+      throw new MissingDataError()
     }
 
     const requestUrl = new URL('projects', baseUrl)
@@ -449,11 +451,9 @@ export class MemberApi extends TypedEmitter {
         headers: { 'Content-Type': 'application/json' },
       })
     } catch (err) {
-      throw new ErrorWithCode(
-        'NETWORK_ERROR',
-        `Failed to add server peer due to network error: ${getErrorMessage(
-          err
-        )}`
+      throw new NetworkError(
+        err,
+        'Failed to add server peer due to network error'
       )
     }
 
@@ -484,12 +484,8 @@ export class MemberApi extends TypedEmitter {
     try {
       await pEvent(websocket, 'open', { rejectionEvents: ['error'] })
     } catch (rejectionEvent) {
-      throw new ErrorWithCode(
-        // It's difficult for us to reliably disambiguate between "network error"
-        // and "invalid response from server" here, so we just say it was an
-        // invalid server response.
-        'INVALID_SERVER_RESPONSE',
-        'Failed to open the socket',
+      throw new InvalidServerResponseError(
+        'Failed to open websocket for initial sync',
         rejectionEvent &&
         typeof rejectionEvent === 'object' &&
         'error' in rejectionEvent
@@ -682,8 +678,7 @@ async function parseAddServerResponse(response) {
       )
       return { serverDeviceId: responseBody.data.deviceId }
     } catch (err) {
-      throw new ErrorWithCode(
-        'INVALID_SERVER_RESPONSE',
+      throw new InvalidServerResponseError(
         "Failed to add server peer because we couldn't parse the response"
       )
     }
@@ -705,22 +700,15 @@ async function parseAddServerResponse(response) {
   ) {
     switch (responseBody.error.code) {
       case 'PROJECT_NOT_IN_ALLOWLIST':
-        throw new ErrorWithCode(
-          'PROJECT_NOT_IN_SERVER_ALLOWLIST',
-          "The server only allows specific projects to be added, and this isn't one of them"
-        )
+        throw new ProjectNotInAllowlistError()
       case 'TOO_MANY_PROJECTS':
-        throw new ErrorWithCode(
-          'SERVER_HAS_TOO_MANY_PROJECTS',
-          "The server limits the number of projects it can have and it's at the limit"
-        )
+        throw new ServerTooManyProjectsError()
       default:
         break
     }
   }
 
-  throw new ErrorWithCode(
-    'INVALID_SERVER_RESPONSE',
+  throw new InvalidServerResponseError(
     `Failed to add server peer due to HTTP status code ${response.status}`
   )
 }

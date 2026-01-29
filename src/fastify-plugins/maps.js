@@ -5,7 +5,7 @@ import { ReaderWatch, createServer } from 'styled-map-package'
 
 import { noop } from '../utils.js'
 import { NotFoundError, ENOENTError } from './utils.js'
-import { getErrorCode } from '../lib/error.js'
+import { getErrorCode } from '../errors.js'
 import { FailedToGetStyleError } from '../errors.js'
 
 /** @import { FastifyPluginAsync } from 'fastify' */

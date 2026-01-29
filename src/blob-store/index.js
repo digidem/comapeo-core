@@ -7,7 +7,7 @@ import { noop } from '../utils.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { HyperdriveIndexImpl as HyperdriveIndex } from './hyperdrive-index.js'
 import { Logger } from '../logger.js'
-import { getErrorCode, getErrorMessage } from '../lib/error.js'
+import { getErrorCode, getErrorMessage } from '../errors.js'
 import { BlobsNotFoundError, DriveNotFoundError } from '../errors.js'
 
 /** @import Hyperdrive from 'hyperdrive' */

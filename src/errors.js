@@ -514,6 +514,90 @@ export class IndexNotMultipleOf32Error extends Error {
   }
 }
 
+export class InvalidUrlError extends Error {
+  constructor() {
+    super('Invalid URL provided')
+    this.name = 'InvalidUrlError'
+    this.code = 'INVALID_URL_ERROR'
+    this.status = 400
+  }
+}
+
+export class AlreadyBlockedError extends Error {
+  constructor() {
+    super(`Member already blocked`)
+    this.name = 'AlreadyBlockedError'
+    this.code = 'ALREADY_BLOCKED_ERROR'
+    this.status = 403
+  }
+}
+
+export class DeviceIdNotForServerError extends Error {
+  constructor() {
+    super('DeviceId is not for a server peer')
+    this.name = 'DeviceIdNotForServerError'
+    this.code = 'DEVICE_ID_NOT_FOR_SERVER_ERROR'
+    this.status = 403
+  }
+}
+
+export class MissingDataError extends Error {
+  constructor() {
+    super('Project must have name to add server peer')
+    this.name = 'MissingDataError'
+    this.code = 'MISSING_DATA_ERROR'
+    this.status = 400
+  }
+}
+
+export class NetworkError extends Error {
+  /**
+   * @param {unknown} err
+   * @param {string} [message]
+   */
+  constructor(err, message = 'Network error') {
+    super(`${message}: ${getErrorMessage(err)}`)
+    this.name = 'NetworkError'
+    this.code = 'NETWORK_ERROR'
+    this.status = 502
+  }
+}
+
+export class InvalidServerResponseError extends Error {
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [options]
+   *    */
+  constructor(message = 'Invalid Server Response', options = {}) {
+    super(message, options)
+    this.name = 'InvalidServerResponseError'
+    this.code = 'INVALID_SERVER_RESPONSE_ERROR'
+    this.status = 502
+  }
+}
+
+export class ProjectNotInAllowlistError extends Error {
+  constructor() {
+    super(
+      "The server only allows specific projects to be added, and this isn't one of them"
+    )
+    this.name = 'ProjectNotInAllowlistError'
+    this.code = 'PROJECT_NOT_IN_ALLOWLIST_ERROR'
+    this.status = 403
+  }
+}
+
+export class ServerTooManyProjectsError extends Error {
+  constructor() {
+    super(
+      "The server limits the number of projects it can have and it's at the limit"
+    )
+    this.name = 'ServerTooManyProjectsError'
+    this.code = 'SERVER_HAS_TOO_MANY_PROJECTS_ERROR'
+    this.status = 429
+  }
+}
+
 /**
  * @param {unknown} err
  * @returns {null}
@@ -521,4 +605,53 @@ export class IndexNotMultipleOf32Error extends Error {
 export function nullIfNotFound(err) {
   if (err instanceof NotFoundError) return null
   throw err
+}
+
+/**
+ * If the argument is an `Error` instance, return its `code` property if it is a string.
+ * Otherwise, returns `undefined`.
+ *
+ * @param {unknown} maybeError
+ * @returns {undefined | string}
+ * @example
+ * try {
+ *   // do something
+ * } catch (err) {
+ *   console.error(getErrorCode(err))
+ * }
+ */
+export function getErrorCode(maybeError) {
+  if (
+    maybeError instanceof Error &&
+    'code' in maybeError &&
+    typeof maybeError.code === 'string'
+  ) {
+    return maybeError.code
+  }
+  return undefined
+}
+
+/**
+ * Get the error message from an object if possible.
+ * Otherwise, stringify the argument.
+ *
+ * @param {unknown} maybeError
+ * @returns {string}
+ * @example
+ * try {
+ *   // do something
+ * } catch (err) {
+ *   console.error(getErrorMessage(err))
+ * }
+ */
+export function getErrorMessage(maybeError) {
+  if (maybeError && typeof maybeError === 'object' && 'message' in maybeError) {
+    try {
+      const { message } = maybeError
+      if (typeof message === 'string') return message
+    } catch (_err) {
+      // Ignored
+    }
+  }
+  return 'unknown error'
 }

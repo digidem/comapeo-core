@@ -5,7 +5,7 @@ import { Type as T } from '@sinclair/typebox'
 
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
-import { getErrorMessage } from '../lib/error.js'
+import { getErrorMessage } from '../errors.js'
 import {
   BlobNotFoundError,
   BlobStoreEntryNotFoundError,
