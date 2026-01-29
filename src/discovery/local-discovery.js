@@ -10,6 +10,7 @@ import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
 import { Logger } from '../logger.js'
 import { getErrorCode } from '../lib/error.js'
+import { ServerNotListeningError } from '../errors.js'
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
@@ -324,7 +325,7 @@ export class LocalDiscovery extends TypedEmitter {
 function getAddress(server) {
   const addr = server.address()
   if (addr === null || typeof addr === 'string') {
-    throw new Error('Server is not listening on a port')
+    throw new ServerNotListeningError()
   }
   return addr
 }

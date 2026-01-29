@@ -3,6 +3,7 @@ import { keyToPublicId } from '@mapeo/crypto'
 import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
 import { omit } from './lib/omit.js'
+import { UnsupportedAttachmentTypeError } from './errors.js'
 
 /** @import {Attachment, BlobId} from "./types.js" */
 
@@ -221,7 +222,7 @@ export function buildBlobId(attachment, requestedVariant) {
     attachment.type !== 'audio' &&
     attachment.type !== 'video'
   ) {
-    throw new Error(`Cannot fetch URL for attachment type "${attachment.type}"`)
+    throw new UnsupportedAttachmentTypeError(attachment.type)
   }
 
   if (attachment.type === 'photo') {

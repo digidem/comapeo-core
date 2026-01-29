@@ -3,6 +3,7 @@
 // Modified to encode and decode Uint32Arrays
 
 import varint from 'varint'
+import { InvalidBitfieldError } from '../errors.js'
 
 const isLittleEndian =
   new Uint8Array(new Uint16Array([0xff]).buffer)[0] === 0xff
@@ -123,7 +124,7 @@ export function decodingLength(buffer, offset) {
     if (!repeat) offset += slice
   }
 
-  if (offset > buffer.length) throw new Error('Invalid RLE bitfield')
+  if (offset > buffer.length) throw new InvalidBitfieldError()
 
   if (len & (n - 1)) return len + (n - (len & (n - 1)))
 

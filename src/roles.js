@@ -2,7 +2,7 @@ import { currentSchemaVersions } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { assert, setHas } from './utils.js'
-import { nullIfNotFound } from './errors.js'
+import { nullIfNotFound, RoleAssignError } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 /** @import { Namespace } from './types.js' */
 
@@ -386,19 +386,19 @@ export class Roles extends TypedEmitter {
     const isAssigningProjectCreatorRole =
       authCoreId === this.#projectCreatorAuthCoreId
     if (isAssigningProjectCreatorRole && !this.#isProjectCreator()) {
-      throw new Error(
+      throw new RoleAssignError(
         "Only the project creator can assign the project creator's role"
       )
     }
 
     if (roleId === LEFT_ROLE_ID) {
       if (deviceId !== this.#ownDeviceId) {
-        throw new Error('Cannot assign LEFT role to another device')
+        throw new RoleAssignError('Cannot assign LEFT role to another device')
       }
     } else {
       const ownRole = await this.getRole(this.#ownDeviceId)
       if (!ownRole.roleAssignment.includes(roleId)) {
-        throw new Error('Lacks permission to assign role ' + roleId)
+        throw new RoleAssignError('Lacks permission to assign role ' + roleId)
       }
     }
 

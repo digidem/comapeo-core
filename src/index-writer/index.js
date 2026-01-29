@@ -4,6 +4,7 @@ import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { getBacklinkTableName } from '../schema/comapeo-to-drizzle.js'
 import { discoveryKey } from 'hypercore-crypto'
 import { Logger } from '../logger.js'
+import { UnknownSchemaError } from '../errors.js'
 /** @import { MapeoDoc, VersionIdObject } from '@comapeo/schema' */
 /** @import { MapeoDocTables } from '../datatype/index.js' */
 
@@ -119,7 +120,7 @@ export class IndexWriter {
   deleteSchema(schemaName) {
     const indexer = this.#indexers.get(schemaName)
     if (!indexer) {
-      throw new Error(`IndexWriter doesn't know a schema named "${schemaName}"`)
+      throw new UnknownSchemaError(schemaName)
     }
     indexer.deleteAll()
   }

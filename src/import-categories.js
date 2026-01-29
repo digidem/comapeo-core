@@ -3,6 +3,7 @@ import { Reader } from 'comapeocat/reader.js'
 import { typedEntries } from './utils.js'
 import { parseBcp47 } from './intl/parse-bcp-47.js'
 import ensureError from 'ensure-error'
+import { IconNotFoundError, KeyNotFoundError } from './errors.js'
 
 // The main reason for the concurrency limit is to avoid run-away memory usage.
 // The comapeocat Reader limits icon size to 2Mb (as-per the specification), and
@@ -75,7 +76,7 @@ export async function importCategories(project, { filePath, logger }) {
           const iconXml = await reader.getIcon(iconName)
           if (!iconXml) {
             // This should never happen because of the validate() call above
-            throw new Error(`Icon ${iconName} not found in import file`)
+            throw new IconNotFoundError(iconName)
           }
           /** @type {Parameters<typeof project.$icons.create>[0]} */
           const icon = {
@@ -349,19 +350,17 @@ function appliesToToGeometry(appliesTo) {
 /**
  * Get a value from a Map, or throw an error if the key is not present
  *
- * @template K, V
+ * @template {string} K, V
  * @param {Map<K, V>} map
  * @param {K} key
- * @param {string | Error} [msgOrError]
  * @returns {V}
  * @throws {TypeError} if `map` is not a Map
  * @throws {Error} if `key` is not in `map` (with `msgOrError` as message or the default message)
  */
-function getOrThrow(map, key, msgOrError) {
+function getOrThrow(map, key) {
   if (!(map instanceof Map)) throw new TypeError('map must be a Map')
   if (!map.has(key)) {
-    if (msgOrError instanceof Error) throw msgOrError
-    throw new Error(msgOrError ?? `key ${key} not found in map`)
+    throw new KeyNotFoundError(key)
   }
   return /** @type {V} */ (map.get(key))
 }

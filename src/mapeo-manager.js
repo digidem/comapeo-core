@@ -49,7 +49,13 @@ import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Logger } from './logger.js'
 import { kRequestFullStop, kRescindFullStopRequest } from './sync/sync-api.js'
-import { NotFoundError } from './errors.js'
+import {
+  EncryptionKeysUndefinedError,
+  FailedToSetIsArchiveDeviceError,
+  NotFoundError,
+  ProjectExistsError,
+  UnsupportedMediaTypeError,
+} from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
@@ -274,7 +280,7 @@ export class MapeoManager extends TypedEmitter {
         break
       }
       default: {
-        throw new Error(`Unsupported media type ${mediaType}`)
+        throw new UnsupportedMediaTypeError(mediaType)
       }
     }
 
@@ -694,7 +700,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
 
     if (projectExists) {
-      throw new Error(`Project with ID ${projectPublicId} already exists`)
+      throw new ProjectExistsError(projectPublicId)
     }
 
     // 2. Check for an active project
@@ -869,7 +875,7 @@ export class MapeoManager extends TypedEmitter {
       })
       .run()
     if (!result || result.changes === 0) {
-      throw new Error('Failed to set isArchiveDevice')
+      throw new FailedToSetIsArchiveDeviceError()
     }
     for (const project of this.#activeProjects.values()) {
       project[kSetIsArchiveDevice](isArchiveDevice)
@@ -1048,7 +1054,7 @@ function omitPeerProtomux(peers) {
  */
 function validateProjectKeys(projectKeys) {
   if (!projectKeys.encryptionKeys) {
-    throw new Error('encryptionKeys should not be undefined')
+    throw new EncryptionKeysUndefinedError()
   }
 }
 

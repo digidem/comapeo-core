@@ -1,6 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { createEntriesStream } from './entries-stream.js'
 import { filePathMatchesFilter } from './utils.js'
+import { DriveNotFoundError, UnexpectedEndOfStreamError } from '../errors.js'
 
 /** @import { BlobFilter } from '../types.js' */
 /** @import { THyperdriveIndex } from './hyperdrive-index.js' */
@@ -74,13 +75,13 @@ export class Downloader extends TypedEmitter {
       if (!this.#shouldDownloadFile(filePath)) continue
       const drive = this.#driveIndex.get(driveId)
       // ERROR HANDLING: this is unexpected and should not happen
-      if (!drive) throw new Error('Drive not found: ' + driveId)
+      if (!drive) throw new DriveNotFoundError(driveId)
       const blobs = await drive.getBlobs()
       this.#ac.signal.throwIfAborted()
       await this.#processEntry(blobs.core, blob)
       this.#ac.signal.throwIfAborted()
     }
-    throw new Error('Entries stream ended unexpectedly')
+    throw new UnexpectedEndOfStreamError()
   }
 
   /**

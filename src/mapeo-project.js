@@ -58,7 +58,11 @@ import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { importCategories } from './import-categories.js'
 import TranslationApi from './translation-api.js'
-import { NotFoundError, nullIfNotFound } from './errors.js'
+import {
+  InvalidDeviceInfoError,
+  NotFoundError,
+  nullIfNotFound,
+} from './errors.js'
 import { WebSocket } from 'ws'
 import { createWriteStream } from 'fs'
 import ensureError from 'ensure-error'
@@ -1437,9 +1441,7 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
  */
 function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
   if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
-    throw new Error(
-      'Invalid deviceInfo record, cannot write deviceInfo for another device'
-    )
+    throw new InvalidDeviceInfoError()
   }
   return doc
 }
