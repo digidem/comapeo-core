@@ -383,13 +383,6 @@ export class Roles extends TypedEmitter {
       // device that has not yet synced (so we do not yet have a replica of
       // their authCore). In this case we want fromIndex to be 0
     }
-    const isAssigningProjectCreatorRole =
-      authCoreId === this.#projectCreatorAuthCoreId
-    if (isAssigningProjectCreatorRole && !this.#isProjectCreator()) {
-      throw new Error(
-        "Only the project creator can assign the project creator's role"
-      )
-    }
 
     if (roleId === LEFT_ROLE_ID) {
       if (deviceId !== this.#ownDeviceId) {
