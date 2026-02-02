@@ -843,7 +843,7 @@ test('remove member from project, add them back', async (t) => {
   assert.equal(reRole.roleId, MEMBER_ROLE_ID, 'Sees self as a member again')
 })
 
-test.only('remove creator from project, add them back', async (t) => {
+test('remove creator from project, add them back', async (t) => {
   const managers = await createManagers(2, t)
   const [creator, coordinator] = managers
   const disconnectPeers = connectPeers(managers)
