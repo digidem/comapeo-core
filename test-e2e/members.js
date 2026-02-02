@@ -593,7 +593,7 @@ test('roles - assignRole()', async (t) => {
           project,
           invitor.deviceId,
           COORDINATOR_ROLE_ID,
-          'everyone still believes creator to be a creator'
+          'everyone now believes creator to be a coordinator'
         )
       )
     )
