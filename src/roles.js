@@ -383,7 +383,6 @@ export class Roles extends TypedEmitter {
       // device that has not yet synced (so we do not yet have a replica of
       // their authCore). In this case we want fromIndex to be 0
     }
-
     if (roleId === LEFT_ROLE_ID) {
       if (deviceId !== this.#ownDeviceId) {
         throw new Error('Cannot assign LEFT role to another device')
@@ -410,6 +409,14 @@ export class Roles extends TypedEmitter {
         }
       )
     } else {
+      const isAssigningProjectCreatorRole =
+        authCoreId === this.#projectCreatorAuthCoreId
+      if (isAssigningProjectCreatorRole && roleId !== BLOCKED_ROLE_ID) {
+        throw new Error(
+          'Project creators can only be assigned the blocked role'
+        )
+      }
+
       await this.#dataType[kCreateWithDocId](deviceId, {
         schemaName: 'role',
         roleId,
