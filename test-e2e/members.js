@@ -10,6 +10,7 @@ import {
   MEMBER_ROLE_ID,
   NO_ROLE,
   BLOCKED_ROLE_ID,
+  CREATOR_ROLE_ID,
 } from '../src/roles.js'
 import {
   connectPeers,
@@ -574,30 +575,32 @@ test('roles - assignRole()', async (t) => {
     }
   )
 
-  await t.test('coordinators change roles of creator', async () => {
-    await invitorProject.$member.assignRole(
-      invitee.deviceId,
-      COORDINATOR_ROLE_ID
-    )
-    await waitForSync(projects, 'initial')
+  await t.test(
+    'non-creator members cannot change roles of creator',
+    async () => {
+      await invitorProject.$member.assignRole(
+        invitee.deviceId,
+        COORDINATOR_ROLE_ID
+      )
+      await waitForSync(projects, 'initial')
 
-    await inviteeProject.$member.assignRole(
-      invitor.deviceId,
-      COORDINATOR_ROLE_ID
-    )
+      await assert.rejects(() =>
+        inviteeProject.$member.assignRole(invitor.deviceId, COORDINATOR_ROLE_ID)
+      )
 
-    await waitForSync(projects, 'initial')
-    await Promise.all(
-      [invitorProject, inviteeProject, invitee2Project].map((project) =>
-        assertRole(
-          project,
-          invitor.deviceId,
-          COORDINATOR_ROLE_ID,
-          'everyone now believes creator to be a coordinator'
+      await waitForSync(projects, 'initial')
+      await Promise.all(
+        [invitorProject, inviteeProject, invitee2Project].map((project) =>
+          assertRole(
+            project,
+            invitor.deviceId,
+            CREATOR_ROLE_ID,
+            'everyone still believes creator to be a creator'
+          )
         )
       )
-    )
-  })
+    }
+  )
 })
 
 test('roles - assignRole() with forked role', async (t) => {
