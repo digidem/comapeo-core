@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import timingSafeEqual from 'string-timing-safe-equal'
-import { assert, ExhaustivenessError, keyToId, noop } from './utils.js'
+import { assert, keyToId, noop } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
@@ -18,10 +18,14 @@ import {
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
-import pTimeout, { TimeoutError } from 'p-timeout'
+import pTimeout from 'p-timeout'
 import {
+  PeerDisconnectedError,
+  PeerFailedConnectionError,
   RPCDisconnectBeforeAckError,
   RPCDisconnectBeforeSendingError,
+  UnknownPeerError,
+  ExhaustivenessError,
 } from './errors.js'
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
@@ -851,32 +855,6 @@ export class LocalPeers extends TypedEmitter {
 
       this.on('peers', onPeers)
     })
-  }
-}
-
-export { TimeoutError }
-
-export class UnknownPeerError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'UnknownPeerError') {
-    super(message)
-    this.name = 'UnknownPeerError'
-  }
-}
-
-export class PeerDisconnectedError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Peer disconnected') {
-    super(message)
-    this.name = 'PeerDisconnectedError'
-  }
-}
-
-export class PeerFailedConnectionError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'PeerFailedConnectionError') {
-    super(message)
-    this.name = 'PeerFailedConnectionError'
   }
 }
 

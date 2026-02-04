@@ -22,14 +22,6 @@ export function keyToId(key) {
   return key.toString('hex')
 }
 
-export class ExhaustivenessError extends Error {
-  /** @param {never} value */
-  constructor(value) {
-    super(`Exhaustiveness check failed. ${value} should be impossible`)
-    this.name = 'ExhaustivenessError'
-  }
-}
-
 /**
  * @returns {void}
  */

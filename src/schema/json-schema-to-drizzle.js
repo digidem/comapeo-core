@@ -1,6 +1,5 @@
 import { text, integer, real, sqliteTable } from 'drizzle-orm/sqlite-core'
-import { ExhaustivenessError } from '../utils.js'
-import { InvalidSchemaError } from '../errors.js'
+import { InvalidSchemaError, ExhaustivenessError } from '../errors.js'
 
 /**
  * @template {{ [ K in keyof TSchema['properties'] ]?: any }} TObjectType

@@ -1,11 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { keyToId, projectKeyToProjectInviteId } from '../src/utils.js'
-import {
-  LocalPeers,
-  UnknownPeerError,
-  kTestOnlySendRawInvite,
-} from '../src/local-peers.js'
+import { LocalPeers, kTestOnlySendRawInvite } from '../src/local-peers.js'
 import { on, once } from 'events'
 import { Duplex } from 'streamx'
 import { replicate } from './helpers/local-peers.js'
@@ -18,6 +14,7 @@ import {
   InviteResponse_Decision,
 } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
+import { UnknownPeerError } from '../src/errors.js'
 
 test('sending and receiving invites', async () => {
   const r1 = new LocalPeers()

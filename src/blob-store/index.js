@@ -7,7 +7,7 @@ import { noop } from '../utils.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { HyperdriveIndexImpl as HyperdriveIndex } from './hyperdrive-index.js'
 import { Logger } from '../logger.js'
-import { getErrorCode, getErrorMessage } from '../errors.js'
+import { BlobNotFoundError, getErrorCode, getErrorMessage } from '../errors.js'
 import { BlobsNotFoundError, DriveNotFoundError } from '../errors.js'
 
 /** @import Hyperdrive from 'hyperdrive' */
@@ -51,13 +51,6 @@ const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
   photo: ['preview', 'thumbnail'],
   // Don't download any audio of video files, since previews and
   // thumbnails aren't supported yet.
-}
-
-class ErrNotFound extends Error {
-  constructor(message = 'NotFound') {
-    super(message)
-    this.code = 'ENOENT'
-  }
 }
 
 /** @extends {TypedEmitter<BlobStoreEvents>} */
@@ -233,7 +226,7 @@ export class BlobStore extends TypedEmitter {
     const drive = this.#getDrive(driveId)
     const path = makePath({ type, variant, name })
     const blob = await drive.get(path, { wait, timeout })
-    if (!blob) throw new ErrNotFound()
+    if (!blob) throw new BlobNotFoundError()
     return blob
   }
 

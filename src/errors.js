@@ -622,6 +622,35 @@ export class CategoryFileNotFoundError extends Error {
   }
 }
 
+export class UnknownPeerError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'UnknownPeerError') {
+    super(message)
+    this.name = 'UnknownPeerError'
+    this.code = 'UNKNOWN_PEER_ERROR'
+    this.status = 404
+  }
+}
+
+export class PeerDisconnectedError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'Peer disconnected') {
+    super(message)
+    this.name = 'PeerDisconnectedError'
+    this.code = 'PEER_DISCONNECTED_ERROR'
+    this.status = 504
+  }
+}
+
+export class PeerFailedConnectionError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'PeerFailedConnectionError') {
+    super(message)
+    this.name = 'PeerFailedConnectionError'
+    ;(this.code = 'PEER_FAILED_CONNECTION_ERROR'), (this.status = 408)
+  }
+}
+
 export class UnexpectedErrorTypeError extends Error {
   /**
    * @param {any} err
@@ -630,6 +659,16 @@ export class UnexpectedErrorTypeError extends Error {
     super(`An unexpected error type occurred: ${err}`)
     this.name = 'UnexpectedErrorTypeError'
     this.code = 'UNEXPECTED_ERROR_TYPE_ERROR'
+    this.status = 500
+  }
+}
+
+export class ExhaustivenessError extends Error {
+  /** @param {never} value */
+  constructor(value) {
+    super(`Exhaustiveness check failed. ${value} should be impossible`)
+    this.name = 'ExhaustivenessError'
+    this.code = 'EXHAUSTIVENESS_ERROR'
     this.status = 500
   }
 }

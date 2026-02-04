@@ -8,10 +8,11 @@ import {
   NAMESPACES,
   PRESYNC_NAMESPACES,
 } from '../constants.js'
-import { ExhaustivenessError, assert, keyToId, noop } from '../utils.js'
+import { assert, keyToId, noop } from '../utils.js'
 import { getOwn } from '../lib/get-own.js'
 import { wsCoreReplicator } from '../lib/ws-core-replicator.js'
 import { NO_ROLE_ID } from '../roles.js'
+import { ExhaustivenessError } from '../errors.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */

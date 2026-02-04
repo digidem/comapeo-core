@@ -7,7 +7,6 @@ import { InviteResponse_Decision } from './generated/rpc.js'
 import {
   assert,
   noop,
-  ExhaustivenessError,
   projectKeyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
@@ -30,6 +29,7 @@ import {
   ProjectDetailsSendFailError,
   ProjectNotInAllowlistError,
   ServerTooManyProjectsError,
+  ExhaustivenessError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {

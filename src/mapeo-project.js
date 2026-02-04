@@ -40,7 +40,6 @@ import { BLOCKED_ROLE_ID, Roles, LEFT_ROLE_ID } from './roles.js'
 import {
   assert,
   buildBlobId,
-  ExhaustivenessError,
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
@@ -64,6 +63,7 @@ import {
   getErrorCode,
   InvalidDeviceInfoError,
   NotFoundError,
+  ExhaustivenessError,
   nullIfNotFound,
 } from './errors.js'
 import { WebSocket } from 'ws'
