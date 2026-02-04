@@ -94,12 +94,12 @@ export async function importCategories(project, { filePath, logger }) {
             iconNameToRef.set(iconName, { docId, versionId })
           })
         })
-        .catch((e) => {
+        .catch((err) => {
           // The queue task added above could throw (it shouldn't!), and the
           // promise for that task is returned by `queue.add()`. We don't await
           // this (because we want to keep adding items to the queue), but we need
           // to avoid an uncaught error, so we catch it here and store it for later.
-          errors.push(ensureError(e))
+          errors.push(ensureError(err))
         })
     }
 
@@ -131,8 +131,8 @@ export async function importCategories(project, { filePath, logger }) {
             fieldNameToRef.set(fieldName, { docId, versionId })
           })
         )
-        .catch((e) => {
-          errors.push(ensureError(e))
+        .catch((err) => {
+          errors.push(ensureError(err))
         })
     }
 
@@ -181,8 +181,8 @@ export async function importCategories(project, { filePath, logger }) {
             presetNameToRef.set(categoryName, { docId, versionId })
           })
         )
-        .catch((e) => {
-          errors.push(ensureError(e))
+        .catch((err) => {
+          errors.push(ensureError(err))
         })
     }
 
@@ -230,8 +230,8 @@ export async function importCategories(project, { filePath, logger }) {
             }
             queue
               .add(() => project.$translation.put(translationValue))
-              .catch((e) => {
-                errors.push(ensureError(e))
+              .catch((err) => {
+                errors.push(ensureError(err))
               })
             // Since translations are stored in separate files in the archive,
             // and there could potentially be hundreds of them in the future,
@@ -284,15 +284,15 @@ export async function importCategories(project, { filePath, logger }) {
     for (const docId of presetsToDelete) {
       queue
         .add(() => project.preset.delete(docId))
-        .catch((e) => {
-          errors.push(ensureError(e))
+        .catch((err) => {
+          errors.push(ensureError(err))
         })
     }
     for (const docId of fieldsToDelete) {
       queue
         .add(() => project.field.delete(docId))
-        .catch((e) => {
-          errors.push(ensureError(e))
+        .catch((err) => {
+          errors.push(ensureError(err))
         })
     }
     await queue.onIdle()
@@ -308,8 +308,8 @@ export async function importCategories(project, { filePath, logger }) {
     // with the import, the error thrown here would mask that error (Control
     // flow statements (return, throw, break, continue) in the finally block
     // will "mask" any completion value of the try block or catch block)
-    await reader.close().catch((e) => {
-      logger.log('error closing import file reader', e)
+    await reader.close().catch((err) => {
+      logger.log('error closing import file reader', err)
     })
   }
 }

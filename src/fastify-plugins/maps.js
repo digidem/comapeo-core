@@ -5,7 +5,7 @@ import { ReaderWatch, createServer } from 'styled-map-package'
 
 import { noop } from '../utils.js'
 import { NotFoundError, ENOENTError } from './utils.js'
-import { getErrorCode } from '../errors.js'
+import { ensureKnownError, getErrorCode } from '../errors.js'
 import { FailedToGetStyleError } from '../errors.js'
 
 /** @import { FastifyPluginAsync } from 'fastify' */
@@ -62,7 +62,7 @@ export async function plugin(fastify, opts) {
           throw new ENOENTError(customMapPath)
         }
 
-        throw err
+        throw ensureKnownError(err)
       }
 
       const style = await response.json()

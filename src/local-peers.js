@@ -730,8 +730,8 @@ export class LocalPeers extends TypedEmitter {
         const invite = parseInvite(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite', peerId, invite)
-        peer.sendInviteAck(invite).catch((e) => {
-          this.#l.log(`Error sending invite ack ${e.stack}`)
+        peer.sendInviteAck(invite).catch((err) => {
+          this.#l.log(`Error sending invite ack ${err.stack}`)
         })
         this.#l.log(
           'Invite %h from %S for %h',
@@ -745,8 +745,8 @@ export class LocalPeers extends TypedEmitter {
         const inviteCancel = parseInviteCancel(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-cancel', peerId, inviteCancel)
-        peer.sendInviteCancelAck(inviteCancel).catch((e) => {
-          this.#l.log(`Error sending invite cancel ack ${e.stack}`)
+        peer.sendInviteCancelAck(inviteCancel).catch((err) => {
+          this.#l.log(`Error sending invite cancel ack ${err.stack}`)
         })
         this.#l.log(
           'Invite cancel from %S for %h',
@@ -759,8 +759,8 @@ export class LocalPeers extends TypedEmitter {
         const inviteResponse = parseInviteResponse(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-response', peerId, inviteResponse)
-        peer.sendInviteResponseAck(inviteResponse).catch((e) => {
-          this.#l.log(`Error sending invite response ack ${e.stack}`)
+        peer.sendInviteResponseAck(inviteResponse).catch((err) => {
+          this.#l.log(`Error sending invite response ack ${err.stack}`)
         })
         break
       }
@@ -768,8 +768,8 @@ export class LocalPeers extends TypedEmitter {
         const details = parseProjectJoinDetails(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('got-project-details', peerId, details)
-        peer.sendProjectJoinDetailsAck(details).catch((e) => {
-          this.#l.log(`Error sending project details ack ${e.stack}`)
+        peer.sendProjectJoinDetailsAck(details).catch((err) => {
+          this.#l.log(`Error sending project details ack ${err.stack}`)
         })
         break
       }

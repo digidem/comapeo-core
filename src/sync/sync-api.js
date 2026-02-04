@@ -619,7 +619,7 @@ export class SyncApi extends TypedEmitter {
               coreOwnershipDocId
             )
             await this.#validateRoleAndAddCoresForPeer(coreOwnershipDoc)
-          } catch (_) {
+          } catch (_err) {
             // Ignore, we'll add these when the role is added
           }
         })()

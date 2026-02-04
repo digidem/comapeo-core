@@ -51,6 +51,7 @@ import { Logger } from './logger.js'
 import { kRequestFullStop, kRescindFullStopRequest } from './sync/sync-api.js'
 import {
   EncryptionKeysUndefinedError,
+  ensureKnownError,
   FailedToSetIsArchiveDeviceError,
   NotFoundError,
   ProjectExistsError,
@@ -313,12 +314,12 @@ export class MapeoManager extends TypedEmitter {
 
         return this.#localPeers.sendDeviceInfo(peerId, deviceInfoToSend)
       })
-      .catch((e) => {
+      .catch((err) => {
         // Ignore error but log
         this.#l.log(
           'Failed to send device info to peer %h',
           noiseStream.remotePublicKey,
-          e
+          err
         )
       })
 
@@ -739,14 +740,14 @@ export class MapeoManager extends TypedEmitter {
     try {
       project = await this.getProject(projectPublicId)
       this.#activeProjects.set(projectPublicId, project)
-    } catch (e) {
+    } catch (err) {
       // Only happens if getProject or the the DB insert fails
-      this.#l.log('ERROR: could not add project', e)
+      this.#l.log('ERROR: could not add project', err)
       this.#db
         .delete(projectKeysTable)
         .where(eq(projectKeysTable.projectId, projectId))
         .run()
-      throw e
+      throw ensureKnownError(err)
     }
 
     // Make sure to clean up when closed
@@ -759,12 +760,12 @@ export class MapeoManager extends TypedEmitter {
       if (hasSavedDeviceInfo(deviceInfo)) {
         await project[kSetOwnDeviceInfo](deviceInfo)
       }
-    } catch (e) {
+    } catch (err) {
       // Can ignore an error trying to write device info
       this.#l.log(
         'ERROR: failed to write project %h deviceInfo %o',
         projectKey,
-        e
+        err
       )
     }
 
@@ -774,8 +775,8 @@ export class MapeoManager extends TypedEmitter {
         await project.$sync.waitForSync('initial', {
           timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
         })
-      } catch (e) {
-        this.#l.log('ERROR: could not do initial project sync', e)
+      } catch (err) {
+        this.#l.log('ERROR: could not do initial project sync', err)
       }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)

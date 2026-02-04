@@ -77,7 +77,7 @@ export class IndexWriter {
       try {
         const version = { coreDiscoveryKey: discoveryKey(key), index }
         doc = this.#mapDoc(decode(block, version), version)
-      } catch (e) {
+      } catch (_err) {
         this.#l.log('Could not decode entry %d of %h', index, key)
         // Unknown or invalid entry - silently ignore
         continue

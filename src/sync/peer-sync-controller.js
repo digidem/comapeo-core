@@ -157,8 +157,8 @@ export class PeerSyncController {
         this.#log('reading role for %h', this.peerId)
         const cap = await this.#roles.getRole(this.peerId)
         this.#syncCapability = cap.sync
-      } catch (e) {
-        this.#log('Error reading role', e)
+      } catch (err) {
+        this.#log('Error reading role', err)
         // Any error, consider sync unknown
         this.#syncCapability = createNamespaceMap('unknown')
       }

@@ -113,11 +113,11 @@ export class Downloader extends TypedEmitter {
     this.#ac.abort()
   }
 
-  /** @param {Error} error */
-  #handleError = (error) => {
+  /** @param {Error} err */
+  #handleError = (err) => {
     if (this.#ac.signal.aborted) return
-    this.emit('error', error)
-    this.#ac.abort(error)
+    this.emit('error', err)
+    this.#ac.abort(err)
   }
 
   #handleAbort = () => {

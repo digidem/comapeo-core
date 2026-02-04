@@ -20,10 +20,12 @@ import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
 import {
   AlreadyBlockedError,
   DeviceIdNotForServerError,
+  ensureKnownError,
   InvalidServerResponseError,
   InvalidUrlError,
   InviteAbortedError,
   MissingDataError,
+  MissingOwnDeviceInfoError,
   NetworkError,
   ProjectDetailsSendFailError,
   ProjectNotInAllowlistError,
@@ -37,6 +39,7 @@ import {
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
+import ensureError from 'ensure-error'
 /**
  * @import {
  *   DeviceInfo,
@@ -238,8 +241,8 @@ export class MemberApi extends TypedEmitter {
             }
 
             await this.#waitForInitialSyncWithPeer(deviceId, abortSync)
-          } catch (e) {
-            this.#l.log('ERROR: Could not initial sync with peer', e)
+          } catch (err) {
+            this.#l.log('ERROR: Could not initial sync with peer', err)
           }
 
           return inviteResponse.decision
@@ -251,7 +254,7 @@ export class MemberApi extends TypedEmitter {
         this.#l.log('ERROR: Disconnect before ack', err)
         throw new InviteAbortedError()
       }
-      throw err
+      throw ensureKnownError(err)
     } finally {
       this.#outboundInvitesByDevice.delete(deviceId)
     }
@@ -301,7 +304,7 @@ export class MemberApi extends TypedEmitter {
         throw new InviteAbortedError()
       } else {
         this.#l.log('ERROR: Unexpected error during invite send', err)
-        throw err
+        throw ensureKnownError(err)
       }
     } finally {
       abortController.abort()
@@ -483,14 +486,12 @@ export class MemberApi extends TypedEmitter {
 
     try {
       await pEvent(websocket, 'open', { rejectionEvents: ['error'] })
-    } catch (rejectionEvent) {
+    } catch (err) {
       throw new InvalidServerResponseError(
         'Failed to open websocket for initial sync',
-        rejectionEvent &&
-        typeof rejectionEvent === 'object' &&
-        'error' in rejectionEvent
-          ? { cause: rejectionEvent.error }
-          : { cause: rejectionEvent }
+        err && typeof err === 'object' && 'error' in err
+          ? { cause: err.error }
+          : { cause: err }
       )
     }
 
@@ -550,7 +551,9 @@ export class MemberApi extends TypedEmitter {
     } catch (err) {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
-      if (deviceId === this.#ownDeviceId) throw err
+      if (deviceId === this.#ownDeviceId) {
+        throw new MissingOwnDeviceInfoError(ensureError(err))
+      }
     }
 
     return result
@@ -588,7 +591,9 @@ export class MemberApi extends TypedEmitter {
         } catch (err) {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available
-          if (deviceId === this.#ownDeviceId) throw err
+          if (deviceId === this.#ownDeviceId) {
+            throw new MissingOwnDeviceInfoError(ensureError(err))
+          }
         }
 
         return memberInfo
@@ -677,7 +682,7 @@ async function parseAddServerResponse(response) {
         'Response body is valid'
       )
       return { serverDeviceId: responseBody.data.deviceId }
-    } catch (err) {
+    } catch (_err) {
       throw new InvalidServerResponseError(
         "Failed to add server peer because we couldn't parse the response"
       )
@@ -687,7 +692,7 @@ async function parseAddServerResponse(response) {
   let responseBody
   try {
     responseBody = await response.json()
-  } catch (_) {
+  } catch (_err) {
     responseBody = null
   }
   if (

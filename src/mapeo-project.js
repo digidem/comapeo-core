@@ -59,6 +59,7 @@ import { IconApi } from './icon-api.js'
 import { importCategories } from './import-categories.js'
 import TranslationApi from './translation-api.js'
 import {
+  ensureKnownError,
   InvalidDeviceInfoError,
   NotFoundError,
   nullIfNotFound,
@@ -523,8 +524,8 @@ export class MapeoProject extends TypedEmitter {
       for (const roleDocId of roleDocIds) {
         // Ignore docs not about ourselves
         if (roleDocId !== this.#deviceId) continue
-        this.#handleRoleChange().catch((e) => {
-          this.#l.log(`Error: Could not handle role change`, ensureError(e))
+        this.#handleRoleChange().catch((err) => {
+          this.#l.log(`Error: Could not handle role change`, ensureError(err))
         })
       }
     })
@@ -711,7 +712,7 @@ export class MapeoProject extends TypedEmitter {
       return extractEditableProjectSettings(
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
-    } catch (e) {
+    } catch (_err) {
       // if (e instanceof Error && e.name !== 'NotFoundError') throw e
       // If the project has not completed an initial sync, project settings will
       // not be available, so use fallback project info which is set from the
@@ -729,7 +730,7 @@ export class MapeoProject extends TypedEmitter {
       // Should error if we haven't synced before
       await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       return true
-    } catch (e) {
+    } catch (_err) {
       return false
     }
   }
@@ -1171,13 +1172,12 @@ export class MapeoProject extends TypedEmitter {
           continue
         }
         return { blobId, mimeType }
-      } catch (e) {
-        if (!(e instanceof Error)) throw e
+      } catch (err) {
         this.#l.log(
           'Error loading blob id for attachment',
           attachment,
           variant,
-          e.message
+          ensureError(err).message
         )
         continue
       }
@@ -1280,7 +1280,7 @@ export class MapeoProject extends TypedEmitter {
       tracks,
       attachments,
       lang,
-    }).catch((e) => archive.emit('error', e))
+    }).catch((err) => archive.emit('error', ensureError(err)))
 
     // @ts-expect-error
     return archive
@@ -1369,8 +1369,8 @@ export class MapeoProject extends TypedEmitter {
     try {
       await this.$importCategories({ filePath: configPath })
       return []
-    } catch (e) {
-      return [ensureError(e)]
+    } catch (err) {
+      return [ensureError(err)]
     }
   }
 
@@ -1388,9 +1388,9 @@ export class MapeoProject extends TypedEmitter {
 
     try {
       await importCategories(this, { filePath, logger: this.#l })
-    } catch (e) {
-      this.#l.log('error loading config', e)
-      throw e
+    } catch (err) {
+      this.#l.log('error loading config', err)
+      throw ensureKnownError(err)
     } finally {
       this.#importingCategories = false
     }

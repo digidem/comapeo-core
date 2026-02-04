@@ -5,7 +5,7 @@ import { Type as T } from '@sinclair/typebox'
 
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
-import { getErrorMessage } from '../errors.js'
+import { ensureKnownError, getErrorMessage } from '../errors.js'
 import {
   BlobNotFoundError,
   BlobStoreEntryNotFoundError,
@@ -77,17 +77,17 @@ async function routes(fastify, options) {
       let blobStore
       try {
         blobStore = await getBlobStore(projectPublicId)
-      } catch (e) {
+      } catch (err) {
         reply.code(404)
-        throw e
+        throw ensureKnownError(err)
       }
 
       let entry
       try {
         entry = await blobStore.entry(blobId, { wait: false })
-      } catch (e) {
+      } catch (err) {
         reply.code(404)
-        throw e
+        throw ensureKnownError(err)
       }
 
       if (!entry) {
@@ -100,9 +100,9 @@ async function routes(fastify, options) {
       let blobStream
       try {
         blobStream = await blobStore.createReadStreamFromEntry(driveId, entry)
-      } catch (e) {
+      } catch (err) {
         reply.code(404)
-        throw e
+        throw ensureKnownError(err)
       }
 
       try {
@@ -114,7 +114,7 @@ async function routes(fastify, options) {
           reply.code(404)
           throw new BlobNotFoundError()
         } else {
-          throw err
+          throw ensureKnownError(err)
         }
       }
 

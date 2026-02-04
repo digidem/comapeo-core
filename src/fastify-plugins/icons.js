@@ -6,6 +6,7 @@ import { kGetIconBlob } from '../icon-api.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
 import { ExhaustivenessError } from '../utils.js'
 import {
+  ensureKnownError,
   InvalidIconPixelDensityError,
   InvalidIconSizeError,
   MissingGetProjectError,
@@ -102,7 +103,7 @@ async function routes(fastify, options) {
         return res.send(icon)
       } catch (err) {
         res.code(404)
-        throw err
+        throw ensureKnownError(err)
       }
     }
   )

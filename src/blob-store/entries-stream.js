@@ -101,6 +101,6 @@ class AddDriveIds extends Transform {
         }
         callback(null, { ...entry, driveId: this.#driveId, blobCoreId })
       })
-      .catch((reason) => callback(ensureError(reason)))
+      .catch((err) => callback(ensureError(err)))
   }
 }

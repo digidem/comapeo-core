@@ -598,6 +598,30 @@ export class ServerTooManyProjectsError extends Error {
   }
 }
 
+export class MissingOwnDeviceInfoError extends Error {
+  /**
+   * @param {Error} err
+   */
+  constructor(err) {
+    super('Own device information is missing', { cause: err })
+    this.name = 'MissingOwnDeviceInfoError'
+    this.code = 'MISSING_OWN_DEVICE_INFO_ERROR'
+    this.status = 400
+  }
+}
+
+export class UnexpectedErrorTypeError extends Error {
+  /**
+   * @param {any} err
+   */
+  constructor(err) {
+    super(`An unexpected error type occurred: ${err}`)
+    this.name = 'UnexpectedErrorTypeError'
+    this.code = 'UNEXPECTED_ERROR_TYPE_ERROR'
+    this.status = 500
+  }
+}
+
 /**
  * @param {unknown} err
  * @returns {null}
@@ -654,4 +678,15 @@ export function getErrorMessage(maybeError) {
     }
   }
   return 'unknown error'
+}
+
+/**
+ * Throw an UnexpectedErrorTypeError if this is not a standard error
+ * @param {Error & {status?: number, code?: string} | any} err
+ */
+export function ensureKnownError(err) {
+  if (typeof err.status !== 'number' || typeof err.code !== 'string') {
+    return new UnexpectedErrorTypeError(err)
+  }
+  return err
 }

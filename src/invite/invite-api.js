@@ -10,6 +10,7 @@ import {
   NotFoundError,
   AlreadyJoinedError,
   InviteSendError,
+  ensureKnownError,
 } from '../errors.js'
 
 /** @import { ProjectToAddDetails } from '../mapeo-manager.js' */
@@ -323,7 +324,7 @@ export class InviteApi extends TypedEmitter {
       return projectPublicId
     } catch (err) {
       this.#l.log('ERROR: Unable to accept invite', err)
-      throw err
+      throw ensureKnownError(err)
     }
   }
 

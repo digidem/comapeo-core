@@ -9,8 +9,9 @@ import StartStopStateMachine from 'start-stop-state-machine'
 import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
 import { Logger } from '../logger.js'
-import { getErrorCode } from '../errors.js'
+import { ensureKnownError, getErrorCode } from '../errors.js'
 import { ServerNotListeningError } from '../errors.js'
+
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
@@ -88,8 +89,8 @@ export class LocalDiscovery extends TypedEmitter {
     try {
       this.#server.listen(this.#port, '0.0.0.0')
       await onListening
-    } catch (e) {
-      if (this.#port === 0) throw e
+    } catch (err) {
+      if (this.#port === 0) throw ensureKnownError(err)
       // Account for errors from re-binding the port failing
       this.#port = 0
       return this.#start()
