@@ -1,4 +1,5 @@
 import createDebug from 'debug'
+import ensureError from 'ensure-error'
 import { discoveryKey } from 'hypercore-crypto'
 import mapObject from 'map-obj'
 import util from 'util'
@@ -68,8 +69,8 @@ createDebug.formatters.X = function (v) {
       compact: 6,
       breakLength: 90,
     })
-  } catch (e) {
-    return `[ERROR: $(e.message)]`
+  } catch (err) {
+    return `[ERROR: ${ensureError(err).message}]`
   }
 }
 
