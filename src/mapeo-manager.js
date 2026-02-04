@@ -6,7 +6,6 @@ import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
-import pTimeout from 'p-timeout'
 import { createRequire } from 'module'
 
 import { IndexWriter } from './index-writer/index.js'
@@ -36,6 +35,7 @@ import {
   projectKeyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
+  timeoutAfter,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
@@ -1013,7 +1013,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   async getMapStyleJsonUrl() {
-    await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
+    await timeoutAfter(Promise.resolve(this.#fastify.ready()), 1000)
     return (await this.#getMediaBaseUrl('maps')) + '/style.json'
   }
 

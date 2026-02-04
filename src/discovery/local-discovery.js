@@ -3,10 +3,9 @@ import net from 'node:net'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
-import { noop } from '../utils.js'
+import { noop, timeoutAfter } from '../utils.js'
 import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
-import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
 import { Logger } from '../logger.js'
 import { ensureKnownError, getErrorCode } from '../errors.js'
@@ -299,7 +298,7 @@ export class LocalDiscovery extends TypedEmitter {
       for (const socket of this.#noiseConnections.values()) {
         socket.destroy()
       }
-      return pTimeout(closePromise, { milliseconds: 500 })
+      return timeoutAfter(closePromise, 500)
     }
 
     if (!force) {
@@ -308,10 +307,7 @@ export class LocalDiscovery extends TypedEmitter {
       // If timeout is 0, we force-close immediately
       await forceClose()
     } else {
-      await pTimeout(closePromise, {
-        milliseconds: timeout,
-        fallback: forceClose,
-      })
+      await timeoutAfter(closePromise, timeout, forceClose)
     }
     this.#log(`stopped for ${port}`)
   }

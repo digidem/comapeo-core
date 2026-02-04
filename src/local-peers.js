@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import timingSafeEqual from 'string-timing-safe-equal'
-import { assert, keyToId, noop } from './utils.js'
+import { assert, keyToId, noop, timeoutAfter } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
@@ -18,7 +18,6 @@ import {
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
-import pTimeout from 'p-timeout'
 import {
   PeerDisconnectedError,
   PeerFailedConnectionError,
@@ -821,7 +820,7 @@ export class LocalPeers extends TypedEmitter {
    * Wait for any connections that are currently opening
    */
   #waitForPendingConnections() {
-    return pTimeout(Promise.all(this.#opening), { milliseconds: SEND_TIMEOUT })
+    return timeoutAfter(Promise.all(this.#opening), SEND_TIMEOUT)
   }
 
   /**
