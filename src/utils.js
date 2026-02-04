@@ -3,6 +3,12 @@ import { keyToPublicId } from '@mapeo/crypto'
 import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
 import { omit } from './lib/omit.js'
+import {
+  UnsupportedAttachmentTypeError,
+  TimeoutError,
+  ensureKnownError,
+} from './errors.js'
+import pTimeout, { TimeoutError as pTimeoutError } from 'p-timeout'
 
 /** @import {Attachment, BlobId} from "./types.js" */
 
@@ -19,14 +25,6 @@ export function keyToId(key) {
   }
 
   return key.toString('hex')
-}
-
-export class ExhaustivenessError extends Error {
-  /** @param {never} value */
-  constructor(value) {
-    super(`Exhaustiveness check failed. ${value} should be impossible`)
-    this.name = 'ExhaustivenessError'
-  }
 }
 
 /**
@@ -221,7 +219,7 @@ export function buildBlobId(attachment, requestedVariant) {
     attachment.type !== 'audio' &&
     attachment.type !== 'video'
   ) {
-    throw new Error(`Cannot fetch URL for attachment type "${attachment.type}"`)
+    throw new UnsupportedAttachmentTypeError(attachment.type)
   }
 
   if (attachment.type === 'photo') {
@@ -252,4 +250,23 @@ export function buildBlobId(attachment, requestedVariant) {
  */
 export function typedEntries(obj) {
   return /** @type {import('type-fest').Entries<T>} */ (Object.entries(obj))
+}
+
+/**
+ * @template T
+ * @param {Promise<T>} promise
+ * @param {number} milliseconds
+ * @param {() => Promise<T>|T} [fallback]
+ * @returns {Promise<T>}
+ */
+export async function timeoutAfter(promise, milliseconds, fallback) {
+  try {
+    return await pTimeout(promise, { milliseconds })
+  } catch (err) {
+    if (err instanceof pTimeoutError) {
+      if (fallback) return fallback()
+      throw new TimeoutError()
+    }
+    throw ensureKnownError(err)
+  }
 }

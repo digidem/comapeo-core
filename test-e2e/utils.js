@@ -16,7 +16,7 @@ import { getProperty } from 'dot-prop-extra'
 
 import { MapeoManager, roles } from '../src/index.js'
 import { generate } from '@mapeo/mock-data'
-import { ExhaustivenessError, valueOf } from '../src/utils.js'
+import { valueOf } from '../src/utils.js'
 import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
@@ -29,6 +29,7 @@ import { excludeKeys } from 'filter-obj'
 import { kDataTypes } from '../src/mapeo-project.js'
 import { kGetIconBlob } from '../src/icon-api.js'
 import { execa } from 'execa'
+import { ExhaustivenessError } from '../src/errors.js'
 
 /** @import { MemberApi } from '../src/member-api.js' */
 

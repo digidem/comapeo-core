@@ -1,3 +1,5 @@
+import { DuplicateKeyError } from '../errors.js'
+
 /**
  * Like [`Map.groupBy`][0], but the result's values aren't arrays.
  *
@@ -16,7 +18,7 @@ export function keyBy(items, callbackFn) {
   for (const item of items) {
     const key = callbackFn(item)
     if (result.has(key)) {
-      throw new Error(`keyBy found duplicate key ${JSON.stringify(key)}`)
+      throw new DuplicateKeyError(key)
     }
     result.set(key, item)
   }

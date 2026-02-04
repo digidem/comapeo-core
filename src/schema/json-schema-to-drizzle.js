@@ -1,5 +1,5 @@
 import { text, integer, real, sqliteTable } from 'drizzle-orm/sqlite-core'
-import { ExhaustivenessError } from '../utils.js'
+import { InvalidSchemaError, ExhaustivenessError } from '../errors.js'
 
 /**
  * @template {{ [ K in keyof TSchema['properties'] ]?: any }} TObjectType
@@ -20,14 +20,14 @@ export function jsonSchemaToDrizzleSqliteTable(
   { additionalColumns, primaryKey } = {}
 ) {
   if (schema.type !== 'object' || !schema.properties) {
-    throw new Error('Cannot process JSONSchema as SQL table')
+    throw new InvalidSchemaError()
   }
   /** @type {Record<string, any>} */
   const columns = {}
   for (const [key, value] of Object.entries(schema.properties)) {
     if (typeof value !== 'object') continue
     if (isArray(value.type) || typeof value.type === 'undefined') {
-      throw new Error('Cannot process JSONSchema as SQL table')
+      throw new InvalidSchemaError()
     }
     switch (value.type) {
       case 'boolean':

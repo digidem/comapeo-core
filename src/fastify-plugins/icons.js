@@ -4,7 +4,13 @@ import { docSchemas } from '@comapeo/schema'
 
 import { kGetIconBlob } from '../icon-api.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
-import { ExhaustivenessError } from '../utils.js'
+import {
+  ensureKnownError,
+  InvalidIconPixelDensityError,
+  InvalidIconSizeError,
+  MissingGetProjectError,
+  ExhaustivenessError,
+} from '../errors.js'
 
 export default fp(iconServerPlugin, {
   fastify: '4.x',
@@ -56,7 +62,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & IconServerPluginOpts>} */
 async function iconServerPlugin(fastify, options) {
-  if (!options.getProject) throw new Error('Missing getProject')
+  if (!options.getProject) throw new MissingGetProjectError()
   fastify.register(routes, options)
 }
 
@@ -97,7 +103,7 @@ async function routes(fastify, options) {
         return res.send(icon)
       } catch (err) {
         res.code(404)
-        throw err
+        throw ensureKnownError(err)
       }
     }
   )
@@ -143,7 +149,7 @@ function assertValidSize(value) {
       value
     )
   ) {
-    throw new Error(`'${value}' is not a valid icon size`)
+    throw new InvalidIconSizeError(value)
   }
 }
 
@@ -153,6 +159,6 @@ function assertValidSize(value) {
  */
 function assertValidPixelDensity(value) {
   if (!VALID_PIXEL_DENSITIES.includes(/** @type {any} */ (value))) {
-    throw new Error(`${value} is not a valid icon pixel density`)
+    throw new InvalidIconPixelDensityError(value)
   }
 }

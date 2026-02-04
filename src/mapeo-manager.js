@@ -6,7 +6,6 @@ import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
-import pTimeout from 'p-timeout'
 import { createRequire } from 'module'
 
 import { IndexWriter } from './index-writer/index.js'
@@ -36,6 +35,7 @@ import {
   projectKeyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
+  timeoutAfter,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
@@ -49,7 +49,14 @@ import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Logger } from './logger.js'
 import { kRequestFullStop, kRescindFullStopRequest } from './sync/sync-api.js'
-import { NotFoundError } from './errors.js'
+import {
+  EncryptionKeysUndefinedError,
+  ensureKnownError,
+  FailedToSetIsArchiveDeviceError,
+  NotFoundError,
+  ProjectExistsError,
+  UnsupportedMediaTypeError,
+} from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
@@ -274,7 +281,7 @@ export class MapeoManager extends TypedEmitter {
         break
       }
       default: {
-        throw new Error(`Unsupported media type ${mediaType}`)
+        throw new UnsupportedMediaTypeError(mediaType)
       }
     }
 
@@ -307,12 +314,12 @@ export class MapeoManager extends TypedEmitter {
 
         return this.#localPeers.sendDeviceInfo(peerId, deviceInfoToSend)
       })
-      .catch((e) => {
+      .catch((err) => {
         // Ignore error but log
         this.#l.log(
           'Failed to send device info to peer %h',
           noiseStream.remotePublicKey,
-          e
+          err
         )
       })
 
@@ -694,7 +701,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
 
     if (projectExists) {
-      throw new Error(`Project with ID ${projectPublicId} already exists`)
+      throw new ProjectExistsError(projectPublicId)
     }
 
     // 2. Check for an active project
@@ -733,14 +740,14 @@ export class MapeoManager extends TypedEmitter {
     try {
       project = await this.getProject(projectPublicId)
       this.#activeProjects.set(projectPublicId, project)
-    } catch (e) {
+    } catch (err) {
       // Only happens if getProject or the the DB insert fails
-      this.#l.log('ERROR: could not add project', e)
+      this.#l.log('ERROR: could not add project', err)
       this.#db
         .delete(projectKeysTable)
         .where(eq(projectKeysTable.projectId, projectId))
         .run()
-      throw e
+      throw ensureKnownError(err)
     }
 
     // Make sure to clean up when closed
@@ -753,12 +760,12 @@ export class MapeoManager extends TypedEmitter {
       if (hasSavedDeviceInfo(deviceInfo)) {
         await project[kSetOwnDeviceInfo](deviceInfo)
       }
-    } catch (e) {
+    } catch (err) {
       // Can ignore an error trying to write device info
       this.#l.log(
         'ERROR: failed to write project %h deviceInfo %o',
         projectKey,
-        e
+        err
       )
     }
 
@@ -768,8 +775,8 @@ export class MapeoManager extends TypedEmitter {
         await project.$sync.waitForSync('initial', {
           timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
         })
-      } catch (e) {
-        this.#l.log('ERROR: could not do initial project sync', e)
+      } catch (err) {
+        this.#l.log('ERROR: could not do initial project sync', err)
       }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
@@ -869,7 +876,7 @@ export class MapeoManager extends TypedEmitter {
       })
       .run()
     if (!result || result.changes === 0) {
-      throw new Error('Failed to set isArchiveDevice')
+      throw new FailedToSetIsArchiveDeviceError()
     }
     for (const project of this.#activeProjects.values()) {
       project[kSetIsArchiveDevice](isArchiveDevice)
@@ -1006,7 +1013,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   async getMapStyleJsonUrl() {
-    await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
+    await timeoutAfter(Promise.resolve(this.#fastify.ready()), 1000)
     return (await this.#getMediaBaseUrl('maps')) + '/style.json'
   }
 
@@ -1048,7 +1055,7 @@ function omitPeerProtomux(peers) {
  */
 function validateProjectKeys(projectKeys) {
   if (!projectKeys.encryptionKeys) {
-    throw new Error('encryptionKeys should not be undefined')
+    throw new EncryptionKeysUndefinedError()
   }
 }
 

@@ -5,7 +5,8 @@ import { ReaderWatch, createServer } from 'styled-map-package'
 
 import { noop } from '../utils.js'
 import { NotFoundError, ENOENTError } from './utils.js'
-import { getErrorCode } from '../lib/error.js'
+import { ensureKnownError, getErrorCode } from '../errors.js'
+import { FailedToGetStyleError } from '../errors.js'
 
 /** @import { FastifyPluginAsync } from 'fastify' */
 /** @import { Stats } from 'node:fs' */
@@ -48,7 +49,7 @@ export async function plugin(fastify, opts) {
       }
 
       if (!response.ok) {
-        throw new Error(`Failed to get style from ${customStyleJsonUrl.href}`)
+        throw new FailedToGetStyleError(customStyleJsonUrl)
       }
 
       /** @type {Stats | undefined} */
@@ -61,7 +62,7 @@ export async function plugin(fastify, opts) {
           throw new ENOENTError(customMapPath)
         }
 
-        throw err
+        throw ensureKnownError(err)
       }
 
       const style = await response.json()

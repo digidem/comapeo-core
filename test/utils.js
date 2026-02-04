@@ -1,11 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  assert as utilsAssert,
-  ExhaustivenessError,
-  isDefined,
-  setHas,
-} from '../src/utils.js'
+import { assert as utilsAssert, isDefined, setHas } from '../src/utils.js'
+import { ExhaustivenessError } from '../src/errors.js'
 
 test('assert()', () => {
   assert.doesNotThrow(() => utilsAssert(true, 'should work'))

@@ -10,6 +10,7 @@ import {
   NotFoundError,
   AlreadyJoinedError,
   InviteSendError,
+  ensureKnownError,
 } from '../errors.js'
 
 /** @import { ProjectToAddDetails } from '../mapeo-manager.js' */
@@ -80,7 +81,7 @@ export class InviteApi extends TypedEmitter {
       try {
         this.#handleNewInvite(...args)
       } catch (err) {
-        console.error('Error handling invite', err)
+        this.#l.log('Error handling invite', err)
       }
     })
 
@@ -88,7 +89,7 @@ export class InviteApi extends TypedEmitter {
       try {
         this.#handleInviteCancel(inviteCancel)
       } catch (err) {
-        console.error('Error handling invite cancel', err)
+        this.#l.log('Error handling invite cancel', err)
       }
     })
 
@@ -96,7 +97,7 @@ export class InviteApi extends TypedEmitter {
       try {
         this.#handleGotProjectDetails(peerId, projectJoinDetails)
       } catch (err) {
-        console.error('Error handling got-project-details', err)
+        this.#l.log('Error handling got-project-details', err)
       }
     })
   }
@@ -323,7 +324,7 @@ export class InviteApi extends TypedEmitter {
       return projectPublicId
     } catch (err) {
       this.#l.log('ERROR: Unable to accept invite', err)
-      throw err
+      throw ensureKnownError(err)
     }
   }
 

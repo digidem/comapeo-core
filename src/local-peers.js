@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import timingSafeEqual from 'string-timing-safe-equal'
-import { assert, ExhaustivenessError, keyToId, noop } from './utils.js'
+import { assert, keyToId, noop, timeoutAfter } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
@@ -18,10 +18,13 @@ import {
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
-import pTimeout, { TimeoutError } from 'p-timeout'
 import {
+  PeerDisconnectedError,
+  PeerFailedConnectionError,
   RPCDisconnectBeforeAckError,
   RPCDisconnectBeforeSendingError,
+  UnknownPeerError,
+  ExhaustivenessError,
 } from './errors.js'
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
@@ -730,8 +733,8 @@ export class LocalPeers extends TypedEmitter {
         const invite = parseInvite(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite', peerId, invite)
-        peer.sendInviteAck(invite).catch((e) => {
-          this.#l.log(`Error sending invite ack ${e.stack}`)
+        peer.sendInviteAck(invite).catch((err) => {
+          this.#l.log(`Error sending invite ack ${err.stack}`)
         })
         this.#l.log(
           'Invite %h from %S for %h',
@@ -745,8 +748,8 @@ export class LocalPeers extends TypedEmitter {
         const inviteCancel = parseInviteCancel(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-cancel', peerId, inviteCancel)
-        peer.sendInviteCancelAck(inviteCancel).catch((e) => {
-          this.#l.log(`Error sending invite cancel ack ${e.stack}`)
+        peer.sendInviteCancelAck(inviteCancel).catch((err) => {
+          this.#l.log(`Error sending invite cancel ack ${err.stack}`)
         })
         this.#l.log(
           'Invite cancel from %S for %h',
@@ -759,8 +762,8 @@ export class LocalPeers extends TypedEmitter {
         const inviteResponse = parseInviteResponse(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-response', peerId, inviteResponse)
-        peer.sendInviteResponseAck(inviteResponse).catch((e) => {
-          this.#l.log(`Error sending invite response ack ${e.stack}`)
+        peer.sendInviteResponseAck(inviteResponse).catch((err) => {
+          this.#l.log(`Error sending invite response ack ${err.stack}`)
         })
         break
       }
@@ -768,8 +771,8 @@ export class LocalPeers extends TypedEmitter {
         const details = parseProjectJoinDetails(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('got-project-details', peerId, details)
-        peer.sendProjectJoinDetailsAck(details).catch((e) => {
-          this.#l.log(`Error sending project details ack ${e.stack}`)
+        peer.sendProjectJoinDetailsAck(details).catch((err) => {
+          this.#l.log(`Error sending project details ack ${err.stack}`)
         })
         break
       }
@@ -817,7 +820,7 @@ export class LocalPeers extends TypedEmitter {
    * Wait for any connections that are currently opening
    */
   #waitForPendingConnections() {
-    return pTimeout(Promise.all(this.#opening), { milliseconds: SEND_TIMEOUT })
+    return timeoutAfter(Promise.all(this.#opening), SEND_TIMEOUT)
   }
 
   /**
@@ -851,32 +854,6 @@ export class LocalPeers extends TypedEmitter {
 
       this.on('peers', onPeers)
     })
-  }
-}
-
-export { TimeoutError }
-
-export class UnknownPeerError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'UnknownPeerError') {
-    super(message)
-    this.name = 'UnknownPeerError'
-  }
-}
-
-export class PeerDisconnectedError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Peer disconnected') {
-    super(message)
-    this.name = 'PeerDisconnectedError'
-  }
-}
-
-export class PeerFailedConnectionError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'PeerFailedConnectionError') {
-    super(message)
-    this.name = 'PeerFailedConnectionError'
   }
 }
 

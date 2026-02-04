@@ -1,4 +1,5 @@
 import crypto from 'hypercore-crypto'
+import { MissingWriterError } from '../errors.js'
 /** @import { Namespace } from '../types.js' */
 /** @import { CoreRecord } from './index.js' */
 
@@ -59,7 +60,7 @@ export class CoreIndex {
     const writerRecord = this.#writersByNamespace.get(namespace)
     // Shouldn't happen, since we add all the writers in the contructor
     if (!writerRecord) {
-      throw new Error(`Writer for namespace '${namespace}' is not defined`)
+      throw new MissingWriterError(namespace)
     }
     return writerRecord
   }

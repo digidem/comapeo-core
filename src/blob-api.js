@@ -2,6 +2,7 @@ import fs from 'node:fs'
 // @ts-expect-error - pipelinePromise missing from streamx types
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
+import { UnsupportedMimeTypeError } from './errors.js'
 /** @import { BlobId, BlobType } from './types.js' */
 
 /**
@@ -109,5 +110,5 @@ function getType(mimeType) {
   if (mimeType.startsWith('video')) return 'video'
   if (mimeType.startsWith('audio')) return 'audio'
 
-  throw new Error(`Unsupported mimeType: ${mimeType}`)
+  throw new UnsupportedMimeTypeError(mimeType)
 }

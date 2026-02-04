@@ -73,7 +73,6 @@ test('invalid base URLs', async (t) => {
         () => project.$member.addServerPeer(url),
         {
           code: 'INVALID_URL',
-          message: /base url is invalid/i,
         },
         `${url} should be invalid`
       )

@@ -444,7 +444,6 @@ test('cancelation (before response)', async (t) => {
   const inviteAbortedAssertionPromise = assert.rejects(
     invitePromise,
     {
-      message: /Invite Aborted/,
       name: 'InviteAbortedError',
     },
     'should throw after being aborted'
@@ -629,7 +628,6 @@ test('disconnect before invite accept', async (t) => {
     invitePromise,
     {
       name: 'InviteAbortedError',
-      message: 'Invite Aborted',
     },
     'invite promise rejects after being aborted'
   )

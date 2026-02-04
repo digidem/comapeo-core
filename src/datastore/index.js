@@ -5,7 +5,12 @@ import pDefer from 'p-defer'
 import { discoveryKey } from 'hypercore-crypto'
 import { NAMESPACE_SCHEMAS } from '../constants.js'
 import { createMap } from '../utils.js'
-import { NotFoundError } from '../errors.js'
+import {
+  InvalidDocSchemaError,
+  InvalidVersionIdError,
+  NotFoundError,
+  WriterCoreNotReadyError,
+} from '../errors.js'
 /** @import { MapeoDoc } from '@comapeo/schema' */
 
 /**
@@ -139,11 +144,7 @@ export class DataStore extends TypedEmitter {
   async write(doc) {
     // @ts-ignore
     if (!NAMESPACE_SCHEMAS[this.#namespace].includes(doc.schemaName)) {
-      throw new Error(
-        `Schema '${doc.schemaName}' is not allowed in namespace '${
-          this.#namespace
-        }'`
-      )
+      throw new InvalidDocSchemaError(doc.schemaName, this.#namespace)
     }
     const block = encode(doc)
     // The indexer batch can sometimes complete before the append below
@@ -159,7 +160,7 @@ export class DataStore extends TypedEmitter {
     const index = length - 1
     const coreDiscoveryKey = this.#writerCore.discoveryKey
     if (!coreDiscoveryKey) {
-      throw new Error('Writer core is not ready')
+      throw new WriterCoreNotReadyError()
     }
     const versionId = getVersionId({ coreDiscoveryKey, index })
     /** @type {import('p-defer').DeferredPromise<void>} */
@@ -181,7 +182,7 @@ export class DataStore extends TypedEmitter {
   async read(versionId) {
     const { coreDiscoveryKey, index } = parseVersionId(versionId)
     const coreRecord = this.#coreManager.getCoreByDiscoveryKey(coreDiscoveryKey)
-    if (!coreRecord) throw new Error('Invalid versionId')
+    if (!coreRecord) throw new InvalidVersionIdError()
     const block = await coreRecord.core.get(index, { wait: false })
     if (!block) throw new NotFoundError('Not Found')
     return decode(block, { coreDiscoveryKey, index })
@@ -193,7 +194,7 @@ export class DataStore extends TypedEmitter {
     const index = length - 1
     const coreDiscoveryKey = this.#writerCore.discoveryKey
     if (!coreDiscoveryKey) {
-      throw new Error('Writer core is not ready')
+      throw new WriterCoreNotReadyError()
     }
     const versionId = getVersionId({ coreDiscoveryKey, index })
     return versionId
