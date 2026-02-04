@@ -117,21 +117,16 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  */
 
 /**
- * @typedef {object} MapShare
- * @property {string[]} downloadURLs - URLs to attempt to download the share from, match to local interfaces
- * @property {string[]} declineURLs - URLS to decline the share at
+ * @typedef {object} AugmentedMapShareProperties
+ * @property {readonly [number, number, number, number]} bounds - Bounding box of the shared map [W, S, E, N].
+ * @property {readonly [string, ...string[]]} mapShareUrls - URLs associated with the map share.
+ * @property {number} mapShareReceivedAt - Timestamp when the map share was received.
  * @property {string} senderDeviceId - The ID of the device that sent the map share.
- * @property {string} senderDeviceName - The name of the device that sent the map share.
- * @property {string} shareId - The ID of the map share.
- * @property {string} mapName - The name of the map being shared.
- * @property {string} mapId - The ID of the map being shared.
- * @property {number} receivedAt - The timestamp when the map share invite was received.
- * @property {number} mapShareCreatedAt - The timestamp when the map share was created
- * @property {number} mapCreatedAt: - The timestamp when the map share was created
- * @property {[number, number, number, number]} bounds - The bounding box of the map data being shared.
- * @property {number} minzoom - The minimum zoom level of the map data being shared.
- * @property {number} maxzoom - The maximum zoom level of the map data being shared.
- * @property {number} estimatedSizeBytes - Estimated size of the map data being shared in bytes.
+ * @property {string} [senderDeviceName] - The name of the device that sent the map share.
+ */
+
+/**
+ * @typedef {Omit<MapShareExtension, 'bounds' | 'mapShareUrls'> & AugmentedMapShareProperties} MapShare
  */
 
 /**
@@ -793,56 +788,24 @@ export class MapeoProject extends TypedEmitter {
    * @param {string} senderDeviceId
    */
   async #handleMapShare(mapShareBase, senderDeviceId) {
-    const receivedAt = Date.now()
+    const mapShareReceivedAt = Date.now()
 
     validateMapShareExtension(mapShareBase)
 
-    const {
-      downloadURLs,
-      declineURLs,
-      mapId,
-      mapName,
-      shareId,
-      bounds,
-      minzoom,
-      maxzoom,
-      estimatedSizeBytes,
-      mapCreatedAt,
-      mapShareCreatedAt,
-    } = mapShareBase
+    const sender = await this.$member.getById(senderDeviceId)
 
-    const memberInfo = await this.$member.getById(senderDeviceId)
-
-    const senderDeviceName = memberInfo.name
-    const senderRole = memberInfo.role
-
-    if (INACTIVE_MEMBER_ROLE_IDS.includes(senderRole.roleId)) {
+    if (INACTIVE_MEMBER_ROLE_IDS.includes(sender.role.roleId)) {
       throw new Error(
-        `Map Share Sender has inactive role ID "${senderRole.name}" ${senderRole.roleId}`
+        `Map Share Sender is not an active member of the project (role: ${sender.role.name})`
       )
-    }
-
-    if (!senderDeviceName) {
-      throw new Error('Map Share senders must have a name')
     }
 
     /** @type {MapShare} */
     const mapShare = {
+      ...mapShareBase,
       senderDeviceId,
-      senderDeviceName,
-      shareId,
-      downloadURLs,
-      declineURLs,
-      mapName,
-      mapId,
-      receivedAt,
-      mapCreatedAt,
-      mapShareCreatedAt,
-      // Bounds get checked inside validate function
-      bounds: /** @type {MapShare['bounds']} */ (bounds),
-      minzoom,
-      maxzoom,
-      estimatedSizeBytes,
+      senderDeviceName: sender.name,
+      mapShareReceivedAt,
     }
 
     this.emit('map-share', mapShare)
@@ -1490,21 +1453,17 @@ export class MapeoProject extends TypedEmitter {
   }
 
   /**
-   * Send a map share offer to a member of the project
+   * Send a map share offer to the peer with device ID `mapShare.receiverDeviceId`
+   *
    * @param {MapShareExtension} mapShare
-   * @param {string} deviceId ID of the project memeber you wish to send the map share to
    * @param {object} [options]
    * @param {boolean} [options.__testOnlyBypassValidation=false] Warning: Do not use!
    */
-  async $sendMapShare(
-    mapShare,
-    deviceId,
-    { __testOnlyBypassValidation = false } = {}
-  ) {
+  async $sendMapShare(mapShare, { __testOnlyBypassValidation = false } = {}) {
     if (!__testOnlyBypassValidation) {
       validateMapShareExtension(mapShare)
     }
-    const peerId = Buffer.from(deviceId, 'hex')
+    const peerId = Buffer.from(mapShare.receiverDeviceId, 'hex')
     await this.#coreManager.sendMapShare(mapShare, peerId)
   }
 }

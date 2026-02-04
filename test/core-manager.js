@@ -35,8 +35,8 @@ import { MAX_BOUNDS, validateMapShareExtension } from '../src/utils.js'
  * @type {MapShareExtension}
  */
 const TEST_SHARE = {
-  downloadURLs: ['https://mapserver.example.com'],
-  declineURLs: ['https://mapserver.example.com'],
+  mapShareUrls: ['https://mapserver.example.com'],
+  receiverDeviceId: 'abcdef123456',
   shareId: 'share001',
   mapShareCreatedAt: Date.now(),
   mapCreatedAt: Date.now(),
@@ -52,8 +52,9 @@ const TEST_SHARE = {
  * @type {MapShareExtension[]}
  */
 const FAILING_TEST_SHARES = [
-  { ...TEST_SHARE, downloadURLs: [] },
-  { ...TEST_SHARE, declineURLs: [] },
+  { ...TEST_SHARE, mapShareUrls: [] },
+  { ...TEST_SHARE, mapShareUrls: ['invalid-url'] },
+  { ...TEST_SHARE, receiverDeviceId: '' },
   { ...TEST_SHARE, shareId: '' },
   { ...TEST_SHARE, mapShareCreatedAt: 0 },
   { ...TEST_SHARE, mapCreatedAt: 0 },

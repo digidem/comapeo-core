@@ -1,24 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  connectPeers,
-  createManager,
-  createManagers,
-  invite,
-  waitForSync,
-} from './utils.js'
+import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 import { pEvent } from 'p-event'
 
 /** @import { MapShareExtension } from '../src/generated/extensions.js' */
 /** @import {MapShare} from '../src/mapeo-project.js' */
-/** @import {CancelablePromise} from 'p-event' */
 
 /**
  * @type {MapShareExtension}
  */
 const TEST_SHARE = {
-  downloadURLs: ['https://mapserver.example.com'],
-  declineURLs: ['https://mapserver.example.com'],
+  mapShareUrls: ['https://mapserver.example.com'],
+  receiverDeviceId: 'abcdef123456',
   shareId: 'share001',
   mapShareCreatedAt: Date.now(),
   mapCreatedAt: Date.now(),
@@ -47,6 +40,8 @@ test('Able to send map share to other member', async (t) => {
   const projectId = await invitor.createProject({ name: 'Mapeo' })
   const project = await invitor.getProject(projectId)
 
+  const mapShare = { ...TEST_SHARE, receiverDeviceId: invitee.deviceId }
+
   await invite({
     invitor,
     projectId,
@@ -60,13 +55,13 @@ test('Able to send map share to other member', async (t) => {
     timeout: 1000,
   })
 
-  await project.$sendMapShare(TEST_SHARE, invitee.deviceId)
+  await project.$sendMapShare(mapShare)
 
   const gotShare = /** @type MapShare */ (
     /** @type unknown */ (await onMapShare)
   )
 
-  for (const [key, value] of Object.entries(TEST_SHARE)) {
+  for (const [key, value] of Object.entries(mapShare)) {
     // @ts-ignore
     const gotValue = gotShare[key]
     assert.deepEqual(gotValue, value, `${key} matches original value`)
@@ -81,7 +76,7 @@ test('Able to send map share to other member', async (t) => {
   )
 
   assert.equal(gotShare.senderDeviceName, name, 'Got sender name')
-  assert(gotShare.receivedAt, 'Timestamp is not 0')
+  assert(gotShare.mapShareReceivedAt, 'Timestamp is not 0')
 })
 
 test('Do not allow sending invalid map shares', async (t) => {
@@ -99,9 +94,9 @@ test('Do not allow sending invalid map shares', async (t) => {
     invitees: [invitee],
   })
 
-  await assert.rejects(() =>
-    project.$sendMapShare(FAILING_SHARE, invitee.deviceId)
-  )
+  const mapShare = { ...FAILING_SHARE, receiverDeviceId: invitee.deviceId }
+
+  await assert.rejects(() => project.$sendMapShare(mapShare))
 })
 
 test('Map share error emitted when member gets an invalid share', async (t) => {
@@ -125,37 +120,9 @@ test('Map share error emitted when member gets an invalid share', async (t) => {
     timeout: 1000,
   })
 
-  await project.$sendMapShare(FAILING_SHARE, invitee.deviceId, {
-    __testOnlyBypassValidation: true,
-  })
+  const mapShare = { ...FAILING_SHARE, receiverDeviceId: invitee.deviceId }
 
-  await onMapShareError
-})
-
-// TODO: Can't invite without having a name
-test.skip('Map share error emitted when sharer has no device name', async (t) => {
-  const invitor = await createManager('invitor', t)
-  const invitee = await createManager('invitee', t)
-  const managers = [invitor, invitee]
-  const disconnectPeers = connectPeers(managers)
-  t.after(disconnectPeers)
-
-  const projectId = await invitor.createProject({ name: 'Mapeo' })
-  const project = await invitor.getProject(projectId)
-
-  await invite({
-    invitor,
-    projectId,
-    invitees: [invitee],
-  })
-
-  const inviteeProject = await invitee.getProject(projectId)
-
-  const onMapShareError = pEvent(inviteeProject, 'map-share-error', {
-    timeout: 1000,
-  })
-
-  await project.$sendMapShare(TEST_SHARE, invitee.deviceId)
+  await project.$sendMapShare(mapShare, { __testOnlyBypassValidation: true })
 
   await onMapShareError
 })
@@ -186,7 +153,9 @@ test('Map share error emitted when invitor is removed', async (t) => {
     timeout: 1000,
   })
 
-  await removedProject.$sendMapShare(TEST_SHARE, invitee.deviceId)
+  const mapShare = { ...TEST_SHARE, receiverDeviceId: invitee.deviceId }
+
+  await removedProject.$sendMapShare(mapShare)
 
   await onMapShareError
 })

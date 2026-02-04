@@ -260,12 +260,14 @@ export function typedEntries(obj) {
 /**
  * Validate map share extension messages to check that all their parameters make sense
  * Does not validate device ID or device name
+ *
  * @param {MapShareExtension} mapShare
+ * @returns {asserts mapShare is { [K in keyof MapShareExtension]: import('./mapeo-project.js').MapShare[K] }} - this validates the properties that MapShareExtension and MapShare have in common - bounds tuple and mapShareUrls
  */
 export function validateMapShareExtension(mapShare) {
   const {
-    downloadURLs,
-    declineURLs,
+    mapShareUrls,
+    receiverDeviceId,
     mapId,
     mapName,
     shareId,
@@ -277,11 +279,16 @@ export function validateMapShareExtension(mapShare) {
     mapShareCreatedAt,
   } = mapShare
 
+  if (!receiverDeviceId.length) {
+    throw new Error('Receiver Device ID must not be empty')
+  }
   if (!mapId.length) throw new Error('Map ID must not be empty')
   if (!shareId.length) throw new Error('Share ID must not be empty')
   if (!mapName.length) throw new Error('Map Name must not be empty')
-  if (!downloadURLs.length) throw new Error('Download URLs must not be empty')
-  if (!declineURLs.length) throw new Error('Decline URLs must not be empty')
+  if (!mapShareUrls.length) throw new Error('Map share URLs must not be empty')
+  if (!mapShareUrls.every((url) => URL.canParse(url))) {
+    throw new Error('Map share URLs must be valid URLs')
+  }
   if (!mapCreatedAt) throw new Error('mapCreatedAt must be set')
   if (!mapShareCreatedAt) throw new Error('mapShareCreatedAt must be set')
   if (bounds.length !== 4) {

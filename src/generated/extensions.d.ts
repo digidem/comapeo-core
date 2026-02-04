@@ -40,10 +40,10 @@ export interface DownloadIntentExtension_DownloadIntentsEntry {
     value: DownloadIntentExtension_DownloadIntent | undefined;
 }
 export interface MapShareExtension {
-    /** URLs to do map downloads over */
-    downloadURLs: string[];
-    /** URLs to decline the map share with */
-    declineURLs: string[];
+    /** URLs to map share */
+    mapShareUrls: string[];
+    /** ID of peer that can receive the map share (each map share is linked to a specific device ID) */
+    receiverDeviceId: string;
     /** The ID of the map share */
     shareId: string;
     /** The name of the map being shared */

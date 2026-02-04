@@ -331,8 +331,8 @@ export var DownloadIntentExtension_DownloadIntentsEntry = {
 };
 function createBaseMapShareExtension() {
     return {
-        downloadURLs: [],
-        declineURLs: [],
+        mapShareUrls: [],
+        receiverDeviceId: "",
         shareId: "",
         mapName: "",
         mapId: "",
@@ -347,13 +347,12 @@ function createBaseMapShareExtension() {
 export var MapShareExtension = {
     encode: function (message, writer) {
         if (writer === void 0) { writer = _m0.Writer.create(); }
-        for (var _i = 0, _a = message.downloadURLs; _i < _a.length; _i++) {
+        for (var _i = 0, _a = message.mapShareUrls; _i < _a.length; _i++) {
             var v = _a[_i];
             writer.uint32(10).string(v);
         }
-        for (var _b = 0, _c = message.declineURLs; _b < _c.length; _b++) {
-            var v = _c[_b];
-            writer.uint32(18).string(v);
+        if (message.receiverDeviceId !== "") {
+            writer.uint32(18).string(message.receiverDeviceId);
         }
         if (message.shareId !== "") {
             writer.uint32(26).string(message.shareId);
@@ -371,8 +370,8 @@ export var MapShareExtension = {
             writer.uint32(56).uint64(message.mapCreatedAt);
         }
         writer.uint32(66).fork();
-        for (var _d = 0, _e = message.bounds; _d < _e.length; _d++) {
-            var v = _e[_d];
+        for (var _b = 0, _c = message.bounds; _b < _c.length; _b++) {
+            var v = _c[_b];
             writer.double(v);
         }
         writer.ldelim();
@@ -398,13 +397,13 @@ export var MapShareExtension = {
                     if (tag !== 10) {
                         break;
                     }
-                    message.downloadURLs.push(reader.string());
+                    message.mapShareUrls.push(reader.string());
                     continue;
                 case 2:
                     if (tag !== 18) {
                         break;
                     }
-                    message.declineURLs.push(reader.string());
+                    message.receiverDeviceId = reader.string();
                     continue;
                 case 3:
                     if (tag !== 26) {
@@ -481,8 +480,8 @@ export var MapShareExtension = {
     fromPartial: function (object) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
         var message = createBaseMapShareExtension();
-        message.downloadURLs = ((_a = object.downloadURLs) === null || _a === void 0 ? void 0 : _a.map(function (e) { return e; })) || [];
-        message.declineURLs = ((_b = object.declineURLs) === null || _b === void 0 ? void 0 : _b.map(function (e) { return e; })) || [];
+        message.mapShareUrls = ((_a = object.mapShareUrls) === null || _a === void 0 ? void 0 : _a.map(function (e) { return e; })) || [];
+        message.receiverDeviceId = (_b = object.receiverDeviceId) !== null && _b !== void 0 ? _b : "";
         message.shareId = (_c = object.shareId) !== null && _c !== void 0 ? _c : "";
         message.mapName = (_d = object.mapName) !== null && _d !== void 0 ? _d : "";
         message.mapId = (_e = object.mapId) !== null && _e !== void 0 ? _e : "";

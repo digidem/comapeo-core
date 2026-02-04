@@ -88,10 +88,10 @@ export interface DownloadIntentExtension_DownloadIntentsEntry {
 }
 
 export interface MapShareExtension {
-  /** URLs to do map downloads over */
-  downloadURLs: string[];
-  /** URLs to decline the map share with */
-  declineURLs: string[];
+  /** URLs to map share */
+  mapShareUrls: string[];
+  /** ID of peer that can receive the map share (each map share is linked to a specific device ID) */
+  receiverDeviceId: string;
   /** The ID of the map share */
   shareId: string;
   /** The name of the map being shared */
@@ -420,8 +420,8 @@ export const DownloadIntentExtension_DownloadIntentsEntry = {
 
 function createBaseMapShareExtension(): MapShareExtension {
   return {
-    downloadURLs: [],
-    declineURLs: [],
+    mapShareUrls: [],
+    receiverDeviceId: "",
     shareId: "",
     mapName: "",
     mapId: "",
@@ -436,11 +436,11 @@ function createBaseMapShareExtension(): MapShareExtension {
 
 export const MapShareExtension = {
   encode(message: MapShareExtension, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    for (const v of message.downloadURLs) {
+    for (const v of message.mapShareUrls) {
       writer.uint32(10).string(v!);
     }
-    for (const v of message.declineURLs) {
-      writer.uint32(18).string(v!);
+    if (message.receiverDeviceId !== "") {
+      writer.uint32(18).string(message.receiverDeviceId);
     }
     if (message.shareId !== "") {
       writer.uint32(26).string(message.shareId);
@@ -486,14 +486,14 @@ export const MapShareExtension = {
             break;
           }
 
-          message.downloadURLs.push(reader.string());
+          message.mapShareUrls.push(reader.string());
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.declineURLs.push(reader.string());
+          message.receiverDeviceId = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
@@ -582,8 +582,8 @@ export const MapShareExtension = {
   },
   fromPartial<I extends Exact<DeepPartial<MapShareExtension>, I>>(object: I): MapShareExtension {
     const message = createBaseMapShareExtension();
-    message.downloadURLs = object.downloadURLs?.map((e) => e) || [];
-    message.declineURLs = object.declineURLs?.map((e) => e) || [];
+    message.mapShareUrls = object.mapShareUrls?.map((e) => e) || [];
+    message.receiverDeviceId = object.receiverDeviceId ?? "";
     message.shareId = object.shareId ?? "";
     message.mapName = object.mapName ?? "";
     message.mapId = object.mapId ?? "";
