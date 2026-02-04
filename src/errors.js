@@ -518,7 +518,7 @@ export class InvalidUrlError extends Error {
   constructor() {
     super('Invalid URL provided')
     this.name = 'InvalidUrlError'
-    this.code = 'INVALID_URL_ERROR'
+    this.code = 'INVALID_URL'
     this.status = 400
   }
 }
@@ -545,7 +545,7 @@ export class MissingDataError extends Error {
   constructor() {
     super('Project must have name to add server peer')
     this.name = 'MissingDataError'
-    this.code = 'MISSING_DATA_ERROR'
+    this.code = 'MISSING_DATA'
     this.status = 400
   }
 }
@@ -571,7 +571,7 @@ export class InvalidServerResponseError extends Error {
   constructor(message = 'Invalid Server Response', options = {}) {
     super(message, options)
     this.name = 'InvalidServerResponseError'
-    this.code = 'INVALID_SERVER_RESPONSE_ERROR'
+    this.code = 'INVALID_SERVER_RESPONSE'
     this.status = 502
   }
 }
@@ -582,7 +582,7 @@ export class ProjectNotInAllowlistError extends Error {
       "The server only allows specific projects to be added, and this isn't one of them"
     )
     this.name = 'ProjectNotInAllowlistError'
-    this.code = 'PROJECT_NOT_IN_ALLOWLIST_ERROR'
+    this.code = 'PROJECT_NOT_IN_SERVER_ALLOWLIST'
     this.status = 403
   }
 }
@@ -593,7 +593,7 @@ export class ServerTooManyProjectsError extends Error {
       "The server limits the number of projects it can have and it's at the limit"
     )
     this.name = 'ServerTooManyProjectsError'
-    this.code = 'SERVER_HAS_TOO_MANY_PROJECTS_ERROR'
+    this.code = 'SERVER_HAS_TOO_MANY_PROJECTS'
     this.status = 429
   }
 }
@@ -607,6 +607,18 @@ export class MissingOwnDeviceInfoError extends Error {
     this.name = 'MissingOwnDeviceInfoError'
     this.code = 'MISSING_OWN_DEVICE_INFO_ERROR'
     this.status = 400
+  }
+}
+
+export class CategoryFileNotFoundError extends Error {
+  /**
+   * @param {string} filePath
+   */
+  constructor(filePath) {
+    super(`Category file not found at ${filePath}`)
+    this.name = 'CategoryFileNotFoundError'
+    this.code = 'CATEGORY_FILE_NOT_FOUND_ERROR'
+    this.status = 404
   }
 }
 

@@ -59,7 +59,9 @@ import { IconApi } from './icon-api.js'
 import { importCategories } from './import-categories.js'
 import TranslationApi from './translation-api.js'
 import {
+  CategoryFileNotFoundError,
   ensureKnownError,
+  getErrorCode,
   InvalidDeviceInfoError,
   NotFoundError,
   nullIfNotFound,
@@ -1389,6 +1391,9 @@ export class MapeoProject extends TypedEmitter {
     try {
       await importCategories(this, { filePath, logger: this.#l })
     } catch (err) {
+      if (getErrorCode(err) === 'ENOENT') {
+        throw new CategoryFileNotFoundError(filePath)
+      }
       this.#l.log('error loading config', err)
       throw ensureKnownError(err)
     } finally {

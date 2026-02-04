@@ -46,7 +46,7 @@ test('failing on loading a second config should not delete any data', async (t) 
   await assertProjectHasImportedCategories(project, reader)
 
   await assert.rejects(() => project.$importCategories({ filePath: 'hi' }), {
-    code: 'ENOENT',
+    code: 'CATEGORY_FILE_NOT_FOUND_ERROR',
   })
 
   // check we still have the original data
