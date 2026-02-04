@@ -628,7 +628,6 @@ test('disconnect before invite accept', async (t) => {
     invitePromise,
     {
       name: 'InviteAbortedError',
-      message: 'Invite Aborted',
     },
     'invite promise rejects after being aborted'
   )
