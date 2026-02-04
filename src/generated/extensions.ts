@@ -87,6 +87,31 @@ export interface DownloadIntentExtension_DownloadIntentsEntry {
   value: DownloadIntentExtension_DownloadIntent | undefined;
 }
 
+export interface MapShareExtension {
+  /** URLs to map share */
+  mapShareUrls: string[];
+  /** ID of peer that can receive the map share (each map share is linked to a specific device ID) */
+  receiverDeviceId: string;
+  /** The ID of the map share */
+  shareId: string;
+  /** The name of the map being shared */
+  mapName: string;
+  /** The ID of the map being shared */
+  mapId: string;
+  /** When ths share was created */
+  mapShareCreatedAt: number;
+  /** When the map was created */
+  mapCreatedAt: number;
+  /** The bounding box of the map data being shared */
+  bounds: number[];
+  /** The minimum zoom level of the map data being shared */
+  minzoom: number;
+  /** The maximum zoom level of the map data being shared */
+  maxzoom: number;
+  /** Estimated size of the map data being shared in bytes */
+  estimatedSizeBytes: number;
+}
+
 function createBaseProjectExtension(): ProjectExtension {
   return { authCoreKeys: [] };
 }
@@ -389,6 +414,185 @@ export const DownloadIntentExtension_DownloadIntentsEntry = {
     message.value = (object.value !== undefined && object.value !== null)
       ? DownloadIntentExtension_DownloadIntent.fromPartial(object.value)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseMapShareExtension(): MapShareExtension {
+  return {
+    mapShareUrls: [],
+    receiverDeviceId: "",
+    shareId: "",
+    mapName: "",
+    mapId: "",
+    mapShareCreatedAt: 0,
+    mapCreatedAt: 0,
+    bounds: [],
+    minzoom: 0,
+    maxzoom: 0,
+    estimatedSizeBytes: 0,
+  };
+}
+
+export const MapShareExtension = {
+  encode(message: MapShareExtension, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.mapShareUrls) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.receiverDeviceId !== "") {
+      writer.uint32(18).string(message.receiverDeviceId);
+    }
+    if (message.shareId !== "") {
+      writer.uint32(26).string(message.shareId);
+    }
+    if (message.mapName !== "") {
+      writer.uint32(34).string(message.mapName);
+    }
+    if (message.mapId !== "") {
+      writer.uint32(42).string(message.mapId);
+    }
+    if (message.mapShareCreatedAt !== 0) {
+      writer.uint32(48).uint64(message.mapShareCreatedAt);
+    }
+    if (message.mapCreatedAt !== 0) {
+      writer.uint32(56).uint64(message.mapCreatedAt);
+    }
+    writer.uint32(66).fork();
+    for (const v of message.bounds) {
+      writer.double(v);
+    }
+    writer.ldelim();
+    if (message.minzoom !== 0) {
+      writer.uint32(72).int32(message.minzoom);
+    }
+    if (message.maxzoom !== 0) {
+      writer.uint32(80).int32(message.maxzoom);
+    }
+    if (message.estimatedSizeBytes !== 0) {
+      writer.uint32(88).uint64(message.estimatedSizeBytes);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MapShareExtension {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMapShareExtension();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.mapShareUrls.push(reader.string());
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.receiverDeviceId = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.shareId = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.mapName = reader.string();
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.mapId = reader.string();
+          continue;
+        case 6:
+          if (tag !== 48) {
+            break;
+          }
+
+          message.mapShareCreatedAt = longToNumber(reader.uint64() as Long);
+          continue;
+        case 7:
+          if (tag !== 56) {
+            break;
+          }
+
+          message.mapCreatedAt = longToNumber(reader.uint64() as Long);
+          continue;
+        case 8:
+          if (tag === 65) {
+            message.bounds.push(reader.double());
+
+            continue;
+          }
+
+          if (tag === 66) {
+            const end2 = reader.uint32() + reader.pos;
+            while (reader.pos < end2) {
+              message.bounds.push(reader.double());
+            }
+
+            continue;
+          }
+
+          break;
+        case 9:
+          if (tag !== 72) {
+            break;
+          }
+
+          message.minzoom = reader.int32();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.maxzoom = reader.int32();
+          continue;
+        case 11:
+          if (tag !== 88) {
+            break;
+          }
+
+          message.estimatedSizeBytes = longToNumber(reader.uint64() as Long);
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<MapShareExtension>, I>>(base?: I): MapShareExtension {
+    return MapShareExtension.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<MapShareExtension>, I>>(object: I): MapShareExtension {
+    const message = createBaseMapShareExtension();
+    message.mapShareUrls = object.mapShareUrls?.map((e) => e) || [];
+    message.receiverDeviceId = object.receiverDeviceId ?? "";
+    message.shareId = object.shareId ?? "";
+    message.mapName = object.mapName ?? "";
+    message.mapId = object.mapId ?? "";
+    message.mapShareCreatedAt = object.mapShareCreatedAt ?? 0;
+    message.mapCreatedAt = object.mapCreatedAt ?? 0;
+    message.bounds = object.bounds?.map((e) => e) || [];
+    message.minzoom = object.minzoom ?? 0;
+    message.maxzoom = object.maxzoom ?? 0;
+    message.estimatedSizeBytes = object.estimatedSizeBytes ?? 0;
     return message;
   },
 };

@@ -4,9 +4,12 @@ import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
 import { omit } from './lib/omit.js'
 
+/** @import { MapShareExtension } from './generated/extensions.js' */
 /** @import {Attachment, BlobId} from "./types.js" */
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
+
+export const MAX_BOUNDS = [-180, -85.051129, 180, 85.051129]
 
 /**
  *
@@ -252,4 +255,75 @@ export function buildBlobId(attachment, requestedVariant) {
  */
 export function typedEntries(obj) {
   return /** @type {import('type-fest').Entries<T>} */ (Object.entries(obj))
+}
+
+/**
+ * Validate map share extension messages to check that all their parameters make sense
+ * Does not validate device ID or device name
+ *
+ * @param {MapShareExtension} mapShare
+ * @returns {asserts mapShare is { [K in keyof MapShareExtension]: import('./mapeo-project.js').MapShare[K] }} - this validates the properties that MapShareExtension and MapShare have in common - bounds tuple and mapShareUrls
+ */
+export function validateMapShareExtension(mapShare) {
+  const {
+    mapShareUrls,
+    receiverDeviceId,
+    mapId,
+    mapName,
+    shareId,
+    bounds,
+    minzoom,
+    maxzoom,
+    estimatedSizeBytes,
+    mapCreatedAt,
+    mapShareCreatedAt,
+  } = mapShare
+
+  if (!receiverDeviceId.length) {
+    throw new Error('Receiver Device ID must not be empty')
+  }
+  if (!mapId.length) throw new Error('Map ID must not be empty')
+  if (!shareId.length) throw new Error('Share ID must not be empty')
+  if (!mapName.length) throw new Error('Map Name must not be empty')
+  if (!mapShareUrls.length) throw new Error('Map share URLs must not be empty')
+  if (!mapShareUrls.every((url) => URL.canParse(url))) {
+    throw new Error('Map share URLs must be valid URLs')
+  }
+  if (!mapCreatedAt) throw new Error('mapCreatedAt must be set')
+  if (!mapShareCreatedAt) throw new Error('mapShareCreatedAt must be set')
+  if (bounds.length !== 4) {
+    throw new Error('Bounds must be bounding box with 4 values')
+  }
+  if (bounds[0] < MAX_BOUNDS[0]) {
+    throw new Error(
+      `Bounds at ${0} must be within max of spherical mercator projection ${MAX_BOUNDS}`
+    )
+  }
+  if (bounds[1] < MAX_BOUNDS[1]) {
+    throw new Error(
+      `Bounds at ${1} must be within max of spherical mercator projection ${MAX_BOUNDS}`
+    )
+  }
+  if (bounds[2] > MAX_BOUNDS[2]) {
+    throw new Error(
+      `Bounds at ${2} must be within max of spherical mercator projection ${MAX_BOUNDS}`
+    )
+  }
+  if (bounds[3] > MAX_BOUNDS[3]) {
+    throw new Error(
+      `Bounds at ${3} must be within max of spherical mercator projection ${MAX_BOUNDS}`
+    )
+  }
+  if (maxzoom < minzoom) {
+    throw new Error('Max zoom must be greater than or equal to min zoom')
+  }
+  if (maxzoom < 0 || maxzoom > 22) {
+    throw new Error('Max zoom must be between 0 and 22')
+  }
+  if (minzoom < 0 || minzoom > 22) {
+    throw new Error('Min zoom must be between 0 and 22')
+  }
+  if (estimatedSizeBytes <= 0) {
+    throw new Error('Map size bytes must greater than zero')
+  }
 }
