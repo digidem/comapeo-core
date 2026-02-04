@@ -411,7 +411,12 @@ export class Roles extends TypedEmitter {
     } else {
       const isAssigningProjectCreatorRole =
         authCoreId === this.#projectCreatorAuthCoreId
-      if (isAssigningProjectCreatorRole && roleId !== BLOCKED_ROLE_ID) {
+      const isAssigningSelf = deviceId === this.#ownDeviceId
+      if (
+        !isAssigningSelf &&
+        isAssigningProjectCreatorRole &&
+        roleId !== BLOCKED_ROLE_ID
+      ) {
         throw new Error(
           'Project creators can only be assigned the blocked role'
         )
