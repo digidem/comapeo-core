@@ -54,6 +54,7 @@ import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
 
+/** @import { MapShareExtension } from './generated/extensions.js' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { ProjectJoinDetails, } from './generated/rpc.js' */
@@ -99,6 +100,8 @@ export const DEFAULT_IS_ARCHIVE_DEVICE = true
 /**
  * @typedef {object} MapeoManagerEvents
  * @property {(peers: PublicPeerInfo[]) => void} local-peers Emitted when the list of connected peers changes (new ones added, or connection status changes)
+ * @property {(mapShare: import('./mapeo-project.js').MapShare) => void} map-share Emitted when a project has recieved a map share request
+ * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error - Emitted when an incoming map share fails to be recieved due to formatting issues
  */
 
 /**
@@ -465,10 +468,6 @@ export class MapeoManager extends TypedEmitter {
       projectSecretKey: projectKeypair.secretKey,
     })
 
-    project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
-    })
-
     // 5. Write project settings to project instance
     await project.$setProjectSettings({
       name,
@@ -545,10 +544,6 @@ export class MapeoManager extends TypedEmitter {
       await project[kClearData]()
     }
 
-    project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
-    })
-
     // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectPublicId, project)
 
@@ -580,6 +575,35 @@ export class MapeoManager extends TypedEmitter {
           .get()?.projectInfo
       },
     })
+
+    const projectPublicId = projectKeyToPublicId(projectKeys.projectKey)
+
+    /**
+     * @param {import('./mapeo-project.js').MapShare} mapShare
+     */
+    const onMapShare = (mapShare) => {
+      this.emit('map-share', mapShare)
+    }
+
+    /**
+     *
+     * @param {Error} err
+     * @param {MapShareExtension} mapShareExtension
+     */
+    const onMapShareError = (err, mapShareExtension) => {
+      this.emit('map-share-error', err, mapShareExtension)
+    }
+
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+      project.removeListener('map-share', onMapShare)
+      project.removeListener('map-share-error', onMapShareError)
+    })
+
+    project.on('map-share', onMapShare)
+
+    project.on('map-share-error', onMapShareError)
+
     return project
   }
 

@@ -55,28 +55,35 @@ test('Able to send map share to other member', async (t) => {
     timeout: 1000,
   })
 
+  const onMapShareManager = pEvent(invitee, 'map-share', {
+    rejectionEvents: ['map-share-error'],
+    timeout: 1000,
+  })
+
   await project.$sendMapShare(mapShare)
 
-  const gotShare = /** @type MapShare */ (
-    /** @type unknown */ (await onMapShare)
+  const shares = /** @type MapShare[] */ (
+    /** @type unknown */ (await Promise.all([onMapShare, onMapShareManager]))
   )
 
-  for (const [key, value] of Object.entries(mapShare)) {
-    // @ts-ignore
-    const gotValue = gotShare[key]
-    assert.deepEqual(gotValue, value, `${key} matches original value`)
+  for (const gotShare of shares) {
+    for (const [key, value] of Object.entries(mapShare)) {
+      // @ts-ignore
+      const gotValue = gotShare[key]
+      assert.deepEqual(gotValue, value, `${key} matches original value`)
+    }
+
+    const { name } = await invitor.getDeviceInfo()
+
+    assert.equal(
+      gotShare.senderDeviceId,
+      invitor.deviceId,
+      'Share came from sender'
+    )
+
+    assert.equal(gotShare.senderDeviceName, name, 'Got sender name')
+    assert(gotShare.mapShareReceivedAt, 'Timestamp is not 0')
   }
-
-  const { name } = await invitor.getDeviceInfo()
-
-  assert.equal(
-    gotShare.senderDeviceId,
-    invitor.deviceId,
-    'Share came from sender'
-  )
-
-  assert.equal(gotShare.senderDeviceName, name, 'Got sender name')
-  assert(gotShare.mapShareReceivedAt, 'Timestamp is not 0')
 })
 
 test('Do not allow sending invalid map shares', async (t) => {
@@ -120,11 +127,15 @@ test('Map share error emitted when member gets an invalid share', async (t) => {
     timeout: 1000,
   })
 
+  const onMapShareErrorManager = pEvent(invitee, 'map-share-error', {
+    timeout: 1000,
+  })
+
   const mapShare = { ...FAILING_SHARE, receiverDeviceId: invitee.deviceId }
 
   await project.$sendMapShare(mapShare, { __testOnlyBypassValidation: true })
 
-  await onMapShareError
+  await Promise.all([onMapShareError, onMapShareErrorManager])
 })
 
 test('Map share error emitted when invitor is removed', async (t) => {
