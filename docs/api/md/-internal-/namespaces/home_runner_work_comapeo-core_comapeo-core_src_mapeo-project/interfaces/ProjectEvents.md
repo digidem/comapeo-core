@@ -28,7 +28,7 @@ Emitted when a map share is recieved from someone on the project
 
 #### Parameters
 
-• **mapShare**: [`MapShare`](../type-aliases/MapShare.md)
+• **mapShare**: [`MapShare`](../../../../type-aliases/MapShare.md)
 
 #### Returns
 
