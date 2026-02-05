@@ -54,6 +54,7 @@ import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
 
+/** @import { MapShareExtension } from './generated/extensions.js' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { ProjectJoinDetails, } from './generated/rpc.js' */
@@ -99,6 +100,8 @@ export const DEFAULT_IS_ARCHIVE_DEVICE = true
 /**
  * @typedef {object} MapeoManagerEvents
  * @property {(peers: PublicPeerInfo[]) => void} local-peers Emitted when the list of connected peers changes (new ones added, or connection status changes)
+ * @property {(mapShare: import('./mapeo-project.js').MapShare) => void} map-share Emitted when a project has recieved a map share request
+ * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error - Emitted when an incoming map share fails to be recieved due to formatting issues
  */
 
 /**
@@ -467,6 +470,14 @@ export class MapeoManager extends TypedEmitter {
 
     project.once('close', () => {
       this.#activeProjects.delete(projectPublicId)
+    })
+
+    project.on('map-share', (mapShare) => {
+      this.emit('map-share', mapShare)
+    })
+
+    project.on('map-share-error', (err, mapShareExtension) => {
+      this.emit('map-share-error', err, mapShareExtension)
     })
 
     // 5. Write project settings to project instance
