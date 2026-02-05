@@ -14,6 +14,7 @@
     "test:e2e": "node --test test-e2e/*.js test-e2e/**/*.js",
     "test:types": "tsc -p test-types/tsconfig.json",
     "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
+    "build:errors": "node ./scripts/build-error-codes.js",
     "bench": "nanobench benchmarks/*.js",
     "type": "tsc",
     "doc": "rimraf docs/api/md && typedoc --plugin typedoc-plugin-markdown --plugin typedoc-plugin-missing-exports --out docs/api/md",
