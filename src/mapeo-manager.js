@@ -578,17 +578,31 @@ export class MapeoManager extends TypedEmitter {
 
     const projectPublicId = projectKeyToPublicId(projectKeys.projectKey)
 
+    /**
+     * @param {import('./mapeo-project.js').MapShare} mapShare
+     */
+    const onMapShare = (mapShare) => {
+      this.emit('map-share', mapShare)
+    }
+
+    /**
+     *
+     * @param {Error} err
+     * @param {MapShareExtension} mapShareExtension
+     */
+    const onMapShareError = (err, mapShareExtension) => {
+      this.emit('map-share-error', err, mapShareExtension)
+    }
+
     project.once('close', () => {
       this.#activeProjects.delete(projectPublicId)
+      project.removeListener('map-share', onMapShare)
+      project.removeListener('map-share-error', onMapShareError)
     })
 
-    project.on('map-share', (mapShare) => {
-      this.emit('map-share', mapShare)
-    })
+    project.on('map-share', onMapShare)
 
-    project.on('map-share-error', (err, mapShareExtension) => {
-      this.emit('map-share-error', err, mapShareExtension)
-    })
+    project.on('map-share-error', onMapShareError)
 
     return project
   }
