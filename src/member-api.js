@@ -22,11 +22,15 @@ import { InviteAbortedError, ProjectDetailsSendFailError } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
+  COORDINATOR_ROLE_ID,
+  CREATOR_ROLE_ID,
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
+
+const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /**
  * @import {
  *   DeviceInfo,
@@ -54,6 +58,10 @@ import {
  * @prop {DeviceInfo['createdAt']} [joinedAt]
  * @prop {object} [selfHostedServerDetails]
  * @prop {string} selfHostedServerDetails.baseUrl
+ */
+
+/**
+ * @typedef {Omit<MemberInfo, 'role'> & {role: import('./roles.js').Role<typeof MEMBER_ROLE_ID | typeof COORDINATOR_ROLE_ID | typeof CREATOR_ROLE_ID>}} ActiveMemberInfo
  */
 
 export class MemberApi extends TypedEmitter {
@@ -561,9 +569,25 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
+   * @overload
+   * @param {object} opts
+   * @param {true} opts.includeLeft
    * @returns {Promise<Array<MemberInfo>>}
    */
-  async getMany() {
+  /**
+   * @overload
+   * @returns {Promise<Array<ActiveMemberInfo>>}
+   */
+  /**
+   * @overload
+   * @param {object} opts
+   * @param {false} opts.includeLeft
+   * @returns {Promise<Array<ActiveMemberInfo>>}
+   */
+  /**
+   * List members in the project. By default only active Members and Coordinators are returned
+   */
+  async getMany({ includeLeft = false } = {}) {
     const [allRoles, allDeviceInfo] = await Promise.all([
       this.#roles.getAll(),
       this.#dataTypes.deviceInfo.getMany(),
@@ -572,31 +596,35 @@ export class MemberApi extends TypedEmitter {
     const deviceInfoByConfigCoreId = keyBy(allDeviceInfo, ({ docId }) => docId)
 
     return Promise.all(
-      [...allRoles.entries()].map(async ([deviceId, role]) => {
-        /** @type {MemberInfo} */
-        const memberInfo = { deviceId, role }
+      [...allRoles.entries()]
+        .filter(
+          ([_, { roleId }]) => includeLeft || ACTIVE_ROLE_IDS.includes(roleId)
+        )
+        .map(async ([deviceId, role]) => {
+          /** @type {MemberInfo} */
+          const memberInfo = { deviceId, role }
 
-        try {
-          const configCoreId = await this.#coreOwnership.getCoreId(
-            deviceId,
-            'config'
-          )
+          try {
+            const configCoreId = await this.#coreOwnership.getCoreId(
+              deviceId,
+              'config'
+            )
 
-          const deviceInfo = deviceInfoByConfigCoreId.get(configCoreId)
+            const deviceInfo = deviceInfoByConfigCoreId.get(configCoreId)
 
-          memberInfo.name = deviceInfo?.name
-          memberInfo.deviceType = deviceInfo?.deviceType
-          memberInfo.joinedAt = deviceInfo?.createdAt
-          memberInfo.selfHostedServerDetails =
-            deviceInfo?.selfHostedServerDetails
-        } catch (err) {
-          // Attempting to get someone else may throw because sync hasn't occurred or completed
-          // Only throw if attempting to get themself since the relevant information should be available
-          if (deviceId === this.#ownDeviceId) throw err
-        }
+            memberInfo.name = deviceInfo?.name
+            memberInfo.deviceType = deviceInfo?.deviceType
+            memberInfo.joinedAt = deviceInfo?.createdAt
+            memberInfo.selfHostedServerDetails =
+              deviceInfo?.selfHostedServerDetails
+          } catch (err) {
+            // Attempting to get someone else may throw because sync hasn't occurred or completed
+            // Only throw if attempting to get themself since the relevant information should be available
+            if (deviceId === this.#ownDeviceId) throw err
+          }
 
-        return memberInfo
-      })
+          return memberInfo
+        })
     )
   }
 
