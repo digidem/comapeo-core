@@ -4,6 +4,7 @@ import path from 'node:path'
 import { assert } from '../utils.js'
 import { migrate as drizzleMigrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { DRIZZLE_MIGRATIONS_TABLE } from '../constants.js'
+import { MigrationError } from '../errors.js'
 /** @import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
 
 /**
@@ -68,37 +69,40 @@ const safeGetLatestMigrationMillis = (db) =>
  * @returns {MigrationResult}
  */
 export function migrate(db, { migrationsFolder, migrationFns = {} }) {
-  const journal = /** @type {unknown} */ (
-    JSON.parse(
-      fs.readFileSync(
-        path.join(migrationsFolder, 'meta/_journal.json'),
-        'utf-8'
+  try {
+    const journal = /** @type {unknown} */ (
+      JSON.parse(
+        fs.readFileSync(
+          path.join(migrationsFolder, 'meta/_journal.json'),
+          'utf-8'
+        )
       )
     )
-  )
-  // Drizzle _could_ decide to change the journal format in the future, but this
-  // assertion will ensure that tests fail if they do.
-  assertValidJournal(journal)
+    // Drizzle _could_ decide to change the journal format in the future, but this
+    // assertion will ensure that tests fail if they do.
+    assertValidJournal(journal)
 
-  const prevMigrationMillis = safeGetLatestMigrationMillis(db)
+    const prevMigrationMillis = safeGetLatestMigrationMillis(db)
 
-  drizzleMigrate(db, {
-    migrationsFolder,
-    migrationsTable: DRIZZLE_MIGRATIONS_TABLE,
-  })
+    drizzleMigrate(db, {
+      migrationsFolder,
+      migrationsTable: DRIZZLE_MIGRATIONS_TABLE,
+    })
 
-  for (const entry of journal.entries) {
-    if (entry.when <= prevMigrationMillis) continue
-    const fn = migrationFns[entry.tag]
-    if (fn) fn(db)
+    for (const entry of journal.entries) {
+      if (entry.when <= prevMigrationMillis) continue
+      const fn = migrationFns[entry.tag]
+      if (fn) fn(db)
+    }
+
+    const lastMigrationMillis = safeGetLatestMigrationMillis(db)
+
+    if (lastMigrationMillis === prevMigrationMillis) return 'no migration'
+
+    if (prevMigrationMillis === 0) return 'initialized database'
+  } catch (err) {
+    throw new MigrationError({ cause: err })
   }
-
-  const lastMigrationMillis = safeGetLatestMigrationMillis(db)
-
-  if (lastMigrationMillis === prevMigrationMillis) return 'no migration'
-
-  if (prevMigrationMillis === 0) return 'initialized database'
-
   return 'migrated'
 }
 

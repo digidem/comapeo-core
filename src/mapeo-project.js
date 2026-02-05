@@ -65,9 +65,11 @@ import {
   NotFoundError,
   ExhaustivenessError,
   nullIfNotFound,
+  GeoJSONExportError,
 } from './errors.js'
 import { WebSocket } from 'ws'
-import { createWriteStream } from 'fs'
+import fs from 'node:fs'
+
 import ensureError from 'ensure-error'
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
@@ -1138,10 +1140,16 @@ export class MapeoProject extends TypedEmitter {
     const fileName = await this[kGeoJSONFileName](observations, tracks)
     const filePath = path.join(exportFolder, fileName)
     const source = this.#exportGeoJSONStream({ observations, tracks, lang })
-    const sink = createWriteStream(filePath)
-    await pipelinePromise(source, sink)
 
-    return filePath
+    const sink = fs.createWriteStream(filePath)
+
+    try {
+      await pipelinePromise(source, sink)
+
+      return filePath
+    } catch (err) {
+      throw new GeoJSONExportError({ cause: err })
+    }
   }
 
   /**
@@ -1310,10 +1318,14 @@ export class MapeoProject extends TypedEmitter {
       attachments,
       lang,
     })
-    const sink = createWriteStream(filePath)
-    await pipelinePromise(source, sink)
+    const sink = fs.createWriteStream(filePath)
+    try {
+      await pipelinePromise(source, sink)
 
-    return filePath
+      return filePath
+    } catch (err) {
+      throw new GeoJSONExportError({ cause: err })
+    }
   }
 
   async [kProjectLeave]() {

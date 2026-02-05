@@ -280,6 +280,44 @@ export class BlobsNotFoundError extends Error {
   }
 }
 
+export class BlobSourceNotFound extends Error {
+  /**
+   *
+   * @param {string} path
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(path, opts = {}) {
+    super(`Unable to find blob data at ${path}`, opts)
+    this.name = 'BlobSourceNotFound'
+    this.code = 'BLOB_SOURCE_NOT_FOUND'
+    this.status = 404
+  }
+}
+
+export class MigrationError extends Error {
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts = {}) {
+    super('Unable to complete Drizzle Database migration', opts)
+    this.name = 'MigrationError'
+    this.code = 'MIGRATION_ERROR'
+    this.status = 500
+  }
+}
+
+export class GeoJSONExportError extends Error {
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts = {}) {
+    super('Unable to export GeoJSON file', opts)
+    this.name = 'GeoJSONExportError'
+    this.code = 'GEOJSON_EXPORT_ERROR'
+    this.status = 500
+  }
+}
+
 export class MissingWriterError extends Error {
   /** @param {string} [namespace] */
   constructor(namespace) {
