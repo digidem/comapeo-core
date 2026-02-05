@@ -10,6 +10,7 @@
 
 ### Interfaces
 
+- [AugmentedMapShareProperties](interfaces/AugmentedMapShareProperties.md)
 - [BlobRef](interfaces/BlobRef.md)
 - [ProjectEvents](interfaces/ProjectEvents.md)
 - [ProjectStats](interfaces/ProjectStats.md)
@@ -19,6 +20,7 @@
 ### Type Aliases
 
 - [ConfigMetadata](type-aliases/ConfigMetadata.md)
+- [MapShare](type-aliases/MapShare.md)
 - [SeenAttachments](type-aliases/SeenAttachments.md)
 
 ### Variables

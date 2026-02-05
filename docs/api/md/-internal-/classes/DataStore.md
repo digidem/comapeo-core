@@ -68,11 +68,11 @@
 
 ### schemas
 
-> `get` **schemas**(): (`"track"` \| `"remoteDetectionAlert"` \| `"observation"`)[] \| (`"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`)[] \| (`"role"` \| `"coreOwnership"`)[]
+> `get` **schemas**(): (`"observation"` \| `"track"` \| `"remoteDetectionAlert"`)[] \| (`"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`)[] \| (`"coreOwnership"` \| `"role"`)[]
 
 #### Returns
 
-(`"track"` \| `"remoteDetectionAlert"` \| `"observation"`)[] \| (`"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`)[] \| (`"role"` \| `"coreOwnership"`)[]
+(`"observation"` \| `"track"` \| `"remoteDetectionAlert"`)[] \| (`"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`)[] \| (`"coreOwnership"` \| `"role"`)[]
 
 ***
 
