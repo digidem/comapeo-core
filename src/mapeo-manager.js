@@ -468,18 +468,6 @@ export class MapeoManager extends TypedEmitter {
       projectSecretKey: projectKeypair.secretKey,
     })
 
-    project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
-    })
-
-    project.on('map-share', (mapShare) => {
-      this.emit('map-share', mapShare)
-    })
-
-    project.on('map-share-error', (err, mapShareExtension) => {
-      this.emit('map-share-error', err, mapShareExtension)
-    })
-
     // 5. Write project settings to project instance
     await project.$setProjectSettings({
       name,
@@ -556,10 +544,6 @@ export class MapeoManager extends TypedEmitter {
       await project[kClearData]()
     }
 
-    project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
-    })
-
     // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectPublicId, project)
 
@@ -591,6 +575,21 @@ export class MapeoManager extends TypedEmitter {
           .get()?.projectInfo
       },
     })
+
+    const projectPublicId = projectKeyToPublicId(projectKeys.projectKey)
+
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+    })
+
+    project.on('map-share', (mapShare) => {
+      this.emit('map-share', mapShare)
+    })
+
+    project.on('map-share-error', (err, mapShareExtension) => {
+      this.emit('map-share-error', err, mapShareExtension)
+    })
+
     return project
   }
 
