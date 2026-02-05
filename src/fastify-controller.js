@@ -1,5 +1,6 @@
 import { promisify } from 'util'
 import StateMachine from 'start-stop-state-machine'
+import { ensureKnownError } from './errors.js'
 
 /**
  * @typedef {Object} StartOpts
@@ -57,7 +58,7 @@ export class FastifyController {
        */
       function onError(err) {
         server.removeListener('listening', onListening)
-        rej(err)
+        rej(ensureKnownError(err))
       }
     })
   }

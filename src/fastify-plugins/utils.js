@@ -1,5 +1,5 @@
-import { once } from 'node:events'
 import createError from '@fastify/error'
+import { pEvent } from 'p-event'
 
 export const NotFoundError = createError(
   'FST_RESOURCE_NOT_FOUND',
@@ -22,8 +22,8 @@ export async function getFastifyServerAddress(server, { timeout } = {}) {
   const address = server.address()
 
   if (!address) {
-    await once(server, 'listening', {
-      signal: timeout ? AbortSignal.timeout(timeout) : undefined,
+    await pEvent(server, 'listening', {
+      timeout,
     })
     return getFastifyServerAddress(server)
   }

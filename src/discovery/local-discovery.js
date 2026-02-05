@@ -2,7 +2,6 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import net from 'node:net'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-import { once } from 'node:events'
 import { noop, timeoutAfter } from '../utils.js'
 import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
@@ -10,6 +9,7 @@ import { keyToPublicId } from '@mapeo/crypto'
 import { Logger } from '../logger.js'
 import { ensureKnownError, getErrorCode } from '../errors.js'
 import { ServerNotListeningError } from '../errors.js'
+import { pEvent } from 'p-event'
 
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 
@@ -83,7 +83,7 @@ export class LocalDiscovery extends TypedEmitter {
   /** @returns {Promise<void>} */
   async #start() {
     // Let OS choose port, listen on ip4, all interfaces
-    const onListening = once(this.#server, 'listening')
+    const onListening = pEvent(this.#server, 'listening')
 
     try {
       this.#server.listen(this.#port, '0.0.0.0')
@@ -292,7 +292,7 @@ export class LocalDiscovery extends TypedEmitter {
     this.#log('stopping')
     const port = this.#port
     this.#server.close()
-    const closePromise = once(this.#server, 'close')
+    const closePromise = pEvent(this.#server, 'close')
 
     const forceClose = () => {
       for (const socket of this.#noiseConnections.values()) {
