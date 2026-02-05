@@ -24,6 +24,7 @@
 
 - [EditableProjectSettings](type-aliases/EditableProjectSettings.md)
 - [MapeoProject](type-aliases/MapeoProject.md)
+- [MapShare](type-aliases/MapShare.md)
 
 ## Variables
 

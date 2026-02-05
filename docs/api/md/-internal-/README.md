@@ -67,6 +67,7 @@
 ### Interfaces
 
 - [AbstractEncoding](interfaces/AbstractEncoding.md)
+- [AugmentedMapShareProperties](interfaces/AugmentedMapShareProperties.md)
 - [Channel](interfaces/Channel.md)
 - [Context](interfaces/Context.md)
 - [CorestoreEvents](interfaces/CorestoreEvents.md)
