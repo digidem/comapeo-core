@@ -12,7 +12,7 @@
 
 • **project**: [`MapeoProject`](../-internal-/classes/MapeoProject.md)
 
-• **isInitiatorOrStream**: `boolean` \| `Duplex` \| `Duplex`\<`any`, `any`, `any`, `any`, `true`, `true`, `DuplexEvents`\<`any`, `any`\>\>
+• **isInitiatorOrStream**: `boolean` \| `Duplex`\<`any`, `any`, `any`, `any`, `true`, `true`, `DuplexEvents`\<`any`, `any`\>\> \| `Duplex`
 
 ## Returns
 

@@ -711,6 +711,14 @@ export class ExhaustivenessError extends Error {
   }
 }
 
+export class PeerNotFoundError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'PeerNotFoundError: Peer not found') {
+    super(message)
+    this.name = 'PeerNotFoundError'
+  }
+}
+
 /**
  * @param {unknown} err
  * @returns {null}
