@@ -3,15 +3,15 @@ import assert from 'node:assert/strict'
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 import { pEvent } from 'p-event'
 
-/** @import { MapShareExtension } from '../src/generated/extensions.js' */
-/** @import {MapShare} from '../src/mapeo-project.js' */
+/** @import {MapShare, MapShareSend} from '../src/mapeo-project.js' */
 
 /**
- * @type {MapShareExtension}
+ * @type {MapShareSend}
  */
 const TEST_SHARE = {
   mapShareUrls: ['https://mapserver.example.com'],
-  receiverDeviceKey: Buffer.from('DEADBEEF', 'hex'),
+  // receiverDeviceKey: Buffer.from('DEADBEEF', 'hex'),
+  receiverDeviceId: '123abcd',
   shareId: 'share001',
   mapShareCreatedAt: Date.now(),
   mapCreatedAt: Date.now(),
@@ -24,7 +24,7 @@ const TEST_SHARE = {
 }
 
 /**
- * @type {MapShareExtension}
+ * @type {MapShareSend}
  */
 const FAILING_SHARE = {
   ...TEST_SHARE,

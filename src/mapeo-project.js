@@ -127,18 +127,11 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  */
 
 /**
- * @typedef {object} MapShareSendProperties
- * @property {readonly [number, number, number, number]|number[]} bounds - Bounding box of the shared map [W, S, E, N].
- * @property {readonly [string, ...string[]]|string[]} mapShareUrls - URLs associated with the map share.
- * @property {string} receiverDeviceId Device ID of who should recieve the share request
- */
-
-/**
  * @typedef {Omit<MapShareExtension, 'bounds' | 'mapShareUrls' | 'receiverDeviceKey'> & AugmentedMapShareProperties} MapShare
  */
 
 /**
- * @typedef {Omit<MapShareExtension, 'receiverDeviceKey'> & MapShareSendProperties} MapShareSend
+ * @typedef {Omit<MapShare, 'mapShareReceivedAt' | 'senderDeviceId' | 'senderDeviceName'>} MapShareSend
  */
 
 /**
@@ -1481,12 +1474,14 @@ export class MapeoProject extends TypedEmitter {
    * @param {boolean} [options.__testOnlyBypassValidation=false] Warning: Do not use!
    */
   async $sendMapShare(mapShare, { __testOnlyBypassValidation = false } = {}) {
-    const { receiverDeviceId, ...mapShareData } = mapShare
+    const { receiverDeviceId, bounds, mapShareUrls, ...mapShareData } = mapShare
     const receiverDeviceKey = Buffer.from(receiverDeviceId, 'hex')
 
     /** @type {MapShareExtension} */
     const shareExtension = {
       ...mapShareData,
+      bounds: [...bounds],
+      mapShareUrls: [...mapShareUrls],
       receiverDeviceKey,
     }
     if (!__testOnlyBypassValidation) {
