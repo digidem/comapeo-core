@@ -256,3 +256,21 @@ Resolves when all cores have finished loading
 #### Returns
 
 `void`
+
+***
+
+### sendMapShare()
+
+> **sendMapShare**(`mapShare`, `peerId`): `Promise`\<`void`\>
+
+Send a map share to a peer
+
+#### Parameters
+
+• **mapShare**: `MapShareExtension`
+
+• **peerId**: `Buffer`
+
+#### Returns
+
+`Promise`\<`void`\>
