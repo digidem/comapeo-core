@@ -127,11 +127,18 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  */
 
 /**
+ * @typedef {object} MapShareSendProperties
+ * @property {readonly [number, number, number, number]|number[]} bounds - Bounding box of the shared map [W, S, E, N].
+ * @property {readonly [string, ...string[]]|string[]} mapShareUrls - URLs associated with the map share.
+ * @property {string} receiverDeviceId Device ID of who should recieve the share request
+ */
+
+/**
  * @typedef {Omit<MapShareExtension, 'bounds' | 'mapShareUrls' | 'receiverDeviceKey'> & AugmentedMapShareProperties} MapShare
  */
 
 /**
- * @typedef {Omit<MapShareExtension, 'receiverDeviceKey'> & {receiverDeviceId: string}} MapShareSend
+ * @typedef {Omit<MapShareExtension, 'receiverDeviceKey'> & MapShareSendProperties} MapShareSend
  */
 
 /**
