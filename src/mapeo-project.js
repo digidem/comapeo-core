@@ -123,10 +123,15 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  * @property {number} mapShareReceivedAt - Timestamp when the map share was received.
  * @property {string} senderDeviceId - The ID of the device that sent the map share.
  * @property {string} [senderDeviceName] - The name of the device that sent the map share.
+ * @property {string} receiverDeviceId - The deviceId of the peer the map share was sent to
  */
 
 /**
- * @typedef {Omit<MapShareExtension, 'bounds' | 'mapShareUrls'> & AugmentedMapShareProperties} MapShare
+ * @typedef {Omit<MapShareExtension, 'bounds' | 'mapShareUrls' | 'receiverDeviceKey'> & AugmentedMapShareProperties} MapShare
+ */
+
+/**
+ * @typedef {Omit<MapShareExtension, 'receiverDeviceKey'> & {receiverDeviceId: string}} MapShareSend
  */
 
 /**
@@ -800,12 +805,21 @@ export class MapeoProject extends TypedEmitter {
       )
     }
 
+    const { receiverDeviceKey, ...mapShareData } = mapShareBase
+
+    const receiverDeviceId = receiverDeviceKey.toString('hex')
+
+    if (receiverDeviceId !== this.#deviceId) {
+      throw new Error('Got map share intended for a different peer')
+    }
+
     /** @type {MapShare} */
     const mapShare = {
-      ...mapShareBase,
+      ...mapShareData,
       senderDeviceId,
       senderDeviceName: sender.name,
       mapShareReceivedAt,
+      receiverDeviceId,
     }
 
     this.emit('map-share', mapShare)
@@ -1455,16 +1469,23 @@ export class MapeoProject extends TypedEmitter {
   /**
    * Send a map share offer to the peer with device ID `mapShare.receiverDeviceId`
    *
-   * @param {MapShareExtension} mapShare
+   * @param {MapShareSend} mapShare
    * @param {object} [options]
    * @param {boolean} [options.__testOnlyBypassValidation=false] Warning: Do not use!
    */
   async $sendMapShare(mapShare, { __testOnlyBypassValidation = false } = {}) {
-    if (!__testOnlyBypassValidation) {
-      validateMapShareExtension(mapShare)
+    const { receiverDeviceId, ...mapShareData } = mapShare
+    const receiverDeviceKey = Buffer.from(receiverDeviceId, 'hex')
+
+    /** @type {MapShareExtension} */
+    const shareExtension = {
+      ...mapShareData,
+      receiverDeviceKey,
     }
-    const peerId = Buffer.from(mapShare.receiverDeviceId, 'hex')
-    await this.#coreManager.sendMapShare(mapShare, peerId)
+    if (!__testOnlyBypassValidation) {
+      validateMapShareExtension(shareExtension)
+    }
+    await this.#coreManager.sendMapShare(shareExtension)
   }
 }
 

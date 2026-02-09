@@ -11,7 +11,7 @@ import { pEvent } from 'p-event'
  */
 const TEST_SHARE = {
   mapShareUrls: ['https://mapserver.example.com'],
-  receiverDeviceId: 'abcdef123456',
+  receiverDeviceKey: Buffer.from('DEADBEEF', 'hex'),
   shareId: 'share001',
   mapShareCreatedAt: Date.now(),
   mapCreatedAt: Date.now(),
@@ -68,6 +68,10 @@ test('Able to send map share to other member', async (t) => {
 
   for (const gotShare of shares) {
     for (const [key, value] of Object.entries(mapShare)) {
+      if (key === 'receiverDeviceKey') {
+        // This is unnecessary
+        continue
+      }
       // @ts-ignore
       const gotValue = gotShare[key]
       assert.deepEqual(gotValue, value, `${key} matches original value`)
