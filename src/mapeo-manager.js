@@ -705,19 +705,16 @@ export class MapeoManager extends TypedEmitter {
     // If it does, that means the project has already been either created or added before
     const projectId = projectKeyToId(projectKey)
     const projectInviteId = projectKeyToProjectInviteId(projectKey)
+    /** @type {ProjectKeys['projectSecretKey']} */
+    let projectSecretKey = undefined
 
-    const projectExists = this.#db
+    const existingProject = this.#db
       .select()
       .from(projectKeysTable)
-      .where(
-        and(
-          eq(projectKeysTable.projectId, projectId),
-          eq(projectKeysTable.hasLeftProject, false)
-        )
-      )
+      .where(and(eq(projectKeysTable.projectId, projectId)))
       .get()
 
-    if (projectExists) {
+    if (existingProject && existingProject.hasLeftProject !== true) {
       throw new Error(`Project with ID ${projectPublicId} already exists`)
     }
 
@@ -731,6 +728,14 @@ export class MapeoManager extends TypedEmitter {
       await activeProject.close()
     }
 
+    if (existingProject) {
+      const projectKeys = this.#decodeProjectKeysCipher(
+        existingProject.keysCipher,
+        projectId
+      )
+      projectSecretKey = projectKeys.projectSecretKey
+    }
+
     // No awaits here - need to update table in same tick as the projectExists check
 
     // 3. Update the project keys table
@@ -740,6 +745,7 @@ export class MapeoManager extends TypedEmitter {
       projectInviteId,
       projectKeys: {
         projectKey,
+        projectSecretKey,
         encryptionKeys,
       },
       projectInfo: {
