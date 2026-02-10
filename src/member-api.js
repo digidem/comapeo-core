@@ -27,6 +27,8 @@ import {
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
+import { kCreateWithDocId } from './datatype/index.js'
+
 /**
  * @import {
  *   DeviceInfo,
@@ -86,7 +88,7 @@ export class MemberApi extends TypedEmitter {
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {Object} opts.dataTypes
-   * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
+   * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany' | kCreateWithDocId>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
    * @param {Logger} [opts.logger]
    */
@@ -174,6 +176,8 @@ export class MemberApi extends TypedEmitter {
       const projectName = project.name
       assert(projectName, 'Project must have a name to invite people')
 
+      const peerInfo = await this.#rpc.infoFor(deviceId).catch(noop)
+
       const projectColor = project.projectColor
       const projectDescription = project.projectDescription
       const sendStats = project.sendStats
@@ -220,6 +224,22 @@ export class MemberApi extends TypedEmitter {
             throw new ProjectDetailsSendFailError()
           }
           await this.#roles.assignRole(deviceId, roleId)
+
+          if (peerInfo && peerInfo.deviceType && peerInfo.name) {
+            const { name, deviceType } = peerInfo
+            const doc = {
+              name: name,
+              deviceType: deviceType,
+              selfHostedServerDetails: undefined,
+              schemaName: /** @type {const} */ ('deviceInfo'),
+            }
+            await this.#dataTypes.deviceInfo[kCreateWithDocId](deviceId, doc)
+          } else {
+            this.#l.log(
+              'ERROR: Could not assign peer device info due to lack of device info in RPC',
+              peerInfo
+            )
+          }
 
           try {
             let abortSync = new AbortController().signal
@@ -538,14 +558,7 @@ export class MemberApi extends TypedEmitter {
     const result = { deviceId, role }
 
     try {
-      const configCoreId = await this.#coreOwnership.getCoreId(
-        deviceId,
-        'config'
-      )
-
-      const deviceInfo = await this.#dataTypes.deviceInfo.getByDocId(
-        configCoreId
-      )
+      const deviceInfo = await this.#getDeviceInfo(deviceId)
 
       result.name = deviceInfo.name
       result.deviceType = deviceInfo.deviceType
@@ -558,6 +571,29 @@ export class MemberApi extends TypedEmitter {
     }
 
     return result
+  }
+
+  /**
+   * @param {string} deviceId
+   * @returns {Promise<DeviceInfo>}
+   */
+  async #getDeviceInfo(deviceId) {
+    try {
+      const deviceInfo = await this.#dataTypes.deviceInfo.getByDocId(deviceId)
+
+      return deviceInfo
+    } catch {
+      const configCoreId = await this.#coreOwnership.getCoreId(
+        deviceId,
+        'config'
+      )
+
+      const deviceInfo = await this.#dataTypes.deviceInfo.getByDocId(
+        configCoreId
+      )
+
+      return deviceInfo
+    }
   }
 
   /**

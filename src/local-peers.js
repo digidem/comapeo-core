@@ -464,6 +464,16 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
+   * Get information about a connected oeer
+   * @param {string} deviceId
+   * @returns {Promise<PeerInfoInternal>}
+   */
+  async infoFor(deviceId) {
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    return peer.info
+  }
+
+  /**
    * @param {string} deviceId
    * @param {Invite} invite
    * @returns {Promise<void>}
