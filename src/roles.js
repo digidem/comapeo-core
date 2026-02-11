@@ -423,7 +423,7 @@ export class Roles extends TypedEmitter {
         isAssigningProjectCreatorRole &&
         roleId !== BLOCKED_ROLE_ID
       ) {
-        throw new Error(
+        throw new RoleAssignError(
           'Project creators can only be assigned the blocked role'
         )
       }
