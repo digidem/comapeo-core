@@ -685,7 +685,8 @@ export class PeerFailedConnectionError extends Error {
   constructor(message = 'PeerFailedConnectionError') {
     super(message)
     this.name = 'PeerFailedConnectionError'
-    ;(this.code = 'PEER_FAILED_CONNECTION_ERROR'), (this.status = 408)
+    this.code = 'PEER_FAILED_CONNECTION_ERROR'
+    this.status = 408
   }
 }
 
@@ -716,6 +717,8 @@ export class PeerNotFoundError extends Error {
   constructor(message = 'PeerNotFoundError: Peer not found') {
     super(message)
     this.name = 'PeerNotFoundError'
+    this.code = 'PEER_NOT_FOUND_ERROR'
+    this.status = 404
   }
 }
 
