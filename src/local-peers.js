@@ -539,7 +539,6 @@ export class LocalPeers extends TypedEmitter {
    */
   connect(stream) {
     const noiseStream = stream.noiseStream
-    if (!noiseStream) throw new Error('Invalid stream')
     const outerStream = noiseStream.rawStream
     const protomux =
       noiseStream.userData && Protomux.isProtomux(noiseStream.userData)

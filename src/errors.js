@@ -719,6 +719,16 @@ export class PeerNotFoundError extends Error {
   }
 }
 
+export class InvalidMapShareError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'Map Share Failed Validation') {
+    super(message)
+    this.name = 'InvalidMapShareError'
+    this.code = 'INVALID_MAP_SHARE_ERROR'
+    this.status = 400
+  }
+}
+
 /**
  * @param {unknown} err
  * @returns {null}

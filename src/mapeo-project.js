@@ -72,6 +72,7 @@ import {
   ExhaustivenessError,
   nullIfNotFound,
   GeoJSONExportError,
+  InvalidMapShareError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import fs from 'node:fs'
@@ -804,7 +805,7 @@ export class MapeoProject extends TypedEmitter {
     const sender = await this.$member.getById(senderDeviceId)
 
     if (INACTIVE_MEMBER_ROLE_IDS.includes(sender.role.roleId)) {
-      throw new Error(
+      throw new InvalidMapShareError(
         `Map Share Sender is not an active member of the project (role: ${sender.role.name})`
       )
     }

@@ -7,6 +7,7 @@ import {
   UnsupportedAttachmentTypeError,
   TimeoutError,
   ensureKnownError,
+  InvalidMapShareError,
 } from './errors.js'
 import pTimeout, { TimeoutError as pTimeoutError } from 'p-timeout'
 
@@ -297,50 +298,60 @@ export function validateMapShareExtension(mapShare) {
   } = mapShare
 
   if (!receiverDeviceId.length) {
-    throw new Error('Receiver Device ID must not be empty')
+    throw new InvalidMapShareError('Receiver Device ID must not be empty')
   }
-  if (!mapId.length) throw new Error('Map ID must not be empty')
-  if (!shareId.length) throw new Error('Share ID must not be empty')
-  if (!mapName.length) throw new Error('Map Name must not be empty')
-  if (!mapShareUrls.length) throw new Error('Map share URLs must not be empty')
+  if (!mapId.length) throw new InvalidMapShareError('Map ID must not be empty')
+  if (!shareId.length) {
+    throw new InvalidMapShareError('Share ID must not be empty')
+  }
+  if (!mapName.length) {
+    throw new InvalidMapShareError('Map Name must not be empty')
+  }
+  if (!mapShareUrls.length) {
+    throw new InvalidMapShareError('Map share URLs must not be empty')
+  }
   if (!mapShareUrls.every((url) => URL.canParse(url))) {
-    throw new Error('Map share URLs must be valid URLs')
+    throw new InvalidMapShareError('Map share URLs must be valid URLs')
   }
-  if (!mapCreatedAt) throw new Error('mapCreatedAt must be set')
-  if (!mapShareCreatedAt) throw new Error('mapShareCreatedAt must be set')
+  if (!mapCreatedAt) throw new InvalidMapShareError('mapCreatedAt must be set')
+  if (!mapShareCreatedAt) {
+    throw new InvalidMapShareError('mapShareCreatedAt must be set')
+  }
   if (bounds.length !== 4) {
-    throw new Error('Bounds must be bounding box with 4 values')
+    throw new InvalidMapShareError('Bounds must be bounding box with 4 values')
   }
   if (bounds[0] < MAX_BOUNDS[0]) {
-    throw new Error(
+    throw new InvalidMapShareError(
       `Bounds at ${0} must be within max of spherical mercator projection ${MAX_BOUNDS}`
     )
   }
   if (bounds[1] < MAX_BOUNDS[1]) {
-    throw new Error(
+    throw new InvalidMapShareError(
       `Bounds at ${1} must be within max of spherical mercator projection ${MAX_BOUNDS}`
     )
   }
   if (bounds[2] > MAX_BOUNDS[2]) {
-    throw new Error(
+    throw new InvalidMapShareError(
       `Bounds at ${2} must be within max of spherical mercator projection ${MAX_BOUNDS}`
     )
   }
   if (bounds[3] > MAX_BOUNDS[3]) {
-    throw new Error(
+    throw new InvalidMapShareError(
       `Bounds at ${3} must be within max of spherical mercator projection ${MAX_BOUNDS}`
     )
   }
   if (maxzoom < minzoom) {
-    throw new Error('Max zoom must be greater than or equal to min zoom')
+    throw new InvalidMapShareError(
+      'Max zoom must be greater than or equal to min zoom'
+    )
   }
   if (maxzoom < 0 || maxzoom > 22) {
-    throw new Error('Max zoom must be between 0 and 22')
+    throw new InvalidMapShareError('Max zoom must be between 0 and 22')
   }
   if (minzoom < 0 || minzoom > 22) {
-    throw new Error('Min zoom must be between 0 and 22')
+    throw new InvalidMapShareError('Min zoom must be between 0 and 22')
   }
   if (estimatedSizeBytes <= 0) {
-    throw new Error('Map size bytes must greater than zero')
+    throw new InvalidMapShareError('Map size bytes must greater than zero')
   }
 }

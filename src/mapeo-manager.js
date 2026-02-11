@@ -721,7 +721,7 @@ export class MapeoManager extends TypedEmitter {
       .where(and(eq(projectKeysTable.projectId, projectId)))
       .get()
 
-    if (existingProject && existingProject.hasLeftProject !== true) {      
+    if (existingProject && existingProject.hasLeftProject !== true) {
       throw new ProjectExistsError(projectPublicId)
     }
 
