@@ -6,11 +6,11 @@ import { once } from 'node:events'
 import {
   COORDINATOR_ROLE_ID,
   CREATOR_ROLE,
-  CREATOR_ROLE_ID,
   ROLES,
   MEMBER_ROLE_ID,
   NO_ROLE,
   BLOCKED_ROLE_ID,
+  CREATOR_ROLE_ID,
 } from '../src/roles.js'
 import {
   connectPeers,
@@ -841,6 +841,57 @@ test('remove member from project, add them back', async (t) => {
   const reinviteeProject = await invitee.getProject(projectId)
 
   await waitForSync([reinviteeProject, invitorProject], 'initial')
+
+  const reRole = await reinviteeProject.$getOwnRole()
+  assert.equal(reRole.roleId, MEMBER_ROLE_ID, 'Sees self as a member again')
+})
+
+test('remove creator from project, add them back', async (t) => {
+  const managers = await createManagers(2, t)
+  const [creator, coordinator] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await creator.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor: creator,
+    projectId,
+    invitees: [coordinator],
+    roleId: COORDINATOR_ROLE_ID,
+  })
+
+  const coordinatorProject = await coordinator.getProject(projectId)
+  const creatorProject = await creator.getProject(projectId)
+
+  const onRoleChange = pEvent(creatorProject, 'own-role-change', {
+    timeout: 1_000,
+  })
+
+  await coordinatorProject.$member.remove(creator.deviceId)
+
+  await waitForSync([creatorProject, coordinatorProject], 'initial')
+
+  const updatedRole = await onRoleChange
+
+  assert.equal(
+    updatedRole.role.roleId,
+    BLOCKED_ROLE_ID,
+    'creator sees they were removed'
+  )
+
+  assert.equal(updatedRole.role.reason, undefined, 'No reason for removal')
+
+  await creator.leaveProject(projectId)
+  await creatorProject.close()
+
+  await invite({
+    invitor: coordinator,
+    projectId,
+    invitees: [creator],
+  })
+
+  const reinviteeProject = await creator.getProject(projectId)
 
   const reRole = await reinviteeProject.$getOwnRole()
   assert.equal(reRole.roleId, MEMBER_ROLE_ID, 'Sees self as a member again')
