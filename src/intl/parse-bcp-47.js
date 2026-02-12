@@ -4,6 +4,7 @@ import { iso6391To6393, iso6393 } from './iso639.js'
 import { iso31661 } from 'iso-3166'
 import { iso31661Alpha3ToAlpha2 } from 'iso-3166'
 import { unM49 as unM49Array } from 'un-m49'
+import { InvalidLanguageTagError } from '../errors.js'
 
 /**
  * Map of UN M.49 country codes to their corresponding ISO 3166-1 alpha-2 country codes.
@@ -82,7 +83,7 @@ export function parseBcp47(languageTag) {
   const normalized = bcp47Normalize(languageTag)
   const { language, region } = simpleParseBcp47(normalized)
   if (!language) {
-    throw new Error(`Invalid BCP 47 language tag: ${languageTag}`)
+    throw new InvalidLanguageTagError(languageTag)
   }
   return {
     language: normalizePrimaryLanguageSubtag(language),

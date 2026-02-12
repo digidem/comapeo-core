@@ -1,30 +1,6 @@
 import assert from 'node:assert/strict'
 import test, { describe } from 'node:test'
-import {
-  ErrorWithCode,
-  getErrorCode,
-  getErrorMessage,
-} from '../../src/lib/error.js'
-
-describe('ErrorWithCode', () => {
-  test('ErrorWithCode with two arguments', () => {
-    const err = new ErrorWithCode('MY_CODE', 'my message')
-    assert.equal(err.code, 'MY_CODE')
-    assert.equal(err.message, 'my message')
-    assert(err instanceof Error)
-  })
-
-  test('ErrorWithCode with three arguments', () => {
-    const otherError = new Error('hello')
-    const err = new ErrorWithCode('MY_CODE', 'my message', {
-      cause: otherError,
-    })
-    assert.equal(err.code, 'MY_CODE')
-    assert.equal(err.message, 'my message')
-    assert.equal(err.cause, otherError)
-    assert(err instanceof Error)
-  })
-})
+import { getErrorCode, getErrorMessage } from '../../src/errors.js'
 
 describe('getErrorCode', () => {
   test('from values without a string code', () => {
@@ -53,10 +29,7 @@ describe('getErrorCode', () => {
       }
     }
 
-    const testCases = [
-      new ErrorWithCode('foo', 'message'),
-      new ErrorWithInheritedCode(),
-    ]
+    const testCases = [new ErrorWithInheritedCode()]
 
     for (const testCase of testCases) {
       assert.equal(getErrorCode(testCase), 'foo')

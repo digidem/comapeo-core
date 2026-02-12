@@ -10,6 +10,7 @@ import BlobServerPlugin from '../../src/fastify-plugins/blobs.js'
 import { projectKeyToPublicId } from '../../src/utils.js'
 import { createBlobStore } from '../helpers/blob-store.js'
 import { waitForCores, replicate } from '../helpers/core-manager.js'
+import { NotFoundError } from '../../src/errors.js'
 
 test('Plugin throws error if missing getBlobStore option', async () => {
   const server = fastify()
@@ -309,7 +310,7 @@ function createServer(opts) {
     prefix: opts.prefix,
     getBlobStore: async (projectPublicId) => {
       if (projectPublicId !== projectKeyToPublicId(opts.projectKey)) {
-        throw new Error(
+        throw new NotFoundError(
           `Could not get blobStore for project id ${projectPublicId}`
         )
       }

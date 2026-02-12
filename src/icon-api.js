@@ -1,5 +1,13 @@
 /** @import { PresetValue, IconValue } from '@comapeo/schema' */
 
+import {
+  EmptyIconPathError,
+  EmptyVariantsArrayError,
+  InvalidPixelDensityError,
+  NoVariantsExistError,
+  NoVariantsForMimeTypeError,
+} from './errors.js'
+
 export const kGetIconBlob = Symbol('getIcon')
 
 /** @typedef {PresetValue['iconRef']} IconRef */
@@ -59,7 +67,7 @@ export class IconApi {
    */
   async create(icon) {
     if (icon.variants.length < 1) {
-      throw new Error('empty variants array')
+      throw new EmptyVariantsArrayError()
     }
 
     const savedVariants = await Promise.all(
@@ -158,15 +166,13 @@ export function getBestVariant(variants, opts) {
     wantedPixelDensity = opts.pixelDensity
   }
   if (variants.length === 0) {
-    throw new Error('No variants exist')
+    throw new NoVariantsExistError()
   }
 
   const matchingMime = variants.filter((v) => v.mimeType === wantedMimeType)
 
   if (matchingMime.length === 0) {
-    throw new Error(
-      `No variants with desired mime type ${wantedMimeType} exist`
-    )
+    throw new NoVariantsForMimeTypeError(wantedMimeType)
   }
   const wantedSizeNum = SIZE_AS_NUMERIC[wantedSize]
 
@@ -264,14 +270,14 @@ function determineSortValue(target, a, b) {
  */
 export function constructIconPath({ size, pixelDensity, iconId, extension }) {
   if (iconId.length === 0 || size.length === 0 || extension.length === 0) {
-    throw new Error('iconId, size, and extension cannot be empty strings')
+    throw new EmptyIconPathError()
   }
 
   let result = `${iconId}/${size}`
 
   if (typeof pixelDensity === 'number') {
     if (pixelDensity < 1) {
-      throw new Error('pixelDensity must be a positive number')
+      throw new InvalidPixelDensityError()
     }
     result += `@${pixelDensity}x`
   }

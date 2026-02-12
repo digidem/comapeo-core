@@ -1,8 +1,9 @@
 import mapObject from 'map-obj'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
-import { ExhaustivenessError, createMap } from '../utils.js'
+import { createMap } from '../utils.js'
 import { unreplicate } from '../lib/hypercore-helpers.js'
+import { ExhaustivenessError } from '../errors.js'
 /** @import { CoreRecord } from '../core-manager/index.js' */
 /** @import { Role } from '../roles.js' */
 /** @import { SyncEnabledState } from './sync-api.js' */
@@ -157,8 +158,8 @@ export class PeerSyncController {
         this.#log('reading role for %h', this.peerId)
         const cap = await this.#roles.getRole(this.peerId)
         this.#syncCapability = cap.sync
-      } catch (e) {
-        this.#log('Error reading role', e)
+      } catch (err) {
+        this.#log('Error reading role', err)
         // Any error, consider sync unknown
         this.#syncCapability = createNamespaceMap('unknown')
       }

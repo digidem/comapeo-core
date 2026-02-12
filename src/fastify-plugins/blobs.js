@@ -5,7 +5,13 @@ import { Type as T } from '@sinclair/typebox'
 
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
-import { getErrorMessage } from '../lib/error.js'
+import { ensureKnownError, getErrorMessage } from '../errors.js'
+import {
+  BlobNotFoundError,
+  BlobStoreEntryNotFoundError,
+  MissingGetBlobStoreError,
+  UnsupportedVariantError,
+} from '../errors.js'
 
 /** @import { BlobId } from '../types.js' */
 
@@ -45,7 +51,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & BlobServerPluginOpts>} */
 async function blobServerPlugin(fastify, options) {
-  if (!options.getBlobStore) throw new Error('Missing getBlobStore')
+  if (!options.getBlobStore) throw new MissingGetBlobStoreError()
 
   // We call register here so that the `prefix` option can work if desired
   // https://fastify.dev/docs/latest/Reference/Routes#route-prefixing-and-fastify-plugin
@@ -64,31 +70,29 @@ async function routes(fastify, options) {
 
       if (!isValidBlobId(blobId)) {
         reply.code(400)
-        throw new Error(
-          `Unsupported variant "${blobId.variant}" for ${blobId.type}`
-        )
+        throw new UnsupportedVariantError(blobId.variant, blobId.type)
       }
       const { driveId } = blobId
 
       let blobStore
       try {
         blobStore = await getBlobStore(projectPublicId)
-      } catch (e) {
+      } catch (err) {
         reply.code(404)
-        throw e
+        throw ensureKnownError(err)
       }
 
       let entry
       try {
         entry = await blobStore.entry(blobId, { wait: false })
-      } catch (e) {
+      } catch (err) {
         reply.code(404)
-        throw e
+        throw ensureKnownError(err)
       }
 
       if (!entry) {
         reply.code(404)
-        throw new Error('Entry not found')
+        throw new BlobStoreEntryNotFoundError()
       }
 
       const { metadata } = entry.value
@@ -96,9 +100,9 @@ async function routes(fastify, options) {
       let blobStream
       try {
         blobStream = await blobStore.createReadStreamFromEntry(driveId, entry)
-      } catch (e) {
+      } catch (err) {
         reply.code(404)
-        throw e
+        throw ensureKnownError(err)
       }
 
       try {
@@ -108,9 +112,9 @@ async function routes(fastify, options) {
         // [0]: https://github.com/holepunchto/hyperblobs/blob/518088d2b828082fd70a276fa2c8848a2cf2a56b/index.js#L49
         if (getErrorMessage(err) === 'Block not available') {
           reply.code(404)
-          throw new Error('Blob not found')
+          throw new BlobNotFoundError()
         } else {
-          throw err
+          throw ensureKnownError(err)
         }
       }
 
@@ -130,7 +134,7 @@ async function routes(fastify, options) {
 
         if (!blobSlice) {
           reply.code(404)
-          throw new Error('Blob not found')
+          throw new BlobNotFoundError()
         }
 
         const [guessedMime] = filetypemime(blobSlice)

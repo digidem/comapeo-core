@@ -16,7 +16,7 @@ import pDefer from 'p-defer'
 import { NAMESPACES } from './constants.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { omit } from './lib/omit.js'
-import { NotFoundError } from './errors.js'
+import { InvalidCoreOwnershipError, NotFoundError } from './errors.js'
 /**
  * @import {
  *   CoreOwnershipWithSignatures,
@@ -161,10 +161,14 @@ export function mapAndValidateCoreOwnership(doc, { coreDiscoveryKey }) {
   if (
     !coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.authCoreId, 'hex')))
   ) {
-    throw new Error('Invalid coreOwnership record: mismatched authCoreId')
+    throw new InvalidCoreOwnershipError(
+      'Invalid coreOwnership record: mismatched authCoreId'
+    )
   }
   if (!verifyCoreOwnership(doc)) {
-    throw new Error('Invalid coreOwnership record: signatures are invalid')
+    throw new InvalidCoreOwnershipError(
+      'Invalid coreOwnership record: signatures are invalid'
+    )
   }
   const docWithoutSignatures = omit(doc, [
     'identitySignature',

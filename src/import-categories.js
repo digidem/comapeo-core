@@ -3,6 +3,7 @@ import { Reader } from 'comapeocat/reader.js'
 import { typedEntries } from './utils.js'
 import { parseBcp47 } from './intl/parse-bcp-47.js'
 import ensureError from 'ensure-error'
+import { IconNotFoundError, KeyNotFoundError } from './errors.js'
 
 // The main reason for the concurrency limit is to avoid run-away memory usage.
 // The comapeocat Reader limits icon size to 2Mb (as-per the specification), and
@@ -75,7 +76,7 @@ export async function importCategories(project, { filePath, logger }) {
           const iconXml = await reader.getIcon(iconName)
           if (!iconXml) {
             // This should never happen because of the validate() call above
-            throw new Error(`Icon ${iconName} not found in import file`)
+            throw new IconNotFoundError(iconName)
           }
           /** @type {Parameters<typeof project.$icons.create>[0]} */
           const icon = {
@@ -93,12 +94,12 @@ export async function importCategories(project, { filePath, logger }) {
             iconNameToRef.set(iconName, { docId, versionId })
           })
         })
-        .catch((e) => {
+        .catch((err) => {
           // The queue task added above could throw (it shouldn't!), and the
           // promise for that task is returned by `queue.add()`. We don't await
           // this (because we want to keep adding items to the queue), but we need
           // to avoid an uncaught error, so we catch it here and store it for later.
-          errors.push(ensureError(e))
+          errors.push(ensureError(err))
         })
     }
 
@@ -130,8 +131,8 @@ export async function importCategories(project, { filePath, logger }) {
             fieldNameToRef.set(fieldName, { docId, versionId })
           })
         )
-        .catch((e) => {
-          errors.push(ensureError(e))
+        .catch((err) => {
+          errors.push(ensureError(err))
         })
     }
 
@@ -180,8 +181,8 @@ export async function importCategories(project, { filePath, logger }) {
             presetNameToRef.set(categoryName, { docId, versionId })
           })
         )
-        .catch((e) => {
-          errors.push(ensureError(e))
+        .catch((err) => {
+          errors.push(ensureError(err))
         })
     }
 
@@ -229,8 +230,8 @@ export async function importCategories(project, { filePath, logger }) {
             }
             queue
               .add(() => project.$translation.put(translationValue))
-              .catch((e) => {
-                errors.push(ensureError(e))
+              .catch((err) => {
+                errors.push(ensureError(err))
               })
             // Since translations are stored in separate files in the archive,
             // and there could potentially be hundreds of them in the future,
@@ -283,15 +284,15 @@ export async function importCategories(project, { filePath, logger }) {
     for (const docId of presetsToDelete) {
       queue
         .add(() => project.preset.delete(docId))
-        .catch((e) => {
-          errors.push(ensureError(e))
+        .catch((err) => {
+          errors.push(ensureError(err))
         })
     }
     for (const docId of fieldsToDelete) {
       queue
         .add(() => project.field.delete(docId))
-        .catch((e) => {
-          errors.push(ensureError(e))
+        .catch((err) => {
+          errors.push(ensureError(err))
         })
     }
     await queue.onIdle()
@@ -307,8 +308,8 @@ export async function importCategories(project, { filePath, logger }) {
     // with the import, the error thrown here would mask that error (Control
     // flow statements (return, throw, break, continue) in the finally block
     // will "mask" any completion value of the try block or catch block)
-    await reader.close().catch((e) => {
-      logger.log('error closing import file reader', e)
+    await reader.close().catch((err) => {
+      logger.log('ERROR: closing import file reader', err)
     })
   }
 }
@@ -349,19 +350,17 @@ function appliesToToGeometry(appliesTo) {
 /**
  * Get a value from a Map, or throw an error if the key is not present
  *
- * @template K, V
+ * @template {string} K, V
  * @param {Map<K, V>} map
  * @param {K} key
- * @param {string | Error} [msgOrError]
  * @returns {V}
  * @throws {TypeError} if `map` is not a Map
  * @throws {Error} if `key` is not in `map` (with `msgOrError` as message or the default message)
  */
-function getOrThrow(map, key, msgOrError) {
+function getOrThrow(map, key) {
   if (!(map instanceof Map)) throw new TypeError('map must be a Map')
   if (!map.has(key)) {
-    if (msgOrError instanceof Error) throw msgOrError
-    throw new Error(msgOrError ?? `key ${key} not found in map`)
+    throw new KeyNotFoundError(key)
   }
   return /** @type {V} */ (map.get(key))
 }

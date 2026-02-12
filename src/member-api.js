@@ -5,9 +5,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import {
-  assert,
   noop,
-  ExhaustivenessError,
   projectKeyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
@@ -17,8 +15,26 @@ import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
-import { ErrorWithCode, getErrorMessage } from './lib/error.js'
-import { InviteAbortedError, ProjectDetailsSendFailError } from './errors.js'
+import {
+  AlreadyBlockedError,
+  DeviceIdNotForServerError,
+  ensureKnownError,
+  InvalidServerResponseError,
+  InvalidUrlError,
+  InviteAbortedError,
+  MissingDataError,
+  MissingOwnDeviceInfoError,
+  NetworkError,
+  ProjectDetailsSendFailError,
+  ProjectNotInAllowlistError,
+  ServerTooManyProjectsError,
+  ExhaustivenessError,
+  InvalidRoleIDForNewInviteError,
+  InvalidProjectNameError,
+  UnexpectedError,
+  AlreadyInvitingError,
+  InvalidResponseBodyError,
+} from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
@@ -27,6 +43,7 @@ import {
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
+import ensureError from 'ensure-error'
 /**
  * @import {
  *   DeviceInfo,
@@ -146,11 +163,12 @@ export class MemberApi extends TypedEmitter {
       initialSyncTimeoutMs = 5000,
     }
   ) {
-    assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
-    assert(
-      !this.#outboundInvitesByDevice.has(deviceId),
-      'Already inviting this device ID'
-    )
+    if (!isRoleIdForNewInvite(roleId)) {
+      throw new InvalidRoleIDForNewInviteError()
+    }
+    if (this.#outboundInvitesByDevice.has(deviceId)) {
+      throw new AlreadyInvitingError()
+    }
 
     const abortController = new AbortController()
     const abortSignal = abortController.signal
@@ -160,10 +178,11 @@ export class MemberApi extends TypedEmitter {
       const { name: invitorName } = await this.getById(this.#ownDeviceId)
       // since we are always getting #ownDeviceId,
       // this should never throw (see comment on getById), but it pleases ts
-      assert(
-        invitorName,
-        'Internal error trying to read own device name for this invite'
-      )
+      if (!invitorName) {
+        throw new UnexpectedError(
+          'Internal error trying to read own device name for this invite'
+        )
+      }
 
       abortSignal.throwIfAborted()
 
@@ -172,7 +191,9 @@ export class MemberApi extends TypedEmitter {
       const projectInviteId = projectKeyToProjectInviteId(this.#projectKey)
       const project = await this.#dataTypes.project.getByDocId(projectId)
       const projectName = project.name
-      assert(projectName, 'Project must have a name to invite people')
+      if (!projectName) {
+        throw new InvalidProjectNameError()
+      }
 
       const projectColor = project.projectColor
       const projectDescription = project.projectDescription
@@ -228,8 +249,8 @@ export class MemberApi extends TypedEmitter {
             }
 
             await this.#waitForInitialSyncWithPeer(deviceId, abortSync)
-          } catch (e) {
-            this.#l.log('ERROR: Could not initial sync with peer', e)
+          } catch (err) {
+            this.#l.log('ERROR: Could not initial sync with peer', err)
           }
 
           return inviteResponse.decision
@@ -241,7 +262,7 @@ export class MemberApi extends TypedEmitter {
         this.#l.log('ERROR: Disconnect before ack', err)
         throw new InviteAbortedError()
       }
-      throw err
+      throw ensureKnownError(err)
     } finally {
       this.#outboundInvitesByDevice.delete(deviceId)
     }
@@ -291,7 +312,7 @@ export class MemberApi extends TypedEmitter {
         throw new InviteAbortedError()
       } else {
         this.#l.log('ERROR: Unexpected error during invite send', err)
-        throw err
+        throw ensureKnownError(err)
       }
     } finally {
       abortController.abort()
@@ -342,7 +363,7 @@ export class MemberApi extends TypedEmitter {
     if (
       !isValidServerBaseUrl(baseUrl, { dangerouslyAllowInsecureConnections })
     ) {
-      throw new ErrorWithCode('INVALID_URL', 'Server base URL is invalid')
+      throw new InvalidUrlError()
     }
 
     const { serverDeviceId } = await this.#addServerToProject(baseUrl)
@@ -367,7 +388,7 @@ export class MemberApi extends TypedEmitter {
     const { roleId } = member.role
 
     if (roleId === BLOCKED_ROLE_ID || roleId === LEFT_ROLE_ID) {
-      throw new ErrorWithCode('ALREADY_BLOCKED', 'Member already blocked')
+      throw new AlreadyBlockedError()
     }
 
     // Add blocked role to project
@@ -391,15 +412,10 @@ export class MemberApi extends TypedEmitter {
     // Parse through URL to ensure end pathname if missing
     const member = await this.getById(serverDeviceId)
 
-    if (!member.selfHostedServerDetails) {
-      throw new ErrorWithCode(
-        'DEVICE_ID_NOT_FOR_SERVER',
-        'DeviceId is not for a server peer'
-      )
-    }
+    if (!member.selfHostedServerDetails) throw new DeviceIdNotForServerError()
 
     if (member.role.roleId === BLOCKED_ROLE_ID) {
-      throw new ErrorWithCode('ALREADY_BLOCKED', 'Server peer already blocked')
+      throw new AlreadyBlockedError()
     }
 
     const { baseUrl } = member.selfHostedServerDetails
@@ -422,10 +438,7 @@ export class MemberApi extends TypedEmitter {
   async #addServerToProject(baseUrl) {
     const projectName = await this.#getProjectName()
     if (!projectName) {
-      throw new ErrorWithCode(
-        'MISSING_DATA',
-        'Project must have name to add server peer'
-      )
+      throw new MissingDataError()
     }
 
     const requestUrl = new URL('projects', baseUrl)
@@ -449,11 +462,9 @@ export class MemberApi extends TypedEmitter {
         headers: { 'Content-Type': 'application/json' },
       })
     } catch (err) {
-      throw new ErrorWithCode(
-        'NETWORK_ERROR',
-        `Failed to add server peer due to network error: ${getErrorMessage(
-          err
-        )}`
+      throw new NetworkError(
+        err,
+        'Failed to add server peer due to network error'
       )
     }
 
@@ -483,18 +494,12 @@ export class MemberApi extends TypedEmitter {
 
     try {
       await pEvent(websocket, 'open', { rejectionEvents: ['error'] })
-    } catch (rejectionEvent) {
-      throw new ErrorWithCode(
-        // It's difficult for us to reliably disambiguate between "network error"
-        // and "invalid response from server" here, so we just say it was an
-        // invalid server response.
-        'INVALID_SERVER_RESPONSE',
-        'Failed to open the socket',
-        rejectionEvent &&
-        typeof rejectionEvent === 'object' &&
-        'error' in rejectionEvent
-          ? { cause: rejectionEvent.error }
-          : { cause: rejectionEvent }
+    } catch (err) {
+      throw new InvalidServerResponseError(
+        'Failed to open websocket for initial sync',
+        err && typeof err === 'object' && 'error' in err
+          ? { cause: err.error }
+          : { cause: err }
       )
     }
 
@@ -554,7 +559,9 @@ export class MemberApi extends TypedEmitter {
     } catch (err) {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
-      if (deviceId === this.#ownDeviceId) throw err
+      if (deviceId === this.#ownDeviceId) {
+        throw new MissingOwnDeviceInfoError(ensureError(err))
+      }
     }
 
     return result
@@ -592,7 +599,9 @@ export class MemberApi extends TypedEmitter {
         } catch (err) {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available
-          if (deviceId === this.#ownDeviceId) throw err
+          if (deviceId === this.#ownDeviceId) {
+            throw new MissingOwnDeviceInfoError(ensureError(err))
+          }
         }
 
         return memberInfo
@@ -670,20 +679,22 @@ async function parseAddServerResponse(response) {
   if (response.status === 200) {
     try {
       const responseBody = await response.json()
-      assert(
-        responseBody &&
+      if (
+        !(
+          responseBody &&
           typeof responseBody === 'object' &&
           'data' in responseBody &&
           responseBody.data &&
           typeof responseBody.data === 'object' &&
           'deviceId' in responseBody.data &&
-          typeof responseBody.data.deviceId === 'string',
-        'Response body is valid'
-      )
+          typeof responseBody.data.deviceId === 'string'
+        )
+      ) {
+        throw new InvalidResponseBodyError()
+      }
       return { serverDeviceId: responseBody.data.deviceId }
-    } catch (err) {
-      throw new ErrorWithCode(
-        'INVALID_SERVER_RESPONSE',
+    } catch (_err) {
+      throw new InvalidServerResponseError(
         "Failed to add server peer because we couldn't parse the response"
       )
     }
@@ -692,7 +703,7 @@ async function parseAddServerResponse(response) {
   let responseBody
   try {
     responseBody = await response.json()
-  } catch (_) {
+  } catch (_err) {
     responseBody = null
   }
   if (
@@ -705,22 +716,15 @@ async function parseAddServerResponse(response) {
   ) {
     switch (responseBody.error.code) {
       case 'PROJECT_NOT_IN_ALLOWLIST':
-        throw new ErrorWithCode(
-          'PROJECT_NOT_IN_SERVER_ALLOWLIST',
-          "The server only allows specific projects to be added, and this isn't one of them"
-        )
+        throw new ProjectNotInAllowlistError()
       case 'TOO_MANY_PROJECTS':
-        throw new ErrorWithCode(
-          'SERVER_HAS_TOO_MANY_PROJECTS',
-          "The server limits the number of projects it can have and it's at the limit"
-        )
+        throw new ServerTooManyProjectsError()
       default:
         break
     }
   }
 
-  throw new ErrorWithCode(
-    'INVALID_SERVER_RESPONSE',
+  throw new InvalidServerResponseError(
     `Failed to add server peer due to HTTP status code ${response.status}`
   )
 }

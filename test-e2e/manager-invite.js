@@ -444,7 +444,6 @@ test('cancelation (before response)', async (t) => {
   const inviteAbortedAssertionPromise = assert.rejects(
     invitePromise,
     {
-      message: /Invite Aborted/,
       name: 'InviteAbortedError',
     },
     'should throw after being aborted'
@@ -629,7 +628,6 @@ test('disconnect before invite accept', async (t) => {
     invitePromise,
     {
       name: 'InviteAbortedError',
-      message: 'Invite Aborted',
     },
     'invite promise rejects after being aborted'
   )
@@ -714,8 +712,7 @@ test('Attempting to accept unknown inviteId throws', async (t) => {
   await assert.rejects(
     () => joiner.invite.accept({ inviteId: randomBytes(32).toString('hex') }),
     {
-      name: 'NotFoundError',
-      message: /Cannot find invite/,
+      name: 'InviteNotFoundError',
     },
     'accepting unknown inviteId throws'
   )

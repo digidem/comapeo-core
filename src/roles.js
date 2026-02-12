@@ -1,8 +1,8 @@
 import { currentSchemaVersions } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
-import { assert, setHas } from './utils.js'
-import { nullIfNotFound } from './errors.js'
+import { setHas } from './utils.js'
+import { nullIfNotFound, RoleAssignError } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 /** @import { Namespace } from './types.js' */
 
@@ -332,7 +332,7 @@ export class Roles extends TypedEmitter {
       // Default to creator role, but can be overwritten if a different role is
       // set below
       result.set(projectCreatorDeviceId, CREATOR_ROLE)
-    } catch (e) {
+    } catch (_err) {
       // Not found, we don't know who the project creator is so we can't include
       // them in the returned map
     }
@@ -369,10 +369,11 @@ export class Roles extends TypedEmitter {
    * @param {string} opts.reason
    */
   async assignRole(deviceId, roleId, opts) {
-    assert(
-      isRoleIdAssignableToAnyone(roleId),
-      `Role ID should be assignable to anyone but got ${roleId}`
-    )
+    if (!isRoleIdAssignableToAnyone(roleId)) {
+      throw new RoleAssignError(
+        `Role ID should be assignable to anyone but got ${roleId}`
+      )
+    }
 
     let fromIndex = 0
     let authCoreId
@@ -391,12 +392,12 @@ export class Roles extends TypedEmitter {
     }
     if (roleId === LEFT_ROLE_ID) {
       if (deviceId !== this.#ownDeviceId) {
-        throw new Error('Cannot assign LEFT role to another device')
+        throw new RoleAssignError('Cannot assign LEFT role to another device')
       }
     } else {
       const ownRole = await this.getRole(this.#ownDeviceId)
       if (!ownRole.roleAssignment.includes(roleId)) {
-        throw new Error('Lacks permission to assign role ' + roleId)
+        throw new RoleAssignError('Lacks permission to assign role ' + roleId)
       }
     }
 
@@ -423,7 +424,7 @@ export class Roles extends TypedEmitter {
         isAssigningProjectCreatorRole &&
         roleId !== BLOCKED_ROLE_ID
       ) {
-        throw new Error(
+        throw new RoleAssignError(
           'Project creators can only be assigned the blocked role'
         )
       }

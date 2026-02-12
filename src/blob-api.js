@@ -2,6 +2,7 @@ import fs from 'node:fs'
 // @ts-expect-error - pipelinePromise missing from streamx types
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
+import { BlobSourceNotFound, UnsupportedMimeTypeError } from './errors.js'
 /** @import { BlobId, BlobType } from './types.js' */
 
 /**
@@ -57,24 +58,40 @@ export class BlobApi {
       { type, variant: 'original', name },
       { metadata }
     )
+
+    await checkExists(original)
     const writePromises = [
       pipeline(fs.createReadStream(original), hashTransform(hash), ws),
     ]
 
     if (preview) {
-      const ws = this.#blobStore.createWriteStream(
-        { type, variant: 'preview', name },
-        { metadata }
+      writePromises.push(
+        (async () => {
+          await checkExists(preview)
+
+          const ws = this.#blobStore.createWriteStream(
+            { type, variant: 'preview', name },
+            { metadata }
+          )
+
+          pipeline(fs.createReadStream(preview), ws)
+        })()
       )
-      writePromises.push(pipeline(fs.createReadStream(preview), ws))
     }
 
     if (thumbnail) {
-      const ws = this.#blobStore.createWriteStream(
-        { type, variant: 'thumbnail', name },
-        { metadata }
+      writePromises.push(
+        (async () => {
+          await checkExists(thumbnail)
+
+          const ws = this.#blobStore.createWriteStream(
+            { type, variant: 'thumbnail', name },
+            { metadata }
+          )
+
+          pipeline(fs.createReadStream(thumbnail), ws)
+        })()
       )
-      writePromises.push(pipeline(fs.createReadStream(thumbnail), ws))
     }
 
     await Promise.all(writePromises)
@@ -109,5 +126,17 @@ function getType(mimeType) {
   if (mimeType.startsWith('video')) return 'video'
   if (mimeType.startsWith('audio')) return 'audio'
 
-  throw new Error(`Unsupported mimeType: ${mimeType}`)
+  throw new UnsupportedMimeTypeError(mimeType)
+}
+
+/**
+ * Checks if a file exists at a given path
+ * @param {string} path
+ */
+async function checkExists(path) {
+  try {
+    await fs.promises.stat(path)
+  } catch (err) {
+    throw new BlobSourceNotFound(path, { cause: err })
+  }
 }
