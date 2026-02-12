@@ -466,7 +466,7 @@ Send a map share offer to the peer with device ID `mapShare.receiverDeviceId`
 
 #### Parameters
 
-• **mapShare**: `MapShareExtension`
+• **mapShare**: [`MapShareSend`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_mapeo-project/type-aliases/MapShareSend.md)
 
 • **options?** = `{}`
 
