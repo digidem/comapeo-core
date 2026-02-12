@@ -483,7 +483,7 @@ export class InvalidIconSizeError extends Error {
 }
 
 export class InvalidIconPixelDensityError extends Error {
-  /** @param {any} [density] */
+  /** @param {number} density */
   constructor(density) {
     super(`Invalid icon pixel density: ${density}`)
     this.name = 'InvalidIconPixelDensityError'
