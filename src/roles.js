@@ -1,7 +1,7 @@
 import { currentSchemaVersions } from '@comapeo/schema'
 import mapObject from 'map-obj'
 import { kCreateWithDocId, kDataStore } from './datatype/index.js'
-import { assert, setHas } from './utils.js'
+import { setHas } from './utils.js'
 import { nullIfNotFound, RoleAssignError } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 /** @import { Namespace } from './types.js' */
@@ -369,10 +369,11 @@ export class Roles extends TypedEmitter {
    * @param {string} opts.reason
    */
   async assignRole(deviceId, roleId, opts) {
-    assert(
-      isRoleIdAssignableToAnyone(roleId),
-      `Role ID should be assignable to anyone but got ${roleId}`
-    )
+    if (!isRoleIdAssignableToAnyone(roleId)) {
+      throw new RoleAssignError(
+        `Role ID should be assignable to anyone but got ${roleId}`
+      )
+    }
 
     let fromIndex = 0
     let authCoreId

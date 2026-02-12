@@ -1,10 +1,13 @@
 import { sql } from 'drizzle-orm'
 import fs from 'node:fs'
 import path from 'node:path'
-import { assert } from '../utils.js'
 import { migrate as drizzleMigrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { DRIZZLE_MIGRATIONS_TABLE } from '../constants.js'
-import { MigrationError } from '../errors.js'
+import {
+  InvalidDrizzleJournalError,
+  InvalidDrizzleQueryError,
+  MigrationError,
+} from '../errors.js'
 /** @import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
 
 /**
@@ -12,13 +15,16 @@ import { MigrationError } from '../errors.js'
  * @returns {number}
  */
 const getNumberResult = (queryResult) => {
-  assert(
-    queryResult &&
+  if (
+    !(
+      queryResult &&
       typeof queryResult === 'object' &&
       'result' in queryResult &&
-      typeof queryResult.result === 'number',
-    'expected query to return proper result'
-  )
+      typeof queryResult.result === 'number'
+    )
+  ) {
+    throw new InvalidDrizzleQueryError()
+  }
   return queryResult.result
 }
 
@@ -112,13 +118,16 @@ export function migrate(db, { migrationsFolder, migrationFns = {} }) {
  * @returns {asserts journal is { version: '5', entries: { tag: string, when: number }[] }}
  */
 function assertValidJournal(journal) {
-  assert(journal && typeof journal === 'object', 'invalid journal')
-  assert(
-    'version' in journal && journal.version === '5',
-    'unexpected journal version'
-  )
-  assert(
-    'entries' in journal &&
+  if (!(journal && typeof journal === 'object')) {
+    throw new InvalidDrizzleJournalError()
+  }
+  if (!('version' in journal && journal.version === '5')) {
+    throw new InvalidDrizzleJournalError('unexpected journal version')
+  }
+
+  if (
+    !(
+      'entries' in journal &&
       Array.isArray(journal.entries) &&
       journal.entries.every(
         /** @param {unknown} m */
@@ -129,7 +138,9 @@ function assertValidJournal(journal) {
           typeof m.tag === 'string' &&
           'when' in m &&
           typeof m.when === 'number'
-      ),
-    'invalid entries in journal'
-  )
+      )
+    )
+  ) {
+    throw new InvalidDrizzleJournalError('invalid entries in journal')
+  }
 }

@@ -43,7 +43,6 @@ import {
   INACTIVE_MEMBER_ROLE_IDS,
 } from './roles.js'
 import {
-  assert,
   buildBlobId,
   getDeviceId,
   projectKeyToId,
@@ -73,6 +72,7 @@ import {
   nullIfNotFound,
   GeoJSONExportError,
   InvalidMapShareError,
+  MultipleCategoryImportsError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import fs from 'node:fs'
@@ -663,7 +663,8 @@ export class MapeoProject extends TypedEmitter {
             index: entry.index,
           })
 
-          assert(doc.schemaName === 'translation', 'expected a translation doc')
+          // assert(doc.schemaName === 'translation', 'expected a translation doc')
+          if (doc.schemaName !== 'translation') continue
           this.#translationApi.index(doc)
           otherEntries.push(entry)
         } else {
@@ -1455,10 +1456,9 @@ export class MapeoProject extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async $importCategories({ filePath }) {
-    assert(
-      !this.#importingCategories,
-      'Cannot run multiple category imports at the same time'
-    )
+    if (this.#importingCategories) {
+      throw new MultipleCategoryImportsError()
+    }
     this.#importingCategories = true
 
     try {

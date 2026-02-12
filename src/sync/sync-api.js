@@ -8,11 +8,11 @@ import {
   NAMESPACES,
   PRESYNC_NAMESPACES,
 } from '../constants.js'
-import { assert, keyToId, noop } from '../utils.js'
+import { keyToId, noop } from '../utils.js'
 import { getOwn } from '../lib/get-own.js'
 import { wsCoreReplicator } from '../lib/ws-core-replicator.js'
 import { NO_ROLE_ID } from '../roles.js'
-import { ExhaustivenessError } from '../errors.js'
+import { AutoStopTimeoutError, ExhaustivenessError } from '../errors.js'
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
@@ -656,10 +656,9 @@ export class SyncApi extends TypedEmitter {
  */
 function assertAutostopDataSyncAfterIsValid(ms) {
   if (ms === null) return
-  assert(
-    ms > 0 && ms <= 2 ** 31 - 1 && Number.isSafeInteger(ms),
-    'auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer'
-  )
+  if (!(ms > 0 && ms <= 2 ** 31 - 1 && Number.isSafeInteger(ms))) {
+    throw new AutoStopTimeoutError()
+  }
 }
 
 /**

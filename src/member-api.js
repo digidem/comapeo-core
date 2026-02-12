@@ -5,7 +5,6 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import {
-  assert,
   noop,
   projectKeyToId,
   projectKeyToProjectInviteId,
@@ -30,6 +29,11 @@ import {
   ProjectNotInAllowlistError,
   ServerTooManyProjectsError,
   ExhaustivenessError,
+  InvalidRoleIDForNewInviteError,
+  InvalidProjectNameError,
+  UnexpectedError,
+  AlreadyInvitingError,
+  InvalidResponseBodyError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
@@ -159,11 +163,12 @@ export class MemberApi extends TypedEmitter {
       initialSyncTimeoutMs = 5000,
     }
   ) {
-    assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
-    assert(
-      !this.#outboundInvitesByDevice.has(deviceId),
-      'Already inviting this device ID'
-    )
+    if (!isRoleIdForNewInvite(roleId)) {
+      throw new InvalidRoleIDForNewInviteError()
+    }
+    if (!this.#outboundInvitesByDevice.has(deviceId)) {
+      throw new AlreadyInvitingError()
+    }
 
     const abortController = new AbortController()
     const abortSignal = abortController.signal
@@ -173,10 +178,11 @@ export class MemberApi extends TypedEmitter {
       const { name: invitorName } = await this.getById(this.#ownDeviceId)
       // since we are always getting #ownDeviceId,
       // this should never throw (see comment on getById), but it pleases ts
-      assert(
-        invitorName,
-        'Internal error trying to read own device name for this invite'
-      )
+      if (!invitorName) {
+        throw new UnexpectedError(
+          'Internal error trying to read own device name for this invite'
+        )
+      }
 
       abortSignal.throwIfAborted()
 
@@ -185,7 +191,9 @@ export class MemberApi extends TypedEmitter {
       const projectInviteId = projectKeyToProjectInviteId(this.#projectKey)
       const project = await this.#dataTypes.project.getByDocId(projectId)
       const projectName = project.name
-      assert(projectName, 'Project must have a name to invite people')
+      if (!projectName) {
+        throw new InvalidProjectNameError()
+      }
 
       const projectColor = project.projectColor
       const projectDescription = project.projectDescription
@@ -671,16 +679,19 @@ async function parseAddServerResponse(response) {
   if (response.status === 200) {
     try {
       const responseBody = await response.json()
-      assert(
-        responseBody &&
+      if (
+        !(
+          responseBody &&
           typeof responseBody === 'object' &&
           'data' in responseBody &&
           responseBody.data &&
           typeof responseBody.data === 'object' &&
           'deviceId' in responseBody.data &&
-          typeof responseBody.data.deviceId === 'string',
-        'Response body is valid'
-      )
+          typeof responseBody.data.deviceId === 'string'
+        )
+      ) {
+        throw new InvalidResponseBodyError()
+      }
       return { serverDeviceId: responseBody.data.deviceId }
     } catch (_err) {
       throw new InvalidServerResponseError(

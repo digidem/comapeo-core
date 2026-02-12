@@ -660,6 +660,15 @@ export class CategoryFileNotFoundError extends Error {
   }
 }
 
+export class MultipleCategoryImportsError extends Error {
+  constructor() {
+    super('Cannot run multiple category imports at the same time')
+    this.name = 'MultipleCategoryImportsError'
+    this.code = 'MULTIPLE_CATEGORY_IMPORTS_ERROR'
+    this.status = 409
+  }
+}
+
 export class UnknownPeerError extends Error {
   /** @param {string} [message] */
   constructor(message = 'UnknownPeerError') {
@@ -728,6 +737,150 @@ export class InvalidMapShareError extends Error {
     super(message)
     this.name = 'InvalidMapShareError'
     this.code = 'INVALID_MAP_SHARE_ERROR'
+    this.status = 400
+  }
+}
+
+export class InvalidResponseBodyError extends Error {
+  constructor() {
+    super('InvalidResponseBodyError: Response body is not valid')
+    this.name = 'InvalidResponseBodyError'
+    this.code = 'INVALID_RESPONSE_BODY_ERROR'
+    this.status = 400
+  }
+}
+
+export class InvalidInviteError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'InvalidInviteError: Invite is invalid') {
+    super(message)
+    this.name = 'InvalidInviteError'
+    this.code = 'INVALID_INVITE_ERROR'
+    this.status = 400
+  }
+}
+
+export class InviteNotFoundError extends Error {
+  /**
+   *
+   * @param {Buffer} inviteId
+   */
+  constructor(inviteId) {
+    super(`InviteNotFoundError: Cannot find invite ${inviteId.toString('hex')}`)
+    this.name = 'InviteNotFoundError'
+    this.code = 'INVITE_NOT_FOUND_ERROR'
+    this.status = 404
+  }
+}
+
+export class AlreadyInvitingError extends Error {
+  constructor(message = 'Already invited this device ID') {
+    super(message)
+    this.name = 'AlreadyInvitingError'
+    this.code = 'ALREADY_INVITING_ERROR'
+    this.status = 409
+  }
+}
+
+export class InvalidRoleIDForNewInviteError extends Error {
+  constructor() {
+    super('Invalid role ID for new invite')
+    this.name = 'InvalidRoleIDForNewInviteError'
+    this.code = 'INVALID_ROLE_ID_FOR_NEW_INVITE_ERROR'
+    this.status = 400
+  }
+}
+
+export class InvalidProjectNameError extends Error {
+  constructor(
+    message = 'InvalidProjectNameError: Project must have a name to invite people'
+  ) {
+    super(message)
+    this.name = 'InvalidProjectNameError'
+    this.code = 'INVALID_PROJECT_NAME_ERROR'
+    this.status = 400
+  }
+}
+
+export class InvalidProjectKeyError extends Error {
+  constructor(
+    message = 'project owner core public key must be 32-byte buffer'
+  ) {
+    super(message)
+    this.name = 'InvalidProjectKeyError'
+    this.code = 'INVALID_PROJECT_KEY_ERROR'
+    this.status = 400
+  }
+}
+
+export class InvalidProjectSecretKeyError extends Error {
+  /** @param {string} [message] */
+  constructor(
+    message = 'project owner core secret key must be 64-byte buffer'
+  ) {
+    super(message)
+    this.name = 'InvalidProjectSecretKeyError'
+    this.code = 'INVALID_PROJECT_SECRET_KEY_ERROR'
+    this.status = 400
+  }
+}
+
+export class InvalidProjectJoinDetailsError extends Error {
+  /** @param {string} [message] */
+  constructor(
+    message = 'InvalidProjectJoinDetailsError: Invalid project join details'
+  ) {
+    super(message)
+    this.name = 'InvalidProjectJoinDetailsError'
+    this.code = 'INVALID_PROJECT_JOIN_DETAILS_ERROR'
+    this.status = 400
+  }
+}
+
+export class UnexpectedError extends Error {
+  constructor(message = 'UnexpectedError: An unexpected error occurred') {
+    super(message)
+    this.name = 'UnexpectedError'
+    this.code = 'UNEXPECTED_ERROR'
+    this.status = 500
+  }
+}
+
+export class AutoStopTimeoutError extends Error {
+  constructor(
+    message = 'AutoStopTimeoutError: auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer'
+  ) {
+    super(message)
+    this.name = 'AutoStopTimeoutError'
+    this.code = 'AUTO_STOP_TIMEOUT_ERROR'
+    this.status = 400
+  }
+}
+
+export class MissingDiscoveryKeyError extends Error {
+  constructor() {
+    super('MissingDiscoveryKeyError: Core should have a discovery key')
+    this.name = 'MissingDiscoveryKeyError'
+    this.code = 'MISSING_DISCOVERY_KEY_ERROR'
+    this.status = 400
+  }
+}
+
+export class InvalidDrizzleQueryError extends Error {
+  constructor(message = 'expected query to return proper result') {
+    super(message)
+    this.name = 'InvalidDrizzleQueryError'
+    this.code = 'INVALID_DRIZZLE_QUERY_ERROR'
+    this.status = 400
+  }
+}
+
+export class InvalidDrizzleJournalError extends Error {
+  /** @param {string} [message] */
+  constructor(message = 'invalid journal') {
+    super(message)
+    this.name = 'InvalidDrizzleJournalError'
+    this.code = 'INVALID_DRIZZLE_JOURNAL_ERROR'
     this.status = 400
   }
 }

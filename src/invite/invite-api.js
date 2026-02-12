@@ -1,6 +1,6 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from '../generated/rpc.js'
-import { assert, keyToId, noop } from '../utils.js'
+import { keyToId, noop } from '../utils.js'
 import HashMap from '../lib/hashmap.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { Logger } from '../logger.js'
@@ -11,6 +11,7 @@ import {
   AlreadyJoinedError,
   InviteSendError,
   ensureKnownError,
+  InviteNotFoundError,
 } from '../errors.js'
 
 /** @import { ProjectToAddDetails } from '../mapeo-manager.js' */
@@ -203,7 +204,9 @@ export class InviteApi extends TypedEmitter {
     this.#l.log('Received invite cancel for invite ID %h', inviteId)
 
     const invite = this.#invites.get(inviteId)
-    assert(!!invite, `Cannot find invite ${inviteId.toString('hex')}`)
+    if (!invite) {
+      throw new InviteNotFoundError(inviteId)
+    }
 
     // TODO: Move this logging to the state machine
     const state = invite.actor.getSnapshot()
@@ -293,10 +296,9 @@ export class InviteApi extends TypedEmitter {
       const inviteId = Buffer.from(inviteIdString, 'hex')
 
       const invite = this.#invites.get(inviteId)
-      assert(
-        !!invite,
-        new NotFoundError(`Cannot find invite ${inviteIdString}`)
-      )
+      if (!invite) {
+        throw new InviteNotFoundError(inviteId)
+      }
       assertCanSend(invite.actor, { type: 'ACCEPT_INVITE' })
 
       this.#l.log('Accepting invite %h', inviteId)
@@ -336,7 +338,9 @@ export class InviteApi extends TypedEmitter {
     const inviteId = Buffer.from(inviteIdString, 'hex')
 
     const invite = this.#invites.get(inviteId)
-    assert(!!invite, `Cannot find invite ${inviteIdString}`)
+    if (!invite) {
+      throw new InviteNotFoundError(inviteId)
+    }
     assertCanSend(invite.actor, { type: 'REJECT_INVITE' })
 
     this.#l.log('Rejecting invite %h', inviteId)
@@ -382,14 +386,13 @@ function toInvite(internal, snapshot, invitorDeviceId) {
  */
 function assertCanSend(actor, eventType) {
   const state = actor.getSnapshot()
-  assert(
-    state.can(eventType),
-    new InviteSendError(
+  if (!state.can(eventType)) {
+    throw new InviteSendError(
       `Cannot send ${JSON.stringify(eventType)} in state ${toStateString(
         state.value
       )}`
     )
-  )
+  }
 }
 
 /**

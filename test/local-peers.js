@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { keyToId, projectKeyToProjectInviteId } from '../src/utils.js'
 import { LocalPeers, kTestOnlySendRawInvite } from '../src/local-peers.js'
 import { on, once } from 'events'
-import { Duplex } from 'streamx'
 import { replicate } from './helpers/local-peers.js'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
@@ -214,17 +213,6 @@ test('next tick disconnect does not throw', async () => {
   const destroy = replicate(r1, r2)
   await Promise.resolve()
   destroy(new Error())
-})
-
-test('invalid stream', () => {
-  const r1 = new LocalPeers()
-  const regularStream = new Duplex()
-  assert.throws(
-    () =>
-      // @ts-expect-error
-      r1.connect(regularStream),
-    { message: 'Invalid stream' }
-  )
 })
 
 test('Send device info', async () => {

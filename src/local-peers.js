@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import timingSafeEqual from 'string-timing-safe-equal'
-import { assert, keyToId, noop, timeoutAfter } from './utils.js'
+import { keyToId, noop, timeoutAfter } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
@@ -25,6 +25,8 @@ import {
   RPCDisconnectBeforeSendingError,
   UnknownPeerError,
   ExhaustivenessError,
+  InvalidInviteError,
+  InvalidProjectJoinDetailsError,
 } from './errors.js'
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
@@ -861,7 +863,9 @@ export class LocalPeers extends TypedEmitter {
  * @throws if the invite ID is too short
  */
 function assertInviteIdIsValid(id) {
-  assert(id.byteLength >= 32, 'Invite ID must be >= 32 bytes')
+  if (id.byteLength < 32) {
+    throw new InvalidInviteError('Invite ID must be >= 32 bytes')
+  }
 }
 
 /**
@@ -872,9 +876,15 @@ function assertInviteIdIsValid(id) {
 function parseInvite(data) {
   const result = Invite.decode(data)
   assertInviteIdIsValid(result.inviteId)
-  assert(result.projectInviteId.length, 'Invite must have project invite ID')
-  assert(!isBlank(result.projectName), 'Invite project name cannot be blank')
-  assert(!isBlank(result.invitorName), 'Invite invitor name cannot be blank')
+  if (!result.projectInviteId.length) {
+    throw new InvalidInviteError('Invite must have project invite ID')
+  }
+  if (isBlank(result.projectName)) {
+    throw new InvalidInviteError('Invite project name cannot be blank')
+  }
+  if (isBlank(result.invitorName)) {
+    throw new InvalidInviteError('Invite invitor name cannot be blank')
+  }
   return result
 }
 
@@ -908,11 +918,16 @@ function parseInviteResponse(data) {
 function parseProjectJoinDetails(data) {
   const result = ProjectJoinDetails.decode(data)
   assertInviteIdIsValid(result.inviteId)
-  assert(result.projectKey.length, 'Project join details must have project key')
-  assert(
-    result.encryptionKeys?.auth?.byteLength,
-    'Project join details must have auth encryption keys'
-  )
+  if (!result.projectKey.length) {
+    throw new InvalidProjectJoinDetailsError(
+      'Project join details must have project key'
+    )
+  }
+  if (!result.encryptionKeys?.auth?.byteLength) {
+    throw new InvalidProjectJoinDetailsError(
+      'Project join details must have auth encryption keys'
+    )
+  }
   return result
 }
 
