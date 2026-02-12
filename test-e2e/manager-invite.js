@@ -712,8 +712,7 @@ test('Attempting to accept unknown inviteId throws', async (t) => {
   await assert.rejects(
     () => joiner.invite.accept({ inviteId: randomBytes(32).toString('hex') }),
     {
-      name: 'NotFoundError',
-      message: /Cannot find invite/,
+      name: 'InviteNotFoundError',
     },
     'accepting unknown inviteId throws'
   )

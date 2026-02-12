@@ -166,7 +166,7 @@ export class MemberApi extends TypedEmitter {
     if (!isRoleIdForNewInvite(roleId)) {
       throw new InvalidRoleIDForNewInviteError()
     }
-    if (!this.#outboundInvitesByDevice.has(deviceId)) {
+    if (this.#outboundInvitesByDevice.has(deviceId)) {
       throw new AlreadyInvitingError()
     }
 
