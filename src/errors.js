@@ -248,7 +248,7 @@ export class UnexpectedEndOfStreamError extends Error {
 
 export class DriveNotFoundError extends Error {
   /**
-   * @param {string} [driveId]
+   * @param {string} driveId
    */
   constructor(driveId) {
     super(`Drive not found: ${driveId}`)
@@ -260,7 +260,7 @@ export class DriveNotFoundError extends Error {
 
 export class BlobsNotFoundError extends Error {
   /**
-   * @param {string} [driveId]
+   * @param {string} driveId
    */
   constructor(driveId) {
     super(`HyperBlobs not found for drive: ${driveId}`)
@@ -288,7 +288,7 @@ export class MigrationError extends Error {
   /**
    * @param {ErrorOptions} [opts]
    */
-  constructor(opts = {}) {
+  constructor(opts) {
     super('Unable to complete Drizzle Database migration', opts)
     this.name = 'MigrationError'
     this.code = 'MIGRATION_ERROR'
@@ -300,7 +300,7 @@ export class GeoJSONExportError extends Error {
   /**
    * @param {ErrorOptions} [opts]
    */
-  constructor(opts = {}) {
+  constructor(opts) {
     super('Unable to export GeoJSON file', opts)
     this.name = 'GeoJSONExportError'
     this.code = 'GEOJSON_EXPORT_ERROR'
@@ -338,7 +338,10 @@ export class InvalidBitfieldError extends Error {
 }
 
 export class InvalidDocSchemaError extends Error {
-  /** @param {string} [schemaName] @param {string} [namespace] */
+  /**
+   * @param {string} [schemaName]
+   * @param {string} [namespace]
+   */
   constructor(schemaName, namespace) {
     super(`Schema '${schemaName}' is not allowed in namespace '${namespace}'`)
     this.name = 'InvalidDocSchemaError'
@@ -376,7 +379,7 @@ export class InvalidDocFormat extends Error {
 }
 
 export class DocAlreadyExistsError extends Error {
-  /** @param {string} [docId] */
+  /** @param {string} docId */
   constructor(docId) {
     super(`Doc with docId ${docId} already exists`)
     this.name = 'DocAlreadyExistsError'
@@ -433,8 +436,8 @@ export class MissingGetProjectError extends Error {
 }
 export class UnsupportedVariantError extends Error {
   /**
-   * @param {string} [variant]
-   * @param {string} [type]
+   * @param {string} variant
+   * @param {string} type
    **/
   constructor(variant, type) {
     super(`Unsupported variant "${variant}" for ${type}`)
@@ -446,7 +449,7 @@ export class UnsupportedVariantError extends Error {
 
 export class BlobStoreEntryNotFoundError extends Error {
   constructor() {
-    super('Entry not found')
+    super('Blob store entry not found')
     this.name = 'BlobStoreEntryNotFoundError'
     this.code = 'BLOB_STORE_ENTRY_NOT_FOUND_ERROR'
     this.status = 404
@@ -463,7 +466,7 @@ export class BlobNotFoundError extends Error {
 }
 
 export class InvalidIconSizeError extends Error {
-  /** @param {string} [value] */
+  /** @param {string} value */
   constructor(value) {
     super(`'${value}' is not a valid icon size`)
     this.name = 'InvalidIconSizeError'
@@ -494,7 +497,7 @@ export class FailedToGetStyleError extends Error {
 
 export class UnknownSchemaError extends Error {
   /**
-   * @param {string} [schemaName]
+   * @param {string} schemaName
    */
   constructor(schemaName) {
     super(`IndexWriter doesn't know a schema named "${schemaName}"`)
@@ -505,7 +508,7 @@ export class UnknownSchemaError extends Error {
 }
 
 export class InvalidLanguageTagError extends Error {
-  /** @param {string} [languageTag] */
+  /** @param {string} languageTag */
   constructor(languageTag) {
     super(`Invalid BCP 47 language tag: ${languageTag}`)
     this.name = 'InvalidLanguageTagError'
@@ -515,7 +518,7 @@ export class InvalidLanguageTagError extends Error {
 }
 
 export class DuplicateKeyError extends Error {
-  /** @param {*} [key] */
+  /** @param {*} key */
   constructor(key) {
     super(`Duplicate key: ${JSON.stringify(key)}`)
     this.name = 'DuplicateKeyError'
