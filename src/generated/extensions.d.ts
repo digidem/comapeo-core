@@ -43,7 +43,7 @@ export interface MapShareExtension {
     /** URLs to map share */
     mapShareUrls: string[];
     /** ID of peer that can receive the map share (each map share is linked to a specific device ID) */
-    receiverDeviceId: string;
+    receiverDeviceKey: Buffer;
     /** The ID of the map share */
     shareId: string;
     /** The name of the map being shared */

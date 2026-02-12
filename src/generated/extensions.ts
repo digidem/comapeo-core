@@ -91,7 +91,7 @@ export interface MapShareExtension {
   /** URLs to map share */
   mapShareUrls: string[];
   /** ID of peer that can receive the map share (each map share is linked to a specific device ID) */
-  receiverDeviceId: string;
+  receiverDeviceKey: Buffer;
   /** The ID of the map share */
   shareId: string;
   /** The name of the map being shared */
@@ -421,7 +421,7 @@ export const DownloadIntentExtension_DownloadIntentsEntry = {
 function createBaseMapShareExtension(): MapShareExtension {
   return {
     mapShareUrls: [],
-    receiverDeviceId: "",
+    receiverDeviceKey: Buffer.alloc(0),
     shareId: "",
     mapName: "",
     mapId: "",
@@ -439,8 +439,8 @@ export const MapShareExtension = {
     for (const v of message.mapShareUrls) {
       writer.uint32(10).string(v!);
     }
-    if (message.receiverDeviceId !== "") {
-      writer.uint32(18).string(message.receiverDeviceId);
+    if (message.receiverDeviceKey.length !== 0) {
+      writer.uint32(18).bytes(message.receiverDeviceKey);
     }
     if (message.shareId !== "") {
       writer.uint32(26).string(message.shareId);
@@ -493,7 +493,7 @@ export const MapShareExtension = {
             break;
           }
 
-          message.receiverDeviceId = reader.string();
+          message.receiverDeviceKey = reader.bytes() as Buffer;
           continue;
         case 3:
           if (tag !== 26) {
@@ -583,7 +583,7 @@ export const MapShareExtension = {
   fromPartial<I extends Exact<DeepPartial<MapShareExtension>, I>>(object: I): MapShareExtension {
     const message = createBaseMapShareExtension();
     message.mapShareUrls = object.mapShareUrls?.map((e) => e) || [];
-    message.receiverDeviceId = object.receiverDeviceId ?? "";
+    message.receiverDeviceKey = object.receiverDeviceKey ?? Buffer.alloc(0);
     message.shareId = object.shareId ?? "";
     message.mapName = object.mapName ?? "";
     message.mapId = object.mapId ?? "";
