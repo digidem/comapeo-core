@@ -8,8 +8,6 @@ export { plugin as CoMapeoMapsFastifyPlugin } from './fastify-plugins/maps.js'
 export { FastifyController } from './fastify-controller.js'
 export { MapeoManager } from './mapeo-manager.js'
 
-export { default as errorCodes } from './error-codes.js'
-
 // Type exports
 /** @typedef {import('./mapeo-project.js').MapShare} MapShare */
 /** @typedef {import('./mapeo-project.js').MapeoProject} MapeoProject */

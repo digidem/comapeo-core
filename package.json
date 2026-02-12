@@ -4,6 +4,16 @@
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./errors.js": {
+      "import": "./src/error_codes.js",
+      "types": "./dist/error_codes.d.ts"
+    }
+  },
   "type": "module",
   "scripts": {
     "lint": "eslint --cache .",
