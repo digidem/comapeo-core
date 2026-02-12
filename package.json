@@ -22,7 +22,7 @@
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate --dialect sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate --dialect sqlite --schema src/schema/client.js --out drizzle/client",
-    "prepack": "npm run build:types",
+    "prepack": "npm run build:errors && npm run build:types",
     "prepare": "husky install"
   },
   "files": [
