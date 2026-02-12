@@ -725,8 +725,8 @@ export class PeerNotFoundError extends Error {
 }
 
 export class InvalidMapShareError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Map Share Failed Validation') {
+  /** @param {string} message */
+  constructor(message) {
     super(message)
     this.name = 'InvalidMapShareError'
     this.code = 'INVALID_MAP_SHARE_ERROR'
@@ -736,7 +736,7 @@ export class InvalidMapShareError extends Error {
 
 export class InvalidResponseBodyError extends Error {
   constructor() {
-    super('InvalidResponseBodyError: Response body is not valid')
+    super('Response body is not valid')
     this.name = 'InvalidResponseBodyError'
     this.code = 'INVALID_RESPONSE_BODY_ERROR'
     this.status = 400
@@ -744,8 +744,8 @@ export class InvalidResponseBodyError extends Error {
 }
 
 export class InvalidInviteError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'InvalidInviteError: Invite is invalid') {
+  /** @param {string} message */
+  constructor(message) {
     super(message)
     this.name = 'InvalidInviteError'
     this.code = 'INVALID_INVITE_ERROR'
@@ -755,11 +755,10 @@ export class InvalidInviteError extends Error {
 
 export class InviteNotFoundError extends Error {
   /**
-   *
    * @param {Buffer} inviteId
    */
   constructor(inviteId) {
-    super(`InviteNotFoundError: Cannot find invite ${inviteId.toString('hex')}`)
+    super(`Cannot find invite ${inviteId.toString('hex')}`)
     this.name = 'InviteNotFoundError'
     this.code = 'INVITE_NOT_FOUND_ERROR'
     this.status = 404
@@ -786,7 +785,7 @@ export class InvalidRoleIDForNewInviteError extends Error {
 
 export class InvalidProjectNameError extends Error {
   constructor(
-    message = 'InvalidProjectNameError: Project must have a name to invite people'
+    message = 'Project must have a name to invite people'
   ) {
     super(message)
     this.name = 'InvalidProjectNameError'
@@ -797,7 +796,7 @@ export class InvalidProjectNameError extends Error {
 
 export class InvalidProjectKeyError extends Error {
   constructor(
-    message = 'project owner core public key must be 32-byte buffer'
+    message = 'Project owner core public key must be 32-byte buffer'
   ) {
     super(message)
     this.name = 'InvalidProjectKeyError'
@@ -809,7 +808,7 @@ export class InvalidProjectKeyError extends Error {
 export class InvalidProjectSecretKeyError extends Error {
   /** @param {string} [message] */
   constructor(
-    message = 'project owner core secret key must be 64-byte buffer'
+    message = 'Project owner core secret key must be 64-byte buffer'
   ) {
     super(message)
     this.name = 'InvalidProjectSecretKeyError'
@@ -819,10 +818,8 @@ export class InvalidProjectSecretKeyError extends Error {
 }
 
 export class InvalidProjectJoinDetailsError extends Error {
-  /** @param {string} [message] */
-  constructor(
-    message = 'InvalidProjectJoinDetailsError: Invalid project join details'
-  ) {
+  /** @param {string} message */
+  constructor(message) {
     super(message)
     this.name = 'InvalidProjectJoinDetailsError'
     this.code = 'INVALID_PROJECT_JOIN_DETAILS_ERROR'
