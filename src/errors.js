@@ -319,7 +319,7 @@ export class MissingWriterError extends Error {
 }
 
 export class UnsupportedCorestoreOptsError extends Error {
-  /** @param {Object} [opts] */
+  /** @param {unknown} [opts] */
   constructor(opts) {
     super(`Unsupported corestore.get() with opts: ${util.inspect(opts)}`)
     this.name = 'UnsupportedCorestoreOptsError'
