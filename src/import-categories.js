@@ -309,7 +309,7 @@ export async function importCategories(project, { filePath, logger }) {
     // flow statements (return, throw, break, continue) in the finally block
     // will "mask" any completion value of the try block or catch block)
     await reader.close().catch((err) => {
-      logger.log('error closing import file reader', err)
+      logger.log('ERROR: closing import file reader', err)
     })
   }
 }

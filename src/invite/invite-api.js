@@ -82,7 +82,7 @@ export class InviteApi extends TypedEmitter {
       try {
         this.#handleNewInvite(...args)
       } catch (err) {
-        this.#l.log('Error handling invite', err)
+        this.#l.log('ERROR: could not handle invite', err)
       }
     })
 
@@ -90,7 +90,7 @@ export class InviteApi extends TypedEmitter {
       try {
         this.#handleInviteCancel(inviteCancel)
       } catch (err) {
-        this.#l.log('Error handling invite cancel', err)
+        this.#l.log('ERROR: could not handle invite cancel', err)
       }
     })
 
@@ -98,7 +98,7 @@ export class InviteApi extends TypedEmitter {
       try {
         this.#handleGotProjectDetails(peerId, projectJoinDetails)
       } catch (err) {
-        this.#l.log('Error handling got-project-details', err)
+        this.#l.log('ERROR: could not handle got-project-details', err)
       }
     })
   }

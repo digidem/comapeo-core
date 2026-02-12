@@ -1467,7 +1467,7 @@ export class MapeoProject extends TypedEmitter {
       if (getErrorCode(err) === 'ENOENT') {
         throw new CategoryFileNotFoundError(filePath)
       }
-      this.#l.log('error loading config', err)
+      this.#l.log('ERROR: could not load config', err)
       throw ensureKnownError(err)
     } finally {
       this.#importingCategories = false
