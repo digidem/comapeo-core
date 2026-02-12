@@ -1474,14 +1474,13 @@ export class MapeoProject extends TypedEmitter {
    * @param {boolean} [options.__testOnlyBypassValidation=false] Warning: Do not use!
    */
   async $sendMapShare(mapShare, { __testOnlyBypassValidation = false } = {}) {
-    const { receiverDeviceId, bounds, mapShareUrls, ...mapShareData } = mapShare
+    const { receiverDeviceId, ...mapShareData } = mapShare
     const receiverDeviceKey = Buffer.from(receiverDeviceId, 'hex')
 
     /** @type {MapShareExtension} */
+    // @ts-expect-error readonly fields being assigned as mutable
     const shareExtension = {
       ...mapShareData,
-      bounds: [...bounds],
-      mapShareUrls: [...mapShareUrls],
       receiverDeviceKey,
     }
     if (!__testOnlyBypassValidation) {
