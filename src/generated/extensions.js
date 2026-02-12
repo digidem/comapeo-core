@@ -332,7 +332,7 @@ export var DownloadIntentExtension_DownloadIntentsEntry = {
 function createBaseMapShareExtension() {
     return {
         mapShareUrls: [],
-        receiverDeviceId: "",
+        receiverDeviceKey: Buffer.alloc(0),
         shareId: "",
         mapName: "",
         mapId: "",
@@ -351,8 +351,8 @@ export var MapShareExtension = {
             var v = _a[_i];
             writer.uint32(10).string(v);
         }
-        if (message.receiverDeviceId !== "") {
-            writer.uint32(18).string(message.receiverDeviceId);
+        if (message.receiverDeviceKey.length !== 0) {
+            writer.uint32(18).bytes(message.receiverDeviceKey);
         }
         if (message.shareId !== "") {
             writer.uint32(26).string(message.shareId);
@@ -403,7 +403,7 @@ export var MapShareExtension = {
                     if (tag !== 18) {
                         break;
                     }
-                    message.receiverDeviceId = reader.string();
+                    message.receiverDeviceKey = reader.bytes();
                     continue;
                 case 3:
                     if (tag !== 26) {
@@ -481,7 +481,7 @@ export var MapShareExtension = {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
         var message = createBaseMapShareExtension();
         message.mapShareUrls = ((_a = object.mapShareUrls) === null || _a === void 0 ? void 0 : _a.map(function (e) { return e; })) || [];
-        message.receiverDeviceId = (_b = object.receiverDeviceId) !== null && _b !== void 0 ? _b : "";
+        message.receiverDeviceKey = (_b = object.receiverDeviceKey) !== null && _b !== void 0 ? _b : Buffer.alloc(0);
         message.shareId = (_c = object.shareId) !== null && _c !== void 0 ? _c : "";
         message.mapName = (_d = object.mapName) !== null && _d !== void 0 ? _d : "";
         message.mapId = (_e = object.mapId) !== null && _e !== void 0 ? _e : "";

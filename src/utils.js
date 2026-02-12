@@ -271,7 +271,7 @@ export async function timeoutAfter(promise, milliseconds, fallback) {
 export function validateMapShareExtension(mapShare) {
   const {
     mapShareUrls,
-    receiverDeviceId,
+    receiverDeviceKey,
     mapId,
     mapName,
     shareId,
@@ -283,7 +283,7 @@ export function validateMapShareExtension(mapShare) {
     mapShareCreatedAt,
   } = mapShare
 
-  if (!receiverDeviceId.length) {
+  if (!receiverDeviceKey.length) {
     throw new InvalidMapShareError('Receiver Device ID must not be empty')
   }
   if (!mapId.length) throw new InvalidMapShareError('Map ID must not be empty')
