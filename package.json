@@ -10,8 +10,8 @@
       "types": "./dist/index.d.ts"
     },
     "./errors.js": {
-      "import": "./src/error_codes.js",
-      "types": "./dist/error_codes.d.ts"
+      "types": "./dist/error-codes.d.ts",
+      "import": "./src/error-codes.js"
     }
   },
   "type": "module",
