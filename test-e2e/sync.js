@@ -895,7 +895,8 @@ test('shares cores', async function (t) {
 })
 
 test('no sync capabilities === no namespaces sync apart from auth', async (t) => {
-  const COUNT = 3
+  // 3 deviceInfo records for self, two by invitor
+  const COUNT = 5
   const managers = await createManagers(COUNT, t)
   const [invitor, invitee, blocked] = managers
   const disconnect1 = connectPeers(managers)
