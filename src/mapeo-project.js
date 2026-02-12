@@ -1533,6 +1533,9 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
  * @returns {import('@comapeo/schema').DeviceInfo}
  */
 function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
+  // Skip validating docs without links
+  // Validation will happen inside member-api
+  if (doc.links.length === 0) return doc
   if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
     throw new Error(
       'Invalid deviceInfo record, cannot write deviceInfo for another device'
