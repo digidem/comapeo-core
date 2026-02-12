@@ -369,7 +369,7 @@ export class InvalidVersionIdError extends Error {
 }
 
 export class InvalidDocFormat extends Error {
-  /** @param {Object} value */
+  /** @param {unknown} value */
   constructor(value) {
     super(`Invalid value: ${util.inspect(value)}`)
     this.name = 'InvalidDocFormat'
