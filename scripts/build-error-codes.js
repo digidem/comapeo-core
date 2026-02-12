@@ -19,7 +19,8 @@ console.log(`Saving ${codeMappings.length} errors to ${outputFile}`)
 
 await writeFile(
   outputFile,
-  `export default {
+  `// Generated using /scripts/build-error-codes.js
+export default {
 ${mappingText},
 }
 `
