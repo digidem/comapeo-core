@@ -14,6 +14,7 @@ import {
 } from '../src/roles.js'
 import {
   connectPeers,
+  createManager,
   createManagers,
   invite,
   removeUndefinedFields,
@@ -882,4 +883,45 @@ test('Auto deny invites if invited before remove is processed', async (t) => {
     InviteResponse_Decision.ALREADY,
     'Auto rejects before leave project is called'
   )
+})
+
+test.only('Members that do not write their own deviceInfo can still be identified', async (t) => {
+  const invitor = await createManager('invitor', t)
+  const invitee = await createManager('invitee', t, {
+    writeOwnDeviceInfo: false,
+  })
+  const managers = [invitor, invitee]
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  // Need to set names on manager or it won't work
+  invitor.setDeviceInfo({
+    name: 'invitor',
+    deviceType: 'device_type_unspecified',
+  })
+  invitee.setDeviceInfo({
+    name: 'invitee',
+    deviceType: 'device_type_unspecified',
+  })
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+  })
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  for (const project of [inviteeProject, invitorProject]) {
+    const deviceInfo = await project.$member.getById(invitee.deviceId)
+    assert.equal(
+      deviceInfo.deviceType,
+      'device_type_unspecified',
+      'Got type set'
+    )
+    assert.equal(deviceInfo.name, 'invitee', 'Got name set')
+  }
 })

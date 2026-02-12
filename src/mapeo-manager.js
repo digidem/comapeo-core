@@ -481,11 +481,9 @@ export class MapeoManager extends TypedEmitter {
     })
 
     // 6. Write device info into project
-    if (this.#writeOwnDeviceInfo) {
-      const deviceInfo = this.getDeviceInfo()
-      if (hasSavedDeviceInfo(deviceInfo)) {
-        await project[kSetOwnDeviceInfo](deviceInfo)
-      }
+    const deviceInfo = this.getDeviceInfo()
+    if (hasSavedDeviceInfo(deviceInfo)) {
+      await project[kSetOwnDeviceInfo](deviceInfo)
     }
 
     // TODO: Close the project instance instead of keeping it around
@@ -779,18 +777,21 @@ export class MapeoManager extends TypedEmitter {
       this.#activeProjects.delete(projectPublicId)
     })
 
-    try {
-      const deviceInfo = this.getDeviceInfo()
-      if (hasSavedDeviceInfo(deviceInfo)) {
-        await project[kSetOwnDeviceInfo](deviceInfo)
+    // Only write info on invite if configured
+    if (this.#writeOwnDeviceInfo) {
+      try {
+        const deviceInfo = this.getDeviceInfo()
+        if (hasSavedDeviceInfo(deviceInfo)) {
+          await project[kSetOwnDeviceInfo](deviceInfo)
+        }
+      } catch (e) {
+        // Can ignore an error trying to write device info
+        this.#l.log(
+          'ERROR: failed to write project %h deviceInfo %o',
+          projectKey,
+          e
+        )
       }
-    } catch (e) {
-      // Can ignore an error trying to write device info
-      this.#l.log(
-        'ERROR: failed to write project %h deviceInfo %o',
-        projectKey,
-        e
-      )
     }
 
     // 5. Wait for initial project sync
