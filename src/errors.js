@@ -183,7 +183,7 @@ export class UnsupportedMediaTypeError extends Error {
 }
 
 export class ProjectExistsError extends Error {
-  /** @param {string} [projectPublicId] */
+  /** @param {string} projectPublicId */
   constructor(projectPublicId) {
     super(`Project with ID ${projectPublicId} already exists`)
     this.name = 'ProjectExistsError'
