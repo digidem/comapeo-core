@@ -145,7 +145,7 @@ export class EmptyIconPathError extends Error {
 export class InvalidPixelDensityError extends Error {
   /** @param {number} [pixelDensity] */
   constructor(pixelDensity) {
-    super(`Invalid pixelDensity: ${pixelDensity}`)
+    super(`Invalid pixel density: ${pixelDensity}`)
     this.name = 'InvalidPixelDensityError'
     this.code = 'INVALID_PIXEL_DENSITY_ERROR'
     this.status = 400
