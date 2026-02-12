@@ -52,10 +52,10 @@ import { kRequestFullStop, kRescindFullStopRequest } from './sync/sync-api.js'
 import {
   EncryptionKeysUndefinedError,
   ensureKnownError,
+  ExhaustivenessError,
   FailedToSetIsArchiveDeviceError,
   NotFoundError,
   ProjectExistsError,
-  UnsupportedMediaTypeError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
@@ -284,7 +284,7 @@ export class MapeoManager extends TypedEmitter {
         break
       }
       default: {
-        throw new UnsupportedMediaTypeError(mediaType)
+        throw new ExhaustivenessError(mediaType)
       }
     }
 

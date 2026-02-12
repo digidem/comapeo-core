@@ -1,3 +1,4 @@
+// Generated using /scripts/build-error-codes.js
 export default {
   AlreadyBlockedError: 'ALREADY_BLOCKED_ERROR',
   AlreadyInvitingError: 'ALREADY_INVITING_ERROR',
@@ -81,7 +82,6 @@ export default {
   UnknownSchemaError: 'UNKNOWN_SCHEMA_ERROR',
   UnsupportedAttachmentTypeError: 'UNSUPPORTED_ATTACHMENT_TYPE_ERROR',
   UnsupportedCorestoreOptsError: 'UNSUPPORTED_CORESTORE_OPTS_ERROR',
-  UnsupportedMediaTypeError: 'UNSUPPORTED_MEDIA_TYPE_ERROR',
   UnsupportedMimeTypeError: 'UNSUPPORTED_MIME_TYPE_ERROR',
   UnsupportedVariantError: 'UNSUPPORTED_VARIANT_ERROR',
   WriterCoreNotReadyError: 'WRITER_CORE_NOT_READY_ERROR',

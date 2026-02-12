@@ -172,16 +172,6 @@ export class KeyNotFoundError extends Error {
   }
 }
 
-export class UnsupportedMediaTypeError extends Error {
-  /** @param {string} [mediaType] */
-  constructor(mediaType) {
-    super(`Unsupported media type: ${mediaType}`)
-    this.name = 'UnsupportedMediaTypeError'
-    this.code = 'UNSUPPORTED_MEDIA_TYPE_ERROR'
-    this.status = 415
-  }
-}
-
 export class ProjectExistsError extends Error {
   /** @param {string} projectPublicId */
   constructor(projectPublicId) {
