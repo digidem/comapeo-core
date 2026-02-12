@@ -28,6 +28,7 @@ export default {
   InvalidDocError: 'INVALID_DOC_ERROR',
   InvalidDocFormat: 'INVALID_DOC_FORMAT',
   InvalidDocSchemaError: 'INVALID_DOC_SCHEMA_ERROR',
+  InvalidDrizzleJournalError: 'INVALID_DRIZZLE_JOURNAL_ERROR',
   InvalidDrizzleQueryError: 'INVALID_DRIZZLE_QUERY_ERROR',
   InvalidIconPixelDensityError: 'INVALID_ICON_PIXEL_DENSITY_ERROR',
   InvalidIconSizeError: 'INVALID_ICON_SIZE_ERROR',
