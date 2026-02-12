@@ -5,7 +5,7 @@ import {
   EmptyVariantsArrayError,
   InvalidPixelDensityError,
   NoVariantsExistError,
-  NovariantsForMimeTypeError,
+  NoVariantsForMimeTypeError,
 } from './errors.js'
 
 export const kGetIconBlob = Symbol('getIcon')
@@ -172,7 +172,7 @@ export function getBestVariant(variants, opts) {
   const matchingMime = variants.filter((v) => v.mimeType === wantedMimeType)
 
   if (matchingMime.length === 0) {
-    throw new NovariantsForMimeTypeError(wantedMimeType)
+    throw new NoVariantsForMimeTypeError(wantedMimeType)
   }
   const wantedSizeNum = SIZE_AS_NUMERIC[wantedSize]
 

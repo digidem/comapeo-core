@@ -120,13 +120,13 @@ export class NoVariantsExistError extends Error {
   }
 }
 
-export class NovariantsForMimeTypeError extends Error {
+export class NoVariantsForMimeTypeError extends Error {
   /**
    * @param {string} wantedMimeType - The desired MIME type that is not available.
    */
   constructor(wantedMimeType) {
     super(`No variants with desired mime type ${wantedMimeType} exist`)
-    this.name = 'NovariantsForMimeTypeError'
+    this.name = 'NoVariantsForMimeTypeError'
     this.code = 'NO_VARIANTS_FOR_MIME_TYPE_ERROR'
     this.status = 404
   }

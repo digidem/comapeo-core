@@ -62,7 +62,7 @@ export default {
   NetworkError: 'NETWORK_ERROR',
   NotFoundError: 'NOT_FOUND_ERROR',
   NoVariantsExistError: 'NO_VARIANTS_EXIST_ERROR',
-  NovariantsForMimeTypeError: 'NO_VARIANTS_FOR_MIME_TYPE_ERROR',
+  NoVariantsForMimeTypeError: 'NO_VARIANTS_FOR_MIME_TYPE_ERROR',
   PeerDisconnectedError: 'PEER_DISCONNECTED_ERROR',
   PeerFailedConnectionError: 'PEER_FAILED_CONNECTION_ERROR',
   PeerNotFoundError: 'PEER_NOT_FOUND_ERROR',
