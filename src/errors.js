@@ -672,9 +672,9 @@ export class MultipleCategoryImportsError extends Error {
 }
 
 export class UnknownPeerError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'UnknownPeerError') {
-    super(message)
+  /** @param {string} deviceId */
+  constructor(deviceId) {
+    super('Unknown peer ' + deviceId)
     this.name = 'UnknownPeerError'
     this.code = 'UNKNOWN_PEER_ERROR'
     this.status = 404
@@ -692,9 +692,8 @@ export class PeerDisconnectedError extends Error {
 }
 
 export class PeerFailedConnectionError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'PeerFailedConnectionError') {
-    super(message)
+  constructor() {
+    super('Peer failed to connect before disconnect was called')
     this.name = 'PeerFailedConnectionError'
     this.code = 'PEER_FAILED_CONNECTION_ERROR'
     this.status = 408
@@ -877,7 +876,7 @@ export class InvalidDrizzleQueryResultError extends Error {
 
 export class InvalidDrizzleJournalError extends Error {
   /** @param {string} [message] */
-  constructor(message = 'invalid journal') {
+  constructor(message = 'Invalid journal') {
     super(message)
     this.name = 'InvalidDrizzleJournalError'
     this.code = 'INVALID_DRIZZLE_JOURNAL_ERROR'
