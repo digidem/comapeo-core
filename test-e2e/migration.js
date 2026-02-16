@@ -51,7 +51,7 @@ test('migrations pick up values that were not previously understood', async (t) 
   t.after(() => fsPromises.rm(manager2DbFolder, { recursive: true }))
   t.after(() => fsPromises.rm(manager2CoreStorage, { recursive: true }))
 
-  const manager2BeforeMigration = await createOldManagerOnVersion2_0_1('b', {
+  const manager2BeforeMigration = await createOldManagerOnVersion2_0_1('b', t, {
     dbFolder: manager2DbFolder,
     coreStorage: manager2CoreStorage,
   })
@@ -111,7 +111,7 @@ test('migration of localDeviceInfo table', async (t) => {
   const rootKey = KeyManager.generateRootKey()
   t.after(() => fsPromises.rm(dbFolder, { recursive: true }))
 
-  const managerPreMigration = await createOldManagerOnVersion2_0_1('seed', {
+  const managerPreMigration = await createOldManagerOnVersion2_0_1('seed', t, {
     rootKey,
     dbFolder,
     coreStorage: () => new RAM(),
