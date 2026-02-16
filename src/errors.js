@@ -784,8 +784,11 @@ export class AlreadyInvitingError extends Error {
 }
 
 export class InvalidRoleIDForNewInviteError extends Error {
-  constructor() {
-    super('Invalid role ID for new invite')
+  /**
+   * @param {string} roleId
+   */
+  constructor(roleId) {
+    super(`Invalid role ID for new invite: ${roleId}`)
     this.name = 'InvalidRoleIDForNewInviteError'
     this.code = 'INVALID_ROLE_ID_FOR_NEW_INVITE_ERROR'
     this.status = 400
