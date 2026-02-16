@@ -3,9 +3,7 @@ import Fastify from 'fastify'
 import assert from 'node:assert/strict'
 import fsPromises from 'node:fs/promises'
 import test from 'node:test'
-import RAM from 'random-access-memory'
 import { temporaryDirectory } from 'tempy'
-import { MapeoManager } from '../src/mapeo-manager.js'
 import {
   connectPeers,
   createManager,
@@ -108,13 +106,15 @@ test('migrations pick up values that were not previously understood', async (t) 
 
 test('migration of localDeviceInfo table', async (t) => {
   const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+
   const rootKey = KeyManager.generateRootKey()
   t.after(() => fsPromises.rm(dbFolder, { recursive: true }))
 
   const managerPreMigration = await createOldManagerOnVersion2_0_1('seed', t, {
     rootKey,
     dbFolder,
-    coreStorage: () => new RAM(),
+    coreStorage,
     fastify: Fastify(),
   })
   const deviceInfo = /** @type {const} */ ({
@@ -133,12 +133,12 @@ test('migration of localDeviceInfo table', async (t) => {
 
   // No manager.close() function yet, but should be ok
 
-  const manager = new MapeoManager({
+  const manager = await createManager('test', t, {
     rootKey,
     projectMigrationsFolder,
     clientMigrationsFolder,
     dbFolder,
-    coreStorage: () => new RAM(),
+    coreStorage,
     fastify: Fastify(),
   })
 
