@@ -217,8 +217,8 @@ export class InvalidDeviceInfoError extends Error {
 }
 
 export class RoleAssignError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Cannot assign this role to this device') {
+  /** @param {string} message */
+  constructor(message) {
     super(message)
     this.name = 'RoleAssignError'
     this.code = 'ROLE_ASSIGN_ERROR'
