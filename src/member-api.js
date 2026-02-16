@@ -22,7 +22,7 @@ import {
   InvalidServerResponseError,
   InvalidUrlError,
   InviteAbortedError,
-  MissingDataError,
+  IncompleteProjectDataError,
   MissingOwnDeviceInfoError,
   NetworkError,
   ProjectDetailsSendFailError,
@@ -439,7 +439,7 @@ export class MemberApi extends TypedEmitter {
   async #addServerToProject(baseUrl) {
     const projectName = await this.#getProjectName()
     if (!projectName) {
-      throw new MissingDataError()
+      throw new IncompleteProjectDataError()
     }
 
     const requestUrl = new URL('projects', baseUrl)

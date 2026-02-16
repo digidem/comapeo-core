@@ -581,11 +581,11 @@ export class DeviceIdNotForServerError extends Error {
   }
 }
 
-export class MissingDataError extends Error {
+export class IncompleteProjectDataError extends Error {
   constructor() {
     super('Project must have name to add server peer')
-    this.name = 'MissingDataError'
-    this.code = 'MISSING_DATA'
+    this.name = 'IncompleteProjectDataError'
+    this.code = 'INCOMPLETE_PROJECT_DATA_ERROR'
     this.status = 400
   }
 }
