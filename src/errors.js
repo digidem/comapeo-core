@@ -134,7 +134,7 @@ export class NoVariantsForMimeTypeError extends Error {
 
 export class EmptyIconPathError extends Error {
   /** @param {string} [message] */
-  constructor(message = 'iconId, size, and extension cannot be empty strings') {
+  constructor(message = 'IconId, size, and extension cannot be empty strings') {
     super(message)
     this.name = 'EmptyIconPathError'
     this.code = 'EMPTY_ICON_PATH_ERROR'
@@ -165,7 +165,7 @@ export class IconNotFoundError extends Error {
 export class KeyNotFoundError extends Error {
   /** @param {string} key */
   constructor(key) {
-    super(`key ${key} not found in map`)
+    super(`Key ${key} not found in map`)
     this.name = 'KeyNotFoundError'
     this.code = 'KEY_NOT_FOUND_ERROR'
     this.status = 404
@@ -848,7 +848,7 @@ export class UnexpectedError extends Error {
 
 export class AutoStopTimeoutError extends Error {
   constructor(
-    message = 'auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer'
+    message = 'Auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer'
   ) {
     super(message)
     this.name = 'AutoStopTimeoutError'
@@ -866,11 +866,11 @@ export class MissingDiscoveryKeyError extends Error {
   }
 }
 
-export class InvalidDrizzleQueryError extends Error {
-  constructor(message = 'expected query to return proper result') {
+export class InvalidDrizzleQueryResultError extends Error {
+  constructor(message = 'Expected query to return proper result') {
     super(message)
-    this.name = 'InvalidDrizzleQueryError'
-    this.code = 'INVALID_DRIZZLE_QUERY_ERROR'
+    this.name = 'InvalidDrizzleQueryResultError'
+    this.code = 'INVALID_DRIZZLE_QUERY_RESULT_ERROR'
     this.status = 400
   }
 }

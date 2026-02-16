@@ -5,7 +5,7 @@ import { migrate as drizzleMigrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { DRIZZLE_MIGRATIONS_TABLE } from '../constants.js'
 import {
   InvalidDrizzleJournalError,
-  InvalidDrizzleQueryError,
+  InvalidDrizzleQueryResultError,
   MigrationError,
 } from '../errors.js'
 /** @import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
@@ -23,7 +23,7 @@ const getNumberResult = (queryResult) => {
       typeof queryResult.result === 'number'
     )
   ) {
-    throw new InvalidDrizzleQueryError()
+    throw new InvalidDrizzleQueryResultError()
   }
   return queryResult.result
 }
