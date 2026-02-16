@@ -12,6 +12,7 @@ import {
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from '../src/utils.js'
+import errorCodes from '../src/error-codes.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
 import pTimeout from 'p-timeout'
@@ -395,7 +396,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
       await assert.rejects(
         () => inviteApi.accept(inviteExternal),
-        { message: 'Already joining or in project' },
+        { code: errorCodes.AlreadyJoinedError },
         'accepting rejects with an error'
       )
 
@@ -891,7 +892,7 @@ test('receiving project join details from an unknown peer is a no-op', async (t)
   )
 
   const assertAcceptTimeoutPromise = assert.rejects(() => acceptPromise, {
-    message: 'Timed out waiting for project details',
+    code: errorCodes.TimeoutError,
   })
   clock.runAll()
   await assertAcceptTimeoutPromise
@@ -977,7 +978,7 @@ test('receiving project join details for an unknown invite ID is a no-op', async
   )
 
   const assertAcceptTimeoutPromise = assert.rejects(() => acceptPromise, {
-    message: 'Timed out waiting for project details',
+    code: errorCodes.TimeoutError,
   })
   clock.runAll()
   await assertAcceptTimeoutPromise

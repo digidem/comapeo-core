@@ -24,6 +24,7 @@ import {
   waitForPeers,
   waitForSync,
 } from './utils.js'
+import errorCodes from '../src/error-codes.js'
 import { fileURLToPath } from 'node:url'
 import WebSocket from 'ws'
 /** @import { FastifyInstance } from 'fastify' */
@@ -72,7 +73,7 @@ test('invalid base URLs', async (t) => {
       assert.rejects(
         () => project.$member.addServerPeer(url),
         {
-          code: 'INVALID_URL',
+          code: errorCodes.InvalidUrlError,
         },
         `${url} should be invalid`
       )
@@ -93,7 +94,7 @@ test('project with no name', async (t) => {
         dangerouslyAllowInsecureConnections: true,
       }),
     {
-      code: 'INCOMPLETE_PROJECT_DATA_ERROR',
+      code: errorCodes.IncompleteProjectDataError,
       message: /name/,
     }
   )
@@ -111,7 +112,7 @@ test("fails if we can't connect to the server", async (t) => {
         dangerouslyAllowInsecureConnections: true,
       }),
     {
-      code: 'NETWORK_ERROR',
+      code: errorCodes.NetworkError,
       message: /Failed to add server peer due to network error/,
     }
   )
@@ -181,7 +182,7 @@ test(
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
-              code: 'INVALID_SERVER_RESPONSE',
+              code: errorCodes.InvalidServerResponseError,
               message: `Failed to add server peer due to HTTP status code ${statusCode}`,
             }
           )
@@ -222,9 +223,7 @@ test(
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
-              code: 'INVALID_SERVER_RESPONSE',
-              message:
-                "Failed to add server peer because we couldn't parse the response",
+              code: errorCodes.InvalidServerResponseError,
             }
           )
         })

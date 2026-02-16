@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { assertProjectHasImportedCategories, createManager } from './utils.js'
 import { defaultConfigPath } from '../test/helpers/default-config.js'
 import { Reader } from 'comapeocat'
+import errorCodes from '../src/error-codes.js'
 
 test('config import - load and re-load config manually', async (t) => {
   const manager = createManager('device0', t)
@@ -46,7 +47,7 @@ test('failing on loading a second config should not delete any data', async (t) 
   await assertProjectHasImportedCategories(project, reader)
 
   await assert.rejects(() => project.$importCategories({ filePath: 'hi' }), {
-    code: 'CATEGORY_FILE_NOT_FOUND_ERROR',
+    code: errorCodes.CategoryFileNotFoundError,
   })
 
   // check we still have the original data
