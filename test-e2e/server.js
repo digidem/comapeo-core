@@ -93,7 +93,7 @@ test('project with no name', async (t) => {
         dangerouslyAllowInsecureConnections: true,
       }),
     {
-      code: 'MISSING_DATA',
+      code: 'INCOMPLETE_PROJECT_DATA_ERROR',
       message: /name/,
     }
   )
