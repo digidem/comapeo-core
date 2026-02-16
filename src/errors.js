@@ -592,11 +592,11 @@ export class IncompleteProjectDataError extends Error {
 
 export class NetworkError extends Error {
   /**
-   * @param {unknown} err
    * @param {string} [message]
+   * @param {ErrorOptions} [opts={}]
    */
-  constructor(err, message = 'Network error') {
-    super(`${message}: ${getErrorMessage(err)}`)
+  constructor(message = 'Network error', opts = {}) {
+    super(message, opts)
     this.name = 'NetworkError'
     this.code = 'NETWORK_ERROR'
     this.status = 502
@@ -640,10 +640,10 @@ export class ServerTooManyProjectsError extends Error {
 
 export class MissingOwnDeviceInfoError extends Error {
   /**
-   * @param {Error} err
+   * @param {ErrorOptions} opts
    */
-  constructor(err) {
-    super('Own device information is missing', { cause: err })
+  constructor(opts = {}) {
+    super('Own device information is missing', opts)
     this.name = 'MissingOwnDeviceInfoError'
     this.code = 'MISSING_OWN_DEVICE_INFO_ERROR'
     this.status = 400

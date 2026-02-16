@@ -43,7 +43,7 @@ import {
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
-import ensureError from 'ensure-error'
+
 /**
  * @import {
  *   DeviceInfo,
@@ -463,10 +463,9 @@ export class MemberApi extends TypedEmitter {
         headers: { 'Content-Type': 'application/json' },
       })
     } catch (err) {
-      throw new NetworkError(
-        err,
-        'Failed to add server peer due to network error'
-      )
+      throw new NetworkError('Failed to add server peer due to network error', {
+        cause: err,
+      })
     }
 
     return await parseAddServerResponse(response)
@@ -561,7 +560,7 @@ export class MemberApi extends TypedEmitter {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
       if (deviceId === this.#ownDeviceId) {
-        throw new MissingOwnDeviceInfoError(ensureError(err))
+        throw new MissingOwnDeviceInfoError({ cause: err })
       }
     }
 
@@ -601,7 +600,7 @@ export class MemberApi extends TypedEmitter {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available
           if (deviceId === this.#ownDeviceId) {
-            throw new MissingOwnDeviceInfoError(ensureError(err))
+            throw new MissingOwnDeviceInfoError({ cause: err })
           }
         }
 
