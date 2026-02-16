@@ -276,7 +276,7 @@ export class BlobSourceNotFound extends Error {
    * @param {string} path
    * @param {ErrorOptions} [opts]
    */
-  constructor(path, opts = {}) {
+  constructor(path, opts) {
     super(`Unable to find blob data at ${path}`, opts)
     this.name = 'BlobSourceNotFound'
     this.code = 'BLOB_SOURCE_NOT_FOUND'
@@ -593,9 +593,9 @@ export class IncompleteProjectDataError extends Error {
 export class NetworkError extends Error {
   /**
    * @param {string} [message]
-   * @param {ErrorOptions} [opts={}]
+   * @param {ErrorOptions} [opts]
    */
-  constructor(message = 'Network error', opts = {}) {
+  constructor(message = 'Network error', opts) {
     super(message, opts)
     this.name = 'NetworkError'
     this.code = 'NETWORK_ERROR'
@@ -608,7 +608,7 @@ export class InvalidServerResponseError extends Error {
    * @param {string} [message]
    * @param {ErrorOptions} [options]
    *    */
-  constructor(message = 'Invalid Server Response', options = {}) {
+  constructor(message = 'Invalid Server Response', options) {
     super(message, options)
     this.name = 'InvalidServerResponseError'
     this.code = 'INVALID_SERVER_RESPONSE'
@@ -642,7 +642,7 @@ export class MissingOwnDeviceInfoError extends Error {
   /**
    * @param {ErrorOptions} opts
    */
-  constructor(opts = {}) {
+  constructor(opts) {
     super('Own device information is missing', opts)
     this.name = 'MissingOwnDeviceInfoError'
     this.code = 'MISSING_OWN_DEVICE_INFO_ERROR'
