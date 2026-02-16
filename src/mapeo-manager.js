@@ -50,7 +50,7 @@ import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Logger } from './logger.js'
 import { kRequestFullStop, kRescindFullStopRequest } from './sync/sync-api.js'
 import {
-  EncryptionKeysUndefinedError,
+  EncryptionKeysNotFoundError,
   ensureKnownError,
   ExhaustivenessError,
   FailedToSetIsArchiveDeviceError,
@@ -1085,7 +1085,7 @@ function omitPeerProtomux(peers) {
  */
 function validateProjectKeys(projectKeys) {
   if (!projectKeys.encryptionKeys) {
-    throw new EncryptionKeysUndefinedError()
+    throw new EncryptionKeysNotFoundError()
   }
 }
 

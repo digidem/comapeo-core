@@ -192,12 +192,12 @@ export class FailedToSetIsArchiveDeviceError extends Error {
   }
 }
 
-export class EncryptionKeysUndefinedError extends Error {
+export class EncryptionKeysNotFoundError extends Error {
   /** @param {string} [message] */
   constructor(message = 'EncryptionKeys should not be undefined') {
     super(message)
-    this.name = 'EncryptionKeysUndefinedError'
-    this.code = 'ENCRYPTION_KEYS_UNDEFINED_ERROR'
+    this.name = 'EncryptionKeysNotFoundError'
+    this.code = 'ENCRYPTION_KEYS_NOT_FOUND_ERROR'
     this.status = 400
   }
 }
