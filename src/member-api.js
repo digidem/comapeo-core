@@ -413,7 +413,7 @@ export class MemberApi extends TypedEmitter {
     const member = await this.getById(serverDeviceId)
 
     if (!member.selfHostedServerDetails) {
-      throw new DeviceIdNotForServerError(serverDeviceId)
+      throw new DeviceIdNotForServerError(serverDeviceId.slice(0, 7))
     }
     if (member.role.roleId === BLOCKED_ROLE_ID) {
       throw new AlreadyBlockedError()

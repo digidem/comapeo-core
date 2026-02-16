@@ -574,7 +574,7 @@ export class DeviceIdNotForServerError extends Error {
    * @param {string} deviceId
    */
   constructor(deviceId) {
-    super(`DeviceId ${deviceId.slice(0, 7)} is not for a server peer`)
+    super(`DeviceId ${deviceId} is not for a server peer`)
     this.name = 'DeviceIdNotForServerError'
     this.code = 'DEVICE_ID_NOT_FOR_SERVER_ERROR'
     this.status = 403
