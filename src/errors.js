@@ -527,11 +527,17 @@ export class DuplicateKeyError extends Error {
   }
 }
 
-export class InvalidSchemaError extends Error {
-  constructor() {
-    super('Cannot process JSONSchema as SQL table')
-    this.name = 'InvalidSchemaError'
-    this.code = 'INVALID_SCHEMA_ERROR'
+export class InvalidComapeoSchemaFormatError extends Error {
+  /**
+   * @param {string} tableName
+   * @param {string} reason
+   */
+  constructor(tableName, reason) {
+    super(
+      `Cannot process JSONSchema from @comapeo/schema for ${tableName} SQL table: ${reason}`
+    )
+    this.name = 'InvalidComapeoSchemaFormatError'
+    this.code = 'INVALID_COMAPEO_SCHEMA_FORMAT_ERROR'
     this.status = 400
   }
 }
@@ -784,9 +790,7 @@ export class InvalidRoleIDForNewInviteError extends Error {
 }
 
 export class InvalidProjectNameError extends Error {
-  constructor(
-    message = 'Project must have a name to invite people'
-  ) {
+  constructor(message = 'Project must have a name to invite people') {
     super(message)
     this.name = 'InvalidProjectNameError'
     this.code = 'INVALID_PROJECT_NAME_ERROR'
