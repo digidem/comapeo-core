@@ -32,6 +32,14 @@ URLs associated with the map share.
 
 ***
 
+### receiverDeviceId
+
+> **receiverDeviceId**: `string`
+
+The deviceId of the peer the map share was sent to
+
+***
+
 ### senderDeviceId
 
 > **senderDeviceId**: `string`

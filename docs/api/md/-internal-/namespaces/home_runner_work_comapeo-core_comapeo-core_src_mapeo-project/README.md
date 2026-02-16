@@ -19,6 +19,7 @@
 ### Type Aliases
 
 - [ConfigMetadata](type-aliases/ConfigMetadata.md)
+- [MapShareSend](type-aliases/MapShareSend.md)
 - [SeenAttachments](type-aliases/SeenAttachments.md)
 
 ### Variables
