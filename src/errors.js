@@ -725,7 +725,7 @@ export class ExhaustivenessError extends Error {
 
 export class PeerNotFoundError extends Error {
   /** @param {string} [message] */
-  constructor(message = 'PeerNotFoundError: Peer not found') {
+  constructor(message = 'Peer not found') {
     super(message)
     this.name = 'PeerNotFoundError'
     this.code = 'PEER_NOT_FOUND_ERROR'
@@ -838,7 +838,7 @@ export class InvalidProjectJoinDetailsError extends Error {
 }
 
 export class UnexpectedError extends Error {
-  constructor(message = 'UnexpectedError: An unexpected error occurred') {
+  constructor(message = 'An unexpected error occurred') {
     super(message)
     this.name = 'UnexpectedError'
     this.code = 'UNEXPECTED_ERROR'
@@ -848,7 +848,7 @@ export class UnexpectedError extends Error {
 
 export class AutoStopTimeoutError extends Error {
   constructor(
-    message = 'AutoStopTimeoutError: auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer'
+    message = 'auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer'
   ) {
     super(message)
     this.name = 'AutoStopTimeoutError'
@@ -859,7 +859,7 @@ export class AutoStopTimeoutError extends Error {
 
 export class MissingDiscoveryKeyError extends Error {
   constructor() {
-    super('MissingDiscoveryKeyError: Core should have a discovery key')
+    super('Core should have a discovery key')
     this.name = 'MissingDiscoveryKeyError'
     this.code = 'MISSING_DISCOVERY_KEY_ERROR'
     this.status = 400
