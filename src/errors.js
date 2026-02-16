@@ -570,8 +570,11 @@ export class AlreadyBlockedError extends Error {
 }
 
 export class DeviceIdNotForServerError extends Error {
-  constructor() {
-    super('DeviceId is not for a server peer')
+  /**
+   * @param {string} deviceId
+   */
+  constructor(deviceId) {
+    super(`DeviceId ${deviceId.slice(0, 7)} is not for a server peer`)
     this.name = 'DeviceIdNotForServerError'
     this.code = 'DEVICE_ID_NOT_FOR_SERVER_ERROR'
     this.status = 403

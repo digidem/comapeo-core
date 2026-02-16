@@ -412,8 +412,9 @@ export class MemberApi extends TypedEmitter {
     // Parse through URL to ensure end pathname if missing
     const member = await this.getById(serverDeviceId)
 
-    if (!member.selfHostedServerDetails) throw new DeviceIdNotForServerError()
-
+    if (!member.selfHostedServerDetails) {
+      throw new DeviceIdNotForServerError(serverDeviceId)
+    }
     if (member.role.roleId === BLOCKED_ROLE_ID) {
       throw new AlreadyBlockedError()
     }
