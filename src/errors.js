@@ -542,11 +542,11 @@ export class InvalidComapeoSchemaFormatError extends Error {
   }
 }
 
-export class IndexNotMultipleOf32Error extends Error {
+export class InvalidBitfieldIndexError extends Error {
   constructor() {
     super(`Index is not a multiple of 32`)
-    this.name = 'IndexNotMultipleOf32Error'
-    this.code = 'INDEX_NOT_MULTIPLE_OF_32_ERROR'
+    this.name = 'InvalidBitfieldIndexError'
+    this.code = 'INVALID_BITFIELD_INDEX_ERROR'
     this.status = 400
   }
 }

@@ -3,7 +3,7 @@ import RemoteBitfield, {
   BITS_PER_PAGE,
 } from '../core-manager/remote-bitfield.js'
 import { Logger } from '../logger.js'
-import { IndexNotMultipleOf32Error } from '../errors.js'
+import { InvalidBitfieldIndexError } from '../errors.js'
 /** @import { HypercorePeer, HypercoreRemoteBitfield, Namespace } from '../types.js' */
 
 /**
@@ -502,7 +502,7 @@ export function bitCount32(n) {
  * @param {number} index
  */
 function getBitfieldWord(bitfield, index) {
-  if (index % 32 !== 0) throw new IndexNotMultipleOf32Error()
+  if (index % 32 !== 0) throw new InvalidBitfieldIndexError()
   const j = index & (BITS_PER_PAGE - 1)
   const i = (index - j) / BITS_PER_PAGE
 
