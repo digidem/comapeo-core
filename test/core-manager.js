@@ -82,12 +82,12 @@ async function createCore(key) {
   return core
 }
 
-test('project creator auth core has project key', async function () {
+test('project creator auth core has project key', async function (t) {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
 
-  const cm = createCoreManager({
+  const cm = createCoreManager(t, {
     keyManager,
     storage: () => new RAM(),
     projectKey,
@@ -97,14 +97,14 @@ test('project creator auth core has project key', async function () {
   assert(authCoreKey.equals(projectKey))
 })
 
-test('getCreatorCore()', async () => {
+test('getCreatorCore()', async (t) => {
   const projectKey = randomBytes(32)
-  const cm = createCoreManager({ projectKey })
+  const cm = createCoreManager(t, { projectKey })
   await cm.creatorCore.ready()
   assert(cm.creatorCore.key.equals(projectKey))
 })
 
-test('eagerly updates remote bitfields', async () => {
+test('eagerly updates remote bitfields', async (t) => {
   // Replication progress relies on the peer.remoteBitfield to actually match
   // the bitfield of the peer. By default hypercore only updates the
   // remoteBitfield for the ranges of a hypercore that you try to download. We
@@ -112,9 +112,9 @@ test('eagerly updates remote bitfields', async () => {
   // checks that functionality.
 
   const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
-  const cm3 = createCoreManager({ projectKey })
+  const cm1 = createCoreManager(t, { projectKey })
+  const cm2 = createCoreManager(t, { projectKey })
+  const cm3 = createCoreManager(t, { projectKey })
 
   const cm1Core = cm1.getWriterCore('auth').core
   await cm1Core.ready()
@@ -245,8 +245,8 @@ test('multiplexing waits for cores to be added', async () => {
   assert.deepEqual(await b2.get(0), Buffer.from('ho'))
 })
 
-test('close()', async () => {
-  const cm = createCoreManager()
+test('close()', async (t) => {
+  const cm = createCoreManager(t)
   for (const namespace of CoreManager.namespaces) {
     cm.addCore(randomBytes(32), namespace)
   }
@@ -259,13 +259,13 @@ test('close()', async () => {
   }
 })
 
-test('Added cores are persisted', async () => {
+test('Added cores are persisted', async (t) => {
   const keyManager = new KeyManager(randomBytes(16))
   const projectKey = randomBytes(32)
 
   const db = drizzle(new Sqlite(':memory:'))
 
-  const cm1 = createCoreManager({
+  const cm1 = createCoreManager(t, {
     db,
     keyManager,
     storage: () => new RAM(),
@@ -276,7 +276,7 @@ test('Added cores are persisted', async () => {
 
   await cm1.close()
 
-  const cm2 = createCoreManager({
+  const cm2 = createCoreManager(t, {
     db,
     keyManager,
     storage: () => new RAM(),
@@ -286,16 +286,16 @@ test('Added cores are persisted', async () => {
   assert(cm2.getCoreByKey(key), 'Added core is persisted')
 })
 
-test('encryption', async () => {
+test('encryption', async (t) => {
   /** @type {Partial<Record<Namespace, Buffer>>} */
   const encryptionKeys = {}
   for (const ns of CoreManager.namespaces) {
     encryptionKeys[ns] = randomBytes(32)
   }
   const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey, encryptionKeys })
-  const cm2 = createCoreManager({ projectKey })
-  const cm3 = createCoreManager({ projectKey, encryptionKeys })
+  const cm1 = createCoreManager(t, { projectKey, encryptionKeys })
+  const cm2 = createCoreManager(t, { projectKey })
+  const cm3 = createCoreManager(t, { projectKey, encryptionKeys })
 
   replicate(cm1, cm2)
   replicate(cm1, cm3)
@@ -311,7 +311,7 @@ test('encryption', async () => {
   }
 })
 
-test('poolSize limits number of open file descriptors', async () => {
+test('poolSize limits number of open file descriptors', async (t) => {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
@@ -320,7 +320,7 @@ test('poolSize limits number of open file descriptors', async () => {
   await temporaryDirectoryTask(async (tempPath) => {
     /** @param {string} name */
     const storage = (name) => new RandomAccessFile(path.join(tempPath, name))
-    const cm = createCoreManager({
+    const cm = createCoreManager(t, {
       keyManager,
       storage,
       projectKey,
@@ -344,7 +344,7 @@ test('poolSize limits number of open file descriptors', async () => {
     /** @param {string} name */
     const storage = (name) =>
       new RandomAccessFile(path.join(tempPath, name), { pool })
-    const cm = createCoreManager({
+    const cm = createCoreManager(t, {
       keyManager,
       storage,
       projectKey,
@@ -366,10 +366,10 @@ test('poolSize limits number of open file descriptors', async () => {
   })
 })
 
-test('sends "haves" bitfields over project creator core replication stream', async () => {
+test('sends "haves" bitfields over project creator core replication stream', async (t) => {
   const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
+  const cm1 = createCoreManager(t, { projectKey })
+  const cm2 = createCoreManager(t, { projectKey })
   /**
    * For each peer, indexed by peerId, a map of hypercore bitfields, indexed by discoveryId
    * @type {Map<string, Map<Namespace, Map<string, RemoteBitfield>>>}
@@ -573,7 +573,7 @@ test('deleteOthersData()', async (t) => {
 
     /// Set up core managers
     const db1 = drizzle(new Sqlite(':memory:'))
-    const cm1 = createCoreManager({
+    const cm1 = createCoreManager(t, {
       db: db1,
       projectKey,
       storage: (name) => {
@@ -584,7 +584,7 @@ test('deleteOthersData()', async (t) => {
     })
 
     const db2 = drizzle(new Sqlite(':memory:'))
-    const cm2 = createCoreManager({
+    const cm2 = createCoreManager(t, {
       db: db2,
       projectKey,
       storage: (name) => {
@@ -718,8 +718,8 @@ test('Map share extension events', async (t) => {
   const projectKey = randomBytes(32)
   const keyManager1 = new KeyManager(randomBytes(16))
   const keyManager2 = new KeyManager(randomBytes(16))
-  const cm1 = createCoreManager({ keyManager: keyManager1, projectKey })
-  const cm2 = createCoreManager({ keyManager: keyManager2, projectKey })
+  const cm1 = createCoreManager(t, { keyManager: keyManager1, projectKey })
+  const cm2 = createCoreManager(t, { keyManager: keyManager2, projectKey })
 
   await cm1.creatorCore.ready()
   await cm2.creatorCore.ready()
@@ -752,8 +752,8 @@ test('Map share extension events', async (t) => {
   assert.deepEqual(gotShare, sentShare, 'share sent over extension message')
 })
 
-test('Map share errors if peer not found', async () => {
-  const cm = createCoreManager()
+test('Map share errors if peer not found', async (t) => {
+  const cm = createCoreManager(t)
 
   assert.rejects(
     cm.sendMapShare({ ...TEST_SHARE, receiverDeviceKey: randomBytes(32) })

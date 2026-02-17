@@ -54,14 +54,14 @@ const newObsFixture = {
 /** @type {import('@comapeo/schema').TrackValue} */
 const trackFixture = valueOf(generate('track')[0])
 
-test('private createWithDocId() method', async () => {
+test('private createWithDocId() method', async (t) => {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
-  const coreManager = createCoreManager()
+  const coreManager = createCoreManager(t)
   const indexWriter = new IndexWriter({
     tables: [observationTable],
     sqlite,
@@ -93,14 +93,14 @@ test('private createWithDocId() method', async () => {
   assert.equal(read.docId, customId)
 })
 
-test('private createWithDocId() method throws when doc exists', async () => {
+test('private createWithDocId() method throws when doc exists', async (t) => {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
-  const coreManager = createCoreManager()
+  const coreManager = createCoreManager(t)
   const indexWriter = new IndexWriter({
     tables: [observationTable],
     sqlite,
@@ -133,8 +133,8 @@ test('private createWithDocId() method throws when doc exists', async () => {
   )
 })
 
-test('getByVersionId fetches docs by their version ID', async () => {
-  const { dataType } = await testenv()
+test('getByVersionId fetches docs by their version ID', async (t) => {
+  const { dataType } = await testenv(t)
 
   const created = await dataType.create(obsFixture)
   const fetched = await dataType.getByVersionId(created.versionId)
@@ -142,13 +142,13 @@ test('getByVersionId fetches docs by their version ID', async () => {
   assert.equal(created.docId, fetched.docId)
 })
 
-test('getByVersionId rejects if fetching a version ID in the same store, but with a different type', async () => {
+test('getByVersionId rejects if fetching a version ID in the same store, but with a different type', async (t) => {
   const {
     dataType: observationDataType,
     dataStore,
     db,
     translationApi,
-  } = await testenv()
+  } = await testenv(t)
   const trackDataType = new DataType({
     dataStore,
     table: trackTable,
@@ -172,8 +172,8 @@ test('getByVersionId rejects if fetching a version ID in the same store, but wit
   )
 })
 
-test('`originalVersionId` field', async () => {
-  const { dataType, dataStore } = await testenv()
+test('`originalVersionId` field', async (t) => {
+  const { dataType, dataStore } = await testenv(t)
 
   const obs = await dataType.create(obsFixture)
   assert.equal(
@@ -217,14 +217,14 @@ test('`originalVersionId` field', async () => {
   )
 })
 
-test('validity of `originalVersionId` from another peer', async () => {
+test('validity of `originalVersionId` from another peer', async (t) => {
   const projectKey = randomBytes(32)
   const {
     coreManager: cm1,
     dataType: dt1,
     dataStore: ds1,
-  } = await testenv({ projectKey })
-  const { coreManager: cm2, dataType: dt2 } = await testenv({ projectKey })
+  } = await testenv(t, { projectKey })
+  const { coreManager: cm2, dataType: dt2 } = await testenv(t, { projectKey })
 
   const obs = await dt1.create(obsFixture)
   const driveId = ds1.writerCore.key
@@ -253,14 +253,14 @@ test('validity of `originalVersionId` from another peer', async () => {
   await destroy()
 })
 
-test('getByDocId() throws if no document exists with that ID', async () => {
-  const { dataType } = await testenv({ projectKey: randomBytes(32) })
+test('getByDocId() throws if no document exists with that ID', async (t) => {
+  const { dataType } = await testenv(t, { projectKey: randomBytes(32) })
   await assert.rejects(() => dataType.getByDocId('foo bar'), NotFoundError)
 })
 
-test('delete()', async () => {
+test('delete()', async (t) => {
   const projectKey = randomBytes(32)
-  const { dataType } = await testenv({ projectKey })
+  const { dataType } = await testenv(t, { projectKey })
   const doc = await dataType.create(obsFixture)
   assert.equal(doc.deleted, false, `'deleted' field is false before deletion`)
   const deletedDoc = await dataType.delete(doc.docId)
@@ -282,9 +282,9 @@ test('delete()', async () => {
   )
 })
 
-test('translation', async () => {
+test('translation', async (t) => {
   const projectKey = randomBytes(32)
-  const { dataType, translationApi } = await testenv({ projectKey })
+  const { dataType, translationApi } = await testenv(t, { projectKey })
   /** @type {import('@comapeo/schema').ObservationValue} */
   const observation = {
     schemaName: 'observation',
@@ -354,17 +354,18 @@ test('translation', async () => {
 })
 
 /**
+ * @param {import('node:test').TestContext} t
  * @param {object} [opts={}]
  * @param {Buffer} [opts.projectKey]
  */
-async function testenv(opts = {}) {
+async function testenv(t, opts = {}) {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
     migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
   })
 
-  const coreManager = createCoreManager({ ...opts, db })
+  const coreManager = createCoreManager(t, { ...opts, db })
 
   const indexWriter = new IndexWriter({
     tables: [observationTable, trackTable, translationTable],
