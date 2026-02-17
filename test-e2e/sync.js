@@ -895,8 +895,7 @@ test('shares cores', async function (t) {
 })
 
 test('no sync capabilities === no namespaces sync apart from auth', async (t) => {
-  // 3 deviceInfo records for self, two by invitor
-  const COUNT = 5
+  const COUNT = 3
   const managers = await createManagers(COUNT, t)
   const [invitor, invitee, blocked] = managers
   const disconnect1 = connectPeers(managers)
@@ -954,7 +953,9 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     p.$sync[kSyncState].getState()
   )
 
-  assert.equal(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
+  // Config docs + deviceInfo per member + deviceInfos made by invitor
+  const expectedConfigs = configDocsCount + COUNT + COUNT - 1
+  assert.equal(invitorState.config.localState.have, expectedConfigs) // count device info doc for each invited device
   assert.equal(invitorState.data.localState.have, dataDocsCount)
   assert.equal(blockedState.config.localState.have, 1) // just the device info doc
   assert.equal(blockedState.data.localState.have, 0) // no data docs synced
