@@ -492,11 +492,11 @@ export class CoreManager extends TypedEmitter {
   /**
    * Send a map share to a peer
    * @param {MapShareExtension} mapShare
-   * @param {HypercorePeer['remotePublicKey']} peerId
    */
-  async sendMapShare(mapShare, peerId) {
+  async sendMapShare(mapShare) {
+    const { receiverDeviceKey } = mapShare
     for (const peer of this.creatorCore.peers) {
-      if (peer.remotePublicKey.equals(peerId)) {
+      if (peer.remotePublicKey.equals(receiverDeviceKey)) {
         this.#mapShareExtension.send(mapShare, peer)
         return
       }

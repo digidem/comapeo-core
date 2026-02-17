@@ -6,6 +6,6 @@
 
 # Type Alias: MapShare
 
-> **MapShare**\<\>: `Omit`\<`MapShareExtension`, `"bounds"` \| `"mapShareUrls"`\> & [`AugmentedMapShareProperties`](../-internal-/interfaces/AugmentedMapShareProperties.md)
+> **MapShare**\<\>: `Omit`\<`MapShareExtension`, `"bounds"` \| `"mapShareUrls"` \| `"receiverDeviceKey"`\> & [`AugmentedMapShareProperties`](../-internal-/interfaces/AugmentedMapShareProperties.md)
 
 ## Type Parameters

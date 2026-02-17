@@ -36,7 +36,7 @@ import { MAX_BOUNDS, validateMapShareExtension } from '../src/utils.js'
  */
 const TEST_SHARE = {
   mapShareUrls: ['https://mapserver.example.com'],
-  receiverDeviceId: 'abcdef123456',
+  receiverDeviceKey: Buffer.from('DEADBEEF', 'hex'),
   shareId: 'share001',
   mapShareCreatedAt: Date.now(),
   mapCreatedAt: Date.now(),
@@ -54,7 +54,7 @@ const TEST_SHARE = {
 const FAILING_TEST_SHARES = [
   { ...TEST_SHARE, mapShareUrls: [] },
   { ...TEST_SHARE, mapShareUrls: ['invalid-url'] },
-  { ...TEST_SHARE, receiverDeviceId: '' },
+  { ...TEST_SHARE, receiverDeviceKey: Buffer.from([]) },
   { ...TEST_SHARE, shareId: '' },
   { ...TEST_SHARE, mapShareCreatedAt: 0 },
   { ...TEST_SHARE, mapCreatedAt: 0 },
@@ -740,17 +740,24 @@ test('Map share extension events', async (t) => {
     timeout: 1000,
   })
 
-  await cm1.sendMapShare(TEST_SHARE, Buffer.from(cm2.deviceId, 'hex'))
+  const sentShare = {
+    ...TEST_SHARE,
+    receiverDeviceKey: Buffer.from(cm2.deviceId, 'hex'),
+  }
+
+  await cm1.sendMapShare(sentShare)
 
   const gotShare = await onShare
 
-  assert.deepEqual(gotShare, TEST_SHARE, 'share sent over extension message')
+  assert.deepEqual(gotShare, sentShare, 'share sent over extension message')
 })
 
 test('Map share errors if peer not found', async () => {
   const cm = createCoreManager()
 
-  assert.rejects(cm.sendMapShare(TEST_SHARE, randomBytes(32)))
+  assert.rejects(
+    cm.sendMapShare({ ...TEST_SHARE, receiverDeviceKey: randomBytes(32) })
+  )
 })
 
 test.only('Map share validation checks fields', () => {

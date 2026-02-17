@@ -267,7 +267,7 @@ export function typedEntries(obj) {
 export function validateMapShareExtension(mapShare) {
   const {
     mapShareUrls,
-    receiverDeviceId,
+    receiverDeviceKey,
     mapId,
     mapName,
     shareId,
@@ -279,7 +279,7 @@ export function validateMapShareExtension(mapShare) {
     mapShareCreatedAt,
   } = mapShare
 
-  if (!receiverDeviceId.length) {
+  if (!receiverDeviceKey.length) {
     throw new Error('Receiver Device ID must not be empty')
   }
   if (!mapId.length) throw new Error('Map ID must not be empty')
