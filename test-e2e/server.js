@@ -6,9 +6,9 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import test, { mock } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
+import fsPromises from 'node:fs/promises'
 import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
-import RAM from 'random-access-memory'
 import { map } from 'iterpal'
 import {
   BLOCKED_ROLE_ID,
@@ -26,6 +26,8 @@ import {
 } from './utils.js'
 import { fileURLToPath } from 'node:url'
 import WebSocket from 'ws'
+import { temporaryDirectory } from 'tempy'
+
 /** @import { FastifyInstance } from 'fastify' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -647,13 +649,27 @@ async function createLocalTestServer(t) {
   const clientMigrationsFolder = new URL('./drizzle/client', comapeoCoreUrl)
     .pathname
 
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+  const directories = [dbFolder, coreStorage]
+  async function closeDirs() {
+    await Promise.all(
+      directories.map((dir) =>
+        fsPromises.rm(dir, {
+          recursive: true,
+        })
+      )
+    )
+  }
+  t.after(closeDirs)
+
   const server = createFastify()
   server.register(comapeoServer, {
     rootKey: randomBytes(16),
     projectMigrationsFolder,
     clientMigrationsFolder,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
+    dbFolder,
+    coreStorage,
     serverName: 'test server',
     serverBearerToken: 'ignored',
   })
