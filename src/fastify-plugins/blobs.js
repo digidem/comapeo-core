@@ -77,17 +77,17 @@ async function routes(fastify, options) {
       let blobStore
       try {
         blobStore = await getBlobStore(projectPublicId)
-      } catch (err) {
+      } catch (e) {
         reply.code(404)
-        throw ensureKnownError(err)
+        throw ensureKnownError(e)
       }
 
       let entry
       try {
         entry = await blobStore.entry(blobId, { wait: false })
-      } catch (err) {
+      } catch (e) {
         reply.code(404)
-        throw ensureKnownError(err)
+        throw ensureKnownError(e)
       }
 
       if (!entry) {
@@ -100,21 +100,21 @@ async function routes(fastify, options) {
       let blobStream
       try {
         blobStream = await blobStore.createReadStreamFromEntry(driveId, entry)
-      } catch (err) {
+      } catch (e) {
         reply.code(404)
-        throw ensureKnownError(err)
+        throw ensureKnownError(e)
       }
 
       try {
         await pEvent(blobStream, 'readable', { rejectionEvents: ['error'] })
-      } catch (err) {
+      } catch (e) {
         // This matches [how Hyperblobs checks if a blob is unavailable][0].
         // [0]: https://github.com/holepunchto/hyperblobs/blob/518088d2b828082fd70a276fa2c8848a2cf2a56b/index.js#L49
-        if (getErrorMessage(err) === 'Block not available') {
+        if (getErrorMessage(e) === 'Block not available') {
           reply.code(404)
           throw new BlobNotFoundError()
         } else {
-          throw ensureKnownError(err)
+          throw ensureKnownError(e)
         }
       }
 

@@ -621,8 +621,8 @@ export class LocalPeers extends TypedEmitter {
               /** @type {keyof typeof MESSAGE_TYPES} */ (type),
               message
             )
-          } catch (err) {
-            const errorMessage = String(err)
+          } catch (e) {
+            const errorMessage = String(e)
             this.emit('failed-to-handle-message', type, errorMessage)
             this.#l.log(`Error handling ${type} message: ${errorMessage}`)
           }
@@ -734,8 +734,8 @@ export class LocalPeers extends TypedEmitter {
         const invite = parseInvite(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite', peerId, invite)
-        peer.sendInviteAck(invite).catch((err) => {
-          this.#l.log(`Error sending invite ack ${err.stack}`)
+        peer.sendInviteAck(invite).catch((e) => {
+          this.#l.log(`Error sending invite ack ${e.stack}`)
         })
         this.#l.log(
           'Invite %h from %S for %h',
@@ -749,8 +749,8 @@ export class LocalPeers extends TypedEmitter {
         const inviteCancel = parseInviteCancel(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-cancel', peerId, inviteCancel)
-        peer.sendInviteCancelAck(inviteCancel).catch((err) => {
-          this.#l.log(`Error sending invite cancel ack ${err.stack}`)
+        peer.sendInviteCancelAck(inviteCancel).catch((e) => {
+          this.#l.log(`Error sending invite cancel ack ${e.stack}`)
         })
         this.#l.log(
           'Invite cancel from %S for %h',
@@ -763,8 +763,8 @@ export class LocalPeers extends TypedEmitter {
         const inviteResponse = parseInviteResponse(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('invite-response', peerId, inviteResponse)
-        peer.sendInviteResponseAck(inviteResponse).catch((err) => {
-          this.#l.log(`Error sending invite response ack ${err.stack}`)
+        peer.sendInviteResponseAck(inviteResponse).catch((e) => {
+          this.#l.log(`Error sending invite response ack ${e.stack}`)
         })
         break
       }
@@ -772,8 +772,8 @@ export class LocalPeers extends TypedEmitter {
         const details = parseProjectJoinDetails(value)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('got-project-details', peerId, details)
-        peer.sendProjectJoinDetailsAck(details).catch((err) => {
-          this.#l.log(`Error sending project details ack ${err.stack}`)
+        peer.sendProjectJoinDetailsAck(details).catch((e) => {
+          this.#l.log(`Error sending project details ack ${e.stack}`)
         })
         break
       }

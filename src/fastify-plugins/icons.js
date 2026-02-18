@@ -101,9 +101,9 @@ async function routes(fastify, options) {
 
         res.header('Content-Type', mimeType)
         return res.send(icon)
-      } catch (err) {
+      } catch (e) {
         res.code(404)
-        throw ensureKnownError(err)
+        throw ensureKnownError(e)
       }
     }
   )

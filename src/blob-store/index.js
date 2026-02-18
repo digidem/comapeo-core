@@ -104,12 +104,12 @@ export class BlobStore extends TypedEmitter {
           blobCoreId,
         })
       }
-    } catch (err) {
-      if (getErrorCode(err) === 'ERR_STREAM_PREMATURE_CLOSE') return
+    } catch (e) {
+      if (getErrorCode(e) === 'ERR_STREAM_PREMATURE_CLOSE') return
       this.#l.log(
         'Error getting blob entries stream for peer %h: %s',
         peerId,
-        getErrorMessage(err)
+        getErrorMessage(e)
       )
     }
   }

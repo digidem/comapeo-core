@@ -136,7 +136,7 @@ function getType(mimeType) {
 async function checkExists(path) {
   try {
     await fs.promises.stat(path)
-  } catch (err) {
-    throw new BlobSourceNotFound(path, { cause: err })
+  } catch (e) {
+    throw new BlobSourceNotFound(path, { cause: e })
   }
 }

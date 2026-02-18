@@ -317,12 +317,12 @@ export class MapeoManager extends TypedEmitter {
 
         return this.#localPeers.sendDeviceInfo(peerId, deviceInfoToSend)
       })
-      .catch((err) => {
+      .catch((e) => {
         // Ignore error but log
         this.#l.log(
           'Failed to send device info to peer %h',
           noiseStream.remotePublicKey,
-          err
+          e
         )
       })
 
@@ -594,11 +594,11 @@ export class MapeoManager extends TypedEmitter {
 
     /**
      *
-     * @param {Error} err
+     * @param {Error} e
      * @param {MapShareExtension} mapShareExtension
      */
-    const onMapShareError = (err, mapShareExtension) => {
-      this.emit('map-share-error', err, mapShareExtension)
+    const onMapShareError = (e, mapShareExtension) => {
+      this.emit('map-share-error', e, mapShareExtension)
     }
 
     project.once('close', () => {
@@ -770,14 +770,14 @@ export class MapeoManager extends TypedEmitter {
     try {
       project = await this.getProject(projectPublicId)
       this.#activeProjects.set(projectPublicId, project)
-    } catch (err) {
+    } catch (e) {
       // Only happens if getProject or the the DB insert fails
-      this.#l.log('ERROR: could not add project', err)
+      this.#l.log('ERROR: could not add project', e)
       this.#db
         .delete(projectKeysTable)
         .where(eq(projectKeysTable.projectId, projectId))
         .run()
-      throw ensureKnownError(err)
+      throw ensureKnownError(e)
     }
 
     // Make sure to clean up when closed
@@ -790,12 +790,12 @@ export class MapeoManager extends TypedEmitter {
       if (hasSavedDeviceInfo(deviceInfo)) {
         await project[kSetOwnDeviceInfo](deviceInfo)
       }
-    } catch (err) {
+    } catch (e) {
       // Can ignore an error trying to write device info
       this.#l.log(
         'ERROR: failed to write project %h deviceInfo %o',
         projectKey,
-        err
+        e
       )
     }
 
@@ -805,8 +805,8 @@ export class MapeoManager extends TypedEmitter {
         await project.$sync.waitForSync('initial', {
           timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
         })
-      } catch (err) {
-        this.#l.log('ERROR: could not do initial project sync', err)
+      } catch (e) {
+        this.#l.log('ERROR: could not do initial project sync', e)
       }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)

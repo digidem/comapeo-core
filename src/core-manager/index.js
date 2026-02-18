@@ -574,9 +574,9 @@ const HaveExtensionCodec = {
     try {
       const bitfield = rle.decode(encodedBitfield)
       return { start, discoveryKey, bitfield, namespace }
-    } catch (err) {
+    } catch (e) {
       // TODO: Log error
-      console.error(err)
+      console.error(e)
       return { start, discoveryKey, bitfield: new Uint32Array(), namespace }
     }
   },

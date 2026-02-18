@@ -69,8 +69,8 @@ createDebug.formatters.X = function (v) {
       compact: 6,
       breakLength: 90,
     })
-  } catch (err) {
-    return `[ERROR: ${ensureError(err).message}]`
+  } catch (e) {
+    return `[ERROR: ${ensureError(e).message}]`
   }
 }
 

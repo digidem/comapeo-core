@@ -459,12 +459,12 @@ export class MapeoProject extends TypedEmitter {
       logger: this.#l,
     })
 
-    this.#blobStore.on('error', (err) => {
+    this.#blobStore.on('error', (e) => {
       // Ignore hypercore inflight request cancellation
-      if (ensureError(err).message.includes('REQUEST_CANCELLED')) return
+      if (ensureError(e).message.includes('REQUEST_CANCELLED')) return
       // TODO: Handle this error in some way - this error will come from an
       // unexpected error with background blob downloads
-      console.error('BlobStore error', err)
+      console.error('BlobStore error', e)
     })
 
     this.$blobs = new BlobApi({
@@ -556,8 +556,8 @@ export class MapeoProject extends TypedEmitter {
       for (const roleDocId of roleDocIds) {
         // Ignore docs not about ourselves
         if (roleDocId !== this.#deviceId) continue
-        this.#handleRoleChange().catch((err) => {
-          this.#l.log(`Error: Could not handle role change`, ensureError(err))
+        this.#handleRoleChange().catch((e) => {
+          this.#l.log(`Error: Could not handle role change`, ensureError(e))
         })
       }
     })
@@ -1223,8 +1223,8 @@ export class MapeoProject extends TypedEmitter {
       await pipelinePromise(source, sink)
 
       return filePath
-    } catch (err) {
-      throw new GeoJSONExportError({ cause: err })
+    } catch (e) {
+      throw new GeoJSONExportError({ cause: e })
     }
   }
 
@@ -1258,12 +1258,12 @@ export class MapeoProject extends TypedEmitter {
           continue
         }
         return { blobId, mimeType }
-      } catch (err) {
+      } catch (e) {
         this.#l.log(
           'Error loading blob id for attachment',
           attachment,
           variant,
-          ensureError(err).message
+          ensureError(e).message
         )
         continue
       }
@@ -1366,7 +1366,7 @@ export class MapeoProject extends TypedEmitter {
       tracks,
       attachments,
       lang,
-    }).catch((err) => archive.emit('error', ensureError(err)))
+    }).catch((e) => archive.emit('error', ensureError(e)))
 
     // @ts-expect-error
     return archive
@@ -1399,8 +1399,8 @@ export class MapeoProject extends TypedEmitter {
       await pipelinePromise(source, sink)
 
       return filePath
-    } catch (err) {
-      throw new GeoJSONExportError({ cause: err })
+    } catch (e) {
+      throw new GeoJSONExportError({ cause: e })
     }
   }
 
@@ -1459,8 +1459,8 @@ export class MapeoProject extends TypedEmitter {
     try {
       await this.$importCategories({ filePath: configPath })
       return []
-    } catch (err) {
-      return [ensureError(err)]
+    } catch (e) {
+      return [ensureError(e)]
     }
   }
 
@@ -1477,12 +1477,12 @@ export class MapeoProject extends TypedEmitter {
 
     try {
       await importCategories(this, { filePath, logger: this.#l })
-    } catch (err) {
-      if (getErrorCode(err) === 'ENOENT') {
+    } catch (e) {
+      if (getErrorCode(e) === 'ENOENT') {
         throw new CategoryFileNotFoundError(filePath)
       }
-      this.#l.log('ERROR: could not load config', err)
-      throw ensureKnownError(err)
+      this.#l.log('ERROR: could not load config', e)
+      throw ensureKnownError(e)
     } finally {
       this.#importingCategories = false
     }

@@ -81,24 +81,24 @@ export class InviteApi extends TypedEmitter {
     this.rpc.on('invite', (...args) => {
       try {
         this.#handleNewInvite(...args)
-      } catch (err) {
-        this.#l.log('ERROR: could not handle invite', err)
+      } catch (e) {
+        this.#l.log('ERROR: could not handle invite', e)
       }
     })
 
     this.rpc.on('invite-cancel', (_peerId, inviteCancel) => {
       try {
         this.#handleInviteCancel(inviteCancel)
-      } catch (err) {
-        this.#l.log('ERROR: could not handle invite cancel', err)
+      } catch (e) {
+        this.#l.log('ERROR: could not handle invite cancel', e)
       }
     })
 
     this.rpc.on('got-project-details', (peerId, projectJoinDetails) => {
       try {
         this.#handleGotProjectDetails(peerId, projectJoinDetails)
-      } catch (err) {
-        this.#l.log('ERROR: could not handle got-project-details', err)
+      } catch (e) {
+        this.#l.log('ERROR: could not handle got-project-details', e)
       }
     })
   }
@@ -324,9 +324,9 @@ export class InviteApi extends TypedEmitter {
       }
 
       return projectPublicId
-    } catch (err) {
-      this.#l.log('ERROR: Unable to accept invite', err)
-      throw ensureKnownError(err)
+    } catch (e) {
+      this.#l.log('ERROR: Unable to accept invite', e)
+      throw ensureKnownError(e)
     }
   }
 

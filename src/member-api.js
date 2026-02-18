@@ -249,20 +249,20 @@ export class MemberApi extends TypedEmitter {
             }
 
             await this.#waitForInitialSyncWithPeer(deviceId, abortSync)
-          } catch (err) {
-            this.#l.log('ERROR: Could not initial sync with peer', err)
+          } catch (e) {
+            this.#l.log('ERROR: Could not initial sync with peer', e)
           }
 
           return inviteResponse.decision
         default:
           throw new ExhaustivenessError(inviteResponse.decision)
       }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'RPCDisconnectBeforeAckError') {
-        this.#l.log('ERROR: Disconnect before ack', err)
+    } catch (e) {
+      if (e instanceof Error && e.name === 'RPCDisconnectBeforeAckError') {
+        this.#l.log('ERROR: Disconnect before ack', e)
         throw new InviteAbortedError()
       }
-      throw ensureKnownError(err)
+      throw ensureKnownError(e)
     } finally {
       this.#outboundInvitesByDevice.delete(deviceId)
     }
@@ -306,13 +306,13 @@ export class MemberApi extends TypedEmitter {
     try {
       await this.#rpc.sendInvite(deviceId, invite)
       return await responsePromise
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        this.#l.log('ERROR: Timed out sending invite', err)
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        this.#l.log('ERROR: Timed out sending invite', e)
         throw new InviteAbortedError()
       } else {
-        this.#l.log('ERROR: Unexpected error during invite send', err)
-        throw ensureKnownError(err)
+        this.#l.log('ERROR: Unexpected error during invite send', e)
+        throw ensureKnownError(e)
       }
     } finally {
       abortController.abort()
@@ -462,9 +462,9 @@ export class MemberApi extends TypedEmitter {
         body: JSON.stringify(requestBody),
         headers: { 'Content-Type': 'application/json' },
       })
-    } catch (err) {
+    } catch (e) {
       throw new NetworkError('Failed to add server peer due to network error', {
-        cause: err,
+        cause: e,
       })
     }
 
@@ -494,12 +494,12 @@ export class MemberApi extends TypedEmitter {
 
     try {
       await pEvent(websocket, 'open', { rejectionEvents: ['error'] })
-    } catch (err) {
+    } catch (e) {
       throw new InvalidServerResponseError(
         'Failed to open websocket for initial sync',
-        err && typeof err === 'object' && 'error' in err
-          ? { cause: err.error }
-          : { cause: err }
+        e && typeof e === 'object' && 'error' in e
+          ? { cause: e.error }
+          : { cause: e }
       )
     }
 
@@ -556,11 +556,11 @@ export class MemberApi extends TypedEmitter {
       result.deviceType = deviceInfo.deviceType
       result.joinedAt = deviceInfo.createdAt
       result.selfHostedServerDetails = deviceInfo.selfHostedServerDetails
-    } catch (err) {
+    } catch (e) {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
       if (deviceId === this.#ownDeviceId) {
-        throw new MissingOwnDeviceInfoError({ cause: err })
+        throw new MissingOwnDeviceInfoError({ cause: e })
       }
     }
 
@@ -596,11 +596,11 @@ export class MemberApi extends TypedEmitter {
           memberInfo.joinedAt = deviceInfo?.createdAt
           memberInfo.selfHostedServerDetails =
             deviceInfo?.selfHostedServerDetails
-        } catch (err) {
+        } catch (e) {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available
           if (deviceId === this.#ownDeviceId) {
-            throw new MissingOwnDeviceInfoError({ cause: err })
+            throw new MissingOwnDeviceInfoError({ cause: e })
           }
         }
 

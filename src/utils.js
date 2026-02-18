@@ -252,12 +252,12 @@ export function typedEntries(obj) {
 export async function timeoutAfter(promise, milliseconds, fallback) {
   try {
     return await pTimeout(promise, { milliseconds })
-  } catch (err) {
-    if (err instanceof pTimeoutError) {
+  } catch (e) {
+    if (e instanceof pTimeoutError) {
       if (fallback) return fallback()
       throw new TimeoutError()
     }
-    throw ensureKnownError(err)
+    throw ensureKnownError(e)
   }
 }
 

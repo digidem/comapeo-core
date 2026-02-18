@@ -53,11 +53,11 @@ export class FastifyController {
       }
 
       /**
-       * @param {Error} err
+       * @param {Error} e
        */
-      function onError(err) {
+      function onError(e) {
         server.removeListener('listening', onListening)
-        rej(err)
+        rej(e)
       }
     })
   }

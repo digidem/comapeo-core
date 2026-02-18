@@ -57,12 +57,12 @@ export async function plugin(fastify, opts) {
 
       try {
         stats = await fs.stat(customMapPath)
-      } catch (err) {
-        if (getErrorCode(err) === 'ENOENT') {
+      } catch (e) {
+        if (getErrorCode(e) === 'ENOENT') {
           throw new ENOENTError(customMapPath)
         }
 
-        throw ensureKnownError(err)
+        throw ensureKnownError(e)
       }
 
       const style = await response.json()

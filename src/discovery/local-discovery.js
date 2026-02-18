@@ -88,8 +88,8 @@ export class LocalDiscovery extends TypedEmitter {
     try {
       this.#server.listen(this.#port, '0.0.0.0')
       await onListening
-    } catch (err) {
-      if (this.#port === 0) throw ensureKnownError(err)
+    } catch (e) {
+      if (this.#port === 0) throw ensureKnownError(e)
       // Account for errors from re-binding the port failing
       this.#port = 0
       return this.#start()
