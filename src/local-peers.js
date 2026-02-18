@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import timingSafeEqual from 'string-timing-safe-equal'
-import { keyToId, noop, timeoutAfter } from './utils.js'
+import { keyToId, noop, timeoutPromise } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
@@ -821,7 +821,9 @@ export class LocalPeers extends TypedEmitter {
    * Wait for any connections that are currently opening
    */
   #waitForPendingConnections() {
-    return timeoutAfter(Promise.all(this.#opening), SEND_TIMEOUT)
+    return timeoutPromise(Promise.all(this.#opening), {
+      milliseconds: SEND_TIMEOUT,
+    })
   }
 
   /**

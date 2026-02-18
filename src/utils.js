@@ -245,16 +245,14 @@ export function typedEntries(obj) {
 /**
  * @template T
  * @param {Promise<T>} promise
- * @param {number} milliseconds
- * @param {() => Promise<T>|T} [fallback]
+ * @param {Parameters<typeof pTimeout<T>>[1]} opts
  * @returns {Promise<T>}
  */
-export async function timeoutAfter(promise, milliseconds, fallback) {
+export async function timeoutPromise(promise, opts) {
   try {
-    return await pTimeout(promise, { milliseconds })
+    return await pTimeout(promise, opts)
   } catch (e) {
     if (e instanceof pTimeoutError) {
-      if (fallback) return fallback()
       throw new TimeoutError()
     }
     throw ensureKnownError(e)

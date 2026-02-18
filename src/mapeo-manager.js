@@ -35,7 +35,7 @@ import {
   projectKeyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
-  timeoutAfter,
+  timeoutPromise,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
@@ -1043,7 +1043,9 @@ export class MapeoManager extends TypedEmitter {
   }
 
   async getMapStyleJsonUrl() {
-    await timeoutAfter(Promise.resolve(this.#fastify.ready()), 1000)
+    await timeoutPromise(Promise.resolve(this.#fastify.ready()), {
+      milliseconds: 1000,
+    })
     return (await this.#getMediaBaseUrl('maps')) + '/style.json'
   }
 
