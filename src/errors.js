@@ -270,7 +270,7 @@ export class BlobsNotFoundError extends Error {
   }
 }
 
-export class BlobSourceNotFoundError extends Error {
+export class BlobReadError extends Error {
   /**
    *
    * @param {string} path
@@ -278,8 +278,8 @@ export class BlobSourceNotFoundError extends Error {
    */
   constructor(path, opts) {
     super(`Unable to find blob data at ${path}`, opts)
-    this.name = 'BlobSourceNotFoundERROR'
-    this.code = 'BLOB_SOURCE_NOT_FOUND_ERROR'
+    this.name = 'BlobReadError'
+    this.code = 'BLOB_READ_ERROR'
     this.status = 404
   }
 }
