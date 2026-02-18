@@ -418,22 +418,6 @@ export class ServerNotListeningError extends Error {
   }
 }
 
-export class MissingGetBlobStoreError extends Error {
-  constructor() {
-    super(`getBlobStore is missing from options`)
-    this.name = 'MissingGetBlobStoreError'
-    this.code = 'MISSING_GET_BLOB_STORE_ERROR'
-    this.status = 500
-  }
-}
-export class MissingGetProjectError extends Error {
-  constructor() {
-    super('Missing getProject')
-    this.name = 'MissingGetProjectError'
-    this.code = 'MISSING_GET_PROJECT_ERROR'
-    this.status = 500
-  }
-}
 export class UnsupportedVariantError extends Error {
   /**
    * @param {string} variant

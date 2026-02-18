@@ -9,7 +9,6 @@ import { ensureKnownError, getErrorMessage } from '../errors.js'
 import {
   BlobNotFoundError,
   BlobStoreEntryNotFoundError,
-  MissingGetBlobStoreError,
   UnsupportedVariantError,
 } from '../errors.js'
 
@@ -51,7 +50,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & BlobServerPluginOpts>} */
 async function blobServerPlugin(fastify, options) {
-  if (!options.getBlobStore) throw new MissingGetBlobStoreError()
+  if (!options.getBlobStore) throw new TypeError('Missing getBlobStore')
 
   // We call register here so that the `prefix` option can work if desired
   // https://fastify.dev/docs/latest/Reference/Routes#route-prefixing-and-fastify-plugin

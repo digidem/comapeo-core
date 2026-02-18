@@ -8,7 +8,6 @@ import {
   ensureKnownError,
   InvalidIconPixelDensityError,
   InvalidIconSizeError,
-  MissingGetProjectError,
   ExhaustivenessError,
 } from '../errors.js'
 
@@ -62,7 +61,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & IconServerPluginOpts>} */
 async function iconServerPlugin(fastify, options) {
-  if (!options.getProject) throw new MissingGetProjectError()
+  if (!options.getProject) throw new TypeError('Missing getProject')
   fastify.register(routes, options)
 }
 
