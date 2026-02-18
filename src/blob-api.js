@@ -2,7 +2,7 @@ import fs from 'node:fs'
 // @ts-expect-error - pipelinePromise missing from streamx types
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
-import { BlobSourceNotFound, UnsupportedMimeTypeError } from './errors.js'
+import { BlobSourceNotFoundError, UnsupportedMimeTypeError } from './errors.js'
 /** @import { BlobId, BlobType } from './types.js' */
 
 /**
@@ -137,6 +137,6 @@ async function checkExists(path) {
   try {
     await fs.promises.stat(path)
   } catch (e) {
-    throw new BlobSourceNotFound(path, { cause: e })
+    throw new BlobSourceNotFoundError(path, { cause: e })
   }
 }

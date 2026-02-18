@@ -270,7 +270,7 @@ export class BlobsNotFoundError extends Error {
   }
 }
 
-export class BlobSourceNotFound extends Error {
+export class BlobSourceNotFoundError extends Error {
   /**
    *
    * @param {string} path
@@ -278,8 +278,8 @@ export class BlobSourceNotFound extends Error {
    */
   constructor(path, opts) {
     super(`Unable to find blob data at ${path}`, opts)
-    this.name = 'BlobSourceNotFound'
-    this.code = 'BLOB_SOURCE_NOT_FOUND'
+    this.name = 'BlobSourceNotFoundERROR'
+    this.code = 'BLOB_SOURCE_NOT_FOUND_ERROR'
     this.status = 404
   }
 }
@@ -368,12 +368,12 @@ export class InvalidVersionIdError extends Error {
   }
 }
 
-export class InvalidDocFormat extends Error {
+export class InvalidDocFormatError extends Error {
   /** @param {unknown} value */
   constructor(value) {
     super(`Invalid value: ${util.inspect(value)}`)
-    this.name = 'InvalidDocFormat'
-    this.code = 'INVALID_DOC_FORMAT'
+    this.name = 'InvalidDocFormatError'
+    this.code = 'INVALID_DOC_FORMAT_ERROR'
     this.status = 400
   }
 }

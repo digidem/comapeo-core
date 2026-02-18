@@ -7,7 +7,7 @@ import {
   DocAlreadyDeletedError,
   DocAlreadyExistsError,
   InvalidDocError,
-  InvalidDocFormat,
+  InvalidDocFormatError,
   NotFoundError,
 } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
@@ -196,7 +196,7 @@ export class DataType extends TypedEmitter {
   async [kCreateWithDocId](docId, value, { checkExisting = true } = {}) {
     if (!validate(this.#schemaName, value)) {
       // TODO: pass through errors from validate functions
-      throw new InvalidDocFormat(value)
+      throw new InvalidDocFormatError(value)
     }
     if (checkExisting) {
       const existing = await this.getByDocId(docId).catch(noop)
