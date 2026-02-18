@@ -902,31 +902,6 @@ export function getErrorCode(maybeError) {
 }
 
 /**
- * Get the error message from an object if possible.
- * Otherwise, stringify the argument.
- *
- * @param {unknown} maybeError
- * @returns {string}
- * @example
- * try {
- *   // do something
- * } catch (err) {
- *   console.error(getErrorMessage(err))
- * }
- */
-export function getErrorMessage(maybeError) {
-  if (maybeError && typeof maybeError === 'object' && 'message' in maybeError) {
-    try {
-      const { message } = maybeError
-      if (typeof message === 'string') return message
-    } catch (_err) {
-      // Ignored
-    }
-  }
-  return 'unknown error'
-}
-
-/**
  * Throw an UnexpectedErrorTypeError if this is not a standard error
  * @param {Error & {status?: number, code?: string} | any} err
  */

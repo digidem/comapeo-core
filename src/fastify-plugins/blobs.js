@@ -5,12 +5,13 @@ import { Type as T } from '@sinclair/typebox'
 
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
-import { ensureKnownError, getErrorMessage } from '../errors.js'
+import { ensureKnownError } from '../errors.js'
 import {
   BlobNotFoundError,
   BlobStoreEntryNotFoundError,
   UnsupportedVariantError,
 } from '../errors.js'
+import ensureError from 'ensure-error'
 
 /** @import { BlobId } from '../types.js' */
 
@@ -109,7 +110,7 @@ async function routes(fastify, options) {
       } catch (e) {
         // This matches [how Hyperblobs checks if a blob is unavailable][0].
         // [0]: https://github.com/holepunchto/hyperblobs/blob/518088d2b828082fd70a276fa2c8848a2cf2a56b/index.js#L49
-        if (getErrorMessage(e) === 'Block not available') {
+        if (ensureError(e).message === 'Block not available') {
           reply.code(404)
           throw new BlobNotFoundError()
         } else {

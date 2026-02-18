@@ -7,8 +7,9 @@ import { noop } from '../utils.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { HyperdriveIndexImpl as HyperdriveIndex } from './hyperdrive-index.js'
 import { Logger } from '../logger.js'
-import { BlobNotFoundError, getErrorCode, getErrorMessage } from '../errors.js'
+import { BlobNotFoundError, getErrorCode } from '../errors.js'
 import { BlobsNotFoundError, DriveNotFoundError } from '../errors.js'
+import ensureError from 'ensure-error'
 
 /** @import Hyperdrive from 'hyperdrive' */
 /** @import { JsonObject } from 'type-fest' */
@@ -109,7 +110,7 @@ export class BlobStore extends TypedEmitter {
       this.#l.log(
         'Error getting blob entries stream for peer %h: %s',
         peerId,
-        getErrorMessage(e)
+        ensureError(e).message
       )
     }
   }
