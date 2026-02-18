@@ -73,6 +73,7 @@ import {
   GeoJSONExportError,
   InvalidMapShareError,
   MultipleCategoryImportsError,
+  UnexpectedDocSchemaError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import fs from 'node:fs'
@@ -668,8 +669,10 @@ export class MapeoProject extends TypedEmitter {
             index: entry.index,
           })
 
-          // assert(doc.schemaName === 'translation', 'expected a translation doc')
-          if (doc.schemaName !== 'translation') continue
+          if (doc.schemaName !== 'translation') {
+            throw new UnexpectedDocSchemaError(doc.schemaName, 'translation')
+          }
+
           this.#translationApi.index(doc)
           otherEntries.push(entry)
         } else {

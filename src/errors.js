@@ -350,6 +350,19 @@ export class InvalidDocSchemaError extends Error {
   }
 }
 
+export class UnexpectedDocSchemaError extends Error {
+  /**
+   * @param {string?} gotSchema
+   * @param {string} expectedSchema
+   */
+  constructor(gotSchema, expectedSchema) {
+    super(`Expected ${expectedSchema} but got ${gotSchema}`)
+    this.name = 'UnexpectedDocSchemaError'
+    this.code = 'UNEXPECTED_DOC_SCHEMA_ERROR'
+    this.status = 403
+  }
+}
+
 export class WriterCoreNotReadyError extends Error {
   constructor() {
     super('Writer core is not ready')
