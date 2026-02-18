@@ -1,9 +1,12 @@
 import util from 'node:util'
 
 export class NotFoundError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Not found') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Not found', opts) {
+    super(message, opts)
     this.name = 'NotFoundError'
     this.code = 'NOT_FOUND_ERROR'
     this.status = 404
@@ -11,9 +14,12 @@ export class NotFoundError extends Error {
 }
 
 export class AlreadyJoinedError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Already joined a project') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Already joined a project', opts) {
+    super(message, opts)
     this.name = 'AlreadyJoinedError'
     this.code = 'ALREADY_JOINED_ERROR'
     this.status = 409
@@ -21,9 +27,12 @@ export class AlreadyJoinedError extends Error {
 }
 
 export class InviteSendError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Failed to send invite') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Failed to send invite', opts) {
+    super(message, opts)
     this.name = 'InviteSendError'
     this.code = 'INVITE_SEND_ERROR'
     this.status = 500
@@ -31,9 +40,12 @@ export class InviteSendError extends Error {
 }
 
 export class InviteAbortedError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Invite aborted') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Invite aborted', opts) {
+    super(message, opts)
     this.name = 'InviteAbortedError'
     this.code = 'INVITE_ABORTED_ERROR'
     this.status = 499
@@ -41,9 +53,12 @@ export class InviteAbortedError extends Error {
 }
 
 export class ProjectDetailsSendFailError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Failed to send project details') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Failed to send project details', opts) {
+    super(message, opts)
     this.name = 'ProjectDetailsSendFailError'
     this.code = 'PROJECT_DETAILS_SEND_FAIL_ERROR'
     this.status = 500
@@ -51,9 +66,12 @@ export class ProjectDetailsSendFailError extends Error {
 }
 
 export class RPCDisconnectBeforeSendingError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'RPC disconnected before sending request') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'RPC disconnected before sending request', opts) {
+    super(message, opts)
     this.name = 'RPCDisconnectBeforeSendingError'
     this.code = 'RPC_DISCONNECT_BEFORE_SENDING_ERROR'
     this.status = 499
@@ -61,8 +79,15 @@ export class RPCDisconnectBeforeSendingError extends Error {
 }
 
 export class RPCDisconnectBeforeAckError extends Error {
-  constructor(message = 'RPC disconnected before receiving acknowledgement') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(
+    message = 'RPC disconnected before receiving acknowledgement',
+    opts
+  ) {
+    super(message, opts)
     this.name = 'RPCDisconnectBeforeAckError'
     this.code = 'RPC_DISCONNECT_BEFORE_ACK_ERROR'
     this.status = 499
@@ -70,8 +95,12 @@ export class RPCDisconnectBeforeAckError extends Error {
 }
 
 export class TimeoutError extends Error {
-  constructor(message = 'Operation timed out') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Operation timed out', opts) {
+    super(message, opts)
     this.name = 'TimeoutError'
     this.code = 'TIMEOUT_ERROR'
     this.status = 504
@@ -79,9 +108,12 @@ export class TimeoutError extends Error {
 }
 
 export class UnsupportedMimeTypeError extends Error {
-  /** @param {string} [mimeType] */
-  constructor(mimeType) {
-    super(`Unsupported mimeType: ${mimeType}`)
+  /**
+   * @param {string} mimeType
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(mimeType, opts) {
+    super(`Unsupported mimeType: ${mimeType}`, opts)
     this.name = 'UnsupportedMimeTypeError'
     this.code = 'UNSUPPORTED_MIME_TYPE_ERROR'
     this.status = 415
@@ -89,9 +121,12 @@ export class UnsupportedMimeTypeError extends Error {
 }
 
 export class InvalidCoreOwnershipError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Invalid coreOwnership record') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Invalid coreOwnership record', opts) {
+    super(message, opts)
     this.name = 'InvalidCoreOwnershipError'
     this.code = 'INVALID_CORE_OWNERSHIP_ERROR'
     this.status = 400
@@ -101,9 +136,10 @@ export class InvalidCoreOwnershipError extends Error {
 export class EmptyVariantsArrayError extends Error {
   /**
    * @param {string} [message]
+   * @param {ErrorOptions} [opts]
    */
-  constructor(message = 'Empty variants array') {
-    super(message)
+  constructor(message = 'Empty variants array', opts) {
+    super(message, opts)
     this.name = 'EmptyVariantsArrayError'
     this.code = 'EMPTY_VARIANTS_ARRAY_ERROR'
     this.status = 400
@@ -111,9 +147,12 @@ export class EmptyVariantsArrayError extends Error {
 }
 
 export class NoVariantsExistError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'No variants exist') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'No variants exist', opts) {
+    super(message, opts)
     this.name = 'NoVariantsExistError'
     this.code = 'NO_VARIANTS_EXIST_ERROR'
     this.status = 404
@@ -123,9 +162,10 @@ export class NoVariantsExistError extends Error {
 export class NoVariantsForMimeTypeError extends Error {
   /**
    * @param {string} wantedMimeType - The desired MIME type that is not available.
+   * @param {ErrorOptions} [opts]
    */
-  constructor(wantedMimeType) {
-    super(`No variants with desired mime type ${wantedMimeType} exist`)
+  constructor(wantedMimeType, opts) {
+    super(`No variants with desired mime type ${wantedMimeType} exist`, opts)
     this.name = 'NoVariantsForMimeTypeError'
     this.code = 'NO_VARIANTS_FOR_MIME_TYPE_ERROR'
     this.status = 404
@@ -133,9 +173,15 @@ export class NoVariantsForMimeTypeError extends Error {
 }
 
 export class EmptyIconPathError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'IconId, size, and extension cannot be empty strings') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(
+    message = 'IconId, size, and extension cannot be empty strings',
+    opts
+  ) {
+    super(message, opts)
     this.name = 'EmptyIconPathError'
     this.code = 'EMPTY_ICON_PATH_ERROR'
     this.status = 400
@@ -143,9 +189,12 @@ export class EmptyIconPathError extends Error {
 }
 
 export class InvalidPixelDensityError extends Error {
-  /** @param {number} [pixelDensity] */
-  constructor(pixelDensity) {
-    super(`Invalid pixel density: ${pixelDensity}`)
+  /**
+   * @param {number} [pixelDensity]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(pixelDensity, opts) {
+    super(`Invalid pixel density: ${pixelDensity}`, opts)
     this.name = 'InvalidPixelDensityError'
     this.code = 'INVALID_PIXEL_DENSITY_ERROR'
     this.status = 400
@@ -153,9 +202,12 @@ export class InvalidPixelDensityError extends Error {
 }
 
 export class IconNotFoundError extends Error {
-  /** @param {string} [iconName] */
-  constructor(iconName) {
-    super(`Icon ${iconName} not found in import file`)
+  /**
+   * @param {string} [iconName]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(iconName, opts) {
+    super(`Icon ${iconName} not found in import file`, opts)
     this.name = 'IconNotFoundError'
     this.code = 'ICON_NOT_FOUND_ERROR'
     this.status = 404
@@ -163,9 +215,12 @@ export class IconNotFoundError extends Error {
 }
 
 export class KeyNotFoundError extends Error {
-  /** @param {string} key */
-  constructor(key) {
-    super(`Key ${key} not found in map`)
+  /**
+   * @param {string} key
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(key, opts) {
+    super(`Key ${key} not found in map`, opts)
     this.name = 'KeyNotFoundError'
     this.code = 'KEY_NOT_FOUND_ERROR'
     this.status = 404
@@ -173,9 +228,12 @@ export class KeyNotFoundError extends Error {
 }
 
 export class ProjectExistsError extends Error {
-  /** @param {string} projectPublicId */
-  constructor(projectPublicId) {
-    super(`Project with ID ${projectPublicId} already exists`)
+  /**
+   * @param {string} projectPublicId
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(projectPublicId, opts) {
+    super(`Project with ID ${projectPublicId} already exists`, opts)
     this.name = 'ProjectExistsError'
     this.code = 'PROJECT_EXISTS_ERROR'
     this.status = 409
@@ -183,9 +241,12 @@ export class ProjectExistsError extends Error {
 }
 
 export class FailedToSetIsArchiveDeviceError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Failed to set isArchiveDevice') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Failed to set isArchiveDevice', opts) {
+    super(message, opts)
     this.name = 'FailedToSetIsArchiveDeviceError'
     this.code = 'FAILED_TO_SET_IS_ARCHIVE_DEVICE_ERROR'
     this.status = 500
@@ -193,9 +254,12 @@ export class FailedToSetIsArchiveDeviceError extends Error {
 }
 
 export class EncryptionKeysNotFoundError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'EncryptionKeys should not be undefined') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'EncryptionKeys should not be undefined', opts) {
+    super(message, opts)
     this.name = 'EncryptionKeysNotFoundError'
     this.code = 'ENCRYPTION_KEYS_NOT_FOUND_ERROR'
     this.status = 400
@@ -205,11 +269,13 @@ export class EncryptionKeysNotFoundError extends Error {
 export class InvalidDeviceInfoError extends Error {
   /**
    * @param {string} [message] - Optional error message.
+   * @param {ErrorOptions} [opts]
    */
   constructor(
-    message = 'Invalid deviceInfo record, cannot write deviceInfo for another device'
+    message = 'Invalid deviceInfo record, cannot write deviceInfo for another device',
+    opts
   ) {
-    super(message)
+    super(message, opts)
     this.name = 'InvalidDeviceInfoError'
     this.code = 'INVALID_DEVICE_INFO_ERROR'
     this.status = 400
@@ -217,9 +283,12 @@ export class InvalidDeviceInfoError extends Error {
 }
 
 export class RoleAssignError extends Error {
-  /** @param {string} message */
-  constructor(message) {
-    super(message)
+  /**
+   * @param {string} message
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message, opts) {
+    super(message, opts)
     this.name = 'RoleAssignError'
     this.code = 'ROLE_ASSIGN_ERROR'
     this.status = 403
@@ -227,9 +296,12 @@ export class RoleAssignError extends Error {
 }
 
 export class UnsupportedAttachmentTypeError extends Error {
-  /** @param {string} [attachmentType] */
-  constructor(attachmentType) {
-    super(`Cannot fetch URL for attachment type "${attachmentType}"`)
+  /**
+   * @param {string} [attachmentType]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(attachmentType, opts) {
+    super(`Cannot fetch URL for attachment type "${attachmentType}"`, opts)
     this.name = 'UnsupportedAttachmentTypeError'
     this.code = 'UNSUPPORTED_ATTACHMENT_TYPE_ERROR'
     this.status = 415
@@ -237,9 +309,12 @@ export class UnsupportedAttachmentTypeError extends Error {
 }
 
 export class UnexpectedEndOfStreamError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Entries stream ended unexpectedly') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Entries stream ended unexpectedly', opts) {
+    super(message, opts)
     this.name = 'UnexpectedEndOfStreamError'
     this.code = 'UNEXPECTED_END_OF_STREAM_ERROR'
     this.status = 499
@@ -249,9 +324,10 @@ export class UnexpectedEndOfStreamError extends Error {
 export class DriveNotFoundError extends Error {
   /**
    * @param {string} driveId
+   * @param {ErrorOptions} [opts]
    */
-  constructor(driveId) {
-    super(`Drive not found: ${driveId}`)
+  constructor(driveId, opts) {
+    super(`Drive not found: ${driveId}`, opts)
     this.name = 'DriveNotFoundError'
     this.code = 'DRIVE_NOT_FOUND_ERROR'
     this.status = 404
@@ -261,9 +337,10 @@ export class DriveNotFoundError extends Error {
 export class BlobsNotFoundError extends Error {
   /**
    * @param {string} driveId
+   * @param {ErrorOptions} [opts]
    */
-  constructor(driveId) {
-    super(`HyperBlobs not found for drive: ${driveId}`)
+  constructor(driveId, opts) {
+    super(`HyperBlobs not found for drive: ${driveId}`, opts)
     this.name = 'BlobsNotFoundError'
     this.code = 'BLOBS_NOT_FOUND_ERROR'
     this.status = 404
@@ -309,9 +386,12 @@ export class GeoJSONExportError extends Error {
 }
 
 export class MissingWriterError extends Error {
-  /** @param {string} [namespace] */
-  constructor(namespace) {
-    super(`Could not find a writer for the ${namespace} namespace`)
+  /**
+   * @param {string} [namespace]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(namespace, opts) {
+    super(`Could not find a writer for the ${namespace} namespace`, opts)
     this.name = 'MissingWriterError'
     this.code = 'MISSING_WRITER_ERROR'
     this.status = 404
@@ -329,8 +409,11 @@ export class UnsupportedCorestoreOptsError extends Error {
 }
 
 export class InvalidBitfieldError extends Error {
-  constructor() {
-    super('Invalid RLE bitfield')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Invalid RLE bitfield', opts)
     this.name = 'InvalidBitfieldError'
     this.code = 'INVALID_BITFIELD_ERROR'
     this.status = 400
@@ -341,9 +424,13 @@ export class InvalidDocSchemaError extends Error {
   /**
    * @param {string} [schemaName]
    * @param {string} [namespace]
+   * @param {ErrorOptions} [opts]
    */
-  constructor(schemaName, namespace) {
-    super(`Schema '${schemaName}' is not allowed in namespace '${namespace}'`)
+  constructor(schemaName, namespace, opts) {
+    super(
+      `Schema '${schemaName}' is not allowed in namespace '${namespace}'`,
+      opts
+    )
     this.name = 'InvalidDocSchemaError'
     this.code = 'INVALID_DOC_SCHEMA_ERROR'
     this.status = 403
@@ -354,9 +441,10 @@ export class UnexpectedDocSchemaError extends Error {
   /**
    * @param {string?} gotSchema
    * @param {string} expectedSchema
+   * @param {ErrorOptions} [opts]
    */
-  constructor(gotSchema, expectedSchema) {
-    super(`Expected ${expectedSchema} but got ${gotSchema}`)
+  constructor(gotSchema, expectedSchema, opts) {
+    super(`Expected ${expectedSchema} but got ${gotSchema}`, opts)
     this.name = 'UnexpectedDocSchemaError'
     this.code = 'UNEXPECTED_DOC_SCHEMA_ERROR'
     this.status = 403
@@ -364,8 +452,11 @@ export class UnexpectedDocSchemaError extends Error {
 }
 
 export class WriterCoreNotReadyError extends Error {
-  constructor() {
-    super('Writer core is not ready')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Writer core is not ready', opts)
     this.name = 'WriterCoreNotReadyError'
     this.code = 'WRITER_CORE_NOT_READY_ERROR'
     this.status = 503
@@ -373,8 +464,11 @@ export class WriterCoreNotReadyError extends Error {
 }
 
 export class InvalidVersionIdError extends Error {
-  constructor() {
-    super('Invalid versionId')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Invalid versionId', opts)
     this.name = 'InvalidVersionIdError'
     this.code = 'INVALID_VERSION_ID_ERROR'
     this.status = 404
@@ -382,9 +476,12 @@ export class InvalidVersionIdError extends Error {
 }
 
 export class InvalidDocFormatError extends Error {
-  /** @param {unknown} value */
-  constructor(value) {
-    super(`Invalid value: ${util.inspect(value)}`)
+  /**
+   * @param {unknown} value
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(value, opts) {
+    super(`Invalid value: ${util.inspect(value)}`, opts)
     this.name = 'InvalidDocFormatError'
     this.code = 'INVALID_DOC_FORMAT_ERROR'
     this.status = 400
@@ -392,9 +489,12 @@ export class InvalidDocFormatError extends Error {
 }
 
 export class DocAlreadyExistsError extends Error {
-  /** @param {string} docId */
-  constructor(docId) {
-    super(`Doc with docId ${docId} already exists`)
+  /**
+   * @param {string} docId
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(docId, opts) {
+    super(`Doc with docId ${docId} already exists`, opts)
     this.name = 'DocAlreadyExistsError'
     this.code = 'DOC_ALREADY_EXISTS_ERROR'
     this.status = 409
@@ -402,8 +502,11 @@ export class DocAlreadyExistsError extends Error {
 }
 
 export class DocAlreadyDeletedError extends Error {
-  constructor() {
-    super('Doc already deleted')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Doc already deleted', opts)
     this.name = 'DocAlreadyDeletedError'
     this.code = 'DOC_ALREADY_DELETED_ERROR'
     this.status = 409
@@ -411,11 +514,15 @@ export class DocAlreadyDeletedError extends Error {
 }
 
 export class InvalidDocError extends Error {
-  /** @param {string} [message] */
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
   constructor(
-    message = 'Updated docs must have the same docId and schemaName'
+    message = 'Updated docs must have the same docId and schemaName',
+    opts
   ) {
-    super(message)
+    super(message, opts)
     this.name = 'InvalidDocError'
     this.code = 'INVALID_DOC_ERROR'
     this.status = 400
@@ -423,8 +530,11 @@ export class InvalidDocError extends Error {
 }
 
 export class ServerNotListeningError extends Error {
-  constructor() {
-    super('Server is not listening on a port')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Server is not listening on a port', opts)
     this.name = 'ServerNotListeningError'
     this.code = 'SERVER_NOT_LISTENING_ERROR'
     this.status = 503
@@ -435,9 +545,10 @@ export class UnsupportedVariantError extends Error {
   /**
    * @param {string} variant
    * @param {string} type
+   * @param {ErrorOptions} [opts]
    **/
-  constructor(variant, type) {
-    super(`Unsupported variant "${variant}" for ${type}`)
+  constructor(variant, type, opts) {
+    super(`Unsupported variant "${variant}" for ${type}`, opts)
     this.name = 'UnsupportedVariantError'
     this.code = 'UNSUPPORTED_VARIANT_ERROR'
     this.status = 400
@@ -445,8 +556,12 @@ export class UnsupportedVariantError extends Error {
 }
 
 export class BlobStoreEntryNotFoundError extends Error {
-  constructor() {
-    super('Blob store entry not found')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+
+  constructor(opts) {
+    super('Blob store entry not found', opts)
     this.name = 'BlobStoreEntryNotFoundError'
     this.code = 'BLOB_STORE_ENTRY_NOT_FOUND_ERROR'
     this.status = 404
@@ -454,8 +569,12 @@ export class BlobStoreEntryNotFoundError extends Error {
 }
 
 export class BlobNotFoundError extends Error {
-  constructor() {
-    super('Blob not found')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+
+  constructor(opts) {
+    super('Blob not found', opts)
     this.name = 'BlobNotFoundError'
     this.code = 'BLOB_NOT_FOUND_ERROR'
     this.status = 404
@@ -463,9 +582,12 @@ export class BlobNotFoundError extends Error {
 }
 
 export class InvalidIconSizeError extends Error {
-  /** @param {string} value */
-  constructor(value) {
-    super(`'${value}' is not a valid icon size`)
+  /**
+   * @param {string} value
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(value, opts) {
+    super(`'${value}' is not a valid icon size`, opts)
     this.name = 'InvalidIconSizeError'
     this.code = 'INVALID_ICON_SIZE_ERROR'
     this.status = 400
@@ -473,9 +595,12 @@ export class InvalidIconSizeError extends Error {
 }
 
 export class InvalidIconPixelDensityError extends Error {
-  /** @param {number} density */
-  constructor(density) {
-    super(`Invalid icon pixel density: ${density}`)
+  /**
+   * @param {number} density
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(density, opts) {
+    super(`Invalid icon pixel density: ${density}`, opts)
     this.name = 'InvalidIconPixelDensityError'
     this.code = 'INVALID_ICON_PIXEL_DENSITY_ERROR'
     this.status = 400
@@ -483,9 +608,12 @@ export class InvalidIconPixelDensityError extends Error {
 }
 
 export class FailedToGetStyleError extends Error {
-  /** @param {URL} url */
-  constructor(url) {
-    super(`Failed to get style from ${url.href}`)
+  /**
+   * @param {URL} url
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(url, opts) {
+    super(`Failed to get style from ${url.href}`, opts)
     this.name = 'FailedToGetStyleError'
     this.code = 'FAILED_TO_GET_STYLE_ERROR'
     this.status = 500
@@ -495,9 +623,10 @@ export class FailedToGetStyleError extends Error {
 export class UnknownSchemaError extends Error {
   /**
    * @param {string} schemaName
+   * @param {ErrorOptions} [opts]
    */
-  constructor(schemaName) {
-    super(`IndexWriter doesn't know a schema named "${schemaName}"`)
+  constructor(schemaName, opts) {
+    super(`IndexWriter doesn't know a schema named "${schemaName}"`, opts)
     this.name = 'UnknownSchemaError'
     this.code = 'UNKNOWN_SCHEMA_ERROR'
     this.status = 400
@@ -505,9 +634,12 @@ export class UnknownSchemaError extends Error {
 }
 
 export class InvalidLanguageTagError extends Error {
-  /** @param {string} languageTag */
-  constructor(languageTag) {
-    super(`Invalid BCP 47 language tag: ${languageTag}`)
+  /**
+   * @param {string} languageTag
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(languageTag, opts) {
+    super(`Invalid BCP 47 language tag: ${languageTag}`, opts)
     this.name = 'InvalidLanguageTagError'
     this.code = 'INVALID_LANGUAGE_TAG_ERROR'
     this.status = 400
@@ -515,9 +647,12 @@ export class InvalidLanguageTagError extends Error {
 }
 
 export class DuplicateKeyError extends Error {
-  /** @param {*} key */
-  constructor(key) {
-    super(`Duplicate key: ${JSON.stringify(key)}`)
+  /**
+   * @param {*} key
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(key, opts) {
+    super(`Duplicate key: ${JSON.stringify(key)}`, opts)
     this.name = 'DuplicateKeyError'
     this.code = 'DUPLICATE_KEY_ERROR'
     this.status = 409
@@ -528,10 +663,12 @@ export class InvalidComapeoSchemaFormatError extends Error {
   /**
    * @param {string} tableName
    * @param {string} reason
+   * @param {ErrorOptions} [opts]
    */
-  constructor(tableName, reason) {
+  constructor(tableName, reason, opts) {
     super(
-      `Cannot process JSONSchema from @comapeo/schema for ${tableName} SQL table: ${reason}`
+      `Cannot process JSONSchema from @comapeo/schema for ${tableName} SQL table: ${reason}`,
+      opts
     )
     this.name = 'InvalidComapeoSchemaFormatError'
     this.code = 'INVALID_COMAPEO_SCHEMA_FORMAT_ERROR'
@@ -540,8 +677,11 @@ export class InvalidComapeoSchemaFormatError extends Error {
 }
 
 export class InvalidBitfieldIndexError extends Error {
-  constructor() {
-    super(`Index is not a multiple of 32`)
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super(`Index is not a multiple of 32`, opts)
     this.name = 'InvalidBitfieldIndexError'
     this.code = 'INVALID_BITFIELD_INDEX_ERROR'
     this.status = 400
@@ -549,8 +689,11 @@ export class InvalidBitfieldIndexError extends Error {
 }
 
 export class InvalidUrlError extends Error {
-  constructor() {
-    super('Invalid URL provided')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Invalid URL provided', opts)
     this.name = 'InvalidUrlError'
     this.code = 'INVALID_URL'
     this.status = 400
@@ -558,8 +701,11 @@ export class InvalidUrlError extends Error {
 }
 
 export class AlreadyBlockedError extends Error {
-  constructor() {
-    super(`Member already blocked`)
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super(`Member already blocked`, opts)
     this.name = 'AlreadyBlockedError'
     this.code = 'ALREADY_BLOCKED_ERROR'
     this.status = 403
@@ -569,9 +715,10 @@ export class AlreadyBlockedError extends Error {
 export class DeviceIdNotForServerError extends Error {
   /**
    * @param {string} deviceId
+   * @param {ErrorOptions} [opts]
    */
-  constructor(deviceId) {
-    super(`DeviceId ${deviceId} is not for a server peer`)
+  constructor(deviceId, opts) {
+    super(`DeviceId ${deviceId} is not for a server peer`, opts)
     this.name = 'DeviceIdNotForServerError'
     this.code = 'DEVICE_ID_NOT_FOR_SERVER_ERROR'
     this.status = 403
@@ -579,8 +726,11 @@ export class DeviceIdNotForServerError extends Error {
 }
 
 export class IncompleteProjectDataError extends Error {
-  constructor() {
-    super('Project must have name to add server peer')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Project must have name to add server peer', opts)
     this.name = 'IncompleteProjectDataError'
     this.code = 'INCOMPLETE_PROJECT_DATA_ERROR'
     this.status = 400
@@ -614,9 +764,13 @@ export class InvalidServerResponseError extends Error {
 }
 
 export class ProjectNotInAllowlistError extends Error {
-  constructor() {
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
     super(
-      "The server only allows specific projects to be added, and this isn't one of them"
+      "The server only allows specific projects to be added, and this isn't one of them",
+      opts
     )
     this.name = 'ProjectNotInAllowlistError'
     this.code = 'PROJECT_NOT_IN_SERVER_ALLOWLIST'
@@ -625,9 +779,13 @@ export class ProjectNotInAllowlistError extends Error {
 }
 
 export class ServerTooManyProjectsError extends Error {
-  constructor() {
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
     super(
-      "The server limits the number of projects it can have and it's at the limit"
+      "The server limits the number of projects it can have and it's at the limit",
+      opts
     )
     this.name = 'ServerTooManyProjectsError'
     this.code = 'SERVER_HAS_TOO_MANY_PROJECTS'
@@ -650,9 +808,10 @@ export class MissingOwnDeviceInfoError extends Error {
 export class CategoryFileNotFoundError extends Error {
   /**
    * @param {string} filePath
+   * @param {ErrorOptions} [opts]
    */
-  constructor(filePath) {
-    super(`Category file not found at ${filePath}`)
+  constructor(filePath, opts) {
+    super(`Category file not found at ${filePath}`, opts)
     this.name = 'CategoryFileNotFoundError'
     this.code = 'CATEGORY_FILE_NOT_FOUND_ERROR'
     this.status = 404
@@ -660,8 +819,11 @@ export class CategoryFileNotFoundError extends Error {
 }
 
 export class MultipleCategoryImportsError extends Error {
-  constructor() {
-    super('Cannot run multiple category imports at the same time')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Cannot run multiple category imports at the same time', opts)
     this.name = 'MultipleCategoryImportsError'
     this.code = 'MULTIPLE_CATEGORY_IMPORTS_ERROR'
     this.status = 409
@@ -669,9 +831,12 @@ export class MultipleCategoryImportsError extends Error {
 }
 
 export class UnknownPeerError extends Error {
-  /** @param {string} deviceId */
-  constructor(deviceId) {
-    super('Unknown peer ' + deviceId)
+  /**
+   * @param {string} deviceId
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(deviceId, opts) {
+    super('Unknown peer ' + deviceId, opts)
     this.name = 'UnknownPeerError'
     this.code = 'UNKNOWN_PEER_ERROR'
     this.status = 404
@@ -679,9 +844,12 @@ export class UnknownPeerError extends Error {
 }
 
 export class PeerDisconnectedError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Peer disconnected') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Peer disconnected', opts) {
+    super(message, opts)
     this.name = 'PeerDisconnectedError'
     this.code = 'PEER_DISCONNECTED_ERROR'
     this.status = 504
@@ -689,8 +857,11 @@ export class PeerDisconnectedError extends Error {
 }
 
 export class PeerFailedConnectionError extends Error {
-  constructor() {
-    super('Peer failed to connect before disconnect was called')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Peer failed to connect before disconnect was called', opts)
     this.name = 'PeerFailedConnectionError'
     this.code = 'PEER_FAILED_CONNECTION_ERROR'
     this.status = 408
@@ -700,9 +871,10 @@ export class PeerFailedConnectionError extends Error {
 export class UnknownError extends Error {
   /**
    * @param {any} err
+   * @param {ErrorOptions} [opts]
    */
-  constructor(err) {
-    super(`An unexpected error type occurred: ${err}`)
+  constructor(err, opts) {
+    super(`An unexpected error type occurred: ${err}`, opts)
     this.name = 'UnknownError'
     this.code = 'UNKNOWN_ERROR'
     this.status = 500
@@ -710,9 +882,12 @@ export class UnknownError extends Error {
 }
 
 export class ExhaustivenessError extends Error {
-  /** @param {never} value */
-  constructor(value) {
-    super(`Exhaustiveness check failed. ${value} should be impossible`)
+  /**
+   * @param {never} value
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(value, opts) {
+    super(`Exhaustiveness check failed. ${value} should be impossible`, opts)
     this.name = 'ExhaustivenessError'
     this.code = 'EXHAUSTIVENESS_ERROR'
     this.status = 500
@@ -720,9 +895,12 @@ export class ExhaustivenessError extends Error {
 }
 
 export class PeerNotFoundError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Peer not found') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Peer not found', opts) {
+    super(message, opts)
     this.name = 'PeerNotFoundError'
     this.code = 'PEER_NOT_FOUND_ERROR'
     this.status = 404
@@ -730,9 +908,12 @@ export class PeerNotFoundError extends Error {
 }
 
 export class InvalidMapShareError extends Error {
-  /** @param {string} message */
-  constructor(message) {
-    super(message)
+  /**
+   * @param {string} message
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message, opts) {
+    super(message, opts)
     this.name = 'InvalidMapShareError'
     this.code = 'INVALID_MAP_SHARE_ERROR'
     this.status = 400
@@ -740,8 +921,11 @@ export class InvalidMapShareError extends Error {
 }
 
 export class InvalidResponseBodyError extends Error {
-  constructor() {
-    super('Response body is not valid')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Response body is not valid', opts)
     this.name = 'InvalidResponseBodyError'
     this.code = 'INVALID_RESPONSE_BODY_ERROR'
     this.status = 400
@@ -749,9 +933,12 @@ export class InvalidResponseBodyError extends Error {
 }
 
 export class InvalidInviteError extends Error {
-  /** @param {string} message */
-  constructor(message) {
-    super(message)
+  /**
+   * @param {string} message
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message, opts) {
+    super(message, opts)
     this.name = 'InvalidInviteError'
     this.code = 'INVALID_INVITE_ERROR'
     this.status = 400
@@ -761,9 +948,10 @@ export class InvalidInviteError extends Error {
 export class InviteNotFoundError extends Error {
   /**
    * @param {Buffer} inviteId
+   * @param {ErrorOptions} [opts]
    */
-  constructor(inviteId) {
-    super(`Cannot find invite ${inviteId.toString('hex')}`)
+  constructor(inviteId, opts) {
+    super(`Cannot find invite ${inviteId.toString('hex')}`, opts)
     this.name = 'InviteNotFoundError'
     this.code = 'INVITE_NOT_FOUND_ERROR'
     this.status = 404
@@ -771,8 +959,12 @@ export class InviteNotFoundError extends Error {
 }
 
 export class AlreadyInvitingError extends Error {
-  constructor(message = 'Already invited this device ID') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Already invited this device ID', opts) {
+    super(message, opts)
     this.name = 'AlreadyInvitingError'
     this.code = 'ALREADY_INVITING_ERROR'
     this.status = 409
@@ -782,9 +974,10 @@ export class AlreadyInvitingError extends Error {
 export class InvalidRoleIDForNewInviteError extends Error {
   /**
    * @param {string} roleId
+   * @param {ErrorOptions} [opts]
    */
-  constructor(roleId) {
-    super(`Invalid role ID for new invite: ${roleId}`)
+  constructor(roleId, opts) {
+    super(`Invalid role ID for new invite: ${roleId}`, opts)
     this.name = 'InvalidRoleIDForNewInviteError'
     this.code = 'INVALID_ROLE_ID_FOR_NEW_INVITE_ERROR'
     this.status = 400
@@ -792,8 +985,12 @@ export class InvalidRoleIDForNewInviteError extends Error {
 }
 
 export class InvalidProjectNameError extends Error {
-  constructor(message = 'Project must have a name to invite people') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Project must have a name to invite people', opts) {
+    super(message, opts)
     this.name = 'InvalidProjectNameError'
     this.code = 'INVALID_PROJECT_NAME_ERROR'
     this.status = 400
@@ -801,10 +998,15 @@ export class InvalidProjectNameError extends Error {
 }
 
 export class InvalidProjectKeyError extends Error {
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
   constructor(
-    message = 'Project owner core public key must be 32-byte buffer'
+    message = 'Project owner core public key must be 32-byte buffer',
+    opts
   ) {
-    super(message)
+    super(message, opts)
     this.name = 'InvalidProjectKeyError'
     this.code = 'INVALID_PROJECT_KEY_ERROR'
     this.status = 400
@@ -812,11 +1014,15 @@ export class InvalidProjectKeyError extends Error {
 }
 
 export class InvalidProjectSecretKeyError extends Error {
-  /** @param {string} [message] */
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
   constructor(
-    message = 'Project owner core secret key must be 64-byte buffer'
+    message = 'Project owner core secret key must be 64-byte buffer',
+    opts
   ) {
-    super(message)
+    super(message, opts)
     this.name = 'InvalidProjectSecretKeyError'
     this.code = 'INVALID_PROJECT_SECRET_KEY_ERROR'
     this.status = 400
@@ -824,9 +1030,12 @@ export class InvalidProjectSecretKeyError extends Error {
 }
 
 export class InvalidProjectJoinDetailsError extends Error {
-  /** @param {string} message */
-  constructor(message) {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message, opts) {
+    super(message, opts)
     this.name = 'InvalidProjectJoinDetailsError'
     this.code = 'INVALID_PROJECT_JOIN_DETAILS_ERROR'
     this.status = 400
@@ -834,8 +1043,12 @@ export class InvalidProjectJoinDetailsError extends Error {
 }
 
 export class UnexpectedError extends Error {
-  constructor(message = 'An unexpected error occurred') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'An unexpected error occurred', opts) {
+    super(message, opts)
     this.name = 'UnexpectedError'
     this.code = 'UNEXPECTED_ERROR'
     this.status = 500
@@ -843,10 +1056,15 @@ export class UnexpectedError extends Error {
 }
 
 export class AutoStopTimeoutError extends Error {
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
   constructor(
-    message = 'Auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer'
+    message = 'Auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer',
+    opts
   ) {
-    super(message)
+    super(message, opts)
     this.name = 'AutoStopTimeoutError'
     this.code = 'AUTO_STOP_TIMEOUT_ERROR'
     this.status = 400
@@ -854,8 +1072,11 @@ export class AutoStopTimeoutError extends Error {
 }
 
 export class MissingDiscoveryKeyError extends Error {
-  constructor() {
-    super('Core should have a discovery key')
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(opts) {
+    super('Core should have a discovery key', opts)
     this.name = 'MissingDiscoveryKeyError'
     this.code = 'MISSING_DISCOVERY_KEY_ERROR'
     this.status = 400
@@ -863,8 +1084,11 @@ export class MissingDiscoveryKeyError extends Error {
 }
 
 export class InvalidDrizzleQueryResultError extends Error {
-  constructor(message = 'Expected query to return proper result') {
-    super(message)
+  /**
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Expected query to return proper result', opts) {
+    super(message, opts)
     this.name = 'InvalidDrizzleQueryResultError'
     this.code = 'INVALID_DRIZZLE_QUERY_RESULT_ERROR'
     this.status = 400
@@ -872,9 +1096,12 @@ export class InvalidDrizzleQueryResultError extends Error {
 }
 
 export class InvalidDrizzleJournalError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Invalid journal') {
-    super(message)
+  /**
+   * @param {string} [message]
+   * @param {ErrorOptions} [opts]
+   */
+  constructor(message = 'Invalid journal', opts) {
+    super(message, opts)
     this.name = 'InvalidDrizzleJournalError'
     this.code = 'INVALID_DRIZZLE_JOURNAL_ERROR'
     this.status = 400
