@@ -684,14 +684,14 @@ export class PeerFailedConnectionError extends Error {
   }
 }
 
-export class UnexpectedErrorTypeError extends Error {
+export class UnknownError extends Error {
   /**
    * @param {any} err
    */
   constructor(err) {
     super(`An unexpected error type occurred: ${err}`)
-    this.name = 'UnexpectedErrorTypeError'
-    this.code = 'UNEXPECTED_ERROR_TYPE_ERROR'
+    this.name = 'UnknownError'
+    this.code = 'UNKNOWN_ERROR'
     this.status = 500
   }
 }
@@ -932,7 +932,7 @@ export function getErrorMessage(maybeError) {
  */
 export function ensureKnownError(err) {
   if (typeof err.status !== 'number' || typeof err.code !== 'string') {
-    return new UnexpectedErrorTypeError(err)
+    return new UnknownError(err)
   }
   return err
 }
