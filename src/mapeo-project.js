@@ -620,7 +620,7 @@ export class MapeoProject extends TypedEmitter {
    */
   async close() {
     this.#l.log('closing project %h', this.#projectId)
-    this.#blobStore.close()
+    await this.#blobStore.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())

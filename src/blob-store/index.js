@@ -399,9 +399,10 @@ export class BlobStore extends TypedEmitter {
     return drive.clear(path, options)
   }
 
-  close() {
+  async close() {
     this.#downloader.removeAllListeners()
     this.#downloader.destroy()
+    await this.#driveIndex.close()
     this.#coreManager.off('peer-download-intent', this.#handleDownloadIntent)
     this.#coreManager.creatorCore.off('peer-add', this.#handlePeerAdd)
     this.#coreManager.creatorCore.off('peer-remove', this.#handlePeerRemove)

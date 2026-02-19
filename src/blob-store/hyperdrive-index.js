@@ -61,6 +61,14 @@ export class HyperdriveIndexImpl extends TypedEmitter {
   get(driveId) {
     return this.#hyperdrives.get(driveId)
   }
+
+  async close() {
+    await Promise.all(
+      [...this.#hyperdrives.values()].map((drive) =>
+        drive.ready().then(() => drive.close())
+      )
+    )
+  }
 }
 
 /**
