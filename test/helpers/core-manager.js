@@ -91,9 +91,9 @@ async function takeWriterCores(cmToTakeFrom, cmToReceive) {
  * @param {CoreManager} cm1
  * @param {CoreManager} cm2
  * @param {{ kp1: import('../../src/types.js').KeyPair, kp2: import('../../src/types.js').KeyPair }} [opts]
- * @returns {{ destroy: () => Promise<void> }}
+ * @returns {Promise<{ destroy: () => Promise<void> }>}
  */
-export function replicate(
+export async function replicate(
   cm1,
   cm2,
   { kp1, kp2 } = {
@@ -117,8 +117,7 @@ export function replicate(
   cm1[kCoreManagerReplicate](n1)
   cm2[kCoreManagerReplicate](n2)
 
-  takeWriterCores(cm1, cm2)
-  takeWriterCores(cm2, cm1)
+  await Promise.all([takeWriterCores(cm1, cm2), takeWriterCores(cm2, cm1)])
 
   return {
     async destroy() {

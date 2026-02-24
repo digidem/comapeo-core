@@ -124,7 +124,7 @@ test('eagerly updates remote bitfields', async (t) => {
   // contiguousLength < length
   await cm1Core.clear(2, 3)
 
-  const destroyReplication = replicate(cm1, cm2).destroy
+  const destroyReplication = (await replicate(cm1, cm2)).destroy
 
   await waitForCores(cm2, [cm1Core.key])
   const cm2Core = cm2.getCoreByKey(cm1Core.key)
@@ -158,7 +158,7 @@ test('eagerly updates remote bitfields', async (t) => {
   {
     // This is ensuring that bitfields also get propogated in the other
     // direction, e.g. from the non-writer to the writer
-    const { destroy } = replicate(cm1, cm2)
+    const { destroy } = await replicate(cm1, cm2)
     // Need to wait for now, since no event for when a remote bitfield is updated
     await new Promise((res) => setTimeout(res, 200))
     assert(cm2Core.core)
@@ -501,7 +501,9 @@ test('unreplicate', async (t) => {
           const b = await createCore(a.key)
           const c = await createCore(a.key)
 
-          const [s1, s2] = replicateCores(a, b, { delay: REPLICATION_DELAY })
+          const [s1, s2] = await replicateCores(a, b, {
+            delay: REPLICATION_DELAY,
+          })
           replicateCores(a, c, { delay: REPLICATION_DELAY })
 
           // Check replication is actually working
@@ -614,7 +616,7 @@ test('deleteOthersData()', async (t) => {
         .map((_, i) => 'block' + i)
     )
 
-    const { destroy } = replicate(cm1, cm2)
+    const { destroy } = await replicate(cm1, cm2)
     t.after(destroy)
 
     // This delay is needed in order for replication to finish properly
@@ -729,7 +731,7 @@ test('Map share extension events', async (t) => {
     timeout: 1000,
   })
 
-  const { destroy } = replicate(cm1, cm2, {
+  const { destroy } = await replicate(cm1, cm2, {
     kp1: keyManager1.getIdentityKeypair(),
     kp2: keyManager2.getIdentityKeypair(),
   })

@@ -228,7 +228,7 @@ test('validity of `originalVersionId` from another peer', async (t) => {
 
   const obs = await dt1.create(obsFixture)
   const driveId = ds1.writerCore.key
-  const { destroy } = replicate(cm1, cm2)
+  const { destroy } = await replicate(cm1, cm2)
   await waitForCores(cm2, [driveId])
   const replicatedCore = cm2.getCoreByKey(driveId)
   assert(replicatedCore, 'Replicated core should exist')

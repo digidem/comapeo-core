@@ -29,7 +29,7 @@ test('sync cores in a namespace', async (t) => {
     projectKey: projectKeyPair.publicKey,
   })
 
-  replicate(cm1, cm2, {
+  await replicate(cm1, cm2, {
     kp1: km1.getIdentityKeypair(),
     kp2: km2.getIdentityKeypair(),
   })
@@ -148,7 +148,7 @@ test('replicate with updating data', async function (t) {
     writer2.core.append(blocks)
   }
 
-  replicate(cm1, cm2)
+  await replicate(cm1, cm2)
 
   await Promise.all([
     waitForCores(cm1, getKeys(cm2, 'auth')),

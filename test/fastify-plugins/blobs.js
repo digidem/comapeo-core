@@ -233,7 +233,7 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
 
   const [{ blobId }] = data
 
-  const { destroy } = replicate(cm1, cm2)
+  const { destroy } = await replicate(cm1, cm2)
 
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
 

@@ -94,7 +94,7 @@ test('get(), initialized but unreplicated drive', async (t) => {
   })
   const driveId = await bs1.put(blob1Id, blob1)
 
-  const { destroy } = replicate(cm1, cm2)
+  const { destroy } = await replicate(cm1, cm2)
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
 
   /** @type {any} */
@@ -121,7 +121,7 @@ test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
   })
   const driveId = await bs1.put(blob1Id, blob1)
 
-  const { destroy } = replicate(cm1, cm2)
+  const { destroy } = await replicate(cm1, cm2)
   await waitForCores(cm2, [cm1.getWriterCore('blobIndex').key])
   /** @type {any} */
   const { core: replicatedCore } = cm2.getCoreByDiscoveryKey(
@@ -314,9 +314,9 @@ test('download all blobs', async function (t) {
   // STEP 1: Write a blob to CM1
   const driveId1 = await bs1.put(blob1Id, blob1)
   // STEP 2: Replicate CM1 with CM3
-  const { destroy: destroy1 } = replicate(cm1, cm3)
+  const { destroy: destroy1 } = await replicate(cm1, cm3)
   // STEP 3: Replicate CM2 with CM3
-  const { destroy: destroy2 } = replicate(cm2, cm3)
+  const { destroy: destroy2 } = await replicate(cm2, cm3)
   // STEP 4: Write a blob to CM2
   const driveId2 = await bs2.put(blob2Id, blob2)
   // STEP 5: Wait for blobs to be downloaded
@@ -368,7 +368,7 @@ test('filtered download, filter changed', async function (t) {
   await bs1.put(blob2Id, blob2)
   await bs1.put(blob3Id, blob3)
 
-  const { destroy } = replicate(cm1, cm2)
+  const { destroy } = await replicate(cm1, cm2)
 
   // Wait for blobs to be downloaded
   await delay(200)
@@ -584,7 +584,7 @@ test('blobStore.createEntriesReadStream({ live: true })', async (t) => {
   // STEP 1: Write a blob to CM1
   await bs1.put(blob1Id, blob1)
   // STEP 2: Replicate CM1 with CM3
-  const { destroy: destroy1 } = replicate(cm1, cm3)
+  const { destroy: destroy1 } = await replicate(cm1, cm3)
   // STEP 3: Start live entries stream from CM3
   const entriesStream = bs3.createEntriesReadStream({ live: true })
   entriesStream.on('data', (entry) => entries.push(entry))
@@ -592,7 +592,7 @@ test('blobStore.createEntriesReadStream({ live: true })', async (t) => {
   await delay(200)
   assert.equal(entries.length, 1, 'entry from replicated blobStore')
   // STEP 5: Replicate CM2 with CM3
-  const { destroy: destroy2 } = replicate(cm2, cm3)
+  const { destroy: destroy2 } = await replicate(cm2, cm3)
   // STEP 6: Write a blob to CM2
   await bs2.put(blob2Id, blob2)
   // STEP 7: Wait for replication
