@@ -3,7 +3,6 @@ import { access, constants } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Hypercore from 'hypercore'
-import RAM from 'random-access-memory'
 import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 import Sqlite from 'better-sqlite3'
@@ -28,6 +27,7 @@ import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
 import { pEvent } from 'p-event'
 import { MAX_BOUNDS, validateMapShareExtension } from '../src/utils.js'
+import { createCore } from './helpers/create-core.js'
 /** @import { MapShareExtension } from '../src/generated/extensions.js' */
 /** @import { Namespace } from '../src/types.js' */
 
@@ -75,13 +75,6 @@ const FAILING_TEST_SHARES = [
   { ...TEST_SHARE, estimatedSizeBytes: -1 },
 ]
 
-/** @param {any} [key] */
-async function createCore(key) {
-  const core = new Hypercore(() => new RAM(), key)
-  await core.ready()
-  return core
-}
-
 test('project creator auth core has project key', async function (t) {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
@@ -89,7 +82,6 @@ test('project creator auth core has project key', async function (t) {
 
   const cm = createCoreManager(t, {
     keyManager,
-    storage: () => new RAM(),
     projectKey,
     projectSecretKey,
   })
@@ -213,15 +205,15 @@ test('eagerly updates remote bitfields', async (t) => {
   }
 })
 
-test('multiplexing waits for cores to be added', async () => {
+test('multiplexing waits for cores to be added', async (t) => {
   // Mapeo code expects replication to work when cores are not added to the
   // replication stream at the same time. This is not explicitly tested in
   // Hypercore so we check here that this behaviour works.
-  const a1 = await createCore()
-  const a2 = await createCore()
+  const a1 = await createCore(t)
+  const a2 = await createCore(t)
 
-  const b1 = await createCore(a1.key)
-  const b2 = await createCore(a2.key)
+  const b1 = await createCore(t, a1.key)
+  const b2 = await createCore(t, a2.key)
 
   const n1 = new NoiseSecretStream(true)
   const n2 = new NoiseSecretStream(false)
@@ -269,7 +261,6 @@ test('Added cores are persisted', async (t) => {
   const cm1 = createCoreManager(t, {
     db,
     keyManager,
-    storage: () => new RAM(),
     projectKey,
   })
   const key = randomBytes(32)
@@ -280,7 +271,6 @@ test('Added cores are persisted', async (t) => {
   const cm2 = createCoreManager(t, {
     db,
     keyManager,
-    storage: () => new RAM(),
     projectKey,
   })
 
@@ -496,10 +486,10 @@ test('unreplicate', async (t) => {
           scenario.expectedReadAfterReplicate
         }`,
         async () => {
-          const a = await createCore()
+          const a = await createCore(t)
           await a.append(['a', 'b'])
-          const b = await createCore(a.key)
-          const c = await createCore(a.key)
+          const b = await createCore(t, a.key)
+          const c = await createCore(t, a.key)
 
           const [s1, s2] = await replicateCores(a, b, {
             delay: REPLICATION_DELAY,
