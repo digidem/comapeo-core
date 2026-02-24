@@ -4,10 +4,10 @@ import { Downloader } from './downloader.js'
 import { createEntriesStream } from './entries-stream.js'
 import { FilterEntriesStream } from './utils.js'
 import { noop } from '../utils.js'
-import { TypedEmitter } from 'tiny-typed-emitter'
 import { HyperdriveIndexImpl as HyperdriveIndex } from './hyperdrive-index.js'
 import { Logger } from '../logger.js'
 import { getErrorCode, getErrorMessage } from '../lib/error.js'
+import ReadyResource from 'ready-resource'
 
 /** @import Hyperdrive from 'hyperdrive' */
 /** @import { JsonObject } from 'type-fest' */
@@ -59,8 +59,8 @@ class ErrNotFound extends Error {
   }
 }
 
-/** @extends {TypedEmitter<BlobStoreEvents>} */
-export class BlobStore extends TypedEmitter {
+/** @extends {ReadyResource<BlobStoreEvents>} */
+export class BlobStore extends ReadyResource {
   #driveIndex
   /** @type {Downloader} */
   #downloader
@@ -198,11 +198,12 @@ export class BlobStore extends TypedEmitter {
     this.#isArchiveDevice = isArchiveDevice
     const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
     this.#downloader.removeAllListeners()
-    this.#downloader.destroy()
+    this.#downloader.close()
     this.#downloader = new Downloader(this.#driveIndex, {
       filter: blobDownloadFilter,
     })
     this.#downloader.on('error', (error) => this.emit('error', error))
+    await this.#downloader.ready()
     // Even if blobFilter is null, e.g. we plan to download everything, we still
     // need to inform connected peers of the change.
     for (const peer of this.#coreManager.creatorCore.peers) {
@@ -348,6 +349,7 @@ export class BlobStore extends TypedEmitter {
    * @returns {Promise<string>} discovery key as hex string of hyperdrive where blob is stored
    */
   async put({ type, variant, name }, blob, options) {
+    await this.ready()
     const path = makePath({ type, variant, name })
     await this.#driveIndex.writer.put(path, blob, options)
     return this.writerDriveId
@@ -379,6 +381,7 @@ export class BlobStore extends TypedEmitter {
     { type, variant, name, driveId },
     options = { follow: false, wait: false }
   ) {
+    await this.ready()
     const drive = this.#driveIndex.get(driveId)
     if (!drive) throw new Error('Drive not found ' + driveId.slice(0, 7))
     const path = makePath({ type, variant, name })
@@ -399,9 +402,15 @@ export class BlobStore extends TypedEmitter {
     return drive.clear(path, options)
   }
 
-  async close() {
+  async _open() {
+    await this.#coreManager.ready()
+    await this.#driveIndex.ready()
+    await this.#downloader.ready()
+  }
+
+  async _close() {
     this.#downloader.removeAllListeners()
-    this.#downloader.destroy()
+    this.#downloader.close()
     await this.#driveIndex.close()
     this.#coreManager.off('peer-download-intent', this.#handleDownloadIntent)
     this.#coreManager.creatorCore.off('peer-add', this.#handlePeerAdd)

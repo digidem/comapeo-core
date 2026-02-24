@@ -2,30 +2,46 @@ import b4a from 'b4a'
 import { discoveryKey } from 'hypercore-crypto'
 import Hyperdrive from 'hyperdrive'
 import util from 'node:util'
-import { TypedEmitter } from 'tiny-typed-emitter'
+import ReadyResource from 'ready-resource'
 
 /** @typedef {HyperdriveIndexImpl} THyperdriveIndex */
 
 /**
- * @extends {TypedEmitter<{ 'add-drive': (drive: Hyperdrive) => void }>}
+ * @extends {ReadyResource<{ 'add-drive': (drive: Hyperdrive) => void }>}
  */
-export class HyperdriveIndexImpl extends TypedEmitter {
+export class HyperdriveIndexImpl extends ReadyResource {
   /** @type {Map<string, Hyperdrive>} */
   #hyperdrives = new Map()
+  #coreManager
+  /** @type {Hyperdrive?} */
   #writer
+  /** @type {Hyperdrive['key']} */
   #writerKey
   /** @param {import('../core-manager/index.js').CoreManager} coreManager */
   constructor(coreManager) {
     super()
+    this.#coreManager = coreManager
+    this.#writer = null
+    this.#writerKey = null
+  }
+
+  async _open() {
+    const coreManager = this.#coreManager
+
     /** @type {undefined | Hyperdrive} */
     let writer
+
     const corestore = new PretendCorestore({ coreManager })
     const blobIndexCores = coreManager.getCores('blobIndex')
     const writerCoreRecord = coreManager.getWriterCore('blobIndex')
     this.#writerKey = writerCoreRecord.key
+
+    const readyPromises = []
     for (const { key } of blobIndexCores) {
       // @ts-ignore - we know pretendCorestore is not actually a Corestore
       const drive = new Hyperdrive(corestore, key)
+
+      readyPromises.push(drive.ready())
       // We use the discovery key to derive the id for a drive
       this.#hyperdrives.set(getDiscoveryId(key), drive)
       if (key.equals(this.#writerKey)) {
@@ -47,13 +63,23 @@ export class HyperdriveIndexImpl extends TypedEmitter {
       this.#hyperdrives.set(driveId, drive)
       this.emit('add-drive', drive)
     })
+
+    await Promise.all(readyPromises)
   }
+
   get writer() {
+    if (!this.#writer) {
+      throw new Error('Must await BlobStore.ready before writing')
+    }
     return this.#writer
   }
   get writerKey() {
+    if (!this.#writerKey) {
+      throw new Error('Must await BlobStore.ready before writing')
+    }
     return this.#writerKey
   }
+
   [Symbol.iterator]() {
     return this.#hyperdrives.values()
   }
@@ -62,7 +88,7 @@ export class HyperdriveIndexImpl extends TypedEmitter {
     return this.#hyperdrives.get(driveId)
   }
 
-  async close() {
+  async _close() {
     await Promise.all(
       [...this.#hyperdrives.values()].map((drive) =>
         drive.ready().then(() => drive.close())

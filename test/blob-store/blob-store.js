@@ -23,7 +23,7 @@ import { Logger } from '../../src/logger.js'
 const TEST_BUF_SIZE = 3 * 64 * 1024
 
 test('blobStore.put(blobId, buf) and blobStore.get(blobId)', async (t) => {
-  const { blobStore } = testenv(t)
+  const { blobStore } = await testenv(t)
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
     type: 'photo',
@@ -36,7 +36,7 @@ test('blobStore.put(blobId, buf) and blobStore.get(blobId)', async (t) => {
 })
 
 test('get(), driveId not found', async (t) => {
-  const { blobStore } = testenv(t)
+  const { blobStore } = await testenv(t)
   await assert.rejects(
     async () =>
       await blobStore.get({
@@ -49,7 +49,7 @@ test('get(), driveId not found', async (t) => {
 })
 
 test('get(), valid driveId, missing file', async (t) => {
-  const { blobStore, coreManager } = testenv(t)
+  const { blobStore, coreManager } = await testenv(t)
   const driveId = discoveryKey(
     coreManager.getWriterCore('blobIndex').key
   ).toString('hex')
@@ -66,7 +66,7 @@ test('get(), valid driveId, missing file', async (t) => {
 })
 
 test('get(), uninitialized drive', async (t) => {
-  const { blobStore, coreManager } = testenv(t)
+  const { blobStore, coreManager } = await testenv(t)
   const driveKey = randomBytes(32)
   const driveId = discoveryKey(driveKey).toString('hex')
   coreManager.addCore(driveKey, 'blobIndex')
@@ -83,8 +83,8 @@ test('get(), uninitialized drive', async (t) => {
 
 test('get(), initialized but unreplicated drive', async (t) => {
   const projectKey = randomBytes(32)
-  const { blobStore: bs1, coreManager: cm1 } = testenv(t, { projectKey })
-  const { blobStore: bs2, coreManager: cm2 } = testenv(t, { projectKey })
+  const { blobStore: bs1, coreManager: cm1 } = await testenv(t, { projectKey })
+  const { blobStore: bs2, coreManager: cm2 } = await testenv(t, { projectKey })
 
   const blob1 = randomBytes(TEST_BUF_SIZE)
   const blob1Id = /** @type {const} */ ({
@@ -110,8 +110,8 @@ test('get(), initialized but unreplicated drive', async (t) => {
 
 test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
   const projectKey = randomBytes(32)
-  const { blobStore: bs1, coreManager: cm1 } = testenv(t, { projectKey })
-  const { blobStore: bs2, coreManager: cm2 } = testenv(t, { projectKey })
+  const { blobStore: bs1, coreManager: cm1 } = await testenv(t, { projectKey })
+  const { blobStore: bs2, coreManager: cm2 } = await testenv(t, { projectKey })
 
   const blob1 = randomBytes(TEST_BUF_SIZE)
   const blob1Id = /** @type {const} */ ({
@@ -141,7 +141,7 @@ test('get(), replicated blobIndex, but blobs not replicated', async (t) => {
 })
 
 test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)', async (t) => {
-  const { blobStore } = testenv(t)
+  const { blobStore } = await testenv(t)
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
     type: 'photo',
@@ -158,7 +158,7 @@ test('blobStore.createWriteStream(blobId) and blobStore.createReadStream(blobId)
 })
 
 test('blobStore.entry includes metadata if present', async (t) => {
-  const { blobStore } = testenv(t)
+  const { blobStore } = await testenv(t)
 
   const blobId = /** @type {const} */ ({
     type: 'photo',
@@ -184,7 +184,7 @@ test('blobStore.entry includes metadata if present', async (t) => {
 })
 
 test('blobStore.createReadStream should not wait', async (t) => {
-  const { blobStore } = testenv(t)
+  const { blobStore } = await testenv(t)
   const expected = await readFile(new URL(import.meta.url))
 
   const blobId = /** @type {const} */ ({
@@ -204,7 +204,7 @@ test('blobStore.createReadStream should not wait', async (t) => {
     { message: 'Blob does not exist' }
   )
 
-  const { blobStore: blobStore2 } = testenv(t)
+  const { blobStore: blobStore2 } = await testenv(t)
 
   const ws = blobStore.createWriteStream(blobId)
   await pipeline(fs.createReadStream(new URL(import.meta.url)), ws)
@@ -260,7 +260,7 @@ test('blobStore.createReadStream should not wait', async (t) => {
 
 test('blobStore.writerDriveId', async (t) => {
   {
-    const { blobStore } = testenv(t)
+    const { blobStore } = await testenv(t)
     const blobId = /** @type {const} */ ({
       type: 'photo',
       variant: 'original',
@@ -274,7 +274,7 @@ test('blobStore.writerDriveId', async (t) => {
     )
   }
   {
-    const { blobStore } = testenv(t)
+    const { blobStore } = await testenv(t)
     const blobId = /** @type {const} */ ({
       type: 'photo',
       variant: 'original',
@@ -294,9 +294,9 @@ test('blobStore.writerDriveId', async (t) => {
 // B) Downloads from peers blobs added after replication
 test('download all blobs', async function (t) {
   const projectKey = randomBytes(32)
-  const { blobStore: bs1, coreManager: cm1 } = testenv(t, { projectKey })
-  const { blobStore: bs2, coreManager: cm2 } = testenv(t, { projectKey })
-  const { blobStore: bs3, coreManager: cm3 } = testenv(t, { projectKey })
+  const { blobStore: bs1, coreManager: cm1 } = await testenv(t, { projectKey })
+  const { blobStore: bs2, coreManager: cm2 } = await testenv(t, { projectKey })
+  const { blobStore: bs3, coreManager: cm3 } = await testenv(t, { projectKey })
 
   const blob1 = randomBytes(TEST_BUF_SIZE)
   const blob1Id = /** @type {const} */ ({
@@ -339,8 +339,8 @@ test('download all blobs', async function (t) {
 
 test('filtered download, filter changed', async function (t) {
   const projectKey = randomBytes(32)
-  const { blobStore: bs1, coreManager: cm1 } = testenv(t, { projectKey })
-  const { blobStore: bs2, coreManager: cm2 } = testenv(t, {
+  const { blobStore: bs1, coreManager: cm1 } = await testenv(t, { projectKey })
+  const { blobStore: bs2, coreManager: cm2 } = await testenv(t, {
     projectKey,
     isArchiveDevice: false,
   })
@@ -389,7 +389,7 @@ test('filtered download, filter changed', async function (t) {
   )
 
   // Change the filter to download all
-  bs2.setIsArchiveDevice(true)
+  await bs2.setIsArchiveDevice(true)
 
   // Wait for blobs to be downloaded
   await delay(200)
@@ -404,7 +404,7 @@ test('filtered download, filter changed', async function (t) {
 })
 
 test('blobStore.getEntryBlob(driveId, entry)', async (t) => {
-  const { blobStore } = testenv(t)
+  const { blobStore } = await testenv(t)
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
     type: 'photo',
@@ -421,7 +421,7 @@ test('blobStore.getEntryBlob(driveId, entry)', async (t) => {
 })
 
 test('blobStore.getEntryReadStream(driveId, entry)', async (t) => {
-  const { blobStore } = testenv(t)
+  const { blobStore } = await testenv(t)
   const diskbuf = await readFile(new URL(import.meta.url))
   const blobId = /** @type {const} */ ({
     type: 'photo',
@@ -440,7 +440,7 @@ test('blobStore.getEntryReadStream(driveId, entry)', async (t) => {
 })
 
 test('blobStore.getEntryReadStream(driveId, entry) should not wait', async (t) => {
-  const { blobStore } = testenv(t)
+  const { blobStore } = await testenv(t)
 
   const expected = await readFile(new URL(import.meta.url))
 
@@ -465,7 +465,7 @@ test('blobStore.getEntryReadStream(driveId, entry) should not wait', async (t) =
 })
 
 test('blobStore.createEntriesReadStream({ live: false })', async (t) => {
-  const { blobStore } = testenv(t)
+  const { blobStore } = await testenv(t)
   const blobIds = Array.from({ length: 50 }, randomBlobId)
 
   // Add some blobs with unknown variants and types
@@ -563,9 +563,9 @@ test('blobStore.createEntriesReadStream({ live: false })', async (t) => {
 
 test('blobStore.createEntriesReadStream({ live: true })', async (t) => {
   const projectKey = randomBytes(32)
-  const { blobStore: bs1, coreManager: cm1 } = testenv(t, { projectKey })
-  const { blobStore: bs2, coreManager: cm2 } = testenv(t, { projectKey })
-  const { blobStore: bs3, coreManager: cm3 } = testenv(t, { projectKey })
+  const { blobStore: bs1, coreManager: cm1 } = await testenv(t, { projectKey })
+  const { blobStore: bs2, coreManager: cm2 } = await testenv(t, { projectKey })
+  const { blobStore: bs3, coreManager: cm3 } = await testenv(t, { projectKey })
 
   const blob1 = randomBytes(TEST_BUF_SIZE)
   const blob1Id = /** @type {const} */ ({
@@ -626,16 +626,19 @@ function blobIdToKey({ name, type, variant }) {
  * @param {import('node:test').TestContext} t
  * @param {Parameters<typeof createCoreManager>[1] & { isArchiveDevice?: boolean }} opts
  */
-function testenv(t, { isArchiveDevice = true, ...coreManagerOpts } = {}) {
+async function testenv(t, { isArchiveDevice = true, ...coreManagerOpts } = {}) {
+  t.after(async () => {
+    await blobStore.close()
+    await coreManager.close()
+  })
+
   const coreManager = createCoreManager(t, coreManagerOpts, false)
   const blobStore = new BlobStore({
     coreManager,
     isArchiveDevice,
     logger: Logger.create('blobStore'),
   })
-  t.after(async () => {
-    await blobStore.close()
-    await coreManager.close()
-  })
+
+  await blobStore.ready()
   return { blobStore, coreManager }
 }

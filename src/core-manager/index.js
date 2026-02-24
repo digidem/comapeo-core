@@ -1,4 +1,3 @@
-import { TypedEmitter } from 'tiny-typed-emitter'
 import Corestore from 'corestore'
 import { debounce } from 'throttle-debounce'
 import assert from 'node:assert/strict'
@@ -18,6 +17,7 @@ import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 import mapObject from 'map-obj'
 import { PeerNotFoundError } from '../errors.js'
+import ReadyResource from 'ready-resource'
 
 /** @import Hypercore from 'hypercore' */
 /** @import { BlobFilter, GenericBlobFilter, HypercorePeer, Namespace } from '../types.js' */
@@ -37,9 +37,9 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
  */
 
 /**
- * @extends {TypedEmitter<Events>}
+ * @extends {ReadyResource<Events>}
  */
-export class CoreManager extends TypedEmitter {
+export class CoreManager extends ReadyResource {
   #corestore
   #coreIndex
   /** @type {CoreRecord} */
@@ -49,7 +49,6 @@ export class CoreManager extends TypedEmitter {
   #projectExtension
   /** @type {'opened' | 'closing' | 'closed'} */
   #state = 'opened'
-  #ready
   #haveExtension
   #deviceId
   #l
@@ -193,14 +192,14 @@ export class CoreManager extends TypedEmitter {
       })
       this.#sendAuthCoreKeys(peer)
     })
+  }
 
-    this.#ready = Promise.all(
-      [...this.#coreIndex].map(({ core }) => core.ready())
-    )
-      .then(() => {
-        this.#l.log('ready')
-      })
-      .catch(() => {})
+  async _open() {
+    await this.#corestore.ready()
+
+    await Promise.all([...this.#coreIndex].map(({ core }) => core.ready()))
+
+    this.#l.log('ready')
   }
 
   get deviceId() {
@@ -213,15 +212,6 @@ export class CoreManager extends TypedEmitter {
 
   get creatorCoreRecord() {
     return this.#creatorCoreRecord
-  }
-
-  /**
-   * Resolves when all cores have finished loading
-   *
-   * @returns {Promise<void>}
-   */
-  async ready() {
-    await this.#ready
   }
 
   /**
@@ -270,10 +260,9 @@ export class CoreManager extends TypedEmitter {
    * Close all open cores and end any replication streams
    * TODO: gracefully close replication streams
    */
-  async close() {
+  async _close() {
     this.#state = 'closing'
 
-    await this.#corestore.ready()
     // Closes sessions in the corestore
     await this.#corestore.close()
 
