@@ -681,7 +681,10 @@ test('remove member from project while connected', async (t) => {
 
   await waitForSync([inviteeProject, invitorProject], 'initial')
 
-  const updatedRole = await onRoleChange
+  const updatedRole =
+    /** @type {import('../src/mapeo-project.js').RoleChangeEvent}*/ (
+      /** @type {unknown}*/ (await onRoleChange)
+    )
 
   assert.equal(
     updatedRole.role.roleId,
@@ -737,7 +740,10 @@ test('remove member from project while disconnected and reconnect', async (t) =>
 
   await waitForSync([inviteeProject, invitorProject], 'initial')
 
-  const updatedRole = await onRoleChange
+  const updatedRole =
+    /** @type {import('../src/mapeo-project.js').RoleChangeEvent}*/ (
+      /** @type {unknown}*/ (await onRoleChange)
+    )
 
   assert.equal(
     updatedRole.role.roleId,
@@ -776,8 +782,10 @@ test('remove member from project with reason', async (t) => {
   })
 
   await waitForSync([inviteeProject, invitorProject], 'initial')
-
-  const updatedRole = await onRoleChange
+  const updatedRole =
+    /** @type {import('../src/mapeo-project.js').RoleChangeEvent}*/ (
+      /** @type {unknown}*/ (await onRoleChange)
+    )
 
   assert.equal(
     updatedRole.role.roleId,
@@ -819,7 +827,10 @@ test('remove member from project, add them back', async (t) => {
 
   await waitForSync([inviteeProject, invitorProject], 'initial')
 
-  const updatedRole = await onRoleChange
+  const updatedRole =
+    /** @type {import('../src/mapeo-project.js').RoleChangeEvent}*/ (
+      /** @type {unknown}*/ (await onRoleChange)
+    )
 
   assert.equal(
     updatedRole.role.roleId,
@@ -872,7 +883,10 @@ test('remove creator from project, add them back', async (t) => {
 
   await waitForSync([creatorProject, coordinatorProject], 'initial')
 
-  const updatedRole = await onRoleChange
+  const updatedRole =
+    /** @type {import('../src/mapeo-project.js').RoleChangeEvent}*/ (
+      /** @type {unknown}*/ (await onRoleChange)
+    )
 
   assert.equal(
     updatedRole.role.roleId,
