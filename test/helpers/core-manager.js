@@ -67,6 +67,7 @@ export function createCoreManager(
  */
 const destroyStream = (stream) =>
   new Promise((res) => {
+    if (stream.destroyed) return res()
     stream.on('close', res)
     stream.destroy()
   })

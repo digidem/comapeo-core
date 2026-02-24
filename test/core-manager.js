@@ -247,6 +247,7 @@ test('multiplexing waits for cores to be added', async () => {
 
 test('close()', async (t) => {
   const cm = createCoreManager(t)
+  await cm.ready()
   for (const namespace of CoreManager.namespaces) {
     cm.addCore(randomBytes(32), namespace)
   }
@@ -760,7 +761,7 @@ test('Map share errors if peer not found', async (t) => {
   )
 })
 
-test.only('Map share validation checks fields', () => {
+test('Map share validation checks fields', () => {
   assert.doesNotThrow(() => validateMapShareExtension(TEST_SHARE))
 
   for (const [index, share] of FAILING_TEST_SHARES.entries()) {

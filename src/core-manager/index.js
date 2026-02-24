@@ -263,6 +263,13 @@ export class CoreManager extends ReadyResource {
   async _close() {
     this.#state = 'closing'
 
+    // Closes all cores in the index
+    const promises = []
+    for (const { core } of this.#coreIndex) {
+      promises.push(core.close())
+    }
+    await Promise.all(promises)
+
     // Closes sessions in the corestore
     await this.#corestore.close()
 
