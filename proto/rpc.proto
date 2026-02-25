@@ -12,6 +12,7 @@ message Invite {
   optional string projectColor = 7;
   optional string projectDescription = 8;
   bool sendStats = 9;
+  bool invitorWroteDeviceInfo = 10;
 }
 
 message InviteCancel {

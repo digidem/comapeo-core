@@ -936,11 +936,9 @@ test('Auto deny invites if invited before remove is processed', async (t) => {
   )
 })
 
-test('Members that do not write their own deviceInfo can still be identified', async (t) => {
+test('Members skip writing own deviceInfo if invitor does it', async (t) => {
   const invitor = await createManager('invitor', t)
-  const invitee = await createManager('invitee', t, {
-    writeOwnDeviceInfo: false,
-  })
+  const invitee = await createManager('invitee', t)
   const managers = [invitor, invitee]
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)

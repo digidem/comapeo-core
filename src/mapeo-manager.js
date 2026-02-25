@@ -63,7 +63,7 @@ import { migrate } from './lib/drizzle-helpers.js'
 /** @import { ProjectSettings, ProjectSettingsValue } from '@comapeo/schema' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
-/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean }} ProjectToAddDetails */
+/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean }} ProjectToAddDetails */
 /** @typedef {Pick<ProjectSettings, 'createdAt' | 'updatedAt' | 'name' | 'projectColor' | 'projectDescription' | 'sendStats'>} ListedProjectSettings */
 /** @typedef {ListedProjectSettings & { status: 'joined', projectId: string } | ProjectInfo & { status: 'joining' | 'left', projectId: string }} ListedProject */
 
@@ -92,7 +92,6 @@ export const DEFAULT_ONLINE_STYLE_URL =
   'https://demotiles.maplibre.org/style.json'
 
 export const DEFAULT_IS_ARCHIVE_DEVICE = true
-export const DEFAULT_WRITE_OWN_DEVICE_INFO = true
 
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
@@ -131,7 +130,6 @@ export class MapeoManager extends TypedEmitter {
   #defaultConfigPath
   #makeWebsocket
   #defaultIsArchiveDevice
-  #writeOwnDeviceInfo
 
   /**
    * @param {Object} opts
@@ -146,7 +144,6 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.fallbackMapPath] File path to a locally stored Styled Map Package (SMP)
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    * @param {boolean} [opts.defaultIsArchiveDevice] Whether the node is an archive device by default
-   * @param {boolean} [opts.writeOwnDeviceInfo]
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    */
   constructor({
@@ -161,7 +158,6 @@ export class MapeoManager extends TypedEmitter {
     fallbackMapPath = DEFAULT_FALLBACK_MAP_FILE_PATH,
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
     defaultIsArchiveDevice = DEFAULT_IS_ARCHIVE_DEVICE,
-    writeOwnDeviceInfo = DEFAULT_WRITE_OWN_DEVICE_INFO,
     makeWebsocket = (url) => new WebSocket(url),
   }) {
     super()
@@ -169,7 +165,6 @@ export class MapeoManager extends TypedEmitter {
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#defaultConfigPath = defaultConfigPath
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
-    this.#writeOwnDeviceInfo = writeOwnDeviceInfo
     this.#makeWebsocket = makeWebsocket
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
@@ -701,6 +696,7 @@ export class MapeoManager extends TypedEmitter {
       projectColor,
       projectDescription,
       sendStats = false,
+      invitorWroteDeviceInfo = false,
     },
     { waitForSync = true } = {}
   ) => {
@@ -784,7 +780,7 @@ export class MapeoManager extends TypedEmitter {
     })
 
     // Only write info on invite if configured
-    if (this.#writeOwnDeviceInfo) {
+    if (!invitorWroteDeviceInfo) {
       try {
         const deviceInfo = this.getDeviceInfo()
         if (hasSavedDeviceInfo(deviceInfo)) {
