@@ -630,7 +630,15 @@ async function createRemoteTestServer(t) {
 
   await execa(
     'flyctl',
-    ['deploy', '--app', appName, '-e', 'SERVER_NAME=test server'],
+    [
+      'deploy',
+      '--app',
+      appName,
+      '-e',
+      '--vm-memory',
+      '512',
+      'SERVER_NAME=test server',
+    ],
     execaOptions
   )
 
