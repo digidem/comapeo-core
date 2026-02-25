@@ -634,9 +634,9 @@ async function createRemoteTestServer(t) {
       'deploy',
       '--app',
       appName,
-      '-e',
       '--vm-memory',
       '512',
+      '-e',
       'SERVER_NAME=test server',
     ],
     execaOptions
