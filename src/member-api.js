@@ -38,7 +38,7 @@ import { kCreateWithDocId } from './datatype/index.js'
  * } from '@comapeo/schema'
  */
 /** @import { Promisable } from 'type-fest' */
-/** @import { Invite, InviteResponse } from './generated/rpc.js' */
+/** @import { DeviceInfo_DeviceType, Invite, InviteResponse } from './generated/rpc.js' */
 /** @import { DataType } from './datatype/index.js' */
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
@@ -56,6 +56,12 @@ import { kCreateWithDocId } from './datatype/index.js'
  * @prop {DeviceInfo['createdAt']} [joinedAt]
  * @prop {object} [selfHostedServerDetails]
  * @prop {string} selfHostedServerDetails.baseUrl
+ */
+
+/**
+ * @typedef {object} InvitePeerInfo
+ * @prop {DeviceInfo['name']} [name]
+ * @prop {DeviceInfo['deviceType']} [deviceType]
  */
 
 export class MemberApi extends TypedEmitter {
@@ -132,6 +138,7 @@ export class MemberApi extends TypedEmitter {
    * @param {string} [opts.roleDescription]
    * @param {Buffer} [opts.__testOnlyInviteId] Hard-code the invite ID. Only for tests.
    * @param {number} [opts.initialSyncTimeoutMs=5000]
+   * @param {InvitePeerInfo} [opts.peerInfo]
    * @returns {Promise<(
    *   typeof InviteResponse_Decision.ACCEPT |
    *   typeof InviteResponse_Decision.REJECT |
@@ -146,6 +153,7 @@ export class MemberApi extends TypedEmitter {
       roleDescription,
       __testOnlyInviteId,
       initialSyncTimeoutMs = 5000,
+      peerInfo,
     }
   ) {
     assert(isRoleIdForNewInvite(roleId), 'Invalid role ID for new invite')
@@ -175,8 +183,6 @@ export class MemberApi extends TypedEmitter {
       const project = await this.#dataTypes.project.getByDocId(projectId)
       const projectName = project.name
       assert(projectName, 'Project must have a name to invite people')
-
-      const peerInfo = await this.#rpc.infoFor(deviceId).catch(noop)
 
       const projectColor = project.projectColor
       const projectDescription = project.projectDescription

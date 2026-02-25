@@ -957,10 +957,16 @@ test('Members that do not write their own deviceInfo can still be identified', a
 
   const projectId = await invitor.createProject({ name: 'Mapeo' })
 
+  const expectedName = 'test-writerless'
+
   await invite({
     invitor,
     projectId,
     invitees: [invitee],
+    peerInfo: {
+      deviceType: 'tablet',
+      name: expectedName,
+    },
   })
 
   const invitorProject = await invitor.getProject(projectId)
@@ -968,11 +974,7 @@ test('Members that do not write their own deviceInfo can still be identified', a
 
   for (const project of [inviteeProject, invitorProject]) {
     const deviceInfo = await project.$member.getById(invitee.deviceId)
-    assert.equal(
-      deviceInfo.deviceType,
-      'device_type_unspecified',
-      'Got type set'
-    )
-    assert.equal(deviceInfo.name, 'invitee', 'Got name set')
+    assert.equal(deviceInfo.deviceType, 'tablet', 'Got type set')
+    assert.equal(deviceInfo.name, expectedName, 'Got name set')
   }
 })
