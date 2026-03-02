@@ -12,11 +12,11 @@ import {
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from '../src/utils.js'
-import errorCodes from '../src/error-codes.js'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
 import pTimeout from 'p-timeout'
 import FakeTimers from '@sinonjs/fake-timers'
+import { AlreadyJoinedError, TimeoutError } from '../src/errors.js'
 /** @import { InviteResponse } from '../src/generated/rpc.js' */
 
 class MockLocalPeers extends LocalPeers {
@@ -396,7 +396,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
       await assert.rejects(
         () => inviteApi.accept(inviteExternal),
-        { code: errorCodes.AlreadyJoinedError },
+        { code: AlreadyJoinedError.code },
         'accepting rejects with an error'
       )
 
@@ -892,7 +892,7 @@ test('receiving project join details from an unknown peer is a no-op', async (t)
   )
 
   const assertAcceptTimeoutPromise = assert.rejects(() => acceptPromise, {
-    code: errorCodes.TimeoutError,
+    code: TimeoutError.code,
   })
   clock.runAll()
   await assertAcceptTimeoutPromise
@@ -978,7 +978,7 @@ test('receiving project join details for an unknown invite ID is a no-op', async
   )
 
   const assertAcceptTimeoutPromise = assert.rejects(() => acceptPromise, {
-    code: errorCodes.TimeoutError,
+    code: TimeoutError.code,
   })
   clock.runAll()
   await assertAcceptTimeoutPromise

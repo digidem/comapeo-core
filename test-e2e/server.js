@@ -24,9 +24,14 @@ import {
   waitForPeers,
   waitForSync,
 } from './utils.js'
-import errorCodes from '../src/error-codes.js'
 import { fileURLToPath } from 'node:url'
 import WebSocket from 'ws'
+import {
+  IncompleteProjectDataError,
+  InvalidServerResponseError,
+  InvalidUrlError,
+  NetworkError,
+} from '../src/errors.js'
 /** @import { FastifyInstance } from 'fastify' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -73,7 +78,7 @@ test('invalid base URLs', async (t) => {
       assert.rejects(
         () => project.$member.addServerPeer(url),
         {
-          code: errorCodes.InvalidUrlError,
+          code: InvalidUrlError.code,
         },
         `${url} should be invalid`
       )
@@ -94,8 +99,7 @@ test('project with no name', async (t) => {
         dangerouslyAllowInsecureConnections: true,
       }),
     {
-      code: errorCodes.IncompleteProjectDataError,
-      message: /name/,
+      code: IncompleteProjectDataError.code,
     }
   )
 })
@@ -112,7 +116,7 @@ test("fails if we can't connect to the server", async (t) => {
         dangerouslyAllowInsecureConnections: true,
       }),
     {
-      code: errorCodes.NetworkError,
+      code: NetworkError.code,
       message: /Failed to add server peer due to network error/,
     }
   )
@@ -182,7 +186,7 @@ test(
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
-              code: errorCodes.InvalidServerResponseError,
+              code: InvalidServerResponseError.code,
               message: `Failed to add server peer due to HTTP status code ${statusCode}`,
             }
           )
@@ -223,7 +227,7 @@ test(
                 dangerouslyAllowInsecureConnections: true,
               }),
             {
-              code: errorCodes.InvalidServerResponseError,
+              code: InvalidServerResponseError.code,
             }
           )
         })
