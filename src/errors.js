@@ -267,7 +267,7 @@ export const BlobNotFoundError = createErrorClass({
 
 export const InvalidIconSizeError = createErrorClass({
   code: 'INVALID_ICON_SIZE_ERROR',
-  message: "'{value}' is not a valid icon size",
+  message: '{value} is not a valid icon size',
   status: 400,
 })
 

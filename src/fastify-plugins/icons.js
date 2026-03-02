@@ -148,7 +148,7 @@ function assertValidSize(value) {
       value
     )
   ) {
-    throw new InvalidIconSizeError(value)
+    throw new InvalidIconSizeError({ value: JSON.stringify(value) })
   }
 }
 

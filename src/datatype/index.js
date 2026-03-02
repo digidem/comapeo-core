@@ -196,7 +196,7 @@ export class DataType extends TypedEmitter {
   async [kCreateWithDocId](docId, value, { checkExisting = true } = {}) {
     if (!validate(this.#schemaName, value)) {
       // TODO: pass through errors from validate functions
-      throw new InvalidDocFormatError({ value })
+      throw new InvalidDocFormatError({ value: JSON.stringify(value) })
     }
     if (checkExisting) {
       const existing = await this.getByDocId(docId).catch(noop)
