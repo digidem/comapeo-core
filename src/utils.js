@@ -16,7 +16,10 @@ import pTimeout, { TimeoutError as pTimeoutError } from 'p-timeout'
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
 
-export const MAX_BOUNDS = [-180, -85.051129, 180, 85.051129]
+// Slightly larger than spherical mercator bounds for a square map - rounds up
+// from 85.051129 to allow for floating point errors in the bounds of some maps
+// in userspace.
+export const MAX_BOUNDS = [-180, -85.05113, 180, 85.05113]
 
 /**
  *
