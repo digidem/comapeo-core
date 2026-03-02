@@ -36,7 +36,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  *   DeviceInfo,
  *   DeviceInfoValue,
  *   ProjectSettings,
- *   ProjectSettingsValue
+ *   ProjectSettingsValue,
  * } from '@comapeo/schema'
  */
 /** @import { Promisable } from 'type-fest' */
@@ -570,22 +570,17 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * @overload
-   * @param {object} opts
-   * @param {true} opts.includeLeft
-   * @returns {Promise<Array<MemberInfo>>}
-   */
-  /**
-   * @overload
    * @returns {Promise<Array<ActiveMemberInfo>>}
    */
   /**
+   * @template {boolean} [T=false]
+   *
    * @overload
-   * @param {object} opts
-   * @param {false} opts.includeLeft
-   * @returns {Promise<Array<ActiveMemberInfo>>}
-   */
-  /**
-   * List members in the project. By default only active Members and Coordinators are returned
+   * @param {Object} opts
+   * @param {T} [opts.includeLeft=false]
+   *
+   * @returns {Promise<T extends true ? Array<MemberInfo> : Array<ActiveMemberInfo>>}
+   *
    */
   async getMany({ includeLeft = false } = {}) {
     const [allRoles, allDeviceInfo] = await Promise.all([
@@ -595,12 +590,14 @@ export class MemberApi extends TypedEmitter {
 
     const deviceInfoByConfigCoreId = keyBy(allDeviceInfo, ({ docId }) => docId)
 
-    return Promise.all(
-      [...allRoles.entries()]
-        .filter(
-          ([_, { roleId }]) => includeLeft || ACTIVE_ROLE_IDS.includes(roleId)
-        )
-        .map(async ([deviceId, role]) => {
+    if (includeLeft) {
+      /**
+       * @type {Array<Promise<MemberInfo>>}
+       */
+      const memberInfoPromises = []
+
+      for (const [deviceId, role] of allRoles.entries()) {
+        const getMemberInfo = async () => {
           /** @type {MemberInfo} */
           const memberInfo = { deviceId, role }
 
@@ -624,8 +621,54 @@ export class MemberApi extends TypedEmitter {
           }
 
           return memberInfo
-        })
-    )
+        }
+
+        memberInfoPromises.push(getMemberInfo())
+      }
+
+      return Promise.all(memberInfoPromises)
+    } else {
+      /**
+       * @type {Array<Promise<ActiveMemberInfo>>}
+       */
+      const activeMemberInfoPromises = []
+
+      for (const [deviceId, role] of allRoles.entries()) {
+        if (!isActiveMemberRole(role)) {
+          continue
+        }
+
+        const getMemberInfo = async () => {
+          /** @type {ActiveMemberInfo} */
+          const memberInfo = { deviceId, role }
+
+          try {
+            const configCoreId = await this.#coreOwnership.getCoreId(
+              deviceId,
+              'config'
+            )
+
+            const deviceInfo = deviceInfoByConfigCoreId.get(configCoreId)
+
+            memberInfo.name = deviceInfo?.name
+            memberInfo.deviceType = deviceInfo?.deviceType
+            memberInfo.joinedAt = deviceInfo?.createdAt
+            memberInfo.selfHostedServerDetails =
+              deviceInfo?.selfHostedServerDetails
+          } catch (err) {
+            // Attempting to get someone else may throw because sync hasn't occurred or completed
+            // Only throw if attempting to get themself since the relevant information should be available
+            if (deviceId === this.#ownDeviceId) throw err
+          }
+
+          return memberInfo
+        }
+
+        activeMemberInfoPromises.push(getMemberInfo())
+      }
+
+      return Promise.all(activeMemberInfoPromises)
+    }
   }
 
   /**
@@ -636,6 +679,15 @@ export class MemberApi extends TypedEmitter {
   async assignRole(deviceId, roleId) {
     return this.#roles.assignRole(deviceId, roleId)
   }
+}
+
+/**
+ * @param {import('./roles.js').Role} role
+ *
+ * @returns {role is ActiveMemberInfo['role']}
+ */
+function isActiveMemberRole(role) {
+  return ACTIVE_ROLE_IDS.includes(role.roleId)
 }
 
 /**
