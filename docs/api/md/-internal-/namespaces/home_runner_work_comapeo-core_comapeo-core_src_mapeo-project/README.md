@@ -19,6 +19,7 @@
 ### Type Aliases
 
 - [ConfigMetadata](type-aliases/ConfigMetadata.md)
+- [MapShareSend](type-aliases/MapShareSend.md)
 - [SeenAttachments](type-aliases/SeenAttachments.md)
 
 ### Variables
@@ -41,6 +42,12 @@
 
 ## References
 
+### AugmentedMapShareProperties
+
+Re-exports [AugmentedMapShareProperties](../../interfaces/AugmentedMapShareProperties.md)
+
+***
+
 ### EditableProjectSettings
 
 Re-exports [EditableProjectSettings](../../../type-aliases/EditableProjectSettings.md)
@@ -50,3 +57,9 @@ Re-exports [EditableProjectSettings](../../../type-aliases/EditableProjectSettin
 ### MapeoProject
 
 Re-exports [MapeoProject](../../classes/MapeoProject.md)
+
+***
+
+### MapShare
+
+Re-exports [MapShare](../../../type-aliases/MapShare.md)

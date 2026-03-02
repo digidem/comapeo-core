@@ -36,7 +36,12 @@ import {
   getWinner,
   mapAndValidateCoreOwnership,
 } from './core-ownership.js'
-import { BLOCKED_ROLE_ID, Roles, LEFT_ROLE_ID } from './roles.js'
+import {
+  BLOCKED_ROLE_ID,
+  Roles,
+  LEFT_ROLE_ID,
+  INACTIVE_MEMBER_ROLE_IDS,
+} from './roles.js'
 import {
   assert,
   buildBlobId,
@@ -44,6 +49,7 @@ import {
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
+  validateMapShareExtension,
   valueOf,
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
@@ -62,6 +68,7 @@ import { NotFoundError, nullIfNotFound } from './errors.js'
 import { WebSocket } from 'ws'
 import { createWriteStream } from 'fs'
 import ensureError from 'ensure-error'
+/** @import { MapShareExtension } from './generated/extensions.js' */
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
 /** @import {Role} from './roles.js' */
@@ -110,9 +117,29 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  */
 
 /**
+ * @typedef {object} AugmentedMapShareProperties
+ * @property {readonly [number, number, number, number]} bounds - Bounding box of the shared map [W, S, E, N].
+ * @property {readonly [string, ...string[]]} mapShareUrls - URLs associated with the map share.
+ * @property {number} mapShareReceivedAt - Timestamp when the map share was received.
+ * @property {string} senderDeviceId - The ID of the device that sent the map share.
+ * @property {string} [senderDeviceName] - The name of the device that sent the map share.
+ * @property {string} receiverDeviceId - The deviceId of the peer the map share was sent to
+ */
+
+/**
+ * @typedef {Omit<MapShareExtension, 'bounds' | 'mapShareUrls' | 'receiverDeviceKey'> & AugmentedMapShareProperties} MapShare
+ */
+
+/**
+ * @typedef {Omit<MapShare, 'mapShareReceivedAt' | 'senderDeviceId' | 'senderDeviceName'>} MapShareSend
+ */
+
+/**
  * @typedef {object} ProjectEvents
  * @property {() => void} close Project resources have been cleared up
  * @property {(changeEvent: RoleChangeEvent) => void} own-role-change
+ * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error - Emitted when an incoming map share fails to be recieved due to formatting issues
+ * @property {(mapShare: MapShare) => void} map-share - Emitted when a map share is recieved from someone on the project
  */
 
 /**
@@ -525,6 +552,16 @@ export class MapeoProject extends TypedEmitter {
       }
     })
 
+    this.#coreManager.on('map-share', (mapShareBase, senderDeviceId) =>
+      this.#handleMapShare(mapShareBase, senderDeviceId).catch((e) => {
+        this.emit('map-share-error', e, mapShareBase)
+        this.#l.log(
+          'Error: Unable to handle incoming Map Share',
+          ensureError(e)
+        )
+      })
+    )
+
     this.once('close', () => {
       localPeers.off('peer-add', onPeerAdd)
       localPeers.off('discovery-key', onDiscoverykey)
@@ -749,6 +786,43 @@ export class MapeoProject extends TypedEmitter {
   async #handleRoleChange() {
     const role = await this.$getOwnRole()
     this.emit('own-role-change', { role })
+  }
+
+  /**
+   * @param {MapShareExtension} mapShareBase
+   * @param {string} senderDeviceId
+   */
+  async #handleMapShare(mapShareBase, senderDeviceId) {
+    const mapShareReceivedAt = Date.now()
+
+    validateMapShareExtension(mapShareBase)
+
+    const sender = await this.$member.getById(senderDeviceId)
+
+    if (INACTIVE_MEMBER_ROLE_IDS.includes(sender.role.roleId)) {
+      throw new Error(
+        `Map Share Sender is not an active member of the project (role: ${sender.role.name})`
+      )
+    }
+
+    const { receiverDeviceKey, ...mapShareData } = mapShareBase
+
+    const receiverDeviceId = receiverDeviceKey.toString('hex')
+
+    if (receiverDeviceId !== this.#deviceId) {
+      throw new Error('Got map share intended for a different peer')
+    }
+
+    /** @type {MapShare} */
+    const mapShare = {
+      ...mapShareData,
+      senderDeviceId,
+      senderDeviceName: sender.name,
+      mapShareReceivedAt,
+      receiverDeviceId,
+    }
+
+    this.emit('map-share', mapShare)
   }
 
   /**
@@ -1390,6 +1464,29 @@ export class MapeoProject extends TypedEmitter {
     } finally {
       this.#importingCategories = false
     }
+  }
+
+  /**
+   * Send a map share offer to the peer with device ID `mapShare.receiverDeviceId`
+   *
+   * @param {MapShareSend} mapShare
+   * @param {object} [options]
+   * @param {boolean} [options.__testOnlyBypassValidation=false] Warning: Do not use!
+   */
+  async $sendMapShare(mapShare, { __testOnlyBypassValidation = false } = {}) {
+    const { receiverDeviceId, ...mapShareData } = mapShare
+    const receiverDeviceKey = Buffer.from(receiverDeviceId, 'hex')
+
+    /** @type {MapShareExtension} */
+    // @ts-expect-error readonly fields being assigned as mutable
+    const shareExtension = {
+      ...mapShareData,
+      receiverDeviceKey,
+    }
+    if (!__testOnlyBypassValidation) {
+      validateMapShareExtension(shareExtension)
+    }
+    await this.#coreManager.sendMapShare(shareExtension)
   }
 }
 

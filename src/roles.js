@@ -14,6 +14,12 @@ export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
 export const LEFT_ROLE_ID = '8ced989b1904606b'
 export const NO_ROLE_ID = '08e4251e36f6e7ed'
 
+export const INACTIVE_MEMBER_ROLE_IDS = [
+  BLOCKED_ROLE_ID,
+  LEFT_ROLE_ID,
+  NO_ROLE_ID,
+]
+
 /**
  * @typedef {T extends Iterable<infer U> ? U : never} ElementOf
  * @template T
@@ -383,14 +389,6 @@ export class Roles extends TypedEmitter {
       // device that has not yet synced (so we do not yet have a replica of
       // their authCore). In this case we want fromIndex to be 0
     }
-    const isAssigningProjectCreatorRole =
-      authCoreId === this.#projectCreatorAuthCoreId
-    if (isAssigningProjectCreatorRole && !this.#isProjectCreator()) {
-      throw new Error(
-        "Only the project creator can assign the project creator's role"
-      )
-    }
-
     if (roleId === LEFT_ROLE_ID) {
       if (deviceId !== this.#ownDeviceId) {
         throw new Error('Cannot assign LEFT role to another device')
@@ -417,6 +415,19 @@ export class Roles extends TypedEmitter {
         }
       )
     } else {
+      const isAssigningProjectCreatorRole =
+        authCoreId === this.#projectCreatorAuthCoreId
+      const isAssigningSelf = deviceId === this.#ownDeviceId
+      if (
+        !isAssigningSelf &&
+        isAssigningProjectCreatorRole &&
+        roleId !== BLOCKED_ROLE_ID
+      ) {
+        throw new Error(
+          'Project creators can only be assigned the blocked role'
+        )
+      }
+
       await this.#dataType[kCreateWithDocId](deviceId, {
         schemaName: 'role',
         roleId,

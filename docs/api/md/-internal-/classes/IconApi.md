@@ -18,9 +18,9 @@
 
 • **opts.getMediaBaseUrl**
 
-• **opts.iconDataStore**: [`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>
+• **opts.iconDataStore**: [`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>
 
-• **opts.iconDataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"projectSettings"` \| `"preset"` \| `"icon"` \| `"field"` \| `"deviceInfo"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"icon"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"icon"`, `object`, `object`\>
+• **opts.iconDataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"config"`, `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"icon"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"icon"`, `object`, `object`\>
 
 #### Returns
 

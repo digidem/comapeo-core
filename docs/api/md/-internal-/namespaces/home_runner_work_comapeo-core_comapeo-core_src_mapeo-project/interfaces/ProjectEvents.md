@@ -20,6 +20,40 @@ Project resources have been cleared up
 
 ***
 
+### map-share()
+
+> **map-share**: (`mapShare`) => `void`
+
+Emitted when a map share is recieved from someone on the project
+
+#### Parameters
+
+• **mapShare**: [`MapShare`](../../../../type-aliases/MapShare.md)
+
+#### Returns
+
+`void`
+
+***
+
+### map-share-error()
+
+> **map-share-error**: (`e`, `mapShare`) => `void`
+
+Emitted when an incoming map share fails to be recieved due to formatting issues
+
+#### Parameters
+
+• **e**: `Error`
+
+• **mapShare**: `MapShareExtension`
+
+#### Returns
+
+`void`
+
+***
+
 ### own-role-change()
 
 > **own-role-change**: (`changeEvent`) => `void`

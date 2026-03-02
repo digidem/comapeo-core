@@ -420,10 +420,7 @@ export class DataType extends TypedEmitter {
     )
     const { docId, createdAt, originalVersionId } = prevDocs[0]
     const areLinksValid = prevDocs.every(
-      (doc) =>
-        doc.docId === docId &&
-        doc.schemaName === this.#schemaName &&
-        doc.originalVersionId === originalVersionId
+      (doc) => doc.docId === docId && doc.schemaName === this.#schemaName
     )
     if (!areLinksValid) {
       throw new Error('Updated docs must have the same docId and schemaName')

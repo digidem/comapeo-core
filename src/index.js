@@ -9,6 +9,7 @@ export { FastifyController } from './fastify-controller.js'
 export { MapeoManager } from './mapeo-manager.js'
 
 // Type exports
+/** @typedef {import('./mapeo-project.js').MapShare} MapShare */
 /** @typedef {import('./mapeo-project.js').MapeoProject} MapeoProject */
 /** @typedef {import('./mapeo-project.js').EditableProjectSettings} EditableProjectSettings */
 /**
