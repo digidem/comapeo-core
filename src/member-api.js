@@ -34,6 +34,7 @@ import {
   UnexpectedError,
   AlreadyInvitingError,
   InvalidResponseBodyError,
+  RPCDisconnectBeforeAckError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
@@ -258,7 +259,7 @@ export class MemberApi extends TypedEmitter {
           throw new ExhaustivenessError(inviteResponse.decision)
       }
     } catch (e) {
-      if (e instanceof Error && e.name === 'RPCDisconnectBeforeAckError') {
+      if (e instanceof RPCDisconnectBeforeAckError) {
         this.#l.log('ERROR: Disconnect before ack', e)
         throw new InviteAbortedError()
       }
@@ -560,7 +561,7 @@ export class MemberApi extends TypedEmitter {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
       if (deviceId === this.#ownDeviceId) {
-        throw new MissingOwnDeviceInfoError({ cause: e })
+        throw new MissingOwnDeviceInfoError(undefined, { cause: e })
       }
     }
 
@@ -600,7 +601,7 @@ export class MemberApi extends TypedEmitter {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available
           if (deviceId === this.#ownDeviceId) {
-            throw new MissingOwnDeviceInfoError({ cause: e })
+            throw new MissingOwnDeviceInfoError(undefined, { cause: e })
           }
         }
 

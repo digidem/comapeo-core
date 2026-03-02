@@ -144,7 +144,10 @@ export class DataStore extends TypedEmitter {
   async write(doc) {
     // @ts-ignore
     if (!NAMESPACE_SCHEMAS[this.#namespace].includes(doc.schemaName)) {
-      throw new InvalidDocSchemaError(doc.schemaName, this.#namespace)
+      throw new InvalidDocSchemaError({
+        schemaName: doc.schemaName,
+        namespace: this.#namespace,
+      })
     }
     const block = encode(doc)
     // The indexer batch can sometimes complete before the append below

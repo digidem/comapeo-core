@@ -23,20 +23,20 @@ export function jsonSchemaToDrizzleSqliteTable(
   { additionalColumns, primaryKey } = {}
 ) {
   if (schema.type !== 'object' || !schema.properties) {
-    throw new InvalidComapeoSchemaFormatError(
+    throw new InvalidComapeoSchemaFormatError({
       tableName,
-      'Missing schema properties'
-    )
+      reason: 'Missing schema properties',
+    })
   }
   /** @type {Record<string, any>} */
   const columns = {}
   for (const [key, value] of Object.entries(schema.properties)) {
     if (typeof value !== 'object') continue
     if (isArray(value.type) || typeof value.type === 'undefined') {
-      throw new InvalidComapeoSchemaFormatError(
+      throw new InvalidComapeoSchemaFormatError({
         tableName,
-        'Columns must have single known type'
-      )
+        reason: 'Columns must have single known type',
+      })
     }
     switch (value.type) {
       case 'boolean':

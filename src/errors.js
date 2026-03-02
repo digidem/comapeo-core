@@ -1,1112 +1,513 @@
-import util from 'node:util'
-
-export class NotFoundError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Not found', opts) {
-    super(message, opts)
-    this.name = 'NotFoundError'
-    this.code = 'NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class AlreadyJoinedError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Already joined a project', opts) {
-    super(message, opts)
-    this.name = 'AlreadyJoinedError'
-    this.code = 'ALREADY_JOINED_ERROR'
-    this.status = 409
-  }
-}
-
-export class InviteSendError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Failed to send invite', opts) {
-    super(message, opts)
-    this.name = 'InviteSendError'
-    this.code = 'INVITE_SEND_ERROR'
-    this.status = 500
-  }
-}
-
-export class InviteAbortedError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Invite aborted', opts) {
-    super(message, opts)
-    this.name = 'InviteAbortedError'
-    this.code = 'INVITE_ABORTED_ERROR'
-    this.status = 499
-  }
-}
-
-export class ProjectDetailsSendFailError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Failed to send project details', opts) {
-    super(message, opts)
-    this.name = 'ProjectDetailsSendFailError'
-    this.code = 'PROJECT_DETAILS_SEND_FAIL_ERROR'
-    this.status = 500
-  }
-}
-
-export class RPCDisconnectBeforeSendingError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'RPC disconnected before sending request', opts) {
-    super(message, opts)
-    this.name = 'RPCDisconnectBeforeSendingError'
-    this.code = 'RPC_DISCONNECT_BEFORE_SENDING_ERROR'
-    this.status = 499
-  }
-}
-
-export class RPCDisconnectBeforeAckError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(
-    message = 'RPC disconnected before receiving acknowledgement',
-    opts
-  ) {
-    super(message, opts)
-    this.name = 'RPCDisconnectBeforeAckError'
-    this.code = 'RPC_DISCONNECT_BEFORE_ACK_ERROR'
-    this.status = 499
-  }
-}
-
-export class TimeoutError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Operation timed out', opts) {
-    super(message, opts)
-    this.name = 'TimeoutError'
-    this.code = 'TIMEOUT_ERROR'
-    this.status = 504
-  }
-}
-
-export class UnsupportedMimeTypeError extends Error {
-  /**
-   * @param {string} mimeType
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(mimeType, opts) {
-    super(`Unsupported mimeType: ${mimeType}`, opts)
-    this.name = 'UnsupportedMimeTypeError'
-    this.code = 'UNSUPPORTED_MIME_TYPE_ERROR'
-    this.status = 415
-  }
-}
-
-export class InvalidCoreOwnershipError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Invalid coreOwnership record', opts) {
-    super(message, opts)
-    this.name = 'InvalidCoreOwnershipError'
-    this.code = 'INVALID_CORE_OWNERSHIP_ERROR'
-    this.status = 400
-  }
-}
-
-export class EmptyVariantsArrayError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Empty variants array', opts) {
-    super(message, opts)
-    this.name = 'EmptyVariantsArrayError'
-    this.code = 'EMPTY_VARIANTS_ARRAY_ERROR'
-    this.status = 400
-  }
-}
-
-export class NoVariantsExistError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'No variants exist', opts) {
-    super(message, opts)
-    this.name = 'NoVariantsExistError'
-    this.code = 'NO_VARIANTS_EXIST_ERROR'
-    this.status = 404
-  }
-}
-
-export class NoVariantsForMimeTypeError extends Error {
-  /**
-   * @param {string} wantedMimeType - The desired MIME type that is not available.
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(wantedMimeType, opts) {
-    super(`No variants with desired mime type ${wantedMimeType} exist`, opts)
-    this.name = 'NoVariantsForMimeTypeError'
-    this.code = 'NO_VARIANTS_FOR_MIME_TYPE_ERROR'
-    this.status = 404
-  }
-}
-
-export class EmptyIconPathError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(
-    message = 'IconId, size, and extension cannot be empty strings',
-    opts
-  ) {
-    super(message, opts)
-    this.name = 'EmptyIconPathError'
-    this.code = 'EMPTY_ICON_PATH_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidPixelDensityError extends Error {
-  /**
-   * @param {number} [pixelDensity]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(pixelDensity, opts) {
-    super(`Invalid pixel density: ${pixelDensity}`, opts)
-    this.name = 'InvalidPixelDensityError'
-    this.code = 'INVALID_PIXEL_DENSITY_ERROR'
-    this.status = 400
-  }
-}
-
-export class IconNotFoundError extends Error {
-  /**
-   * @param {string} [iconName]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(iconName, opts) {
-    super(`Icon ${iconName} not found in import file`, opts)
-    this.name = 'IconNotFoundError'
-    this.code = 'ICON_NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class KeyNotFoundError extends Error {
-  /**
-   * @param {string} key
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(key, opts) {
-    super(`Key ${key} not found in map`, opts)
-    this.name = 'KeyNotFoundError'
-    this.code = 'KEY_NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class ProjectExistsError extends Error {
-  /**
-   * @param {string} projectPublicId
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(projectPublicId, opts) {
-    super(`Project with ID ${projectPublicId} already exists`, opts)
-    this.name = 'ProjectExistsError'
-    this.code = 'PROJECT_EXISTS_ERROR'
-    this.status = 409
-  }
-}
-
-export class FailedToSetIsArchiveDeviceError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Failed to set isArchiveDevice', opts) {
-    super(message, opts)
-    this.name = 'FailedToSetIsArchiveDeviceError'
-    this.code = 'FAILED_TO_SET_IS_ARCHIVE_DEVICE_ERROR'
-    this.status = 500
-  }
-}
-
-export class EncryptionKeysNotFoundError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'EncryptionKeys should not be undefined', opts) {
-    super(message, opts)
-    this.name = 'EncryptionKeysNotFoundError'
-    this.code = 'ENCRYPTION_KEYS_NOT_FOUND_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidDeviceInfoError extends Error {
-  /**
-   * @param {string} [message] - Optional error message.
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(
-    message = 'Invalid deviceInfo record, cannot write deviceInfo for another device',
-    opts
-  ) {
-    super(message, opts)
-    this.name = 'InvalidDeviceInfoError'
-    this.code = 'INVALID_DEVICE_INFO_ERROR'
-    this.status = 400
-  }
-}
-
-export class RoleAssignError extends Error {
-  /**
-   * @param {string} message
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message, opts) {
-    super(message, opts)
-    this.name = 'RoleAssignError'
-    this.code = 'ROLE_ASSIGN_ERROR'
-    this.status = 403
-  }
-}
-
-export class UnsupportedAttachmentTypeError extends Error {
-  /**
-   * @param {string} [attachmentType]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(attachmentType, opts) {
-    super(`Cannot fetch URL for attachment type "${attachmentType}"`, opts)
-    this.name = 'UnsupportedAttachmentTypeError'
-    this.code = 'UNSUPPORTED_ATTACHMENT_TYPE_ERROR'
-    this.status = 415
-  }
-}
-
-export class UnexpectedEndOfStreamError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Entries stream ended unexpectedly', opts) {
-    super(message, opts)
-    this.name = 'UnexpectedEndOfStreamError'
-    this.code = 'UNEXPECTED_END_OF_STREAM_ERROR'
-    this.status = 499
-  }
-}
-
-export class DriveNotFoundError extends Error {
-  /**
-   * @param {string} driveId
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(driveId, opts) {
-    super(`Drive not found: ${driveId}`, opts)
-    this.name = 'DriveNotFoundError'
-    this.code = 'DRIVE_NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class BlobsNotFoundError extends Error {
-  /**
-   * @param {string} driveId
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(driveId, opts) {
-    super(`HyperBlobs not found for drive: ${driveId}`, opts)
-    this.name = 'BlobsNotFoundError'
-    this.code = 'BLOBS_NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class BlobReadError extends Error {
-  /**
-   *
-   * @param {string} path
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(path, opts) {
-    super(`Unable to find blob data at ${path}`, opts)
-    this.name = 'BlobReadError'
-    this.code = 'BLOB_READ_ERROR'
-    this.status = 404
-  }
-}
-
-export class MigrationError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Unable to complete Drizzle Database migration', opts)
-    this.name = 'MigrationError'
-    this.code = 'MIGRATION_ERROR'
-    this.status = 500
-  }
-}
-
-export class GeoJSONExportError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Unable to export GeoJSON file', opts)
-    this.name = 'GeoJSONExportError'
-    this.code = 'GEOJSON_EXPORT_ERROR'
-    this.status = 500
-  }
-}
-
-export class MissingWriterError extends Error {
-  /**
-   * @param {string} [namespace]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(namespace, opts) {
-    super(`Could not find a writer for the ${namespace} namespace`, opts)
-    this.name = 'MissingWriterError'
-    this.code = 'MISSING_WRITER_ERROR'
-    this.status = 404
-  }
-}
-
-export class UnsupportedCorestoreOptsError extends Error {
-  /** @param {unknown} [opts] */
-  constructor(opts) {
-    super(`Unsupported corestore.get() with opts: ${util.inspect(opts)}`)
-    this.name = 'UnsupportedCorestoreOptsError'
-    this.code = 'UNSUPPORTED_CORESTORE_OPTS_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidBitfieldError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Invalid RLE bitfield', opts)
-    this.name = 'InvalidBitfieldError'
-    this.code = 'INVALID_BITFIELD_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidDocSchemaError extends Error {
-  /**
-   * @param {string} [schemaName]
-   * @param {string} [namespace]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(schemaName, namespace, opts) {
-    super(
-      `Schema '${schemaName}' is not allowed in namespace '${namespace}'`,
-      opts
-    )
-    this.name = 'InvalidDocSchemaError'
-    this.code = 'INVALID_DOC_SCHEMA_ERROR'
-    this.status = 403
-  }
-}
-
-export class UnexpectedDocSchemaError extends Error {
-  /**
-   * @param {string?} gotSchema
-   * @param {string} expectedSchema
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(gotSchema, expectedSchema, opts) {
-    super(`Expected ${expectedSchema} but got ${gotSchema}`, opts)
-    this.name = 'UnexpectedDocSchemaError'
-    this.code = 'UNEXPECTED_DOC_SCHEMA_ERROR'
-    this.status = 403
-  }
-}
-
-export class WriterCoreNotReadyError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Writer core is not ready', opts)
-    this.name = 'WriterCoreNotReadyError'
-    this.code = 'WRITER_CORE_NOT_READY_ERROR'
-    this.status = 503
-  }
-}
-
-export class InvalidVersionIdError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Invalid versionId', opts)
-    this.name = 'InvalidVersionIdError'
-    this.code = 'INVALID_VERSION_ID_ERROR'
-    this.status = 404
-  }
-}
-
-export class InvalidDocFormatError extends Error {
-  /**
-   * @param {unknown} value
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(value, opts) {
-    super(`Invalid value: ${util.inspect(value)}`, opts)
-    this.name = 'InvalidDocFormatError'
-    this.code = 'INVALID_DOC_FORMAT_ERROR'
-    this.status = 400
-  }
-}
-
-export class DocAlreadyExistsError extends Error {
-  /**
-   * @param {string} docId
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(docId, opts) {
-    super(`Doc with docId ${docId} already exists`, opts)
-    this.name = 'DocAlreadyExistsError'
-    this.code = 'DOC_ALREADY_EXISTS_ERROR'
-    this.status = 409
-  }
-}
-
-export class DocAlreadyDeletedError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Doc already deleted', opts)
-    this.name = 'DocAlreadyDeletedError'
-    this.code = 'DOC_ALREADY_DELETED_ERROR'
-    this.status = 409
-  }
-}
-
-export class InvalidDocError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(
-    message = 'Updated docs must have the same docId and schemaName',
-    opts
-  ) {
-    super(message, opts)
-    this.name = 'InvalidDocError'
-    this.code = 'INVALID_DOC_ERROR'
-    this.status = 400
-  }
-}
-
-export class ServerNotListeningError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Server is not listening on a port', opts)
-    this.name = 'ServerNotListeningError'
-    this.code = 'SERVER_NOT_LISTENING_ERROR'
-    this.status = 503
-  }
-}
-
-export class UnsupportedVariantError extends Error {
-  /**
-   * @param {string} variant
-   * @param {string} type
-   * @param {ErrorOptions} [opts]
-   **/
-  constructor(variant, type, opts) {
-    super(`Unsupported variant "${variant}" for ${type}`, opts)
-    this.name = 'UnsupportedVariantError'
-    this.code = 'UNSUPPORTED_VARIANT_ERROR'
-    this.status = 400
-  }
-}
-
-export class BlobStoreEntryNotFoundError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-
-  constructor(opts) {
-    super('Blob store entry not found', opts)
-    this.name = 'BlobStoreEntryNotFoundError'
-    this.code = 'BLOB_STORE_ENTRY_NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class BlobNotFoundError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-
-  constructor(opts) {
-    super('Blob not found', opts)
-    this.name = 'BlobNotFoundError'
-    this.code = 'BLOB_NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class InvalidIconSizeError extends Error {
-  /**
-   * @param {string} value
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(value, opts) {
-    super(`'${value}' is not a valid icon size`, opts)
-    this.name = 'InvalidIconSizeError'
-    this.code = 'INVALID_ICON_SIZE_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidIconPixelDensityError extends Error {
-  /**
-   * @param {number} density
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(density, opts) {
-    super(`Invalid icon pixel density: ${density}`, opts)
-    this.name = 'InvalidIconPixelDensityError'
-    this.code = 'INVALID_ICON_PIXEL_DENSITY_ERROR'
-    this.status = 400
-  }
-}
-
-export class FailedToGetStyleError extends Error {
-  /**
-   * @param {URL} url
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(url, opts) {
-    super(`Failed to get style from ${url.href}`, opts)
-    this.name = 'FailedToGetStyleError'
-    this.code = 'FAILED_TO_GET_STYLE_ERROR'
-    this.status = 500
-  }
-}
-
-export class UnknownSchemaError extends Error {
-  /**
-   * @param {string} schemaName
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(schemaName, opts) {
-    super(`IndexWriter doesn't know a schema named "${schemaName}"`, opts)
-    this.name = 'UnknownSchemaError'
-    this.code = 'UNKNOWN_SCHEMA_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidLanguageTagError extends Error {
-  /**
-   * @param {string} languageTag
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(languageTag, opts) {
-    super(`Invalid BCP 47 language tag: ${languageTag}`, opts)
-    this.name = 'InvalidLanguageTagError'
-    this.code = 'INVALID_LANGUAGE_TAG_ERROR'
-    this.status = 400
-  }
-}
-
-export class DuplicateKeyError extends Error {
-  /**
-   * @param {*} key
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(key, opts) {
-    super(`Duplicate key: ${JSON.stringify(key)}`, opts)
-    this.name = 'DuplicateKeyError'
-    this.code = 'DUPLICATE_KEY_ERROR'
-    this.status = 409
-  }
-}
-
-export class InvalidComapeoSchemaFormatError extends Error {
-  /**
-   * @param {string} tableName
-   * @param {string} reason
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(tableName, reason, opts) {
-    super(
-      `Cannot process JSONSchema from @comapeo/schema for ${tableName} SQL table: ${reason}`,
-      opts
-    )
-    this.name = 'InvalidComapeoSchemaFormatError'
-    this.code = 'INVALID_COMAPEO_SCHEMA_FORMAT_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidBitfieldIndexError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super(`Index is not a multiple of 32`, opts)
-    this.name = 'InvalidBitfieldIndexError'
-    this.code = 'INVALID_BITFIELD_INDEX_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidUrlError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Invalid URL provided', opts)
-    this.name = 'InvalidUrlError'
-    this.code = 'INVALID_URL'
-    this.status = 400
-  }
-}
-
-export class AlreadyBlockedError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super(`Member already blocked`, opts)
-    this.name = 'AlreadyBlockedError'
-    this.code = 'ALREADY_BLOCKED_ERROR'
-    this.status = 403
-  }
-}
-
-export class DeviceIdNotForServerError extends Error {
-  /**
-   * @param {string} deviceId
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(deviceId, opts) {
-    super(`DeviceId ${deviceId} is not for a server peer`, opts)
-    this.name = 'DeviceIdNotForServerError'
-    this.code = 'DEVICE_ID_NOT_FOR_SERVER_ERROR'
-    this.status = 403
-  }
-}
-
-export class IncompleteProjectDataError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Project must have name to add server peer', opts)
-    this.name = 'IncompleteProjectDataError'
-    this.code = 'INCOMPLETE_PROJECT_DATA_ERROR'
-    this.status = 400
-  }
-}
-
-export class NetworkError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Network error', opts) {
-    super(message, opts)
-    this.name = 'NetworkError'
-    this.code = 'NETWORK_ERROR'
-    this.status = 502
-  }
-}
-
-export class InvalidServerResponseError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [options]
-   *    */
-  constructor(message = 'Invalid Server Response', options) {
-    super(message, options)
-    this.name = 'InvalidServerResponseError'
-    this.code = 'INVALID_SERVER_RESPONSE'
-    this.status = 502
-  }
-}
-
-export class ProjectNotInAllowlistError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super(
-      "The server only allows specific projects to be added, and this isn't one of them",
-      opts
-    )
-    this.name = 'ProjectNotInAllowlistError'
-    this.code = 'PROJECT_NOT_IN_SERVER_ALLOWLIST'
-    this.status = 403
-  }
-}
-
-export class ServerTooManyProjectsError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super(
-      "The server limits the number of projects it can have and it's at the limit",
-      opts
-    )
-    this.name = 'ServerTooManyProjectsError'
-    this.code = 'SERVER_HAS_TOO_MANY_PROJECTS'
-    this.status = 429
-  }
-}
-
-export class MissingOwnDeviceInfoError extends Error {
-  /**
-   * @param {ErrorOptions} opts
-   */
-  constructor(opts) {
-    super('Own device information is missing', opts)
-    this.name = 'MissingOwnDeviceInfoError'
-    this.code = 'MISSING_OWN_DEVICE_INFO_ERROR'
-    this.status = 400
-  }
-}
-
-export class CategoryFileNotFoundError extends Error {
-  /**
-   * @param {string} filePath
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(filePath, opts) {
-    super(`Category file not found at ${filePath}`, opts)
-    this.name = 'CategoryFileNotFoundError'
-    this.code = 'CATEGORY_FILE_NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class MultipleCategoryImportsError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Cannot run multiple category imports at the same time', opts)
-    this.name = 'MultipleCategoryImportsError'
-    this.code = 'MULTIPLE_CATEGORY_IMPORTS_ERROR'
-    this.status = 409
-  }
-}
-
-export class UnknownPeerError extends Error {
-  /**
-   * @param {string} deviceId
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(deviceId, opts) {
-    super('Unknown peer ' + deviceId, opts)
-    this.name = 'UnknownPeerError'
-    this.code = 'UNKNOWN_PEER_ERROR'
-    this.status = 404
-  }
-}
-
-export class PeerDisconnectedError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Peer disconnected', opts) {
-    super(message, opts)
-    this.name = 'PeerDisconnectedError'
-    this.code = 'PEER_DISCONNECTED_ERROR'
-    this.status = 504
-  }
-}
-
-export class PeerFailedConnectionError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Peer failed to connect before disconnect was called', opts)
-    this.name = 'PeerFailedConnectionError'
-    this.code = 'PEER_FAILED_CONNECTION_ERROR'
-    this.status = 408
-  }
-}
-
-export class UnknownError extends Error {
-  /**
-   * @param {any} err
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(err, opts) {
-    super(`An unexpected error type occurred: ${err}`, opts)
-    this.name = 'UnknownError'
-    this.code = 'UNKNOWN_ERROR'
-    this.status = 500
-  }
-}
-
-export class ExhaustivenessError extends Error {
-  /**
-   * @param {never} value
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(value, opts) {
-    super(`Exhaustiveness check failed. ${value} should be impossible`, opts)
-    this.name = 'ExhaustivenessError'
-    this.code = 'EXHAUSTIVENESS_ERROR'
-    this.status = 500
-  }
-}
-
-export class PeerNotFoundError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Peer not found', opts) {
-    super(message, opts)
-    this.name = 'PeerNotFoundError'
-    this.code = 'PEER_NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class InvalidMapShareError extends Error {
-  /**
-   * @param {string} message
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message, opts) {
-    super(message, opts)
-    this.name = 'InvalidMapShareError'
-    this.code = 'INVALID_MAP_SHARE_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidResponseBodyError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Response body is not valid', opts)
-    this.name = 'InvalidResponseBodyError'
-    this.code = 'INVALID_RESPONSE_BODY_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidInviteError extends Error {
-  /**
-   * @param {string} message
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message, opts) {
-    super(message, opts)
-    this.name = 'InvalidInviteError'
-    this.code = 'INVALID_INVITE_ERROR'
-    this.status = 400
-  }
-}
-
-export class InviteNotFoundError extends Error {
-  /**
-   * @param {Buffer} inviteId
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(inviteId, opts) {
-    super(`Cannot find invite ${inviteId.toString('hex')}`, opts)
-    this.name = 'InviteNotFoundError'
-    this.code = 'INVITE_NOT_FOUND_ERROR'
-    this.status = 404
-  }
-}
-
-export class AlreadyInvitingError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Already invited this device ID', opts) {
-    super(message, opts)
-    this.name = 'AlreadyInvitingError'
-    this.code = 'ALREADY_INVITING_ERROR'
-    this.status = 409
-  }
-}
-
-export class InvalidRoleIDForNewInviteError extends Error {
-  /**
-   * @param {string} roleId
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(roleId, opts) {
-    super(`Invalid role ID for new invite: ${roleId}`, opts)
-    this.name = 'InvalidRoleIDForNewInviteError'
-    this.code = 'INVALID_ROLE_ID_FOR_NEW_INVITE_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidProjectNameError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Project must have a name to invite people', opts) {
-    super(message, opts)
-    this.name = 'InvalidProjectNameError'
-    this.code = 'INVALID_PROJECT_NAME_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidProjectKeyError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(
-    message = 'Project owner core public key must be 32-byte buffer',
-    opts
-  ) {
-    super(message, opts)
-    this.name = 'InvalidProjectKeyError'
-    this.code = 'INVALID_PROJECT_KEY_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidProjectSecretKeyError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(
-    message = 'Project owner core secret key must be 64-byte buffer',
-    opts
-  ) {
-    super(message, opts)
-    this.name = 'InvalidProjectSecretKeyError'
-    this.code = 'INVALID_PROJECT_SECRET_KEY_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidProjectJoinDetailsError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message, opts) {
-    super(message, opts)
-    this.name = 'InvalidProjectJoinDetailsError'
-    this.code = 'INVALID_PROJECT_JOIN_DETAILS_ERROR'
-    this.status = 400
-  }
-}
-
-export class UnexpectedError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'An unexpected error occurred', opts) {
-    super(message, opts)
-    this.name = 'UnexpectedError'
-    this.code = 'UNEXPECTED_ERROR'
-    this.status = 500
-  }
-}
-
-export class AutoStopTimeoutError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(
-    message = 'Auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer',
-    opts
-  ) {
-    super(message, opts)
-    this.name = 'AutoStopTimeoutError'
-    this.code = 'AUTO_STOP_TIMEOUT_ERROR'
-    this.status = 400
-  }
-}
-
-export class MissingDiscoveryKeyError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(opts) {
-    super('Core should have a discovery key', opts)
-    this.name = 'MissingDiscoveryKeyError'
-    this.code = 'MISSING_DISCOVERY_KEY_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidDrizzleQueryResultError extends Error {
-  /**
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Expected query to return proper result', opts) {
-    super(message, opts)
-    this.name = 'InvalidDrizzleQueryResultError'
-    this.code = 'INVALID_DRIZZLE_QUERY_RESULT_ERROR'
-    this.status = 400
-  }
-}
-
-export class InvalidDrizzleJournalError extends Error {
-  /**
-   * @param {string} [message]
-   * @param {ErrorOptions} [opts]
-   */
-  constructor(message = 'Invalid journal', opts) {
-    super(message, opts)
-    this.name = 'InvalidDrizzleJournalError'
-    this.code = 'INVALID_DRIZZLE_JOURNAL_ERROR'
-    this.status = 400
-  }
-}
+import { createErrorClass } from 'custom-error-creator'
+
+export const NotFoundError = createErrorClass({
+  code: 'NOT_FOUND_ERROR',
+  message: 'Not found',
+  status: 404,
+})
+
+export const AlreadyJoinedError = createErrorClass({
+  code: 'ALREADY_JOINED_ERROR',
+  message: 'Already joined a project',
+  status: 409,
+})
+
+export const InviteSendError = createErrorClass({
+  code: 'INVITE_SEND_ERROR',
+  message: 'Failed to send invite',
+  status: 500,
+})
+
+export const InviteAbortedError = createErrorClass({
+  code: 'INVITE_ABORTED_ERROR',
+  message: 'Invite aborted',
+  status: 499,
+})
+
+export const ProjectDetailsSendFailError = createErrorClass({
+  code: 'PROJECT_DETAILS_SEND_FAIL_ERROR',
+  message: 'Failed to send project details',
+  status: 500,
+})
+
+export const RPCDisconnectBeforeSendingError = createErrorClass({
+  code: 'RPC_DISCONNECT_BEFORE_SENDING_ERROR',
+  message: 'RPC disconnected before sending request',
+  status: 499,
+})
+
+export const RPCDisconnectBeforeAckError = createErrorClass({
+  code: 'RPC_DISCONNECT_BEFORE_ACK_ERROR',
+  message: 'RPC disconnected before receiving acknowledgement',
+  status: 499,
+})
+
+export const TimeoutError = createErrorClass({
+  code: 'TIMEOUT_ERROR',
+  message: 'Operation timed out',
+  status: 504,
+})
+
+export const UnsupportedMimeTypeError = createErrorClass({
+  code: 'UNSUPPORTED_MIME_TYPE_ERROR',
+  message: 'Unsupported mimeType: {mimeType}',
+  status: 415,
+})
+
+export const InvalidCoreOwnershipError = createErrorClass({
+  code: 'INVALID_CORE_OWNERSHIP_ERROR',
+  message: 'Invalid coreOwnership record',
+  status: 400,
+})
+
+export const EmptyVariantsArrayError = createErrorClass({
+  code: 'EMPTY_VARIANTS_ARRAY_ERROR',
+  message: 'Empty variants array',
+  status: 400,
+})
+
+export const NoVariantsExistError = createErrorClass({
+  code: 'NO_VARIANTS_EXIST_ERROR',
+  message: 'No variants exist',
+  status: 404,
+})
+
+export const NoVariantsForMimeTypeError = createErrorClass({
+  code: 'NO_VARIANTS_FOR_MIME_TYPE_ERROR',
+  message: 'No variants with desired mime type {wantedMimeType} exist',
+  status: 404,
+})
+
+export const EmptyIconPathError = createErrorClass({
+  code: 'EMPTY_ICON_PATH_ERROR',
+  message: 'IconId, size, and extension cannot be empty strings',
+  status: 400,
+})
+
+export const InvalidPixelDensityError = createErrorClass({
+  code: 'INVALID_PIXEL_DENSITY_ERROR',
+  message: 'Invalid pixel density: {pixelDensity}',
+  status: 400,
+})
+
+export const IconNotFoundError = createErrorClass({
+  code: 'ICON_NOT_FOUND_ERROR',
+  message: 'Icon {iconName} not found in import file',
+  status: 404,
+})
+
+export const KeyNotFoundError = createErrorClass({
+  code: 'KEY_NOT_FOUND_ERROR',
+  message: 'Key {key} not found in map',
+  status: 404,
+})
+
+export const ProjectExistsError = createErrorClass({
+  code: 'PROJECT_EXISTS_ERROR',
+  message: 'Project with ID {projectPublicId} already exists',
+  status: 409,
+})
+
+export const FailedToSetIsArchiveDeviceError = createErrorClass({
+  code: 'FAILED_TO_SET_IS_ARCHIVE_DEVICE_ERROR',
+  message: 'Failed to set isArchiveDevice',
+  status: 500,
+})
+
+export const EncryptionKeysNotFoundError = createErrorClass({
+  code: 'ENCRYPTION_KEYS_NOT_FOUND_ERROR',
+  message: 'EncryptionKeys should not be undefined',
+  status: 400,
+})
+
+export const InvalidDeviceInfoError = createErrorClass({
+  code: 'INVALID_DEVICE_INFO_ERROR',
+  message:
+    'Invalid deviceInfo record, cannot write deviceInfo for another device',
+  status: 400,
+})
+
+export const RoleAssignError = createErrorClass({
+  code: 'ROLE_ASSIGN_ERROR',
+  message: '{message}',
+  status: 403,
+})
+
+export const UnsupportedAttachmentTypeError = createErrorClass({
+  code: 'UNSUPPORTED_ATTACHMENT_TYPE_ERROR',
+  message: 'Cannot fetch URL for attachment type "{attachmentType}"',
+  status: 415,
+})
+
+export const UnexpectedEndOfStreamError = createErrorClass({
+  code: 'UNEXPECTED_END_OF_STREAM_ERROR',
+  message: 'Entries stream ended unexpectedly',
+  status: 499,
+})
+
+export const DriveNotFoundError = createErrorClass({
+  code: 'DRIVE_NOT_FOUND_ERROR',
+  message: 'Drive not found: {driveId}',
+  status: 404,
+})
+
+export const BlobsNotFoundError = createErrorClass({
+  code: 'BLOBS_NOT_FOUND_ERROR',
+  message: 'HyperBlobs not found for drive: {driveId}',
+  status: 404,
+})
+
+export const BlobReadError = createErrorClass({
+  code: 'BLOB_READ_ERROR',
+  message: 'Unable to find blob data at {path}',
+  status: 404,
+})
+
+export const MigrationError = createErrorClass({
+  code: 'MIGRATION_ERROR',
+  message: 'Unable to complete Drizzle Database migration',
+  status: 500,
+})
+
+export const GeoJSONExportError = createErrorClass({
+  code: 'GEOJSON_EXPORT_ERROR',
+  message: 'Unable to export GeoJSON file',
+  status: 500,
+})
+
+export const MissingWriterError = createErrorClass({
+  code: 'MISSING_WRITER_ERROR',
+  message: 'Could not find a writer for the {namespace} namespace',
+  status: 404,
+})
+
+export const UnsupportedCorestoreOptsError = createErrorClass({
+  code: 'UNSUPPORTED_CORESTORE_OPTS_ERROR',
+  message: 'Unsupported corestore.get() with opts: {opts}',
+  status: 400,
+})
+
+export const InvalidBitfieldError = createErrorClass({
+  code: 'INVALID_BITFIELD_ERROR',
+  message: 'Invalid RLE bitfield',
+  status: 400,
+})
+
+export const InvalidDocSchemaError = createErrorClass({
+  code: 'INVALID_DOC_SCHEMA_ERROR',
+  message: "Schema '{schemaName}' is not allowed in namespace '{namespace}'",
+  status: 403,
+})
+
+export const UnexpectedDocSchemaError = createErrorClass({
+  code: 'UNEXPECTED_DOC_SCHEMA_ERROR',
+  message: 'Expected {expectedSchema} but got {gotSchema}',
+  status: 403,
+})
+
+export const WriterCoreNotReadyError = createErrorClass({
+  code: 'WRITER_CORE_NOT_READY_ERROR',
+  message: 'Writer core is not ready',
+  status: 503,
+})
+
+export const InvalidVersionIdError = createErrorClass({
+  code: 'INVALID_VERSION_ID_ERROR',
+  message: 'Invalid versionId',
+  status: 404,
+})
+
+export const InvalidDocFormatError = createErrorClass({
+  code: 'INVALID_DOC_FORMAT_ERROR',
+  message: 'Invalid value: {value}',
+  status: 400,
+})
+
+export const DocAlreadyExistsError = createErrorClass({
+  code: 'DOC_ALREADY_EXISTS_ERROR',
+  message: 'Doc with docId {docId} already exists',
+  status: 409,
+})
+
+export const DocAlreadyDeletedError = createErrorClass({
+  code: 'DOC_ALREADY_DELETED_ERROR',
+  message: 'Doc already deleted',
+  status: 409,
+})
+
+export const InvalidDocError = createErrorClass({
+  code: 'INVALID_DOC_ERROR',
+  message: 'Updated docs must have the same docId and schemaName',
+  status: 400,
+})
+
+export const ServerNotListeningError = createErrorClass({
+  code: 'SERVER_NOT_LISTENING_ERROR',
+  message: 'Server is not listening on a port',
+  status: 503,
+})
+
+export const UnsupportedVariantError = createErrorClass({
+  code: 'UNSUPPORTED_VARIANT_ERROR',
+  message: 'Unsupported variant "{variant}" for {type}',
+  status: 400,
+})
+
+export const BlobStoreEntryNotFoundError = createErrorClass({
+  code: 'BLOB_STORE_ENTRY_NOT_FOUND_ERROR',
+  message: 'Blob store entry not found',
+  status: 404,
+})
+
+export const BlobNotFoundError = createErrorClass({
+  code: 'BLOB_NOT_FOUND_ERROR',
+  message: 'Blob not found',
+  status: 404,
+})
+
+export const InvalidIconSizeError = createErrorClass({
+  code: 'INVALID_ICON_SIZE_ERROR',
+  message: "'{value}' is not a valid icon size",
+  status: 400,
+})
+
+export const InvalidIconPixelDensityError = createErrorClass({
+  code: 'INVALID_ICON_PIXEL_DENSITY_ERROR',
+  message: 'Invalid icon pixel density: {density}',
+  status: 400,
+})
+
+export const FailedToGetStyleError = createErrorClass({
+  code: 'FAILED_TO_GET_STYLE_ERROR',
+  message: 'Failed to get style from {href}',
+  status: 500,
+})
+
+export const UnknownSchemaError = createErrorClass({
+  code: 'UNKNOWN_SCHEMA_ERROR',
+  message: 'IndexWriter doesn\'t know a schema named "{schemaName}"',
+  status: 400,
+})
+
+export const InvalidLanguageTagError = createErrorClass({
+  code: 'INVALID_LANGUAGE_TAG_ERROR',
+  message: 'Invalid BCP 47 language tag: {languageTag}',
+  status: 400,
+})
+
+export const DuplicateKeyError = createErrorClass({
+  code: 'DUPLICATE_KEY_ERROR',
+  message: 'Duplicate key: {key}',
+  status: 409,
+})
+
+export const InvalidComapeoSchemaFormatError = createErrorClass({
+  code: 'INVALID_COMAPEO_SCHEMA_FORMAT_ERROR',
+  message:
+    'Cannot process JSONSchema from @comapeo/schema for {tableName} SQL table: {reason}',
+  status: 400,
+})
+
+export const InvalidBitfieldIndexError = createErrorClass({
+  code: 'INVALID_BITFIELD_INDEX_ERROR',
+  message: 'Index is not a multiple of 32',
+  status: 400,
+})
+
+export const InvalidUrlError = createErrorClass({
+  code: 'INVALID_URL',
+  message: 'Invalid URL provided',
+  status: 400,
+})
+
+export const AlreadyBlockedError = createErrorClass({
+  code: 'ALREADY_BLOCKED_ERROR',
+  message: 'Member already blocked',
+  status: 403,
+})
+
+export const DeviceIdNotForServerError = createErrorClass({
+  code: 'DEVICE_ID_NOT_FOR_SERVER_ERROR',
+  message: 'DeviceId {deviceId} is not for a server peer',
+  status: 403,
+})
+
+export const IncompleteProjectDataError = createErrorClass({
+  code: 'INCOMPLETE_PROJECT_DATA_ERROR',
+  message: 'Project must have name to add server peer',
+  status: 400,
+})
+
+export const NetworkError = createErrorClass({
+  code: 'NETWORK_ERROR',
+  message: 'Network error',
+  status: 502,
+})
+
+export const InvalidServerResponseError = createErrorClass({
+  code: 'INVALID_SERVER_RESPONSE',
+  message: 'Invalid Server Response',
+  status: 502,
+})
+
+export const ProjectNotInAllowlistError = createErrorClass({
+  code: 'PROJECT_NOT_IN_SERVER_ALLOWLIST',
+  message:
+    "The server only allows specific projects to be added, and this isn't one of them",
+  status: 403,
+})
+
+export const ServerTooManyProjectsError = createErrorClass({
+  code: 'SERVER_HAS_TOO_MANY_PROJECTS',
+  message:
+    "The server limits the number of projects it can have and it's at the limit",
+  status: 429,
+})
+
+export const MissingOwnDeviceInfoError = createErrorClass({
+  code: 'MISSING_OWN_DEVICE_INFO_ERROR',
+  message: 'Own device information is missing',
+  status: 400,
+})
+
+export const CategoryFileNotFoundError = createErrorClass({
+  code: 'CATEGORY_FILE_NOT_FOUND_ERROR',
+  message: 'Category file not found at {filePath}',
+  status: 404,
+})
+
+export const MultipleCategoryImportsError = createErrorClass({
+  code: 'MULTIPLE_CATEGORY_IMPORTS_ERROR',
+  message: 'Cannot run multiple category imports at the same time',
+  status: 409,
+})
+
+export const UnknownPeerError = createErrorClass({
+  code: 'UNKNOWN_PEER_ERROR',
+  message: 'Unknown peer {deviceId}',
+  status: 404,
+})
+
+export const PeerDisconnectedError = createErrorClass({
+  code: 'PEER_DISCONNECTED_ERROR',
+  message: 'Peer disconnected',
+  status: 504,
+})
+
+export const PeerFailedConnectionError = createErrorClass({
+  code: 'PEER_FAILED_CONNECTION_ERROR',
+  message: 'Peer failed to connect before disconnect was called',
+  status: 408,
+})
+
+export const UnknownError = createErrorClass({
+  code: 'UNKNOWN_ERROR',
+  message: 'An unexpected error type occurred: {err}',
+  status: 500,
+})
+
+export const ExhaustivenessError = createErrorClass({
+  code: 'EXHAUSTIVENESS_ERROR',
+  message: 'Exhaustiveness check failed. {value} should be impossible',
+  status: 500,
+})
+
+export const PeerNotFoundError = createErrorClass({
+  code: 'PEER_NOT_FOUND_ERROR',
+  message: 'Peer not found',
+  status: 404,
+})
+
+export const InvalidMapShareError = createErrorClass({
+  code: 'INVALID_MAP_SHARE_ERROR',
+  message: '{message}',
+  status: 400,
+})
+
+export const InvalidResponseBodyError = createErrorClass({
+  code: 'INVALID_RESPONSE_BODY_ERROR',
+  message: 'Response body is not valid',
+  status: 400,
+})
+
+export const InvalidInviteError = createErrorClass({
+  code: 'INVALID_INVITE_ERROR',
+  message: '{message}',
+  status: 400,
+})
+
+export const InviteNotFoundError = createErrorClass({
+  code: 'INVITE_NOT_FOUND_ERROR',
+  message: 'Cannot find invite {inviteId}',
+  status: 404,
+})
+
+export const AlreadyInvitingError = createErrorClass({
+  code: 'ALREADY_INVITING_ERROR',
+  message: 'Already invited this device ID',
+  status: 409,
+})
+
+export const InvalidRoleIDForNewInviteError = createErrorClass({
+  code: 'INVALID_ROLE_ID_FOR_NEW_INVITE_ERROR',
+  message: 'Invalid role ID for new invite: {roleId}',
+  status: 400,
+})
+
+export const InvalidProjectNameError = createErrorClass({
+  code: 'INVALID_PROJECT_NAME_ERROR',
+  message: 'Project must have a name to invite people',
+  status: 400,
+})
+
+export const InvalidProjectKeyError = createErrorClass({
+  code: 'INVALID_PROJECT_KEY_ERROR',
+  message: 'Project owner core public key must be 32-byte buffer',
+  status: 400,
+})
+
+export const InvalidProjectSecretKeyError = createErrorClass({
+  code: 'INVALID_PROJECT_SECRET_KEY_ERROR',
+  message: 'Project owner core secret key must be 64-byte buffer',
+  status: 400,
+})
+
+export const InvalidProjectJoinDetailsError = createErrorClass({
+  code: 'INVALID_PROJECT_JOIN_DETAILS_ERROR',
+  message: '{message}',
+  status: 400,
+})
+
+export const UnexpectedError = createErrorClass({
+  code: 'UNEXPECTED_ERROR',
+  message: 'An unexpected error occurred',
+  status: 500,
+})
+
+export const AutoStopTimeoutError = createErrorClass({
+  code: 'AUTO_STOP_TIMEOUT_ERROR',
+  message:
+    'Auto-stop timeout must be Infinity or a positive integer between 0 and the largest 32-bit signed integer',
+  status: 400,
+})
+
+export const MissingDiscoveryKeyError = createErrorClass({
+  code: 'MISSING_DISCOVERY_KEY_ERROR',
+  message: 'Core should have a discovery key',
+  status: 400,
+})
+
+export const InvalidDrizzleQueryResultError = createErrorClass({
+  code: 'INVALID_DRIZZLE_QUERY_RESULT_ERROR',
+  message: 'Expected query to return proper result',
+  status: 400,
+})
+
+export const InvalidDrizzleJournalError = createErrorClass({
+  code: 'INVALID_DRIZZLE_JOURNAL_ERROR',
+  message: 'Invalid journal',
+  status: 400,
+})
 
 /**
  * @param {unknown} err

@@ -18,7 +18,7 @@ export function keyBy(items, callbackFn) {
   for (const item of items) {
     const key = callbackFn(item)
     if (result.has(key)) {
-      throw new DuplicateKeyError(key)
+      throw new DuplicateKeyError({ key: `${key}` })
     }
     result.set(key, item)
   }

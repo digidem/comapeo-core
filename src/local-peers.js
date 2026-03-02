@@ -285,7 +285,7 @@ class Peer {
    * @returns {Promise<void>}
    */
   async [kTestOnlySendRawInvite](buf) {
-    this.#assertConnected()
+    this.#assertConnected('Peer not connected for test')
     const messageType = MESSAGE_TYPES.Invite
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
   }
@@ -413,7 +413,7 @@ class Peer {
     this.#features = deviceInfo.features
     this.#log('received deviceInfo %o', deviceInfo)
   }
-  /** @param {string} [message] */
+  /** @param {string} message */
   #assertConnected(message) {
     if (this.#state === 'connected' && !this.#channel.closed) return
     /* c8 ignore next */

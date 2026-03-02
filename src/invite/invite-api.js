@@ -205,7 +205,7 @@ export class InviteApi extends TypedEmitter {
 
     const invite = this.#invites.get(inviteId)
     if (!invite) {
-      throw new InviteNotFoundError(inviteId)
+      throw new InviteNotFoundError({ inviteId })
     }
 
     // TODO: Move this logging to the state machine
@@ -297,7 +297,7 @@ export class InviteApi extends TypedEmitter {
 
       const invite = this.#invites.get(inviteId)
       if (!invite) {
-        throw new InviteNotFoundError(inviteId)
+        throw new InviteNotFoundError({ inviteId })
       }
       assertCanSend(invite.actor, { type: 'ACCEPT_INVITE' })
 
@@ -339,7 +339,7 @@ export class InviteApi extends TypedEmitter {
 
     const invite = this.#invites.get(inviteId)
     if (!invite) {
-      throw new InviteNotFoundError(inviteId)
+      throw new InviteNotFoundError({ inviteId })
     }
     assertCanSend(invite.actor, { type: 'REJECT_INVITE' })
 

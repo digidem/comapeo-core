@@ -162,6 +162,6 @@ function assertValidPixelDensity(value) {
       /** @type {import('../icon-api.js').BitmapOpts['pixelDensity']} */ (value)
     )
   ) {
-    throw new InvalidIconPixelDensityError(value)
+    throw new InvalidIconPixelDensityError({ density: value })
   }
 }

@@ -70,7 +70,10 @@ async function routes(fastify, options) {
 
       if (!isValidBlobId(blobId)) {
         reply.code(400)
-        throw new UnsupportedVariantError(blobId.variant, blobId.type)
+        throw new UnsupportedVariantError({
+          variant: blobId.variant,
+          type: blobId.type,
+        })
       }
       const { driveId } = blobId
 

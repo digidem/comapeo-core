@@ -670,7 +670,10 @@ export class MapeoProject extends TypedEmitter {
           })
 
           if (doc.schemaName !== 'translation') {
-            throw new UnexpectedDocSchemaError(doc.schemaName, 'translation')
+            throw new UnexpectedDocSchemaError({
+              gotSchema: doc.schemaName,
+              expectedSchema: 'translation',
+            })
           }
 
           this.#translationApi.index(doc)
@@ -1227,7 +1230,7 @@ export class MapeoProject extends TypedEmitter {
 
       return filePath
     } catch (e) {
-      throw new GeoJSONExportError({ cause: e })
+      throw new GeoJSONExportError(undefined, { cause: e })
     }
   }
 
@@ -1403,7 +1406,7 @@ export class MapeoProject extends TypedEmitter {
 
       return filePath
     } catch (e) {
-      throw new GeoJSONExportError({ cause: e })
+      throw new GeoJSONExportError(undefined, { cause: e })
     }
   }
 

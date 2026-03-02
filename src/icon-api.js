@@ -277,7 +277,7 @@ export function constructIconPath({ size, pixelDensity, iconId, extension }) {
 
   if (typeof pixelDensity === 'number') {
     if (pixelDensity < 1) {
-      throw new InvalidPixelDensityError()
+      throw new InvalidPixelDensityError({ pixelDensity })
     }
     result += `@${pixelDensity}x`
   }
