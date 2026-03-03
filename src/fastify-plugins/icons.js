@@ -148,7 +148,7 @@ function assertValidSize(value) {
       value
     )
   ) {
-    throw new InvalidIconSizeError({ value: JSON.stringify(value) })
+    throw new InvalidIconSizeError({ value })
   }
 }
 
@@ -162,6 +162,6 @@ function assertValidPixelDensity(value) {
       /** @type {import('../icon-api.js').BitmapOpts['pixelDensity']} */ (value)
     )
   ) {
-    throw new InvalidIconPixelDensityError({ density: JSON.stringify(value) })
+    throw new InvalidIconPixelDensityError({ density: value })
   }
 }

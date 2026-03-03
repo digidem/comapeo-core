@@ -107,7 +107,7 @@ export function migrate(db, { migrationsFolder, migrationFns = {} }) {
 
     if (prevMigrationMillis === 0) return 'initialized database'
   } catch (e) {
-    throw new MigrationError(undefined, { cause: e })
+    throw new MigrationError({ cause: e })
   }
   return 'migrated'
 }

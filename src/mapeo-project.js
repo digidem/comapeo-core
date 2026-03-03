@@ -1230,7 +1230,7 @@ export class MapeoProject extends TypedEmitter {
 
       return filePath
     } catch (e) {
-      throw new GeoJSONExportError(undefined, { cause: e })
+      throw new GeoJSONExportError({ cause: e })
     }
   }
 
@@ -1406,7 +1406,7 @@ export class MapeoProject extends TypedEmitter {
 
       return filePath
     } catch (e) {
-      throw new GeoJSONExportError(undefined, { cause: e })
+      throw new GeoJSONExportError({ cause: e })
     }
   }
 

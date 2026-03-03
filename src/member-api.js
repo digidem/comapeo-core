@@ -561,7 +561,7 @@ export class MemberApi extends TypedEmitter {
       // Attempting to get someone else may throw because sync hasn't occurred or completed
       // Only throw if attempting to get themself since the relevant information should be available
       if (deviceId === this.#ownDeviceId) {
-        throw new MissingOwnDeviceInfoError(undefined, { cause: e })
+        throw new MissingOwnDeviceInfoError({ cause: e })
       }
     }
 
@@ -601,7 +601,7 @@ export class MemberApi extends TypedEmitter {
           // Attempting to get someone else may throw because sync hasn't occurred or completed
           // Only throw if attempting to get themself since the relevant information should be available
           if (deviceId === this.#ownDeviceId) {
-            throw new MissingOwnDeviceInfoError(undefined, { cause: e })
+            throw new MissingOwnDeviceInfoError({ cause: e })
           }
         }
 
