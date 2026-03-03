@@ -3,7 +3,6 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { sql, count, eq } from 'drizzle-orm'
-import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
@@ -292,8 +291,6 @@ export class MapeoProject extends TypedEmitter {
         switch (doc.schemaName) {
           case 'coreOwnership':
             return mapAndValidateCoreOwnership(doc, version)
-          case 'deviceInfo':
-            return mapAndValidateDeviceInfo(doc, version)
           default:
             return doc
         }
@@ -875,14 +872,9 @@ export class MapeoProject extends TypedEmitter {
 
   /**
    * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType' | 'selfHostedServerDetails'>} value
-   * @returns {Promise<import('@comapeo/schema').DeviceInfo>}
    */
   async [kSetOwnDeviceInfo](value) {
     const { deviceInfo } = this.#dataTypes
-
-    const configCoreId = this.#coreManager
-      .getWriterCore('config')
-      .key.toString('hex')
 
     const doc = {
       name: value.name,
@@ -891,13 +883,22 @@ export class MapeoProject extends TypedEmitter {
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 
-    const existingDoc = await deviceInfo
-      .getByDocId(configCoreId)
-      .catch(nullIfNotFound)
-    if (existingDoc) {
-      return await deviceInfo.update(existingDoc.versionId, doc)
-    } else {
-      return await deviceInfo[kCreateWithDocId](configCoreId, doc)
+    // TODO: Remove configCore once we know everyone has deviceId
+    const configCoreId = this.#coreManager
+      .getWriterCore('config')
+      .key.toString('hex')
+
+    const docIds = [this.deviceId, configCoreId]
+
+    for (const docId of docIds) {
+      const existingDoc = await deviceInfo
+        .getByDocId(docId)
+        .catch(nullIfNotFound)
+      if (existingDoc) {
+        await deviceInfo.update(existingDoc.versionId, doc)
+      } else {
+        await deviceInfo[kCreateWithDocId](docId, doc)
+      }
     }
   }
 
@@ -1522,26 +1523,6 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
   }
 
   return keypairs
-}
-
-/**
- * Validate that a deviceInfo record is written by the device that is it about,
- * e.g. version.coreKey should equal docId
- *
- * @param {import('@comapeo/schema').DeviceInfo} doc
- * @param {import('@comapeo/schema').VersionIdObject} version
- * @returns {import('@comapeo/schema').DeviceInfo}
- */
-function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
-  // Skip validating docs without links
-  // Validation will happen inside member-api
-  if (doc.links.length === 0) return doc
-  if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
-    throw new Error(
-      'Invalid deviceInfo record, cannot write deviceInfo for another device'
-    )
-  }
-  return doc
 }
 
 /**

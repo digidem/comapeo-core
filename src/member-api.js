@@ -587,18 +587,17 @@ export class MemberApi extends TypedEmitter {
    */
   async #getDeviceInfo(deviceId) {
     try {
+      const deviceInfo = await this.#dataTypes.deviceInfo.getByDocId(deviceId)
+
+      return deviceInfo
+    } catch (e) {
       const configCoreId = await this.#coreOwnership.getCoreId(
         deviceId,
         'config'
       )
-
       const deviceInfo = await this.#dataTypes.deviceInfo.getByDocId(
         configCoreId
       )
-
-      return deviceInfo
-    } catch (e) {
-      const deviceInfo = await this.#dataTypes.deviceInfo.getByDocId(deviceId)
 
       return deviceInfo
     }
