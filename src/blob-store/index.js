@@ -7,7 +7,13 @@ import { noop } from '../utils.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { HyperdriveIndexImpl as HyperdriveIndex } from './hyperdrive-index.js'
 import { Logger } from '../logger.js'
-import { getErrorCode, getErrorMessage } from '../lib/error.js'
+import {
+  BlobNotFoundError,
+  getErrorCode,
+  BlobsNotFoundError,
+  DriveNotFoundError,
+} from '../errors.js'
+import ensureError from 'ensure-error'
 
 /** @import Hyperdrive from 'hyperdrive' */
 /** @import { JsonObject } from 'type-fest' */
@@ -50,13 +56,6 @@ const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
   photo: ['preview', 'thumbnail'],
   // Don't download any audio of video files, since previews and
   // thumbnails aren't supported yet.
-}
-
-class ErrNotFound extends Error {
-  constructor(message = 'NotFound') {
-    super(message)
-    this.code = 'ENOENT'
-  }
 }
 
 /** @extends {TypedEmitter<BlobStoreEvents>} */
@@ -110,12 +109,12 @@ export class BlobStore extends TypedEmitter {
           blobCoreId,
         })
       }
-    } catch (err) {
-      if (getErrorCode(err) === 'ERR_STREAM_PREMATURE_CLOSE') return
+    } catch (e) {
+      if (getErrorCode(e) === 'ERR_STREAM_PREMATURE_CLOSE') return
       this.#l.log(
         'Error getting blob entries stream for peer %h: %s',
         peerId,
-        getErrorMessage(err)
+        ensureError(e).message
       )
     }
   }
@@ -217,7 +216,7 @@ export class BlobStore extends TypedEmitter {
    */
   #getDrive(driveId) {
     const drive = this.#driveIndex.get(driveId)
-    if (!drive) throw new Error('Drive not found ' + driveId.slice(0, 7))
+    if (!drive) throw new DriveNotFoundError({ driveId: driveId.slice(0, 7) })
     return drive
   }
 
@@ -232,7 +231,7 @@ export class BlobStore extends TypedEmitter {
     const drive = this.#getDrive(driveId)
     const path = makePath({ type, variant, name })
     const blob = await drive.get(path, { wait, timeout })
-    if (!blob) throw new ErrNotFound()
+    if (!blob) throw new BlobNotFoundError()
     return blob
   }
 
@@ -285,9 +284,7 @@ export class BlobStore extends TypedEmitter {
     const blobs = await drive.getBlobs()
 
     if (!blobs) {
-      throw new Error(
-        'Hyperblobs instance not found for drive ' + driveId.slice(0, 7)
-      )
+      throw new BlobsNotFoundError({ driveId: driveId.slice(0, 7) })
     }
 
     return blobs.createReadStream(entry.value.blob, options)
@@ -305,9 +302,7 @@ export class BlobStore extends TypedEmitter {
     const blobs = await drive.getBlobs()
 
     if (!blobs) {
-      throw new Error(
-        'Hyperblobs instance not found for drive ' + driveId.slice(0, 7)
-      )
+      throw new BlobsNotFoundError({ driveId: driveId.slice(0, 7) })
     }
 
     return blobs.get(entry.value.blob, { wait: false, start: 0, length })
@@ -380,7 +375,7 @@ export class BlobStore extends TypedEmitter {
     options = { follow: false, wait: false }
   ) {
     const drive = this.#driveIndex.get(driveId)
-    if (!drive) throw new Error('Drive not found ' + driveId.slice(0, 7))
+    if (!drive) throw new DriveNotFoundError({ driveId: driveId.slice(0, 7) })
     const path = makePath({ type, variant, name })
     const entry = await drive.entry(path, options)
     return entry

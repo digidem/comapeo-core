@@ -2,6 +2,7 @@ import fs from 'node:fs'
 // @ts-expect-error - pipelinePromise missing from streamx types
 import { Transform, pipelinePromise as pipeline } from 'streamx'
 import { createHash, randomBytes } from 'node:crypto'
+import { BlobReadError, UnsupportedMimeTypeError } from './errors.js'
 /** @import { BlobId, BlobType } from './types.js' */
 
 /**
@@ -57,8 +58,13 @@ export class BlobApi {
       { type, variant: 'original', name },
       { metadata }
     )
+
     const writePromises = [
-      pipeline(fs.createReadStream(original), hashTransform(hash), ws),
+      pipeline(fs.createReadStream(original), hashTransform(hash), ws).catch(
+        (/** @type {Error} */ e) => {
+          throw new BlobReadError(original, { cause: e })
+        }
+      ),
     ]
 
     if (preview) {
@@ -66,7 +72,14 @@ export class BlobApi {
         { type, variant: 'preview', name },
         { metadata }
       )
-      writePromises.push(pipeline(fs.createReadStream(preview), ws))
+
+      writePromises.push(
+        pipeline(fs.createReadStream(preview), ws).catch(
+          (/** @type {Error} */ e) => {
+            throw new BlobReadError(preview, { cause: e })
+          }
+        )
+      )
     }
 
     if (thumbnail) {
@@ -74,7 +87,14 @@ export class BlobApi {
         { type, variant: 'thumbnail', name },
         { metadata }
       )
-      writePromises.push(pipeline(fs.createReadStream(thumbnail), ws))
+
+      writePromises.push(
+        pipeline(fs.createReadStream(thumbnail), ws).catch(
+          (/** @type {Error} */ e) => {
+            throw new BlobReadError(thumbnail, { cause: e })
+          }
+        )
+      )
     }
 
     await Promise.all(writePromises)
@@ -109,5 +129,5 @@ function getType(mimeType) {
   if (mimeType.startsWith('video')) return 'video'
   if (mimeType.startsWith('audio')) return 'audio'
 
-  throw new Error(`Unsupported mimeType: ${mimeType}`)
+  throw new UnsupportedMimeTypeError({ mimeType })
 }

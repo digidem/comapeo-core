@@ -1,5 +1,8 @@
 import { text, integer, real, sqliteTable } from 'drizzle-orm/sqlite-core'
-import { ExhaustivenessError } from '../utils.js'
+import {
+  InvalidComapeoSchemaFormatError,
+  ExhaustivenessError,
+} from '../errors.js'
 
 /**
  * @template {{ [ K in keyof TSchema['properties'] ]?: any }} TObjectType
@@ -20,14 +23,20 @@ export function jsonSchemaToDrizzleSqliteTable(
   { additionalColumns, primaryKey } = {}
 ) {
   if (schema.type !== 'object' || !schema.properties) {
-    throw new Error('Cannot process JSONSchema as SQL table')
+    throw new InvalidComapeoSchemaFormatError({
+      tableName,
+      reason: 'Missing schema properties',
+    })
   }
   /** @type {Record<string, any>} */
   const columns = {}
   for (const [key, value] of Object.entries(schema.properties)) {
     if (typeof value !== 'object') continue
     if (isArray(value.type) || typeof value.type === 'undefined') {
-      throw new Error('Cannot process JSONSchema as SQL table')
+      throw new InvalidComapeoSchemaFormatError({
+        tableName,
+        reason: 'Columns must have single known type',
+      })
     }
     switch (value.type) {
       case 'boolean':
@@ -56,7 +65,7 @@ export function jsonSchemaToDrizzleSqliteTable(
         // Skip handling this right now
         continue
       default:
-        throw new ExhaustivenessError(value.type)
+        throw new ExhaustivenessError({ value: value.type })
     }
     if (isRequired(schema, key)) {
       columns[key] = columns[key].notNull()

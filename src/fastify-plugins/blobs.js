@@ -5,7 +5,13 @@ import { Type as T } from '@sinclair/typebox'
 
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
-import { getErrorMessage } from '../lib/error.js'
+import { ensureKnownError } from '../errors.js'
+import {
+  BlobNotFoundError,
+  BlobStoreEntryNotFoundError,
+  UnsupportedVariantError,
+} from '../errors.js'
+import ensureError from 'ensure-error'
 
 /** @import { BlobId } from '../types.js' */
 
@@ -45,7 +51,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & BlobServerPluginOpts>} */
 async function blobServerPlugin(fastify, options) {
-  if (!options.getBlobStore) throw new Error('Missing getBlobStore')
+  if (!options.getBlobStore) throw new TypeError('Missing getBlobStore')
 
   // We call register here so that the `prefix` option can work if desired
   // https://fastify.dev/docs/latest/Reference/Routes#route-prefixing-and-fastify-plugin
@@ -64,9 +70,10 @@ async function routes(fastify, options) {
 
       if (!isValidBlobId(blobId)) {
         reply.code(400)
-        throw new Error(
-          `Unsupported variant "${blobId.variant}" for ${blobId.type}`
-        )
+        throw new UnsupportedVariantError({
+          variant: blobId.variant,
+          type: blobId.type,
+        })
       }
       const { driveId } = blobId
 
@@ -75,7 +82,7 @@ async function routes(fastify, options) {
         blobStore = await getBlobStore(projectPublicId)
       } catch (e) {
         reply.code(404)
-        throw e
+        throw ensureKnownError(e)
       }
 
       let entry
@@ -83,12 +90,12 @@ async function routes(fastify, options) {
         entry = await blobStore.entry(blobId, { wait: false })
       } catch (e) {
         reply.code(404)
-        throw e
+        throw ensureKnownError(e)
       }
 
       if (!entry) {
         reply.code(404)
-        throw new Error('Entry not found')
+        throw new BlobStoreEntryNotFoundError()
       }
 
       const { metadata } = entry.value
@@ -98,19 +105,19 @@ async function routes(fastify, options) {
         blobStream = await blobStore.createReadStreamFromEntry(driveId, entry)
       } catch (e) {
         reply.code(404)
-        throw e
+        throw ensureKnownError(e)
       }
 
       try {
         await pEvent(blobStream, 'readable', { rejectionEvents: ['error'] })
-      } catch (err) {
+      } catch (e) {
         // This matches [how Hyperblobs checks if a blob is unavailable][0].
         // [0]: https://github.com/holepunchto/hyperblobs/blob/518088d2b828082fd70a276fa2c8848a2cf2a56b/index.js#L49
-        if (getErrorMessage(err) === 'Block not available') {
+        if (ensureError(e).message === 'Block not available') {
           reply.code(404)
-          throw new Error('Blob not found')
+          throw new BlobNotFoundError()
         } else {
-          throw err
+          throw ensureKnownError(e)
         }
       }
 
@@ -130,7 +137,7 @@ async function routes(fastify, options) {
 
         if (!blobSlice) {
           reply.code(404)
-          throw new Error('Blob not found')
+          throw new BlobNotFoundError()
         }
 
         const [guessedMime] = filetypemime(blobSlice)

@@ -1,6 +1,6 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { InviteResponse_Decision } from '../generated/rpc.js'
-import { assert, keyToId, noop } from '../utils.js'
+import { keyToId, noop } from '../utils.js'
 import HashMap from '../lib/hashmap.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { Logger } from '../logger.js'
@@ -10,6 +10,8 @@ import {
   NotFoundError,
   AlreadyJoinedError,
   InviteSendError,
+  ensureKnownError,
+  InviteNotFoundError,
 } from '../errors.js'
 
 /** @import { ProjectToAddDetails } from '../mapeo-manager.js' */
@@ -79,24 +81,24 @@ export class InviteApi extends TypedEmitter {
     this.rpc.on('invite', (...args) => {
       try {
         this.#handleNewInvite(...args)
-      } catch (err) {
-        console.error('Error handling invite', err)
+      } catch (e) {
+        this.#l.log('ERROR: could not handle invite', e)
       }
     })
 
     this.rpc.on('invite-cancel', (_peerId, inviteCancel) => {
       try {
         this.#handleInviteCancel(inviteCancel)
-      } catch (err) {
-        console.error('Error handling invite cancel', err)
+      } catch (e) {
+        this.#l.log('ERROR: could not handle invite cancel', e)
       }
     })
 
     this.rpc.on('got-project-details', (peerId, projectJoinDetails) => {
       try {
         this.#handleGotProjectDetails(peerId, projectJoinDetails)
-      } catch (err) {
-        console.error('Error handling got-project-details', err)
+      } catch (e) {
+        this.#l.log('ERROR: could not handle got-project-details', e)
       }
     })
   }
@@ -204,7 +206,9 @@ export class InviteApi extends TypedEmitter {
     this.#l.log('Received invite cancel for invite ID %h', inviteId)
 
     const invite = this.#invites.get(inviteId)
-    assert(!!invite, `Cannot find invite ${inviteId.toString('hex')}`)
+    if (!invite) {
+      throw new InviteNotFoundError({ inviteId: inviteId.toString('hex') })
+    }
 
     // TODO: Move this logging to the state machine
     const state = invite.actor.getSnapshot()
@@ -294,10 +298,9 @@ export class InviteApi extends TypedEmitter {
       const inviteId = Buffer.from(inviteIdString, 'hex')
 
       const invite = this.#invites.get(inviteId)
-      assert(
-        !!invite,
-        new NotFoundError(`Cannot find invite ${inviteIdString}`)
-      )
+      if (!invite) {
+        throw new InviteNotFoundError({ inviteId: inviteId.toString('hex') })
+      }
       assertCanSend(invite.actor, { type: 'ACCEPT_INVITE' })
 
       this.#l.log('Accepting invite %h', inviteId)
@@ -323,9 +326,9 @@ export class InviteApi extends TypedEmitter {
       }
 
       return projectPublicId
-    } catch (err) {
-      this.#l.log('ERROR: Unable to accept invite', err)
-      throw err
+    } catch (e) {
+      this.#l.log('ERROR: Unable to accept invite', e)
+      throw ensureKnownError(e)
     }
   }
 
@@ -337,7 +340,9 @@ export class InviteApi extends TypedEmitter {
     const inviteId = Buffer.from(inviteIdString, 'hex')
 
     const invite = this.#invites.get(inviteId)
-    assert(!!invite, `Cannot find invite ${inviteIdString}`)
+    if (!invite) {
+      throw new InviteNotFoundError({ inviteId: inviteId.toString('hex') })
+    }
     assertCanSend(invite.actor, { type: 'REJECT_INVITE' })
 
     this.#l.log('Rejecting invite %h', inviteId)
@@ -383,14 +388,13 @@ function toInvite(internal, snapshot, invitorDeviceId) {
  */
 function assertCanSend(actor, eventType) {
   const state = actor.getSnapshot()
-  assert(
-    state.can(eventType),
-    new InviteSendError(
+  if (!state.can(eventType)) {
+    throw new InviteSendError(
       `Cannot send ${JSON.stringify(eventType)} in state ${toStateString(
         state.value
       )}`
     )
-  )
+  }
 }
 
 /**

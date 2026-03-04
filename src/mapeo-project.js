@@ -42,9 +42,7 @@ import {
   INACTIVE_MEMBER_ROLE_IDS,
 } from './roles.js'
 import {
-  assert,
   buildBlobId,
-  ExhaustivenessError,
   getDeviceId,
   projectKeyToId,
   projectKeyToPublicId,
@@ -63,9 +61,22 @@ import { Logger } from './logger.js'
 import { IconApi } from './icon-api.js'
 import { importCategories } from './import-categories.js'
 import TranslationApi from './translation-api.js'
-import { NotFoundError, nullIfNotFound } from './errors.js'
+import {
+  CategoryFileNotFoundError,
+  ensureKnownError,
+  getErrorCode,
+  InvalidDeviceInfoError,
+  NotFoundError,
+  ExhaustivenessError,
+  nullIfNotFound,
+  GeoJSONExportError,
+  InvalidMapShareError,
+  MultipleCategoryImportsError,
+  UnexpectedDocSchemaError,
+} from './errors.js'
 import { WebSocket } from 'ws'
-import { createWriteStream } from 'fs'
+import fs from 'node:fs'
+
 import ensureError from 'ensure-error'
 /** @import { MapShareExtension } from './generated/extensions.js' */
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
@@ -234,7 +245,7 @@ export class MapeoProject extends TypedEmitter {
         reindex = true
         break
       default:
-        throw new ExhaustivenessError(migrationResult)
+        throw new ExhaustivenessError({ value: migrationResult })
     }
 
     const indexedTables = [
@@ -446,12 +457,12 @@ export class MapeoProject extends TypedEmitter {
       logger: this.#l,
     })
 
-    this.#blobStore.on('error', (err) => {
+    this.#blobStore.on('error', (e) => {
       // Ignore hypercore inflight request cancellation
-      if (ensureError(err).message.includes('REQUEST_CANCELLED')) return
+      if (ensureError(e).message.includes('REQUEST_CANCELLED')) return
       // TODO: Handle this error in some way - this error will come from an
       // unexpected error with background blob downloads
-      console.error('BlobStore error', err)
+      console.error('BlobStore error', e)
     })
 
     this.$blobs = new BlobApi({
@@ -655,7 +666,13 @@ export class MapeoProject extends TypedEmitter {
             index: entry.index,
           })
 
-          assert(doc.schemaName === 'translation', 'expected a translation doc')
+          if (doc.schemaName !== 'translation') {
+            throw new UnexpectedDocSchemaError({
+              gotSchema: doc.schemaName,
+              expectedSchema: 'translation',
+            })
+          }
+
           this.#translationApi.index(doc)
           otherEntries.push(entry)
         } else {
@@ -741,7 +758,7 @@ export class MapeoProject extends TypedEmitter {
       return extractEditableProjectSettings(
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
-    } catch (e) {
+    } catch {
       // if (e instanceof Error && e.name !== 'NotFoundError') throw e
       // If the project has not completed an initial sync, project settings will
       // not be available, so use fallback project info which is set from the
@@ -759,7 +776,7 @@ export class MapeoProject extends TypedEmitter {
       // Should error if we haven't synced before
       await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       return true
-    } catch (e) {
+    } catch {
       return false
     }
   }
@@ -797,7 +814,7 @@ export class MapeoProject extends TypedEmitter {
     const sender = await this.$member.getById(senderDeviceId)
 
     if (INACTIVE_MEMBER_ROLE_IDS.includes(sender.role.roleId)) {
-      throw new Error(
+      throw new InvalidMapShareError(
         `Map Share Sender is not an active member of the project (role: ${sender.role.name})`
       )
     }
@@ -1206,10 +1223,16 @@ export class MapeoProject extends TypedEmitter {
     const fileName = await this[kGeoJSONFileName](observations, tracks)
     const filePath = path.join(exportFolder, fileName)
     const source = this.#exportGeoJSONStream({ observations, tracks, lang })
-    const sink = createWriteStream(filePath)
-    await pipelinePromise(source, sink)
 
-    return filePath
+    const sink = fs.createWriteStream(filePath)
+
+    try {
+      await pipelinePromise(source, sink)
+
+      return filePath
+    } catch (e) {
+      throw new GeoJSONExportError({ cause: e })
+    }
   }
 
   /**
@@ -1243,12 +1266,11 @@ export class MapeoProject extends TypedEmitter {
         }
         return { blobId, mimeType }
       } catch (e) {
-        if (!(e instanceof Error)) throw e
         this.#l.log(
           'Error loading blob id for attachment',
           attachment,
           variant,
-          e.message
+          ensureError(e).message
         )
         continue
       }
@@ -1351,7 +1373,7 @@ export class MapeoProject extends TypedEmitter {
       tracks,
       attachments,
       lang,
-    }).catch((e) => archive.emit('error', e))
+    }).catch((e) => archive.emit('error', ensureError(e)))
 
     // @ts-expect-error
     return archive
@@ -1379,10 +1401,14 @@ export class MapeoProject extends TypedEmitter {
       attachments,
       lang,
     })
-    const sink = createWriteStream(filePath)
-    await pipelinePromise(source, sink)
+    const sink = fs.createWriteStream(filePath)
+    try {
+      await pipelinePromise(source, sink)
 
-    return filePath
+      return filePath
+    } catch (e) {
+      throw new GeoJSONExportError({ cause: e })
+    }
   }
 
   async [kProjectLeave]() {
@@ -1451,17 +1477,19 @@ export class MapeoProject extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async $importCategories({ filePath }) {
-    assert(
-      !this.#importingCategories,
-      'Cannot run multiple category imports at the same time'
-    )
+    if (this.#importingCategories) {
+      throw new MultipleCategoryImportsError()
+    }
     this.#importingCategories = true
 
     try {
       await importCategories(this, { filePath, logger: this.#l })
     } catch (e) {
-      this.#l.log('error loading config', e)
-      throw e
+      if (getErrorCode(e) === 'ENOENT') {
+        throw new CategoryFileNotFoundError({ filePath })
+      }
+      this.#l.log('ERROR: could not load config', e)
+      throw ensureKnownError(e)
     } finally {
       this.#importingCategories = false
     }
@@ -1526,6 +1554,24 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
 }
 
 /**
+<<<<<<< feat/invitor-sets-device-info
+=======
+ * Validate that a deviceInfo record is written by the device that is it about,
+ * e.g. version.coreKey should equal docId
+ *
+ * @param {import('@comapeo/schema').DeviceInfo} doc
+ * @param {import('@comapeo/schema').VersionIdObject} version
+ * @returns {import('@comapeo/schema').DeviceInfo}
+ */
+function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
+  if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
+    throw new InvalidDeviceInfoError()
+  }
+  return doc
+}
+
+/**
+>>>>>>> main
  *
  * @param {string} baseUrl
  * @param {string} projectPublicId

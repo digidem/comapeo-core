@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'crypto'
-import { ExhaustivenessError, valueOf } from '../src/utils.js'
+import { valueOf } from '../src/utils.js'
 import {
   createManager,
   sortById,
@@ -13,6 +13,7 @@ import {
 import { round } from './utils.js'
 import { generate } from '@mapeo/mock-data'
 import { setTimeout as delay } from 'timers/promises'
+import { ExhaustivenessError } from '../src/errors.js'
 /**
  * @import {
  *   FieldValue,
@@ -108,7 +109,7 @@ function create(project, value) {
     case 'track':
       return project[value.schemaName].create(value)
     default:
-      throw new ExhaustivenessError(value)
+      throw new ExhaustivenessError({ value })
   }
 }
 
@@ -153,7 +154,7 @@ function createWithMockData(project, schemaName, count) {
         )
       )
     default:
-      throw new ExhaustivenessError(schemaName)
+      throw new ExhaustivenessError({ value: schemaName })
   }
 }
 
@@ -178,7 +179,7 @@ function update(project, versionId, value) {
     case 'track':
       return project[value.schemaName].update(versionId, value)
     default:
-      throw new ExhaustivenessError(value)
+      throw new ExhaustivenessError({ value })
   }
 }
 
