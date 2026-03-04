@@ -39,18 +39,22 @@ import {
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
   BLOCKED_ROLE_ID,
+  COORDINATOR_ROLE_ID,
+  CREATOR_ROLE_ID,
   LEFT_ROLE_ID,
   MEMBER_ROLE_ID,
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
 
+const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
+
 /**
  * @import {
  *   DeviceInfo,
  *   DeviceInfoValue,
  *   ProjectSettings,
- *   ProjectSettingsValue
+ *   ProjectSettingsValue,
  * } from '@comapeo/schema'
  */
 /** @import { Promisable } from 'type-fest' */
@@ -72,6 +76,10 @@ import {
  * @prop {DeviceInfo['createdAt']} [joinedAt]
  * @prop {object} [selfHostedServerDetails]
  * @prop {string} selfHostedServerDetails.baseUrl
+ */
+
+/**
+ * @typedef {Omit<MemberInfo, 'role'> & {role: import('./roles.js').Role<typeof MEMBER_ROLE_ID | typeof COORDINATOR_ROLE_ID | typeof CREATOR_ROLE_ID>}} ActiveMemberInfo
  */
 
 export class MemberApi extends TypedEmitter {
@@ -571,9 +579,20 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
-   * @returns {Promise<Array<MemberInfo>>}
+   * @overload
+   * @returns {Promise<Array<ActiveMemberInfo>>}
    */
-  async getMany() {
+  /**
+   * @template {boolean} [T=false]
+   *
+   * @overload
+   * @param {Object} opts
+   * @param {T} [opts.includeLeft=false]
+   *
+   * @returns {Promise<T extends true ? Array<MemberInfo> : Array<ActiveMemberInfo>>}
+   *
+   */
+  async getMany({ includeLeft = false } = {}) {
     const [allRoles, allDeviceInfo] = await Promise.all([
       this.#roles.getAll(),
       this.#dataTypes.deviceInfo.getMany(),
@@ -581,8 +600,17 @@ export class MemberApi extends TypedEmitter {
 
     const deviceInfoByConfigCoreId = keyBy(allDeviceInfo, ({ docId }) => docId)
 
-    return Promise.all(
-      [...allRoles.entries()].map(async ([deviceId, role]) => {
+    /**
+     * @type {Array<Promise<MemberInfo>>}
+     */
+    const activeMemberInfoPromises = []
+
+    for (const [deviceId, role] of allRoles.entries()) {
+      if (!includeLeft && !isActiveMemberRole(role)) {
+        continue
+      }
+
+      const getMemberInfo = async () => {
         /** @type {MemberInfo} */
         const memberInfo = { deviceId, role }
 
@@ -608,8 +636,11 @@ export class MemberApi extends TypedEmitter {
         }
 
         return memberInfo
-      })
-    )
+      }
+      activeMemberInfoPromises.push(getMemberInfo())
+    }
+
+    return Promise.all(activeMemberInfoPromises)
   }
 
   /**
@@ -620,6 +651,15 @@ export class MemberApi extends TypedEmitter {
   async assignRole(deviceId, roleId) {
     return this.#roles.assignRole(deviceId, roleId)
   }
+}
+
+/**
+ * @param {import('./roles.js').Role} role
+ *
+ * @returns {role is ActiveMemberInfo['role']}
+ */
+function isActiveMemberRole(role) {
+  return ACTIVE_ROLE_IDS.includes(role.roleId)
 }
 
 /**

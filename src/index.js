@@ -34,6 +34,7 @@ export { MapeoManager } from './mapeo-manager.js'
 /**
  * @namespace MemberApi
  * @typedef {import('./member-api.js').MemberInfo} MemberApi.MemberInfo
+ * @typedef {import('./member-api.js').ActiveMemberInfo} MemberApi.ActiveMemberInfo
  * @typedef {import('./roles.js').RoleId} MemberApi.RoleId
  * @typedef {import('./roles.js').RoleIdForNewInvite} MemberApi.RoleIdForNewInvite
  * @typedef {import('./roles.js').RoleIdAssignableToOthers} MemberApi.RoleIdAssignableToOthers
