@@ -590,85 +590,45 @@ export class MemberApi extends TypedEmitter {
 
     const deviceInfoByConfigCoreId = keyBy(allDeviceInfo, ({ docId }) => docId)
 
-    if (includeLeft) {
-      /**
-       * @type {Array<Promise<MemberInfo>>}
-       */
-      const memberInfoPromises = []
+    /**
+     * @type {Array<Promise<MemberInfo>>}
+     */
+    const activeMemberInfoPromises = []
 
-      for (const [deviceId, role] of allRoles.entries()) {
-        const getMemberInfo = async () => {
-          /** @type {MemberInfo} */
-          const memberInfo = { deviceId, role }
-
-          try {
-            const configCoreId = await this.#coreOwnership.getCoreId(
-              deviceId,
-              'config'
-            )
-
-            const deviceInfo = deviceInfoByConfigCoreId.get(configCoreId)
-
-            memberInfo.name = deviceInfo?.name
-            memberInfo.deviceType = deviceInfo?.deviceType
-            memberInfo.joinedAt = deviceInfo?.createdAt
-            memberInfo.selfHostedServerDetails =
-              deviceInfo?.selfHostedServerDetails
-          } catch (err) {
-            // Attempting to get someone else may throw because sync hasn't occurred or completed
-            // Only throw if attempting to get themself since the relevant information should be available
-            if (deviceId === this.#ownDeviceId) throw err
-          }
-
-          return memberInfo
-        }
-
-        memberInfoPromises.push(getMemberInfo())
+    for (const [deviceId, role] of allRoles.entries()) {
+      if (!includeLeft && !isActiveMemberRole(role)) {
+        continue
       }
 
-      return Promise.all(memberInfoPromises)
-    } else {
-      /**
-       * @type {Array<Promise<ActiveMemberInfo>>}
-       */
-      const activeMemberInfoPromises = []
+      const getMemberInfo = async () => {
+        /** @type {MemberInfo} */
+        const memberInfo = { deviceId, role }
 
-      for (const [deviceId, role] of allRoles.entries()) {
-        if (!isActiveMemberRole(role)) {
-          continue
+        try {
+          const configCoreId = await this.#coreOwnership.getCoreId(
+            deviceId,
+            'config'
+          )
+
+          const deviceInfo = deviceInfoByConfigCoreId.get(configCoreId)
+
+          memberInfo.name = deviceInfo?.name
+          memberInfo.deviceType = deviceInfo?.deviceType
+          memberInfo.joinedAt = deviceInfo?.createdAt
+          memberInfo.selfHostedServerDetails =
+            deviceInfo?.selfHostedServerDetails
+        } catch (err) {
+          // Attempting to get someone else may throw because sync hasn't occurred or completed
+          // Only throw if attempting to get themself since the relevant information should be available
+          if (deviceId === this.#ownDeviceId) throw err
         }
 
-        const getMemberInfo = async () => {
-          /** @type {ActiveMemberInfo} */
-          const memberInfo = { deviceId, role }
-
-          try {
-            const configCoreId = await this.#coreOwnership.getCoreId(
-              deviceId,
-              'config'
-            )
-
-            const deviceInfo = deviceInfoByConfigCoreId.get(configCoreId)
-
-            memberInfo.name = deviceInfo?.name
-            memberInfo.deviceType = deviceInfo?.deviceType
-            memberInfo.joinedAt = deviceInfo?.createdAt
-            memberInfo.selfHostedServerDetails =
-              deviceInfo?.selfHostedServerDetails
-          } catch (err) {
-            // Attempting to get someone else may throw because sync hasn't occurred or completed
-            // Only throw if attempting to get themself since the relevant information should be available
-            if (deviceId === this.#ownDeviceId) throw err
-          }
-
-          return memberInfo
-        }
-
-        activeMemberInfoPromises.push(getMemberInfo())
+        return memberInfo
       }
-
-      return Promise.all(activeMemberInfoPromises)
+      activeMemberInfoPromises.push(getMemberInfo())
     }
+
+    return Promise.all(activeMemberInfoPromises)
   }
 
   /**
