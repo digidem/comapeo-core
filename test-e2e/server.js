@@ -675,7 +675,7 @@ async function createLocalTestServer(t) {
  * @returns {Promise<undefined | MemberInfo>}
  */
 async function findServerPeer(project) {
-  return (await project.$member.getMany()).find(
+  return (await project.$member.getMany({ includeLeft: true })).find(
     (member) => member.deviceType === 'selfHostedServer'
   )
 }
