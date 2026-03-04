@@ -8,6 +8,12 @@ import { pEvent } from 'p-event'
 import FakeTimers from '@sinonjs/fake-timers'
 import { randomBytes } from 'node:crypto'
 import { noop } from '../src/utils.js'
+import {
+  InviteAbortedError,
+  InviteNotFoundError,
+  InviteSendError,
+  PeerDisconnectedError,
+} from '../src/errors.js'
 
 const { COORDINATOR_ROLE_ID, CREATOR_ROLE_ID, MEMBER_ROLE_ID } = roles
 
@@ -444,7 +450,7 @@ test('cancelation (before response)', async (t) => {
   const inviteAbortedAssertionPromise = assert.rejects(
     invitePromise,
     {
-      name: 'InviteAbortedError',
+      code: InviteAbortedError.code,
     },
     'should throw after being aborted'
   )
@@ -612,8 +618,7 @@ test('disconnect before invite accept', async (t) => {
   await assert.rejects(
     () => joiner.invite.accept(invite),
     {
-      name: 'PeerDisconnectedError',
-      message: 'Peer disconnected before sending invite response',
+      code: PeerDisconnectedError.code,
     },
     'accepting invite rejects when peer is disconnected'
   )
@@ -627,7 +632,7 @@ test('disconnect before invite accept', async (t) => {
   await assert.rejects(
     invitePromise,
     {
-      name: 'InviteAbortedError',
+      code: InviteAbortedError.code,
     },
     'invite promise rejects after being aborted'
   )
@@ -712,7 +717,7 @@ test('Attempting to accept unknown inviteId throws', async (t) => {
   await assert.rejects(
     () => joiner.invite.accept({ inviteId: randomBytes(32).toString('hex') }),
     {
-      name: 'InviteNotFoundError',
+      code: InviteNotFoundError.code,
     },
     'accepting unknown inviteId throws'
   )
@@ -746,8 +751,7 @@ test('Attempting to accept or reject an invite not in pending state throws', asy
       await assert.rejects(
         async () => joiner.invite[action](invite),
         {
-          name: 'InviteSendError',
-          message: /Cannot send/,
+          code: InviteSendError.code,
         },
         action + 'ing a canceled invite throws'
       )
@@ -770,8 +774,7 @@ test('Attempting to accept or reject an invite not in pending state throws', asy
       await assert.rejects(
         async () => joiner.invite[action](invite),
         {
-          name: 'InviteSendError',
-          message: /Cannot send/,
+          code: InviteSendError.code,
         },
         action + 'ing a rejected invite throws'
       )
@@ -819,10 +822,7 @@ test('Attempting to accept or reject an invite not in pending state throws', asy
 
         await assert.rejects(
           async () => member.invite[action](receivedCoordInvite),
-          {
-            name: 'InviteSendError',
-            message: /Cannot send/,
-          },
+          { code: InviteSendError.code },
           action + 'ing an already-responded invite throws'
         )
       }
@@ -845,10 +845,7 @@ test('Attempting to accept or reject an invite not in pending state throws', asy
 
       await assert.rejects(
         async () => joiner.invite[action](invite),
-        {
-          name: 'InviteSendError',
-          message: /Cannot send/,
-        },
+        { code: InviteSendError.code },
         action + 'ing an already-joined invite throws'
       )
     })
@@ -884,7 +881,7 @@ test('Attempting to accept or reject an invite not in pending state throws', asy
           await assert.rejects(
             async () => joiner.invite[action](invite),
             {
-              name: 'InviteSendError',
+              code: InviteSendError.code,
               message: new RegExp(
                 `Cannot send.*in state ${interruptState}`,
                 'i'

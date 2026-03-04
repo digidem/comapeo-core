@@ -165,7 +165,7 @@ export class MemberApi extends TypedEmitter {
     }
   ) {
     if (!isRoleIdForNewInvite(roleId)) {
-      throw new InvalidRoleIDForNewInviteError(roleId)
+      throw new InvalidRoleIDForNewInviteError({ roleId })
     }
     if (this.#outboundInvitesByDevice.has(deviceId)) {
       throw new AlreadyInvitingError()
@@ -256,7 +256,7 @@ export class MemberApi extends TypedEmitter {
 
           return inviteResponse.decision
         default:
-          throw new ExhaustivenessError(inviteResponse.decision)
+          throw new ExhaustivenessError({ value: inviteResponse.decision })
       }
     } catch (e) {
       if (e instanceof RPCDisconnectBeforeAckError) {
@@ -414,7 +414,9 @@ export class MemberApi extends TypedEmitter {
     const member = await this.getById(serverDeviceId)
 
     if (!member.selfHostedServerDetails) {
-      throw new DeviceIdNotForServerError(serverDeviceId.slice(0, 7))
+      throw new DeviceIdNotForServerError({
+        deviceId: serverDeviceId.slice(0, 7),
+      })
     }
     if (member.role.roleId === BLOCKED_ROLE_ID) {
       throw new AlreadyBlockedError()
@@ -635,7 +637,7 @@ function isValidServerBaseUrl(
   /** @type {URL} */ let url
   try {
     url = new URL(baseUrl)
-  } catch (_err) {
+  } catch {
     return false
   }
 
@@ -694,7 +696,7 @@ async function parseAddServerResponse(response) {
         throw new InvalidResponseBodyError()
       }
       return { serverDeviceId: responseBody.data.deviceId }
-    } catch (_err) {
+    } catch {
       throw new InvalidServerResponseError(
         "Failed to add server peer because we couldn't parse the response"
       )
@@ -704,7 +706,7 @@ async function parseAddServerResponse(response) {
   let responseBody
   try {
     responseBody = await response.json()
-  } catch (_err) {
+  } catch {
     responseBody = null
   }
   if (

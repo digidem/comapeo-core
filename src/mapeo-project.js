@@ -246,7 +246,7 @@ export class MapeoProject extends TypedEmitter {
         reindex = true
         break
       default:
-        throw new ExhaustivenessError(migrationResult)
+        throw new ExhaustivenessError({ value: migrationResult })
     }
 
     const indexedTables = [
@@ -761,7 +761,7 @@ export class MapeoProject extends TypedEmitter {
       return extractEditableProjectSettings(
         await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       )
-    } catch (_err) {
+    } catch {
       // if (e instanceof Error && e.name !== 'NotFoundError') throw e
       // If the project has not completed an initial sync, project settings will
       // not be available, so use fallback project info which is set from the
@@ -779,7 +779,7 @@ export class MapeoProject extends TypedEmitter {
       // Should error if we haven't synced before
       await this.#dataTypes.projectSettings.getByDocId(this.#projectId)
       return true
-    } catch (_err) {
+    } catch {
       return false
     }
   }
@@ -1485,7 +1485,7 @@ export class MapeoProject extends TypedEmitter {
       await importCategories(this, { filePath, logger: this.#l })
     } catch (e) {
       if (getErrorCode(e) === 'ENOENT') {
-        throw new CategoryFileNotFoundError(filePath)
+        throw new CategoryFileNotFoundError({ filePath })
       }
       this.#l.log('ERROR: could not load config', e)
       throw ensureKnownError(e)

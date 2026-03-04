@@ -60,7 +60,7 @@ export class CoreIndex {
     const writerRecord = this.#writersByNamespace.get(namespace)
     // Shouldn't happen, since we add all the writers in the contructor
     if (!writerRecord) {
-      throw new MissingWriterError(namespace)
+      throw new MissingWriterError({ namespace })
     }
     return writerRecord
   }

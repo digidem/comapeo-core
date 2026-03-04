@@ -196,7 +196,7 @@ export class PeerSyncController {
         isAnySyncEnabled = isDataSyncEnabled = true
         break
       default:
-        throw new ExhaustivenessError(this.#syncEnabledState)
+        throw new ExhaustivenessError({ value: this.#syncEnabledState })
     }
 
     for (const ns of NAMESPACES) {
@@ -229,7 +229,7 @@ export class PeerSyncController {
           this.#disableNamespace(ns)
         }
       } else {
-        throw new ExhaustivenessError(cap)
+        throw new ExhaustivenessError({ value: cap })
       }
     }
   }

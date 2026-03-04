@@ -109,7 +109,7 @@ function create(project, value) {
     case 'track':
       return project[value.schemaName].create(value)
     default:
-      throw new ExhaustivenessError(value)
+      throw new ExhaustivenessError({ value })
   }
 }
 
@@ -154,7 +154,7 @@ function createWithMockData(project, schemaName, count) {
         )
       )
     default:
-      throw new ExhaustivenessError(schemaName)
+      throw new ExhaustivenessError({ value: schemaName })
   }
 }
 
@@ -179,7 +179,7 @@ function update(project, versionId, value) {
     case 'track':
       return project[value.schemaName].update(versionId, value)
     default:
-      throw new ExhaustivenessError(value)
+      throw new ExhaustivenessError({ value })
   }
 }
 

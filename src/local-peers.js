@@ -162,7 +162,7 @@ class Peer {
         }
       /* c8 ignore next 2 */
       default:
-        throw new ExhaustivenessError(this.#state)
+        throw new ExhaustivenessError({ value: this.#state })
     }
   }
   /**
@@ -836,14 +836,14 @@ export class LocalPeers extends TypedEmitter {
   async #getPeerByDeviceId(deviceId) {
     const devicePeers = this.#peers.get(deviceId)
     if (!devicePeers || devicePeers.size === 0) {
-      throw new UnknownPeerError(deviceId.slice(0, 7))
+      throw new UnknownPeerError({ deviceId: deviceId.slice(0, 7) })
     }
     const peer = chooseDevicePeer(devicePeers)
     if (peer) return peer
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         this.off('peers', onPeers)
-        reject(new UnknownPeerError(deviceId.slice(0, 7)))
+        reject(new UnknownPeerError({ deviceId: deviceId.slice(0, 7) }))
       }, DEDUPE_TIMEOUT)
 
       const onPeers = () => {

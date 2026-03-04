@@ -12,7 +12,7 @@ test('ExhaustivenessError', () => {
         case false:
           break
         default:
-          throw new ExhaustivenessError(bool)
+          throw new ExhaustivenessError({ value: bool })
       }
     })
   })

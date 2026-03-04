@@ -83,7 +83,7 @@ export function parseBcp47(languageTag) {
   const normalized = bcp47Normalize(languageTag)
   const { language, region } = simpleParseBcp47(normalized)
   if (!language) {
-    throw new InvalidLanguageTagError(languageTag)
+    throw new InvalidLanguageTagError({ languageTag })
   }
   return {
     language: normalizePrimaryLanguageSubtag(language),

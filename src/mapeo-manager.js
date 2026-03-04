@@ -284,7 +284,7 @@ export class MapeoManager extends TypedEmitter {
         break
       }
       default: {
-        throw new ExhaustivenessError(mediaType)
+        throw new ExhaustivenessError({ value: mediaType })
       }
     }
 
@@ -722,7 +722,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
 
     if (existingProject && existingProject.hasLeftProject !== true) {
-      throw new ProjectExistsError(projectPublicId)
+      throw new ProjectExistsError({ projectPublicId })
     }
 
     // 2. Check for an active project

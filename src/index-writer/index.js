@@ -77,7 +77,7 @@ export class IndexWriter {
       try {
         const version = { coreDiscoveryKey: discoveryKey(key), index }
         doc = this.#mapDoc(decode(block, version), version)
-      } catch (_err) {
+      } catch {
         this.#l.log('Could not decode entry %d of %h', index, key)
         // Unknown or invalid entry - silently ignore
         continue
@@ -120,7 +120,7 @@ export class IndexWriter {
   deleteSchema(schemaName) {
     const indexer = this.#indexers.get(schemaName)
     if (!indexer) {
-      throw new UnknownSchemaError(schemaName)
+      throw new UnknownSchemaError({ schemaName })
     }
     indexer.deleteAll()
   }

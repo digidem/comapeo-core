@@ -201,7 +201,7 @@ export class DataType extends TypedEmitter {
     if (checkExisting) {
       const existing = await this.getByDocId(docId).catch(noop)
       if (existing) {
-        throw new DocAlreadyExistsError(docId)
+        throw new DocAlreadyExistsError({ docId })
       }
     }
     const nowDateString = generateDate()

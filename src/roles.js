@@ -332,7 +332,7 @@ export class Roles extends TypedEmitter {
       // Default to creator role, but can be overwritten if a different role is
       // set below
       result.set(projectCreatorDeviceId, CREATOR_ROLE)
-    } catch (_err) {
+    } catch {
       // Not found, we don't know who the project creator is so we can't include
       // them in the returned map
     }

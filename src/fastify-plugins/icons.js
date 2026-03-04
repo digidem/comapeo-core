@@ -47,7 +47,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
         case 'image/svg+xml':
           return T.Literal('svg')
         default:
-          throw new ExhaustivenessError(mimeType)
+          throw new ExhaustivenessError({ value: mimeType })
       }
     })
   ),

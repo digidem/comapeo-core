@@ -65,7 +65,7 @@ export function jsonSchemaToDrizzleSqliteTable(
         // Skip handling this right now
         continue
       default:
-        throw new ExhaustivenessError(value.type)
+        throw new ExhaustivenessError({ value: value.type })
     }
     if (isRequired(schema, key)) {
       columns[key] = columns[key].notNull()

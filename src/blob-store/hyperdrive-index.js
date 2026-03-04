@@ -3,7 +3,6 @@ import { discoveryKey } from 'hypercore-crypto'
 import Hyperdrive from 'hyperdrive'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { MissingWriterError, UnsupportedCorestoreOptsError } from '../errors.js'
-import { inspect } from 'node:util'
 
 /** @typedef {HyperdriveIndexImpl} THyperdriveIndex */
 
@@ -34,7 +33,7 @@ export class HyperdriveIndexImpl extends TypedEmitter {
       }
     }
     if (!writer) {
-      throw new MissingWriterError('blobIndex')
+      throw new MissingWriterError({ namespace: 'blobIndex' })
     }
     this.#writer = writer
 
@@ -104,7 +103,7 @@ class PretendCorestore {
     } else if (opts.name.includes('blobs')) {
       return this.#coreManager.getWriterCore('blob').core
     } else {
-      throw new UnsupportedCorestoreOptsError({ opts: inspect(opts) })
+      throw new UnsupportedCorestoreOptsError({ opts })
     }
   }
 

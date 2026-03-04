@@ -172,7 +172,7 @@ export function getBestVariant(variants, opts) {
   const matchingMime = variants.filter((v) => v.mimeType === wantedMimeType)
 
   if (matchingMime.length === 0) {
-    throw new NoVariantsForMimeTypeError(wantedMimeType)
+    throw new NoVariantsForMimeTypeError({ wantedMimeType })
   }
   const wantedSizeNum = SIZE_AS_NUMERIC[wantedSize]
 

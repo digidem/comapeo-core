@@ -75,7 +75,7 @@ export class Downloader extends TypedEmitter {
       if (!this.#shouldDownloadFile(filePath)) continue
       const drive = this.#driveIndex.get(driveId)
       // ERROR HANDLING: this is unexpected and should not happen
-      if (!drive) throw new DriveNotFoundError(driveId)
+      if (!drive) throw new DriveNotFoundError({ driveId })
       const blobs = await drive.getBlobs()
       this.#ac.signal.throwIfAborted()
       await this.#processEntry(blobs.core, blob)

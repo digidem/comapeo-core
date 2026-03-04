@@ -806,7 +806,7 @@ function randomBlobStream(type, size) {
       stream.push(Buffer.from('ftyp'))
       break
     default:
-      throw new ExhaustivenessError(type)
+      throw new ExhaustivenessError({ value: type })
   }
   return stream
 }

@@ -230,7 +230,7 @@ export class SyncApi extends TypedEmitter {
           remoteDeviceSyncState,
         }
       default:
-        throw new ExhaustivenessError(this.#previousSyncEnabledState)
+        throw new ExhaustivenessError({ value: this.#previousSyncEnabledState })
     }
   }
 
@@ -620,7 +620,7 @@ export class SyncApi extends TypedEmitter {
               coreOwnershipDocId
             )
             await this.#validateRoleAndAddCoresForPeer(coreOwnershipDoc)
-          } catch (_err) {
+          } catch {
             // Ignore, we'll add these when the role is added
           }
         })()
@@ -701,7 +701,7 @@ function isInitiallySyncedWithPeer(state, peerId) {
         break
       }
       default:
-        throw new ExhaustivenessError(remoteDeviceSyncState.status)
+        throw new ExhaustivenessError({ value: remoteDeviceSyncState.status })
     }
   }
   return true
@@ -740,7 +740,7 @@ function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
           isSyncEnabled = true
           break
         default:
-          throw new ExhaustivenessError(peerNamespaceState.status)
+          throw new ExhaustivenessError({ value: peerNamespaceState.status })
       }
 
       if (!Object.hasOwn(result, peerId)) {

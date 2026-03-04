@@ -129,5 +129,5 @@ function getType(mimeType) {
   if (mimeType.startsWith('video')) return 'video'
   if (mimeType.startsWith('audio')) return 'audio'
 
-  throw new UnsupportedMimeTypeError(mimeType)
+  throw new UnsupportedMimeTypeError({ mimeType })
 }
