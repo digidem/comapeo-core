@@ -1,6 +1,6 @@
-import { assert } from '../../src/utils.js'
 import { pEventIterator } from 'p-event'
 import { arrayFrom } from 'iterpal'
+import assert from 'node:assert/strict'
 
 /**
  * Like `once`, but listens to events up to a certain number of times.

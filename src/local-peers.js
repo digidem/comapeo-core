@@ -1,7 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import timingSafeEqual from 'string-timing-safe-equal'
-import { assert, ExhaustivenessError, keyToId, noop } from './utils.js'
+import { keyToId, noop, timeoutPromise } from './utils.js'
 import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
 import {
@@ -18,10 +18,15 @@ import {
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
-import pTimeout, { TimeoutError } from 'p-timeout'
 import {
+  PeerDisconnectedError,
+  PeerFailedConnectionError,
   RPCDisconnectBeforeAckError,
   RPCDisconnectBeforeSendingError,
+  UnknownPeerError,
+  ExhaustivenessError,
+  InvalidInviteError,
+  InvalidProjectJoinDetailsError,
 } from './errors.js'
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
@@ -157,7 +162,7 @@ class Peer {
         }
       /* c8 ignore next 2 */
       default:
-        throw new ExhaustivenessError(this.#state)
+        throw new ExhaustivenessError({ value: this.#state })
     }
   }
   /**
@@ -280,7 +285,7 @@ class Peer {
    * @returns {Promise<void>}
    */
   async [kTestOnlySendRawInvite](buf) {
-    this.#assertConnected()
+    this.#assertConnected('Peer not connected for test')
     const messageType = MESSAGE_TYPES.Invite
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
   }
@@ -408,7 +413,7 @@ class Peer {
     this.#features = deviceInfo.features
     this.#log('received deviceInfo %o', deviceInfo)
   }
-  /** @param {string} [message] */
+  /** @param {string} message */
   #assertConnected(message) {
     if (this.#state === 'connected' && !this.#channel.closed) return
     /* c8 ignore next */
@@ -536,7 +541,6 @@ export class LocalPeers extends TypedEmitter {
    */
   connect(stream) {
     const noiseStream = stream.noiseStream
-    if (!noiseStream) throw new Error('Invalid stream')
     const outerStream = noiseStream.rawStream
     const protomux =
       noiseStream.userData && Protomux.isProtomux(noiseStream.userData)
@@ -617,8 +621,8 @@ export class LocalPeers extends TypedEmitter {
               /** @type {keyof typeof MESSAGE_TYPES} */ (type),
               message
             )
-          } catch (err) {
-            const errorMessage = String(err)
+          } catch (e) {
+            const errorMessage = String(e)
             this.emit('failed-to-handle-message', type, errorMessage)
             this.#l.log(`Error handling ${type} message: ${errorMessage}`)
           }
@@ -817,7 +821,9 @@ export class LocalPeers extends TypedEmitter {
    * Wait for any connections that are currently opening
    */
   #waitForPendingConnections() {
-    return pTimeout(Promise.all(this.#opening), { milliseconds: SEND_TIMEOUT })
+    return timeoutPromise(Promise.all(this.#opening), {
+      milliseconds: SEND_TIMEOUT,
+    })
   }
 
   /**
@@ -830,14 +836,14 @@ export class LocalPeers extends TypedEmitter {
   async #getPeerByDeviceId(deviceId) {
     const devicePeers = this.#peers.get(deviceId)
     if (!devicePeers || devicePeers.size === 0) {
-      throw new UnknownPeerError('Unknown peer ' + deviceId.slice(0, 7))
+      throw new UnknownPeerError({ deviceId: deviceId.slice(0, 7) })
     }
     const peer = chooseDevicePeer(devicePeers)
     if (peer) return peer
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         this.off('peers', onPeers)
-        reject(new UnknownPeerError('Unknown peer ' + deviceId.slice(0, 7)))
+        reject(new UnknownPeerError({ deviceId: deviceId.slice(0, 7) }))
       }, DEDUPE_TIMEOUT)
 
       const onPeers = () => {
@@ -854,38 +860,14 @@ export class LocalPeers extends TypedEmitter {
   }
 }
 
-export { TimeoutError }
-
-export class UnknownPeerError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'UnknownPeerError') {
-    super(message)
-    this.name = 'UnknownPeerError'
-  }
-}
-
-export class PeerDisconnectedError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'Peer disconnected') {
-    super(message)
-    this.name = 'PeerDisconnectedError'
-  }
-}
-
-export class PeerFailedConnectionError extends Error {
-  /** @param {string} [message] */
-  constructor(message = 'PeerFailedConnectionError') {
-    super(message)
-    this.name = 'PeerFailedConnectionError'
-  }
-}
-
 /**
  * @param {Readonly<Uint8Array>} id
  * @throws if the invite ID is too short
  */
 function assertInviteIdIsValid(id) {
-  assert(id.byteLength >= 32, 'Invite ID must be >= 32 bytes')
+  if (id.byteLength < 32) {
+    throw new InvalidInviteError('Invite ID must be >= 32 bytes')
+  }
 }
 
 /**
@@ -896,9 +878,15 @@ function assertInviteIdIsValid(id) {
 function parseInvite(data) {
   const result = Invite.decode(data)
   assertInviteIdIsValid(result.inviteId)
-  assert(result.projectInviteId.length, 'Invite must have project invite ID')
-  assert(!isBlank(result.projectName), 'Invite project name cannot be blank')
-  assert(!isBlank(result.invitorName), 'Invite invitor name cannot be blank')
+  if (!result.projectInviteId.length) {
+    throw new InvalidInviteError('Invite must have project invite ID')
+  }
+  if (isBlank(result.projectName)) {
+    throw new InvalidInviteError('Invite project name cannot be blank')
+  }
+  if (isBlank(result.invitorName)) {
+    throw new InvalidInviteError('Invite invitor name cannot be blank')
+  }
   return result
 }
 
@@ -932,11 +920,16 @@ function parseInviteResponse(data) {
 function parseProjectJoinDetails(data) {
   const result = ProjectJoinDetails.decode(data)
   assertInviteIdIsValid(result.inviteId)
-  assert(result.projectKey.length, 'Project join details must have project key')
-  assert(
-    result.encryptionKeys?.auth?.byteLength,
-    'Project join details must have auth encryption keys'
-  )
+  if (!result.projectKey.length) {
+    throw new InvalidProjectJoinDetailsError(
+      'Project join details must have project key'
+    )
+  }
+  if (!result.encryptionKeys?.auth?.byteLength) {
+    throw new InvalidProjectJoinDetailsError(
+      'Project join details must have auth encryption keys'
+    )
+  }
   return result
 }
 
