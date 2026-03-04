@@ -603,11 +603,9 @@ export class MemberApi extends TypedEmitter {
         deviceId,
         'config'
       )
-      const deviceInfo = await this.#dataTypes.deviceInfo.getByDocId(
+      return this.#dataTypes.deviceInfo.getByDocId(
         configCoreId
       )
-
-      return deviceInfo
     }
   }
 
