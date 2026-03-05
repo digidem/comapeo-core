@@ -46,7 +46,7 @@ import {
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
-import { kCreateWithDocId } from './datatype/index.js'
+import { kCreateOrUpdateWithDocId } from './datatype/index.js'
 
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
@@ -81,8 +81,8 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
 /**
  * @typedef {object} InvitePeerInfo
- * @prop {DeviceInfo['name']} [name]
- * @prop {DeviceInfo['deviceType']} [deviceType]
+ * @prop {DeviceInfo['name']} name
+ * @prop {DeviceInfo['deviceType']} deviceType
  */
 
 /**
@@ -119,7 +119,7 @@ export class MemberApi extends TypedEmitter {
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {Object} opts.dataTypes
-   * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany' | kCreateWithDocId>} opts.dataTypes.deviceInfo
+   * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany' | kCreateOrUpdateWithDocId>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
    * @param {Logger} [opts.logger]
    */
@@ -262,7 +262,7 @@ export class MemberApi extends TypedEmitter {
           }
           await this.#roles.assignRole(deviceId, roleId)
 
-          if (peerInfo && peerInfo.deviceType && peerInfo.name) {
+          if (invitorWroteDeviceInfo) {
             const { name, deviceType } = peerInfo
             const doc = {
               name: name,
@@ -270,11 +270,9 @@ export class MemberApi extends TypedEmitter {
               selfHostedServerDetails: undefined,
               schemaName: /** @type {const} */ ('deviceInfo'),
             }
-            await this.#dataTypes.deviceInfo[kCreateWithDocId](deviceId, doc)
-          } else {
-            this.#l.log(
-              'ERROR: Could not assign peer device info due to lack of device info in RPC',
-              peerInfo
+            await this.#dataTypes.deviceInfo[kCreateOrUpdateWithDocId](
+              deviceId,
+              doc
             )
           }
 
@@ -610,9 +608,7 @@ export class MemberApi extends TypedEmitter {
         deviceId,
         'config'
       )
-      return this.#dataTypes.deviceInfo.getByDocId(
-        configCoreId
-      )
+      return this.#dataTypes.deviceInfo.getByDocId(configCoreId)
     }
   }
 

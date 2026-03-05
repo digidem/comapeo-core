@@ -13,6 +13,7 @@ import {
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { setProperty, getProperty } from 'dot-prop-extra'
 import { parseBcp47 } from '../intl/parse-bcp-47.js'
+
 /** @import { MapeoDoc, MapeoValue } from '@comapeo/schema' */
 /** @import { RunResult } from 'better-sqlite3' */
 /** @import { SQLiteSelectBase } from 'drizzle-orm/sqlite-core' */
@@ -84,6 +85,7 @@ function generateDate() {
   return new Date().toISOString()
 }
 export const kCreateWithDocId = Symbol('kCreateWithDocId')
+export const kCreateOrUpdateWithDocId = Symbol('kCreateWithDocId')
 export const kSelect = Symbol('select')
 export const kTable = Symbol('table')
 export const kDataStore = Symbol('dataStore')
@@ -185,6 +187,20 @@ export class DataType extends TypedEmitter {
     const docId = generateId()
     // @ts-expect-error - can't figure this one out
     return this[kCreateWithDocId](docId, value, { checkExisting: false })
+  }
+
+  /**
+   * @param {string} docId
+   * @param {ExcludeSchema<TValue, 'coreOwnership'>} value
+   * @returns {Promise<TDoc & DerivedDocFields>}
+   */
+  async [kCreateOrUpdateWithDocId](docId, value) {
+    const existing = await this.getByDocId(docId).catch(noop)
+    if (existing) {
+      return this.update(existing.versionId, value)
+    } else {
+      return this[kCreateWithDocId](docId, value, { checkExisting: false })
+    }
   }
 
   /**

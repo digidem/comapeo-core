@@ -13,7 +13,11 @@ import { Readable, pipelinePromise } from 'streamx'
 import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
-import { DataType, kCreateWithDocId } from './datatype/index.js'
+import {
+  DataType,
+  kCreateOrUpdateWithDocId,
+  kCreateWithDocId,
+} from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
@@ -907,14 +911,7 @@ export class MapeoProject extends TypedEmitter {
     const docIds = [this.deviceId, configCoreId]
 
     for (const docId of docIds) {
-      const existingDoc = await deviceInfo
-        .getByDocId(docId)
-        .catch(nullIfNotFound)
-      if (existingDoc) {
-        await deviceInfo.update(existingDoc.versionId, doc)
-      } else {
-        await deviceInfo[kCreateWithDocId](docId, doc)
-      }
+      await deviceInfo[kCreateOrUpdateWithDocId](docId, doc)
     }
   }
 
