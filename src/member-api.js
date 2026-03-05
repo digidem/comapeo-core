@@ -602,7 +602,7 @@ export class MemberApi extends TypedEmitter {
    */
   async #getDeviceInfo(deviceId) {
     try {
-      return this.#dataTypes.deviceInfo.getByDocId(deviceId)
+      return await this.#dataTypes.deviceInfo.getByDocId(deviceId)
     } catch (e) {
       const configCoreId = await this.#coreOwnership.getCoreId(
         deviceId,
