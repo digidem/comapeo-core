@@ -46,6 +46,7 @@ import {
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
+import { kCreateOrUpdateWithDocId } from './datatype/index.js'
 
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
@@ -58,7 +59,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  * } from '@comapeo/schema'
  */
 /** @import { Promisable } from 'type-fest' */
-/** @import { Invite, InviteResponse } from './generated/rpc.js' */
+/** @import { DeviceInfo_DeviceType, Invite, InviteResponse } from './generated/rpc.js' */
 /** @import { DataType } from './datatype/index.js' */
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
@@ -76,6 +77,12 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  * @prop {DeviceInfo['createdAt']} [joinedAt]
  * @prop {object} [selfHostedServerDetails]
  * @prop {string} selfHostedServerDetails.baseUrl
+ */
+
+/**
+ * @typedef {object} InvitePeerInfo
+ * @prop {DeviceInfo['name']} name
+ * @prop {DeviceInfo['deviceType']} deviceType
  */
 
 /**
@@ -112,7 +119,7 @@ export class MemberApi extends TypedEmitter {
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {Object} opts.dataTypes
-   * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany'>} opts.dataTypes.deviceInfo
+   * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany' | kCreateOrUpdateWithDocId>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
    * @param {Logger} [opts.logger]
    */
@@ -156,6 +163,7 @@ export class MemberApi extends TypedEmitter {
    * @param {string} [opts.roleDescription]
    * @param {Buffer} [opts.__testOnlyInviteId] Hard-code the invite ID. Only for tests.
    * @param {number} [opts.initialSyncTimeoutMs=5000]
+   * @param {InvitePeerInfo} [opts.peerInfo]
    * @returns {Promise<(
    *   typeof InviteResponse_Decision.ACCEPT |
    *   typeof InviteResponse_Decision.REJECT |
@@ -170,6 +178,7 @@ export class MemberApi extends TypedEmitter {
       roleDescription,
       __testOnlyInviteId,
       initialSyncTimeoutMs = 5000,
+      peerInfo,
     }
   ) {
     if (!isRoleIdForNewInvite(roleId)) {
@@ -207,6 +216,7 @@ export class MemberApi extends TypedEmitter {
       const projectColor = project.projectColor
       const projectDescription = project.projectDescription
       const sendStats = project.sendStats
+      const invitorWroteDeviceInfo = !!peerInfo
 
       abortSignal.throwIfAborted()
 
@@ -220,6 +230,7 @@ export class MemberApi extends TypedEmitter {
         roleDescription,
         invitorName,
         sendStats,
+        invitorWroteDeviceInfo,
       }
 
       const inviteResponse = await this.#sendInviteAndGetResponse(
@@ -250,6 +261,20 @@ export class MemberApi extends TypedEmitter {
             throw new ProjectDetailsSendFailError()
           }
           await this.#roles.assignRole(deviceId, roleId)
+
+          if (invitorWroteDeviceInfo) {
+            const { name, deviceType } = peerInfo
+            const doc = {
+              name: name,
+              deviceType: deviceType,
+              selfHostedServerDetails: undefined,
+              schemaName: /** @type {const} */ ('deviceInfo'),
+            }
+            await this.#dataTypes.deviceInfo[kCreateOrUpdateWithDocId](
+              deviceId,
+              doc
+            )
+          }
 
           try {
             let abortSync = new AbortController().signal
@@ -554,14 +579,7 @@ export class MemberApi extends TypedEmitter {
     const result = { deviceId, role }
 
     try {
-      const configCoreId = await this.#coreOwnership.getCoreId(
-        deviceId,
-        'config'
-      )
-
-      const deviceInfo = await this.#dataTypes.deviceInfo.getByDocId(
-        configCoreId
-      )
+      const deviceInfo = await this.#getDeviceInfo(deviceId)
 
       result.name = deviceInfo.name
       result.deviceType = deviceInfo.deviceType
@@ -576,6 +594,22 @@ export class MemberApi extends TypedEmitter {
     }
 
     return result
+  }
+
+  /**
+   * @param {string} deviceId
+   * @returns {Promise<DeviceInfo>}
+   */
+  async #getDeviceInfo(deviceId) {
+    try {
+      return await this.#dataTypes.deviceInfo.getByDocId(deviceId)
+    } catch (e) {
+      const configCoreId = await this.#coreOwnership.getCoreId(
+        deviceId,
+        'config'
+      )
+      return this.#dataTypes.deviceInfo.getByDocId(configCoreId)
+    }
   }
 
   /**

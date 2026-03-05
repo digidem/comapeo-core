@@ -120,13 +120,6 @@ export const EncryptionKeysNotFoundError = createErrorClass({
   status: 400,
 })
 
-export const InvalidDeviceInfoError = createErrorClass({
-  code: 'INVALID_DEVICE_INFO_ERROR',
-  message:
-    'Invalid deviceInfo record, cannot write deviceInfo for another device',
-  status: 400,
-})
-
 export const RoleAssignError = createErrorClass({
   code: 'ROLE_ASSIGN_ERROR',
   message: '{message}',

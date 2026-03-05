@@ -3,7 +3,6 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { sql, count, eq } from 'drizzle-orm'
-import { discoveryKey } from 'hypercore-crypto'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
@@ -14,7 +13,11 @@ import { Readable, pipelinePromise } from 'streamx'
 import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
 import { DataStore } from './datastore/index.js'
-import { DataType, kCreateWithDocId } from './datatype/index.js'
+import {
+  DataType,
+  kCreateOrUpdateWithDocId,
+  kCreateWithDocId,
+} from './datatype/index.js'
 import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
@@ -66,7 +69,6 @@ import {
   CategoryFileNotFoundError,
   ensureKnownError,
   getErrorCode,
-  InvalidDeviceInfoError,
   NotFoundError,
   ExhaustivenessError,
   nullIfNotFound,
@@ -303,8 +305,6 @@ export class MapeoProject extends TypedEmitter {
         switch (doc.schemaName) {
           case 'coreOwnership':
             return mapAndValidateCoreOwnership(doc, version)
-          case 'deviceInfo':
-            return mapAndValidateDeviceInfo(doc, version)
           default:
             return doc
         }
@@ -892,14 +892,9 @@ export class MapeoProject extends TypedEmitter {
 
   /**
    * @param {Pick<import('@comapeo/schema').DeviceInfoValue, 'name' | 'deviceType' | 'selfHostedServerDetails'>} value
-   * @returns {Promise<import('@comapeo/schema').DeviceInfo>}
    */
   async [kSetOwnDeviceInfo](value) {
     const { deviceInfo } = this.#dataTypes
-
-    const configCoreId = this.#coreManager
-      .getWriterCore('config')
-      .key.toString('hex')
 
     const doc = {
       name: value.name,
@@ -908,13 +903,15 @@ export class MapeoProject extends TypedEmitter {
       schemaName: /** @type {const} */ ('deviceInfo'),
     }
 
-    const existingDoc = await deviceInfo
-      .getByDocId(configCoreId)
-      .catch(nullIfNotFound)
-    if (existingDoc) {
-      return await deviceInfo.update(existingDoc.versionId, doc)
-    } else {
-      return await deviceInfo[kCreateWithDocId](configCoreId, doc)
+    // TODO: Remove configCore once we know everyone has deviceId
+    const configCoreId = this.#coreManager
+      .getWriterCore('config')
+      .key.toString('hex')
+
+    const docIds = [this.deviceId, configCoreId]
+
+    for (const docId of docIds) {
+      await deviceInfo[kCreateOrUpdateWithDocId](docId, doc)
     }
   }
 
@@ -1553,22 +1550,6 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
 }
 
 /**
- * Validate that a deviceInfo record is written by the device that is it about,
- * e.g. version.coreKey should equal docId
- *
- * @param {import('@comapeo/schema').DeviceInfo} doc
- * @param {import('@comapeo/schema').VersionIdObject} version
- * @returns {import('@comapeo/schema').DeviceInfo}
- */
-function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
-  if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
-    throw new InvalidDeviceInfoError()
-  }
-  return doc
-}
-
-/**
- *
  * @param {string} baseUrl
  * @param {string} projectPublicId
  * @returns {string}

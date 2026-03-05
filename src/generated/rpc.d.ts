@@ -10,6 +10,7 @@ export interface Invite {
     projectColor?: string | undefined;
     projectDescription?: string | undefined;
     sendStats: boolean;
+    invitorWroteDeviceInfo: boolean;
 }
 export interface InviteCancel {
     inviteId: Buffer;
