@@ -9,7 +9,7 @@
       "types": "./dist/index.d.ts",
       "import": "./src/index.js"
     },
-    "./errors.js": {
+    "./errors": {
       "types": "./dist/errors.d.ts",
       "import": "./src/errors.js"
     }
