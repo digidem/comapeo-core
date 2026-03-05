@@ -70,7 +70,7 @@ import { migrate } from './lib/drizzle-helpers.js'
 /** @import { ProjectSettings, ProjectSettingsValue } from '@comapeo/schema' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
-/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean }} ProjectToAddDetails */
+/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean }} ProjectToAddDetails */
 /** @typedef {Pick<ProjectSettings, 'createdAt' | 'updatedAt' | 'name' | 'projectColor' | 'projectDescription' | 'sendStats'>} ListedProjectSettings */
 /** @typedef {ListedProjectSettings & { status: 'joined', projectId: string } | ProjectInfo & { status: 'joining' | 'left', projectId: string }} ListedProject */
 
@@ -703,6 +703,7 @@ export class MapeoManager extends TypedEmitter {
       projectColor,
       projectDescription,
       sendStats = false,
+      invitorWroteDeviceInfo = false,
     },
     { waitForSync = true } = {}
   ) => {
@@ -785,18 +786,21 @@ export class MapeoManager extends TypedEmitter {
       this.#activeProjects.delete(projectPublicId)
     })
 
-    try {
-      const deviceInfo = this.getDeviceInfo()
-      if (hasSavedDeviceInfo(deviceInfo)) {
-        await project[kSetOwnDeviceInfo](deviceInfo)
+    // Only write info on invite if configured
+    if (!invitorWroteDeviceInfo) {
+      try {
+        const deviceInfo = this.getDeviceInfo()
+        if (hasSavedDeviceInfo(deviceInfo)) {
+          await project[kSetOwnDeviceInfo](deviceInfo)
+        }
+      } catch (e) {
+        // Can ignore an error trying to write device info
+        this.#l.log(
+          'ERROR: failed to write project %h deviceInfo %o',
+          projectKey,
+          e
+        )
       }
-    } catch (e) {
-      // Can ignore an error trying to write device info
-      this.#l.log(
-        'ERROR: failed to write project %h deviceInfo %o',
-        projectKey,
-        e
-      )
     }
 
     // 5. Wait for initial project sync

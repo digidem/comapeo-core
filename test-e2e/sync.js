@@ -953,9 +953,11 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     p.$sync[kSyncState].getState()
   )
 
-  assert.equal(invitorState.config.localState.have, configDocsCount + COUNT) // count device info doc for each invited device
+  // Config docs + deviceInfo per member + device info by the invitor
+  const expectedConfigs = configDocsCount + COUNT + COUNT - 1
+  assert.equal(invitorState.config.localState.have, expectedConfigs) // count device info doc for each invited device
   assert.equal(invitorState.data.localState.have, dataDocsCount)
-  assert.equal(blockedState.config.localState.have, 1) // just the device info doc
+  assert.equal(blockedState.config.localState.have, 2) // just the device info docs
   assert.equal(blockedState.data.localState.have, 0) // no data docs synced
 
   for (const ns of NAMESPACES) {
