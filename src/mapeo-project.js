@@ -65,7 +65,6 @@ import {
   CategoryFileNotFoundError,
   ensureKnownError,
   getErrorCode,
-  InvalidDeviceInfoError,
   NotFoundError,
   ExhaustivenessError,
   nullIfNotFound,
@@ -1554,25 +1553,6 @@ function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {
 }
 
 /**
-<<<<<<< feat/invitor-sets-device-info
-=======
- * Validate that a deviceInfo record is written by the device that is it about,
- * e.g. version.coreKey should equal docId
- *
- * @param {import('@comapeo/schema').DeviceInfo} doc
- * @param {import('@comapeo/schema').VersionIdObject} version
- * @returns {import('@comapeo/schema').DeviceInfo}
- */
-function mapAndValidateDeviceInfo(doc, { coreDiscoveryKey }) {
-  if (!coreDiscoveryKey.equals(discoveryKey(Buffer.from(doc.docId, 'hex')))) {
-    throw new InvalidDeviceInfoError()
-  }
-  return doc
-}
-
-/**
->>>>>>> main
- *
  * @param {string} baseUrl
  * @param {string} projectPublicId
  * @returns {string}
