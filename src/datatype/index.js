@@ -9,6 +9,7 @@ import {
   InvalidDocError,
   InvalidDocFormatError,
   NotFoundError,
+  nullIfNotFound,
 } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { setProperty, getProperty } from 'dot-prop-extra'
@@ -195,7 +196,7 @@ export class DataType extends TypedEmitter {
    * @returns {Promise<TDoc & DerivedDocFields>}
    */
   async [kCreateOrUpdateWithDocId](docId, value) {
-    const existing = await this.getByDocId(docId).catch(noop)
+    const existing = await this.getByDocId(docId).catch(nullIfNotFound)
     if (existing) {
       return this.update(existing.versionId, value)
     } else {
