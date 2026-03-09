@@ -14,7 +14,7 @@
 
 ### docs
 
-> **docs**: `Record`\<`"observation"` \| `"track"` \| `"remoteDetectionAlert"` \| `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"` \| `"coreOwnership"` \| `"role"`, [`DocCapability`](DocCapability.md)\>
+> **docs**: `Record`\<`"observation"` \| `"track"` \| `"remoteDetectionAlert"` \| `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"` \| `"coreOwnership"` \| `"role"`, [`DocCapability`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_roles/interfaces/DocCapability.md)\>
 
 ***
 

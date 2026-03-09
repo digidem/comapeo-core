@@ -1,8 +1,8 @@
-[**API**](../../README.md) • **Docs**
+[**API**](../../../../README.md) • **Docs**
 
 ***
 
-[API](../../README.md) / [\<internal\>](../README.md) / DocCapability
+[API](../../../../README.md) / [\<internal\>](../../../README.md) / ["/home/runner/work/comapeo-core/comapeo-core/src/roles"](../README.md) / DocCapability
 
 # Interface: DocCapability
 
