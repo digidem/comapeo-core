@@ -366,7 +366,7 @@ and only this project will replicate.
 
 ### \[kSetOwnDeviceInfo\]()
 
-> **\[kSetOwnDeviceInfo\]**(`value`): `Promise`\<`object`\>
+> **\[kSetOwnDeviceInfo\]**(`value`): `Promise`\<`void`\>
 
 #### Parameters
 
@@ -374,7 +374,7 @@ and only this project will replicate.
 
 #### Returns
 
-`Promise`\<`object`\>
+`Promise`\<`void`\>
 
 ***
 

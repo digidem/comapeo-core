@@ -10,6 +10,10 @@
 
 ## Type declaration
 
+### invitorWroteDeviceInfo?
+
+> `optional` **invitorWroteDeviceInfo**: `boolean`
+
 ### projectColor?
 
 > `optional` **projectColor**: `string`
