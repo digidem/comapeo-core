@@ -92,6 +92,22 @@
 
 ## Methods
 
+### \[kCreateOrUpdateWithDocId\]()
+
+> **\[kCreateOrUpdateWithDocId\]**(`docId`, `value`): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
+
+#### Parameters
+
+• **docId**: `string`
+
+• **value**: `Exclude`\<`TValue`, `object`\>
+
+#### Returns
+
+`Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
+
+***
+
 ### \[kCreateWithDocId\]()
 
 > **\[kCreateWithDocId\]**(`docId`, `value`, `opts`?): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
