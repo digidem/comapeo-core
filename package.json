@@ -13,7 +13,7 @@
       "types": "./dist/errors.d.ts",
       "import": "./src/errors.js"
     },
-    "./schema": {
+    "./schema.js": {
       "types": "./dist/schema.d.ts",
       "import": "./src/schema.js"
     }
