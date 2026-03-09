@@ -1,8 +1,9 @@
 import mapObject from 'map-obj'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
-import { ExhaustivenessError, createMap } from '../utils.js'
+import { createMap } from '../utils.js'
 import { unreplicate } from '../lib/hypercore-helpers.js'
+import { ExhaustivenessError } from '../errors.js'
 /** @import { CoreRecord } from '../core-manager/index.js' */
 /** @import { Role } from '../roles.js' */
 /** @import { SyncEnabledState } from './sync-api.js' */
@@ -195,7 +196,7 @@ export class PeerSyncController {
         isAnySyncEnabled = isDataSyncEnabled = true
         break
       default:
-        throw new ExhaustivenessError(this.#syncEnabledState)
+        throw new ExhaustivenessError({ value: this.#syncEnabledState })
     }
 
     for (const ns of NAMESPACES) {
@@ -228,7 +229,7 @@ export class PeerSyncController {
           this.#disableNamespace(ns)
         }
       } else {
-        throw new ExhaustivenessError(cap)
+        throw new ExhaustivenessError({ value: cap })
       }
     }
   }

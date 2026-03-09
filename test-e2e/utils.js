@@ -15,7 +15,7 @@ import { getProperty } from 'dot-prop-extra'
 
 import { MapeoManager, roles } from '../src/index.js'
 import { generate } from '@mapeo/mock-data'
-import { ExhaustivenessError, valueOf } from '../src/utils.js'
+import { valueOf } from '../src/utils.js'
 import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
@@ -28,8 +28,9 @@ import { excludeKeys } from 'filter-obj'
 import { kDataTypes } from '../src/mapeo-project.js'
 import { kGetIconBlob } from '../src/icon-api.js'
 import { execa } from 'execa'
+import { ExhaustivenessError } from '../src/errors.js'
 
-/** @import { MemberApi } from '../src/member-api.js' */
+/** @import { InvitePeerInfo, MemberApi } from '../src/member-api.js' */
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -107,6 +108,7 @@ export function connectPeers(managers) {
  * @param {import('../src/roles.js').RoleIdAssignableToOthers} [options.roleId]
  * @param {string} [options.roleName]
  * @param {boolean} [options.reject]
+ * @param {InvitePeerInfo} [options.peerInfo]
  */
 export async function invite({
   invitor,
@@ -115,6 +117,7 @@ export async function invite({
   roleId = roles.MEMBER_ROLE_ID,
   roleName,
   reject = false,
+  peerInfo,
 }) {
   const invitorProject = await invitor.getProject(projectId)
 
@@ -128,6 +131,7 @@ export async function invite({
         invitorProject.$member.invite(invitee.deviceId, {
           roleId,
           roleName,
+          peerInfo,
           __testOnlyInviteId: inviteId,
         }),
         (async () => {
@@ -827,7 +831,7 @@ function randomBlobStream(type, size) {
       stream.push(Buffer.from('ftyp'))
       break
     default:
-      throw new ExhaustivenessError(type)
+      throw new ExhaustivenessError({ value: type })
   }
   return stream
 }

@@ -1,8 +1,8 @@
 import b4a from 'b4a'
 import { discoveryKey } from 'hypercore-crypto'
 import Hyperdrive from 'hyperdrive'
-import util from 'node:util'
 import ReadyResource from 'ready-resource'
+import { MissingWriterError, UnsupportedCorestoreOptsError } from '../errors.js'
 
 /** @typedef {HyperdriveIndexImpl} THyperdriveIndex */
 
@@ -49,7 +49,7 @@ export class HyperdriveIndexImpl extends ReadyResource {
       }
     }
     if (!writer) {
-      throw new Error('Could not find a writer for the blobIndex namespace')
+      throw new MissingWriterError({ namespace: 'blobIndex' })
     }
     this.#writer = writer
 
@@ -137,9 +137,7 @@ class PretendCorestore {
     } else if (opts.name.includes('blobs')) {
       return this.#coreManager.getWriterCore('blob').core
     } else {
-      throw new Error(
-        'Unsupported corestore.get() with opts ' + util.inspect(opts)
-      )
+      throw new UnsupportedCorestoreOptsError({ opts })
     }
   }
 

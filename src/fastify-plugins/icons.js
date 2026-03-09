@@ -4,7 +4,12 @@ import { docSchemas } from '@comapeo/schema'
 
 import { kGetIconBlob } from '../icon-api.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
-import { ExhaustivenessError } from '../utils.js'
+import {
+  ensureKnownError,
+  InvalidIconPixelDensityError,
+  InvalidIconSizeError,
+  ExhaustivenessError,
+} from '../errors.js'
 
 export default fp(iconServerPlugin, {
   fastify: '4.x',
@@ -42,7 +47,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
         case 'image/svg+xml':
           return T.Literal('svg')
         default:
-          throw new ExhaustivenessError(mimeType)
+          throw new ExhaustivenessError({ value: mimeType })
       }
     })
   ),
@@ -56,7 +61,7 @@ const PARAMS_JSON_SCHEMA = T.Object({
 
 /** @type {import('fastify').FastifyPluginAsync<import('fastify').RegisterOptions & IconServerPluginOpts>} */
 async function iconServerPlugin(fastify, options) {
-  if (!options.getProject) throw new Error('Missing getProject')
+  if (!options.getProject) throw new TypeError('Missing getProject')
   fastify.register(routes, options)
 }
 
@@ -95,9 +100,9 @@ async function routes(fastify, options) {
 
         res.header('Content-Type', mimeType)
         return res.send(icon)
-      } catch (err) {
+      } catch (e) {
         res.code(404)
-        throw err
+        throw ensureKnownError(e)
       }
     }
   )
@@ -143,16 +148,20 @@ function assertValidSize(value) {
       value
     )
   ) {
-    throw new Error(`'${value}' is not a valid icon size`)
+    throw new InvalidIconSizeError({ value })
   }
 }
 
 /**
- * @param {unknown} value
+ * @param {number} value
  * @returns {asserts value is import('../icon-api.js').BitmapOpts['pixelDensity']}
  */
 function assertValidPixelDensity(value) {
-  if (!VALID_PIXEL_DENSITIES.includes(/** @type {any} */ (value))) {
-    throw new Error(`${value} is not a valid icon pixel density`)
+  if (
+    !VALID_PIXEL_DENSITIES.includes(
+      /** @type {import('../icon-api.js').BitmapOpts['pixelDensity']} */ (value)
+    )
+  ) {
+    throw new InvalidIconPixelDensityError({ density: value })
   }
 }

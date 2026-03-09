@@ -1,9 +1,23 @@
 {
   "name": "@comapeo/core",
-  "version": "5.5.0",
+  "version": "6.0.0",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./src/index.js"
+    },
+    "./errors.js": {
+      "types": "./dist/errors.d.ts",
+      "import": "./src/errors.js"
+    },
+    "./schema.js": {
+      "types": "./dist/schema.d.ts",
+      "import": "./src/schema.js"
+    }
+  },
   "type": "module",
   "scripts": {
     "lint": "eslint --cache .",
@@ -13,6 +27,7 @@
     "test:unit": "node --test",
     "test:e2e": "node --test test-e2e/*.js test-e2e/**/*.js",
     "test:types": "tsc -p test-types/tsconfig.json",
+    "build": "npm-run-all build:types",
     "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
     "bench": "nanobench benchmarks/*.js",
     "type": "tsc",
@@ -21,7 +36,7 @@
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate --dialect sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate --dialect sqlite --schema src/schema/client.js --out drizzle/client",
-    "prepack": "npm run build:types",
+    "prepack": "npm run build",
     "prepare": "husky install"
   },
   "files": [
@@ -182,6 +197,7 @@
     "comapeocat": "^1.0.0",
     "compact-encoding": "^2.12.0",
     "corestore": "6.8.4",
+    "custom-error-creator": "^1.1.1",
     "debug": "^4.3.4",
     "dot-prop": "^9.0.0",
     "dot-prop-extra": "^10.2.0",

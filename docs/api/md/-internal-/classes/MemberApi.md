@@ -24,7 +24,7 @@
 
 • **opts.dataTypes**
 
-• **opts.dataTypes.deviceInfo**: `Pick`\<[`DeviceInfoDataType`](../type-aliases/DeviceInfoDataType.md), `"getByDocId"` \| `"getMany"`\>
+• **opts.dataTypes.deviceInfo**: `Pick`\<[`DeviceInfoDataType`](../type-aliases/DeviceInfoDataType.md), *typeof* [`kCreateOrUpdateWithDocId`](../variables/kCreateOrUpdateWithDocId.md) \| `"getByDocId"` \| `"getMany"`\>
 
 • **opts.dataTypes.project**: `Pick`\<[`ProjectDataType`](../type-aliases/ProjectDataType.md), `"getByDocId"`\>
 
@@ -44,7 +44,7 @@ public key of this device as hex string
 
 • **opts.projectKey**: `Buffer`
 
-• **opts.roles**: [`Roles`](Roles.md)
+• **opts.roles**: [`Roles`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_roles/classes/Roles.md)
 
 • **opts.rpc**: [`LocalPeers`](LocalPeers.md)
 
@@ -131,11 +131,31 @@ Allow insecure network connections. Should only be used in tests.
 
 ### getMany()
 
-> **getMany**(): `Promise`\<[`MemberInfo`](../../namespaces/MemberApi/interfaces/MemberInfo.md)[]\>
+#### getMany()
 
-#### Returns
+> **getMany**(): `Promise`\<[`ActiveMemberInfo`](../../namespaces/MemberApi/type-aliases/ActiveMemberInfo.md)[]\>
 
-`Promise`\<[`MemberInfo`](../../namespaces/MemberApi/interfaces/MemberInfo.md)[]\>
+##### Returns
+
+`Promise`\<[`ActiveMemberInfo`](../../namespaces/MemberApi/type-aliases/ActiveMemberInfo.md)[]\>
+
+#### getMany(opts)
+
+> **getMany**\<`T`\>(`opts`): `Promise`\<`T` *extends* `true` ? [`MemberInfo`](../../namespaces/MemberApi/interfaces/MemberInfo.md)[] : [`ActiveMemberInfo`](../../namespaces/MemberApi/type-aliases/ActiveMemberInfo.md)[]\>
+
+##### Type Parameters
+
+• **T** *extends* `boolean` = `false`
+
+##### Parameters
+
+• **opts**
+
+• **opts.includeLeft**: `undefined` \| `T`
+
+##### Returns
+
+`Promise`\<`T` *extends* `true` ? [`MemberInfo`](../../namespaces/MemberApi/interfaces/MemberInfo.md)[] : [`ActiveMemberInfo`](../../namespaces/MemberApi/type-aliases/ActiveMemberInfo.md)[]\>
 
 ***
 
@@ -157,6 +177,8 @@ is canceled, or if something else goes wrong.
 Hard-code the invite ID. Only for tests.
 
 • **opts.initialSyncTimeoutMs**: `undefined` \| `number` = `5000`
+
+• **opts.peerInfo**: `undefined` \| [`InvitePeerInfo`](../interfaces/InvitePeerInfo.md)
 
 • **opts.roleDescription**: `undefined` \| `string`
 

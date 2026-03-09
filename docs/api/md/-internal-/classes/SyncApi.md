@@ -34,7 +34,7 @@
 
 • **opts.makeWebsocket**: `undefined` \| (`url`) => `WebSocket` = `...`
 
-• **opts.roles**: [`Roles`](Roles.md)
+• **opts.roles**: [`Roles`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_roles/classes/Roles.md)
 
 • **opts.throttleMs**: `undefined` \| `number` = `200`
 

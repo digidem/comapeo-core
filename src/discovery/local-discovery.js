@@ -3,13 +3,14 @@ import net from 'node:net'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { once } from 'node:events'
-import { noop } from '../utils.js'
+import { noop, timeoutPromise } from '../utils.js'
 import { isPrivate } from 'bogon'
 import StartStopStateMachine from 'start-stop-state-machine'
-import pTimeout from 'p-timeout'
 import { keyToPublicId } from '@mapeo/crypto'
 import { Logger } from '../logger.js'
-import { getErrorCode } from '../lib/error.js'
+import { ensureKnownError, getErrorCode } from '../errors.js'
+import { ServerNotListeningError } from '../errors.js'
+
 /** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
@@ -88,7 +89,7 @@ export class LocalDiscovery extends TypedEmitter {
       this.#server.listen(this.#port, '0.0.0.0')
       await onListening
     } catch (e) {
-      if (this.#port === 0) throw e
+      if (this.#port === 0) throw ensureKnownError(e)
       // Account for errors from re-binding the port failing
       this.#port = 0
       return this.#start()
@@ -297,7 +298,7 @@ export class LocalDiscovery extends TypedEmitter {
       for (const socket of this.#noiseConnections.values()) {
         socket.destroy()
       }
-      return pTimeout(closePromise, { milliseconds: 500 })
+      return timeoutPromise(closePromise, { milliseconds: 500 })
     }
 
     if (!force) {
@@ -306,7 +307,7 @@ export class LocalDiscovery extends TypedEmitter {
       // If timeout is 0, we force-close immediately
       await forceClose()
     } else {
-      await pTimeout(closePromise, {
+      await timeoutPromise(closePromise, {
         milliseconds: timeout,
         fallback: forceClose,
       })
@@ -324,7 +325,7 @@ export class LocalDiscovery extends TypedEmitter {
 function getAddress(server) {
   const addr = server.address()
   if (addr === null || typeof addr === 'string') {
-    throw new Error('Server is not listening on a port')
+    throw new ServerNotListeningError()
   }
   return addr
 }

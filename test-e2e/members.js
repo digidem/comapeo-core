@@ -14,6 +14,7 @@ import {
 } from '../src/roles.js'
 import {
   connectPeers,
+  createManager,
   createManagers,
   invite,
   removeUndefinedFields,
@@ -103,7 +104,7 @@ test('getting yourself after adding project (but not yet synced)', async (t) => 
     'has expected member info with no role'
   )
 
-  const members = await project.$member.getMany()
+  const members = await project.$member.getMany({ includeLeft: true })
   const { joinedAt: _, ...member } = members[0]
 
   assert.equal(members.length, 1)
@@ -377,7 +378,7 @@ test('roles - getMany() on newly invited device before sync', async (t) => {
 
   const expected = { [deviceId]: NO_ROLE }
 
-  const allMembers = await project.$member.getMany()
+  const allMembers = await project.$member.getMany({ includeLeft: true })
 
   /** @type {Record<string, import('../src/roles.js').Role>} */
   const actual = {}
@@ -946,5 +947,110 @@ test('Auto deny invites if invited before remove is processed', async (t) => {
     response,
     InviteResponse_Decision.ALREADY,
     'Auto rejects before leave project is called'
+  )
+})
+
+test('Members skip writing own deviceInfo if invitor does it', async (t) => {
+  const invitor = await createManager('invitor', t)
+  const invitee = await createManager('invitee', t)
+  const managers = [invitor, invitee]
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  // Need to set names on manager or it won't work
+  invitor.setDeviceInfo({
+    name: 'invitor',
+    deviceType: 'device_type_unspecified',
+  })
+  invitee.setDeviceInfo({
+    name: 'invitee',
+    deviceType: 'device_type_unspecified',
+  })
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  const expectedName = 'test-writerless'
+
+  await invite({
+    invitor,
+    projectId,
+    invitees: [invitee],
+    peerInfo: {
+      deviceType: 'tablet',
+      name: expectedName,
+    },
+  })
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  for (const project of [inviteeProject, invitorProject]) {
+    const deviceInfo = await project.$member.getById(invitee.deviceId)
+    assert.equal(deviceInfo.deviceType, 'tablet', 'Got type set')
+    assert.equal(deviceInfo.name, expectedName, 'Got name set')
+  }
+})
+
+test('Invite a bunch of users and list only active ones', async (t) => {
+  const managers = await createManagers(5, t)
+  const [creator, member, coordinator, blocked, left] = managers
+  const disconnectPeers = connectPeers(managers)
+  t.after(disconnectPeers)
+
+  const projectId = await creator.createProject({ name: 'Mapeo' })
+  const project = await creator.getProject(projectId)
+  await invite({
+    invitor: creator,
+    projectId,
+    invitees: [member, left, blocked],
+  })
+
+  await invite({
+    invitor: creator,
+    projectId,
+    invitees: [coordinator],
+    roleId: COORDINATOR_ROLE_ID,
+  })
+
+  await left.leaveProject(projectId)
+  await project.$member.remove(blocked.deviceId)
+
+  const projects = await Promise.all(
+    [creator, member, coordinator].map((manager) =>
+      manager.getProject(projectId)
+    )
+  )
+
+  await waitForSync(projects, 'initial')
+
+  /** @type {Array<import('../src/member-api.js').ActiveMemberInfo>} */
+  const activeMembers = await project.$member.getMany()
+
+  const gotActiveMemberIds = activeMembers
+    .map(({ deviceId }) => deviceId)
+    .sort()
+
+  /** @type {Array<import('../src/member-api.js').MemberInfo>} */
+  const allMembers = await project.$member.getMany({ includeLeft: true })
+
+  const gotAllMembersIds = allMembers.map(({ deviceId }) => deviceId).sort()
+
+  const activeMemberIds = [
+    creator.deviceId,
+    member.deviceId,
+    coordinator.deviceId,
+  ].sort()
+
+  const allMemberIds = managers.map(({ deviceId }) => deviceId).sort()
+
+  assert.deepEqual(
+    gotActiveMemberIds,
+    activeMemberIds,
+    'only active members listed by default'
+  )
+  assert.deepEqual(
+    gotAllMembersIds,
+    allMemberIds,
+    'inactive members listed when included'
   )
 })

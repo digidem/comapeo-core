@@ -16,6 +16,7 @@ import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
 import pTimeout from 'p-timeout'
 import FakeTimers from '@sinonjs/fake-timers'
+import { AlreadyJoinedError, TimeoutError } from '../src/errors.js'
 /** @import { InviteResponse } from '../src/generated/rpc.js' */
 
 class MockLocalPeers extends LocalPeers {
@@ -66,6 +67,7 @@ test('invite-received event has expected payload', async () => {
     projectName,
     invitorName: 'Your Friend',
     sendStats: false,
+    invitorWroteDeviceInfo: false,
   }
   rpc.emit('invite', invitorPeerId, bareInvite)
 
@@ -95,6 +97,7 @@ test('invite-received event has expected payload', async () => {
       invitorName: 'Your Friend',
       state: 'pending',
       sendStats: false,
+      invitorWroteDeviceInfo: false,
     },
     {
       inviteId: partialInvite.inviteId.toString('hex'),
@@ -106,6 +109,7 @@ test('invite-received event has expected payload', async () => {
       projectColor: '#123456',
       state: 'pending',
       sendStats: false,
+      invitorWroteDeviceInfo: false,
     },
     {
       inviteId: fullInvite.inviteId.toString('hex'),
@@ -118,6 +122,7 @@ test('invite-received event has expected payload', async () => {
       projectDescription: 'cool project',
       state: 'pending',
       sendStats: false,
+      invitorWroteDeviceInfo: false,
     },
   ]
   const receivedInvitesArgs = (await invitesReceivedPromise).map(first)
@@ -395,7 +400,7 @@ test('Receiving invite for project that peer already belongs to', async (t) => {
 
       await assert.rejects(
         () => inviteApi.accept(inviteExternal),
-        { message: 'Already joining or in project' },
+        { code: AlreadyJoinedError.code },
         'accepting rejects with an error'
       )
 
@@ -891,7 +896,7 @@ test('receiving project join details from an unknown peer is a no-op', async (t)
   )
 
   const assertAcceptTimeoutPromise = assert.rejects(() => acceptPromise, {
-    message: 'Timed out waiting for project details',
+    code: TimeoutError.code,
   })
   clock.runAll()
   await assertAcceptTimeoutPromise
@@ -977,7 +982,7 @@ test('receiving project join details for an unknown invite ID is a no-op', async
   )
 
   const assertAcceptTimeoutPromise = assert.rejects(() => acceptPromise, {
-    message: 'Timed out waiting for project details',
+    code: TimeoutError.code,
   })
   clock.runAll()
   await assertAcceptTimeoutPromise
@@ -1184,6 +1189,7 @@ function setup() {
     roleName: 'Superfan',
     invitorName: 'Host',
     sendStats: false,
+    invitorWroteDeviceInfo: false,
   }
   const inviteExternal = {
     ...invite,
@@ -1192,6 +1198,7 @@ function setup() {
     inviteId: invite.inviteId.toString('hex'),
     projectInviteId: projectInviteId.toString('hex'),
     sendStats: false,
+    invitorWroteDeviceInfo: false,
   }
 
   const rpc = new MockLocalPeers()

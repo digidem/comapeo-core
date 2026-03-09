@@ -1,6 +1,5 @@
 import Corestore from 'corestore'
 import { debounce } from 'throttle-debounce'
-import assert from 'node:assert/strict'
 import { sql, eq } from 'drizzle-orm'
 
 import {
@@ -16,8 +15,12 @@ import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 import mapObject from 'map-obj'
-import { PeerNotFoundError } from '../errors.js'
 import ReadyResource from 'ready-resource'
+import {
+  InvalidProjectKeyError,
+  InvalidProjectSecretKeyError,
+  PeerNotFoundError,
+} from '../errors.js'
 
 /** @import Hypercore from 'hypercore' */
 /** @import { BlobFilter, GenericBlobFilter, HypercorePeer, Namespace } from '../types.js' */
@@ -82,14 +85,10 @@ export class CoreManager extends ReadyResource {
     logger,
   }) {
     super()
-    assert(
-      projectKey.length === 32,
-      'project owner core public key must be 32-byte buffer'
-    )
-    assert(
-      !projectSecretKey || projectSecretKey.length === 64,
-      'project owner core secret key must be 64-byte buffer'
-    )
+    if (projectKey.length !== 32) throw new InvalidProjectKeyError()
+    if (projectSecretKey && projectSecretKey.length !== 64) {
+      throw new InvalidProjectSecretKeyError()
+    }
     // Each peer will attach a listener, so max listeners is max attached peers
     this.setMaxListeners(0)
     this.#l = Logger.create('coreManager', logger)

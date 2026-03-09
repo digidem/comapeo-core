@@ -6,7 +6,6 @@ import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
-import pTimeout from 'p-timeout'
 import { createRequire } from 'module'
 
 import { IndexWriter } from './index-writer/index.js'
@@ -36,6 +35,7 @@ import {
   projectKeyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
+  timeoutPromise,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
@@ -49,7 +49,14 @@ import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Logger } from './logger.js'
 import { kRequestFullStop, kRescindFullStopRequest } from './sync/sync-api.js'
-import { NotFoundError } from './errors.js'
+import {
+  EncryptionKeysNotFoundError,
+  ensureKnownError,
+  ExhaustivenessError,
+  FailedToSetIsArchiveDeviceError,
+  NotFoundError,
+  ProjectExistsError,
+} from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
@@ -63,7 +70,7 @@ import { migrate } from './lib/drizzle-helpers.js'
 /** @import { ProjectSettings, ProjectSettingsValue } from '@comapeo/schema' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
-/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean }} ProjectToAddDetails */
+/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean }} ProjectToAddDetails */
 /** @typedef {Pick<ProjectSettings, 'createdAt' | 'updatedAt' | 'name' | 'projectColor' | 'projectDescription' | 'sendStats'>} ListedProjectSettings */
 /** @typedef {ListedProjectSettings & { status: 'joined', projectId: string } | ProjectInfo & { status: 'joining' | 'left', projectId: string }} ListedProject */
 
@@ -277,7 +284,7 @@ export class MapeoManager extends TypedEmitter {
         break
       }
       default: {
-        throw new Error(`Unsupported media type ${mediaType}`)
+        throw new ExhaustivenessError({ value: mediaType })
       }
     }
 
@@ -587,11 +594,11 @@ export class MapeoManager extends TypedEmitter {
 
     /**
      *
-     * @param {Error} err
+     * @param {Error} e
      * @param {MapShareExtension} mapShareExtension
      */
-    const onMapShareError = (err, mapShareExtension) => {
-      this.emit('map-share-error', err, mapShareExtension)
+    const onMapShareError = (e, mapShareExtension) => {
+      this.emit('map-share-error', e, mapShareExtension)
     }
 
     project.once('close', () => {
@@ -698,6 +705,7 @@ export class MapeoManager extends TypedEmitter {
       projectColor,
       projectDescription,
       sendStats = false,
+      invitorWroteDeviceInfo = false,
     },
     { waitForSync = true } = {}
   ) => {
@@ -717,7 +725,7 @@ export class MapeoManager extends TypedEmitter {
       .get()
 
     if (existingProject && existingProject.hasLeftProject !== true) {
-      throw new Error(`Project with ID ${projectPublicId} already exists`)
+      throw new ProjectExistsError({ projectPublicId })
     }
 
     // 2. Check for an active project
@@ -772,7 +780,7 @@ export class MapeoManager extends TypedEmitter {
         .delete(projectKeysTable)
         .where(eq(projectKeysTable.projectId, projectId))
         .run()
-      throw e
+      throw ensureKnownError(e)
     }
 
     // Make sure to clean up when closed
@@ -780,18 +788,21 @@ export class MapeoManager extends TypedEmitter {
       this.#activeProjects.delete(projectPublicId)
     })
 
-    try {
-      const deviceInfo = this.getDeviceInfo()
-      if (hasSavedDeviceInfo(deviceInfo)) {
-        await project[kSetOwnDeviceInfo](deviceInfo)
+    // Only write info on invite if configured
+    if (!invitorWroteDeviceInfo) {
+      try {
+        const deviceInfo = this.getDeviceInfo()
+        if (hasSavedDeviceInfo(deviceInfo)) {
+          await project[kSetOwnDeviceInfo](deviceInfo)
+        }
+      } catch (e) {
+        // Can ignore an error trying to write device info
+        this.#l.log(
+          'ERROR: failed to write project %h deviceInfo %o',
+          projectKey,
+          e
+        )
       }
-    } catch (e) {
-      // Can ignore an error trying to write device info
-      this.#l.log(
-        'ERROR: failed to write project %h deviceInfo %o',
-        projectKey,
-        e
-      )
     }
 
     // 5. Wait for initial project sync
@@ -901,7 +912,7 @@ export class MapeoManager extends TypedEmitter {
       })
       .run()
     if (!result || result.changes === 0) {
-      throw new Error('Failed to set isArchiveDevice')
+      throw new FailedToSetIsArchiveDeviceError()
     }
     for (const project of this.#activeProjects.values()) {
       project[kSetIsArchiveDevice](isArchiveDevice)
@@ -1038,7 +1049,9 @@ export class MapeoManager extends TypedEmitter {
   }
 
   async getMapStyleJsonUrl() {
-    await pTimeout(this.#fastify.ready(), { milliseconds: 1000 })
+    await timeoutPromise(Promise.resolve(this.#fastify.ready()), {
+      milliseconds: 1000,
+    })
     return (await this.#getMediaBaseUrl('maps')) + '/style.json'
   }
 
@@ -1080,7 +1093,7 @@ function omitPeerProtomux(peers) {
  */
 function validateProjectKeys(projectKeys) {
   if (!projectKeys.encryptionKeys) {
-    throw new Error('encryptionKeys should not be undefined')
+    throw new EncryptionKeysNotFoundError()
   }
 }
 

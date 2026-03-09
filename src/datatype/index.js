@@ -3,10 +3,18 @@ import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { noop, mutatingDeNullify } from '../utils.js'
-import { NotFoundError } from '../errors.js'
+import {
+  DocAlreadyDeletedError,
+  DocAlreadyExistsError,
+  InvalidDocError,
+  InvalidDocFormatError,
+  NotFoundError,
+  nullIfNotFound,
+} from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { setProperty, getProperty } from 'dot-prop-extra'
 import { parseBcp47 } from '../intl/parse-bcp-47.js'
+
 /** @import { MapeoDoc, MapeoValue } from '@comapeo/schema' */
 /** @import { RunResult } from 'better-sqlite3' */
 /** @import { SQLiteSelectBase } from 'drizzle-orm/sqlite-core' */
@@ -78,6 +86,7 @@ function generateDate() {
   return new Date().toISOString()
 }
 export const kCreateWithDocId = Symbol('kCreateWithDocId')
+export const kCreateOrUpdateWithDocId = Symbol('kCreateWithDocId')
 export const kSelect = Symbol('select')
 export const kTable = Symbol('table')
 export const kDataStore = Symbol('dataStore')
@@ -183,6 +192,20 @@ export class DataType extends TypedEmitter {
 
   /**
    * @param {string} docId
+   * @param {ExcludeSchema<TValue, 'coreOwnership'>} value
+   * @returns {Promise<TDoc & DerivedDocFields>}
+   */
+  async [kCreateOrUpdateWithDocId](docId, value) {
+    const existing = await this.getByDocId(docId).catch(nullIfNotFound)
+    if (existing) {
+      return this.update(existing.versionId, value)
+    } else {
+      return this[kCreateWithDocId](docId, value, { checkExisting: false })
+    }
+  }
+
+  /**
+   * @param {string} docId
    * @param {ExcludeSchema<TValue, 'coreOwnership'> | CoreOwnershipWithSignaturesValue} value
    * @param {{ checkExisting?: boolean }} [opts] - only used internally to skip the checkExisting check when creating a document with a random ID (collisions should be too small probability to be worth checking for)
    * @returns {Promise<TDoc & DerivedDocFields>}
@@ -190,12 +213,12 @@ export class DataType extends TypedEmitter {
   async [kCreateWithDocId](docId, value, { checkExisting = true } = {}) {
     if (!validate(this.#schemaName, value)) {
       // TODO: pass through errors from validate functions
-      throw new Error('Invalid value ' + value)
+      throw new InvalidDocFormatError({ value })
     }
     if (checkExisting) {
       const existing = await this.getByDocId(docId).catch(noop)
       if (existing) {
-        throw new Error('Doc with docId ' + docId + ' already exists')
+        throw new DocAlreadyExistsError({ docId })
       }
     }
     const nowDateString = generateDate()
@@ -376,7 +399,7 @@ export class DataType extends TypedEmitter {
     const existingDoc = await this.getByDocId(docId)
 
     if ('deleted' in existingDoc && existingDoc.deleted) {
-      throw new Error('Doc already deleted')
+      throw new DocAlreadyDeletedError()
     }
 
     /** @type {any} */
@@ -423,7 +446,7 @@ export class DataType extends TypedEmitter {
       (doc) => doc.docId === docId && doc.schemaName === this.#schemaName
     )
     if (!areLinksValid) {
-      throw new Error('Updated docs must have the same docId and schemaName')
+      throw new InvalidDocError()
     }
     return { docId, createdAt, originalVersionId }
   }
