@@ -8,12 +8,6 @@
 
 ## Index
 
-### Classes
-
-- [PeerDisconnectedError](classes/PeerDisconnectedError.md)
-- [PeerFailedConnectionError](classes/PeerFailedConnectionError.md)
-- [UnknownPeerError](classes/UnknownPeerError.md)
-
 ### Interfaces
 
 - [AckWaiter](interfaces/AckWaiter.md)

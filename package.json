@@ -1,21 +1,21 @@
 {
   "name": "@comapeo/core",
-  "version": "5.5.0",
+  "version": "6.0.1",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./src/index.js"
+      "default": "./src/index.js"
     },
     "./errors.js": {
       "types": "./dist/errors.d.ts",
-      "import": "./src/errors.js"
+      "default": "./src/errors.js"
     },
     "./schema.js": {
       "types": "./dist/schema.d.ts",
-      "import": "./src/schema.js"
+      "default": "./src/schema.js"
     }
   },
   "type": "module",
@@ -122,7 +122,7 @@
   "homepage": "https://github.com/digidem/comapeo-core#readme",
   "devDependencies": {
     "@bufbuild/buf": "^1.26.1",
-    "@comapeo/cloud": "^0.2.1",
+    "@comapeo/cloud": "^0.4.0",
     "@comapeo/core2.0.1": "npm:@comapeo/core@2.0.1",
     "@comapeo/core4.1.4": "npm:@comapeo/core@^4.1.4",
     "@comapeo/ipc": "^2.1.0",

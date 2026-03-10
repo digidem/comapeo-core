@@ -12,6 +12,7 @@
 
 - ["/home/runner/work/comapeo-core/comapeo-core/src/local-peers"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/mapeo-project"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_mapeo-project/README.md)
+- ["/home/runner/work/comapeo-core/comapeo-core/src/roles"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_roles/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/schema/client"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_schema_client/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/schema/project"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_schema_project/README.md)
 - ["/home/runner/work/comapeo-core/comapeo-core/src/sync/core-sync-state"](namespaces/home_runner_work_comapeo-core_comapeo-core_src_sync_core-sync-state/README.md)
@@ -59,7 +60,6 @@
 - [Protomux](classes/Protomux.md)
 - [RemoteBitfieldPage](classes/RemoteBitfieldPage.md)
 - [RemoteBitfieldSegment](classes/RemoteBitfieldSegment.md)
-- [Roles](classes/Roles.md)
 - [SparseIndex](classes/SparseIndex.md)
 - [SyncApi](classes/SyncApi.md)
 - [SyncState](classes/SyncState.md)
@@ -72,11 +72,11 @@
 - [Context](interfaces/Context.md)
 - [CorestoreEvents](interfaces/CorestoreEvents.md)
 - [DerivedDocFields](interfaces/DerivedDocFields.md)
-- [DocCapability](interfaces/DocCapability.md)
 - [HaveMsg](interfaces/HaveMsg.md)
 - [HyperdriveEvents](interfaces/HyperdriveEvents.md)
 - [HyperdriveGetOpts](interfaces/HyperdriveGetOpts.md)
 - [HyperdriveOptions](interfaces/HyperdriveOptions.md)
+- [InvitePeerInfo](interfaces/InvitePeerInfo.md)
 - [LocalCoreState](interfaces/LocalCoreState.md)
 - [MapsPluginOpts](interfaces/MapsPluginOpts.md)
 - [Message](interfaces/Message.md)
@@ -106,7 +106,6 @@
 - [CoreStorage](type-aliases/CoreStorage.md)
 - [DeviceInfoDataType](type-aliases/DeviceInfoDataType.md)
 - [DeviceInfoParam](type-aliases/DeviceInfoParam.md)
-- [ElementOf](type-aliases/ElementOf.md)
 - [Encoding](type-aliases/Encoding.md)
 - [Enum](type-aliases/Enum.md)
 - [GenericBlobFilter](type-aliases/GenericBlobFilter.md)
@@ -160,9 +159,11 @@
 
 ### Variables
 
+- [kCreateOrUpdateWithDocId](variables/kCreateOrUpdateWithDocId.md)
 - [NAMESPACE\_SCHEMAS](variables/NAMESPACE_SCHEMAS.md)
 - [NAMESPACES](variables/NAMESPACES.md)
 - [ROLE\_IDS](variables/ROLE_IDS.md)
+- [ROLE\_IDS\_ASSIGNABLE\_TO\_ANYONE](variables/ROLE_IDS_ASSIGNABLE_TO_ANYONE.md)
 - [ROLE\_IDS\_ASSIGNABLE\_TO\_OTHERS](variables/ROLE_IDS_ASSIGNABLE_TO_OTHERS.md)
 - [ROLE\_IDS\_FOR\_NEW\_INVITE](variables/ROLE_IDS_FOR_NEW_INVITE.md)
 - [SUPPORTED\_BLOB\_VARIANTS](variables/SUPPORTED_BLOB_VARIANTS.md)
@@ -172,6 +173,12 @@
 ### BlobId
 
 Re-exports [BlobId](namespaces/Hyperblobs/interfaces/BlobId.md)
+
+***
+
+### ElementOf
+
+Re-exports [ElementOf](namespaces/home_runner_work_comapeo-core_comapeo-core_src_roles/type-aliases/ElementOf.md)
 
 ***
 
