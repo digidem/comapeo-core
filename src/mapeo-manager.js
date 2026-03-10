@@ -7,6 +7,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { createRequire } from 'module'
+import ensureError from 'ensure-error'
 
 import { IndexWriter } from './index-writer/index.js'
 import {
@@ -36,6 +37,7 @@ import {
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
   timeoutPromise,
+  validateMapShareExtension,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
@@ -61,7 +63,7 @@ import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
 
-/** @import { MapShareExtension } from './generated/extensions.js' */
+/** @import { MapShareExtension } from './generated/rpc.js' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { ProjectJoinDetails, } from './generated/rpc.js' */
@@ -73,6 +75,24 @@ import { migrate } from './lib/drizzle-helpers.js'
 /** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean }} ProjectToAddDetails */
 /** @typedef {Pick<ProjectSettings, 'createdAt' | 'updatedAt' | 'name' | 'projectColor' | 'projectDescription' | 'sendStats'>} ListedProjectSettings */
 /** @typedef {ListedProjectSettings & { status: 'joined', projectId: string } | ProjectInfo & { status: 'joining' | 'left', projectId: string }} ListedProject */
+
+/**
+ * @typedef {object} AugmentedMapShareProperties
+ * @property {readonly [number, number, number, number]} bounds - Bounding box of the shared map [W, S, E, N].
+ * @property {readonly [string, ...string[]]} mapShareUrls - URLs associated with the map share.
+ * @property {number} mapShareReceivedAt - Timestamp when the map share was received.
+ * @property {string} senderDeviceId - The ID of the device that sent the map share.
+ * @property {string} [senderDeviceName] - The name of the device that sent the map share.
+ * @property {string} receiverDeviceId - The deviceId of the peer the map share was sent to
+ */
+
+/**
+ * @typedef {Omit<MapShareExtension, 'bounds' | 'mapShareUrls' | 'receiverDeviceKey'> & AugmentedMapShareProperties} MapShare
+ */
+
+/**
+ * @typedef {Omit<MapShare, 'mapShareReceivedAt' | 'senderDeviceId' | 'senderDeviceName'>} MapShareSend
+ */
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
@@ -107,7 +127,7 @@ export const DEFAULT_IS_ARCHIVE_DEVICE = true
 /**
  * @typedef {object} MapeoManagerEvents
  * @property {(peers: PublicPeerInfo[]) => void} local-peers Emitted when the list of connected peers changes (new ones added, or connection status changes)
- * @property {(mapShare: import('./mapeo-project.js').MapShare) => void} map-share Emitted when a project has recieved a map share request
+ * @property {(mapShare: MapShare) => void} map-share Emitted when a project has recieved a map share request
  * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error - Emitted when an incoming map share fails to be recieved due to formatting issues
  */
 
@@ -202,6 +222,15 @@ export class MapeoManager extends TypedEmitter {
         this.#l.log('Received dk %h but no active projects', dk)
       }
     })
+    this.#localPeers.on('map-share', (deviceId, mapShareBase) =>
+      this.#handleMapShare(deviceId, mapShareBase).catch((e) => {
+        this.emit('map-share-error', e, mapShareBase)
+        this.#l.log(
+          'Error: Unable to handle incoming Map Share',
+          ensureError(e)
+        )
+      })
+    )
 
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectSettingsTable],
@@ -582,34 +611,6 @@ export class MapeoManager extends TypedEmitter {
           .get()?.projectInfo
       },
     })
-
-    const projectPublicId = projectKeyToPublicId(projectKeys.projectKey)
-
-    /**
-     * @param {import('./mapeo-project.js').MapShare} mapShare
-     */
-    const onMapShare = (mapShare) => {
-      this.emit('map-share', mapShare)
-    }
-
-    /**
-     *
-     * @param {Error} e
-     * @param {MapShareExtension} mapShareExtension
-     */
-    const onMapShareError = (e, mapShareExtension) => {
-      this.emit('map-share-error', e, mapShareExtension)
-    }
-
-    project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
-      project.removeListener('map-share', onMapShare)
-      project.removeListener('map-share-error', onMapShareError)
-    })
-
-    project.on('map-share', onMapShare)
-
-    project.on('map-share-error', onMapShareError)
 
     return project
   }
@@ -1044,6 +1045,60 @@ export class MapeoManager extends TypedEmitter {
     await project.$sync.waitForSync('initial', {
       timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
     })
+  }
+
+  /**
+   * Send a map share offer to the peer with device ID `mapShare.receiverDeviceId`
+   *
+   * @param {MapShareSend} mapShare
+   * @param {object} [options]
+   * @param {boolean} [options.__testOnlyBypassValidation=false] Warning: Do not use!
+   */
+  async sendMapShare(mapShare, { __testOnlyBypassValidation = false } = {}) {
+    const { receiverDeviceId, ...mapShareData } = mapShare
+    const receiverDeviceKey = Buffer.from(receiverDeviceId, 'hex')
+
+    /** @type {MapShareExtension} */
+    // @ts-expect-error readonly fields being assigned as mutable
+    const shareExtension = {
+      ...mapShareData,
+      receiverDeviceKey,
+    }
+    if (!__testOnlyBypassValidation) {
+      validateMapShareExtension(shareExtension)
+    }
+    await this.#localPeers.sendMapShare(receiverDeviceId, shareExtension)
+  }
+
+  /**
+   * @param {string} senderDeviceId
+   * @param {MapShareExtension} mapShareBase
+   */
+  async #handleMapShare(senderDeviceId, mapShareBase) {
+    const mapShareReceivedAt = Date.now()
+
+    validateMapShareExtension(mapShareBase)
+
+    const sender = await this.#localPeers.infoFor(senderDeviceId)
+
+    const { receiverDeviceKey, ...mapShareData } = mapShareBase
+
+    const receiverDeviceId = receiverDeviceKey.toString('hex')
+
+    if (receiverDeviceId !== this.#deviceId) {
+      throw new Error('Got map share intended for a different peer')
+    }
+
+    /** @type {MapShare} */
+    const mapShare = {
+      ...mapShareData,
+      senderDeviceId,
+      senderDeviceName: sender.name,
+      mapShareReceivedAt,
+      receiverDeviceId,
+    }
+
+    this.emit('map-share', mapShare)
   }
 
   async getMapStyleJsonUrl() {

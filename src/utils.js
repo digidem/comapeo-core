@@ -11,7 +11,7 @@ import {
 } from './errors.js'
 import pTimeout, { TimeoutError as pTimeoutError } from 'p-timeout'
 
-/** @import { MapShareExtension } from './generated/extensions.js' */
+/** @import { MapShareExtension } from './generated/rpc.js' */
 /** @import {Attachment, BlobId} from "./types.js" */
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
@@ -267,7 +267,7 @@ export async function timeoutPromise(promise, opts) {
  * Does not validate device ID or device name
  *
  * @param {MapShareExtension} mapShare
- * @returns {asserts mapShare is { [K in keyof MapShareExtension]: import('./mapeo-project.js').MapShare[K] }} - this validates the properties that MapShareExtension and MapShare have in common - bounds tuple and mapShareUrls
+ * @returns {asserts mapShare is { [K in keyof MapShareExtension]: import('./mapeo-manager.js').MapShare[K] }} - this validates the properties that MapShareExtension and MapShare have in common - bounds tuple and mapShareUrls
  */
 export function validateMapShareExtension(mapShare) {
   const {
