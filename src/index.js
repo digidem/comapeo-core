@@ -10,7 +10,10 @@ export { MapeoManager } from './mapeo-manager.js'
 
 // Type exports
 /** @typedef {import('./mapeo-project.js').MapShare} MapShare */
+/** @typedef {import('./generated/extensions.js').MapShareExtension} MapShareExtension */
 /** @typedef {import('./mapeo-project.js').MapeoProject} MapeoProject */
+/** @typedef {import('./mapeo-project.js').RoleChangeEvent} RoleChangeEvent */
+/** @typedef {import('./mapeo-manager.js').PublicPeerInfo} PublicPeerInfo */
 /** @typedef {import('./mapeo-project.js').EditableProjectSettings} EditableProjectSettings */
 /**
  * @namespace IconApi
