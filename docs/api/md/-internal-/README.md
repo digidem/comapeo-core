@@ -51,7 +51,6 @@
 - [IndexWriter](classes/IndexWriter.md)
 - [InviteApi](classes/InviteApi.md)
 - [LocalDiscovery](classes/LocalDiscovery.md)
-- [LocalPeers](classes/LocalPeers.md)
 - [Logger](classes/Logger.md)
 - [MapeoProject](classes/MapeoProject.md)
 - [MemberApi](classes/MemberApi.md)
@@ -80,7 +79,6 @@
 - [LocalCoreState](interfaces/LocalCoreState.md)
 - [MapsPluginOpts](interfaces/MapsPluginOpts.md)
 - [Message](interfaces/Message.md)
-- [PeerInfoBase](interfaces/PeerInfoBase.md)
 - [RemoteDeviceNamespaceGroupSyncState](interfaces/RemoteDeviceNamespaceGroupSyncState.md)
 - [RemoteDeviceSyncState](interfaces/RemoteDeviceSyncState.md)
 - [Role](interfaces/Role.md)
@@ -134,14 +132,11 @@
 - [NamespaceSchemas](type-aliases/NamespaceSchemas.md)
 - [OpenedNetNoiseStream](type-aliases/OpenedNetNoiseStream.md)
 - [OpenedNoiseStream](type-aliases/OpenedNoiseStream.md)
-- [PeerInfoConnected](type-aliases/PeerInfoConnected.md)
-- [PeerInfoDisconnected](type-aliases/PeerInfoDisconnected.md)
 - [ProjectDataType](type-aliases/ProjectDataType.md)
 - [ProjectInfo](type-aliases/ProjectInfo.md)
 - [ProjectToAddDetails](type-aliases/ProjectToAddDetails.md)
 - [ProtocolStream](type-aliases/ProtocolStream.md)
 - [PublicKey](type-aliases/PublicKey.md)
-- [PublicPeerInfo](type-aliases/PublicPeerInfo.md)
 - [Range](type-aliases/Range.md)
 - [RawStream](type-aliases/RawStream.md)
 - [Readable](type-aliases/Readable.md)
@@ -191,6 +186,12 @@ Re-exports [HyperbeeEntry](namespaces/Hyperbee/interfaces/HyperbeeEntry.md)
 ### HyperdriveEntry
 
 Re-exports [HyperdriveEntry](namespaces/Hyperdrive/interfaces/HyperdriveEntry.md)
+
+***
+
+### LocalPeers
+
+Re-exports [LocalPeers](namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/classes/LocalPeers.md)
 
 ***
 

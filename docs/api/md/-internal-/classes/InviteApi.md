@@ -28,7 +28,7 @@
 
 • **options.queries.getProjectByInviteId**
 
-• **options.rpc**: [`LocalPeers`](LocalPeers.md)
+• **options.rpc**: [`LocalPeers`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/classes/LocalPeers.md)
 
 #### Returns
 
@@ -42,7 +42,7 @@
 
 ### rpc
 
-> **rpc**: [`LocalPeers`](LocalPeers.md)
+> **rpc**: [`LocalPeers`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/classes/LocalPeers.md)
 
 ## Methods
 
