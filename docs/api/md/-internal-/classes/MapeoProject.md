@@ -44,7 +44,7 @@ Whether this device is an archive device
 
 mapeo/crypto KeyManager instance
 
-• **opts.localPeers**: [`LocalPeers`](LocalPeers.md)
+• **opts.localPeers**: [`LocalPeers`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/classes/LocalPeers.md)
 
 • **opts.logger**: `undefined` \| [`Logger`](Logger.md)
 

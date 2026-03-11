@@ -20,11 +20,16 @@
 - [FastifyController](classes/FastifyController.md)
 - [MapeoManager](classes/MapeoManager.md)
 
+## Interfaces
+
+- [RoleChangeEvent](interfaces/RoleChangeEvent.md)
+
 ## Type Aliases
 
 - [EditableProjectSettings](type-aliases/EditableProjectSettings.md)
 - [MapeoProject](type-aliases/MapeoProject.md)
 - [MapShare](type-aliases/MapShare.md)
+- [PublicPeerInfo](type-aliases/PublicPeerInfo.md)
 
 ## Variables
 

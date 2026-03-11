@@ -6,7 +6,7 @@
 
 # Type Alias: PeerInfoConnecting
 
-> **PeerInfoConnecting**\<\>: [`PeerInfoBase`](../../../interfaces/PeerInfoBase.md) & `object`
+> **PeerInfoConnecting**\<\>: [`PeerInfoBase`](../interfaces/PeerInfoBase.md) & `object`
 
 ## Type declaration
 

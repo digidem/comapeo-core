@@ -46,7 +46,7 @@ public key of this device as hex string
 
 • **opts.roles**: [`Roles`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_roles/classes/Roles.md)
 
-• **opts.rpc**: [`LocalPeers`](LocalPeers.md)
+• **opts.rpc**: [`LocalPeers`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/classes/LocalPeers.md)
 
 • **opts.waitForInitialSyncWithPeer**
 

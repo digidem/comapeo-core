@@ -60,7 +60,7 @@ Emitted when an incoming map share fails to be recieved due to formatting issues
 
 #### Parameters
 
-• **changeEvent**: [`RoleChangeEvent`](RoleChangeEvent.md)
+• **changeEvent**: [`RoleChangeEvent`](../../../../interfaces/RoleChangeEvent.md)
 
 #### Returns
 
