@@ -13,7 +13,6 @@
 - [BlobRef](interfaces/BlobRef.md)
 - [ProjectEvents](interfaces/ProjectEvents.md)
 - [ProjectStats](interfaces/ProjectStats.md)
-- [RoleChangeEvent](interfaces/RoleChangeEvent.md)
 - [Stats](interfaces/Stats.md)
 
 ### Type Aliases
@@ -63,3 +62,9 @@ Re-exports [MapeoProject](../../classes/MapeoProject.md)
 ### MapShare
 
 Re-exports [MapShare](../../../type-aliases/MapShare.md)
+
+***
+
+### RoleChangeEvent
+
+Re-exports [RoleChangeEvent](../../../interfaces/RoleChangeEvent.md)

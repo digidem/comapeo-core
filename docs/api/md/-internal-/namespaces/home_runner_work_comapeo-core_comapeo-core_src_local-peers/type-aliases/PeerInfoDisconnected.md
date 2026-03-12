@@ -1,8 +1,8 @@
-[**API**](../../README.md) • **Docs**
+[**API**](../../../../README.md) • **Docs**
 
 ***
 
-[API](../../README.md) / [\<internal\>](../README.md) / PeerInfoDisconnected
+[API](../../../../README.md) / [\<internal\>](../../../README.md) / ["/home/runner/work/comapeo-core/comapeo-core/src/local-peers"](../README.md) / PeerInfoDisconnected
 
 # Type Alias: PeerInfoDisconnected
 
