@@ -3,26 +3,16 @@ import assert from 'node:assert/strict'
 import { KeyManager } from '@mapeo/crypto'
 import { generate } from '@mapeo/mock-data'
 import { parseVersionId, valueOf } from '@comapeo/schema'
-import RAM from 'random-access-memory'
 import { discoveryKey } from 'hypercore-crypto'
-import Fastify from 'fastify'
 
 import { kCoreOwnership } from '../src/mapeo-project.js'
-import { MapeoManager } from '../src/mapeo-manager.js'
+import { createManager } from './utils.js'
 
-test('CoreOwnership', async () => {
+test('CoreOwnership', async (t) => {
   const rootKey = KeyManager.generateRootKey()
   const km = new KeyManager(rootKey)
-  const fastify = Fastify()
-  const manager = new MapeoManager({
+  const manager = createManager('test', t, {
     rootKey,
-    projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
-      .pathname,
-    clientMigrationsFolder: new URL('../drizzle/client', import.meta.url)
-      .pathname,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
-    fastify,
   })
 
   const projectId = await manager.createProject()

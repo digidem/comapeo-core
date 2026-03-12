@@ -1,8 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-import Hypercore from 'hypercore'
-import RAM from 'random-access-memory'
 import {
   deriveState,
   PeerState,
@@ -15,6 +13,7 @@ import RemoteBitfield, {
 import { once } from 'node:events'
 import pTimeout from 'p-timeout'
 import { EventEmitter } from 'node:events'
+import { createCore } from '../helpers/create-core.js'
 
 /**
  * @type {Array<{
@@ -272,9 +271,9 @@ test('deriveState() have at index beyond bitfield page size', () => {
   assert.deepEqual(deriveState(state), expected)
 })
 
-test('CoreReplicationState', async () => {
+test('CoreReplicationState', async (t) => {
   for (const { state, expected, message } of scenarios) {
-    const localCore = await createCore()
+    const localCore = await createCore(t)
     await localCore.ready()
     const emitter = new EventEmitter()
     const crs = new CoreSyncState({
@@ -309,7 +308,7 @@ test('CoreReplicationState', async () => {
       crs.insertPreHaves(peerId, 0, createUint32Array(prehave || 0))
       if (typeof have !== 'number' && typeof want !== 'number') continue
       statusesByPeer.set(peerId, 'started')
-      const core = await createCore(localCore.key)
+      const core = await createCore(t, localCore.key)
       setPeerWants(crs, peerId, want)
       replicate(localCore, core, { kp1, kp2 })
       await core.update({ wait: true })
@@ -370,13 +369,6 @@ test.skip('bitCount32 (full test)', () => {
     if (bitCount !== expected) assert.fail('bitcount is correct ' + n)
   }
 })
-
-/** @param {any} [key] */
-async function createCore(key) {
-  const core = new Hypercore(() => new RAM(), key)
-  await core.ready()
-  return core
-}
 
 /**
  * Slow but understandable implementation to compare with fast obscure implementation

@@ -611,6 +611,8 @@ export class MapeoManager extends TypedEmitter {
 
     project.on('map-share-error', onMapShareError)
 
+    await project.ready()
+
     return project
   }
 
