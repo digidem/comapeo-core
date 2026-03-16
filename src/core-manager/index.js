@@ -191,6 +191,10 @@ export class CoreManager extends ReadyResource {
       })
       this.#sendAuthCoreKeys(peer)
     })
+    // Not necessary, because coreStore and hypercores "auto-open", but leaving
+    // this here defensively in case we add additional resources to _open() in
+    // the future
+    this.ready().catch(noop)
   }
 
   async _open() {

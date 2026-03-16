@@ -47,6 +47,7 @@ import {
 import {
   buildBlobId,
   getDeviceId,
+  noop,
   projectKeyToId,
   projectKeyToPublicId,
   validateMapShareExtension,
@@ -579,6 +580,11 @@ export class MapeoProject extends ReadyResource {
     })
 
     this.#l.log('Created project instance %h, %s', projectKey, isArchiveDevice)
+
+    // Not necessary, because coreManager and blobStore "auto-open", but leaving
+    // this here defensively in case we add additional resources to _open() in
+    // the future
+    this.ready().catch(noop)
   }
 
   /**
@@ -631,12 +637,12 @@ export class MapeoProject extends ReadyResource {
    */
   async _close() {
     this.#l.log('closing project %h', this.#projectId)
-    await this.#blobStore.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())
     }
     await Promise.all(dataStorePromises)
+    await this.#blobStore.close()
     await this.#coreManager.close()
 
     this.#sqlite.close()
@@ -917,7 +923,7 @@ export class MapeoProject extends ReadyResource {
 
   /** @param {boolean} isArchiveDevice */
   async [kSetIsArchiveDevice](isArchiveDevice) {
-    await this.#blobStore.setIsArchiveDevice(isArchiveDevice)
+    this.#blobStore.setIsArchiveDevice(isArchiveDevice)
   }
 
   /** @returns {boolean} */

@@ -42,9 +42,10 @@ test('sync cores in a namespace', async (t) => {
   const syncState1Sync = pDefer()
   const syncState2Sync = pDefer()
 
+  const blobStore1 = new BlobStore({ coreManager: cm1 })
   const syncState1 = new NamespaceSyncState({
     coreManager: cm1,
-    blobStore: new BlobStore({ coreManager: cm1 }),
+    blobStore: blobStore1,
     namespace: 'auth',
     onUpdate: () => {
       const state = syncState1.getState()
@@ -59,9 +60,10 @@ test('sync cores in a namespace', async (t) => {
     peerSyncControllers: new Map(),
   })
 
+  const blobStore2 = new BlobStore({ coreManager: cm2 })
   const syncState2 = new NamespaceSyncState({
     coreManager: cm2,
-    blobStore: new BlobStore({ coreManager: cm2 }),
+    blobStore: blobStore2,
     namespace: 'auth',
     onUpdate: () => {
       const state = syncState2.getState()
@@ -123,6 +125,10 @@ test('sync cores in a namespace', async (t) => {
     },
     'syncState2 is synced'
   )
+  // BlobStores must be closed before CoreManagers, otherwise the cores are
+  // closed before the BlobStore can clean up the replication streams and close
+  // properly, which causes errors.
+  await Promise.all([blobStore1.close(), blobStore2.close()])
 })
 
 test('replicate with updating data', async function (t) {
@@ -158,9 +164,10 @@ test('replicate with updating data', async function (t) {
   const syncState1Sync = pDefer()
   const syncState2Sync = pDefer()
 
+  const blobStore1 = new BlobStore({ coreManager: cm1 })
   const syncState1 = new NamespaceSyncState({
     coreManager: cm1,
-    blobStore: new BlobStore({ coreManager: cm1 }),
+    blobStore: blobStore1,
     namespace: 'auth',
     onUpdate: () => {
       const { localState } = syncState1.getState()
@@ -171,9 +178,10 @@ test('replicate with updating data', async function (t) {
     peerSyncControllers: new Map(),
   })
 
+  const blobStore2 = new BlobStore({ coreManager: cm2 })
   const syncState2 = new NamespaceSyncState({
     coreManager: cm2,
-    blobStore: new BlobStore({ coreManager: cm2 }),
+    blobStore: blobStore2,
     namespace: 'auth',
     onUpdate: () => {
       const { localState } = syncState2.getState()
@@ -200,4 +208,5 @@ test('replicate with updating data', async function (t) {
   }
 
   await Promise.all([syncState1Sync.promise, syncState2Sync.promise])
+  await Promise.all([blobStore1.close(), blobStore2.close()])
 })
