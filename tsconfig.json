@@ -24,6 +24,7 @@
       "@hyperswarm/secret-stream": [
         "./node_modules/@digidem/types/vendor/@hyperswarm/secret-stream/index.d.ts"
       ],
+      "ready-resource": ["./types/ready-resource.d.ts"],
       "*": ["./types", "./node_modules/@digidem/types/vendor/*/index.d.ts"]
     }
   },
