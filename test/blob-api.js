@@ -10,7 +10,6 @@ import { createBlobStore } from './helpers/blob-store.js'
 
 test('create blobs', async (t) => {
   const { blobStore } = createBlobStore(t)
-  await blobStore.ready()
 
   const blobApi = new BlobApi({
     blobStore,
@@ -46,7 +45,6 @@ test('get url from blobId', async (t) => {
   const name = '1234'
 
   const { blobStore } = createBlobStore(t)
-  await blobStore.ready()
 
   let port = 8080
   /** @type {string | undefined} */

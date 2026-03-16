@@ -2,8 +2,9 @@ import ReadyResource from 'ready-resource'
 import { createEntriesStream } from './entries-stream.js'
 import { filePathMatchesFilter } from './utils.js'
 import { DriveNotFoundError, UnexpectedEndOfStreamError } from '../errors.js'
+import { noop } from '../utils.js'
 
-/** @import { BlobFilter, BlobStoreEntriesStream } from '../types.js' */
+/** @import { BlobFilter } from '../types.js' */
 /** @import { THyperdriveIndex } from './hyperdrive-index.js' */
 
 /**
@@ -31,8 +32,8 @@ export class Downloader extends ReadyResource {
   #driveIndex
   /** @type {Set<{ done(): Promise<void>, destroy(): void }>} */
   #queuedDownloads = new Set()
-  /** @type {BlobStoreEntriesStream?} */
   #entriesStream
+  #processEntriesPromise
   #ac = new AbortController()
   #shouldDownloadFile
 
@@ -49,19 +50,17 @@ export class Downloader extends ReadyResource {
       ? filePathMatchesFilter.bind(null, filter)
       : () => true
 
-    this.#entriesStream = null
-  }
+    this.#entriesStream = createEntriesStream(driveIndex, { live: true })
+    this.#entriesStream.once('error', this.#handleError)
 
-  /**
-   * Cancel the downloads and clean up resources.
-   */
-  async _close() {
-    this.#ac.abort()
-  }
+    this.#ac.signal.addEventListener('abort', this.#handleAbort, { once: true })
 
-  async _open() {
-    // TODO: Should this be logged somewhere?
-    this.#processEntries().catch(this.#handleError)
+    this.#processEntriesPromise = this.#processEntries()
+    this.#processEntriesPromise.catch(this.#handleError)
+    // Not necessary, because _open() is currently a no-op, but leaving this
+    // here defensively in case we add additional resources to _open() in the
+    // future
+    this.ready().catch(noop)
   }
 
   /**
@@ -71,10 +70,6 @@ export class Downloader extends ReadyResource {
    * resolve when all the entries have been processed and downloaded.
    */
   async #processEntries() {
-    this.#entriesStream = createEntriesStream(this.#driveIndex, { live: true })
-    this.#entriesStream.once('error', this.#handleError)
-    this.#ac.signal.addEventListener('abort', this.#handleAbort, { once: true })
-
     for await (const entry of this.#entriesStream) {
       this.#ac.signal.throwIfAborted()
       const {
@@ -119,8 +114,10 @@ export class Downloader extends ReadyResource {
   /**
    * Cancel the downloads and clean up resources.
    */
-  destroy() {
+  async _close() {
     this.#ac.abort()
+    // Error is handled in #handleError() attached in the constructor
+    await this.#processEntriesPromise.catch(noop)
   }
 
   /** @param {Error} err */
@@ -133,9 +130,9 @@ export class Downloader extends ReadyResource {
   #handleAbort = () => {
     for (const download of this.#queuedDownloads) download.destroy()
     this.#ac.signal.removeEventListener('abort', this.#handleAbort)
-    this.#entriesStream?.removeListener('error', this.#ac.abort)
+    this.#entriesStream.removeListener('error', this.#ac.abort)
     // queuedDownloads is likely to be empty here anyway, but clear just in case.
     this.#queuedDownloads.clear()
-    this.#entriesStream?.destroy()
+    this.#entriesStream.destroy()
   }
 }

@@ -169,6 +169,10 @@ export class BlobStore extends ReadyResource {
     coreManager.on('peer-download-intent', this.#handleDownloadIntent)
     coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
     coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
+    // Not necessary, because everything currently in _open() will "auto-open"
+    // anyway (call ready() in their own constructor), but leaving this here
+    // defensively in case we add additional resources to _open() in the future
+    this.ready().catch(noop)
   }
 
   /**
@@ -191,18 +195,17 @@ export class BlobStore extends ReadyResource {
   }
 
   /** @param {boolean} isArchiveDevice */
-  async setIsArchiveDevice(isArchiveDevice) {
+  setIsArchiveDevice(isArchiveDevice) {
     this.#l.log('Setting isArchiveDevice to %s', isArchiveDevice)
     if (this.#isArchiveDevice === isArchiveDevice) return
     this.#isArchiveDevice = isArchiveDevice
     const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
     this.#downloader.removeAllListeners()
-    this.#downloader.close()
+    this.#downloader.close().catch(noop)
     this.#downloader = new Downloader(this.#driveIndex, {
       filter: blobDownloadFilter,
     })
     this.#downloader.on('error', (error) => this.emit('error', error))
-    await this.#downloader.ready()
     // Even if blobFilter is null, e.g. we plan to download everything, we still
     // need to inform connected peers of the change.
     for (const peer of this.#coreManager.creatorCore.peers) {
@@ -344,7 +347,6 @@ export class BlobStore extends ReadyResource {
    * @returns {Promise<string>} discovery key as hex string of hyperdrive where blob is stored
    */
   async put({ type, variant, name }, blob, options) {
-    await this.ready()
     const path = makePath({ type, variant, name })
     await this.#driveIndex.writer.put(path, blob, options)
     return this.writerDriveId
@@ -376,7 +378,6 @@ export class BlobStore extends ReadyResource {
     { type, variant, name, driveId },
     options = { follow: false, wait: false }
   ) {
-    await this.ready()
     const drive = this.#driveIndex.get(driveId)
     if (!drive) throw new DriveNotFoundError({ driveId: driveId.slice(0, 7) })
     const path = makePath({ type, variant, name })
@@ -405,8 +406,7 @@ export class BlobStore extends ReadyResource {
 
   async _close() {
     this.#downloader.removeAllListeners()
-    this.#downloader.close()
-    await this.#driveIndex.close()
+    await Promise.all([this.#downloader.close(), this.#driveIndex.close()])
     this.#coreManager.off('peer-download-intent', this.#handleDownloadIntent)
     this.#coreManager.creatorCore.off('peer-add', this.#handlePeerAdd)
     this.#coreManager.creatorCore.off('peer-remove', this.#handlePeerRemove)
