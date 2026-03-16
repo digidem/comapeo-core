@@ -3,7 +3,6 @@ import { access, constants } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Hypercore from 'hypercore'
-import RAM from 'random-access-memory'
 import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 import Sqlite from 'better-sqlite3'
@@ -26,23 +25,16 @@ import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { coresTable } from '../src/schema/project.js'
 import { eq } from 'drizzle-orm'
+import { createCore } from './helpers/create-core.js'
 /** @import { Namespace } from '../src/types.js' */
-
-/** @param {any} [key] */
-async function createCore(key) {
-  const core = new Hypercore(() => new RAM(), key)
-  await core.ready()
-  return core
-}
 
 test('project creator auth core has project key', async function () {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
 
-  const cm = createCoreManager({
+  const cm = createCoreManager(t, {
     keyManager,
-    storage: () => new RAM(),
     projectKey,
     projectSecretKey,
   })
@@ -50,14 +42,14 @@ test('project creator auth core has project key', async function () {
   assert(authCoreKey.equals(projectKey))
 })
 
-test('getCreatorCore()', async () => {
+test('getCreatorCore()', async (t) => {
   const projectKey = randomBytes(32)
-  const cm = createCoreManager({ projectKey })
+  const cm = createCoreManager(t, { projectKey })
   await cm.creatorCore.ready()
   assert(cm.creatorCore.key.equals(projectKey))
 })
 
-test('eagerly updates remote bitfields', async () => {
+test('eagerly updates remote bitfields', async (t) => {
   // Replication progress relies on the peer.remoteBitfield to actually match
   // the bitfield of the peer. By default hypercore only updates the
   // remoteBitfield for the ranges of a hypercore that you try to download. We
@@ -65,9 +57,9 @@ test('eagerly updates remote bitfields', async () => {
   // checks that functionality.
 
   const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
-  const cm3 = createCoreManager({ projectKey })
+  const cm1 = createCoreManager(t, { projectKey })
+  const cm2 = createCoreManager(t, { projectKey })
+  const cm3 = createCoreManager(t, { projectKey })
 
   const cm1Core = cm1.getWriterCore('auth').core
   await cm1Core.ready()
@@ -77,7 +69,7 @@ test('eagerly updates remote bitfields', async () => {
   // contiguousLength < length
   await cm1Core.clear(2, 3)
 
-  const destroyReplication = replicate(cm1, cm2).destroy
+  const destroyReplication = (await replicate(cm1, cm2)).destroy
 
   await waitForCores(cm2, [cm1Core.key])
   const cm2Core = cm2.getCoreByKey(cm1Core.key)
@@ -111,7 +103,7 @@ test('eagerly updates remote bitfields', async () => {
   {
     // This is ensuring that bitfields also get propogated in the other
     // direction, e.g. from the non-writer to the writer
-    const { destroy } = replicate(cm1, cm2)
+    const { destroy } = await replicate(cm1, cm2)
     // Need to wait for now, since no event for when a remote bitfield is updated
     await new Promise((res) => setTimeout(res, 200))
     assert(cm2Core.core)
@@ -166,15 +158,15 @@ test('eagerly updates remote bitfields', async () => {
   }
 })
 
-test('multiplexing waits for cores to be added', async () => {
+test('multiplexing waits for cores to be added', async (t) => {
   // Mapeo code expects replication to work when cores are not added to the
   // replication stream at the same time. This is not explicitly tested in
   // Hypercore so we check here that this behaviour works.
-  const a1 = await createCore()
-  const a2 = await createCore()
+  const a1 = await createCore(t)
+  const a2 = await createCore(t)
 
-  const b1 = await createCore(a1.key)
-  const b2 = await createCore(a2.key)
+  const b1 = await createCore(t, a1.key)
+  const b2 = await createCore(t, a2.key)
 
   const n1 = new NoiseSecretStream(true)
   const n2 = new NoiseSecretStream(false)
@@ -198,8 +190,9 @@ test('multiplexing waits for cores to be added', async () => {
   assert.deepEqual(await b2.get(0), Buffer.from('ho'))
 })
 
-test('close()', async () => {
-  const cm = createCoreManager()
+test('close()', async (t) => {
+  const cm = createCoreManager(t)
+  await cm.ready()
   for (const namespace of CoreManager.namespaces) {
     cm.addCore(randomBytes(32), namespace)
   }
@@ -212,16 +205,15 @@ test('close()', async () => {
   }
 })
 
-test('Added cores are persisted', async () => {
+test('Added cores are persisted', async (t) => {
   const keyManager = new KeyManager(randomBytes(16))
   const projectKey = randomBytes(32)
 
   const db = drizzle(new Sqlite(':memory:'))
 
-  const cm1 = createCoreManager({
+  const cm1 = createCoreManager(t, {
     db,
     keyManager,
-    storage: () => new RAM(),
     projectKey,
   })
   const key = randomBytes(32)
@@ -229,26 +221,25 @@ test('Added cores are persisted', async () => {
 
   await cm1.close()
 
-  const cm2 = createCoreManager({
+  const cm2 = createCoreManager(t, {
     db,
     keyManager,
-    storage: () => new RAM(),
     projectKey,
   })
 
   assert(cm2.getCoreByKey(key), 'Added core is persisted')
 })
 
-test('encryption', async () => {
+test('encryption', async (t) => {
   /** @type {Partial<Record<Namespace, Buffer>>} */
   const encryptionKeys = {}
   for (const ns of CoreManager.namespaces) {
     encryptionKeys[ns] = randomBytes(32)
   }
   const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey, encryptionKeys })
-  const cm2 = createCoreManager({ projectKey })
-  const cm3 = createCoreManager({ projectKey, encryptionKeys })
+  const cm1 = createCoreManager(t, { projectKey, encryptionKeys })
+  const cm2 = createCoreManager(t, { projectKey })
+  const cm3 = createCoreManager(t, { projectKey, encryptionKeys })
 
   replicate(cm1, cm2)
   replicate(cm1, cm3)
@@ -264,7 +255,7 @@ test('encryption', async () => {
   }
 })
 
-test('poolSize limits number of open file descriptors', async () => {
+test('poolSize limits number of open file descriptors', async (t) => {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
@@ -273,7 +264,7 @@ test('poolSize limits number of open file descriptors', async () => {
   await temporaryDirectoryTask(async (tempPath) => {
     /** @param {string} name */
     const storage = (name) => new RandomAccessFile(path.join(tempPath, name))
-    const cm = createCoreManager({
+    const cm = createCoreManager(t, {
       keyManager,
       storage,
       projectKey,
@@ -297,7 +288,7 @@ test('poolSize limits number of open file descriptors', async () => {
     /** @param {string} name */
     const storage = (name) =>
       new RandomAccessFile(path.join(tempPath, name), { pool })
-    const cm = createCoreManager({
+    const cm = createCoreManager(t, {
       keyManager,
       storage,
       projectKey,
@@ -319,10 +310,10 @@ test('poolSize limits number of open file descriptors', async () => {
   })
 })
 
-test('sends "haves" bitfields over project creator core replication stream', async () => {
+test('sends "haves" bitfields over project creator core replication stream', async (t) => {
   const projectKey = randomBytes(32)
-  const cm1 = createCoreManager({ projectKey })
-  const cm2 = createCoreManager({ projectKey })
+  const cm1 = createCoreManager(t, { projectKey })
+  const cm2 = createCoreManager(t, { projectKey })
   /**
    * For each peer, indexed by peerId, a map of hypercore bitfields, indexed by discoveryId
    * @type {Map<string, Map<Namespace, Map<string, RemoteBitfield>>>}
@@ -448,12 +439,14 @@ test('unreplicate', async (t) => {
           scenario.expectedReadAfterReplicate
         }`,
         async () => {
-          const a = await createCore()
+          const a = await createCore(t)
           await a.append(['a', 'b'])
-          const b = await createCore(a.key)
-          const c = await createCore(a.key)
+          const b = await createCore(t, a.key)
+          const c = await createCore(t, a.key)
 
-          const [s1, s2] = replicateCores(a, b, { delay: REPLICATION_DELAY })
+          const [s1, s2] = await replicateCores(a, b, {
+            delay: REPLICATION_DELAY,
+          })
           replicateCores(a, c, { delay: REPLICATION_DELAY })
 
           // Check replication is actually working
@@ -526,7 +519,7 @@ test('deleteOthersData()', async (t) => {
 
     /// Set up core managers
     const db1 = drizzle(new Sqlite(':memory:'))
-    const cm1 = createCoreManager({
+    const cm1 = createCoreManager(t, {
       db: db1,
       projectKey,
       storage: (name) => {
@@ -537,7 +530,7 @@ test('deleteOthersData()', async (t) => {
     })
 
     const db2 = drizzle(new Sqlite(':memory:'))
-    const cm2 = createCoreManager({
+    const cm2 = createCoreManager(t, {
       db: db2,
       projectKey,
       storage: (name) => {
@@ -566,7 +559,7 @@ test('deleteOthersData()', async (t) => {
         .map((_, i) => 'block' + i)
     )
 
-    const { destroy } = replicate(cm1, cm2)
+    const { destroy } = await replicate(cm1, cm2)
     t.after(destroy)
 
     // This delay is needed in order for replication to finish properly

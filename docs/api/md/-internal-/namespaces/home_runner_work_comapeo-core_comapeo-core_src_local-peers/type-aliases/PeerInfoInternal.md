@@ -6,6 +6,6 @@
 
 # Type Alias: PeerInfoInternal
 
-> **PeerInfoInternal**\<\>: [`PeerInfoConnecting`](PeerInfoConnecting.md) \| [`PeerInfoConnected`](../../../type-aliases/PeerInfoConnected.md) \| [`PeerInfoDisconnected`](../../../type-aliases/PeerInfoDisconnected.md)
+> **PeerInfoInternal**\<\>: [`PeerInfoConnecting`](PeerInfoConnecting.md) \| [`PeerInfoConnected`](PeerInfoConnected.md) \| [`PeerInfoDisconnected`](PeerInfoDisconnected.md)
 
 ## Type Parameters

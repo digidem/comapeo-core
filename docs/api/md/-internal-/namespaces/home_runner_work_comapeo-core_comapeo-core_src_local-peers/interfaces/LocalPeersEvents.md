@@ -196,7 +196,7 @@ Emitted when a new peer is connected
 
 #### Parameters
 
-• **peer**: [`PeerInfoConnected`](../../../type-aliases/PeerInfoConnected.md)
+• **peer**: [`PeerInfoConnected`](../type-aliases/PeerInfoConnected.md)
 
 #### Returns
 

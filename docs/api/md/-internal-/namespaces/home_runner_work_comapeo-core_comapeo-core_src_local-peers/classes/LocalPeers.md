@@ -1,8 +1,8 @@
-[**API**](../../README.md) • **Docs**
+[**API**](../../../../README.md) • **Docs**
 
 ***
 
-[API](../../README.md) / [\<internal\>](../README.md) / LocalPeers
+[API](../../../../README.md) / [\<internal\>](../../../README.md) / ["/home/runner/work/comapeo-core/comapeo-core/src/local-peers"](../README.md) / LocalPeers
 
 # Class: LocalPeers
 
@@ -20,7 +20,7 @@
 
 • **opts?** = `{}`
 
-• **opts.logger?**: `undefined` \| [`Logger`](Logger.md)
+• **opts.logger?**: `undefined` \| [`Logger`](../../../classes/Logger.md)
 
 #### Returns
 
@@ -60,7 +60,7 @@
 
 ### connect()
 
-> **connect**(`stream`): [`ReplicationStream`](../type-aliases/ReplicationStream.md)
+> **connect**(`stream`): [`ReplicationStream`](../../../type-aliases/ReplicationStream.md)
 
 Connect to a peer over an existing NoiseSecretStream
 
@@ -70,7 +70,7 @@ Connect to a peer over an existing NoiseSecretStream
 
 #### Returns
 
-[`ReplicationStream`](../type-aliases/ReplicationStream.md)
+[`ReplicationStream`](../../../type-aliases/ReplicationStream.md)
 
 ***
 

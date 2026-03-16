@@ -8,8 +8,8 @@ import { BlobApi } from '../src/blob-api.js'
 
 import { createBlobStore } from './helpers/blob-store.js'
 
-test('create blobs', async () => {
-  const { blobStore } = createBlobStore()
+test('create blobs', async (t) => {
+  const { blobStore } = createBlobStore(t)
 
   const blobApi = new BlobApi({
     blobStore,
@@ -39,12 +39,12 @@ test('create blobs', async () => {
   assert.deepEqual(attachment.hash, hash.digest('hex'))
 })
 
-test('get url from blobId', async () => {
+test('get url from blobId', async (t) => {
   const type = 'photo'
   const variant = 'original'
   const name = '1234'
 
-  const { blobStore } = createBlobStore()
+  const { blobStore } = createBlobStore(t)
 
   let port = 8080
   /** @type {string | undefined} */

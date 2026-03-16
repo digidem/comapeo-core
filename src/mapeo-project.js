@@ -3,7 +3,6 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { sql, count, eq } from 'drizzle-orm'
-import { TypedEmitter } from 'tiny-typed-emitter'
 import ZipArchive from 'zip-stream-promise'
 import * as b4a from 'b4a'
 import mime from 'mime/lite'
@@ -43,6 +42,7 @@ import { BLOCKED_ROLE_ID, Roles, LEFT_ROLE_ID } from './roles.js'
 import {
   buildBlobId,
   getDeviceId,
+  noop,
   projectKeyToId,
   projectKeyToPublicId,
   valueOf,
@@ -74,6 +74,9 @@ import { WebSocket } from 'ws'
 import fs from 'node:fs'
 
 import ensureError from 'ensure-error'
+import ReadyResource from 'ready-resource'
+
+/** @import { MapShareExtension } from './generated/extensions.js' */
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
 /** @import {Role} from './roles.js' */
@@ -128,9 +131,9 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  */
 
 /**
- * @extends {TypedEmitter<ProjectEvents>}
+ * @extends {ReadyResource<ProjectEvents>}
  */
-export class MapeoProject extends TypedEmitter {
+export class MapeoProject extends ReadyResource {
   #projectKey
   #deviceId
   #identityKeypair
@@ -541,6 +544,11 @@ export class MapeoProject extends TypedEmitter {
     })
 
     this.#l.log('Created project instance %h, %s', projectKey, isArchiveDevice)
+
+    // Not necessary, because coreManager and blobStore "auto-open", but leaving
+    // this here defensively in case we add additional resources to _open() in
+    // the future
+    this.ready().catch(noop)
   }
 
   /**
@@ -582,23 +590,23 @@ export class MapeoProject extends TypedEmitter {
 
   /**
    * Resolves when hypercores have all loaded
-   *
    * @returns {Promise<void>}
    */
-  ready() {
-    return this.#coreManager.ready()
+  async _open() {
+    await this.#coreManager.ready()
+    await this.#blobStore.ready()
   }
 
   /**
    */
-  async close() {
+  async _close() {
     this.#l.log('closing project %h', this.#projectId)
-    this.#blobStore.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())
     }
     await Promise.all(dataStorePromises)
+    await this.#blobStore.close()
     await this.#coreManager.close()
 
     this.#sqlite.close()

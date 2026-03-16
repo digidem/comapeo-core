@@ -242,11 +242,11 @@ isArchiveDevice
 
 ### listLocalPeers()
 
-> **listLocalPeers**(): `Promise`\<[`PublicPeerInfo`](../-internal-/type-aliases/PublicPeerInfo.md)[]\>
+> **listLocalPeers**(): `Promise`\<[`PublicPeerInfo`](../type-aliases/PublicPeerInfo.md)[]\>
 
 #### Returns
 
-`Promise`\<[`PublicPeerInfo`](../-internal-/type-aliases/PublicPeerInfo.md)[]\>
+`Promise`\<[`PublicPeerInfo`](../type-aliases/PublicPeerInfo.md)[]\>
 
 ***
 
