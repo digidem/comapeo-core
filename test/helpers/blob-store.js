@@ -7,11 +7,16 @@ import { createCoreManager } from './core-manager.js'
 /** @import { Metadata } from '../../src/blob-api.js' */
 
 /**
+ * @param {import('node:test').TestContext} t
  * @param {Object} [opts]
  * @param {Buffer} [opts.projectKey]
  */
-export function createBlobStore(opts) {
-  const coreManager = createCoreManager(opts)
+export function createBlobStore(t, opts) {
+  t.after(async () => {
+    await blobStore.close()
+    await coreManager.close()
+  })
+  const coreManager = createCoreManager(t, opts, false)
   const blobStore = new BlobStore({ coreManager })
   return { blobStore, coreManager }
 }

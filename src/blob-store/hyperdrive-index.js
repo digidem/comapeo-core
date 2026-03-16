@@ -1,15 +1,16 @@
 import b4a from 'b4a'
 import { discoveryKey } from 'hypercore-crypto'
 import Hyperdrive from 'hyperdrive'
-import { TypedEmitter } from 'tiny-typed-emitter'
+import ReadyResource from 'ready-resource'
 import { MissingWriterError, UnsupportedCorestoreOptsError } from '../errors.js'
+import { noop } from '../utils.js'
 
 /** @typedef {HyperdriveIndexImpl} THyperdriveIndex */
 
 /**
- * @extends {TypedEmitter<{ 'add-drive': (drive: Hyperdrive) => void }>}
+ * @extends {ReadyResource<{ 'add-drive': (drive: Hyperdrive) => void }>}
  */
-export class HyperdriveIndexImpl extends TypedEmitter {
+export class HyperdriveIndexImpl extends ReadyResource {
   /** @type {Map<string, Hyperdrive>} */
   #hyperdrives = new Map()
   #writer
@@ -47,7 +48,17 @@ export class HyperdriveIndexImpl extends TypedEmitter {
       this.#hyperdrives.set(driveId, drive)
       this.emit('add-drive', drive)
     })
+    // Not necessary, because hyperdrives "auto-open", but leaving this here
+    // defensively in case we add additional resources to _open() in the future
+    this.ready().catch(noop)
   }
+
+  async _open() {
+    await Promise.all(
+      [...this.#hyperdrives.values()].map((drive) => drive.ready())
+    )
+  }
+
   get writer() {
     return this.#writer
   }
@@ -60,6 +71,12 @@ export class HyperdriveIndexImpl extends TypedEmitter {
   /** @param {string} driveId */
   get(driveId) {
     return this.#hyperdrives.get(driveId)
+  }
+
+  async _close() {
+    await Promise.all(
+      [...this.#hyperdrives.values()].map((drive) => drive.close())
+    )
   }
 }
 

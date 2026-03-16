@@ -6,7 +6,6 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import * as process from 'node:process'
 import { isMainThread, MessagePort, workerData } from 'node:worker_threads'
-import RAM from 'random-access-memory'
 import { MapeoManager } from '../src/mapeo-manager.js'
 
 /**
@@ -70,14 +69,20 @@ async function main() {
   if (!parsedWorkerData) return
   const { managerConstructorOverrides, childPort } = parsedWorkerData
 
+  const { dbFolder, coreStorage } = managerConstructorOverrides
+
+  if (!dbFolder || !coreStorage) {
+    throw new Error('Must supply dbFolder and coreStorage for worker')
+  }
+
   const manager = new MapeoManager({
     rootKey: randomBytes(16),
     projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
       .pathname,
     clientMigrationsFolder: new URL('../drizzle/client', import.meta.url)
       .pathname,
-    dbFolder: ':memory:',
-    coreStorage: () => new RAM(),
+    dbFolder,
+    coreStorage,
     fastify: Fastify(),
     ...managerConstructorOverrides,
   })

@@ -4,9 +4,9 @@ import { Downloader } from './downloader.js'
 import { createEntriesStream } from './entries-stream.js'
 import { FilterEntriesStream } from './utils.js'
 import { noop } from '../utils.js'
-import { TypedEmitter } from 'tiny-typed-emitter'
 import { HyperdriveIndexImpl as HyperdriveIndex } from './hyperdrive-index.js'
 import { Logger } from '../logger.js'
+import ReadyResource from 'ready-resource'
 import {
   BlobNotFoundError,
   getErrorCode,
@@ -58,8 +58,8 @@ const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
   // thumbnails aren't supported yet.
 }
 
-/** @extends {TypedEmitter<BlobStoreEvents>} */
-export class BlobStore extends TypedEmitter {
+/** @extends {ReadyResource<BlobStoreEvents>} */
+export class BlobStore extends ReadyResource {
   #driveIndex
   /** @type {Downloader} */
   #downloader
@@ -169,6 +169,10 @@ export class BlobStore extends TypedEmitter {
     coreManager.on('peer-download-intent', this.#handleDownloadIntent)
     coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
     coreManager.creatorCore.on('peer-remove', this.#handlePeerRemove)
+    // Not necessary, because everything currently in _open() will "auto-open"
+    // anyway (call ready() in their own constructor), but leaving this here
+    // defensively in case we add additional resources to _open() in the future
+    this.ready().catch(noop)
   }
 
   /**
@@ -191,13 +195,13 @@ export class BlobStore extends TypedEmitter {
   }
 
   /** @param {boolean} isArchiveDevice */
-  async setIsArchiveDevice(isArchiveDevice) {
+  setIsArchiveDevice(isArchiveDevice) {
     this.#l.log('Setting isArchiveDevice to %s', isArchiveDevice)
     if (this.#isArchiveDevice === isArchiveDevice) return
     this.#isArchiveDevice = isArchiveDevice
     const blobDownloadFilter = getBlobDownloadFilter(isArchiveDevice)
     this.#downloader.removeAllListeners()
-    this.#downloader.destroy()
+    this.#downloader.close().catch(noop)
     this.#downloader = new Downloader(this.#driveIndex, {
       filter: blobDownloadFilter,
     })
@@ -394,9 +398,15 @@ export class BlobStore extends TypedEmitter {
     return drive.clear(path, options)
   }
 
-  close() {
+  async _open() {
+    await this.#coreManager.ready()
+    await this.#driveIndex.ready()
+    await this.#downloader.ready()
+  }
+
+  async _close() {
     this.#downloader.removeAllListeners()
-    this.#downloader.destroy()
+    await Promise.all([this.#downloader.close(), this.#driveIndex.close()])
     this.#coreManager.off('peer-download-intent', this.#handleDownloadIntent)
     this.#coreManager.creatorCore.off('peer-add', this.#handlePeerAdd)
     this.#coreManager.creatorCore.off('peer-remove', this.#handlePeerRemove)

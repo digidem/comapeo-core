@@ -1,7 +1,8 @@
-import { TypedEmitter } from 'tiny-typed-emitter'
+import ReadyResource from 'ready-resource'
 import { createEntriesStream } from './entries-stream.js'
 import { filePathMatchesFilter } from './utils.js'
 import { DriveNotFoundError, UnexpectedEndOfStreamError } from '../errors.js'
+import { noop } from '../utils.js'
 
 /** @import { BlobFilter } from '../types.js' */
 /** @import { THyperdriveIndex } from './hyperdrive-index.js' */
@@ -24,9 +25,9 @@ import { DriveNotFoundError, UnexpectedEndOfStreamError } from '../errors.js'
  * of blobs, so this should not be an issue, and if we do in the future,
  * downloading deleted and previous versions may be desirable behavior anyway
  *
- * @extends {TypedEmitter<{ error: (error: Error) => void }>}
+ * @extends {ReadyResource<{ error: (error: Error) => void }>}
  */
-export class Downloader extends TypedEmitter {
+export class Downloader extends ReadyResource {
   /** @type {THyperdriveIndex} */
   #driveIndex
   /** @type {Set<{ done(): Promise<void>, destroy(): void }>} */
@@ -56,6 +57,10 @@ export class Downloader extends TypedEmitter {
 
     this.#processEntriesPromise = this.#processEntries()
     this.#processEntriesPromise.catch(this.#handleError)
+    // Not necessary, because _open() is currently a no-op, but leaving this
+    // here defensively in case we add additional resources to _open() in the
+    // future
+    this.ready().catch(noop)
   }
 
   /**
@@ -109,8 +114,10 @@ export class Downloader extends TypedEmitter {
   /**
    * Cancel the downloads and clean up resources.
    */
-  destroy() {
+  async _close() {
     this.#ac.abort()
+    // Error is handled in #handleError() attached in the constructor
+    await this.#processEntriesPromise.catch(noop)
   }
 
   /** @param {Error} err */

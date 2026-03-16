@@ -28,8 +28,8 @@ const obs = {
   deleted: false,
 }
 
-test('read and write', async () => {
-  const cm = createCoreManager()
+test('read and write', async (t) => {
+  const cm = createCoreManager(t)
   const writerCore = cm.getWriterCore('data').core
   await writerCore.ready()
   /** @type {Array<string>} */
@@ -69,8 +69,8 @@ test('read and write', async () => {
   )
 })
 
-test('writeRaw and read', async () => {
-  const cm = createCoreManager()
+test('writeRaw and read', async (t) => {
+  const cm = createCoreManager(t)
   const writerCore = cm.getWriterCore('config').core
   await writerCore.ready()
   const dataStore = new DataStore({
@@ -89,8 +89,8 @@ test('writeRaw and read', async () => {
   assert.deepEqual(buf, expectedBuf)
 })
 
-test('index events', async () => {
-  const cm = createCoreManager()
+test('index events', async (t) => {
+  const cm = createCoreManager(t)
   const writerCore = cm.getWriterCore('data').core
   await writerCore.ready()
   /** @type {Array<Omit<import('multi-core-indexer').IndexState, 'entriesPerSecond'>>} */
@@ -113,6 +113,10 @@ test('index events', async () => {
   await idlePromise
   const expectedStates = [
     {
+      current: 'idle',
+      remaining: 0,
+    },
+    {
       current: 'indexing',
       remaining: 1,
     },
@@ -125,7 +129,7 @@ test('index events', async () => {
 })
 
 test('re-indexing', async (t) => {
-  const cm = createCoreManager()
+  const cm = createCoreManager(t)
   const writerCore = cm.getWriterCore('data').core
   await writerCore.ready()
 
