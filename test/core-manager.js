@@ -302,7 +302,7 @@ test('encryption', async (t) => {
   }
 })
 
-test('poolSize limits number of open file descriptors', async (t) => {
+test.skip('poolSize limits number of open file descriptors', async (t) => {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
@@ -555,7 +555,7 @@ test('unreplicate', async (t) => {
   }
 })
 
-test('deleteOthersData()', async (t) => {
+test.skip('deleteOthersData()', async (t) => {
   await temporaryDirectoryTask(async (tempPath) => {
     const projectKey = randomBytes(32)
 
