@@ -28,7 +28,7 @@ import { eq } from 'drizzle-orm'
 import { createCore } from './helpers/create-core.js'
 /** @import { Namespace } from '../src/types.js' */
 
-test('project creator auth core has project key', async function () {
+test('project creator auth core has project key', async function (t) {
   const keyManager = new KeyManager(randomBytes(16))
   const { publicKey: projectKey, secretKey: projectSecretKey } =
     keyManager.getHypercoreKeypair('auth', randomBytes(32))
