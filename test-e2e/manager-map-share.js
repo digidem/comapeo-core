@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { connectPeers, createManagers } from './utils.js'
+import { connectPeers, createManagers, waitForPeers } from './utils.js'
 
 import { MAX_BOUNDS, validateMapShareExtension } from '../src/utils.js'
 
@@ -84,6 +84,7 @@ test('Able to send map share to other member', async (t) => {
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
+  await waitForPeers(managers)
 
   const mapShare = { ...TEST_SHARE, receiverDeviceId: invitee.deviceId }
 
@@ -125,6 +126,7 @@ test('Do not allow sending invalid map shares', async (t) => {
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
+  await waitForPeers(managers)
 
   const mapShare = { ...FAILING_SHARE, receiverDeviceId: invitee.deviceId }
 
@@ -136,6 +138,7 @@ test('Map share error emitted when member gets an invalid share', async (t) => {
   const [invitor, invitee] = managers
   const disconnectPeers = connectPeers(managers)
   t.after(disconnectPeers)
+  await waitForPeers(managers)
 
   const onMapShareError = pEvent(invitee, 'map-share-error', {
     timeout: 1000,
