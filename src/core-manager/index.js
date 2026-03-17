@@ -306,7 +306,10 @@ export class CoreManager extends ReadyResource {
     const encryptionKey = this.#encryptionKeys[namespace]
     const { publicKey: key, secretKey } = keyPair
     const writer = !!secretKey
+    // Pass both key and keyPair to work around corestore bug where keyPair alone
+    // doesn't result in the correct core key
     const core = this.#corestore.get({
+      key,
       keyPair,
       encryption: encryptionKey ? { key: encryptionKey } : undefined,
     })
