@@ -448,7 +448,7 @@ class Peer {
  * @property {(peerId: string, inviteResponse: InviteResponseAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
- * @property {(peerId: string, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
+ * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
  * @property {(messageType: string, errorMessage?: string) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
  */
@@ -812,8 +812,8 @@ export class LocalPeers extends TypedEmitter {
       }
       case 'MapShareExtension': {
         const mapShare = MapShareExtension.decode(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('map-share', peerId, mapShare)
+        const info = /** @type {PeerInfo} */ (peer.info)
+        this.emit('map-share', info, mapShare)
         break
       }
       case 'InviteAck': {
@@ -890,16 +890,6 @@ export class LocalPeers extends TypedEmitter {
 
       this.on('peers', onPeers)
     })
-  }
-
-  /**
-   * @param {string} deviceId
-   * @returns {Promise<PeerInfo>}
-   */
-  async infoFor(deviceId) {
-    const peer = await this.#getPeerByDeviceId(deviceId)
-
-    return peer.info
   }
 }
 

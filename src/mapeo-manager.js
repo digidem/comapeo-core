@@ -1076,15 +1076,13 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @param {string} senderDeviceId
+   * @param {import('./local-peers.js').PeerInfo} sender
    * @param {MapShareExtension} mapShareBase
    */
-  async #handleMapShare(senderDeviceId, mapShareBase) {
+  async #handleMapShare(sender, mapShareBase) {
     const mapShareReceivedAt = Date.now()
 
     validateMapShareExtension(mapShareBase)
-
-    const sender = await this.#localPeers.infoFor(senderDeviceId)
 
     const { receiverDeviceKey, ...mapShareData } = mapShareBase
 
@@ -1097,7 +1095,7 @@ export class MapeoManager extends TypedEmitter {
     /** @type {MapShare} */
     const mapShare = {
       ...mapShareData,
-      senderDeviceId,
+      senderDeviceId: sender.deviceId,
       senderDeviceName: sender.name,
       mapShareReceivedAt,
       receiverDeviceId,
