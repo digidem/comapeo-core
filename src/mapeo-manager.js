@@ -520,6 +520,11 @@ export class MapeoManager extends TypedEmitter {
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
 
+    // Make sure to clean up when closed
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+    })
+
     // 7. Load config, if relevant
     // TODO: see how to expose warnings to frontend
     // eslint-disable-next-line no-unused-vars
@@ -582,6 +587,11 @@ export class MapeoManager extends TypedEmitter {
 
     // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectPublicId, project)
+
+    // Make sure to clean up when closed
+    project.once('close', () => {
+      this.#activeProjects.delete(projectPublicId)
+    })
 
     return project
   }
@@ -781,11 +791,6 @@ export class MapeoManager extends TypedEmitter {
         .run()
       throw ensureKnownError(e)
     }
-
-    // Make sure to clean up when closed
-    project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
-    })
 
     // Only write info on invite if configured
     if (!invitorWroteDeviceInfo) {
