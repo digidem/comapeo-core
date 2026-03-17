@@ -15,6 +15,7 @@ import {
   ProjectJoinDetails,
   ProjectJoinDetailsAck,
   DeviceInfo_RPCFeatures,
+  MapShareExtension,
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
@@ -69,6 +70,7 @@ const MESSAGE_TYPES = {
   InviteCancelAck: 6,
   InviteResponseAck: 7,
   ProjectJoinDetailsAck: 8,
+  MapShareExtension: 9,
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
@@ -289,6 +291,19 @@ class Peer {
     const messageType = MESSAGE_TYPES.Invite
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
   }
+
+  /**
+   * @param {MapShareExtension} mapShare
+   * @returns {Promise<void>}
+   */
+  async sendMapShare(mapShare) {
+    this.#assertConnected('Peer disconnected before sending map share')
+    const buf = Buffer.from(MapShareExtension.encode(mapShare).finish())
+    const messageType = MESSAGE_TYPES.MapShareExtension
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+    this.#log('sent map share %s', mapShare.shareId)
+  }
+
   /**
    * @param {Invite} invite
    * @returns {Promise<void>}
@@ -433,6 +448,7 @@ class Peer {
  * @property {(peerId: string, inviteResponse: InviteResponseAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
+ * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
  * @property {(messageType: string, errorMessage?: string) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
  */
@@ -466,6 +482,17 @@ export class LocalPeers extends TypedEmitter {
       connectedPeerInfos.push(info)
     }
     return connectedPeerInfos
+  }
+
+  /**
+   * @param {string} deviceId
+   * @param {MapShareExtension} mapShare
+   * @returns {Promise<void>}
+   */
+  async sendMapShare(deviceId, mapShare) {
+    await this.#waitForPendingConnections()
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    await peer.sendMapShare(mapShare)
   }
 
   /**
@@ -781,6 +808,12 @@ export class LocalPeers extends TypedEmitter {
         const deviceInfo = DeviceInfo.decode(value)
         peer.receiveDeviceInfo(deviceInfo)
         this.#emitPeers()
+        break
+      }
+      case 'MapShareExtension': {
+        const mapShare = MapShareExtension.decode(value)
+        const info = /** @type {PeerInfo} */ (peer.info)
+        this.emit('map-share', info, mapShare)
         break
       }
       case 'InviteAck': {

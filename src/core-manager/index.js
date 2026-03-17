@@ -6,7 +6,6 @@ import {
   HaveExtension,
   ProjectExtension,
   DownloadIntentExtension,
-  MapShareExtension,
 } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
@@ -19,7 +18,6 @@ import ReadyResource from 'ready-resource'
 import {
   InvalidProjectKeyError,
   InvalidProjectSecretKeyError,
-  PeerNotFoundError,
 } from '../errors.js'
 
 /** @import Hypercore from 'hypercore' */
@@ -36,7 +34,6 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
  * @property {(coreRecord: CoreRecord) => void} add-core
  * @property {(namespace: Namespace, msg: { coreDiscoveryId: string, peerId: string, start: number, bitfield: Uint32Array }) => void} peer-have
  * @property {(blobFilter: GenericBlobFilter | null, peerId: string) => void} peer-download-intent
- * @property {(mapShare: MapShareExtension, deviceId: string) => void} map-share
  */
 
 /**
@@ -57,7 +54,6 @@ export class CoreManager extends ReadyResource {
   #l
   #autoDownload
   #downloadIntentExtension
-  #mapShareExtension
 
   static get namespaces() {
     return NAMESPACES
@@ -171,16 +167,6 @@ export class CoreManager extends ReadyResource {
         encoding: DownloadIntentCodec,
         onmessage: (msg, peer) => {
           this.#handleDownloadIntentMessage(msg, peer)
-        },
-      }
-    )
-
-    this.#mapShareExtension = this.creatorCore.registerExtension(
-      'mapeo/map-share',
-      {
-        encoding: MapShareCodec,
-        onmessage: (msg, peer) => {
-          this.#handleMapShareMessage(msg, peer)
         },
       }
     )
@@ -392,15 +378,6 @@ export class CoreManager extends ReadyResource {
   }
 
   /**
-   * @param {MapShareExtension} mapShare
-   * @param {HypercorePeer} peer
-   */
-  #handleMapShareMessage(mapShare, peer) {
-    // TODO: Fetch device name or device ID for peer?
-    this.emit('map-share', mapShare, peer.remotePublicKey.toString('hex'))
-  }
-
-  /**
    * Sends auth core keys to the given peer, skipping any keys that we know the
    * peer has already (depends on the peer having already replicated the auth
    * cores it has)
@@ -480,21 +457,6 @@ export class CoreManager extends ReadyResource {
     }
 
     peer.protomux.uncork()
-  }
-
-  /**
-   * Send a map share to a peer
-   * @param {MapShareExtension} mapShare
-   */
-  async sendMapShare(mapShare) {
-    const { receiverDeviceKey } = mapShare
-    for (const peer of this.creatorCore.peers) {
-      if (peer.remotePublicKey.equals(receiverDeviceKey)) {
-        this.#mapShareExtension.send(mapShare, peer)
-        return
-      }
-    }
-    throw new PeerNotFoundError()
   }
 
   /**
@@ -602,16 +564,5 @@ const DownloadIntentCodec = {
       key + '', // keep TS happy
       value.variants,
     ])
-  },
-}
-
-const MapShareCodec = {
-  /** @param {Parameters<typeof MapShareExtension.encode>[0]} msg */
-  encode(msg) {
-    return MapShareExtension.encode(msg).finish()
-  },
-  /** @param {Buffer | Uint8Array} buf */
-  decode(buf) {
-    return MapShareExtension.decode(buf)
   },
 }
