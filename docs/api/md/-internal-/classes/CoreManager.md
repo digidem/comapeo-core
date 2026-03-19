@@ -8,7 +8,7 @@
 
 ## Extends
 
-- `TypedEmitter`
+- [`default`](default.md)
 
 ## Constructors
 
@@ -28,7 +28,7 @@ Immediately start downloading cores - should only be set to false for tests
 
 Drizzle better-sqlite3 database instance
 
-• **options.encryptionKeys**: `undefined` \| `Partial`\<`Record`\<`"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`, `Buffer`\>\> = `{}`
+• **options.encryptionKeys**: `undefined` \| `Partial`\<`Record`\<`"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`, `Buffer`\>\> = `{}`
 
 Encryption keys for each namespace
 
@@ -56,7 +56,7 @@ Folder to store all hypercore data
 
 #### Overrides
 
-`TypedEmitter.constructor`
+[`default`](default.md).[`constructor`](default.md#constructors)
 
 ## Accessors
 
@@ -100,6 +100,39 @@ readonly [`"auth"`, `"config"`, `"data"`, `"blobIndex"`, `"blob"`]
 
 ## Methods
 
+### \_close()
+
+> **\_close**(): `Promise`\<`void`\>
+
+Close all open cores and end any replication streams
+TODO: gracefully close replication streams
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Overrides
+
+[`default`](default.md).[`_close`](default.md#_close)
+
+***
+
+### \_open()
+
+> **\_open**(): `Promise`\<`void`\>
+
+Load any async resources here
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Overrides
+
+[`default`](default.md).[`_open`](default.md#_open)
+
+***
+
 ### \[kCoreManagerReplicate\]()
 
 > **\[kCoreManagerReplicate\]**(`stream`): `ReplicationStream`
@@ -132,7 +165,7 @@ Add a core to the manager (will be persisted across restarts)
 
 32-byte public key of core to add
 
-• **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
+• **namespace**: `"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 
@@ -144,12 +177,15 @@ Add a core to the manager (will be persisted across restarts)
 
 > **close**(): `Promise`\<`void`\>
 
-Close all open cores and end any replication streams
-TODO: gracefully close replication streams
+Resolves when this resource has closed any dependencies.
 
 #### Returns
 
 `Promise`\<`void`\>
+
+#### Inherited from
+
+[`default`](default.md).[`close`](default.md#close)
 
 ***
 
@@ -159,7 +195,7 @@ TODO: gracefully close replication streams
 
 #### Parameters
 
-• **namespace**: `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
+• **namespace**: `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 
@@ -207,7 +243,7 @@ Get an array of all cores in the given namespace
 
 #### Parameters
 
-• **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
+• **namespace**: `"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 
@@ -223,7 +259,7 @@ Get the writer core for the given namespace
 
 #### Parameters
 
-• **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
+• **namespace**: `"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 
@@ -235,11 +271,15 @@ Get the writer core for the given namespace
 
 > **ready**(): `Promise`\<`void`\>
 
-Resolves when all cores have finished loading
+Resolves when this resource is initialized.
 
 #### Returns
 
 `Promise`\<`void`\>
+
+#### Inherited from
+
+[`default`](default.md).[`ready`](default.md#ready)
 
 ***
 
@@ -256,19 +296,3 @@ Resolves when all cores have finished loading
 #### Returns
 
 `void`
-
-***
-
-### sendMapShare()
-
-> **sendMapShare**(`mapShare`): `Promise`\<`void`\>
-
-Send a map share to a peer
-
-#### Parameters
-
-• **mapShare**: `MapShareExtension`
-
-#### Returns
-
-`Promise`\<`void`\>

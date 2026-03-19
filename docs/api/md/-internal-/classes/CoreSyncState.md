@@ -43,7 +43,7 @@ Each peer (including the local peer) has a state of:
 
 • **opts.logger**: `undefined` \| [`Logger`](Logger.md)
 
-• **opts.namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
+• **opts.namespace**: `"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`
 
 • **opts.onUpdate**
 

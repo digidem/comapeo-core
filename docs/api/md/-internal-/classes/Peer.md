@@ -113,7 +113,7 @@ fails to connect
 
 #### Parameters
 
-• **type**: `"DeviceInfo"` \| `"Invite"` \| `"InviteCancel"` \| `"InviteResponse"` \| `"ProjectJoinDetails"` \| `"InviteAck"` \| `"InviteCancelAck"` \| `"InviteResponseAck"` \| `"ProjectJoinDetailsAck"`
+• **type**: `"DeviceInfo"` \| `"Invite"` \| `"InviteCancel"` \| `"InviteResponse"` \| `"ProjectJoinDetails"` \| `"InviteAck"` \| `"InviteCancelAck"` \| `"InviteResponseAck"` \| `"ProjectJoinDetailsAck"` \| `"MapShareExtension"`
 
 • **ack**: [`AckResponse`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/type-aliases/AckResponse.md)
 
@@ -228,6 +228,20 @@ fails to connect
 #### Parameters
 
 • **response**: `InviteResponse`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
+### sendMapShare()
+
+> **sendMapShare**(`mapShare`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **mapShare**: `MapShareExtension`
 
 #### Returns
 

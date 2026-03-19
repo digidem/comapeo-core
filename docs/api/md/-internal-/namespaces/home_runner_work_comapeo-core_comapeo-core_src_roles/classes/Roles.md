@@ -24,7 +24,7 @@
 
 • **opts.coreOwnership**: [`CoreOwnership`](../../../classes/CoreOwnership.md)
 
-• **opts.dataType**: [`DataType`](../../../classes/DataType.md)\<[`DataStore`](../../../classes/DataStore.md)\<`"auth"`, `"coreOwnership"` \| `"role"`\>, [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"role"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>, `"role"`, `object`, `object`\>
+• **opts.dataType**: [`DataType`](../../../classes/DataType.md)\<[`DataStore`](../../../classes/DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, [`JsonSchemaToDrizzleSqliteTable`](../../../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"role"`, [`AdditionalColumns`](../../../type-aliases/AdditionalColumns.md), `"docId"`\>, `"role"`, `object`, `object`\>
 
 • **opts.deviceKey**: `Buffer`
 

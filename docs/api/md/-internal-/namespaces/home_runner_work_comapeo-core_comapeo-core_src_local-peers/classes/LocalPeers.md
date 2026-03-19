@@ -146,6 +146,22 @@ id of the peer you want to respond to (publicKey of peer as hex string)
 
 ***
 
+### sendMapShare()
+
+> **sendMapShare**(`deviceId`, `mapShare`): `Promise`\<`void`\>
+
+#### Parameters
+
+• **deviceId**: `string`
+
+• **mapShare**: `MapShareExtension`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### sendProjectJoinDetails()
 
 > **sendProjectJoinDetails**(`deviceId`, `details`): `Promise`\<`void`\>
