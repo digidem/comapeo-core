@@ -72,7 +72,7 @@
 
 • **opts.id?**: `null` \| `Buffer`
 
-• **opts.messages**: `Partial`\<`Pick`\<[`Message`](../interfaces/Message.md), `"onmessage"` \| `"encoding"`\>\>[]
+• **opts.messages**: `Partial`\<`Pick`\<[`Message`](../interfaces/Message.md), `"encoding"` \| `"onmessage"`\>\>[]
 
 • **opts.protocol**: `string`
 

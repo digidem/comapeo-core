@@ -56,7 +56,7 @@
 
 #### Parameters
 
-• **opts?**: `Partial`\<`Pick`\<[`Message`](Message.md), `"onmessage"` \| `"encoding"`\>\>
+• **opts?**: `Partial`\<`Pick`\<[`Message`](Message.md), `"encoding"` \| `"onmessage"`\>\>
 
 #### Returns
 

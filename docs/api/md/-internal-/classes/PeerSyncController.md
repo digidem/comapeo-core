@@ -54,11 +54,11 @@
 
 ### syncCapability
 
-> `get` **syncCapability**(): `Record`\<`"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`, [`SyncCapability`](../type-aliases/SyncCapability.md)\>
+> `get` **syncCapability**(): `Record`\<`"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`, [`SyncCapability`](../type-aliases/SyncCapability.md)\>
 
 #### Returns
 
-`Record`\<`"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`, [`SyncCapability`](../type-aliases/SyncCapability.md)\>
+`Record`\<`"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`, [`SyncCapability`](../type-aliases/SyncCapability.md)\>
 
 ## Methods
 

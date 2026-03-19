@@ -8,7 +8,7 @@
 
 ## Extends
 
-- `TypedEmitter`
+- [`default`](default.md)
 
 ## Constructors
 
@@ -34,7 +34,7 @@ Set to `true` if this is an archive device which should download all blobs, or j
 
 #### Overrides
 
-`TypedEmitter.constructor`
+[`default`](default.md).[`constructor`](default.md#constructors)
 
 ## Accessors
 
@@ -58,6 +58,38 @@ Set to `true` if this is an archive device which should download all blobs, or j
 
 ## Methods
 
+### \_close()
+
+> **\_close**(): `Promise`\<`void`\>
+
+Unload any async resources here
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Overrides
+
+[`default`](default.md).[`_close`](default.md#_close)
+
+***
+
+### \_open()
+
+> **\_open**(): `Promise`\<`void`\>
+
+Load any async resources here
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Overrides
+
+[`default`](default.md).[`_open`](default.md#_open)
+
+***
+
 ### clear()
 
 > **clear**(`blobId`, `options`?): `Promise`\<`null` \| `object`\>
@@ -80,11 +112,17 @@ Enable to return an object with a `block` property with number of bytes removed
 
 ### close()
 
-> **close**(): `void`
+> **close**(): `Promise`\<`void`\>
+
+Resolves when this resource has closed any dependencies.
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
+
+#### Inherited from
+
+[`default`](default.md).[`close`](default.md#close)
 
 ***
 
@@ -322,9 +360,25 @@ discovery key as hex string of hyperdrive where blob is stored
 
 ***
 
+### ready()
+
+> **ready**(): `Promise`\<`void`\>
+
+Resolves when this resource is initialized.
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+[`default`](default.md).[`ready`](default.md#ready)
+
+***
+
 ### setIsArchiveDevice()
 
-> **setIsArchiveDevice**(`isArchiveDevice`): `Promise`\<`void`\>
+> **setIsArchiveDevice**(`isArchiveDevice`): `void`
 
 #### Parameters
 
@@ -332,4 +386,4 @@ discovery key as hex string of hyperdrive where blob is stored
 
 #### Returns
 
-`Promise`\<`void`\>
+`void`

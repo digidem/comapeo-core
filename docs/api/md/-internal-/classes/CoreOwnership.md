@@ -20,9 +20,9 @@
 
 • **opts**
 
-• **opts.coreKeypairs**: `Record`\<`"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`, [`KeyPair`](../type-aliases/KeyPair-1.md)\>
+• **opts.coreKeypairs**: `Record`\<`"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`, [`KeyPair`](../type-aliases/KeyPair-1.md)\>
 
-• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"coreOwnership"` \| `"role"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"coreOwnership"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"coreOwnership"`, `object`, `object`\>
+• **opts.dataType**: [`DataType`](DataType.md)\<[`DataStore`](DataStore.md)\<`"auth"`, `"role"` \| `"coreOwnership"`\>, [`JsonSchemaToDrizzleSqliteTable`](../type-aliases/JsonSchemaToDrizzleSqliteTable.md)\<`object`, `object`, `"coreOwnership"`, [`AdditionalColumns`](../type-aliases/AdditionalColumns.md), `"docId"`\>, `"coreOwnership"`, `object`, `object`\>
 
 • **opts.identityKeypair**: [`KeyPair`](../type-aliases/KeyPair-1.md)
 
@@ -70,7 +70,7 @@ Get capabilities for a given deviceId
 
 • **deviceId**: `string`
 
-• **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
+• **namespace**: `"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`
 
 #### Returns
 

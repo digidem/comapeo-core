@@ -24,7 +24,7 @@ Core length, e.g. how many blocks in the core (including blocks that are not dow
 
 ### namespace
 
-> **namespace**: `"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`
+> **namespace**: `"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`
 
 ***
 

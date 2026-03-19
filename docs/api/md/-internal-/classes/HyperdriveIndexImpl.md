@@ -8,7 +8,7 @@
 
 ## Extends
 
-- `TypedEmitter`
+- [`default`](default.md)
 
 ## Constructors
 
@@ -26,7 +26,7 @@
 
 #### Overrides
 
-`TypedEmitter.constructor`
+[`default`](default.md).[`constructor`](default.md#constructors)
 
 ## Accessors
 
@@ -50,6 +50,38 @@
 
 ## Methods
 
+### \_close()
+
+> **\_close**(): `Promise`\<`void`\>
+
+Unload any async resources here
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Overrides
+
+[`default`](default.md).[`_close`](default.md#_close)
+
+***
+
+### \_open()
+
+> **\_open**(): `Promise`\<`void`\>
+
+Load any async resources here
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Overrides
+
+[`default`](default.md).[`_open`](default.md#_open)
+
+***
+
 ### \[iterator\]()
 
 > **\[iterator\]**(): `MapIterator`\<[`Hyperdrive`](Hyperdrive.md)\>
@@ -57,6 +89,22 @@
 #### Returns
 
 `MapIterator`\<[`Hyperdrive`](Hyperdrive.md)\>
+
+***
+
+### close()
+
+> **close**(): `Promise`\<`void`\>
+
+Resolves when this resource has closed any dependencies.
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+[`default`](default.md).[`close`](default.md#close)
 
 ***
 
@@ -71,3 +119,19 @@
 #### Returns
 
 `undefined` \| [`Hyperdrive`](Hyperdrive.md)
+
+***
+
+### ready()
+
+> **ready**(): `Promise`\<`void`\>
+
+Resolves when this resource is initialized.
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+[`default`](default.md).[`ready`](default.md#ready)

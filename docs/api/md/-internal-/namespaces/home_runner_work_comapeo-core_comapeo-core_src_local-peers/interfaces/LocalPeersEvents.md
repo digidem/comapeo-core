@@ -188,6 +188,24 @@ Emitted when an invite response acknowledgement is received
 
 ***
 
+### map-share()
+
+> **map-share**: (`sender`, `details`) => `void`
+
+Emitted when a MapShare request is received
+
+#### Parameters
+
+• **sender**: [`PeerInfo`](../type-aliases/PeerInfo.md)
+
+• **details**: `MapShareExtension`
+
+#### Returns
+
+`void`
+
+***
+
 ### peer-add()
 
 > **peer-add**: (`peer`) => `void`
