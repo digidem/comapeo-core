@@ -302,6 +302,28 @@ Will undo the effects of `onBackgrounded`.
 
 ***
 
+### sendMapShare()
+
+> **sendMapShare**(`mapShare`, `options`?): `Promise`\<`void`\>
+
+Send a map share offer to the peer with device ID `mapShare.receiverDeviceId`
+
+#### Parameters
+
+• **mapShare**: [`MapShareSend`](../-internal-/type-aliases/MapShareSend.md)
+
+• **options?** = `{}`
+
+• **options.\_\_testOnlyBypassValidation?**: `undefined` \| `boolean` = `false`
+
+Warning: Do not use!
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### setDeviceInfo()
 
 > **setDeviceInfo**\<`T`\>(`deviceInfo`): `Promise`\<`void`\>

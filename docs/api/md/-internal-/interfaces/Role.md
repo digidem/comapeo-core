@@ -14,7 +14,7 @@
 
 ### docs
 
-> **docs**: `Record`\<`"observation"` \| `"track"` \| `"remoteDetectionAlert"` \| `"translation"` \| `"preset"` \| `"field"` \| `"projectSettings"` \| `"deviceInfo"` \| `"icon"` \| `"coreOwnership"` \| `"role"`, [`DocCapability`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_roles/interfaces/DocCapability.md)\>
+> **docs**: `Record`\<`"translation"` \| `"track"` \| `"role"` \| `"remoteDetectionAlert"` \| `"projectSettings"` \| `"preset"` \| `"observation"` \| `"icon"` \| `"field"` \| `"deviceInfo"` \| `"coreOwnership"`, [`DocCapability`](../namespaces/home_runner_work_comapeo-core_comapeo-core_src_roles/interfaces/DocCapability.md)\>
 
 ***
 
@@ -38,4 +38,4 @@
 
 ### sync
 
-> **sync**: `Record`\<`"auth"` \| `"config"` \| `"data"` \| `"blobIndex"` \| `"blob"`, `"allowed"` \| `"blocked"`\>
+> **sync**: `Record`\<`"auth"` \| `"data"` \| `"config"` \| `"blobIndex"` \| `"blob"`, `"allowed"` \| `"blocked"`\>

@@ -9,8 +9,8 @@ export { FastifyController } from './fastify-controller.js'
 export { MapeoManager } from './mapeo-manager.js'
 
 // Type exports
-/** @typedef {import('./mapeo-project.js').MapShare} MapShare */
-/** @typedef {import('./generated/extensions.js').MapShareExtension} MapShareExtension */
+/** @typedef {import('./mapeo-manager.js').MapShare} MapShare */
+/** @typedef {import('./generated/rpc.js').MapShareExtension} MapShareExtension */
 /** @typedef {import('./mapeo-project.js').MapeoProject} MapeoProject */
 /** @typedef {import('./mapeo-project.js').RoleChangeEvent} RoleChangeEvent */
 /** @typedef {import('./mapeo-manager.js').PublicPeerInfo} PublicPeerInfo */

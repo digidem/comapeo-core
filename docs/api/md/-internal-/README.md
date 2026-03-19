@@ -38,6 +38,7 @@
 - [default](classes/default.md)
 - [default](classes/default.md)
 - [default](classes/default.md)
+- [default](classes/default.md)
 - [DenseIndex](classes/DenseIndex.md)
 - [Downloader](classes/Downloader.md)
 - [EntryWatcher](classes/EntryWatcher.md)
@@ -128,6 +129,7 @@
 - [ListedProjectSettings](type-aliases/ListedProjectSettings.md)
 - [MapeoDocTableName](type-aliases/MapeoDocTableName.md)
 - [MapeoDocTables](type-aliases/MapeoDocTables.md)
+- [MapShareSend](type-aliases/MapShareSend.md)
 - [Namespace](type-aliases/Namespace.md)
 - [NamespaceSchemas](type-aliases/NamespaceSchemas.md)
 - [OpenedNetNoiseStream](type-aliases/OpenedNetNoiseStream.md)
@@ -198,3 +200,9 @@ Re-exports [LocalPeers](namespaces/home_runner_work_comapeo-core_comapeo-core_sr
 ### NamespaceSyncState
 
 Re-exports [NamespaceSyncState](namespaces/home_runner_work_comapeo-core_comapeo-core_src_sync_namespace-sync-state/classes/NamespaceSyncState.md)
+
+***
+
+### PeerInfo
+
+Re-exports [PeerInfo](namespaces/home_runner_work_comapeo-core_comapeo-core_src_local-peers/type-aliases/PeerInfo.md)
