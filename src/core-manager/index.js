@@ -10,7 +10,7 @@ import {
 } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { noop } from '../utils.js'
+import { forceBitfieldExchange, noop, patchCoreReplicator } from '../utils.js'
 import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
@@ -51,6 +51,7 @@ export class CoreManager extends ReadyResource {
   #encryptionKeys
   #projectExtension
   /** @type {'opened' | 'closing' | 'closed'} */
+  // @ts-ignore
   #state = 'opened'
   #haveExtension
   #deviceId
@@ -325,12 +326,12 @@ export class CoreManager extends ReadyResource {
     // **Hack** As soon as a peer is added, eagerly send a "want" for the entire
     // core. This ensures that the peer sends back its entire bitfield.
     // Otherwise this would only happen once we call core.download()
-    core.on('peer-add', (peer) => {
+    core.on('peer-add', (/** @type {HypercorePeer} */ peer) => {
       if (core.length === 0) return
-      // **Warning** uses internal method, but should be covered by tests
-      peer._maybeWant(0, core.length)
+      forceBitfieldExchange(peer)
     })
 
+    patchCoreReplicator(core)
     if (writer) {
       const sendHaves = debounce(WRITER_CORE_PREHAVES_DEBOUNCE_DELAY, () => {
         for (const peer of this.creatorCore.peers) {
@@ -361,7 +362,7 @@ export class CoreManager extends ReadyResource {
           // TODO: It would be more efficient (in terms of network traffic) to
           // send a want with start = length of previous want. Need to track
           // "last want length" sent by peer.
-          peer._maybeWant(0, core.length)
+          forceBitfieldExchange(peer)
         }
       })
     }
