@@ -168,7 +168,7 @@ export class MapeoProject extends ReadyResource {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
    * @param {IndexWriter} opts.sharedIndexWriter
-   * @param {CoreStorage} opts.coreStorage Folder to store all hypercore data
+   * @param {string} opts.coreStorage Folder to store all hypercore data
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
@@ -250,15 +250,15 @@ export class MapeoProject extends ReadyResource {
         .run()
     }
 
-    ///////// 3. Setup random-access-storage functions
+    ///////// 3. Setup storage folders
 
-    /** @type {ConstructorParameters<typeof CoreManager>[0]['storage']} */
-    const coreManagerStorage = (name) =>
-      coreStorage(path.join(CORESTORE_STORAGE_FOLDER_NAME, name))
+    const coreManagerStorage = path.join(
+      coreStorage,
+      CORESTORE_STORAGE_FOLDER_NAME
+    )
 
     /** @type {ConstructorParameters<typeof DataStore>[0]['storage']} */
-    const indexerStorage = (name) =>
-      coreStorage(path.join(INDEXER_STORAGE_FOLDER_NAME, name))
+    const indexerStorage = path.join(coreStorage, INDEXER_STORAGE_FOLDER_NAME)
 
     ///////// 4. Create instances
 
