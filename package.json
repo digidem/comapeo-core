@@ -209,6 +209,7 @@
     "hypercore": "10.19.0",
     "hypercore-crypto": "3.4.2",
     "hyperdrive": "11.5.3",
+    "hyperswarm": "^4.17.0",
     "iso-3166": "^4.3.0",
     "json-stable-stringify": "^1.1.1",
     "magic-bytes.js": "^1.10.0",
