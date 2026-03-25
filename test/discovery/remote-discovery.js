@@ -1,13 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { randomBytes } from 'node:crypto'
 import { KeyManager, keyToPublicId } from '@mapeo/crypto'
 import pDefer from 'p-defer'
 import { RemoteDiscovery } from '../../src/discovery/remote-discovery.js'
 
 test('RemoteDiscovery - connect two instances and verify keypair', async (t) => {
-  const identityKeypair1 = new KeyManager(randomBytes(16)).getIdentityKeypair()
-  const identityKeypair2 = new KeyManager(randomBytes(16)).getIdentityKeypair()
+  const identityKeypair1 = new KeyManager(
+    Buffer.alloc(16, 1)
+  ).getIdentityKeypair()
+  const identityKeypair2 = new KeyManager(
+    Buffer.alloc(16, 2)
+  ).getIdentityKeypair()
 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
@@ -41,11 +44,11 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   const connectionPromise = remoteDiscovery2.connectPeer(publicKey1Hex)
 
   const outboundStream = await connectionPromise
-  const stream = await deferred.promise
+  const inboundStream = await deferred.promise
 
   // Verify both sides have the correct keypairs
   assert.ok(
-    stream.remotePublicKey.equals(identityKeypair2.publicKey),
+    inboundStream.remotePublicKey.equals(identityKeypair2.publicKey),
     'instance 1 should have instance 2 public key'
   )
   assert.ok(
@@ -58,7 +61,7 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   const peerId2 = keyToPublicId(identityKeypair2.publicKey)
 
   assert.equal(
-    keyToPublicId(stream.remotePublicKey),
+    keyToPublicId(inboundStream.remotePublicKey),
     peerId2,
     'instance 1 connected to correct peer'
   )
@@ -67,6 +70,9 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
     peerId1,
     'instance 2 connected to correct peer'
   )
+
+  inboundStream.end()
+  outboundStream.end()
 })
 
 /**

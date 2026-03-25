@@ -91,16 +91,13 @@ export class RemoteDiscovery extends TypedEmitter {
     const noisePublicKey = Buffer.from(publicKey, 'hex')
 
     const onConnected = pEvent(this, 'connection', {
-      filter: (connection) => connection.publicKey.equals(noisePublicKey),
+      filter: (connection) => connection.remotePublicKey.equals(noisePublicKey),
       timeout,
     })
     // Start trying to connect
     swarm.joinPeer(noisePublicKey)
     this.#l.log('Connecting to %S', publicKey)
 
-    // Wait for discovery to finish
-    await swarm.flush()
-    this.#l.log('Discovery finished for %S', publicKey)
     const socket = await onConnected
 
     return socket
