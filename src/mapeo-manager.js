@@ -62,6 +62,7 @@ import {
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
+import { RemoteDiscovery } from './discovery/remote-discovery.js'
 
 /** @import { MapShareExtension } from './generated/rpc.js' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
@@ -152,6 +153,7 @@ export class MapeoManager extends TypedEmitter {
   #invite
   #fastify
   #localDiscovery
+  #remoteDiscovery
   #loggerBase
   #l
   #defaultConfigPath
@@ -285,6 +287,11 @@ export class MapeoManager extends TypedEmitter {
       logger,
     })
     this.#localDiscovery.on('connection', this.#replicate.bind(this))
+    this.#remoteDiscovery = new RemoteDiscovery({
+      identityKeypair: this.#keyManager.getIdentityKeypair(),
+      logger,
+    })
+    this.#remoteDiscovery.on('connection', this.#replicate.bind(this))
   }
 
   get deviceId() {
@@ -619,6 +626,10 @@ export class MapeoManager extends TypedEmitter {
           .from(projectKeysTable)
           .where(eq(projectKeysTable.projectId, projectId))
           .get()?.projectInfo
+      },
+      setShouldListenOverInternet: (shouldListen) => {
+        if (shouldListen) return this.#remoteDiscovery.start()
+        else return this.#remoteDiscovery.stop()
       },
     })
 

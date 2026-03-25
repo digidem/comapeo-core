@@ -174,6 +174,7 @@ export class MapeoProject extends ReadyResource {
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
+   * @param {(shouldListen: boolean) => Promise<void>} opts.setShouldListenOverInternet
    * @param {Logger} [opts.logger]
    *
    */
@@ -193,6 +194,7 @@ export class MapeoProject extends ReadyResource {
     logger,
     isArchiveDevice,
     getFallbackProjectInfo,
+    setShouldListenOverInternet,
   }) {
     super()
 
@@ -426,6 +428,7 @@ export class MapeoProject extends ReadyResource {
         deviceInfo: this.#dataTypes.deviceInfo,
         project: this.#dataTypes.projectSettings,
       },
+      setShouldListenOverInternet,
       logger: this.#l,
     })
 

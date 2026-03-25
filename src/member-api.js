@@ -48,6 +48,7 @@ import {
 } from './roles.js'
 import { kCreateOrUpdateWithDocId } from './datatype/index.js'
 
+export const INTERNET_INVITE_PAGE = 'https://i/comapeo.app/invite/'
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
 /**
@@ -59,7 +60,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  * } from '@comapeo/schema'
  */
 /** @import { Promisable } from 'type-fest' */
-/** @import { DeviceInfo_DeviceType, Invite, InviteResponse } from './generated/rpc.js' */
+/** @import { Invite, InviteResponse } from './generated/rpc.js' */
 /** @import { DataType } from './datatype/index.js' */
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
@@ -86,7 +87,22 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 
 /**
+ * @typedef {object} InviteOptions
+ * @prop {import('./roles.js').RoleIdForNewInvite} opts.roleId
+ * @prop {string} [roleName]
+ * @prop {string} [roleDescription]
+ * @prop {Buffer} [__testOnlyInviteId] Hard-code the invite ID. Only for tests.
+ * @prop {number} [initialSyncTimeoutMs=5000]
+ * @prop {InvitePeerInfo} [peerInfo]
+ */
+
+/**
  * @typedef {Omit<MemberInfo, 'role'> & {role: import('./roles.js').Role<typeof MEMBER_ROLE_ID | typeof COORDINATOR_ROLE_ID | typeof CREATOR_ROLE_ID>}} ActiveMemberInfo
+ */
+
+/**
+ * @typedef {object} MemberEvents
+ * @property {(deviceId: string) => void} internet-invite-redeemed Emitted when a
  */
 
 export class MemberApi extends TypedEmitter {
@@ -100,11 +116,15 @@ export class MemberApi extends TypedEmitter {
   #makeWebsocket
   #getReplicationStream
   #waitForInitialSyncWithPeer
+  #setShouldListenOverInternet
   #dataTypes
   #l
 
   /** @type {Map<string, { abortController: AbortController }>} */
   #outboundInvitesByDevice = new Map()
+
+  /** @type {Map<string, {inviteId: Buffer, opts: InviteOptions}>} */
+  #pendingInvitesOverInternet = new Map()
 
   /**
    * @param {Object} opts
@@ -118,6 +138,7 @@ export class MemberApi extends TypedEmitter {
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
+   * @param {(shouldListen: boolean) => Promise<void>} opts.setShouldListenOverInternet
    * @param {Object} opts.dataTypes
    * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany' | kCreateOrUpdateWithDocId>} opts.dataTypes.deviceInfo
    * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
@@ -134,6 +155,7 @@ export class MemberApi extends TypedEmitter {
     makeWebsocket = (url) => new WebSocket(url),
     getReplicationStream,
     waitForInitialSyncWithPeer,
+    setShouldListenOverInternet,
     dataTypes,
     logger,
   }) {
@@ -149,7 +171,50 @@ export class MemberApi extends TypedEmitter {
     this.#makeWebsocket = makeWebsocket
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
+    this.#setShouldListenOverInternet = setShouldListenOverInternet
     this.#dataTypes = dataTypes
+  }
+
+  /**
+   * Start inviting somone over the internet. Returns a URL for the recipient to load.
+   * @param {InviteOptions} opts
+   */
+  async inviteOverInternet(opts) {
+    const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
+    const inviteIdString = inviteId.toString('hex')
+
+    const url =
+      INTERNET_INVITE_PAGE + `?i=${inviteIdString}&d=${this.#ownDeviceId}`
+
+    this.#pendingInvitesOverInternet.set(url, {
+      inviteId,
+      opts,
+    })
+
+    if (this.#pendingInvitesOverInternet.size === 1) {
+      await this.#setShouldListenOverInternet(true)
+    }
+
+    return url
+  }
+
+  /**
+   * Cancel an invite over internet attempt. Omit the specific URL to cancel all instances
+   * @param {string} [url]
+   */
+  async cancelInviteOverInternet(url) {
+    if (!url) {
+      this.#pendingInvitesOverInternet.clear()
+      await this.#setShouldListenOverInternet(false)
+      return
+    }
+    if (!this.#pendingInvitesOverInternet.has(url)) {
+      throw new Error('Invalid internet invite URL')
+    }
+    this.#pendingInvitesOverInternet.delete(url)
+    if (this.#pendingInvitesOverInternet.size === 0) {
+      await this.#setShouldListenOverInternet(false)
+    }
   }
 
   /**
@@ -157,13 +222,7 @@ export class MemberApi extends TypedEmitter {
    * is canceled, or if something else goes wrong.
    *
    * @param {string} deviceId
-   * @param {Object} opts
-   * @param {import('./roles.js').RoleIdForNewInvite} opts.roleId
-   * @param {string} [opts.roleName]
-   * @param {string} [opts.roleDescription]
-   * @param {Buffer} [opts.__testOnlyInviteId] Hard-code the invite ID. Only for tests.
-   * @param {number} [opts.initialSyncTimeoutMs=5000]
-   * @param {InvitePeerInfo} [opts.peerInfo]
+   * @param {InviteOptions} opts
    * @returns {Promise<(
    *   typeof InviteResponse_Decision.ACCEPT |
    *   typeof InviteResponse_Decision.REJECT |
