@@ -38,7 +38,6 @@
 - [default](classes/default.md)
 - [default](classes/default.md)
 - [default](classes/default.md)
-- [default](classes/default.md)
 - [DenseIndex](classes/DenseIndex.md)
 - [Downloader](classes/Downloader.md)
 - [EntryWatcher](classes/EntryWatcher.md)
