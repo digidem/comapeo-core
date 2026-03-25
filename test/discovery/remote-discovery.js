@@ -24,7 +24,7 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   await Promise.all([remoteDiscovery1.start(), remoteDiscovery2.start()])
 
   const deferred = pDefer()
-  const publicKey2Hex = identityKeypair2.publicKey.toString('hex')
+  const publicKey1Hex = identityKeypair1.publicKey.toString('hex')
 
   // Listen for connection on instance 1
   remoteDiscovery1.on('connection', (stream) => {
@@ -38,10 +38,10 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   })
 
   // Connect from instance 2 to instance 1
-  const connectionPromise = remoteDiscovery2.connectPeer(publicKey2Hex)
+  const connectionPromise = remoteDiscovery2.connectPeer(publicKey1Hex)
 
-  const stream = await deferred.promise
   const outboundStream = await connectionPromise
+  const stream = await deferred.promise
 
   // Verify both sides have the correct keypairs
   assert.ok(

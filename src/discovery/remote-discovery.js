@@ -77,6 +77,7 @@ export class RemoteDiscovery extends TypedEmitter {
   async close() {
     await this.#loading
     await this.#swarm?.destroy()
+    this.#l.log('Closed swarm')
   }
 
   /**
