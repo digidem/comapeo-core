@@ -20,6 +20,7 @@ import ensureError from 'ensure-error'
 /** @import { Readable as NodeReadable } from 'node:stream' */
 /** @import { Readable as StreamxReadable, Writable } from 'streamx' */
 /** @import { GenericBlobFilter, BlobFilter, BlobId, BlobStoreEntriesStream } from '../types.js' */
+/** @import { TypedEmitter } from 'tiny-typed-emitter' */
 
 /**
  * @typedef {object} BlobStoreEvents
@@ -58,7 +59,7 @@ const NON_ARCHIVE_DEVICE_DOWNLOAD_FILTER = {
   // thumbnails aren't supported yet.
 }
 
-/** @extends {ReadyResource<BlobStoreEvents>} */
+/** @type {ReadyResource & TypedEmitter<BlobStoreEvents>} */
 export class BlobStore extends ReadyResource {
   #driveIndex
   /** @type {Downloader} */
