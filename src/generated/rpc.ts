@@ -78,6 +78,10 @@ export interface ProjectJoinDetails {
   encryptionKeys: EncryptionKeys | undefined;
 }
 
+export interface RedeemInviteOverInternet {
+  inviteId: Buffer;
+}
+
 export interface DeviceInfo {
   name: string;
   deviceType?: DeviceInfo_DeviceType | undefined;
@@ -179,6 +183,10 @@ export interface InviteResponseAck {
 }
 
 export interface ProjectJoinDetailsAck {
+  inviteId: Buffer;
+}
+
+export interface RedeemInviteOverInternetAck {
   inviteId: Buffer;
 }
 
@@ -528,6 +536,51 @@ export const ProjectJoinDetails = {
   },
 };
 
+function createBaseRedeemInviteOverInternet(): RedeemInviteOverInternet {
+  return { inviteId: Buffer.alloc(0) };
+}
+
+export const RedeemInviteOverInternet = {
+  encode(message: RedeemInviteOverInternet, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.inviteId.length !== 0) {
+      writer.uint32(10).bytes(message.inviteId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): RedeemInviteOverInternet {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRedeemInviteOverInternet();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.inviteId = reader.bytes() as Buffer;
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<RedeemInviteOverInternet>, I>>(base?: I): RedeemInviteOverInternet {
+    return RedeemInviteOverInternet.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RedeemInviteOverInternet>, I>>(object: I): RedeemInviteOverInternet {
+    const message = createBaseRedeemInviteOverInternet();
+    message.inviteId = object.inviteId ?? Buffer.alloc(0);
+    return message;
+  },
+};
+
 function createBaseDeviceInfo(): DeviceInfo {
   return { name: "", features: [] };
 }
@@ -782,6 +835,51 @@ export const ProjectJoinDetailsAck = {
   },
   fromPartial<I extends Exact<DeepPartial<ProjectJoinDetailsAck>, I>>(object: I): ProjectJoinDetailsAck {
     const message = createBaseProjectJoinDetailsAck();
+    message.inviteId = object.inviteId ?? Buffer.alloc(0);
+    return message;
+  },
+};
+
+function createBaseRedeemInviteOverInternetAck(): RedeemInviteOverInternetAck {
+  return { inviteId: Buffer.alloc(0) };
+}
+
+export const RedeemInviteOverInternetAck = {
+  encode(message: RedeemInviteOverInternetAck, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.inviteId.length !== 0) {
+      writer.uint32(10).bytes(message.inviteId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): RedeemInviteOverInternetAck {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRedeemInviteOverInternetAck();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.inviteId = reader.bytes() as Buffer;
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<RedeemInviteOverInternetAck>, I>>(base?: I): RedeemInviteOverInternetAck {
+    return RedeemInviteOverInternetAck.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RedeemInviteOverInternetAck>, I>>(object: I): RedeemInviteOverInternetAck {
+    const message = createBaseRedeemInviteOverInternetAck();
     message.inviteId = object.inviteId ?? Buffer.alloc(0);
     return message;
   },

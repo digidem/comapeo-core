@@ -56,8 +56,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  *   ProjectSettingsValue,
  * } from '@comapeo/schema'
  */
-/** @import { Promisable } from 'type-fest' */
-/** @import { Invite, InviteResponse } from './generated/rpc.js' */
+/** @import { Invite, InviteResponse, RedeemInviteOverInternet } from './generated/rpc.js' */
 /** @import { DataType } from './datatype/index.js' */
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
@@ -96,14 +95,26 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 
 /**
+ * @typedef {(
+ *   typeof InviteResponse_Decision.ACCEPT |
+ *   typeof InviteResponse_Decision.REJECT |
+ *   typeof InviteResponse_Decision.ALREADY
+ * )} InviteDecision
+ */
+
+/**
  * @typedef {Omit<MemberInfo, 'role'> & {role: import('./roles.js').Role<typeof MEMBER_ROLE_ID | typeof COORDINATOR_ROLE_ID | typeof CREATOR_ROLE_ID>}} ActiveMemberInfo
  */
 
 /**
  * @typedef {object} MemberEvents
- * @property {(deviceId: string) => void} internet-invite-redeemed Emitted when a
+ * @property {(deviceId: string, decision: InviteDecision, url: string) => void} internet-invite-redeemed Emitted when an invite over the internet has been redeemed
+ * @property {(err: Error, deviceId: string, url: string) => void} internet-invite-redeem-error Emitted when an invite over the internet has failed to be redeemed
  */
 
+/**
+ * @extends {TypedEmitter<MemberEvents>}
+ */
 export class MemberApi extends TypedEmitter {
   #ownDeviceId
   #roles
@@ -170,6 +181,10 @@ export class MemberApi extends TypedEmitter {
     this.#getProjectSettings = getProjectSettings
     this.#getDeviceInfo = getDeviceInfo
     this.#setDeviceInfo = setDeviceInfo
+
+    rpc.on('invite-over-internet-redeemed', (peerId, redeem) =>
+      this.#handleRedeemInviteOverInternet(peerId, redeem)
+    )
   }
 
   /**
@@ -223,16 +238,42 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
+   *
+   * @param {string} peerId
+   * @param {RedeemInviteOverInternet} redeem
+   */
+  async #handleRedeemInviteOverInternet(peerId, { inviteId }) {
+    const inviteIdString = inviteId.toString('hex')
+
+    const url =
+      INTERNET_INVITE_PAGE + `?i=${inviteIdString}&d=${this.#ownDeviceId}`
+
+    try {
+      for (const [
+        pendingURL,
+        { opts },
+      ] of this.#pendingInvitesOverInternet.entries()) {
+        if (pendingURL !== url) continue
+        const decision = await this.invite(peerId, opts)
+        this.emit('internet-invite-redeemed', peerId, decision, url)
+      }
+    } catch (e) {
+      this.emit(
+        'internet-invite-redeem-error',
+        ensureKnownError(e),
+        peerId,
+        url
+      )
+    }
+  }
+
+  /**
    * Send an invite. Resolves when receiving a response. Rejects if the invite
    * is canceled, or if something else goes wrong.
    *
    * @param {string} deviceId
    * @param {InviteOptions} opts
-   * @returns {Promise<(
-   *   typeof InviteResponse_Decision.ACCEPT |
-   *   typeof InviteResponse_Decision.REJECT |
-   *   typeof InviteResponse_Decision.ALREADY
-   * )>}
+   * @returns {Promise<InviteDecision>}
    */
   async invite(
     deviceId,

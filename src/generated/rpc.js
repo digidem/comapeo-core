@@ -413,6 +413,48 @@ export var ProjectJoinDetails = {
         return message;
     },
 };
+function createBaseRedeemInviteOverInternet() {
+    return { inviteId: Buffer.alloc(0) };
+}
+export var RedeemInviteOverInternet = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.inviteId.length !== 0) {
+            writer.uint32(10).bytes(message.inviteId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseRedeemInviteOverInternet();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.inviteId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return RedeemInviteOverInternet.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseRedeemInviteOverInternet();
+        message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        return message;
+    },
+};
 function createBaseDeviceInfo() {
     return { name: "", features: [] };
 }
@@ -649,6 +691,48 @@ export var ProjectJoinDetailsAck = {
     fromPartial: function (object) {
         var _a;
         var message = createBaseProjectJoinDetailsAck();
+        message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        return message;
+    },
+};
+function createBaseRedeemInviteOverInternetAck() {
+    return { inviteId: Buffer.alloc(0) };
+}
+export var RedeemInviteOverInternetAck = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.inviteId.length !== 0) {
+            writer.uint32(10).bytes(message.inviteId);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseRedeemInviteOverInternetAck();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.inviteId = reader.bytes();
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return RedeemInviteOverInternetAck.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseRedeemInviteOverInternetAck();
         message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
         return message;
     },

@@ -16,6 +16,8 @@ import {
   ProjectJoinDetailsAck,
   DeviceInfo_RPCFeatures,
   MapShareExtension,
+  RedeemInviteOverInternet,
+  RedeemInviteOverInternetAck,
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
@@ -71,6 +73,8 @@ const MESSAGE_TYPES = {
   InviteResponseAck: 7,
   ProjectJoinDetailsAck: 8,
   MapShareExtension: 9,
+  RedeemInviteOverInternet: 10,
+  RedeemInviteOverInternetAck: 11,
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
@@ -387,6 +391,39 @@ class Peer {
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
   }
 
+  /**
+   * @param {RedeemInviteOverInternet} redeem
+   * @returns {Promise<void>}
+   */
+  async sendRedeemInviteOverInternet(redeem) {
+    this.#assertConnected(
+      'Peer disconnected before sending redeem over internet'
+    )
+    const buf = Buffer.from(RedeemInviteOverInternet.encode(redeem).finish())
+    const messageType = MESSAGE_TYPES.RedeemInviteOverInternet
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+    await this.#waitForAck('RedeemInviteOverInternetAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, redeem.inviteId)
+    )
+    this.#log('redeemed invite over internet %h: %s', redeem.inviteId)
+  }
+
+  /**
+   * @param {RedeemInviteOverInternet} redeem
+   * @returns {Promise<void>}
+   */
+  async sendRedeemInviteOverInternetAck({ inviteId }) {
+    this.#assertConnected(
+      'Peer disconnected before sending redeem over internet ack'
+    )
+    if (!this.supportsAck()) return
+    const buf = Buffer.from(
+      RedeemInviteOverInternetAck.encode({ inviteId }).finish()
+    )
+    const messageType = MESSAGE_TYPES.RedeemInviteOverInternetAck
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+  }
+
   /** @param {ProjectJoinDetails} details */
   async sendProjectJoinDetails(details) {
     this.#assertConnected(
@@ -446,6 +483,8 @@ class Peer {
  * @property {(peerId: string, invite: InviteCancelAck) => void} invite-cancel-ack Emitted when we receive a cancelation acknowledgement for an invite
  * @property {(peerId: string, inviteResponse: InviteResponse) => void} invite-response Emitted when an invite response is received
  * @property {(peerId: string, inviteResponse: InviteResponseAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
+ * @property {(peerId: string, inviteResponse: RedeemInviteOverInternet) => void} invite-over-internet-redeemed Emitted when a peer attempts to redeem an invite over the internet
+ * @property {(peerId: string, inviteResponse: RedeemInviteOverInternetAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
  * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
@@ -527,6 +566,18 @@ export class LocalPeers extends TypedEmitter {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
     await peer.sendInviteResponse(inviteResponse)
+  }
+
+  /**
+   * Redeem an invite over the internet
+   *
+   * @param {string} deviceId id of the peer you want to redeem from (publicKey of peer as hex string)
+   * @param {RedeemInviteOverInternet} redeem
+   */
+  async sendRedeemInviteOverInternet(deviceId, redeem) {
+    await this.#waitForPendingConnections()
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    await peer.sendRedeemInviteOverInternet(redeem)
   }
 
   /**
@@ -792,6 +843,16 @@ export class LocalPeers extends TypedEmitter {
         this.emit('invite-response', peerId, inviteResponse)
         peer.sendInviteResponseAck(inviteResponse).catch((e) => {
           this.#l.log(`Error sending invite response ack ${e.stack}`)
+        })
+        break
+      }
+      case 'RedeemInviteOverInternet': {
+        const redeem = RedeemInviteOverInternet.decode(value)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+
+        this.emit('invite-over-internet-redeemed', peerId, redeem)
+        peer.sendRedeemInviteOverInternetAck(redeem).catch((e) => {
+          this.#l.log(`Error sending redeem over internet ack ${e.stack}`)
         })
         break
       }
