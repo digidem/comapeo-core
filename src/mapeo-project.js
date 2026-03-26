@@ -415,18 +415,30 @@ export class MapeoProject extends ReadyResource {
     this.#memberApi = new MemberApi({
       deviceId: this.#deviceId,
       roles: this.#roles,
-      coreOwnership: this.#coreOwnership,
       encryptionKeys,
-      getProjectName: this.#getProjectName.bind(this),
       projectKey,
       rpc: localPeers,
       makeWebsocket,
       getReplicationStream,
       waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
         this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
-      dataTypes: {
-        deviceInfo: this.#dataTypes.deviceInfo,
-        project: this.#dataTypes.projectSettings,
+      getProjectSettings: () => this.$getProjectSettings(),
+      getDeviceInfo: async (deviceId) => {
+        try {
+          return await this.#dataTypes.deviceInfo.getByDocId(deviceId)
+        } catch (e) {
+          const configCoreId = await this.#coreOwnership.getCoreId(
+            deviceId,
+            'config'
+          )
+          return this.#dataTypes.deviceInfo.getByDocId(configCoreId)
+        }
+      },
+      setDeviceInfo: async (deviceId, deviceInfo) => {
+        await this.#dataTypes.deviceInfo[kCreateOrUpdateWithDocId](
+          deviceId,
+          deviceInfo
+        )
       },
       setShouldListenOverInternet,
       logger: this.#l,

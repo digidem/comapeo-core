@@ -6,12 +6,10 @@ import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import {
   noop,
-  projectKeyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
 import { Logger } from './logger.js'
-import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
@@ -46,7 +44,6 @@ import {
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
-import { kCreateOrUpdateWithDocId } from './datatype/index.js'
 
 export const INTERNET_INVITE_PAGE = 'https://i/comapeo.app/invite/'
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
@@ -65,10 +62,12 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
 /** @import { projectSettingsTable } from './schema/client.js' */
-/** @import { ReplicationStream } from './types.js' */
+/** @import { ReplicationStream, MapeoValueMap } from './types.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
+/** @typedef {import('./datatype/index.js').ExcludeSchema<MapeoValueMap['deviceInfo'], 'coreOwnership'>} NewDeviceInfo */
+
 /**
  * @typedef {object} MemberInfo
  * @prop {string} deviceId
@@ -108,16 +107,16 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 export class MemberApi extends TypedEmitter {
   #ownDeviceId
   #roles
-  #coreOwnership
   #encryptionKeys
-  #getProjectName
   #projectKey
   #rpc
   #makeWebsocket
   #getReplicationStream
   #waitForInitialSyncWithPeer
   #setShouldListenOverInternet
-  #dataTypes
+  #getProjectSettings
+  #getDeviceInfo
+  #setDeviceInfo
   #l
 
   /** @type {Map<string, { abortController: AbortController }>} */
@@ -129,50 +128,48 @@ export class MemberApi extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {string} opts.deviceId public key of this device as hex string
-   * @param {import('./roles.js').Roles} opts.roles
-   * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
+   * @param {Pick<import('./roles.js').Roles, 'getAll' | 'assignRole' | 'getRole'>} opts.roles
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
-   * @param {() => Promisable<undefined | string>} opts.getProjectName
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {(shouldListen: boolean) => Promise<void>} opts.setShouldListenOverInternet
-   * @param {Object} opts.dataTypes
-   * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany' | kCreateOrUpdateWithDocId>} opts.dataTypes.deviceInfo
-   * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
+   * @param {() => Promise<import('./mapeo-project.js').EditableProjectSettings>} opts.getProjectSettings
+   * @param {(deviceId: string) => Promise<DeviceInfo>} opts.getDeviceInfo
+   * @param {(deviceId: string, deviceInfo: NewDeviceInfo) => Promise<void>} opts.setDeviceInfo
    * @param {Logger} [opts.logger]
    */
   constructor({
     deviceId,
     roles,
-    coreOwnership,
     encryptionKeys,
-    getProjectName,
     projectKey,
     rpc,
     makeWebsocket = (url) => new WebSocket(url),
     getReplicationStream,
     waitForInitialSyncWithPeer,
     setShouldListenOverInternet,
-    dataTypes,
+    getProjectSettings,
+    getDeviceInfo,
+    setDeviceInfo,
     logger,
   }) {
     super()
     this.#l = Logger.create('member-api', logger)
     this.#ownDeviceId = deviceId
     this.#roles = roles
-    this.#coreOwnership = coreOwnership
     this.#encryptionKeys = encryptionKeys
-    this.#getProjectName = getProjectName
     this.#projectKey = projectKey
     this.#rpc = rpc
     this.#makeWebsocket = makeWebsocket
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
     this.#setShouldListenOverInternet = setShouldListenOverInternet
-    this.#dataTypes = dataTypes
+    this.#getProjectSettings = getProjectSettings
+    this.#getDeviceInfo = getDeviceInfo
+    this.#setDeviceInfo = setDeviceInfo
   }
 
   /**
@@ -215,6 +212,14 @@ export class MemberApi extends TypedEmitter {
     if (this.#pendingInvitesOverInternet.size === 0) {
       await this.#setShouldListenOverInternet(false)
     }
+  }
+
+  /**
+   * Get the list of pending invites over the internet
+   * @returns {string[]}
+   */
+  pendingInternetInvites() {
+    return [...this.#pendingInvitesOverInternet.keys()]
   }
 
   /**
@@ -264,9 +269,8 @@ export class MemberApi extends TypedEmitter {
       abortSignal.throwIfAborted()
 
       const inviteId = __testOnlyInviteId || crypto.randomBytes(32)
-      const projectId = projectKeyToId(this.#projectKey)
       const projectInviteId = projectKeyToProjectInviteId(this.#projectKey)
-      const project = await this.#dataTypes.project.getByDocId(projectId)
+      const project = await this.#getProjectSettings()
       const projectName = project.name
       if (!projectName) {
         throw new InvalidProjectNameError()
@@ -329,10 +333,7 @@ export class MemberApi extends TypedEmitter {
               selfHostedServerDetails: undefined,
               schemaName: /** @type {const} */ ('deviceInfo'),
             }
-            await this.#dataTypes.deviceInfo[kCreateOrUpdateWithDocId](
-              deviceId,
-              doc
-            )
+            await this.#setDeviceInfo(deviceId, doc)
           }
 
           try {
@@ -532,7 +533,7 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<{ serverDeviceId: string }>}
    */
   async #addServerToProject(baseUrl) {
-    const projectName = await this.#getProjectName()
+    const { name: projectName } = await this.#getProjectSettings()
     if (!projectName) {
       throw new IncompleteProjectDataError()
     }
@@ -656,22 +657,6 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
-   * @param {string} deviceId
-   * @returns {Promise<DeviceInfo>}
-   */
-  async #getDeviceInfo(deviceId) {
-    try {
-      return await this.#dataTypes.deviceInfo.getByDocId(deviceId)
-    } catch (e) {
-      const configCoreId = await this.#coreOwnership.getCoreId(
-        deviceId,
-        'config'
-      )
-      return this.#dataTypes.deviceInfo.getByDocId(configCoreId)
-    }
-  }
-
-  /**
    * @overload
    * @returns {Promise<Array<ActiveMemberInfo>>}
    */
@@ -686,12 +671,7 @@ export class MemberApi extends TypedEmitter {
    *
    */
   async getMany({ includeLeft = false } = {}) {
-    const [allRoles, allDeviceInfo] = await Promise.all([
-      this.#roles.getAll(),
-      this.#dataTypes.deviceInfo.getMany(),
-    ])
-
-    const deviceInfoByConfigCoreId = keyBy(allDeviceInfo, ({ docId }) => docId)
+    const allRoles = await this.#roles.getAll()
 
     /**
      * @type {Array<Promise<MemberInfo>>}
@@ -708,12 +688,7 @@ export class MemberApi extends TypedEmitter {
         const memberInfo = { deviceId, role }
 
         try {
-          const configCoreId = await this.#coreOwnership.getCoreId(
-            deviceId,
-            'config'
-          )
-
-          const deviceInfo = deviceInfoByConfigCoreId.get(configCoreId)
+          const deviceInfo = await this.#getDeviceInfo(deviceId)
 
           memberInfo.name = deviceInfo?.name
           memberInfo.deviceType = deviceInfo?.deviceType
