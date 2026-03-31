@@ -6,12 +6,24 @@ import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
-import { MemberApi } from '../src/member-api.js'
+import { makeInviteURL, MemberApi, parseInviteURL } from '../src/member-api.js'
 import { LocalPeers } from '../src/local-peers.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 
 /** @import { ProjectJoinDetails } from '../src/generated/rpc.js' */
 /** @import WebSocket from 'ws' */
+
+test('serialize and parse invite URLs', () => {
+  const testDeviceId = 'foo'
+  const testInviteId = 'bar'
+
+  const url = makeInviteURL(testInviteId, testDeviceId)
+
+  const { inviteIdString, deviceId } = parseInviteURL(url)
+
+  assert.equal(inviteIdString, testInviteId)
+  assert.equal(deviceId, testDeviceId)
+})
 
 test('List pending invites over internet', async () => {
   const { member } = setup({})

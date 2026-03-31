@@ -63,6 +63,8 @@ import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
 import { RemoteDiscovery } from './discovery/remote-discovery.js'
+import { parseInviteURL } from './member-api.js'
+import { pEvent } from 'p-event'
 
 /** @import { MapShareExtension } from './generated/rpc.js' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
@@ -709,6 +711,31 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
+   * Attempt to join a project over the internet
+   * @param {string} url
+   * @returns {Promise<string>}
+   */
+  async joinProjectOverInternet(url) {
+    const { deviceId, inviteIdString } = parseInviteURL(url)
+    const inviteId = Buffer.from(inviteIdString, 'hex')
+
+    const connection = await this.#remoteDiscovery.connectPeer(deviceId)
+    try {
+      const onInvited = pEvent(this.#invite, 'invite-received')
+      await this.#localPeers.sendRedeemInviteOverInternet(deviceId, {
+        inviteId,
+      })
+      const invite = await onInvited
+
+      const projectId = await this.#invite.accept(invite)
+
+      return projectId
+    } finally {
+      connection.end()
+    }
+  }
+
+  /**
    * Add a project to this device. After adding a project the client should
    * await `project.$waitForInitialSync()` to ensure that the device has
    * downloaded their proof of project membership and the project config.
@@ -1127,6 +1154,7 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async close() {
+    await this.#remoteDiscovery.close()
     // This added for workers PR
     // await this.#projectSettingsIndexWriter.close()
     await Promise.all(

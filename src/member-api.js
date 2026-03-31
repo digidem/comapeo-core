@@ -45,7 +45,7 @@ import {
   isRoleIdForNewInvite,
 } from './roles.js'
 
-export const INTERNET_INVITE_PAGE = 'https://i/comapeo.app/invite/'
+export const INTERNET_INVITE_PAGE = 'https://i.comapeo.app/invite/'
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
 /**
@@ -133,7 +133,7 @@ export class MemberApi extends TypedEmitter {
   /** @type {Map<string, { abortController: AbortController }>} */
   #outboundInvitesByDevice = new Map()
 
-  /** @type {Map<string, {inviteId: Buffer, opts: InviteOptions}>} */
+  /** @type {Map<string, {inviteId: Buffer, url: string, opts: InviteOptions}>} */
   #pendingInvitesOverInternet = new Map()
 
   /**
@@ -195,11 +195,11 @@ export class MemberApi extends TypedEmitter {
     const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
     const inviteIdString = inviteId.toString('hex')
 
-    const url =
-      INTERNET_INVITE_PAGE + `?i=${inviteIdString}&d=${this.#ownDeviceId}`
+    const url = makeInviteURL(inviteIdString, this.#ownDeviceId)
 
-    this.#pendingInvitesOverInternet.set(url, {
+    this.#pendingInvitesOverInternet.set(inviteIdString, {
       inviteId,
+      url,
       opts,
     })
 
@@ -220,10 +220,12 @@ export class MemberApi extends TypedEmitter {
       await this.#setShouldListenOverInternet(false)
       return
     }
-    if (!this.#pendingInvitesOverInternet.has(url)) {
+    const { inviteIdString } = parseInviteURL(url)
+
+    if (!this.#pendingInvitesOverInternet.has(inviteIdString)) {
       throw new Error('Invalid internet invite URL')
     }
-    this.#pendingInvitesOverInternet.delete(url)
+    this.#pendingInvitesOverInternet.delete(inviteIdString)
     if (this.#pendingInvitesOverInternet.size === 0) {
       await this.#setShouldListenOverInternet(false)
     }
@@ -247,13 +249,12 @@ export class MemberApi extends TypedEmitter {
 
     const url =
       INTERNET_INVITE_PAGE + `?i=${inviteIdString}&d=${this.#ownDeviceId}`
-
     try {
       for (const [
-        pendingURL,
+        pendingInviteId,
         { opts },
       ] of this.#pendingInvitesOverInternet.entries()) {
-        if (pendingURL !== url) continue
+        if (pendingInviteId !== inviteIdString) continue
         const decision = await this.invite(peerId, opts)
         this.emit('internet-invite-redeemed', peerId, decision, url)
       }
@@ -879,4 +880,34 @@ async function parseAddServerResponse(response) {
   throw new InvalidServerResponseError(
     `Failed to add server peer due to HTTP status code ${response.status}`
   )
+}
+
+/**
+ * @param {string} url
+ * @returns {{inviteIdString: string, deviceId: string}}
+ */
+export function parseInviteURL(url) {
+  const { hash } = new URL(url)
+
+  const params = new URLSearchParams(hash.slice(1))
+
+  const inviteIdString = params.get('i')
+  const deviceId = params.get('d')
+
+  if (typeof inviteIdString !== 'string' || typeof deviceId !== 'string') {
+    throw new Error('Missing invite and device parameters from URL')
+  }
+  return { inviteIdString, deviceId }
+}
+
+/**
+ *
+ * @param {string} inviteIdString
+ * @param {string} deviceId
+ * @returns {string}
+ */
+export function makeInviteURL(inviteIdString, deviceId) {
+  const url = INTERNET_INVITE_PAGE + `#i=${inviteIdString}&d=${deviceId}`
+
+  return url
 }

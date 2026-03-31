@@ -484,7 +484,7 @@ class Peer {
  * @property {(peerId: string, inviteResponse: InviteResponse) => void} invite-response Emitted when an invite response is received
  * @property {(peerId: string, inviteResponse: InviteResponseAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
  * @property {(peerId: string, inviteResponse: RedeemInviteOverInternet) => void} invite-over-internet-redeemed Emitted when a peer attempts to redeem an invite over the internet
- * @property {(peerId: string, inviteResponse: RedeemInviteOverInternetAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
+ * @property {(peerId: string, inviteResponse: RedeemInviteOverInternetAck) => void} invite-over-internet-redeemed-ack Emitted when an invite response acknowledgement is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
  * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
@@ -903,6 +903,13 @@ export class LocalPeers extends TypedEmitter {
         peer.receiveAck('ProjectJoinDetailsAck', ack)
         const peerId = keyToId(protomux.stream.remotePublicKey)
         this.emit('got-project-details-ack', peerId, ack)
+        break
+      }
+      case 'RedeemInviteOverInternetAck': {
+        const ack = RedeemInviteOverInternetAck.decode(value)
+        peer.receiveAck('RedeemInviteOverInternetAck', ack)
+        const peerId = keyToId(protomux.stream.remotePublicKey)
+        this.emit('invite-over-internet-redeemed-ack', peerId, ack)
         break
       }
       /* c8 ignore next 2 */
