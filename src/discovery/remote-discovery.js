@@ -2,12 +2,17 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { Logger } from '../logger.js'
 import Hyperswarm from 'hyperswarm'
 import { pEvent } from 'p-event'
+import sodium from 'sodium-universal'
+import b4a from 'b4a'
+import { SwarmHandshake } from '../generated/handshake.js'
 
 /** @import {OpenedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
 
+/** @typedef {OpenedNoiseStream & {handshakePublicKey:Buffer}} RemoteAuthedNoiseStream */
+
 /**
  * @typedef {Object} DiscoveryEvents
- * @property {(connection: OpenedNoiseStream) => void} connection
+ * @property {(connection: RemoteAuthedNoiseStream) => void} connection
  */
 
 /**
@@ -20,23 +25,26 @@ export class RemoteDiscovery extends TypedEmitter {
   /** @type {Promise<Hyperswarm>?} */
   #loading = null
   #identityKeypair
+  #swarmIdentityKeypair
 
   /**
    * @param {Object} opts
    * @param {import('./local-discovery.js').Keypair} opts.identityKeypair
+   * @param {import('./local-discovery.js').Keypair} opts.swarmIdentityKeypair
    * @param {Logger} [opts.logger]
    */
-  constructor({ identityKeypair, logger }) {
+  constructor({ identityKeypair, swarmIdentityKeypair, logger }) {
     super()
     this.#l = Logger.create('RemoteDiscovery', logger)
     this.#identityKeypair = identityKeypair
+    this.#swarmIdentityKeypair = swarmIdentityKeypair
   }
 
   async #initSwarm() {
     this.#l.log('Initializing swarm')
 
     const swarm = new Hyperswarm({
-      keyPair: this.#identityKeypair,
+      keyPair: this.#swarmIdentityKeypair,
       maxPeers: 4,
     })
     swarm.on('connection', this.#handleHyperswarmConnection.bind(this))
@@ -107,7 +115,38 @@ export class RemoteDiscovery extends TypedEmitter {
    * @param {OpenedNoiseStream} socket
    * @param {import('hyperswarm').PeerInfo} _peerInfo
    */
-  #handleHyperswarmConnection(socket, _peerInfo) {
+  async #handleHyperswarmConnection(socket, _peerInfo) {
+    const firstData = pEvent(socket, 'data', { timeout: 30000 })
+    const keyPair = this.#identityKeypair
+    // Sign the Noise handshake hash with our stable key
+    const sig = b4a.allocUnsafe(64)
+    sodium.crypto_sign_detached(sig, socket.handshakeHash, keyPair.secretKey)
+
+    // Send stable public key + proof in a single message
+    socket.write(
+      SwarmHandshake.encode({
+        publicKey: keyPair.publicKey,
+        signature: Buffer.from(sig),
+      })
+    )
+
+    const data = await firstData
+
+    const msg = SwarmHandshake.decode(data)
+
+    const valid = sodium.crypto_sign_verify_detached(
+      msg.signature,
+      socket.handshakeHash, // same hash on both sides
+      msg.publicKey
+    )
+
+    if (!valid) {
+      throw new Error('Invalid identity proof')
+    }
+
+    // @ts-ignore
+    socket.handshakePublicKey = msg.publicKey
+    // @ts-ignore
     this.emit('connection', socket)
   }
 }

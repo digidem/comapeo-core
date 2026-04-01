@@ -136,6 +136,7 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
 export class MapeoProject extends ReadyResource {
   #projectKey
   #deviceId
+  #swarmPublicKey
   #identityKeypair
   #coreManager
   #indexWriter
@@ -164,6 +165,7 @@ export class MapeoProject extends ReadyResource {
    * @param {string} opts.projectMigrationsFolder path for drizzle migration folder for project
    * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
+   * @param {Buffer} opts.swarmPublicKey 32-byte public key used to identify oneself on the hyperswarm DHT
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
@@ -188,6 +190,7 @@ export class MapeoProject extends ReadyResource {
     projectKey,
     projectSecretKey,
     encryptionKeys,
+    swarmPublicKey,
     getMediaBaseUrl,
     makeWebsocket = (url) => new WebSocket(url),
     localPeers,
@@ -200,6 +203,7 @@ export class MapeoProject extends ReadyResource {
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
+    this.#swarmPublicKey = swarmPublicKey
     this.#projectKey = projectKey
     this.#importingCategories = false
     this.#getFallbackProjectInfo = getFallbackProjectInfo
@@ -414,6 +418,7 @@ export class MapeoProject extends ReadyResource {
 
     this.#memberApi = new MemberApi({
       deviceId: this.#deviceId,
+      swarmPublicKey: this.#swarmPublicKey,
       roles: this.#roles,
       encryptionKeys,
       projectKey,

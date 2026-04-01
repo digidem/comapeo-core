@@ -17,6 +17,7 @@ declare module 'hyperswarm' {
   }
   export default class Hyperswarm extends TypedEmitter<SwarmEvents> {
     constructor({ keyPair: Keypair, maxPeers: number })
+    get peers(): Map<string, PeerInfo>
     listen(): Promise<void>
     flush(): Promise<void>
     suspend(): Promise<void>
@@ -24,5 +25,16 @@ declare module 'hyperswarm' {
     destroy(): Promise<void>
     joinPeer(noisePublicKey: Buffer): void
     leavePeer(noisePublicKey: Buffer): void
+    join(
+      topic: Buffer,
+      opts?: { limit?: number; client?: boolean; server?: boolean }
+    ): PeerDiscovery
+    leave(topic: Buffer): void
+  }
+
+  export class PeerDiscovery {
+    flushed(): Promise<void>
+    refresh({ client: boolean, server: boolean }): Promise<void>
+    destroy(): Promise<void>
   }
 }

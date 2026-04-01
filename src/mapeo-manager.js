@@ -46,7 +46,7 @@ import BlobServerPlugin from './fastify-plugins/blobs.js'
 import IconServerPlugin from './fastify-plugins/icons.js'
 import { plugin as MapServerPlugin } from './fastify-plugins/maps.js'
 import { getFastifyServerAddress } from './fastify-plugins/utils.js'
-import { LocalPeers } from './local-peers.js'
+import { LocalPeers, peerIdFromNoise } from './local-peers.js'
 import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Logger } from './logger.js'
@@ -73,6 +73,7 @@ import { pEvent } from 'p-event'
 /** @import { CoreStorage, Namespace } from './types.js' */
 /** @import { DeviceInfoParam, ProjectInfo } from './schema/client.js' */
 /** @import { ProjectSettings, ProjectSettingsValue } from '@comapeo/schema' */
+/** @import {RemoteAuthedNoiseStream} from "./discovery/remote-discovery.js" */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 /** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean }} ProjectToAddDetails */
@@ -151,6 +152,7 @@ export class MapeoManager extends TypedEmitter {
   /** @type {string} */
   #projectMigrationsFolder
   #deviceId
+  #swarmIdentityKeypair
   #localPeers
   #invite
   #fastify
@@ -194,7 +196,8 @@ export class MapeoManager extends TypedEmitter {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
-    this.#defaultConfigPath = defaultConfigPath
+    ;(this.#swarmIdentityKeypair = KeyManager.generateProjectKeypair()),
+      (this.#defaultConfigPath = defaultConfigPath)
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
     this.#makeWebsocket = makeWebsocket
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
@@ -291,6 +294,8 @@ export class MapeoManager extends TypedEmitter {
     this.#localDiscovery.on('connection', this.#replicate.bind(this))
     this.#remoteDiscovery = new RemoteDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
+      // ephemeral swarm identity each run
+      swarmIdentityKeypair: this.#swarmIdentityKeypair,
       logger,
     })
     this.#remoteDiscovery.on('connection', this.#replicate.bind(this))
@@ -334,7 +339,7 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @param {NoiseSecretStream<any>} noiseStream
+   * @param {NoiseSecretStream<any>|RemoteAuthedNoiseStream} noiseStream
    */
   #replicate(noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
@@ -351,7 +356,7 @@ export class MapeoManager extends TypedEmitter {
           features: [DeviceInfo_RPCFeatures.ack],
         }
 
-        const peerId = keyToId(openedNoiseStream.remotePublicKey)
+        const peerId = peerIdFromNoise(openedNoiseStream)
 
         return this.#localPeers.sendDeviceInfo(peerId, deviceInfoToSend)
       })
@@ -615,6 +620,7 @@ export class MapeoManager extends TypedEmitter {
       ...projectKeys,
       projectMigrationsFolder: this.#projectMigrationsFolder,
       keyManager: this.#keyManager,
+      swarmPublicKey: this.#swarmIdentityKeypair.publicKey,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,

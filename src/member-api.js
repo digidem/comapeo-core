@@ -117,6 +117,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 export class MemberApi extends TypedEmitter {
   #ownDeviceId
+  #swarmPublicKey
   #roles
   #encryptionKeys
   #projectKey
@@ -139,6 +140,7 @@ export class MemberApi extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {string} opts.deviceId public key of this device as hex string
+   * @param {Buffer} opts.swarmPublicKey public key of this device on the hyperswarm network
    * @param {Pick<import('./roles.js').Roles, 'getAll' | 'assignRole' | 'getRole'>} opts.roles
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
@@ -154,6 +156,7 @@ export class MemberApi extends TypedEmitter {
    */
   constructor({
     deviceId,
+    swarmPublicKey,
     roles,
     encryptionKeys,
     projectKey,
@@ -170,6 +173,7 @@ export class MemberApi extends TypedEmitter {
     super()
     this.#l = Logger.create('member-api', logger)
     this.#ownDeviceId = deviceId
+    this.#swarmPublicKey = swarmPublicKey
     this.#roles = roles
     this.#encryptionKeys = encryptionKeys
     this.#projectKey = projectKey
@@ -194,8 +198,9 @@ export class MemberApi extends TypedEmitter {
   async inviteOverInternet(opts) {
     const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
     const inviteIdString = inviteId.toString('hex')
+    const deviceId = this.#swarmPublicKey.toString('hex')
 
-    const url = makeInviteURL(inviteIdString, this.#ownDeviceId)
+    const url = makeInviteURL(inviteIdString, deviceId)
 
     this.#pendingInvitesOverInternet.set(inviteIdString, {
       inviteId,

@@ -14,9 +14,11 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
+    swarmIdentityKeypair: identityKeypair1,
   })
   const remoteDiscovery2 = new RemoteDiscovery({
     identityKeypair: identityKeypair2,
+    swarmIdentityKeypair: identityKeypair2,
   })
 
   t.after(() =>

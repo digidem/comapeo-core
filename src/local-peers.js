@@ -34,6 +34,7 @@ import {
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 /** @import {DeferredPromise} from 'p-defer' */
+/** @import {RemoteAuthedNoiseStream} from "./discovery/remote-discovery.js" */
 
 /**
  * @typedef {InviteAck|InviteCancelAck|InviteResponseAck|ProjectJoinDetailsAck} AckResponse
@@ -614,7 +615,7 @@ export class LocalPeers extends TypedEmitter {
   /**
    * Connect to a peer over an existing NoiseSecretStream
    *
-   * @param {NoiseStream<any>} stream
+   * @param {NoiseStream<any>|RemoteAuthedNoiseStream} stream
    * @returns {import('./types.js').ReplicationStream}
    */
   connect(stream) {
@@ -672,7 +673,7 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * @param {Protomux<OpenedNoiseStream>} protomux
+   * @param {Protomux<OpenedNoiseStream|RemoteAuthedNoiseStream>} protomux
    * @param {() => void} done
    */
   #makePeer(protomux, done) {
@@ -682,7 +683,7 @@ export class LocalPeers extends TypedEmitter {
     // already open
     if (protomux.opened({ protocol: PROTOCOL_NAME })) return done()
 
-    const peerId = keyToId(protomux.stream.remotePublicKey)
+    const peerId = peerIdFromNoise(protomux.stream)
 
     // This is written like this because the protomux uses the index within
     // the messages array to define the message id over the wire, so this must
@@ -754,7 +755,7 @@ export class LocalPeers extends TypedEmitter {
     // We could also index peers by protomux to avoid this, but that would mean
     // we need to keep around protomux references for closed peers, and we keep
     // around closed peers for the lifecycle of the app
-    const peerId = keyToId(protomux.stream.remotePublicKey)
+    const peerId = peerIdFromNoise(protomux.stream)
     // We could have more than one connection to the same peer
     const devicePeers = this.#peers.get(peerId)
     /** @type {Peer | undefined} */
@@ -810,7 +811,7 @@ export class LocalPeers extends TypedEmitter {
     switch (type) {
       case 'Invite': {
         const invite = parseInvite(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
         this.emit('invite', peerId, invite)
         peer.sendInviteAck(invite).catch((e) => {
           this.#l.log(`Error sending invite ack ${e.stack}`)
@@ -825,7 +826,7 @@ export class LocalPeers extends TypedEmitter {
       }
       case 'InviteCancel': {
         const inviteCancel = parseInviteCancel(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
         this.emit('invite-cancel', peerId, inviteCancel)
         peer.sendInviteCancelAck(inviteCancel).catch((e) => {
           this.#l.log(`Error sending invite cancel ack ${e.stack}`)
@@ -839,7 +840,7 @@ export class LocalPeers extends TypedEmitter {
       }
       case 'InviteResponse': {
         const inviteResponse = parseInviteResponse(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
         this.emit('invite-response', peerId, inviteResponse)
         peer.sendInviteResponseAck(inviteResponse).catch((e) => {
           this.#l.log(`Error sending invite response ack ${e.stack}`)
@@ -848,7 +849,7 @@ export class LocalPeers extends TypedEmitter {
       }
       case 'RedeemInviteOverInternet': {
         const redeem = RedeemInviteOverInternet.decode(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
 
         this.emit('invite-over-internet-redeemed', peerId, redeem)
         peer.sendRedeemInviteOverInternetAck(redeem).catch((e) => {
@@ -858,7 +859,7 @@ export class LocalPeers extends TypedEmitter {
       }
       case 'ProjectJoinDetails': {
         const details = parseProjectJoinDetails(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
         this.emit('got-project-details', peerId, details)
         peer.sendProjectJoinDetailsAck(details).catch((e) => {
           this.#l.log(`Error sending project details ack ${e.stack}`)
@@ -880,35 +881,35 @@ export class LocalPeers extends TypedEmitter {
       case 'InviteAck': {
         const ack = InviteAck.decode(value)
         peer.receiveAck('InviteAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
         this.emit('invite-ack', peerId, ack)
         break
       }
       case 'InviteCancelAck': {
         const ack = InviteCancelAck.decode(value)
         peer.receiveAck('InviteCancelAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
         this.emit('invite-cancel-ack', peerId, ack)
         break
       }
       case 'InviteResponseAck': {
         const ack = InviteResponseAck.decode(value)
         peer.receiveAck('InviteResponseAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
         this.emit('invite-response-ack', peerId, ack)
         break
       }
       case 'ProjectJoinDetailsAck': {
         const ack = ProjectJoinDetailsAck.decode(value)
         peer.receiveAck('ProjectJoinDetailsAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
         this.emit('got-project-details-ack', peerId, ack)
         break
       }
       case 'RedeemInviteOverInternetAck': {
         const ack = RedeemInviteOverInternetAck.decode(value)
         peer.receiveAck('RedeemInviteOverInternetAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
+        const peerId = peerIdFromNoise(protomux.stream)
         this.emit('invite-over-internet-redeemed-ack', peerId, ack)
         break
       }
@@ -1073,4 +1074,18 @@ function chooseDevicePeer(devicePeers) {
   if (pick.info.status === 'connecting') return
   // @ts-ignore
   return pick
+}
+
+/**
+ * @param {OpenedNoiseStream|RemoteAuthedNoiseStream} stream
+ */
+export function peerIdFromNoise(stream) {
+  const publicKey =
+    'handshakePublicKey' in stream
+      ? stream.handshakePublicKey
+      : stream.remotePublicKey
+
+  const peerId = keyToId(publicKey)
+
+  return peerId
 }

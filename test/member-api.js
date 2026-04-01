@@ -179,6 +179,7 @@ function setup({
 
   const member = new MemberApi({
     deviceId,
+    swarmPublicKey: identityKeypair.publicKey,
     rpc,
     roles,
     encryptionKeys,
