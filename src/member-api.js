@@ -241,7 +241,7 @@ export class MemberApi extends TypedEmitter {
    * @returns {string[]}
    */
   pendingInternetInvites() {
-    return [...this.#pendingInvitesOverInternet.keys()]
+    return [...this.#pendingInvitesOverInternet.values()].map(({ url }) => url)
   }
 
   /**
