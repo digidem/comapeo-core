@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { KeyManager, keyToPublicId } from '@mapeo/crypto'
 import pDefer from 'p-defer'
+import { pEvent } from 'p-event'
 import { RemoteDiscovery } from '../../src/discovery/remote-discovery.js'
 
 test('RemoteDiscovery - connect two instances and verify keypair', async (t) => {
@@ -91,6 +92,32 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   assert.ok(
     outboundStream.handshakePublicKey.equals(identityKeypair1.publicKey),
     'outbound handshakePublicKey should match identityKeypair1'
+  )
+
+  // Set up data listeners before writing
+  const dataFromOutbound = Buffer.from('Hello from outbound!')
+  const dataFromInbound = Buffer.from('Hello from inbound!')
+
+  const inboundDataPromise = pEvent(inboundStream, 'data')
+  const outboundDataPromise = pEvent(outboundStream, 'data')
+
+  // Send data from both sides
+  outboundStream.write(dataFromOutbound)
+  inboundStream.write(dataFromInbound)
+
+  // Wait for data to be received
+  const [inboundData, outboundData] = await Promise.all([
+    inboundDataPromise,
+    outboundDataPromise,
+  ])
+
+  assert.ok(
+    inboundData.equals(dataFromOutbound),
+    'inbound should receive data from outbound'
+  )
+  assert.ok(
+    outboundData.equals(dataFromInbound),
+    'outbound should receive data from inbound'
   )
 
   inboundStream.end()
