@@ -11,14 +11,16 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   const identityKeypair2 = new KeyManager(
     Buffer.alloc(16, 2)
   ).getIdentityKeypair()
+  const swarmKeypair1 = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+  const swarmKeypair2 = new KeyManager(Buffer.alloc(16, 4)).getIdentityKeypair()
 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
-    swarmIdentityKeypair: identityKeypair1,
+    swarmIdentityKeypair: swarmKeypair1,
   })
   const remoteDiscovery2 = new RemoteDiscovery({
     identityKeypair: identityKeypair2,
-    swarmIdentityKeypair: identityKeypair2,
+    swarmIdentityKeypair: swarmKeypair2,
   })
 
   t.after(() =>
@@ -29,33 +31,33 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   await Promise.all([remoteDiscovery1.start(), remoteDiscovery2.start()])
 
   const deferred = pDefer()
-  const publicKey1Hex = identityKeypair1.publicKey.toString('hex')
+  const swarmPublicKey1Hex = swarmKeypair1.publicKey.toString('hex')
 
   // Listen for connection on instance 1
   remoteDiscovery1.on('connection', (stream) => {
     stream.on('error', handleConnectionError)
     // Verify the remote peer's public key matches instance 2
     assert.ok(
-      stream.remotePublicKey.equals(identityKeypair2.publicKey),
+      stream.remotePublicKey.equals(swarmKeypair2.publicKey),
       'remote public key should match instance 2'
     )
     deferred.resolve(stream)
   })
 
   // Connect from instance 2 to instance 1
-  const connectionPromise = remoteDiscovery2.connectPeer(publicKey1Hex)
+  const connectionPromise = remoteDiscovery2.connectPeer(swarmPublicKey1Hex)
 
   const outboundStream = await connectionPromise
   const inboundStream = await deferred.promise
 
   // Verify both sides have the correct keypairs
   assert.ok(
-    inboundStream.remotePublicKey.equals(identityKeypair2.publicKey),
-    'instance 1 should have instance 2 public key'
+    inboundStream.remotePublicKey.equals(swarmKeypair2.publicKey),
+    'instance 1 should have instance 2 swarm public key'
   )
   assert.ok(
-    outboundStream.remotePublicKey.equals(identityKeypair1.publicKey),
-    'instance 2 should have instance 1 public key'
+    outboundStream.remotePublicKey.equals(swarmKeypair1.publicKey),
+    'instance 2 should have instance 1 swarm public key'
   )
 
   // Verify the public IDs match
@@ -63,14 +65,32 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   const peerId2 = keyToPublicId(identityKeypair2.publicKey)
 
   assert.equal(
-    keyToPublicId(inboundStream.remotePublicKey),
+    keyToPublicId(inboundStream.handshakePublicKey),
     peerId2,
     'instance 1 connected to correct peer'
   )
   assert.equal(
-    keyToPublicId(outboundStream.remotePublicKey),
+    keyToPublicId(outboundStream.handshakePublicKey),
     peerId1,
     'instance 2 connected to correct peer'
+  )
+
+  // Verify remotePublicKey and handshakePublicKey are as expected
+  assert.ok(
+    inboundStream.remotePublicKey.equals(swarmKeypair2.publicKey),
+    'inbound remotePublicKey should match swarmKeypair2'
+  )
+  assert.ok(
+    inboundStream.handshakePublicKey.equals(identityKeypair2.publicKey),
+    'inbound handshakePublicKey should match identityKeypair2'
+  )
+  assert.ok(
+    outboundStream.remotePublicKey.equals(swarmKeypair1.publicKey),
+    'outbound remotePublicKey should match swarmKeypair1'
+  )
+  assert.ok(
+    outboundStream.handshakePublicKey.equals(identityKeypair1.publicKey),
+    'outbound handshakePublicKey should match identityKeypair1'
   )
 
   inboundStream.end()

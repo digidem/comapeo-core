@@ -127,7 +127,7 @@ export class RemoteDiscovery extends TypedEmitter {
       SwarmHandshake.encode({
         publicKey: keyPair.publicKey,
         signature: Buffer.from(sig),
-      })
+      }).finish()
     )
 
     const data = await firstData
