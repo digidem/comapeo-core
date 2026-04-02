@@ -363,9 +363,9 @@ export class MapeoManager extends TypedEmitter {
       .catch((e) => {
         // Ignore error but log
         this.#l.log(
-          'Failed to send device info to peer %h',
+          'Failed to send device info to peer %h, error: %s',
           noiseStream.remotePublicKey,
-          e
+          e.message
         )
       })
 
@@ -722,15 +722,22 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<string>}
    */
   async joinProjectOverInternet(url) {
-    const { deviceId, inviteIdString } = parseInviteURL(url)
+    const { deviceId: swarmPublicKeyHex, inviteIdString } = parseInviteURL(url)
     const inviteId = Buffer.from(inviteIdString, 'hex')
 
-    const connection = await this.#remoteDiscovery.connectPeer(deviceId)
+    const connection = await this.#remoteDiscovery.connectPeer(
+      swarmPublicKeyHex
+    )
     try {
       const onInvited = pEvent(this.#invite, 'invite-received')
-      await this.#localPeers.sendRedeemInviteOverInternet(deviceId, {
-        inviteId,
-      })
+      // Use the identity key from the handshake, not the swarm key from the URL
+      const identityPublicKeyHex = connection.handshakePublicKey.toString('hex')
+      await this.#localPeers.sendRedeemInviteOverInternet(
+        identityPublicKeyHex,
+        {
+          inviteId,
+        }
+      )
       const invite = await onInvited
 
       const projectId = await this.#invite.accept(invite)
