@@ -251,13 +251,12 @@ export class MemberApi extends TypedEmitter {
    */
   async #handleRedeemInviteOverInternet(peerId, { inviteId }) {
     const inviteIdString = inviteId.toString('hex')
+    this.#l.log('Got incoming invite redeem', inviteIdString.slice(0, 7))
 
-    const url =
-      INTERNET_INVITE_PAGE + `?i=${inviteIdString}&d=${this.#ownDeviceId}`
     try {
       for (const [
         pendingInviteId,
-        { opts },
+        { opts, url },
       ] of this.#pendingInvitesOverInternet.entries()) {
         if (pendingInviteId !== inviteIdString) continue
         const decision = await this.invite(peerId, opts)
@@ -268,7 +267,7 @@ export class MemberApi extends TypedEmitter {
         'internet-invite-redeem-error',
         ensureKnownError(e),
         peerId,
-        url
+        inviteIdString
       )
     }
   }
