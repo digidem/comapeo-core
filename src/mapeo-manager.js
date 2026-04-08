@@ -342,7 +342,8 @@ export class MapeoManager extends TypedEmitter {
    * @param {NoiseSecretStream<any>|RemoteAuthedNoiseStream} noiseStream
    */
   #replicate(noiseStream) {
-    const replicationStream = this.#localPeers.connect(noiseStream)
+    const isTrusted = `isTrusted` in noiseStream ? noiseStream.isTrusted : true
+    const replicationStream = this.#localPeers.connect(noiseStream, isTrusted)
 
     noiseStream.resume()
 
@@ -640,6 +641,15 @@ export class MapeoManager extends TypedEmitter {
       setShouldListenOverInternet: (shouldListen) => {
         if (shouldListen) return this.#remoteDiscovery.start()
         else return this.#remoteDiscovery.stop()
+      },
+      markInternetPeerAsTrusted: async (deviceId) => {
+        try {
+          await this.#localPeers.trustPeer(deviceId)
+          return true
+        } catch (e) {
+          // TODO: check error types
+          return false
+        }
       },
     })
 

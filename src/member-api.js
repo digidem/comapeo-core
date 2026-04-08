@@ -108,7 +108,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
 /**
  * @typedef {object} MemberEvents
- * @property {(deviceId: string, decision: InviteDecision, url: string) => void} internet-invite-redeemed Emitted when an invite over the internet has been redeemed
+ * @property {(deviceId: string, inviteId: string) => void} internet-invite-redeemed Emitted when an invite over the internet has been redeemed, accept the deviceId to add them
  * @property {(err: Error, deviceId: string, url: string) => void} internet-invite-redeem-error Emitted when an invite over the internet has failed to be redeemed
  */
 
@@ -126,6 +126,7 @@ export class MemberApi extends TypedEmitter {
   #getReplicationStream
   #waitForInitialSyncWithPeer
   #setShouldListenOverInternet
+  #markInternetPeerAsTrusted
   #getProjectSettings
   #getDeviceInfo
   #setDeviceInfo
@@ -134,7 +135,7 @@ export class MemberApi extends TypedEmitter {
   /** @type {Map<string, { abortController: AbortController }>} */
   #outboundInvitesByDevice = new Map()
 
-  /** @type {Map<string, {inviteId: Buffer, url: string, opts: InviteOptions}>} */
+  /** @type {Map<string, {inviteId: Buffer, url: string, opts: InviteOptions, inviteeDeviceId?: string}>} */
   #pendingInvitesOverInternet = new Map()
 
   /**
@@ -149,6 +150,7 @@ export class MemberApi extends TypedEmitter {
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {(shouldListen: boolean) => Promise<void>} opts.setShouldListenOverInternet
+   * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
    * @param {() => Promise<import('./mapeo-project.js').EditableProjectSettings>} opts.getProjectSettings
    * @param {(deviceId: string) => Promise<DeviceInfo>} opts.getDeviceInfo
    * @param {(deviceId: string, deviceInfo: NewDeviceInfo) => Promise<void>} opts.setDeviceInfo
@@ -165,6 +167,7 @@ export class MemberApi extends TypedEmitter {
     getReplicationStream,
     waitForInitialSyncWithPeer,
     setShouldListenOverInternet,
+    markInternetPeerAsTrusted,
     getProjectSettings,
     getDeviceInfo,
     setDeviceInfo,
@@ -182,6 +185,7 @@ export class MemberApi extends TypedEmitter {
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
     this.#setShouldListenOverInternet = setShouldListenOverInternet
+    this.#markInternetPeerAsTrusted = markInternetPeerAsTrusted
     this.#getProjectSettings = getProjectSettings
     this.#getDeviceInfo = getDeviceInfo
     this.#setDeviceInfo = setDeviceInfo
@@ -256,11 +260,24 @@ export class MemberApi extends TypedEmitter {
     try {
       for (const [
         pendingInviteId,
-        { opts, url },
+        pendingInvite,
       ] of this.#pendingInvitesOverInternet.entries()) {
         if (pendingInviteId !== inviteIdString) continue
-        const decision = await this.invite(peerId, opts)
-        this.emit('internet-invite-redeemed', peerId, decision, url)
+
+        if (pendingInvite.inviteeDeviceId) {
+          this.emit(
+            'internet-invite-redeem-error',
+            new Error('Invite already redeemed'),
+            peerId,
+            inviteIdString
+          )
+          return
+        }
+
+        pendingInvite.inviteeDeviceId = peerId
+
+        this.emit('internet-invite-redeemed', peerId, inviteIdString)
+        return
       }
     } catch (e) {
       this.emit(
@@ -270,6 +287,46 @@ export class MemberApi extends TypedEmitter {
         inviteIdString
       )
     }
+
+    // TODO: Should we break their connection?
+    this.emit(
+      'internet-invite-redeem-error',
+      new Error('Unknown invite ID redeem attempt'),
+      peerId,
+      inviteIdString
+    )
+  }
+
+  /**
+   * Accept a device's attempt at redeeming an invite
+   * @param {string} inviteId
+   * @returns {Promise<InviteDecision>}
+   */
+  async acceptRedeemedInvite(inviteId) {
+    for (const [
+      pendingInviteId,
+      { opts, inviteeDeviceId },
+    ] of this.#pendingInvitesOverInternet.entries()) {
+      if (pendingInviteId !== inviteId) continue
+      if (!inviteeDeviceId) {
+        throw new Error('Cannot yet accept: Invite not yet redeemed')
+      }
+
+      const stillConnected = await this.#markInternetPeerAsTrusted(
+        inviteeDeviceId
+      )
+
+      // If they aren't connected after redeeming, we should mark it as cancelled
+      if (!stillConnected) {
+        await this.cancelInviteOverInternet(pendingInviteId)
+        throw new Error('Peer disconnected since redeeming invite')
+      }
+      const decision = await this.invite(inviteeDeviceId, opts)
+
+      return decision
+    }
+
+    throw new Error('Unknown invite ID')
   }
 
   /**

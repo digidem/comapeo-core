@@ -99,6 +99,7 @@ class Peer {
   /** @type {PeerState} */
   #state = 'connecting'
   #deviceId
+  #isTrusted
   #channel
   #connected
   /** @type {string | undefined} */
@@ -120,11 +121,13 @@ class Peer {
    * @param {object} options
    * @param {string} options.peerId
    * @param {ReturnType<typeof Protomux.prototype.createChannel>} options.channel
+   * @param {boolean} options.isTrusted
    * @param {Protomux<any>} options.protomux
    * @param {Logger} [options.logger]
    */
-  constructor({ peerId, channel, protomux, logger }) {
+  constructor({ peerId, channel, protomux, isTrusted, logger }) {
     this.#deviceId = peerId
+    this.#isTrusted = isTrusted
     this.#channel = channel
     this.#protomux = protomux
     this.#connected = pDefer()
@@ -181,6 +184,18 @@ class Peer {
   }
   get protomux() {
     return this.#protomux
+  }
+
+  get id() {
+    return this.#deviceId
+  }
+
+  get isTrusted() {
+    return this.#isTrusted
+  }
+
+  set isTrusted(isTrusted) {
+    this.#isTrusted = isTrusted
   }
 
   connect() {
@@ -613,12 +628,22 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
+   * Mark a peer as trusted, allowing it to use all RPC methods
+   * @param {string} peerId
+   */
+  async trustPeer(peerId) {
+    const peer = await this.#getPeerByDeviceId(peerId)
+    peer.isTrusted = true
+  }
+
+  /**
    * Connect to a peer over an existing NoiseSecretStream
    *
    * @param {NoiseStream<any>|RemoteAuthedNoiseStream} stream
+   * @param {boolean} [isTrusted]
    * @returns {import('./types.js').ReplicationStream}
    */
-  connect(stream) {
+  connect(stream, isTrusted = true) {
     const noiseStream = stream.noiseStream
     const outerStream = noiseStream.rawStream
     const protomux =
@@ -649,7 +674,7 @@ export class LocalPeers extends TypedEmitter {
       this.#opening.delete(deferredOpen.promise)
     }
 
-    const makePeer = this.#makePeer.bind(this, protomux, done)
+    const makePeer = this.#makePeer.bind(this, protomux, isTrusted, done)
 
     this.#attached.add(protomux)
     // This happens when the connected peer opens the channel
@@ -674,9 +699,10 @@ export class LocalPeers extends TypedEmitter {
 
   /**
    * @param {Protomux<OpenedNoiseStream|RemoteAuthedNoiseStream>} protomux
+   * @param {boolean} isTrusted
    * @param {() => void} done
    */
-  #makePeer(protomux, done) {
+  #makePeer(protomux, isTrusted, done) {
     // #makePeer is called when the noise stream is opened, but it is also
     // called when the connected peer tries to open the channel. We only want
     // one channel, so we ignore attempts to create a peer if the channel is
@@ -738,6 +764,7 @@ export class LocalPeers extends TypedEmitter {
 
     const existingDevicePeers = this.#peers.get(peerId) || new Set()
     const peer = new Peer({
+      isTrusted,
       peerId,
       protomux,
       channel,
@@ -810,38 +837,36 @@ export class LocalPeers extends TypedEmitter {
     if (!peer) return // TODO: report error - this should not happen
     switch (type) {
       case 'Invite': {
+        if (!peer.isTrusted) return
         const invite = parseInvite(value)
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.emit('invite', peerId, invite)
+        this.emit('invite', peer.id, invite)
         peer.sendInviteAck(invite).catch((e) => {
           this.#l.log(`Error sending invite ack ${e.stack}`)
         })
         this.#l.log(
           'Invite %h from %S for %h',
           invite.inviteId,
-          peerId,
+          peer.id,
           invite.projectInviteId
         )
         break
       }
       case 'InviteCancel': {
         const inviteCancel = parseInviteCancel(value)
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.emit('invite-cancel', peerId, inviteCancel)
+        this.emit('invite-cancel', peer.id, inviteCancel)
         peer.sendInviteCancelAck(inviteCancel).catch((e) => {
           this.#l.log(`Error sending invite cancel ack ${e.stack}`)
         })
         this.#l.log(
           'Invite cancel from %S for %h',
-          peerId,
+          peer.id,
           inviteCancel.inviteId
         )
         break
       }
       case 'InviteResponse': {
         const inviteResponse = parseInviteResponse(value)
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.emit('invite-response', peerId, inviteResponse)
+        this.emit('invite-response', peer.id, inviteResponse)
         peer.sendInviteResponseAck(inviteResponse).catch((e) => {
           this.#l.log(`Error sending invite response ack ${e.stack}`)
         })
@@ -849,9 +874,7 @@ export class LocalPeers extends TypedEmitter {
       }
       case 'RedeemInviteOverInternet': {
         const redeem = RedeemInviteOverInternet.decode(value)
-        const peerId = peerIdFromNoise(protomux.stream)
-
-        this.emit('invite-over-internet-redeemed', peerId, redeem)
+        this.emit('invite-over-internet-redeemed', peer.id, redeem)
         peer.sendRedeemInviteOverInternetAck(redeem).catch((e) => {
           this.#l.log(`Error sending redeem over internet ack ${e.stack}`)
         })
@@ -859,8 +882,7 @@ export class LocalPeers extends TypedEmitter {
       }
       case 'ProjectJoinDetails': {
         const details = parseProjectJoinDetails(value)
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.emit('got-project-details', peerId, details)
+        this.emit('got-project-details', peer.id, details)
         peer.sendProjectJoinDetailsAck(details).catch((e) => {
           this.#l.log(`Error sending project details ack ${e.stack}`)
         })
@@ -873,6 +895,7 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'MapShareExtension': {
+        if (!peer.isTrusted) return
         const mapShare = MapShareExtension.decode(value)
         const info = /** @type {PeerInfo} */ (peer.info)
         this.emit('map-share', info, mapShare)
@@ -881,36 +904,31 @@ export class LocalPeers extends TypedEmitter {
       case 'InviteAck': {
         const ack = InviteAck.decode(value)
         peer.receiveAck('InviteAck', ack)
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.emit('invite-ack', peerId, ack)
+        this.emit('invite-ack', peer.id, ack)
         break
       }
       case 'InviteCancelAck': {
         const ack = InviteCancelAck.decode(value)
         peer.receiveAck('InviteCancelAck', ack)
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.emit('invite-cancel-ack', peerId, ack)
+        this.emit('invite-cancel-ack', peer.id, ack)
         break
       }
       case 'InviteResponseAck': {
         const ack = InviteResponseAck.decode(value)
         peer.receiveAck('InviteResponseAck', ack)
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.emit('invite-response-ack', peerId, ack)
+        this.emit('invite-response-ack', peer.id, ack)
         break
       }
       case 'ProjectJoinDetailsAck': {
         const ack = ProjectJoinDetailsAck.decode(value)
         peer.receiveAck('ProjectJoinDetailsAck', ack)
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.emit('got-project-details-ack', peerId, ack)
+        this.emit('got-project-details-ack', peer.id, ack)
         break
       }
       case 'RedeemInviteOverInternetAck': {
         const ack = RedeemInviteOverInternetAck.decode(value)
         peer.receiveAck('RedeemInviteOverInternetAck', ack)
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.emit('invite-over-internet-redeemed-ack', peerId, ack)
+        this.emit('invite-over-internet-redeemed-ack', peer.id, ack)
         break
       }
       /* c8 ignore next 2 */

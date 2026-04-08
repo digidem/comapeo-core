@@ -9,7 +9,7 @@ import { SwarmHandshake } from '../generated/handshake.js'
 /** @import {OpenedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
 /** @import {Duplex, Readable} from "streamx" */
 
-/** @typedef {OpenedNoiseStream & {handshakePublicKey:Buffer}} RemoteAuthedNoiseStream */
+/** @typedef {OpenedNoiseStream & {handshakePublicKey:Buffer, isTrusted: boolean}} RemoteAuthedNoiseStream */
 
 /**
  * @typedef {Object} DiscoveryEvents
@@ -27,6 +27,8 @@ export class RemoteDiscovery extends TypedEmitter {
   #loading = null
   #identityKeypair
   #swarmIdentityKeypair
+  /** @type {Set<string>} */
+  #shouldTrustKeys = new Set()
 
   /**
    * @param {Object} opts
@@ -99,6 +101,8 @@ export class RemoteDiscovery extends TypedEmitter {
     const swarm = await this.#ensureSwarm()
     const noisePublicKey = Buffer.from(publicKey, 'hex')
 
+    this.#shouldTrustKeys.add(publicKey)
+
     const onConnected = pEvent(this, 'connection', {
       filter: (connection) => connection.remotePublicKey.equals(noisePublicKey),
       timeout,
@@ -109,6 +113,8 @@ export class RemoteDiscovery extends TypedEmitter {
 
     const socket = await onConnected
 
+    this.#shouldTrustKeys.delete(publicKey)
+
     return socket
   }
 
@@ -117,6 +123,10 @@ export class RemoteDiscovery extends TypedEmitter {
    * @param {import('hyperswarm').PeerInfo} _peerInfo
    */
   async #handleHyperswarmConnection(socket, _peerInfo) {
+    const remotePublicKeyString = socket.remotePublicKey.toString('hex')
+    // @ts-ignore
+    socket.isTrusted = this.#shouldTrustKeys.has(remotePublicKeyString)
+
     const firstData = readChunk(socket)
     const keyPair = this.#identityKeypair
     // Sign the Noise handshake hash with our stable key
@@ -163,8 +173,6 @@ async function readChunk(stream) {
   let data = stream.read()
 
   if (data) return data
-
-  console.log('waiting for readable')
 
   await pEvent(stream, 'readable')
 
