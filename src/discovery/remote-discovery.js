@@ -7,6 +7,7 @@ import b4a from 'b4a'
 import { SwarmHandshake } from '../generated/handshake.js'
 
 /** @import {OpenedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
+/** @import {Duplex, Readable} from "streamx" */
 
 /** @typedef {OpenedNoiseStream & {handshakePublicKey:Buffer}} RemoteAuthedNoiseStream */
 
@@ -116,19 +117,21 @@ export class RemoteDiscovery extends TypedEmitter {
    * @param {import('hyperswarm').PeerInfo} _peerInfo
    */
   async #handleHyperswarmConnection(socket, _peerInfo) {
-    const firstData = pEvent(socket, 'data', { timeout: 30000 })
+    const firstData = readChunk(socket)
     const keyPair = this.#identityKeypair
     // Sign the Noise handshake hash with our stable key
     const sig = b4a.allocUnsafe(64)
     sodium.crypto_sign_detached(sig, socket.handshakeHash, keyPair.secretKey)
 
     // Send stable public key + proof in a single message
-    socket.write(
-      SwarmHandshake.encode({
-        publicKey: keyPair.publicKey,
-        signature: Buffer.from(sig),
-      }).finish()
-    )
+    const handshakeBuffer = SwarmHandshake.encode({
+      publicKey: keyPair.publicKey,
+      signature: Buffer.from(sig),
+    }).finish()
+
+    const hasDrained = socket.write(Buffer.from(handshakeBuffer))
+
+    if (!hasDrained) await pEvent(socket, 'drain', { timeout: 10000 })
 
     const data = await firstData
 
@@ -149,4 +152,27 @@ export class RemoteDiscovery extends TypedEmitter {
     // @ts-ignore
     this.emit('connection', socket)
   }
+}
+
+/**
+ *
+ * @param {Readable|Duplex} stream
+ * @returns {Promise<Buffer>}
+ */
+async function readChunk(stream) {
+  let data = stream.read()
+
+  if (data) return data
+
+  console.log('waiting for readable')
+
+  await pEvent(stream, 'readable')
+
+  stream.pause()
+
+  data = stream.read()
+
+  if (data) return data
+
+  throw new Error('Unable to read chunk')
 }

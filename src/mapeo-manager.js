@@ -344,6 +344,8 @@ export class MapeoManager extends TypedEmitter {
   #replicate(noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
 
+    noiseStream.resume()
+
     openedNoiseSecretStream(noiseStream)
       .then((openedNoiseStream) => {
         if (openedNoiseStream.destroyed) return
