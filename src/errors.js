@@ -502,6 +502,60 @@ export const InvalidDrizzleJournalError = createErrorClass({
   status: 400,
 })
 
+export const InvalidIdentityProofError = createErrorClass({
+  code: 'INVALID_IDENTITY_PROOF_ERROR',
+  message: 'Invalid identity proof',
+  status: 400,
+})
+
+export const UnableToReadHandshakeError = createErrorClass({
+  code: 'UNABLE_TO_READ_HANDSHAKE_ERROR',
+  message: 'Unable to read handshake from hyperswarm connection',
+  status: 500,
+})
+
+export const InvalidInternetInviteURLError = createErrorClass({
+  code: 'INVALID_INTERNET_INVITE_URL_ERROR',
+  message: 'Invalid internet invite URL',
+  status: 400,
+})
+
+export const InviteAlreadyRedeemedError = createErrorClass({
+  code: 'INVITE_ALREADY_REDEEMED_ERROR',
+  message: 'Invite already redeemed',
+  status: 409,
+})
+
+export const UnknownInviteIDRedeemAttemptError = createErrorClass({
+  code: 'UNKNOWN_INVITE_ID_REDEEM_ATTEMPT_ERROR',
+  message: 'Unknown invite ID redeem attempt',
+  status: 404,
+})
+
+export const InviteNotYetRedeemedError = createErrorClass({
+  code: 'INVITE_NOT_YET_REDEEMED_ERROR',
+  message: 'Cannot yet accept: Invite not yet redeemed',
+  status: 400,
+})
+
+export const PeerDisconnectedSinceRedeemingInviteError = createErrorClass({
+  code: 'PEER_DISCONNECTED_SINCE_REDEEMING_INVITE_ERROR',
+  message: 'Peer disconnected since redeeming invite',
+  status: 408,
+})
+
+export const UnknownInviteIDError = createErrorClass({
+  code: 'UNKNOWN_INVITE_ID_ERROR',
+  message: 'Unknown invite ID',
+  status: 404,
+})
+
+export const MissingInviteAndDeviceParamsError = createErrorClass({
+  code: 'MISSING_INVITE_AND_DEVICE_PARAMS_ERROR',
+  message: 'Missing invite and device parameters from URL',
+  status: 400,
+})
+
 /**
  * @param {unknown} err
  * @returns {null}

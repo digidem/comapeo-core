@@ -5,6 +5,10 @@ import { pEvent } from 'p-event'
 import sodium from 'sodium-universal'
 import b4a from 'b4a'
 import { SwarmHandshake } from '../generated/handshake.js'
+import {
+  InvalidIdentityProofError,
+  UnableToReadHandshakeError,
+} from '../errors.js'
 
 /** @import {OpenedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
 /** @import {Duplex, Readable} from "streamx" */
@@ -154,7 +158,7 @@ export class RemoteDiscovery extends TypedEmitter {
     )
 
     if (!valid) {
-      throw new Error('Invalid identity proof')
+      throw new InvalidIdentityProofError()
     }
 
     // @ts-ignore
@@ -182,5 +186,5 @@ async function readChunk(stream) {
 
   if (data) return data
 
-  throw new Error('Unable to read chunk')
+  throw new UnableToReadHandshakeError()
 }

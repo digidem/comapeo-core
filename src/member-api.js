@@ -33,6 +33,13 @@ import {
   AlreadyInvitingError,
   InvalidResponseBodyError,
   RPCDisconnectBeforeAckError,
+  InvalidInternetInviteURLError,
+  InviteAlreadyRedeemedError,
+  UnknownInviteIDRedeemAttemptError,
+  InviteNotYetRedeemedError,
+  PeerDisconnectedSinceRedeemingInviteError,
+  UnknownInviteIDError,
+  MissingInviteAndDeviceParamsError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
@@ -232,7 +239,7 @@ export class MemberApi extends TypedEmitter {
     const { inviteIdString } = parseInviteURL(url)
 
     if (!this.#pendingInvitesOverInternet.has(inviteIdString)) {
-      throw new Error('Invalid internet invite URL')
+      throw new InvalidInternetInviteURLError()
     }
     this.#pendingInvitesOverInternet.delete(inviteIdString)
     if (this.#pendingInvitesOverInternet.size === 0) {
@@ -267,7 +274,7 @@ export class MemberApi extends TypedEmitter {
         if (pendingInvite.inviteeDeviceId) {
           this.emit(
             'internet-invite-redeem-error',
-            new Error('Invite already redeemed'),
+            new InviteAlreadyRedeemedError(),
             peerId,
             inviteIdString
           )
@@ -291,7 +298,7 @@ export class MemberApi extends TypedEmitter {
     // TODO: Should we break their connection?
     this.emit(
       'internet-invite-redeem-error',
-      new Error('Unknown invite ID redeem attempt'),
+      new UnknownInviteIDRedeemAttemptError(),
       peerId,
       inviteIdString
     )
@@ -309,7 +316,7 @@ export class MemberApi extends TypedEmitter {
     ] of this.#pendingInvitesOverInternet.entries()) {
       if (pendingInviteId !== inviteId) continue
       if (!inviteeDeviceId) {
-        throw new Error('Cannot yet accept: Invite not yet redeemed')
+        throw new InviteNotYetRedeemedError()
       }
 
       const stillConnected = await this.#markInternetPeerAsTrusted(
@@ -319,14 +326,14 @@ export class MemberApi extends TypedEmitter {
       // If they aren't connected after redeeming, we should mark it as cancelled
       if (!stillConnected) {
         await this.cancelInviteOverInternet(pendingInviteId)
-        throw new Error('Peer disconnected since redeeming invite')
+        throw new PeerDisconnectedSinceRedeemingInviteError()
       }
       const decision = await this.invite(inviteeDeviceId, opts)
 
       return decision
     }
 
-    throw new Error('Unknown invite ID')
+    throw new UnknownInviteIDError()
   }
 
   /**
@@ -956,7 +963,7 @@ export function parseInviteURL(url) {
   const deviceId = params.get('d')
 
   if (typeof inviteIdString !== 'string' || typeof deviceId !== 'string') {
-    throw new Error('Missing invite and device parameters from URL')
+    throw new MissingInviteAndDeviceParamsError()
   }
   return { inviteIdString, deviceId }
 }
