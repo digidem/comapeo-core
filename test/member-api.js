@@ -139,6 +139,7 @@ class MockRoles {
  * @param {() => import('../src/types.js').ReplicationStream} [opts.getReplicationStream]
  * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} [opts.waitForInitialSyncWithPeer]
  * @param {(shouldListen: boolean) => Promise<void>} [opts.setShouldListenOverInternet]
+ * @param {(deviceId: string) => Promise<boolean>} [opts.markInternetPeerAsTrusted]
  * @param {() => Promise<import('../src/mapeo-project.js').EditableProjectSettings>} [opts.getProjectSettings]
  * @param {(deviceId: string) => Promise<import('../src/schema.js').DeviceInfo>} [opts.getDeviceInfo]
  * @param {(deviceId: string, deviceInfo: import('../src/member-api.js').NewDeviceInfo) => Promise<void>} [opts.setDeviceInfo]
@@ -158,6 +159,7 @@ function setup({
   getReplicationStream = () => {
     throw new Error('Not implemented')
   },
+  markInternetPeerAsTrusted = () => Promise.resolve(true),
 } = {}) {
   const keyManager = new KeyManager(rootKey)
 
@@ -188,6 +190,7 @@ function setup({
     getReplicationStream,
     waitForInitialSyncWithPeer,
     setShouldListenOverInternet,
+    markInternetPeerAsTrusted,
     getProjectSettings,
     getDeviceInfo,
     setDeviceInfo,

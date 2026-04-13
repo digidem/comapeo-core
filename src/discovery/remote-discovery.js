@@ -6,6 +6,7 @@ import sodium from 'sodium-universal'
 import b4a from 'b4a'
 import { SwarmHandshake } from '../generated/handshake.js'
 import {
+  ensureKnownError,
   InvalidIdentityProofError,
   UnableToReadHandshakeError,
 } from '../errors.js'
@@ -18,7 +19,13 @@ import {
 /**
  * @typedef {Object} DiscoveryEvents
  * @property {(connection: RemoteAuthedNoiseStream) => void} connection
+ * @property {(error: Error) => void} error
  */
+
+// Symbol for test-only access to internal methods
+export const kTestOnlyHandleHyperswarmConnection = Symbol(
+  'testOnlyHandleHyperswarmConnection'
+)
 
 /**
  * @extends {TypedEmitter<DiscoveryEvents>}
@@ -96,6 +103,13 @@ export class RemoteDiscovery extends TypedEmitter {
   }
 
   /**
+   * @param {OpenedNoiseStream} socket
+   */
+  async [kTestOnlyHandleHyperswarmConnection](socket) {
+    return this.#handleHyperswarmConnection(socket)
+  }
+
+  /**
    * Connect to another peer by their NOISE public key
    * @param {string} publicKey
    * @param {object} [opts]
@@ -124,47 +138,56 @@ export class RemoteDiscovery extends TypedEmitter {
 
   /**
    * @param {OpenedNoiseStream} socket
-   * @param {import('hyperswarm').PeerInfo} _peerInfo
    */
-  async #handleHyperswarmConnection(socket, _peerInfo) {
-    const remotePublicKeyString = socket.remotePublicKey.toString('hex')
-    // @ts-ignore
-    socket.isTrusted = this.#shouldTrustKeys.has(remotePublicKeyString)
+  async #handleHyperswarmConnection(socket) {
+    try {
+      const remotePublicKeyString = socket.remotePublicKey.toString('hex')
+      // @ts-ignore
+      socket.isTrusted = this.#shouldTrustKeys.has(remotePublicKeyString)
 
-    const firstData = readChunk(socket)
-    const keyPair = this.#identityKeypair
-    // Sign the Noise handshake hash with our stable key
-    const sig = b4a.allocUnsafe(64)
-    sodium.crypto_sign_detached(sig, socket.handshakeHash, keyPair.secretKey)
+      const firstData = readChunk(socket)
+      const keyPair = this.#identityKeypair
+      // Sign the Noise handshake hash with our stable key
+      const sig = b4a.allocUnsafe(64)
+      sodium.crypto_sign_detached(sig, socket.handshakeHash, keyPair.secretKey)
 
-    // Send stable public key + proof in a single message
-    const handshakeBuffer = SwarmHandshake.encode({
-      publicKey: keyPair.publicKey,
-      signature: Buffer.from(sig),
-    }).finish()
+      // Send stable public key + proof in a single message
+      const handshakeBuffer = SwarmHandshake.encode({
+        publicKey: keyPair.publicKey,
+        signature: Buffer.from(sig),
+      }).finish()
 
-    const hasDrained = socket.write(Buffer.from(handshakeBuffer))
+      const hasDrained = socket.write(Buffer.from(handshakeBuffer))
 
-    if (!hasDrained) await pEvent(socket, 'drain', { timeout: 10000 })
+      if (!hasDrained) await pEvent(socket, 'drain', { timeout: 10000 })
 
-    const data = await firstData
+      const data = await firstData
 
-    const msg = SwarmHandshake.decode(data)
+      const msg = SwarmHandshake.decode(data)
 
-    const valid = sodium.crypto_sign_verify_detached(
-      msg.signature,
-      socket.handshakeHash, // same hash on both sides
-      msg.publicKey
-    )
+      try {
+        const valid = sodium.crypto_sign_verify_detached(
+          msg.signature,
+          socket.handshakeHash, // same hash on both sides
+          msg.publicKey
+        )
 
-    if (!valid) {
-      throw new InvalidIdentityProofError()
+        if (!valid) {
+          throw new InvalidIdentityProofError()
+        }
+      } catch (e) {
+        if (e instanceof InvalidIdentityProofError) throw e
+        throw new InvalidIdentityProofError({ cause: e })
+      }
+
+      // @ts-ignore
+      socket.handshakePublicKey = msg.publicKey
+      // @ts-ignore
+      this.emit('connection', socket)
+    } catch (err) {
+      console.log({ err })
+      this.emit('error', ensureKnownError(err))
     }
-
-    // @ts-ignore
-    socket.handshakePublicKey = msg.publicKey
-    // @ts-ignore
-    this.emit('connection', socket)
   }
 }
 
@@ -173,12 +196,19 @@ export class RemoteDiscovery extends TypedEmitter {
  * @param {Readable|Duplex} stream
  * @returns {Promise<Buffer>}
  */
-async function readChunk(stream) {
+export async function readChunk(stream) {
   let data = stream.read()
 
   if (data) return data
 
-  await pEvent(stream, 'readable')
+  try {
+    await pEvent(stream, 'readable', {
+      timeout: 10_00,
+      rejectionEvents: ['error', 'close'],
+    })
+  } catch {
+    throw new UnableToReadHandshakeError()
+  }
 
   stream.pause()
 
