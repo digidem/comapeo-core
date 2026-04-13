@@ -1,5 +1,6 @@
 declare module 'hyperswarm' {
   import { TypedEmitter } from 'tiny-typed-emitter'
+  import NoiseSecretStream from '@hyperswarm/secret-stream'
 
   interface PeerInfo {
     publicKey: Buffer
@@ -13,11 +14,12 @@ declare module 'hyperswarm' {
   }
 
   interface SwarmEvents {
-    connection(socket: Socket, PeerInfo: PeerInfo): void
+    connection(socket: NoiseSecretStream, PeerInfo: PeerInfo): void
   }
   export default class Hyperswarm extends TypedEmitter<SwarmEvents> {
     constructor({ keyPair: Keypair, maxPeers: number })
     get peers(): Map<string, PeerInfo>
+    get connections(): Set<NoiseSecretStream>
     listen(): Promise<void>
     flush(): Promise<void>
     suspend(): Promise<void>

@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { KeyManager, keyToPublicId } from '@mapeo/crypto'
-import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
 import {
   RemoteDiscovery,
   readChunk,
   kTestOnlyHandleHyperswarmConnection,
+  makeSwarmHandshake,
 } from '../../src/discovery/remote-discovery.js'
 import { SwarmHandshake } from '../../src/generated/handshake.js'
 import {
@@ -15,6 +15,8 @@ import {
   InvalidIdentityProofError,
 } from '../../src/errors.js'
 import { Duplex, Transform } from 'streamx'
+
+/** @import {OpenedNoiseStream} from '../../src/lib/noise-secret-stream-helpers.js'*/
 
 test('RemoteDiscovery - connect two instances and verify keypair', async (t) => {
   const identityKeypair1 = new KeyManager(
@@ -42,25 +44,22 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   // Start both instances
   await Promise.all([remoteDiscovery1.start(), remoteDiscovery2.start()])
 
-  const deferred = pDefer()
   const swarmPublicKey1Hex = swarmKeypair1.publicKey.toString('hex')
 
   // Listen for connection on instance 1
-  remoteDiscovery1.on('connection', (stream) => {
-    stream.on('error', handleConnectionError)
-    // Verify the remote peer's public key matches instance 2
-    assert.ok(
-      stream.remotePublicKey.equals(swarmKeypair2.publicKey),
-      'remote public key should match instance 2'
-    )
-    deferred.resolve(stream)
-  })
+  const onConnection = pEvent(remoteDiscovery1, 'connection')
 
   // Connect from instance 2 to instance 1
   const connectionPromise = remoteDiscovery2.connectPeer(swarmPublicKey1Hex)
 
   const outboundStream = await connectionPromise
-  const inboundStream = await deferred.promise
+  const inboundStream = await onConnection
+
+  assert.ok(
+    inboundStream.remotePublicKey.equals(swarmKeypair2.publicKey),
+    'remote public key should match instance 2'
+  )
+  inboundStream.on('error', handleConnectionError)
 
   // Verify both sides have the correct keypairs
   assert.ok(
@@ -175,26 +174,14 @@ test('RemoteDiscovery - emits InvalidIdentityProofError on invalid signature', a
   })
 
   // Create a mock stream with the required properties
-  const connection =
-    /** @type {import('../../src/lib/noise-secret-stream-helpers.js').OpenedNoiseStream}*/ (
-      /** @type {unknown} */ new Duplex({
-        read() {
-          // Push the handshake data inside the read handler
-          const handshakeData = SwarmHandshake.encode({
-            publicKey: identityKeypair1.publicKey,
-            signature: Buffer.alloc(64),
-          }).finish()
-          this.push(handshakeData)
-          this.push(null) // end the stream
-        },
-        write(_chunk, callback) {
-          callback()
-        },
-      })
-    )
-  // Set up the stream properties
-  connection.remotePublicKey = swarmKeypair2.publicKey
-  connection.handshakeHash = Buffer.alloc(32, 0)
+  const connection = mockConnection(
+    swarmKeypair2,
+    // Push the handshake data inside the read handler
+    SwarmHandshake.encode({
+      publicKey: identityKeypair1.publicKey,
+      signature: Buffer.alloc(64),
+    }).finish()
+  )
 
   await remoteDiscovery1[kTestOnlyHandleHyperswarmConnection](connection)
 
@@ -208,7 +195,7 @@ test('RemoteDiscovery - emits InvalidIdentityProofError on invalid signature', a
   )
 })
 
-test.only('RemoteDiscovery - emits InvalidIdentityProofError on invalid handshake', async (t) => {
+test('RemoteDiscovery - emits InvalidIdentityProofError on invalid handshake', async (t) => {
   const identityKeypair1 = new KeyManager(
     Buffer.alloc(16, 1)
   ).getIdentityKeypair()
@@ -228,22 +215,7 @@ test.only('RemoteDiscovery - emits InvalidIdentityProofError on invalid handshak
   })
 
   // Create a mock stream with the required properties
-  const connection =
-    /** @type {import('../../src/lib/noise-secret-stream-helpers.js').OpenedNoiseStream}*/ (
-      /** @type {unknown} */ new Duplex({
-        read() {
-          // Push invalid packet
-          this.push(Buffer.from('Hello World!'))
-          this.push(null) // end the stream
-        },
-        write(_chunk, callback) {
-          callback()
-        },
-      })
-    )
-  // Set up the stream properties
-  connection.remotePublicKey = swarmKeypair2.publicKey
-  connection.handshakeHash = Buffer.alloc(32, 0)
+  const connection = mockConnection(swarmKeypair2, Buffer.from('Hello World!'))
 
   await remoteDiscovery1[kTestOnlyHandleHyperswarmConnection](connection)
 
@@ -257,9 +229,82 @@ test.only('RemoteDiscovery - emits InvalidIdentityProofError on invalid handshak
   )
 })
 
+test.only('RemoteDiscovery - connectPeer returns same socket for duplicate connection', async (t) => {
+  const identityKeypair1 = new KeyManager(
+    Buffer.alloc(16, 1)
+  ).getIdentityKeypair()
+  const identityKeypair2 = new KeyManager(
+    Buffer.alloc(16, 2)
+  ).getIdentityKeypair()
+  const swarmKeypair1 = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+  const swarmKeypair2 = new KeyManager(Buffer.alloc(16, 4)).getIdentityKeypair()
+
+  const remoteDiscovery1 = new RemoteDiscovery({
+    identityKeypair: identityKeypair1,
+    swarmIdentityKeypair: swarmKeypair1,
+  })
+
+  t.after(() => Promise.all([remoteDiscovery1.close()]))
+
+  const onConnection = pEvent(remoteDiscovery1, 'connection')
+
+  // Set up the stream properties
+  const handshakeHash = Buffer.alloc(32, 0)
+
+  // Create a mock stream with the required properties
+  const connection = mockConnection(
+    swarmKeypair2,
+    makeSwarmHandshake(handshakeHash, identityKeypair2),
+    handshakeHash
+  )
+
+  await remoteDiscovery1[kTestOnlyHandleHyperswarmConnection](connection)
+
+  await onConnection
+
+  const gotConnection = await remoteDiscovery1.connectPeer(
+    swarmKeypair2.publicKey.toString('hex')
+  )
+
+  assert.equal(gotConnection, connection, 'Got existing connection')
+  assert(
+    gotConnection.handshakePublicKey.equals(identityKeypair2.publicKey),
+    'Handshake was valid'
+  )
+})
+
 /**
  * @param {Error} e
  */
 function handleConnectionError(e) {
   assert.fail(`Unexpected connection error: ${e.message}`)
+}
+
+/**
+ * @param {import('../../src/types.js').KeyPair} swarmKeypair
+ * @param {Uint8Array|Buffer} body
+ * @param {Buffer} [handshakeHash]
+ * @returns {OpenedNoiseStream}
+ */
+function mockConnection(
+  swarmKeypair,
+  body,
+  handshakeHash = Buffer.alloc(32, 0)
+) {
+  const connection = /** @type {OpenedNoiseStream}*/ (
+    /** @type {unknown} */ new Duplex({
+      read() {
+        this.push(body)
+        this.push(null) // end the stream
+      },
+      write(_chunk, callback) {
+        callback()
+      },
+    })
+  )
+
+  // Set up the stream properties
+  connection.remotePublicKey = swarmKeypair.publicKey
+  connection.handshakeHash = handshakeHash
+  return connection
 }

@@ -11,6 +11,8 @@ import {
   UnableToReadHandshakeError,
 } from '../errors.js'
 
+import { openedNoiseSecretStream } from '../lib/noise-secret-stream-helpers.js'
+
 /** @import {OpenedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
 /** @import {Duplex, Readable} from "streamx" */
 
@@ -40,6 +42,8 @@ export class RemoteDiscovery extends TypedEmitter {
   #swarmIdentityKeypair
   /** @type {Set<string>} */
   #shouldTrustKeys = new Set()
+  /** @type {Set<OpenedNoiseStream>} */
+  #connections = new Set()
 
   /**
    * @param {Object} opts
@@ -61,6 +65,7 @@ export class RemoteDiscovery extends TypedEmitter {
       keyPair: this.#swarmIdentityKeypair,
       maxPeers: 4,
     })
+    // @ts-expect-error Hyperswarm lacks the expected utility class to mark the stream as opened
     swarm.on('connection', this.#handleHyperswarmConnection.bind(this))
     this.#l.log('Starting listen')
     await swarm.listen()
@@ -114,10 +119,22 @@ export class RemoteDiscovery extends TypedEmitter {
    * @param {string} publicKey
    * @param {object} [opts]
    * @param {number} [opts.timeout]
+   * @returns {Promise<RemoteAuthedNoiseStream>}
    */
   async connectPeer(publicKey, { timeout = 60_000 } = {}) {
     const swarm = await this.#ensureSwarm()
     const noisePublicKey = Buffer.from(publicKey, 'hex')
+
+    for (const existingConnection of this.#connections) {
+      if (existingConnection.remotePublicKey?.equals(noisePublicKey)) {
+        const opened = await openedNoiseSecretStream(existingConnection)
+        if (opened.destroyed) break
+        // @ts-ignore Some connections might not be handshaked, wait for them to be
+        if (!existingConnection.handshakePublicKey) break
+        // @ts-ignore
+        return opened
+      }
+    }
 
     this.#shouldTrustKeys.add(publicKey)
 
@@ -140,6 +157,8 @@ export class RemoteDiscovery extends TypedEmitter {
    * @param {OpenedNoiseStream} socket
    */
   async #handleHyperswarmConnection(socket) {
+    this.#connections.add(socket)
+    socket.once('close', () => this.#connections.delete(socket))
     try {
       const remotePublicKeyString = socket.remotePublicKey.toString('hex')
       // @ts-ignore
@@ -148,14 +167,7 @@ export class RemoteDiscovery extends TypedEmitter {
       const firstData = readChunk(socket)
       const keyPair = this.#identityKeypair
       // Sign the Noise handshake hash with our stable key
-      const sig = b4a.allocUnsafe(64)
-      sodium.crypto_sign_detached(sig, socket.handshakeHash, keyPair.secretKey)
-
-      // Send stable public key + proof in a single message
-      const handshakeBuffer = SwarmHandshake.encode({
-        publicKey: keyPair.publicKey,
-        signature: Buffer.from(sig),
-      }).finish()
+      const handshakeBuffer = makeSwarmHandshake(socket.handshakeHash, keyPair)
 
       const hasDrained = socket.write(Buffer.from(handshakeBuffer))
 
@@ -217,4 +229,22 @@ export async function readChunk(stream) {
   if (data) return data
 
   throw new UnableToReadHandshakeError()
+}
+
+/**
+ *
+ * @param {Buffer|null} handshakeHash
+ * @param {import('../types.js').KeyPair} keyPair
+ * @returns
+ */
+export function makeSwarmHandshake(handshakeHash, keyPair) {
+  const sig = b4a.allocUnsafe(64)
+  sodium.crypto_sign_detached(sig, handshakeHash, keyPair.secretKey)
+
+  // Send stable public key + proof in a single message
+  const handshakeBuffer = SwarmHandshake.encode({
+    publicKey: keyPair.publicKey,
+    signature: Buffer.from(sig),
+  }).finish()
+  return handshakeBuffer
 }
