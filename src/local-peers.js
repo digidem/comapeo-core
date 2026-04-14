@@ -493,6 +493,7 @@ class Peer {
  * @typedef {object} LocalPeersEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
  * @property {(peer: PeerInfoConnected) => void} peer-add Emitted when a new peer is connected
+ * @property {(peer: PeerInfoDisconnected) => void} peer-remove Emitted when an existing peer is disconnected
  * @property {(peerId: string, invite: Invite) => void} invite Emitted when an invite is received
  * @property {(peerId: string, invite: InviteAck) => void} invite-ack Emitted when an invite acknowledgement is received
  * @property {(peerId: string, invite: InviteCancel) => void} invite-cancel Emitted when we receive a cancelation for an invite
@@ -753,6 +754,11 @@ export class LocalPeers extends TypedEmitter {
           existingDevicePeers.delete(peer)
         }
         this.#attached.delete(peer.protomux)
+        if (peer.info.status === 'disconnected') {
+          this.emit('peer-remove', peer.info)
+        } else {
+          this.#l.log('Error: Peer not marked as disconnected after disconnect')
+        }
         this.#emitPeers()
         done()
       },

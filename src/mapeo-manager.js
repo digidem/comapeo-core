@@ -32,6 +32,7 @@ import {
   deNullify,
   getDeviceId,
   keyToId,
+  noop,
   projectIdToNonce,
   projectKeyToId,
   projectKeyToProjectInviteId,
@@ -58,6 +59,8 @@ import {
   FailedToSetIsArchiveDeviceError,
   NotFoundError,
   ProjectExistsError,
+  InviteRedeemConnectionClosedError,
+  InvalidMapShareReceiverError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
@@ -651,6 +654,9 @@ export class MapeoManager extends TypedEmitter {
           return false
         }
       },
+      disconnectFromPeer: async (deviceId) => {
+        await this.#remoteDiscovery.disconnectPeer(deviceId)
+      },
     })
 
     return project
@@ -731,26 +737,42 @@ export class MapeoManager extends TypedEmitter {
   /**
    * Attempt to join a project over the internet
    * @param {string} url
+   * @param {object} [options]
+   * @param {number} [options.timeout]
    * @returns {Promise<string>}
    */
-  async joinProjectOverInternet(url) {
+  async joinProjectOverInternet(url, { timeout = 60_000 } = {}) {
     const { deviceId: swarmPublicKeyHex, inviteIdString } = parseInviteURL(url)
     const inviteId = Buffer.from(inviteIdString, 'hex')
 
     const connection = await this.#remoteDiscovery.connectPeer(
-      swarmPublicKeyHex
+      swarmPublicKeyHex,
+      { timeout }
     )
+    const onClose = pEvent(connection, 'close').then(
+      () => {
+        throw new InviteRedeemConnectionClosedError()
+      },
+      // Handle `error` event on connection if there's sudden closes
+      (e) => {
+        throw new InviteRedeemConnectionClosedError({ cause: e })
+      }
+    )
+    // It's okay if this rejection never gets handled
+    onClose.catch(noop)
     try {
       const onInvited = pEvent(this.#invite, 'invite-received')
+
       // Use the identity key from the handshake, not the swarm key from the URL
       const identityPublicKeyHex = connection.handshakePublicKey.toString('hex')
-      await this.#localPeers.sendRedeemInviteOverInternet(
-        identityPublicKeyHex,
-        {
+      await Promise.race([
+        this.#localPeers.sendRedeemInviteOverInternet(identityPublicKeyHex, {
           inviteId,
-        }
-      )
-      const invite = await onInvited
+        }),
+        onClose,
+      ])
+
+      const invite = await Promise.race([onInvited, onClose])
 
       const projectId = await this.#invite.accept(invite)
 
@@ -1152,7 +1174,7 @@ export class MapeoManager extends TypedEmitter {
     const receiverDeviceId = receiverDeviceKey.toString('hex')
 
     if (receiverDeviceId !== this.#deviceId) {
-      throw new Error('Got map share intended for a different peer')
+      throw new InvalidMapShareReceiverError()
     }
 
     /** @type {MapShare} */

@@ -417,6 +417,12 @@ export const InvalidMapShareError = createErrorClass({
   status: 400,
 })
 
+export const InvalidMapShareReceiverError = createErrorClass({
+  code: 'INVALID_MAP_SHARE_RECEIVER_ERROR',
+  message: 'Got map share intended for a different peer',
+  status: 400,
+})
+
 export const InvalidResponseBodyError = createErrorClass({
   code: 'INVALID_RESPONSE_BODY_ERROR',
   message: 'Response body is not valid',
@@ -427,6 +433,12 @@ export const InvalidInviteError = createErrorClass({
   code: 'INVALID_INVITE_ERROR',
   message: '{message}',
   status: 400,
+})
+
+export const InviteRedeemConnectionClosedError = createErrorClass({
+  code: 'INVITE_REDEEM_CONNECTION_CLOSED_ERROR',
+  message: 'Connection closed before invite redeem',
+  status: 408,
 })
 
 export const InviteNotFoundError = createErrorClass({

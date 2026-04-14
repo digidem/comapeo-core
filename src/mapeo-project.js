@@ -178,6 +178,7 @@ export class MapeoProject extends ReadyResource {
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
    * @param {(shouldListen: boolean) => Promise<void>} opts.setShouldListenOverInternet
    * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
+   * @param {(deviceId: string) => Promise<void>} opts.disconnectFromPeer
    * @param {Logger} [opts.logger]
    *
    */
@@ -200,6 +201,7 @@ export class MapeoProject extends ReadyResource {
     getFallbackProjectInfo,
     setShouldListenOverInternet,
     markInternetPeerAsTrusted,
+    disconnectFromPeer,
   }) {
     super()
 
@@ -449,6 +451,7 @@ export class MapeoProject extends ReadyResource {
       },
       setShouldListenOverInternet,
       markInternetPeerAsTrusted,
+      disconnectFromPeer,
       logger: this.#l,
     })
 

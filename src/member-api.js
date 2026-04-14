@@ -69,6 +69,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /** @import { deviceInfoTable } from './schema/project.js' */
 /** @import { projectSettingsTable } from './schema/client.js' */
 /** @import { ReplicationStream, MapeoValueMap } from './types.js' */
+/** @import { PeerInfoDisconnected } from './local-peers.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
@@ -116,6 +117,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /**
  * @typedef {object} MemberEvents
  * @property {(deviceId: string, inviteId: string) => void} internet-invite-redeemed Emitted when an invite over the internet has been redeemed, accept the deviceId to add them
+ * @property {(inviteId: string) => void} internet-invite-cancelled Emitted when an invite over the internet has been redeemed, accept the deviceId to add them
  * @property {(err: Error, deviceId: string, url: string) => void} internet-invite-redeem-error Emitted when an invite over the internet has failed to be redeemed
  */
 
@@ -134,6 +136,7 @@ export class MemberApi extends TypedEmitter {
   #waitForInitialSyncWithPeer
   #setShouldListenOverInternet
   #markInternetPeerAsTrusted
+  #disconnectFromPeer
   #getProjectSettings
   #getDeviceInfo
   #setDeviceInfo
@@ -158,6 +161,7 @@ export class MemberApi extends TypedEmitter {
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
    * @param {(shouldListen: boolean) => Promise<void>} opts.setShouldListenOverInternet
    * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
+   * @param {(deviceId: string) => Promise<void>} opts.disconnectFromPeer
    * @param {() => Promise<import('./mapeo-project.js').EditableProjectSettings>} opts.getProjectSettings
    * @param {(deviceId: string) => Promise<DeviceInfo>} opts.getDeviceInfo
    * @param {(deviceId: string, deviceInfo: NewDeviceInfo) => Promise<void>} opts.setDeviceInfo
@@ -175,6 +179,7 @@ export class MemberApi extends TypedEmitter {
     waitForInitialSyncWithPeer,
     setShouldListenOverInternet,
     markInternetPeerAsTrusted,
+    disconnectFromPeer,
     getProjectSettings,
     getDeviceInfo,
     setDeviceInfo,
@@ -193,6 +198,7 @@ export class MemberApi extends TypedEmitter {
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
     this.#setShouldListenOverInternet = setShouldListenOverInternet
     this.#markInternetPeerAsTrusted = markInternetPeerAsTrusted
+    this.#disconnectFromPeer = disconnectFromPeer
     this.#getProjectSettings = getProjectSettings
     this.#getDeviceInfo = getDeviceInfo
     this.#setDeviceInfo = setDeviceInfo
@@ -200,6 +206,7 @@ export class MemberApi extends TypedEmitter {
     rpc.on('invite-over-internet-redeemed', (peerId, redeem) =>
       this.#handleRedeemInviteOverInternet(peerId, redeem)
     )
+    rpc.on('peer-remove', (peer) => this.#handlePeerRemove(peer))
   }
 
   /**
@@ -232,16 +239,28 @@ export class MemberApi extends TypedEmitter {
    */
   async cancelInviteOverInternet(url) {
     if (!url) {
+      for (const inviteId in this.#pendingInvitesOverInternet.keys()) {
+        this.emit('internet-invite-cancelled', inviteId)
+      }
       this.#pendingInvitesOverInternet.clear()
       await this.#setShouldListenOverInternet(false)
       return
     }
     const { inviteIdString } = parseInviteURL(url)
+    await this.#cancelInviteOverInternetById(inviteIdString)
+  }
 
+  /**
+   * Cancel an invite over internet attempt.
+   * @param {string} inviteIdString
+   */
+  async #cancelInviteOverInternetById(inviteIdString) {
     if (!this.#pendingInvitesOverInternet.has(inviteIdString)) {
       throw new InvalidInternetInviteURLError()
     }
     this.#pendingInvitesOverInternet.delete(inviteIdString)
+    this.emit('internet-invite-cancelled', inviteIdString)
+
     if (this.#pendingInvitesOverInternet.size === 0) {
       await this.#setShouldListenOverInternet(false)
     }
@@ -253,6 +272,25 @@ export class MemberApi extends TypedEmitter {
    */
   pendingInternetInvites() {
     return [...this.#pendingInvitesOverInternet.values()].map(({ url }) => url)
+  }
+
+  /**
+   *
+   * @param {PeerInfoDisconnected} peer
+   */
+  async #handlePeerRemove(peer) {
+    for (const [
+      pendingInviteId,
+      pendingInvite,
+    ] of this.#pendingInvitesOverInternet.entries()) {
+      if (pendingInvite.inviteeDeviceId === peer.deviceId) {
+        // TODO: Handle errors? Emit event saying this happened?
+        this.#cancelInviteOverInternetById(pendingInviteId).catch((e) => {
+          this.#l.log('Error: Unable to cancel invite', pendingInviteId, e)
+        })
+        break
+      }
+    }
   }
 
   /**
@@ -278,6 +316,7 @@ export class MemberApi extends TypedEmitter {
             peerId,
             inviteIdString
           )
+          await this.#disconnectFromPeer(peerId)
           return
         }
 
@@ -293,15 +332,18 @@ export class MemberApi extends TypedEmitter {
         peerId,
         inviteIdString
       )
+      await this.#disconnectFromPeer(peerId)
+      return
     }
 
-    // TODO: Should we break their connection?
     this.emit(
       'internet-invite-redeem-error',
       new UnknownInviteIDRedeemAttemptError(),
       peerId,
       inviteIdString
     )
+
+    await this.#disconnectFromPeer(peerId)
   }
 
   /**

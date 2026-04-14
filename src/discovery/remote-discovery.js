@@ -1,13 +1,14 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { Logger } from '../logger.js'
 import Hyperswarm from 'hyperswarm'
-import { pEvent } from 'p-event'
+import { pEvent, TimeoutError as EventTimeoutError } from 'p-event'
 import sodium from 'sodium-universal'
 import b4a from 'b4a'
 import { SwarmHandshake } from '../generated/handshake.js'
 import {
   ensureKnownError,
   InvalidIdentityProofError,
+  TimeoutError,
   UnableToReadHandshakeError,
 } from '../errors.js'
 
@@ -42,7 +43,7 @@ export class RemoteDiscovery extends TypedEmitter {
   #swarmIdentityKeypair
   /** @type {Set<string>} */
   #shouldTrustKeys = new Set()
-  /** @type {Set<OpenedNoiseStream>} */
+  /** @type {Set<OpenedNoiseStream|RemoteAuthedNoiseStream>} */
   #connections = new Set()
 
   /**
@@ -115,6 +116,27 @@ export class RemoteDiscovery extends TypedEmitter {
   }
 
   /**
+   * Disconnect from a peer by their NOISE public key
+   * @param {string} publicKey
+   */
+  async disconnectPeer(publicKey) {
+    const noisePublicKey = Buffer.from(publicKey, 'hex')
+
+    for (const connection of this.#connections) {
+      if (
+        connection.remotePublicKey?.equals(noisePublicKey) ||
+        ('handshakePublicKey' in connection &&
+          connection.handshakePublicKey.equals(noisePublicKey))
+      ) {
+        this.#l.log('Disconnecting from peer %S', publicKey)
+        connection.end()
+        break
+      }
+    }
+    // TODO: Error on unknown peer?
+  }
+
+  /**
    * Connect to another peer by their NOISE public key
    * @param {string} publicKey
    * @param {object} [opts]
@@ -145,12 +167,18 @@ export class RemoteDiscovery extends TypedEmitter {
     // Start trying to connect
     swarm.joinPeer(noisePublicKey)
     this.#l.log('Connecting to %S', publicKey)
+    try {
+      const socket = await onConnected
 
-    const socket = await onConnected
-
-    this.#shouldTrustKeys.delete(publicKey)
-
-    return socket
+      return socket
+    } catch (e) {
+      if (e instanceof EventTimeoutError) {
+        throw new TimeoutError('Timed out waiting for peer')
+      }
+      throw e
+    } finally {
+      this.#shouldTrustKeys.delete(publicKey)
+    }
   }
 
   /**
@@ -197,7 +225,6 @@ export class RemoteDiscovery extends TypedEmitter {
       // @ts-ignore
       this.emit('connection', socket)
     } catch (err) {
-      console.log({ err })
       this.emit('error', ensureKnownError(err))
     }
   }

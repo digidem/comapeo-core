@@ -4,6 +4,14 @@ import { MEMBER_ROLE_ID } from '../src/roles.js'
 import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
+import {
+  UnknownInviteIDRedeemAttemptError,
+  TimeoutError,
+  InviteRedeemConnectionClosedError,
+  ensureKnownError,
+  UnknownInviteIDError,
+} from '../src/errors.js'
+import crypto from 'node:crypto'
 
 test('invite over internet and join from URL', async (t) => {
   const managers = await createManagers(2, t)
@@ -43,4 +51,137 @@ test('invite over internet and join from URL', async (t) => {
   assert.equal(gotProjectId, projectId, 'joined expected project')
 
   // TODO: Test that initial sync happened
+})
+
+test('invite over internet errors if invitor deviceID is invalid', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const projectId = await invitor.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
+  const project = await invitor.getProject(projectId)
+
+  const url = await project.$member.inviteOverInternet({
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  // Parse and modify the URL to use an invalid device ID
+  const urlObj = new URL(url)
+  const params = new URLSearchParams(urlObj.hash.slice(1))
+  const invalidDeviceId = '0'.repeat(64) // Invalid device ID
+  params.set('d', invalidDeviceId)
+  urlObj.hash = params.toString()
+  const modifiedUrl = urlObj.toString()
+
+  // Try to join with invalid device ID - should fail immediately
+  // The invitee won't be able to connect to the non-existent device
+  await assert.rejects(
+    invitee.joinProjectOverInternet(modifiedUrl, { timeout: 1000 }),
+    (err) => ensureKnownError(err).code === TimeoutError.code
+  )
+})
+
+test('invite over internet errors if inviter closes before accepting', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const projectId = await invitor.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
+  const project = await invitor.getProject(projectId)
+
+  const url = await project.$member.inviteOverInternet({
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const onInviteRedeemAttempt = pEvent(
+    project.$member,
+    'internet-invite-redeemed',
+    { multiArgs: true, timeout: 5000 }
+  )
+
+  const onInviteCancelled = pEvent(project.$member, 'internet-invite-cancelled')
+
+  const onInvited = invitee.joinProjectOverInternet(url)
+
+  const [deviceId, attemptedRedeemId] = await onInviteRedeemAttempt
+
+  assert.equal(deviceId, invitee.deviceId)
+
+  // Close the invitor before accepting
+  invitor.close()
+
+  // The invitee's join should fail because the invitor disconnected
+  await assert.rejects(
+    onInvited,
+    (err) =>
+      ensureKnownError(err).code === InviteRedeemConnectionClosedError.code
+  )
+
+  const cancelledId = await onInviteCancelled
+  assert.equal(cancelledId, attemptedRedeemId, 'redeemed invite got cancelled')
+
+  const pending = project.$member.pendingInternetInvites()
+
+  assert.equal(pending.length, 0, 'Invite got cancelled on fail')
+
+  await assert.rejects(
+    () => project.$member.acceptRedeemedInvite(attemptedRedeemId),
+    (err) => ensureKnownError(err).code === UnknownInviteIDError.code,
+    'Accepting after a disconnect causes an error'
+  )
+})
+
+test('invite over internet errors if invitee uses random invalid inviteId', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const projectId = await invitor.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
+  const project = await invitor.getProject(projectId)
+
+  const url = await project.$member.inviteOverInternet({
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  // Parse and modify the URL to use an invalid invite ID
+  const urlObj = new URL(url)
+  const params = new URLSearchParams(urlObj.hash.slice(1))
+  const invalidInviteId = crypto.randomBytes(32).toString('hex') // Random 32-byte invite ID
+  params.set('i', invalidInviteId)
+  urlObj.hash = params.toString()
+  const modifiedUrl = urlObj.toString()
+
+  // Expect the invitor to emit an error when the invalid invite is attempted
+  const onError = pEvent(project.$member, 'internet-invite-redeem-error', {
+    timeout: 5000,
+    multiArgs: true,
+  })
+
+  // Try to join with invalid invite ID
+  const joinPromise = invitee.joinProjectOverInternet(modifiedUrl)
+
+  // The invitor should receive the redeem attempt with an error
+  const [error, peerId] = await onError
+  assert.equal(
+    error.code,
+    UnknownInviteIDRedeemAttemptError.code,
+    'Expected UnknownInviteIDRedeemAttemptError'
+  )
+  assert.equal(peerId, invitee.deviceId, 'Error from expected peer ID')
+
+  // The invitee's join should fail because the connection closes when the invite is invalid
+  await assert.rejects(
+    joinPromise,
+    (err) =>
+      ensureKnownError(err).code === InviteRedeemConnectionClosedError.code
+  )
 })
