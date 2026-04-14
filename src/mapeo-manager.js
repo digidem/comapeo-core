@@ -199,8 +199,8 @@ export class MapeoManager extends TypedEmitter {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
-    ;(this.#swarmIdentityKeypair = KeyManager.generateProjectKeypair()),
-      (this.#defaultConfigPath = defaultConfigPath)
+    this.#swarmIdentityKeypair = KeyManager.generateProjectKeypair()
+    this.#defaultConfigPath = defaultConfigPath
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
     this.#makeWebsocket = makeWebsocket
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
