@@ -21,6 +21,6 @@ declare module 'ready-resource' {
     /**
      * Unload any async resources here
      */
-    abstract _close(): Promise<void> | void
+    _close(): Promise<void> | void
   }
 }
