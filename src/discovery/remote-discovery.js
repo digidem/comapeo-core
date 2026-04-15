@@ -15,6 +15,7 @@ import {
 import { openedNoiseSecretStream } from '../lib/noise-secret-stream-helpers.js'
 
 /** @import {OpenedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
+/** @import {Keypair} from './local-discovery.js' */
 /** @import {Duplex, Readable} from "streamx" */
 
 /** @typedef {OpenedNoiseStream & {handshakePublicKey:Buffer, isTrusted: boolean}} RemoteAuthedNoiseStream */
@@ -48,7 +49,7 @@ export class RemoteDiscovery extends TypedEmitter {
 
   /**
    * @param {Object} opts
-   * @param {import('./local-discovery.js').Keypair} opts.identityKeypair
+   * @param {Keypair} opts.identityKeypair
    * @param {import('./local-discovery.js').Keypair} opts.swarmIdentityKeypair
    * @param {Logger} [opts.logger]
    */
