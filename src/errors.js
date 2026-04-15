@@ -568,6 +568,12 @@ export const MissingInviteAndDeviceParamsError = createErrorClass({
   status: 400,
 })
 
+export const PendingInviteAlreadyExistsError = createErrorClass({
+  code: 'PENDING_INVITE_ALREADY_EXISTS_ERROR',
+  message: 'Pending invite with ID {inviteId} already exists',
+  status: 409,
+})
+
 /**
  * @param {unknown} err
  * @returns {null}
