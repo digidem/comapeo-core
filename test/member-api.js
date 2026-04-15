@@ -25,7 +25,7 @@ test('serialize and parse invite URLs', () => {
 })
 
 test('List pending invites over internet', async () => {
-  const { member } = setup({})
+  const { member, pendingInvitesApi } = setup({})
 
   const url1 = await member.inviteOverInternet({
     roleId: MEMBER_ROLE_ID,
@@ -42,6 +42,13 @@ test('List pending invites over internet', async () => {
     [url1, url2].toSorted(),
     'Both pending URLs returned'
   )
+
+  // Verify persistence
+  const persisted = await pendingInvitesApi.getAll()
+  assert.equal(persisted.length, 2, 'Two invites persisted')
+  const persistedUrls = persisted.map((p) => p.url)
+  assert.ok(persistedUrls.includes(url1), 'url1 is persisted')
+  assert.ok(persistedUrls.includes(url2), 'url2 is persisted')
 })
 
 test('setShouldListenOverInternet called once for multiple invites', async () => {
@@ -65,7 +72,7 @@ test('setShouldListenOverInternet called once for multiple invites', async () =>
 })
 
 test('Cancel invite over internet requests', async () => {
-  const { member } = setup({})
+  const { member, pendingInvitesApi } = setup({})
 
   const url1 = await member.inviteOverInternet({
     roleId: MEMBER_ROLE_ID,
@@ -75,6 +82,10 @@ test('Cancel invite over internet requests', async () => {
     roleId: MEMBER_ROLE_ID,
   })
 
+  // Verify both invites are persisted
+  let persisted = await pendingInvitesApi.getAll()
+  assert.equal(persisted.length, 2, 'Two invites persisted initially')
+
   await member.cancelInviteOverInternet(url1)
 
   assert.deepEqual(
@@ -82,16 +93,34 @@ test('Cancel invite over internet requests', async () => {
     [url2],
     'One URL left'
   )
+
+  // Verify only url2 remains in persistence
+  persisted = await pendingInvitesApi.getAll()
+  assert.equal(persisted.length, 1, 'One invite remains after cancel')
+  assert.equal(persisted[0].url, url2, 'url2 is still persisted')
+
   await member.inviteOverInternet({
     roleId: MEMBER_ROLE_ID,
   })
   await member.inviteOverInternet({
     roleId: MEMBER_ROLE_ID,
   })
+
+  // Verify 3 invites now persisted
+  persisted = await pendingInvitesApi.getAll()
+  assert.equal(
+    persisted.length,
+    3,
+    'Three invites persisted after adding two more'
+  )
 
   await member.cancelInviteOverInternet()
 
   assert.deepEqual(await member.pendingInternetInvites(), [], 'No URLs left')
+
+  // Verify persistence is cleared
+  persisted = await pendingInvitesApi.getAll()
+  assert.equal(persisted.length, 0, 'All invites removed from persistence')
 })
 
 test('Pending invites are loaded from persistence on ready', async () => {
