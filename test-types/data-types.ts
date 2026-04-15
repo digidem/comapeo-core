@@ -34,6 +34,7 @@ const mapeoProject = new MapeoProject({
   coreStorage: () => new RAM(),
   keyManager: new KeyManager(randomBytes(32)),
   projectKey: randomBytes(32),
+  swarmPublicKey: randomBytes(32),
   encryptionKeys: { auth: randomBytes(32) },
   sharedDb: drizzle(sqlite),
   sharedIndexWriter: new IndexWriter({
@@ -45,6 +46,9 @@ const mapeoProject = new MapeoProject({
     `http://127.0.0.1:8080/${mediaType}`,
   localPeers: new LocalPeers(),
   getFallbackProjectInfo: () => ({ sendStats: false }),
+  setShouldListenOverInternet: (_shouldListen) => Promise.resolve(),
+  markInternetPeerAsTrusted: async (_deviceId) => Promise.resolve(true),
+  disconnectFromPeer: async (_deviceId) => Promise.resolve(),
 })
 
 ///// Observations

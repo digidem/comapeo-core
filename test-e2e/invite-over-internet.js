@@ -36,7 +36,9 @@ test('invite over internet and join from URL', async (t) => {
 
   const onInvited = invitee.joinProjectOverInternet(url)
 
-  const [deviceId, inviteId] = await onInviteRedeemAttempt
+  const [deviceId, inviteId] = /** @type {[string, string]} */ (
+    /**@type unknown*/ (await onInviteRedeemAttempt)
+  )
 
   assert.equal(deviceId, invitee.deviceId)
 
@@ -109,7 +111,9 @@ test('invite over internet errors if inviter closes before accepting', async (t)
 
   const onInvited = invitee.joinProjectOverInternet(url)
 
-  const [deviceId, attemptedRedeemId] = await onInviteRedeemAttempt
+  const [deviceId, attemptedRedeemId] = /** @type {[string, string]} */ (
+    /**@type unknown*/ (await onInviteRedeemAttempt)
+  )
 
   assert.equal(deviceId, invitee.deviceId)
 
@@ -126,7 +130,7 @@ test('invite over internet errors if inviter closes before accepting', async (t)
   const cancelledId = await onInviteCancelled
   assert.equal(cancelledId, attemptedRedeemId, 'redeemed invite got cancelled')
 
-  const pending = project.$member.pendingInternetInvites()
+  const pending = await project.$member.pendingInternetInvites()
 
   assert.equal(pending.length, 0, 'Invite got cancelled on fail')
 
@@ -170,9 +174,11 @@ test('invite over internet errors if invitee uses random invalid inviteId', asyn
   const joinPromise = invitee.joinProjectOverInternet(modifiedUrl)
 
   // The invitor should receive the redeem attempt with an error
-  const [error, peerId] = await onError
+  const [error, peerId] = /** @type {[Error, string]} */ (
+    /**@type unknown*/ (await onError)
+  )
   assert.equal(
-    error.code,
+    ensureKnownError(error).code,
     UnknownInviteIDRedeemAttemptError.code,
     'Expected UnknownInviteIDRedeemAttemptError'
   )
