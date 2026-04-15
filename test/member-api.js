@@ -2,9 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { KeyManager } from '@mapeo/crypto'
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
 import { makeInviteURL, MemberApi, parseInviteURL } from '../src/member-api.js'
 import { LocalPeers } from '../src/local-peers.js'
@@ -12,6 +9,8 @@ import { MEMBER_ROLE_ID } from '../src/roles.js'
 
 /** @import { ProjectJoinDetails } from '../src/generated/rpc.js' */
 /** @import WebSocket from 'ws' */
+/** @import { InviteOptions } from '../src/member-api.js' */
+/** @import {PendingInviteRecord, PendingInviteCreate,PendingInviteUpdate} from '../src/pending-invites-api.js' */
 
 test('serialize and parse invite URLs', () => {
   const testDeviceId = 'foo'
@@ -36,7 +35,7 @@ test('List pending invites over internet', async () => {
     roleId: MEMBER_ROLE_ID,
   })
 
-  const pending = member.pendingInternetInvites()
+  const pending = await member.pendingInternetInvites()
 
   assert.deepEqual(
     pending.toSorted(),
@@ -95,6 +94,43 @@ test('Cancel invite over internet requests', async () => {
   assert.deepEqual(await member.pendingInternetInvites(), [], 'No URLs left')
 })
 
+test('Pending invites are loaded from persistence on ready', async () => {
+  const pendingInvitesApi = new MockPendingInvitesApi()
+  const inviteId = randomBytes(32)
+  const inviteIdString = inviteId.toString('hex')
+  const deviceId = randomBytes(32).toString('hex')
+  const url = makeInviteURL(inviteIdString, deviceId)
+
+  // Pre-populate the mock with a pending invite
+  await pendingInvitesApi.create({
+    inviteId: inviteIdString,
+    inviteIdBuffer: inviteId,
+    url,
+    opts: {
+      roleId: MEMBER_ROLE_ID,
+      roleName: 'Member',
+    },
+  })
+
+  let didStartInternet = false
+
+  const { member } = setup({
+    pendingInvitesApi,
+    setShouldListenOverInternet: async (shouldStart) => {
+      didStartInternet = shouldStart
+    },
+  })
+
+  // Wait for member API to be ready (loads pending invites)
+  await member.ready()
+
+  assert.ok(didStartInternet, 'Did start listening on internet')
+
+  // Verify the pending invite was loaded
+  const pending = await member.pendingInternetInvites()
+  assert.deepEqual(pending, [url], 'Pending invite loaded from persistence')
+})
+
 class MockLocalPeers extends LocalPeers {
   /**
    * @param {string} deviceId
@@ -132,6 +168,82 @@ class MockRoles {
 }
 
 /**
+ * In-memory mock of PendingInvitesApi for testing
+ */
+class MockPendingInvitesApi {
+  /** @type {Map<string, PendingInviteRecord>} */
+  #invites = new Map()
+
+  /**
+   * Create a new pending invite record
+   * @param {PendingInviteCreate} data
+   * @returns {Promise<void>}
+   */
+  async create(data) {
+    this.#invites.set(data.inviteId, {
+      inviteId: data.inviteId,
+      inviteIdBuffer: data.inviteIdBuffer,
+      url: data.url,
+      roleId: data.opts.roleId,
+      roleName: data.opts.roleName,
+      roleDescription: data.opts.roleDescription,
+      createdAt: Date.now(),
+    })
+  }
+
+  /**
+   * Get a pending invite by invite ID
+   * @param {string} inviteId
+   * @returns {Promise<PendingInviteRecord | undefined>}
+   */
+  async getById(inviteId) {
+    const invite = this.#invites.get(inviteId)
+    return invite
+      ? { ...invite, inviteeDeviceId: invite.inviteeDeviceId ?? undefined }
+      : undefined
+  }
+
+  /**
+   * Get all pending invites
+   * @returns {Promise<PendingInviteRecord[]>}
+   */
+  async getAll() {
+    return Array.from(this.#invites.values()).map((invite) => ({
+      ...invite,
+      inviteeDeviceId: invite.inviteeDeviceId ?? undefined,
+    }))
+  }
+
+  /**
+   * Update a pending invite (e.g., set invitee device ID when redeemed)
+   * @param {string} inviteId
+   * @param {PendingInviteUpdate} updates
+   * @returns {Promise<void>}
+   */
+  async update(inviteId, updates) {
+    const invite = this.#invites.get(inviteId)
+    if (invite) {
+      Object.assign(invite, updates)
+    }
+  }
+
+  /**
+   * @param {string} inviteId
+   * @returns {Promise<void>}
+   */
+  async delete(inviteId) {
+    this.#invites.delete(inviteId)
+  }
+
+  /**
+   * @returns {Promise<void>}
+   */
+  async deleteAll() {
+    this.#invites.clear()
+  }
+}
+
+/**
  *
  * @param {Object} [opts]
  * @param {Buffer} [opts.rootKey]
@@ -140,9 +252,11 @@ class MockRoles {
  * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} [opts.waitForInitialSyncWithPeer]
  * @param {(shouldListen: boolean) => Promise<void>} [opts.setShouldListenOverInternet]
  * @param {(deviceId: string) => Promise<boolean>} [opts.markInternetPeerAsTrusted]
+ * @param {(deviceId: string) => Promise<void>} [opts.disconnectFromPeer]
  * @param {() => Promise<import('../src/mapeo-project.js').EditableProjectSettings>} [opts.getProjectSettings]
  * @param {(deviceId: string) => Promise<import('../src/schema.js').DeviceInfo>} [opts.getDeviceInfo]
  * @param {(deviceId: string, deviceInfo: import('../src/member-api.js').NewDeviceInfo) => Promise<void>} [opts.setDeviceInfo]
+ * @param {MockPendingInvitesApi} [opts.pendingInvitesApi]
  * @returns
  */
 function setup({
@@ -153,6 +267,7 @@ function setup({
   getDeviceInfo = () => Promise.reject(new Error('Not implemented')),
   setDeviceInfo = () => Promise.reject(new Error('Not implemented')),
   waitForInitialSyncWithPeer = () => Promise.resolve(),
+  disconnectFromPeer = () => Promise.resolve(),
   makeWebsocket = () => {
     throw new Error('Not implemented')
   },
@@ -160,6 +275,7 @@ function setup({
     throw new Error('Not implemented')
   },
   markInternetPeerAsTrusted = () => Promise.resolve(true),
+  pendingInvitesApi = new MockPendingInvitesApi(),
 } = {}) {
   const keyManager = new KeyManager(rootKey)
 
@@ -168,13 +284,6 @@ function setup({
   const projectKey = KeyManager.generateProjectKeypair().publicKey
 
   const deviceId = identityKeypair.publicKey.toString('hex')
-
-  const sqlite = new Database(':memory:')
-  const db = drizzle(sqlite)
-
-  migrate(db, {
-    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
-  })
 
   const rpc = new MockLocalPeers()
   const roles = new MockRoles()
@@ -186,9 +295,11 @@ function setup({
     roles,
     encryptionKeys,
     projectKey,
+    pendingInvitesApi,
     makeWebsocket,
     getReplicationStream,
     waitForInitialSyncWithPeer,
+    disconnectFromPeer,
     setShouldListenOverInternet,
     markInternetPeerAsTrusted,
     getProjectSettings,
@@ -201,5 +312,6 @@ function setup({
     roles,
     member,
     projectKey,
+    pendingInvitesApi,
   }
 }

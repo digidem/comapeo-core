@@ -1,7 +1,6 @@
 import * as b4a from 'b4a'
 import * as crypto from 'node:crypto'
 import WebSocket from 'ws'
-import { TypedEmitter } from 'tiny-typed-emitter'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from './generated/rpc.js'
 import {
@@ -13,6 +12,7 @@ import { Logger } from './logger.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
+import ReadyResource from 'ready-resource'
 import {
   AlreadyBlockedError,
   DeviceIdNotForServerError,
@@ -70,6 +70,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /** @import { projectSettingsTable } from './schema/client.js' */
 /** @import { ReplicationStream, MapeoValueMap } from './types.js' */
 /** @import { PeerInfoDisconnected } from './local-peers.js' */
+/** @import { PendingInvitesApi } from './pending-invites-api.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
@@ -122,9 +123,9 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 
 /**
- * @extends {TypedEmitter<MemberEvents>}
+ * @extends {ReadyResource<MemberEvents>}
  */
-export class MemberApi extends TypedEmitter {
+export class MemberApi extends ReadyResource {
   #ownDeviceId
   #swarmPublicKey
   #roles
@@ -140,6 +141,7 @@ export class MemberApi extends TypedEmitter {
   #getProjectSettings
   #getDeviceInfo
   #setDeviceInfo
+  #pendingInvitesApi
   #l
 
   /** @type {Map<string, { abortController: AbortController }>} */
@@ -156,6 +158,7 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
+   * @param {Pick<PendingInvitesApi,'create'|'delete'|'deleteAll'|'getAll'|'getById'|'update'>} opts.pendingInvitesApi
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
@@ -174,6 +177,7 @@ export class MemberApi extends TypedEmitter {
     encryptionKeys,
     projectKey,
     rpc,
+    pendingInvitesApi,
     makeWebsocket = (url) => new WebSocket(url),
     getReplicationStream,
     waitForInitialSyncWithPeer,
@@ -193,6 +197,7 @@ export class MemberApi extends TypedEmitter {
     this.#encryptionKeys = encryptionKeys
     this.#projectKey = projectKey
     this.#rpc = rpc
+    this.#pendingInvitesApi = pendingInvitesApi
     this.#makeWebsocket = makeWebsocket
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
@@ -203,10 +208,33 @@ export class MemberApi extends TypedEmitter {
     this.#getDeviceInfo = getDeviceInfo
     this.#setDeviceInfo = setDeviceInfo
 
-    rpc.on('invite-over-internet-redeemed', (peerId, redeem) =>
+    // Setup event listeners
+    this.#rpc.on('invite-over-internet-redeemed', (peerId, redeem) =>
       this.#handleRedeemInviteOverInternet(peerId, redeem)
     )
-    rpc.on('peer-remove', (peer) => this.#handlePeerRemove(peer))
+    this.#rpc.on('peer-remove', (peer) => this.#handlePeerRemove(peer))
+  }
+
+  async _open() {
+    // Load pending invites from database
+    const persistedInvites = await this.#pendingInvitesApi.getAll()
+    for (const row of persistedInvites) {
+      this.#pendingInvitesOverInternet.set(row.inviteId, {
+        inviteId: row.inviteIdBuffer,
+        url: row.url,
+        opts: {
+          roleId: row.roleId,
+          roleName: row.roleName,
+          roleDescription: row.roleDescription,
+        },
+        inviteeDeviceId: row.inviteeDeviceId ?? undefined,
+      })
+    }
+
+    // Enable listening if there are pending invites
+    if (this.#pendingInvitesOverInternet.size > 0) {
+      await this.#setShouldListenOverInternet(true)
+    }
   }
 
   /**
@@ -214,6 +242,7 @@ export class MemberApi extends TypedEmitter {
    * @param {InviteOptions} opts
    */
   async inviteOverInternet(opts) {
+    await this.ready()
     const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
     const inviteIdString = inviteId.toString('hex')
     const deviceId = this.#swarmPublicKey.toString('hex')
@@ -222,6 +251,13 @@ export class MemberApi extends TypedEmitter {
 
     this.#pendingInvitesOverInternet.set(inviteIdString, {
       inviteId,
+      url,
+      opts,
+    })
+
+    await this.#pendingInvitesApi.create({
+      inviteId: inviteIdString,
+      inviteIdBuffer: inviteId,
       url,
       opts,
     })
@@ -238,11 +274,13 @@ export class MemberApi extends TypedEmitter {
    * @param {string} [url]
    */
   async cancelInviteOverInternet(url) {
+    await this.ready()
     if (!url) {
-      for (const inviteId in this.#pendingInvitesOverInternet.keys()) {
+      for (const inviteId of this.#pendingInvitesOverInternet.keys()) {
         this.emit('internet-invite-cancelled', inviteId)
       }
       this.#pendingInvitesOverInternet.clear()
+      await this.#pendingInvitesApi.deleteAll()
       await this.#setShouldListenOverInternet(false)
       return
     }
@@ -260,6 +298,7 @@ export class MemberApi extends TypedEmitter {
     }
     this.#pendingInvitesOverInternet.delete(inviteIdString)
     this.emit('internet-invite-cancelled', inviteIdString)
+    await this.#pendingInvitesApi.delete(inviteIdString)
 
     if (this.#pendingInvitesOverInternet.size === 0) {
       await this.#setShouldListenOverInternet(false)
@@ -268,9 +307,10 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * Get the list of pending invites over the internet
-   * @returns {string[]}
+   * @returns {Promise<string[]>}
    */
-  pendingInternetInvites() {
+  async pendingInternetInvites() {
+    await this.ready()
     return [...this.#pendingInvitesOverInternet.values()].map(({ url }) => url)
   }
 
@@ -321,6 +361,9 @@ export class MemberApi extends TypedEmitter {
         }
 
         pendingInvite.inviteeDeviceId = peerId
+        await this.#pendingInvitesApi.update(inviteIdString, {
+          inviteeDeviceId: peerId,
+        })
 
         this.emit('internet-invite-redeemed', peerId, inviteIdString)
         return
@@ -352,6 +395,7 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<InviteDecision>}
    */
   async acceptRedeemedInvite(inviteId) {
+    await this.ready()
     for (const [
       pendingInviteId,
       { opts, inviteeDeviceId },

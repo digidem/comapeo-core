@@ -49,6 +49,7 @@ import {
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
+import { PendingInvitesApi } from './pending-invites-api.js'
 import { MemberApi } from './member-api.js'
 import {
   SyncApi,
@@ -249,6 +250,8 @@ export class MapeoProject extends ReadyResource {
       remoteDetectionAlertTable,
     ]
 
+    const pendingInvitesApi = new PendingInvitesApi(db)
+
     ///////// 2. Wipe data if we need to re-index
 
     if (reindex) {
@@ -427,6 +430,7 @@ export class MapeoProject extends ReadyResource {
       encryptionKeys,
       projectKey,
       rpc: localPeers,
+      pendingInvitesApi,
       makeWebsocket,
       getReplicationStream,
       waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
