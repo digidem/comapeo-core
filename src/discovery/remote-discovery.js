@@ -31,6 +31,9 @@ export const kTestOnlyHandleHyperswarmConnection = Symbol(
   'testOnlyHandleHyperswarmConnection'
 )
 
+// 4 bytes 32bit unsigned int
+export const LENGTH_BYTES_LENGTH = 4
+
 /**
  * @extends {TypedEmitter<DiscoveryEvents>}
  */
@@ -193,7 +196,7 @@ export class RemoteDiscovery extends TypedEmitter {
       // @ts-ignore
       socket.isTrusted = this.#shouldTrustKeys.has(remotePublicKeyString)
 
-      const firstData = readChunk(socket)
+      const firstData = readHandshakeBuffer(socket)
       const keyPair = this.#identityKeypair
       // Sign the Noise handshake hash with our stable key
       const handshakeBuffer = makeSwarmHandshake(socket.handshakeHash, keyPair)
@@ -234,29 +237,58 @@ export class RemoteDiscovery extends TypedEmitter {
 /**
  *
  * @param {Readable|Duplex} stream
- * @returns {Promise<Buffer>}
+ * @param {number} length
+ * @returns {Promise<Uint8Array>}
  */
-export async function readChunk(stream) {
+async function readChunk(stream, length) {
   let data = stream.read()
 
-  if (data) return data
-
-  try {
-    await pEvent(stream, 'readable', {
-      timeout: 10_00,
-      rejectionEvents: ['error', 'close'],
-    })
-  } catch {
-    throw new UnableToReadHandshakeError()
+  if (!data) {
+    try {
+      await pEvent(stream, 'readable', {
+        timeout: 10_00,
+        rejectionEvents: ['error', 'close'],
+      })
+      data = stream.read()
+    } catch {
+      throw new UnableToReadHandshakeError()
+    }
   }
 
   stream.pause()
 
-  data = stream.read()
+  if (!data) {
+    // This should never happen
+    throw new UnableToReadHandshakeError()
+  }
 
-  if (data) return data
+  if (data.length === length) return data
 
-  throw new UnableToReadHandshakeError()
+  if (data.length > length) {
+    const slice = data.subarray(0, length)
+    const remainder = data.subarray(length)
+    stream.unshift(remainder)
+    return slice
+  }
+
+  const remainingBytes = length - data.length
+  const remainingData = await readChunk(stream, remainingBytes)
+  return b4a.concat([data, remainingData])
+}
+
+/**
+ *
+ * @param {Readable|Duplex} stream
+ * @returns {Promise<Buffer>}
+ */
+export async function readHandshakeBuffer(stream) {
+  const handshakeLengthBytes = await readChunk(stream, LENGTH_BYTES_LENGTH)
+
+  const handshakeLength = await b4a.readUInt32LE(handshakeLengthBytes)
+
+  const data = await readChunk(stream, handshakeLength)
+
+  return Buffer.from(data)
 }
 
 /**
@@ -274,5 +306,21 @@ export function makeSwarmHandshake(handshakeHash, keyPair) {
     publicKey: keyPair.publicKey,
     signature: Buffer.from(sig),
   }).finish()
-  return handshakeBuffer
+
+  return lengthPrefix(handshakeBuffer)
+}
+
+/**
+ * Convert a buffer to its length prefixed version using Uin32LE
+ * @param {Uint8Array} buffer
+ * @return
+ */
+export function lengthPrefix(buffer) {
+  const fullBuffer = b4a.allocUnsafe(buffer.length + LENGTH_BYTES_LENGTH)
+
+  b4a.writeUInt32LE(fullBuffer, buffer.length)
+
+  b4a.copy(buffer, fullBuffer, LENGTH_BYTES_LENGTH)
+
+  return fullBuffer
 }

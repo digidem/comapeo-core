@@ -4,9 +4,10 @@ import { KeyManager, keyToPublicId } from '@mapeo/crypto'
 import { pEvent } from 'p-event'
 import {
   RemoteDiscovery,
-  readChunk,
+  readHandshakeBuffer,
   kTestOnlyHandleHyperswarmConnection,
   makeSwarmHandshake,
+  lengthPrefix,
 } from '../../src/discovery/remote-discovery.js'
 import { SwarmHandshake } from '../../src/generated/handshake.js'
 import {
@@ -148,7 +149,7 @@ test('RemoteDiscovery - readChunk throws UnableToReadHandshakeError on empty str
 
   // readChunk should throw UnableToReadHandshakeError when it can't read data
   await assert.rejects(
-    readChunk(emptyStream),
+    readHandshakeBuffer(emptyStream),
     (err) => ensureKnownError(err).code === UnableToReadHandshakeError.code,
     'readChunk should throw UnableToReadHandshakeError'
   )
@@ -177,10 +178,12 @@ test('RemoteDiscovery - emits InvalidIdentityProofError on invalid signature', a
   const connection = mockConnection(
     swarmKeypair2,
     // Push the handshake data inside the read handler
-    SwarmHandshake.encode({
-      publicKey: identityKeypair1.publicKey,
-      signature: Buffer.alloc(64),
-    }).finish()
+    lengthPrefix(
+      SwarmHandshake.encode({
+        publicKey: identityKeypair1.publicKey,
+        signature: Buffer.alloc(64),
+      }).finish()
+    )
   )
 
   await remoteDiscovery1[kTestOnlyHandleHyperswarmConnection](connection)
@@ -215,7 +218,10 @@ test('RemoteDiscovery - emits InvalidIdentityProofError on invalid handshake', a
   })
 
   // Create a mock stream with the required properties
-  const connection = mockConnection(swarmKeypair2, Buffer.from('Hello World!'))
+  const connection = mockConnection(
+    swarmKeypair2,
+    lengthPrefix(Buffer.from('Hello World!'))
+  )
 
   await remoteDiscovery1[kTestOnlyHandleHyperswarmConnection](connection)
 
@@ -229,7 +235,7 @@ test('RemoteDiscovery - emits InvalidIdentityProofError on invalid handshake', a
   )
 })
 
-test.only('RemoteDiscovery - connectPeer returns same socket for duplicate connection', async (t) => {
+test('RemoteDiscovery - connectPeer returns same socket for duplicate connection', async (t) => {
   const identityKeypair1 = new KeyManager(
     Buffer.alloc(16, 1)
   ).getIdentityKeypair()
