@@ -28,6 +28,7 @@ import {
   ExhaustivenessError,
   InvalidInviteError,
   InvalidProjectJoinDetailsError,
+  MapShareNotSupportedByPeerError,
 } from './errors.js'
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
@@ -76,11 +77,16 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
 export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
 
+export const PEER_FEATURE_MAP_SHARE = 'map_share'
+
+/** @typedef {typeof PEER_FEATURE_MAP_SHARE} PeerFeature*/
+
 /**
  * @typedef {object} PeerInfoBase
  * @property {string} deviceId
  * @property {string | undefined} name
  * @property {import('./generated/rpc.js').DeviceInfo['deviceType']} deviceType
+ * @property {PeerFeature[]} supportedFeatures
  */
 /** @typedef {PeerInfoBase & { status: 'connecting' }} PeerInfoConnecting */
 /** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: Protomux<import('@hyperswarm/secret-stream')> }} PeerInfoConnected */
@@ -135,8 +141,14 @@ class Peer {
       return log.apply(null, [`[%S] ${formatter}`, peerId, ...args])
     }
   }
+
   /** @returns {PeerInfoInternal} */
   get info() {
+    /** @type {PeerFeature[]} */
+    const supportedFeatures = []
+    if (this.supportsMapShare()) {
+      supportedFeatures.push(PEER_FEATURE_MAP_SHARE)
+    }
     switch (this.#state) {
       case 'connecting':
         return {
@@ -144,6 +156,7 @@ class Peer {
           deviceId: this.#deviceId,
           name: this.#name,
           deviceType: this.#deviceType,
+          supportedFeatures,
         }
       case 'connected':
         return {
@@ -153,6 +166,7 @@ class Peer {
           deviceType: this.#deviceType,
           connectedAt: this.#connectedAt,
           protomux: this.#protomux,
+          supportedFeatures,
         }
       case 'disconnected':
         return {
@@ -161,6 +175,7 @@ class Peer {
           name: this.#name,
           deviceType: this.#deviceType,
           disconnectedAt: this.#disconnectedAt,
+          supportedFeatures,
         }
       /* c8 ignore next 2 */
       default:
@@ -241,6 +256,14 @@ class Peer {
    */
   supportsAck() {
     return this.#features.includes(DeviceInfo_RPCFeatures.ack) ?? false
+  }
+
+  /**
+   * Check if Map Share messages are supported by this peer
+   * @returns {boolean}
+   */
+  supportsMapShare() {
+    return this.#features.includes(DeviceInfo_RPCFeatures.map_share) ?? false
   }
 
   /**
@@ -492,6 +515,9 @@ export class LocalPeers extends TypedEmitter {
   async sendMapShare(deviceId, mapShare) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    if (!peer.supportsMapShare()) {
+      throw new MapShareNotSupportedByPeerError()
+    }
     await peer.sendMapShare(mapShare)
   }
 
