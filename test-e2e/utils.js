@@ -31,6 +31,7 @@ import { execa } from 'execa'
 import { ExhaustivenessError } from '../src/errors.js'
 
 /** @import { InvitePeerInfo, MemberApi } from '../src/member-api.js' */
+/** @import { PublicPeerInfo } from '../src/mapeo-manager.js' */
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -167,9 +168,10 @@ async function pEvery(iterable, predicate) {
 
 /**
  * @internal
- * @typedef {Pick<MapeoManager, 'deviceId' | 'listLocalPeers'> & {
+ * @typedef {Pick<MapeoManager, 'deviceId'> & {
  *    on(event: 'local-peers', listener: () => unknown): void;
  *    off(event: 'local-peers', listener: () => unknown): void;
+ *    listLocalPeers(): Promise<Pick<PublicPeerInfo, 'deviceId' | 'deviceType' | 'name' | 'status'>[]>
  * }} WaitForPeersManager
  */
 

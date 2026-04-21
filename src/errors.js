@@ -42,6 +42,12 @@ export const RPCDisconnectBeforeAckError = createErrorClass({
   status: 499,
 })
 
+export const MapShareNotSupportedByPeerError = createErrorClass({
+  code: 'MAP_SHARE_NOT_SUPPORTED_BY_PEER',
+  message: 'This peer does not support map share requests',
+  status: 405,
+})
+
 export const TimeoutError = createErrorClass({
   code: 'TIMEOUT_ERROR',
   message: 'Operation timed out',
