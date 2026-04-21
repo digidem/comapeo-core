@@ -286,3 +286,15 @@ Check if RPC Acknowledgement messages are supported by this peer
 #### Returns
 
 `boolean`
+
+***
+
+### supportsMapShare()
+
+> **supportsMapShare**(): `boolean`
+
+Check if Map Share messages are supported by this peer
+
+#### Returns
+
+`boolean`
