@@ -77,16 +77,17 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
 export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
 
-export const PEER_FEATURE_MAP_SHARE = 'map_share'
-
-/** @typedef {typeof PEER_FEATURE_MAP_SHARE} PeerFeature*/
+/**
+ * @typedef {object} PeerSupportedFeatures
+ * @property {boolean} mapShare True when this peer supports receiving Map Share requests
+ */
 
 /**
  * @typedef {object} PeerInfoBase
  * @property {string} deviceId
  * @property {string | undefined} name
  * @property {import('./generated/rpc.js').DeviceInfo['deviceType']} deviceType
- * @property {PeerFeature[]} supportedFeatures
+ * @property {PeerSupportedFeatures} supportedFeatures
  */
 /** @typedef {PeerInfoBase & { status: 'connecting' }} PeerInfoConnecting */
 /** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: Protomux<import('@hyperswarm/secret-stream')> }} PeerInfoConnected */
@@ -144,10 +145,9 @@ class Peer {
 
   /** @returns {PeerInfoInternal} */
   get info() {
-    /** @type {PeerFeature[]} */
-    const supportedFeatures = []
-    if (this.supportsMapShare()) {
-      supportedFeatures.push(PEER_FEATURE_MAP_SHARE)
+    /** @type {PeerSupportedFeatures} */
+    const supportedFeatures = {
+      mapShare: this.supportsMapShare(),
     }
     switch (this.#state) {
       case 'connecting':
