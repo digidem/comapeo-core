@@ -38,8 +38,8 @@ test('List pending invites over internet', async () => {
   const pending = await member.pendingInternetInvites()
 
   assert.deepEqual(
-    pending.toSorted(),
-    [url1, url2].toSorted(),
+    pending.sort(),
+    [url1, url2].sort(),
     'Both pending URLs returned'
   )
 
