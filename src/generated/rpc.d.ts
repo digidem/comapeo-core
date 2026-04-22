@@ -55,6 +55,7 @@ export declare function deviceInfo_DeviceTypeToNumber(object: DeviceInfo_DeviceT
 export declare const DeviceInfo_RPCFeatures: {
     readonly features_unspecified: "features_unspecified";
     readonly ack: "ack";
+    readonly map_share: "map_share";
     readonly UNRECOGNIZED: "UNRECOGNIZED";
 };
 export type DeviceInfo_RPCFeatures = typeof DeviceInfo_RPCFeatures[keyof typeof DeviceInfo_RPCFeatures];

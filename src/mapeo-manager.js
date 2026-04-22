@@ -126,6 +126,10 @@ export const DEFAULT_ONLINE_STYLE_URL =
   'https://demotiles.maplibre.org/style.json'
 
 export const DEFAULT_IS_ARCHIVE_DEVICE = true
+const RPC_FEATURES = [
+  DeviceInfo_RPCFeatures.ack,
+  DeviceInfo_RPCFeatures.map_share,
+]
 
 /**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
@@ -359,7 +363,7 @@ export class MapeoManager extends TypedEmitter {
 
         const deviceInfoToSend = {
           ...deviceInfo,
-          features: [DeviceInfo_RPCFeatures.ack],
+          features: RPC_FEATURES,
         }
 
         const peerId = peerIdFromNoise(openedNoiseStream)
@@ -948,7 +952,7 @@ export class MapeoManager extends TypedEmitter {
       const deviceInfoToSend = {
         ...deviceInfo,
         deviceType,
-        features: [DeviceInfo_RPCFeatures.ack],
+        features: RPC_FEATURES,
       }
       await Promise.all(
         this.#localPeers.peers

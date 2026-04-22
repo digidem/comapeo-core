@@ -8,7 +8,7 @@
 
 ## Extends
 
-- [`default`](default.md)
+- `ReadyResource`
 
 ## Constructors
 
@@ -34,7 +34,7 @@ Set to `true` if this is an archive device which should download all blobs, or j
 
 #### Overrides
 
-[`default`](default.md).[`constructor`](default.md#constructors)
+`ReadyResource.constructor`
 
 ## Accessors
 
@@ -62,15 +62,13 @@ Set to `true` if this is an archive device which should download all blobs, or j
 
 > **\_close**(): `Promise`\<`void`\>
 
-Unload any async resources here
-
 #### Returns
 
 `Promise`\<`void`\>
 
 #### Overrides
 
-[`default`](default.md).[`_close`](default.md#_close)
+`ReadyResource._close`
 
 ***
 
@@ -78,7 +76,7 @@ Unload any async resources here
 
 > **\_open**(): `Promise`\<`void`\>
 
-Load any async resources here
+Override these in subclasses
 
 #### Returns
 
@@ -86,7 +84,7 @@ Load any async resources here
 
 #### Overrides
 
-[`default`](default.md).[`_open`](default.md#_open)
+`ReadyResource._open`
 
 ***
 
@@ -107,22 +105,6 @@ Enable to return an object with a `block` property with number of bytes removed
 #### Returns
 
 `Promise`\<`null` \| `object`\>
-
-***
-
-### close()
-
-> **close**(): `Promise`\<`void`\>
-
-Resolves when this resource has closed any dependencies.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-[`default`](default.md).[`close`](default.md#close)
 
 ***
 
@@ -357,22 +339,6 @@ Metadata to store with the blob
 `Promise`\<`string`\>
 
 discovery key as hex string of hyperdrive where blob is stored
-
-***
-
-### ready()
-
-> **ready**(): `Promise`\<`void`\>
-
-Resolves when this resource is initialized.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-[`default`](default.md).[`ready`](default.md#ready)
 
 ***
 

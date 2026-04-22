@@ -1,6 +1,6 @@
 {
   "name": "@comapeo/core",
-  "version": "7.0.0",
+  "version": "7.1.0",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
@@ -223,7 +223,7 @@
     "protobufjs": "^7.2.3",
     "protomux": "^3.4.1",
     "quickbit-universal": "^2.2.0",
-    "ready-resource": "^1.0.0",
+    "ready-resource": "^1.2.0",
     "sodium-universal": "^4.0.0",
     "start-stop-state-machine": "^1.2.0",
     "streamx": "^2.19.0",

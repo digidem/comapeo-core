@@ -8,7 +8,7 @@
 
 ## Extends
 
-- [`default`](default.md)
+- `ReadyResource`
 
 ## Constructors
 
@@ -72,7 +72,7 @@ path for drizzle migration folder for project
 
 #### Overrides
 
-[`default`](default.md).[`constructor`](default.md#constructors)
+`ReadyResource.constructor`
 
 ## Properties
 
@@ -304,7 +304,7 @@ DataTypes object mappings, used for tests
 
 #### Overrides
 
-[`default`](default.md).[`_close`](default.md#_close)
+`ReadyResource._close`
 
 ***
 
@@ -320,7 +320,7 @@ Resolves when hypercores have all loaded
 
 #### Overrides
 
-[`default`](default.md).[`_open`](default.md#_open)
+`ReadyResource._open`
 
 ***
 
@@ -502,22 +502,6 @@ When device ID cannot be found.
 
 ***
 
-### close()
-
-> **close**(): `Promise`\<`void`\>
-
-Resolves when this resource has closed any dependencies.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-[`default`](default.md).[`close`](default.md#close)
-
-***
-
 ### exportGeoJSONFile()
 
 > **exportGeoJSONFile**(`exportFolder`, `options`?): `Promise`\<`string`\>
@@ -601,19 +585,3 @@ The full path that the file was exported at
 `Promise`\<`Error`[]\>
 
 #### Deprecated
-
-***
-
-### ready()
-
-> **ready**(): `Promise`\<`void`\>
-
-Resolves when this resource is initialized.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-[`default`](default.md).[`ready`](default.md#ready)

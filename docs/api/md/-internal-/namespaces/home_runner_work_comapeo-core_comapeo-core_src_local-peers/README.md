@@ -17,6 +17,7 @@
 - [AckWaiter](interfaces/AckWaiter.md)
 - [LocalPeersEvents](interfaces/LocalPeersEvents.md)
 - [PeerInfoBase](interfaces/PeerInfoBase.md)
+- [PeerSupportedFeatures](interfaces/PeerSupportedFeatures.md)
 
 ### Type Aliases
 

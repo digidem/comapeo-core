@@ -8,7 +8,7 @@
 
 ## Extends
 
-- [`default`](default.md)
+- `ReadyResource`
 
 ## Constructors
 
@@ -56,7 +56,7 @@ Folder to store all hypercore data
 
 #### Overrides
 
-[`default`](default.md).[`constructor`](default.md#constructors)
+`ReadyResource.constructor`
 
 ## Accessors
 
@@ -113,7 +113,7 @@ TODO: gracefully close replication streams
 
 #### Overrides
 
-[`default`](default.md).[`_close`](default.md#_close)
+`ReadyResource._close`
 
 ***
 
@@ -121,7 +121,7 @@ TODO: gracefully close replication streams
 
 > **\_open**(): `Promise`\<`void`\>
 
-Load any async resources here
+Override these in subclasses
 
 #### Returns
 
@@ -129,7 +129,7 @@ Load any async resources here
 
 #### Overrides
 
-[`default`](default.md).[`_open`](default.md#_open)
+`ReadyResource._open`
 
 ***
 
@@ -170,22 +170,6 @@ Add a core to the manager (will be persisted across restarts)
 #### Returns
 
 [`CoreRecord`](../type-aliases/CoreRecord.md)
-
-***
-
-### close()
-
-> **close**(): `Promise`\<`void`\>
-
-Resolves when this resource has closed any dependencies.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-[`default`](default.md).[`close`](default.md#close)
 
 ***
 
@@ -264,22 +248,6 @@ Get the writer core for the given namespace
 #### Returns
 
 [`CoreRecord`](../type-aliases/CoreRecord.md)
-
-***
-
-### ready()
-
-> **ready**(): `Promise`\<`void`\>
-
-Resolves when this resource is initialized.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-[`default`](default.md).[`ready`](default.md#ready)
 
 ***
 

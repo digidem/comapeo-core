@@ -89,6 +89,7 @@ export function deviceInfo_DeviceTypeToNumber(object) {
 export var DeviceInfo_RPCFeatures = {
     features_unspecified: "features_unspecified",
     ack: "ack",
+    map_share: "map_share",
     UNRECOGNIZED: "UNRECOGNIZED",
 };
 export function deviceInfo_RPCFeaturesFromJSON(object) {
@@ -99,6 +100,9 @@ export function deviceInfo_RPCFeaturesFromJSON(object) {
         case 1:
         case "ack":
             return DeviceInfo_RPCFeatures.ack;
+        case 2:
+        case "map_share":
+            return DeviceInfo_RPCFeatures.map_share;
         case -1:
         case "UNRECOGNIZED":
         default:
@@ -111,6 +115,8 @@ export function deviceInfo_RPCFeaturesToNumber(object) {
             return 0;
         case DeviceInfo_RPCFeatures.ack:
             return 1;
+        case DeviceInfo_RPCFeatures.map_share:
+            return 2;
         case DeviceInfo_RPCFeatures.UNRECOGNIZED:
         default:
             return -1;

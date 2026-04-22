@@ -50,6 +50,7 @@ message DeviceInfo {
   enum RPCFeatures {
     features_unspecified = 0;
     ack = 1;
+    map_share = 2;
   }
   string name = 1;
   optional DeviceType deviceType = 2;
