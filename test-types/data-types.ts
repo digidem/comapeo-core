@@ -34,7 +34,7 @@ const mapeoProject = new MapeoProject({
   coreStorage: () => new RAM(),
   keyManager: new KeyManager(randomBytes(32)),
   projectKey: randomBytes(32),
-  swarmPublicKey: randomBytes(32),
+  getSwarmPublicKey: () => randomBytes(32),
   encryptionKeys: { auth: randomBytes(32) },
   sharedDb: drizzle(sqlite),
   sharedIndexWriter: new IndexWriter({

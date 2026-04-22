@@ -44,7 +44,7 @@ export class RemoteDiscovery extends TypedEmitter {
   /** @type {Promise<Hyperswarm>?} */
   #loading = null
   #identityKeypair
-  #swarmIdentityKeypair
+  #deriveSwarmIdentityKeypair
   /** @type {Set<string>} */
   #shouldTrustKeys = new Set()
   /** @type {Set<OpenedNoiseStream|RemoteAuthedNoiseStream>} */
@@ -53,21 +53,21 @@ export class RemoteDiscovery extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {Keypair} opts.identityKeypair
-   * @param {import('./local-discovery.js').Keypair} opts.swarmIdentityKeypair
+   * @param {() => Keypair} opts.deriveSwarmIdentityKeypair
    * @param {Logger} [opts.logger]
    */
-  constructor({ identityKeypair, swarmIdentityKeypair, logger }) {
+  constructor({ identityKeypair, deriveSwarmIdentityKeypair, logger }) {
     super()
     this.#l = Logger.create('RemoteDiscovery', logger)
     this.#identityKeypair = identityKeypair
-    this.#swarmIdentityKeypair = swarmIdentityKeypair
+    this.#deriveSwarmIdentityKeypair = deriveSwarmIdentityKeypair
   }
 
   async #initSwarm() {
     this.#l.log('Initializing swarm')
 
     const swarm = new Hyperswarm({
-      keyPair: this.#swarmIdentityKeypair,
+      keyPair: this.#deriveSwarmIdentityKeypair(),
       maxPeers: 4,
     })
     // @ts-expect-error Hyperswarm lacks the expected utility class to mark the stream as opened

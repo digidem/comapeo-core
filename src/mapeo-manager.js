@@ -159,7 +159,6 @@ export class MapeoManager extends TypedEmitter {
   /** @type {string} */
   #projectMigrationsFolder
   #deviceId
-  #swarmIdentityKeypair
   #localPeers
   #invite
   #fastify
@@ -203,7 +202,6 @@ export class MapeoManager extends TypedEmitter {
     super()
     this.#keyManager = new KeyManager(rootKey)
     this.#deviceId = getDeviceId(this.#keyManager)
-    this.#swarmIdentityKeypair = KeyManager.generateProjectKeypair()
     this.#defaultConfigPath = defaultConfigPath
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
     this.#makeWebsocket = makeWebsocket
@@ -302,7 +300,7 @@ export class MapeoManager extends TypedEmitter {
     this.#remoteDiscovery = new RemoteDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
       // ephemeral swarm identity each run
-      swarmIdentityKeypair: this.#swarmIdentityKeypair,
+      deriveSwarmIdentityKeypair: () => this.#keyManager.deriveSwarmIdentity(),
       logger,
     })
     this.#remoteDiscovery.on('connection', this.#replicate.bind(this))
@@ -630,7 +628,7 @@ export class MapeoManager extends TypedEmitter {
       ...projectKeys,
       projectMigrationsFolder: this.#projectMigrationsFolder,
       keyManager: this.#keyManager,
-      swarmPublicKey: this.#swarmIdentityKeypair.publicKey,
+      getSwarmPublicKey: () => this.#keyManager.deriveSwarmIdentity().publicKey,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,

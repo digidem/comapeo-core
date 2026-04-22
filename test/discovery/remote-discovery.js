@@ -31,11 +31,11 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
-    swarmIdentityKeypair: swarmKeypair1,
+    deriveSwarmIdentityKeypair: () => swarmKeypair1,
   })
   const remoteDiscovery2 = new RemoteDiscovery({
     identityKeypair: identityKeypair2,
-    swarmIdentityKeypair: swarmKeypair2,
+    deriveSwarmIdentityKeypair: () => swarmKeypair2,
   })
 
   t.after(() =>
@@ -164,7 +164,7 @@ test('RemoteDiscovery - emits InvalidIdentityProofError on invalid signature', a
 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
-    swarmIdentityKeypair: swarmKeypair1,
+    deriveSwarmIdentityKeypair: () => swarmKeypair1,
   })
 
   t.after(() => Promise.all([remoteDiscovery1.close()]))
@@ -207,7 +207,7 @@ test('RemoteDiscovery - emits InvalidIdentityProofError on invalid handshake', a
 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
-    swarmIdentityKeypair: swarmKeypair1,
+    deriveSwarmIdentityKeypair: () => swarmKeypair1,
   })
 
   t.after(() => Promise.all([remoteDiscovery1.close()]))
@@ -247,7 +247,7 @@ test('RemoteDiscovery - connectPeer returns same socket for duplicate connection
 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
-    swarmIdentityKeypair: swarmKeypair1,
+    deriveSwarmIdentityKeypair: () => swarmKeypair1,
   })
 
   t.after(() => Promise.all([remoteDiscovery1.close()]))

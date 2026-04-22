@@ -129,7 +129,6 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 export class MemberApi extends ReadyResource {
   #ownDeviceId
-  #swarmPublicKey
   #roles
   #encryptionKeys
   #projectKey
@@ -143,6 +142,7 @@ export class MemberApi extends ReadyResource {
   #getProjectSettings
   #getDeviceInfo
   #setDeviceInfo
+  #getSwarmPublicKey
   #pendingInvitesApi
   #l
 
@@ -155,7 +155,7 @@ export class MemberApi extends ReadyResource {
   /**
    * @param {Object} opts
    * @param {string} opts.deviceId public key of this device as hex string
-   * @param {Buffer} opts.swarmPublicKey public key of this device on the hyperswarm network
+   * @param {() => Buffer} opts.getSwarmPublicKey
    * @param {Pick<import('./roles.js').Roles, 'getAll' | 'assignRole' | 'getRole'>} opts.roles
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
@@ -174,7 +174,6 @@ export class MemberApi extends ReadyResource {
    */
   constructor({
     deviceId,
-    swarmPublicKey,
     roles,
     encryptionKeys,
     projectKey,
@@ -189,12 +188,12 @@ export class MemberApi extends ReadyResource {
     getProjectSettings,
     getDeviceInfo,
     setDeviceInfo,
+    getSwarmPublicKey,
     logger,
   }) {
     super()
     this.#l = Logger.create('member-api', logger)
     this.#ownDeviceId = deviceId
-    this.#swarmPublicKey = swarmPublicKey
     this.#roles = roles
     this.#encryptionKeys = encryptionKeys
     this.#projectKey = projectKey
@@ -209,6 +208,7 @@ export class MemberApi extends ReadyResource {
     this.#getProjectSettings = getProjectSettings
     this.#getDeviceInfo = getDeviceInfo
     this.#setDeviceInfo = setDeviceInfo
+    this.#getSwarmPublicKey = getSwarmPublicKey
 
     // Setup event listeners
     this.#rpc.on('invite-over-internet-redeemed', (peerId, redeem) =>
@@ -247,7 +247,7 @@ export class MemberApi extends ReadyResource {
     await this.ready()
     const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
     const inviteIdString = inviteId.toString('hex')
-    const deviceId = this.#swarmPublicKey.toString('hex')
+    const deviceId = this.#getSwarmPublicKey().toString('hex')
 
     const url = makeInviteURL(inviteIdString, deviceId)
 
