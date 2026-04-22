@@ -55,6 +55,8 @@ import {
 export const INTERNET_INVITE_PAGE = 'https://i.comapeo.app/invite/'
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
+/** @import { TypedEmitter } from 'tiny-typed-emitter' */
+
 /**
  * @import {
  *   DeviceInfo,
@@ -123,7 +125,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 
 /**
- * @extends {ReadyResource<MemberEvents>}
+ * @type {ReadyResource & TypedEmitter<MemberEvents>}
  */
 export class MemberApi extends ReadyResource {
   #ownDeviceId
