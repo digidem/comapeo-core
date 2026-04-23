@@ -5,10 +5,12 @@ import ReadyResource from 'ready-resource'
 import { MissingWriterError, UnsupportedCorestoreOptsError } from '../errors.js'
 import { noop } from '../utils.js'
 
+/** @import { TypedEmitter } from 'tiny-typed-emitter' */
+
 /** @typedef {HyperdriveIndexImpl} THyperdriveIndex */
 
 /**
- * @extends {ReadyResource<{ 'add-drive': (drive: Hyperdrive) => void }>}
+ * @type {ReadyResource & TypedEmitter<{ 'add-drive': (drive: Hyperdrive) => void }>}
  */
 export class HyperdriveIndexImpl extends ReadyResource {
   /** @type {Map<string, Hyperdrive>} */

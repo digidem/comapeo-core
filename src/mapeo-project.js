@@ -80,6 +80,8 @@ import ReadyResource from 'ready-resource'
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
 /** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
 /** @import {Role} from './roles.js' */
+/** @import { TypedEmitter } from 'tiny-typed-emitter' */
+
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
 /** @typedef {Map<string,Attachment>} SeenAttachments*/
@@ -131,7 +133,7 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
  */
 
 /**
- * @extends {ReadyResource<ProjectEvents>}
+ * @type {ReadyResource & TypedEmitter<ProjectEvents>}
  */
 export class MapeoProject extends ReadyResource {
   #projectKey

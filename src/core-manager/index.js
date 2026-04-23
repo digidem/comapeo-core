@@ -23,6 +23,7 @@ import {
 
 /** @import Hypercore from 'hypercore' */
 /** @import { BlobFilter, GenericBlobFilter, HypercorePeer, Namespace } from '../types.js' */
+/** @import { TypedEmitter } from 'tiny-typed-emitter' */
 
 const WRITER_CORE_PREHAVES_DEBOUNCE_DELAY = 1000
 
@@ -38,7 +39,7 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
  */
 
 /**
- * @extends {ReadyResource<Events>}
+ * @type {ReadyResource & TypedEmitter<Events>}
  */
 export class CoreManager extends ReadyResource {
   #corestore

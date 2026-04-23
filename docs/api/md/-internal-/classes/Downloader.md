@@ -25,7 +25,7 @@ downloading deleted and previous versions may be desirable behavior anyway
 
 ## Extends
 
-- [`default`](default.md)
+- `ReadyResource`
 
 ## Constructors
 
@@ -49,7 +49,7 @@ Filter blobs of specific types and/or sizes to download
 
 #### Overrides
 
-[`default`](default.md).[`constructor`](default.md#constructors)
+`ReadyResource.constructor`
 
 ## Methods
 
@@ -65,52 +65,4 @@ Cancel the downloads and clean up resources.
 
 #### Overrides
 
-[`default`](default.md).[`_close`](default.md#_close)
-
-***
-
-### \_open()
-
-> **\_open**(): `void` \| `Promise`\<`void`\>
-
-Load any async resources here
-
-#### Returns
-
-`void` \| `Promise`\<`void`\>
-
-#### Inherited from
-
-[`default`](default.md).[`_open`](default.md#_open)
-
-***
-
-### close()
-
-> **close**(): `Promise`\<`void`\>
-
-Resolves when this resource has closed any dependencies.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-[`default`](default.md).[`close`](default.md#close)
-
-***
-
-### ready()
-
-> **ready**(): `Promise`\<`void`\>
-
-Resolves when this resource is initialized.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-[`default`](default.md).[`ready`](default.md#ready)
+`ReadyResource._close`

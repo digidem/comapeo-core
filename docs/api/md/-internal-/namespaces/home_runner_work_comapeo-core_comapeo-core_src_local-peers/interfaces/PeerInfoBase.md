@@ -23,3 +23,9 @@
 ### name
 
 > **name**: `undefined` \| `string`
+
+***
+
+### supportedFeatures
+
+> **supportedFeatures**: [`PeerSupportedFeatures`](PeerSupportedFeatures.md)

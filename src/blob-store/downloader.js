@@ -6,6 +6,7 @@ import { noop } from '../utils.js'
 
 /** @import { BlobFilter } from '../types.js' */
 /** @import { THyperdriveIndex } from './hyperdrive-index.js' */
+/** @import { TypedEmitter } from 'tiny-typed-emitter' */
 
 /**
  * Like hyperdrive.download() but 'live', and for multiple drives.
@@ -25,7 +26,7 @@ import { noop } from '../utils.js'
  * of blobs, so this should not be an issue, and if we do in the future,
  * downloading deleted and previous versions may be desirable behavior anyway
  *
- * @extends {ReadyResource<{ error: (error: Error) => void }>}
+ * @type {ReadyResource & TypedEmitter<{ error: (error: Error) => void }>}
  */
 export class Downloader extends ReadyResource {
   /** @type {THyperdriveIndex} */
