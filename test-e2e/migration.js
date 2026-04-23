@@ -6,7 +6,6 @@ import test from 'node:test'
 import { temporaryDirectory } from 'tempy'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
-import { MapeoManager } from '../src/mapeo-manager.js'
 import {
   connectPeers,
   createManager,
@@ -14,8 +13,12 @@ import {
   invite,
 } from './utils.js'
 import {
-  calculateStoragePerProject,
+  checkShouldMigrate,
   listProjectsFromStorage,
+  migrateStorage,
+  MIGRATION_REASON_ALREADY_UPGRADED,
+  MIGRATION_REASON_NEEDS_UPGRADE,
+  MIGRATION_REASON_NO_SPACE,
 } from '../src/migration.js'
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
@@ -160,19 +163,16 @@ test.only('calculate storage breakdown per project', async (t) => {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
 
-  const fastify = Fastify()
-  const manager = new MapeoManager({
-    rootKey: KeyManager.generateRootKey(),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
+  const rootKey = KeyManager.generateRootKey()
+
+  const manager = await createOldManagerOnVersion2_0_1('seed', t, {
+    rootKey,
     dbFolder,
     coreStorage,
-    fastify,
+    fastify: Fastify(),
   })
 
   t.after(async () => {
-    await manager.close()
-    await fastify.close()
     await fsPromises.rm(dbFolder, { recursive: true })
     await fsPromises.rm(coreStorage, { recursive: true })
   })
@@ -193,6 +193,7 @@ test.only('calculate storage breakdown per project', async (t) => {
     const count = observationCounts[i]
 
     for (let j = 0; j < count; j++) {
+      // @ts-ignore It's fine we can create these anyway
       await project.observation.create(valueOf(generate('observation')[0]))
     }
 
@@ -200,57 +201,63 @@ test.only('calculate storage breakdown per project', async (t) => {
   })
   await Promise.all(addObservationsPromises)
 
-  // Close the manager
-  await manager.close()
-
   // List projects from storage folder
   const storedProjectIds = await listProjectsFromStorage(coreStorage)
   assert.equal(storedProjectIds.length, 4, 'Should find 4 projects in storage')
 
-  // Calculate storage breakdown per project
-  const storageBreakdown = await calculateStoragePerProject(coreStorage)
+  const lowStorage = 420
+
+  const { shouldUpgrade: shouldntUpgrade, reason: noSpaceReason } =
+    await checkShouldMigrate(coreStorage, lowStorage)
+
+  assert(!shouldntUpgrade, 'Should not upgrade when lacking space')
+  assert.equal(
+    noSpaceReason,
+    MIGRATION_REASON_NO_SPACE,
+    'No space for migration'
+  )
+
+  // Thrice what a project needs
+  // Threshold is 2.5x
+  const availableStorage = 75_000
+
+  const { shouldUpgrade, reason } = await checkShouldMigrate(
+    coreStorage,
+    availableStorage
+  )
+
+  assert.equal(reason, MIGRATION_REASON_NEEDS_UPGRADE, 'Has reason to upgrade')
+  assert(shouldUpgrade, 'Upgrade should happen')
+
+  // Migrate the storage
+  const migrationResults = await migrateStorage(coreStorage)
 
   assert.equal(
-    Object.keys(storageBreakdown).length,
+    Object.keys(migrationResults).length,
     4,
-    'Should have storage info for 4 projects'
+    'Should have migration results for 4 projects'
   )
 
-  // Verify each project has storage info
-  const projectInfo = await Promise.all(
-    storedProjectIds.map(async (projectId) => {
-      const storageInfo = storageBreakdown[projectId]
-
-      assert(storageInfo, `Should have storage info for project ${projectId}`)
-      assert(
-        storageInfo.coreCount > 0,
-        `Project ${projectId} should have cores`
-      )
-      assert(
-        storageInfo.totalSize > 0,
-        `Project ${projectId} should have total size > 0`
-      )
-      assert(
-        Object.keys(storageInfo.cores).length === storageInfo.coreCount,
-        `Project ${projectId} core count should match cores object length`
-      )
-
-      return { projectId, ...storageInfo }
-    })
-  )
-
-  // Sort by total size to show the breakdown
-  projectInfo.sort((a, b) => a.totalSize - b.totalSize)
-  for (const { projectId, coreCount, totalSize } of projectInfo) {
-    console.log(
-      `Project ${projectId.slice(
-        0,
-        8
-      )}...: ${coreCount} cores, ${totalSize} bytes`
+  // Verify each project was successfully analyzed
+  for (const projectId of storedProjectIds) {
+    const result = migrationResults[projectId]
+    assert(result, `Should have migration result for project ${projectId}`)
+    assert(
+      result.migrated === true,
+      `Project ${projectId} should have successful migration`
     )
+    if (result.error) {
+      console.error(`Project ${projectId} migration error:`, result.error)
+    }
   }
 
-  // Verify we have varying sizes (projects had different observation counts)
-  const sizes = projectInfo.map((p) => p.totalSize)
-  console.log('Project sizes (bytes):', sizes)
+  const { shouldUpgrade: shouldUpgradeAgain, reason: migrateAgainReason } =
+    await checkShouldMigrate(coreStorage, availableStorage)
+
+  assert(!shouldUpgradeAgain, 'No need to upgrade again')
+  assert.equal(
+    migrateAgainReason,
+    MIGRATION_REASON_ALREADY_UPGRADED,
+    'already upgraded'
+  )
 })
