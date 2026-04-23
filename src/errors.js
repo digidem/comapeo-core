@@ -619,7 +619,7 @@ export function getErrorCode(maybeError) {
  */
 export function ensureKnownError(err) {
   if (typeof err.status !== 'number' || typeof err.code !== 'string') {
-    return new UnknownError(err)
+    return new UnknownError({ err })
   }
   return err
 }
