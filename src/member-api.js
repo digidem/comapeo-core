@@ -416,6 +416,8 @@ export class MemberApi extends ReadyResource {
         await this.cancelInviteOverInternet(pendingInviteId)
         throw new PeerDisconnectedSinceRedeemingInviteError()
       }
+      if (!opts.roleName) delete opts.roleName
+      if (!opts.roleDescription) delete opts.roleDescription
       const decision = await this.invite(inviteeDeviceId, opts)
 
       return decision
