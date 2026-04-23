@@ -18,6 +18,7 @@ import ReadyResource from 'ready-resource'
 import {
   InvalidProjectKeyError,
   InvalidProjectSecretKeyError,
+  UnexpectedError,
 } from '../errors.js'
 
 /** @import Hypercore from 'hypercore' */
@@ -489,13 +490,35 @@ export class CoreManager extends ReadyResource {
 
     for (const { core, key } of coreRecords) {
       if (key.equals(ownWriterCore.key)) continue
-      deletionPromises.push(core.purge())
+      deletionPromises.push(purgeCore(core))
     }
 
     await Promise.all(deletionPromises)
 
     this.#queries.removeCores.run({ namespace })
   }
+}
+
+/**
+ * Purge data inside a hypercore.
+ * Pending on this PR being merged into hypercore11
+ * https://github.com/holepunchto/hypercore/pull/788
+ * @param {Hypercore<Hypercore.ValueEncoding, Buffer>} core
+ */
+async function purgeCore(core) {
+  const privateCore = core.core
+  // Should never happen
+  if (!privateCore) throw new UnexpectedError('Core not initialized')
+  if (privateCore.opened === false) await privateCore.opening
+  // @ts-ignore Private methods on storage
+  const tx = privateCore.storage.write()
+  tx.deleteTreeNodeRange(0, -1)
+  tx.deleteBlockRange(0, -1)
+  // @ts-ignore Private methods on storage
+  privateCore.bitfield.clear(tx)
+  await tx.flush()
+  await privateCore.closeAllSessions()
+  await privateCore.close()
 }
 
 /**
