@@ -1,5 +1,6 @@
 import test from 'node:test'
-import { createManagers } from './utils.js'
+import fsPromises from 'node:fs/promises'
+import { createManager, createManagers } from './utils.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
@@ -12,6 +13,7 @@ import {
   UnknownInviteIDError,
 } from '../src/errors.js'
 import crypto from 'node:crypto'
+import { temporaryDirectory } from 'tempy'
 
 test('invite over internet and join from URL', async (t) => {
   const managers = await createManagers(2, t)
@@ -53,6 +55,78 @@ test('invite over internet and join from URL', async (t) => {
   assert.equal(gotProjectId, projectId, 'joined expected project')
 
   // TODO: Test that initial sync happened
+})
+
+test.only('invite over internet, close, reopen, and join from URL', async (t) => {
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+  const directories = [dbFolder, coreStorage]
+  async function closeDirs() {
+    await Promise.all(
+      directories.map((dir) =>
+        fsPromises.rm(dir, {
+          recursive: true,
+        })
+      )
+    )
+  }
+
+  t.after(closeDirs)
+  let invitor = createManager('invitor', t, {
+    coreStorage,
+    dbFolder,
+  })
+  const invitee = createManager('invitee', t)
+
+  await invitor.setDeviceInfo({ name: 'invitor', deviceType: 'desktop' })
+  await invitee.setDeviceInfo({ name: 'invitee', deviceType: 'desktop' })
+
+  const projectId = await invitor.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
+  let project = await invitor.getProject(projectId)
+
+  const url = await project.$member.inviteOverInternet({
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  await invitor.close()
+  invitor = createManager('invitor', t, {
+    coreStorage,
+    dbFolder,
+  })
+
+  project = await invitor.getProject(projectId)
+
+  const pending = await project.$member.pendingInternetInvites()
+
+  assert.deepEqual(pending, [url], 'Pending internet invites loaded on reload')
+
+  const onInviteRedeemAttempt = pEvent(
+    project.$member,
+    'internet-invite-redeemed',
+    { multiArgs: true, timeout: 5000 }
+  )
+
+  const onInvited = invitee.joinProjectOverInternet(url)
+
+  const [deviceId, inviteId] = /** @type {[string, string]} */ (
+    /**@type unknown*/ (await onInviteRedeemAttempt)
+  )
+
+  assert.equal(deviceId, invitee.deviceId)
+
+  // Show the user the device ID and their name and have them verify the invitee sees the same device ID
+  // We should either take the first 4-8 bytes from the deviceID or derive something visual like emoji
+  const reason = await project.$member.acceptRedeemedInvite(inviteId)
+
+  assert.equal(reason, InviteResponse_Decision.ACCEPT)
+
+  const gotProjectId = await onInvited
+
+  assert.equal(gotProjectId, projectId, 'joined expected project')
 })
 
 test('invite over internet errors if invitor deviceID is invalid', async (t) => {
