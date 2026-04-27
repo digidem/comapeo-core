@@ -159,7 +159,7 @@ test('migration of localDeviceInfo table', async (t) => {
   )
 })
 
-test.only('calculate storage breakdown per project', async (t) => {
+test('calculate storage breakdown per project', async (t) => {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
 
@@ -169,7 +169,6 @@ test.only('calculate storage breakdown per project', async (t) => {
     rootKey,
     dbFolder,
     coreStorage,
-    fastify: Fastify(),
   })
 
   t.after(async () => {
@@ -187,15 +186,25 @@ test.only('calculate storage breakdown per project', async (t) => {
   }
 
   // Add observations to each project (different amounts to make them distinguishable)
+  // Save original observations keyed by project ID for later verification
+  const originalObservations = new Map()
   const observationCounts = [5, 10, 15, 20]
   const addObservationsPromises = projectIds.map(async (projectId, i) => {
     const project = await manager.getProject(projectId)
     const count = observationCounts[i]
+    const observations = []
 
     for (let j = 0; j < count; j++) {
-      // @ts-ignore It's fine we can create these anyway
-      await project.observation.create(valueOf(generate('observation')[0]))
+      const { docId } = await project.observation.create(
+        // @ts-ignore It's fine we can create these anyway
+        valueOf(generate('observation')[0])
+      )
+      const fullDoc = await project.observation.getByDocId(docId)
+      observations.push(fullDoc)
     }
+
+    // Save all observations for this project
+    originalObservations.set(projectId, observations)
 
     await project.close()
   })
@@ -260,4 +269,34 @@ test.only('calculate storage breakdown per project', async (t) => {
     MIGRATION_REASON_ALREADY_UPGRADED,
     'already upgraded'
   )
+
+  // Verify observations are preserved after migration
+  const managerAfterMigration = createManager('seed', t, {
+    rootKey,
+    dbFolder,
+    coreStorage,
+  })
+
+  for (const projectId of projectIds) {
+    const project = await managerAfterMigration.getProject(projectId)
+    const originalObs = originalObservations.get(projectId)
+
+    // Check each original observation exists in migrated data
+    for (const originalObsItem of originalObs) {
+      const migratedObs = await project.observation.getByDocId(
+        originalObsItem.docId
+      )
+
+      assert.equal(
+        migratedObs.docId,
+        originalObsItem.docId,
+        `Observation docId should match after migration`
+      )
+      assert.equal(
+        migratedObs.createdAt,
+        originalObsItem.createdAt,
+        `Observation createdAt should match after migration`
+      )
+    }
+  }
 })
