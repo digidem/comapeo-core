@@ -15,11 +15,14 @@ import {
 import {
   checkShouldMigrate,
   listProjectsFromStorage,
+  makeDefaultCorestoreStorage,
   migrateStorage,
   MIGRATION_REASON_ALREADY_UPGRADED,
   MIGRATION_REASON_NEEDS_UPGRADE,
   MIGRATION_REASON_NO_SPACE,
 } from '../src/migration.js'
+
+/** @typedef {{write: () => any}} RocksDB */
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -159,7 +162,7 @@ test('migration of localDeviceInfo table', async (t) => {
   )
 })
 
-test('calculate storage breakdown per project', async (t) => {
+test('migrate hypercore storage', async (t) => {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
 
@@ -247,6 +250,11 @@ test('calculate storage breakdown per project', async (t) => {
     'Should have migration results for 4 projects'
   )
 
+  for (const { error, migrated } of Object.values(migrationResults)) {
+    assert.ok(migrated, 'migration successful')
+    assert.ok(!error, 'no error after migrating')
+  }
+
   // Verify each project was successfully analyzed
   for (const projectId of storedProjectIds) {
     const result = migrationResults[projectId]
@@ -300,3 +308,273 @@ test('calculate storage breakdown per project', async (t) => {
     }
   }
 })
+
+test('recover from hypercore migration failing', async (t) => {
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+
+  const rootKey = KeyManager.generateRootKey()
+
+  const manager = await createOldManagerOnVersion2_0_1('seed', t, {
+    rootKey,
+    dbFolder,
+    coreStorage,
+  })
+
+  const projectId = await manager.createProject({
+    name: `Project`,
+  })
+
+  t.after(async () => {
+    await fsPromises.rm(dbFolder, { recursive: true })
+    await fsPromises.rm(coreStorage, { recursive: true })
+  })
+
+  const project = await manager.getProject(projectId)
+  const count = 16
+  const observations = []
+
+  for (let j = 0; j < count; j++) {
+    const { docId } = await project.observation.create(
+      // @ts-ignore It's fine we can create these anyway
+      valueOf(generate('observation')[0])
+    )
+    const fullDoc = await project.observation.getByDocId(docId)
+    observations.push(fullDoc)
+  }
+
+  await project.close()
+
+  /** @type {typeof makeDefaultCorestoreStorage} */
+  const makeStorage = (path) => {
+    return proxyStorageDB(path, (target, prop, receiver) => {
+      if (prop === 'write') {
+        throw new Error('Simulate failed write')
+      }
+      return Reflect.get(target, prop, receiver)
+    })
+  }
+
+  // Migrate and fail
+  let migrationResults = await migrateStorage(coreStorage, makeStorage)
+
+  assert.equal(
+    Object.keys(migrationResults).length,
+    1,
+    'Should have migration results for 1 project'
+  )
+
+  for (const { error, migrated } of Object.values(migrationResults)) {
+    assert.ok(!migrated, 'migration failed')
+    assert.equal(
+      error?.message,
+      'An unexpected error type occurred: Error: Simulate failed write',
+      'no error after migrating'
+    )
+  }
+
+  // Migrate the storage for real
+  migrationResults = await migrateStorage(coreStorage)
+
+  assert.equal(
+    Object.keys(migrationResults).length,
+    1,
+    'Should have migration results for 1 project'
+  )
+
+  for (const { error, migrated } of Object.values(migrationResults)) {
+    assert.ok(!error, 'no error after migrating')
+    assert.ok(migrated, 'migration successful')
+  }
+})
+
+test.only('migrate storage after one project has already migrated', async (t) => {
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+
+  const rootKey = KeyManager.generateRootKey()
+
+  const manager = await createOldManagerOnVersion2_0_1('seed', t, {
+    rootKey,
+    dbFolder,
+    coreStorage,
+  })
+
+  // Create two projects
+  const projectIds = []
+  for (let i = 0; i < 2; i++) {
+    const projectId = await manager.createProject({
+      name: `Project ${i + 1}`,
+    })
+    projectIds.push(projectId)
+  }
+
+  // Add observations to each project
+  const originalObservations = new Map()
+  for (let i = 0; i < projectIds.length; i++) {
+    const project = await manager.getProject(projectIds[i])
+    const count = 5
+    const observations = []
+
+    for (let j = 0; j < count; j++) {
+      const { docId } = await project.observation.create(
+        // @ts-ignore It's fine we can create these anyway
+        valueOf(generate('observation')[0])
+      )
+      const fullDoc = await project.observation.getByDocId(docId)
+      observations.push(fullDoc)
+    }
+
+    originalObservations.set(projectIds[i], observations)
+    await project.close()
+  }
+
+  t.after(async () => {
+    await fsPromises.rm(dbFolder, { recursive: true })
+    await fsPromises.rm(coreStorage, { recursive: true })
+  })
+
+  // makeStorage: first call returns default, second call returns proxy that errors on write
+  let callCount = 0
+  /** @type {typeof makeDefaultCorestoreStorage} */
+  const makeStorage = (path) => {
+    callCount++
+    if (callCount === 1) {
+      // First call: normal storage (first project migrates fine)
+      return makeDefaultCorestoreStorage(path)
+    } else {
+      // Second call: proxied storage that errors on 'write' (second project fails)
+      return proxyStorageDB(path, (target, prop, receiver) => {
+        if (prop === 'write') {
+          throw new Error('Simulate failed write')
+        }
+        return Reflect.get(target, prop, receiver)
+      })
+    }
+  }
+
+  // First migration run: first project succeeds, second project errors
+  const migrationResults = await migrateStorage(coreStorage, makeStorage)
+
+  assert.equal(
+    Object.keys(migrationResults).length,
+    2,
+    'Should have migration results for 2 projects'
+  )
+
+  // Find which project succeeded and which failed (don't assume order)
+  /** @type {string | undefined} */
+  let succeededProjectId
+  /** @type {string | undefined} */
+  let failedProjectId
+
+  for (const [projectId, result] of Object.entries(migrationResults)) {
+    if (result.migrated) {
+      assert.ok(
+        !succeededProjectId,
+        'Should have exactly one succeeded project'
+      )
+      succeededProjectId = projectId
+    } else {
+      assert.ok(!failedProjectId, 'Should have exactly one failed project')
+      failedProjectId = projectId
+    }
+  }
+
+  assert.ok(succeededProjectId, 'Should have one succeeded project')
+  assert.ok(failedProjectId, 'Should have one failed project')
+
+  const failedResult = migrationResults[failedProjectId]
+  assert.ok(!failedResult.migrated, 'failed project should not have migrated')
+  assert.equal(
+    failedResult.error?.message,
+    'An unexpected error type occurred: Error: Simulate failed write',
+    'failed project failed with simulated error'
+  )
+
+  const availableStorage = 75_000
+
+  const { shouldUpgrade, reason } = await checkShouldMigrate(
+    coreStorage,
+    availableStorage
+  )
+
+  assert.equal(reason, MIGRATION_REASON_NEEDS_UPGRADE, 'Has reason to upgrade')
+  assert(shouldUpgrade, 'Upgrade should happen even if one project migrated')
+
+  // Second migration run: no makeStorage, so the remaining project should succeed
+  const migrationResults2 = await migrateStorage(coreStorage)
+
+  assert.equal(
+    Object.keys(migrationResults2).length,
+    1,
+    'Should only have result for the second project (first was already migrated)'
+  )
+
+  assert.ok(
+    migrationResults2[failedProjectId],
+    'failed project should be in results'
+  )
+  assert.ok(
+    migrationResults2[failedProjectId].migrated,
+    'failed project migrated successfully on retry'
+  )
+  assert.ok(
+    !migrationResults2[failedProjectId].error,
+    'failed project had no error on retry'
+  )
+
+  // Verify observations are preserved after migration using new manager
+  const managerAfterMigration = createManager('seed', t, {
+    rootKey,
+    projectMigrationsFolder,
+    clientMigrationsFolder,
+    dbFolder,
+    coreStorage,
+  })
+
+  for (const projectId of projectIds) {
+    const project = await managerAfterMigration.getProject(projectId)
+    const originalObs = originalObservations.get(projectId)
+
+    for (const originalObsItem of originalObs) {
+      const migratedObs = await project.observation.getByDocId(
+        originalObsItem.docId
+      )
+
+      assert.equal(
+        migratedObs.docId,
+        originalObsItem.docId,
+        `Observation docId should match after migration`
+      )
+      assert.equal(
+        migratedObs.createdAt,
+        originalObsItem.createdAt,
+        `Observation createdAt should match after migration`
+      )
+    }
+  }
+})
+
+/**
+ * @param {string} path
+ * @param {ProxyHandler<RocksDB>['get']} get
+ */
+function proxyStorageDB(path, get) {
+  const raw = makeDefaultCorestoreStorage(path)
+
+  return new Proxy(raw, {
+    get(target, prop, receiver) {
+      if (prop === 'db') {
+        // @ts-ignore It's there, trust me
+        const db = target.db
+
+        return new Proxy(db, {
+          get,
+        })
+      }
+
+      return Reflect.get(target, prop, receiver)
+    },
+  })
+}

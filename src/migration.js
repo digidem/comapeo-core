@@ -2,6 +2,7 @@ import fsPromises from 'node:fs/promises'
 import path from 'node:path'
 import { store as migrateStore } from 'hypercore-storage/migrations/0/index.js'
 import CorestoreStorage from 'hypercore-storage'
+import { ensureKnownError } from './errors.js'
 
 export const MIGRATION_REASON_NEEDS_UPGRADE = 0
 export const MIGRATION_REASON_ALREADY_UPGRADED = 1
@@ -125,6 +126,16 @@ export async function storageForProject(projectCorestorePath) {
 }
 
 /**
+ * @param {string} path
+ * @returns
+ */
+export function makeDefaultCorestoreStorage(path) {
+  return new CorestoreStorage(path, {
+    readOnly: false,
+  })
+}
+
+/**
  * Run a migration dry-run for all projects in a MapeoManager storage folder.
  *
  * This performs a dry-run of the hypercore-storage migration (v0 -> v1) for each
@@ -132,44 +143,48 @@ export async function storageForProject(projectCorestorePath) {
  * be made without actually modifying the storage.
  *
  * @param {string} managerPath - Path to the MapeoManager storage folder
- * @returns {Promise<Record<string, { migrated: boolean, error?: string }>>}
+ * @returns {Promise<Record<string, { migrated: boolean, error?: Error }>>}
  *         Map of project IDs to migration status
  */
-export async function migrateStorage(managerPath) {
+export async function migrateStorage(
+  managerPath,
+  makeStorage = makeDefaultCorestoreStorage
+) {
   const projectIds = await listProjectsFromStorage(managerPath)
 
-  /** @type {Record<string, { migrated: boolean, error?: string }>} */
+  /** @type {Record<string, { migrated: boolean, error?: Error }>} */
   const results = {}
 
   for (const projectId of projectIds) {
     const projectCorestorePath = path.join(managerPath, projectId, 'corestore')
+    if (!(await needsMigration(projectCorestorePath))) continue
 
     try {
       // Initialize CorestoreStorage for this project
-      const storage = new CorestoreStorage(projectCorestorePath, {
-        readOnly: false,
-      })
+      const storage = makeStorage(projectCorestorePath)
 
-      // Wait for the storage to be ready
-      await storage.ready()
+      try {
+        // Wait for the storage to be ready
+        await storage.ready()
 
-      // Run migration
-      await migrateStore(storage, {
-        version: 1,
-        dryRun: false,
-        gc: true,
-      })
+        // Run migration
+        await migrateStore(storage, {
+          version: 1,
+          dryRun: false,
+          gc: true,
+        })
 
-      results[projectId] = {
-        migrated: true,
+        results[projectId] = {
+          migrated: true,
+        }
+      } finally {
+        // Clean up
+        await storage.close()
       }
-
-      // Clean up
-      await storage.close()
     } catch (error) {
       results[projectId] = {
         migrated: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: ensureKnownError(error),
       }
     }
   }
@@ -189,30 +204,23 @@ export async function migrateStorage(managerPath) {
 export async function needsMigration(corestorePath) {
   const coresDir = path.join(corestorePath, 'cores')
   const dbDir = path.join(corestorePath, 'db')
-  const corestoreFile = path.join(corestorePath, 'CORESTORE')
+  // This file gets deleted once migration is finished
+  const primaryKeyFile = path.join(corestorePath, 'primary-key')
 
-  try {
-    // Check for old v0 format (flat files in cores/)
-    const hasCoresDir = await fsPromises
-      .access(coresDir)
-      .then(() => true)
-      .catch(() => false)
+  // Check for old v0 format (flat files in cores/)
+  const hasCoresDir = await hasEntity(coresDir)
 
-    // Check for new v1 format (RocksDB in db/)
-    const hasDbDir = await fsPromises
-      .access(dbDir)
-      .then(() => true)
-      .catch(() => false)
-    const hasCorestoreFile = await fsPromises
-      .access(corestoreFile)
-      .then(() => true)
-      .catch(() => false)
+  // Check for new v1 format (RocksDB in db/)
+  const hasDbDir = await hasEntity(dbDir)
 
-    // Migration needed if old format exists and new format doesn't
-    return hasCoresDir && !hasDbDir && !hasCorestoreFile
-  } catch {
-    return false
-  }
+  // Check if they have the old primary key still
+  const hasPrimaryKey = await hasEntity(primaryKeyFile)
+
+  if (!hasCoresDir && hasDbDir) return false
+  if (hasDbDir && !hasPrimaryKey) return false
+
+  // There
+  return true
 }
 
 /**
@@ -254,4 +262,15 @@ export async function checkShouldMigrate(managerPath, availableStorage) {
     useFallback: false,
     reason: MIGRATION_REASON_NEEDS_UPGRADE,
   }
+}
+
+/**
+ * @param {string} path
+ * @returns
+ */
+async function hasEntity(path) {
+  return await fsPromises
+    .access(path)
+    .then(() => true)
+    .catch(() => false)
 }
