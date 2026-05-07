@@ -2,6 +2,7 @@ import { validate } from '@comapeo/schema'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
 import { noop, mutatingDeNullify } from '../utils.js'
 import {
   DocAlreadyDeletedError,
@@ -198,6 +199,13 @@ export class DataType extends TypedEmitter {
   async [kCreateOrUpdateWithDocId](docId, value) {
     const existing = await this.getByDocId(docId).catch(nullIfNotFound)
     if (existing) {
+      const hasChanges = Object.keys(value).some(
+        // @ts-ignore Key will always be a valid property
+        (key) => !isDeepStrictEqual(existing[key], value[key])
+      )
+      if (!hasChanges) {
+        return existing
+      }
       return this.update(existing.versionId, value)
     } else {
       return this[kCreateWithDocId](docId, value, { checkExisting: false })
