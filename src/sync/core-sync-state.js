@@ -142,6 +142,9 @@ export class CoreSyncState {
         // @ts-ignore - internal property
         core?.core?.bitfield
       )
+      console.log('core.contiguousLength', core.contiguousLength)
+      this.#localState.contiguousLength = core.contiguousLength
+      this.#update()
     })
 
     for (const peer of this.#core.peers) {
@@ -157,10 +160,12 @@ export class CoreSyncState {
     // These events happen when the local bitfield changes, so we want to emit
     // state because it will have changed
     this.#core.on('download', () => {
+      this.#localState.contiguousLength = core.contiguousLength
       this.#update()
     })
 
     this.#core.on('append', () => {
+      this.#localState.contiguousLength = core.contiguousLength
       this.#update()
     })
   }
@@ -274,7 +279,7 @@ export class CoreSyncState {
 
     this.#core?.update({ wait: true }).then(() => {
       peerState.status = 'started'
-      peerState.remoteContiguousLength = peer.remoteContiguousLength
+      peerState.contiguousLength = peer.remoteContiguousLength
       this.#update()
     })
 
@@ -282,7 +287,7 @@ export class CoreSyncState {
     // message, but when the peer actually connects then we switch to the actual
     // bitfield from the peer object
     peerState.setHavesBitfield(peer.remoteBitfield)
-    peerState.remoteContiguousLength = peer.remoteContiguousLength
+    peerState.contiguousLength = peer.remoteContiguousLength
 
     this.#update()
 
@@ -292,12 +297,12 @@ export class CoreSyncState {
     const originalOnRange = peer.onrange
     peer.onbitfield = (...args) => {
       originalOnBitfield.apply(peer, args)
-      peerState.remoteContiguousLength = peer.remoteContiguousLength
+      peerState.contiguousLength = peer.remoteContiguousLength
       this.#update()
     }
     peer.onrange = (...args) => {
       originalOnRange.apply(peer, args)
-      peerState.remoteContiguousLength = peer.remoteContiguousLength
+      peerState.contiguousLength = peer.remoteContiguousLength
       this.#update()
     }
   }
@@ -342,7 +347,7 @@ export class PeerState {
    * This length is excluded from the usual have bitfield
    * @type {number}
    */
-  remoteContiguousLength = 0
+  contiguousLength = 0
   /** @type {PeerNamespaceState['status']} */
   status = 'stopped'
 
@@ -397,7 +402,7 @@ export class PeerState {
    */
   have(index) {
     return (
-      index < this.remoteContiguousLength ||
+      index < this.contiguousLength ||
       this.#haves?.get(index) ||
       this.#preHaves.get(index)
     )
@@ -416,14 +421,14 @@ export class PeerState {
       haveWord |= getBitfieldWord(this.#haves, index)
     }
     // Add bits for the contiguous range
-    if (index < this.remoteContiguousLength) {
+    if (index < this.contiguousLength) {
       const contiguousEnd = index + 32
-      if (contiguousEnd <= this.remoteContiguousLength) {
+      if (contiguousEnd <= this.contiguousLength) {
         // All 32 bits are within contiguous range
         haveWord |= WANT_FULL
       } else {
         // Partial overlap: only some bits are within contiguous range
-        const bitsInsideContiguous = this.remoteContiguousLength - index
+        const bitsInsideContiguous = this.contiguousLength - index
         haveWord |= (1 << bitsInsideContiguous) - 1
       }
     }
@@ -435,9 +440,7 @@ export class PeerState {
    * @param {number} index
    */
   want(index) {
-    return this.#wants
-      ? this.#wants.get(index)
-      : index > this.remoteContiguousLength
+    return this.#wants ? this.#wants.get(index) : index > this.contiguousLength
   }
   /**
    * Return the "wants" for the 32 blocks from `index`, as a 32-bit integer
@@ -450,29 +453,29 @@ export class PeerState {
     // If #wants is null, peer wants everything except what's in contiguous range
     if (this.#wants === null) {
       // Create a mask of bits that are outside the contiguous range
-      if (index >= this.remoteContiguousLength) {
+      if (index >= this.contiguousLength) {
         // All 32 bits in this word are outside contiguous range
         return WANT_FULL
       }
-      if (index + 32 <= this.remoteContiguousLength) {
+      if (index + 32 <= this.contiguousLength) {
         // All 32 bits are within contiguous range, so peer doesn't want them
         return 0
       }
       // Partial overlap: some bits are within contiguous range
-      const bitsInsideContiguous = this.remoteContiguousLength - index
+      const bitsInsideContiguous = this.contiguousLength - index
       // Mask out the bits that are inside the contiguous range
       return ((1 << bitsInsideContiguous) - 1) ^ WANT_FULL
     }
     // Peer has specific want ranges - get those bits
     const wantWord = getBitfieldWord(this.#wants, index)
     // But still exclude bits within contiguous range
-    if (index >= this.remoteContiguousLength) {
+    if (index >= this.contiguousLength) {
       return wantWord
     }
-    if (index + 32 <= this.remoteContiguousLength) {
+    if (index + 32 <= this.contiguousLength) {
       return 0
     }
-    const bitsInsideContiguous = this.remoteContiguousLength - index
+    const bitsInsideContiguous = this.contiguousLength - index
     const mask = ((1 << bitsInsideContiguous) - 1) ^ WANT_FULL
     return wantWord & mask
   }
