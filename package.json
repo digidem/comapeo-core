@@ -210,7 +210,7 @@
     "fastify": "^4.0.0",
     "fastify-plugin": "^4.5.1",
     "hyperblobs": "^2.9.0",
-    "hypercore": "^11.27.13",
+    "hypercore": "^11.30.1",
     "hypercore-crypto": "^3.6.1",
     "hyperdrive": "^13.3.0",
     "iso-3166": "^4.3.0",
