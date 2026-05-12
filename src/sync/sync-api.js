@@ -460,12 +460,13 @@ export class SyncApi extends TypedEmitter {
       /** @param {import('./sync-state.js').State} state */
       const onState = (state) => {
         clearTimeout(timeoutId)
-        if (typeof timeoutMs === 'number') {
-          timeoutId = setTimeout(onTimeout, timeoutMs)
-        }
         if (isSynced(state, type, this.#peerSyncControllers)) {
           this[kSyncState].off('state', onState)
           resolve()
+          return
+        }
+        if (typeof timeoutMs === 'number') {
+          timeoutId = setTimeout(onTimeout, timeoutMs)
         }
       }
       this[kSyncState].on('state', onState)
