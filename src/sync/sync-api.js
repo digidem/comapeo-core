@@ -568,13 +568,15 @@ export class SyncApi extends TypedEmitter {
    */
   #handlePeerDisconnect = (peer) => {
     const { protomux } = peer
-    if (!this.#peerSyncControllers.has(protomux)) {
+    const psc = this.#peerSyncControllers.get(protomux)
+    if (!psc) {
       this.#l.log(
         'Unexpected no existing peer sync controller for peer %h',
         protomux.stream.remotePublicKey
       )
       return
     }
+    psc.dispose()
     this.#peerSyncControllers.delete(protomux)
     const peerId = keyToId(peer.remotePublicKey)
     this.#pscByPeerId.delete(peerId)
