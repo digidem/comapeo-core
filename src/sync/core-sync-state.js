@@ -115,6 +115,11 @@ export class CoreSyncState {
 
   /** @type {() => DerivedState} */
   getState() {
+    // No way to listen on all contiguousLength changes (like clear)
+    //.We need to fetch it fresh each time
+    if (this.#core) {
+      this.#localState.contiguousLength = this.#core.contiguousLength
+    }
     const localCoreLength = this.#core?.length || 0
     return deriveState({
       length: Math.max(localCoreLength, this.#preHavesLength),
@@ -142,7 +147,6 @@ export class CoreSyncState {
         // @ts-ignore - internal property
         core?.core?.bitfield
       )
-      console.log('core.contiguousLength', core.contiguousLength)
       this.#localState.contiguousLength = core.contiguousLength
       this.#update()
     })
@@ -160,12 +164,10 @@ export class CoreSyncState {
     // These events happen when the local bitfield changes, so we want to emit
     // state because it will have changed
     this.#core.on('download', () => {
-      this.#localState.contiguousLength = core.contiguousLength
       this.#update()
     })
 
     this.#core.on('append', () => {
-      this.#localState.contiguousLength = core.contiguousLength
       this.#update()
     })
   }
