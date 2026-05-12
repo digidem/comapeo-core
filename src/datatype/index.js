@@ -245,6 +245,14 @@ export class DataType extends TypedEmitter {
    * @returns {Promise<TDoc & DerivedDocFields>}
    */
   /**
+   * @overload
+   * @param {string} docId
+   * @param {object} [options]
+   * @param {false} options.mustBeFound
+   * @param {string} [options.lang]
+   * @returns {Promise<null | (TDoc & DerivedDocFields)>}
+   */
+  /**
    * @param {string} docId
    * @param {object} [options]
    * @param {boolean} [options.mustBeFound]
