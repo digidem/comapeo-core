@@ -36,6 +36,8 @@ export class PeerSyncController {
   /** @type {import('debug').Debugger} */
   #log
 
+  #syncState
+
   /**
    * @param {object} opts
    * @param {import('protomux')<OpenedNoiseStream>} opts.protomux
@@ -58,6 +60,8 @@ export class PeerSyncController {
 
     coreManager.on('add-core', this.#handleAddCore)
     syncState.on('state', this.#handleStateChange)
+
+    this.#syncState = syncState
 
     this.#updateEnabledNamespaces()
   }
@@ -163,6 +167,7 @@ export class PeerSyncController {
         // Any error, consider sync unknown
         this.#syncCapability = createNamespaceMap('unknown')
       }
+      this.#syncState.invalidatePeer(this.peerId)
     }
     this.#log('capability %o', this.#syncCapability)
 

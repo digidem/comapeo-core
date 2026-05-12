@@ -67,6 +67,17 @@ export class SyncState extends TypedEmitter {
   }
 
   /**
+   * Invalidate the cached state for a peer across all namespaces.
+   * @param {string} peerId - The peer whose capabilities changed
+   */
+  invalidatePeer(peerId) {
+    for (const nss of Object.values(this.#syncStates)) {
+      nss.invalidatePeer(peerId)
+    }
+    this.#handleUpdate()
+  }
+
+  /**
    * @returns {State}
    */
   getState() {

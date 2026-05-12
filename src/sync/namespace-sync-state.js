@@ -133,6 +133,18 @@ export class NamespaceSyncState {
   }
 
   /**
+   * Invalidate the cached state for a peer. This should be called when a peer's
+   * capabilities change (e.g., role updates) to ensure the next getState() call
+   * recalculates the state with the updated capabilities.
+   * @param {string} _peerId - The peer whose capabilities changed
+   */
+  invalidatePeer(_peerId) {
+    // In the future we can do a smarter calculation where
+    // we just invalidate the one peer and recalc local state
+    this.#handleUpdate()
+  }
+
+  /**
    * @param {import('hypercore')<"binary", Buffer>} core
    * @param {Buffer} coreKey
    */
