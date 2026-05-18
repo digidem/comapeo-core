@@ -8,6 +8,8 @@ export const MIGRATION_REASON_NEEDS_UPGRADE = 0
 export const MIGRATION_REASON_ALREADY_UPGRADED = 1
 export const MIGRATION_REASON_NO_SPACE = 2
 
+export const AVAILABLE_SPACE_MULTIPLIER = 1.05
+
 /** @typedef {MIGRATION_REASON_NEEDS_UPGRADE|MIGRATION_REASON_ALREADY_UPGRADED|MIGRATION_REASON_NO_SPACE} MigrationReason*/
 
 /**
@@ -167,12 +169,17 @@ export async function migrateStorage(
         // Wait for the storage to be ready
         await storage.ready()
 
-        // Run migration
+        // Run migration on corestore
         await migrateStore(storage, {
           version: 1,
           dryRun: false,
           gc: true,
         })
+
+        for await (const { discoveryKey } of storage.createCoreStream()) {
+          // Will trigger core migration
+          await storage.resumeCore(discoveryKey)
+        }
 
         results[projectId] = {
           migrated: true,
@@ -182,6 +189,7 @@ export async function migrateStorage(
         await storage.close()
       }
     } catch (error) {
+      console.log(error)
       results[projectId] = {
         migrated: false,
         error: ensureKnownError(error),
@@ -203,24 +211,11 @@ export async function migrateStorage(
  */
 export async function needsMigration(corestorePath) {
   const coresDir = path.join(corestorePath, 'cores')
-  const dbDir = path.join(corestorePath, 'db')
-  // This file gets deleted once migration is finished
-  const primaryKeyFile = path.join(corestorePath, 'primary-key')
 
   // Check for old v0 format (flat files in cores/)
   const hasCoresDir = await hasEntity(coresDir)
 
-  // Check for new v1 format (RocksDB in db/)
-  const hasDbDir = await hasEntity(dbDir)
-
-  // Check if they have the old primary key still
-  const hasPrimaryKey = await hasEntity(primaryKeyFile)
-
-  if (!hasCoresDir && hasDbDir) return false
-  if (hasDbDir && !hasPrimaryKey) return false
-
-  // There
-  return true
+  return hasCoresDir
 }
 
 /**
@@ -240,7 +235,7 @@ export async function checkShouldMigrate(managerPath, availableStorage) {
     if (!(await needsMigration(projectCorestorePath))) continue
     needsUpgrade = true
     const { largestCoreSize } = await storageForProject(projectCorestorePath)
-    if (largestCoreSize * 2.5 >= availableStorage) {
+    if (largestCoreSize * AVAILABLE_SPACE_MULTIPLIER >= availableStorage) {
       return {
         shouldUpgrade: false,
         useFallback: true,

@@ -229,9 +229,8 @@ test('migrate hypercore storage', async (t) => {
     'No space for migration'
   )
 
-  // Thrice what a project needs
-  // Threshold is 2.5x
-  const availableStorage = 75_000
+  // Threshold is 1.5x
+  const availableStorage = 120_000
 
   const { shouldUpgrade, reason } = await checkShouldMigrate(
     coreStorage,
@@ -388,7 +387,7 @@ test('recover from hypercore migration failing', async (t) => {
   }
 })
 
-test.only('migrate storage after one project has already migrated', async (t) => {
+test('migrate storage after one project has already migrated', async (t) => {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
 
@@ -492,7 +491,7 @@ test.only('migrate storage after one project has already migrated', async (t) =>
     'failed project failed with simulated error'
   )
 
-  const availableStorage = 75_000
+  const availableStorage = 120_000
 
   const { shouldUpgrade, reason } = await checkShouldMigrate(
     coreStorage,

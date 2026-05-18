@@ -30,6 +30,7 @@ declare module 'hypercore-storage' {
 
     interface CoreStreamEntry {
       core: CorePointer
+      discoveryKey: Buffer
       auth?: any
       head?: any
     }
@@ -59,6 +60,7 @@ declare module 'hypercore-storage' {
     audit(): Promise<void>
     deleteCore(ptr: HypercoreStorage.CorePointer): Promise<void>
     clear(): Promise<void>
+    resumeCore(discoveryKey: Buffer): Promise<CoreStorage>
 
     createCoreStream(): Readable<HypercoreStorage.CoreStreamEntry>
     createAliasStream(namespace: Buffer): Readable<any>
