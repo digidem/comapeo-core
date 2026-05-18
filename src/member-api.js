@@ -35,6 +35,7 @@ import {
   AlreadyInvitingError,
   InvalidResponseBodyError,
   RPCDisconnectBeforeAckError,
+  CannotBlockSelfError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
@@ -423,6 +424,10 @@ export class MemberApi extends TypedEmitter {
 
     if (roleId === BLOCKED_ROLE_ID || roleId === LEFT_ROLE_ID) {
       throw new AlreadyBlockedError()
+    }
+
+    if (deviceId === this.#ownDeviceId) {
+      throw new CannotBlockSelfError()
     }
 
     // Add blocked role to project
