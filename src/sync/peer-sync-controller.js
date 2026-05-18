@@ -1,7 +1,7 @@
 import mapObject from 'map-obj'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
-import { createMap } from '../utils.js'
+import { createMap, noop } from '../utils.js'
 import { unreplicate } from '../lib/hypercore-helpers.js'
 import { ExhaustivenessError } from '../errors.js'
 /** @import { CoreRecord } from '../core-manager/index.js' */
@@ -21,6 +21,7 @@ export class PeerSyncController {
   #coreManager
   #protomux
   #roles
+  #syncState
   /** @type {Record<Namespace, SyncCapability>} */
   #syncCapability = createNamespaceMap('unknown')
   /** @type {SyncEnabledState} */
@@ -52,14 +53,22 @@ export class PeerSyncController {
     this.#coreManager = coreManager
     this.#protomux = protomux
     this.#roles = roles
+    this.#syncState = syncState
 
     // Always need to replicate the project creator core
     this.#replicateCoreRecord(coreManager.creatorCoreRecord)
 
     coreManager.on('add-core', this.#handleAddCore)
     syncState.on('state', this.#handleStateChange)
+    roles.on('update', this.#handleRolesUpdate)
 
     this.#updateEnabledNamespaces()
+  }
+
+  dispose() {
+    this.#coreManager.off('add-core', this.#handleAddCore)
+    this.#syncState.off('state', this.#handleStateChange)
+    this.#roles.off('update', this.#handleRolesUpdate)
   }
 
   get peerKey() {
@@ -154,19 +163,62 @@ export class PeerSyncController {
     this.#prevSyncStatus = this.#syncStatus
 
     if (didUpdate.auth) {
-      try {
-        this.#log('reading role for %S', this.peerId)
-        const cap = await this.#roles.getRole(this.peerId)
-        this.#syncCapability = cap.sync
-      } catch (e) {
-        this.#log('Error reading role', e)
-        // Any error, consider sync unknown
-        this.#syncCapability = createNamespaceMap('unknown')
-      }
+      await this.#readAndCacheSyncCapability()
     }
     this.#log('capability %o', this.#syncCapability)
 
     this.#updateEnabledNamespaces()
+  }
+
+  /**
+   * Refresh capability when a role doc affecting this peer is indexed.
+   *
+   * `#handleStateChange` covers the receive-side case (auth namespace
+   * transitions not-synced → synced when the role doc arrives), but on
+   * the writer's side `auth.want` stays at 0 throughout a self-written
+   * role doc, so that transition never fires. This listener fills that
+   * gap. Receive-side updates will harmlessly re-refresh.
+   *
+   * @param {Set<string>} roleDocIds
+   */
+  #handleRolesUpdate = (roleDocIds) => {
+    if (!this.peerId) return
+    if (!roleDocIds.has(this.peerId)) return
+    this.#refreshSyncCapability().catch(noop)
+  }
+
+  /**
+   * Re-read this peer's role and update {@link #syncCapability}.
+   *
+   * Preserve auth capability as a workaround for the BLOCKED role currently
+   * disallowing sync of auth - with this fix it would mean that a blocked user
+   * never learns that they have been blocked (because their auth core never
+   * syncs). Once we update the BLOCKED role defaults, we can remove the
+   * preservation of auth capability.
+   *
+   * @returns {Promise<void>}
+   */
+  async #refreshSyncCapability() {
+    const prevAuth = this.#syncCapability.auth
+    await this.#readAndCacheSyncCapability()
+    this.#syncCapability.auth = prevAuth
+    this.#updateEnabledNamespaces()
+  }
+
+  /**
+   * @returns {Promise<void>}
+   */
+  async #readAndCacheSyncCapability() {
+    try {
+      this.#log('reading role for %h', this.peerId)
+      const cap = await this.#roles.getRole(this.peerId)
+      // Copy: ROLES.*.sync is a shared object reference.
+      this.#syncCapability = { ...cap.sync }
+    } catch (e) {
+      this.#log('Error reading role', e)
+      // Any error, consider sync unknown
+      this.#syncCapability = createNamespaceMap('unknown')
+    }
   }
 
   /**
