@@ -15,6 +15,7 @@ import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 import mapObject from 'map-obj'
 import ReadyResource from 'ready-resource'
+import CorestoreStorage from 'hypercore-storage'
 import {
   InvalidProjectKeyError,
   InvalidProjectSecretKeyError,
@@ -44,6 +45,7 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
 export class CoreManager extends ReadyResource {
   #corestore
   #coreIndex
+  #storage
   /** @type {CoreRecord} */
   #creatorCoreRecord
   #queries
@@ -112,11 +114,13 @@ export class CoreManager extends ReadyResource {
         .prepare(),
     }
 
+    this.#storage = new CorestoreStorage(storage)
+
     // Note: the primary key here should not be used, because we do not rely on
     // corestore for key storage (i.e. we do not get cores from corestore via a
     // name, which would derive the keypair from the primary key), but setting
     // this just in case a dependency does (e.g. hyperdrive) and we miss it.
-    this.#corestore = new Corestore(storage, { primaryKey, unsafe: true })
+    this.#corestore = new Corestore(this.#storage, { primaryKey, unsafe: true })
     // Persistent index of core keys and namespaces in the project
     this.#coreIndex = new CoreIndex()
 
@@ -497,6 +501,9 @@ export class CoreManager extends ReadyResource {
     await Promise.all(deletionPromises)
 
     this.#queries.removeCores.run({ namespace })
+
+    // This actually clears out the data
+    await this.#storage.compact()
   }
 }
 
