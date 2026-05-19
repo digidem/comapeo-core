@@ -49,3 +49,15 @@ export const deviceSettingsTable = sqliteTable('deviceSettings', {
     (text('deviceInfo', { mode: 'json' })),
   isArchiveDevice: int('isArchiveDevice', { mode: 'boolean' }),
 })
+
+export const pendingInvitesTable = sqliteTable('pendingInvites', {
+  inviteId: text('inviteId').notNull().primaryKey(),
+  projectId: text('projectId').notNull(),
+  inviteIdBuffer: blob('inviteIdBuffer', { mode: 'buffer' }).notNull(),
+  url: text('url').notNull(),
+  roleId: text('roleId').notNull(),
+  roleName: text('roleName'),
+  roleDescription: text('roleDescription'),
+  inviteeDeviceId: text('inviteeDeviceId'),
+  createdAt: int('createdAt').notNull(),
+})

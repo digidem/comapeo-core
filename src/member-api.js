@@ -72,7 +72,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /** @import { projectSettingsTable } from './schema/client.js' */
 /** @import { ReplicationStream, MapeoValueMap } from './types.js' */
 /** @import { PeerInfoDisconnected } from './local-peers.js' */
-/** @import { PendingInvitesApi } from './pending-invites-api.js' */
+/** @import { PendingInvitesApiForProject } from './pending-invites-api.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
@@ -136,7 +136,6 @@ export class MemberApi extends ReadyResource {
   #makeWebsocket
   #getReplicationStream
   #waitForInitialSyncWithPeer
-  #setShouldListenOverInternet
   #markInternetPeerAsTrusted
   #disconnectFromPeer
   #getProjectSettings
@@ -160,11 +159,10 @@ export class MemberApi extends ReadyResource {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
-   * @param {Pick<PendingInvitesApi,'create'|'delete'|'deleteAll'|'getAll'|'getById'|'update'>} opts.pendingInvitesApi
+   * @param {Pick<PendingInvitesApiForProject,'create'|'delete'|'deleteAll'|'getAll'|'getById'|'update'>} opts.pendingInvitesApi
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
-   * @param {(shouldListen: boolean) => Promise<void>} opts.setShouldListenOverInternet
    * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
    * @param {(deviceId: string) => Promise<void>} opts.disconnectFromPeer
    * @param {() => Promise<import('./mapeo-project.js').EditableProjectSettings>} opts.getProjectSettings
@@ -182,7 +180,6 @@ export class MemberApi extends ReadyResource {
     makeWebsocket = (url) => new WebSocket(url),
     getReplicationStream,
     waitForInitialSyncWithPeer,
-    setShouldListenOverInternet,
     markInternetPeerAsTrusted,
     disconnectFromPeer,
     getProjectSettings,
@@ -202,7 +199,6 @@ export class MemberApi extends ReadyResource {
     this.#makeWebsocket = makeWebsocket
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
-    this.#setShouldListenOverInternet = setShouldListenOverInternet
     this.#markInternetPeerAsTrusted = markInternetPeerAsTrusted
     this.#disconnectFromPeer = disconnectFromPeer
     this.#getProjectSettings = getProjectSettings
@@ -232,11 +228,6 @@ export class MemberApi extends ReadyResource {
         inviteeDeviceId: row.inviteeDeviceId ?? undefined,
       })
     }
-
-    // Enable listening if there are pending invites
-    if (this.#pendingInvitesOverInternet.size > 0) {
-      await this.#setShouldListenOverInternet(true)
-    }
   }
 
   /**
@@ -264,10 +255,6 @@ export class MemberApi extends ReadyResource {
       opts,
     })
 
-    if (this.#pendingInvitesOverInternet.size === 1) {
-      await this.#setShouldListenOverInternet(true)
-    }
-
     return url
   }
 
@@ -283,7 +270,6 @@ export class MemberApi extends ReadyResource {
       }
       this.#pendingInvitesOverInternet.clear()
       await this.#pendingInvitesApi.deleteAll()
-      await this.#setShouldListenOverInternet(false)
       return
     }
     const { inviteIdString } = parseInviteURL(url)
@@ -301,10 +287,6 @@ export class MemberApi extends ReadyResource {
     this.#pendingInvitesOverInternet.delete(inviteIdString)
     this.emit('internet-invite-cancelled', inviteIdString)
     await this.#pendingInvitesApi.delete(inviteIdString)
-
-    if (this.#pendingInvitesOverInternet.size === 0) {
-      await this.#setShouldListenOverInternet(false)
-    }
   }
 
   /**

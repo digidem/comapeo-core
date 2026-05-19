@@ -2,33 +2,91 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
+
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'node:crypto'
-import { PendingInvitesApi } from '../src/pending-invites-api.js'
+import {
+  PendingInvitesApi,
+  PendingInvitesApiForProject,
+} from '../src/pending-invites-api.js'
 import {
   MEMBER_ROLE_ID,
   COORDINATOR_ROLE_ID,
   BLOCKED_ROLE_ID,
 } from '../src/roles.js'
-import { pendingInvitesTable } from '../src/schema/project.js'
+import { pendingInvitesTable } from '../src/schema/client.js'
 import { PendingInviteAlreadyExistsError } from '../src/errors.js'
 
 /** @import {BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
 
+const PROJECT_ID = 'test-project-id'
+
 /**
- * @returns {{api:PendingInvitesApi, db:BetterSQLite3Database}}
+ * @typedef {object} TestEnv
+ * @property {PendingInvitesApi} api
+ * @property {PendingInvitesApiForProject} projectApi
+ * @property {BetterSQLite3Database} db
+ * @property {(shouldListen: boolean) => Promise<void>} setShouldListenOverInternet
+ * @property {() => boolean[]} getShouldListenOverInternet - Get ordered call log of setShouldListenOverInternet
  */
-function setup() {
+
+/**
+ * @typedef {object} SeedPendingInvite
+ * @property {string} projectId
+ * @property {string} inviteId
+ * @property {Buffer} inviteIdBuffer
+ * @property {string} url
+ * @property {import('../src/roles.js').RoleIdForNewInvite} roleId
+ */
+
+/**
+ * @param {{ seedPendingInvites?: SeedPendingInvite[] }} [opts]
+ * @returns {TestEnv}
+ */
+function setup({ seedPendingInvites = [] } = {}) {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
-
   migrate(db, {
-    migrationsFolder: new URL('../drizzle/project', import.meta.url).pathname,
+    migrationsFolder: new URL('../drizzle/client', import.meta.url).pathname,
   })
 
-  const api = new PendingInvitesApi(db)
+  // Seed pending invites before creating the API
+  for (const seed of seedPendingInvites) {
+    db.insert(pendingInvitesTable)
+      .values({
+        projectId: seed.projectId,
+        inviteId: seed.inviteId,
+        inviteIdBuffer: seed.inviteIdBuffer,
+        url: seed.url,
+        roleId: seed.roleId,
+        createdAt: Date.now(),
+      })
+      .run()
+  }
 
-  return { api, db }
+  /** @type {boolean[]} */
+  const shouldListenCalls = []
+  /**
+   * @param {boolean} value
+   */
+  async function setShouldListenOverInternet(value) {
+    shouldListenCalls.push(value)
+  }
+
+  function getShouldListenOverInternet() {
+    return shouldListenCalls
+  }
+
+  const api = new PendingInvitesApi(db, setShouldListenOverInternet)
+  const projectApi = new PendingInvitesApiForProject(PROJECT_ID, api)
+
+  return {
+    api,
+    projectApi,
+    db,
+    setShouldListenOverInternet,
+    getShouldListenOverInternet,
+  }
 }
 
 test('create() - basic functionality', async () => {
@@ -39,6 +97,7 @@ test('create() - basic functionality', async () => {
   const url = 'https://example.com/invite/abc123'
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url,
@@ -49,7 +108,7 @@ test('create() - basic functionality', async () => {
     },
   })
 
-  const retrieved = await api.getById(inviteIdString)
+  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
   assert(retrieved, 'invite can be retrieved')
   assert.equal(retrieved.inviteId, inviteIdString)
   assert.equal(retrieved.url, url)
@@ -68,6 +127,7 @@ test('create() - duplicate inviteId throws', async () => {
   const url2 = 'https://example.com/invite/second'
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url: url1,
@@ -78,6 +138,7 @@ test('create() - duplicate inviteId throws', async () => {
 
   assert.rejects(
     api.create({
+      projectId: PROJECT_ID,
       inviteId: inviteIdString,
       inviteIdBuffer: inviteId,
       url: url2,
@@ -87,15 +148,37 @@ test('create() - duplicate inviteId throws', async () => {
       },
     }),
     { code: PendingInviteAlreadyExistsError.code },
-    'Second reate throws an error'
+    'Second create throws an error'
   )
 })
 
 test('getById() - non-existent invite', async () => {
   const { api } = setup()
 
-  const result = await api.getById('non-existent-id')
+  const result = await api.getById('non-existent-id', PROJECT_ID)
   assert.equal(result, undefined, 'returns undefined for non-existent invite')
+})
+
+test('getById() - invite from different project not found', async () => {
+  const { api } = setup()
+
+  const inviteId = randomBytes(32)
+  const inviteIdString = inviteId.toString('hex')
+
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteIdString,
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const result = await api.getById(inviteIdString, 'other-project-id')
+  assert.equal(
+    result,
+    undefined,
+    'returns undefined for invite in different project'
+  )
 })
 
 test('getAll() - empty database', async () => {
@@ -113,6 +196,7 @@ test('getAll() - multiple invites', async () => {
   const invite3 = randomBytes(32)
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: invite1.toString('hex'),
     inviteIdBuffer: invite1,
     url: 'https://example.com/1',
@@ -120,6 +204,7 @@ test('getAll() - multiple invites', async () => {
   })
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: invite2.toString('hex'),
     inviteIdBuffer: invite2,
     url: 'https://example.com/2',
@@ -127,6 +212,7 @@ test('getAll() - multiple invites', async () => {
   })
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: invite3.toString('hex'),
     inviteIdBuffer: invite3,
     url: 'https://example.com/3',
@@ -142,6 +228,48 @@ test('getAll() - multiple invites', async () => {
   assert.ok(inviteIds.includes(invite3.toString('hex')))
 })
 
+test('getAllForProject() - returns only invites for the project', async () => {
+  const { api } = setup()
+
+  const invite1 = randomBytes(32)
+  const invite2 = randomBytes(32)
+
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: invite1.toString('hex'),
+    inviteIdBuffer: invite1,
+    url: 'https://example.com/1',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  await api.create({
+    projectId: 'other-project-id',
+    inviteId: invite2.toString('hex'),
+    inviteIdBuffer: invite2,
+    url: 'https://example.com/2',
+    opts: { roleId: COORDINATOR_ROLE_ID },
+  })
+
+  const invites = await api.getAllForProject(PROJECT_ID)
+  assert.equal(
+    invites.length,
+    1,
+    'returns only invites for the specified project'
+  )
+  assert.equal(invites[0].inviteId, invite1.toString('hex'))
+})
+
+test('getAllForProject() - empty for project with no invites', async () => {
+  const { api } = setup()
+
+  const invites = await api.getAllForProject(PROJECT_ID)
+  assert.deepEqual(
+    invites,
+    [],
+    'returns empty array when project has no invites'
+  )
+})
+
 test('update() - set inviteeDeviceId', async () => {
   const { api } = setup()
 
@@ -149,29 +277,56 @@ test('update() - set inviteeDeviceId', async () => {
   const inviteIdString = inviteId.toString('hex')
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url: 'https://example.com/invite',
     opts: { roleId: MEMBER_ROLE_ID },
   })
 
-  const beforeUpdate = await api.getById(inviteIdString)
+  const beforeUpdate = await api.getById(inviteIdString, PROJECT_ID)
   assert.equal(beforeUpdate?.inviteeDeviceId, undefined)
 
   const inviteeDeviceId = randomBytes(32).toString('hex')
-  await api.update(inviteIdString, { inviteeDeviceId })
+  await api.update(inviteIdString, PROJECT_ID, { inviteeDeviceId })
 
-  const afterUpdate = await api.getById(inviteIdString)
+  const afterUpdate = await api.getById(inviteIdString, PROJECT_ID)
   assert.equal(afterUpdate?.inviteeDeviceId, inviteeDeviceId)
+})
+
+test('update() - scoped to project', async () => {
+  const { api } = setup()
+
+  const inviteId = randomBytes(32)
+  const inviteIdString = inviteId.toString('hex')
+  const inviteeDeviceId = randomBytes(32).toString('hex')
+
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteIdString,
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  // Update with a different project ID should be a no-op
+  await api.update(inviteIdString, 'other-project-id', { inviteeDeviceId })
+
+  const afterUpdate = await api.getById(inviteIdString, PROJECT_ID)
+  assert.equal(
+    afterUpdate?.inviteeDeviceId,
+    undefined,
+    'invite not updated with wrong project ID'
+  )
 })
 
 test('update() - update non-existent invite', async () => {
   const { api } = setup()
 
   const inviteeDeviceId = randomBytes(32).toString('hex')
-  await api.update('non-existent-id', { inviteeDeviceId })
+  await api.update('non-existent-id', PROJECT_ID, { inviteeDeviceId })
 
-  const result = await api.getById('non-existent-id')
+  const result = await api.getById('non-existent-id', PROJECT_ID)
   assert.equal(result, undefined, 'no-op for non-existent invite')
 })
 
@@ -182,6 +337,7 @@ test('delete() - single invite', async () => {
   const inviteIdString = inviteId.toString('hex')
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url: 'https://example.com/invite',
@@ -190,7 +346,7 @@ test('delete() - single invite', async () => {
 
   await api.delete(inviteIdString)
 
-  const retrieved = await api.getById(inviteIdString)
+  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
   assert.equal(retrieved, undefined, 'invite deleted')
 
   const all = await api.getAll()
@@ -202,7 +358,7 @@ test('delete() - non-existent invite', async () => {
 
   await api.delete('non-existent-id')
 
-  const result = await api.getById('non-existent-id')
+  const result = await api.getById('non-existent-id', PROJECT_ID)
   assert.equal(result, undefined, 'no-op for non-existent invite')
 })
 
@@ -214,6 +370,7 @@ test('deleteAll() - clear all invites', async () => {
   const invite3 = randomBytes(32)
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: invite1.toString('hex'),
     inviteIdBuffer: invite1,
     url: 'https://example.com/1',
@@ -221,6 +378,7 @@ test('deleteAll() - clear all invites', async () => {
   })
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: invite2.toString('hex'),
     inviteIdBuffer: invite2,
     url: 'https://example.com/2',
@@ -228,6 +386,7 @@ test('deleteAll() - clear all invites', async () => {
   })
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: invite3.toString('hex'),
     inviteIdBuffer: invite3,
     url: 'https://example.com/3',
@@ -249,6 +408,43 @@ test('deleteAll() - empty database', async () => {
   assert.equal(all.length, 0, 'no-op on empty database')
 })
 
+test('deleteAllFrom() - clears invites only for the project', async () => {
+  const { api } = setup()
+
+  const invite1 = randomBytes(32)
+  const invite2 = randomBytes(32)
+
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: invite1.toString('hex'),
+    inviteIdBuffer: invite1,
+    url: 'https://example.com/1',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  await api.create({
+    projectId: 'other-project-id',
+    inviteId: invite2.toString('hex'),
+    inviteIdBuffer: invite2,
+    url: 'https://example.com/2',
+    opts: { roleId: COORDINATOR_ROLE_ID },
+  })
+
+  await api.deleteAllFrom(PROJECT_ID)
+
+  const all = await api.getAll()
+  assert.equal(all.length, 1, 'only other project invites remain')
+  assert.equal(all[0].inviteId, invite2.toString('hex'))
+})
+
+test('deleteAllFrom() - empty for project with no invites', async () => {
+  const { api } = setup()
+
+  await api.deleteAllFrom(PROJECT_ID)
+  const all = await api.getAll()
+  assert.equal(all.length, 0, 'no-op on empty project')
+})
+
 test('Role ID validation on read', async () => {
   const { api, db } = setup()
 
@@ -257,6 +453,7 @@ test('Role ID validation on read', async () => {
 
   // Directly insert an invalid roleId into the database using Drizzle, bypassing the API
   await db.insert(pendingInvitesTable).values({
+    projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url: 'https://example.com/invite',
@@ -265,15 +462,15 @@ test('Role ID validation on read', async () => {
   })
 
   await assert.rejects(
-    async () => await api.getById(inviteIdString),
+    async () => await api.getById(inviteIdString, PROJECT_ID),
     /Invalid roleId in database/,
     'throws error for invalid roleId on getById'
   )
 
   await assert.rejects(
-    async () => await api.getAll(),
+    async () => await api.getAllForProject(PROJECT_ID),
     /Invalid roleId in database/,
-    'throws error for invalid roleId on getAll'
+    'throws error for invalid roleId on getAllForProject'
   )
 })
 
@@ -284,13 +481,14 @@ test('Buffer persistence', async () => {
   const inviteIdString = inviteId.toString('hex')
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url: 'https://example.com/invite',
     opts: { roleId: MEMBER_ROLE_ID },
   })
 
-  const retrieved = await api.getById(inviteIdString)
+  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
   assert.ok(retrieved?.inviteIdBuffer.equals(inviteId), 'buffer is identical')
 })
 
@@ -302,6 +500,7 @@ test('Timestamp verification', async () => {
   const inviteIdString = inviteId.toString('hex')
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url: 'https://example.com/invite',
@@ -309,7 +508,7 @@ test('Timestamp verification', async () => {
   })
 
   const afterCreate = Date.now()
-  const retrieved = await api.getById(inviteIdString)
+  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
 
   assert.ok(retrieved, 'able to retrieve')
 
@@ -326,6 +525,7 @@ test('Optional fields', async () => {
   const inviteIdString = inviteId.toString('hex')
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url: 'https://example.com/invite',
@@ -335,7 +535,7 @@ test('Optional fields', async () => {
     },
   })
 
-  const retrieved = await api.getById(inviteIdString)
+  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
   assert.equal(
     retrieved?.roleName,
     null,
@@ -356,15 +556,422 @@ test('create() and getAll() with inviteeDeviceId already set', async () => {
   const inviteeDeviceId = randomBytes(32).toString('hex')
 
   await api.create({
+    projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url: 'https://example.com/invite',
     opts: { roleId: MEMBER_ROLE_ID },
   })
 
-  await api.update(inviteIdString, { inviteeDeviceId })
+  await api.update(inviteIdString, PROJECT_ID, { inviteeDeviceId })
 
   const all = await api.getAll()
   assert.equal(all.length, 1)
   assert.equal(all[0].inviteeDeviceId, inviteeDeviceId)
+})
+
+// Tests for PendingInvitesApiForProject (scoped wrapper)
+
+test('PendingInvitesApiForProject - create() auto-injects projectId', async () => {
+  const { projectApi } = setup()
+
+  const inviteId = randomBytes(32)
+  const inviteIdString = inviteId.toString('hex')
+  const url = 'https://example.com/invite/abc123'
+
+  await projectApi.create({
+    inviteId: inviteIdString,
+    inviteIdBuffer: inviteId,
+    url,
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const retrieved = await projectApi.getById(inviteIdString)
+  assert(retrieved, 'invite can be retrieved')
+  assert.equal(retrieved.inviteId, inviteIdString)
+  assert.equal(retrieved.url, url)
+})
+
+test('PendingInvitesApiForProject - getAll() returns scoped invites', async () => {
+  const { api, projectApi } = setup()
+
+  const invite1 = randomBytes(32)
+  const invite2 = randomBytes(32)
+
+  await projectApi.create({
+    inviteId: invite1.toString('hex'),
+    inviteIdBuffer: invite1,
+    url: 'https://example.com/1',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  // Create an invite for a different project directly
+  await api.create({
+    projectId: 'other-project-id',
+    inviteId: invite2.toString('hex'),
+    inviteIdBuffer: invite2,
+    url: 'https://example.com/2',
+    opts: { roleId: COORDINATOR_ROLE_ID },
+  })
+
+  const invites = await projectApi.getAll()
+  assert.equal(invites.length, 1, 'returns only scoped invites')
+  assert.equal(invites[0].inviteId, invite1.toString('hex'))
+})
+
+test('PendingInvitesApiForProject - update() auto-scopes to project', async () => {
+  const { projectApi } = setup()
+
+  const inviteId = randomBytes(32)
+  const inviteIdString = inviteId.toString('hex')
+
+  await projectApi.create({
+    inviteId: inviteIdString,
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const inviteeDeviceId = randomBytes(32).toString('hex')
+  await projectApi.update(inviteIdString, { inviteeDeviceId })
+
+  const afterUpdate = await projectApi.getById(inviteIdString)
+  assert.equal(afterUpdate?.inviteeDeviceId, inviteeDeviceId)
+})
+
+test('PendingInvitesApiForProject - delete() removes invite', async () => {
+  const { projectApi } = setup()
+
+  const inviteId = randomBytes(32)
+  const inviteIdString = inviteId.toString('hex')
+
+  await projectApi.create({
+    inviteId: inviteIdString,
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  await projectApi.delete(inviteIdString)
+
+  const retrieved = await projectApi.getById(inviteIdString)
+  assert.equal(retrieved, undefined, 'invite deleted')
+})
+
+test('PendingInvitesApiForProject - deleteAll() removes only scoped invites', async () => {
+  const { api, projectApi } = setup()
+
+  const invite1 = randomBytes(32)
+  const invite2 = randomBytes(32)
+
+  await projectApi.create({
+    inviteId: invite1.toString('hex'),
+    inviteIdBuffer: invite1,
+    url: 'https://example.com/1',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  // Create an invite for a different project directly
+  await api.create({
+    projectId: 'other-project-id',
+    inviteId: invite2.toString('hex'),
+    inviteIdBuffer: invite2,
+    url: 'https://example.com/2',
+    opts: { roleId: COORDINATOR_ROLE_ID },
+  })
+
+  await projectApi.deleteAll()
+
+  const all = await api.getAll()
+  assert.equal(all.length, 1, 'only other project invite remains')
+  assert.equal(all[0].inviteId, invite2.toString('hex'))
+})
+
+test('PendingInvitesApiForProject - getById() returns scoped invite', async () => {
+  const { projectApi } = setup()
+
+  const inviteId = randomBytes(32)
+  const inviteIdString = inviteId.toString('hex')
+
+  await projectApi.create({
+    inviteId: inviteIdString,
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const retrieved = await projectApi.getById(inviteIdString)
+  assert(retrieved, 'invite can be retrieved')
+  assert.equal(retrieved.inviteId, inviteIdString)
+})
+
+test('PendingInvitesApiForProject - getById() returns undefined for invite in other project', async () => {
+  const { api, projectApi } = setup()
+
+  const inviteId = randomBytes(32)
+  const inviteIdString = inviteId.toString('hex')
+
+  // Create an invite in a different project directly
+  await api.create({
+    projectId: 'other-project-id',
+    inviteId: inviteIdString,
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const retrieved = await projectApi.getById(inviteIdString)
+  assert.equal(
+    retrieved,
+    undefined,
+    'returns undefined for invite in other project'
+  )
+})
+
+test('PendingInvitesApiForProject - getById() returns undefined for non-existent invite', async () => {
+  const { projectApi } = setup()
+
+  const result = await projectApi.getById('non-existent-id')
+  assert.equal(result, undefined, 'returns undefined for non-existent invite')
+})
+
+test('PendingInvitesApiForProject - delete() is no-op for non-existent invite', async () => {
+  const { projectApi } = setup()
+
+  await projectApi.delete('non-existent-id') // should not throw
+
+  const all = await projectApi.getAll()
+  assert.equal(all.length, 0, 'no-op for non-existent invite')
+})
+
+test('PendingInvitesApiForProject - deleteAll() is no-op on empty project', async () => {
+  const { api, projectApi } = setup()
+
+  await projectApi.deleteAll() // should not throw
+
+  const all = await api.getAll()
+  assert.equal(all.length, 0, 'no-op on empty project')
+})
+
+test('setShouldListenOverInternet - constructor checks existing invites', async () => {
+  const inviteId = randomBytes(32)
+  const { getShouldListenOverInternet } = setup({
+    seedPendingInvites: [
+      {
+        projectId: PROJECT_ID,
+        inviteId: inviteId.toString('hex'),
+        inviteIdBuffer: inviteId,
+        url: 'https://example.com/invite',
+        roleId: MEMBER_ROLE_ID,
+      },
+    ],
+  })
+
+  assert.deepEqual(
+    getShouldListenOverInternet(),
+    [true],
+    'called with true when invites exist'
+  )
+})
+
+test('setShouldListenOverInternet - constructor does not call when db is empty', async () => {
+  const { getShouldListenOverInternet } = setup()
+
+  assert.deepEqual(
+    getShouldListenOverInternet(),
+    [],
+    'never called when db is empty'
+  )
+})
+
+test('setShouldListenOverInternet - create() sets true on first invite', async () => {
+  const { api, getShouldListenOverInternet } = setup()
+
+  const inviteId = randomBytes(32)
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId.toString('hex'),
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  assert.deepEqual(
+    getShouldListenOverInternet(),
+    [true],
+    'called with true after first create'
+  )
+})
+
+test('setShouldListenOverInternet - create() second invite does not call callback', async () => {
+  const { api, getShouldListenOverInternet } = setup()
+
+  const inviteId = randomBytes(32)
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId.toString('hex'),
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const inviteId2 = randomBytes(32)
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId2.toString('hex'),
+    inviteIdBuffer: inviteId2,
+    url: 'https://example.com/invite/2',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  assert.equal(
+    getShouldListenOverInternet().length,
+    1,
+    'callback only called once on second create'
+  )
+})
+
+test('setShouldListenOverInternet - create() after failure does not call callback', async () => {
+  const { api, getShouldListenOverInternet } = setup()
+
+  // Clear any initial state
+  await api.deleteAll()
+  const callsAfterDelete = getShouldListenOverInternet().slice()
+
+  const inviteId = randomBytes(32)
+  const inviteIdString = inviteId.toString('hex')
+
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteIdString,
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  // Try duplicate (fails)
+  await assert.rejects(
+    api.create({
+      projectId: PROJECT_ID,
+      inviteId: inviteIdString,
+      inviteIdBuffer: inviteId,
+      url: 'https://example.com/dup',
+      opts: { roleId: MEMBER_ROLE_ID },
+    })
+  )
+
+  // Should only count the successful create
+  assert.equal(
+    getShouldListenOverInternet().length,
+    callsAfterDelete.length + 1,
+    'duplicate create does not call callback'
+  )
+})
+
+test('setShouldListenOverInternet - delete() sets false when last invite removed', async () => {
+  const { api, getShouldListenOverInternet } = setup()
+
+  const inviteId = randomBytes(32)
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId.toString('hex'),
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  await api.delete(inviteId.toString('hex'))
+
+  assert.deepEqual(
+    getShouldListenOverInternet(),
+    [true, false],
+    'called true on create, false on delete'
+  )
+})
+
+test('setShouldListenOverInternet - delete() does not call when invites remain', async () => {
+  const { api, getShouldListenOverInternet } = setup()
+
+  const inviteId = randomBytes(32)
+  const inviteId2 = randomBytes(32)
+
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId.toString('hex'),
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId2.toString('hex'),
+    inviteIdBuffer: inviteId2,
+    url: 'https://example.com/invite/2',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  await api.delete(inviteId.toString('hex'))
+  // Still 1 invite after delete, no callback call
+  assert.equal(
+    getShouldListenOverInternet().length,
+    1,
+    'only one callback call'
+  )
+})
+
+test('setShouldListenOverInternet - deleteAll() sets false regardless of count', async () => {
+  const { api, getShouldListenOverInternet } = setup()
+
+  const inviteId = randomBytes(32)
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId.toString('hex'),
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  await api.deleteAll()
+
+  assert.deepEqual(
+    getShouldListenOverInternet(),
+    [true, false],
+    'called true on create, false on deleteAll'
+  )
+})
+
+test('setShouldListenOverInternet - deleteAllFrom() sets false only when last invite removed across projects', async () => {
+  const { api, getShouldListenOverInternet } = setup()
+
+  const inviteId = randomBytes(32)
+  const inviteId2 = randomBytes(32)
+
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId.toString('hex'),
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/invite',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+  await api.create({
+    projectId: 'other-project',
+    inviteId: inviteId2.toString('hex'),
+    inviteIdBuffer: inviteId2,
+    url: 'https://example.com/invite/2',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  // Delete all from first project, other still has invite
+  await api.deleteAllFrom(PROJECT_ID)
+  // Still 1 invite (from other project), no callback call
+  assert.equal(getShouldListenOverInternet().length, 1)
+
+  // Delete all from second project
+  await api.deleteAllFrom('other-project')
+  // 0 invites remain
+  assert.deepEqual(
+    getShouldListenOverInternet(),
+    [true, false],
+    'called true on create, false on deleteAllFrom last project'
+  )
 })

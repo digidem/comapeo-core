@@ -1,6 +1,6 @@
 // These schemas are all in a "project" database. Each project in Mapeo has an
 // independent "project" database.
-import { blob, sqliteTable, text, int } from 'drizzle-orm/sqlite-core'
+import { blob, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { dereferencedDocSchemas as schemas } from '@comapeo/schema'
 import { NAMESPACES } from '../constants.js'
 import {
@@ -35,15 +35,4 @@ export const iconBacklinkTable = backlinkTable('icon')
 export const coresTable = sqliteTable('cores', {
   publicKey: blob('publicKey', { mode: 'buffer' }).notNull(),
   namespace: text('namespace', { enum: NAMESPACES }).notNull(),
-})
-
-export const pendingInvitesTable = sqliteTable('pendingInvites', {
-  inviteId: text('inviteId').notNull().primaryKey(),
-  inviteIdBuffer: blob('inviteIdBuffer', { mode: 'buffer' }).notNull(),
-  url: text('url').notNull(),
-  roleId: text('roleId').notNull(),
-  roleName: text('roleName'),
-  roleDescription: text('roleDescription'),
-  inviteeDeviceId: text('inviteeDeviceId'),
-  createdAt: int('createdAt').notNull(),
 })

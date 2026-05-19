@@ -68,6 +68,7 @@ import { migrate } from './lib/drizzle-helpers.js'
 import { RemoteDiscovery } from './discovery/remote-discovery.js'
 import { parseInviteURL } from './member-api.js'
 import { pEvent } from 'p-event'
+import { PendingInvitesApi } from './pending-invites-api.js'
 
 /** @import { MapShareExtension } from './generated/rpc.js' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
@@ -160,6 +161,7 @@ export class MapeoManager extends TypedEmitter {
   #projectMigrationsFolder
   #deviceId
   #localPeers
+  #pendingInvitesApi
   #invite
   #fastify
   #localDiscovery
@@ -304,6 +306,14 @@ export class MapeoManager extends TypedEmitter {
       logger,
     })
     this.#remoteDiscovery.on('connection', this.#replicate.bind(this))
+
+    this.#pendingInvitesApi = new PendingInvitesApi(
+      this.#db,
+      (shouldListen) => {
+        if (shouldListen) return this.#remoteDiscovery.start()
+        else return this.#remoteDiscovery.stop()
+      }
+    )
   }
 
   get deviceId() {
@@ -632,6 +642,7 @@ export class MapeoManager extends TypedEmitter {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
+      pendingInvitesApi: this.#pendingInvitesApi,
       logger: this.#loggerBase,
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
       isArchiveDevice,
@@ -642,10 +653,6 @@ export class MapeoManager extends TypedEmitter {
           .from(projectKeysTable)
           .where(eq(projectKeysTable.projectId, projectId))
           .get()?.projectInfo
-      },
-      setShouldListenOverInternet: (shouldListen) => {
-        if (shouldListen) return this.#remoteDiscovery.start()
-        else return this.#remoteDiscovery.stop()
       },
       markInternetPeerAsTrusted: async (deviceId) => {
         try {

@@ -51,26 +51,6 @@ test('List pending invites over internet', async () => {
   assert.ok(persistedUrls.includes(url2), 'url2 is persisted')
 })
 
-test('setShouldListenOverInternet called once for multiple invites', async () => {
-  let callCount = 0
-  const { member } = setup({
-    setShouldListenOverInternet: async (shouldListen) => {
-      assert(shouldListen)
-      callCount++
-    },
-  })
-
-  await member.inviteOverInternet({
-    roleId: MEMBER_ROLE_ID,
-  })
-
-  await member.inviteOverInternet({
-    roleId: MEMBER_ROLE_ID,
-  })
-
-  assert.equal(callCount, 1, 'only set once')
-})
-
 test('Cancel invite over internet requests', async () => {
   const { member, pendingInvitesApi } = setup({})
 
@@ -124,7 +104,7 @@ test('Cancel invite over internet requests', async () => {
 })
 
 test('Pending invites are loaded from persistence on ready', async () => {
-  const pendingInvitesApi = new MockPendingInvitesApi()
+  const pendingInvitesApi = new MockPendingInvitesApiForProject()
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
   const deviceId = randomBytes(32).toString('hex')
@@ -141,19 +121,12 @@ test('Pending invites are loaded from persistence on ready', async () => {
     },
   })
 
-  let didStartInternet = false
-
   const { member } = setup({
     pendingInvitesApi,
-    setShouldListenOverInternet: async (shouldStart) => {
-      didStartInternet = shouldStart
-    },
   })
 
   // Wait for member API to be ready (loads pending invites)
   await member.ready()
-
-  assert.ok(didStartInternet, 'Did start listening on internet')
 
   // Verify the pending invite was loaded
   const pending = await member.pendingInternetInvites()
@@ -199,13 +172,13 @@ class MockRoles {
 /**
  * In-memory mock of PendingInvitesApi for testing
  */
-class MockPendingInvitesApi {
+class MockPendingInvitesApiForProject {
   /** @type {Map<string, PendingInviteRecord>} */
   #invites = new Map()
 
   /**
    * Create a new pending invite record
-   * @param {PendingInviteCreate} data
+   * @param {Omit<PendingInviteCreate, 'projectId'>} data
    * @returns {Promise<void>}
    */
   async create(data) {
@@ -279,18 +252,16 @@ class MockPendingInvitesApi {
  * @param {(url: string) => WebSocket} [opts.makeWebsocket]
  * @param {() => import('../src/types.js').ReplicationStream} [opts.getReplicationStream]
  * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} [opts.waitForInitialSyncWithPeer]
- * @param {(shouldListen: boolean) => Promise<void>} [opts.setShouldListenOverInternet]
  * @param {(deviceId: string) => Promise<boolean>} [opts.markInternetPeerAsTrusted]
  * @param {(deviceId: string) => Promise<void>} [opts.disconnectFromPeer]
  * @param {() => Promise<import('../src/mapeo-project.js').EditableProjectSettings>} [opts.getProjectSettings]
  * @param {(deviceId: string) => Promise<import('../src/schema.js').DeviceInfo>} [opts.getDeviceInfo]
  * @param {(deviceId: string, deviceInfo: import('../src/member-api.js').NewDeviceInfo) => Promise<void>} [opts.setDeviceInfo]
- * @param {MockPendingInvitesApi} [opts.pendingInvitesApi]
+ * @param {MockPendingInvitesApiForProject} [opts.pendingInvitesApi]
  * @returns
  */
 function setup({
   rootKey = Buffer.alloc(16, 1),
-  setShouldListenOverInternet = () => Promise.resolve(),
   getProjectSettings = () =>
     Promise.resolve({ name: 'example', sendStats: false }),
   getDeviceInfo = () => Promise.reject(new Error('Not implemented')),
@@ -304,7 +275,7 @@ function setup({
     throw new Error('Not implemented')
   },
   markInternetPeerAsTrusted = () => Promise.resolve(true),
-  pendingInvitesApi = new MockPendingInvitesApi(),
+  pendingInvitesApi = new MockPendingInvitesApiForProject(),
 } = {}) {
   const keyManager = new KeyManager(rootKey)
 
@@ -328,7 +299,6 @@ function setup({
     getReplicationStream,
     waitForInitialSyncWithPeer,
     disconnectFromPeer,
-    setShouldListenOverInternet,
     markInternetPeerAsTrusted,
     getProjectSettings,
     getDeviceInfo,

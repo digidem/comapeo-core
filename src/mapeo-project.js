@@ -49,7 +49,7 @@ import {
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
-import { PendingInvitesApi } from './pending-invites-api.js'
+import { PendingInvitesApiForProject } from './pending-invites-api.js'
 import { MemberApi } from './member-api.js'
 import {
   SyncApi,
@@ -177,9 +177,9 @@ export class MapeoProject extends ReadyResource {
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
+   * @param {import('./pending-invites-api.js').PendingInvitesApi} opts.pendingInvitesApi
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
-   * @param {(shouldListen: boolean) => Promise<void>} opts.setShouldListenOverInternet
    * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
    * @param {(deviceId: string) => Promise<void>} opts.disconnectFromPeer
    * @param {Logger} [opts.logger]
@@ -198,10 +198,10 @@ export class MapeoProject extends ReadyResource {
     getMediaBaseUrl,
     makeWebsocket = (url) => new WebSocket(url),
     localPeers,
+    pendingInvitesApi,
     logger,
     isArchiveDevice,
     getFallbackProjectInfo,
-    setShouldListenOverInternet,
     markInternetPeerAsTrusted,
     disconnectFromPeer,
     getSwarmPublicKey,
@@ -251,8 +251,6 @@ export class MapeoProject extends ReadyResource {
       translationTable,
       remoteDetectionAlertTable,
     ]
-
-    const pendingInvitesApi = new PendingInvitesApi(db)
 
     ///////// 2. Wipe data if we need to re-index
 
@@ -431,7 +429,10 @@ export class MapeoProject extends ReadyResource {
       encryptionKeys,
       projectKey,
       rpc: localPeers,
-      pendingInvitesApi,
+      pendingInvitesApi: new PendingInvitesApiForProject(
+        this.#projectId,
+        pendingInvitesApi
+      ),
       getSwarmPublicKey: this.#getSwarmPublicKey,
       makeWebsocket,
       getReplicationStream,
@@ -455,7 +456,6 @@ export class MapeoProject extends ReadyResource {
           deviceInfo
         )
       },
-      setShouldListenOverInternet,
       markInternetPeerAsTrusted,
       disconnectFromPeer,
       logger: this.#l,
