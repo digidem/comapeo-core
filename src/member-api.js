@@ -419,15 +419,15 @@ export class MemberApi extends TypedEmitter {
    * @param {string} opts.reason
    */
   async remove(deviceId, opts) {
+    if (deviceId === this.#ownDeviceId) {
+      throw new CannotBlockSelfError()
+    }
+
     const member = await this.getById(deviceId)
     const { roleId } = member.role
 
     if (roleId === BLOCKED_ROLE_ID || roleId === LEFT_ROLE_ID) {
       throw new AlreadyBlockedError()
-    }
-
-    if (deviceId === this.#ownDeviceId) {
-      throw new CannotBlockSelfError()
     }
 
     // Add blocked role to project
