@@ -35,6 +35,7 @@ import {
   AlreadyInvitingError,
   InvalidResponseBodyError,
   RPCDisconnectBeforeAckError,
+  CannotBlockSelfError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
@@ -418,6 +419,10 @@ export class MemberApi extends TypedEmitter {
    * @param {string} opts.reason
    */
   async remove(deviceId, opts) {
+    if (deviceId === this.#ownDeviceId) {
+      throw new CannotBlockSelfError()
+    }
+
     const member = await this.getById(deviceId)
     const { roleId } = member.role
 

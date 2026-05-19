@@ -23,6 +23,7 @@ import {
 import { kDataTypes } from '../src/mapeo-project.js'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
+import { CannotBlockSelfError } from '../src/errors.js'
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 /** @import { RoleId } from '../src/roles.js' */
 
@@ -989,6 +990,25 @@ test('Members skip writing own deviceInfo if invitor does it', async (t) => {
     assert.equal(deviceInfo.deviceType, 'tablet', 'Got type set')
     assert.equal(deviceInfo.name, expectedName, 'Got name set')
   }
+})
+
+test('cannot remove yourself from a project', async (t) => {
+  const manager = await createManager('manager', t)
+  manager.setDeviceInfo({
+    name: 'manager',
+    deviceType: 'device_type_unspecified',
+  })
+
+  const projectId = await manager.createProject({ name: 'Mapeo' })
+  const project = await manager.getProject(projectId)
+
+  await assert.rejects(
+    project.$member.remove(project.deviceId),
+    {
+      code: CannotBlockSelfError.code,
+    },
+    'removing yourself from a project rejects with CANNOT_BLOCK_SELF_ERROR'
+  )
 })
 
 test('Invite a bunch of users and list only active ones', async (t) => {
