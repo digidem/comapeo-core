@@ -907,7 +907,6 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'RedeemInviteOverInternet': {
-        if (!peer.isTrusted) return
         const redeem = RedeemInviteOverInternet.decode(value)
         this.emit('invite-over-internet-redeemed', peer.id, redeem)
         peer.sendRedeemInviteOverInternetAck(redeem).catch((e) => {
