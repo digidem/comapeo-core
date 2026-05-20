@@ -73,7 +73,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /** @import { projectSettingsTable } from './schema/client.js' */
 /** @import { ReplicationStream, MapeoValueMap } from './types.js' */
 /** @import { PeerInfoDisconnected } from './local-peers.js' */
-/** @import { PendingInvitesApiForProject } from './pending-invites-api.js' */
+/** @import { PendingInvitesApiForProject } from './invite/pending-invites-api.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */

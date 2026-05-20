@@ -8,7 +8,7 @@ import { randomBytes } from 'node:crypto'
 import {
   PendingInvitesApi,
   PendingInvitesApiForProject,
-} from '../src/pending-invites-api.js'
+} from '../src/invite/pending-invites-api.js'
 import {
   MEMBER_ROLE_ID,
   COORDINATOR_ROLE_ID,

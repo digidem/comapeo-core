@@ -49,7 +49,7 @@ import {
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
-import { PendingInvitesApiForProject } from './pending-invites-api.js'
+import { PendingInvitesApiForProject } from './invite/pending-invites-api.js'
 import { MemberApi } from './member-api.js'
 import {
   SyncApi,
@@ -177,7 +177,7 @@ export class MapeoProject extends ReadyResource {
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
-   * @param {import('./pending-invites-api.js').PendingInvitesApi} opts.pendingInvitesApi
+   * @param {import('./invite/pending-invites-api.js').PendingInvitesApi} opts.pendingInvitesApi
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
    * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted

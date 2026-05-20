@@ -19,7 +19,7 @@ import { DerivedDocFields } from '../dist/datatype/index.js'
 import { projectSettingsTable } from '../dist/schema/client.js'
 import { LocalPeers } from '../dist/local-peers.js'
 import { Expect, type Equal } from './utils.js'
-import { PendingInvitesApi } from '../dist/pending-invites-api.js'
+import { PendingInvitesApi } from '../dist/invite/pending-invites-api.js'
 
 type ObservationWithDerivedDocFields = Observation & DerivedDocFields
 type PresetWithDerivedDocFields = Preset & DerivedDocFields

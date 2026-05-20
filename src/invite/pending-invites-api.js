@@ -1,21 +1,21 @@
 import { and, eq, sql } from 'drizzle-orm'
-import { pendingInvitesTable } from './schema/client.js'
-import { isRoleIdForNewInvite } from './roles.js'
+import { pendingInvitesTable } from '../schema/client.js'
+import { isRoleIdForNewInvite } from '../roles.js'
 import {
   ensureKnownError,
   getErrorCode,
   PendingInviteAlreadyExistsError,
-} from './errors.js'
+} from '../errors.js'
 
 /** @import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
-/** @import { InviteOptions } from './member-api.js' */
+/** @import { InviteOptions } from '../member-api.js' */
 
 /**
  * @typedef {object} PendingInviteRecord
  * @property {string} inviteId Hex string invite ID (primary key)
  * @property {Buffer} inviteIdBuffer Binary invite ID
  * @property {string} url Invite URL
- * @property {import('./roles.js').RoleIdForNewInvite} roleId
+ * @property {import('../roles.js').RoleIdForNewInvite} roleId
  * @property {string} [roleName]
  * @property {string} [roleDescription]
  * @property {string} [inviteeDeviceId] Device ID of invitee (set when redeemed)

@@ -10,7 +10,7 @@ import { MEMBER_ROLE_ID } from '../src/roles.js'
 /** @import { ProjectJoinDetails } from '../src/generated/rpc.js' */
 /** @import WebSocket from 'ws' */
 /** @import { InviteOptions } from '../src/member-api.js' */
-/** @import {PendingInviteRecord, PendingInviteCreate,PendingInviteUpdate} from '../src/pending-invites-api.js' */
+/** @import {PendingInviteRecord, PendingInviteCreate,PendingInviteUpdate} from '../src/invite/pending-invites-api.js' */
 
 test('serialize and parse invite URLs', () => {
   const testDeviceId = 'foo'
