@@ -884,6 +884,7 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'InviteCancel': {
+        if (!peer.isTrusted) return
         const inviteCancel = parseInviteCancel(value)
         this.emit('invite-cancel', peer.id, inviteCancel)
         peer.sendInviteCancelAck(inviteCancel).catch((e) => {
@@ -897,6 +898,7 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'InviteResponse': {
+        if (!peer.isTrusted) return
         const inviteResponse = parseInviteResponse(value)
         this.emit('invite-response', peer.id, inviteResponse)
         peer.sendInviteResponseAck(inviteResponse).catch((e) => {
@@ -905,6 +907,7 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'RedeemInviteOverInternet': {
+        if (!peer.isTrusted) return
         const redeem = RedeemInviteOverInternet.decode(value)
         this.emit('invite-over-internet-redeemed', peer.id, redeem)
         peer.sendRedeemInviteOverInternetAck(redeem).catch((e) => {
@@ -913,6 +916,7 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'ProjectJoinDetails': {
+        if (!peer.isTrusted) return
         const details = parseProjectJoinDetails(value)
         this.emit('got-project-details', peer.id, details)
         peer.sendProjectJoinDetailsAck(details).catch((e) => {
@@ -934,30 +938,35 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'InviteAck': {
+        if (!peer.isTrusted) return
         const ack = InviteAck.decode(value)
         peer.receiveAck('InviteAck', ack)
         this.emit('invite-ack', peer.id, ack)
         break
       }
       case 'InviteCancelAck': {
+        if (!peer.isTrusted) return
         const ack = InviteCancelAck.decode(value)
         peer.receiveAck('InviteCancelAck', ack)
         this.emit('invite-cancel-ack', peer.id, ack)
         break
       }
       case 'InviteResponseAck': {
+        if (!peer.isTrusted) return
         const ack = InviteResponseAck.decode(value)
         peer.receiveAck('InviteResponseAck', ack)
         this.emit('invite-response-ack', peer.id, ack)
         break
       }
       case 'ProjectJoinDetailsAck': {
+        if (!peer.isTrusted) return
         const ack = ProjectJoinDetailsAck.decode(value)
         peer.receiveAck('ProjectJoinDetailsAck', ack)
         this.emit('got-project-details-ack', peer.id, ack)
         break
       }
       case 'RedeemInviteOverInternetAck': {
+        if (!peer.isTrusted) return
         const ack = RedeemInviteOverInternetAck.decode(value)
         peer.receiveAck('RedeemInviteOverInternetAck', ack)
         this.emit('invite-over-internet-redeemed-ack', peer.id, ack)
