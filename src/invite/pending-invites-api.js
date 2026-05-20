@@ -6,6 +6,7 @@ import {
   getErrorCode,
   PendingInviteAlreadyExistsError,
 } from '../errors.js'
+import { deNullify } from '../utils.js'
 
 /** @import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
 /** @import { InviteOptions } from '../member-api.js' */
@@ -208,10 +209,7 @@ export class PendingInvitesApi {
       throw new Error(`Invalid roleId in database: ${row.roleId}`)
     }
 
-    return /** @type {PendingInviteRecord} */ ({
-      ...row,
-      inviteeDeviceId: row.inviteeDeviceId ?? undefined,
-    })
+    return /** @type {PendingInviteRecord} */ (deNullify(row))
   }
 
   /**
@@ -225,10 +223,7 @@ export class PendingInvitesApi {
       if (!isRoleIdForNewInvite(row.roleId)) {
         throw new Error(`Invalid roleId in database: ${row.roleId}`)
       }
-      return /** @type {PendingInviteRecord} */ ({
-        ...row,
-        inviteeDeviceId: row.inviteeDeviceId ?? undefined,
-      })
+      return /** @type {PendingInviteRecord} */ (deNullify(row))
     })
   }
 
@@ -246,10 +241,7 @@ export class PendingInvitesApi {
       if (!isRoleIdForNewInvite(row.roleId)) {
         throw new Error(`Invalid roleId in database: ${row.roleId}`)
       }
-      return /** @type {PendingInviteRecord} */ ({
-        ...row,
-        inviteeDeviceId: row.inviteeDeviceId ?? undefined,
-      })
+      return /** @type {PendingInviteRecord} */ (deNullify(row))
     })
   }
 

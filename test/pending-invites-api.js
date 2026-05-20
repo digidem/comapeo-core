@@ -538,12 +538,12 @@ test('Optional fields', async () => {
   const retrieved = await api.getById(inviteIdString, PROJECT_ID)
   assert.equal(
     retrieved?.roleName,
-    null,
+    undefined,
     'roleName is undefined when not provided'
   )
   assert.equal(
     retrieved?.roleDescription,
-    null,
+    undefined,
     'roleDescription is undefined when not provided'
   )
 })
