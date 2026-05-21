@@ -37,6 +37,8 @@ import { deNullify } from '../utils.js'
  * @property {string} inviteeDeviceId
  */
 
+const INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000
+
 export class PendingInvitesApiForProject {
   #projectId
   #pendingInvitesApi
@@ -143,12 +145,30 @@ export class PendingInvitesApi {
         .from(pendingInvitesTable)
         .where(eq(pendingInvitesTable.projectId, sql.placeholder('projectId')))
         .prepare(),
+      getExpired: db
+        .select()
+        .from(pendingInvitesTable)
+        .where(
+          sql`${pendingInvitesTable.createdAt} < ${sql.placeholder('cutoff')}`
+        )
+        .prepare(),
     }
 
     // Run initial check: enable listening if there are existing invites
     const count = this.#sql.getAll.all().length
     if (count > 0) {
       setShouldListenOverInternet(true)
+    }
+  }
+
+  /**
+   * Delete all pending invites whose createdAt timestamp is older than 24 hours.
+   */
+  async #clearExpired() {
+    const cutoff = Date.now() - INVITE_EXPIRY_MS
+    const expired = this.#sql.getExpired.all({ cutoff })
+    for (const row of expired) {
+      await this.delete(row.inviteId)
     }
   }
 
@@ -202,6 +222,7 @@ export class PendingInvitesApi {
    * @returns {Promise<PendingInviteRecord | undefined>}
    */
   async getById(inviteId, projectId) {
+    await this.#clearExpired()
     const row = this.#sql.getById.get({ inviteId, projectId })
     if (!row) return undefined
 
@@ -217,6 +238,7 @@ export class PendingInvitesApi {
    * @returns {Promise<PendingInviteRecord[]>}
    */
   async getAll() {
+    await this.#clearExpired()
     const rows = this.#sql.getAll.all()
 
     return rows.map((row) => {
@@ -233,6 +255,7 @@ export class PendingInvitesApi {
    * @returns {Promise<PendingInviteRecord[]>}
    */
   async getAllForProject(projectId) {
+    await this.#clearExpired()
     const rows = this.#sql.getAllForProject.all({
       projectId,
     })
@@ -253,6 +276,7 @@ export class PendingInvitesApi {
    * @returns {Promise<void>}
    */
   async update(inviteId, projectId, updates) {
+    await this.#clearExpired()
     await this.#db
       .update(pendingInvitesTable)
       .set(updates)

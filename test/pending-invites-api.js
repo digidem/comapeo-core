@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { eq } from 'drizzle-orm'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 
@@ -973,5 +974,188 @@ test('setShouldListenOverInternet - deleteAllFrom() sets false only when last in
     getShouldListenOverInternet(),
     [true, false],
     'called true on create, false on deleteAllFrom last project'
+  )
+})
+
+const EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours in ms
+
+test('clearExpired - expired invites are removed on getAll()', async () => {
+  const { api, db } = setup({
+    seedPendingInvites: [
+      {
+        projectId: PROJECT_ID,
+        inviteId: 'expired-1',
+        inviteIdBuffer: Buffer.from('expired-1'),
+        url: 'https://example.com/expired',
+        roleId: MEMBER_ROLE_ID,
+      },
+    ],
+  })
+
+  // Directly update the createdAt to older than 24 hours
+  await db
+    .update(pendingInvitesTable)
+    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
+    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
+
+  const invites = await api.getAll()
+  assert.equal(invites.length, 0, 'expired invite is not returned')
+
+  // Verify the invite was actually deleted from the DB
+  const all = await api.getAll()
+  assert.equal(all.length, 0, 'expired invite is gone after getAll')
+})
+
+test('clearExpired - expired invites are removed on getAllForProject()', async () => {
+  const inviteId = randomBytes(32)
+  const { api, db } = setup({
+    seedPendingInvites: [
+      {
+        projectId: 'other-project',
+        inviteId: 'expired-1',
+        inviteIdBuffer: Buffer.from('expired-1'),
+        url: 'https://example.com/expired',
+        roleId: MEMBER_ROLE_ID,
+      },
+      {
+        projectId: PROJECT_ID,
+        inviteId: inviteId.toString('hex'),
+        inviteIdBuffer: inviteId,
+        url: 'https://example.com/fresh',
+        roleId: MEMBER_ROLE_ID,
+      },
+    ],
+  })
+
+  // Expire the invite in the other project
+  await db
+    .update(pendingInvitesTable)
+    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
+    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
+
+  const invites = await api.getAllForProject(PROJECT_ID)
+  assert.equal(invites.length, 1)
+  assert.equal(
+    invites[0].inviteId,
+    inviteId.toString('hex'),
+    'fresh invite remains'
+  )
+})
+
+test('clearExpired - expired invites are removed on getById()', async () => {
+  const { api, db } = setup({
+    seedPendingInvites: [
+      {
+        projectId: PROJECT_ID,
+        inviteId: 'expired-1',
+        inviteIdBuffer: Buffer.from('expired-1'),
+        url: 'https://example.com/expired',
+        roleId: MEMBER_ROLE_ID,
+      },
+    ],
+  })
+
+  // Directly update the createdAt to older than 24 hours
+  await db
+    .update(pendingInvitesTable)
+    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
+    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
+
+  const result = await api.getById('expired-1', PROJECT_ID)
+  assert.equal(result, undefined, 'expired invite is not returned by getById')
+})
+
+test('clearExpired - expired invites are removed on update()', async () => {
+  const inviteId = randomBytes(32)
+  const { api, db } = setup({
+    seedPendingInvites: [
+      {
+        projectId: PROJECT_ID,
+        inviteId: 'expired-1',
+        inviteIdBuffer: Buffer.from('expired-1'),
+        url: 'https://example.com/expired',
+        roleId: MEMBER_ROLE_ID,
+      },
+      {
+        projectId: PROJECT_ID,
+        inviteId: inviteId.toString('hex'),
+        inviteIdBuffer: inviteId,
+        url: 'https://example.com/fresh',
+        roleId: MEMBER_ROLE_ID,
+      },
+    ],
+  })
+
+  // Expire one invite
+  await db
+    .update(pendingInvitesTable)
+    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
+    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
+
+  const inviteeDeviceId = randomBytes(32).toString('hex')
+  await api.update(inviteId.toString('hex'), PROJECT_ID, { inviteeDeviceId })
+
+  // Verify the expired invite was cleaned up during update
+  const all = await api.getAll()
+  assert.equal(all.length, 1)
+  assert.equal(
+    all[0].inviteId,
+    inviteId.toString('hex'),
+    'only fresh invite remains'
+  )
+  assert.equal(
+    all[0].inviteeDeviceId,
+    inviteeDeviceId,
+    'fresh invite was updated correctly'
+  )
+})
+
+test('clearExpired - non-expired invites are not affected', async () => {
+  const inviteId = randomBytes(32)
+  const { api } = setup({
+    seedPendingInvites: [
+      {
+        projectId: PROJECT_ID,
+        inviteId: inviteId.toString('hex'),
+        inviteIdBuffer: inviteId,
+        url: 'https://example.com/fresh',
+        roleId: MEMBER_ROLE_ID,
+      },
+    ],
+  })
+
+  const invites = await api.getAll()
+  assert.equal(invites.length, 1, 'fresh invite is returned')
+  assert.equal(invites[0].inviteId, inviteId.toString('hex'))
+})
+
+test('clearExpired - sets shouldListenOverInternet to false when all invites expire', async () => {
+  const { api, db, getShouldListenOverInternet } = setup({
+    seedPendingInvites: [
+      {
+        projectId: PROJECT_ID,
+        inviteId: 'expired-1',
+        inviteIdBuffer: Buffer.from('expired-1'),
+        url: 'https://example.com/expired',
+        roleId: MEMBER_ROLE_ID,
+      },
+    ],
+  })
+
+  // Constructor already called setShouldListenOverInternet(true) because invite exists
+  assert.deepEqual(getShouldListenOverInternet(), [true])
+
+  // Expire the invite
+  await db
+    .update(pendingInvitesTable)
+    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
+    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
+
+  await api.getAll()
+
+  assert.deepEqual(
+    getShouldListenOverInternet(),
+    [true, false],
+    'called with false when all invites were expired and deleted'
   )
 })
