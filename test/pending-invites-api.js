@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { eq } from 'drizzle-orm'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 
@@ -37,14 +36,16 @@ const PROJECT_ID = 'test-project-id'
  * @property {string} inviteId
  * @property {Buffer} inviteIdBuffer
  * @property {string} url
+ * @property {number} [createdAt]
  * @property {import('../src/roles.js').RoleIdForNewInvite} roleId
  */
 
 /**
- * @param {{ seedPendingInvites?: SeedPendingInvite[] }} [opts]
+ * @param {import('node:test').TestContext} t
+ * @param {{ seedPendingInvites?: SeedPendingInvite[], expiryMs?: number }} [opts]
  * @returns {TestEnv}
  */
-function setup({ seedPendingInvites = [] } = {}) {
+function setup(t, { seedPendingInvites = [], expiryMs } = {}) {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
@@ -78,8 +79,10 @@ function setup({ seedPendingInvites = [] } = {}) {
     return shouldListenCalls
   }
 
-  const api = new PendingInvitesApi(db, setShouldListenOverInternet)
+  const api = new PendingInvitesApi(db, setShouldListenOverInternet, expiryMs)
   const projectApi = new PendingInvitesApiForProject(PROJECT_ID, api)
+
+  t.after(() => api.close())
 
   return {
     api,
@@ -90,8 +93,8 @@ function setup({ seedPendingInvites = [] } = {}) {
   }
 }
 
-test('create() - basic functionality', async () => {
-  const { api } = setup()
+test('create() - basic functionality', async (t) => {
+  const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -119,8 +122,8 @@ test('create() - basic functionality', async () => {
   assert.ok(retrieved.createdAt, 'has createdAt timestamp')
 })
 
-test('create() - duplicate inviteId throws', async () => {
-  const { api } = setup()
+test('create() - duplicate inviteId throws', async (t) => {
+  const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -153,15 +156,15 @@ test('create() - duplicate inviteId throws', async () => {
   )
 })
 
-test('getById() - non-existent invite', async () => {
-  const { api } = setup()
+test('getById() - non-existent invite', async (t) => {
+  const { api } = setup(t)
 
   const result = await api.getById('non-existent-id', PROJECT_ID)
   assert.equal(result, undefined, 'returns undefined for non-existent invite')
 })
 
-test('getById() - invite from different project not found', async () => {
-  const { api } = setup()
+test('getById() - invite from different project not found', async (t) => {
+  const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -182,15 +185,15 @@ test('getById() - invite from different project not found', async () => {
   )
 })
 
-test('getAll() - empty database', async () => {
-  const { api } = setup()
+test('getAll() - empty database', async (t) => {
+  const { api } = setup(t)
 
   const invites = await api.getAll()
   assert.deepEqual(invites, [], 'returns empty array when no invites exist')
 })
 
-test('getAll() - multiple invites', async () => {
-  const { api } = setup()
+test('getAll() - multiple invites', async (t) => {
+  const { api } = setup(t)
 
   const invite1 = randomBytes(32)
   const invite2 = randomBytes(32)
@@ -229,8 +232,8 @@ test('getAll() - multiple invites', async () => {
   assert.ok(inviteIds.includes(invite3.toString('hex')))
 })
 
-test('getAllForProject() - returns only invites for the project', async () => {
-  const { api } = setup()
+test('getAllForProject() - returns only invites for the project', async (t) => {
+  const { api } = setup(t)
 
   const invite1 = randomBytes(32)
   const invite2 = randomBytes(32)
@@ -260,8 +263,8 @@ test('getAllForProject() - returns only invites for the project', async () => {
   assert.equal(invites[0].inviteId, invite1.toString('hex'))
 })
 
-test('getAllForProject() - empty for project with no invites', async () => {
-  const { api } = setup()
+test('getAllForProject() - empty for project with no invites', async (t) => {
+  const { api } = setup(t)
 
   const invites = await api.getAllForProject(PROJECT_ID)
   assert.deepEqual(
@@ -271,8 +274,8 @@ test('getAllForProject() - empty for project with no invites', async () => {
   )
 })
 
-test('update() - set inviteeDeviceId', async () => {
-  const { api } = setup()
+test('update() - set inviteeDeviceId', async (t) => {
+  const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -295,8 +298,8 @@ test('update() - set inviteeDeviceId', async () => {
   assert.equal(afterUpdate?.inviteeDeviceId, inviteeDeviceId)
 })
 
-test('update() - scoped to project', async () => {
-  const { api } = setup()
+test('update() - scoped to project', async (t) => {
+  const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -321,8 +324,8 @@ test('update() - scoped to project', async () => {
   )
 })
 
-test('update() - update non-existent invite', async () => {
-  const { api } = setup()
+test('update() - update non-existent invite', async (t) => {
+  const { api } = setup(t)
 
   const inviteeDeviceId = randomBytes(32).toString('hex')
   await api.update('non-existent-id', PROJECT_ID, { inviteeDeviceId })
@@ -331,8 +334,8 @@ test('update() - update non-existent invite', async () => {
   assert.equal(result, undefined, 'no-op for non-existent invite')
 })
 
-test('delete() - single invite', async () => {
-  const { api } = setup()
+test('delete() - single invite', async (t) => {
+  const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -354,8 +357,8 @@ test('delete() - single invite', async () => {
   assert.equal(all.length, 0, 'invite removed from getAll')
 })
 
-test('delete() - non-existent invite', async () => {
-  const { api } = setup()
+test('delete() - non-existent invite', async (t) => {
+  const { api } = setup(t)
 
   await api.delete('non-existent-id')
 
@@ -363,8 +366,8 @@ test('delete() - non-existent invite', async () => {
   assert.equal(result, undefined, 'no-op for non-existent invite')
 })
 
-test('deleteAll() - clear all invites', async () => {
-  const { api } = setup()
+test('deleteAll() - clear all invites', async (t) => {
+  const { api } = setup(t)
 
   const invite1 = randomBytes(32)
   const invite2 = randomBytes(32)
@@ -400,8 +403,8 @@ test('deleteAll() - clear all invites', async () => {
   assert.equal(all.length, 0, 'all invites deleted')
 })
 
-test('deleteAll() - empty database', async () => {
-  const { api } = setup()
+test('deleteAll() - empty database', async (t) => {
+  const { api } = setup(t)
 
   await api.deleteAll()
 
@@ -409,8 +412,8 @@ test('deleteAll() - empty database', async () => {
   assert.equal(all.length, 0, 'no-op on empty database')
 })
 
-test('deleteAllFrom() - clears invites only for the project', async () => {
-  const { api } = setup()
+test('deleteAllFrom() - clears invites only for the project', async (t) => {
+  const { api } = setup(t)
 
   const invite1 = randomBytes(32)
   const invite2 = randomBytes(32)
@@ -438,16 +441,16 @@ test('deleteAllFrom() - clears invites only for the project', async () => {
   assert.equal(all[0].inviteId, invite2.toString('hex'))
 })
 
-test('deleteAllFrom() - empty for project with no invites', async () => {
-  const { api } = setup()
+test('deleteAllFrom() - empty for project with no invites', async (t) => {
+  const { api } = setup(t)
 
   await api.deleteAllFrom(PROJECT_ID)
   const all = await api.getAll()
   assert.equal(all.length, 0, 'no-op on empty project')
 })
 
-test('Role ID validation on read', async () => {
-  const { api, db } = setup()
+test('Role ID validation on read', async (t) => {
+  const { api, db } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -475,8 +478,8 @@ test('Role ID validation on read', async () => {
   )
 })
 
-test('Buffer persistence', async () => {
-  const { api } = setup()
+test('Buffer persistence', async (t) => {
+  const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -493,8 +496,8 @@ test('Buffer persistence', async () => {
   assert.ok(retrieved?.inviteIdBuffer.equals(inviteId), 'buffer is identical')
 })
 
-test('Timestamp verification', async () => {
-  const { api } = setup()
+test('Timestamp verification', async (t) => {
+  const { api } = setup(t)
 
   const beforeCreate = Date.now()
   const inviteId = randomBytes(32)
@@ -519,8 +522,8 @@ test('Timestamp verification', async () => {
   )
 })
 
-test('Optional fields', async () => {
-  const { api } = setup()
+test('Optional fields', async (t) => {
+  const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -549,8 +552,8 @@ test('Optional fields', async () => {
   )
 })
 
-test('create() and getAll() with inviteeDeviceId already set', async () => {
-  const { api } = setup()
+test('create() and getAll() with inviteeDeviceId already set', async (t) => {
+  const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -573,8 +576,8 @@ test('create() and getAll() with inviteeDeviceId already set', async () => {
 
 // Tests for PendingInvitesApiForProject (scoped wrapper)
 
-test('PendingInvitesApiForProject - create() auto-injects projectId', async () => {
-  const { projectApi } = setup()
+test('PendingInvitesApiForProject - create() auto-injects projectId', async (t) => {
+  const { projectApi } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -593,8 +596,8 @@ test('PendingInvitesApiForProject - create() auto-injects projectId', async () =
   assert.equal(retrieved.url, url)
 })
 
-test('PendingInvitesApiForProject - getAll() returns scoped invites', async () => {
-  const { api, projectApi } = setup()
+test('PendingInvitesApiForProject - getAll() returns scoped invites', async (t) => {
+  const { api, projectApi } = setup(t)
 
   const invite1 = randomBytes(32)
   const invite2 = randomBytes(32)
@@ -620,8 +623,8 @@ test('PendingInvitesApiForProject - getAll() returns scoped invites', async () =
   assert.equal(invites[0].inviteId, invite1.toString('hex'))
 })
 
-test('PendingInvitesApiForProject - update() auto-scopes to project', async () => {
-  const { projectApi } = setup()
+test('PendingInvitesApiForProject - update() auto-scopes to project', async (t) => {
+  const { projectApi } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -640,8 +643,8 @@ test('PendingInvitesApiForProject - update() auto-scopes to project', async () =
   assert.equal(afterUpdate?.inviteeDeviceId, inviteeDeviceId)
 })
 
-test('PendingInvitesApiForProject - delete() removes invite', async () => {
-  const { projectApi } = setup()
+test('PendingInvitesApiForProject - delete() removes invite', async (t) => {
+  const { projectApi } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -659,8 +662,8 @@ test('PendingInvitesApiForProject - delete() removes invite', async () => {
   assert.equal(retrieved, undefined, 'invite deleted')
 })
 
-test('PendingInvitesApiForProject - deleteAll() removes only scoped invites', async () => {
-  const { api, projectApi } = setup()
+test('PendingInvitesApiForProject - deleteAll() removes only scoped invites', async (t) => {
+  const { api, projectApi } = setup(t)
 
   const invite1 = randomBytes(32)
   const invite2 = randomBytes(32)
@@ -688,8 +691,8 @@ test('PendingInvitesApiForProject - deleteAll() removes only scoped invites', as
   assert.equal(all[0].inviteId, invite2.toString('hex'))
 })
 
-test('PendingInvitesApiForProject - getById() returns scoped invite', async () => {
-  const { projectApi } = setup()
+test('PendingInvitesApiForProject - getById() returns scoped invite', async (t) => {
+  const { projectApi } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -706,8 +709,8 @@ test('PendingInvitesApiForProject - getById() returns scoped invite', async () =
   assert.equal(retrieved.inviteId, inviteIdString)
 })
 
-test('PendingInvitesApiForProject - getById() returns undefined for invite in other project', async () => {
-  const { api, projectApi } = setup()
+test('PendingInvitesApiForProject - getById() returns undefined for invite in other project', async (t) => {
+  const { api, projectApi } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
@@ -729,15 +732,15 @@ test('PendingInvitesApiForProject - getById() returns undefined for invite in ot
   )
 })
 
-test('PendingInvitesApiForProject - getById() returns undefined for non-existent invite', async () => {
-  const { projectApi } = setup()
+test('PendingInvitesApiForProject - getById() returns undefined for non-existent invite', async (t) => {
+  const { projectApi } = setup(t)
 
   const result = await projectApi.getById('non-existent-id')
   assert.equal(result, undefined, 'returns undefined for non-existent invite')
 })
 
-test('PendingInvitesApiForProject - delete() is no-op for non-existent invite', async () => {
-  const { projectApi } = setup()
+test('PendingInvitesApiForProject - delete() is no-op for non-existent invite', async (t) => {
+  const { projectApi } = setup(t)
 
   await projectApi.delete('non-existent-id') // should not throw
 
@@ -745,8 +748,8 @@ test('PendingInvitesApiForProject - delete() is no-op for non-existent invite', 
   assert.equal(all.length, 0, 'no-op for non-existent invite')
 })
 
-test('PendingInvitesApiForProject - deleteAll() is no-op on empty project', async () => {
-  const { api, projectApi } = setup()
+test('PendingInvitesApiForProject - deleteAll() is no-op on empty project', async (t) => {
+  const { api, projectApi } = setup(t)
 
   await projectApi.deleteAll() // should not throw
 
@@ -754,9 +757,9 @@ test('PendingInvitesApiForProject - deleteAll() is no-op on empty project', asyn
   assert.equal(all.length, 0, 'no-op on empty project')
 })
 
-test('setShouldListenOverInternet - _open() sets true when invites exist', async () => {
+test('setShouldListenOverInternet - _open() sets true when invites exist', async (t) => {
   const inviteId = randomBytes(32)
-  const { api, getShouldListenOverInternet } = setup({
+  const { api, getShouldListenOverInternet } = setup(t, {
     seedPendingInvites: [
       {
         projectId: PROJECT_ID,
@@ -777,8 +780,8 @@ test('setShouldListenOverInternet - _open() sets true when invites exist', async
   )
 })
 
-test('setShouldListenOverInternet - _open() does not call when db is empty', async () => {
-  const { api, getShouldListenOverInternet } = setup()
+test('setShouldListenOverInternet - _open() does not call when db is empty', async (t) => {
+  const { api, getShouldListenOverInternet } = setup(t)
 
   await api.ready()
 
@@ -789,8 +792,8 @@ test('setShouldListenOverInternet - _open() does not call when db is empty', asy
   )
 })
 
-test('setShouldListenOverInternet - create() sets true on first invite', async () => {
-  const { api, getShouldListenOverInternet } = setup()
+test('setShouldListenOverInternet - create() sets true on first invite', async (t) => {
+  const { api, getShouldListenOverInternet } = setup(t)
 
   const inviteId = randomBytes(32)
   await api.create({
@@ -808,8 +811,8 @@ test('setShouldListenOverInternet - create() sets true on first invite', async (
   )
 })
 
-test('setShouldListenOverInternet - create() second invite does not call callback', async () => {
-  const { api, getShouldListenOverInternet } = setup()
+test('setShouldListenOverInternet - create() second invite does not call callback', async (t) => {
+  const { api, getShouldListenOverInternet } = setup(t)
 
   const inviteId = randomBytes(32)
   await api.create({
@@ -836,8 +839,8 @@ test('setShouldListenOverInternet - create() second invite does not call callbac
   )
 })
 
-test('setShouldListenOverInternet - create() after failure does not call callback', async () => {
-  const { api, getShouldListenOverInternet } = setup()
+test('setShouldListenOverInternet - create() after failure does not call callback', async (t) => {
+  const { api, getShouldListenOverInternet } = setup(t)
 
   // Clear any initial state
   await api.deleteAll()
@@ -873,8 +876,8 @@ test('setShouldListenOverInternet - create() after failure does not call callbac
   )
 })
 
-test('setShouldListenOverInternet - delete() sets false when last invite removed', async () => {
-  const { api, getShouldListenOverInternet } = setup()
+test('setShouldListenOverInternet - delete() sets false when last invite removed', async (t) => {
+  const { api, getShouldListenOverInternet } = setup(t)
 
   const inviteId = randomBytes(32)
   await api.create({
@@ -894,8 +897,8 @@ test('setShouldListenOverInternet - delete() sets false when last invite removed
   )
 })
 
-test('setShouldListenOverInternet - delete() does not call when invites remain', async () => {
-  const { api, getShouldListenOverInternet } = setup()
+test('setShouldListenOverInternet - delete() does not call when invites remain', async (t) => {
+  const { api, getShouldListenOverInternet } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteId2 = randomBytes(32)
@@ -924,8 +927,8 @@ test('setShouldListenOverInternet - delete() does not call when invites remain',
   )
 })
 
-test('setShouldListenOverInternet - deleteAll() sets false regardless of count', async () => {
-  const { api, getShouldListenOverInternet } = setup()
+test('setShouldListenOverInternet - deleteAll() sets false regardless of count', async (t) => {
+  const { api, getShouldListenOverInternet } = setup(t)
 
   const inviteId = randomBytes(32)
   await api.create({
@@ -945,8 +948,8 @@ test('setShouldListenOverInternet - deleteAll() sets false regardless of count',
   )
 })
 
-test('setShouldListenOverInternet - deleteAllFrom() sets false only when last invite removed across projects', async () => {
-  const { api, getShouldListenOverInternet } = setup()
+test('setShouldListenOverInternet - deleteAllFrom() sets false only when last invite removed across projects', async (t) => {
+  const { api, getShouldListenOverInternet } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteId2 = randomBytes(32)
@@ -981,187 +984,101 @@ test('setShouldListenOverInternet - deleteAllFrom() sets false only when last in
   )
 })
 
-const EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours in ms
+const TEST_EXPIRY_MS = 50 // 50ms expiry for testing
 
-test('clearExpired - expired invites are removed on getAll()', async () => {
-  const { api, db } = setup({
+test('clearExpired - general cleanup via schedule', async (t) => {
+  const { api } = setup(t, {
+    expiryMs: TEST_EXPIRY_MS,
     seedPendingInvites: [
       {
         projectId: PROJECT_ID,
-        inviteId: 'expired-1',
-        inviteIdBuffer: Buffer.from('expired-1'),
-        url: 'https://example.com/expired',
+        inviteId: 'auto-expire-1',
+        inviteIdBuffer: Buffer.from('auto-expire-1'),
+        url: 'https://example.com/auto-expire',
         roleId: MEMBER_ROLE_ID,
+        createdAt: Date.now() - TEST_EXPIRY_MS + 5, // expires in ~45ms
       },
     ],
   })
 
-  // Directly update the createdAt to older than 24 hours
-  await db
-    .update(pendingInvitesTable)
-    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
-    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
+  await api.ready()
+  await new Promise((resolve) => setTimeout(resolve, TEST_EXPIRY_MS * 2))
 
   const invites = await api.getAll()
-  assert.equal(invites.length, 0, 'expired invite is not returned')
-
-  // Verify the invite was actually deleted from the DB
-  const all = await api.getAll()
-  assert.equal(all.length, 0, 'expired invite is gone after getAll')
+  assert.equal(invites.length, 0, 'invite was auto-cleaned by scheduled expiry')
 })
 
-test('clearExpired - expired invites are removed on getAllForProject()', async () => {
+test('scheduleExpired - creates first invite schedules expiry', async (t) => {
+  const { api } = setup(t, { expiryMs: TEST_EXPIRY_MS })
+
+  await api.ready()
   const inviteId = randomBytes(32)
-  const { api, db } = setup({
-    seedPendingInvites: [
-      {
-        projectId: 'other-project',
-        inviteId: 'expired-1',
-        inviteIdBuffer: Buffer.from('expired-1'),
-        url: 'https://example.com/expired',
-        roleId: MEMBER_ROLE_ID,
-      },
-      {
-        projectId: PROJECT_ID,
-        inviteId: inviteId.toString('hex'),
-        inviteIdBuffer: inviteId,
-        url: 'https://example.com/fresh',
-        roleId: MEMBER_ROLE_ID,
-      },
-    ],
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId.toString('hex'),
+    inviteIdBuffer: inviteId,
+    url: 'https://example.com/fresh',
+    opts: { roleId: MEMBER_ROLE_ID },
   })
 
-  // Expire the invite in the other project
-  await db
-    .update(pendingInvitesTable)
-    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
-    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
-
-  const invites = await api.getAllForProject(PROJECT_ID)
-  assert.equal(invites.length, 1)
-  assert.equal(
-    invites[0].inviteId,
-    inviteId.toString('hex'),
-    'fresh invite remains'
-  )
-})
-
-test('clearExpired - expired invites are removed on getById()', async () => {
-  const { api, db } = setup({
-    seedPendingInvites: [
-      {
-        projectId: PROJECT_ID,
-        inviteId: 'expired-1',
-        inviteIdBuffer: Buffer.from('expired-1'),
-        url: 'https://example.com/expired',
-        roleId: MEMBER_ROLE_ID,
-      },
-    ],
-  })
-
-  // Directly update the createdAt to older than 24 hours
-  await db
-    .update(pendingInvitesTable)
-    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
-    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
-
-  const result = await api.getById('expired-1', PROJECT_ID)
-  assert.equal(result, undefined, 'expired invite is not returned by getById')
-})
-
-test('clearExpired - expired invites are removed on update()', async () => {
-  const inviteId = randomBytes(32)
-  const { api, db } = setup({
-    seedPendingInvites: [
-      {
-        projectId: PROJECT_ID,
-        inviteId: 'expired-1',
-        inviteIdBuffer: Buffer.from('expired-1'),
-        url: 'https://example.com/expired',
-        roleId: MEMBER_ROLE_ID,
-      },
-      {
-        projectId: PROJECT_ID,
-        inviteId: inviteId.toString('hex'),
-        inviteIdBuffer: inviteId,
-        url: 'https://example.com/fresh',
-        roleId: MEMBER_ROLE_ID,
-      },
-    ],
-  })
-
-  // Expire one invite
-  await db
-    .update(pendingInvitesTable)
-    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
-    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
-
-  const inviteeDeviceId = randomBytes(32).toString('hex')
-  await api.update(inviteId.toString('hex'), PROJECT_ID, { inviteeDeviceId })
-
-  // Verify the expired invite was cleaned up during update
-  const all = await api.getAll()
-  assert.equal(all.length, 1)
-  assert.equal(
-    all[0].inviteId,
-    inviteId.toString('hex'),
-    'only fresh invite remains'
-  )
-  assert.equal(
-    all[0].inviteeDeviceId,
-    inviteeDeviceId,
-    'fresh invite was updated correctly'
-  )
-})
-
-test('clearExpired - non-expired invites are not affected', async () => {
-  const inviteId = randomBytes(32)
-  const { api } = setup({
-    seedPendingInvites: [
-      {
-        projectId: PROJECT_ID,
-        inviteId: inviteId.toString('hex'),
-        inviteIdBuffer: inviteId,
-        url: 'https://example.com/fresh',
-        roleId: MEMBER_ROLE_ID,
-      },
-    ],
-  })
+  // Wait for invite to expire and scheduled cleanup to fire
+  await new Promise((resolve) => setTimeout(resolve, TEST_EXPIRY_MS + 200))
 
   const invites = await api.getAll()
-  assert.equal(invites.length, 1, 'fresh invite is returned')
-  assert.equal(invites[0].inviteId, inviteId.toString('hex'))
+  assert.equal(
+    invites.length,
+    0,
+    'singular invite was auto-cleaned by scheduled expiry'
+  )
 })
 
-test('clearExpired - sets shouldListenOverInternet to false when all invites expire', async () => {
-  const { api, db, getShouldListenOverInternet } = setup({
+test('scheduleExpired - cancelling timer on close', async (t) => {
+  const { api } = setup(t, {
+    expiryMs: TEST_EXPIRY_MS,
     seedPendingInvites: [
       {
         projectId: PROJECT_ID,
-        inviteId: 'expired-1',
-        inviteIdBuffer: Buffer.from('expired-1'),
-        url: 'https://example.com/expired',
+        inviteId: 'close-1',
+        inviteIdBuffer: Buffer.from('close-1'),
+        url: 'https://example.com/close',
+        roleId: MEMBER_ROLE_ID,
+        createdAt: Date.now() - TEST_EXPIRY_MS + 5,
+      },
+    ],
+  })
+
+  await api.ready()
+  api.close()
+
+  const invites = await api.getAll()
+  assert.equal(invites.length, 1, 'invite still exists (close cancelled timer)')
+})
+
+test('scheduleExpired - deleting last invite cancels timer', async (t) => {
+  const { api } = setup(t, {
+    expiryMs: TEST_EXPIRY_MS,
+    seedPendingInvites: [
+      {
+        projectId: PROJECT_ID,
+        inviteId: 'delete-cancels-1',
+        inviteIdBuffer: Buffer.from('delete-cancels-1'),
+        url: 'https://example.com/delete-cancels',
         roleId: MEMBER_ROLE_ID,
       },
     ],
   })
 
   await api.ready()
+  await api.delete('delete-cancels-1')
 
-  // _open() already called setShouldListenOverInternet(true) because invite exists
-  assert.deepEqual(getShouldListenOverInternet(), [true])
+  const invites = await api.getAll()
+  assert.equal(invites.length, 0, 'invite was deleted')
 
-  // Expire the invite
-  await db
-    .update(pendingInvitesTable)
-    .set({ createdAt: Date.now() - EXPIRY_MS - 1000 })
-    .where(eq(pendingInvitesTable.inviteId, 'expired-1'))
-
-  await api.getAll()
-
-  assert.deepEqual(
-    getShouldListenOverInternet(),
-    [true, false],
-    'called with false when all invites were expired and deleted'
+  await new Promise((resolve) => setTimeout(resolve, 200))
+  const stillGone = await api.getAll()
+  assert.equal(
+    stillGone.length,
+    0,
+    'no timer firing after delete (none to check against)'
   )
 })

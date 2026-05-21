@@ -38,7 +38,7 @@ import { deNullify } from '../utils.js'
  * @property {string} inviteeDeviceId
  */
 
-const INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000
+const DEFAULT_INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000
 
 export class PendingInvitesApiForProject {
   #projectId
@@ -130,15 +130,25 @@ export class PendingInvitesApi extends ReadyResource {
   #sql
   /** @type {(shouldListen: boolean) => Promise<void>} */
   #setShouldListenOverInternet
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  #clearExpiredTimer = null
+  /** @type {number} */
+  #expiryMs
 
   /**
    * @param {BetterSQLite3Database} db Drizzle database instance
    * @param {(shouldListen: boolean) => Promise<void>} setShouldListenOverInternet
+   * @param {number} [expiryMs] milliseconds before invites expire (default: 24 hours)
    */
-  constructor(db, setShouldListenOverInternet) {
+  constructor(
+    db,
+    setShouldListenOverInternet,
+    expiryMs = DEFAULT_INVITE_EXPIRY_MS
+  ) {
     super()
     this.#db = db
     this.#setShouldListenOverInternet = setShouldListenOverInternet
+    this.#expiryMs = expiryMs
     this.#sql = {
       getById: db
         .select()
@@ -164,6 +174,12 @@ export class PendingInvitesApi extends ReadyResource {
           sql`${pendingInvitesTable.createdAt} < ${sql.placeholder('cutoff')}`
         )
         .prepare(),
+      getOldest: db
+        .select()
+        .from(pendingInvitesTable)
+        .orderBy(sql`${pendingInvitesTable.createdAt} ASC`)
+        .limit(1)
+        .prepare(),
     }
   }
 
@@ -174,13 +190,18 @@ export class PendingInvitesApi extends ReadyResource {
     if (count > 0) {
       await this.#setShouldListenOverInternet(true)
     }
+    this.#scheduleExpired()
+  }
+
+  async _close() {
+    this.#cancelScheduleExpired()
   }
 
   /**
    * Delete all pending invites whose createdAt timestamp is older than 24 hours.
    */
   async #clearExpired() {
-    const cutoff = Date.now() - INVITE_EXPIRY_MS
+    const cutoff = Date.now() - this.#expiryMs
     const expired = this.#sql.getExpired.all({ cutoff })
     for (const row of expired) {
       await this.#db
@@ -191,6 +212,34 @@ export class PendingInvitesApi extends ReadyResource {
     if (expired.length > 0) {
       await this.#checkSetShouldListenOverInternet(false)
     }
+  }
+
+  /**
+   * Cancel the scheduled expiry timer
+   */
+  #cancelScheduleExpired() {
+    if (this.#clearExpiredTimer !== null) {
+      clearTimeout(this.#clearExpiredTimer)
+      this.#clearExpiredTimer = null
+    }
+  }
+
+  /**
+   * Schedule a timeout to clear expired invites a few seconds after the oldest
+   * invite is expected to expire. Fires once, then reschedules itself.
+   */
+  #scheduleExpired() {
+    this.#cancelScheduleExpired()
+    const oldest = this.#sql.getOldest.get()
+    if (!oldest) return
+    const expiresAt = oldest.createdAt + this.#expiryMs
+    const delay = Math.max(0, expiresAt - Date.now())
+    this.#clearExpiredTimer = setTimeout(async () => {
+      this.#clearExpiredTimer = null
+      await this.#clearExpired()
+      this.#scheduleExpired()
+    }, delay)
+    this.#clearExpiredTimer.unref()
   }
 
   /**
@@ -206,6 +255,8 @@ export class PendingInvitesApi extends ReadyResource {
       await this.#setShouldListenOverInternet(true)
     } else if (!direction && count === 0) {
       await this.#setShouldListenOverInternet(false)
+      // Cancel the scheduled expiry timer since there are no invites left
+      this.#cancelScheduleExpired()
     }
   }
 
@@ -229,6 +280,11 @@ export class PendingInvitesApi extends ReadyResource {
       })
 
       await this.#checkSetShouldListenOverInternet(true)
+      // If this is the only invite, schedule expiry cleanup
+      const count = this.#sql.getAll.all().length
+      if (count === 1) {
+        this.#scheduleExpired()
+      }
     } catch (err) {
       if (getErrorCode(err) === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
         throw new PendingInviteAlreadyExistsError({ inviteId: data.inviteId })
@@ -245,7 +301,6 @@ export class PendingInvitesApi extends ReadyResource {
    */
   async getById(inviteId, projectId) {
     await this.ready()
-    await this.#clearExpired()
     const row = this.#sql.getById.get({ inviteId, projectId })
     if (!row) return undefined
 
@@ -262,7 +317,6 @@ export class PendingInvitesApi extends ReadyResource {
    */
   async getAll() {
     await this.ready()
-    await this.#clearExpired()
     const rows = this.#sql.getAll.all()
 
     return rows.map((row) => {
@@ -280,7 +334,6 @@ export class PendingInvitesApi extends ReadyResource {
    */
   async getAllForProject(projectId) {
     await this.ready()
-    await this.#clearExpired()
     const rows = this.#sql.getAllForProject.all({
       projectId,
     })
@@ -302,7 +355,6 @@ export class PendingInvitesApi extends ReadyResource {
    */
   async update(inviteId, projectId, updates) {
     await this.ready()
-    await this.#clearExpired()
     await this.#db
       .update(pendingInvitesTable)
       .set(updates)
@@ -336,6 +388,7 @@ export class PendingInvitesApi extends ReadyResource {
     await this.ready()
     await this.#db.delete(pendingInvitesTable)
     await this.#setShouldListenOverInternet(false)
+    this.#cancelScheduleExpired()
   }
 
   /**

@@ -1210,6 +1210,7 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async close() {
+    await this.#pendingInvitesApi.close()
     await this.#remoteDiscovery.close()
     // This added for workers PR
     // await this.#projectSettingsIndexWriter.close()
