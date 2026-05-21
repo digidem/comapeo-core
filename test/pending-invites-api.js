@@ -754,9 +754,9 @@ test('PendingInvitesApiForProject - deleteAll() is no-op on empty project', asyn
   assert.equal(all.length, 0, 'no-op on empty project')
 })
 
-test('setShouldListenOverInternet - constructor checks existing invites', async () => {
+test('setShouldListenOverInternet - _open() sets true when invites exist', async () => {
   const inviteId = randomBytes(32)
-  const { getShouldListenOverInternet } = setup({
+  const { api, getShouldListenOverInternet } = setup({
     seedPendingInvites: [
       {
         projectId: PROJECT_ID,
@@ -768,15 +768,19 @@ test('setShouldListenOverInternet - constructor checks existing invites', async 
     ],
   })
 
+  await api.ready()
+
   assert.deepEqual(
     getShouldListenOverInternet(),
     [true],
-    'called with true when invites exist'
+    'called with true when invites exist after ready()'
   )
 })
 
-test('setShouldListenOverInternet - constructor does not call when db is empty', async () => {
-  const { getShouldListenOverInternet } = setup()
+test('setShouldListenOverInternet - _open() does not call when db is empty', async () => {
+  const { api, getShouldListenOverInternet } = setup()
+
+  await api.ready()
 
   assert.deepEqual(
     getShouldListenOverInternet(),
@@ -1142,7 +1146,9 @@ test('clearExpired - sets shouldListenOverInternet to false when all invites exp
     ],
   })
 
-  // Constructor already called setShouldListenOverInternet(true) because invite exists
+  await api.ready()
+
+  // _open() already called setShouldListenOverInternet(true) because invite exists
   assert.deepEqual(getShouldListenOverInternet(), [true])
 
   // Expire the invite

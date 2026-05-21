@@ -1,4 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm'
+import ReadyResource from 'ready-resource'
 import { pendingInvitesTable } from '../schema/client.js'
 import { isRoleIdForNewInvite } from '../roles.js'
 import {
@@ -41,6 +42,7 @@ const INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000
 
 export class PendingInvitesApiForProject {
   #projectId
+  /** @type {PendingInvitesApi} */
   #pendingInvitesApi
 
   /**
@@ -59,6 +61,7 @@ export class PendingInvitesApiForProject {
    * @returns {Promise<void>}
    */
   async create(data) {
+    await this.#pendingInvitesApi.ready()
     return this.#pendingInvitesApi.create({
       ...data,
       projectId: this.#projectId,
@@ -71,6 +74,7 @@ export class PendingInvitesApiForProject {
    * @returns {Promise<PendingInviteRecord | undefined>}
    */
   async getById(inviteId) {
+    await this.#pendingInvitesApi.ready()
     return this.#pendingInvitesApi.getById(inviteId, this.#projectId)
   }
 
@@ -79,6 +83,7 @@ export class PendingInvitesApiForProject {
    * @returns {Promise<PendingInviteRecord[]>}
    */
   async getAll() {
+    await this.#pendingInvitesApi.ready()
     return this.#pendingInvitesApi.getAllForProject(this.#projectId)
   }
 
@@ -89,6 +94,7 @@ export class PendingInvitesApiForProject {
    * @returns {Promise<void>}
    */
   async update(inviteId, updates) {
+    await this.#pendingInvitesApi.ready()
     return this.#pendingInvitesApi.update(inviteId, this.#projectId, updates)
   }
 
@@ -98,6 +104,7 @@ export class PendingInvitesApiForProject {
    * @returns {Promise<void>}
    */
   async delete(inviteId) {
+    await this.#pendingInvitesApi.ready()
     return this.#pendingInvitesApi.delete(inviteId)
   }
 
@@ -106,6 +113,7 @@ export class PendingInvitesApiForProject {
    * @returns {Promise<void>}
    */
   async deleteAll() {
+    await this.#pendingInvitesApi.ready()
     return this.#pendingInvitesApi.deleteAllFrom(this.#projectId)
   }
 }
@@ -113,7 +121,10 @@ export class PendingInvitesApiForProject {
 /**
  * API for CRUD operations on pending invites over internet
  */
-export class PendingInvitesApi {
+/**
+ * @type {ReadyResource}
+ */
+export class PendingInvitesApi extends ReadyResource {
   /** @type {BetterSQLite3Database} */
   #db
   #sql
@@ -125,6 +136,7 @@ export class PendingInvitesApi {
    * @param {(shouldListen: boolean) => Promise<void>} setShouldListenOverInternet
    */
   constructor(db, setShouldListenOverInternet) {
+    super()
     this.#db = db
     this.#setShouldListenOverInternet = setShouldListenOverInternet
     this.#sql = {
@@ -153,11 +165,14 @@ export class PendingInvitesApi {
         )
         .prepare(),
     }
+  }
 
-    // Run initial check: enable listening if there are existing invites
+  async _open() {
+    // Clear expired invites and check if listening should be enabled
+    await this.#clearExpired()
     const count = this.#sql.getAll.all().length
     if (count > 0) {
-      setShouldListenOverInternet(true)
+      await this.#setShouldListenOverInternet(true)
     }
   }
 
@@ -168,7 +183,13 @@ export class PendingInvitesApi {
     const cutoff = Date.now() - INVITE_EXPIRY_MS
     const expired = this.#sql.getExpired.all({ cutoff })
     for (const row of expired) {
-      await this.delete(row.inviteId)
+      await this.#db
+        .delete(pendingInvitesTable)
+        .where(eq(pendingInvitesTable.inviteId, row.inviteId))
+    }
+    // Update the listen state once, after all deletions
+    if (expired.length > 0) {
+      await this.#checkSetShouldListenOverInternet(false)
     }
   }
 
@@ -194,6 +215,7 @@ export class PendingInvitesApi {
    * @returns {Promise<void>}
    */
   async create(data) {
+    await this.ready()
     try {
       await this.#db.insert(pendingInvitesTable).values({
         projectId: data.projectId,
@@ -222,6 +244,7 @@ export class PendingInvitesApi {
    * @returns {Promise<PendingInviteRecord | undefined>}
    */
   async getById(inviteId, projectId) {
+    await this.ready()
     await this.#clearExpired()
     const row = this.#sql.getById.get({ inviteId, projectId })
     if (!row) return undefined
@@ -238,6 +261,7 @@ export class PendingInvitesApi {
    * @returns {Promise<PendingInviteRecord[]>}
    */
   async getAll() {
+    await this.ready()
     await this.#clearExpired()
     const rows = this.#sql.getAll.all()
 
@@ -255,6 +279,7 @@ export class PendingInvitesApi {
    * @returns {Promise<PendingInviteRecord[]>}
    */
   async getAllForProject(projectId) {
+    await this.ready()
     await this.#clearExpired()
     const rows = this.#sql.getAllForProject.all({
       projectId,
@@ -276,6 +301,7 @@ export class PendingInvitesApi {
    * @returns {Promise<void>}
    */
   async update(inviteId, projectId, updates) {
+    await this.ready()
     await this.#clearExpired()
     await this.#db
       .update(pendingInvitesTable)
@@ -294,6 +320,7 @@ export class PendingInvitesApi {
    * @returns {Promise<void>}
    */
   async delete(inviteId) {
+    await this.ready()
     await this.#db
       .delete(pendingInvitesTable)
       .where(eq(pendingInvitesTable.inviteId, inviteId))
@@ -306,6 +333,7 @@ export class PendingInvitesApi {
    * @returns {Promise<void>}
    */
   async deleteAll() {
+    await this.ready()
     await this.#db.delete(pendingInvitesTable)
     await this.#setShouldListenOverInternet(false)
   }
@@ -315,6 +343,7 @@ export class PendingInvitesApi {
    * @param {string} projectId
    */
   async deleteAllFrom(projectId) {
+    await this.ready()
     await this.#db
       .delete(pendingInvitesTable)
       .where(eq(pendingInvitesTable.projectId, projectId))
