@@ -246,7 +246,7 @@ async function readChunk(stream, length) {
   if (!data) {
     try {
       await pEvent(stream, 'readable', {
-        timeout: 10_00,
+        timeout: 10_000,
         rejectionEvents: ['error', 'close'],
       })
       data = stream.read()
