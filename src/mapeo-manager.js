@@ -751,13 +751,12 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<string>}
    */
   async joinProjectOverInternet(url, { timeout = 60_000 } = {}) {
-    const { deviceId: swarmPublicKeyHex, inviteIdString } = parseInviteURL(url)
+    const { swarmPublicKey, inviteIdString } = parseInviteURL(url)
     const inviteId = Buffer.from(inviteIdString, 'hex')
 
-    const connection = await this.#remoteDiscovery.connectPeer(
-      swarmPublicKeyHex,
-      { timeout }
-    )
+    const connection = await this.#remoteDiscovery.connectPeer(swarmPublicKey, {
+      timeout,
+    })
     const onClose = pEvent(connection, 'close').then(
       () => {
         throw new InviteRedeemConnectionClosedError()

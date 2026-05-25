@@ -13,15 +13,15 @@ import { MEMBER_ROLE_ID } from '../src/roles.js'
 /** @import {PendingInviteRecord, PendingInviteCreate,PendingInviteUpdate} from '../src/invite/pending-invites-api.js' */
 
 test('serialize and parse invite URLs', () => {
-  const testDeviceId = 'foo'
+  const testSwarmPublicKey = 'foo'
   const testInviteId = 'bar'
 
-  const url = makeInviteURL(testInviteId, testDeviceId)
+  const url = makeInviteURL(testInviteId, testSwarmPublicKey)
 
-  const { inviteIdString, deviceId } = parseInviteURL(url)
+  const { inviteIdString, swarmPublicKey } = parseInviteURL(url)
 
   assert.equal(inviteIdString, testInviteId)
-  assert.equal(deviceId, testDeviceId)
+  assert.equal(swarmPublicKey, testSwarmPublicKey)
 })
 
 test('List pending invites over internet', async () => {
@@ -107,8 +107,8 @@ test('Pending invites are loaded from persistence on ready', async () => {
   const pendingInvitesApi = new MockPendingInvitesApiForProject()
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
-  const deviceId = randomBytes(32).toString('hex')
-  const url = makeInviteURL(inviteIdString, deviceId)
+  const swarmPublicKey = randomBytes(32).toString('hex')
+  const url = makeInviteURL(inviteIdString, swarmPublicKey)
 
   // Pre-populate the mock with a pending invite
   await pendingInvitesApi.create({

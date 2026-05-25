@@ -216,9 +216,9 @@ export class MemberApi extends TypedEmitter {
   async inviteOverInternet(opts) {
     const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
     const inviteIdString = inviteId.toString('hex')
-    const deviceId = this.#getSwarmPublicKey().toString('hex')
+    const swarmPublicKey = this.#getSwarmPublicKey().toString('hex')
 
-    const url = makeInviteURL(inviteIdString, deviceId)
+    const url = makeInviteURL(inviteIdString, swarmPublicKey)
 
     await this.#pendingInvitesApi.create({
       inviteId: inviteIdString,
@@ -986,7 +986,7 @@ async function parseAddServerResponse(response) {
 
 /**
  * @param {string} url
- * @returns {{inviteIdString: string, deviceId: string}}
+ * @returns {{inviteIdString: string, swarmPublicKey: string}}
  */
 export function parseInviteURL(url) {
   const { hash } = new URL(url)
@@ -994,22 +994,25 @@ export function parseInviteURL(url) {
   const params = new URLSearchParams(hash.slice(1))
 
   const inviteIdString = params.get('i')
-  const deviceId = params.get('d')
+  const swarmPublicKey = params.get('d')
 
-  if (typeof inviteIdString !== 'string' || typeof deviceId !== 'string') {
+  if (
+    typeof inviteIdString !== 'string' ||
+    typeof swarmPublicKey !== 'string'
+  ) {
     throw new MissingInviteAndDeviceParamsError()
   }
-  return { inviteIdString, deviceId }
+  return { inviteIdString, swarmPublicKey }
 }
 
 /**
  *
  * @param {string} inviteIdString
- * @param {string} deviceId
+ * @param {string} swarmPublicKey
  * @returns {string}
  */
-export function makeInviteURL(inviteIdString, deviceId) {
-  const url = INTERNET_INVITE_PAGE + `#i=${inviteIdString}&d=${deviceId}`
+export function makeInviteURL(inviteIdString, swarmPublicKey) {
+  const url = INTERNET_INVITE_PAGE + `#i=${inviteIdString}&d=${swarmPublicKey}`
 
   return url
 }
