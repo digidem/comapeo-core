@@ -125,10 +125,6 @@ test('Pending invites are loaded from persistence on ready', async () => {
     pendingInvitesApi,
   })
 
-  // Wait for member API to be ready (loads pending invites)
-  await member.ready()
-
-  // Verify the pending invite was loaded
   const pending = await member.pendingInternetInvites()
   assert.deepEqual(pending, [url], 'Pending invite loaded from persistence')
 })

@@ -12,7 +12,7 @@ import { Logger } from './logger.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
-import ReadyResource from 'ready-resource'
+import { TypedEmitter } from 'tiny-typed-emitter'
 import {
   AlreadyBlockedError,
   DeviceIdNotForServerError,
@@ -55,8 +55,6 @@ import {
 
 export const INTERNET_INVITE_PAGE = 'https://i.comapeo.app/invite/'
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
-
-/** @import { TypedEmitter } from 'tiny-typed-emitter' */
 
 /**
  * @import {
@@ -126,9 +124,9 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 
 /**
- * @type {ReadyResource & TypedEmitter<MemberEvents>}
+ * @extends {TypedEmitter<MemberEvents>}
  */
-export class MemberApi extends ReadyResource {
+export class MemberApi extends TypedEmitter {
   #ownDeviceId
   #roles
   #encryptionKeys
@@ -148,9 +146,6 @@ export class MemberApi extends ReadyResource {
 
   /** @type {Map<string, { abortController: AbortController }>} */
   #outboundInvitesByDevice = new Map()
-
-  /** @type {Map<string, {inviteId: Buffer, url: string, opts: InviteOptions, inviteeDeviceId?: string}>} */
-  #pendingInvitesOverInternet = new Map()
 
   /**
    * @param {Object} opts
@@ -214,40 +209,16 @@ export class MemberApi extends ReadyResource {
     this.#rpc.on('peer-remove', (peer) => this.#handlePeerRemove(peer))
   }
 
-  async _open() {
-    // Load pending invites from database
-    const persistedInvites = await this.#pendingInvitesApi.getAll()
-    for (const row of persistedInvites) {
-      this.#pendingInvitesOverInternet.set(row.inviteId, {
-        inviteId: row.inviteIdBuffer,
-        url: row.url,
-        opts: {
-          roleId: row.roleId,
-          roleName: row.roleName,
-          roleDescription: row.roleDescription,
-        },
-        inviteeDeviceId: row.inviteeDeviceId ?? undefined,
-      })
-    }
-  }
-
   /**
    * Start inviting somone over the internet. Returns a URL for the recipient to load.
    * @param {InviteOptions} opts
    */
   async inviteOverInternet(opts) {
-    await this.ready()
     const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
     const inviteIdString = inviteId.toString('hex')
     const deviceId = this.#getSwarmPublicKey().toString('hex')
 
     const url = makeInviteURL(inviteIdString, deviceId)
-
-    this.#pendingInvitesOverInternet.set(inviteIdString, {
-      inviteId,
-      url,
-      opts,
-    })
 
     await this.#pendingInvitesApi.create({
       inviteId: inviteIdString,
@@ -264,12 +235,11 @@ export class MemberApi extends ReadyResource {
    * @param {string} [url]
    */
   async cancelInviteOverInternet(url) {
-    await this.ready()
     if (!url) {
-      for (const inviteId of this.#pendingInvitesOverInternet.keys()) {
-        this.emit('internet-invite-cancelled', inviteId)
+      const invites = await this.#pendingInvitesApi.getAll()
+      for (const invite of invites) {
+        this.emit('internet-invite-cancelled', invite.inviteId)
       }
-      this.#pendingInvitesOverInternet.clear()
       await this.#pendingInvitesApi.deleteAll()
       return
     }
@@ -282,10 +252,9 @@ export class MemberApi extends ReadyResource {
    * @param {string} inviteIdString
    */
   async #cancelInviteOverInternetById(inviteIdString) {
-    if (!this.#pendingInvitesOverInternet.has(inviteIdString)) {
+    if (!(await this.#pendingInvitesApi.getById(inviteIdString))) {
       throw new InvalidInternetInviteURLError()
     }
-    this.#pendingInvitesOverInternet.delete(inviteIdString)
     this.emit('internet-invite-cancelled', inviteIdString)
     await this.#pendingInvitesApi.delete(inviteIdString)
   }
@@ -295,8 +264,8 @@ export class MemberApi extends ReadyResource {
    * @returns {Promise<string[]>}
    */
   async pendingInternetInvites() {
-    await this.ready()
-    return [...this.#pendingInvitesOverInternet.values()].map(({ url }) => url)
+    const invites = await this.#pendingInvitesApi.getAll()
+    return invites.map(({ url }) => url)
   }
 
   /**
@@ -304,14 +273,12 @@ export class MemberApi extends ReadyResource {
    * @param {PeerInfoDisconnected} peer
    */
   async #handlePeerRemove(peer) {
-    for (const [
-      pendingInviteId,
-      pendingInvite,
-    ] of this.#pendingInvitesOverInternet.entries()) {
-      if (pendingInvite.inviteeDeviceId === peer.deviceId) {
-        // TODO: Handle errors? Emit event saying this happened?
-        this.#cancelInviteOverInternetById(pendingInviteId).catch((e) => {
-          this.#l.log('Error: Unable to cancel invite', pendingInviteId, e)
+    if (!peer) return
+    const invites = await this.#pendingInvitesApi.getAll()
+    for (const invite of invites) {
+      if (invite.inviteeDeviceId === peer.deviceId) {
+        this.#cancelInviteOverInternetById(invite.inviteId).catch((e) => {
+          this.#l.log('Error: Unable to cancel invite', invite.inviteId, e)
         })
         break
       }
@@ -327,32 +294,34 @@ export class MemberApi extends ReadyResource {
     const inviteIdString = inviteId.toString('hex')
     this.#l.log('Got incoming invite redeem', inviteIdString.slice(0, 7))
 
+    const invite = await this.#pendingInvitesApi.getById(inviteIdString)
+    if (!invite) {
+      this.emit(
+        'internet-invite-redeem-error',
+        new UnknownInviteIDRedeemAttemptError(),
+        peerId,
+        inviteIdString
+      )
+      await this.#disconnectFromPeer(peerId)
+      return
+    }
+
+    if (invite.inviteeDeviceId) {
+      this.emit(
+        'internet-invite-redeem-error',
+        new InviteAlreadyRedeemedError(),
+        peerId,
+        inviteIdString
+      )
+      await this.#disconnectFromPeer(peerId)
+      return
+    }
+
     try {
-      for (const [
-        pendingInviteId,
-        pendingInvite,
-      ] of this.#pendingInvitesOverInternet.entries()) {
-        if (pendingInviteId !== inviteIdString) continue
-
-        if (pendingInvite.inviteeDeviceId) {
-          this.emit(
-            'internet-invite-redeem-error',
-            new InviteAlreadyRedeemedError(),
-            peerId,
-            inviteIdString
-          )
-          await this.#disconnectFromPeer(peerId)
-          return
-        }
-
-        pendingInvite.inviteeDeviceId = peerId
-        await this.#pendingInvitesApi.update(inviteIdString, {
-          inviteeDeviceId: peerId,
-        })
-
-        this.emit('internet-invite-redeemed', peerId, inviteIdString)
-        return
-      }
+      await this.#pendingInvitesApi.update(inviteIdString, {
+        inviteeDeviceId: peerId,
+      })
+      this.emit('internet-invite-redeemed', peerId, inviteIdString)
     } catch (e) {
       this.emit(
         'internet-invite-redeem-error',
@@ -361,17 +330,7 @@ export class MemberApi extends ReadyResource {
         inviteIdString
       )
       await this.#disconnectFromPeer(peerId)
-      return
     }
-
-    this.emit(
-      'internet-invite-redeem-error',
-      new UnknownInviteIDRedeemAttemptError(),
-      peerId,
-      inviteIdString
-    )
-
-    await this.#disconnectFromPeer(peerId)
   }
 
   /**
@@ -380,31 +339,31 @@ export class MemberApi extends ReadyResource {
    * @returns {Promise<InviteDecision>}
    */
   async acceptRedeemedInvite(inviteId) {
-    await this.ready()
-    for (const [
-      pendingInviteId,
-      { opts, inviteeDeviceId },
-    ] of this.#pendingInvitesOverInternet.entries()) {
-      if (pendingInviteId !== inviteId) continue
-      if (!inviteeDeviceId) {
-        throw new InviteNotYetRedeemedError()
-      }
-
-      const stillConnected = await this.#markInternetPeerAsTrusted(
-        inviteeDeviceId
-      )
-
-      // If they aren't connected after redeeming, we should mark it as cancelled
-      if (!stillConnected) {
-        await this.cancelInviteOverInternet(pendingInviteId)
-        throw new PeerDisconnectedSinceRedeemingInviteError()
-      }
-      const decision = await this.invite(inviteeDeviceId, opts)
-
-      return decision
+    const pendingInvite = await this.#pendingInvitesApi.getById(inviteId)
+    if (!pendingInvite) {
+      throw new UnknownInviteIDError()
+    }
+    const { inviteeDeviceId, roleId, roleName, roleDescription } = pendingInvite
+    if (!inviteeDeviceId) {
+      throw new InviteNotYetRedeemedError()
     }
 
-    throw new UnknownInviteIDError()
+    const stillConnected = await this.#markInternetPeerAsTrusted(
+      inviteeDeviceId
+    )
+
+    // If they aren't connected after redeeming, we should mark it as cancelled
+    if (!stillConnected) {
+      await this.cancelInviteOverInternet(inviteId)
+      throw new PeerDisconnectedSinceRedeemingInviteError()
+    }
+    const decision = await this.invite(inviteeDeviceId, {
+      roleId,
+      roleName,
+      roleDescription,
+    })
+
+    return decision
   }
 
   /**
