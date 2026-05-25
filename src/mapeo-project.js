@@ -630,9 +630,11 @@ export class MapeoProject extends ReadyResource {
   }
 
   /**
+   * Clear up resources via ready-resource
    */
   async _close() {
     this.#l.log('closing project %h', this.#projectId)
+    await this.#memberApi.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())

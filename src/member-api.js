@@ -206,7 +206,11 @@ export class MemberApi extends TypedEmitter {
     this.#rpc.on('invite-over-internet-redeemed', (peerId, redeem) =>
       this.#handleRedeemInviteOverInternet(peerId, redeem)
     )
-    this.#rpc.on('peer-remove', (peer) => this.#handlePeerRemove(peer))
+    this.#rpc.on('peer-remove', this.#handlePeerRemove)
+  }
+
+  async close() {
+    this.#rpc.removeListener('peer-remove', this.#handlePeerRemove)
   }
 
   /**
@@ -272,7 +276,7 @@ export class MemberApi extends TypedEmitter {
    *
    * @param {PeerInfoDisconnected} peer
    */
-  async #handlePeerRemove(peer) {
+  #handlePeerRemove = async (peer) => {
     if (!peer) return
     const invites = await this.#pendingInvitesApi.getAll()
     for (const invite of invites) {
