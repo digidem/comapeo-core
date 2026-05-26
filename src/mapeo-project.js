@@ -49,7 +49,7 @@ import {
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
-import { InviteLinksApiForProject } from './invite/pending-invites-api.js'
+import { InviteLinksApiForProject } from './invite/invite-links-api.js'
 import { MemberApi } from './member-api.js'
 import {
   SyncApi,
@@ -177,7 +177,7 @@ export class MapeoProject extends ReadyResource {
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
-   * @param {import('./invite/pending-invites-api.js').InviteLinksApi} opts.inviteLinks
+   * @param {import('./invite/invite-links-api.js').InviteLinksApi} opts.inviteLinks
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
    * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted

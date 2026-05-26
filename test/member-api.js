@@ -9,7 +9,7 @@ import { MEMBER_ROLE_ID } from '../src/roles.js'
 
 /** @import { ProjectJoinDetails } from '../src/generated/rpc.js' */
 /** @import WebSocket from 'ws' */
-/** @import { InviteLinkCreate, InviteLinkRecord } from '../src/invite/pending-invites-api.js' */
+/** @import { InviteLinkCreate, InviteLinkRecord } from '../src/invite/invite-links-api.js' */
 
 test('serialize and parse invite URLs', () => {
   const testSwarmPublicKey = 'foo'

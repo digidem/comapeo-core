@@ -68,7 +68,7 @@ import { migrate } from './lib/drizzle-helpers.js'
 import { RemoteDiscovery } from './discovery/remote-discovery.js'
 import { parseInviteURL } from './member-api.js'
 import { pEvent } from 'p-event'
-import { InviteLinksApi } from './invite/pending-invites-api.js'
+import { InviteLinksApi } from './invite/invite-links-api.js'
 
 /** @import { MapShareExtension } from './generated/rpc.js' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
