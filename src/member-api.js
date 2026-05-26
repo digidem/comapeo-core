@@ -105,6 +105,12 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 
 /**
+ * @typedef {object} InviteLinkParams
+ * @property {string} inviteIdString
+ * @property {string} swarmPublicKey
+ */
+
+/**
  * @typedef {(
  *   typeof InviteResponse_Decision.ACCEPT |
  *   typeof InviteResponse_Decision.REJECT |
@@ -226,7 +232,7 @@ export class MemberApi extends TypedEmitter {
     const inviteIdString = inviteId.toString('hex')
     const swarmPublicKey = this.#getSwarmPublicKey().toString('hex')
 
-    const url = makeInviteURL(inviteIdString, swarmPublicKey)
+    const url = makeInviteURL({ inviteIdString, swarmPublicKey })
 
     await this.#inviteLinks.create({
       inviteId: inviteIdString,
@@ -1009,7 +1015,7 @@ async function parseAddServerResponse(response) {
 
 /**
  * @param {string} url
- * @returns {{inviteIdString: string, swarmPublicKey: string}}
+ * @returns {InviteLinkParams}
  */
 export function parseInviteURL(url) {
   const { hash } = new URL(url)
@@ -1029,12 +1035,10 @@ export function parseInviteURL(url) {
 }
 
 /**
- *
- * @param {string} inviteIdString
- * @param {string} swarmPublicKey
+ * @param {InviteLinkParams} opts
  * @returns {string}
  */
-export function makeInviteURL(inviteIdString, swarmPublicKey) {
+export function makeInviteURL({ inviteIdString, swarmPublicKey }) {
   const url = INTERNET_INVITE_PAGE + `#i=${inviteIdString}&d=${swarmPublicKey}`
 
   return url

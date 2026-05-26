@@ -15,7 +15,10 @@ test('serialize and parse invite URLs', () => {
   const testSwarmPublicKey = 'foo'
   const testInviteId = 'bar'
 
-  const url = makeInviteURL(testInviteId, testSwarmPublicKey)
+  const url = makeInviteURL({
+    inviteIdString: testInviteId,
+    swarmPublicKey: testSwarmPublicKey,
+  })
 
   const { inviteIdString, swarmPublicKey } = parseInviteURL(url)
 
@@ -103,7 +106,7 @@ test('Pending invites are loaded from persistence on ready', async () => {
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
   const swarmPublicKey = randomBytes(32).toString('hex')
-  const url = makeInviteURL(inviteIdString, swarmPublicKey)
+  const url = makeInviteURL({ inviteIdString, swarmPublicKey })
 
   // Pre-populate the mock with a pending invite
   await inviteLinks.create({
