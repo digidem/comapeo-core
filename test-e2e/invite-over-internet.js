@@ -105,7 +105,11 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
 
   const pending = await project.$member.listInviteLinks()
 
-  assert.deepEqual(pending, [url], 'Pending internet invites loaded on reload')
+  assert.deepEqual(
+    pending.map((p) => p.url),
+    [url],
+    'Pending internet invites loaded on reload'
+  )
 
   const onInviteRedeemAttempt = pEvent(
     project.$member,
@@ -195,7 +199,11 @@ test('invite over internet can be redeemed by multiple peers', async (t) => {
 
   // Verify invite is still pending for future redeemers
   const pending = await project.$member.listInviteLinks()
-  assert.deepEqual(pending, [url], 'Invite still pending after two redeems')
+  assert.deepEqual(
+    pending.map((p) => p.url),
+    [url],
+    'Invite still pending after two redeems'
+  )
 })
 
 test('invite over internet errors if invitor deviceID is invalid', async (t) => {

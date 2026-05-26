@@ -21,6 +21,7 @@ import { deNullify } from '../utils.js'
  * @property {string} [roleName]
  * @property {string} [roleDescription]
  * @property {number} createdAt Timestamp when created
+ * @property {number} expiresAt Timestamp when the invite expires
  */
 
 /**
@@ -32,7 +33,7 @@ import { deNullify } from '../utils.js'
  * @property {InviteOptions} opts
  */
 
-const DEFAULT_INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000
+export const DEFAULT_INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000
 
 export class InviteLinksApiForProject {
   #projectId
@@ -154,7 +155,7 @@ export class InviteLinksApi extends ReadyResource {
         .select()
         .from(inviteLinksTable)
         .where(
-          sql`${inviteLinksTable.createdAt} < ${sql.placeholder('cutoff')}`
+          sql`${inviteLinksTable.expiresAt} < ${sql.placeholder('cutoff')}`
         )
         .prepare(),
       getOldest: db
@@ -184,7 +185,7 @@ export class InviteLinksApi extends ReadyResource {
    * Delete all invite links whose createdAt timestamp is older than 24 hours.
    */
   async #clearExpired() {
-    const cutoff = Date.now() - this.#expiryMs
+    const cutoff = Date.now()
     const expired = this.#sql.getExpired.all({ cutoff })
     for (const row of expired) {
       await this.#db
@@ -215,8 +216,7 @@ export class InviteLinksApi extends ReadyResource {
     this.#cancelScheduleExpired()
     const oldest = this.#sql.getOldest.get()
     if (!oldest) return
-    const expiresAt = oldest.createdAt + this.#expiryMs
-    const delay = Math.max(0, expiresAt - Date.now())
+    const delay = Math.max(0, oldest.expiresAt - Date.now())
     this.#clearExpiredTimer = setTimeout(async () => {
       this.#clearExpiredTimer = null
       await this.#clearExpired()
@@ -260,6 +260,7 @@ export class InviteLinksApi extends ReadyResource {
         roleName: data.opts.roleName,
         roleDescription: data.opts.roleDescription,
         createdAt: Date.now(),
+        expiresAt: Date.now() + this.#expiryMs,
       })
 
       await this.#checkSetShouldListenOverInternet(true)

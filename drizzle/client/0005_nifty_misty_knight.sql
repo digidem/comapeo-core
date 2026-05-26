@@ -6,5 +6,6 @@ CREATE TABLE `inviteLinks` (
 	`roleId` text NOT NULL,
 	`roleName` text,
 	`roleDescription` text,
-	`createdAt` integer NOT NULL
+	`createdAt` integer NOT NULL,
+	`expiresAt` integer NOT NULL
 );

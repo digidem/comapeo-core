@@ -71,6 +71,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /** @import { projectSettingsTable } from './schema/client.js' */
 /** @import { ReplicationStream, MapeoValueMap } from './types.js' */
 /** @import { PeerInfoDisconnected } from './local-peers.js' */
+/** @import { InviteLinkRecord } from './invite/invite-links-api.js' */
 /** @import { InviteLinksApiForProject } from './invite/invite-links-api.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
@@ -276,11 +277,16 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * Get the list of pending invites over the internet
-   * @returns {Promise<string[]>}
+   * @returns {Promise<Pick<InviteLinkRecord, 'url' | 'inviteId' | 'createdAt' | 'expiresAt'>[]>}
    */
   async listInviteLinks() {
     const invites = await this.#inviteLinks.getAll()
-    return invites.map(({ url }) => url)
+    return invites.map(({ url, inviteId, createdAt, expiresAt }) => ({
+      url,
+      inviteId,
+      createdAt,
+      expiresAt,
+    }))
   }
 
   /**

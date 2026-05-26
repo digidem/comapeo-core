@@ -6,6 +6,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'node:crypto'
 import {
+  DEFAULT_INVITE_EXPIRY_MS,
   InviteLinksApi,
   InviteLinksApiForProject,
 } from '../src/invite/invite-links-api.js'
@@ -18,6 +19,7 @@ import { inviteLinksTable } from '../src/schema/client.js'
 import { InviteLinkAlreadyExistsError } from '../src/errors.js'
 
 /** @import {BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
+/** @import {InviteLinkRecord} from '../src/invite/invite-links-api.js' */
 
 const PROJECT_ID = 'test-project-id'
 
@@ -31,13 +33,7 @@ const PROJECT_ID = 'test-project-id'
  */
 
 /**
- * @typedef {object} SeedPendingInvite
- * @property {string} projectId
- * @property {string} inviteId
- * @property {Buffer} inviteIdBuffer
- * @property {string} url
- * @property {number} [createdAt]
- * @property {import('../src/roles.js').RoleIdForNewInvite} roleId
+ * @typedef {Omit<InviteLinkRecord, 'createdAt' | 'expiresAt'> & {createdAt?: number, expiresAt?: number, projectId: string}} SeedPendingInvite
  */
 
 /**
@@ -45,7 +41,10 @@ const PROJECT_ID = 'test-project-id'
  * @param {{ seedPendingInvites?: SeedPendingInvite[], expiryMs?: number }} [opts]
  * @returns {TestEnv}
  */
-function setup(t, { seedPendingInvites = [], expiryMs } = {}) {
+function setup(
+  t,
+  { seedPendingInvites = [], expiryMs = DEFAULT_INVITE_EXPIRY_MS } = {}
+) {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
@@ -56,12 +55,9 @@ function setup(t, { seedPendingInvites = [], expiryMs } = {}) {
   for (const seed of seedPendingInvites) {
     db.insert(inviteLinksTable)
       .values({
-        projectId: seed.projectId,
-        inviteId: seed.inviteId,
-        inviteIdBuffer: seed.inviteIdBuffer,
-        url: seed.url,
-        roleId: seed.roleId,
-        createdAt: Date.now(),
+        ...seed,
+        createdAt: seed.createdAt ?? Date.now(),
+        expiresAt: seed.expiresAt ?? Date.now() + expiryMs,
       })
       .run()
   }
@@ -403,6 +399,7 @@ test('Role ID validation on read', async (t) => {
     url: 'https://example.com/invite',
     roleId: 'invalid-role-id',
     createdAt: Date.now(),
+    expiresAt: Date.now() + DEFAULT_INVITE_EXPIRY_MS,
   })
 
   await assert.rejects(

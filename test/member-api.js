@@ -40,7 +40,7 @@ test('List pending invites over internet', async () => {
   const pending = await member.listInviteLinks()
 
   assert.deepEqual(
-    pending.sort(),
+    pending.map((p) => p.url).sort(),
     [url1, url2].sort(),
     'Both pending URLs returned'
   )
@@ -70,7 +70,11 @@ test('Cancel invite over internet requests', async () => {
 
   await member.cancelInviteLink(url1)
 
-  assert.deepEqual(await member.listInviteLinks(), [url2], 'One URL left')
+  assert.deepEqual(
+    await member.listInviteLinks().then((r) => r.map((p) => p.url)),
+    [url2],
+    'One URL left'
+  )
 
   // Verify only url2 remains in persistence
   persisted = await inviteLinks.getAll()
@@ -94,7 +98,11 @@ test('Cancel invite over internet requests', async () => {
 
   await member.cancelInviteLink()
 
-  assert.deepEqual(await member.listInviteLinks(), [], 'No URLs left')
+  assert.deepEqual(
+    await member.listInviteLinks().then((r) => r.map((p) => p.url)),
+    [],
+    'No URLs left'
+  )
 
   // Verify persistence is cleared
   persisted = await inviteLinks.getAll()
@@ -124,7 +132,11 @@ test('Pending invites are loaded from persistence on ready', async () => {
   })
 
   const pending = await member.listInviteLinks()
-  assert.deepEqual(pending, [url], 'Pending invite loaded from persistence')
+  assert.deepEqual(
+    pending.map((p) => p.url),
+    [url],
+    'Pending invite loaded from persistence'
+  )
 })
 
 class MockLocalPeers extends LocalPeers {
@@ -184,6 +196,7 @@ class MockInviteLinksApiForProject {
       roleName: data.opts.roleName,
       roleDescription: data.opts.roleDescription,
       createdAt: Date.now(),
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     })
   }
 
