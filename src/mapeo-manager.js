@@ -68,7 +68,7 @@ import { migrate } from './lib/drizzle-helpers.js'
 import { RemoteDiscovery } from './discovery/remote-discovery.js'
 import { parseInviteURL } from './member-api.js'
 import { pEvent } from 'p-event'
-import { PendingInvitesApi } from './invite/pending-invites-api.js'
+import { InviteLinksApi } from './invite/pending-invites-api.js'
 
 /** @import { MapShareExtension } from './generated/rpc.js' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
@@ -161,7 +161,7 @@ export class MapeoManager extends TypedEmitter {
   #projectMigrationsFolder
   #deviceId
   #localPeers
-  #pendingInvitesApi
+  #inviteLinks
   #invite
   #fastify
   #localDiscovery
@@ -307,13 +307,10 @@ export class MapeoManager extends TypedEmitter {
     })
     this.#remoteDiscovery.on('connection', this.#replicate.bind(this))
 
-    this.#pendingInvitesApi = new PendingInvitesApi(
-      this.#db,
-      (shouldListen) => {
-        if (shouldListen) return this.#remoteDiscovery.start()
-        else return this.#remoteDiscovery.stop()
-      }
-    )
+    this.#inviteLinks = new InviteLinksApi(this.#db, (shouldListen) => {
+      if (shouldListen) return this.#remoteDiscovery.start()
+      else return this.#remoteDiscovery.stop()
+    })
   }
 
   get deviceId() {
@@ -642,7 +639,7 @@ export class MapeoManager extends TypedEmitter {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
-      pendingInvitesApi: this.#pendingInvitesApi,
+      inviteLinks: this.#inviteLinks,
       logger: this.#loggerBase,
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
       isArchiveDevice,
@@ -1209,7 +1206,7 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async close() {
-    await this.#pendingInvitesApi.close()
+    await this.#inviteLinks.close()
     await this.#remoteDiscovery.close()
     // This added for workers PR
     // await this.#projectSettingsIndexWriter.close()

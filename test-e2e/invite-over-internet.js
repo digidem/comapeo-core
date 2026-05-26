@@ -26,7 +26,7 @@ test('invite over internet and join from URL', async (t) => {
   })
   const project = await invitor.getProject(projectId)
 
-  const url = await project.$member.inviteOverInternet({
+  const url = await project.$member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
@@ -91,7 +91,7 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
   })
   let project = await invitor.getProject(projectId)
 
-  const url = await project.$member.inviteOverInternet({
+  const url = await project.$member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
@@ -103,7 +103,7 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
 
   project = await invitor.getProject(projectId)
 
-  const pending = await project.$member.pendingInternetInvites()
+  const pending = await project.$member.listInviteLinks()
 
   assert.deepEqual(pending, [url], 'Pending internet invites loaded on reload')
 
@@ -146,7 +146,7 @@ test('invite over internet can be redeemed by multiple peers', async (t) => {
   })
   const project = await invitor.getProject(projectId)
 
-  const url = await project.$member.inviteOverInternet({
+  const url = await project.$member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
@@ -194,7 +194,7 @@ test('invite over internet can be redeemed by multiple peers', async (t) => {
   await onSecondInvited
 
   // Verify invite is still pending for future redeemers
-  const pending = await project.$member.pendingInternetInvites()
+  const pending = await project.$member.listInviteLinks()
   assert.deepEqual(pending, [url], 'Invite still pending after two redeems')
 })
 
@@ -209,7 +209,7 @@ test('invite over internet errors if invitor deviceID is invalid', async (t) => 
   })
   const project = await invitor.getProject(projectId)
 
-  const url = await project.$member.inviteOverInternet({
+  const url = await project.$member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
@@ -240,7 +240,7 @@ test('invite over internet errors if inviter closes before accepting', async (t)
   })
   const project = await invitor.getProject(projectId)
 
-  const url = await project.$member.inviteOverInternet({
+  const url = await project.$member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
@@ -291,7 +291,7 @@ test('invite over internet errors if invitee uses random invalid inviteId', asyn
   })
   const project = await invitor.getProject(projectId)
 
-  const url = await project.$member.inviteOverInternet({
+  const url = await project.$member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 

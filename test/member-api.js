@@ -9,8 +9,7 @@ import { MEMBER_ROLE_ID } from '../src/roles.js'
 
 /** @import { ProjectJoinDetails } from '../src/generated/rpc.js' */
 /** @import WebSocket from 'ws' */
-/** @import { InviteOptions } from '../src/member-api.js' */
-/** @import { PendingInviteRecord, PendingInviteCreate } from '../src/invite/pending-invites-api.js' */
+/** @import { InviteLinkCreate, InviteLinkRecord } from '../src/invite/pending-invites-api.js' */
 
 test('serialize and parse invite URLs', () => {
   const testSwarmPublicKey = 'foo'
@@ -25,17 +24,17 @@ test('serialize and parse invite URLs', () => {
 })
 
 test('List pending invites over internet', async () => {
-  const { member, pendingInvitesApi } = setup({})
+  const { member, inviteLinks } = setup({})
 
-  const url1 = await member.inviteOverInternet({
+  const url1 = await member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
-  const url2 = await member.inviteOverInternet({
+  const url2 = await member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
-  const pending = await member.pendingInternetInvites()
+  const pending = await member.listInviteLinks()
 
   assert.deepEqual(
     pending.sort(),
@@ -44,7 +43,7 @@ test('List pending invites over internet', async () => {
   )
 
   // Verify persistence
-  const persisted = await pendingInvitesApi.getAll()
+  const persisted = await inviteLinks.getAll()
   assert.equal(persisted.length, 2, 'Two invites persisted')
   const persistedUrls = persisted.map((p) => p.url)
   assert.ok(persistedUrls.includes(url1), 'url1 is persisted')
@@ -52,66 +51,62 @@ test('List pending invites over internet', async () => {
 })
 
 test('Cancel invite over internet requests', async () => {
-  const { member, pendingInvitesApi } = setup({})
+  const { member, inviteLinks } = setup({})
 
-  const url1 = await member.inviteOverInternet({
+  const url1 = await member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
-  const url2 = await member.inviteOverInternet({
+  const url2 = await member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
   // Verify both invites are persisted
-  let persisted = await pendingInvitesApi.getAll()
+  let persisted = await inviteLinks.getAll()
   assert.equal(persisted.length, 2, 'Two invites persisted initially')
 
-  await member.cancelInviteOverInternet(url1)
+  await member.cancelInviteLink(url1)
 
-  assert.deepEqual(
-    await member.pendingInternetInvites(),
-    [url2],
-    'One URL left'
-  )
+  assert.deepEqual(await member.listInviteLinks(), [url2], 'One URL left')
 
   // Verify only url2 remains in persistence
-  persisted = await pendingInvitesApi.getAll()
+  persisted = await inviteLinks.getAll()
   assert.equal(persisted.length, 1, 'One invite remains after cancel')
   assert.equal(persisted[0].url, url2, 'url2 is still persisted')
 
-  await member.inviteOverInternet({
+  await member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
-  await member.inviteOverInternet({
+  await member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
   })
 
   // Verify 3 invites now persisted
-  persisted = await pendingInvitesApi.getAll()
+  persisted = await inviteLinks.getAll()
   assert.equal(
     persisted.length,
     3,
     'Three invites persisted after adding two more'
   )
 
-  await member.cancelInviteOverInternet()
+  await member.cancelInviteLink()
 
-  assert.deepEqual(await member.pendingInternetInvites(), [], 'No URLs left')
+  assert.deepEqual(await member.listInviteLinks(), [], 'No URLs left')
 
   // Verify persistence is cleared
-  persisted = await pendingInvitesApi.getAll()
+  persisted = await inviteLinks.getAll()
   assert.equal(persisted.length, 0, 'All invites removed from persistence')
 })
 
 test('Pending invites are loaded from persistence on ready', async () => {
-  const pendingInvitesApi = new MockPendingInvitesApiForProject()
+  const inviteLinks = new MockInviteLinksApiForProject()
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
   const swarmPublicKey = randomBytes(32).toString('hex')
   const url = makeInviteURL(inviteIdString, swarmPublicKey)
 
   // Pre-populate the mock with a pending invite
-  await pendingInvitesApi.create({
+  await inviteLinks.create({
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
     url,
@@ -122,10 +117,10 @@ test('Pending invites are loaded from persistence on ready', async () => {
   })
 
   const { member } = setup({
-    pendingInvitesApi,
+    inviteLinks,
   })
 
-  const pending = await member.pendingInternetInvites()
+  const pending = await member.listInviteLinks()
   assert.deepEqual(pending, [url], 'Pending invite loaded from persistence')
 })
 
@@ -166,15 +161,15 @@ class MockRoles {
 }
 
 /**
- * In-memory mock of PendingInvitesApi for testing
+ * In-memory mock of InviteLinksApi for testing
  */
-class MockPendingInvitesApiForProject {
-  /** @type {Map<string, PendingInviteRecord>} */
+class MockInviteLinksApiForProject {
+  /** @type {Map<string, InviteLinkRecord>} */
   #invites = new Map()
 
   /**
    * Create a new pending invite record
-   * @param {Omit<PendingInviteCreate, 'projectId'>} data
+   * @param {Omit<InviteLinkCreate, 'projectId'>} data
    * @returns {Promise<void>}
    */
   async create(data) {
@@ -192,7 +187,7 @@ class MockPendingInvitesApiForProject {
   /**
    * Get a pending invite by invite ID
    * @param {string} inviteId
-   * @returns {Promise<PendingInviteRecord | undefined>}
+   * @returns {Promise<InviteLinkRecord | undefined>}
    */
   async getById(inviteId) {
     return this.#invites.get(inviteId)
@@ -200,7 +195,7 @@ class MockPendingInvitesApiForProject {
 
   /**
    * Get all pending invites
-   * @returns {Promise<PendingInviteRecord[]>}
+   * @returns {Promise<InviteLinkRecord[]>}
    */
   async getAll() {
     return [...this.#invites.values()]
@@ -234,7 +229,7 @@ class MockPendingInvitesApiForProject {
  * @param {() => Promise<import('../src/mapeo-project.js').EditableProjectSettings>} [opts.getProjectSettings]
  * @param {(deviceId: string) => Promise<import('../src/schema.js').DeviceInfo>} [opts.getDeviceInfo]
  * @param {(deviceId: string, deviceInfo: import('../src/member-api.js').NewDeviceInfo) => Promise<void>} [opts.setDeviceInfo]
- * @param {MockPendingInvitesApiForProject} [opts.pendingInvitesApi]
+ * @param {MockInviteLinksApiForProject} [opts.inviteLinks]
  * @returns
  */
 function setup({
@@ -252,7 +247,7 @@ function setup({
     throw new Error('Not implemented')
   },
   markInternetPeerAsTrusted = () => Promise.resolve(true),
-  pendingInvitesApi = new MockPendingInvitesApiForProject(),
+  inviteLinks = new MockInviteLinksApiForProject(),
 } = {}) {
   const keyManager = new KeyManager(rootKey)
 
@@ -271,7 +266,7 @@ function setup({
     roles,
     encryptionKeys,
     projectKey,
-    pendingInvitesApi,
+    inviteLinks,
     makeWebsocket,
     getReplicationStream,
     waitForInitialSyncWithPeer,
@@ -288,6 +283,6 @@ function setup({
     roles,
     member,
     projectKey,
-    pendingInvitesApi,
+    inviteLinks,
   }
 }

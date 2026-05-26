@@ -6,16 +6,16 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'node:crypto'
 import {
-  PendingInvitesApi,
-  PendingInvitesApiForProject,
+  InviteLinksApi,
+  InviteLinksApiForProject,
 } from '../src/invite/pending-invites-api.js'
 import {
   MEMBER_ROLE_ID,
   COORDINATOR_ROLE_ID,
   BLOCKED_ROLE_ID,
 } from '../src/roles.js'
-import { pendingInvitesTable } from '../src/schema/client.js'
-import { PendingInviteAlreadyExistsError } from '../src/errors.js'
+import { inviteLinksTable } from '../src/schema/client.js'
+import { InviteLinkAlreadyExistsError } from '../src/errors.js'
 
 /** @import {BetterSQLite3Database } from 'drizzle-orm/better-sqlite3' */
 
@@ -23,8 +23,8 @@ const PROJECT_ID = 'test-project-id'
 
 /**
  * @typedef {object} TestEnv
- * @property {PendingInvitesApi} api
- * @property {PendingInvitesApiForProject} projectApi
+ * @property {InviteLinksApi} api
+ * @property {InviteLinksApiForProject} projectApi
  * @property {BetterSQLite3Database} db
  * @property {(shouldListen: boolean) => Promise<void>} setShouldListenOverInternet
  * @property {() => boolean[]} getShouldListenOverInternet - Get ordered call log of setShouldListenOverInternet
@@ -54,7 +54,7 @@ function setup(t, { seedPendingInvites = [], expiryMs } = {}) {
 
   // Seed pending invites before creating the API
   for (const seed of seedPendingInvites) {
-    db.insert(pendingInvitesTable)
+    db.insert(inviteLinksTable)
       .values({
         projectId: seed.projectId,
         inviteId: seed.inviteId,
@@ -79,8 +79,8 @@ function setup(t, { seedPendingInvites = [], expiryMs } = {}) {
     return shouldListenCalls
   }
 
-  const api = new PendingInvitesApi(db, setShouldListenOverInternet, expiryMs)
-  const projectApi = new PendingInvitesApiForProject(PROJECT_ID, api)
+  const api = new InviteLinksApi(db, setShouldListenOverInternet, expiryMs)
+  const projectApi = new InviteLinksApiForProject(PROJECT_ID, api)
 
   t.after(() => api.close())
 
@@ -151,7 +151,7 @@ test('create() - duplicate inviteId throws', async (t) => {
         roleName: 'Coordinator',
       },
     }),
-    { code: PendingInviteAlreadyExistsError.code },
+    { code: InviteLinkAlreadyExistsError.code },
     'Second create throws an error'
   )
 })
@@ -396,7 +396,7 @@ test('Role ID validation on read', async (t) => {
   const inviteIdString = inviteId.toString('hex')
 
   // Directly insert an invalid roleId into the database using Drizzle, bypassing the API
-  await db.insert(pendingInvitesTable).values({
+  await db.insert(inviteLinksTable).values({
     projectId: PROJECT_ID,
     inviteId: inviteIdString,
     inviteIdBuffer: inviteId,
@@ -511,9 +511,9 @@ test('create() and getAll()', async (t) => {
   assert.equal(all[0].inviteId, inviteIdString)
 })
 
-// Tests for PendingInvitesApiForProject (scoped wrapper)
+// Tests for InviteLinksApiForProject (scoped wrapper)
 
-test('PendingInvitesApiForProject - create() auto-injects projectId', async (t) => {
+test('InviteLinksApiForProject - create() auto-injects projectId', async (t) => {
   const { projectApi } = setup(t)
 
   const inviteId = randomBytes(32)
@@ -533,7 +533,7 @@ test('PendingInvitesApiForProject - create() auto-injects projectId', async (t) 
   assert.equal(retrieved.url, url)
 })
 
-test('PendingInvitesApiForProject - getAll() returns scoped invites', async (t) => {
+test('InviteLinksApiForProject - getAll() returns scoped invites', async (t) => {
   const { api, projectApi } = setup(t)
 
   const invite1 = randomBytes(32)
@@ -560,7 +560,7 @@ test('PendingInvitesApiForProject - getAll() returns scoped invites', async (t) 
   assert.equal(invites[0].inviteId, invite1.toString('hex'))
 })
 
-test('PendingInvitesApiForProject - delete() removes invite', async (t) => {
+test('InviteLinksApiForProject - delete() removes invite', async (t) => {
   const { projectApi } = setup(t)
 
   const inviteId = randomBytes(32)
@@ -579,7 +579,7 @@ test('PendingInvitesApiForProject - delete() removes invite', async (t) => {
   assert.equal(retrieved, undefined, 'invite deleted')
 })
 
-test('PendingInvitesApiForProject - deleteAll() removes only scoped invites', async (t) => {
+test('InviteLinksApiForProject - deleteAll() removes only scoped invites', async (t) => {
   const { api, projectApi } = setup(t)
 
   const invite1 = randomBytes(32)
@@ -608,7 +608,7 @@ test('PendingInvitesApiForProject - deleteAll() removes only scoped invites', as
   assert.equal(all[0].inviteId, invite2.toString('hex'))
 })
 
-test('PendingInvitesApiForProject - getById() returns scoped invite', async (t) => {
+test('InviteLinksApiForProject - getById() returns scoped invite', async (t) => {
   const { projectApi } = setup(t)
 
   const inviteId = randomBytes(32)
@@ -626,7 +626,7 @@ test('PendingInvitesApiForProject - getById() returns scoped invite', async (t) 
   assert.equal(retrieved.inviteId, inviteIdString)
 })
 
-test('PendingInvitesApiForProject - getById() returns undefined for invite in other project', async (t) => {
+test('InviteLinksApiForProject - getById() returns undefined for invite in other project', async (t) => {
   const { api, projectApi } = setup(t)
 
   const inviteId = randomBytes(32)
@@ -649,14 +649,14 @@ test('PendingInvitesApiForProject - getById() returns undefined for invite in ot
   )
 })
 
-test('PendingInvitesApiForProject - getById() returns undefined for non-existent invite', async (t) => {
+test('InviteLinksApiForProject - getById() returns undefined for non-existent invite', async (t) => {
   const { projectApi } = setup(t)
 
   const result = await projectApi.getById('non-existent-id')
   assert.equal(result, undefined, 'returns undefined for non-existent invite')
 })
 
-test('PendingInvitesApiForProject - delete() is no-op for non-existent invite', async (t) => {
+test('InviteLinksApiForProject - delete() is no-op for non-existent invite', async (t) => {
   const { projectApi } = setup(t)
 
   await projectApi.delete('non-existent-id') // should not throw
@@ -665,7 +665,7 @@ test('PendingInvitesApiForProject - delete() is no-op for non-existent invite', 
   assert.equal(all.length, 0, 'no-op for non-existent invite')
 })
 
-test('PendingInvitesApiForProject - deleteAll() is no-op on empty project', async (t) => {
+test('InviteLinksApiForProject - deleteAll() is no-op on empty project', async (t) => {
   const { api, projectApi } = setup(t)
 
   await projectApi.deleteAll() // should not throw

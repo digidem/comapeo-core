@@ -71,7 +71,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 /** @import { projectSettingsTable } from './schema/client.js' */
 /** @import { ReplicationStream, MapeoValueMap } from './types.js' */
 /** @import { PeerInfoDisconnected } from './local-peers.js' */
-/** @import { PendingInvitesApiForProject } from './invite/pending-invites-api.js' */
+/** @import { InviteLinksApiForProject } from './invite/pending-invites-api.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
@@ -141,7 +141,7 @@ export class MemberApi extends TypedEmitter {
   #getDeviceInfo
   #setDeviceInfo
   #getSwarmPublicKey
-  #pendingInvitesApi
+  #inviteLinks
   #l
 
   /** @type {Map<string, { abortController: AbortController }>} */
@@ -159,7 +159,7 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
-   * @param {Pick<PendingInvitesApiForProject,'create'|'delete'|'deleteAll'|'getAll'|'getById'>} opts.pendingInvitesApi
+   * @param {Pick<InviteLinksApiForProject,'create'|'delete'|'deleteAll'|'getAll'|'getById'>} opts.inviteLinks
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
@@ -176,7 +176,7 @@ export class MemberApi extends TypedEmitter {
     encryptionKeys,
     projectKey,
     rpc,
-    pendingInvitesApi,
+    inviteLinks,
     makeWebsocket = (url) => new WebSocket(url),
     getReplicationStream,
     waitForInitialSyncWithPeer,
@@ -195,7 +195,7 @@ export class MemberApi extends TypedEmitter {
     this.#encryptionKeys = encryptionKeys
     this.#projectKey = projectKey
     this.#rpc = rpc
-    this.#pendingInvitesApi = pendingInvitesApi
+    this.#inviteLinks = inviteLinks
     this.#makeWebsocket = makeWebsocket
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
@@ -221,14 +221,14 @@ export class MemberApi extends TypedEmitter {
    * Start inviting somone over the internet. Returns a URL for the recipient to load.
    * @param {InviteOptions} opts
    */
-  async inviteOverInternet(opts) {
+  async createInviteLink(opts) {
     const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
     const inviteIdString = inviteId.toString('hex')
     const swarmPublicKey = this.#getSwarmPublicKey().toString('hex')
 
     const url = makeInviteURL(inviteIdString, swarmPublicKey)
 
-    await this.#pendingInvitesApi.create({
+    await this.#inviteLinks.create({
       inviteId: inviteIdString,
       inviteIdBuffer: inviteId,
       url,
@@ -242,38 +242,38 @@ export class MemberApi extends TypedEmitter {
    * Cancel an invite over internet attempt. Omit the specific URL to cancel all instances
    * @param {string} [url]
    */
-  async cancelInviteOverInternet(url) {
+  async cancelInviteLink(url) {
     if (!url) {
-      const invites = await this.#pendingInvitesApi.getAll()
+      const invites = await this.#inviteLinks.getAll()
       for (const invite of invites) {
         this.emit('internet-invite-cancelled', invite.inviteId)
       }
-      await this.#pendingInvitesApi.deleteAll()
+      await this.#inviteLinks.deleteAll()
       return
     }
     const { inviteIdString } = parseInviteURL(url)
-    await this.#cancelInviteOverInternetById(inviteIdString)
+    await this.#cancelInviteLinkById(inviteIdString)
   }
 
   /**
    * Cancel an invite over internet attempt.
    * @param {string} inviteIdString
    */
-  async #cancelInviteOverInternetById(inviteIdString) {
-    if (!(await this.#pendingInvitesApi.getById(inviteIdString))) {
+  async #cancelInviteLinkById(inviteIdString) {
+    if (!(await this.#inviteLinks.getById(inviteIdString))) {
       throw new InvalidInternetInviteURLError()
     }
     this.#redeemedInvites.delete(inviteIdString)
     this.emit('internet-invite-cancelled', inviteIdString)
-    await this.#pendingInvitesApi.delete(inviteIdString)
+    await this.#inviteLinks.delete(inviteIdString)
   }
 
   /**
    * Get the list of pending invites over the internet
    * @returns {Promise<string[]>}
    */
-  async pendingInternetInvites() {
-    const invites = await this.#pendingInvitesApi.getAll()
+  async listInviteLinks() {
+    const invites = await this.#inviteLinks.getAll()
     return invites.map(({ url }) => url)
   }
 
@@ -305,7 +305,7 @@ export class MemberApi extends TypedEmitter {
       peerId
     )
 
-    const invite = await this.#pendingInvitesApi.getById(inviteIdString)
+    const invite = await this.#inviteLinks.getById(inviteIdString)
     if (!invite) {
       this.#l.log(
         'Incoming invite was invalid, disconnecting',
@@ -369,7 +369,7 @@ export class MemberApi extends TypedEmitter {
       throw new InviteNotYetRedeemedError()
     }
 
-    const pendingInvite = await this.#pendingInvitesApi.getById(inviteId)
+    const pendingInvite = await this.#inviteLinks.getById(inviteId)
     if (!pendingInvite) {
       throw new UnknownInviteIDError()
     }

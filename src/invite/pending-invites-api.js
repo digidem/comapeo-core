@@ -1,11 +1,11 @@
 import { and, eq, sql } from 'drizzle-orm'
 import ReadyResource from 'ready-resource'
-import { pendingInvitesTable } from '../schema/client.js'
+import { inviteLinksTable } from '../schema/client.js'
 import { isRoleIdForNewInvite } from '../roles.js'
 import {
   ensureKnownError,
   getErrorCode,
-  PendingInviteAlreadyExistsError,
+  InviteLinkAlreadyExistsError,
 } from '../errors.js'
 import { deNullify } from '../utils.js'
 
@@ -13,7 +13,7 @@ import { deNullify } from '../utils.js'
 /** @import { InviteOptions } from '../member-api.js' */
 
 /**
- * @typedef {object} PendingInviteRecord
+ * @typedef {object} InviteLinkRecord
  * @property {string} inviteId Hex string invite ID (primary key)
  * @property {Buffer} inviteIdBuffer Binary invite ID
  * @property {string} url Invite URL
@@ -24,7 +24,7 @@ import { deNullify } from '../utils.js'
  */
 
 /**
- * @typedef {object} PendingInviteCreate
+ * @typedef {object} InviteLinkCreate
  * @property {string} projectId
  * @property {string} inviteId
  * @property {Buffer} inviteIdBuffer
@@ -34,80 +34,80 @@ import { deNullify } from '../utils.js'
 
 const DEFAULT_INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000
 
-export class PendingInvitesApiForProject {
+export class InviteLinksApiForProject {
   #projectId
-  /** @type {PendingInvitesApi} */
-  #pendingInvitesApi
+  /** @type {InviteLinksApi} */
+  #inviteLinksApi
 
   /**
    *
    * @param {string} projectId
-   * @param {PendingInvitesApi} pendingInvitesApi
+   * @param {InviteLinksApi} inviteLinksApi
    */
-  constructor(projectId, pendingInvitesApi) {
+  constructor(projectId, inviteLinksApi) {
     this.#projectId = projectId
-    this.#pendingInvitesApi = pendingInvitesApi
+    this.#inviteLinksApi = inviteLinksApi
   }
 
   /**
-   * Create a new pending invite record
-   * @param {Omit<PendingInviteCreate, 'projectId'>} data
+   * Create a new invite link record
+   * @param {Omit<InviteLinkCreate, 'projectId'>} data
    * @returns {Promise<void>}
    */
   async create(data) {
-    await this.#pendingInvitesApi.ready()
-    return this.#pendingInvitesApi.create({
+    await this.#inviteLinksApi.ready()
+    return this.#inviteLinksApi.create({
       ...data,
       projectId: this.#projectId,
     })
   }
 
   /**
-   * Get a pending invite by invite ID
+   * Get an invite link by invite ID
    * @param {string} inviteId
-   * @returns {Promise<PendingInviteRecord | undefined>}
+   * @returns {Promise<InviteLinkRecord | undefined>}
    */
   async getById(inviteId) {
-    await this.#pendingInvitesApi.ready()
-    return this.#pendingInvitesApi.getById(inviteId, this.#projectId)
+    await this.#inviteLinksApi.ready()
+    return this.#inviteLinksApi.getById(inviteId, this.#projectId)
   }
 
   /**
-   * Get all pending invites for the project
-   * @returns {Promise<PendingInviteRecord[]>}
+   * Get all invite links for the project
+   * @returns {Promise<InviteLinkRecord[]>}
    */
   async getAll() {
-    await this.#pendingInvitesApi.ready()
-    return this.#pendingInvitesApi.getAllForProject(this.#projectId)
+    await this.#inviteLinksApi.ready()
+    return this.#inviteLinksApi.getAllForProject(this.#projectId)
   }
 
   /**
-   * Delete a pending invite
+   * Delete an invite link
    * @param {string} inviteId
    * @returns {Promise<void>}
    */
   async delete(inviteId) {
-    await this.#pendingInvitesApi.ready()
-    return this.#pendingInvitesApi.delete(inviteId)
+    await this.#inviteLinksApi.ready()
+    return this.#inviteLinksApi.delete(inviteId)
   }
 
   /**
-   * Delete all pending invites for the project
+   * Delete all invite links for the project
    * @returns {Promise<void>}
    */
   async deleteAll() {
-    await this.#pendingInvitesApi.ready()
-    return this.#pendingInvitesApi.deleteAllFrom(this.#projectId)
+    await this.#inviteLinksApi.ready()
+    return this.#inviteLinksApi.deleteAllFrom(this.#projectId)
   }
 }
 
 /**
- * API for CRUD operations on pending invites over internet
+ * API for CRUD operations on invite links over internet
  */
 /**
  * @type {ReadyResource}
  */
-export class PendingInvitesApi extends ReadyResource {
+export class InviteLinksApi extends ReadyResource {
   /** @type {BetterSQLite3Database} */
   #db
   #sql
@@ -135,32 +135,32 @@ export class PendingInvitesApi extends ReadyResource {
     this.#sql = {
       getById: db
         .select()
-        .from(pendingInvitesTable)
+        .from(inviteLinksTable)
         .where(
           and(
-            eq(pendingInvitesTable.inviteId, sql.placeholder('inviteId')),
-            eq(pendingInvitesTable.projectId, sql.placeholder('projectId'))
+            eq(inviteLinksTable.inviteId, sql.placeholder('inviteId')),
+            eq(inviteLinksTable.projectId, sql.placeholder('projectId'))
           )
         )
         .limit(1)
         .prepare(),
-      getAll: db.select().from(pendingInvitesTable).prepare(),
+      getAll: db.select().from(inviteLinksTable).prepare(),
       getAllForProject: db
         .select()
-        .from(pendingInvitesTable)
-        .where(eq(pendingInvitesTable.projectId, sql.placeholder('projectId')))
+        .from(inviteLinksTable)
+        .where(eq(inviteLinksTable.projectId, sql.placeholder('projectId')))
         .prepare(),
       getExpired: db
         .select()
-        .from(pendingInvitesTable)
+        .from(inviteLinksTable)
         .where(
-          sql`${pendingInvitesTable.createdAt} < ${sql.placeholder('cutoff')}`
+          sql`${inviteLinksTable.createdAt} < ${sql.placeholder('cutoff')}`
         )
         .prepare(),
       getOldest: db
         .select()
-        .from(pendingInvitesTable)
-        .orderBy(sql`${pendingInvitesTable.createdAt} ASC`)
+        .from(inviteLinksTable)
+        .orderBy(sql`${inviteLinksTable.createdAt} ASC`)
         .limit(1)
         .prepare(),
     }
@@ -181,15 +181,15 @@ export class PendingInvitesApi extends ReadyResource {
   }
 
   /**
-   * Delete all pending invites whose createdAt timestamp is older than 24 hours.
+   * Delete all invite links whose createdAt timestamp is older than 24 hours.
    */
   async #clearExpired() {
     const cutoff = Date.now() - this.#expiryMs
     const expired = this.#sql.getExpired.all({ cutoff })
     for (const row of expired) {
       await this.#db
-        .delete(pendingInvitesTable)
-        .where(eq(pendingInvitesTable.inviteId, row.inviteId))
+        .delete(inviteLinksTable)
+        .where(eq(inviteLinksTable.inviteId, row.inviteId))
     }
     // Update the listen state once, after all deletions
     if (expired.length > 0) {
@@ -244,14 +244,14 @@ export class PendingInvitesApi extends ReadyResource {
   }
 
   /**
-   * Create a new pending invite record
-   * @param {PendingInviteCreate} data
+   * Create a new invite link record
+   * @param {InviteLinkCreate} data
    * @returns {Promise<void>}
    */
   async create(data) {
     await this.ready()
     try {
-      await this.#db.insert(pendingInvitesTable).values({
+      await this.#db.insert(inviteLinksTable).values({
         projectId: data.projectId,
         inviteId: data.inviteId,
         inviteIdBuffer: data.inviteIdBuffer,
@@ -270,17 +270,17 @@ export class PendingInvitesApi extends ReadyResource {
       }
     } catch (err) {
       if (getErrorCode(err) === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
-        throw new PendingInviteAlreadyExistsError({ inviteId: data.inviteId })
+        throw new InviteLinkAlreadyExistsError({ inviteId: data.inviteId })
       }
       throw ensureKnownError(err)
     }
   }
 
   /**
-   * Get a pending invite by invite ID
+   * Get a invite link by invite ID
    * @param {string} inviteId
    * @param {string} projectId
-   * @returns {Promise<PendingInviteRecord | undefined>}
+   * @returns {Promise<InviteLinkRecord | undefined>}
    */
   async getById(inviteId, projectId) {
     await this.ready()
@@ -291,12 +291,12 @@ export class PendingInvitesApi extends ReadyResource {
       throw new Error(`Invalid roleId in database: ${row.roleId}`)
     }
 
-    return /** @type {PendingInviteRecord} */ (deNullify(row))
+    return /** @type {InviteLinkRecord} */ (deNullify(row))
   }
 
   /**
-   * Get all pending invites
-   * @returns {Promise<PendingInviteRecord[]>}
+   * Get all invite links
+   * @returns {Promise<InviteLinkRecord[]>}
    */
   async getAll() {
     await this.ready()
@@ -306,14 +306,14 @@ export class PendingInvitesApi extends ReadyResource {
       if (!isRoleIdForNewInvite(row.roleId)) {
         throw new Error(`Invalid roleId in database: ${row.roleId}`)
       }
-      return /** @type {PendingInviteRecord} */ (deNullify(row))
+      return /** @type {InviteLinkRecord} */ (deNullify(row))
     })
   }
 
   /**
-   * Get all pending invites
+   * Get all invite links
    * @param {string} projectId
-   * @returns {Promise<PendingInviteRecord[]>}
+   * @returns {Promise<InviteLinkRecord[]>}
    */
   async getAllForProject(projectId) {
     await this.ready()
@@ -325,44 +325,44 @@ export class PendingInvitesApi extends ReadyResource {
       if (!isRoleIdForNewInvite(row.roleId)) {
         throw new Error(`Invalid roleId in database: ${row.roleId}`)
       }
-      return /** @type {PendingInviteRecord} */ (deNullify(row))
+      return /** @type {InviteLinkRecord} */ (deNullify(row))
     })
   }
 
   /**
-   * Delete a pending invite
+   * Delete a invite link
    * @param {string} inviteId
    * @returns {Promise<void>}
    */
   async delete(inviteId) {
     await this.ready()
     await this.#db
-      .delete(pendingInvitesTable)
-      .where(eq(pendingInvitesTable.inviteId, inviteId))
+      .delete(inviteLinksTable)
+      .where(eq(inviteLinksTable.inviteId, inviteId))
 
     await this.#checkSetShouldListenOverInternet(false)
   }
 
   /**
-   * Delete all pending invites
+   * Delete all invite links
    * @returns {Promise<void>}
    */
   async deleteAll() {
     await this.ready()
-    await this.#db.delete(pendingInvitesTable)
+    await this.#db.delete(inviteLinksTable)
     await this.#setShouldListenOverInternet(false)
     this.#cancelScheduleExpired()
   }
 
   /**
-   * Delete all pending invites in a specific project
+   * Delete all invite links in a specific project
    * @param {string} projectId
    */
   async deleteAllFrom(projectId) {
     await this.ready()
     await this.#db
-      .delete(pendingInvitesTable)
-      .where(eq(pendingInvitesTable.projectId, projectId))
+      .delete(inviteLinksTable)
+      .where(eq(inviteLinksTable.projectId, projectId))
 
     await this.#checkSetShouldListenOverInternet(false)
   }

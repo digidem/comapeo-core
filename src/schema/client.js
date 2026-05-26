@@ -50,7 +50,7 @@ export const deviceSettingsTable = sqliteTable('deviceSettings', {
   isArchiveDevice: int('isArchiveDevice', { mode: 'boolean' }),
 })
 
-export const pendingInvitesTable = sqliteTable('pendingInvites', {
+export const inviteLinksTable = sqliteTable('inviteLinks', {
   inviteId: text('inviteId').notNull().primaryKey(),
   projectId: text('projectId').notNull(),
   inviteIdBuffer: blob('inviteIdBuffer', { mode: 'buffer' }).notNull(),
