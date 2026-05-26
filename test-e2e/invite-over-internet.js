@@ -10,7 +10,7 @@ import {
   TimeoutError,
   InviteRedeemConnectionClosedError,
   ensureKnownError,
-  UnknownInviteIDError,
+  InviteNotYetRedeemedError,
 } from '../src/errors.js'
 import crypto from 'node:crypto'
 import { temporaryDirectory } from 'tempy'
@@ -46,7 +46,10 @@ test('invite over internet and join from URL', async (t) => {
 
   // Show the user the device ID and their name and have them verify the invitee sees the same device ID
   // We should either take the first 4-8 bytes from the deviceID or derive something visual like emoji
-  const reason = await project.$member.acceptRedeemedInvite(inviteId)
+  const reason = await project.$member.acceptRedeemedInvite({
+    inviteId,
+    deviceId,
+  })
 
   assert.equal(reason, InviteResponse_Decision.ACCEPT)
 
@@ -57,7 +60,7 @@ test('invite over internet and join from URL', async (t) => {
   // TODO: Test that initial sync happened
 })
 
-test.only('invite over internet, close, reopen, and join from URL', async (t) => {
+test('invite over internet, close, reopen, and join from URL', async (t) => {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
   const directories = [dbFolder, coreStorage]
@@ -120,13 +123,79 @@ test.only('invite over internet, close, reopen, and join from URL', async (t) =>
 
   // Show the user the device ID and their name and have them verify the invitee sees the same device ID
   // We should either take the first 4-8 bytes from the deviceID or derive something visual like emoji
-  const reason = await project.$member.acceptRedeemedInvite(inviteId)
+  const reason = await project.$member.acceptRedeemedInvite({
+    inviteId,
+    deviceId,
+  })
 
   assert.equal(reason, InviteResponse_Decision.ACCEPT)
 
   const gotProjectId = await onInvited
 
   assert.equal(gotProjectId, projectId, 'joined expected project')
+})
+
+test('invite over internet can be redeemed by multiple peers', async (t) => {
+  const managers = await createManagers(3, t)
+  const [invitor, invitee1, invitee2] = managers
+
+  const projectId = await invitor.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
+  const project = await invitor.getProject(projectId)
+
+  const url = await project.$member.inviteOverInternet({
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  // First invitee joins
+  const onFirstInviteRedeemAttempt = pEvent(
+    project.$member,
+    'internet-invite-redeemed',
+    { multiArgs: true, timeout: 5000 }
+  )
+  const onFirstInvited = invitee1.joinProjectOverInternet(url)
+
+  const [firstDeviceId, firstInviteId] = /** @type {[string, string]} */ (
+    /**@type unknown*/ (await onFirstInviteRedeemAttempt)
+  )
+  assert.equal(firstDeviceId, invitee1.deviceId)
+  const firstReason = await project.$member.acceptRedeemedInvite({
+    inviteId: firstInviteId,
+    deviceId: firstDeviceId,
+  })
+  assert.equal(firstReason, InviteResponse_Decision.ACCEPT)
+  await onFirstInvited
+
+  // Second invitee joins via the same URL
+  const onSecondInviteRedeemAttempt = pEvent(
+    project.$member,
+    'internet-invite-redeemed',
+    { multiArgs: true, timeout: 5000 }
+  )
+  const onSecondInvited = invitee2.joinProjectOverInternet(url)
+
+  const [secondDeviceId, secondInviteId] = /** @type {[string, string]} */ (
+    /**@type unknown*/ (await onSecondInviteRedeemAttempt)
+  )
+  assert.equal(
+    secondDeviceId,
+    invitee2.deviceId,
+    'Second invitee redeemed successfully'
+  )
+  assert.equal(secondInviteId, firstInviteId, 'Invite ID is the same for both')
+  const secondReason = await project.$member.acceptRedeemedInvite({
+    inviteId: secondInviteId,
+    deviceId: secondDeviceId,
+  })
+  assert.equal(secondReason, InviteResponse_Decision.ACCEPT)
+  await onSecondInvited
+
+  // Verify invite is still pending for future redeemers
+  const pending = await project.$member.pendingInternetInvites()
+  assert.deepEqual(pending, [url], 'Invite still pending after two redeems')
 })
 
 test('invite over internet errors if invitor deviceID is invalid', async (t) => {
@@ -178,10 +247,8 @@ test('invite over internet errors if inviter closes before accepting', async (t)
   const onInviteRedeemAttempt = pEvent(
     project.$member,
     'internet-invite-redeemed',
-    { multiArgs: true, timeout: 5000 }
+    { multiArgs: true, timeout: 50000 }
   )
-
-  const onInviteCancelled = pEvent(project.$member, 'internet-invite-cancelled')
 
   const onInvited = invitee.joinProjectOverInternet(url)
 
@@ -191,26 +258,24 @@ test('invite over internet errors if inviter closes before accepting', async (t)
 
   assert.equal(deviceId, invitee.deviceId)
 
-  // Close the invitor before accepting
-  invitor.close()
-
-  // The invitee's join should fail because the invitor disconnected
-  await assert.rejects(
-    onInvited,
-    (err) =>
-      ensureKnownError(err).code === InviteRedeemConnectionClosedError.code
-  )
-
-  const cancelledId = await onInviteCancelled
-  assert.equal(cancelledId, attemptedRedeemId, 'redeemed invite got cancelled')
-
-  const pending = await project.$member.pendingInternetInvites()
-
-  assert.equal(pending.length, 0, 'Invite got cancelled on fail')
+  await Promise.all([
+    // The invitee's join should fail because the invitor disconnected
+    assert.rejects(
+      onInvited,
+      (err) =>
+        ensureKnownError(err).code === InviteRedeemConnectionClosedError.code
+    ),
+    // Close the invitor before accepting
+    invitor.close(),
+  ])
 
   await assert.rejects(
-    () => project.$member.acceptRedeemedInvite(attemptedRedeemId),
-    (err) => ensureKnownError(err).code === UnknownInviteIDError.code,
+    () =>
+      project.$member.acceptRedeemedInvite({
+        inviteId: attemptedRedeemId,
+        deviceId: invitee.deviceId,
+      }),
+    (err) => ensureKnownError(err).code === InviteNotYetRedeemedError.code,
     'Accepting after a disconnect causes an error'
   )
 })

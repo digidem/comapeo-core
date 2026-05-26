@@ -274,66 +274,6 @@ test('getAllForProject() - empty for project with no invites', async (t) => {
   )
 })
 
-test('update() - set inviteeDeviceId', async (t) => {
-  const { api } = setup(t)
-
-  const inviteId = randomBytes(32)
-  const inviteIdString = inviteId.toString('hex')
-
-  await api.create({
-    projectId: PROJECT_ID,
-    inviteId: inviteIdString,
-    inviteIdBuffer: inviteId,
-    url: 'https://example.com/invite',
-    opts: { roleId: MEMBER_ROLE_ID },
-  })
-
-  const beforeUpdate = await api.getById(inviteIdString, PROJECT_ID)
-  assert.equal(beforeUpdate?.inviteeDeviceId, undefined)
-
-  const inviteeDeviceId = randomBytes(32).toString('hex')
-  await api.update(inviteIdString, PROJECT_ID, { inviteeDeviceId })
-
-  const afterUpdate = await api.getById(inviteIdString, PROJECT_ID)
-  assert.equal(afterUpdate?.inviteeDeviceId, inviteeDeviceId)
-})
-
-test('update() - scoped to project', async (t) => {
-  const { api } = setup(t)
-
-  const inviteId = randomBytes(32)
-  const inviteIdString = inviteId.toString('hex')
-  const inviteeDeviceId = randomBytes(32).toString('hex')
-
-  await api.create({
-    projectId: PROJECT_ID,
-    inviteId: inviteIdString,
-    inviteIdBuffer: inviteId,
-    url: 'https://example.com/invite',
-    opts: { roleId: MEMBER_ROLE_ID },
-  })
-
-  // Update with a different project ID should be a no-op
-  await api.update(inviteIdString, 'other-project-id', { inviteeDeviceId })
-
-  const afterUpdate = await api.getById(inviteIdString, PROJECT_ID)
-  assert.equal(
-    afterUpdate?.inviteeDeviceId,
-    undefined,
-    'invite not updated with wrong project ID'
-  )
-})
-
-test('update() - update non-existent invite', async (t) => {
-  const { api } = setup(t)
-
-  const inviteeDeviceId = randomBytes(32).toString('hex')
-  await api.update('non-existent-id', PROJECT_ID, { inviteeDeviceId })
-
-  const result = await api.getById('non-existent-id', PROJECT_ID)
-  assert.equal(result, undefined, 'no-op for non-existent invite')
-})
-
 test('delete() - single invite', async (t) => {
   const { api } = setup(t)
 
@@ -552,12 +492,11 @@ test('Optional fields', async (t) => {
   )
 })
 
-test('create() and getAll() with inviteeDeviceId already set', async (t) => {
+test('create() and getAll()', async (t) => {
   const { api } = setup(t)
 
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
-  const inviteeDeviceId = randomBytes(32).toString('hex')
 
   await api.create({
     projectId: PROJECT_ID,
@@ -567,11 +506,9 @@ test('create() and getAll() with inviteeDeviceId already set', async (t) => {
     opts: { roleId: MEMBER_ROLE_ID },
   })
 
-  await api.update(inviteIdString, PROJECT_ID, { inviteeDeviceId })
-
   const all = await api.getAll()
   assert.equal(all.length, 1)
-  assert.equal(all[0].inviteeDeviceId, inviteeDeviceId)
+  assert.equal(all[0].inviteId, inviteIdString)
 })
 
 // Tests for PendingInvitesApiForProject (scoped wrapper)
@@ -621,26 +558,6 @@ test('PendingInvitesApiForProject - getAll() returns scoped invites', async (t) 
   const invites = await projectApi.getAll()
   assert.equal(invites.length, 1, 'returns only scoped invites')
   assert.equal(invites[0].inviteId, invite1.toString('hex'))
-})
-
-test('PendingInvitesApiForProject - update() auto-scopes to project', async (t) => {
-  const { projectApi } = setup(t)
-
-  const inviteId = randomBytes(32)
-  const inviteIdString = inviteId.toString('hex')
-
-  await projectApi.create({
-    inviteId: inviteIdString,
-    inviteIdBuffer: inviteId,
-    url: 'https://example.com/invite',
-    opts: { roleId: MEMBER_ROLE_ID },
-  })
-
-  const inviteeDeviceId = randomBytes(32).toString('hex')
-  await projectApi.update(inviteIdString, { inviteeDeviceId })
-
-  const afterUpdate = await projectApi.getById(inviteIdString)
-  assert.equal(afterUpdate?.inviteeDeviceId, inviteeDeviceId)
 })
 
 test('PendingInvitesApiForProject - delete() removes invite', async (t) => {

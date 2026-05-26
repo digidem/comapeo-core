@@ -147,6 +147,10 @@ export class MemberApi extends TypedEmitter {
   /** @type {Map<string, { abortController: AbortController }>} */
   #outboundInvitesByDevice = new Map()
 
+  /** Track which device IDs have redeemed each invite (by inviteId) */
+  /** @type {Map<string, Set<string>>} */
+  #redeemedInvites = new Map()
+
   /**
    * @param {Object} opts
    * @param {string} opts.deviceId public key of this device as hex string
@@ -155,7 +159,7 @@ export class MemberApi extends TypedEmitter {
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
-   * @param {Pick<PendingInvitesApiForProject,'create'|'delete'|'deleteAll'|'getAll'|'getById'|'update'>} opts.pendingInvitesApi
+   * @param {Pick<PendingInvitesApiForProject,'create'|'delete'|'deleteAll'|'getAll'|'getById'>} opts.pendingInvitesApi
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
@@ -259,6 +263,7 @@ export class MemberApi extends TypedEmitter {
     if (!(await this.#pendingInvitesApi.getById(inviteIdString))) {
       throw new InvalidInternetInviteURLError()
     }
+    this.#redeemedInvites.delete(inviteIdString)
     this.emit('internet-invite-cancelled', inviteIdString)
     await this.#pendingInvitesApi.delete(inviteIdString)
   }
@@ -273,33 +278,40 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
-   *
+   * When a peer disconnects, remove them from the redeemed invites set.
    * @param {PeerInfoDisconnected} peer
    */
   #handlePeerRemove = async (peer) => {
     if (!peer) return
-    const invites = await this.#pendingInvitesApi.getAll()
-    for (const invite of invites) {
-      if (invite.inviteeDeviceId === peer.deviceId) {
-        this.#cancelInviteOverInternetById(invite.inviteId).catch((e) => {
-          this.#l.log('Error: Unable to cancel invite', invite.inviteId, e)
-        })
+    for (const deviceIds of this.#redeemedInvites.values()) {
+      if (deviceIds.has(peer.deviceId)) {
+        deviceIds.delete(peer.deviceId)
         break
       }
     }
   }
 
   /**
-   *
+   * Handle an incoming redeem attempt from the RPC layer.
    * @param {string} peerId
    * @param {RedeemInviteOverInternet} redeem
    */
   async #handleRedeemInviteOverInternet(peerId, { inviteId }) {
     const inviteIdString = inviteId.toString('hex')
-    this.#l.log('Got incoming invite redeem', inviteIdString.slice(0, 7))
+    this.#l.log(
+      'Got incoming invite redeem',
+      inviteIdString.slice(0, 7),
+      'from',
+      peerId
+    )
 
     const invite = await this.#pendingInvitesApi.getById(inviteIdString)
     if (!invite) {
+      this.#l.log(
+        'Incoming invite was invalid, disconnecting',
+        inviteIdString.slice(0, 7)
+      )
+
       this.emit(
         'internet-invite-redeem-error',
         new UnknownInviteIDRedeemAttemptError(),
@@ -310,7 +322,12 @@ export class MemberApi extends TypedEmitter {
       return
     }
 
-    if (invite.inviteeDeviceId) {
+    const redeemedSet = this.#redeemedInvites.get(inviteIdString)
+    if (redeemedSet?.has(peerId)) {
+      this.#l.log(
+        'Incoming invite was already redeemed, disconnecting',
+        inviteIdString.slice(0, 7)
+      )
       this.emit(
         'internet-invite-redeem-error',
         new InviteAlreadyRedeemedError(),
@@ -322,9 +339,11 @@ export class MemberApi extends TypedEmitter {
     }
 
     try {
-      await this.#pendingInvitesApi.update(inviteIdString, {
-        inviteeDeviceId: peerId,
-      })
+      if (!redeemedSet) {
+        this.#redeemedInvites.set(inviteIdString, new Set([peerId]))
+      } else {
+        redeemedSet.add(peerId)
+      }
       this.emit('internet-invite-redeemed', peerId, inviteIdString)
     } catch (e) {
       this.emit(
@@ -338,30 +357,30 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
-   * Accept a device's attempt at redeeming an invite
-   * @param {string} inviteId
+   * Accept a specific device's attempt at redeeming an invite.
+   * @param {object} opts
+   * @param {string} opts.inviteId
+   * @param {string} opts.deviceId
    * @returns {Promise<InviteDecision>}
    */
-  async acceptRedeemedInvite(inviteId) {
+  async acceptRedeemedInvite({ inviteId, deviceId }) {
+    const redeemedSet = this.#redeemedInvites.get(inviteId)
+    if (!redeemedSet || !redeemedSet.has(deviceId)) {
+      throw new InviteNotYetRedeemedError()
+    }
+
     const pendingInvite = await this.#pendingInvitesApi.getById(inviteId)
     if (!pendingInvite) {
       throw new UnknownInviteIDError()
     }
-    const { inviteeDeviceId, roleId, roleName, roleDescription } = pendingInvite
-    if (!inviteeDeviceId) {
-      throw new InviteNotYetRedeemedError()
-    }
 
-    const stillConnected = await this.#markInternetPeerAsTrusted(
-      inviteeDeviceId
-    )
+    const stillConnected = await this.#markInternetPeerAsTrusted(deviceId)
 
-    // If they aren't connected after redeeming, we should mark it as cancelled
     if (!stillConnected) {
-      await this.cancelInviteOverInternet(inviteId)
       throw new PeerDisconnectedSinceRedeemingInviteError()
     }
-    const decision = await this.invite(inviteeDeviceId, {
+    const { roleId, roleName, roleDescription } = pendingInvite
+    const decision = await this.invite(deviceId, {
       roleId,
       roleName,
       roleDescription,

@@ -10,7 +10,7 @@ import { MEMBER_ROLE_ID } from '../src/roles.js'
 /** @import { ProjectJoinDetails } from '../src/generated/rpc.js' */
 /** @import WebSocket from 'ws' */
 /** @import { InviteOptions } from '../src/member-api.js' */
-/** @import {PendingInviteRecord, PendingInviteCreate,PendingInviteUpdate} from '../src/invite/pending-invites-api.js' */
+/** @import { PendingInviteRecord, PendingInviteCreate } from '../src/invite/pending-invites-api.js' */
 
 test('serialize and parse invite URLs', () => {
   const testSwarmPublicKey = 'foo'
@@ -195,10 +195,7 @@ class MockPendingInvitesApiForProject {
    * @returns {Promise<PendingInviteRecord | undefined>}
    */
   async getById(inviteId) {
-    const invite = this.#invites.get(inviteId)
-    return invite
-      ? { ...invite, inviteeDeviceId: invite.inviteeDeviceId ?? undefined }
-      : undefined
+    return this.#invites.get(inviteId)
   }
 
   /**
@@ -206,23 +203,7 @@ class MockPendingInvitesApiForProject {
    * @returns {Promise<PendingInviteRecord[]>}
    */
   async getAll() {
-    return Array.from(this.#invites.values()).map((invite) => ({
-      ...invite,
-      inviteeDeviceId: invite.inviteeDeviceId ?? undefined,
-    }))
-  }
-
-  /**
-   * Update a pending invite (e.g., set invitee device ID when redeemed)
-   * @param {string} inviteId
-   * @param {PendingInviteUpdate} updates
-   * @returns {Promise<void>}
-   */
-  async update(inviteId, updates) {
-    const invite = this.#invites.get(inviteId)
-    if (invite) {
-      Object.assign(invite, updates)
-    }
+    return [...this.#invites.values()]
   }
 
   /**

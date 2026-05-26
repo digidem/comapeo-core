@@ -58,6 +58,5 @@ export const pendingInvitesTable = sqliteTable('pendingInvites', {
   roleId: text('roleId').notNull(),
   roleName: text('roleName'),
   roleDescription: text('roleDescription'),
-  inviteeDeviceId: text('inviteeDeviceId'),
   createdAt: int('createdAt').notNull(),
 })

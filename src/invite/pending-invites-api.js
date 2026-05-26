@@ -20,7 +20,6 @@ import { deNullify } from '../utils.js'
  * @property {import('../roles.js').RoleIdForNewInvite} roleId
  * @property {string} [roleName]
  * @property {string} [roleDescription]
- * @property {string} [inviteeDeviceId] Device ID of invitee (set when redeemed)
  * @property {number} createdAt Timestamp when created
  */
 
@@ -31,11 +30,6 @@ import { deNullify } from '../utils.js'
  * @property {Buffer} inviteIdBuffer
  * @property {string} url
  * @property {InviteOptions} opts
- */
-
-/**
- * @typedef {object} PendingInviteUpdate
- * @property {string} inviteeDeviceId
  */
 
 const DEFAULT_INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000
@@ -85,17 +79,6 @@ export class PendingInvitesApiForProject {
   async getAll() {
     await this.#pendingInvitesApi.ready()
     return this.#pendingInvitesApi.getAllForProject(this.#projectId)
-  }
-
-  /**
-   * Update a pending invite (e.g., set invitee device ID when redeemed)
-   * @param {string} inviteId
-   * @param {PendingInviteUpdate} updates
-   * @returns {Promise<void>}
-   */
-  async update(inviteId, updates) {
-    await this.#pendingInvitesApi.ready()
-    return this.#pendingInvitesApi.update(inviteId, this.#projectId, updates)
   }
 
   /**
@@ -344,26 +327,6 @@ export class PendingInvitesApi extends ReadyResource {
       }
       return /** @type {PendingInviteRecord} */ (deNullify(row))
     })
-  }
-
-  /**
-   * Update a pending invite (e.g., set invitee device ID when redeemed)
-   * @param {string} inviteId
-   * @param {string} projectId
-   * @param {PendingInviteUpdate} updates
-   * @returns {Promise<void>}
-   */
-  async update(inviteId, projectId, updates) {
-    await this.ready()
-    await this.#db
-      .update(pendingInvitesTable)
-      .set(updates)
-      .where(
-        and(
-          eq(pendingInvitesTable.inviteId, inviteId),
-          eq(pendingInvitesTable.projectId, projectId)
-        )
-      )
   }
 
   /**

@@ -68,7 +68,7 @@ export class RemoteDiscovery extends TypedEmitter {
 
     const swarm = new Hyperswarm({
       keyPair: this.#deriveSwarmIdentityKeypair(),
-      maxPeers: 4,
+      maxPeers: 16,
     })
     // @ts-expect-error Hyperswarm lacks the expected utility class to mark the stream as opened
     swarm.on('connection', this.#handleHyperswarmConnection.bind(this))
@@ -102,6 +102,7 @@ export class RemoteDiscovery extends TypedEmitter {
    * Close all connections and stop listening
    */
   async stop() {
+    this.#l.log('Suspending swarm')
     await this.#loading
     await this.#swarm?.suspend()
   }
