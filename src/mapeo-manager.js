@@ -766,10 +766,13 @@ export class MapeoManager extends TypedEmitter {
     // It's okay if this rejection never gets handled
     onClose.catch(noop)
     try {
-      const onInvited = pEvent(this.#invite, 'invite-received')
-
       // Use the identity key from the handshake, not the swarm key from the URL
       const identityPublicKeyHex = connection.handshakePublicKey.toString('hex')
+
+      const onInvited = pEvent(this.#invite, 'invite-received', {
+        filter: (invite) => invite.invitorDeviceId === identityPublicKeyHex,
+      })
+
       await Promise.race([
         this.#localPeers.sendRedeemInviteOverInternet(identityPublicKeyHex, {
           inviteId,
