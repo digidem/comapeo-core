@@ -209,7 +209,6 @@ export class PeerSyncController {
    * @returns {Promise<void>}
    */
   async #readAndCacheSyncCapability() {
-    console.trace(this.peerId, 'readAndCacheSyncCapability')
     try {
       this.#log('reading role for %S', this.peerId)
       const cap = await this.#roles.getRole(this.peerId)
@@ -301,14 +300,10 @@ export class PeerSyncController {
 
     /** @type {(peer: any) => void} */
     const handlePeerRemove = (peer) => {
-      if (!peer.remotePublicKey.equals(Buffer.from(this.peerId))) return
+      const peerId = peerIdFromNoise(peer.protomux.stream)
+      if (peerId !== this.peerId) return
       core.off('peer-remove', handlePeerRemove)
-      this.#log(
-        'peer-remove %h from %s core %k',
-        peer.remotePublicKey,
-        namespace,
-        core.key
-      )
+      this.#log('peer-remove %S from %s core %k', peerId, namespace, core.key)
     }
     core.on('peer-remove', handlePeerRemove)
   }

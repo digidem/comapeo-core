@@ -32,6 +32,7 @@ import {
   InvalidProjectJoinDetailsError,
   MapShareNotSupportedByPeerError,
 } from './errors.js'
+
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 /** @import {DeferredPromise} from 'p-defer' */

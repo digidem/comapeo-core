@@ -8,18 +8,17 @@ import {
   NAMESPACES,
   PRESYNC_NAMESPACES,
 } from '../constants.js'
-import { keyToId, noop } from '../utils.js'
 import { getOwn } from '../lib/get-own.js'
 import { wsCoreReplicator } from '../lib/ws-core-replicator.js'
 import { NO_ROLE_ID } from '../roles.js'
 import { AutoStopTimeoutError, ExhaustivenessError } from '../errors.js'
 import { peerIdFromNoise } from '../local-peers.js'
+import { noop } from '../utils.js'
 
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
-/** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
-/** @import { BlobFilter, ReplicationStream } from '../types.js' */
+/** @import { HypercorePeer, ReplicationStream } from '../types.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
@@ -525,7 +524,7 @@ export class SyncApi extends TypedEmitter {
    * will then handle validation of role records to ensure that the peer is
    * actually still part of the project.
    *
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer} peer
    */
   #handlePeerAdd = (peer) => {
     const { protomux } = peer
@@ -566,21 +565,21 @@ export class SyncApi extends TypedEmitter {
    * Called when a peer is removed from the creator core, e.g. when the
    * connection is terminated.
    *
-   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
+   * @param {Pick<HypercorePeer, 'protomux' >} peer
    */
   #handlePeerDisconnect = (peer) => {
-    const { protomux, remotePublicKey } = peer
+    const { protomux } = peer
+    const peerId = peerIdFromNoise(protomux.stream)
     const psc = this.#peerSyncControllers.get(protomux)
     if (!psc) {
       this.#l.log(
-        'Unexpected no existing peer sync controller for peer %h',
-        remotePublicKey
+        'Unexpected no existing peer sync controller for peer %S',
+        peerId
       )
       return
     }
     psc.dispose()
     this.#peerSyncControllers.delete(protomux)
-    const peerId = keyToId(peer.remotePublicKey)
     this.#pscByPeerId.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
     this[kSyncState].disconnectPeer(peerId)

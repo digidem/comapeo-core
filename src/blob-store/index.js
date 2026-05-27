@@ -124,7 +124,7 @@ export class BlobStore extends ReadyResource {
   /**
    * Bound to `this`
    * This will be called whenever a peer is successfully added to the creatorcore
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<import('../lib/noise-secret-stream-helpers.js').OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer } peer
    */
   #handlePeerAdd = (peer) => {
     const downloadFilter = getBlobDownloadFilter(this.#isArchiveDevice)
@@ -133,7 +133,7 @@ export class BlobStore extends ReadyResource {
 
   /**
    * Bound to `this`
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<import('../lib/noise-secret-stream-helpers.js').OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer} peer
    */
   #handlePeerRemove = (peer) => {
     const peerId = peerIdFromNoise(peer.protomux.stream)
