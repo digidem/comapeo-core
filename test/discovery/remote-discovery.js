@@ -1,3 +1,5 @@
+import createTestnet from 'hyperdht/testnet.js'
+
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { KeyManager, keyToPublicId } from '@mapeo/crypto'
@@ -20,6 +22,11 @@ import { Duplex, Transform } from 'streamx'
 /** @import {OpenedNoiseStream} from '../../src/lib/noise-secret-stream-helpers.js'*/
 
 test('RemoteDiscovery - connect two instances and verify keypair', async (t) => {
+  const testnet = await createTestnet(3)
+  t.after(async () => {
+    await testnet.destroy()
+  })
+
   const identityKeypair1 = new KeyManager(
     Buffer.alloc(16, 1)
   ).getIdentityKeypair()
@@ -32,10 +39,12 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
     deriveSwarmIdentityKeypair: () => swarmKeypair1,
+    swarm: { dht: testnet.nodes[0] },
   })
   const remoteDiscovery2 = new RemoteDiscovery({
     identityKeypair: identityKeypair2,
     deriveSwarmIdentityKeypair: () => swarmKeypair2,
+    swarm: { dht: testnet.nodes[1] },
   })
 
   t.after(() =>
@@ -280,6 +289,11 @@ test('RemoteDiscovery - connectPeer returns same socket for duplicate connection
 })
 
 test('RemoteDiscovery - connect two peers to a third peer', async (t) => {
+  const testnet = await createTestnet(3)
+  t.after(async () => {
+    await testnet.destroy()
+  })
+
   const identityKeypair1 = new KeyManager(
     Buffer.alloc(16, 1)
   ).getIdentityKeypair()
@@ -297,14 +311,17 @@ test('RemoteDiscovery - connect two peers to a third peer', async (t) => {
   const remoteDiscovery1 = new RemoteDiscovery({
     identityKeypair: identityKeypair1,
     deriveSwarmIdentityKeypair: () => swarmKeypair1,
+    swarm: { dht: testnet.nodes[0] },
   })
   const remoteDiscovery2 = new RemoteDiscovery({
     identityKeypair: identityKeypair2,
     deriveSwarmIdentityKeypair: () => swarmKeypair2,
+    swarm: { dht: testnet.nodes[1] },
   })
   const remoteDiscovery3 = new RemoteDiscovery({
     identityKeypair: identityKeypair3,
     deriveSwarmIdentityKeypair: () => swarmKeypair3,
+    swarm: { dht: testnet.nodes[2] },
   })
 
   t.after(() =>
