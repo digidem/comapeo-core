@@ -16,7 +16,9 @@ import crypto from 'node:crypto'
 import { temporaryDirectory } from 'tempy'
 
 test('invite over internet and join from URL', async (t) => {
-  const managers = await createManagers(2, t)
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    useTestnet: true,
+  })
   const [invitor, invitee] = managers
 
   const projectId = await invitor.createProject({
@@ -140,7 +142,9 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
 })
 
 test('invite over internet can be redeemed by multiple peers', async (t) => {
-  const managers = await createManagers(3, t)
+  const managers = await createManagers(3, t, 'device_type_unspecified', {
+    useTestnet: true,
+  })
   const [invitor, invitee1, invitee2] = managers
 
   const projectId = await invitor.createProject({
@@ -207,7 +211,9 @@ test('invite over internet can be redeemed by multiple peers', async (t) => {
 })
 
 test('invite over internet errors if invitor deviceID is invalid', async (t) => {
-  const managers = await createManagers(2, t)
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    useTestnet: true,
+  })
   const [invitor, invitee] = managers
 
   const projectId = await invitor.createProject({
@@ -238,7 +244,9 @@ test('invite over internet errors if invitor deviceID is invalid', async (t) => 
 })
 
 test('invite over internet errors if inviter closes before accepting', async (t) => {
-  const managers = await createManagers(2, t)
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    useTestnet: true,
+  })
   const [invitor, invitee] = managers
 
   const projectId = await invitor.createProject({
@@ -289,7 +297,9 @@ test('invite over internet errors if inviter closes before accepting', async (t)
 })
 
 test('invite over internet errors if invitee uses random invalid inviteId', async (t) => {
-  const managers = await createManagers(2, t)
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    useTestnet: true,
+  })
   const [invitor, invitee] = managers
 
   const projectId = await invitor.createProject({

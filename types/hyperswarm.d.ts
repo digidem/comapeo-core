@@ -16,8 +16,15 @@ declare module 'hyperswarm' {
   interface SwarmEvents {
     connection(socket: NoiseSecretStream, PeerInfo: PeerInfo): void
   }
+
+  interface SwarmOpts {
+    keyPair?: Keypair
+    maxPeers?: number
+    dht?: HyperDHT
+  }
+
   export default class Hyperswarm extends TypedEmitter<SwarmEvents> {
-    constructor({ keyPair: Keypair, maxPeers: number })
+    constructor(swarmOpts: SwarmOpts)
     get peers(): Map<string, PeerInfo>
     get connections(): Set<NoiseSecretStream>
     listen(): Promise<void>

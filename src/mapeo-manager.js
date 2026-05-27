@@ -186,6 +186,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    * @param {boolean} [opts.defaultIsArchiveDevice] Whether the node is an archive device by default
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
+   * @param {import('hyperswarm').SwarmOpts} [opts.swarm]
    */
   constructor({
     rootKey,
@@ -194,6 +195,7 @@ export class MapeoManager extends TypedEmitter {
     clientMigrationsFolder,
     coreStorage,
     fastify,
+    swarm,
     defaultConfigPath,
     customMapPath,
     fallbackMapPath = DEFAULT_FALLBACK_MAP_FILE_PATH,
@@ -303,6 +305,7 @@ export class MapeoManager extends TypedEmitter {
       identityKeypair: this.#keyManager.getIdentityKeypair(),
       // ephemeral swarm identity each run
       deriveSwarmIdentityKeypair: () => this.#keyManager.deriveSwarmIdentity(),
+      swarm,
       logger,
     })
     this.#remoteDiscovery.on('connection', this.#replicate.bind(this))
