@@ -33,6 +33,7 @@ import createTestnet from 'hyperdht/testnet.js'
 
 /** @import { InvitePeerInfo, MemberApi } from '../src/member-api.js' */
 /** @import { PublicPeerInfo } from '../src/mapeo-manager.js' */
+/** @import { TestNet } from 'hyperdht/testnet.js' */
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -232,9 +233,13 @@ export async function createManagers(
   deviceType = 'device_type_unspecified',
   { useTestnet, ...overrides } = {}
 ) {
+  /**
+   * @type {TestNet|null}
+   */
   let testnet = null
   if (useTestnet) {
     testnet = await createTestnet(count)
+    t.after(() => testnet?.destroy())
   }
   // @ts-ignore
   return Promise.all(

@@ -310,12 +310,7 @@ export class MemberApi extends TypedEmitter {
    */
   async #handleRedeemInviteOverInternet(peerId, { inviteId }) {
     const inviteIdString = inviteId.toString('hex')
-    this.#l.log(
-      'Got incoming invite redeem',
-      inviteIdString.slice(0, 7),
-      'from',
-      peerId
-    )
+    this.#l.log('Got incoming invite redeem %S from %S', inviteIdString, peerId)
 
     const invite = await this.#inviteLinks.getById(inviteIdString)
     if (!invite) {

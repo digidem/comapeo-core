@@ -4,6 +4,7 @@ import { Logger } from '../logger.js'
 import { createMap, noop } from '../utils.js'
 import { unreplicate } from '../lib/hypercore-helpers.js'
 import { ExhaustivenessError } from '../errors.js'
+import { peerIdFromNoise } from '../local-peers.js'
 /** @import { CoreRecord } from '../core-manager/index.js' */
 /** @import { Role } from '../roles.js' */
 /** @import { SyncEnabledState } from './sync-api.js' */
@@ -46,9 +47,7 @@ export class PeerSyncController {
    * @param {Logger} [opts.logger]
    */
   constructor({ protomux, coreManager, syncState, roles, logger }) {
-    const logPrefix = `[${protomux.stream.remotePublicKey
-      ?.toString('hex')
-      .slice(0, 7)}] `
+    const logPrefix = `[${peerIdFromNoise(protomux.stream).slice(0, 7)}] `
     this.#log = Logger.create('peer', logger, { prefix: logPrefix }).log
     this.#coreManager = coreManager
     this.#protomux = protomux
@@ -71,12 +70,8 @@ export class PeerSyncController {
     this.#roles.off('update', this.#handleRolesUpdate)
   }
 
-  get peerKey() {
-    return this.#protomux.stream.remotePublicKey
-  }
-
   get peerId() {
-    return this.peerKey.toString('hex')
+    return peerIdFromNoise(this.#protomux.stream)
   }
 
   get syncCapability() {
@@ -182,6 +177,11 @@ export class PeerSyncController {
    * @param {Set<string>} roleDocIds
    */
   #handleRolesUpdate = (roleDocIds) => {
+    this.#log({
+      roleDocIds,
+      peerId: this.peerId,
+      has: roleDocIds.has(this.peerId),
+    })
     if (!this.peerId) return
     if (!roleDocIds.has(this.peerId)) return
     this.#refreshSyncCapability().catch(noop)
@@ -209,8 +209,9 @@ export class PeerSyncController {
    * @returns {Promise<void>}
    */
   async #readAndCacheSyncCapability() {
+    console.trace(this.peerId, 'readAndCacheSyncCapability')
     try {
-      this.#log('reading role for %h', this.peerId)
+      this.#log('reading role for %S', this.peerId)
       const cap = await this.#roles.getRole(this.peerId)
       // Copy: ROLES.*.sync is a shared object reference.
       this.#syncCapability = { ...cap.sync }
@@ -300,7 +301,7 @@ export class PeerSyncController {
 
     /** @type {(peer: any) => void} */
     const handlePeerRemove = (peer) => {
-      if (!peer.remotePublicKey.equals(this.peerKey)) return
+      if (!peer.remotePublicKey.equals(Buffer.from(this.peerId))) return
       core.off('peer-remove', handlePeerRemove)
       this.#log(
         'peer-remove %h from %s core %k',

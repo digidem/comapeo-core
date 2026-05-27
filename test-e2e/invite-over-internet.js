@@ -15,7 +15,7 @@ import {
 import crypto from 'node:crypto'
 import { temporaryDirectory } from 'tempy'
 
-test('invite over internet and join from URL', async (t) => {
+test.only('invite over internet and join from URL', async (t) => {
   const managers = await createManagers(2, t, 'device_type_unspecified', {
     useTestnet: true,
   })
@@ -59,7 +59,12 @@ test('invite over internet and join from URL', async (t) => {
 
   assert.equal(gotProjectId, projectId, 'joined expected project')
 
-  // TODO: Test that initial sync happened
+  // Test that initial sync happened by seeing if the auth cores got exchanged
+  const inviteeProject = await invitee.getProject(gotProjectId)
+
+  const members = await inviteeProject.$member.getMany()
+
+  assert.equal(members.length, 2, 'Seeing both members after initial sync')
 })
 
 test('invite over internet, close, reopen, and join from URL', async (t) => {

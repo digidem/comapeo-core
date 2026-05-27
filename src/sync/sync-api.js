@@ -13,6 +13,8 @@ import { getOwn } from '../lib/get-own.js'
 import { wsCoreReplicator } from '../lib/ws-core-replicator.js'
 import { NO_ROLE_ID } from '../roles.js'
 import { AutoStopTimeoutError, ExhaustivenessError } from '../errors.js'
+import { peerIdFromNoise } from '../local-peers.js'
+
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
@@ -529,8 +531,8 @@ export class SyncApi extends TypedEmitter {
     const { protomux } = peer
     if (this.#peerSyncControllers.has(protomux)) {
       this.#l.log(
-        'Unexpected existing peer sync controller for peer %h',
-        protomux.stream.remotePublicKey
+        'Unexpected existing peer sync controller for peer %S',
+        peerIdFromNoise(protomux.stream)
       )
       return
     }
@@ -567,12 +569,12 @@ export class SyncApi extends TypedEmitter {
    * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
    */
   #handlePeerDisconnect = (peer) => {
-    const { protomux } = peer
+    const { protomux, remotePublicKey } = peer
     const psc = this.#peerSyncControllers.get(protomux)
     if (!psc) {
       this.#l.log(
         'Unexpected no existing peer sync controller for peer %h',
-        protomux.stream.remotePublicKey
+        remotePublicKey
       )
       return
     }
