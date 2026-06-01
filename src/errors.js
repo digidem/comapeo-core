@@ -575,9 +575,9 @@ export const UnknownInviteIDError = createErrorClass({
   status: 404,
 })
 
-export const MissingInviteAndDeviceParamsError = createErrorClass({
-  code: 'MISSING_INVITE_AND_DEVICE_PARAMS_ERROR',
-  message: 'Missing invite and device parameters from URL',
+export const MissingInviteURLParameter = createErrorClass({
+  code: 'MISSING_INVITE_URL_PARAMETER',
+  message: 'Invite URL is missing the {paramName} parameter',
   status: 400,
 })
 

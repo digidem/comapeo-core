@@ -3,27 +3,37 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { KeyManager } from '@mapeo/crypto'
 
-import { makeInviteURL, MemberApi, parseInviteURL } from '../src/member-api.js'
+import { MemberApi } from '../src/member-api.js'
 import { LocalPeers } from '../src/local-peers.js'
-import { MEMBER_ROLE_ID } from '../src/roles.js'
+import { MEMBER_ROLE_ID, ROLES } from '../src/roles.js'
+import { DeviceInfo_DeviceType } from '../src/generated/rpc.js'
+import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
 
 /** @import { ProjectJoinDetails } from '../src/generated/rpc.js' */
 /** @import WebSocket from 'ws' */
 /** @import { InviteLinkCreate, InviteLinkRecord } from '../src/invite/invite-links-api.js' */
 
-test('serialize and parse invite URLs', () => {
-  const testSwarmPublicKey = 'foo'
-  const testInviteId = 'bar'
+const MAX_URL_LENGTH = 256
 
-  const url = makeInviteURL({
+test('serialize and parse invite URLs', () => {
+  const testSwarmPublicKey = randomBytes(32).toString('hex')
+  const testInviteId = randomBytes(32).toString('hex')
+  // Timestamp gets rounded to seconds anyway
+  const expiresAt = Math.round(Date.now() / 1000) * 1000
+  const params = {
     inviteIdString: testInviteId,
     swarmPublicKey: testSwarmPublicKey,
-  })
+    invitorName: 'some name here',
+    projectName: 'my cool project',
+    expiresAt,
+  }
+  const url = makeInviteURL(params)
 
-  const { inviteIdString, swarmPublicKey } = parseInviteURL(url)
+  assert(url.length < MAX_URL_LENGTH, 'URL smaller than the max')
 
-  assert.equal(inviteIdString, testInviteId)
-  assert.equal(swarmPublicKey, testSwarmPublicKey)
+  const parsedParams = parseInviteURL(url)
+
+  assert.deepEqual(parsedParams, params, 'got same params that got passed in')
 })
 
 test('List pending invites over internet', async () => {
@@ -114,7 +124,13 @@ test('Pending invites are loaded from persistence on ready', async () => {
   const inviteId = randomBytes(32)
   const inviteIdString = inviteId.toString('hex')
   const swarmPublicKey = randomBytes(32).toString('hex')
-  const url = makeInviteURL({ inviteIdString, swarmPublicKey })
+  const url = makeInviteURL({
+    inviteIdString,
+    swarmPublicKey,
+    invitorName: 'hello',
+    projectName: 'world',
+    expiresAt: Date.now(),
+  })
 
   // Pre-populate the mock with a pending invite
   await inviteLinks.create({
@@ -156,7 +172,7 @@ class MockRoles {
    * @returns {Promise<import('../src/roles.js').Role>}
    */
   async getRole(_deviceId) {
-    throw new Error('Not Implemented')
+    return ROLES[MEMBER_ROLE_ID]
   }
   /**
    * @returns {Promise<Map<string, import('../src/roles.js').Role>>} Map of deviceId to Role
@@ -243,7 +259,7 @@ class MockInviteLinksApiForProject {
  * @param {(deviceId: string) => Promise<boolean>} [opts.markInternetPeerAsTrusted]
  * @param {(deviceId: string) => Promise<void>} [opts.disconnectFromPeer]
  * @param {() => Promise<import('../src/mapeo-project.js').EditableProjectSettings>} [opts.getProjectSettings]
- * @param {(deviceId: string) => Promise<import('../src/schema.js').DeviceInfo>} [opts.getDeviceInfo]
+ * @param {(deviceId: string) => Promise<import('../src/member-api.js').MemberDeviceInfo>} [opts.getDeviceInfo]
  * @param {(deviceId: string, deviceInfo: import('../src/member-api.js').NewDeviceInfo) => Promise<void>} [opts.setDeviceInfo]
  * @param {MockInviteLinksApiForProject} [opts.inviteLinks]
  * @returns
@@ -252,7 +268,12 @@ function setup({
   rootKey = Buffer.alloc(16, 1),
   getProjectSettings = () =>
     Promise.resolve({ name: 'example', sendStats: false }),
-  getDeviceInfo = () => Promise.reject(new Error('Not implemented')),
+  getDeviceInfo = () =>
+    Promise.resolve({
+      name: 'Test Device',
+      deviceType: DeviceInfo_DeviceType.desktop,
+      createdAt: new Date().toString(),
+    }),
   setDeviceInfo = () => Promise.reject(new Error('Not implemented')),
   waitForInitialSyncWithPeer = () => Promise.resolve(),
   disconnectFromPeer = () => Promise.resolve(),

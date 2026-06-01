@@ -39,7 +39,6 @@ import {
   InviteNotYetRedeemedError,
   PeerDisconnectedSinceRedeemingInviteError,
   UnknownInviteIDError,
-  MissingInviteAndDeviceParamsError,
   CannotBlockSelfError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
@@ -52,8 +51,9 @@ import {
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
+import { DEFAULT_INVITE_EXPIRY_MS } from './invite/invite-links-api.js'
+import { makeInviteURL, parseInviteURL } from './invite/invite-urls.js'
 
-export const INTERNET_INVITE_PAGE = 'https://i.comapeo.app/invite/'
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
 /**
@@ -90,6 +90,10 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 
 /**
+ * @typedef {Pick<DeviceInfo, 'name'|'deviceType'|'selfHostedServerDetails'|'createdAt'>} MemberDeviceInfo
+ */
+
+/**
  * @typedef {object} InvitePeerInfo
  * @prop {DeviceInfo['name']} name
  * @prop {DeviceInfo['deviceType']} deviceType
@@ -103,12 +107,6 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  * @prop {Buffer} [__testOnlyInviteId] Hard-code the invite ID. Only for tests.
  * @prop {number} [initialSyncTimeoutMs=5000]
  * @prop {InvitePeerInfo} [peerInfo]
- */
-
-/**
- * @typedef {object} InviteLinkParams
- * @property {string} inviteIdString
- * @property {string} swarmPublicKey
  */
 
 /**
@@ -173,7 +171,7 @@ export class MemberApi extends TypedEmitter {
    * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
    * @param {(deviceId: string) => Promise<void>} opts.disconnectFromPeer
    * @param {() => Promise<import('./mapeo-project.js').EditableProjectSettings>} opts.getProjectSettings
-   * @param {(deviceId: string) => Promise<DeviceInfo>} opts.getDeviceInfo
+   * @param {(deviceId: string) => Promise<MemberDeviceInfo>} opts.getDeviceInfo
    * @param {(deviceId: string, deviceInfo: NewDeviceInfo) => Promise<void>} opts.setDeviceInfo
    * @param {Logger} [opts.logger]
    */
@@ -232,8 +230,27 @@ export class MemberApi extends TypedEmitter {
     const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
     const inviteIdString = inviteId.toString('hex')
     const swarmPublicKey = this.#getSwarmPublicKey().toString('hex')
+    const project = await this.#getProjectSettings()
+    const projectName = project.name
+    if (!projectName) {
+      throw new InvalidProjectNameError()
+    }
 
-    const url = makeInviteURL({ inviteIdString, swarmPublicKey })
+    const { name: invitorName } = await this.getById(this.#ownDeviceId)
+
+    if (!invitorName) {
+      throw new UnexpectedError(
+        'Internal error trying to read own device name for this invite'
+      )
+    }
+
+    const url = makeInviteURL({
+      inviteIdString,
+      swarmPublicKey,
+      invitorName,
+      projectName,
+      expiresAt: Date.now() + DEFAULT_INVITE_EXPIRY_MS,
+    })
 
     await this.#inviteLinks.create({
       inviteId: inviteIdString,
@@ -1012,35 +1029,4 @@ async function parseAddServerResponse(response) {
   throw new InvalidServerResponseError(
     `Failed to add server peer due to HTTP status code ${response.status}`
   )
-}
-
-/**
- * @param {string} url
- * @returns {InviteLinkParams}
- */
-export function parseInviteURL(url) {
-  const { hash } = new URL(url)
-
-  const params = new URLSearchParams(hash.slice(1))
-
-  const inviteIdString = params.get('i')
-  const swarmPublicKey = params.get('d')
-
-  if (
-    typeof inviteIdString !== 'string' ||
-    typeof swarmPublicKey !== 'string'
-  ) {
-    throw new MissingInviteAndDeviceParamsError()
-  }
-  return { inviteIdString, swarmPublicKey }
-}
-
-/**
- * @param {InviteLinkParams} opts
- * @returns {string}
- */
-export function makeInviteURL({ inviteIdString, swarmPublicKey }) {
-  const url = INTERNET_INVITE_PAGE + `#i=${inviteIdString}&d=${swarmPublicKey}`
-
-  return url
 }

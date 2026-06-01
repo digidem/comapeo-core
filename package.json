@@ -16,6 +16,10 @@
     "./schema.js": {
       "types": "./dist/schema.d.ts",
       "default": "./src/schema.js"
+    },
+    "./invite-urls.js": {
+      "types": "./dist/invite/invite-urls.d.ts",
+      "default": "./src/invite/invite-urls.js"
     }
   },
   "type": "module",
@@ -240,6 +244,7 @@
     "ws": "^8.18.0",
     "xstate": "^5.19.2",
     "yauzl-promise": "^4.0.0",
+    "z32": "^1.1.0",
     "zip-stream-promise": "^1.0.2"
   },
   "overrides": {
