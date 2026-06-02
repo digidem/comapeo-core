@@ -1,5 +1,6 @@
 import test from 'node:test'
 import fsPromises from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
 import { createManager, createManagers } from './utils.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import assert from 'node:assert/strict'
@@ -12,10 +13,10 @@ import {
   ensureKnownError,
   InviteNotYetRedeemedError,
 } from '../src/errors.js'
-import crypto from 'node:crypto'
+import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
 import { temporaryDirectory } from 'tempy'
 
-test.only('invite over internet and join from URL', async (t) => {
+test('invite over internet and join from URL', async (t) => {
   const managers = await createManagers(2, t, 'device_type_unspecified', {
     useTestnet: true,
   })
@@ -232,13 +233,11 @@ test('invite over internet errors if invitor deviceID is invalid', async (t) => 
     roleId: MEMBER_ROLE_ID,
   })
 
-  // Parse and modify the URL to use an invalid device ID
-  const urlObj = new URL(url)
-  const params = new URLSearchParams(urlObj.hash.slice(1))
-  const invalidDeviceId = '0'.repeat(64) // Invalid device ID
-  params.set('d', invalidDeviceId)
-  urlObj.hash = params.toString()
-  const modifiedUrl = urlObj.toString()
+  const parsed = parseInviteURL(url)
+  const modifiedUrl = makeInviteURL({
+    ...parsed,
+    swarmPublicKey: randomBytes(32).toString('hex'),
+  })
 
   // Try to join with invalid device ID - should fail immediately
   // The invitee won't be able to connect to the non-existent device
@@ -301,7 +300,7 @@ test('invite over internet errors if inviter closes before accepting', async (t)
   )
 })
 
-test('invite over internet errors if invitee uses random invalid inviteId', async (t) => {
+test('invite over internet errors if invitee uses invalid inviteId', async (t) => {
   const managers = await createManagers(2, t, 'device_type_unspecified', {
     useTestnet: true,
   })
@@ -318,13 +317,11 @@ test('invite over internet errors if invitee uses random invalid inviteId', asyn
     roleId: MEMBER_ROLE_ID,
   })
 
-  // Parse and modify the URL to use an invalid invite ID
-  const urlObj = new URL(url)
-  const params = new URLSearchParams(urlObj.hash.slice(1))
-  const invalidInviteId = crypto.randomBytes(32).toString('hex') // Random 32-byte invite ID
-  params.set('i', invalidInviteId)
-  urlObj.hash = params.toString()
-  const modifiedUrl = urlObj.toString()
+  const parsed = parseInviteURL(url)
+  const modifiedUrl = makeInviteURL({
+    ...parsed,
+    inviteIdString: randomBytes(32).toString('hex'),
+  })
 
   // Expect the invitor to emit an error when the invalid invite is attempted
   const onError = pEvent(project.$member, 'internet-invite-redeem-error', {

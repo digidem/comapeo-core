@@ -7,9 +7,11 @@
  * @property {number} expiresAt
  */
 
-import { MissingInviteURLParameter } from '../errors.js'
-import z32 from 'z32'
-import b4a from 'b4a'
+import {
+  MissingInviteURLParameter,
+  InvalidInviteURLKeyParameterError,
+} from '../errors.js'
+import { CrockfordBase32 } from 'crockford-base32'
 
 /**
  * @type {Record<keyof InviteLinkParams, string>}
@@ -46,11 +48,17 @@ export function parseInviteURL(url) {
       opts[optName] = parseInt(value) * 1000
     } else if (optName === 'inviteIdString' || optName === 'swarmPublicKey') {
       // Decode z32 and convert to hex
+      const decoded = CrockfordBase32.decode(value)
+      if (decoded.length !== 32) {
+        console.log({ decoded, value, params, url })
+        throw new InvalidInviteURLKeyParameterError({
+          paramName: optName,
+          byteLength: decoded.length,
+        })
+      }
       // @ts-ignore Type narrowing on computed key not precise enough
-      opts[/**@type {keyof InviteLinkParams}*/ (optName)] = b4a.toString(
-        z32.decode(value),
-        'hex'
-      )
+      opts[/**@type {keyof InviteLinkParams}*/ (optName)] =
+        decoded.toString('hex')
     } else {
       // @ts-ignore It complains about the use of Partial
       opts[/**@type {keyof InviteLinkParams}*/ (optName)] = value
@@ -72,7 +80,7 @@ export function makeInviteURL(opts) {
       // Convert milliseconds timestamp to seconds and then to a string
       value = Math.floor(value / 1000).toString()
     } else if (optName === 'inviteIdString' || optName === 'swarmPublicKey') {
-      value = z32.encode(b4a.from(value, 'hex'))
+      value = CrockfordBase32.encode(Buffer.from(value, 'hex'))
     }
     params.set(paramName, value)
   }

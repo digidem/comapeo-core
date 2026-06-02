@@ -581,6 +581,13 @@ export const MissingInviteURLParameter = createErrorClass({
   status: 400,
 })
 
+export const InvalidInviteURLKeyParameterError = createErrorClass({
+  code: 'INVALID_INVITE_URL_KEY_PARAMETER_ERROR',
+  message:
+    'Invite URL key parameter "{paramName}" must be 32 bytes after decoding, got {byteLength} bytes',
+  status: 400,
+})
+
 export const InviteLinkAlreadyExistsError = createErrorClass({
   code: 'INVITE_LINK_ALREADY_EXISTS_ERROR',
   message: 'Invite link with ID {inviteId} already exists',

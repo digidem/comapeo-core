@@ -201,6 +201,7 @@
     "comapeocat": "^1.0.0",
     "compact-encoding": "^2.12.0",
     "corestore": "6.8.4",
+    "crockford-base32": "^2.1.0",
     "custom-error-creator": "^1.1.1",
     "debug": "^4.3.4",
     "dot-prop": "^9.0.0",
@@ -244,7 +245,6 @@
     "ws": "^8.18.0",
     "xstate": "^5.19.2",
     "yauzl-promise": "^4.0.0",
-    "z32": "^1.1.0",
     "zip-stream-promise": "^1.0.2"
   },
   "overrides": {
