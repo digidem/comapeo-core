@@ -82,6 +82,10 @@ export interface RedeemInviteOverInternet {
   inviteId: Buffer;
 }
 
+export interface DenyInviteOverInternet {
+  inviteId: Buffer;
+}
+
 export interface DeviceInfo {
   name: string;
   deviceType?: DeviceInfo_DeviceType | undefined;
@@ -193,6 +197,10 @@ export interface ProjectJoinDetailsAck {
 }
 
 export interface RedeemInviteOverInternetAck {
+  inviteId: Buffer;
+}
+
+export interface DenyInviteOverInternetAck {
   inviteId: Buffer;
 }
 
@@ -587,6 +595,51 @@ export const RedeemInviteOverInternet = {
   },
 };
 
+function createBaseDenyInviteOverInternet(): DenyInviteOverInternet {
+  return { inviteId: Buffer.alloc(0) };
+}
+
+export const DenyInviteOverInternet = {
+  encode(message: DenyInviteOverInternet, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.inviteId.length !== 0) {
+      writer.uint32(10).bytes(message.inviteId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): DenyInviteOverInternet {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDenyInviteOverInternet();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.inviteId = reader.bytes() as Buffer;
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<DenyInviteOverInternet>, I>>(base?: I): DenyInviteOverInternet {
+    return DenyInviteOverInternet.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DenyInviteOverInternet>, I>>(object: I): DenyInviteOverInternet {
+    const message = createBaseDenyInviteOverInternet();
+    message.inviteId = object.inviteId ?? Buffer.alloc(0);
+    return message;
+  },
+};
+
 function createBaseDeviceInfo(): DeviceInfo {
   return { name: "", features: [] };
 }
@@ -886,6 +939,51 @@ export const RedeemInviteOverInternetAck = {
   },
   fromPartial<I extends Exact<DeepPartial<RedeemInviteOverInternetAck>, I>>(object: I): RedeemInviteOverInternetAck {
     const message = createBaseRedeemInviteOverInternetAck();
+    message.inviteId = object.inviteId ?? Buffer.alloc(0);
+    return message;
+  },
+};
+
+function createBaseDenyInviteOverInternetAck(): DenyInviteOverInternetAck {
+  return { inviteId: Buffer.alloc(0) };
+}
+
+export const DenyInviteOverInternetAck = {
+  encode(message: DenyInviteOverInternetAck, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.inviteId.length !== 0) {
+      writer.uint32(10).bytes(message.inviteId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): DenyInviteOverInternetAck {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDenyInviteOverInternetAck();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.inviteId = reader.bytes() as Buffer;
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<DenyInviteOverInternetAck>, I>>(base?: I): DenyInviteOverInternetAck {
+    return DenyInviteOverInternetAck.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DenyInviteOverInternetAck>, I>>(object: I): DenyInviteOverInternetAck {
+    const message = createBaseDenyInviteOverInternetAck();
     message.inviteId = object.inviteId ?? Buffer.alloc(0);
     return message;
   },

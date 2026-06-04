@@ -18,6 +18,8 @@ import {
   MapShareExtension,
   RedeemInviteOverInternet,
   RedeemInviteOverInternetAck,
+  DenyInviteOverInternet,
+  DenyInviteOverInternetAck,
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
@@ -78,6 +80,8 @@ const MESSAGE_TYPES = {
   MapShareExtension: 9,
   RedeemInviteOverInternet: 10,
   RedeemInviteOverInternetAck: 11,
+  DenyInviteOverInternet: 12,
+  DenyInviteOverInternetAck: 13,
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
@@ -432,6 +436,37 @@ class Peer {
   }
 
   /**
+   * @param {DenyInviteOverInternet} deny
+   * @returns {Promise<void>}
+   */
+  async sendDenyInviteOverInternet(deny) {
+    this.#assertConnected('Peer disconnected before sending deny over internet')
+    const buf = Buffer.from(DenyInviteOverInternet.encode(deny).finish())
+    const messageType = MESSAGE_TYPES.DenyInviteOverInternet
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+    await this.#waitForAck('DenyInviteOverInternetAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, deny.inviteId)
+    )
+    this.#log('denied invite over internet %h', deny.inviteId)
+  }
+
+  /**
+   * @param {DenyInviteOverInternet} deny
+   * @returns {Promise<void>}
+   */
+  async sendDenyInviteOverInternetAck({ inviteId }) {
+    this.#assertConnected(
+      'Peer disconnected before sending deny over internet ack'
+    )
+    if (!this.supportsAck()) return
+    const buf = Buffer.from(
+      DenyInviteOverInternetAck.encode({ inviteId }).finish()
+    )
+    const messageType = MESSAGE_TYPES.DenyInviteOverInternetAck
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+  }
+
+  /**
    * @param {RedeemInviteOverInternet} redeem
    * @returns {Promise<void>}
    */
@@ -525,7 +560,9 @@ class Peer {
  * @property {(peerId: string, inviteResponse: InviteResponse) => void} invite-response Emitted when an invite response is received
  * @property {(peerId: string, inviteResponse: InviteResponseAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
  * @property {(peerId: string, inviteResponse: RedeemInviteOverInternet) => void} invite-over-internet-redeemed Emitted when a peer attempts to redeem an invite over the internet
- * @property {(peerId: string, inviteResponse: RedeemInviteOverInternetAck) => void} invite-over-internet-redeemed-ack Emitted when an invite response acknowledgement is received
+ * @property {(peerId: string, inviteResponse: RedeemInviteOverInternetAck) => void} invite-over-internet-redeemed-ack Emitted when an invite redeem acknowledgement is received
+ * @property {(peerId: string, inviteResponse: DenyInviteOverInternet) => void} invite-over-internet-denied Emitted when a peer attempts to deny an invite over the internet
+ * @property {(peerId: string, inviteResponse: DenyInviteOverInternetAck) => void} invite-over-internet-denied-ack Emitted when an invite deny acknowledgement is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
  * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
@@ -610,6 +647,18 @@ export class LocalPeers extends TypedEmitter {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
     await peer.sendInviteResponse(inviteResponse)
+  }
+
+  /**
+   * Deny an invite over the internet
+   *
+   * @param {string} deviceId id of the peer you want to deny from (publicKey of peer as hex string)
+   * @param {DenyInviteOverInternet} deny
+   */
+  async sendDenyInviteOverInternet(deviceId, deny) {
+    await this.#waitForPendingConnections()
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    await peer.sendDenyInviteOverInternet(deny)
   }
 
   /**
@@ -970,6 +1019,21 @@ export class LocalPeers extends TypedEmitter {
         const ack = RedeemInviteOverInternetAck.decode(value)
         peer.receiveAck('RedeemInviteOverInternetAck', ack)
         this.emit('invite-over-internet-redeemed-ack', peer.id, ack)
+        break
+      }
+      case 'DenyInviteOverInternet': {
+        const deny = DenyInviteOverInternet.decode(value)
+        this.emit('invite-over-internet-denied', peer.id, deny)
+        peer.sendDenyInviteOverInternetAck(deny).catch((e) => {
+          this.#l.log(`Error sending deny over internet ack ${e.stack}`)
+        })
+        break
+      }
+      case 'DenyInviteOverInternetAck': {
+        if (!peer.isTrusted) return
+        const ack = DenyInviteOverInternetAck.decode(value)
+        peer.receiveAck('DenyInviteOverInternetAck', ack)
+        this.emit('invite-over-internet-denied-ack', peer.id, ack)
         break
       }
       /* c8 ignore next 2 */

@@ -40,6 +40,10 @@ message RedeemInviteOverInternet {
   bytes inviteId = 1;
 }
 
+message DenyInviteOverInternet {
+  bytes inviteId = 1;
+}
+
 message DeviceInfo {
   enum DeviceType {
     device_type_unspecified = 0;
@@ -74,6 +78,10 @@ message ProjectJoinDetailsAck {
 }
 
 message RedeemInviteOverInternetAck {
+  bytes inviteId = 1;
+}
+
+message DenyInviteOverInternetAck {
   bytes inviteId = 1;
 }
 

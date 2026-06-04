@@ -61,6 +61,8 @@ import {
   ProjectExistsError,
   InviteRedeemConnectionClosedError,
   InvalidMapShareReceiverError,
+  InviteDeniedByInviterError,
+  JoinProjectCancelledError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
@@ -172,6 +174,10 @@ export class MapeoManager extends TypedEmitter {
   #makeWebsocket
   #defaultIsArchiveDevice
 
+  // Maps invite ID (hex string) to AbortController for in-flight redeem attempts
+  /** @type {Map<string, AbortController>} */
+  #outboundRedeemInvites = new Map()
+
   /**
    * @param {Object} opts
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
@@ -246,6 +252,10 @@ export class MapeoManager extends TypedEmitter {
           ensureError(e)
         )
       })
+    )
+
+    this.#localPeers.on('invite-over-internet-denied', (peerId, deny) =>
+      this.#handleInviteDenied(peerId, deny)
     )
 
     this.#projectSettingsIndexWriter = new IndexWriter({
@@ -750,13 +760,30 @@ export class MapeoManager extends TypedEmitter {
    * @param {number} [options.timeout]
    * @returns {Promise<string>}
    */
-  async joinProjectOverInternet(url, { timeout = 60_000 } = {}) {
+  async joinProjectFromLink(url, { timeout = 60_000 } = {}) {
     const { swarmPublicKey, inviteIdString } = parseInviteURL(url)
     const inviteId = Buffer.from(inviteIdString, 'hex')
+
+    const redeemAbortController = new AbortController()
+    const onAbort = new Promise((_, reject) => {
+      redeemAbortController.signal.addEventListener(
+        'abort',
+        () => reject(redeemAbortController.signal.reason),
+        { once: true }
+      )
+    })
+    this.#outboundRedeemInvites.set(inviteIdString, redeemAbortController)
 
     const connection = await this.#remoteDiscovery.connectPeer(swarmPublicKey, {
       timeout,
     })
+
+    redeemAbortController.signal.addEventListener(
+      'abort',
+      () => connection.end(),
+      { once: true }
+    )
+
     const onClose = pEvent(connection, 'close').then(
       () => {
         throw new InviteRedeemConnectionClosedError()
@@ -781,15 +808,33 @@ export class MapeoManager extends TypedEmitter {
           inviteId,
         }),
         onClose,
+        onAbort,
       ])
 
-      const invite = await Promise.race([onInvited, onClose])
+      const invite = await Promise.race([onInvited, onClose, onAbort])
 
       const projectId = await this.#invite.accept(invite)
 
       return projectId
     } finally {
+      this.#outboundRedeemInvites.delete(inviteIdString)
       connection.end()
+    }
+  }
+
+  /**
+   * Cancel an in-flight join project attempt initiated via joinProjectFromLink.
+   * If no matching redeem attempt is found, nothing happens.
+   *
+   * @param {string} url - The invite URL
+   * @returns {Promise<void>}
+   */
+  async cancelJoinProjectFromLink(url) {
+    const { inviteIdString } = parseInviteURL(url)
+    const ac = this.#outboundRedeemInvites.get(inviteIdString)
+    if (ac) {
+      ac.abort(new JoinProjectCancelledError())
+      this.#outboundRedeemInvites.delete(inviteIdString)
     }
   }
 
@@ -1198,6 +1243,25 @@ export class MapeoManager extends TypedEmitter {
     }
 
     this.emit('map-share', mapShare)
+  }
+
+  /**
+   * Handle an incoming deny from the RPC layer, aborting a matching redeem attempt if pending.
+   * @param {string} peerId
+   * @param {{ inviteId: Buffer }} deny
+   */
+  #handleInviteDenied(peerId, deny) {
+    const inviteIdString = deny.inviteId.toString('hex')
+    this.#l.log(
+      'Got deny for invite %S from %S',
+      inviteIdString.slice(0, 7),
+      peerId
+    )
+    const ac = this.#outboundRedeemInvites.get(inviteIdString)
+    if (ac) {
+      ac.abort(new InviteDeniedByInviterError())
+      this.#outboundRedeemInvites.delete(inviteIdString)
+    }
   }
 
   async getMapStyleJsonUrl() {

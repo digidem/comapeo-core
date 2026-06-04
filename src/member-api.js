@@ -123,8 +123,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
 /**
  * @typedef {object} MemberEvents
- * @property {(deviceId: string, inviteId: string) => void} internet-invite-redeemed Emitted when an invite over the internet has been redeemed, accept the deviceId to add them
- * @property {(inviteId: string) => void} internet-invite-cancelled Emitted when an invite over the internet has been redeemed, accept the deviceId to add them
+ * @property {(deviceId: string, inviteId: string) => void} invite-link-join-request Emitted when an invite over the internet has been redeemed, accept the deviceId to add them
  * @property {(err: Error, deviceId: string, url: string) => void} internet-invite-redeem-error Emitted when an invite over the internet has failed to be redeemed
  */
 
@@ -268,10 +267,6 @@ export class MemberApi extends TypedEmitter {
    */
   async cancelInviteLink(url) {
     if (!url) {
-      const invites = await this.#inviteLinks.getAll()
-      for (const invite of invites) {
-        this.emit('internet-invite-cancelled', invite.inviteId)
-      }
       await this.#inviteLinks.deleteAll()
       return
     }
@@ -288,19 +283,19 @@ export class MemberApi extends TypedEmitter {
       throw new InvalidInternetInviteURLError()
     }
     this.#redeemedInvites.delete(inviteIdString)
-    this.emit('internet-invite-cancelled', inviteIdString)
     await this.#inviteLinks.delete(inviteIdString)
   }
 
   /**
    * Get the list of pending invites over the internet
-   * @returns {Promise<Pick<InviteLinkRecord, 'url' | 'inviteId' | 'createdAt' | 'expiresAt'>[]>}
+   * @returns {Promise<Pick<InviteLinkRecord, 'url' | 'inviteId' | 'createdAt' | 'expiresAt' | 'roleId'>[]>}
    */
   async listInviteLinks() {
     const invites = await this.#inviteLinks.getAll()
-    return invites.map(({ url, inviteId, createdAt, expiresAt }) => ({
+    return invites.map(({ url, inviteId, createdAt, expiresAt, roleId }) => ({
       url,
       inviteId,
+      roleId,
       createdAt,
       expiresAt,
     }))
@@ -368,7 +363,7 @@ export class MemberApi extends TypedEmitter {
       } else {
         redeemedSet.add(peerId)
       }
-      this.emit('internet-invite-redeemed', peerId, inviteIdString)
+      this.emit('invite-link-join-request', inviteIdString, peerId)
     } catch (e) {
       this.emit(
         'internet-invite-redeem-error',
@@ -387,7 +382,7 @@ export class MemberApi extends TypedEmitter {
    * @param {string} opts.deviceId
    * @returns {Promise<InviteDecision>}
    */
-  async acceptRedeemedInvite({ inviteId, deviceId }) {
+  async acceptInviteLinkRequest({ inviteId, deviceId }) {
     const redeemedSet = this.#redeemedInvites.get(inviteId)
     if (!redeemedSet || !redeemedSet.has(deviceId)) {
       throw new InviteNotYetRedeemedError()
@@ -411,6 +406,36 @@ export class MemberApi extends TypedEmitter {
     })
 
     return decision
+  }
+
+  /**
+   * Deny a specific device's attempt at redeeming an invite.
+   * @param {object} opts
+   * @param {string} opts.inviteId
+   * @param {string} opts.deviceId
+   * @returns {Promise<void>}
+   */
+  async denyInviteLinkRequest({ inviteId, deviceId }) {
+    const redeemedSet = this.#redeemedInvites.get(inviteId)
+    if (!redeemedSet || !redeemedSet.has(deviceId)) {
+      throw new InviteNotYetRedeemedError()
+    }
+
+    const pendingInvite = await this.#inviteLinks.getById(inviteId)
+    if (!pendingInvite) {
+      throw new UnknownInviteIDError()
+    }
+
+    try {
+      await this.#rpc.sendDenyInviteOverInternet(deviceId, {
+        inviteId: Buffer.from(inviteId, 'hex'),
+      })
+    } catch {
+      // RPC may fail if the peer disconnected, that's ok
+    }
+
+    await this.#cancelInviteLinkById(inviteId)
+    await this.#disconnectFromPeer(deviceId)
   }
 
   /**

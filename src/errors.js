@@ -594,6 +594,18 @@ export const InviteLinkAlreadyExistsError = createErrorClass({
   status: 409,
 })
 
+export const InviteDeniedByInviterError = createErrorClass({
+  code: 'INVITE_DENIED_BY_INVITER_ERROR',
+  message: 'Invitation denied by project inviter',
+  status: 403,
+})
+
+export const JoinProjectCancelledError = createErrorClass({
+  code: 'JOIN_PROJECT_CANCELLED_ERROR',
+  message: 'Join project was cancelled',
+  status: 499,
+})
+
 /**
  * @param {unknown} err
  * @returns {null}
