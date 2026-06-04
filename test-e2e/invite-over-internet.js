@@ -346,7 +346,7 @@ test('invite over internet can be denied by inviter', async (t) => {
   ])
 })
 
-test.only('invite over internet can be cancelled by invitee', async (t) => {
+test('invite over internet can be cancelled by invitee', async (t) => {
   const managers = await createManagers(2, t, 'device_type_unspecified', {
     useTestnet: true,
   })
@@ -378,11 +378,11 @@ test.only('invite over internet can be cancelled by invitee', async (t) => {
 
   // Cancel the join and wait for invitee's join to fail simultaneously
   await Promise.all([
-    invitee.cancelJoinProjectFromLink(url),
     assert.rejects(
       onInvited,
       (err) => ensureKnownError(err).code === JoinProjectCancelledError.code
     ),
+    invitee.cancelJoinProjectFromLink(url),
   ])
 
   // Accepting after the invitee disconnected should also fail
@@ -446,4 +446,43 @@ test('invite over internet errors if invitee uses invalid inviteId', async (t) =
     (err) =>
       ensureKnownError(err).code === InviteRedeemConnectionClosedError.code
   )
+})
+
+test('invite over internet can be cancelled before connection to non-existing peer', async (t) => {
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    useTestnet: true,
+  })
+  const [invitor, invitee] = managers
+
+  const projectId = await invitor.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
+  const project = await invitor.getProject(projectId)
+
+  const url = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  // Modify the URL to point to a non-existing peer
+  const parsed = parseInviteURL(url)
+  const modifiedUrl = makeInviteURL({
+    ...parsed,
+    swarmPublicKey: randomBytes(32).toString('hex'),
+  })
+
+  // Start join — it will try to connect to the non-existing peer
+  const onInvited = invitee.joinProjectFromLink(modifiedUrl)
+
+  // Give the connection attempt a moment to start, then cancel
+  await new Promise((resolve) => setTimeout(resolve, 200))
+
+  await Promise.all([
+    assert.rejects(
+      onInvited,
+      (err) => ensureKnownError(err).code === JoinProjectCancelledError.code
+    ),
+    invitee.cancelJoinProjectFromLink(modifiedUrl),
+  ])
 })

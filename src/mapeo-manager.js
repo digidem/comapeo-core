@@ -63,6 +63,7 @@ import {
   InvalidMapShareReceiverError,
   InviteDeniedByInviterError,
   JoinProjectCancelledError,
+  InvalidInternetInviteURLError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
@@ -765,24 +766,15 @@ export class MapeoManager extends TypedEmitter {
     const inviteId = Buffer.from(inviteIdString, 'hex')
 
     const redeemAbortController = new AbortController()
-    const onAbort = new Promise((_, reject) => {
-      redeemAbortController.signal.addEventListener(
-        'abort',
-        () => reject(redeemAbortController.signal.reason),
-        { once: true }
-      )
-    })
+    const signal = redeemAbortController.signal
     this.#outboundRedeemInvites.set(inviteIdString, redeemAbortController)
 
     const connection = await this.#remoteDiscovery.connectPeer(swarmPublicKey, {
       timeout,
+      signal: redeemAbortController.signal,
     })
 
-    redeemAbortController.signal.addEventListener(
-      'abort',
-      () => connection.end(),
-      { once: true }
-    )
+    signal.addEventListener('abort', () => connection.end(), { once: true })
 
     const onClose = pEvent(connection, 'close').then(
       () => {
@@ -801,17 +793,20 @@ export class MapeoManager extends TypedEmitter {
 
       const onInvited = pEvent(this.#invite, 'invite-received', {
         filter: (invite) => invite.invitorDeviceId === identityPublicKeyHex,
+        signal,
       })
 
-      await Promise.race([
-        this.#localPeers.sendRedeemInviteOverInternet(identityPublicKeyHex, {
-          inviteId,
-        }),
+      // This is to make sure all rejectable promises are listend to synchronously
+      // Else we get a PromiseRejectionHandledWarning in the tests
+      const [invite] = await Promise.race([
+        Promise.all([
+          onInvited,
+          this.#localPeers.sendRedeemInviteOverInternet(identityPublicKeyHex, {
+            inviteId,
+          }),
+        ]),
         onClose,
-        onAbort,
       ])
-
-      const invite = await Promise.race([onInvited, onClose, onAbort])
 
       const projectId = await this.#invite.accept(invite)
 
@@ -835,6 +830,8 @@ export class MapeoManager extends TypedEmitter {
     if (ac) {
       ac.abort(new JoinProjectCancelledError())
       this.#outboundRedeemInvites.delete(inviteIdString)
+    } else {
+      throw new InvalidInternetInviteURLError()
     }
   }
 

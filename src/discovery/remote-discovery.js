@@ -155,9 +155,10 @@ export class RemoteDiscovery extends TypedEmitter {
    * @param {string} publicKey
    * @param {object} [opts]
    * @param {number} [opts.timeout]
+   * @param {AbortSignal} [opts.signal]
    * @returns {Promise<RemoteAuthedNoiseStream>}
    */
-  async connectPeer(publicKey, { timeout = 60_000 } = {}) {
+  async connectPeer(publicKey, { timeout = 60_000, signal } = {}) {
     const swarm = await this.#ensureSwarm()
     const noisePublicKey = Buffer.from(publicKey, 'hex')
 
@@ -172,15 +173,21 @@ export class RemoteDiscovery extends TypedEmitter {
       }
     }
 
+    function onAbort() {
+      swarm.leavePeer(noisePublicKey)
+    }
+
     this.#shouldTrustKeys.add(publicKey)
 
     const onConnected = pEvent(this, 'connection', {
       filter: (connection) => connection.remotePublicKey.equals(noisePublicKey),
       timeout,
+      signal,
     })
     // Start trying to connect
     swarm.joinPeer(noisePublicKey)
     this.#l.log('Connecting to %S', publicKey)
+    signal?.addEventListener('abort', onAbort, { once: true })
     try {
       const socket = await onConnected
 
@@ -191,6 +198,7 @@ export class RemoteDiscovery extends TypedEmitter {
       }
       throw e
     } finally {
+      signal?.removeEventListener('abort', onAbort)
       this.#shouldTrustKeys.delete(publicKey)
     }
   }
