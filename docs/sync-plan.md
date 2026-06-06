@@ -224,7 +224,23 @@ structurally. The pure **renames (§2) land last** as one mechanical pass under 
 
 ---
 
-## 5. Verification
+## 5. Test infrastructure for hard-to-test timing edges
+Two seams (on the test branch) make sub-throttle / ordering races deterministic, which the refactor
+should preserve:
+- **`controllable-wire.js`** — drives two real projects over the `kProjectReplicate` transport with
+  latency / pause / abrupt-teardown / a second concurrent connection. Cracks coarse ordering bugs
+  (D1) and timing-relative-to-internal-steps bugs (A2, C1).
+- **`syncThrottleMs` test-knob** — threaded `Manager → Project → SyncApi` (default 200ms). Setting
+  it to `0` makes `SyncState` re-evaluation immediate, removing the main source of nondeterminism in
+  completion/capability timing. Useful well beyond these repros.
+- **Pattern that cracked C1:** a *slow* side-channel makes an otherwise-instant internal transition
+  (`auth.want` 0→N→0) last long enough to be *observed*, so the buggy re-cache actually fires.
+- **Still resistant (B1):** late-core *discovery* is bundled into the invite/first-sync (RPC path,
+  not the wire) and `NamespaceSyncState` aggregation masks a single late core — so neither the e2e
+  wire nor the unit seam can target the window today. Best tested during the refactor, when the
+  completion predicates and `#addCore` back-fill are being reshaped.
+
+## 5b. Verification
 - Unit: `npm run test:unit` (sync unit tests in `test/sync/`), incl. new P0.1–P0.3 + F2 cases.
 - E2E: `node --test test-e2e/sync-*.js` for the new lifecycle/completion/capability/reconnect files,
   plus the existing `test-e2e/sync.js`; run e2e with a global `process.on('unhandledRejection')`

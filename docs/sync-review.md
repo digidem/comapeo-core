@@ -167,7 +167,11 @@ async #readAndCacheSyncCapability() {
 ```
 `#refreshSyncCapability` then collapses to a call + `#updateEnabledNamespaces()`, killing the
 interleave hazard. (Long-term: set `BLOCKED_ROLE.sync.auth = 'allowed'` like LEFT_ROLE and delete
-the workaround — Refactor R4.) *Tests: P0.9.*
+the workaround — Refactor R4.) *Tests: `test-e2e/sync-capability.js` `[BUG C1]` — **deterministic
+repro** via the `syncThrottleMs` test-knob (`0`) + a dual controllable wire (open A↔B, slow A↔C so
+A *observes* the auth `syncStatus` transition that fires the non-preserving re-cache): block B,
+then an unrelated auth write from coordinator C re-caches B's capability and disables auth, failing
+the invariant "auth stays enabled for a blocked peer." Verified to pass once the fix is applied.*
 
 **C2 (MEDIUM) — Blocked/left peer's non-auth cores still added**
 `sync-api.js:640-653`. `#validateRoleAndAddCoresForPeer` only short-circuits on
