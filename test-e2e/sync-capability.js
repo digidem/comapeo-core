@@ -3,13 +3,10 @@ import assert from 'node:assert/strict'
 import { generate } from '@mapeo/mock-data'
 import { setTimeout as delay } from 'node:timers/promises'
 import { valueOf } from '../src/utils.js'
-import {
-  BLOCKED_ROLE_ID,
-  MEMBER_ROLE_ID,
-  COORDINATOR_ROLE_ID,
-} from '../src/roles.js'
+import { BLOCKED_ROLE_ID, MEMBER_ROLE_ID } from '../src/roles.js'
 import { kCoreManager, kCoreOwnership } from '../src/mapeo-project.js'
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
+import { connectProjectsControllably } from './controllable-wire.js'
 
 // Permission / capability sync coverage and bug reproductions.
 //
@@ -214,22 +211,21 @@ test(
 )
 
 test(
-  '[BUG C1] a blocked peer still learns it has been blocked (auth keeps syncing on the same session)',
+  '[BUG C1] a peer blocked while offline still learns it was blocked after reconnecting',
   {
-    timeout: 120_000,
+    timeout: 90_000,
     todo:
-      'BUG C1: peer-sync-controller #handleStateChange overwrites cached auth ' +
-      'capability to "blocked" on any unrelated auth update, defeating the ' +
-      '#refreshSyncCapability auth-preservation workaround. The blocked peer ' +
-      'then stops receiving auth and never learns it was blocked.',
+      'BUG C1: on (re)connection a fresh PeerSyncController re-caches auth capability via ' +
+      '#handleStateChange -> #readAndCacheSyncCapability, which has no auth-preservation ' +
+      '(unlike #refreshSyncCapability). It sets auth="blocked" as soon as the peer\'s auth ' +
+      'syncs, disabling auth replication before the peer can pull its own BLOCKED role doc, ' +
+      'so the peer never learns it was blocked. peer-sync-controller.js #handleStateChange / ' +
+      '#readAndCacheSyncCapability',
   },
   async (t) => {
-    // A = coordinator/creator, B = member (the one we block),
-    // C = coordinator (the source of an unrelated auth write).
-    const [managerA, managerB, managerC] = await createManagers(3, t)
-    const disconnect = connectPeers([managerA, managerB, managerC])
-    t.after(disconnect)
-
+    // A = coordinator/creator, B = member.
+    const [managerA, managerB] = await createManagers(2, t)
+    const disconnectInvite = connectPeers([managerA, managerB])
     const projectId = await managerA.createProject({ name: 'c1-learns-block' })
     await invite({
       invitor: managerA,
@@ -237,92 +233,59 @@ test(
       projectId,
       roleId: MEMBER_ROLE_ID,
     })
-    await invite({
-      invitor: managerA,
-      invitees: [managerC],
-      projectId,
-      roleId: COORDINATOR_ROLE_ID,
-    })
+    await disconnectInvite()
 
     const aProject = await managerA.getProject(projectId)
     const bProject = await managerB.getProject(projectId)
-    const cProject = await managerC.getProject(projectId)
 
-    aProject.$sync.start()
-    bProject.$sync.start()
-    cProject.$sync.start()
-    await waitForSync([aProject, bProject, cProject], 'full', {
-      timeout: 60_000,
-    })
-
-    // B's own role is currently MEMBER.
     assert.equal(
       (await bProject.$getOwnRole()).roleId,
       MEMBER_ROLE_ID,
       'B starts as MEMBER'
     )
 
-    // Listen for B learning its own role becomes BLOCKED.
-    const bLearnedBlocked = new Promise((res) => {
-      const check = async () => {
-        const role = await bProject.$getOwnRole()
-        if (role.roleId === BLOCKED_ROLE_ID) {
-          bProject.off('own-role-change', onChange)
-          res(true)
-        }
-      }
-      /** @type {() => void} */
-      const onChange = () => {
-        check().catch(() => {})
-      }
-      bProject.on('own-role-change', onChange)
-      // Also re-check on its own role doc indexing.
-      check().catch(() => {})
-    })
-
-    // A blocks B.
+    // Block B while it is disconnected. A indexes the BLOCKED role doc locally;
+    // B has not seen it.
     await aProject.$member.assignRole(managerB.deviceId, BLOCKED_ROLE_ID)
 
-    // Immediately drive several UNRELATED auth writes from coordinator C.
-    // Each role doc C writes propagates to A; A's PeerSyncController for B
-    // sees auth go syncing -> synced and re-caches B's capability via
-    // #readAndCacheSyncCapability, which sets auth='blocked' with no
-    // preservation -> A should stop sending auth to B before B learns it is
-    // blocked.
+    // Reconnect over a HIGH-LATENCY wire. On reconnect A spins up a fresh
+    // PeerSyncController for B whose auth capability is re-cached via
+    // #handleStateChange (the non-auth-preserving path), which sets
+    // auth='blocked' and unreplicates the auth core from B.
     //
-    // NOTE on reproducibility: on this in-process local transport the bug does
-    // NOT manifest, because three independent mechanisms each keep auth open
-    // long enough for B to pull its own BLOCKED role doc (observed ~15-25ms
-    // after the block, far faster than C's writes propagate back to A):
-    //   1. A's #handleRolesUpdate -> #refreshSyncCapability restores
-    //      auth='allowed' synchronously when A writes the BLOCKED role doc.
-    //   2. The auth namespace is a PRESYNC namespace and replicates eagerly.
-    //   3. A fresh PeerSyncController defaults auth capability to 'unknown',
-    //      which #updateEnabledNamespaces treats as ENABLED for auth.
-    // The C1 defect (an unrelated auth #handleStateChange overwriting the
-    // preserved auth capability) requires a precise interleave / slow-or-lossy
-    // transport that cannot be forced deterministically here. This test
-    // therefore PASSES today (ok # TODO) and is a regression guard for the
-    // structural fix (move auth-preservation into #readAndCacheSyncCapability,
-    // or set BLOCKED_ROLE.sync.auth = 'allowed').
-    for (let i = 0; i < 10; i++) {
-      const dummyDeviceId = Buffer.from(
-        `c1-unrelated-auth-write-${i}`.padEnd(32, '0').slice(0, 32)
-      ).toString('hex')
-      await cProject.$member.assignRole(dummyDeviceId, MEMBER_ROLE_ID)
-      await delay(50)
+    // REPRODUCTION STATUS: this does NOT deterministically fail today, so the
+    // test currently PASSES (ok # TODO) as a best-effort regression guard for
+    // the structural fix. Latency cannot win the race: A serves B the BLOCKED
+    // block on B's *request* (one latency in), whereas A's capability
+    // re-evaluation that disables auth is delayed behind the 200ms SyncState
+    // throttle — so B reliably receives its own BLOCKED role before A acts on
+    // the stale capability. Forcing the C1 defect deterministically needs
+    // finer fault injection than a byte-level wire (e.g. dropping the specific
+    // auth block while delivering a later unrelated auth update) or the
+    // server-websocket path. The fix (move auth-preservation into
+    // #readAndCacheSyncCapability, or set BLOCKED_ROLE.sync.auth='allowed')
+    // makes auth survive the re-cache regardless of timing.
+    const link = connectProjectsControllably(aProject, bProject, {
+      latencyMs: 300,
+    })
+    t.after(() => link.destroy())
+    aProject.$sync.start()
+    bProject.$sync.start()
+
+    // The contract: blocking a peer must eventually inform that peer. Poll B's
+    // own role. Under the bug B never learns (auth disabled) and this times out.
+    const deadline = Date.now() + 20_000
+    let bRoleId = MEMBER_ROLE_ID
+    while (Date.now() < deadline) {
+      bRoleId = (await bProject.$getOwnRole()).roleId
+      if (bRoleId === BLOCKED_ROLE_ID) break
+      await delay(250)
     }
 
-    // The bug: B would never learn it has been blocked on this live session.
-    const learned = await Promise.race([
-      bLearnedBlocked,
-      delay(45_000).then(() => false),
-    ])
-
     assert.equal(
-      learned,
-      true,
-      'B learned it was blocked on the same session (auth kept syncing)'
+      bRoleId,
+      BLOCKED_ROLE_ID,
+      'B learned it was blocked after reconnecting (auth kept replicating)'
     )
   }
 )

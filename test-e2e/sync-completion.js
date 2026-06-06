@@ -289,6 +289,16 @@ test(
     // sibling-core state. We assert that once 'initial' resolves the invitor
     // can actually read the invitee's config doc. If the race is present this
     // read returns undefined right after waitForSync resolves.
+    //
+    // REPRODUCTION STATUS: best-effort; currently PASSES (ok # TODO). The
+    // premature-completion window is a FIRST-CONTACT, sub-throttle micro-window
+    // (the peer is present via a sibling core while the late-discovered config
+    // core has no preHaves yet). It could not be forced with the controllable
+    // wire: first core-discovery is driven by the invite/local-discovery RPC
+    // path, not the kProjectReplicate transport, so the wire cannot widen the
+    // exact window, and on loopback the config block lands before 'initial'
+    // resolves. The structural fix (back-fill late cores in #addCore and gate
+    // completion on status==='started' for connected peers) is the real guard.
     await invitorProject.$sync.waitForSync('initial', { timeoutMs: 30_000 })
 
     const member = await invitorProject.$member.getById(invitee.deviceId)
