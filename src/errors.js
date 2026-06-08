@@ -606,6 +606,12 @@ export const JoinProjectCancelledError = createErrorClass({
   status: 499,
 })
 
+export const InitialSyncFailedError = createErrorClass({
+  code: 'INITIAL_SYNC_FAILED_ERROR',
+  message: 'Failed to perform initial sync with peers',
+  status: 409,
+})
+
 /**
  * @param {unknown} err
  * @returns {null}

@@ -64,6 +64,7 @@ import {
   InviteDeniedByInviterError,
   JoinProjectCancelledError,
   InvalidInternetInviteURLError,
+  InitialSyncFailedError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
@@ -83,7 +84,7 @@ import { parseInviteURL } from './invite/invite-urls.js'
 /** @import {RemoteAuthedNoiseStream} from "./discovery/remote-discovery.js" */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
-/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean }} ProjectToAddDetails */
+/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean, leaveOnFail?: boolean }} ProjectToAddDetails */
 /** @typedef {Pick<ProjectSettings, 'createdAt' | 'updatedAt' | 'name' | 'projectColor' | 'projectDescription' | 'sendStats'>} ListedProjectSettings */
 /** @typedef {ListedProjectSettings & { status: 'joined', projectId: string } | ProjectInfo & { status: 'joining' | 'left', projectId: string }} ListedProject */
 
@@ -774,7 +775,7 @@ export class MapeoManager extends TypedEmitter {
       signal: redeemAbortController.signal,
     })
 
-    signal.addEventListener('abort', () => connection.end(), { once: true })
+    signal.addEventListener('abort', () => connection.destroy(), { once: true })
 
     const onClose = pEvent(connection, 'close').then(
       () => {
@@ -811,6 +812,10 @@ export class MapeoManager extends TypedEmitter {
       const projectId = await this.#invite.accept(invite)
 
       return projectId
+    } catch (e) {
+      // Disconnect from them on error
+      await this.#remoteDiscovery.disconnectPeer(swarmPublicKey)
+      throw e
     } finally {
       this.#outboundRedeemInvites.delete(inviteIdString)
       connection.end()
@@ -853,6 +858,7 @@ export class MapeoManager extends TypedEmitter {
       projectDescription,
       sendStats = false,
       invitorWroteDeviceInfo = false,
+      leaveOnFail = false,
     },
     { waitForSync = true } = {}
   ) => {
@@ -952,9 +958,46 @@ export class MapeoManager extends TypedEmitter {
       try {
         await project.$sync.waitForSync('initial', {
           timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
+          errorOnNoPeers: true,
         })
       } catch (e) {
-        this.#l.log('ERROR: could not do initial project sync', e)
+        this.#l.log(
+          'ERROR: could not do initial project sync, leaving %b',
+          e,
+          leaveOnFail
+        )
+        if (leaveOnFail) {
+          // Delete keys and mark as left
+          this.#saveToProjectKeysTable({
+            projectId,
+            projectPublicId,
+            projectInviteId,
+            projectInfo: {
+              name: projectName,
+              projectColor,
+              projectDescription,
+              sendStats,
+            },
+            projectKeys: {
+              projectKey,
+              projectSecretKey,
+              encryptionKeys: encryptionKeys
+                ? { auth: encryptionKeys.auth }
+                : undefined,
+            },
+            hasLeftProject: true,
+          })
+
+          this.#db
+            .delete(projectSettingsTable)
+            .where(eq(projectSettingsTable.docId, projectId))
+            .run()
+
+          // We'll just clear the data without assigning the left role
+          // since the invitor will add the blocked role already
+          await project[kClearData]()
+          throw new InitialSyncFailedError()
+        }
       }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)

@@ -448,19 +448,27 @@ export class SyncApi extends TypedEmitter {
    * to wait between sync state updates before giving up. As long as syncing is
    * happening, this will never timeout, but if more than timeoutMs passes
    * without any sync activity, then this will reject.
+   * @param {boolean} [options.errorOnNoPeers] Whether to quickly exit when no
+   * remote states for peers are detected.
    * @returns {Promise<void>}
    */
-  async waitForSync(type, { timeoutMs } = {}) {
+  async waitForSync(type, { timeoutMs, errorOnNoPeers = false } = {}) {
     return new Promise((resolve, reject) => {
-      /** @type {NodeJS.Timeout | undefined} */
-      let timeoutId
+      /** @type {NodeJS.Timeout | null} */
+      let timeoutId = null
+
       const onTimeout = () => {
         this[kSyncState].off('state', onState)
         reject(new Error('Sync timeout'))
       }
       /** @param {import('./sync-state.js').State} state */
       const onState = (state) => {
-        clearTimeout(timeoutId)
+        if (timeoutId) clearTimeout(timeoutId)
+        if (errorOnNoPeers && !hasRemoteStates(state)) {
+          this[kSyncState].off('state', onState)
+          reject(new Error('No peers found to do initial sync with'))
+          return
+        }
         if (isSynced(state, type, this.#peerSyncControllers)) {
           this[kSyncState].off('state', onState)
           resolve()
@@ -684,6 +692,19 @@ function isSynced(state, type, peerSyncControllers) {
     }
   }
   return true
+}
+
+/**
+ * Check if there are any remote states present
+ * Use this to see if we're lacking any peers to sync with
+ * @param {import('./sync-state.js').State} state
+ * @returns
+ */
+function hasRemoteStates(state) {
+  for (const { remoteStates } of Object.values(state)) {
+    if (Object.keys(remoteStates).length) return true
+  }
+  return false
 }
 
 /**

@@ -40,6 +40,7 @@ import {
   PeerDisconnectedSinceRedeemingInviteError,
   UnknownInviteIDError,
   CannotBlockSelfError,
+  InitialSyncFailedError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
@@ -104,6 +105,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  * @prop {import('./roles.js').RoleIdForNewInvite} opts.roleId
  * @prop {string} [roleName]
  * @prop {string} [roleDescription]
+ * @prop {boolean} [leaveOnFail]
  * @prop {Buffer} [__testOnlyInviteId] Hard-code the invite ID. Only for tests.
  * @prop {number} [initialSyncTimeoutMs=5000]
  * @prop {InvitePeerInfo} [peerInfo]
@@ -399,13 +401,18 @@ export class MemberApi extends TypedEmitter {
       throw new PeerDisconnectedSinceRedeemingInviteError()
     }
     const { roleId, roleName, roleDescription } = pendingInvite
-    const decision = await this.invite(deviceId, {
-      roleId,
-      roleName,
-      roleDescription,
-    })
-
-    return decision
+    try {
+      const decision = await this.invite(deviceId, {
+        roleId,
+        roleName,
+        roleDescription,
+        leaveOnFail: true,
+      })
+      return decision
+    } catch (e) {
+      await this.#disconnectFromPeer(deviceId)
+      throw e
+    }
   }
 
   /**
@@ -434,7 +441,6 @@ export class MemberApi extends TypedEmitter {
       // RPC may fail if the peer disconnected, that's ok
     }
 
-    await this.#cancelInviteLinkById(inviteId)
     await this.#disconnectFromPeer(deviceId)
   }
 
@@ -452,6 +458,7 @@ export class MemberApi extends TypedEmitter {
       roleId,
       roleName = ROLES[roleId]?.name,
       roleDescription,
+      leaveOnFail = false,
       __testOnlyInviteId,
       initialSyncTimeoutMs = 5000,
       peerInfo,
@@ -506,6 +513,7 @@ export class MemberApi extends TypedEmitter {
         invitorName,
         sendStats,
         invitorWroteDeviceInfo,
+        leaveOnFail,
       }
 
       const inviteResponse = await this.#sendInviteAndGetResponse(
@@ -557,6 +565,11 @@ export class MemberApi extends TypedEmitter {
             await this.#waitForInitialSyncWithPeer(deviceId, abortSync)
           } catch (e) {
             this.#l.log('ERROR: Could not initial sync with peer', e)
+            if (leaveOnFail) {
+              this.#l.log('Removing member due to leave on fail flag')
+              await this.remove(deviceId, { reason: 'failed initial sync' })
+              throw new InitialSyncFailedError()
+            }
           }
 
           return inviteResponse.decision
