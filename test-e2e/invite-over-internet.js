@@ -18,6 +18,7 @@ import {
 } from '../src/errors.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
 import { temporaryDirectory } from 'tempy'
+import { kWaitForInitialSyncWithPeer } from '../src/sync/sync-api.js'
 
 test('invite over internet and join from URL', async (t) => {
   const managers = await createManagers(2, t, 'device_type_unspecified', {
@@ -485,4 +486,77 @@ test('invite over internet can be cancelled before connection to non-existing pe
     ),
     invitee.cancelJoinProjectFromLink(modifiedUrl),
   ])
+})
+
+test('invite over the internet removes project and removes member when failing to sync', async (t) => {
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    useTestnet: true,
+  })
+  const [invitor, invitee] = managers
+
+  const projectId = await invitor.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
+  const project = await invitor.getProject(projectId)
+
+  const origSyncWithPeer = project.$sync[kWaitForInitialSyncWithPeer]
+
+  project.$sync[kWaitForInitialSyncWithPeer] = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    throw new Error('Unexpected error!')
+  }
+
+  const url = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const onInviteRedeemAttempt = pEvent(
+    project.$member,
+    'invite-link-join-request',
+    { multiArgs: true, timeout: 5000 }
+  )
+
+  const onInvited = invitee.joinProjectFromLink(url)
+
+  const [inviteId, deviceId] = /** @type {[string, string]} */ (
+    /**@type unknown*/ (await onInviteRedeemAttempt)
+  )
+
+  assert.equal(deviceId, invitee.deviceId)
+
+  // Show the user the device ID and their name and have them verify the invitee sees the same device ID
+  // We should either take the first 4-8 bytes from the deviceID or derive something visual like emoji
+  const onInviteeAccepted = project.$member.acceptInviteLinkRequest({
+    inviteId,
+    deviceId,
+  })
+
+  await Promise.all([
+    assert.rejects(onInvited),
+    assert.rejects(onInviteeAccepted),
+  ])
+
+  const members = await project.$member.getMany()
+
+  assert.equal(members.length, 1, 'only invitor exists')
+
+  const projects = await invitee.listProjects()
+
+  assert.equal(projects.length, 0, 'invitee no longer in a project')
+
+  project.$sync[kWaitForInitialSyncWithPeer] = origSyncWithPeer
+
+  project.$member.on('invite-link-join-request', (inviteId, deviceId) => {
+    console.log('got invite link', inviteId, deviceId)
+    project.$member.acceptInviteLinkRequest({
+      inviteId,
+      deviceId,
+    })
+  })
+
+  const gotProjectId = await invitee.joinProjectFromLink(url)
+
+  assert.equal(gotProjectId, projectId, 'Invited to project')
 })
