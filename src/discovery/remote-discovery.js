@@ -143,11 +143,15 @@ export class RemoteDiscovery extends TypedEmitter {
           connection.handshakePublicKey.equals(noisePublicKey))
       ) {
         this.#l.log('Disconnecting from peer %S', publicKey)
-        connection.end()
-        break
+        connection.destroy()
+        return
       }
     }
     // TODO: Error on unknown peer?
+    this.#l.log(
+      'Error: Cannot disconnect from peer %S, not connected',
+      publicKey
+    )
   }
 
   /**
@@ -173,7 +177,8 @@ export class RemoteDiscovery extends TypedEmitter {
       }
     }
 
-    function onAbort() {
+    const onAbort = () => {
+      this.#l.log('Leave peer for %s', publicKey)
       swarm.leavePeer(noisePublicKey)
     }
 
@@ -184,6 +189,7 @@ export class RemoteDiscovery extends TypedEmitter {
       timeout,
       signal,
     })
+
     // Start trying to connect
     swarm.joinPeer(noisePublicKey)
     this.#l.log('Connecting to %S', publicKey)

@@ -144,6 +144,99 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   outboundStream.end()
 })
 
+test.only('RemoteDiscovery - Able to reconnect after disconnecting', async (t) => {
+  const testnet = await createTestnet(3)
+  t.after(async () => {
+    await testnet.destroy()
+  })
+
+  const identityKeypair1 = new KeyManager(
+    Buffer.alloc(16, 1)
+  ).getIdentityKeypair()
+  const identityKeypair2 = new KeyManager(
+    Buffer.alloc(16, 2)
+  ).getIdentityKeypair()
+  const swarmKeypair1 = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+  const swarmKeypair2 = new KeyManager(Buffer.alloc(16, 4)).getIdentityKeypair()
+
+  const remoteDiscovery1 = new RemoteDiscovery({
+    identityKeypair: identityKeypair1,
+    deriveSwarmIdentityKeypair: () => swarmKeypair1,
+    swarm: { dht: testnet.nodes[0] },
+  })
+  const remoteDiscovery2 = new RemoteDiscovery({
+    identityKeypair: identityKeypair2,
+    deriveSwarmIdentityKeypair: () => swarmKeypair2,
+    swarm: { dht: testnet.nodes[1] },
+  })
+
+  t.after(() =>
+    Promise.all([remoteDiscovery1.close(), remoteDiscovery2.close()])
+  )
+
+  // Start both instances
+  await Promise.all([remoteDiscovery1.start(), remoteDiscovery2.start()])
+
+  const swarmPublicKey1Hex = swarmKeypair1.publicKey.toString('hex')
+  const swarmPublicKey2Hex = swarmKeypair2.publicKey.toString('hex')
+
+  // Listen for connection on instance 1
+  const onConnection = pEvent(remoteDiscovery1, 'connection')
+
+  // Connect from instance 2 to instance 1
+  const connectionPromise = remoteDiscovery2.connectPeer(swarmPublicKey1Hex)
+
+  const outboundStream = await connectionPromise
+  const inboundStream = await onConnection
+
+  assert.ok(
+    inboundStream.remotePublicKey.equals(swarmKeypair2.publicKey),
+    'remote public key should match instance 2'
+  )
+  inboundStream.on('error', handleConnectionError)
+
+  // Verify both sides have the correct keypairs
+  assert.ok(
+    inboundStream.remotePublicKey.equals(swarmKeypair2.publicKey),
+    'instance 1 should have instance 2 swarm public key'
+  )
+  assert.ok(
+    outboundStream.remotePublicKey.equals(swarmKeypair1.publicKey),
+    'instance 2 should have instance 1 swarm public key'
+  )
+
+  const onEnd = Promise.all([
+    pEvent(outboundStream, 'close').then(() => console.log('outbound close')),
+    pEvent(inboundStream, 'close').then(() => console.log('inbound close')),
+  ])
+
+  await Promise.all([
+    onEnd,
+    // Need to disconnect both sides manually ATM cause disconenct isnt detected otherwise.
+    remoteDiscovery2.disconnectPeer(swarmPublicKey1Hex),
+    remoteDiscovery1.disconnectPeer(swarmPublicKey2Hex),
+  ])
+
+  // Listen for connection on instance 1
+  const onConnection2 = pEvent(remoteDiscovery1, 'connection')
+
+  // Connect from instance 2 to instance 1
+  const connectionPromise2 = remoteDiscovery2.connectPeer(swarmPublicKey1Hex)
+
+  const outboundStream2 = await connectionPromise2
+  const inboundStream2 = await onConnection2
+
+  // Verify both sides have the correct keypairs
+  assert.ok(
+    inboundStream2.remotePublicKey.equals(swarmKeypair2.publicKey),
+    'instance 1 should have instance 2 swarm public key'
+  )
+  assert.ok(
+    outboundStream2.remotePublicKey.equals(swarmKeypair1.publicKey),
+    'instance 2 should have instance 1 swarm public key'
+  )
+})
+
 test('RemoteDiscovery - readChunk throws UnableToReadHandshakeError on empty stream', async () => {
   // Create a stream that closes immediately without providing data
   const emptyStream = new Transform({
