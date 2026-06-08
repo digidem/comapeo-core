@@ -58,6 +58,7 @@ export const inviteLinksTable = sqliteTable('inviteLinks', {
   roleId: text('roleId').notNull(),
   roleName: text('roleName'),
   roleDescription: text('roleDescription'),
+  seedTime: int('seedTime').notNull(),
   createdAt: int('createdAt').notNull(),
   expiresAt: int('expiresAt').notNull(),
 })

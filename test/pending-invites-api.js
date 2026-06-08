@@ -33,7 +33,15 @@ const PROJECT_ID = 'test-project-id'
  */
 
 /**
- * @typedef {Omit<InviteLinkRecord, 'createdAt' | 'expiresAt'> & {createdAt?: number, expiresAt?: number, projectId: string}} SeedPendingInvite
+ * @typedef {object} SeedOptionals
+ * @property {number} [createdAt]
+ * @property {number} [expiresAt]
+ * @property {number} [seedTime]
+ * @property {string} projectId
+ */
+
+/**
+ * @typedef {Omit<InviteLinkRecord, keyof SeedOptionals> & SeedOptionals} SeedPendingInvite
  */
 
 /**
@@ -57,6 +65,7 @@ function setup(
       .values({
         ...seed,
         createdAt: seed.createdAt ?? Date.now(),
+        seedTime: seed.seedTime ?? Date.now(),
         expiresAt: seed.expiresAt ?? Date.now() + expiryMs,
       })
       .run()
@@ -399,6 +408,7 @@ test('Role ID validation on read', async (t) => {
     url: 'https://example.com/invite',
     roleId: 'invalid-role-id',
     createdAt: Date.now(),
+    seedTime: Date.now(),
     expiresAt: Date.now() + DEFAULT_INVITE_EXPIRY_MS,
   })
 

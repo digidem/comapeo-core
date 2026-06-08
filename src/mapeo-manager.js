@@ -78,7 +78,7 @@ import { parseInviteURL } from './invite/invite-urls.js'
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { ProjectJoinDetails, } from './generated/rpc.js' */
-/** @import { CoreStorage, Namespace } from './types.js' */
+/** @import { CoreStorage, KeyPair, Namespace } from './types.js' */
 /** @import { DeviceInfoParam, ProjectInfo } from './schema/client.js' */
 /** @import { ProjectSettings, ProjectSettingsValue } from '@comapeo/schema' */
 /** @import {RemoteAuthedNoiseStream} from "./discovery/remote-discovery.js" */
@@ -315,8 +315,7 @@ export class MapeoManager extends TypedEmitter {
     this.#localDiscovery.on('connection', this.#replicate.bind(this))
     this.#remoteDiscovery = new RemoteDiscovery({
       identityKeypair: this.#keyManager.getIdentityKeypair(),
-      // ephemeral swarm identity each run
-      deriveSwarmIdentityKeypair: () => this.#keyManager.deriveSwarmIdentity(),
+      deriveSwarmIdentityKeypair: () => this.#swarmIdentity,
       swarm,
       logger,
     })
@@ -330,6 +329,15 @@ export class MapeoManager extends TypedEmitter {
 
   get deviceId() {
     return this.#deviceId
+  }
+
+  /**
+   * @returns {KeyPair}
+   */
+  get #swarmIdentity() {
+    return this.#keyManager.deriveSwarmIdentity(
+      new Date(this.#inviteLinks.getSeedTime())
+    )
   }
 
   /**
@@ -650,7 +658,7 @@ export class MapeoManager extends TypedEmitter {
       ...projectKeys,
       projectMigrationsFolder: this.#projectMigrationsFolder,
       keyManager: this.#keyManager,
-      getSwarmPublicKey: () => this.#keyManager.deriveSwarmIdentity().publicKey,
+      getSwarmPublicKey: () => this.#swarmIdentity.publicKey,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,

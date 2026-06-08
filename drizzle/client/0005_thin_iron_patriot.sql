@@ -6,6 +6,7 @@ CREATE TABLE `inviteLinks` (
 	`roleId` text NOT NULL,
 	`roleName` text,
 	`roleDescription` text,
+	`seedTime` integer NOT NULL,
 	`createdAt` integer NOT NULL,
 	`expiresAt` integer NOT NULL
 );

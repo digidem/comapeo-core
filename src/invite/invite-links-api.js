@@ -243,6 +243,12 @@ export class InviteLinksApi extends ReadyResource {
     }
   }
 
+  getSeedTime() {
+    const oldest = this.#sql.getOldest.get()
+    if (!oldest) return Date.now()
+    return oldest.seedTime
+  }
+
   /**
    * Create a new invite link record
    * @param {InviteLinkCreate} data
@@ -261,6 +267,7 @@ export class InviteLinksApi extends ReadyResource {
         roleDescription: data.opts.roleDescription,
         createdAt: Date.now(),
         expiresAt: Date.now() + this.#expiryMs,
+        seedTime: this.getSeedTime(),
       })
 
       await this.#checkSetShouldListenOverInternet(true)
