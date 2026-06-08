@@ -67,6 +67,7 @@ test('invite-received event has expected payload', async () => {
     projectName,
     invitorName: 'Your Friend',
     sendStats: false,
+    leaveOnFail: false,
     invitorWroteDeviceInfo: false,
   }
   rpc.emit('invite', invitorPeerId, bareInvite)
@@ -97,6 +98,7 @@ test('invite-received event has expected payload', async () => {
       invitorName: 'Your Friend',
       state: 'pending',
       sendStats: false,
+      leaveOnFail: false,
       invitorWroteDeviceInfo: false,
     },
     {
@@ -109,6 +111,7 @@ test('invite-received event has expected payload', async () => {
       projectColor: '#123456',
       state: 'pending',
       sendStats: false,
+      leaveOnFail: false,
       invitorWroteDeviceInfo: false,
     },
     {
@@ -122,6 +125,7 @@ test('invite-received event has expected payload', async () => {
       projectDescription: 'cool project',
       state: 'pending',
       sendStats: false,
+      leaveOnFail: false,
       invitorWroteDeviceInfo: false,
     },
   ]
@@ -1190,6 +1194,7 @@ function setup() {
     invitorName: 'Host',
     sendStats: false,
     invitorWroteDeviceInfo: false,
+    leaveOnFail: false,
   }
   const inviteExternal = {
     ...invite,
@@ -1198,6 +1203,7 @@ function setup() {
     inviteId: invite.inviteId.toString('hex'),
     projectInviteId: projectInviteId.toString('hex'),
     sendStats: false,
+    leaveOnFail: false,
     invitorWroteDeviceInfo: false,
   }
 
