@@ -24,7 +24,7 @@ export const URL_PARAM_MAPPINGS = {
   expiresAt: 'e',
 }
 
-export const INTERNET_INVITE_PAGE = 'https://i.comapeo.app/invite/'
+export const INTERNET_INVITE_PAGE = 'https://a.comapeo.app/invite'
 
 /**
  * @param {string} url
