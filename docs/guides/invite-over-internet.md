@@ -1,4 +1,4 @@
-t # Inviting New Mebers Over the Internet
+# Inviting New Mebers Over the Internet
 
 ## Concepts
 
@@ -25,7 +25,9 @@ t # Inviting New Mebers Over the Internet
 ## Invitor Flow
 
 ```JavaScript
-project.$member.on('invite-link-join-request', (inviteId, deviceId) => {
+manager.on('invite-link-join-request', async (projectId, deviceId, inviteId,) => {
+  const project = await manager.getProject(projectId)
+
   // Reason is same as from invite api
   // Throws if there is an error during the invite proces
   const reason = await project.$member.acceptInviteLinkRequest(inviteId, deviceId)
