@@ -143,7 +143,8 @@ export class RemoteDiscovery extends TypedEmitter {
           connection.handshakePublicKey.equals(noisePublicKey))
       ) {
         this.#l.log('Disconnecting from peer %S', publicKey)
-        connection.destroy()
+        connection.end()
+        await pEvent(connection, 'close')
         return
       }
     }
