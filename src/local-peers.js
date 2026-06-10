@@ -244,9 +244,9 @@ class Peer {
     for (const listener of this.#drainedListeners) {
       listener.reject(new RPCDisconnectBeforeSendingError())
     }
-    for (const waiters of this.#ackWaiters.values()) {
+    for (const [type, waiters] of this.#ackWaiters.entries()) {
       for (const { deferred } of waiters) {
-        deferred.reject(new RPCDisconnectBeforeAckError())
+        deferred.reject(new RPCDisconnectBeforeAckError({ type }))
       }
     }
     this.#ackWaiters.clear()
@@ -921,56 +921,76 @@ export class LocalPeers extends TypedEmitter {
       case 'Invite': {
         if (!peer.isTrusted) return
         const invite = parseInvite(value)
-        this.emit('invite', peer.id, invite)
-        peer.sendInviteAck(invite).catch((e) => {
-          this.#l.log(`Error sending invite ack ${e.stack}`)
-        })
-        this.#l.log(
-          'Invite %h from %S for %h',
-          invite.inviteId,
-          peer.id,
-          invite.projectInviteId
-        )
+        peer
+          .sendInviteAck(invite)
+          .then(() => {
+            this.#l.log(
+              'Invite %h from %S for %h',
+              invite.inviteId,
+              peer.id,
+              invite.projectInviteId
+            )
+            this.emit('invite', peer.id, invite)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending invite ack ${e.stack}`)
+          })
         break
       }
       case 'InviteCancel': {
         if (!peer.isTrusted) return
         const inviteCancel = parseInviteCancel(value)
-        this.emit('invite-cancel', peer.id, inviteCancel)
-        peer.sendInviteCancelAck(inviteCancel).catch((e) => {
-          this.#l.log(`Error sending invite cancel ack ${e.stack}`)
-        })
-        this.#l.log(
-          'Invite cancel from %S for %h',
-          peer.id,
-          inviteCancel.inviteId
-        )
+        peer
+          .sendInviteCancelAck(inviteCancel)
+          .then(() => {
+            this.emit('invite-cancel', peer.id, inviteCancel)
+            this.#l.log(
+              'Invite cancel from %S for %h',
+              peer.id,
+              inviteCancel.inviteId
+            )
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending invite cancel ack ${e.stack}`)
+          })
         break
       }
       case 'InviteResponse': {
         if (!peer.isTrusted) return
         const inviteResponse = parseInviteResponse(value)
-        this.emit('invite-response', peer.id, inviteResponse)
-        peer.sendInviteResponseAck(inviteResponse).catch((e) => {
-          this.#l.log(`Error sending invite response ack ${e.stack}`)
-        })
+        peer
+          .sendInviteResponseAck(inviteResponse)
+          .then(() => {
+            this.emit('invite-response', peer.id, inviteResponse)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending invite response ack ${e.stack}`)
+          })
         break
       }
       case 'RedeemInviteOverInternet': {
         const redeem = RedeemInviteOverInternet.decode(value)
-        this.emit('invite-over-internet-redeemed', peer.id, redeem)
-        peer.sendRedeemInviteOverInternetAck(redeem).catch((e) => {
-          this.#l.log(`Error sending redeem over internet ack ${e.stack}`)
-        })
+        peer
+          .sendRedeemInviteOverInternetAck(redeem)
+          .then(() => {
+            this.emit('invite-over-internet-redeemed', peer.id, redeem)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending redeem over internet ack ${e.stack}`)
+          })
         break
       }
       case 'ProjectJoinDetails': {
         if (!peer.isTrusted) return
         const details = parseProjectJoinDetails(value)
-        this.emit('got-project-details', peer.id, details)
-        peer.sendProjectJoinDetailsAck(details).catch((e) => {
-          this.#l.log(`Error sending project details ack ${e.stack}`)
-        })
+        peer
+          .sendProjectJoinDetailsAck(details)
+          .then(() => {
+            this.emit('got-project-details', peer.id, details)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending project details ack ${e.stack}`)
+          })
         break
       }
       case 'DeviceInfo': {
@@ -1023,10 +1043,14 @@ export class LocalPeers extends TypedEmitter {
       }
       case 'DenyInviteOverInternet': {
         const deny = DenyInviteOverInternet.decode(value)
-        this.emit('invite-over-internet-denied', peer.id, deny)
-        peer.sendDenyInviteOverInternetAck(deny).catch((e) => {
-          this.#l.log(`Error sending deny over internet ack ${e.stack}`)
-        })
+        peer
+          .sendDenyInviteOverInternetAck(deny)
+          .then(() => {
+            this.emit('invite-over-internet-denied', peer.id, deny)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending deny over internet ack ${e.stack}`)
+          })
         break
       }
       case 'DenyInviteOverInternetAck': {

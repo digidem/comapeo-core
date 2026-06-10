@@ -38,7 +38,7 @@ export const RPCDisconnectBeforeSendingError = createErrorClass({
 
 export const RPCDisconnectBeforeAckError = createErrorClass({
   code: 'RPC_DISCONNECT_BEFORE_ACK_ERROR',
-  message: 'RPC disconnected before receiving acknowledgement',
+  message: 'RPC disconnected before receiving acknowledgement for {type}',
   status: 499,
 })
 
