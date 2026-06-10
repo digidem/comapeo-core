@@ -72,11 +72,23 @@ const {
 	inviteIdString
 } = parseInviteURL(url)
 
+manager.on('invite-link-join-connected', (url) => {
+  // Connected to the invitor and waiting to join or get denied
+  // Show waiting for accept screen
+})
+
+manager.on('invite-link-join-accepted', (url) => {
+  // Invitor has accepted us and we're now joining
+  // Show now joining screen
+})
+
 // Connect to the invitor, send request, join project with initial sync
+// Show Waiting to connect screen until we get the connected event or react to the errors
+// Once resolved show joined screen
 const projectId = await manager.joinProjectFromLink(url)
-// InviteRedeemConnectionClosedError
-// UnknownInviteIDError
-// InviteDeniedByInviterError
+// InviteRedeemConnectionClosedError => Connection error page
+// UnknownInviteIDError => Invite has expried page
+// InviteDeniedByInviterError => Request denied page
 
 await manager.cancelJoinProjectFromLink(url)
 // InvalidInternetInviteURLError

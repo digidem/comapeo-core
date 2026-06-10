@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { eq } from 'drizzle-orm'
 
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { randomBytes } from 'node:crypto'
@@ -982,5 +983,183 @@ test('scheduleExpired - deleting last invite cancels timer', async (t) => {
     stillGone.length,
     0,
     'no timer firing after delete (none to check against)'
+  )
+})
+
+// ---------------------------------------------------------------------------
+// getSeedTime() tests
+// These test the mechanism that keeps the swarm identity stable while
+// invite links exist, and changes it when all invites are gone.
+// In MapeoManager the swarm identity is derived from InviteLinksApi.getSeedTime().
+// ---------------------------------------------------------------------------
+
+test('getSeedTime() - returns current time when no invites exist', async (t) => {
+  const { api } = setup(t)
+
+  await api.ready()
+
+  const before = Date.now()
+  const seedTime = api.getSeedTime()
+  const after = Date.now()
+
+  assert.ok(
+    seedTime >= before && seedTime <= after,
+    'getSeedTime returns approximate current time when no invites exist'
+  )
+})
+
+test('getSeedTime() - locks to first invite, subsequent invites share same seedTime', async (t) => {
+  const { api, db } = setup(t)
+
+  await api.ready()
+
+  const inviteId1 = randomBytes(32)
+  const inviteId1String = inviteId1.toString('hex')
+
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId1String,
+    inviteIdBuffer: inviteId1,
+    url: 'https://example.com/1',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const seedTime1 = api.getSeedTime()
+  const [dbRow1] = db
+    .select({ seedTime: inviteLinksTable.seedTime })
+    .from(inviteLinksTable)
+    .where(eq(inviteLinksTable.inviteId, inviteId1String))
+    .all()
+  assert.equal(
+    dbRow1.seedTime,
+    seedTime1,
+    'first invite seedTime matches getSeedTime'
+  )
+
+  // Small delay to guarantee a different Date.now() would be produced
+  await new Promise((resolve) => setTimeout(resolve, 5))
+
+  const inviteId2 = randomBytes(32)
+  const inviteId2String = inviteId2.toString('hex')
+
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId2String,
+    inviteIdBuffer: inviteId2,
+    url: 'https://example.com/2',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const [dbRow2] = db
+    .select({ seedTime: inviteLinksTable.seedTime })
+    .from(inviteLinksTable)
+    .where(eq(inviteLinksTable.inviteId, inviteId2String))
+    .all()
+  assert.equal(
+    dbRow2.seedTime,
+    seedTime1,
+    'second invite shares the same seedTime as the first'
+  )
+  assert.equal(
+    api.getSeedTime(),
+    seedTime1,
+    'getSeedTime still returns the locked value'
+  )
+})
+
+test('getSeedTime() - new invite after all deleted gets a new seedTime', async (t) => {
+  const { api } = setup(t)
+
+  await api.ready()
+
+  const inviteId1 = randomBytes(32)
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId1.toString('hex'),
+    inviteIdBuffer: inviteId1,
+    url: 'https://example.com/1',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const seedTime1 = api.getSeedTime()
+
+  // Delete the only invite
+  await api.delete(inviteId1.toString('hex'))
+
+  // Small delay to ensure a different timestamp
+  await new Promise((resolve) => setTimeout(resolve, 5))
+
+  const inviteId2 = randomBytes(32)
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteId2.toString('hex'),
+    inviteIdBuffer: inviteId2,
+    url: 'https://example.com/2',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+
+  const seedTime2 = api.getSeedTime()
+  assert.notEqual(
+    seedTime2,
+    seedTime1,
+    'seedTime changed after all invites were deleted and a new one created'
+  )
+})
+
+test('getSeedTime() - locked to oldest invite across all projects', async (t) => {
+  const { api, db } = setup(t)
+
+  await api.ready()
+
+  // Create invite in project A
+  const inviteIdA = randomBytes(32)
+  const inviteIdAString = inviteIdA.toString('hex')
+  await api.create({
+    projectId: PROJECT_ID,
+    inviteId: inviteIdAString,
+    inviteIdBuffer: inviteIdA,
+    url: 'https://example.com/a',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+  const [dbRowA] = db
+    .select({ seedTime: inviteLinksTable.seedTime })
+    .from(inviteLinksTable)
+    .where(eq(inviteLinksTable.inviteId, inviteIdAString))
+    .all()
+
+  // Small delay so project B's invite is strictly newer
+  await new Promise((resolve) => setTimeout(resolve, 5))
+
+  // Create invite in project B
+  const inviteIdB = randomBytes(32)
+  const inviteIdBString = inviteIdB.toString('hex')
+  await api.create({
+    projectId: 'other-project',
+    inviteId: inviteIdBString,
+    inviteIdBuffer: inviteIdB,
+    url: 'https://example.com/b',
+    opts: { roleId: MEMBER_ROLE_ID },
+  })
+  const [dbRowB] = db
+    .select({ seedTime: inviteLinksTable.seedTime })
+    .from(inviteLinksTable)
+    .where(eq(inviteLinksTable.inviteId, inviteIdBString))
+    .all()
+
+  // seedTime should lock to project A's invite (the oldest)
+  assert.equal(
+    api.getSeedTime(),
+    dbRowA.seedTime,
+    'seedTime locked to oldest invite (project A)'
+  )
+
+  // Delete project A's oldest invite
+  await api.delete(inviteIdAString)
+
+  // seedTime should now be from project B's invite
+  assert.equal(
+    api.getSeedTime(),
+    dbRowB.seedTime,
+    'seedTime shifted to second-oldest invite (project B) after oldest deleted'
   )
 })

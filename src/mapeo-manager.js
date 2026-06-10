@@ -149,7 +149,9 @@ const RPC_FEATURES = [
  * @property {(peers: PublicPeerInfo[]) => void} local-peers Emitted when the list of connected peers changes (new ones added, or connection status changes)
  * @property {(mapShare: MapShare) => void} map-share Emitted when a project has recieved a map share request
  * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error - Emitted when an incoming map share fails to be recieved due to formatting issues
- * @property {(projectId: string, deviceId: string, inviteId: string) => void} invite-link-join-request Emitted when an invite over the internet has been redeemed, accept the deviceId to add them
+ * @property {(projectId: string, deviceId: string, inviteId: string) => void} invite-link-join-request Emitted when an invite over the internet link has been redeemed, accept the deviceId to add them
+ * @property {(url: string) => void} invite-link-join-connected Emitted when we've connected to the invitor for an invite over the internet link
+ * @property {(url: string) => void} invite-link-join-accepted Emitted when the invitor has accepted our request to join
  * @property {(err: Error, deviceId: string, inviteId: string) => void} invite-link-join-request-error Emitted when an invite over the internet has failed to be redeemed
  */
 
@@ -820,6 +822,9 @@ export class MapeoManager extends TypedEmitter {
     )
     // It's okay if this rejection never gets handled
     onClose.catch(noop)
+
+    this.emit('invite-link-join-connected', url)
+
     try {
       // Use the identity key from the handshake, not the swarm key from the URL
       const identityPublicKeyHex = connection.handshakePublicKey.toString('hex')
@@ -840,6 +845,8 @@ export class MapeoManager extends TypedEmitter {
         ]),
         onClose,
       ])
+
+      this.emit('invite-link-join-accepted', url)
 
       const projectId = await this.#invite.accept(invite)
 
