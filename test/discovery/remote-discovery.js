@@ -206,8 +206,8 @@ test.only('RemoteDiscovery - Able to reconnect after disconnecting', async (t) =
   )
 
   const onEnd = Promise.all([
-    pEvent(outboundStream, 'close').then(() => console.log('outbound close')),
-    pEvent(inboundStream, 'close').then(() => console.log('inbound close')),
+    pEvent(outboundStream, 'close'),
+    pEvent(inboundStream, 'close'),
   ])
 
   await Promise.all([

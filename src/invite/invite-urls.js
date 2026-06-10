@@ -50,7 +50,6 @@ export function parseInviteURL(url) {
       // Decode z32 and convert to hex
       const decoded = CrockfordBase32.decode(value)
       if (decoded.length !== 32) {
-        console.log({ decoded, value, params, url })
         throw new InvalidInviteURLKeyParameterError({
           paramName: optName,
           byteLength: decoded.length,
