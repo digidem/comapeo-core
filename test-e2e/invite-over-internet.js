@@ -43,23 +43,41 @@ test('invite over internet and join from URL', async (t) => {
     timeout: 5000,
   })
 
+  const abortOnFailedJoin = new AbortController()
+
+  const onConnected = pEvent(invitee, 'invite-link-join-connected', {
+    signal: abortOnFailedJoin.signal,
+    timeout: 5000,
+  })
   const onInvited = invitee.joinProjectFromLink(url)
 
-  const [invitedProjectId, deviceId, inviteId] =
-    /** @type {[string, string, string]} */ (
-      /**@type unknown*/ (await onInviteRedeemAttempt)
-    )
+  onInvited.catch((e) => abortOnFailedJoin.abort(e))
 
+  const [connectedURL, [invitedProjectId, deviceId, inviteId]] =
+    await Promise.all([
+      onConnected,
+      /** @type {[string, string, string]} */ (
+        /**@type unknown*/ (await onInviteRedeemAttempt)
+      ),
+    ])
+
+  assert.equal(connectedURL, url)
   assert.equal(invitedProjectId, projectId)
   assert.equal(deviceId, invitee.deviceId)
 
+  const onAccepted = pEvent(invitee, 'invite-link-join-accepted', {
+    signal: abortOnFailedJoin.signal,
+    timeout: 5000,
+  })
+
   // Show the user the device ID and their name and have them verify the invitee sees the same device ID
   // We should either take the first 4-8 bytes from the deviceID or derive something visual like emoji
-  const reason = await project.$member.acceptInviteLinkRequest(
-    inviteId,
-    deviceId
-  )
+  const [acceptedURL, reason] = await Promise.all([
+    onAccepted,
+    project.$member.acceptInviteLinkRequest(inviteId, deviceId),
+  ])
 
+  assert.equal(acceptedURL, url)
   assert.equal(reason, InviteResponse_Decision.ACCEPT)
 
   const gotProjectId = await onInvited
