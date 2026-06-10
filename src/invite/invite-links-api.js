@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import ReadyResource from 'ready-resource'
 import { inviteLinksTable } from '../schema/client.js'
 import { isRoleIdForNewInvite } from '../roles.js'
@@ -15,6 +15,7 @@ import { deNullify } from '../utils.js'
 /**
  * @typedef {object} InviteLinkRecord
  * @property {string} inviteId Hex string invite ID (primary key)
+ * @property {string} projectId Hex string of project
  * @property {Buffer} inviteIdBuffer Binary invite ID
  * @property {string} url Invite URL
  * @property {import('../roles.js').RoleIdForNewInvite} roleId
@@ -70,7 +71,12 @@ export class InviteLinksApiForProject {
    */
   async getById(inviteId) {
     await this.#inviteLinksApi.ready()
-    return this.#inviteLinksApi.getById(inviteId, this.#projectId)
+    const link = await this.#inviteLinksApi.getById(inviteId)
+    if (!link) return link
+    if (link.projectId !== this.#projectId) {
+      return undefined
+    }
+    return link
   }
 
   /**
@@ -137,12 +143,7 @@ export class InviteLinksApi extends ReadyResource {
       getById: db
         .select()
         .from(inviteLinksTable)
-        .where(
-          and(
-            eq(inviteLinksTable.inviteId, sql.placeholder('inviteId')),
-            eq(inviteLinksTable.projectId, sql.placeholder('projectId'))
-          )
-        )
+        .where(eq(inviteLinksTable.inviteId, sql.placeholder('inviteId')))
         .limit(1)
         .prepare(),
       getAll: db.select().from(inviteLinksTable).prepare(),
@@ -287,12 +288,11 @@ export class InviteLinksApi extends ReadyResource {
   /**
    * Get a invite link by invite ID
    * @param {string} inviteId
-   * @param {string} projectId
    * @returns {Promise<InviteLinkRecord | undefined>}
    */
-  async getById(inviteId, projectId) {
+  async getById(inviteId) {
     await this.ready()
-    const row = this.#sql.getById.get({ inviteId, projectId })
+    const row = this.#sql.getById.get({ inviteId })
     if (!row) return undefined
 
     if (!isRoleIdForNewInvite(row.roleId)) {

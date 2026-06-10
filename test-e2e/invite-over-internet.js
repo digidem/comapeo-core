@@ -13,7 +13,6 @@ import {
   ensureKnownError,
   InviteNotYetRedeemedError,
   InviteDeniedByInviterError,
-  InviteAbortedError,
   JoinProjectCancelledError,
 } from '../src/errors.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
@@ -37,26 +36,28 @@ test('invite over internet and join from URL', async (t) => {
     roleId: MEMBER_ROLE_ID,
   })
 
-  const onInviteRedeemAttempt = pEvent(
-    project.$member,
-    'invite-link-join-request',
-    { multiArgs: true, timeout: 5000 }
-  )
+  const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
 
   const onInvited = invitee.joinProjectFromLink(url)
 
-  const [inviteId, deviceId] = /** @type {[string, string]} */ (
-    /**@type unknown*/ (await onInviteRedeemAttempt)
-  )
+  const [invitedProjectId, deviceId, inviteId] =
+    /** @type {[string, string, string]} */ (
+      /**@type unknown*/ (await onInviteRedeemAttempt)
+    )
 
+  assert.equal(invitedProjectId, projectId)
   assert.equal(deviceId, invitee.deviceId)
 
   // Show the user the device ID and their name and have them verify the invitee sees the same device ID
   // We should either take the first 4-8 bytes from the deviceID or derive something visual like emoji
-  const reason = await project.$member.acceptInviteLinkRequest({
+  const reason = await project.$member.acceptInviteLinkRequest(
     inviteId,
-    deviceId,
-  })
+    deviceId
+  )
 
   assert.equal(reason, InviteResponse_Decision.ACCEPT)
 
@@ -123,26 +124,28 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
     'Pending internet invites loaded on reload'
   )
 
-  const onInviteRedeemAttempt = pEvent(
-    project.$member,
-    'invite-link-join-request',
-    { multiArgs: true, timeout: 5000 }
-  )
+  const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
 
   const onInvited = invitee.joinProjectFromLink(url)
 
-  const [inviteId, deviceId] = /** @type {[string, string]} */ (
-    /**@type unknown*/ (await onInviteRedeemAttempt)
-  )
+  const [invitedProjectId, deviceId, inviteId] =
+    /** @type {[string, string, string]} */ (
+      /**@type unknown*/ (await onInviteRedeemAttempt)
+    )
 
+  assert.equal(invitedProjectId, projectId)
   assert.equal(deviceId, invitee.deviceId)
 
   // Show the user the device ID and their name and have them verify the invitee sees the same device ID
   // We should either take the first 4-8 bytes from the deviceID or derive something visual like emoji
-  const reason = await project.$member.acceptInviteLinkRequest({
+  const reason = await project.$member.acceptInviteLinkRequest(
     inviteId,
-    deviceId,
-  })
+    deviceId
+  )
 
   assert.equal(reason, InviteResponse_Decision.ACCEPT)
 
@@ -170,44 +173,48 @@ test('invite over internet can be redeemed by multiple peers', async (t) => {
 
   // First invitee joins
   const onFirstInviteRedeemAttempt = pEvent(
-    project.$member,
+    invitor,
     'invite-link-join-request',
     { multiArgs: true, timeout: 5000 }
   )
   const onFirstInvited = invitee1.joinProjectFromLink(url)
 
-  const [firstInviteId, firstDeviceId] = /** @type {[string, string]} */ (
-    /**@type unknown*/ (await onFirstInviteRedeemAttempt)
-  )
+  const [firstProjectId, firstDeviceId, firstInviteId] =
+    /** @type {[String, string, string]} */ (
+      /**@type unknown*/ (await onFirstInviteRedeemAttempt)
+    )
+  assert.equal(firstProjectId, projectId)
   assert.equal(firstDeviceId, invitee1.deviceId)
-  const firstReason = await project.$member.acceptInviteLinkRequest({
-    inviteId: firstInviteId,
-    deviceId: firstDeviceId,
-  })
+  const firstReason = await project.$member.acceptInviteLinkRequest(
+    firstInviteId,
+    firstDeviceId
+  )
   assert.equal(firstReason, InviteResponse_Decision.ACCEPT)
   await onFirstInvited
 
   // Second invitee joins via the same URL
   const onSecondInviteRedeemAttempt = pEvent(
-    project.$member,
+    invitor,
     'invite-link-join-request',
     { multiArgs: true, timeout: 5000 }
   )
   const onSecondInvited = invitee2.joinProjectFromLink(url)
 
-  const [secondInviteId, secondDeviceId] = /** @type {[string, string]} */ (
-    /**@type unknown*/ (await onSecondInviteRedeemAttempt)
-  )
+  const [secondProjectId, secondDeviceId, secondInviteId] =
+    /** @type {[String, string, string]} */ (
+      /**@type unknown*/ (await onSecondInviteRedeemAttempt)
+    )
+  assert.equal(secondProjectId, projectId)
   assert.equal(
     secondDeviceId,
     invitee2.deviceId,
     'Second invitee redeemed successfully'
   )
   assert.equal(secondInviteId, firstInviteId, 'Invite ID is the same for both')
-  const secondReason = await project.$member.acceptInviteLinkRequest({
-    inviteId: secondInviteId,
-    deviceId: secondDeviceId,
-  })
+  const secondReason = await project.$member.acceptInviteLinkRequest(
+    secondInviteId,
+    secondDeviceId
+  )
   assert.equal(secondReason, InviteResponse_Decision.ACCEPT)
   await onSecondInvited
 
@@ -268,18 +275,20 @@ test('invite over internet errors if inviter closes before accepting', async (t)
     roleId: MEMBER_ROLE_ID,
   })
 
-  const onInviteRedeemAttempt = pEvent(
-    project.$member,
-    'invite-link-join-request',
-    { multiArgs: true, timeout: 50000 }
-  )
+  const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 50000,
+  })
 
   const onInvited = invitee.joinProjectFromLink(url)
 
-  const [attemptedRedeemId, deviceId] = /** @type {[string, string]} */ (
-    /**@type unknown*/ (await onInviteRedeemAttempt)
-  )
+  const [invitedProjectId, deviceId, attemptedRedeemId] =
+    /** @type {[string, string, string]} */ (
+      /**@type unknown*/ (await onInviteRedeemAttempt)
+    )
 
+  assert.equal(invitedProjectId, projectId)
   assert.equal(deviceId, invitee.deviceId)
 
   await Promise.all([
@@ -295,10 +304,10 @@ test('invite over internet errors if inviter closes before accepting', async (t)
 
   await assert.rejects(
     () =>
-      project.$member.acceptInviteLinkRequest({
-        inviteId: attemptedRedeemId,
-        deviceId: invitee.deviceId,
-      }),
+      project.$member.acceptInviteLinkRequest(
+        attemptedRedeemId,
+        invitee.deviceId
+      ),
     (err) => ensureKnownError(err).code === InviteNotYetRedeemedError.code,
     'Accepting after a disconnect causes an error'
   )
@@ -321,29 +330,29 @@ test('invite over internet can be denied by inviter', async (t) => {
     roleId: MEMBER_ROLE_ID,
   })
 
-  const onInviteRedeemAttempt = pEvent(
-    project.$member,
-    'invite-link-join-request',
-    { multiArgs: true, timeout: 5000 }
-  )
+  const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
 
   const onInvited = invitee.joinProjectFromLink(url)
 
-  const [inviteId, deviceId] = /** @type {[string, string]} */ (
-    /**@type unknown*/ (await onInviteRedeemAttempt)
-  )
+  const [invitedProjectId, deviceId, inviteId] =
+    /** @type {[string, string, string]} */ (
+      /**@type unknown*/ (await onInviteRedeemAttempt)
+    )
+
+  assert.equal(invitedProjectId, projectId)
   assert.equal(deviceId, invitee.deviceId)
 
   // Deny the invite and wait for invitee's join to fail simultaneously
   await Promise.all([
-    project.$member.denyInviteLinkRequest({
-      inviteId,
-      deviceId,
-    }),
     assert.rejects(
       onInvited,
       (err) => ensureKnownError(err).code === InviteDeniedByInviterError.code
     ),
+    project.$member.denyInviteLinkRequest(inviteId, deviceId),
   ])
 })
 
@@ -364,17 +373,20 @@ test('invite over internet can be cancelled by invitee', async (t) => {
     roleId: MEMBER_ROLE_ID,
   })
 
-  const onInviteRedeemAttempt = pEvent(
-    project.$member,
-    'invite-link-join-request',
-    { multiArgs: true, timeout: 5000 }
-  )
+  const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
 
   const onInvited = invitee.joinProjectFromLink(url)
 
-  const [inviteId, deviceId] = /** @type {[string, string]} */ (
-    /**@type unknown*/ (await onInviteRedeemAttempt)
-  )
+  const [invitedProjectId, deviceId, inviteId] =
+    /** @type {[string, string, string]} */ (
+      /**@type unknown*/ (await onInviteRedeemAttempt)
+    )
+
+  assert.equal(invitedProjectId, projectId)
   assert.equal(deviceId, invitee.deviceId)
 
   // Cancel the join and wait for invitee's join to fail simultaneously
@@ -388,12 +400,8 @@ test('invite over internet can be cancelled by invitee', async (t) => {
 
   // Accepting after the invitee disconnected should also fail
   await assert.rejects(
-    () =>
-      project.$member.acceptInviteLinkRequest({
-        inviteId,
-        deviceId,
-      }),
-    (err) => ensureKnownError(err).code === InviteAbortedError.code,
+    () => project.$member.acceptInviteLinkRequest(inviteId, deviceId),
+    (err) => ensureKnownError(err).code === InviteNotYetRedeemedError.code,
     'Accepting after cancel causes an error'
   )
 })
@@ -422,31 +430,32 @@ test('invite over internet errors if invitee uses invalid inviteId', async (t) =
   })
 
   // Expect the invitor to emit an error when the invalid invite is attempted
-  const onError = pEvent(project.$member, 'internet-invite-redeem-error', {
-    timeout: 5000,
-    multiArgs: true,
-  })
-
-  // Try to join with invalid invite ID
-  const joinPromise = invitee.joinProjectFromLink(modifiedUrl)
-
-  // The invitor should receive the redeem attempt with an error
-  const [error, peerId] = /** @type {[Error, string]} */ (
-    /**@type unknown*/ (await onError)
+  const onError = /** @type {Promise<[Error, string, string]>} */ (
+    /**@type unknown*/ (
+      pEvent(invitor, 'invite-link-join-request-error', {
+        timeout: 5000,
+        multiArgs: true,
+      })
+    )
   )
-  assert.equal(
-    ensureKnownError(error).code,
-    UnknownInviteIDRedeemAttemptError.code,
-    'Expected UnknownInviteIDRedeemAttemptError'
-  )
-  assert.equal(peerId, invitee.deviceId, 'Error from expected peer ID')
 
-  // The invitee's join should fail because the connection closes when the invite is invalid
-  await assert.rejects(
-    joinPromise,
-    (err) =>
-      ensureKnownError(err).code === InviteRedeemConnectionClosedError.code
-  )
+  // We need to listen to both promises at the same time to avoid warnings
+  await Promise.all([
+    onError.then(([error, peerId]) => {
+      // The invitor should receive the redeem attempt with an error
+      assert.equal(
+        ensureKnownError(error).code,
+        UnknownInviteIDRedeemAttemptError.code,
+        'Expected UnknownInviteIDRedeemAttemptError'
+      )
+      assert.equal(peerId, invitee.deviceId, 'Error from expected peer ID')
+    }),
+    assert.rejects(
+      // Try to join with invalid invite ID
+      invitee.joinProjectFromLink(modifiedUrl),
+      (err) => ensureKnownError(err).code === InviteDeniedByInviterError.code
+    ),
+  ])
 })
 
 test('invite over internet can be cancelled before connection to non-existing peer', async (t) => {
@@ -512,26 +521,28 @@ test('invite over the internet removes project and removes member when failing t
     roleId: MEMBER_ROLE_ID,
   })
 
-  const onInviteRedeemAttempt = pEvent(
-    project.$member,
-    'invite-link-join-request',
-    { multiArgs: true, timeout: 5000 }
-  )
+  const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
 
   const onInvited = invitee.joinProjectFromLink(url)
 
-  const [inviteId, deviceId] = /** @type {[string, string]} */ (
-    /**@type unknown*/ (await onInviteRedeemAttempt)
-  )
+  const [invitedProjectId, deviceId, inviteId] =
+    /** @type {[string, string, string]} */ (
+      /**@type unknown*/ (await onInviteRedeemAttempt)
+    )
 
+  assert.equal(invitedProjectId, projectId)
   assert.equal(deviceId, invitee.deviceId)
 
   // Show the user the device ID and their name and have them verify the invitee sees the same device ID
   // We should either take the first 4-8 bytes from the deviceID or derive something visual like emoji
-  const onInviteeAccepted = project.$member.acceptInviteLinkRequest({
+  const onInviteeAccepted = project.$member.acceptInviteLinkRequest(
     inviteId,
-    deviceId,
-  })
+    deviceId
+  )
 
   await Promise.all([
     assert.rejects(onInvited),
@@ -548,12 +559,8 @@ test('invite over the internet removes project and removes member when failing t
 
   project.$sync[kWaitForInitialSyncWithPeer] = origSyncWithPeer
 
-  project.$member.on('invite-link-join-request', (inviteId, deviceId) => {
-    console.log('got invite link', inviteId, deviceId)
-    project.$member.acceptInviteLinkRequest({
-      inviteId,
-      deviceId,
-    })
+  invitor.on('invite-link-join-request', (_projectId, deviceId, inviteId) => {
+    project.$member.acceptInviteLinkRequest(inviteId, deviceId)
   })
 
   const gotProjectId = await invitee.joinProjectFromLink(url)

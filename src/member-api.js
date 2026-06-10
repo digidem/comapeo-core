@@ -57,6 +57,10 @@ import { makeInviteURL, parseInviteURL } from './invite/invite-urls.js'
 
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
+export const kHandleRedeemInviteOverInternet = Symbol(
+  'handleRedeemInviteOverInternet'
+)
+
 /**
  * @import {
  *   DeviceInfo,
@@ -65,7 +69,7 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  *   ProjectSettingsValue,
  * } from '@comapeo/schema'
  */
-/** @import { Invite, InviteResponse, RedeemInviteOverInternet } from './generated/rpc.js' */
+/** @import { Invite, InviteResponse } from './generated/rpc.js' */
 /** @import { DataType } from './datatype/index.js' */
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
@@ -125,8 +129,6 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
 /**
  * @typedef {object} MemberEvents
- * @property {(deviceId: string, inviteId: string) => void} invite-link-join-request Emitted when an invite over the internet has been redeemed, accept the deviceId to add them
- * @property {(err: Error, deviceId: string, url: string) => void} internet-invite-redeem-error Emitted when an invite over the internet has failed to be redeemed
  */
 
 /**
@@ -212,10 +214,6 @@ export class MemberApi extends TypedEmitter {
     this.#setDeviceInfo = setDeviceInfo
     this.#getSwarmPublicKey = getSwarmPublicKey
 
-    // Setup event listeners
-    this.#rpc.on('invite-over-internet-redeemed', (peerId, redeem) =>
-      this.#handleRedeemInviteOverInternet(peerId, redeem)
-    )
     this.#rpc.on('peer-remove', this.#handlePeerRemove)
   }
 
@@ -320,10 +318,9 @@ export class MemberApi extends TypedEmitter {
   /**
    * Handle an incoming redeem attempt from the RPC layer.
    * @param {string} peerId
-   * @param {RedeemInviteOverInternet} redeem
+   * @param {string} inviteIdString
    */
-  async #handleRedeemInviteOverInternet(peerId, { inviteId }) {
-    const inviteIdString = inviteId.toString('hex')
+  async [kHandleRedeemInviteOverInternet](peerId, inviteIdString) {
     this.#l.log('Got incoming invite redeem %S from %S', inviteIdString, peerId)
 
     const invite = await this.#inviteLinks.getById(inviteIdString)
@@ -333,14 +330,8 @@ export class MemberApi extends TypedEmitter {
         inviteIdString.slice(0, 7)
       )
 
-      this.emit(
-        'internet-invite-redeem-error',
-        new UnknownInviteIDRedeemAttemptError(),
-        peerId,
-        inviteIdString
-      )
-      await this.#disconnectFromPeer(peerId)
-      return
+      await this.denyInviteLinkRequest(inviteIdString, peerId)
+      throw new UnknownInviteIDRedeemAttemptError()
     }
 
     const redeemedSet = this.#redeemedInvites.get(inviteIdString)
@@ -349,14 +340,9 @@ export class MemberApi extends TypedEmitter {
         'Incoming invite was already redeemed, disconnecting',
         inviteIdString.slice(0, 7)
       )
-      this.emit(
-        'internet-invite-redeem-error',
-        new InviteAlreadyRedeemedError(),
-        peerId,
-        inviteIdString
-      )
       await this.#disconnectFromPeer(peerId)
-      return
+
+      throw new InviteAlreadyRedeemedError()
     }
 
     try {
@@ -365,26 +351,20 @@ export class MemberApi extends TypedEmitter {
       } else {
         redeemedSet.add(peerId)
       }
-      this.emit('invite-link-join-request', inviteIdString, peerId)
+      return inviteIdString
     } catch (e) {
-      this.emit(
-        'internet-invite-redeem-error',
-        ensureKnownError(e),
-        peerId,
-        inviteIdString
-      )
       await this.#disconnectFromPeer(peerId)
+      throw e
     }
   }
 
   /**
    * Accept a specific device's attempt at redeeming an invite.
-   * @param {object} opts
-   * @param {string} opts.inviteId
-   * @param {string} opts.deviceId
+   * @param {string} inviteId
+   * @param {string} deviceId
    * @returns {Promise<InviteDecision>}
    */
-  async acceptInviteLinkRequest({ inviteId, deviceId }) {
+  async acceptInviteLinkRequest(inviteId, deviceId) {
     const redeemedSet = this.#redeemedInvites.get(inviteId)
     if (!redeemedSet || !redeemedSet.has(deviceId)) {
       throw new InviteNotYetRedeemedError()
@@ -417,12 +397,11 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * Deny a specific device's attempt at redeeming an invite.
-   * @param {object} opts
-   * @param {string} opts.inviteId
-   * @param {string} opts.deviceId
+   * @param {string} inviteId
+   * @param {string} deviceId
    * @returns {Promise<void>}
    */
-  async denyInviteLinkRequest({ inviteId, deviceId }) {
+  async denyInviteLinkRequest(inviteId, deviceId) {
     const redeemedSet = this.#redeemedInvites.get(inviteId)
     if (!redeemedSet || !redeemedSet.has(deviceId)) {
       throw new InviteNotYetRedeemedError()

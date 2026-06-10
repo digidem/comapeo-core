@@ -429,7 +429,10 @@ export class MapeoProject extends ReadyResource {
       encryptionKeys,
       projectKey,
       rpc: localPeers,
-      inviteLinks: new InviteLinksApiForProject(this.#projectId, inviteLinks),
+      inviteLinks: new InviteLinksApiForProject(
+        this.#projectPublicId,
+        inviteLinks
+      ),
       getSwarmPublicKey: this.#getSwarmPublicKey,
       makeWebsocket,
       getReplicationStream,

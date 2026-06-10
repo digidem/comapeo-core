@@ -117,7 +117,7 @@ test('create() - basic functionality', async (t) => {
     },
   })
 
-  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
+  const retrieved = await api.getById(inviteIdString)
   assert(retrieved, 'invite can be retrieved')
   assert.equal(retrieved.inviteId, inviteIdString)
   assert.equal(retrieved.url, url)
@@ -164,30 +164,8 @@ test('create() - duplicate inviteId throws', async (t) => {
 test('getById() - non-existent invite', async (t) => {
   const { api } = setup(t)
 
-  const result = await api.getById('non-existent-id', PROJECT_ID)
+  const result = await api.getById('non-existent-id')
   assert.equal(result, undefined, 'returns undefined for non-existent invite')
-})
-
-test('getById() - invite from different project not found', async (t) => {
-  const { api } = setup(t)
-
-  const inviteId = randomBytes(32)
-  const inviteIdString = inviteId.toString('hex')
-
-  await api.create({
-    projectId: PROJECT_ID,
-    inviteId: inviteIdString,
-    inviteIdBuffer: inviteId,
-    url: 'https://example.com/invite',
-    opts: { roleId: MEMBER_ROLE_ID },
-  })
-
-  const result = await api.getById(inviteIdString, 'other-project-id')
-  assert.equal(
-    result,
-    undefined,
-    'returns undefined for invite in different project'
-  )
 })
 
 test('getAll() - empty database', async (t) => {
@@ -295,7 +273,7 @@ test('delete() - single invite', async (t) => {
 
   await api.delete(inviteIdString)
 
-  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
+  const retrieved = await api.getById(inviteIdString)
   assert.equal(retrieved, undefined, 'invite deleted')
 
   const all = await api.getAll()
@@ -307,7 +285,7 @@ test('delete() - non-existent invite', async (t) => {
 
   await api.delete('non-existent-id')
 
-  const result = await api.getById('non-existent-id', PROJECT_ID)
+  const result = await api.getById('non-existent-id')
   assert.equal(result, undefined, 'no-op for non-existent invite')
 })
 
@@ -413,7 +391,7 @@ test('Role ID validation on read', async (t) => {
   })
 
   await assert.rejects(
-    async () => await api.getById(inviteIdString, PROJECT_ID),
+    async () => await api.getById(inviteIdString),
     /Invalid roleId in database/,
     'throws error for invalid roleId on getById'
   )
@@ -439,7 +417,7 @@ test('Buffer persistence', async (t) => {
     opts: { roleId: MEMBER_ROLE_ID },
   })
 
-  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
+  const retrieved = await api.getById(inviteIdString)
   assert.ok(retrieved?.inviteIdBuffer.equals(inviteId), 'buffer is identical')
 })
 
@@ -459,7 +437,7 @@ test('Timestamp verification', async (t) => {
   })
 
   const afterCreate = Date.now()
-  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
+  const retrieved = await api.getById(inviteIdString)
 
   assert.ok(retrieved, 'able to retrieve')
 
@@ -486,7 +464,7 @@ test('Optional fields', async (t) => {
     },
   })
 
-  const retrieved = await api.getById(inviteIdString, PROJECT_ID)
+  const retrieved = await api.getById(inviteIdString)
   assert.equal(
     retrieved?.roleName,
     undefined,

@@ -231,6 +231,11 @@ class MockRoles {
 class MockInviteLinksApiForProject {
   /** @type {Map<string, InviteLinkRecord>} */
   #invites = new Map()
+  #projectId
+
+  constructor(projectId = 'example') {
+    this.#projectId = projectId
+  }
 
   /**
    * Create a new pending invite record
@@ -240,6 +245,7 @@ class MockInviteLinksApiForProject {
   async create(data) {
     this.#invites.set(data.inviteId, {
       inviteId: data.inviteId,
+      projectId: this.#projectId,
       inviteIdBuffer: data.inviteIdBuffer,
       url: data.url,
       roleId: data.opts.roleId,
@@ -318,7 +324,7 @@ function setup({
     throw new Error('Not implemented')
   },
   markInternetPeerAsTrusted = () => Promise.resolve(true),
-  inviteLinks = new MockInviteLinksApiForProject(),
+  inviteLinks,
 } = {}) {
   const keyManager = new KeyManager(rootKey)
 
@@ -331,13 +337,16 @@ function setup({
   const rpc = new MockLocalPeers()
   const roles = new MockRoles()
 
+  const finalInviteLinks =
+    inviteLinks ?? new MockInviteLinksApiForProject(projectKey.toString('hex'))
+
   const member = new MemberApi({
     deviceId,
     rpc,
     roles,
     encryptionKeys,
     projectKey,
-    inviteLinks,
+    inviteLinks: finalInviteLinks,
     makeWebsocket,
     getReplicationStream,
     waitForInitialSyncWithPeer,
@@ -354,6 +363,6 @@ function setup({
     roles,
     member,
     projectKey,
-    inviteLinks,
+    inviteLinks: finalInviteLinks,
   }
 }
