@@ -14,6 +14,7 @@ import {
   InviteNotYetRedeemedError,
   InviteDeniedByInviterError,
   JoinProjectCancelledError,
+  UnknownInviteIDError,
 } from '../src/errors.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
 import { temporaryDirectory } from 'tempy'
@@ -453,7 +454,7 @@ test('invite over internet errors if invitee uses invalid inviteId', async (t) =
     assert.rejects(
       // Try to join with invalid invite ID
       invitee.joinProjectFromLink(modifiedUrl),
-      (err) => ensureKnownError(err).code === InviteDeniedByInviterError.code
+      (err) => ensureKnownError(err).code === UnknownInviteIDError.code
     ),
   ])
 })

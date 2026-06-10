@@ -40,7 +40,17 @@ export interface RedeemInviteOverInternet {
 }
 export interface DenyInviteOverInternet {
     inviteId: Buffer;
+    reason: DenyInviteOverInternet_DenyReason;
 }
+export declare const DenyInviteOverInternet_DenyReason: {
+    readonly unspecified: "unspecified";
+    readonly unknown_invite_id: "unknown_invite_id";
+    readonly invitor_denied: "invitor_denied";
+    readonly UNRECOGNIZED: "UNRECOGNIZED";
+};
+export type DenyInviteOverInternet_DenyReason = typeof DenyInviteOverInternet_DenyReason[keyof typeof DenyInviteOverInternet_DenyReason];
+export declare function denyInviteOverInternet_DenyReasonFromJSON(object: any): DenyInviteOverInternet_DenyReason;
+export declare function denyInviteOverInternet_DenyReasonToNumber(object: DenyInviteOverInternet_DenyReason): number;
 export interface DeviceInfo {
     name: string;
     deviceType?: DeviceInfo_DeviceType | undefined;

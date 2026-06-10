@@ -596,7 +596,7 @@ export const InviteLinkAlreadyExistsError = createErrorClass({
 
 export const InviteDeniedByInviterError = createErrorClass({
   code: 'INVITE_DENIED_BY_INVITER_ERROR',
-  message: 'Invitation denied by project inviter',
+  message: 'Invitation denied by project inviter, reason: {reason}',
   status: 403,
 })
 

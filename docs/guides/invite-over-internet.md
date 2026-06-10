@@ -75,6 +75,8 @@ const {
 // Connect to the invitor, send request, join project with initial sync
 const projectId = await manager.joinProjectFromLink(url)
 // InviteRedeemConnectionClosedError
+// UnknownInviteIDError
+// InviteDeniedByInviterError
 
 await manager.cancelJoinProjectFromLink(url)
 // InvalidInternetInviteURLError

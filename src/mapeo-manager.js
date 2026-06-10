@@ -67,6 +67,7 @@ import {
   InitialSyncFailedError,
   UnknownInviteIDRedeemAttemptError,
   RPCDisconnectBeforeAckError,
+  UnknownInviteIDError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
@@ -77,7 +78,7 @@ import { InviteLinksApi } from './invite/invite-links-api.js'
 import { parseInviteURL } from './invite/invite-urls.js'
 import { kHandleRedeemInviteOverInternet } from './member-api.js'
 
-/** @import { MapShareExtension } from './generated/rpc.js' */
+/** @import { DenyInviteOverInternet, MapShareExtension } from './generated/rpc.js' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { ProjectJoinDetails, } from './generated/rpc.js' */
@@ -1319,10 +1320,10 @@ export class MapeoManager extends TypedEmitter {
   /**
    * Handle an incoming deny from the RPC layer, aborting a matching redeem attempt if pending.
    * @param {string} peerId
-   * @param {{ inviteId: Buffer }} deny
+   * @param {DenyInviteOverInternet} deny
    */
-  #handleInviteDenied(peerId, deny) {
-    const inviteIdString = deny.inviteId.toString('hex')
+  #handleInviteDenied(peerId, { inviteId, reason }) {
+    const inviteIdString = inviteId.toString('hex')
     this.#l.log(
       'Got deny for invite %S from %S',
       inviteIdString.slice(0, 7),
@@ -1330,7 +1331,11 @@ export class MapeoManager extends TypedEmitter {
     )
     const ac = this.#outboundRedeemInvites.get(inviteIdString)
     if (ac) {
-      ac.abort(new InviteDeniedByInviterError())
+      const err =
+        reason === 'unknown_invite_id'
+          ? new UnknownInviteIDError()
+          : new InviteDeniedByInviterError({ reason })
+      ac.abort(err)
       this.#outboundRedeemInvites.delete(inviteIdString)
     }
   }
@@ -1348,6 +1353,7 @@ export class MapeoManager extends TypedEmitter {
       try {
         await this.#localPeers.sendDenyInviteOverInternet(peerId, {
           inviteId,
+          reason: 'unknown_invite_id',
         })
       } catch (e) {
         // This error happens sometimes since both sides break the conn on deny

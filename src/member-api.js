@@ -2,7 +2,10 @@ import * as b4a from 'b4a'
 import * as crypto from 'node:crypto'
 import WebSocket from 'ws'
 import { pEvent } from 'p-event'
-import { InviteResponse_Decision } from './generated/rpc.js'
+import {
+  InviteResponse_Decision,
+  DenyInviteOverInternet_DenyReason,
+} from './generated/rpc.js'
 import {
   noop,
   projectKeyToProjectInviteId,
@@ -330,7 +333,11 @@ export class MemberApi extends TypedEmitter {
         inviteIdString.slice(0, 7)
       )
 
-      await this.denyInviteLinkRequest(inviteIdString, peerId)
+      await this.denyInviteLinkRequest(
+        inviteIdString,
+        peerId,
+        DenyInviteOverInternet_DenyReason.unknown_invite_id
+      )
       throw new UnknownInviteIDRedeemAttemptError()
     }
 
@@ -399,9 +406,14 @@ export class MemberApi extends TypedEmitter {
    * Deny a specific device's attempt at redeeming an invite.
    * @param {string} inviteId
    * @param {string} deviceId
+   * @param {DenyInviteOverInternet_DenyReason} [reason] Reason for denying the request
    * @returns {Promise<void>}
    */
-  async denyInviteLinkRequest(inviteId, deviceId) {
+  async denyInviteLinkRequest(
+    inviteId,
+    deviceId,
+    reason = DenyInviteOverInternet_DenyReason.invitor_denied
+  ) {
     const redeemedSet = this.#redeemedInvites.get(inviteId)
     if (!redeemedSet || !redeemedSet.has(deviceId)) {
       throw new InviteNotYetRedeemedError()
@@ -415,6 +427,7 @@ export class MemberApi extends TypedEmitter {
     try {
       await this.#rpc.sendDenyInviteOverInternet(deviceId, {
         inviteId: Buffer.from(inviteId, 'hex'),
+        reason,
       })
     } catch {
       // RPC may fail if the peer disconnected, that's ok
