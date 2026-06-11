@@ -69,6 +69,29 @@ test('read and write', async (t) => {
   )
 })
 
+test('close() removes its add-core listener from the coreManager', async (t) => {
+  const cm = createCoreManager(t)
+  const before = cm.listenerCount('add-core')
+  const dataStore = new DataStore({
+    coreManager: cm,
+    namespace: 'data',
+    batch: async () => ({}),
+    storage: () => new RAM(),
+    reindex: false,
+  })
+  assert.equal(
+    cm.listenerCount('add-core'),
+    before + 1,
+    'DataStore registers one add-core listener'
+  )
+  await dataStore.close()
+  assert.equal(
+    cm.listenerCount('add-core'),
+    before,
+    'close() removes the add-core listener so a late add-core during teardown cannot call addCore() on a closed indexer'
+  )
+})
+
 test('writeRaw and read', async (t) => {
   const cm = createCoreManager(t)
   const writerCore = cm.getWriterCore('config').core
