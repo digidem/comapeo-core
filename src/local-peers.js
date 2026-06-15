@@ -33,6 +33,8 @@ import {
   InvalidInviteError,
   InvalidProjectJoinDetailsError,
   MapShareNotSupportedByPeerError,
+  UntrustedRPCMethodError,
+  ensureKnownError,
 } from './errors.js'
 
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
@@ -84,6 +86,14 @@ const MESSAGE_TYPES = {
   DenyInviteOverInternetAck: 13,
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
+
+/**
+ * @type {Set<keyof typeof MESSAGE_TYPES>}
+ */
+const ALLOWED_UNTRUSTED_RPC = new Set([
+  'DeviceInfo',
+  'RedeemInviteOverInternet',
+])
 
 export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
 
@@ -567,7 +577,7 @@ class Peer {
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
  * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
- * @property {(messageType: string, errorMessage?: string) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
+ * @property {(messageType: string, errorMessage: import('./errors.js').KnownError) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
  */
 
 /** @extends {TypedEmitter<LocalPeersEvents>} */
@@ -804,9 +814,8 @@ export class LocalPeers extends TypedEmitter {
               message
             )
           } catch (e) {
-            const errorMessage = String(e)
-            this.emit('failed-to-handle-message', type, errorMessage)
-            this.#l.log(`Error handling ${type} message: ${errorMessage}`)
+            this.emit('failed-to-handle-message', type, ensureKnownError(e))
+            this.#l.log(`Error handling ${type} message: ${e}`)
           }
         },
       }
@@ -917,9 +926,21 @@ export class LocalPeers extends TypedEmitter {
     const peer = this.#getPeerByProtomux(protomux)
     /* c8 ignore next */
     if (!peer) return // TODO: report error - this should not happen
+    // If the peer isn't trusted, ignore anything not allowed
+    // Allow acknowledge messages by default
+    if (
+      !peer.isTrusted &&
+      !ALLOWED_UNTRUSTED_RPC.has(type) &&
+      !type.endsWith('Ack')
+    ) {
+      throw new UntrustedRPCMethodError({
+        type,
+        peerId: peer.id,
+      })
+    }
+
     switch (type) {
       case 'Invite': {
-        if (!peer.isTrusted) return
         const invite = parseInvite(value)
         peer
           .sendInviteAck(invite)
@@ -938,7 +959,6 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'InviteCancel': {
-        if (!peer.isTrusted) return
         const inviteCancel = parseInviteCancel(value)
         peer
           .sendInviteCancelAck(inviteCancel)
@@ -956,7 +976,6 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'InviteResponse': {
-        if (!peer.isTrusted) return
         const inviteResponse = parseInviteResponse(value)
         peer
           .sendInviteResponseAck(inviteResponse)
@@ -981,7 +1000,6 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'ProjectJoinDetails': {
-        if (!peer.isTrusted) return
         const details = parseProjectJoinDetails(value)
         peer
           .sendProjectJoinDetailsAck(details)
@@ -1000,42 +1018,36 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'MapShareExtension': {
-        if (!peer.isTrusted) return
         const mapShare = MapShareExtension.decode(value)
         const info = /** @type {PeerInfo} */ (peer.info)
         this.emit('map-share', info, mapShare)
         break
       }
       case 'InviteAck': {
-        if (!peer.isTrusted) return
         const ack = InviteAck.decode(value)
         peer.receiveAck('InviteAck', ack)
         this.emit('invite-ack', peer.id, ack)
         break
       }
       case 'InviteCancelAck': {
-        if (!peer.isTrusted) return
         const ack = InviteCancelAck.decode(value)
         peer.receiveAck('InviteCancelAck', ack)
         this.emit('invite-cancel-ack', peer.id, ack)
         break
       }
       case 'InviteResponseAck': {
-        if (!peer.isTrusted) return
         const ack = InviteResponseAck.decode(value)
         peer.receiveAck('InviteResponseAck', ack)
         this.emit('invite-response-ack', peer.id, ack)
         break
       }
       case 'ProjectJoinDetailsAck': {
-        if (!peer.isTrusted) return
         const ack = ProjectJoinDetailsAck.decode(value)
         peer.receiveAck('ProjectJoinDetailsAck', ack)
         this.emit('got-project-details-ack', peer.id, ack)
         break
       }
       case 'RedeemInviteOverInternetAck': {
-        if (!peer.isTrusted) return
         const ack = RedeemInviteOverInternetAck.decode(value)
         peer.receiveAck('RedeemInviteOverInternetAck', ack)
         this.emit('invite-over-internet-redeemed-ack', peer.id, ack)
@@ -1054,7 +1066,6 @@ export class LocalPeers extends TypedEmitter {
         break
       }
       case 'DenyInviteOverInternetAck': {
-        if (!peer.isTrusted) return
         const ack = DenyInviteOverInternetAck.decode(value)
         peer.receiveAck('DenyInviteOverInternetAck', ack)
         this.emit('invite-over-internet-denied-ack', peer.id, ack)

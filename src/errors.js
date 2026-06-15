@@ -1,5 +1,9 @@
 import { createErrorClass } from 'custom-error-creator'
 
+/**
+ * @typedef {Error & {status: number, code: string}} KnownError
+ */
+
 export const NotFoundError = createErrorClass({
   code: 'NOT_FOUND_ERROR',
   message: 'Not found',
@@ -612,6 +616,12 @@ export const InitialSyncFailedError = createErrorClass({
   status: 409,
 })
 
+export const UntrustedRPCMethodError = createErrorClass({
+  code: 'UNTRUSTED_RPC_METHOD_ERROR',
+  message: 'Got a restricted RPC method {type} from {peerId}',
+  status: 405,
+})
+
 /**
  * @param {unknown} err
  * @returns {null}
@@ -648,6 +658,7 @@ export function getErrorCode(maybeError) {
 /**
  * Throw an UnexpectedErrorTypeError if this is not a standard error
  * @param {Error & {status?: number, code?: string} | any} err
+ * @returns {KnownError}
  */
 export function ensureKnownError(err) {
   if (typeof err.status !== 'number' || typeof err.code !== 'string') {

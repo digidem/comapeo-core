@@ -13,7 +13,7 @@ import {
   InviteResponse_Decision,
 } from '../src/generated/rpc.js'
 import { pEvent } from 'p-event'
-import { UnknownPeerError } from '../src/errors.js'
+import { UnknownPeerError, UntrustedRPCMethodError } from '../src/errors.js'
 
 test('sending and receiving invites', async () => {
   const r1 = new LocalPeers()
@@ -457,3 +457,65 @@ function testProjectInviteId() {
   const projectKey = testProjectKey()
   return projectKeyToProjectInviteId(projectKey)
 }
+
+test('untrusted peer cannot send restricted RPC methods', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  // Connect r1 as trusted but r2 as untrusted
+  replicate(r1, r2, { isTrusted1: false, isTrusted2: true })
+
+  // Get the peer info from r2's perspective (r2 sees r1 as a peer)
+  const [[peerFromR2]] = await once(r2, 'peers')
+  assert.equal(peerFromR2.status, 'connected')
+
+  // r2 (untrusted) tries to send an Invite (restricted method) to r1
+  const failedPromise = once(r1, 'failed-to-handle-message')
+
+  /** @type {import('../src/generated/rpc.js').Invite} */
+  const validInvite = {
+    inviteId: testInviteId(),
+    projectInviteId: testProjectInviteId(),
+    projectName: 'Mapeo Project',
+    invitorName: 'device0',
+    sendStats: false,
+    leaveOnFail: false,
+    invitorWroteDeviceInfo: false,
+  }
+
+  await r2.sendInvite(peerFromR2.deviceId, validInvite)
+
+  const [messageType, errorMessage] = await failedPromise
+  assert.equal(messageType, 'Invite')
+  assert.equal(
+    errorMessage.code,
+    UntrustedRPCMethodError.code,
+    'got untrusted method error on r1'
+  )
+})
+
+test('untrusted peer can send allowed RPC methods', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  // Connect r1 as trusted but r2 as untrusted
+  replicate(r1, r2, { isTrusted1: false, isTrusted2: false })
+
+  // Get the peer info from r2's perspective (r2 sees r1 as a peer)
+  const [[peerFromR2]] = await once(r2, 'peers')
+  assert.equal(peerFromR2.status, 'connected')
+
+  // DeviceInfo is in ALLOWED_UNTRUSTED_RPC, so it should succeed
+  /** @type {import('../src/generated/rpc.js').DeviceInfo} */
+  const deviceInfo = {
+    name: 'untrusted',
+    deviceType: 'mobile',
+    features: [],
+  }
+
+  await r2.sendDeviceInfo(peerFromR2.deviceId, deviceInfo)
+
+  // Should have received the device info without failing
+  const [r1Peers] = await once(r1, 'peers')
+  assert.equal(r1Peers[0].name, 'untrusted')
+})
