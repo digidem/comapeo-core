@@ -1,5 +1,9 @@
 import { createErrorClass } from 'custom-error-creator'
 
+/**
+ * @typedef {Error & {status: number, code: string}} KnownError
+ */
+
 export const NotFoundError = createErrorClass({
   code: 'NOT_FOUND_ERROR',
   message: 'Not found',
@@ -38,7 +42,7 @@ export const RPCDisconnectBeforeSendingError = createErrorClass({
 
 export const RPCDisconnectBeforeAckError = createErrorClass({
   code: 'RPC_DISCONNECT_BEFORE_ACK_ERROR',
-  message: 'RPC disconnected before receiving acknowledgement',
+  message: 'RPC disconnected before receiving acknowledgement for {type}',
   status: 499,
 })
 
@@ -430,6 +434,12 @@ export const InvalidMapShareError = createErrorClass({
   status: 400,
 })
 
+export const InvalidMapShareReceiverError = createErrorClass({
+  code: 'INVALID_MAP_SHARE_RECEIVER_ERROR',
+  message: 'Got map share intended for a different peer',
+  status: 400,
+})
+
 export const InvalidResponseBodyError = createErrorClass({
   code: 'INVALID_RESPONSE_BODY_ERROR',
   message: 'Response body is not valid',
@@ -440,6 +450,12 @@ export const InvalidInviteError = createErrorClass({
   code: 'INVALID_INVITE_ERROR',
   message: '{message}',
   status: 400,
+})
+
+export const InviteRedeemConnectionClosedError = createErrorClass({
+  code: 'INVITE_REDEEM_CONNECTION_CLOSED_ERROR',
+  message: 'Connection closed before invite redeem',
+  status: 408,
 })
 
 export const InviteNotFoundError = createErrorClass({
@@ -515,6 +531,97 @@ export const InvalidDrizzleJournalError = createErrorClass({
   status: 400,
 })
 
+export const InvalidIdentityProofError = createErrorClass({
+  code: 'INVALID_IDENTITY_PROOF_ERROR',
+  message: 'Invalid identity proof',
+  status: 400,
+})
+
+export const UnableToReadHandshakeError = createErrorClass({
+  code: 'UNABLE_TO_READ_HANDSHAKE_ERROR',
+  message: 'Unable to read handshake from hyperswarm connection',
+  status: 500,
+})
+
+export const InvalidInternetInviteURLError = createErrorClass({
+  code: 'INVALID_INTERNET_INVITE_URL_ERROR',
+  message: 'Invalid internet invite URL',
+  status: 400,
+})
+
+export const InviteAlreadyRedeemedError = createErrorClass({
+  code: 'INVITE_ALREADY_REDEEMED_ERROR',
+  message: 'Invite already redeemed',
+  status: 409,
+})
+
+export const UnknownInviteIDRedeemAttemptError = createErrorClass({
+  code: 'UNKNOWN_INVITE_ID_REDEEM_ATTEMPT_ERROR',
+  message: 'Unknown invite ID redeem attempt',
+  status: 404,
+})
+
+export const InviteNotYetRedeemedError = createErrorClass({
+  code: 'INVITE_NOT_YET_REDEEMED_ERROR',
+  message: 'Cannot yet accept: Invite not yet redeemed',
+  status: 400,
+})
+
+export const PeerDisconnectedSinceRedeemingInviteError = createErrorClass({
+  code: 'PEER_DISCONNECTED_SINCE_REDEEMING_INVITE_ERROR',
+  message: 'Peer disconnected since redeeming invite',
+  status: 408,
+})
+
+export const UnknownInviteIDError = createErrorClass({
+  code: 'UNKNOWN_INVITE_ID_ERROR',
+  message: 'Unknown invite ID',
+  status: 404,
+})
+
+export const MissingInviteURLParameter = createErrorClass({
+  code: 'MISSING_INVITE_URL_PARAMETER',
+  message: 'Invite URL is missing the {paramName} parameter',
+  status: 400,
+})
+
+export const InvalidInviteURLKeyParameterError = createErrorClass({
+  code: 'INVALID_INVITE_URL_KEY_PARAMETER_ERROR',
+  message:
+    'Invite URL key parameter "{paramName}" must be 32 bytes after decoding, got {byteLength} bytes',
+  status: 400,
+})
+
+export const InviteLinkAlreadyExistsError = createErrorClass({
+  code: 'INVITE_LINK_ALREADY_EXISTS_ERROR',
+  message: 'Invite link with ID {inviteId} already exists',
+  status: 409,
+})
+
+export const InviteDeniedByInviterError = createErrorClass({
+  code: 'INVITE_DENIED_BY_INVITER_ERROR',
+  message: 'Invitation denied by project inviter, reason: {reason}',
+  status: 403,
+})
+
+export const JoinProjectCancelledError = createErrorClass({
+  code: 'JOIN_PROJECT_CANCELLED_ERROR',
+  message: 'Join project was cancelled',
+  status: 499,
+})
+
+export const InitialSyncFailedError = createErrorClass({
+  code: 'INITIAL_SYNC_FAILED_ERROR',
+  message: 'Failed to perform initial sync with peers',
+  status: 409,
+})
+
+export const UntrustedRPCMethodError = createErrorClass({
+  code: 'UNTRUSTED_RPC_METHOD_ERROR',
+  message: 'Got a restricted RPC method {type} from {peerId}',
+  status: 405,
+})
+
 /**
  * @param {unknown} err
  * @returns {null}
@@ -551,10 +658,11 @@ export function getErrorCode(maybeError) {
 /**
  * Throw an UnexpectedErrorTypeError if this is not a standard error
  * @param {Error & {status?: number, code?: string} | any} err
+ * @returns {KnownError}
  */
 export function ensureKnownError(err) {
   if (typeof err.status !== 'number' || typeof err.code !== 'string') {
-    return new UnknownError(err)
+    return new UnknownError({ err })
   }
   return err
 }

@@ -8,16 +8,17 @@ import {
   NAMESPACES,
   PRESYNC_NAMESPACES,
 } from '../constants.js'
-import { keyToId, noop } from '../utils.js'
 import { getOwn } from '../lib/get-own.js'
 import { wsCoreReplicator } from '../lib/ws-core-replicator.js'
 import { NO_ROLE_ID } from '../roles.js'
 import { AutoStopTimeoutError, ExhaustivenessError } from '../errors.js'
+import { peerIdFromNoise } from '../local-peers.js'
+import { noop } from '../utils.js'
+
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
-/** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
-/** @import { BlobFilter, ReplicationStream } from '../types.js' */
+/** @import { HypercorePeer, ReplicationStream } from '../types.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
@@ -447,19 +448,27 @@ export class SyncApi extends TypedEmitter {
    * to wait between sync state updates before giving up. As long as syncing is
    * happening, this will never timeout, but if more than timeoutMs passes
    * without any sync activity, then this will reject.
+   * @param {boolean} [options.errorOnNoPeers] Whether to quickly exit when no
+   * remote states for peers are detected.
    * @returns {Promise<void>}
    */
-  async waitForSync(type, { timeoutMs } = {}) {
+  async waitForSync(type, { timeoutMs, errorOnNoPeers = false } = {}) {
     return new Promise((resolve, reject) => {
-      /** @type {NodeJS.Timeout | undefined} */
-      let timeoutId
+      /** @type {NodeJS.Timeout | null} */
+      let timeoutId = null
+
       const onTimeout = () => {
         this[kSyncState].off('state', onState)
         reject(new Error('Sync timeout'))
       }
       /** @param {import('./sync-state.js').State} state */
       const onState = (state) => {
-        clearTimeout(timeoutId)
+        if (timeoutId) clearTimeout(timeoutId)
+        if (errorOnNoPeers && !hasRemoteStates(state)) {
+          this[kSyncState].off('state', onState)
+          reject(new Error('No peers found to do initial sync with'))
+          return
+        }
         if (isSynced(state, type, this.#peerSyncControllers)) {
           this[kSyncState].off('state', onState)
           resolve()
@@ -523,14 +532,14 @@ export class SyncApi extends TypedEmitter {
    * will then handle validation of role records to ensure that the peer is
    * actually still part of the project.
    *
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer} peer
    */
   #handlePeerAdd = (peer) => {
     const { protomux } = peer
     if (this.#peerSyncControllers.has(protomux)) {
       this.#l.log(
-        'Unexpected existing peer sync controller for peer %h',
-        protomux.stream.remotePublicKey
+        'Unexpected existing peer sync controller for peer %S',
+        peerIdFromNoise(protomux.stream)
       )
       return
     }
@@ -564,21 +573,21 @@ export class SyncApi extends TypedEmitter {
    * Called when a peer is removed from the creator core, e.g. when the
    * connection is terminated.
    *
-   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
+   * @param {Pick<HypercorePeer, 'protomux' >} peer
    */
   #handlePeerDisconnect = (peer) => {
     const { protomux } = peer
+    const peerId = peerIdFromNoise(protomux.stream)
     const psc = this.#peerSyncControllers.get(protomux)
     if (!psc) {
       this.#l.log(
-        'Unexpected no existing peer sync controller for peer %h',
-        protomux.stream.remotePublicKey
+        'Unexpected no existing peer sync controller for peer %S',
+        peerId
       )
       return
     }
     psc.dispose()
     this.#peerSyncControllers.delete(protomux)
-    const peerId = keyToId(peer.remotePublicKey)
     this.#pscByPeerId.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
     this[kSyncState].disconnectPeer(peerId)
@@ -683,6 +692,19 @@ function isSynced(state, type, peerSyncControllers) {
     }
   }
   return true
+}
+
+/**
+ * Check if there are any remote states present
+ * Use this to see if we're lacking any peers to sync with
+ * @param {import('./sync-state.js').State} state
+ * @returns
+ */
+function hasRemoteStates(state) {
+  for (const { remoteStates } of Object.values(state)) {
+    if (Object.keys(remoteStates).length) return true
+  }
+  return false
 }
 
 /**

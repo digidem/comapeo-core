@@ -19,6 +19,7 @@ import {
   InvalidProjectKeyError,
   InvalidProjectSecretKeyError,
 } from '../errors.js'
+import { peerIdFromNoise } from '../local-peers.js'
 
 /** @import Hypercore from 'hypercore' */
 /** @import { BlobFilter, GenericBlobFilter, HypercorePeer, Namespace } from '../types.js' */
@@ -401,7 +402,7 @@ export class CoreManager extends ReadyResource {
     const { start, discoveryKey, bitfield, namespace } = msg
     if (namespace === 'UNRECOGNIZED') return
     /** @type {string} */
-    const peerId = peer.remotePublicKey.toString('hex')
+    const peerId = peerIdFromNoise(peer.protomux.stream)
     const coreDiscoveryId = discoveryKey.toString('hex')
     this.emit('peer-have', namespace, {
       coreDiscoveryId,
@@ -416,7 +417,7 @@ export class CoreManager extends ReadyResource {
    * @param {HypercorePeer} peer
    */
   #handleDownloadIntentMessage(blobFilter, peer) {
-    const peerId = peer.remotePublicKey.toString('hex')
+    const peerId = peerIdFromNoise(peer.protomux.stream)
     this.emit('peer-download-intent', blobFilter, peerId)
   }
 

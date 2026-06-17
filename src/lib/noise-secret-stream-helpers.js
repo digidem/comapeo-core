@@ -1,6 +1,7 @@
 /** @import { Duplex as NodeDuplex } from 'node:stream' */
 /** @import { Duplex as StreamxDuplex } from 'streamx' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
+/** @import {RemoteAuthedNoiseStream} from "../discovery/remote-discovery.js" */
 
 /**
  * @internal
@@ -28,10 +29,12 @@
  * stream is opened)
  *
  * @template {RawStream} T
- * @param {NoiseSecretStream<T>} stream
- * @returns {Promise<OpenedNoiseStream<T> | DestroyedNoiseStream<T>>}
+ * @param {NoiseSecretStream<T>|RemoteAuthedNoiseStream} stream
+ * @returns {Promise<OpenedNoiseStream<T> | DestroyedNoiseStream<T> | RemoteAuthedNoiseStream>}
  */
 export async function openedNoiseSecretStream(stream) {
   await stream.opened
-  return /** @type {OpenedNoiseStream<T> | DestroyedNoiseStream<T>} */ (stream)
+  return /** @type {OpenedNoiseStream<T> | DestroyedNoiseStream<T> | RemoteAuthedNoiseStream} */ (
+    stream
+  )
 }

@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+message SwarmHandshake {
+  bytes publicKey = 1;
+  bytes signature = 2;
+}

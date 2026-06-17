@@ -16,6 +16,10 @@
     "./schema.js": {
       "types": "./dist/schema.d.ts",
       "default": "./src/schema.js"
+    },
+    "./invite-urls.js": {
+      "types": "./dist/invite/invite-urls.d.ts",
+      "default": "./src/invite/invite-urls.js"
     }
   },
   "type": "module",
@@ -184,7 +188,7 @@
     "@fastify/error": "^3.4.1",
     "@fastify/type-provider-typebox": "^4.1.0",
     "@hyperswarm/secret-stream": "^6.6.3",
-    "@mapeo/crypto": "1.0.0-alpha.10",
+    "@mapeo/crypto": "^1.1.0",
     "@mapeo/sqlite-indexer": "^1.0.2",
     "@sinclair/typebox": "^0.33.17",
     "@sindresorhus/merge-streams": "^4.0.0",
@@ -193,10 +197,11 @@
     "bcp-47-normalize": "^2.3.0",
     "better-sqlite3": "^11.10.0",
     "big-sparse-array": "^1.0.3",
-    "bogon": "^1.1.0",
+    "bogon": "^1.2.0",
     "comapeocat": "^1.0.0",
     "compact-encoding": "^2.12.0",
     "corestore": "6.8.4",
+    "crockford-base32": "^2.1.0",
     "custom-error-creator": "^1.1.1",
     "debug": "^4.3.4",
     "dot-prop": "^9.0.0",
@@ -209,6 +214,7 @@
     "hypercore": "10.19.0",
     "hypercore-crypto": "3.4.2",
     "hyperdrive": "11.5.3",
+    "hyperswarm": "^4.17.0",
     "iso-3166": "^4.3.0",
     "json-stable-stringify": "^1.1.1",
     "magic-bytes.js": "^1.10.0",
