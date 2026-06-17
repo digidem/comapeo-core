@@ -578,6 +578,7 @@ class Peer {
  * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
  * @property {(messageType: string, errorMessage: import('./errors.js').KnownError) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
+ * @property {(peerId:string) => void} peer-trusted Emitted when a previously untrusted peer gets marked as trusted
  */
 
 /** @extends {TypedEmitter<LocalPeersEvents>} */
@@ -622,6 +623,7 @@ export class LocalPeers extends TypedEmitter {
     if (!peer.supportsMapShare()) {
       throw new MapShareNotSupportedByPeerError()
     }
+    checkTrusted('MapShareExtension', peer)
     await peer.sendMapShare(mapShare)
   }
 
@@ -633,6 +635,7 @@ export class LocalPeers extends TypedEmitter {
   async sendInvite(deviceId, invite) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('Invite', peer)
     await peer.sendInvite(invite)
   }
 
@@ -644,6 +647,7 @@ export class LocalPeers extends TypedEmitter {
   async sendInviteCancel(deviceId, inviteCancel) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('InviteCancel', peer)
     await peer.sendInviteCancel(inviteCancel)
   }
 
@@ -656,6 +660,7 @@ export class LocalPeers extends TypedEmitter {
   async sendInviteResponse(deviceId, inviteResponse) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('InviteResponse', peer)
     await peer.sendInviteResponse(inviteResponse)
   }
 
@@ -690,6 +695,7 @@ export class LocalPeers extends TypedEmitter {
   async sendProjectJoinDetails(deviceId, details) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('ProjectJoinDetails', peer)
     await peer.sendProjectJoinDetails(details)
   }
 
@@ -701,6 +707,7 @@ export class LocalPeers extends TypedEmitter {
   async sendDeviceInfo(deviceId, deviceInfo) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('DeviceInfo', peer)
     await peer.sendDeviceInfo(deviceInfo)
   }
 
@@ -721,6 +728,7 @@ export class LocalPeers extends TypedEmitter {
   async trustPeer(peerId) {
     const peer = await this.#getPeerByDeviceId(peerId)
     peer.isTrusted = true
+    this.emit('peer-trusted', peerId)
   }
 
   /**
@@ -1246,4 +1254,16 @@ export function peerIdFromNoise(stream) {
   const peerId = keyToId(publicKey)
 
   return peerId
+}
+
+/**
+ * @param {string} type
+ * @param {Peer} peer
+ */
+function checkTrusted(type, peer) {
+  if (peer.isTrusted) return
+  throw new UntrustedRPCMethodError({
+    type,
+    peerId: peer.id,
+  })
 }

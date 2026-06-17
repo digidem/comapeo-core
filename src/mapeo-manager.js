@@ -282,6 +282,12 @@ export class MapeoManager extends TypedEmitter {
       }
     )
 
+    this.#localPeers.on('peer-trusted', (peerId) => {
+      this.#handlePeerTrusted(peerId).catch((e) => {
+        this.#l.log('Error: Unable to handle peer trust update', ensureError(e))
+      })
+    })
+
     this.#projectSettingsIndexWriter = new IndexWriter({
       tables: [projectSettingsTable],
       sqlite,
@@ -1382,6 +1388,21 @@ export class MapeoManager extends TypedEmitter {
     )
 
     this.emit('invite-link-join-request', projectId, peerId, inviteIdString)
+  }
+
+  /**
+   * @param {string} peerId
+   */
+  async #handlePeerTrusted(peerId) {
+    const deviceInfo = this.getDeviceInfo()
+    if (!hasSavedDeviceInfo(deviceInfo)) return
+
+    const deviceInfoToSend = {
+      ...deviceInfo,
+      features: RPC_FEATURES,
+    }
+
+    await this.#localPeers.sendDeviceInfo(peerId, deviceInfoToSend)
   }
 
   async getMapStyleJsonUrl() {

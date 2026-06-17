@@ -499,7 +499,7 @@ test('untrusted peer can send allowed RPC methods', async () => {
   const r2 = new LocalPeers()
 
   // Connect r1 as trusted but r2 as untrusted
-  replicate(r1, r2, { isTrusted1: false, isTrusted2: false })
+  replicate(r1, r2, { isTrusted1: false, isTrusted2: true })
 
   // Get the peer info from r2's perspective (r2 sees r1 as a peer)
   const [[peerFromR2]] = await once(r2, 'peers')
