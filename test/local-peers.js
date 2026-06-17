@@ -458,18 +458,18 @@ function testProjectInviteId() {
   return projectKeyToProjectInviteId(projectKey)
 }
 
-test('untrusted peer cannot send restricted RPC methods', async () => {
+test('untrusted peer sends restricted RPC methods are rejected by receiver', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
 
-  // Connect r1 as trusted but r2 as untrusted
+  // r1 does not trust r2, r2 trusts r1
   replicate(r1, r2, { isTrusted1: false, isTrusted2: true })
 
   // Get the peer info from r2's perspective (r2 sees r1 as a peer)
   const [[peerFromR2]] = await once(r2, 'peers')
   assert.equal(peerFromR2.status, 'connected')
 
-  // r2 (untrusted) tries to send an Invite (restricted method) to r1
+  // r2 trusts r1, so it can send — but r1 rejects because r2 is untrusted from r1's side
   const failedPromise = once(r1, 'failed-to-handle-message')
 
   /** @type {import('../src/generated/rpc.js').Invite} */
@@ -492,6 +492,182 @@ test('untrusted peer cannot send restricted RPC methods', async () => {
     UntrustedRPCMethodError.code,
     'got untrusted method error on r1'
   )
+})
+
+test('cannot send restricted RPC methods to untrusted peers', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  // r1 does not trust r2, so checkTrusted blocks all restricted sends from r1
+  replicate(r1, r2, { isTrusted1: false, isTrusted2: false })
+
+  const [[peerFromR1]] = await once(r1, 'peers')
+  assert.equal(peerFromR1.status, 'connected')
+
+  /** @type {import('../src/generated/rpc.js').Invite} */
+  const validInvite = {
+    inviteId: testInviteId(),
+    projectInviteId: testProjectInviteId(),
+    projectName: 'Mapeo Project',
+    invitorName: 'device0',
+    sendStats: false,
+    leaveOnFail: false,
+    invitorWroteDeviceInfo: false,
+  }
+
+  /** @type {import('../src/errors.js').UntrustedRPCMethodError['code']} */
+  const expected = UntrustedRPCMethodError.code
+
+  // All restricted methods throw when peer is not trusted
+  await Promise.all([
+    assert.rejects(
+      () => r1.sendInvite(peerFromR1.deviceId, validInvite),
+      { code: expected },
+      'sendInvite rejected'
+    ),
+    assert.rejects(
+      () =>
+        r1.sendInviteCancel(peerFromR1.deviceId, {
+          inviteId: validInvite.inviteId,
+        }),
+      { code: expected },
+      'sendInviteCancel rejected'
+    ),
+    assert.rejects(
+      () =>
+        r1.sendInviteResponse(peerFromR1.deviceId, {
+          inviteId: validInvite.inviteId,
+          decision: InviteResponse_Decision.ACCEPT,
+        }),
+      { code: expected },
+      'sendInviteResponse rejected'
+    ),
+    assert.rejects(
+      () =>
+        r1.sendProjectJoinDetails(peerFromR1.deviceId, {
+          inviteId: validInvite.inviteId,
+          projectKey: testProjectKey(),
+          encryptionKeys: { auth: randomBytes(16) },
+        }),
+      { code: expected },
+      'sendProjectJoinDetails rejected'
+    ),
+    assert.rejects(
+      () =>
+        r1.sendDeviceInfo(peerFromR1.deviceId, {
+          name: 'test',
+          deviceType: 'mobile',
+          features: [],
+        }),
+      { code: expected },
+      'sendDeviceInfo rejected'
+    ),
+  ])
+})
+
+test('peer-trusted event fires on trustPeer', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  replicate(r1, r2, { isTrusted1: false, isTrusted2: true })
+
+  const [[peerFromR1]] = await once(r1, 'peers')
+  const trustedPromise = once(r1, 'peer-trusted')
+
+  await r1.trustPeer(peerFromR1.deviceId)
+
+  const [emittedPeerId] = await trustedPromise
+  assert.equal(emittedPeerId, peerFromR1.deviceId)
+})
+
+test('restricted RPC methods work after trustPeer', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  replicate(r1, r2, { isTrusted1: false, isTrusted2: true })
+
+  const [[peerFromR1]] = await once(r1, 'peers')
+
+  /** @type {import('../src/generated/rpc.js').Invite} */
+  const validInvite = {
+    inviteId: testInviteId(),
+    projectInviteId: testProjectInviteId(),
+    projectName: 'Mapeo Project',
+    invitorName: 'device0',
+    sendStats: false,
+    leaveOnFail: false,
+    invitorWroteDeviceInfo: false,
+  }
+
+  // All blocked before trust
+  /** @type {import('../src/errors.js').UntrustedRPCMethodError['code']} */
+  const expected = UntrustedRPCMethodError.code
+  await Promise.all([
+    assert.rejects(() => r1.sendInvite(peerFromR1.deviceId, validInvite), {
+      code: expected,
+    }),
+    assert.rejects(
+      () =>
+        r1.sendInviteCancel(peerFromR1.deviceId, {
+          inviteId: validInvite.inviteId,
+        }),
+      { code: expected }
+    ),
+    assert.rejects(
+      () =>
+        r1.sendInviteResponse(peerFromR1.deviceId, {
+          inviteId: validInvite.inviteId,
+          decision: InviteResponse_Decision.ACCEPT,
+        }),
+      { code: expected }
+    ),
+    assert.rejects(
+      () =>
+        r1.sendProjectJoinDetails(peerFromR1.deviceId, {
+          inviteId: validInvite.inviteId,
+          projectKey: testProjectKey(),
+          encryptionKeys: { auth: randomBytes(16) },
+        }),
+      { code: expected }
+    ),
+    assert.rejects(
+      () =>
+        r1.sendDeviceInfo(peerFromR1.deviceId, {
+          name: 'test',
+          deviceType: 'mobile',
+          features: [],
+        }),
+      { code: expected }
+    ),
+  ])
+
+  // Trust the peer — all methods work now
+  await r1.trustPeer(peerFromR1.deviceId)
+
+  const inviteReceived = once(r2, 'invite')
+  await Promise.all([
+    r1.sendInvite(peerFromR1.deviceId, validInvite),
+    r1.sendInviteCancel(peerFromR1.deviceId, {
+      inviteId: validInvite.inviteId,
+    }),
+    r1.sendInviteResponse(peerFromR1.deviceId, {
+      inviteId: validInvite.inviteId,
+      decision: InviteResponse_Decision.ACCEPT,
+    }),
+    r1.sendProjectJoinDetails(peerFromR1.deviceId, {
+      inviteId: validInvite.inviteId,
+      projectKey: testProjectKey(),
+      encryptionKeys: { auth: randomBytes(16) },
+    }),
+    r1.sendDeviceInfo(peerFromR1.deviceId, {
+      name: 'test',
+      deviceType: 'mobile',
+      features: [],
+    }),
+  ])
+
+  const [_, receivedInvite] = await inviteReceived
+  assert.equal(receivedInvite.projectName, 'Mapeo Project')
 })
 
 test('untrusted peer can send allowed RPC methods', async () => {
