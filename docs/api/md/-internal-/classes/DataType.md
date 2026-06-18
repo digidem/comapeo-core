@@ -174,9 +174,11 @@ only used internally to skip the checkExisting check when creating a document wi
 
 ### getByDocId()
 
+#### getByDocId(docId, options)
+
 > **getByDocId**(`docId`, `options`?): `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
-#### Parameters
+##### Parameters
 
 • **docId**: `string`
 
@@ -186,9 +188,27 @@ only used internally to skip the checkExisting check when creating a document wi
 
 • **options.mustBeFound?**: `undefined` \| `true`
 
-#### Returns
+##### Returns
 
 `Promise`\<`TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
+
+#### getByDocId(docId, options)
+
+> **getByDocId**(`docId`, `options`?): `Promise`\<`null` \| `TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
+
+##### Parameters
+
+• **docId**: `string`
+
+• **options?**
+
+• **options.lang?**: `undefined` \| `string`
+
+• **options.mustBeFound?**: `false`
+
+##### Returns
+
+`Promise`\<`null` \| `TDoc` & [`DerivedDocFields`](../interfaces/DerivedDocFields.md)\>
 
 ***
 
