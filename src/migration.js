@@ -70,7 +70,7 @@ async function calculateCoreSizes(storagePath) {
     if (!entry.isDirectory()) continue
 
     // entry.path is the parent directory, entry.name is the directory name
-    const fullPath = path.join(entry.path, entry.name)
+    const fullPath = path.join(entry.path ?? entry.parentPath, entry.name)
     const relativePath = path.relative(coresDir, fullPath)
     const depth = relativePath.split(path.sep).length
 
@@ -145,17 +145,31 @@ export function makeDefaultCorestoreStorage(path) {
  * be made without actually modifying the storage.
  *
  * @param {string} managerPath - Path to the MapeoManager storage folder
+ * @param {(doneSoFar: number, totalCores: number) => void} [onProgress] - Callcback called after each core migrates
  * @returns {Promise<Record<string, { migrated: boolean, error?: Error }>>}
  *         Map of project IDs to migration status
  */
 export async function migrateStorage(
   managerPath,
+  onProgress,
   makeStorage = makeDefaultCorestoreStorage
 ) {
   const projectIds = await listProjectsFromStorage(managerPath)
 
+  // Pre-count total cores across all projects that need migration
+  let totalCoresToMigrate = 0
+  for (const projectId of projectIds) {
+    const projectCorestorePath = path.join(managerPath, projectId, 'corestore')
+    if (await needsMigration(projectCorestorePath)) {
+      const { coreCount } = await storageForProject(projectCorestorePath)
+      totalCoresToMigrate += coreCount
+    }
+  }
+
   /** @type {Record<string, { migrated: boolean, error?: Error }>} */
   const results = {}
+  let migratedSoFar = 0
+  onProgress?.(migratedSoFar, totalCoresToMigrate)
 
   for (const projectId of projectIds) {
     const projectCorestorePath = path.join(managerPath, projectId, 'corestore')
@@ -179,6 +193,8 @@ export async function migrateStorage(
         for await (const { discoveryKey } of storage.createCoreStream()) {
           // Will trigger core migration
           await storage.resumeCore(discoveryKey)
+          migratedSoFar++
+          onProgress?.(migratedSoFar, totalCoresToMigrate)
         }
 
         results[projectId] = {

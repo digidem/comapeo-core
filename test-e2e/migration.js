@@ -355,7 +355,11 @@ test('recover from hypercore migration failing', async (t) => {
   }
 
   // Migrate and fail
-  let migrationResults = await migrateStorage(coreStorage, makeStorage)
+  let migrationResults = await migrateStorage(
+    coreStorage,
+    () => {},
+    makeStorage
+  )
 
   assert.equal(
     Object.keys(migrationResults).length,
@@ -453,7 +457,11 @@ test('migrate storage after one project has already migrated', async (t) => {
   }
 
   // First migration run: first project succeeds, second project errors
-  const migrationResults = await migrateStorage(coreStorage, makeStorage)
+  const migrationResults = await migrateStorage(
+    coreStorage,
+    () => {},
+    makeStorage
+  )
 
   assert.equal(
     Object.keys(migrationResults).length,
@@ -553,6 +561,72 @@ test('migrate storage after one project has already migrated', async (t) => {
       )
     }
   }
+})
+
+test.only('onProgress callback reports core migration progress', async (t) => {
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+
+  const rootKey = KeyManager.generateRootKey()
+
+  const manager = await createOldManagerOnVersion2_0_1('seed', t, {
+    rootKey,
+    dbFolder,
+    coreStorage,
+  })
+
+  // Create 2 projects with observations (each project has 4 cores by default)
+  const projectIds = []
+  for (let i = 0; i < 2; i++) {
+    const projectId = await manager.createProject({
+      name: `Project ${i + 1}`,
+    })
+    projectIds.push(projectId)
+
+    const project = await manager.getProject(projectId)
+    await project.observation.create(
+      // @ts-ignore It's fine we can create these anyway
+      valueOf(generate('observation')[0])
+    )
+    await project.close()
+  }
+
+  t.after(async () => {
+    await fsPromises.rm(dbFolder, { recursive: true })
+    await fsPromises.rm(coreStorage, { recursive: true })
+  })
+
+  /** @type {{ migratedSoFar: number; totalCores: number }[] } */
+  const progressCalls = []
+  const onProgress =
+    /** @param {number} migratedSoFar @param {number} totalCores */ (
+      migratedSoFar,
+      totalCores
+    ) => {
+      progressCalls.push({ migratedSoFar, totalCores })
+    }
+
+  await migrateStorage(coreStorage, onProgress)
+
+  assert(progressCalls.length > 0, 'onProgress should have been called')
+
+  // Each call should report incrementing progress
+  for (let i = 0; i < progressCalls.length; i++) {
+    assert.equal(
+      progressCalls[i].migratedSoFar,
+      i + 1,
+      `Call ${i}: migratedSoFar should be ${i + 1}`
+    )
+    assert.ok(progressCalls[i].totalCores > 0, 'totalCores should be positive')
+  }
+
+  // Last call should report final count equals total
+  const lastCall = progressCalls[progressCalls.length - 1]
+  assert.equal(
+    lastCall.migratedSoFar,
+    lastCall.totalCores,
+    'Final migratedSoFar should equal totalCores'
+  )
 })
 
 /**
