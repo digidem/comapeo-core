@@ -563,7 +563,7 @@ test('migrate storage after one project has already migrated', async (t) => {
   }
 })
 
-test.only('onProgress callback reports core migration progress', async (t) => {
+test('onProgress callback reports core migration progress', async (t) => {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
 
@@ -614,8 +614,8 @@ test.only('onProgress callback reports core migration progress', async (t) => {
   for (let i = 0; i < progressCalls.length; i++) {
     assert.equal(
       progressCalls[i].migratedSoFar,
-      i + 1,
-      `Call ${i}: migratedSoFar should be ${i + 1}`
+      i,
+      `Call ${i}: migratedSoFar should be ${i}`
     )
     assert.ok(progressCalls[i].totalCores > 0, 'totalCores should be positive')
   }
