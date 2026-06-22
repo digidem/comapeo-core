@@ -925,7 +925,7 @@ export class LocalPeers extends TypedEmitter {
  */
 function assertInviteIdIsValid(id) {
   if (id.byteLength < 32) {
-    throw new InvalidInviteError('Invite ID must be >= 32 bytes')
+    throw new InvalidInviteError({ message: 'Invite ID must be >= 32 bytes' })
   }
 }
 
@@ -938,13 +938,19 @@ function parseInvite(data) {
   const result = Invite.decode(data)
   assertInviteIdIsValid(result.inviteId)
   if (!result.projectInviteId.length) {
-    throw new InvalidInviteError('Invite must have project invite ID')
+    throw new InvalidInviteError({
+      message: 'Invite must have project invite ID',
+    })
   }
   if (isBlank(result.projectName)) {
-    throw new InvalidInviteError('Invite project name cannot be blank')
+    throw new InvalidInviteError({
+      message: 'Invite project name cannot be blank',
+    })
   }
   if (isBlank(result.invitorName)) {
-    throw new InvalidInviteError('Invite invitor name cannot be blank')
+    throw new InvalidInviteError({
+      message: 'Invite invitor name cannot be blank',
+    })
   }
   return result
 }
