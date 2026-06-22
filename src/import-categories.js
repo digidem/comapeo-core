@@ -360,7 +360,7 @@ function appliesToToGeometry(appliesTo) {
 function getOrThrow(map, key) {
   if (!(map instanceof Map)) throw new TypeError('map must be a Map')
   if (!map.has(key)) {
-    throw new KeyNotFoundError(key)
+    throw new KeyNotFoundError({ key })
   }
   return /** @type {V} */ (map.get(key))
 }
