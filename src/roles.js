@@ -370,9 +370,9 @@ export class Roles extends TypedEmitter {
    */
   async assignRole(deviceId, roleId, opts) {
     if (!isRoleIdAssignableToAnyone(roleId)) {
-      throw new RoleAssignError(
-        `Role ID should be assignable to anyone but got ${roleId}`
-      )
+      throw new RoleAssignError({
+        message: `Role ID should be assignable to anyone but got ${roleId}`,
+      })
     }
 
     let fromIndex = 0
@@ -392,12 +392,16 @@ export class Roles extends TypedEmitter {
     }
     if (roleId === LEFT_ROLE_ID) {
       if (deviceId !== this.#ownDeviceId) {
-        throw new RoleAssignError('Cannot assign LEFT role to another device')
+        throw new RoleAssignError({
+          message: 'Cannot assign LEFT role to another device',
+        })
       }
     } else {
       const ownRole = await this.getRole(this.#ownDeviceId)
       if (!ownRole.roleAssignment.includes(roleId)) {
-        throw new RoleAssignError('Lacks permission to assign role ' + roleId)
+        throw new RoleAssignError({
+          message: 'Lacks permission to assign role ' + roleId,
+        })
       }
     }
 
@@ -424,9 +428,9 @@ export class Roles extends TypedEmitter {
         isAssigningProjectCreatorRole &&
         roleId !== BLOCKED_ROLE_ID
       ) {
-        throw new RoleAssignError(
-          'Project creators can only be assigned the blocked role'
-        )
+        throw new RoleAssignError({
+          message: 'Project creators can only be assigned the blocked role',
+        })
       }
 
       await this.#dataType[kCreateWithDocId](deviceId, {
