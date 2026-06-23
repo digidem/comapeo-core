@@ -980,14 +980,14 @@ function parseProjectJoinDetails(data) {
   const result = ProjectJoinDetails.decode(data)
   assertInviteIdIsValid(result.inviteId)
   if (!result.projectKey.length) {
-    throw new InvalidProjectJoinDetailsError({
-      message: 'Project join details must have project key',
-    })
+    throw new InvalidProjectJoinDetailsError(
+      'Project join details must have project key'
+    )
   }
   if (!result.encryptionKeys?.auth?.byteLength) {
-    throw new InvalidProjectJoinDetailsError({
-      message: 'Project join details must have auth encryption keys',
-    })
+    throw new InvalidProjectJoinDetailsError(
+      'Project join details must have auth encryption keys'
+    )
   }
   return result
 }
