@@ -275,6 +275,7 @@ export class RemoteDiscovery extends TypedEmitter {
       this.#pendingHandshakes.delete(socket)
       pendingDefer.resolve(true)
     } catch (err) {
+      socket.end()
       this.emit('error', ensureKnownError(err))
       pendingDefer.resolve(false)
     }
