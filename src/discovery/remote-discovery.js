@@ -13,6 +13,7 @@ import {
 } from '../errors.js'
 
 import { openedNoiseSecretStream } from '../lib/noise-secret-stream-helpers.js'
+import pDefer from 'p-defer'
 
 /** @import {OpenedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
 /** @import {Keypair} from './local-discovery.js' */
@@ -50,6 +51,8 @@ export class RemoteDiscovery extends TypedEmitter {
   #shouldTrustKeys = new Set()
   /** @type {Set<OpenedNoiseStream|RemoteAuthedNoiseStream>} */
   #connections = new Set()
+  /** @type {Map<OpenedNoiseStream,Promise<boolean>>}*/
+  #pendingHandshakes = new Map()
 
   /**
    * @param {Object} opts
@@ -156,6 +159,28 @@ export class RemoteDiscovery extends TypedEmitter {
   }
 
   /**
+   * @param {Buffer} noisePublicKey
+   * @returns {Promise<RemoteAuthedNoiseStream | null >}
+   */
+  async #findExistingPeer(noisePublicKey) {
+    for (const existingConnection of this.#connections) {
+      if (!existingConnection.remotePublicKey?.equals(noisePublicKey)) continue
+      const opened = await openedNoiseSecretStream(existingConnection)
+      // If the connection closed, try again
+      if (opened.destroyed) return this.#findExistingPeer(noisePublicKey)
+      // @ts-ignore Some connections might not be handshaked, wait for them to be
+      if (!existingConnection.handshakePublicKey) {
+        const success = await this.#pendingHandshakes.get(existingConnection)
+        if (!success) return this.#findExistingPeer(noisePublicKey)
+      }
+      // @ts-ignore
+      return opened
+    }
+
+    return null
+  }
+
+  /**
    * Connect to another peer by their NOISE public key
    * @param {string} publicKey
    * @param {object} [opts]
@@ -167,16 +192,8 @@ export class RemoteDiscovery extends TypedEmitter {
     const swarm = await this.#ensureSwarm()
     const noisePublicKey = Buffer.from(publicKey, 'hex')
 
-    for (const existingConnection of this.#connections) {
-      if (existingConnection.remotePublicKey?.equals(noisePublicKey)) {
-        const opened = await openedNoiseSecretStream(existingConnection)
-        if (opened.destroyed) break
-        // @ts-ignore Some connections might not be handshaked, wait for them to be
-        if (!existingConnection.handshakePublicKey) break
-        // @ts-ignore
-        return opened
-      }
-    }
+    const existing = await this.#findExistingPeer(noisePublicKey)
+    if (existing) return existing
 
     const onAbort = () => {
       this.#l.log('Leave peer for %s', publicKey)
@@ -215,6 +232,8 @@ export class RemoteDiscovery extends TypedEmitter {
    */
   async #handleHyperswarmConnection(socket) {
     this.#connections.add(socket)
+    const pendingDefer = pDefer()
+    this.#pendingHandshakes.set(socket, pendingDefer.promise)
     socket.once('close', () => this.#connections.delete(socket))
     try {
       const remotePublicKeyString = socket.remotePublicKey.toString('hex')
@@ -253,8 +272,11 @@ export class RemoteDiscovery extends TypedEmitter {
       socket.handshakePublicKey = msg.publicKey
       // @ts-ignore
       this.emit('connection', socket)
+      this.#pendingHandshakes.delete(socket)
+      pendingDefer.resolve(true)
     } catch (err) {
       this.emit('error', ensureKnownError(err))
+      pendingDefer.resolve(false)
     }
   }
 }
