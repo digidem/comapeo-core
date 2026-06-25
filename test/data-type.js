@@ -10,6 +10,7 @@ import RAM from 'random-access-memory'
 import crypto from 'hypercore-crypto'
 import {
   observationTable,
+  presetTable,
   trackTable,
   translationTable,
 } from '../src/schema/project.js'
@@ -353,6 +354,8 @@ test('translation', async (t) => {
   )
 })
 
+test.only('Hydration pulls data from other tables', async () => {})
+
 /**
  * @param {import('node:test').TestContext} t
  * @param {object} [opts={}]
@@ -426,9 +429,17 @@ async function testenv(t, opts = {}) {
 
   const translationApi = new TranslationApi({ dataType: translationDataType })
 
+  const hydratedRefs = [
+    {
+      field: observationTable.presetRef,
+      table: presetTable,
+    },
+  ]
+
   const dataType = new DataType({
     dataStore,
     table: observationTable,
+    hydratedRefs,
     db,
     getTranslations: translationApi.get.bind(translationApi),
     async getDeviceIdForVersionId() {
