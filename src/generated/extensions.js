@@ -329,6 +329,131 @@ export var DownloadIntentExtension_DownloadIntentsEntry = {
         return message;
     },
 };
+function createBaseKnownSyncStates() {
+    return { states: [] };
+}
+export var KnownSyncStates = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        for (var _i = 0, _a = message.states; _i < _a.length; _i++) {
+            var v = _a[_i];
+            KnownSyncStates_SyncState.encode(v, writer.uint32(10).fork()).ldelim();
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseKnownSyncStates();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.states.push(KnownSyncStates_SyncState.decode(reader, reader.uint32()));
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return KnownSyncStates.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a;
+        var message = createBaseKnownSyncStates();
+        message.states = ((_a = object.states) === null || _a === void 0 ? void 0 : _a.map(function (e) { return KnownSyncStates_SyncState.fromPartial(e); })) || [];
+        return message;
+    },
+};
+function createBaseKnownSyncStates_SyncState() {
+    return { originId: Buffer.alloc(0), coreId: Buffer.alloc(0), authIndex: 0, dataIndex: 0, blobIndex: 0 };
+}
+export var KnownSyncStates_SyncState = {
+    encode: function (message, writer) {
+        if (writer === void 0) { writer = _m0.Writer.create(); }
+        if (message.originId.length !== 0) {
+            writer.uint32(10).bytes(message.originId);
+        }
+        if (message.coreId.length !== 0) {
+            writer.uint32(18).bytes(message.coreId);
+        }
+        if (message.authIndex !== 0) {
+            writer.uint32(24).uint64(message.authIndex);
+        }
+        if (message.dataIndex !== 0) {
+            writer.uint32(32).uint64(message.dataIndex);
+        }
+        if (message.blobIndex !== 0) {
+            writer.uint32(40).uint64(message.blobIndex);
+        }
+        return writer;
+    },
+    decode: function (input, length) {
+        var reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+        var end = length === undefined ? reader.len : reader.pos + length;
+        var message = createBaseKnownSyncStates_SyncState();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    if (tag !== 10) {
+                        break;
+                    }
+                    message.originId = reader.bytes();
+                    continue;
+                case 2:
+                    if (tag !== 18) {
+                        break;
+                    }
+                    message.coreId = reader.bytes();
+                    continue;
+                case 3:
+                    if (tag !== 24) {
+                        break;
+                    }
+                    message.authIndex = longToNumber(reader.uint64());
+                    continue;
+                case 4:
+                    if (tag !== 32) {
+                        break;
+                    }
+                    message.dataIndex = longToNumber(reader.uint64());
+                    continue;
+                case 5:
+                    if (tag !== 40) {
+                        break;
+                    }
+                    message.blobIndex = longToNumber(reader.uint64());
+                    continue;
+            }
+            if ((tag & 7) === 4 || tag === 0) {
+                break;
+            }
+            reader.skipType(tag & 7);
+        }
+        return message;
+    },
+    create: function (base) {
+        return KnownSyncStates_SyncState.fromPartial(base !== null && base !== void 0 ? base : {});
+    },
+    fromPartial: function (object) {
+        var _a, _b, _c, _d, _e;
+        var message = createBaseKnownSyncStates_SyncState();
+        message.originId = (_a = object.originId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        message.coreId = (_b = object.coreId) !== null && _b !== void 0 ? _b : Buffer.alloc(0);
+        message.authIndex = (_c = object.authIndex) !== null && _c !== void 0 ? _c : 0;
+        message.dataIndex = (_d = object.dataIndex) !== null && _d !== void 0 ? _d : 0;
+        message.blobIndex = (_e = object.blobIndex) !== null && _e !== void 0 ? _e : 0;
+        return message;
+    },
+};
 var tsProtoGlobalThis = (function () {
     if (typeof globalThis !== "undefined") {
         return globalThis;
