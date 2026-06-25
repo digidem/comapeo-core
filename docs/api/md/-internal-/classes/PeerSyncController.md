@@ -62,6 +62,16 @@
 
 ## Methods
 
+### dispose()
+
+> **dispose**(): `void`
+
+#### Returns
+
+`void`
+
+***
+
 ### handleDiscoveryKey()
 
 > **handleDiscoveryKey**(`discoveryKey`): `void`

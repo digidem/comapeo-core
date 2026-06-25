@@ -52,6 +52,8 @@ export class DataStore extends TypedEmitter {
   /** @type {Record<MapeoDoc['schemaName'], Set<string>>} */
   #pendingEmits
   #closed = false
+  /** @type {(coreRecord: import('../core-manager/index.js').CoreRecord) => void} */
+  #handleAddCore
 
   /**
    * @param {object} opts
@@ -77,10 +79,11 @@ export class DataStore extends TypedEmitter {
       batch: (entries) => this.#handleEntries(entries),
       reindex,
     })
-    coreManager.on('add-core', (coreRecord) => {
+    this.#handleAddCore = (coreRecord) => {
       if (coreRecord.namespace !== namespace) return
       this.#coreIndexer.addCore(coreRecord.core)
-    })
+    }
+    coreManager.on('add-core', this.#handleAddCore)
     this.#coreIndexer.on('idle', this.#handleIndexerIdle)
   }
 
@@ -220,6 +223,10 @@ export class DataStore extends TypedEmitter {
   async close() {
     if (this.#closed) return
     this.#closed = true
+    // Remove the add-core listener before closing the indexer so a late
+    // 'add-core' event during teardown can't call addCore() on a closed indexer
+    // (which would throw 'Cannot add core after closing').
+    this.#coreManager.off('add-core', this.#handleAddCore)
     await this.#coreIndexer.close()
   }
 

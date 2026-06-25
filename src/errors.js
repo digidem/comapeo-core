@@ -325,6 +325,13 @@ export const AlreadyBlockedError = createErrorClass({
   status: 403,
 })
 
+export const CannotBlockSelfError = createErrorClass({
+  code: 'CANNOT_BLOCK_SELF_ERROR',
+  message:
+    'You cannot block yourself from a project, leave the project instead',
+  status: 403,
+})
+
 export const DeviceIdNotForServerError = createErrorClass({
   code: 'DEVICE_ID_NOT_FOR_SERVER_ERROR',
   message: 'DeviceId {deviceId} is not for a server peer',

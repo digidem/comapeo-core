@@ -1,6 +1,6 @@
 {
   "name": "@comapeo/core",
-  "version": "7.2.0",
+  "version": "7.3.0",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
@@ -199,7 +199,7 @@
     "better-sqlite3": "^11.10.0",
     "big-sparse-array": "^1.0.3",
     "bogon": "^1.1.0",
-    "comapeocat": "^1.0.0",
+    "comapeocat": "^1.1.0",
     "compact-encoding": "^2.12.0",
     "corestore": "^7.9.1",
     "custom-error-creator": "^1.1.1",
