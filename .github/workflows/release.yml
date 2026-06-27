@@ -62,3 +62,34 @@ jobs:
           build-command: |
             npm ci
             npm run doc
+
+  # On a successful publish (optic publishes when its release PR merges into
+  # main), tell downstream repos to fast-track the bump of this package, rather
+  # than waiting for their daily Dependabot run. Receiver: digidem/comapeo-core-react-native.
+  notify-downstream:
+    needs: release
+    if: >-
+      needs.release.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        downstream:
+          - owner: digidem
+            repo: comapeo-core-react-native
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: token
+        with:
+          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+          owner: ${{ matrix.downstream.owner }}
+          repositories: ${{ matrix.downstream.repo }}
+      - env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          gh api repos/${{ matrix.downstream.owner }}/${{ matrix.downstream.repo }}/dispatches \
+            -f event_type=first-party-release \
+            -f 'client_payload[package]=@comapeo/core'
