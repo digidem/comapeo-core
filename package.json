@@ -31,8 +31,6 @@
     "build:types": "tsc -p tsconfig.npm.json && cpy 'src/**/*.d.ts' dist",
     "bench": "nanobench benchmarks/*.js",
     "type": "tsc",
-    "doc": "rimraf docs/api/md && typedoc --plugin typedoc-plugin-markdown --plugin typedoc-plugin-missing-exports --out docs/api/md",
-    "doc:publish": "rimraf docs/api/html && typedoc --plugin typedoc-plugin-missing-exports --out docs/api/html",
     "protobuf": "node ./scripts/build-messages.js",
     "db:generate:project": "drizzle-kit generate --dialect sqlite --schema src/schema/project.js --out drizzle/project",
     "db:generate:client": "drizzle-kit generate --dialect sqlite --schema src/schema/client.js --out drizzle/client",
@@ -171,9 +169,6 @@
     "supports-color": "^9.4.0",
     "tempy": "^3.1.0",
     "ts-proto": "^1.156.7",
-    "typedoc": "^0.26.7",
-    "typedoc-plugin-markdown": "^4.2.7",
-    "typedoc-plugin-missing-exports": "^3.0.0",
     "typescript": "^5.6.2",
     "yazl": "^2.5.1"
   },
