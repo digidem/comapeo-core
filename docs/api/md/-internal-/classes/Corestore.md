@@ -18,13 +18,15 @@
 
 #### Parameters
 
-• **storage**: `HypercoreStorage`
+• **storage**: [`CorestoreStorage`](CorestoreStorage.md) \| `HypercoreStorage`
 
 • **options?**
 
 • **options.poolSize?**: `number`
 
 • **options.primaryKey?**: `Buffer` \| `Uint8Array`
+
+• **options.unsafe?**: `boolean`
 
 #### Returns
 

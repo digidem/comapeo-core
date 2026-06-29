@@ -62,9 +62,9 @@
 
 ## Methods
 
-### dispose()
+### close()
 
-> **dispose**(): `void`
+> **close**(): `void`
 
 #### Returns
 
