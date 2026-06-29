@@ -61,4 +61,3 @@ jobs:
           publish-mode: oidc
           build-command: |
             npm ci
-            npm run doc

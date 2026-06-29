@@ -62,7 +62,7 @@ export class BlobApi {
     const writePromises = [
       pipeline(fs.createReadStream(original), hashTransform(hash), ws).catch(
         (/** @type {Error} */ e) => {
-          throw new BlobReadError(original, { cause: e })
+          throw new BlobReadError({ path: original }, { cause: e })
         }
       ),
     ]
@@ -76,7 +76,7 @@ export class BlobApi {
       writePromises.push(
         pipeline(fs.createReadStream(preview), ws).catch(
           (/** @type {Error} */ e) => {
-            throw new BlobReadError(preview, { cause: e })
+            throw new BlobReadError({ path: preview }, { cause: e })
           }
         )
       )
@@ -91,7 +91,7 @@ export class BlobApi {
       writePromises.push(
         pipeline(fs.createReadStream(thumbnail), ws).catch(
           (/** @type {Error} */ e) => {
-            throw new BlobReadError(thumbnail, { cause: e })
+            throw new BlobReadError({ path: thumbnail }, { cause: e })
           }
         )
       )
