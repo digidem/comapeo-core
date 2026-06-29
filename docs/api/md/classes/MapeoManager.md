@@ -24,7 +24,7 @@
 
 path for drizzle migrations folder for client database
 
-• **opts.coreStorage**: `string` \| [`CoreStorage`](../-internal-/type-aliases/CoreStorage.md)
+• **opts.coreStorage**: `string`
 
 Folder for hypercore storage or a function that returns a RandomAccessStorage instance
 

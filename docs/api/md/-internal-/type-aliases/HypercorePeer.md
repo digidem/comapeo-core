@@ -55,6 +55,10 @@ TODO: Contribute these types upstream.
 
 > **remoteBitfield**: [`HypercoreRemoteBitfield`](HypercoreRemoteBitfield.md)
 
+### remoteContiguousLength
+
+> **remoteContiguousLength**: `number`
+
 ### remotePublicKey
 
 > **remotePublicKey**: `Buffer`

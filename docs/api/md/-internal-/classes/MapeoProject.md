@@ -20,7 +20,7 @@
 
 • **opts**
 
-• **opts.coreStorage**: [`CoreStorage`](../type-aliases/CoreStorage.md)
+• **opts.coreStorage**: `string`
 
 Folder to store all hypercore data
 
