@@ -591,7 +591,7 @@ test('invite over the internet removes project and removes member when failing t
   assert.equal(gotProjectId, projectId, 'Invited to project')
 })
 
-test.only('untrusted peer is disconnected after untrustedTimeout', async (t) => {
+test('untrusted peer is disconnected after untrustedTimeout', async (t) => {
   process.on('unhandledRejection', (reason) => {
     console.error('Unhandled rejection:', reason)
   })
