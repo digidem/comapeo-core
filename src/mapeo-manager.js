@@ -121,6 +121,9 @@ const MAX_FILE_DESCRIPTORS = 768
 // This is the timeout for waiting for sync state updates during initial sync (when adding a project or leaving a project)
 const INITIAL_SYNC_TIMEOUT_MS = 45_000 // 45 seconds
 
+// how long to wait for a remote peer to be trusted before forec disconnecting
+export const UNTRUSTED_TIMEOUT = 16000
+
 // Prefix names for routes registered with http server
 const BLOBS_PREFIX = 'blobs'
 const ICONS_PREFIX = 'icons'
@@ -183,6 +186,9 @@ export class MapeoManager extends TypedEmitter {
   #defaultConfigPath
   #makeWebsocket
   #defaultIsArchiveDevice
+  #untrustedTimeout
+  /** @type {Set<ReturnType<setTimeout>>}*/
+  #pendingTrustedTimers = new Set()
 
   // Maps invite ID (hex string) to AbortController for in-flight redeem attempts
   /** @type {Map<string, AbortController>} */
@@ -201,6 +207,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.fallbackMapPath] File path to a locally stored Styled Map Package (SMP)
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    * @param {boolean} [opts.defaultIsArchiveDevice] Whether the node is an archive device by default
+   * @param {number} [opts.untrustedTimeout] How long to wait before disconnecting an untrusted peer
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('hyperswarm').SwarmOpts} [opts.swarm]
    */
@@ -217,6 +224,7 @@ export class MapeoManager extends TypedEmitter {
     fallbackMapPath = DEFAULT_FALLBACK_MAP_FILE_PATH,
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
     defaultIsArchiveDevice = DEFAULT_IS_ARCHIVE_DEVICE,
+    untrustedTimeout = UNTRUSTED_TIMEOUT,
     makeWebsocket = (url) => new WebSocket(url),
   }) {
     super()
@@ -224,6 +232,7 @@ export class MapeoManager extends TypedEmitter {
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#defaultConfigPath = defaultConfigPath
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
+    this.#untrustedTimeout = untrustedTimeout
     this.#makeWebsocket = makeWebsocket
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
@@ -424,7 +433,24 @@ export class MapeoManager extends TypedEmitter {
 
         const peerId = peerIdFromNoise(openedNoiseStream)
 
-        return this.#localPeers.sendDeviceInfo(peerId, deviceInfoToSend)
+        if (!isTrusted) {
+          const timer = setTimeout(async () => {
+            this.#pendingTrustedTimers.delete(timer)
+
+            if (!(await this.#localPeers.isTrusted(peerId))) {
+              noiseStream.end()
+            }
+          }, this.#untrustedTimeout)
+
+          this.#pendingTrustedTimers.add(timer)
+
+          noiseStream.once('close', () => {
+            clearTimeout(timer)
+            this.#pendingTrustedTimers.delete(timer)
+          })
+        } else {
+          return this.#localPeers.sendDeviceInfo(peerId, deviceInfoToSend)
+        }
       })
       .catch((e) => {
         // Ignore error but log
@@ -1417,6 +1443,9 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async close() {
+    for (const timer of this.#pendingTrustedTimers) {
+      clearTimeout(timer)
+    }
     await this.#inviteLinks.close()
     await this.#remoteDiscovery.close()
     // This added for workers PR

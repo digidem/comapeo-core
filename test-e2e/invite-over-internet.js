@@ -3,6 +3,9 @@ import fsPromises from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { createManager, createManagers } from './utils.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
+import createTestnet from 'hyperdht/testnet.js'
+import { KeyManager } from '@mapeo/crypto'
+import { RemoteDiscovery } from '../src/discovery/remote-discovery.js'
 import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
@@ -19,6 +22,7 @@ import {
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
 import { temporaryDirectory } from 'tempy'
 import { kWaitForInitialSyncWithPeer } from '../src/sync/sync-api.js'
+import { LocalPeers } from '../src/local-peers.js'
 
 test('invite over internet and join from URL', async (t) => {
   const managers = await createManagers(2, t, 'device_type_unspecified', {
@@ -585,4 +589,62 @@ test('invite over the internet removes project and removes member when failing t
   const gotProjectId = await invitee.joinProjectFromLink(url)
 
   assert.equal(gotProjectId, projectId, 'Invited to project')
+})
+
+test.only('untrusted peer is disconnected after untrustedTimeout', async (t) => {
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled rejection:', reason)
+  })
+  const testnet = await createTestnet(2)
+  t.after(() => testnet.destroy())
+
+  const UNTRUSTED_TIMEOUT = 1000
+
+  const manager = createManager('invitor', t, {
+    swarm: { dht: testnet.nodes[0] },
+    untrustedTimeout: UNTRUSTED_TIMEOUT,
+  })
+
+  await manager.setDeviceInfo({ name: 'invitor', deviceType: 'desktop' })
+
+  const projectId = await manager.createProject({
+    name: 'Test Project',
+  })
+  const project = await manager.getProject(projectId)
+
+  const url = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  const { swarmPublicKey } = parseInviteURL(url)
+
+  // Create a separate RemoteDiscovery to connect as an untrusted peer
+  const identityKeypair = new KeyManager(
+    Buffer.alloc(16, 99)
+  ).getIdentityKeypair()
+  const swarmKeypair = new KeyManager(
+    Buffer.alloc(16, 100)
+  ).getIdentityKeypair()
+
+  const remoteDiscovery = new RemoteDiscovery({
+    identityKeypair,
+    deriveSwarmIdentityKeypair: () => swarmKeypair,
+    swarm: { dht: testnet.nodes[0] },
+  })
+  t.after(() => remoteDiscovery.close())
+
+  const localPeers = new LocalPeers()
+
+  await remoteDiscovery.start()
+
+  // Connect to the manager's swarm key (inbound on manager side → isTrusted = false)
+  const connection = await remoteDiscovery.connectPeer(swarmPublicKey, {
+    timeout: 10000,
+  })
+
+  // Set up protomux connection
+  localPeers.connect(connection, true)
+
+  // Connection should close within untrustedTimeout + small buffer
+  await pEvent(connection, 'close', { timeout: UNTRUSTED_TIMEOUT + 2000 })
 })

@@ -732,6 +732,15 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
+   * Check if a given peer is currently trusted for RPC calls
+   * @param {string} peerId
+   */
+  async isTrusted(peerId) {
+    const peer = await this.#getPeerByDeviceId(peerId)
+    return peer.isTrusted
+  }
+
+  /**
    * Connect to a peer over an existing NoiseSecretStream
    *
    * @param {NoiseStream<any>|RemoteAuthedNoiseStream} stream
