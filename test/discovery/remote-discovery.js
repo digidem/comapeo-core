@@ -14,10 +14,11 @@ import {
 import { SwarmHandshake } from '../../src/generated/handshake.js'
 import {
   ensureKnownError,
+  HandshakeTooLargeError,
   UnableToReadHandshakeError,
   InvalidIdentityProofError,
 } from '../../src/errors.js'
-import { Duplex, Transform } from 'streamx'
+import { Duplex, Transform, Readable } from 'streamx'
 
 /** @import {OpenedNoiseStream} from '../../src/lib/noise-secret-stream-helpers.js'*/
 
@@ -144,7 +145,7 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   outboundStream.end()
 })
 
-test.only('RemoteDiscovery - Able to reconnect after disconnecting', async (t) => {
+test('RemoteDiscovery - Able to reconnect after disconnecting', async (t) => {
   const testnet = await createTestnet(3)
   t.after(async () => {
     await testnet.destroy()
@@ -234,6 +235,19 @@ test.only('RemoteDiscovery - Able to reconnect after disconnecting', async (t) =
   assert.ok(
     outboundStream2.remotePublicKey.equals(swarmKeypair1.publicKey),
     'instance 2 should have instance 1 swarm public key'
+  )
+})
+
+test('RemoteDiscovery - readHandshakeBuffer throws HandshakeTooLargeError when length exceeds max', async () => {
+  const prefix = Buffer.alloc(2)
+  prefix.writeUInt16LE(0xffff, 0)
+
+  const stream = Readable.from([prefix])
+
+  await assert.rejects(
+    readHandshakeBuffer(stream),
+    (err) => ensureKnownError(err).code === HandshakeTooLargeError.code,
+    'should throw HandshakeTooLargeError when length exceeds max'
   )
 })
 

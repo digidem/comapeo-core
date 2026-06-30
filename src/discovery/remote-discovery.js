@@ -4,10 +4,10 @@ import Hyperswarm from 'hyperswarm'
 import StartStopStateMachine from 'start-stop-state-machine'
 import { pEvent, TimeoutError as EventTimeoutError } from 'p-event'
 import sodium from 'sodium-universal'
-import b4a from 'b4a'
 import { SwarmHandshake } from '../generated/handshake.js'
 import {
   ensureKnownError,
+  HandshakeTooLargeError,
   InvalidIdentityProofError,
   TimeoutError,
   UnableToReadHandshakeError,
@@ -33,8 +33,11 @@ export const kTestOnlyHandleHyperswarmConnection = Symbol(
   'testOnlyHandleHyperswarmConnection'
 )
 
-// 4 bytes 32bit unsigned int
-export const LENGTH_BYTES_LENGTH = 4
+// 2 bytes 16bit unsigned int
+export const LENGTH_BYTES_LENGTH = 2
+
+// Max payload size: total packet (prefix + body) capped at UInt16 max, minus the 2-byte prefix itself
+const MAX_HANDSHAKE_SIZE = 0xffff - 2
 
 /**
  * @extends {TypedEmitter<DiscoveryEvents>}
@@ -321,7 +324,10 @@ async function readChunk(stream, length) {
 
   const remainingBytes = length - data.length
   const remainingData = await readChunk(stream, remainingBytes)
-  return b4a.concat([data, remainingData])
+  const result = new Uint8Array(length)
+  result.set(data, 0)
+  result.set(remainingData, data.length)
+  return result
 }
 
 /**
@@ -332,7 +338,14 @@ async function readChunk(stream, length) {
 export async function readHandshakeBuffer(stream) {
   const handshakeLengthBytes = await readChunk(stream, LENGTH_BYTES_LENGTH)
 
-  const handshakeLength = await b4a.readUInt32LE(handshakeLengthBytes)
+  const handshakeLength = new DataView(
+    handshakeLengthBytes.buffer,
+    handshakeLengthBytes.byteOffset
+  ).getUint16(0, true)
+
+  if (handshakeLength > MAX_HANDSHAKE_SIZE) {
+    throw new HandshakeTooLargeError()
+  }
 
   const data = await readChunk(stream, handshakeLength)
 
@@ -346,7 +359,7 @@ export async function readHandshakeBuffer(stream) {
  * @returns
  */
 export function makeSwarmHandshake(handshakeHash, keyPair) {
-  const sig = b4a.allocUnsafe(64)
+  const sig = new Uint8Array(64)
   sodium.crypto_sign_detached(sig, handshakeHash, keyPair.secretKey)
 
   // Send stable public key + proof in a single message
@@ -359,16 +372,20 @@ export function makeSwarmHandshake(handshakeHash, keyPair) {
 }
 
 /**
- * Convert a buffer to its length prefixed version using Uin32LE
+ * Convert a buffer to its length prefixed version using UInt16LE
  * @param {Uint8Array} buffer
  * @return
  */
 export function lengthPrefix(buffer) {
-  const fullBuffer = b4a.allocUnsafe(buffer.length + LENGTH_BYTES_LENGTH)
+  const fullBuffer = new Uint8Array(buffer.length + LENGTH_BYTES_LENGTH)
 
-  b4a.writeUInt32LE(fullBuffer, buffer.length)
+  new DataView(fullBuffer.buffer, fullBuffer.byteOffset).setUint16(
+    0,
+    buffer.length,
+    true
+  )
 
-  b4a.copy(buffer, fullBuffer, LENGTH_BYTES_LENGTH)
+  fullBuffer.set(buffer, LENGTH_BYTES_LENGTH)
 
   return fullBuffer
 }

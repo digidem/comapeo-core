@@ -543,6 +543,12 @@ export const UnableToReadHandshakeError = createErrorClass({
   status: 500,
 })
 
+export const HandshakeTooLargeError = createErrorClass({
+  code: 'HANDSHAKE_TOO_LARGE_ERROR',
+  message: 'Handshake packet is too large',
+  status: 400,
+})
+
 export const InvalidInternetInviteURLError = createErrorClass({
   code: 'INVALID_INTERNET_INVITE_URL_ERROR',
   message: 'Invalid internet invite URL',
