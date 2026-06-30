@@ -1,6 +1,7 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { Logger } from '../logger.js'
 import Hyperswarm from 'hyperswarm'
+import StartStopStateMachine from 'start-stop-state-machine'
 import { pEvent, TimeoutError as EventTimeoutError } from 'p-event'
 import sodium from 'sodium-universal'
 import b4a from 'b4a'
@@ -42,8 +43,7 @@ export class RemoteDiscovery extends TypedEmitter {
   #l
   /** @type {Hyperswarm?} */
   #swarm = null
-  /** @type {Promise<Hyperswarm>?} */
-  #loading = null
+  #sm
   #identityKeypair
   #deriveSwarmIdentityKeypair
   #swarmOpts
@@ -72,11 +72,14 @@ export class RemoteDiscovery extends TypedEmitter {
     this.#identityKeypair = identityKeypair
     this.#deriveSwarmIdentityKeypair = deriveSwarmIdentityKeypair
     this.#swarmOpts = swarmOpts
+    this.#sm = new StartStopStateMachine({
+      start: this.#start.bind(this),
+      stop: this.#stop.bind(this),
+    })
   }
 
-  async #initSwarm() {
+  async #start() {
     this.#l.log('Initializing swarm')
-
     const swarm = new Hyperswarm({
       keyPair: this.#deriveSwarmIdentityKeypair(),
       maxPeers: 16,
@@ -87,40 +90,35 @@ export class RemoteDiscovery extends TypedEmitter {
     this.#l.log('Starting listen')
     await swarm.listen()
     this.#l.log('Listening')
-    return swarm
-  }
-
-  /**
-   * @returns {Promise<Hyperswarm>}
-   */
-  async #ensureSwarm() {
-    await this.#loading
-    if (!this.#swarm) {
-      this.#loading = this.#initSwarm()
-      this.#swarm = await this.#loading
-    }
-    return this.#swarm
+    await swarm.resume()
+    this.#swarm = swarm
   }
 
   /**
    * Start listening for incoming connections
    */
   async start() {
-    // TODO: Use start stop state machine
-    const swarm = await this.#ensureSwarm()
-    await swarm.resume()
+    return this.#sm.start()
   }
+
   /**
-   * Close all connections and stop listening
+   * @param {object} [opts]
+   * @param {boolean} [opts.force=false] Force-close open connections
+   * @returns {Promise<void>}
    */
-  async stop() {
+  async stop(opts) {
+    return this.#sm.stop(opts)
+  }
+
+  /**
+   * @param {object} [_opts]
+   */
+  async #stop(_opts) {
     this.#l.log('Suspending swarm')
-    await this.#loading
     await this.#swarm?.suspend()
   }
 
   async close() {
-    await this.#loading
     await this.#swarm?.destroy()
     this.#l.log('Closed swarm')
   }
@@ -189,7 +187,9 @@ export class RemoteDiscovery extends TypedEmitter {
    * @returns {Promise<RemoteAuthedNoiseStream>}
    */
   async connectPeer(publicKey, { timeout = 60_000, signal } = {}) {
-    const swarm = await this.#ensureSwarm()
+    await this.#sm.start()
+    const swarm = this.#swarm
+    if (!swarm) throw new Error('Swarm not initialized')
     const noisePublicKey = Buffer.from(publicKey, 'hex')
 
     const existing = await this.#findExistingPeer(noisePublicKey)
