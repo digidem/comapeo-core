@@ -93,6 +93,8 @@ const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 const ALLOWED_UNTRUSTED_RPC = new Set([
   'DeviceInfo',
   'RedeemInviteOverInternet',
+  'RedeemInviteOverInternetAck',
+  'DenyInviteOverInternetAck',
 ])
 
 export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
@@ -945,11 +947,7 @@ export class LocalPeers extends TypedEmitter {
     if (!peer) return // TODO: report error - this should not happen
     // If the peer isn't trusted, ignore anything not allowed
     // Allow acknowledge messages by default
-    if (
-      !peer.isTrusted &&
-      !ALLOWED_UNTRUSTED_RPC.has(type) &&
-      !type.endsWith('Ack')
-    ) {
+    if (!peer.isTrusted && !ALLOWED_UNTRUSTED_RPC.has(type)) {
       throw new UntrustedRPCMethodError({
         type,
         peerId: peer.id,
