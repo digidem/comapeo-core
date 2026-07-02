@@ -622,6 +622,18 @@ export const InitialSyncFailedError = createErrorClass({
   status: 409,
 })
 
+export const ExistingJoinRequestError = createErrorClass({
+  code: 'EXISTING_JOIN_REQUEST_ERROR',
+  message: 'A join request for this invite already exists: {inviteId}',
+  status: 409,
+})
+
+export const JoinRequestNotFoundError = createErrorClass({
+  code: 'JOIN_REQUEST_NOT_FOUND_ERROR',
+  message: 'Join request not found: {inviteId}',
+  status: 404,
+})
+
 export const UntrustedRPCMethodError = createErrorClass({
   code: 'UNTRUSTED_RPC_METHOD_ERROR',
   message: 'Got a restricted RPC method {type} from {peerId}',
