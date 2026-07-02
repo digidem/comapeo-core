@@ -253,6 +253,20 @@ test('validity of `originalVersionId` from another peer', async (t) => {
   await destroy()
 })
 
+test('can read when getDeviceIdForVersionId returns undefined', async (t) => {
+  const { dataType } = await testenv(t, {
+    // Return undefined to simulate ownership not being synced yet
+    getDeviceIdForVersionId: async () => undefined,
+  })
+  const obs = await dataType.create(obsFixture)
+  assert.equal(obs.createdBy, undefined)
+  assert.equal(obs.updatedBy, undefined)
+
+  const read = await dataType.getByDocId(obs.docId)
+  assert.equal(read.docId, obs.docId)
+  assert.equal(read.createdBy, undefined)
+})
+
 test('getByDocId() throws if no document exists with that ID', async (t) => {
   const { dataType } = await testenv(t, { projectKey: randomBytes(32) })
   await assert.rejects(() => dataType.getByDocId('foo bar'), NotFoundError)
@@ -357,8 +371,9 @@ test('translation', async (t) => {
  * @param {import('node:test').TestContext} t
  * @param {object} [opts={}]
  * @param {Buffer} [opts.projectKey]
+ * @param {(versionId: string) => Promise<string | undefined>} [opts.getDeviceIdForVersionId]
  */
-async function testenv(t, opts = {}) {
+async function testenv(t, { getDeviceIdForVersionId, ...opts } = {}) {
   const sqlite = new Database(':memory:')
   const db = drizzle(sqlite)
   migrate(db, {
@@ -419,9 +434,7 @@ async function testenv(t, opts = {}) {
     getTranslations: () => {
       throw new Error('Cannot get translations for translations')
     },
-    async getDeviceIdForVersionId() {
-      return ''
-    },
+    getDeviceIdForVersionId,
   })
 
   const translationApi = new TranslationApi({ dataType: translationDataType })
@@ -431,9 +444,7 @@ async function testenv(t, opts = {}) {
     table: observationTable,
     db,
     getTranslations: translationApi.get.bind(translationApi),
-    async getDeviceIdForVersionId() {
-      return ''
-    },
+    getDeviceIdForVersionId,
   })
 
   return { coreManager, dataType, dataStore, db, translationApi }

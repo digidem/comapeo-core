@@ -319,9 +319,15 @@ export class MapeoProject extends ReadyResource {
 
     /** @type {typeof TranslationApi.prototype.get} */
     const getTranslations = (...args) => this.$translation.get(...args)
-    /** @type {(versionId: string) => Promise<string>} */
-    const getDeviceIdForVersionId = (...args) =>
-      this.$originalVersionIdToDeviceId(...args)
+    /** @type {(versionId: string) => Promise<string | undefined>} */
+    const getDeviceIdForVersionId = async (...args) => {
+      try {
+        return this.$originalVersionIdToDeviceId(...args)
+      } catch (e) {
+        if (e instanceof NotFoundError) return undefined // core/ownership not synced yet
+        throw e
+      }
+    }
 
     this.#dataTypes = {
       observation: new DataType({
@@ -366,19 +372,16 @@ export class MapeoProject extends ReadyResource {
         dataStore: this.#dataStores.auth,
         table: coreOwnershipTable,
         db,
-        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       role: new DataType({
         dataStore: this.#dataStores.auth,
         table: roleTable,
         db,
-        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       deviceInfo: new DataType({
         dataStore: this.#dataStores.config,
         table: deviceInfoTable,
         db,
-        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       icon: new DataType({
         dataStore: this.#dataStores.config,
