@@ -8,5 +8,10 @@
     "declarationMap": true
   },
   "files": [],
-  "include": ["src/index.js", "src/schema.js", "types/**/*.d.ts"]
+  "include": [
+    "src/index.js",
+    "src/schema.js",
+    "src/migration.js",
+    "types/**/*.d.ts"
+  ]
 }

@@ -4,7 +4,6 @@ import { KeyManager } from '@mapeo/crypto'
 import Database from 'better-sqlite3'
 import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
 import { createRequire } from 'module'
 import ensureError from 'ensure-error'
@@ -41,7 +40,6 @@ import {
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
 import { omit } from './lib/omit.js'
-import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
 import IconServerPlugin from './fastify-plugins/icons.js'
 import { plugin as MapServerPlugin } from './fastify-plugins/maps.js'
@@ -96,12 +94,6 @@ import { migrate } from './lib/drizzle-helpers.js'
 
 const CLIENT_SQLITE_FILE_NAME = 'client.db'
 
-// Max file descriptors that RandomAccessFile should use for hypercore storage
-// and index bitfield persistence (used by MultiCoreIndexer). Android has a
-// limit of 1024 per process, so choosing 768 to leave 256 descriptors free for
-// other things e.g. SQLite and other parts of the app.
-const MAX_FILE_DESCRIPTORS = 768
-
 // This is the timeout for waiting for sync state updates during initial sync (when adding a project or leaving a project)
 const INITIAL_SYNC_TIMEOUT_MS = 45_000 // 45 seconds
 
@@ -146,7 +138,7 @@ export class MapeoManager extends TypedEmitter {
   // Maps project public id -> project instance
   /** @type {Map<string, MapeoProject>} */
   #activeProjects
-  /** @type {CoreStorage} */
+  /** @type {string} */
   #coreStorage
   #dbFolder
   /** @type {string} */
@@ -168,7 +160,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string} opts.projectMigrationsFolder path for drizzle migrations folder for project database
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
-   * @param {string | CoreStorage} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
+   * @param {string} opts.coreStorage Folder for hypercore storage or a function that returns a RandomAccessStorage instance
    * @param {import('fastify').FastifyInstance} opts.fastify Fastify server instance
    * @param {String} [opts.defaultConfigPath]
    * @param {string} [opts.customMapPath] File path to a locally stored Styled Map Package (SMP).
@@ -257,13 +249,7 @@ export class MapeoManager extends TypedEmitter {
       logger,
     })
 
-    if (typeof coreStorage === 'string') {
-      const pool = new RandomAccessFilePool(MAX_FILE_DESCRIPTORS)
-      // @ts-expect-error
-      this.#coreStorage = Hypercore.defaultStorage(coreStorage, { pool })
-    } else {
-      this.#coreStorage = coreStorage
-    }
+    this.#coreStorage = coreStorage
 
     this.#fastify = fastify
     this.#fastify.register(BlobServerPlugin, {
@@ -384,7 +370,7 @@ export class MapeoManager extends TypedEmitter {
         this.#dbFolder === ':memory:'
           ? ':memory:'
           : path.join(this.#dbFolder, projectId + '.db'),
-      coreStorage: (name) => this.#coreStorage(path.join(projectId, name)),
+      coreStorage: path.join(this.#coreStorage, projectId),
     }
   }
 

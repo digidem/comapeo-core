@@ -515,6 +515,12 @@ export const InvalidDrizzleJournalError = createErrorClass({
   status: 400,
 })
 
+export const DataStoreClosedError = createErrorClass({
+  code: 'DATA_STORE_CLOSED_ERROR',
+  message: 'Unable to invoke {method}, DataStore is closed',
+  status: 503,
+})
+
 /**
  * @param {unknown} err
  * @returns {null}
