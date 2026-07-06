@@ -2,7 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '@comapeo/schema'
-import { makeObservationFeature } from '../src/data-exporter.js'
+import {
+  makeObservationFeature,
+  makeTrackFeature,
+} from '../src/data-exporter.js'
 
 /**
  * Build a valid observation from the mock-data generator plus the stored-doc
@@ -102,6 +105,104 @@ test('makeObservationFeature skips attachments when not provided', () => {
 
   const feature = makeObservationFeature(observation)
   assert.equal(feature.properties.attachment_1, undefined)
+})
+
+/**
+ * Build a valid track from the mock-data generator plus the stored-doc fields
+ * that {@link makeTrackFeature} reads.
+ * @param {object} [overrides]
+ * @returns {import('@comapeo/schema').Track & import('../src/datatype/index.js').DerivedDocFields}
+ */
+function makeTrack(overrides = {}) {
+  const generated = valueOf(generate('track')[0])
+  return {
+    ...generated,
+    docId: 'track-1',
+    versionId: 'v-1',
+    originalVersionId: 'v-1',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+    links: [],
+    forks: [],
+    deleted: false,
+    ...overrides,
+  }
+}
+
+test('makeTrackFeature returns correct shape', () => {
+  const track = makeTrack({
+    locations: [
+      { coords: { latitude: 10.5, longitude: 20.3, altitude: 100 } },
+      { coords: { latitude: 11.0, longitude: 21.0 } },
+    ],
+    tags: { name: 'hike', distance: 5 },
+    presetRef: { docId: 'cat-b', versionId: 'v-2' },
+  })
+
+  const feature = makeTrackFeature(track)
+
+  assert.equal(feature.type, 'Feature')
+  assert.equal(feature.properties.$id, track.docId)
+  assert.equal(feature.properties.$createdAt, track.createdAt)
+  assert.equal(feature.properties.$updatedAt, track.updatedAt)
+  assert.equal(feature.properties.$categoryId, 'cat-b')
+  assert.equal(feature.properties.name, 'hike')
+  assert.equal(feature.properties.distance, '5')
+  assert.equal(feature.$comapeo, track)
+  assert.equal(feature.geometry?.type, 'LineString')
+  assert.deepStrictEqual(feature.geometry?.coordinates[0], [20.3, 10.5, 100])
+  assert.deepStrictEqual(feature.geometry?.coordinates[1], [21.0, 11.0])
+})
+
+test('makeTrackFeature handles missing presetRef', () => {
+  const track = makeTrack({ presetRef: undefined })
+
+  const feature = makeTrackFeature(track)
+  assert.equal(feature.properties.$categoryId, undefined)
+})
+
+test('makeTrackFeature handles empty locations', () => {
+  const track = makeTrack({ locations: [] })
+
+  const feature = makeTrackFeature(track)
+  assert.equal(feature.geometry?.type, 'LineString')
+  assert.deepStrictEqual(feature.geometry?.coordinates, [])
+})
+
+test('makeTrackFeature skips null tag values', () => {
+  const track = makeTrack({ tags: { a: 'present', b: null } })
+
+  const feature = makeTrackFeature(track)
+  assert.equal(feature.properties.a, 'present')
+  assert.equal(feature.properties.b, undefined)
+})
+
+test('makeTrackFeature serializes array tags as CSV', () => {
+  const track = makeTrack({
+    tags: { stops: [1, 2, 3], names: ['a', 'b'] },
+  })
+
+  const feature = makeTrackFeature(track)
+  assert.equal(feature.properties.stops, '1,2,3')
+  assert.equal(feature.properties.names, 'a,b')
+})
+
+test('makeTrackFeature includes altitude when present', () => {
+  const track = makeTrack({
+    locations: [{ coords: { latitude: 0, longitude: 0, altitude: 500 } }],
+  })
+
+  const feature = makeTrackFeature(track)
+  assert.deepStrictEqual(feature.geometry?.coordinates[0], [0, 0, 500])
+})
+
+test('makeTrackFeature omits altitude when not a number', () => {
+  const track = makeTrack({
+    locations: [{ coords: { latitude: 0, longitude: 0, altitude: undefined } }],
+  })
+
+  const feature = makeTrackFeature(track)
+  assert.deepStrictEqual(feature.geometry?.coordinates[0], [0, 0])
 })
 
 test('makeObservationFeature falls back to metadataCoords', () => {

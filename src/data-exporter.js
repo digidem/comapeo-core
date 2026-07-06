@@ -40,17 +40,18 @@ import ensureError from 'ensure-error'
  */
 
 /**
- * @typedef {object} ObservationKnownFields
+ * @typedef {object} FeatureKnownFields
  * @prop {string} $id
  * @prop {string} $createdAt
  * @prop {string} [$categoryId]
  */
 
 /**
- * @typedef {Record<string, string | null> & ObservationKnownFields} ObservationFeatureProperties
+ * @typedef {Record<string, string | null> & FeatureKnownFields} FeatureProperties
  */
 
-/** @typedef {import('geojson').Feature<import('geojson').Point | null> & {properties: ObservationFeatureProperties, $comapeo: Observation}} ObservationFeature */
+/** @typedef {import('geojson').Feature<import('geojson').Point | null> & {properties: FeatureProperties, $comapeo: Observation}} ObservationFeature */
+/** @typedef {import('geojson').Feature<import('geojson').LineString | null> & {properties: FeatureProperties, $comapeo: Track}} TrackFeature */
 
 /** @type {import('./types.js').BlobId['variant'][]} */
 const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
@@ -136,24 +137,10 @@ export class DataExporter {
         )
       )
 
-      /** @type {([number, number] | [number, number, number])[]} */
-      const coordinates = track.locations.map(
-        ({ coords: { longitude, latitude, altitude } }) =>
-          typeof altitude === 'number'
-            ? [longitude, latitude, altitude]
-            : [longitude, latitude]
-      )
+      const feature = makeTrackFeature(track)
       const comma = first ? '' : ','
       first = false
-      yield b4a.from(
-        `${comma}\n      ` +
-          JSON.stringify({
-            type: 'Feature',
-            properties: track,
-            geometry: { type: 'LineString', coordinates },
-          }) +
-          '\n'
-      )
+      yield b4a.from(`${comma}\n      ` + JSON.stringify(feature) + '\n')
 
       let firstObs = true
       for await (const chunk of this.#exportObservations(observations, {
@@ -475,7 +462,7 @@ export function getAttachmentFileName(attachment, blobId, mimeType) {
  * @return {ObservationFeature}
  */
 export function makeObservationFeature(observation, attachmentNames) {
-  const { lat, lon, docId } = observation
+  const { lat, lon } = observation
 
   const metadataCoords = observation.metadata?.position?.coords
   const altitude = metadataCoords?.altitude
@@ -498,20 +485,7 @@ export function makeObservationFeature(observation, attachmentNames) {
     }
   }
 
-  /** @type {ObservationFeatureProperties} */
-  const properties = {
-    $id: docId,
-    $createdAt: observation.createdAt,
-  }
-
-  if (observation.presetRef) {
-    properties.$categoryId = observation.presetRef.docId
-  }
-
-  for (const [key, value] of Object.entries(observation.tags)) {
-    if (value === null) continue
-    properties[key] = value.toString()
-  }
+  const properties = extractFeatureProperties(observation)
 
   if (attachmentNames) {
     attachmentNames.forEach((name, i) => {
@@ -528,4 +502,60 @@ export function makeObservationFeature(observation, attachmentNames) {
   }
 
   return feature
+}
+
+/**
+ * @param {Track} track
+ * @returns {TrackFeature}
+ */
+export function makeTrackFeature(track) {
+  /** @type {([number, number] | [number, number, number])[]} */
+  const coordinates = track.locations.map(
+    ({ coords: { longitude, latitude, altitude } }) =>
+      typeof altitude === 'number'
+        ? [longitude, latitude, altitude]
+        : [longitude, latitude]
+  )
+
+  /** @type {FeatureProperties} */
+  const properties = extractFeatureProperties(track)
+
+  if (track.observationRefs) {
+    properties.$observations = track.observationRefs
+      .map(({ docId }) => docId)
+      .join(',')
+  }
+
+  return {
+    type: 'Feature',
+    $comapeo: track,
+    properties,
+    geometry: { type: 'LineString', coordinates },
+  }
+}
+
+/**
+ * @param {Track|Observation} doc
+ * @returns {FeatureProperties}
+ */
+function extractFeatureProperties(doc) {
+  const { docId, createdAt, updatedAt } = doc
+
+  /** @type {FeatureProperties} */
+  const properties = {
+    $id: docId,
+    $createdAt: createdAt,
+    $updatedAt: updatedAt,
+  }
+
+  if (doc.presetRef) {
+    properties.$categoryId = doc.presetRef.docId
+  }
+
+  for (const [key, value] of Object.entries(doc.tags)) {
+    if (value === null) continue
+    properties[key] = value.toString()
+  }
+
+  return properties
 }
