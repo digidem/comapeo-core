@@ -214,6 +214,17 @@ test('Project export tracks and observations to zip stream', async (t) => {
       'Exported GeoJSON has expected number of features'
     )
 
+    /** @type {{ $comapeo: any, properties: Record<string, any> }[]} */
+    const features = parsed.features
+    // TODO: remove $comapeo filter once tracks go through makeObservationFeature
+    const observationFeatures = features.filter((f) => f.$comapeo !== undefined)
+    for (const feature of observationFeatures) {
+      assert(
+        feature.properties.attachment_1 !== null,
+        'Observation feature has attachment_1 field'
+      )
+    }
+
     assert.equal(entries.length, 2, 'Zip has geoJSON and one attachment')
 
     const hasPng = entries.some((name) => name.endsWith('.png'))
@@ -278,6 +289,17 @@ test('Sync project and export tracks and observations to zip stream', async (t) 
         DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
       'Exported GeoJSON has expected number of features'
     )
+
+    /** @type {{ $comapeo: any, properties: Record<string, any> }[]} */
+    const features = parsed.features
+    // TODO: remove $comapeo filter once tracks go through makeObservationFeature
+    const observationFeatures = features.filter((f) => f.$comapeo !== undefined)
+    for (const feature of observationFeatures) {
+      assert(
+        feature.properties.attachment_1 !== null,
+        'Observation feature has attachment_1 field'
+      )
+    }
 
     assert.equal(entries.length, 2, 'Zip has geoJSON and one attachment')
 

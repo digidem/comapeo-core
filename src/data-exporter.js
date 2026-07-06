@@ -47,7 +47,7 @@ import ensureError from 'ensure-error'
  */
 
 /**
- * @typedef {Record<string,string> & ObservationKnownFields} ObservationFeatureProperties
+ * @typedef {Record<string, string | null> & ObservationKnownFields} ObservationFeatureProperties
  */
 
 /** @typedef {import('geojson').Feature<import('geojson').Point | null> & {properties: ObservationFeatureProperties, $comapeo: Observation}} ObservationFeature */
@@ -100,7 +100,14 @@ export class DataExporter {
           seenAttachments.set(hash, attachment)
         }
       }
-      const feature = makeObservationFeature(observation)
+      const attachmentNames = await Promise.all(
+        observation.attachments.map(async (attachment) => {
+          const ref = await this.#tryGetAttachmentBlob(attachment)
+          if (!ref) return null
+          return getAttachmentFileName(attachment, ref.blobId, ref.mimeType)
+        })
+      )
+      const feature = makeObservationFeature(observation, attachmentNames)
       const comma = first ? '' : ','
       first = false
       yield b4a.from(`${comma}\n      ` + JSON.stringify(feature))
@@ -368,20 +375,15 @@ export class DataExporter {
         }
 
         const { blobId, mimeType } = ref
-        let extensionString = ''
-        if (mimeType) {
-          const extension = mime.getExtension(mimeType)
-          if (extension) {
-            extensionString = '.' + extension
-          } else {
-            this.#l.log('Got unknown mime type in attachment blob', attachment)
-          }
+
+        if (mimeType && !mime.getExtension(mimeType)) {
+          this.#l.log('Got unknown mime type in attachment blob', attachment)
         }
 
         const stream = this.#blobStore.createReadStream(blobId)
         const name = path.posix.join(
           mediaFolder,
-          `${attachment.name}_${blobId.variant}${extensionString}`
+          getAttachmentFileName(attachment, blobId, mimeType)
         )
         // @ts-expect-error
         await archive.entry(stream, { name })
@@ -453,10 +455,26 @@ export class DataExporter {
 }
 
 /**
+ * @param {{name: string}} attachment
+ * @param {{variant: string}} blobId
+ * @param {string | undefined} mimeType
+ * @returns {string}
+ */
+export function getAttachmentFileName(attachment, blobId, mimeType) {
+  let extension = ''
+  if (mimeType) {
+    const ext = mime.getExtension(mimeType)
+    if (ext) extension = `.${ext}`
+  }
+  return `${attachment.name}_${blobId.variant}${extension}`
+}
+
+/**
  * @param {Observation} observation
+ * @param {(string | null)[]} [attachmentNames]
  * @return {ObservationFeature}
  */
-export function makeObservationFeature(observation) {
+export function makeObservationFeature(observation, attachmentNames) {
   const { lat, lon, docId } = observation
 
   const metadataCoords = observation.metadata?.position?.coords
@@ -493,6 +511,12 @@ export function makeObservationFeature(observation) {
   for (const [key, value] of Object.entries(observation.tags)) {
     if (value === null) continue
     properties[key] = value.toString()
+  }
+
+  if (attachmentNames) {
+    attachmentNames.forEach((name, i) => {
+      properties[`attachment_${i + 1}`] = name ?? null
+    })
   }
 
   /** @type {ObservationFeature} */
