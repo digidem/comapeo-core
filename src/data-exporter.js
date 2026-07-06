@@ -39,6 +39,19 @@ import ensureError from 'ensure-error'
  * @prop {Logger} logger Logger instance
  */
 
+/**
+ * @typedef {object} ObservationKnownFields
+ * @prop {string} $id
+ * @prop {string} $createdAt
+ * @prop {string} [$categoryId]
+ */
+
+/**
+ * @typedef {Record<string,string> & ObservationKnownFields} ObservationFeatureProperties
+ */
+
+/** @typedef {import('geojson').Feature<import('geojson').Point | null> & {properties: ObservationFeatureProperties, $comapeo: Observation}} ObservationFeature */
+
 /** @type {import('./types.js').BlobId['variant'][]} */
 const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
 
@@ -78,7 +91,7 @@ export class DataExporter {
   ) {
     let first = true
     for (const observation of observations) {
-      const { lat, lon, docId } = observation
+      const { docId } = observation
       if (seenObservations.has(docId)) continue
       seenObservations.add(docId)
       for (const attachment of observation.attachments) {
@@ -87,34 +100,7 @@ export class DataExporter {
           seenAttachments.set(hash, attachment)
         }
       }
-
-      const metadataCoords = observation.metadata?.position?.coords
-      const altitude = metadataCoords?.altitude
-
-      /** @type {[number, number] | [number, number, number] | null} */
-      let coordinates = null
-
-      if (typeof lat === 'number' && typeof lon === 'number') {
-        coordinates =
-          typeof altitude === 'number' ? [lon, lat, altitude] : [lon, lat]
-      } else {
-        if (
-          typeof metadataCoords?.latitude === 'number' &&
-          typeof metadataCoords?.longitude === 'number'
-        ) {
-          coordinates =
-            typeof altitude === 'number'
-              ? [metadataCoords.longitude, metadataCoords.latitude, altitude]
-              : [metadataCoords.longitude, metadataCoords.latitude]
-        }
-      }
-
-      /** @type {import('geojson').Feature<import('geojson').Point | null>} */
-      const feature = {
-        type: 'Feature',
-        properties: observation,
-        geometry: coordinates ? { type: 'Point', coordinates } : null,
-      }
+      const feature = makeObservationFeature(observation)
       const comma = first ? '' : ','
       first = false
       yield b4a.from(`${comma}\n      ` + JSON.stringify(feature))
@@ -190,9 +176,7 @@ export class DataExporter {
     lang,
     seenAttachments = new Map(),
   } = {}) {
-    yield b4a.from(`{
-  "type": "FeatureCollection",
-  "features": [
+    yield b4a.from(`{"type": "FeatureCollection","features": [
 `)
 
     const seenObservations = new Set()
@@ -219,10 +203,7 @@ export class DataExporter {
       })
     }
 
-    yield b4a.from(`
-  ]
-}
-`)
+    yield b4a.from(`]}`)
   }
 
   /**
@@ -469,4 +450,58 @@ export class DataExporter {
       throw new GeoJSONExportError({ cause: e })
     }
   }
+}
+
+/**
+ * @param {Observation} observation
+ * @return {ObservationFeature}
+ */
+export function makeObservationFeature(observation) {
+  const { lat, lon, docId } = observation
+
+  const metadataCoords = observation.metadata?.position?.coords
+  const altitude = metadataCoords?.altitude
+
+  /** @type {[number, number] | [number, number, number] | null} */
+  let coordinates = null
+
+  if (typeof lat === 'number' && typeof lon === 'number') {
+    coordinates =
+      typeof altitude === 'number' ? [lon, lat, altitude] : [lon, lat]
+  } else {
+    if (
+      typeof metadataCoords?.latitude === 'number' &&
+      typeof metadataCoords?.longitude === 'number'
+    ) {
+      coordinates =
+        typeof altitude === 'number'
+          ? [metadataCoords.longitude, metadataCoords.latitude, altitude]
+          : [metadataCoords.longitude, metadataCoords.latitude]
+    }
+  }
+
+  /** @type {ObservationFeatureProperties} */
+  const properties = {
+    $id: docId,
+    $createdAt: observation.createdAt,
+  }
+
+  if (observation.presetRef) {
+    properties.$categoryId = observation.presetRef.docId
+  }
+
+  for (const [key, value] of Object.entries(observation.tags)) {
+    if (value === null) continue
+    properties[key] = value.toString()
+  }
+
+  /** @type {ObservationFeature} */
+  const feature = {
+    type: 'Feature',
+    properties,
+    $comapeo: observation,
+    geometry: coordinates ? { type: 'Point', coordinates } : null,
+  }
+
+  return feature
 }
