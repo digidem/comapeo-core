@@ -12,7 +12,10 @@ import { Logger } from './logger.js'
 import ensureError from 'ensure-error'
 
 /** @import { Observation, Track } from '@comapeo/schema' */
-/** @import { Attachment, BlobId, ObservationDataType, TrackDataType } from './types.js' */
+/** @import { Attachment, BlobId, DeviceInfoDataType, ObservationDataType, PresetDataType, TrackDataType } from './types.js' */
+/** @import {Feature, Point, LineString} from 'geojson'*/
+
+/** @import {DerivedDocFields} from './datatype/index.js' */
 
 /** @typedef {Map<string, Attachment>} SeenAttachments */
 
@@ -34,6 +37,8 @@ import ensureError from 'ensure-error'
  * @typedef {object} DataExporterDependencies
  * @prop {ObservationDataType} observations DataType for observations
  * @prop {TrackDataType} tracks DataType for tracks
+ * @prop {PresetDataType} presets DataType for presets (categories)
+ * @prop {DeviceInfoDataType} deviceInfo DataType for device info (author names)
  * @prop {() => Promise<string | undefined>} getProjectName Async function to get the project name
  * @prop {import('./blob-store/index.js').BlobStore} blobStore BlobStore instance for attachment access
  * @prop {Logger} logger Logger instance
@@ -43,15 +48,19 @@ import ensureError from 'ensure-error'
  * @typedef {object} FeatureKnownFields
  * @prop {string} $id
  * @prop {string} $createdAt
+ * @prop {string} $updatedAt
  * @prop {string} [$categoryId]
+ * @prop {string} [$category]
+ * @prop {string} [$authorId]
+ * @prop {string} [$author]
  */
 
 /**
  * @typedef {Record<string, string | null> & FeatureKnownFields} FeatureProperties
  */
 
-/** @typedef {import('geojson').Feature<import('geojson').Point | null> & {properties: FeatureProperties, $comapeo: Observation}} ObservationFeature */
-/** @typedef {import('geojson').Feature<import('geojson').LineString | null> & {properties: FeatureProperties, $comapeo: Track}} TrackFeature */
+/** @typedef {Feature<Point | null> & {properties: FeatureProperties, $comapeo: Observation}} ObservationFeature */
+/** @typedef {Feature<LineString | null> & {properties: FeatureProperties & {$observations?: string}, $comapeo: Track}} TrackFeature */
 
 /** @type {import('./types.js').BlobId['variant'][]} */
 const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
@@ -61,6 +70,10 @@ export class DataExporter {
   #observations
   /** @type {TrackDataType} */
   #tracks
+  /** @type {PresetDataType} */
+  #presets
+  /** @type {DeviceInfoDataType} */
+  #deviceInfo
   /** @type {() => Promise<string | undefined>} */
   #getProjectName
   /** @type {import('./blob-store/index.js').BlobStore} */
@@ -69,18 +82,56 @@ export class DataExporter {
   #l
 
   /**
+   * Resolve a preset (category) name from its docId.
+   * @param {string} presetDocId
+   * @returns {Promise<string | undefined>} The preset name, or undefined if not found.
+   */
+  async #getPresetName(presetDocId) {
+    try {
+      const preset = await this.#presets.getByDocId(presetDocId)
+      return preset.name || undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  /**
+   * Resolve a device name from a device ID.
+   * @param {string} deviceId
+   * @returns {Promise<string | undefined>} The device name, or undefined if not found.
+   */
+  async #getDeviceName(deviceId) {
+    try {
+      const deviceInfo = await this.#deviceInfo.getByDocId(deviceId)
+      return deviceInfo.name || undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  /**
    * @param {DataExporterDependencies} deps
    */
-  constructor({ observations, tracks, getProjectName, blobStore, logger }) {
+  constructor({
+    observations,
+    tracks,
+    presets,
+    deviceInfo,
+    getProjectName,
+    blobStore,
+    logger,
+  }) {
     this.#observations = observations
     this.#tracks = tracks
+    this.#presets = presets
+    this.#deviceInfo = deviceInfo
     this.#getProjectName = getProjectName
     this.#blobStore = blobStore
     this.#l = Logger.create('dataExporter', logger)
   }
 
   /**
-   * @param {Iterable<Observation>} observations
+   * @param {Iterable<Observation & DerivedDocFields>} observations
    * @param {Object} options
    * @param {Set<string>} [options.seenObservations]
    * @param {SeenAttachments} [options.seenAttachments]
@@ -108,7 +159,19 @@ export class DataExporter {
           return getAttachmentFileName(attachment, ref.blobId, ref.mimeType)
         })
       )
-      const feature = makeObservationFeature(observation, attachmentNames)
+
+      const categoryName = observation.presetRef
+        ? await this.#getPresetName(observation.presetRef.docId)
+        : undefined
+      const authorName = observation.createdBy
+        ? await this.#getDeviceName(observation.createdBy)
+        : undefined
+
+      const feature = makeObservationFeature(observation, {
+        attachmentNames,
+        categoryName,
+        authorName,
+      })
       const comma = first ? '' : ','
       first = false
       yield b4a.from(`${comma}\n      ` + JSON.stringify(feature))
@@ -116,7 +179,7 @@ export class DataExporter {
   }
 
   /**
-   * @param {Iterable<Track>} tracks
+   * @param {Iterable<Track & DerivedDocFields>} tracks
    * @param {Object} options
    * @param {Set<string>} [options.seenObservations]
    * @param {SeenAttachments} [options.seenAttachments]
@@ -137,7 +200,14 @@ export class DataExporter {
         )
       )
 
-      const feature = makeTrackFeature(track)
+      const categoryName = track.presetRef
+        ? await this.#getPresetName(track.presetRef.docId)
+        : undefined
+      const authorName = track.createdBy
+        ? await this.#getDeviceName(track.createdBy)
+        : undefined
+
+      const feature = makeTrackFeature(track, { categoryName, authorName })
       const comma = first ? '' : ','
       first = false
       yield b4a.from(`${comma}\n      ` + JSON.stringify(feature) + '\n')
@@ -457,11 +527,17 @@ export function getAttachmentFileName(attachment, blobId, mimeType) {
 }
 
 /**
- * @param {Observation} observation
- * @param {(string | null)[]} [attachmentNames]
+ * @param {Observation & DerivedDocFields} observation
+ * @param {object} [opts]
+ * @param {(string | null)[]} [opts.attachmentNames]
+ * @param {string} [opts.categoryName]
+ * @param {string} [opts.authorName]
  * @return {ObservationFeature}
  */
-export function makeObservationFeature(observation, attachmentNames) {
+export function makeObservationFeature(
+  observation,
+  { attachmentNames, authorName, categoryName } = {}
+) {
   const { lat, lon } = observation
 
   const metadataCoords = observation.metadata?.position?.coords
@@ -493,6 +569,14 @@ export function makeObservationFeature(observation, attachmentNames) {
     })
   }
 
+  if (categoryName) {
+    properties.$category = categoryName
+  }
+
+  if (authorName) {
+    properties.$author = authorName
+  }
+
   /** @type {ObservationFeature} */
   const feature = {
     type: 'Feature',
@@ -505,10 +589,13 @@ export function makeObservationFeature(observation, attachmentNames) {
 }
 
 /**
- * @param {Track} track
+ * @param {Track & DerivedDocFields} track
+ * @param {object} [opts]
+ * @param {string} [opts.categoryName]
+ * @param {string} [opts.authorName]
  * @returns {TrackFeature}
  */
-export function makeTrackFeature(track) {
+export function makeTrackFeature(track, { authorName, categoryName } = {}) {
   /** @type {([number, number] | [number, number, number])[]} */
   const coordinates = track.locations.map(
     ({ coords: { longitude, latitude, altitude } }) =>
@@ -526,6 +613,14 @@ export function makeTrackFeature(track) {
       .join(',')
   }
 
+  if (categoryName) {
+    properties.$category = categoryName
+  }
+
+  if (authorName) {
+    properties.$author = authorName
+  }
+
   return {
     type: 'Feature',
     $comapeo: track,
@@ -535,7 +630,7 @@ export function makeTrackFeature(track) {
 }
 
 /**
- * @param {Track|Observation} doc
+ * @param {(Track|Observation)  & DerivedDocFields} doc
  * @returns {FeatureProperties}
  */
 function extractFeatureProperties(doc) {
@@ -550,6 +645,10 @@ function extractFeatureProperties(doc) {
 
   if (doc.presetRef) {
     properties.$categoryId = doc.presetRef.docId
+  }
+
+  if (doc.createdBy) {
+    properties.$authorId = doc.createdBy
   }
 
   for (const [key, value] of Object.entries(doc.tags)) {

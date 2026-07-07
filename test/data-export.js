@@ -93,15 +93,55 @@ test('makeObservationFeature serializes array tags as CSV', () => {
 test('makeObservationFeature adds attachment file names', () => {
   const observation = makeObservation()
 
-  const feature = makeObservationFeature(observation, [
-    'photo_original.jpg',
-    null,
-    'drawing_preview.png',
-  ])
+  const feature = makeObservationFeature(observation, {
+    attachmentNames: ['photo_original.jpg', null, 'drawing_preview.png'],
+  })
 
   assert.equal(feature.properties.attachment_1, 'photo_original.jpg')
   assert.equal(feature.properties.attachment_2, null)
   assert.equal(feature.properties.attachment_3, 'drawing_preview.png')
+})
+
+test('makeObservationFeature adds $category from categoryName', () => {
+  const observation = makeObservation({
+    presetRef: { docId: 'cat-a', versionId: 'v-1' },
+  })
+
+  const feature = makeObservationFeature(observation, {
+    categoryName: 'Trees',
+  })
+
+  assert.equal(feature.properties.$categoryId, 'cat-a')
+  assert.equal(feature.properties.$category, 'Trees')
+})
+
+test('makeObservationFeature adds $author from authorName', () => {
+  const observation = makeObservation({ createdBy: 'device-abc' })
+
+  const feature = makeObservationFeature(observation, {
+    authorName: 'Alice',
+  })
+
+  assert.equal(feature.properties.$authorId, 'device-abc')
+  assert.equal(feature.properties.$author, 'Alice')
+})
+
+test('makeObservationFeature omits $category when categoryName not provided', () => {
+  const observation = makeObservation({
+    presetRef: { docId: 'cat-a', versionId: 'v-1' },
+  })
+
+  const feature = makeObservationFeature(observation)
+  assert.equal(feature.properties.$categoryId, 'cat-a')
+  assert.equal(feature.properties.$category, undefined)
+})
+
+test('makeObservationFeature omits $author when authorName not provided', () => {
+  const observation = makeObservation({ createdBy: 'device-abc' })
+
+  const feature = makeObservationFeature(observation)
+  assert.equal(feature.properties.$authorId, 'device-abc')
+  assert.equal(feature.properties.$author, undefined)
 })
 
 test('makeObservationFeature skips attachments when not provided', () => {
@@ -156,6 +196,52 @@ test('makeTrackFeature returns correct shape', () => {
   assert.equal(feature.geometry?.type, 'LineString')
   assert.deepStrictEqual(feature.geometry?.coordinates[0], [20.3, 10.5, 100])
   assert.deepStrictEqual(feature.geometry?.coordinates[1], [21.0, 11.0])
+})
+
+test('makeTrackFeature adds $category from categoryName', () => {
+  const track = makeTrack({
+    locations: [{ coords: { latitude: 0, longitude: 0 } }],
+    presetRef: { docId: 'cat-x', versionId: 'v-1' },
+  })
+
+  const feature = makeTrackFeature(track, { categoryName: 'Trails' })
+
+  assert.equal(feature.properties.$categoryId, 'cat-x')
+  assert.equal(feature.properties.$category, 'Trails')
+})
+
+test('makeTrackFeature adds $author from authorName', () => {
+  const track = makeTrack({
+    locations: [{ coords: { latitude: 0, longitude: 0 } }],
+    createdBy: 'device-xyz',
+  })
+
+  const feature = makeTrackFeature(track, { authorName: 'Bob' })
+
+  assert.equal(feature.properties.$authorId, 'device-xyz')
+  assert.equal(feature.properties.$author, 'Bob')
+})
+
+test('makeTrackFeature omits $category when categoryName not provided', () => {
+  const track = makeTrack({
+    locations: [{ coords: { latitude: 0, longitude: 0 } }],
+    presetRef: { docId: 'cat-x', versionId: 'v-1' },
+  })
+
+  const feature = makeTrackFeature(track)
+  assert.equal(feature.properties.$categoryId, 'cat-x')
+  assert.equal(feature.properties.$category, undefined)
+})
+
+test('makeTrackFeature omits $author when authorName not provided', () => {
+  const track = makeTrack({
+    locations: [{ coords: { latitude: 0, longitude: 0 } }],
+    createdBy: 'device-xyz',
+  })
+
+  const feature = makeTrackFeature(track)
+  assert.equal(feature.properties.$authorId, 'device-xyz')
+  assert.equal(feature.properties.$author, undefined)
 })
 
 test('makeTrackFeature handles missing presetRef', () => {

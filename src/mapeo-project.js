@@ -490,6 +490,8 @@ export class MapeoProject extends ReadyResource {
     this.#dataExporter = new DataExporter({
       observations: this.#dataTypes.observation,
       tracks: this.#dataTypes.track,
+      presets: this.#dataTypes.preset,
+      deviceInfo: this.#dataTypes.deviceInfo,
       getProjectName: this.#getProjectName.bind(this),
       blobStore: this.#blobStore,
       logger: this.#l,
