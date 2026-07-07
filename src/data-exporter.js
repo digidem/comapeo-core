@@ -321,33 +321,19 @@ export class DataExporter {
   }
 
   /**
+   * @param {string} ext
    * @param {boolean} observations
    * @param {boolean} tracks
    * @returns {Promise<string>}
    */
-  async #geoJSONFileName(observations, tracks) {
+  async #exportFileName(ext, observations, tracks) {
     let exportType = ''
     if (observations) exportType += 'Obsvns'
     if (tracks) {
       if (observations) exportType += '_'
       exportType += 'Tracks'
     }
-    return (await this.#exportPrefix(exportType)) + '.geojson'
-  }
-
-  /**
-   * @param {boolean} observations
-   * @param {boolean} tracks
-   * @returns {Promise<string>}
-   */
-  async #zipFileName(observations, tracks) {
-    let exportType = ''
-    if (observations) exportType += 'Obsvns'
-    if (tracks) {
-      if (observations) exportType += '_'
-      exportType += 'Tracks'
-    }
-    return (await this.#exportPrefix(exportType)) + '.zip'
+    return (await this.#exportPrefix(exportType)) + ext
   }
 
   /**
@@ -360,7 +346,11 @@ export class DataExporter {
     exportFolder,
     { observations = true, tracks = true, lang } = {}
   ) {
-    const fileName = await this.#geoJSONFileName(observations, tracks)
+    const fileName = await this.#exportFileName(
+      '.geojson',
+      observations,
+      tracks
+    )
     const filePath = path.join(exportFolder, fileName)
     const source = this.#exportGeoJSONStream({ observations, tracks, lang })
     const sink = fs.createWriteStream(filePath)
@@ -422,7 +412,11 @@ export class DataExporter {
     archive,
     { observations = true, tracks = true, attachments = true, lang } = {}
   ) {
-    const geoJSONFileName = await this.#geoJSONFileName(observations, tracks)
+    const geoJSONFileName = await this.#exportFileName(
+      '.geojson',
+      observations,
+      tracks
+    )
     const seenAttachments = new Map()
     const geoJSONStream = this.#exportGeoJSONStream({
       observations,
@@ -506,7 +500,7 @@ export class DataExporter {
     exportFolder,
     { observations = true, tracks = true, attachments = true, lang } = {}
   ) {
-    const fileName = await this.#zipFileName(observations, tracks)
+    const fileName = await this.#exportFileName('.zip', observations, tracks)
     const filePath = path.join(exportFolder, fileName)
     const source = this.#exportZipStream({
       observations,
