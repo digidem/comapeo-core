@@ -53,6 +53,8 @@ import ensureError from 'ensure-error'
  * @prop {string} [$category]
  * @prop {string} [$authorId]
  * @prop {string} [$author]
+ * @prop {string} [$updateAuthorId]
+ * @prop {string} [$updateAuthor]
  */
 
 /**
@@ -166,11 +168,15 @@ export class DataExporter {
       const authorName = observation.createdBy
         ? await this.#getDeviceName(observation.createdBy)
         : undefined
+      const updateAuthorName = observation.updatedBy
+        ? await this.#getDeviceName(observation.updatedBy)
+        : undefined
 
       const feature = makeObservationFeature(observation, {
         attachmentNames,
         categoryName,
         authorName,
+        updateAuthorName,
       })
       const comma = first ? '' : ','
       first = false
@@ -206,8 +212,15 @@ export class DataExporter {
       const authorName = track.createdBy
         ? await this.#getDeviceName(track.createdBy)
         : undefined
+      const updateAuthorName = track.updatedBy
+        ? await this.#getDeviceName(track.updatedBy)
+        : undefined
 
-      const feature = makeTrackFeature(track, { categoryName, authorName })
+      const feature = makeTrackFeature(track, {
+        categoryName,
+        authorName,
+        updateAuthorName,
+      })
       const comma = first ? '' : ','
       first = false
       yield b4a.from(`${comma}\n      ` + JSON.stringify(feature) + '\n')
@@ -532,11 +545,12 @@ export function getAttachmentFileName(attachment, blobId, mimeType) {
  * @param {(string | null)[]} [opts.attachmentNames]
  * @param {string} [opts.categoryName]
  * @param {string} [opts.authorName]
+ * @param {string} [opts.updateAuthorName]
  * @return {ObservationFeature}
  */
 export function makeObservationFeature(
   observation,
-  { attachmentNames, authorName, categoryName } = {}
+  { attachmentNames, authorName, categoryName, updateAuthorName } = {}
 ) {
   const { lat, lon } = observation
 
@@ -577,6 +591,10 @@ export function makeObservationFeature(
     properties.$author = authorName
   }
 
+  if (updateAuthorName) {
+    properties.$updateAuthor = updateAuthorName
+  }
+
   /** @type {ObservationFeature} */
   const feature = {
     type: 'Feature',
@@ -593,9 +611,13 @@ export function makeObservationFeature(
  * @param {object} [opts]
  * @param {string} [opts.categoryName]
  * @param {string} [opts.authorName]
+ * @param {string} [opts.updateAuthorName]
  * @returns {TrackFeature}
  */
-export function makeTrackFeature(track, { authorName, categoryName } = {}) {
+export function makeTrackFeature(
+  track,
+  { authorName, categoryName, updateAuthorName } = {}
+) {
   /** @type {([number, number] | [number, number, number])[]} */
   const coordinates = track.locations.map(
     ({ coords: { longitude, latitude, altitude } }) =>
@@ -619,6 +641,10 @@ export function makeTrackFeature(track, { authorName, categoryName } = {}) {
 
   if (authorName) {
     properties.$author = authorName
+  }
+
+  if (updateAuthorName) {
+    properties.$updateAuthor = updateAuthorName
   }
 
   return {
@@ -649,6 +675,10 @@ function extractFeatureProperties(doc) {
 
   if (doc.createdBy) {
     properties.$authorId = doc.createdBy
+  }
+
+  if (doc.updatedBy) {
+    properties.$updateAuthorId = doc.updatedBy
   }
 
   for (const [key, value] of Object.entries(doc.tags)) {

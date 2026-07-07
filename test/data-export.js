@@ -144,6 +144,25 @@ test('makeObservationFeature omits $author when authorName not provided', () => 
   assert.equal(feature.properties.$author, undefined)
 })
 
+test('makeObservationFeature adds $updateAuthor from updateAuthorName', () => {
+  const observation = makeObservation({ updatedBy: 'device-update' })
+
+  const feature = makeObservationFeature(observation, {
+    updateAuthorName: 'Carol',
+  })
+
+  assert.equal(feature.properties.$updateAuthorId, 'device-update')
+  assert.equal(feature.properties.$updateAuthor, 'Carol')
+})
+
+test('makeObservationFeature omits $updateAuthor when updateAuthorName not provided', () => {
+  const observation = makeObservation({ updatedBy: 'device-update' })
+
+  const feature = makeObservationFeature(observation)
+  assert.equal(feature.properties.$updateAuthorId, 'device-update')
+  assert.equal(feature.properties.$updateAuthor, undefined)
+})
+
 test('makeObservationFeature skips attachments when not provided', () => {
   const observation = makeObservation()
 
@@ -242,6 +261,29 @@ test('makeTrackFeature omits $author when authorName not provided', () => {
   const feature = makeTrackFeature(track)
   assert.equal(feature.properties.$authorId, 'device-xyz')
   assert.equal(feature.properties.$author, undefined)
+})
+
+test('makeTrackFeature adds $updateAuthor from updateAuthorName', () => {
+  const track = makeTrack({
+    locations: [{ coords: { latitude: 0, longitude: 0 } }],
+    updatedBy: 'device-update',
+  })
+
+  const feature = makeTrackFeature(track, { updateAuthorName: 'Carol' })
+
+  assert.equal(feature.properties.$updateAuthorId, 'device-update')
+  assert.equal(feature.properties.$updateAuthor, 'Carol')
+})
+
+test('makeTrackFeature omits $updateAuthor when updateAuthorName not provided', () => {
+  const track = makeTrack({
+    locations: [{ coords: { latitude: 0, longitude: 0 } }],
+    updatedBy: 'device-update',
+  })
+
+  const feature = makeTrackFeature(track)
+  assert.equal(feature.properties.$updateAuthorId, 'device-update')
+  assert.equal(feature.properties.$updateAuthor, undefined)
 })
 
 test('makeTrackFeature handles missing presetRef', () => {

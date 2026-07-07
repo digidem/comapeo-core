@@ -44,7 +44,13 @@ test('Project export includes $category and $author names', async (t) => {
     versionId: preset.versionId,
   }
   observationValue.attachments = []
-  await project.observation.create(observationValue)
+  const observation = await project.observation.create(observationValue)
+
+  // Update the observation to set updatedBy
+  await project.observation.update(observation.versionId, {
+    ...observationValue,
+    tags: { ...observationValue.tags, updated: true },
+  })
 
   await temporaryDirectoryTask(async (dir) => {
     const geoJSONFile = await project.exportGeoJSONFile(dir)
@@ -74,6 +80,16 @@ test('Project export includes $category and $author names', async (t) => {
       'TestDevice',
       'author is device name'
     )
+    assert.equal(
+      feature.properties.$updateAuthorId,
+      manager.deviceId,
+      'updateAuthorId is device ID'
+    )
+    assert.equal(
+      feature.properties.$updateAuthor,
+      'TestDevice',
+      'updateAuthor is device name'
+    )
   })
 })
 
@@ -94,7 +110,13 @@ test('Project export track includes $category and $author names', async (t) => {
     versionId: preset.versionId,
   }
   trackValue.observationRefs = []
-  await project.track.create(trackValue)
+  const track = await project.track.create(trackValue)
+
+  // Update the track to set updatedBy
+  await project.track.update(track.versionId, {
+    ...trackValue,
+    tags: { ...trackValue.tags, updated: true },
+  })
 
   await temporaryDirectoryTask(async (dir) => {
     const geoJSONFile = await project.exportGeoJSONFile(dir, {
@@ -126,6 +148,16 @@ test('Project export track includes $category and $author names', async (t) => {
       feature.properties.$author,
       'HikerDevice',
       'author is device name'
+    )
+    assert.equal(
+      feature.properties.$updateAuthorId,
+      manager.deviceId,
+      'updateAuthorId is device ID'
+    )
+    assert.equal(
+      feature.properties.$updateAuthor,
+      'HikerDevice',
+      'updateAuthor is device name'
     )
   })
 })
