@@ -61,7 +61,11 @@ test('makeObservationFeature handles missing presetRef', () => {
 })
 
 test('makeObservationFeature handles null geometry', () => {
-  const observation = makeObservation({ lat: undefined, lon: undefined })
+  const observation = makeObservation({
+    lat: undefined,
+    lon: undefined,
+    metadata: undefined,
+  })
 
   const feature = makeObservationFeature(observation)
   assert.equal(feature.geometry, null)
