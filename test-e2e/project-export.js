@@ -17,7 +17,7 @@ import {
   waitForSync,
 } from './utils.js'
 
-/** @import { Readable } from 'streamx' */
+/** @import {TrackFeature, ObservationFeature} from '../src/data-exporter.js' */
 
 const DEFAULT_OBSERVATIONS = 2
 const DEFAULT_TRACKS = 2
@@ -349,10 +349,11 @@ test('Project export tracks and observations to zip stream', async (t) => {
       'Exported GeoJSON has expected number of features'
     )
 
-    /** @type {{ $comapeo: any, properties: Record<string, any> }[]} */
+    /** @type {(TrackFeature|ObservationFeature)[]} */
     const features = parsed.features
-    // TODO: remove $comapeo filter once tracks go through makeObservationFeature
-    const observationFeatures = features.filter((f) => f.$comapeo !== undefined)
+    const observationFeatures = features.filter(
+      (f) => f.geometry === null || f.geometry.type === 'Point'
+    )
     for (const feature of observationFeatures) {
       assert(
         feature.properties.attachment_1 !== null,
@@ -425,10 +426,11 @@ test('Sync project and export tracks and observations to zip stream', async (t) 
       'Exported GeoJSON has expected number of features'
     )
 
-    /** @type {{ $comapeo: any, properties: Record<string, any> }[]} */
+    /** @type {(TrackFeature|ObservationFeature)[]} */
     const features = parsed.features
-    // TODO: remove $comapeo filter once tracks go through makeObservationFeature
-    const observationFeatures = features.filter((f) => f.$comapeo !== undefined)
+    const observationFeatures = features.filter(
+      (f) => f.geometry === null || f.geometry.type === 'Point'
+    )
     for (const feature of observationFeatures) {
       assert(
         feature.properties.attachment_1 !== null,

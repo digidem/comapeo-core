@@ -62,7 +62,7 @@ import ensureError from 'ensure-error'
  */
 
 /** @typedef {Feature<Point | null> & {properties: FeatureProperties, $comapeo: Observation}} ObservationFeature */
-/** @typedef {Feature<LineString | null> & {properties: FeatureProperties & {$observations?: string}, $comapeo: Track}} TrackFeature */
+/** @typedef {Feature<LineString> & {properties: FeatureProperties & {$observations?: string}, $comapeo: Track}} TrackFeature */
 
 /** @type {import('./types.js').BlobId['variant'][]} */
 const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
