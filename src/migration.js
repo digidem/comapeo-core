@@ -220,6 +220,10 @@ export async function migrateStorage(
     }
   }
 
+  if (migratedSoFar !== totalCoresToMigrate) {
+    onProgress?.(totalCoresToMigrate, totalCoresToMigrate)
+  }
+
   return results
 }
 

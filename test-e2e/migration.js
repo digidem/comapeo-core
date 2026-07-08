@@ -612,10 +612,11 @@ test('onProgress callback reports core migration progress', async (t) => {
 
   // Each call should report incrementing progress
   for (let i = 0; i < progressCalls.length; i++) {
+    const expected = Math.min(i, progressCalls[i].totalCores)
     assert.equal(
       progressCalls[i].migratedSoFar,
-      i,
-      `Call ${i}: migratedSoFar should be ${i}`
+      expected,
+      `Call ${i}: migratedSoFar should be ${expected}`
     )
     assert.ok(progressCalls[i].totalCores > 0, 'totalCores should be positive')
   }
