@@ -8,7 +8,7 @@ export const MIGRATION_REASON_NEEDS_UPGRADE = 0
 export const MIGRATION_REASON_ALREADY_UPGRADED = 1
 export const MIGRATION_REASON_NO_SPACE = 2
 
-export const AVAILABLE_SPACE_MULTIPLIER = 1.05
+export const AVAILABLE_SPACE_MULTIPLIER = 1.5
 
 /** @typedef {MIGRATION_REASON_NEEDS_UPGRADE|MIGRATION_REASON_ALREADY_UPGRADED|MIGRATION_REASON_NO_SPACE} MigrationReason*/
 
@@ -243,7 +243,7 @@ export async function needsMigration(corestorePath) {
 
 /**
  * Checks if it makes sense to migrate. Are we already migrated? Do we have enough storage to migrate?
- * Available space needs to be at least 2.5x the largest core
+ * Available space needs to be at least 1.5x the largest core
  * @param {string} managerPath Folder where the MapeoManager stores its data
  * @param {number} availableStorage How much storage is available to migrate.
  * @returns {Promise<{shouldUpgrade:boolean, useFallback: boolean, reason: MigrationReason}>}
