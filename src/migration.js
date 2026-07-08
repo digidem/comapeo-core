@@ -22,9 +22,16 @@ export const AVAILABLE_SPACE_MULTIPLIER = 1.05
  * @returns {Promise<Array<string>>} - Array of project IDs
  */
 export async function listProjectsFromStorage(storagePath) {
-  const entries = await fsPromises.readdir(storagePath, {
-    withFileTypes: true,
-  })
+  let entries
+  try {
+    entries = await fsPromises.readdir(storagePath, {
+      withFileTypes: true,
+    })
+  } catch (err) {
+    // @ts-expect-error
+    if (err.code === 'ENOENT') return []
+    throw err
+  }
 
   const projectIds = []
   for (const entry of entries) {
