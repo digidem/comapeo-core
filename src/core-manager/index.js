@@ -320,7 +320,7 @@ export class CoreManager extends ReadyResource {
     // Otherwise this would only happen once we call core.download()
     core.on('peer-add', (/** @type {HypercorePeer} */ peer) => {
       if (core.length === 0) return
-      forceBitfieldExchange(peer)
+      forceBitfieldExchange(core, peer)
     })
 
     patchCoreReplicator(core)
@@ -354,7 +354,7 @@ export class CoreManager extends ReadyResource {
           // TODO: It would be more efficient (in terms of network traffic) to
           // send a want with start = length of previous want. Need to track
           // "last want length" sent by peer.
-          forceBitfieldExchange(peer)
+          forceBitfieldExchange(core, peer)
         }
       })
     }

@@ -49,8 +49,7 @@ test('getCreatorCore()', async (t) => {
   assert(cm.creatorCore.key.equals(projectKey))
 })
 
-// TODO: Need to account for remoteContiguousLength
-test.skip('eagerly updates remote bitfields', async (t) => {
+test('eagerly updates remote bitfields', async (t) => {
   // Replication progress relies on the peer.remoteBitfield to actually match
   // the bitfield of the peer. By default hypercore only updates the
   // remoteBitfield for the ranges of a hypercore that you try to download. We
@@ -80,7 +79,6 @@ test.skip('eagerly updates remote bitfields', async (t) => {
   await new Promise((res) => setTimeout(res, 200))
 
   assert.equal(cm2Core.length, cm1Core.length)
-
   {
     assert(cm1Core.core)
     // This is testing that the remote bitfield is a duplicate of the bitfield
