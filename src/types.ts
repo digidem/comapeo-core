@@ -11,8 +11,44 @@ import {
   MapeoDoc,
   MapeoValue,
   Observation,
+  Track,
+  Preset,
+  Field,
+  CoreOwnership,
+  Role,
+  DeviceInfo,
+  Icon,
+  Translation,
+  RemoteDetectionAlert,
+  ObservationValue,
+  TrackValue,
+  PresetValue,
+  FieldValue,
+  CoreOwnershipValue,
+  RoleValue,
+  DeviceInfoValue,
+  IconValue,
+  TranslationValue,
+  RemoteDetectionAlertValue,
+  ProjectSettings,
+  ProjectSettingsValue,
   decode,
 } from '@comapeo/schema'
+import type { DataType } from './datatype/index.js'
+import type { DataStore } from './datastore/index.js'
+import type {
+  observationTable,
+  trackTable,
+  presetTable,
+  fieldTable,
+  coreOwnershipTable,
+  roleTable,
+  deviceInfoTable,
+  iconTable,
+  translationTable,
+  remoteDetectionAlertTable,
+} from './schema/project.js'
+import type { projectSettingsTable } from './schema/client.js'
 import type BigSparseArray from 'big-sparse-array'
 import type Protomux from 'protomux'
 import type NoiseStream from '@hyperswarm/secret-stream'
@@ -160,3 +196,91 @@ export type StringToTaggedUnion<T extends string> = {
     type: K
   }
 }[T]
+
+export type ObservationDataType = DataType<
+  DataStore<'data'>,
+  typeof observationTable,
+  'observation',
+  Observation,
+  ObservationValue
+>
+
+export type TrackDataType = DataType<
+  DataStore<'data'>,
+  typeof trackTable,
+  'track',
+  Track,
+  TrackValue
+>
+
+export type RemoteDetectionAlertDataType = DataType<
+  DataStore<'data'>,
+  typeof remoteDetectionAlertTable,
+  'remoteDetectionAlert',
+  RemoteDetectionAlert,
+  RemoteDetectionAlertValue
+>
+
+export type PresetDataType = DataType<
+  DataStore<'config'>,
+  typeof presetTable,
+  'preset',
+  Preset,
+  PresetValue
+>
+
+export type FieldDataType = DataType<
+  DataStore<'config'>,
+  typeof fieldTable,
+  'field',
+  Field,
+  FieldValue
+>
+
+export type ProjectSettingsDataType = DataType<
+  DataStore<'config'>,
+  typeof projectSettingsTable,
+  'projectSettings',
+  ProjectSettings,
+  ProjectSettingsValue
+>
+
+export type CoreOwnershipDataType = DataType<
+  DataStore<'auth'>,
+  typeof coreOwnershipTable,
+  'coreOwnership',
+  CoreOwnership,
+  CoreOwnershipValue
+>
+
+export type RoleDataType = DataType<
+  DataStore<'auth'>,
+  typeof roleTable,
+  'role',
+  Role,
+  RoleValue
+>
+
+export type DeviceInfoDataType = DataType<
+  DataStore<'config'>,
+  typeof deviceInfoTable,
+  'deviceInfo',
+  DeviceInfo,
+  DeviceInfoValue
+>
+
+export type IconDataType = DataType<
+  DataStore<'config'>,
+  typeof iconTable,
+  'icon',
+  Icon,
+  IconValue
+>
+
+export type TranslationDataType = DataType<
+  DataStore<'config'>,
+  typeof translationTable,
+  'translation',
+  Translation,
+  TranslationValue
+>
