@@ -15,6 +15,132 @@ import pTimeout from 'p-timeout'
 import { EventEmitter } from 'node:events'
 import { createCore } from '../helpers/create-core.js'
 
+test('want() and wantWord() agree at contiguousLength boundary', () => {
+  // Peer has blocks 0..4 (contiguous), so contiguousLength = 5
+  // Block 5 is the first block NOT in the contiguous range - should be wanted.
+  const peer = new PeerState({ wantsEverything: true })
+  peer.contiguousLength = 5
+
+  // Block at index 4 is inside the contiguous range - not wanted
+  assert.strictEqual(
+    peer.want(4),
+    false,
+    'want(4) should be false (in contiguous range)'
+  )
+  // Block at index 5 is the first block OUTSIDE the contiguous range - wanted
+  assert.strictEqual(
+    peer.want(5),
+    true,
+    'want(5) should be true (first block after contiguous range)'
+  )
+  // Block at index 6 is also outside - wanted
+  assert.strictEqual(peer.want(6), true, 'want(6) should be true')
+
+  // wantWord(0) covers blocks 0-31. Block 5 is bit position 5 in this word.
+  const wantWord0 = peer.wantWord(0)
+  // bit 4 (block 4) should be 0 (in contiguous range)
+  assert.strictEqual(
+    (wantWord0 >> 4) & 1,
+    0,
+    'bit 4 should not be set (in contiguous range)'
+  )
+  // bit 5 (block 5) should be 1 (first block after contiguous range)
+  assert.strictEqual(
+    (wantWord0 >> 5) & 1,
+    1,
+    'bit 5 should be set (first block after contiguous range)'
+  )
+  // bit 6 (block 6) should be 1
+  assert.strictEqual((wantWord0 >> 6) & 1, 1, 'bit 6 should be set')
+
+  // CRITICAL: want(index) must agree with the corresponding bit in wantWord(index)
+  for (let i = 0; i < 32; i++) {
+    const wantResult = peer.want(i)
+    const wantWordBit = (wantWord0 >> i) & 1
+    assert.strictEqual(
+      wantResult === true,
+      wantWordBit === 1,
+      `want(${i})=${wantResult} disagrees with wantWord(0) bit ${i}=${wantWordBit}`
+    )
+  }
+})
+
+test('want() and wantWord() agree when contiguousLength is a multiple of 32', () => {
+  // When contiguousLength = 32, blocks 0-31 are contiguous.
+  const peer = new PeerState({ wantsEverything: true })
+  peer.contiguousLength = 32
+
+  assert.strictEqual(
+    peer.want(31),
+    false,
+    'want(31) should be false (last block in contiguous range)'
+  )
+  assert.strictEqual(
+    peer.want(32),
+    true,
+    'want(32) should be true (first block after contiguous range)'
+  )
+
+  assert.strictEqual(
+    peer.wantWord(0),
+    0,
+    'wantWord(0) should be 0 (all in contiguous range)'
+  )
+  const WANT_FULL = 2 ** 32 - 1
+  assert.strictEqual(
+    peer.wantWord(32),
+    WANT_FULL,
+    'wantWord(32) should be WANT_FULL'
+  )
+
+  // Verify consistency at the boundary
+  const wantWord0 = peer.wantWord(0)
+  for (let i = 0; i < 32; i++) {
+    const wantResult = peer.want(i)
+    const wantWordBit = (wantWord0 >> i) & 1
+    assert.strictEqual(
+      wantResult === true,
+      wantWordBit === 1,
+      `want(${i})=${wantResult} disagrees with wantWord(0) bit ${i}=${wantWordBit}`
+    )
+  }
+})
+
+test('deriveState correctly counts want at contiguousLength boundary', () => {
+  const localState = new PeerState({ wantsEverything: true })
+  localState.contiguousLength = 0
+  const localHaveBitfield = new RemoteBitfield()
+  localHaveBitfield.set(5, true)
+  localHaveBitfield.set(6, true)
+  localHaveBitfield.set(7, true)
+  localState.setHavesBitfield(localHaveBitfield)
+
+  const remoteState = new PeerState({ wantsEverything: true })
+  remoteState.contiguousLength = 5 // has blocks 0..4 contiguously
+
+  const state = {
+    length: 8,
+    localState,
+    remoteStates: new Map([['peer0', remoteState]]),
+    peerSyncControllers: new Map(),
+    namespace: /** @type {const} */ ('auth'),
+  }
+
+  const result = deriveState(state)
+
+  assert.strictEqual(
+    result.remoteStates['peer0'].want,
+    3,
+    'remote peer should want 3 blocks from local (5,6,7 - all outside contiguous range)'
+  )
+
+  assert.strictEqual(
+    result.localState.wanted,
+    3,
+    'local should have 3 blocks wanted by peers'
+  )
+})
+
 /**
  * @type {Array<{
  *   message: string,

@@ -442,7 +442,7 @@ export class PeerState {
    * @param {number} index
    */
   want(index) {
-    return this.#wants ? this.#wants.get(index) : index > this.contiguousLength
+    return this.#wants ? this.#wants.get(index) : index >= this.contiguousLength
   }
   /**
    * Return the "wants" for the 32 blocks from `index`, as a 32-bit integer
