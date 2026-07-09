@@ -145,14 +145,13 @@ export function makeDefaultCorestoreStorage(path) {
 }
 
 /**
- * Run a migration dry-run for all projects in a MapeoManager storage folder.
+ * Run the hypercore-storage migration (v0 -> v1) for all projects in a MapeoManager storage folder.
  *
- * This performs a dry-run of the hypercore-storage migration (v0 -> v1) for each
- * project's corestore. In dry-run mode, the migration analyzes what changes would
- * be made without actually modifying the storage.
+ * This migrates each project's corestore from the old flat file format (v0) to the
+ * new RocksDB-based format (v1).
  *
  * @param {string} managerPath - Path to the MapeoManager storage folder
- * @param {(doneSoFar: number, totalCores: number) => void} [onProgress] - Callcback called after each core migrates
+ * @param {(doneSoFar: number, totalCores: number) => void} [onProgress] - Callback called after each core migrates
  * @returns {Promise<Record<string, { migrated: boolean, error?: Error }>>}
  *         Map of project IDs to migration status
  */
@@ -212,7 +211,6 @@ export async function migrateStorage(
         await storage.close()
       }
     } catch (error) {
-      console.log(error)
       results[projectId] = {
         migrated: false,
         error: ensureKnownError(error),

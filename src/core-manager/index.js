@@ -71,7 +71,7 @@ export class CoreManager extends ReadyResource {
    * @param {Buffer} options.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
-   * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
+   * @param {string} options.storage Folder to store all hypercore data
    * @param {boolean} [options.autoDownload=true] Immediately start downloading cores - should only be set to false for tests
    * @param {Logger} [options.logger]
    */
