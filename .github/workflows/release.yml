@@ -29,7 +29,7 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
-      - uses: nearform-actions/optic-release-automation-action@v4
+      - uses: nearform-actions/optic-release-automation-action@v4.11.2
         with:
           commit-message: 'Release {version}'
           sync-semver-tags: false
