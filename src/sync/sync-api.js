@@ -1,318 +1,225 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import WebSocket from 'ws'
-import { SyncState } from './sync-state.js'
-import { PeerSyncController } from './peer-sync-controller.js'
 import { Logger } from '../logger.js'
-import {
-  DATA_NAMESPACES,
-  NAMESPACES,
-  PRESYNC_NAMESPACES,
-} from '../constants.js'
-import { keyToId, noop } from '../utils.js'
-import { getOwn } from '../lib/get-own.js'
+import { DATA_SYNC_NAMESPACES } from '../constants.js'
+import { noop } from '../utils.js'
 import { wsCoreReplicator } from '../lib/ws-core-replicator.js'
-import { NO_ROLE_ID } from '../roles.js'
-import { AutoStopTimeoutError, ExhaustivenessError } from '../errors.js'
-/** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
+import { AutoStopTimeoutError } from '../errors.js'
+import { PeerManager } from './peer-manager.js'
+import { SyncProgress } from './sync-progress.js'
+import {
+  computeSyncMode,
+  deriveSyncApiState,
+  isSyncComplete,
+  isTargetCompleteWithDevice,
+} from './sync-rules.js'
 /** @import * as http from 'node:http' */
-/** @import { CoreOwnership } from '../core-ownership.js' */
-/** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
-/** @import { BlobFilter, ReplicationStream } from '../types.js' */
+/** @import { ReplicationStream } from '../types.js' */
+/** @import { SyncApiState, SyncMode, SyncTarget } from './sync-rules.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
-export const kSyncState = Symbol('sync state')
-export const kRequestFullStop = Symbol('background')
-export const kRescindFullStopRequest = Symbol('foreground')
+export const kSyncProgress = Symbol('sync progress')
+export const kPeerManager = Symbol('peer manager')
+export const kRequestFullStop = Symbol('request full stop')
+export const kRescindFullStopRequest = Symbol('rescind full stop request')
 export const kWaitForInitialSyncWithPeer = Symbol(
   'wait for initial sync with peer'
 )
 
-/**
- * @typedef {'initial' | 'full'} SyncType
- */
-
-/**
- * @typedef {'none' | 'presync' | 'all'} SyncEnabledState
- */
-
-/**
- * @internal
- * @typedef {object} BlobWantRange
- * @property {number} start
- * @property {number} length
- * @property {string} blobCoreId
- * @property {string} peerId
- */
-
-/**
- * @internal
- * @typedef {object} RemoteDeviceNamespaceGroupSyncState
- * @property {boolean} isSyncEnabled do we want to sync this namespace group?
- * @property {number} want number of blocks this device wants from us
- * @property {number} wanted number of blocks we want from this device
- */
-
-/**
- * @internal
- * @typedef {object} RemoteDeviceSyncState state of sync for a remote peer
- * @property {RemoteDeviceNamespaceGroupSyncState} initial state of initial namespaces (auth, config, and blob index)
- * @property {RemoteDeviceNamespaceGroupSyncState} data state of data namespaces (data and blob)
- */
-
-/**
- * @typedef {object} State
- * @property {{ isSyncEnabled: boolean }} initial state of initial namespace syncing (auth, config, and blob index) for local device
- * @property {{ isSyncEnabled: boolean }} data state of data namespace syncing (data and blob) for local device
- * @property {Record<string, RemoteDeviceSyncState>} remoteDeviceSyncState sync states for remote peers
- */
+/** @typedef {SyncApiState} State */
 
 /**
  * @typedef {object} SyncEvents
- * @property {(syncState: State) => void} sync-state
+ * @property {(syncState: SyncApiState) => void} sync-state
  */
 
 /**
+ * Public sync API for a project, and the owner of the sync subsystem's
+ * lifecycle. Holds the device-wide sync *intent* (has data sync been started?
+ * is the app backgrounded?), turns it into a {@link SyncMode} via the pure
+ * rules in `sync-rules.js`, and applies that mode to the connected peers
+ * (owned by {@link PeerManager}). Sync progress is observed by
+ * {@link SyncProgress}; everything reported or awaited here is derived from
+ * its snapshots with the shared predicates.
+ *
  * @extends {TypedEmitter<SyncEvents>}
  */
 export class SyncApi extends TypedEmitter {
-  #coreManager
-  #coreOwnership
-  #roles
-  /** @type {Map<import('protomux'), PeerSyncController>} */
-  #peerSyncControllers = new Map()
-  /** @type {Map<string, PeerSyncController>} */
-  #pscByPeerId = new Map()
-  #wantsToSyncData = false
-  #wantsToConnectToServers = false
-  #hasRequestedFullStop = false
-  /** @type {SyncEnabledState} */
-  #previousSyncEnabledState = 'none'
+  #wantsDataSync = false
+  #isBackgrounded = false
+  /** @type {SyncMode} */
+  #syncMode = 'initial'
   /** @type {null | number} */
   #previousDataHave = null
   /** @type {null | number} */
   #autostopDataSyncAfter = null
   /** @type {null | ReturnType<typeof setTimeout>} */
   #autostopDataSyncTimeout = null
-  /** @type {Map<import('protomux'), Set<Buffer>>} */
-  #pendingDiscoveryKeys = new Map()
-  #l
-  #getServerWebsocketUrls
-  #getReplicationStream
+  #wantsToConnectToServers = false
   /** @type {Map<string, WebSocket>} */
   #serverWebsockets = new Map()
+  #isRecomputing = false
+  #recomputeQueued = false
+  #isClosed = false
+  /** @type {PeerManager} */
+  #peerManager
+  /** @type {SyncProgress} */
+  #syncProgress
+  #getServerWebsocketUrls
+  #getReplicationStream
   #makeWebsocket
+  #l
 
   /**
    * @param {object} opts
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
-   * @param {CoreOwnership} opts.coreOwnership
+   * @param {import('../core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('../roles.js').Roles} opts.roles
+   * @param {import('../blob-store/index.js').BlobStore} opts.blobStore
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => Promise<Iterable<string>>} opts.getServerWebsocketUrls
    * @param {() => ReplicationStream} opts.getReplicationStream
-   * @param {import('../blob-store/index.js').BlobStore} opts.blobStore
    * @param {number} [opts.throttleMs]
    * @param {Logger} [opts.logger]
    */
   constructor({
     coreManager,
-    throttleMs = 200,
+    coreOwnership,
     roles,
+    blobStore,
     makeWebsocket = (url) => new WebSocket(url),
     getServerWebsocketUrls,
     getReplicationStream,
+    throttleMs = 200,
     logger,
-    coreOwnership,
-    blobStore,
   }) {
     super()
     this.#l = Logger.create('syncApi', logger)
-    this.#coreManager = coreManager
-    this.#coreOwnership = coreOwnership
-    this.#roles = roles
     this.#makeWebsocket = makeWebsocket
     this.#getServerWebsocketUrls = getServerWebsocketUrls
     this.#getReplicationStream = getReplicationStream
-    this[kSyncState] = new SyncState({
+
+    this.#syncProgress = new SyncProgress({
       coreManager,
-      throttleMs,
-      peerSyncControllers: this.#pscByPeerId,
       blobStore,
+      isPeerSyncAllowed: (deviceId, namespace) =>
+        this.#peerManager.isPeerSyncAllowed(deviceId, namespace),
+      throttleMs,
       logger,
     })
-    this[kSyncState].setMaxListeners(0)
-    this[kSyncState].on('state', (namespaceSyncState) => {
-      this.#updateState(namespaceSyncState)
+    this.#syncProgress.setMaxListeners(0)
+
+    this.#peerManager = new PeerManager({
+      coreManager,
+      roles,
+      coreOwnership,
+      getSnapshot: () => this.#syncProgress.getSnapshot(),
+      logger,
     })
 
-    this.#coreManager.creatorCore.on('peer-add', this.#handlePeerAdd)
-    this.#coreManager.creatorCore.on('peer-remove', this.#handlePeerDisconnect)
+    this.#peerManager.on('peer-registered', (deviceId) => {
+      this.#syncProgress.addPeer(deviceId)
+    })
+    this.#peerManager.on('peer-unregistered', (deviceId) => {
+      this.#syncProgress.removePeer(deviceId)
+    })
+    this.#peerManager.on('change', () => {
+      this.#recomputeAndEmit()
+    })
+    this.#syncProgress.on('update', () => {
+      this.#peerManager.onSnapshotUpdate()
+      this.#recomputeAndEmit()
+    })
+  }
 
-    roles.on('update', this.#handleRoleUpdate)
-    coreOwnership.on('update', this.#handleCoreOwnershipUpdate)
+  /** Used by tests */
+  get [kSyncProgress]() {
+    return this.#syncProgress
+  }
 
-    this.#coreOwnership
-      .getAll()
-      .then((coreOwnerships) =>
-        Promise.allSettled(
-          coreOwnerships.map(async (coreOwnership) => {
-            if (coreOwnership.docId === this.#coreManager.deviceId) return
-            await this.#validateRoleAndAddCoresForPeer(coreOwnership)
-          })
-        )
-      )
-      .catch(noop)
+  /** Used by tests */
+  get [kPeerManager]() {
+    return this.#peerManager
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */
   [kHandleDiscoveryKey](discoveryKey, protomux) {
-    const peerSyncController = this.#peerSyncControllers.get(protomux)
-    if (peerSyncController) {
-      peerSyncController.handleDiscoveryKey(discoveryKey)
-      return
-    }
-    // We will reach here if we are not part of the project, so we can ignore
-    // these keys. However it's also possible to reach here when we are part of
-    // a project, but the creator core `peer-add` event has not yet fired, so we
-    // queue this to be handled in `#handlePeerAdd`
-    const peerQueue = this.#pendingDiscoveryKeys.get(protomux) || new Set()
-    peerQueue.add(discoveryKey)
-    this.#pendingDiscoveryKeys.set(protomux, peerQueue)
-
-    // If we _are_ part of the project, the `peer-add` should happen very soon
-    // after we get a discovery-key event, so we cleanup our queue to avoid
-    // memory leaks for any discovery keys that have not been handled.
-    setTimeout(() => {
-      const peerQueue = this.#pendingDiscoveryKeys.get(protomux)
-      if (!peerQueue) return
-      peerQueue.delete(discoveryKey)
-      if (peerQueue.size === 0) {
-        this.#pendingDiscoveryKeys.delete(protomux)
-      }
-    }, 500)
+    if (this.#isClosed) return
+    this.#peerManager.handleDiscoveryKey(discoveryKey, protomux)
   }
 
   /**
-   * Get the current sync state (initial and full). Also emitted via the 'sync-state' event
-   * @returns {State}
+   * Get the current sync state. Also emitted via the 'sync-state' event
+   * whenever it changes.
+   *
+   * @returns {SyncApiState}
    */
   getState() {
-    return this.#getState(this[kSyncState].getState())
+    return deriveSyncApiState({
+      snapshot: this.#syncProgress.getSnapshot(),
+      connectedPeers: this.#peerManager.peers,
+      syncMode: this.#syncMode,
+    })
   }
 
   /**
-   * @param {import('./sync-state.js').State} namespaceSyncState
-   * @returns {State}
-   */
-  #getState(namespaceSyncState) {
-    const remoteDeviceSyncState = getRemoteDevicesSyncState(
-      namespaceSyncState,
-      this.#peerSyncControllers.values()
-    )
-
-    switch (this.#previousSyncEnabledState) {
-      case 'none':
-        return {
-          initial: { isSyncEnabled: false },
-          data: { isSyncEnabled: false },
-          remoteDeviceSyncState,
-        }
-      case 'presync':
-        return {
-          initial: { isSyncEnabled: true },
-          data: { isSyncEnabled: false },
-          remoteDeviceSyncState,
-        }
-      case 'all':
-        return {
-          initial: { isSyncEnabled: true },
-          data: { isSyncEnabled: true },
-          remoteDeviceSyncState,
-        }
-      default:
-        throw new ExhaustivenessError({ value: this.#previousSyncEnabledState })
-    }
-  }
-
-  /**
-   * Update which namespaces are synced and the autostop timeout.
+   * Start syncing data namespaces (in addition to the initial namespaces,
+   * which sync whenever a peer is connected).
    *
-   * The following table describes the expected behavior based on inputs.
+   * If the app is backgrounded and sync has already completed, this will do
+   * nothing until the app is foregrounded.
    *
-   * | Want to sync data? | Full stop requested? | Synced? | Enabled | Timeout |
-   * |--------------------|----------------------|---------|---------|---------|
-   * | no                 | no                   | no      | presync | off     |
-   * | no                 | no                   | yes     | presync | off     |
-   * | no                 | yes                  | no      | presync | off     |
-   * | no                 | yes                  | yes     | none    | off     |
-   * | yes                | no                   | no      | all     | off     |
-   * | yes                | no                   | yes     | all     | on      |
-   * | yes                | yes                  | no      | all     | off     |
-   * | yes                | yes                  | yes     | none    | off     |
+   * @param {object} [options]
+   * @param {null | number} [options.autostopDataSyncAfter] If no data sync
+   * happens after this duration in milliseconds, sync will be automatically
+   * stopped as if {@link stop} was called.
    */
-  #updateState(namespaceSyncState = this[kSyncState].getState()) {
-    const dataHave = DATA_NAMESPACES.reduce(
-      (total, namespace) =>
-        total + namespaceSyncState[namespace].localState.have,
-      0
-    )
-    const hasReceivedNewData = dataHave !== this.#previousDataHave
-    if (hasReceivedNewData) {
-      this.#clearAutostopDataSyncTimeoutIfExists()
-    }
-    this.#previousDataHave = dataHave
-
-    /** @type {SyncEnabledState} */ let syncEnabledState
-    if (this.#hasRequestedFullStop) {
-      this.#clearAutostopDataSyncTimeoutIfExists()
-      if (this.#previousSyncEnabledState === 'none') {
-        syncEnabledState = 'none'
-      } else if (
-        isSynced(
-          namespaceSyncState,
-          this.#wantsToSyncData ? 'full' : 'initial',
-          this.#peerSyncControllers
-        )
-      ) {
-        syncEnabledState = 'none'
-      } else if (this.#wantsToSyncData) {
-        syncEnabledState = 'all'
-      } else {
-        syncEnabledState = 'presync'
-      }
-    } else if (this.#wantsToSyncData) {
-      if (
-        isSynced(
-          namespaceSyncState,
-          this.#wantsToSyncData ? 'full' : 'initial',
-          this.#peerSyncControllers
-        )
-      ) {
-        if (typeof this.#autostopDataSyncAfter === 'number') {
-          this.#autostopDataSyncTimeout ??= setTimeout(() => {
-            this.#wantsToSyncData = false
-            this.#updateState()
-          }, this.#autostopDataSyncAfter)
-        }
-      } else {
-        this.#clearAutostopDataSyncTimeoutIfExists()
-      }
-      syncEnabledState = 'all'
+  start({ autostopDataSyncAfter } = {}) {
+    this.#wantsDataSync = true
+    if (autostopDataSyncAfter === undefined) {
+      this.#recomputeAndEmit()
     } else {
-      this.#clearAutostopDataSyncTimeoutIfExists()
-      syncEnabledState = 'presync'
+      this.setAutostopDataSyncTimeout(autostopDataSyncAfter)
     }
+  }
 
-    if (syncEnabledState !== this.#previousSyncEnabledState) {
-      this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
-    }
-    for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.setSyncEnabledState(syncEnabledState)
-    }
+  /**
+   * Stop syncing data namespaces.
+   *
+   * Initial namespaces will continue syncing unless the app is backgrounded.
+   */
+  stop() {
+    this.#wantsDataSync = false
+    this.#recomputeAndEmit()
+  }
 
-    this.#previousSyncEnabledState = syncEnabledState
+  /**
+   * Request a graceful stop of all sync: sync continues until nothing is left
+   * to transfer, then stops entirely until the request is rescinded. Called
+   * when the app is backgrounded.
+   */
+  [kRequestFullStop]() {
+    this.#isBackgrounded = true
+    this.#recomputeAndEmit()
+  }
 
-    this.emit('sync-state', this.#getState(namespaceSyncState))
+  /**
+   * Rescind any requests for a full stop. Called when the app is foregrounded.
+   */
+  [kRescindFullStopRequest]() {
+    this.#isBackgrounded = false
+    this.#recomputeAndEmit()
+  }
+
+  /**
+   * @param {null | number} autostopDataSyncAfter
+   * @returns {void}
+   */
+  setAutostopDataSyncTimeout(autostopDataSyncAfter) {
+    assertAutostopDataSyncAfterIsValid(autostopDataSyncAfter)
+    this.#clearAutostopDataSyncTimeoutIfExists()
+    this.#autostopDataSyncAfter = autostopDataSyncAfter
+    this.#recomputeAndEmit()
   }
 
   /**
@@ -384,84 +291,26 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
-   * Start syncing data cores.
+   * Resolves when sync is complete for the given target: nothing left to send
+   * to or receive from any connected device (`'initial'` considers only the
+   * initial namespaces; `'all'` considers everything).
    *
-   * If the app is backgrounded and sync has already completed, this will do
-   * nothing until the app is foregrounded.
-   *
-   * @param {object} [options]
-   * @param {null | number} [options.autostopDataSyncAfter] If no data sync
-   * happens after this duration in milliseconds, sync will be automatically
-   * stopped as if {@link stop} was called.
-   */
-  start({ autostopDataSyncAfter } = {}) {
-    this.#wantsToSyncData = true
-    if (autostopDataSyncAfter === undefined) {
-      this.#updateState()
-    } else {
-      this.setAutostopDataSyncTimeout(autostopDataSyncAfter)
-    }
-  }
-
-  /**
-   * Stop syncing data cores.
-   *
-   * Pre-sync cores will continue syncing unless the app is backgrounded.
-   */
-  stop() {
-    this.#wantsToSyncData = false
-    this.#updateState()
-  }
-
-  /**
-   * Request a graceful stop to all sync.
-   */
-  [kRequestFullStop]() {
-    this.#hasRequestedFullStop = true
-    this.#updateState()
-  }
-
-  /**
-   * Rescind any requests for a full stop.
-   */
-  [kRescindFullStopRequest]() {
-    this.#hasRequestedFullStop = false
-    this.#updateState()
-  }
-
-  /**
-   * @param {null | number} autostopDataSyncAfter
-   * @returns {void}
-   */
-  setAutostopDataSyncTimeout(autostopDataSyncAfter) {
-    assertAutostopDataSyncAfterIsValid(autostopDataSyncAfter)
-    this.#clearAutostopDataSyncTimeoutIfExists()
-    this.#autostopDataSyncAfter = autostopDataSyncAfter
-    this.#updateState()
-  }
-
-  /**
-   * @param {SyncType} type
+   * @param {SyncTarget} target
    * @param {object} [options]
    * @param {number} [options.timeoutMs] Timeout in milliseconds for max time
-   * to wait between sync state updates before giving up. As long as syncing is
-   * happening, this will never timeout, but if more than timeoutMs passes
+   * to wait between sync state updates before giving up. As long as syncing
+   * is happening, this will never timeout, but if more than timeoutMs passes
    * without any sync activity, then this will reject.
    * @returns {Promise<void>}
    */
-  async waitForSync(type, { timeoutMs } = {}) {
+  async waitForSync(target, { timeoutMs } = {}) {
     return new Promise((resolve, reject) => {
       /** @type {NodeJS.Timeout | undefined} */
       let timeoutId
-      const onTimeout = () => {
-        this[kSyncState].off('state', onState)
-        reject(new Error('Sync timeout'))
-      }
-      /** @param {import('./sync-state.js').State} state */
-      const onState = (state) => {
+      const check = () => {
         clearTimeout(timeoutId)
-        if (isSynced(state, type, this.#peerSyncControllers)) {
-          this[kSyncState].off('state', onState)
+        if (this.#isSyncComplete(target)) {
+          this.off('sync-state', check)
           resolve()
           return
         }
@@ -469,12 +318,22 @@ export class SyncApi extends TypedEmitter {
           timeoutId = setTimeout(onTimeout, timeoutMs)
         }
       }
-      this[kSyncState].on('state', onState)
-      onState(this[kSyncState].getState())
+      const onTimeout = () => {
+        this.off('sync-state', check)
+        reject(new Error('Sync timeout'))
+      }
+      this.on('sync-state', check)
+      check()
     })
   }
 
   /**
+   * Resolves when initial sync with the given device is complete: we have
+   * received everything they have (and they, everything we have) in the
+   * auth, config and blobIndex namespaces. Used during the invite flow, so a
+   * newly-joined peer has the project membership and config before the invite
+   * is considered complete.
+   *
    * @param {string} deviceId
    * @param {AbortSignal} abortSignal
    * @returns {Promise<void>}
@@ -482,13 +341,21 @@ export class SyncApi extends TypedEmitter {
   async [kWaitForInitialSyncWithPeer](deviceId, abortSignal) {
     abortSignal.throwIfAborted()
 
-    const state = this[kSyncState].getState()
-    if (isInitiallySyncedWithPeer(state, deviceId)) return
+    const isComplete = () => {
+      const peer = this.#peerManager.getPeer(deviceId)
+      if (!peer) return false
+      return isTargetCompleteWithDevice(
+        this.#syncProgress.getSnapshot(),
+        peer,
+        'initial'
+      )
+    }
+
+    if (isComplete()) return
 
     return new Promise((resolve, reject) => {
-      /** @param {import('./sync-state.js').State} state */
-      const onState = (state) => {
-        if (isInitiallySyncedWithPeer(state, deviceId)) {
+      const check = () => {
+        if (isComplete()) {
           cleanup()
           resolve()
         }
@@ -497,15 +364,108 @@ export class SyncApi extends TypedEmitter {
         cleanup()
         reject(abortSignal.reason)
       }
-
       const cleanup = () => {
-        this[kSyncState].off('state', onState)
+        this.off('sync-state', check)
         abortSignal.removeEventListener('abort', onAbort)
       }
-
-      this[kSyncState].on('state', onState)
+      this.on('sync-state', check)
       abortSignal.addEventListener('abort', onAbort)
     })
+  }
+
+  /**
+   * Stop all syncing and tear down everything owned by the sync subsystem:
+   * timers, websockets, event listeners, and per-peer replication state.
+   * Idempotent. Must be called before closing the core manager.
+   */
+  close() {
+    if (this.#isClosed) return
+    this.#isClosed = true
+    this.#clearAutostopDataSyncTimeoutIfExists()
+    this.disconnectServers()
+    this.#peerManager.close()
+    this.#syncProgress.close()
+  }
+
+  /**
+   * @param {SyncTarget} target
+   * @returns {boolean}
+   */
+  #isSyncComplete(target) {
+    return isSyncComplete(
+      this.#syncProgress.getSnapshot(),
+      this.#peerManager.peers,
+      target
+    )
+  }
+
+  /**
+   * Recompute the sync mode from the current intent and progress, apply it to
+   * the peers, manage the autostop timer, and emit the public state. Safe
+   * against re-entrancy (applying a mode can change peer state, which calls
+   * this again): inner calls queue another pass, and the public event is
+   * emitted once, after the state has stabilized.
+   */
+  #recomputeAndEmit() {
+    if (this.#isClosed) return
+    if (this.#isRecomputing) {
+      this.#recomputeQueued = true
+      return
+    }
+    this.#isRecomputing = true
+    do {
+      this.#recomputeQueued = false
+      this.#recompute()
+    } while (this.#recomputeQueued)
+    this.#isRecomputing = false
+    this.emit('sync-state', this.getState())
+  }
+
+  #recompute() {
+    const snapshot = this.#syncProgress.getSnapshot()
+
+    const dataHave = DATA_SYNC_NAMESPACES.reduce(
+      (total, namespace) => total + snapshot[namespace].local.have,
+      0
+    )
+    const hasReceivedNewData = dataHave !== this.#previousDataHave
+    if (hasReceivedNewData) {
+      this.#clearAutostopDataSyncTimeoutIfExists()
+    }
+    this.#previousDataHave = dataHave
+
+    const isComplete = isSyncComplete(
+      snapshot,
+      this.#peerManager.peers,
+      this.#wantsDataSync ? 'all' : 'initial'
+    )
+
+    const syncMode = computeSyncMode({
+      wantsDataSync: this.#wantsDataSync,
+      isBackgrounded: this.#isBackgrounded,
+      isComplete,
+      previousMode: this.#syncMode,
+    })
+
+    if (this.#isBackgrounded) {
+      this.#clearAutostopDataSyncTimeoutIfExists()
+    } else if (this.#wantsDataSync && isComplete) {
+      if (typeof this.#autostopDataSyncAfter === 'number') {
+        this.#autostopDataSyncTimeout ??= setTimeout(() => {
+          this.#autostopDataSyncTimeout = null
+          this.#wantsDataSync = false
+          this.#recomputeAndEmit()
+        }, this.#autostopDataSyncAfter)
+      }
+    } else {
+      this.#clearAutostopDataSyncTimeoutIfExists()
+    }
+
+    if (syncMode !== this.#syncMode) {
+      this.#l.log(`Setting sync mode to "${syncMode}"`)
+      this.#syncMode = syncMode
+      this.#peerManager.setSyncMode(syncMode)
+    }
   }
 
   #clearAutostopDataSyncTimeoutIfExists() {
@@ -513,143 +473,6 @@ export class SyncApi extends TypedEmitter {
       clearTimeout(this.#autostopDataSyncTimeout)
       this.#autostopDataSyncTimeout = null
     }
-  }
-
-  /**
-   * Bound to `this`
-   *
-   * This will be called whenever a peer is successfully added to the creator
-   * core, which means that the peer has the project key. The PeerSyncController
-   * will then handle validation of role records to ensure that the peer is
-   * actually still part of the project.
-   *
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<OpenedNoiseStream> }} peer
-   */
-  #handlePeerAdd = (peer) => {
-    const { protomux } = peer
-    if (this.#peerSyncControllers.has(protomux)) {
-      this.#l.log(
-        'Unexpected existing peer sync controller for peer %h',
-        protomux.stream.remotePublicKey
-      )
-      return
-    }
-    const peerSyncController = new PeerSyncController({
-      protomux,
-      coreManager: this.#coreManager,
-      syncState: this[kSyncState],
-      roles: this.#roles,
-      logger: this.#l,
-    })
-    this.#peerSyncControllers.set(protomux, peerSyncController)
-    this.#pscByPeerId.set(peerSyncController.peerId, peerSyncController)
-
-    // Add peer to all core states (via namespace sync states)
-    this[kSyncState].addPeer(peerSyncController.peerId)
-
-    this.#updateState()
-
-    const peerQueue = this.#pendingDiscoveryKeys.get(protomux)
-    if (peerQueue) {
-      for (const discoveryKey of peerQueue) {
-        peerSyncController.handleDiscoveryKey(discoveryKey)
-      }
-      this.#pendingDiscoveryKeys.delete(protomux)
-    }
-  }
-
-  /**
-   * Bound to `this`
-   *
-   * Called when a peer is removed from the creator core, e.g. when the
-   * connection is terminated.
-   *
-   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
-   */
-  #handlePeerDisconnect = (peer) => {
-    const { protomux } = peer
-    const psc = this.#peerSyncControllers.get(protomux)
-    if (!psc) {
-      this.#l.log(
-        'Unexpected no existing peer sync controller for peer %h',
-        protomux.stream.remotePublicKey
-      )
-      return
-    }
-    psc.close()
-    this.#peerSyncControllers.delete(protomux)
-    const peerId = keyToId(peer.remotePublicKey)
-    this.#pscByPeerId.delete(peerId)
-    this.#pendingDiscoveryKeys.delete(protomux)
-    this[kSyncState].disconnectPeer(peerId)
-    this.#updateState()
-  }
-
-  /**
-   * @param {Set<string>} roleDocIds
-   * @returns {Promise<void>}
-   */
-  #handleRoleUpdate = async (roleDocIds) => {
-    /** @type {Promise<CoreOwnershipDoc>[]} */ const coreOwnershipPromises = []
-    for (const roleDocId of roleDocIds) {
-      // Ignore docs about ourselves
-      if (roleDocId === this.#coreManager.deviceId) continue
-      coreOwnershipPromises.push(this.#coreOwnership.get(roleDocId))
-    }
-
-    const ownershipResults = await Promise.allSettled(coreOwnershipPromises)
-
-    for (const result of ownershipResults) {
-      if (result.status === 'rejected') continue
-      await this.#validateRoleAndAddCoresForPeer(result.value)
-    }
-  }
-
-  /**
-   * @param {Set<string>} coreOwnershipDocIds
-   * @returns {Promise<void>}
-   */
-  #handleCoreOwnershipUpdate = async (coreOwnershipDocIds) => {
-    /** @type {Promise<void>[]} */ const promises = []
-
-    for (const coreOwnershipDocId of coreOwnershipDocIds) {
-      // Ignore our own ownership doc - we don't need to add cores for ourselves
-      if (coreOwnershipDocId === this.#coreManager.deviceId) continue
-
-      promises.push(
-        (async () => {
-          try {
-            const coreOwnershipDoc = await this.#coreOwnership.get(
-              coreOwnershipDocId
-            )
-            await this.#validateRoleAndAddCoresForPeer(coreOwnershipDoc)
-          } catch {
-            // Ignore, we'll add these when the role is added
-          }
-        })()
-      )
-    }
-
-    await Promise.all(promises)
-  }
-
-  /**
-   * @param {CoreOwnershipDoc} coreOwnership
-   * @returns {Promise<void>}
-   */
-  async #validateRoleAndAddCoresForPeer(coreOwnership) {
-    const peerDeviceId = coreOwnership.docId
-    const role = await this.#roles.getRole(peerDeviceId)
-    // We only add cores for peers that have been explicitly written into the
-    // project. If in the future we allow syncing from blocked peers, we can
-    // drop the role check here, and just add cores.
-    if (role.roleId === NO_ROLE_ID) return
-    for (const ns of NAMESPACES) {
-      if (ns === 'auth') continue
-      const coreKey = Buffer.from(coreOwnership[`${ns}CoreId`], 'hex')
-      this.#coreManager.addCore(coreKey, ns)
-    }
-    this.#l.log('Added non-auth cores for peer %S', peerDeviceId)
   }
 }
 
@@ -662,116 +485,4 @@ function assertAutostopDataSyncAfterIsValid(ms) {
   if (!(ms > 0 && ms <= 2 ** 31 - 1 && Number.isSafeInteger(ms))) {
     throw new AutoStopTimeoutError()
   }
-}
-
-/**
- * Is the sync state "synced", e.g. is there nothing left to sync
- *
- * @param {import('./sync-state.js').State} state
- * @param {SyncType} type
- * @param {Map<import('protomux'), PeerSyncController>} peerSyncControllers
- */
-function isSynced(state, type, peerSyncControllers) {
-  const namespaces = type === 'initial' ? PRESYNC_NAMESPACES : NAMESPACES
-  for (const ns of namespaces) {
-    if (state[ns].dataToSync) return false
-    for (const psc of peerSyncControllers.values()) {
-      const { peerId } = psc
-      if (psc.syncCapability[ns] === 'blocked') continue
-      if (!(peerId in state[ns].remoteStates)) return false
-      if (state[ns].remoteStates[peerId].status === 'starting') return false
-    }
-  }
-  return true
-}
-
-/**
- * @param {import('./sync-state.js').State} state
- * @param {string} peerId
- */
-function isInitiallySyncedWithPeer(state, peerId) {
-  for (const ns of PRESYNC_NAMESPACES) {
-    const remoteDeviceSyncState = getOwn(state[ns].remoteStates, peerId)
-    if (!remoteDeviceSyncState) return false
-
-    switch (remoteDeviceSyncState.status) {
-      case 'starting':
-        return false
-      case 'started':
-      case 'stopped': {
-        const { want, wanted } = remoteDeviceSyncState
-        if (want || wanted) return false
-        break
-      }
-      default:
-        throw new ExhaustivenessError({ value: remoteDeviceSyncState.status })
-    }
-  }
-  return true
-}
-
-/**
- * @param {import('./sync-state.js').State} namespaceSyncState
- * @param {Iterable<PeerSyncController>} peerSyncControllers
- * @returns {State['remoteDeviceSyncState']}
- */
-function getRemoteDevicesSyncState(namespaceSyncState, peerSyncControllers) {
-  /** @type {State['remoteDeviceSyncState']} */ const result = {}
-
-  for (const psc of peerSyncControllers) {
-    const { peerId } = psc
-
-    /** @type {undefined | boolean} */ let isInitialEnabled
-    /** @type {undefined | boolean} */ let isDataEnabled
-
-    for (const namespace of NAMESPACES) {
-      const isBlocked = psc.syncCapability[namespace] === 'blocked'
-      if (isBlocked) continue
-
-      const peerNamespaceState =
-        namespaceSyncState[namespace].remoteStates[peerId]
-      if (!peerNamespaceState) continue
-
-      /** @type {boolean} */
-      let isSyncEnabled
-      switch (peerNamespaceState.status) {
-        case 'stopped':
-        case 'starting':
-          isSyncEnabled = false
-          break
-        case 'started':
-          isSyncEnabled = true
-          break
-        default:
-          throw new ExhaustivenessError({ value: peerNamespaceState.status })
-      }
-
-      if (!Object.hasOwn(result, peerId)) {
-        result[peerId] = {
-          initial: { isSyncEnabled: false, want: 0, wanted: 0 },
-          data: { isSyncEnabled: false, want: 0, wanted: 0 },
-        }
-      }
-
-      /** @type {'initial' | 'data'} */ let namespaceGroup
-      const isPresyncNamespace = PRESYNC_NAMESPACES.includes(namespace)
-      if (isPresyncNamespace) {
-        namespaceGroup = 'initial'
-        isInitialEnabled = (isInitialEnabled ?? true) && isSyncEnabled
-      } else {
-        namespaceGroup = 'data'
-        isDataEnabled = (isDataEnabled ?? true) && isSyncEnabled
-      }
-
-      result[peerId][namespaceGroup].want += peerNamespaceState.want
-      result[peerId][namespaceGroup].wanted += peerNamespaceState.wanted
-    }
-
-    if (Object.hasOwn(result, peerId)) {
-      result[peerId].initial.isSyncEnabled = Boolean(isInitialEnabled)
-      result[peerId].data.isSyncEnabled = Boolean(isDataEnabled)
-    }
-  }
-
-  return result
 }

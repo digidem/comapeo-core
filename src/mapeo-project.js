@@ -603,6 +603,9 @@ export class MapeoProject extends ReadyResource {
    */
   async _close() {
     this.#l.log('closing project %h', this.#projectId)
+    // Stop sync first: everything below closes resources (cores, stores,
+    // sqlite) that active sync would otherwise race against
+    this.#syncApi.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())
