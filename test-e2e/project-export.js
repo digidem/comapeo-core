@@ -248,7 +248,7 @@ test('Sync project and export tracks and observations to zip stream', async (t) 
 
   invitorProject.$sync.start({ autostopDataSyncAfter: 10_000 })
 
-  await waitForSync([invitorProject, project], 'full')
+  await waitForSync([invitorProject, project], 'all')
 
   await temporaryDirectoryTask(async (dir) => {
     const zipFile = await project.exportZipFile(dir, {

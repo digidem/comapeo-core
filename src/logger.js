@@ -48,7 +48,7 @@ createDebug.formatters.k = function (v) {
 }
 
 /**
- * @param {import('./sync/sync-state.js').State} v
+ * @param {import('./sync/sync-rules.js').SyncProgressSnapshot} v
  * @this {any} */
 createDebug.formatters.X = function (v) {
   try {
@@ -56,7 +56,7 @@ createDebug.formatters.X = function (v) {
       k,
       // @ts-ignore - type checks here don't get us anything
       mapObject(v, (k, v) => {
-        if (k === 'remoteStates') {
+        if (k === 'devices') {
           // @ts-ignore - type checks here don't get us anything
           return [k, mapObject(v, (k, v) => [k.slice(0, 7), v])]
         }

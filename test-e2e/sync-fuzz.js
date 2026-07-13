@@ -151,7 +151,7 @@ function getEnvironmentVariableInt(name, defaultValue) {
  * @returns {boolean}
  */
 function isSyncEnabled(project) {
-  return project.$sync.getState().data.isSyncEnabled
+  return project.$sync.getState().syncMode === 'all'
 }
 
 /**
