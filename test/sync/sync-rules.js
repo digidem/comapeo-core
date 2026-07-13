@@ -332,14 +332,19 @@ test('isSyncComplete()', () => {
 test('deriveSyncApiState()', () => {
   const peerA = createPeer('a')
   const state = deriveSyncApiState({
-    snapshot: createSnapshot({
-      a: { data: { toReceive: 5, toSend: 2 }, blob: { toReceive: 1 } },
-    }),
+    snapshot: createSnapshot(
+      {
+        a: { data: { toReceive: 5, toSend: 2 }, blob: { toReceive: 1 } },
+      },
+      { local: { auth: { have: 4 }, data: { toReceive: 5, toSend: 2 } } }
+    ),
     connectedPeers: [peerA],
     syncMode: 'all',
   })
   assert.deepEqual(state, {
     syncMode: 'all',
+    initial: { have: 4, toReceive: 0, toSend: 0 },
+    data: { have: 0, toReceive: 5, toSend: 2 },
     devices: {
       a: {
         initial: {
@@ -357,6 +362,26 @@ test('deriveSyncApiState()', () => {
       },
     },
   })
+})
+
+test('deriveSyncApiState() top-level totals are the union counts, not per-device sums', () => {
+  // Three peers all hold the same blocks: per-device toReceive is 100 each,
+  // but the snapshot's local (union) count is 100 and the public state must
+  // report that
+  const state = deriveSyncApiState({
+    snapshot: createSnapshot(
+      {
+        a: { data: { toReceive: 100 } },
+        b: { data: { toReceive: 100 } },
+        c: { data: { toReceive: 100 } },
+      },
+      { local: { data: { toReceive: 100 } } }
+    ),
+    connectedPeers: [createPeer('a'), createPeer('b'), createPeer('c')],
+    syncMode: 'all',
+  })
+  assert.equal(state.data.toReceive, 100)
+  assert.equal(state.devices.a.data.toReceive, 100)
 })
 
 test('deriveSyncApiState() data channels closed reads as data sync not enabled', () => {

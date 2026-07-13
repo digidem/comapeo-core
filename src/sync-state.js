@@ -11,10 +11,14 @@
  * @typedef {object} AggregatedGroupProgress
  * @property {boolean} isComplete nothing left to send to or receive from any
  * connected device in this group (true when no devices are connected)
- * @property {number} toReceive total blocks still needed from all connected
- * devices
- * @property {number} toSend total blocks all connected devices still need
- * from us
+ * @property {number} have blocks this device holds
+ * @property {number} toReceive unique blocks still needed that at least one
+ * connected device has. A best-effort progress denominator, not a transfer
+ * prediction — it strictly shrinks as blocks arrive and is 0 exactly when
+ * the group is complete.
+ * @property {number} toSend unique blocks at least one connected device
+ * still needs from us. Even less predictive than `toReceive` (peers also
+ * receive blocks from each other), but 0 exactly when the group is complete.
  * @property {number} syncingDeviceCount how many connected devices this group
  * is actively replicating with (both sides enabled)
  */
@@ -28,11 +32,12 @@
  */
 
 /**
- * Aggregate the per-device sync state into project-wide totals — what a
- * "sync with everyone" progress UI needs. Kept here (rather than in each
- * frontend) so there is exactly one definition of what the totals mean:
- * completion is "complete with every connected device", matching
- * `$sync.waitForSync()`.
+ * Aggregate the sync state into project-wide totals — what a "sync with
+ * everyone" progress UI needs. Kept here (rather than in each frontend) so
+ * there is exactly one definition of what the totals mean: block counts come
+ * from the state's top-level per-group totals (each unique block counted
+ * once, however many devices hold or need it), and completion is "complete
+ * with every connected device", matching `$sync.waitForSync()`.
  *
  * @param {SyncApiState} state
  * @returns {AggregatedSyncState}
@@ -44,15 +49,12 @@ export function aggregateSyncState(state) {
     /** @type {AggregatedGroupProgress} */
     const result = {
       isComplete: true,
-      toReceive: 0,
-      toSend: 0,
+      ...state[group],
       syncingDeviceCount: 0,
     }
     for (const device of deviceStates) {
       const progress = device[group]
       if (!progress.isComplete) result.isComplete = false
-      result.toReceive += progress.toReceive
-      result.toSend += progress.toSend
       if (progress.isSyncEnabled) result.syncingDeviceCount++
     }
     return result

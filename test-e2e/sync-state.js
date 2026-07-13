@@ -26,10 +26,22 @@ test('state before connecting, and when a peer appears', async (t) => {
   })
   await s.seed('creator', { observation: 1 })
 
+  // initial.have counts every auth/config record written internally, so it
+  // is not asserted exactly — everything else is
+  const disconnectedState = s.project('creator').$sync.getState()
   assert.deepEqual(
-    s.project('creator').$sync.getState(),
-    { syncMode: 'initial', devices: {} },
-    'disconnected: initial mode, no devices'
+    disconnectedState,
+    {
+      syncMode: 'initial',
+      initial: {
+        have: disconnectedState.initial.have,
+        toReceive: 0,
+        toSend: 0,
+      },
+      data: { have: 1, toReceive: 0, toSend: 0 },
+      devices: {},
+    },
+    'disconnected: initial mode, no devices, nothing pending'
   )
 
   await s.connect()
@@ -38,8 +50,11 @@ test('state before connecting, and when a peer appears', async (t) => {
   // The reported per-device isSyncEnabled needs both devices' channels open,
   // which can lag completion by a beat (the other device's auth gate), so
   // wait for the expected state rather than asserting instantly
-  const expected = {
-    syncMode: 'initial',
+  /** @param {State} state */
+  const expected = (state) => ({
+    syncMode: /** @type {const} */ ('initial'),
+    initial: { have: state.initial.have, toReceive: 0, toSend: 0 },
+    data: { have: 1, toReceive: 0, toSend: 1 },
     devices: {
       [s.deviceId('member')]: {
         initial: SYNCED,
@@ -51,10 +66,10 @@ test('state before connecting, and when a peer appears', async (t) => {
         },
       },
     },
-  }
+  })
   await s.waitForSyncState(
     'creator',
-    (state) => isDeepStrictEqual(state, expected),
+    (state) => isDeepStrictEqual(state, expected(state)),
     { message: 'creator settles on: initial synced, 1 observation to send' }
   )
 })
@@ -89,7 +104,16 @@ test(
     await s.disconnectAll()
     await s.connect()
 
-    const expected = names.map((name) => {
+    const totalObservations = names.reduce(
+      (sum, name) => sum + (s.seeded[name]?.observation.length ?? 0),
+      0
+    )
+    // initial.have counts every auth/config record written internally, so it
+    // is passed through rather than asserted exactly; the top-level data
+    // counts are unions (each unique block once), so toReceive = everyone
+    // else's observations, NOT the per-device sum
+    /** @param {string} name @param {State} state */
+    const expected = (name, state) => {
       /** @type {State['devices']} */ const devices = {}
       const myCount = s.seeded[name]?.observation.length ?? 0
       for (const other of names) {
@@ -104,20 +128,29 @@ test(
           },
         }
       }
-      return { syncMode: /** @type {const} */ ('initial'), devices }
-    })
+      return {
+        syncMode: /** @type {const} */ ('initial'),
+        initial: { have: state.initial.have, toReceive: 0, toSend: 0 },
+        data: {
+          have: myCount,
+          toReceive: totalObservations - myCount,
+          toSend: myCount,
+        },
+        devices,
+      }
+    }
 
     await Promise.all(
-      names.map((name, i) =>
+      names.map((name) =>
         pEvent(s.project(name).$sync, 'sync-state', (state) =>
-          isDeepStrictEqual(state, expected[i])
+          isDeepStrictEqual(state, expected(name, state))
         )
       )
     )
-    assert.deepEqual(
-      names.map((name) => s.project(name).$sync.getState()),
-      expected
-    )
+    for (const name of names) {
+      const state = s.project(name).$sync.getState()
+      assert.deepEqual(state, expected(name, state), `${name} final state`)
+    }
   }
 )
 

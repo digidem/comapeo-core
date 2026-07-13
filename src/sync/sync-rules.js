@@ -268,6 +268,13 @@ export function isSyncComplete(snapshot, connectedPeers, target) {
  * The public sync state exposed on `project.$sync`.
  * @typedef {object} SyncApiState
  * @property {SyncMode} syncMode what this device is currently willing to replicate
+ * @property {BlockCounts} initial totals for the initial namespaces across
+ * all connected devices, counting each unique block once: `toReceive` =
+ * blocks we still need that at least one connected device has, `toSend` =
+ * blocks at least one connected device still needs from us. NOT the sum of
+ * the per-device counts, which count a block once per device that
+ * holds/needs it.
+ * @property {BlockCounts} data the same totals for the data namespaces
  * @property {Record<string, DeviceSyncState>} devices sync state with each
  * connected project member, keyed by device ID
  */
@@ -307,6 +314,19 @@ const NAMESPACE_GROUPS = ['initial', 'data']
  * @returns {SyncApiState}
  */
 export function deriveSyncApiState({ snapshot, connectedPeers, syncMode }) {
+  /** @type {Record<NamespaceGroup, BlockCounts>} */
+  const groupTotals = {
+    initial: { have: 0, toReceive: 0, toSend: 0 },
+    data: { have: 0, toReceive: 0, toSend: 0 },
+  }
+  for (const group of NAMESPACE_GROUPS) {
+    for (const ns of namespacesForGroup(group)) {
+      groupTotals[group].have += snapshot[ns].local.have
+      groupTotals[group].toReceive += snapshot[ns].local.toReceive
+      groupTotals[group].toSend += snapshot[ns].local.toSend
+    }
+  }
+
   /** @type {SyncApiState['devices']} */
   const devices = {}
   for (const peer of connectedPeers) {
@@ -348,5 +368,10 @@ export function deriveSyncApiState({ snapshot, connectedPeers, syncMode }) {
     }
     devices[peer.deviceId] = groupProgress
   }
-  return { syncMode, devices }
+  return {
+    syncMode,
+    initial: groupTotals.initial,
+    data: groupTotals.data,
+    devices,
+  }
 }
