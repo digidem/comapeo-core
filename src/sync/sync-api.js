@@ -378,11 +378,14 @@ export class SyncApi extends TypedEmitter {
    */
   close() {
     if (this.#isClosed) return
-    this.#isClosed = true
     this.#clearAutostopDataSyncTimeoutIfExists()
     this.disconnectServers()
     this.#peerManager.close()
     this.#syncProgress.close()
+    this.#isClosed = true
+    // A final event so pending waiters settle rather than hang: with all
+    // peers discarded there is nothing left to sync, so waitForSync resolves
+    this.emit('sync-state', this.getState())
   }
 
   /**

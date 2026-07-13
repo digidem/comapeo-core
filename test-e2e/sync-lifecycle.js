@@ -77,6 +77,11 @@ test('auto-stop', async (t) => {
   await s.waitForSync('all')
   await clock.tickAsync(9_000)
 
+  // Blob (media) transfers must restart the timer too, not just documents
+  await s.seedBlobs('invitor', { photoCount: 1 })
+  await s.waitForSync('all')
+  await clock.tickAsync(9_000)
+
   await s.seed('invitee', { observation: 1 })
   await s.waitForSync('all')
   await clock.tickAsync(9_000)

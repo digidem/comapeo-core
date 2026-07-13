@@ -179,6 +179,12 @@ export class SyncProgress extends TypedEmitter {
       devices: {},
     }
     for (const coreState of coreStates.values()) {
+      // Pre-have messages can reference cores we never add (e.g. cores of a
+      // device that was removed from the project, still held by connected
+      // peers). We keep their state in case the core is added later, but
+      // they must not contribute to progress or completion: we will never
+      // replicate them, so counting them would block completion forever.
+      if (!coreState.isAttached) continue
       const { local, devices } = coreState.getState()
       progress.local.have += local.have
       progress.local.toReceive += local.toReceive

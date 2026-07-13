@@ -3,7 +3,7 @@ import { NAMESPACES } from '../constants.js'
 import { Logger } from '../logger.js'
 import { keyToId, noop } from '../utils.js'
 import { unreplicate } from '../lib/hypercore-helpers.js'
-import { NO_ROLE } from '../roles.js'
+import { BLOCKED_ROLE_ID, NO_ROLE, NO_ROLE_ID } from '../roles.js'
 import {
   computeEnabledNamespaces,
   isNamespacesCompleteWithDevice,
@@ -320,6 +320,8 @@ export class PeerManager extends TypedEmitter {
   #pendingDiscoveryKeys = new Map()
   /** @type {Set<ReturnType<typeof setTimeout>>} */
   #pendingDiscoveryKeyTimeouts = new Set()
+  /** @type {Set<ReturnType<typeof setTimeout>>} */
+  #gateRetryTimeouts = new Set()
   /** @type {SyncMode} */
   #syncMode = 'initial'
   #coreManager
@@ -474,6 +476,10 @@ export class PeerManager extends TypedEmitter {
       clearTimeout(timeout)
     }
     this.#pendingDiscoveryKeyTimeouts.clear()
+    for (const timeout of this.#gateRetryTimeouts) {
+      clearTimeout(timeout)
+    }
+    this.#gateRetryTimeouts.clear()
     this.#pendingDiscoveryKeys.clear()
     for (const peer of this.#peers.values()) {
       peer.close()
@@ -631,24 +637,48 @@ export class PeerManager extends TypedEmitter {
     if (peer.hasSyncedAuth || peer.authGateInProgress) return
     peer.authGateInProgress = true
     ;(async () => {
-      await this.#waitForAuthIndexing()
-      await peer.refreshCapability()
-      if (this.#isClosed) return
-      if (this.#peers.get(peer.deviceId) !== peer) return
-      // Re-check with a fresh snapshot: more auth records may have arrived
-      // while indexing. If so, leave the gate closed — the snapshot update
-      // for those records will retry.
-      if (
-        !isNamespacesCompleteWithDevice(this.#getSnapshot(), peer, ['auth'])
-      ) {
+      // Loop until a full pass sees no new auth blocks arriving between the
+      // indexing wait and the capability read — a record that downloads
+      // while we are reading the role must also take effect before the gate
+      // opens. Bounded; if auth churns continuously the next snapshot
+      // update retries.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const authHaveBefore = this.#getSnapshot().auth.local.have
+        await this.#waitForAuthIndexing()
+        await peer.refreshCapability()
+        // Records that finished downloading during the capability read have
+        // not been read — take another pass
+        await this.#waitForAuthIndexing()
+        if (this.#isClosed) return
+        if (this.#peers.get(peer.deviceId) !== peer) return
+        if (this.#getSnapshot().auth.local.have !== authHaveBefore) continue
+        // Re-check with a fresh snapshot: if auth is no longer complete,
+        // leave the gate closed — the snapshot update for the new records
+        // will retry
+        if (
+          !isNamespacesCompleteWithDevice(this.#getSnapshot(), peer, ['auth'])
+        ) {
+          return
+        }
+        peer.hasSyncedAuth = true
+        this.#l.log('Auth gate open for device %S', peer.deviceId)
+        this.#applyRulesToPeer(peer)
+        this.emit('change')
         return
       }
-      peer.hasSyncedAuth = true
-      this.#l.log('Auth gate open for device %S', peer.deviceId)
-      this.#applyRulesToPeer(peer)
-      this.emit('change')
     })()
-      .catch(noop)
+      .catch((e) => {
+        // e.g. the indexer rejecting; retry after a beat so an otherwise
+        // idle connection doesn't stall with the gate closed
+        if (this.#isClosed) return
+        this.#l.log('Auth gate error for %S, retrying: %o', peer.deviceId, e)
+        const timeout = setTimeout(() => {
+          this.#gateRetryTimeouts.delete(timeout)
+          if (this.#isClosed || this.#peers.get(peer.deviceId) !== peer) return
+          this.#applyRulesToPeer(peer)
+        }, 1000)
+        this.#gateRetryTimeouts.add(timeout)
+      })
       .finally(() => {
         peer.authGateInProgress = false
       })
@@ -726,10 +756,11 @@ export class PeerManager extends TypedEmitter {
     const peerDeviceId = coreOwnership.docId
     const role = await this.#roles.getRole(peerDeviceId)
     if (this.#isClosed) return
-    const hasAnyNonAuthSync = NAMESPACES.some(
-      (ns) => ns !== 'auth' && role.sync[ns] === 'allowed'
-    )
-    if (!hasAnyNonAuthSync) return
+    // Don't add cores for devices that were never members (NO_ROLE) or were
+    // blocked — we don't want to fetch and store a blocked device's data.
+    // LEFT is deliberately allowed: a departed member's data remains project
+    // data and must keep propagating to new devices.
+    if (role.roleId === NO_ROLE_ID || role.roleId === BLOCKED_ROLE_ID) return
     for (const ns of NAMESPACES) {
       if (ns === 'auth') continue
       const coreKey = Buffer.from(coreOwnership[`${ns}CoreId`], 'hex')

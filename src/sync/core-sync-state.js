@@ -118,6 +118,15 @@ export class CoreSyncState {
     }
   }
 
+  /**
+   * Whether a local core instance is attached: cores we have actually added
+   * to the core manager (and so will replicate), as opposed to cores we only
+   * know about from pre-have messages.
+   */
+  get isAttached() {
+    return this.#core !== undefined
+  }
+
   /** @type {() => DerivedCoreState} */
   getState() {
     // No way to listen on all contiguousLength changes (like clear), so we
@@ -396,6 +405,19 @@ export class CoreSyncState {
     }
     const peerState = this.#remoteStates.get(deviceId)
     if (!peerState) return
+    // If the device has another live connection, re-point the haves bitfield
+    // at it: the removed hypercore peer's bitfield object is dead and would
+    // never receive further updates (overlapping-reconnect case). With no
+    // surviving connection, keep the last-known bitfield as a frozen
+    // snapshot of what the device had.
+    const survivor =
+      channelPeers &&
+      (channelPeers.open.values().next().value ??
+        channelPeers.opening.values().next().value)
+    if (survivor) {
+      peerState.setHavesBitfield(survivor.remoteBitfield)
+      peerState.contiguousLength = survivor.remoteContiguousLength
+    }
     this.#deriveChannelState(deviceId)
     this.#update()
   }

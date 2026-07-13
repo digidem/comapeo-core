@@ -75,7 +75,7 @@ function createSnapshot(devices, { local = {} } = {}) {
  * @returns {PeerFacts}
  */
 function createPeer(deviceId, capability = ALL_ALLOWED) {
-  return { deviceId, capability }
+  return { deviceId, capability, hasSyncedAuth: true }
 }
 
 test('computeSyncMode() truth table', () => {
@@ -400,5 +400,39 @@ test('deriveSyncApiState() auth-only peer still appears in devices', () => {
     state.devices.a.data.isComplete,
     true,
     'blocked namespaces are complete (they will never sync)'
+  )
+})
+
+test('completion requires the auth gate for non-auth namespaces', () => {
+  // A peer whose role has not been read yet has a placeholder capability
+  // (NO_ROLE: everything but auth blocked). Completion must not treat those
+  // namespaces as skippable-blocked — that would make initial sync read as
+  // complete the moment auth transferred, before config even enabled.
+  /** @type {PeerFacts} */
+  const ungatedPeer = {
+    deviceId: 'a',
+    capability: AUTH_ONLY,
+    hasSyncedAuth: false,
+  }
+  const snapshot = createSnapshot({ a: {} })
+  assert.equal(
+    isTargetCompleteWithDevice(snapshot, ungatedPeer, 'initial'),
+    false,
+    'initial is not complete before the auth gate opens'
+  )
+  assert.equal(
+    isSyncComplete(snapshot, [ungatedPeer], 'initial'),
+    false,
+    'device-wide completion also waits for the gate'
+  )
+  // Once the gate opens, a genuinely blocked capability IS skippable
+  assert.equal(
+    isTargetCompleteWithDevice(
+      snapshot,
+      { ...ungatedPeer, hasSyncedAuth: true },
+      'initial'
+    ),
+    true,
+    'after the gate, blocked namespaces are skipped and auth-only completes'
   )
 })

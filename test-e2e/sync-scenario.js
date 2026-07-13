@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
+import { nullIfNotFound } from '../src/errors.js'
 import {
   BLOCKED_ROLE_ID,
   CREATOR_ROLE_ID,
@@ -445,9 +446,10 @@ export class SyncScenario {
   }
 
   /**
-   * Assert the listed devices all hold an identical set of docs for the
-   * schema. If `expected` docs are given, also assert the set is exactly
-   * those docs.
+   * Assert the listed devices all hold identical docs (full content, not
+   * just IDs) for the schema. If `expected` docs are given, also assert the
+   * docs are exactly those docs — so corruption, wrong-fork resolution, or
+   * dropped updates fail the assertion even when docIds match.
    *
    * @param {ReadonlyArray<string>} names
    * @param {'observation' | 'preset' | 'field' | 'track'} schemaName
@@ -455,25 +457,28 @@ export class SyncScenario {
    */
   async assertDocsConverged(names, schemaName, { expected } = {}) {
     assert(names.length >= 2 || expected, 'need 2+ devices or expected docs')
-    /** @type {Map<string, Set<string>>} */
-    const idsByDevice = new Map()
+    /** @type {Map<string, MapeoDoc[]>} */
+    const docsByDevice = new Map()
     for (const name of names) {
       const docs = await this.#device(name).project[schemaName].getMany()
-      idsByDevice.set(name, new Set(docs.map((doc) => doc.docId)))
+      docsByDevice.set(
+        name,
+        [...docs].sort((a, b) => (a.versionId < b.versionId ? -1 : 1))
+      )
     }
     const [firstName, ...restNames] = names
-    const firstIds = idsByDevice.get(firstName)
+    const firstDocs = docsByDevice.get(firstName)
     for (const other of restNames) {
       assert.deepEqual(
-        idsByDevice.get(other),
-        firstIds,
-        `${other} and ${firstName} hold the same ${schemaName} docs`
+        docsByDevice.get(other),
+        firstDocs,
+        `${other} and ${firstName} hold identical ${schemaName} docs`
       )
     }
     if (expected) {
       assert.deepEqual(
-        firstIds,
-        new Set(expected.map((doc) => doc.docId)),
+        firstDocs,
+        [...expected].sort((a, b) => (a.versionId < b.versionId ? -1 : 1)),
         `${firstName} holds exactly the expected ${schemaName} docs`
       )
     }
@@ -491,14 +496,12 @@ export class SyncScenario {
     assert(docs.length > 0, 'assertNeverReceived called with no docs')
     const { project } = this.#device(name)
     for (const doc of docs) {
-      /** @type {MapeoDoc | null} */
-      let found = null
-      try {
-        // @ts-expect-error - schemaName indexes the project dynamically
-        found = await project[doc.schemaName].getByDocId(doc.docId)
-      } catch {
-        // Not found: what we want
-      }
+      // Only a not-found error means "not received" — any other error (a
+      // closed project, a type error) must fail the test rather than
+      // satisfy the negative assertion vacuously
+      const found = await project[/** @type {'observation'} */ (doc.schemaName)]
+        .getByDocId(doc.docId)
+        .catch(nullIfNotFound)
       assert.equal(
         found,
         null,

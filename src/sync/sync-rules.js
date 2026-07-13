@@ -68,6 +68,10 @@ import { getOwn } from '../lib/get-own.js'
  * @typedef {object} PeerFacts
  * @property {string} deviceId
  * @property {SyncCapability} capability
+ * @property {boolean} hasSyncedAuth auth sync with this peer has completed,
+ * its records were indexed, and the capability re-read (the "auth gate").
+ * Until then `capability` may be a placeholder (`NO_ROLE`), so non-auth
+ * namespaces can be neither skipped as blocked nor counted as complete.
  */
 
 /**
@@ -207,6 +211,12 @@ function hasCompletedHandshake(snapshot, deviceId) {
 export function isNamespacesCompleteWithDevice(snapshot, peer, namespaces) {
   if (!hasCompletedHandshake(snapshot, peer.deviceId)) return false
   for (const ns of namespaces) {
+    // Until the peer's auth gate has opened, its capability is a placeholder
+    // (NO_ROLE blocks everything non-auth), so a non-auth namespace can
+    // neither be skipped as "blocked" nor be complete — we don't yet know
+    // what may sync. Without this, initial sync would read as complete the
+    // moment auth transferred, before config was even enabled.
+    if (ns !== 'auth' && !peer.hasSyncedAuth) return false
     if (peer.capability[ns] === 'blocked') continue
     const deviceProgress = getOwn(snapshot[ns].devices, peer.deviceId)
     if (!deviceProgress) return false

@@ -272,6 +272,52 @@ test('sync-state events emitted on start and stop', async (t) => {
 })
 
 test(
+  "initial-sync completion implies the project's config has synced (fresh join)",
+  { timeout: 120_000 },
+  async (t) => {
+    // Regression guard: completion must not read as vacuously true for a
+    // peer whose role we have not read yet (placeholder capability blocks
+    // config, and blocked namespaces are skipped) — waitForSync('initial')
+    // would resolve after auth alone, before any project config arrived
+    const s = await createSyncScenario(t, { devices: { creator: {} } })
+    const { preset } = await s.seed('creator', { preset: 30 })
+
+    // A second device joins fresh (scenario helpers all run on one project,
+    // so drive the join directly): the moment its initial-sync wait
+    // resolves, the project's presets must be readable. Named uniquely —
+    // createManagers() seeds identities by index, which would collide with
+    // the scenario's first device.
+    const { createManager, invite, connectPeers } = await import('./utils.js')
+    const joiner = createManager('fresh-joiner', t)
+    await joiner.setDeviceInfo({
+      name: 'fresh-joiner',
+      deviceType: 'mobile',
+    })
+    const disconnect = connectPeers([s.manager('creator'), joiner])
+    t.after(disconnect)
+    await invite({
+      invitor: s.manager('creator'),
+      invitees: [joiner],
+      projectId: s.projectId,
+    })
+    assert.notEqual(
+      joiner.deviceId,
+      s.deviceId('creator'),
+      'joiner has its own identity'
+    )
+    const joinerProject = await joiner.getProject(s.projectId)
+    await joinerProject.$sync.waitForSync('initial', { timeoutMs: 30_000 })
+
+    const joinerPresets = await joinerProject.preset.getMany()
+    assert.equal(
+      joinerPresets.length,
+      preset.length,
+      'all presets are present the moment initial sync resolves'
+    )
+  }
+)
+
+test(
   'full sync completes across three devices',
   { timeout: 120_000 },
   async (t) => {
