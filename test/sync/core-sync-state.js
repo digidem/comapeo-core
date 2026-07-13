@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import {
-  deriveState,
-  PeerState,
+  deriveCoreState,
+  PeerCoreState,
   CoreSyncState,
   bitCount32,
 } from '../../src/sync/core-sync-state.js'
@@ -16,6 +16,10 @@ import { EventEmitter } from 'node:events'
 import { createCore } from '../helpers/create-core.js'
 
 /**
+ * Counts in the derived state are always from the local device's point of
+ * view: for a peer entry, `toSend` = blocks that peer still needs from us,
+ * `toReceive` = blocks we still need from that peer.
+ *
  * @type {Array<{
  *   message: string,
  *   state: {
@@ -23,12 +27,12 @@ import { createCore } from '../helpers/create-core.js'
  *     localState: Parameters<createState>[0],
  *     remoteStates: Array<Parameters<createState>[0]>
  *   },
- *   expected: import('../../src/sync/core-sync-state.js').DerivedState
+ *   expected: import('../../src/sync/core-sync-state.js').DerivedCoreState
  * }>}
  */
 const scenarios = [
   {
-    message: '3 peers, start with haves, test want, have, and wanted',
+    message: '3 peers, start with haves, test toSend, have, and toReceive',
     state: {
       length: 4,
       localState: { have: 0b0111 },
@@ -36,25 +40,25 @@ const scenarios = [
     },
     expected: {
       coreLength: 4,
-      localState: { want: 0, have: 3, wanted: 2 },
-      remoteStates: {
+      local: { toReceive: 0, have: 3, toSend: 2 },
+      devices: {
         peer0: {
-          want: 1,
+          toSend: 1,
           have: 2,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
         peer1: {
-          want: 1,
+          toSend: 1,
           have: 2,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
         peer2: {
-          want: 2,
+          toSend: 2,
           have: 1,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
       },
     },
@@ -68,35 +72,35 @@ const scenarios = [
     },
     expected: {
       coreLength: 4,
-      localState: { want: 0, have: 0, wanted: 0 },
-      remoteStates: {
+      local: { toReceive: 0, have: 0, toSend: 0 },
+      devices: {
         peer0: {
-          want: 0,
+          toSend: 0,
           have: 0,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
         peer1: {
-          want: 0,
+          toSend: 0,
           have: 0,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
       },
     },
   },
   {
-    message: 'started',
+    message: 'open channel',
     state: {
       length: 3,
       localState: { have: 0b111 },
-      remoteStates: [{ have: 0b001, want: 0b011, status: 'started' }],
+      remoteStates: [{ have: 0b001, want: 0b011, channel: 'open' }],
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 1 },
-      remoteStates: {
-        peer0: { want: 1, have: 1, wanted: 0, status: 'started' },
+      local: { toReceive: 0, have: 3, toSend: 1 },
+      devices: {
+        peer0: { toSend: 1, have: 1, toReceive: 0, channel: 'open' },
       },
     },
   },
@@ -109,13 +113,13 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 1 },
-      remoteStates: {
+      local: { toReceive: 0, have: 3, toSend: 1 },
+      devices: {
         peer0: {
-          want: 1,
+          toSend: 1,
           have: 1,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
       },
     },
@@ -129,13 +133,13 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 1 },
-      remoteStates: {
+      local: { toReceive: 0, have: 3, toSend: 1 },
+      devices: {
         peer0: {
-          want: 1,
+          toSend: 1,
           have: 2,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
       },
     },
@@ -149,13 +153,13 @@ const scenarios = [
     },
     expected: {
       coreLength: 3,
-      localState: { want: 0, have: 3, wanted: 0 },
-      remoteStates: {
+      local: { toReceive: 0, have: 3, toSend: 0 },
+      devices: {
         peer0: {
-          want: 0,
+          toSend: 0,
           have: 3,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
       },
     },
@@ -173,25 +177,25 @@ const scenarios = [
     },
     expected: {
       coreLength: 72,
-      localState: { want: 0, have: 50, wanted: 15 },
-      remoteStates: {
+      local: { toReceive: 0, have: 50, toSend: 15 },
+      devices: {
         peer0: {
-          want: 10,
+          toSend: 10,
           have: 40,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
         peer1: {
-          want: 5,
+          toSend: 5,
           have: 40,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
         peer2: {
-          want: 5,
+          toSend: 5,
           have: 40,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
       },
     },
@@ -205,43 +209,68 @@ const scenarios = [
     },
     expected: {
       coreLength: 2,
-      localState: { want: 0, have: 2, wanted: 2 },
-      remoteStates: {
+      local: { toReceive: 0, have: 2, toSend: 2 },
+      devices: {
         peer0: {
-          want: 1,
+          toSend: 1,
           have: 0,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
         peer1: {
-          want: 2,
+          toSend: 2,
           have: 0,
-          wanted: 0,
-          status: 'stopped',
+          toReceive: 0,
+          channel: 'closed',
         },
       },
     },
   },
 ]
 
-test('deriveState() scenarios', () => {
+test('deriveCoreState() scenarios', () => {
   for (const { state, expected, message } of scenarios) {
-    const derivedState = deriveState({
+    const derivedState = deriveCoreState({
       length: state.length,
       localState: createState(state.localState),
       remoteStates: new Map(
         state.remoteStates.map((s, i) => ['peer' + i, createState(s)])
       ),
-      peerSyncControllers: new Map(),
-      namespace: 'auth',
+      isPeerSyncAllowed: () => true,
     })
     assert.deepEqual(derivedState, expected, message)
   }
 })
 
-test('deriveState() have at index beyond bitfield page size', () => {
+test('deriveCoreState() excludes blocked peers from counts', () => {
+  const derivedState = deriveCoreState({
+    length: 4,
+    localState: createState({ have: 0b0111 }),
+    remoteStates: new Map([
+      ['allowedPeer', createState({ have: 0b0011 })],
+      ['blockedPeer', createState({ have: 0b1000 })],
+    ]),
+    isPeerSyncAllowed: (deviceId) => deviceId !== 'blockedPeer',
+  })
+  assert.deepEqual(derivedState, {
+    coreLength: 4,
+    // The blocked peer's blocks are not counted as toReceive/toSend, and the
+    // blocked peer has no entry at all
+    local: { toReceive: 0, have: 3, toSend: 1 },
+    devices: {
+      allowedPeer: {
+        toSend: 1,
+        have: 2,
+        toReceive: 0,
+        channel: 'closed',
+      },
+    },
+  })
+})
+
+test('deriveCoreState() have at index beyond bitfield page size', () => {
   const localState = createState({ have: 2 ** 10 - 1 })
-  const remoteState = new PeerState()
+  const remoteState = new PeerCoreState()
   const remoteHaveBitfield = new RemoteBitfield()
   remoteHaveBitfield.set(BITS_PER_PAGE - 1 + 10, true)
   remoteState.setHavesBitfield(remoteHaveBitfield)
@@ -249,37 +278,35 @@ test('deriveState() have at index beyond bitfield page size', () => {
     length: BITS_PER_PAGE + 10,
     localState,
     remoteStates: new Map([['peer0', remoteState]]),
-    peerSyncControllers: new Map(),
-    namespace: /** @type {const} */ ('auth'),
+    isPeerSyncAllowed: () => true,
   }
   const expected = {
     coreLength: BITS_PER_PAGE + 10,
-    localState: {
-      want: 1,
+    local: {
+      toReceive: 1,
       have: 10,
-      wanted: 10,
+      toSend: 10,
     },
-    remoteStates: {
+    devices: {
       peer0: {
-        want: 10,
+        toSend: 10,
         have: 1,
-        wanted: 1,
-        status: 'stopped',
+        toReceive: 1,
+        channel: 'closed',
       },
     },
   }
-  assert.deepEqual(deriveState(state), expected)
+  assert.deepEqual(deriveCoreState(state), expected)
 })
 
-test('CoreReplicationState', async (t) => {
+test('CoreSyncState integration', async (t) => {
   for (const { state, expected, message } of scenarios) {
     const localCore = await createCore(t)
     await localCore.ready()
     const emitter = new EventEmitter()
     const crs = new CoreSyncState({
       onUpdate: () => emitter.emit('update'),
-      peerSyncControllers: new Map(),
-      namespace: 'auth',
+      isPeerSyncAllowed: () => true,
       deviceId: '',
       hasDownloadFilter: () => false,
     })
@@ -291,8 +318,8 @@ test('CoreReplicationState', async (t) => {
     seed.write('local')
     const kp1 = NoiseSecretStream.keyPair(seed)
     const peerIds = new Map()
-    /** @type {Map<string, 'started' | 'stopped'>} */
-    const statusesByPeer = new Map()
+    /** @type {Map<string, 'open' | 'closed'>} */
+    const channelsByPeer = new Map()
     for (const [
       index,
       { have, want, prehave },
@@ -301,13 +328,13 @@ test('CoreReplicationState', async (t) => {
       const kp2 = NoiseSecretStream.keyPair(seed)
       const peerId = kp2.publicKey.toString('hex')
       peerIds.set('peer' + index, peerId)
-      statusesByPeer.set(peerId, 'stopped')
+      channelsByPeer.set(peerId, 'closed')
 
-      // We unit test deriveState with no bitfields, but we need something here
-      // for things to work
+      // We unit test deriveCoreState with no bitfields, but we need something
+      // here for things to work
       crs.insertPreHaves(peerId, 0, createUint32Array(prehave || 0))
       if (typeof have !== 'number' && typeof want !== 'number') continue
-      statusesByPeer.set(peerId, 'started')
+      channelsByPeer.set(peerId, 'open')
       const core = await createCore(t, localCore.key)
       setPeerWants(crs, peerId, want)
       replicate(localCore, core, { kp1, kp2 })
@@ -316,14 +343,14 @@ test('CoreReplicationState', async (t) => {
     }
     await Promise.all(downloadPromises)
     await clearCore(localCore, state.localState.have)
-    const expectedRemoteStates = Object.fromEntries(
-      Object.entries(expected.remoteStates).map(([key, value]) => {
+    const expectedDevices = Object.fromEntries(
+      Object.entries(expected.devices).map(([key, value]) => {
         const peerId = peerIds.get(key)
         return [
           peerId,
           {
             ...value,
-            status: statusesByPeer.get(peerId),
+            channel: channelsByPeer.get(peerId),
           },
         ]
       })
@@ -331,7 +358,7 @@ test('CoreReplicationState', async (t) => {
     await updateWithTimeout(emitter, 100)
     assert.deepEqual(
       crs.getState(),
-      { ...expected, remoteStates: expectedRemoteStates },
+      { ...expected, devices: expectedDevices },
       message
     )
   }
@@ -385,10 +412,10 @@ function slowBitCount(n) {
 
 /**
  *
- * @param {{ have?: number | bigint, prehave?: number, want?: number | bigint, status?: import('../../src/sync/core-sync-state.js').PeerNamespaceState['status'] }} param0
+ * @param {{ have?: number | bigint, prehave?: number, want?: number | bigint, channel?: import('../../src/sync/core-sync-state.js').ChannelState }} param0
  */
-function createState({ have, prehave, want, status }) {
-  const peerState = new PeerState()
+function createState({ have, prehave, want, channel }) {
+  const peerState = new PeerCoreState()
   if (prehave) {
     const bitfield = createUint32Array(prehave)
     peerState.insertPreHaves(0, bitfield)
@@ -406,7 +433,7 @@ function createState({ have, prehave, want, status }) {
       }
     }
   }
-  if (typeof status === 'string') peerState.status = status
+  if (typeof channel === 'string') peerState.channel = channel
   return peerState
 }
 

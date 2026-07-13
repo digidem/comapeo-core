@@ -20,7 +20,6 @@ import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { temporaryFile, temporaryDirectory } from 'tempy'
 import fsPromises from 'node:fs/promises'
 import fs from 'node:fs'
-import { kSyncState } from '../src/sync/sync-api.js'
 import pTimeout from 'p-timeout'
 import { pipeline } from 'node:stream/promises'
 import { Transform } from 'node:stream'
@@ -616,30 +615,29 @@ export function round(value, decimalPlaces) {
  *
  * @param {import('../src/mapeo-project.js').MapeoProject} project
  * @param {string[]} peerIds
- * @param {'initial' | 'full'} [type]
+ * @param {'initial' | 'all'} [type]
  */
 async function waitForProjectSync(project, peerIds, type = 'initial') {
-  const state = project.$sync[kSyncState].getState()
-  if (hasPeerIds(state.auth.remoteStates, peerIds)) {
-    return project.$sync.waitForSync(type)
-  }
-  return new Promise((res) => {
-    project.$sync[kSyncState].on('state', function onState(state) {
-      if (!hasPeerIds(state.auth.remoteStates, peerIds)) return
-      project.$sync[kSyncState].off('state', onState)
-      res(project.$sync.waitForSync(type))
+  if (!hasPeerIds(project.$sync.getState(), peerIds)) {
+    await new Promise((res) => {
+      project.$sync.on('sync-state', function onState(state) {
+        if (!hasPeerIds(state, peerIds)) return
+        project.$sync.off('sync-state', onState)
+        res(null)
+      })
     })
-  })
+  }
+  return project.$sync.waitForSync(type)
 }
 
 /**
- * @param {Record<string, unknown>} remoteStates
+ * @param {import('../src/sync/sync-api.js').State} state
  * @param {string[]} peerIds
  * @returns {boolean}
  */
-function hasPeerIds(remoteStates, peerIds) {
+function hasPeerIds(state, peerIds) {
   for (const peerId of peerIds) {
-    if (!(peerId in remoteStates)) return false
+    if (!(peerId in state.devices)) return false
   }
   return true
 }
@@ -648,7 +646,7 @@ function hasPeerIds(remoteStates, peerIds) {
  * Wait for all projects to connect and sync
  *
  * @param {import('../src/mapeo-project.js').MapeoProject[]} projects
- * @param {'initial' | 'full'} [type]
+ * @param {'initial' | 'all'} [type]
  * @param {{ timeout?: number }} [opts]
  */
 export async function waitForSync(

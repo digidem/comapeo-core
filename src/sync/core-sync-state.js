@@ -192,6 +192,8 @@ export class CoreSyncState {
    */
   insertPreHaves(deviceId, start, bitfield) {
     const peerState = this.#getOrCreatePeerState(deviceId)
+    // Pre-haves prove the peer knows this core
+    peerState.markCoreKnown(!this.#hasDownloadFilter(deviceId))
     peerState.insertPreHaves(start, bitfield)
     const previousLength = Math.max(
       this.#preHavesLength,
@@ -243,9 +245,20 @@ export class CoreSyncState {
 
   /**
    * @param {DeviceId} deviceId
+   * @param {object} [opts]
+   * @param {boolean} [opts.assumeCoreKnown=true] whether to assume the peer
+   * knows this core exists. When a peer connects, we assume it knows (or will
+   * imminently learn about) all cores we know of, so it is treated as wanting
+   * all blocks it doesn't have (which is what makes progress reporting show
+   * pending data for peers that haven't started syncing). But when a core is
+   * discovered *after* a peer connected, we may know something the peer has
+   * no way of knowing about, so we must not fabricate wants for it —
+   * completion would block forever on a transfer the peer will never
+   * request. Evidence that the peer does know the core (an open replication
+   * channel, pre-haves, an explicit want range) upgrades this.
    */
-  addPeer(deviceId) {
-    this.#getOrCreatePeerState(deviceId)
+  addPeer(deviceId, { assumeCoreKnown = true } = {}) {
+    this.#getOrCreatePeerState(deviceId, { assumeCoreKnown })
     this.#update()
   }
 
@@ -263,13 +276,16 @@ export class CoreSyncState {
 
   /**
    * @param {DeviceId} deviceId
+   * @param {object} [opts]
+   * @param {boolean} [opts.assumeCoreKnown=true] see {@link addPeer}
    */
-  #getOrCreatePeerState(deviceId) {
+  #getOrCreatePeerState(deviceId, { assumeCoreKnown = true } = {}) {
     if (deviceId === this.#deviceId) return this.#localState
     let peerState = this.#remoteStates.get(deviceId)
     if (!peerState) {
       peerState = new PeerCoreState({
-        wantsEverything: !this.#hasDownloadFilter(deviceId),
+        wantsEverything: assumeCoreKnown && !this.#hasDownloadFilter(deviceId),
+        coreKnown: assumeCoreKnown,
       })
       this.#remoteStates.set(deviceId, peerState)
     }
@@ -288,6 +304,8 @@ export class CoreSyncState {
 
     // Update state to ensure this peer is in the state correctly
     const peerState = this.#getOrCreatePeerState(deviceId)
+    // An open replication channel proves the peer knows this core
+    peerState.markCoreKnown(!this.#hasDownloadFilter(deviceId))
     peerState.channel = 'opening'
 
     this.#core?.update({ wait: true }).then(
@@ -375,6 +393,14 @@ export class PeerCoreState {
    * @type {null | Bitfield}
    */
   #wants
+  /**
+   * Do we have evidence that the peer knows this core exists (an open
+   * replication channel, pre-haves, or explicit want ranges)? While `false`,
+   * the peer is treated as wanting nothing from this core: fabricating wants
+   * for a core the peer may never learn about would block sync completion on
+   * a transfer that will never be requested.
+   */
+  #coreKnown
 
   /**
    * This is how many consecutive blocks the peer has
@@ -385,8 +411,23 @@ export class PeerCoreState {
   /** @type {ChannelState} */
   channel = 'closed'
 
-  constructor({ wantsEverything = true } = {}) {
+  constructor({ wantsEverything = true, coreKnown = true } = {}) {
     this.#wants = wantsEverything ? null : new RemoteBitfield()
+    this.#coreKnown = coreKnown
+  }
+
+  /**
+   * Record evidence that the peer knows this core exists. If there was no
+   * evidence before, the peer switches to the default assumption for what it
+   * wants.
+   *
+   * @param {boolean} wantsEverythingDefault `false` when a blob download
+   * filter means the peer only wants explicitly-requested ranges
+   */
+  markCoreKnown(wantsEverythingDefault) {
+    if (this.#coreKnown) return
+    this.#coreKnown = true
+    this.#wants = wantsEverythingDefault ? null : new RemoteBitfield()
   }
 
   get preHavesBitfield() {
@@ -418,6 +459,8 @@ export class PeerCoreState {
    * @returns {void}
    */
   addWantRange(start, length) {
+    // Explicit wants are evidence the peer knows this core
+    this.#coreKnown = true
     this.#wants ??= new RemoteBitfield()
     this.#wants.setRange(start, length, true)
   }
@@ -426,6 +469,7 @@ export class PeerCoreState {
    * @param {boolean} wantsEverything
    */
   setWantsEverything(wantsEverything) {
+    this.#coreKnown = true
     this.#wants = wantsEverything ? null : new RemoteBitfield()
   }
   /**

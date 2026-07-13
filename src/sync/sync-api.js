@@ -123,6 +123,11 @@ export class SyncApi extends TypedEmitter {
     this.#peerManager.on('peer-unregistered', (deviceId) => {
       this.#syncProgress.removePeer(deviceId)
     })
+    this.#peerManager.on('capability-change', () => {
+      // Capability decides whether a peer's blocks are counted at all, so
+      // cached derived state is stale as soon as it changes
+      this.#syncProgress.invalidate()
+    })
     this.#peerManager.on('change', () => {
       this.#recomputeAndEmit()
     })

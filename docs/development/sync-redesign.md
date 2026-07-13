@@ -133,7 +133,12 @@ type DeviceSyncState = {
 }
 
 type DeviceGroupProgress = {
-  /** are we actively replicating this group with this device right now */
+  /**
+   * Is this group actively replicating with this device? True only when both
+   * sides have enabled it (the replication channels are open), so this tells
+   * a consumer whether the other device is syncing with us, not just our own
+   * intent.
+   */
   isSyncEnabled: boolean
   /** channel is up and nothing left to send or receive with this device */
   isComplete: boolean
@@ -183,6 +188,28 @@ All completion questions are answered by two predicates in `sync-rules.js`:
 The per-peer data-sync gate uses the same predicate: data namespaces enable
 with peer P only once `isGroupCompleteWithPeer(snapshot, P, 'initial')` —
 per-peer, not the old namespace-global `localState.want === 0`.
+
+**The "does the peer know this core?" rule.** A peer's default state for a
+core is "wants every block it doesn't have" — that is what makes progress
+reporting show pending data for peers that haven't started syncing. But that
+default is only valid if the peer can actually learn the core exists. When a
+core is discovered *after* a peer connected (e.g. from a third device the
+peer has never met), the peer may have no path to ever learning about it —
+core keys are currently only exchanged on connect and via core-ownership
+records the peer may not hold. Fabricating wants there would block completion
+forever on a transfer that will never be requested. So a peer's state for a
+core starts as "wants nothing" unless we have evidence the peer knows the
+core: the core existed when the peer connected, an open replication channel,
+received pre-haves, or an explicit want range. (The old code got this right
+by accident: it simply never tracked peers on late-added cores, which also
+meant completion couldn't see them at all.)
+
+**Capability invalidation.** A peer's capability decides whether its blocks
+are counted in derived state at all, so `SyncProgress` caches must be
+invalidated when a capability changes — there is no block-level event in that
+case. `PeerManager` emits `capability-change` and `SyncApi` calls
+`SyncProgress#invalidate()`. (This is the structural fix for the bug that
+commit `92ee66e0` patched and `66f1d827` reverted.)
 
 `waitForInitialSyncWithPeer(deviceId, signal)` (invite flow) is
 `isGroupCompleteWithPeer` awaited over snapshots; it skips capability-blocked

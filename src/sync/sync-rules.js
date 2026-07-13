@@ -68,8 +68,6 @@ import { getOwn } from '../lib/get-own.js'
  * @typedef {object} PeerFacts
  * @property {string} deviceId
  * @property {SyncCapability} capability
- * @property {ReadonlySet<Namespace>} enabledNamespaces namespaces we are
- * currently replicating with this peer
  */
 
 /**
@@ -259,8 +257,10 @@ export function isSyncComplete(snapshot, connectedPeers, target) {
 
 /**
  * @typedef {object} DeviceGroupProgress
- * @property {boolean} isSyncEnabled are we replicating this namespace group
- * with this device right now
+ * @property {boolean} isSyncEnabled is this namespace group actively
+ * replicating with this device — true only when *both* sides have enabled it
+ * (replication channels are open), so this reflects whether the other device
+ * is syncing with us, not just our own intent
  * @property {boolean} isComplete nothing left to send to or receive from this
  * device in this group
  * @property {number} toReceive blocks we still need from this device
@@ -289,13 +289,22 @@ export function deriveSyncApiState({ snapshot, connectedPeers, syncMode }) {
     for (const group of NAMESPACE_GROUPS) {
       let toReceive = 0
       let toSend = 0
+      // Enabled = replication channels are open for every non-blocked
+      // namespace in the group. Channels only open when both sides
+      // replicate, so this is how a consumer sees whether the *other*
+      // device is syncing with us.
       let isSyncEnabled = false
       for (const ns of namespacesForGroup(group)) {
         if (peer.capability[ns] === 'blocked') continue
-        // Enabled if we are replicating any non-blocked namespace in the
-        // group (they enable and disable together, so any = all, but a
-        // partially-blocked capability shouldn't read as disabled)
-        if (peer.enabledNamespaces.has(ns)) isSyncEnabled = true
+        const deviceProgress = getOwn(snapshot[ns].devices, peer.deviceId)
+        if (!deviceProgress || deviceProgress.openChannels === 0) {
+          isSyncEnabled = false
+          break
+        }
+        isSyncEnabled = true
+      }
+      for (const ns of namespacesForGroup(group)) {
+        if (peer.capability[ns] === 'blocked') continue
         const deviceProgress = getOwn(snapshot[ns].devices, peer.deviceId)
         if (!deviceProgress) continue
         toReceive += deviceProgress.toReceive

@@ -102,6 +102,21 @@ export class SyncProgress extends TypedEmitter {
   }
 
   /**
+   * Discard cached derived state and (throttled) emit a fresh update. Must be
+   * called when an input to state derivation *outside* the cores changes —
+   * specifically a peer's sync capability, which decides whether the peer's
+   * blocks are counted at all. Without this, capability changes would leave
+   * stale counts in the snapshot until the next block-level event.
+   */
+  invalidate() {
+    if (this.#isClosed) return
+    for (const namespace of NAMESPACES) {
+      this.#cache.set(namespace, null)
+    }
+    this.#throttledEmitUpdate()
+  }
+
+  /**
    * Start tracking state for a connected peer on every core, including cores
    * added while the peer is connected.
    *
@@ -259,10 +274,13 @@ export class SyncProgress extends TypedEmitter {
           prefix: `[${discoveryId.slice(0, 7)}] `,
         }),
       })
-      // Track state for already-connected peers on late-discovered cores, so
-      // completion checks account for what connected peers may have on them
+      // Track state for already-connected peers on late-discovered cores.
+      // The peer may have no way of knowing this core exists (we may have
+      // learned of it from a device they have never synced with), so don't
+      // assume they want its blocks until there is evidence they know it —
+      // otherwise completion would block on them forever.
       for (const deviceId of this.#registeredDeviceIds) {
-        coreState.addPeer(deviceId)
+        coreState.addPeer(deviceId, { assumeCoreKnown: false })
       }
       coreStates.set(discoveryId, coreState)
     }

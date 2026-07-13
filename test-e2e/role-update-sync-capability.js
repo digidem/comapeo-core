@@ -41,14 +41,14 @@ test('role downgrade (member → blocked) stops replication on the same session'
   }
   invitorProject.$sync.start()
   inviteeProject.$sync.start()
-  await waitForSync([invitorProject, inviteeProject], 'full', {
+  await waitForSync([invitorProject, inviteeProject], 'all', {
     timeout: 30_000,
   })
 
   // Sanity: invitor sees invitee as data-enabled before the block.
   {
     const inviteeView =
-      invitorProject.$sync.getState().remoteDeviceSyncState[invitee.deviceId]
+      invitorProject.$sync.getState().devices[invitee.deviceId]
     assert(
       inviteeView?.data.isSyncEnabled,
       'invitor sees invitee data-enabled pre-block'
@@ -67,8 +67,8 @@ test('role downgrade (member → blocked) stops replication on the same session'
     /**
      * @param {import('../src/sync/sync-api.js').State} state
      */
-    const onState = ({ remoteDeviceSyncState }) => {
-      if (!remoteDeviceSyncState[invitee.deviceId]?.data.isSyncEnabled) {
+    const onState = ({ devices }) => {
+      if (!devices[invitee.deviceId]?.data.isSyncEnabled) {
         clearTimeout(timer)
         invitorProject.$sync.off('sync-state', onState)
         res(void 0)

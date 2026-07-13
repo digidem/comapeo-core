@@ -20,13 +20,13 @@ import {
 } from './utils.js'
 import { kCoreManager } from '../src/mapeo-project.js'
 import { getKeys } from '../test/helpers/core-manager.js'
-import { NAMESPACES, PRESYNC_NAMESPACES } from '../src/constants.js'
+import { NAMESPACES, INITIAL_SYNC_NAMESPACES } from '../src/constants.js'
 import { FastifyController } from '../src/fastify-controller.js'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
-import { kSyncState } from '../src/sync/sync-api.js'
+import { kSyncProgress } from '../src/sync/sync-api.js'
 import { createHash } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 /** @import { State } from '../src/sync/sync-api.js' */
@@ -90,7 +90,7 @@ test('Create and sync data', { timeout: 100_000 }, async (t) => {
     project.$sync.start()
   }
 
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
 
   await Promise.all(
     map(generatedSchemaNames, (schemaName) =>
@@ -239,14 +239,14 @@ test('non-archive devices only sync a subset of blobs', async (t) => {
 
   await t.test('device can toggle archive status while syncing', async (t) => {
     projects.map((p) => p.$sync.start())
-    await waitForSync(projects, 'full')
+    await waitForSync(projects, 'all')
 
     invitee2.setIsArchiveDevice(false)
     const newInvitorBlobs = await seedProjectBlobs(invitorProject, t, {
       photoCount: 10,
       audioCount: 5,
     })
-    await waitForSync(projects, 'full')
+    await waitForSync(projects, 'all')
 
     for (const { blobId, hashes } of newInvitorBlobs) {
       await assertHasBlob(
@@ -418,7 +418,7 @@ test('start and stop sync', async function (t) {
   inviteeProject.$sync.start()
 
   await assert.rejects(
-    () => waitForSync(projects, 'full', { timeout: 1_000 }),
+    () => waitForSync(projects, 'all', { timeout: 1_000 }),
     'wait for sync times out'
   )
 
@@ -430,7 +430,7 @@ test('start and stop sync', async function (t) {
   invitorProject.$sync.start()
 
   // Use the same timeout as above, to check that it would have synced given the timeout
-  await waitForSync(projects, 'full', { timeout: 1_000 })
+  await waitForSync(projects, 'all', { timeout: 1_000 })
 
   const obs1Synced = await inviteeProject.observation.getByDocId(obs1.docId)
 
@@ -444,7 +444,7 @@ test('start and stop sync', async function (t) {
   await waitForSync(projects, 'initial')
 
   await assert.rejects(
-    () => waitForSync(projects, 'full', { timeout: 1_000 }),
+    () => waitForSync(projects, 'all', { timeout: 1_000 }),
     'wait for sync times out'
   )
 
@@ -455,7 +455,7 @@ test('start and stop sync', async function (t) {
 
   inviteeProject.$sync.start()
 
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
 
   const obs2Synced = await invitorProject.observation.getByDocId(obs2.docId)
 
@@ -493,7 +493,7 @@ test('sync only happens if both sides are enabled', async (t) => {
 
   invitorProject.$sync.start()
   inviteeProject.$sync.start()
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
 
   assert(await inviteeProject.observation.getByDocId(obs1.docId))
   assert(await invitorProject.observation.getByDocId(obs2.docId))
@@ -508,7 +508,7 @@ test('sync only happens if both sides are enabled', async (t) => {
   invitorProject.$sync.start()
 
   await assert.rejects(
-    () => waitForSync(projects, 'full'),
+    () => waitForSync(projects, 'all'),
     'wait for sync times out'
   )
 
@@ -555,18 +555,18 @@ test('auto-stop', async (t) => {
   inviteeProject.$sync.start({ autostopDataSyncAfter: 10_000 })
 
   assert(
-    invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode === 'all',
     "invitor hasn't auto-stopped yet"
   )
   assert(
-    inviteeProject.$sync.getState().data.isSyncEnabled,
+    inviteeProject.$sync.getState().syncMode === 'all',
     "invitee hasn't auto-stopped yet"
   )
 
   const observation1 = await invitorProject.observation.create(
     valueOf(generatedObservations[0])
   )
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
   assert(
     await inviteeProject.observation.getByDocId(observation1.docId),
     'invitee receives doc'
@@ -582,7 +582,7 @@ test('auto-stop', async (t) => {
     { original: fixturePath },
     { mimeType: 'image/jpeg' }
   )
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
   const blobUrl = await inviteeProject.$blobs.getUrl({
     ...blob,
     variant: 'original',
@@ -598,23 +598,23 @@ test('auto-stop', async (t) => {
   await clock.tickAsync(9000)
 
   assert(
-    invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode === 'all',
     "invitor hasn't auto-stopped yet because the timer has been restarted"
   )
   assert(
-    inviteeProject.$sync.getState().data.isSyncEnabled,
+    inviteeProject.$sync.getState().syncMode === 'all',
     "invitee hasn't auto-stopped yet because the timer has been restarted"
   )
 
   let invitorProjectOnSyncDisabled = pEvent(
     invitorProject.$sync,
     'sync-state',
-    ({ data: { isSyncEnabled } }) => !isSyncEnabled
+    ({ syncMode }) => syncMode !== 'all'
   )
   const inviteeProjectOnSyncDisabled = pEvent(
     inviteeProject.$sync,
     'sync-state',
-    ({ data: { isSyncEnabled } }) => !isSyncEnabled
+    ({ syncMode }) => syncMode !== 'all'
   )
 
   clock.tick(2000)
@@ -624,17 +624,17 @@ test('auto-stop', async (t) => {
     inviteeProjectOnSyncDisabled,
   ])
   assert(
-    !invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode !== 'all',
     'invitor has auto-stopped'
   )
   assert(
-    !inviteeProject.$sync.getState().data.isSyncEnabled,
+    inviteeProject.$sync.getState().syncMode !== 'all',
     'invitee has auto-stopped'
   )
 
   invitorProject.$sync.setAutostopDataSyncTimeout(20_000)
   assert(
-    !invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode !== 'all',
     'invitor is still stopped'
   )
 
@@ -644,7 +644,7 @@ test('auto-stop', async (t) => {
   const observation2 = await invitorProject.observation.create(
     valueOf(generatedObservations[1])
   )
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
   assert(
     await inviteeProject.observation.getByDocId(observation2.docId),
     'invitee receives doc'
@@ -653,21 +653,21 @@ test('auto-stop', async (t) => {
   await clock.tickAsync(19_000)
 
   assert(
-    invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode === 'all',
     "invitor hasn't auto-stopped"
   )
 
   invitorProjectOnSyncDisabled = pEvent(
     invitorProject.$sync,
     'sync-state',
-    ({ data: { isSyncEnabled } }) => !isSyncEnabled
+    ({ syncMode }) => syncMode !== 'all'
   )
 
   clock.tick(2_000)
 
   await invitorProjectOnSyncDisabled
   assert(
-    !invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode !== 'all',
     'invitor has auto-stopped'
   )
 
@@ -675,20 +675,20 @@ test('auto-stop', async (t) => {
   invitorProject.$sync.setAutostopDataSyncTimeout(20_000)
 
   assert(
-    invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode === 'all',
     'invitor has not yet auto-stopped'
   )
 
   invitorProjectOnSyncDisabled = pEvent(
     invitorProject.$sync,
     'sync-state',
-    ({ data: { isSyncEnabled } }) => !isSyncEnabled
+    ({ syncMode }) => syncMode !== 'all'
   )
   clock.tick(21_000)
   await invitorProjectOnSyncDisabled
 
   assert(
-    !invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode !== 'all',
     'invitor has auto-stopped'
   )
 })
@@ -717,14 +717,14 @@ test('disabling auto-stop timeout', async (t) => {
   inviteeProject.$sync.start()
 
   assert(
-    invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode === 'all',
     "invitor hasn't auto-stopped yet"
   )
 
   const observation1 = await invitorProject.observation.create(
     valueOf(generate('observation')[0])
   )
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
   assert(
     await inviteeProject.observation.getByDocId(observation1.docId),
     'invitee receives doc'
@@ -732,7 +732,7 @@ test('disabling auto-stop timeout', async (t) => {
 
   await clock.tickAsync(999_999_999)
   assert(
-    invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode === 'all',
     "invitor still hasn't auto-stopped"
   )
 })
@@ -752,7 +752,7 @@ test('validates auto-stop timeouts', async (t) => {
     })
   }
 
-  assert(!project.$sync.getState().data.isSyncEnabled, 'sync is not enabled')
+  assert(project.$sync.getState().syncMode !== 'all', 'sync is not enabled')
 })
 
 test('gracefully shutting down sync for all projects when backgrounded', async function (t) {
@@ -787,7 +787,7 @@ test('gracefully shutting down sync for all projects when backgrounded', async f
       inviteeProject.$sync.start()
       invitorProject.$sync.start()
 
-      await waitForSync(projects, 'full')
+      await waitForSync(projects, 'all')
 
       return { invitorProject, inviteeProject, observation1 }
     })
@@ -834,7 +834,7 @@ test('gracefully shutting down sync for all projects when backgrounded', async f
         observation2,
         observation3,
       }) => {
-        await waitForSync([invitorProject, inviteeProject], 'full')
+        await waitForSync([invitorProject, inviteeProject], 'all')
 
         assert(
           await inviteeProject.observation.getByDocId(observation2.docId),
@@ -865,7 +865,7 @@ test('shares cores', async function (t) {
 
   await waitForSync(projects, 'initial')
 
-  for (const ns of PRESYNC_NAMESPACES) {
+  for (const ns of INITIAL_SYNC_NAMESPACES) {
     for (const cm of coreManagers) {
       const keyCount = getKeys(cm, ns).length
       assert.equal(keyCount, COUNT, 'expected number of cores')
@@ -879,11 +879,11 @@ test('shares cores', async function (t) {
   }
   const everyoneEnabledDataSyncPromise = await Promise.all(
     projects.map((project) =>
-      pEvent(project.$sync, 'sync-state', (state) => state.data.isSyncEnabled)
+      pEvent(project.$sync, 'sync-state', (state) => state.syncMode === 'all')
     )
   )
 
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
   await everyoneEnabledDataSyncPromise
 
   for (const ns of NAMESPACES) {
@@ -946,27 +946,40 @@ test('no sync capabilities === no namespaces sync apart from auth', async (t) =>
     project.$sync.start()
   }
 
-  await waitForSync([inviteeProject, invitorProject], 'full')
+  await waitForSync([inviteeProject, invitorProject], 'all')
 
   // Reaching into internals here, but only to validate the result of the test, so not fully e2e
   const [invitorState, inviteeState, blockedState] = projects.map((p) =>
-    p.$sync[kSyncState].getState()
+    p.$sync[kSyncProgress].getSnapshot()
   )
 
   // Config docs + deviceInfo per member + device info by the invitor
   const expectedConfigs = configDocsCount + COUNT + COUNT - 1
-  assert.equal(invitorState.config.localState.have, expectedConfigs) // count device info doc for each invited device
-  assert.equal(invitorState.data.localState.have, dataDocsCount)
-  assert.equal(blockedState.config.localState.have, 2) // just the device info docs
-  assert.equal(blockedState.data.localState.have, 0) // no data docs synced
+  assert.equal(invitorState.config.local.have, expectedConfigs) // count device info doc for each invited device
+  assert.equal(invitorState.data.local.have, dataDocsCount)
+  assert.equal(blockedState.config.local.have, 2) // just the device info docs
+  assert.equal(blockedState.data.local.have, 0) // no data docs synced
 
   for (const ns of NAMESPACES) {
-    assert.equal(invitorState[ns].coreCount, 3, `invitor got cores for ${ns}`)
-    assert.equal(inviteeState[ns].coreCount, 3, `invitee got cores for ${ns}`)
+    // The invitor and invitee do not add the blocked device's non-auth cores
+    // (a blocked device's data will never sync), so they only have cores for
+    // themselves and each other. The blocked device adds cores for both
+    // non-blocked members.
+    const expectedCoreCount = ns === 'auth' ? 3 : 2
+    assert.equal(
+      invitorState[ns].coreCount,
+      expectedCoreCount,
+      `invitor got cores for ${ns}`
+    )
+    assert.equal(
+      inviteeState[ns].coreCount,
+      expectedCoreCount,
+      `invitee got cores for ${ns}`
+    )
     assert.equal(blockedState[ns].coreCount, 3, `blocked got cores for ${ns}`)
     assert.deepEqual(
-      invitorState[ns].localState,
-      inviteeState[ns].localState,
+      invitorState[ns].local,
+      inviteeState[ns].local,
       `invitor/invitee have same local state for ${ns}`
     )
   }
@@ -997,8 +1010,8 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
     'Expected at least one event after starting'
   )
   for (const state of statesAfterStart) {
-    assert(state.initial.isSyncEnabled, 'initial namespaces are enabled')
-    assert(state.data.isSyncEnabled, 'data namespaces are enabled')
+    assert(state.syncMode !== 'stopped', 'initial namespaces are enabled')
+    assert(state.syncMode === 'all', 'data namespaces are enabled')
   }
 
   await delay(500)
@@ -1008,8 +1021,8 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
   project.$sync.stop()
 
   for (const state of statesAfterStart) {
-    assert(state.initial.isSyncEnabled, 'initial namespaces are enabled')
-    assert(state.data.isSyncEnabled, 'data namespaces are enabled')
+    assert(state.syncMode !== 'stopped', 'initial namespaces are enabled')
+    assert(state.syncMode === 'all', 'data namespaces are enabled')
   }
 
   assert(
@@ -1017,8 +1030,8 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
     'Expected at least one event after stopping'
   )
   for (const state of statesAfterStop) {
-    assert(state.initial.isSyncEnabled, 'initial namespaces are still enabled')
-    assert(!state.data.isSyncEnabled, 'data namespaces are disabled')
+    assert(state.syncMode !== 'stopped', 'initial namespaces are still enabled')
+    assert(state.syncMode !== 'all', 'data namespaces are disabled')
   }
 })
 
@@ -1035,9 +1048,8 @@ test('updates sync state when peers are added', async (t) => {
   assert.deepEqual(
     invitorProject.$sync.getState(),
     {
-      initial: { isSyncEnabled: true },
-      data: { isSyncEnabled: false },
-      remoteDeviceSyncState: {},
+      syncMode: 'initial',
+      devices: {},
     },
     'data sync state is correct at start'
   )
@@ -1049,12 +1061,21 @@ test('updates sync state when peers are added', async (t) => {
   assert.deepEqual(
     invitorProject.$sync.getState(),
     {
-      initial: { isSyncEnabled: true },
-      data: { isSyncEnabled: false },
-      remoteDeviceSyncState: {
+      syncMode: 'initial',
+      devices: {
         [invitee.deviceId]: {
-          initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-          data: { isSyncEnabled: false, want: 1, wanted: 0 },
+          initial: {
+            isSyncEnabled: true,
+            isComplete: true,
+            toReceive: 0,
+            toSend: 0,
+          },
+          data: {
+            isSyncEnabled: false,
+            isComplete: false,
+            toReceive: 0,
+            toSend: 1,
+          },
         },
       },
     },
@@ -1077,8 +1098,8 @@ test('Correct sync state prior to data sync', async function (t) {
   )
 
   for (const project of projects) {
-    const { remoteDeviceSyncState } = project.$sync.getState()
-    const otherDeviceCount = Object.keys(remoteDeviceSyncState).length
+    const { devices } = project.$sync.getState()
+    const otherDeviceCount = Object.keys(devices).length
     assert.equal(otherDeviceCount, COUNT - 1)
   }
 
@@ -1092,8 +1113,7 @@ test('Correct sync state prior to data sync', async function (t) {
   await waitForPeers(managers)
 
   const expected = managers.map((manager, index) => {
-    /** @type {State['remoteDeviceSyncState']} */ const remoteDeviceSyncState =
-      {}
+    /** @type {State['devices']} */ const devices = {}
 
     const myDocs = generated[index]
 
@@ -1101,19 +1121,28 @@ test('Correct sync state prior to data sync', async function (t) {
       if (manager === otherManager) continue
 
       const otherDocs = generated[otherIndex]
-      const wanted = otherDocs.length
-      const want = myDocs.length
+      const toReceive = otherDocs.length
+      const toSend = myDocs.length
 
-      remoteDeviceSyncState[otherManager.deviceId] = {
-        initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-        data: { isSyncEnabled: false, want, wanted },
+      devices[otherManager.deviceId] = {
+        initial: {
+          isSyncEnabled: true,
+          isComplete: true,
+          toReceive: 0,
+          toSend: 0,
+        },
+        data: {
+          isSyncEnabled: false,
+          isComplete: false,
+          toReceive,
+          toSend,
+        },
       }
     }
 
     return {
-      initial: { isSyncEnabled: true },
-      data: { isSyncEnabled: false },
-      remoteDeviceSyncState,
+      syncMode: /** @type {const} */ ('initial'),
+      devices,
     }
   })
 
@@ -1150,22 +1179,22 @@ test('pre-haves are updated', async (t) => {
   await waitForSync(projects, 'initial')
 
   assert.deepEqual(
-    invitorProject.$sync.getState().remoteDeviceSyncState[invitee.deviceId]
-      .data,
+    invitorProject.$sync.getState().devices[invitee.deviceId].data,
     {
       isSyncEnabled: false,
-      want: 0,
-      wanted: 0,
+      isComplete: true,
+      toReceive: 0,
+      toSend: 0,
     },
     'Invitor project should have nothing to sync at start'
   )
   assert.deepEqual(
-    inviteeProject.$sync.getState().remoteDeviceSyncState[invitor.deviceId]
-      .data,
+    inviteeProject.$sync.getState().devices[invitor.deviceId].data,
     {
       isSyncEnabled: false,
-      want: 0,
-      wanted: 0,
+      isComplete: true,
+      toReceive: 0,
+      toSend: 0,
     },
     'Invitee project should have nothing to sync at start'
   )
@@ -1173,14 +1202,12 @@ test('pre-haves are updated', async (t) => {
   const invitorToSyncPromise = pEvent(
     invitorProject.$sync,
     'sync-state',
-    ({ remoteDeviceSyncState }) =>
-      remoteDeviceSyncState[invitee.deviceId]?.data.want > 0
+    ({ devices }) => devices[invitee.deviceId]?.data.toSend > 0
   )
   const inviteeToSyncPromise = pEvent(
     inviteeProject.$sync,
     'sync-state',
-    ({ remoteDeviceSyncState }) =>
-      remoteDeviceSyncState[invitor.deviceId]?.data.wanted > 0
+    ({ devices }) => devices[invitor.deviceId]?.data.toReceive > 0
   )
 
   await invitorProject.observation.create(valueOf(generate('observation')[0]))
@@ -1188,12 +1215,12 @@ test('pre-haves are updated', async (t) => {
   await Promise.all([invitorToSyncPromise, inviteeToSyncPromise])
 
   assert.deepEqual(
-    inviteeProject.$sync.getState().remoteDeviceSyncState[invitor.deviceId]
-      .data,
+    inviteeProject.$sync.getState().devices[invitor.deviceId].data,
     {
       isSyncEnabled: false,
-      want: 0,
-      wanted: 1,
+      isComplete: false,
+      toReceive: 1,
+      toSend: 0,
     },
     'Invitee project should learn about something to sync'
   )
@@ -1210,7 +1237,7 @@ test('data sync state is properly updated as data sync is enabled and disabled',
   const invitorProject = await invitor.getProject(projectId)
   invitorProject.observation.create(valueOf(generate('observation')[0]))
   assert.ok(
-    invitorProject.$sync.getState().initial.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode !== 'stopped',
     'initial sync is enabled for local device'
   )
 
@@ -1220,30 +1247,57 @@ test('data sync state is properly updated as data sync is enabled and disabled',
   )
   await waitForSync([invitorProject, ...inviteesProjects], 'initial')
 
+  const syncedInitial = {
+    isSyncEnabled: true,
+    isComplete: true,
+    toReceive: 0,
+    toSend: 0,
+  }
+
   assert.deepEqual(
-    invitorProject.$sync.getState().remoteDeviceSyncState,
+    invitorProject.$sync.getState().devices,
     {
       [invitees[0].deviceId]: {
-        initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-        data: { isSyncEnabled: false, want: 1, wanted: 0 },
+        initial: syncedInitial,
+        data: {
+          isSyncEnabled: false,
+          isComplete: false,
+          toReceive: 0,
+          toSend: 1,
+        },
       },
       [invitees[1].deviceId]: {
-        initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-        data: { isSyncEnabled: false, want: 1, wanted: 0 },
+        initial: syncedInitial,
+        data: {
+          isSyncEnabled: false,
+          isComplete: false,
+          toReceive: 0,
+          toSend: 1,
+        },
       },
     },
-    "from the invitor's perspective, remote peers want one document and data sync is disabled"
+    "from the invitor's perspective, remote peers need one document and data sync is disabled"
   )
   assert.deepEqual(
-    inviteesProjects[0].$sync.getState().remoteDeviceSyncState,
+    inviteesProjects[0].$sync.getState().devices,
     {
       [invitorProject.deviceId]: {
-        initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-        data: { isSyncEnabled: false, want: 0, wanted: 1 },
+        initial: syncedInitial,
+        data: {
+          isSyncEnabled: false,
+          isComplete: false,
+          toReceive: 1,
+          toSend: 0,
+        },
       },
       [invitees[1].deviceId]: {
-        initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-        data: { isSyncEnabled: false, want: 0, wanted: 0 },
+        initial: syncedInitial,
+        data: {
+          isSyncEnabled: false,
+          isComplete: true,
+          toReceive: 0,
+          toSend: 0,
+        },
       },
     },
     "from one invitee's perspective, one remote peer has a document and data sync is disabled"
@@ -1252,19 +1306,29 @@ test('data sync state is properly updated as data sync is enabled and disabled',
   invitorProject.$sync.start()
 
   assert.ok(
-    invitorProject.$sync.getState().data.isSyncEnabled,
+    invitorProject.$sync.getState().syncMode === 'all',
     'after enabled sync, data sync is enabled for local device'
   )
   assert.deepEqual(
-    invitorProject.$sync.getState().remoteDeviceSyncState,
+    invitorProject.$sync.getState().devices,
     {
       [invitees[0].deviceId]: {
-        initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-        data: { isSyncEnabled: false, want: 1, wanted: 0 },
+        initial: syncedInitial,
+        data: {
+          isSyncEnabled: false,
+          isComplete: false,
+          toReceive: 0,
+          toSend: 1,
+        },
       },
       [invitees[1].deviceId]: {
-        initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-        data: { isSyncEnabled: false, want: 1, wanted: 0 },
+        initial: syncedInitial,
+        data: {
+          isSyncEnabled: false,
+          isComplete: false,
+          toReceive: 0,
+          toSend: 1,
+        },
       },
     },
     'data sync is still disabled for remote peers'
@@ -1273,43 +1337,36 @@ test('data sync state is properly updated as data sync is enabled and disabled',
   const inviteeAppearsEnabledPromise = pEvent(
     invitorProject.$sync,
     'sync-state',
-    ({ remoteDeviceSyncState }) =>
-      remoteDeviceSyncState[invitees[0].deviceId]?.data.isSyncEnabled
+    ({ devices }) => devices[invitees[0].deviceId]?.data.isSyncEnabled
   )
   const invitorProjectSyncedWithFirstInviteePromise = pEvent(
     invitorProject.$sync,
     'sync-state',
-    ({ remoteDeviceSyncState }) => {
-      const remoteData = remoteDeviceSyncState[invitees[0].deviceId]?.data ?? {}
-      return remoteData.want + remoteData.wanted === 0
-    }
+    ({ devices }) => devices[invitees[0].deviceId]?.data.isComplete
   )
   const firstInviteeProjectSyncedWithInvitorPromise = pEvent(
     inviteesProjects[0].$sync,
     'sync-state',
-    ({ remoteDeviceSyncState }) => {
-      const remoteData = remoteDeviceSyncState[invitor.deviceId]?.data ?? {}
-      return remoteData.want + remoteData.wanted === 0
-    }
+    ({ devices }) => devices[invitor.deviceId]?.data.isComplete
   )
 
   inviteesProjects[0].$sync.start()
 
   assert.ok(
-    inviteesProjects[0].$sync.getState().data.isSyncEnabled,
+    inviteesProjects[0].$sync.getState().syncMode === 'all',
     'invitee has data sync enabled after starting sync'
   )
 
   await inviteeAppearsEnabledPromise
 
   assert(
-    invitorProject.$sync.getState().remoteDeviceSyncState[invitees[0].deviceId]
-      ?.data.isSyncEnabled,
+    invitorProject.$sync.getState().devices[invitees[0].deviceId]?.data
+      .isSyncEnabled,
     'one invitee has enabled data sync'
   )
   assert(
-    !invitorProject.$sync.getState().remoteDeviceSyncState[invitees[1].deviceId]
-      ?.data.isSyncEnabled,
+    !invitorProject.$sync.getState().devices[invitees[1].deviceId]?.data
+      .isSyncEnabled,
     'other invitee has not enabled data sync'
   )
 
@@ -1321,29 +1378,37 @@ test('data sync state is properly updated as data sync is enabled and disabled',
   const inviteeAppearsDisabledPromise = pEvent(
     invitorProject.$sync,
     'sync-state',
-    ({ remoteDeviceSyncState }) =>
-      !remoteDeviceSyncState[invitees[0].deviceId]?.data.isSyncEnabled
+    ({ devices }) => !devices[invitees[0].deviceId]?.data.isSyncEnabled
   )
 
   inviteesProjects[0].$sync.stop()
 
   await inviteeAppearsDisabledPromise
 
-  const finalRemoteDeviceSyncState =
-    invitorProject.$sync.getState().remoteDeviceSyncState
+  const finalDevices = invitorProject.$sync.getState().devices
   assert.deepEqual(
-    finalRemoteDeviceSyncState[invitees[0].deviceId],
+    finalDevices[invitees[0].deviceId],
     {
-      initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-      data: { isSyncEnabled: false, want: 0, wanted: 0 },
+      initial: syncedInitial,
+      data: {
+        isSyncEnabled: false,
+        isComplete: true,
+        toReceive: 0,
+        toSend: 0,
+      },
     },
     'one invitee is disabled but settled'
   )
   assert.deepEqual(
-    finalRemoteDeviceSyncState[invitees[1].deviceId],
+    finalDevices[invitees[1].deviceId],
     {
-      initial: { isSyncEnabled: true, want: 0, wanted: 0 },
-      data: { isSyncEnabled: false, want: 1, wanted: 0 },
+      initial: syncedInitial,
+      data: {
+        isSyncEnabled: false,
+        isComplete: false,
+        toReceive: 0,
+        toSend: 1,
+      },
     },
     'other invitee is still disabled, still wants something'
   )
@@ -1423,19 +1488,25 @@ test(
 
     // Need to wait for pre-have of inviteeA observation to be received
     await new Promise((res) => {
-      invitorProject.$sync[kSyncState].on('state', function onState(state) {
-        if (state.data.localState.want === 1) {
-          invitorProject.$sync[kSyncState].removeListener('state', onState)
-          res(void 0)
+      invitorProject.$sync[kSyncProgress].on(
+        'update',
+        function onUpdate(snapshot) {
+          if (snapshot.data.local.toReceive === 1) {
+            invitorProject.$sync[kSyncProgress].removeListener(
+              'update',
+              onUpdate
+            )
+            res(void 0)
+          }
         }
-      })
+      )
     })
     await disconnectA()
 
     invitorProject.$sync.start()
     inviteeBProject.$sync.start()
 
-    await pTimeout(invitorProject.$sync.waitForSync('full'), {
+    await pTimeout(invitorProject.$sync.waitForSync('all'), {
       milliseconds: 1000,
       message: 'invitor should complete full sync with inviteeB',
     })
@@ -1451,7 +1522,7 @@ async function syncProjects(projects) {
   for (const project of projects) {
     project.$sync.start()
   }
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
   for (const project of projects) {
     project.$sync.stop()
   }

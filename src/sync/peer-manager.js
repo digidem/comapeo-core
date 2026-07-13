@@ -63,8 +63,8 @@ export class SyncPeer {
    * @param {string} opts.deviceId
    * @param {import('../core-manager/index.js').CoreManager} opts.coreManager
    * @param {import('../roles.js').Roles} opts.roles
-   * @param {() => void} opts.onChange called when capability or enabled
-   * namespaces change
+   * @param {(changed: 'capability' | 'enabled-namespaces') => void} opts.onChange
+   * called when capability or enabled namespaces change
    * @param {Logger} [opts.logger]
    */
   constructor({ deviceId, coreManager, roles, onChange, logger }) {
@@ -159,7 +159,7 @@ export class SyncPeer {
     this.#capability = capability
     if (changed) {
       this.#log('capability %o', capability)
-      this.#onChange()
+      this.#onChange('capability')
     }
   }
 
@@ -190,7 +190,7 @@ export class SyncPeer {
         this.#log('disabled namespace %s', namespace)
       }
     }
-    if (changed) this.#onChange()
+    if (changed) this.#onChange('enabled-namespaces')
   }
 
   /**
@@ -284,6 +284,9 @@ export class SyncPeer {
  * @property {(deviceId: string) => void} peer-registered a device connected
  * @property {(deviceId: string) => void} peer-unregistered a device's last
  * connection closed
+ * @property {() => void} capability-change a peer's sync capability changed —
+ * derived sync progress must be invalidated, because capability decides
+ * whether a peer's blocks are counted
  */
 
 /**
@@ -474,8 +477,9 @@ export class PeerManager extends TypedEmitter {
         deviceId,
         coreManager: this.#coreManager,
         roles: this.#roles,
-        onChange: () => {
+        onChange: (changedFacet) => {
           if (this.#isClosed) return
+          if (changedFacet === 'capability') this.emit('capability-change')
           this.emit('change')
         },
         logger: this.#logger,

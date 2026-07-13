@@ -738,12 +738,10 @@ async function waitForSyncWithServer(project, serverDeviceId) {
  * @returns {boolean}
  */
 function isSyncedWithServer(syncState, serverDeviceId) {
-  const serverSyncState = syncState.remoteDeviceSyncState[serverDeviceId]
+  const serverSyncState = syncState.devices[serverDeviceId]
   return Boolean(
     serverSyncState &&
-      serverSyncState.initial.want === 0 &&
-      serverSyncState.initial.wanted === 0 &&
-      serverSyncState.data.want === 0 &&
-      serverSyncState.data.wanted === 0
+      serverSyncState.initial.isComplete &&
+      serverSyncState.data.isComplete
   )
 }
