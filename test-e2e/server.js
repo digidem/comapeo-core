@@ -512,6 +512,62 @@ test('connecting and then immediately disconnecting (and then immediately connec
   )
 })
 
+test('server stays in sync state across rapid websocket reconnects', async (t) => {
+  // The server path is where overlapping connections from one device are
+  // most likely in production: servers reconnect aggressively and, unlike
+  // local discovery, have no connection dedup. Rapid disconnect+reconnect
+  // makes the old websocket's teardown overlap the new connection's
+  // registration; the device must survive that without disappearing from
+  // sync state, and data must still sync afterwards.
+  const manager = createManager('seed', t)
+  await manager.setDeviceInfo({ name: 'manager', deviceType: 'mobile' })
+
+  // Local server only: the test drives reconnections against it
+  const { server, serverBaseUrl } = await createLocalTestServer(t)
+
+  const projectId = await manager.createProject({ name: 'foo' })
+  const project = await manager.getProject(projectId)
+  t.after(() => project.$sync.disconnectServers())
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+  const serverPeer = await findServerPeer(project)
+  assert(serverPeer, 'test setup: server peer exists')
+  const serverDeviceId = serverPeer.deviceId
+
+  project.$sync.start()
+  project.$sync.connectServers()
+  await waitForSyncWithServer(project, serverDeviceId)
+
+  // disconnectServers() only *starts* closing the websocket, so the
+  // immediate connectServers() opens a new one while the old is in CLOSING —
+  // an overlapping connection from the same device
+  for (let i = 0; i < 3; i++) {
+    project.$sync.disconnectServers()
+    project.$sync.connectServers()
+  }
+
+  // Data created after the reconnect churn must still reach the server
+  const observation = await project.observation.create(
+    valueOf(generate('observation')[0])
+  )
+  await waitForSyncWithServer(project, serverDeviceId)
+
+  assert.deepEqual(
+    Object.keys(project.$sync.getState().devices),
+    [serverDeviceId],
+    'the server appears exactly once in sync state after reconnects'
+  )
+
+  // @ts-expect-error - does not exist on type
+  const serverManager = /** @type {MapeoManager} */ (server.comapeo)
+  const serverProject = await serverManager.getProject(projectId)
+  assert(
+    await serverProject.observation.getByDocId(observation.docId),
+    'the server received the post-reconnect observation'
+  )
+})
+
 test('duplicate add server from more than one device', async (t) => {
   const [managers, { serverBaseUrl }] = await Promise.all([
     createManagers(2, t, 'mobile'),

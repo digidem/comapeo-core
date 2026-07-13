@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { request } from 'undici'
 import { createHash } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
+import { COORDINATOR_ROLE_ID } from '../src/roles.js'
 import {
   connectPeers,
   createManagers,
@@ -297,6 +298,86 @@ test('Can switch to non-archive device after creating or joining project', async
       projects[3],
       { ...blobId, variant: 'original' },
       hashes.original
+    )
+  }
+})
+
+// Working as designed (decided July 2026): blob originals move only on
+// direct contact between the authoring device and a device that wants them.
+// A non-archive device never downloads originals, so it cannot relay them —
+// an archive device that only ever meets an intermediate non-archive device
+// receives previews/thumbnails (which the intermediate holds) but not
+// originals, until it meets the authoring device directly.
+test('blob originals do not relay through a non-archive device', async (t) => {
+  const managers = await createManagers(3, t)
+  const [author, intermediate, archive] = managers
+  intermediate.setIsArchiveDevice(false)
+
+  // Chain topology: author ↔ intermediate ↔ archive. The author and the
+  // archive device never connect (yet).
+  const disconnect1 = connectPeers([author, intermediate])
+  t.after(() => disconnect1())
+  const projectId = await author.createProject({ name: 'Mapeo' })
+  await invite({
+    invitor: author,
+    invitees: [intermediate],
+    projectId,
+    roleId: COORDINATOR_ROLE_ID,
+  })
+  const disconnect2 = connectPeers([intermediate, archive])
+  t.after(() => disconnect2())
+  await invite({ invitor: intermediate, invitees: [archive], projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  const [authorProject, intermediateProject, archiveProject] = projects
+  const blobs = await seedProjectBlobs(authorProject, t, {
+    photoCount: 20,
+    audioCount: 10,
+  })
+
+  // waitForSync() waits on every pair, so wait per connected pair, in chain
+  // order (data can only flow author → intermediate → archive)
+  for (const project of projects) project.$sync.start()
+  await waitForSync([authorProject, intermediateProject], 'all')
+  await waitForSync([intermediateProject, archiveProject], 'all')
+  for (const project of projects) project.$sync.stop()
+
+  for (const { blobId, hashes } of blobs) {
+    await assertDoesNotHaveBlob(
+      intermediateProject,
+      { ...blobId, variant: 'original' },
+      'non-archive intermediate never downloads originals'
+    )
+    await assertDoesNotHaveBlob(
+      archiveProject,
+      { ...blobId, variant: 'original' },
+      'originals cannot be relayed: the intermediate does not hold them'
+    )
+    if (blobId.type !== 'photo') continue
+    for (const variant of /** @type {const} */ (['preview', 'thumbnail'])) {
+      await assertHasBlob(
+        archiveProject,
+        { ...blobId, variant },
+        // @ts-expect-error
+        hashes[variant],
+        'previews/thumbnails DO relay: the intermediate holds them'
+      )
+    }
+  }
+
+  // Direct contact delivers the originals
+  const disconnect3 = connectPeers([author, archive])
+  t.after(() => disconnect3())
+  await syncProjects(projects)
+
+  for (const { blobId, hashes } of blobs) {
+    await assertHasBlob(
+      archiveProject,
+      { ...blobId, variant: 'original' },
+      hashes.original,
+      'originals arrive once the archive device meets the authoring device'
     )
   }
 })

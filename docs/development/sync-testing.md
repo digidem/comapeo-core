@@ -38,7 +38,7 @@ file:
 | `sync-lifecycle.js` | start/stop, autostop, backgrounding, project close and leave during active sync (teardown, no leaked listeners or unhandled rejections) |
 | `sync-capability.js` | Roles gating sync: blocked/removed devices, the auth-first gate and stale role records, block/unblock on a live session, three-peer block isolation |
 | `sync-connection.js` | Disconnect/reconnect: offline data syncing on reconnect, resume after mid-transfer disconnect, overlapping connections from one device |
-| `sync-blobs.js` | Blob sync and archive-device filtering |
+| `sync-blobs.js` | Blob sync and archive-device filtering, including that originals do not relay through a non-archive device (working as designed: originals require direct contact with the authoring device) |
 | `sync-fuzz.js` | Randomized action sequences asserting convergence |
 | `cross-version-sync.js` | Syncing with an old published @comapeo/core |
 | `sync-leave-regression.js` | leaveProject with stalled propagation (controllable wire) |
@@ -77,12 +77,16 @@ Bugs have repeatedly hidden behind small test datasets: several code paths
 - `role-update-sync-capability.js` (live member→blocked downgrade) folded
   into `sync-capability.js` alongside the other block/unblock scenarios.
 
-## Known gaps (deliberate, tracked)
+## Resolved gaps
 
-- Server-websocket reconnect (the overlapping-connection scenario on the
-  server path) needs the @comapeo/cloud harness in `server.js`.
-- Blob download-intent relay across an intermediate non-archive device is a
-  product design question before it is a test gap.
+- Server-websocket reconnect: covered in `test-e2e/server.js` ("server stays
+  in sync state across rapid websocket reconnects") using the @comapeo/cloud
+  harness — the server path is where overlapping connections from one device
+  actually occur in production.
+- Blob relay across an intermediate non-archive device: decided (July 2026)
+  to be working as designed — originals move only on direct contact between
+  the authoring device and a device that wants them, because a non-archive
+  device never holds them. Covered in `sync-blobs.js`.
 - The C1-style "unrelated auth write clobbers capability" interleave is
   structurally impossible in the new architecture (single capability writer,
   no state-event-triggered re-read); the invariant it protected — a blocked
