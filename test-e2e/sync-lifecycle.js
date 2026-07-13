@@ -8,14 +8,15 @@ import { kCoreManager } from '../src/mapeo-project.js'
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 import { connectProjectsControllably } from './controllable-wire.js'
 
-// LEAVE / CLOSE lifecycle repros for sync-review.md findings A1, A2, A3, A4 and
+// LEAVE / CLOSE lifecycle repros for the PR description's findings A1, A2, A3, A4 and
 // test gaps P0.6, P0.12, P0.13.
 //
-// The `[BUG …]` / `[P0.…]` tests are intentionally-failing reproductions tagged
-// with the node:test `todo` option: they throw against current code (reported
-// `not ok … # TODO`, which does NOT fail the suite) and will start passing once
-// the corresponding fix lands. The remaining tests are normal coverage tests
-// for behavior that is already correct today.
+// The `[BUG …]` / `[P0.…]` tests are intentionally-FAILING reproductions of
+// bugs in the current sync code: this branch exists as evidence of those bugs
+// (the PR description is the source of truth for the list), so CI on this
+// branch is red BY DESIGN. Each repro starts passing once the corresponding
+// fix lands. The remaining tests are normal coverage tests for behavior that
+// is already correct today.
 //
 // Every test sets an explicit timeout so a hang fails fast.
 //
@@ -98,7 +99,6 @@ function captureUnhandledRejection(t) {
 test(
   '[BUG A4] closing a project mid-sync tears down the SyncApi and raises no unhandled rejection',
   {
-    todo: 'BUG A4 (+A1/A3): SyncApi has no close(), so its creatorCore listeners survive close; on real-latency links the in-flight core.update({wait:true}) also rejects REQUEST_CANCELLED unhandled',
     timeout: 60_000,
   },
   async (t) => {
@@ -158,7 +158,6 @@ test(
 test(
   '[BUG A1] SyncApi exposes an idempotent close()',
   {
-    todo: 'BUG A1: SyncApi has no close() to tear down listeners/timers/sockets',
     timeout: 10_000,
   },
   async (t) => {
@@ -184,7 +183,9 @@ test(
 test(
   '[BUG A2] leaveProject must not reject when post-leave sync propagation stalls',
   {
-    // CONFIRMED production bug ("Sync timeout" when leaving a project, observed
+    // REGRESSION COVERAGE (passes): this was a confirmed production bug, since
+    // fixed on main by making the trailing propagation wait best-effort.
+    // Previously: ("Sync timeout" when leaving a project, observed
     // intermittently by real users). `manager.leaveProject` performs the local
     // leave (assign LEFT + kClearData) and THEN awaits a trailing
     // `waitForSync('initial', { timeoutMs: 45_000 })` to propagate the LEFT
@@ -194,7 +195,6 @@ test(
     // Error('Sync timeout') even though the device has ALREADY left locally.
     // Fixed on branch fix/leave-project-timeout (mapeo-manager.js): the trailing
     // propagation wait is made best-effort.
-    todo: 'BUG A2: leaveProject rejects with "Sync timeout" when the best-effort post-leave propagation stalls, despite the local leave having already succeeded. mapeo-manager.js leaveProject',
     timeout: 90_000,
   },
   async (t) => {
@@ -254,7 +254,6 @@ test(
 test(
   '[P0.12] calling leaveProject and the close path concurrently is safe (idempotent)',
   {
-    todo: 'P0.12: _close has no idempotency/ordering guard; a close racing the post-leave auth-resync operates on half-torn-down state',
     timeout: 60_000,
   },
   async (t) => {
@@ -317,7 +316,6 @@ test(
 test(
   '[P0.13] no leaked SyncApi listeners on the creator core after a project is fully closed',
   {
-    todo: 'P0.13 (A1): SyncApi registers peer-add/peer-remove on creatorCore in its constructor and never removes them',
     timeout: 60_000,
   },
   async (t) => {

@@ -16,7 +16,7 @@ import { connectProjectsControllably } from './controllable-wire.js'
 /**
  * Connection-lifecycle / reconnection repros for the sync subsystem.
  *
- * Companion to docs/sync-review.md. Covers the disconnect/reconnect findings:
+ * Companion to the PR description. Covers the disconnect/reconnect findings:
  *
  *   - [P0 reconnect]  data created while a peer is offline syncs after it
  *                     reconnects (3 peers). PASSING coverage of the core
@@ -25,7 +25,7 @@ import { connectProjectsControllably } from './controllable-wire.js'
  *                     completion. PASSING coverage; best-effort at hitting the
  *                     "mid-transfer" window (see comment on the test).
  *   - [BUG D1]        overlapping reconnect from the same device must keep that
- *                     device represented in sync state. todo BUG D1. This one is
+ *                     device represented in sync state. FAILS (BUG D1). This one is
  *                     inherently TIMING-SENSITIVE: it needs the new connection's
  *                     peer-add to land before the stale connection's peer-remove
  *                     so the unconditional `#pscByPeerId.delete` +
@@ -248,7 +248,6 @@ test(
   '[BUG D1] overlapping reconnect from the same device keeps it represented in sync state',
   {
     timeout: 120_000,
-    todo: 'BUG D1: stale connection peer-remove unconditionally deletes #pscByPeerId + disconnectPeer for a device that has already reconnected, wiping the live entry. sync-api.js:545,580-584',
   },
   async (t) => {
     const [ma, mb] = await createManagers(2, t)

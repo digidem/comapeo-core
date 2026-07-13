@@ -14,7 +14,7 @@ import { connectProjectsControllably } from './controllable-wire.js'
 
 // Permission / capability sync coverage and bug reproductions.
 //
-// Companion to docs/sync-review.md "Theme C — Permissions / capability" and
+// Companion to the PR description "Theme C — Permissions / capability" and
 // the related test gaps P0.7, P0.8, P0.9.
 //
 // Reference: test-e2e/role-update-sync-capability.js already covers the
@@ -23,9 +23,11 @@ import { connectProjectsControllably } from './controllable-wire.js'
 //   - [P0.7]  three-peer block isolation (PASSING coverage)
 //   - [P0.8]  unblock-on-a-live-session resumes data sync (PASSING coverage)
 //   - [BUG C1] a blocked peer never learns it was blocked once an unrelated
-//             auth write re-caches its capability to 'blocked' (todo)
+//             auth write re-caches its capability to 'blocked' (FAILS)
 //   - [BUG C2] a blocked peer's non-auth cores are still added to the local
-//             CoreManager (todo)
+//             CoreManager (FAILS)
+//   - [BUG G1] a stale role record lets config/data replicate with a removed
+//             device before its removal record has been synced (FAILS)
 //
 // The auth namespace carries 'coreOwnership' and 'role' docs
 // (constants.js NAMESPACE_SCHEMAS.auth = ['coreOwnership', 'role']). So any
@@ -233,14 +235,6 @@ test(
   '[BUG C1] unrelated auth traffic disables auth for a blocked peer, so it can never learn it was blocked',
   {
     timeout: 90_000,
-    todo:
-      "BUG C1: PeerSyncController #handleStateChange re-caches a peer's sync capability via " +
-      '#readAndCacheSyncCapability, which (unlike #refreshSyncCapability) does NOT preserve ' +
-      'auth. So after a peer is blocked, any unrelated auth update that re-triggers ' +
-      '#handleStateChange overwrites the preserved auth="allowed" with auth="blocked", ' +
-      'disabling auth replication to the blocked peer — which can then never learn it was ' +
-      'blocked. Fix: preserve auth inside #readAndCacheSyncCapability, or set ' +
-      "BLOCKED_ROLE.sync.auth='allowed'. peer-sync-controller.js",
   },
   async (t) => {
     // A = coordinator/creator, B = member (blocked), C = coordinator (source of
@@ -364,10 +358,6 @@ test(
   '[BUG C2] a blocked peer’s non-auth cores are not added to the local CoreManager',
   {
     timeout: 120_000,
-    todo:
-      'BUG C2: sync-api #validateRoleAndAddCoresForPeer only short-circuits on ' +
-      "NO_ROLE_ID, so a BLOCKED peer's config/data/blobIndex/blob cores are still " +
-      'addCore()-ed locally. It should gate on capability (sync[ns] !== "blocked").',
   },
   async (t) => {
     // Invite B directly as BLOCKED so its non-auth cores are never legitimately
@@ -447,6 +437,132 @@ test(
       blobIndexKeys.includes(bBlobIndexCoreId),
       false,
       "A's CoreManager did NOT add blocked peer B's blobIndex core"
+    )
+  }
+)
+
+test(
+  '[BUG G1] a device with a stale role record must not sync config/data with a removed device',
+  { timeout: 120_000 },
+  async (t) => {
+    // Roles and membership live in the auth namespace, but config/blobIndex
+    // replicate with a peer IMMEDIATELY on connection, and data as soon as
+    // presync completes — all gated on the LOCAL, possibly-stale role record
+    // for that peer. So a device that was removed from the project while we
+    // were offline (we hold a stale "member" record for it) receives our
+    // config — and can receive data — before we finish syncing the auth
+    // records that would tell us it was removed. Nothing beyond auth should
+    // replicate until auth sync with the peer completes and the role records
+    // it carried have taken effect.
+    // syncThrottleMs: 0 removes the 200ms sync-state throttle, so the
+    // capability re-read fires as soon as auth blocks finish downloading —
+    // BEFORE the indexer has processed the role records they carry. The bulk
+    // of dummy role records below keeps the indexer busy long enough for the
+    // stale-capability window to be reliably observable.
+    const [creator, coordinator, removed] = await createManagers(
+      3,
+      t,
+      undefined,
+      { syncThrottleMs: 0 }
+    )
+
+    // 1. All three join and fully presync, so everyone has replicas of
+    // everyone's auth cores
+    const disconnect1 = connectPeers([creator, coordinator, removed])
+    const projectId = await creator.createProject({ name: 'stale-role' })
+    await invite({
+      invitor: creator,
+      invitees: [coordinator],
+      projectId,
+      roleId: COORDINATOR_ROLE_ID,
+    })
+    await invite({
+      invitor: creator,
+      invitees: [removed],
+      projectId,
+      roleId: MEMBER_ROLE_ID,
+    })
+    const [creatorProject, coordinatorProject, removedProject] =
+      await Promise.all(
+        [creator, coordinator, removed].map((m) => m.getProject(projectId))
+      )
+    await waitForSync(
+      [creatorProject, coordinatorProject, removedProject],
+      'initial'
+    )
+    await disconnect1()
+
+    // 2. The coordinator blocks the "removed" device while the creator is
+    // offline; the removed device receives its own block record (it lives in
+    // the coordinator's auth core). The creator's record stays stale.
+    const disconnect2 = connectPeers([coordinator, removed])
+    // A realistic volume of other auth records written in the same offline
+    // period (e.g. a coordinator managing many devices). These arrive in the
+    // same auth sync as the block record and take time to index.
+    for (let i = 0; i < 150; i++) {
+      const dummyDeviceId = Buffer.from(
+        `stale-role-dummy-${i}`.padEnd(32, '0').slice(0, 32)
+      ).toString('hex')
+      await coordinatorProject.$member.assignRole(dummyDeviceId, MEMBER_ROLE_ID)
+    }
+    await coordinatorProject.$member.assignRole(
+      removed.deviceId,
+      BLOCKED_ROLE_ID
+    )
+    await waitForSync([coordinatorProject, removedProject], 'initial')
+    await disconnect2()
+
+    assert.equal(
+      (await removedProject.$member.getById(removed.deviceId)).role.roleId,
+      BLOCKED_ROLE_ID,
+      'setup: removed device has received its own block record'
+    )
+    assert.notEqual(
+      (await creatorProject.$member.getById(removed.deviceId)).role.roleId,
+      BLOCKED_ROLE_ID,
+      'setup: creator still holds a stale (not-blocked) role record'
+    )
+
+    // 3. While still apart, the creator writes new config
+    const creatorPreset = await creatorProject.preset.create(
+      valueOf(generate('preset')[0])
+    )
+
+    // 4. The creator meets ONLY the removed device. The removed device
+    // honestly relays the coordinator's auth core containing the block
+    // record. The creator must learn of the removal through auth sync alone,
+    // and nothing beyond auth may replicate in the meantime.
+    const disconnect3 = connectPeers([creator, removed])
+    t.after(disconnect3)
+    creatorProject.$sync.start()
+    removedProject.$sync.start()
+
+    // Wait until the creator has learned of the removal (via the relayed
+    // record). Config replication starts immediately on connection, so by
+    // the time the record has synced AND indexed, the preset has long since
+    // leaked to the removed device.
+    const deadline = Date.now() + 30_000
+    for (;;) {
+      const member = await creatorProject.$member.getById(removed.deviceId)
+      if (member.role.roleId === BLOCKED_ROLE_ID) break
+      assert(
+        Date.now() < deadline,
+        'creator should learn of the removal via auth sync alone'
+      )
+      await delay(200)
+    }
+    await delay(2_000)
+
+    // FAILS today: the removed device received config written after its
+    // removal, because config replicated on the stale role record before
+    // auth sync completed
+    const leaked = await removedProject.preset.getByDocId(creatorPreset.docId, {
+      mustBeFound: false,
+    })
+    assert.equal(
+      leaked,
+      null,
+      'config written after the removal must not reach the removed device'
     )
   }
 )

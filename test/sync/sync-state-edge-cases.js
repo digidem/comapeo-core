@@ -46,19 +46,15 @@ function peerNsState(status, have = 0, want = 0, wanted = 0) {
 // passing regression guard.
 // ---------------------------------------------------------------------------
 
-test(
-  'mutatingAddPeerState: any core stopped => aggregate stopped',
-  { todo: 'BUG F1: namespace-sync-state.js:211 uses === instead of =' },
-  () => {
-    const accumulator = peerNsState('started', 1)
-    mutatingAddPeerState(accumulator, peerNsState('stopped', 1))
-    assert.equal(
-      accumulator.status,
-      'stopped',
-      'a peer stopped on any core must aggregate to stopped (least-synced wins)'
-    )
-  }
-)
+test('mutatingAddPeerState: any core stopped => aggregate stopped', () => {
+  const accumulator = peerNsState('started', 1)
+  mutatingAddPeerState(accumulator, peerNsState('stopped', 1))
+  assert.equal(
+    accumulator.status,
+    'stopped',
+    'a peer stopped on any core must aggregate to stopped (least-synced wins)'
+  )
+})
 
 test('mutatingAddPeerState: starting overrides started (already correct)', () => {
   const accumulator = peerNsState('started', 1)
@@ -80,24 +76,20 @@ test('mutatingAddPeerState: block counts always sum', () => {
 // it is a correctness trap.)
 // ---------------------------------------------------------------------------
 
-test(
-  'PeerState.want at the contiguousLength boundary',
-  { todo: 'BUG F2: core-sync-state.js:445 uses > instead of >=' },
-  () => {
-    const peerState = new PeerState() // wants everything
-    peerState.contiguousLength = 5
-    assert.equal(
-      peerState.have(5),
-      false,
-      'block at contiguousLength is not yet had'
-    )
-    assert.equal(
-      peerState.want(5),
-      true,
-      'block at contiguousLength should be wanted (matches wantWord)'
-    )
-  }
-)
+test('PeerState.want at the contiguousLength boundary', () => {
+  const peerState = new PeerState() // wants everything
+  peerState.contiguousLength = 5
+  assert.equal(
+    peerState.have(5),
+    false,
+    'block at contiguousLength is not yet had'
+  )
+  assert.equal(
+    peerState.want(5),
+    true,
+    'block at contiguousLength should be wanted (matches wantWord)'
+  )
+})
 
 test('PeerState.want is consistent with wantWord at the boundary (cross-check)', () => {
   const peerState = new PeerState()

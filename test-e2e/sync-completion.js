@@ -8,25 +8,25 @@ import { kWaitForInitialSyncWithPeer } from '../src/sync/sync-api.js'
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 
 /**
- * Completion-detection reproductions for the sync review (docs/sync-review.md,
- * Theme B + the §3 stress table). One file covers:
+ * Completion-detection reproductions for the sync review ( * Theme B + the §3 stress table). One file covers:
  *
  *  - [P0.16] 3-peer full-sync completion (PASSING coverage). Guards B1's future
  *    fix from regressing into "never completes with 3 peers".
  *  - [BUG B3]  isInitiallySyncedWithPeer never resolves for a peer whose presync
- *    namespaces are blocked (TODO — fails today; the internal wait rejects/times
+ *    namespaces are blocked (FAILS today; the internal wait rejects/times
  *    out instead of resolving).
  *  - [P0.4]  waitForSync(type, { timeoutMs }) rejects with Error('Sync timeout')
  *    when sync stalls (PASSING — existing-but-untested behavior). Plus a small
  *    "timer resets under continuous activity" companion check.
  *  - [BUG B1]  isSynced/waitForSync('initial') can report synced before
- *    late-discovered cores actually replicate (TODO — RTT-bounded race, written
- *    best-effort and documented as timing-sensitive).
+ *    late-discovered cores actually replicate (RTT-bounded race; PASSES on
+ *    loopback — kept as documentation of the structural gap, see the test's
+ *    REPRODUCTION STATUS comment).
  *  - [P0.5]  transitive sync A<->B<->C with A and C NOT directly connected
  *    (investigative; converted to TODO if transitive data sync does not work).
  *
- * BUG-REPRO tests use node:test's `todo` option so a throwing test surfaces as
- * `not ok ... # TODO` (the desired signal that the bug is still present).
+ * BUG-REPRO tests fail hard: this branch exists as evidence of these bugs
+ * (see the PR description), so CI on this branch is red by design.
  */
 
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
@@ -98,7 +98,6 @@ test(
   '[BUG B3] initial-sync wait for a peer invited as BLOCKED resolves instead of hanging',
   {
     timeout: 60_000,
-    todo: 'BUG B3: isInitiallySyncedWithPeer returns false forever for a peer whose presync (config/blobIndex) namespaces are blocked, because deriveState removes blocked peers per-namespace and the function has no blocked-namespace guard',
   },
   async (t) => {
     const [invitor, invitee] = await createManagers(2, t)
@@ -258,7 +257,6 @@ test(
   '[BUG B1] waitForSync("initial") does not resolve before late-discovered cores replicate',
   {
     timeout: 60_000,
-    todo: 'BUG B1: NamespaceSyncState.addPeer seeds only cores known at call time and #addCore does not back-fill known peers, so isSynced can pass on sibling cores before auth/config actually replicate (RTT-bounded race)',
   },
   async (t) => {
     const [invitor, invitee] = await createManagers(2, t)
@@ -290,7 +288,7 @@ test(
     // can actually read the invitee's config doc. If the race is present this
     // read returns undefined right after waitForSync resolves.
     //
-    // REPRODUCTION STATUS: best-effort; currently PASSES (ok # TODO). The
+    // REPRODUCTION STATUS: best-effort; currently PASSES on loopback. The
     // premature-completion window is a FIRST-CONTACT, sub-throttle micro-window
     // (the peer is present via a sibling core while the late-discovered config
     // core has no preHaves yet). It could not be forced with the controllable
