@@ -8,7 +8,7 @@ import { kCoreManager } from '../src/mapeo-project.js'
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 import { connectProjectsControllably } from './controllable-wire.js'
 
-// LEAVE / CLOSE lifecycle repros for the PR description's findings A1, A2, A3, A4 and
+// LEAVE / CLOSE lifecycle repros for the PR description's findings A0, A1, A3, A4 and
 // test gaps P0.6, P0.12, P0.13.
 //
 // The `[BUG …]` / `[P0.…]` tests are intentionally-FAILING reproductions of
@@ -181,7 +181,7 @@ test(
 )
 
 test(
-  '[BUG A2] leaveProject must not reject when post-leave sync propagation stalls',
+  '[A0 — fixed on main] leaveProject must not reject when post-leave sync propagation stalls',
   {
     // REGRESSION COVERAGE (passes): this was a confirmed production bug, since
     // fixed on main by making the trailing propagation wait best-effort.
