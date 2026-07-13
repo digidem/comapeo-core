@@ -18,12 +18,12 @@ export async function createCore(t, key) {
 
   // Send over entire local bitfield
   core.on('peer-add', (peer) => {
-    sendWants(peer)
+    sendWants(core, peer)
   })
 
   core.once('append', () => {
     for (const peer of core.peers) {
-      sendWants(peer)
+      sendWants(core, peer)
     }
   })
 
@@ -33,9 +33,10 @@ export async function createCore(t, key) {
 }
 
 /**
+ * @param {Hypercore} core
  * @param {import('../../src/types.js').HypercorePeer} peer
  */
-function sendWants(peer) {
+function sendWants(core, peer) {
   // How much of the contiguousLength do we have locally?
   const contig = /** @type {number} */ (
     // @ts-ignore
@@ -43,7 +44,7 @@ function sendWants(peer) {
   )
 
   // @ts-ignore
-  for (const msg of peer.core.bitfield.want(contig, peer.core.length)) {
+  for (const msg of peer.core.bitfield.want(contig, core.length)) {
     // @ts-ignore
     peer.wireBitfield.send(msg)
   }
