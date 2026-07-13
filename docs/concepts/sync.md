@@ -32,5 +32,7 @@ graph TD;
   shared predicates over that snapshot.
 
 For the full design — vocabulary, state shape, completion semantics, and the
-reasoning behind the architecture — see
-[`docs/development/sync-redesign.md`](../development/sync-redesign.md).
+reasoning behind the architecture — see the redesign proposal in
+[PR #1304](https://github.com/digidem/comapeo-core/pull/1304); the bugs in
+the previous design that motivated it are collected (with failing
+reproductions) in [PR #1303](https://github.com/digidem/comapeo-core/pull/1303).

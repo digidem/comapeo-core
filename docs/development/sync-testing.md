@@ -1,7 +1,10 @@
 # Sync test suite
 
 How the sync tests are organized, what each layer is for, and the decisions
-behind the structure. Companion to `sync-redesign.md`.
+behind the structure. The design this suite tests is described in
+[PR #1304](https://github.com/digidem/comapeo-core/pull/1304); the bugs in
+the previous design are collected in
+[PR #1303](https://github.com/digidem/comapeo-core/pull/1303).
 
 ## Layers
 
