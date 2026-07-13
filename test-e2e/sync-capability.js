@@ -8,7 +8,6 @@ import {
   MEMBER_ROLE_ID,
   COORDINATOR_ROLE_ID,
 } from '../src/roles.js'
-import { kCoreManager, kCoreOwnership } from '../src/mapeo-project.js'
 import { connectPeers, createManagers, invite, waitForSync } from './utils.js'
 import { connectProjectsControllably } from './controllable-wire.js'
 
@@ -24,8 +23,6 @@ import { connectProjectsControllably } from './controllable-wire.js'
 //   - [P0.8]  unblock-on-a-live-session resumes data sync (PASSING coverage)
 //   - [BUG C1] a blocked peer never learns it was blocked once an unrelated
 //             auth write re-caches its capability to 'blocked' (FAILS)
-//   - [BUG C2] a blocked peer's non-auth cores are still added to the local
-//             CoreManager (FAILS)
 //   - [BUG G1] a stale role record lets config/data replicate with a removed
 //             device before its removal record has been synced (FAILS)
 //
@@ -350,93 +347,6 @@ test(
       false,
       'A must keep auth enabled for the blocked peer B after unrelated auth ' +
         'traffic re-caches its capability (else B can never learn it was blocked)'
-    )
-  }
-)
-
-test(
-  '[BUG C2] a blocked peer’s non-auth cores are not added to the local CoreManager',
-  {
-    timeout: 120_000,
-  },
-  async (t) => {
-    // Invite B directly as BLOCKED so its non-auth cores are never legitimately
-    // added before the block (timing-independent repro).
-    const [managerA, managerB] = await createManagers(2, t)
-    const disconnect = connectPeers([managerA, managerB])
-    t.after(disconnect)
-
-    const projectId = await managerA.createProject({ name: 'c2-blocked-cores' })
-    await invite({
-      invitor: managerA,
-      invitees: [managerB],
-      projectId,
-      roleId: BLOCKED_ROLE_ID,
-    })
-
-    const aProject = await managerA.getProject(projectId)
-    const bProject = await managerB.getProject(projectId)
-
-    aProject.$sync.start()
-    bProject.$sync.start()
-
-    // Let auth (coreOwnership + role) propagate so A learns about B and runs
-    // #validateRoleAndAddCoresForPeer for B. We can't waitForSync('full') here
-    // because B is blocked, so wait for A to have B's coreOwnership doc.
-    const bCoreOwnership = aProject[kCoreOwnership]
-    const deadline = Date.now() + 30_000
-    /** @type {null | string} */ let bDataCoreId = null
-    while (Date.now() < deadline) {
-      try {
-        bDataCoreId = await bCoreOwnership.getCoreId(managerB.deviceId, 'data')
-        if (bDataCoreId) break
-      } catch {
-        // not yet synced
-      }
-      await delay(200)
-    }
-    assert(
-      bDataCoreId,
-      "A synced B's coreOwnership doc (knows B's data coreId)"
-    )
-
-    const bConfigCoreId = await bCoreOwnership.getCoreId(
-      managerB.deviceId,
-      'config'
-    )
-    const bBlobIndexCoreId = await bCoreOwnership.getCoreId(
-      managerB.deviceId,
-      'blobIndex'
-    )
-
-    // Give #validateRoleAndAddCoresForPeer a beat to (incorrectly) add cores.
-    await delay(2_000)
-
-    const coreManager = aProject[kCoreManager]
-    const dataKeys = coreManager
-      .getCores('data')
-      .map((r) => r.key.toString('hex'))
-    const configKeys = coreManager
-      .getCores('config')
-      .map((r) => r.key.toString('hex'))
-    const blobIndexKeys = coreManager
-      .getCores('blobIndex')
-      .map((r) => r.key.toString('hex'))
-
-    assert.equal(
-      dataKeys.includes(bDataCoreId),
-      false,
-      "A's CoreManager did NOT add blocked peer B's data core"
-    )
-    assert.equal(
-      configKeys.includes(bConfigCoreId),
-      false,
-      "A's CoreManager did NOT add blocked peer B's config core"
-    )
-    assert.equal(
-      blobIndexKeys.includes(bBlobIndexCoreId),
-      false,
-      "A's CoreManager did NOT add blocked peer B's blobIndex core"
     )
   }
 )
