@@ -149,6 +149,55 @@ test('eagerly updates remote bitfields', async (t) => {
   }
 })
 
+test('createCore helper eagerly shares sparse bitfields', async (t) => {
+  // Tests using the createCore helper rely on it mimicking CoreManager's
+  // eager bitfield exchange: a peer's non-contiguous bitfield must reach the
+  // other side even when nothing is downloaded. Native hypercore replication
+  // only shares the contiguous length on connect (bitfields are otherwise
+  // only sent in response to wants from a download), so we must not download
+  // here — a download would fetch the bitfield anyway and mask a broken
+  // helper.
+  const writer = await createCore(t)
+  await writer.append(['a', 'b', 'c', 'd', 'e'])
+  await writer.clear(2, 3)
+
+  const reader = await createCore(t, writer.key)
+  replicateCores(writer, reader)
+  await reader.update({ wait: true })
+  // Need to wait for now, since no event for when a remote bitfield is updated
+  await delay(200)
+
+  assert(writer.core)
+  assert.equal(reader.peers.length, 1)
+  assert(
+    bitfieldEquals(
+      reader.peers[0].remoteBitfield,
+      writer.core.bitfield,
+      writer.length
+    ),
+    'reader learns writer sparse bitfield without downloading'
+  )
+
+  // A core whose own data is sparse (from a partial download) must also share
+  // its bitfield with a newly connected peer.
+  await reader.download({ blocks: [0, 3] }).done()
+  const observer = await createCore(t, writer.key)
+  replicateCores(reader, observer)
+  await observer.update({ wait: true })
+  await delay(200)
+
+  assert(reader.core)
+  assert.equal(observer.peers.length, 1)
+  assert(
+    bitfieldEquals(
+      observer.peers[0].remoteBitfield,
+      reader.core.bitfield,
+      reader.length
+    ),
+    'newly connected peer learns sparse bitfield without downloading'
+  )
+})
+
 test('multiplexing waits for cores to be added', async (t) => {
   // Mapeo code expects replication to work when cores are not added to the
   // replication stream at the same time. This is not explicitly tested in

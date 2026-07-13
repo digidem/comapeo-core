@@ -17,7 +17,7 @@ import {
   waitForSync,
 } from './utils.js'
 
-/** @import { Readable } from 'streamx' */
+/** @import {TrackFeature, ObservationFeature} from '../src/data-exporter.js' */
 
 const DEFAULT_OBSERVATIONS = 2
 const DEFAULT_TRACKS = 2
@@ -26,6 +26,141 @@ const OBSERVATIONS_PER_TRACK = 2
 const BLOB_FIXTURES = fileURLToPath(
   new URL('../test/fixtures/blob-api/', import.meta.url)
 )
+
+test('Project export includes $category and $author names', async (t) => {
+  const manager = createManager('export-named', t)
+  await manager.setDeviceInfo({ name: 'TestDevice', deviceType: 'desktop' })
+
+  const projectId = await manager.createProject({ name: 'Named export test' })
+  const project = await manager.getProject(projectId)
+
+  const presetValue = valueOf(generate('preset')[0])
+  presetValue.name = 'Water Pumps'
+  const preset = await project.preset.create(presetValue)
+
+  const observationValue = valueOf(generate('observation')[0])
+  observationValue.presetRef = {
+    docId: preset.docId,
+    versionId: preset.versionId,
+  }
+  observationValue.attachments = []
+  const observation = await project.observation.create(observationValue)
+
+  // Update the observation to set updatedBy
+  await project.observation.update(observation.versionId, {
+    ...observationValue,
+    tags: { ...observationValue.tags, updated: true },
+  })
+
+  await temporaryDirectoryTask(async (dir) => {
+    const geoJSONFile = await project.exportGeoJSONFile(dir)
+    const stream = createReadStream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
+
+    assert.equal(parsed.features.length, 1, 'One feature exported')
+    const feature = parsed.features[0]
+
+    assert.equal(
+      feature.properties.$categoryId,
+      preset.docId,
+      'categoryId is preset docId'
+    )
+    assert.equal(
+      feature.properties.$category,
+      'Water Pumps',
+      'category is preset name'
+    )
+    assert.equal(
+      feature.properties.$authorId,
+      manager.deviceId,
+      'authorId is device ID'
+    )
+    assert.equal(
+      feature.properties.$author,
+      'TestDevice',
+      'author is device name'
+    )
+    assert.equal(
+      feature.properties.$updateAuthorId,
+      manager.deviceId,
+      'updateAuthorId is device ID'
+    )
+    assert.equal(
+      feature.properties.$updateAuthor,
+      'TestDevice',
+      'updateAuthor is device name'
+    )
+  })
+})
+
+test('Project export track includes $category and $author names', async (t) => {
+  const manager = createManager('export-track-named', t)
+  await manager.setDeviceInfo({ name: 'HikerDevice', deviceType: 'mobile' })
+
+  const projectId = await manager.createProject({ name: 'Track named export' })
+  const project = await manager.getProject(projectId)
+
+  const presetValue = valueOf(generate('preset')[0])
+  presetValue.name = 'Trails'
+  const preset = await project.preset.create(presetValue)
+
+  const trackValue = valueOf(generate('track')[0])
+  trackValue.presetRef = {
+    docId: preset.docId,
+    versionId: preset.versionId,
+  }
+  trackValue.observationRefs = []
+  const track = await project.track.create(trackValue)
+
+  // Update the track to set updatedBy
+  await project.track.update(track.versionId, {
+    ...trackValue,
+    tags: { ...trackValue.tags, updated: true },
+  })
+
+  await temporaryDirectoryTask(async (dir) => {
+    const geoJSONFile = await project.exportGeoJSONFile(dir, {
+      tracks: true,
+      observations: false,
+    })
+    const stream = createReadStream(geoJSONFile)
+    const parsed = await parseGeoJSON(stream)
+
+    assert.equal(parsed.features.length, 1, 'One feature exported')
+    const feature = parsed.features[0]
+
+    assert.equal(
+      feature.properties.$categoryId,
+      preset.docId,
+      'categoryId is preset docId'
+    )
+    assert.equal(
+      feature.properties.$category,
+      'Trails',
+      'category is preset name'
+    )
+    assert.equal(
+      feature.properties.$authorId,
+      manager.deviceId,
+      'authorId is device ID'
+    )
+    assert.equal(
+      feature.properties.$author,
+      'HikerDevice',
+      'author is device name'
+    )
+    assert.equal(
+      feature.properties.$updateAuthorId,
+      manager.deviceId,
+      'updateAuthorId is device ID'
+    )
+    assert.equal(
+      feature.properties.$updateAuthor,
+      'HikerDevice',
+      'updateAuthor is device name'
+    )
+  })
+})
 
 test('Project export empty GeoJSON to stream', async (t) => {
   const manager = createManager('test', t)
@@ -214,6 +349,18 @@ test('Project export tracks and observations to zip stream', async (t) => {
       'Exported GeoJSON has expected number of features'
     )
 
+    /** @type {(TrackFeature|ObservationFeature)[]} */
+    const features = parsed.features
+    const observationFeatures = features.filter(
+      (f) => f.geometry === null || f.geometry.type === 'Point'
+    )
+    for (const feature of observationFeatures) {
+      assert(
+        feature.properties.attachment_1 !== null,
+        'Observation feature has attachment_1 field'
+      )
+    }
+
     assert.equal(entries.length, 2, 'Zip has geoJSON and one attachment')
 
     const hasPng = entries.some((name) => name.endsWith('.png'))
@@ -278,6 +425,18 @@ test('Sync project and export tracks and observations to zip stream', async (t) 
         DEFAULT_TRACKS * OBSERVATIONS_PER_TRACK,
       'Exported GeoJSON has expected number of features'
     )
+
+    /** @type {(TrackFeature|ObservationFeature)[]} */
+    const features = parsed.features
+    const observationFeatures = features.filter(
+      (f) => f.geometry === null || f.geometry.type === 'Point'
+    )
+    for (const feature of observationFeatures) {
+      assert(
+        feature.properties.attachment_1 !== null,
+        'Observation feature has attachment_1 field'
+      )
+    }
 
     assert.equal(entries.length, 2, 'Zip has geoJSON and one attachment')
 

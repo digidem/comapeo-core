@@ -135,8 +135,20 @@ export async function storageForProject(projectCorestorePath) {
 }
 
 /**
+ * Structural subset of hypercore-storage's `CorestoreStorage` used by the
+ * migration. Referencing the `CorestoreStorage` type in exported signatures
+ * would break the published `migration.d.ts`: hypercore-storage ships no
+ * types, and our ambient declarations for it are not published.
+ * @typedef {object} MigrationStorage
+ * @property {() => Promise<void>} ready
+ * @property {() => Promise<void>} close
+ * @property {() => AsyncIterable<{ discoveryKey: Buffer }>} createCoreStream
+ * @property {(discoveryKey: Buffer) => Promise<unknown>} resumeCore
+ */
+
+/**
  * @param {string} path
- * @returns
+ * @returns {MigrationStorage}
  */
 export function makeDefaultCorestoreStorage(path) {
   return new CorestoreStorage(path, {
@@ -152,6 +164,7 @@ export function makeDefaultCorestoreStorage(path) {
  *
  * @param {string} managerPath - Path to the MapeoManager storage folder
  * @param {(doneSoFar: number, totalCores: number) => void} [onProgress] - Callback called after each core migrates
+ * @param {(path: string) => MigrationStorage} [makeStorage] - Storage factory, only overridden in tests
  * @returns {Promise<Record<string, { migrated: boolean, error?: Error }>>}
  *         Map of project IDs to migration status
  */
@@ -190,7 +203,7 @@ export async function migrateStorage(
         await storage.ready()
 
         // Run migration on corestore
-        await migrateStore(storage, {
+        await migrateStore(/** @type {any} */ (storage), {
           version: 1,
           dryRun: false,
           gc: true,
