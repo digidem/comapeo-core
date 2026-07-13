@@ -176,6 +176,7 @@ export class MapeoProject extends ReadyResource {
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
+   * @param {number} [opts.syncThrottleMs] Throttle interval for sync state updates (default 200). Exposed for deterministic tests; set to 0 to make sync-state re-evaluation immediate.
    * @param {Logger} [opts.logger]
    *
    */
@@ -195,6 +196,7 @@ export class MapeoProject extends ReadyResource {
     logger,
     isArchiveDevice,
     getFallbackProjectInfo,
+    syncThrottleMs,
   }) {
     super()
 
@@ -478,6 +480,7 @@ export class MapeoProject extends ReadyResource {
       blobStore: this.#blobStore,
       logger: this.#l,
       makeWebsocket,
+      ...(syncThrottleMs === undefined ? {} : { throttleMs: syncThrottleMs }),
       getServerWebsocketUrls: async () => {
         const members = await this.#memberApi.getMany()
         /** @type {string[]} */

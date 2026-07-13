@@ -218,3 +218,20 @@ function mutatingAddPeerState(accumulator, currentValue) {
   }
   return accumulator
 }
+
+/**
+ * Thin wrapper around the module-private {@link mutatingAddPeerState} so the
+ * per-core aggregation (especially the `status` merge precedence) can be unit
+ * tested directly.
+ *
+ * @private
+ * Only exported for testing
+ * @param {import('./core-sync-state.js').PeerNamespaceState} accumulator
+ * @param {import('./core-sync-state.js').PeerNamespaceState} currentValue
+ * @returns {import('./core-sync-state.js').PeerNamespaceState}
+ */
+export function aggregatePeerStateForTesting(accumulator, currentValue) {
+  return /** @type {import('./core-sync-state.js').PeerNamespaceState} */ (
+    mutatingAddPeerState(accumulator, currentValue)
+  )
+}
