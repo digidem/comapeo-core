@@ -586,3 +586,69 @@ function createUint32Array(n) {
   }
   return new Uint32Array([n])
 }
+
+test('PeerCoreState.want is consistent with wantWord at the contiguous boundary', () => {
+  const peerState = new PeerCoreState()
+  peerState.contiguousLength = 5
+  // wantWord is the form deriveCoreState actually uses; bit 5 must be set
+  assert.notEqual(
+    peerState.wantWord(0) & (1 << 5),
+    0,
+    'wantWord marks block 5 as wanted'
+  )
+  assert.equal(
+    peerState.want(5),
+    true,
+    'scalar want() agrees with wantWord at the boundary'
+  )
+})
+
+test('PeerCoreState haveWord/wantWord with partial contiguous overlap', () => {
+  const peerState = new PeerCoreState() // wants everything
+  peerState.contiguousLength = 5
+  assert.equal(
+    peerState.haveWord(0) & 0xff,
+    0b11111,
+    'lower 5 bits are "had" via the contiguous range'
+  )
+  assert.equal(
+    peerState.wantWord(0) & 0b11111,
+    0,
+    'contiguous (already-had) bits are not wanted'
+  )
+  assert.notEqual(
+    peerState.wantWord(0) & (1 << 5),
+    0,
+    'the first non-contiguous bit is wanted'
+  )
+})
+
+test('PeerCoreState haveWord/wantWord with a fully-contiguous word', () => {
+  const peerState = new PeerCoreState()
+  peerState.contiguousLength = 32
+  assert.equal(
+    peerState.haveWord(0) >>> 0,
+    0xffffffff,
+    'all 32 bits "had" when the whole word is within the contiguous range'
+  )
+  assert.equal(
+    peerState.wantWord(0),
+    0,
+    'nothing wanted when the whole word is contiguous'
+  )
+})
+
+test('PeerCoreState with no evidence the peer knows the core wants nothing', () => {
+  const peerState = new PeerCoreState({
+    wantsEverything: false,
+    coreKnown: false,
+  })
+  assert.equal(peerState.wantWord(0), 0, 'no fabricated wants')
+  // Evidence arrives (e.g. pre-haves or an open channel): default wants apply
+  peerState.markCoreKnown(true)
+  assert.equal(
+    peerState.wantWord(0) >>> 0,
+    0xffffffff,
+    'wants everything once the core is known'
+  )
+})

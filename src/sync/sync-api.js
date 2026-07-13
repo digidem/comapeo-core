@@ -18,8 +18,6 @@ import {
 /** @import { SyncApiState, SyncMode, SyncTarget } from './sync-rules.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
-export const kSyncProgress = Symbol('sync progress')
-export const kPeerManager = Symbol('peer manager')
 export const kRequestFullStop = Symbol('request full stop')
 export const kRescindFullStopRequest = Symbol('rescind full stop request')
 export const kWaitForInitialSyncWithPeer = Symbol(
@@ -140,16 +138,6 @@ export class SyncApi extends TypedEmitter {
       this.#peerManager.onSnapshotUpdate()
       this.#recomputeAndEmit()
     })
-  }
-
-  /** Used by tests */
-  get [kSyncProgress]() {
-    return this.#syncProgress
-  }
-
-  /** Used by tests */
-  get [kPeerManager]() {
-    return this.#peerManager
   }
 
   /** @type {import('../local-peers.js').LocalPeersEvents['discovery-key']} */

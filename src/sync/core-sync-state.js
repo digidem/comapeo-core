@@ -79,6 +79,15 @@ export class CoreSyncState {
   #isClosed = false
   /** @type {Map<HypercorePeer, { onbitfield: HypercorePeer['onbitfield'], onrange: HypercorePeer['onrange'] }>} */
   #patchedPeers = new Map()
+  /**
+   * A device can briefly have more than one connection (overlapping
+   * reconnect), which shows up here as multiple hypercore peers with the
+   * same public key. The channel state for the device is derived across all
+   * of them, so a stale connection's peer-remove can't mark the channel
+   * closed while another connection is live.
+   * @type {Map<DeviceId, { opening: Set<HypercorePeer>, open: Set<HypercorePeer> }>}
+   */
+  #channelPeers = new Map()
 
   /**
    * @param {object} opts
@@ -268,6 +277,7 @@ export class CoreSyncState {
    * @param {DeviceId} deviceId
    */
   removePeer(deviceId) {
+    this.#channelPeers.delete(deviceId)
     const wasRemoved = this.#remoteStates.delete(deviceId)
     if (wasRemoved) {
       this.#update()
@@ -306,7 +316,13 @@ export class CoreSyncState {
     const peerState = this.#getOrCreatePeerState(deviceId)
     // An open replication channel proves the peer knows this core
     peerState.markCoreKnown(!this.#hasDownloadFilter(deviceId))
-    peerState.channel = 'opening'
+    let channelPeers = this.#channelPeers.get(deviceId)
+    if (!channelPeers) {
+      channelPeers = { opening: new Set(), open: new Set() }
+      this.#channelPeers.set(deviceId, channelPeers)
+    }
+    channelPeers.opening.add(peer)
+    this.#deriveChannelState(deviceId)
 
     this.#core?.update({ wait: true }).then(
       () => {
@@ -314,7 +330,10 @@ export class CoreSyncState {
         // The peer may have disconnected, or its state replaced, while we
         // were waiting for the length handshake
         if (this.#remoteStates.get(deviceId) !== peerState) return
-        peerState.channel = 'open'
+        const channelPeers = this.#channelPeers.get(deviceId)
+        if (!channelPeers?.opening.delete(peer)) return
+        channelPeers.open.add(peer)
+        this.#deriveChannelState(deviceId)
         peerState.contiguousLength = peer.remoteContiguousLength
         this.#update()
       },
@@ -367,10 +386,41 @@ export class CoreSyncState {
       this.#patchedPeers.delete(peer)
     }
     const deviceId = keyToId(peer.remotePublicKey)
+    const channelPeers = this.#channelPeers.get(deviceId)
+    if (channelPeers) {
+      channelPeers.opening.delete(peer)
+      channelPeers.open.delete(peer)
+      if (channelPeers.opening.size === 0 && channelPeers.open.size === 0) {
+        this.#channelPeers.delete(deviceId)
+      }
+    }
     const peerState = this.#remoteStates.get(deviceId)
     if (!peerState) return
-    peerState.channel = 'closed'
+    this.#deriveChannelState(deviceId)
     this.#update()
+  }
+
+  /**
+   * Set a device's channel state from its live hypercore peers: open if any
+   * connection has completed the length handshake, opening if any is still
+   * handshaking, otherwise closed.
+   *
+   * @param {DeviceId} deviceId
+   */
+  #deriveChannelState(deviceId) {
+    const peerState = this.#remoteStates.get(deviceId)
+    if (!peerState) return
+    const channelPeers = this.#channelPeers.get(deviceId)
+    if (
+      !channelPeers ||
+      (channelPeers.open.size === 0 && channelPeers.opening.size === 0)
+    ) {
+      peerState.channel = 'closed'
+    } else if (channelPeers.open.size > 0) {
+      peerState.channel = 'open'
+    } else {
+      peerState.channel = 'opening'
+    }
   }
 }
 
