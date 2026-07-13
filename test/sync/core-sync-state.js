@@ -18,7 +18,7 @@ import { createCore } from '../helpers/create-core.js'
 test('want() and wantWord() agree at contiguousLength boundary', () => {
   // Peer has blocks 0..4 (contiguous), so contiguousLength = 5
   // Block 5 is the first block NOT in the contiguous range - should be wanted.
-  const peer = new PeerState({ wantsEverything: true })
+  const peer = new PeerCoreState({ wantsEverything: true })
   peer.contiguousLength = 5
 
   // Block at index 4 is inside the contiguous range - not wanted
@@ -67,7 +67,7 @@ test('want() and wantWord() agree at contiguousLength boundary', () => {
 
 test('want() and wantWord() agree when contiguousLength is a multiple of 32', () => {
   // When contiguousLength = 32, blocks 0-31 are contiguous.
-  const peer = new PeerState({ wantsEverything: true })
+  const peer = new PeerCoreState({ wantsEverything: true })
   peer.contiguousLength = 32
 
   assert.strictEqual(
@@ -106,8 +106,8 @@ test('want() and wantWord() agree when contiguousLength is a multiple of 32', ()
   }
 })
 
-test('deriveState correctly counts want at contiguousLength boundary', () => {
-  const localState = new PeerState({ wantsEverything: true })
+test('deriveCoreState correctly counts toSend at contiguousLength boundary', () => {
+  const localState = new PeerCoreState({ wantsEverything: true })
   localState.contiguousLength = 0
   const localHaveBitfield = new RemoteBitfield()
   localHaveBitfield.set(5, true)
@@ -115,29 +115,28 @@ test('deriveState correctly counts want at contiguousLength boundary', () => {
   localHaveBitfield.set(7, true)
   localState.setHavesBitfield(localHaveBitfield)
 
-  const remoteState = new PeerState({ wantsEverything: true })
+  const remoteState = new PeerCoreState({ wantsEverything: true })
   remoteState.contiguousLength = 5 // has blocks 0..4 contiguously
 
   const state = {
     length: 8,
     localState,
     remoteStates: new Map([['peer0', remoteState]]),
-    peerSyncControllers: new Map(),
-    namespace: /** @type {const} */ ('auth'),
+    isPeerSyncAllowed: () => true,
   }
 
-  const result = deriveState(state)
+  const result = deriveCoreState(state)
 
   assert.strictEqual(
-    result.remoteStates['peer0'].want,
+    result.devices['peer0'].toSend,
     3,
-    'remote peer should want 3 blocks from local (5,6,7 - all outside contiguous range)'
+    'we still need to send the remote peer 3 blocks (5,6,7 - all outside its contiguous range)'
   )
 
   assert.strictEqual(
-    result.localState.wanted,
+    result.local.toSend,
     3,
-    'local should have 3 blocks wanted by peers'
+    'local has 3 blocks someone still needs'
   )
 })
 
@@ -712,22 +711,6 @@ function createUint32Array(n) {
   }
   return new Uint32Array([n])
 }
-
-test('PeerCoreState.want is consistent with wantWord at the contiguous boundary', () => {
-  const peerState = new PeerCoreState()
-  peerState.contiguousLength = 5
-  // wantWord is the form deriveCoreState actually uses; bit 5 must be set
-  assert.notEqual(
-    peerState.wantWord(0) & (1 << 5),
-    0,
-    'wantWord marks block 5 as wanted'
-  )
-  assert.equal(
-    peerState.want(5),
-    true,
-    'scalar want() agrees with wantWord at the boundary'
-  )
-})
 
 test('PeerCoreState haveWord/wantWord with partial contiguous overlap', () => {
   const peerState = new PeerCoreState() // wants everything
