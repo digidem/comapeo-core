@@ -6,6 +6,7 @@ import { unreplicate } from '../lib/hypercore-helpers.js'
 import { NO_ROLE } from '../roles.js'
 import {
   computeEnabledNamespaces,
+  isNamespacesCompleteWithDevice,
   isTargetCompleteWithDevice,
 } from './sync-rules.js'
 /** @import { CoreRecord } from '../core-manager/index.js' */
@@ -46,6 +47,16 @@ export class SyncPeer {
   /** @type {SyncCapability} */
   #capability = { ...NO_ROLE.sync }
   #capabilityReadId = 0
+  /**
+   * Latch: set once auth sync with this device has completed, the synced
+   * records have been indexed, and the capability re-read (see
+   * `PeerManager#openAuthGateForPeer`). Nothing beyond the auth namespace
+   * replicates with this device until this is set. Reset only by device
+   * disconnect (this instance is discarded).
+   */
+  hasSyncedAuth = false
+  /** Guard so only one auth-gate sequence runs at a time for this peer */
+  authGateInProgress = false
   /**
    * Latch: set once initial sync with this device completes, so that data
    * namespaces don't churn off if new initial data arrives later. Reset only
@@ -315,6 +326,7 @@ export class PeerManager extends TypedEmitter {
   #roles
   #coreOwnership
   #getSnapshot
+  #waitForAuthIndexing
   #isClosed = false
   #logger
   #l
@@ -325,9 +337,19 @@ export class PeerManager extends TypedEmitter {
    * @param {import('../roles.js').Roles} opts.roles
    * @param {import('../core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {() => SyncProgressSnapshot} opts.getSnapshot
+   * @param {() => Promise<void>} opts.waitForAuthIndexing resolves when the
+   * auth namespace indexer is idle, i.e. downloaded role and core-ownership
+   * records have taken effect
    * @param {Logger} [opts.logger]
    */
-  constructor({ coreManager, roles, coreOwnership, getSnapshot, logger }) {
+  constructor({
+    coreManager,
+    roles,
+    coreOwnership,
+    getSnapshot,
+    waitForAuthIndexing,
+    logger,
+  }) {
     super()
     this.#l = Logger.create('peerManager', logger)
     this.#logger = logger
@@ -335,6 +357,7 @@ export class PeerManager extends TypedEmitter {
     this.#roles = roles
     this.#coreOwnership = coreOwnership
     this.#getSnapshot = getSnapshot
+    this.#waitForAuthIndexing = waitForAuthIndexing
 
     coreManager.creatorCore.on('peer-add', this.#onPeerAdd)
     coreManager.creatorCore.on('peer-remove', this.#onPeerRemove)
@@ -564,10 +587,17 @@ export class PeerManager extends TypedEmitter {
 
   /** @param {SyncPeer} peer */
   #applyRulesToPeer(peer) {
-    if (!peer.hasCompletedInitialSync) {
+    const snapshot = this.#getSnapshot()
+    if (
+      !peer.hasSyncedAuth &&
+      isNamespacesCompleteWithDevice(snapshot, peer, ['auth'])
+    ) {
+      this.#openAuthGateForPeer(peer)
+    }
+    if (!peer.hasCompletedInitialSync && peer.hasSyncedAuth) {
       // Latch, so data sync doesn't churn off if new initial data arrives
       peer.hasCompletedInitialSync = isTargetCompleteWithDevice(
-        this.#getSnapshot(),
+        snapshot,
         peer,
         'initial'
       )
@@ -576,9 +606,52 @@ export class PeerManager extends TypedEmitter {
       computeEnabledNamespaces({
         syncMode: this.#syncMode,
         capability: peer.capability,
+        hasSyncedAuth: peer.hasSyncedAuth,
         isInitialSyncComplete: peer.hasCompletedInitialSync,
       })
     )
+  }
+
+  /**
+   * Open the "auth gate" for a peer: auth blocks are fully synced with this
+   * device, but before anything beyond auth may replicate we must (1) wait
+   * for those blocks to be *indexed* — role and core-ownership records take
+   * effect at index time, not download time — and (2) re-read the peer's
+   * capability from them. This closes the window where a stale role record
+   * (e.g. for a device removed from the project while we were offline) would
+   * let other namespaces start replicating before we learn of the removal.
+   *
+   * Guarded so only one gate-opening sequence runs per peer; if auth becomes
+   * incomplete again while waiting (new records arrived), the gate stays
+   * closed and the next snapshot update retries.
+   *
+   * @param {SyncPeer} peer
+   */
+  #openAuthGateForPeer(peer) {
+    if (peer.hasSyncedAuth || peer.authGateInProgress) return
+    peer.authGateInProgress = true
+    ;(async () => {
+      await this.#waitForAuthIndexing()
+      await peer.refreshCapability()
+      if (this.#isClosed) return
+      if (this.#peers.get(peer.deviceId) !== peer) return
+      // Re-check with a fresh snapshot: more auth records may have arrived
+      // while indexing. If so, leave the gate closed — the snapshot update
+      // for those records will retry.
+      if (
+        !isNamespacesCompleteWithDevice(this.#getSnapshot(), peer, ['auth'])
+      ) {
+        return
+      }
+      peer.hasSyncedAuth = true
+      this.#l.log('Auth gate open for device %S', peer.deviceId)
+      this.#applyRulesToPeer(peer)
+      this.emit('change')
+    })()
+      .catch(noop)
+      .finally(() => {
+        peer.authGateInProgress = false
+      })
   }
 
   /**

@@ -142,6 +142,7 @@ test('computeEnabledNamespaces()', () => {
     computeEnabledNamespaces({
       syncMode: 'stopped',
       capability: ALL_ALLOWED,
+      hasSyncedAuth: true,
       isInitialSyncComplete: true,
     }),
     new Set(),
@@ -149,8 +150,29 @@ test('computeEnabledNamespaces()', () => {
   )
   assert.deepEqual(
     computeEnabledNamespaces({
+      syncMode: 'all',
+      capability: ALL_ALLOWED,
+      hasSyncedAuth: false,
+      isInitialSyncComplete: false,
+    }),
+    new Set(['auth']),
+    'nothing beyond auth replicates until auth sync with the peer is complete'
+  )
+  assert.deepEqual(
+    computeEnabledNamespaces({
+      syncMode: 'all',
+      capability: ALL_ALLOWED,
+      hasSyncedAuth: false,
+      isInitialSyncComplete: true,
+    }),
+    new Set(['auth']),
+    'the auth gate applies even if initial sync somehow reads complete'
+  )
+  assert.deepEqual(
+    computeEnabledNamespaces({
       syncMode: 'initial',
       capability: ALL_ALLOWED,
+      hasSyncedAuth: true,
       isInitialSyncComplete: true,
     }),
     new Set(['auth', 'config', 'blobIndex']),
@@ -160,6 +182,7 @@ test('computeEnabledNamespaces()', () => {
     computeEnabledNamespaces({
       syncMode: 'all',
       capability: ALL_ALLOWED,
+      hasSyncedAuth: true,
       isInitialSyncComplete: false,
     }),
     new Set(['auth', 'config', 'blobIndex']),
@@ -169,6 +192,7 @@ test('computeEnabledNamespaces()', () => {
     computeEnabledNamespaces({
       syncMode: 'all',
       capability: ALL_ALLOWED,
+      hasSyncedAuth: true,
       isInitialSyncComplete: true,
     }),
     new Set(NAMESPACES),
@@ -178,6 +202,7 @@ test('computeEnabledNamespaces()', () => {
     computeEnabledNamespaces({
       syncMode: 'all',
       capability: AUTH_ONLY,
+      hasSyncedAuth: true,
       isInitialSyncComplete: true,
     }),
     new Set(['auth']),

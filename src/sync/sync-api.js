@@ -76,6 +76,9 @@ export class SyncApi extends TypedEmitter {
    * @param {import('../core-ownership.js').CoreOwnership} opts.coreOwnership
    * @param {import('../roles.js').Roles} opts.roles
    * @param {import('../blob-store/index.js').BlobStore} opts.blobStore
+   * @param {() => Promise<void>} opts.waitForAuthIndexing resolves when the
+   * auth namespace indexer is idle — used to gate non-auth sync on role
+   * records having taken effect
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => Promise<Iterable<string>>} opts.getServerWebsocketUrls
    * @param {() => ReplicationStream} opts.getReplicationStream
@@ -87,6 +90,7 @@ export class SyncApi extends TypedEmitter {
     coreOwnership,
     roles,
     blobStore,
+    waitForAuthIndexing,
     makeWebsocket = (url) => new WebSocket(url),
     getServerWebsocketUrls,
     getReplicationStream,
@@ -114,6 +118,7 @@ export class SyncApi extends TypedEmitter {
       roles,
       coreOwnership,
       getSnapshot: () => this.#syncProgress.getSnapshot(),
+      waitForAuthIndexing,
       logger,
     })
 

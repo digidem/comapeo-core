@@ -473,6 +473,7 @@ export class MapeoProject extends ReadyResource {
       coreOwnership: this.#coreOwnership,
       roles: this.#roles,
       blobStore: this.#blobStore,
+      waitForAuthIndexing: () => this.#dataStores.auth.indexer.idle(),
       logger: this.#l,
       makeWebsocket,
       getServerWebsocketUrls: async () => {

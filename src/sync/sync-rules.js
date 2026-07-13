@@ -131,26 +131,41 @@ export function computeSyncMode({
 /**
  * Which namespaces should we replicate with a peer right now?
  *
- * Initial namespaces replicate whenever sync is not stopped, capability
- * permitting. Data namespaces additionally wait until initial sync with this
- * peer is complete, so we know the peer's role (and their cores) before
- * exchanging data with them.
+ * Namespaces enable with a peer in stages:
+ *
+ * 1. `auth` replicates whenever sync is not stopped. It carries the role and
+ *    core-ownership records that everything else depends on.
+ * 2. The other initial namespaces (`config`, `blobIndex`) wait until auth
+ *    sync with this peer is complete *and its records are indexed and the
+ *    peer's capability re-read* (`hasSyncedAuth`). This means a stale role
+ *    record — e.g. a device that was removed from the project while we were
+ *    offline — cannot cause us to exchange anything beyond auth before we
+ *    have every membership record the peer can give us.
+ * 3. Data namespaces additionally wait for the whole initial group to
+ *    complete with this peer (`isInitialSyncComplete`), so we have the
+ *    project config and blob index before bulk data transfer starts.
  *
  * @param {object} opts
  * @param {SyncMode} opts.syncMode
  * @param {SyncCapability} opts.capability
+ * @param {boolean} opts.hasSyncedAuth auth sync with this peer completed,
+ * its records were indexed, and the capability re-read afterwards
  * @param {boolean} opts.isInitialSyncComplete initial sync with this peer is complete
  * @returns {Set<Namespace>}
  */
 export function computeEnabledNamespaces({
   syncMode,
   capability,
+  hasSyncedAuth,
   isInitialSyncComplete,
 }) {
   /** @type {Set<Namespace>} */
   const enabled = new Set()
   if (syncMode === 'stopped') return enabled
+  if (capability.auth === 'allowed') enabled.add('auth')
+  if (!hasSyncedAuth) return enabled
   for (const ns of INITIAL_SYNC_NAMESPACES) {
+    if (ns === 'auth') continue
     if (capability[ns] === 'allowed') enabled.add(ns)
   }
   if (syncMode === 'all' && isInitialSyncComplete) {
