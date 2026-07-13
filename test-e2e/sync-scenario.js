@@ -56,6 +56,9 @@ import {
  * other after setup. Pass `false` to start the scenario body from a
  * fully-disconnected state.
  * @property {string} [projectName]
+ * @property {number} [syncThrottleMs] override the sync-state throttle for
+ * every device (set to 0 for immediate re-evaluation in timing-sensitive
+ * tests)
  */
 
 /**
@@ -64,12 +67,24 @@ import {
  */
 export async function createSyncScenario(
   t,
-  { devices: deviceOptions, connected = true, projectName = 'Mapeo' }
+  {
+    devices: deviceOptions,
+    connected = true,
+    projectName = 'Mapeo',
+    syncThrottleMs,
+  }
 ) {
   const names = Object.keys(deviceOptions)
   assert(names.length >= 1, 'scenario needs at least one device')
   const managers = /** @type {MapeoManager[]} */ (
-    /** @type {unknown} */ (await createManagers(names.length, t))
+    /** @type {unknown} */ (
+      await createManagers(
+        names.length,
+        t,
+        undefined,
+        syncThrottleMs === undefined ? {} : { syncThrottleMs }
+      )
+    )
   )
 
   /**

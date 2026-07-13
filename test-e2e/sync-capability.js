@@ -35,13 +35,28 @@ test(
         coordinator: { role: COORDINATOR_ROLE_ID },
         removed: {},
       },
+      // Remove the sync-state throttle: in the old implementation this made
+      // the stale-capability window deterministic, so run the gate under the
+      // same adversarial timing
+      syncThrottleMs: 0,
     })
 
     // The coordinator blocks the "removed" device while the creator is
     // offline. The removed device receives its own block record (it lives
     // in the coordinator's auth core); the creator's record stays stale.
+    // The bulk of other auth records written in the same offline period
+    // keeps the indexer busy, so a capability check that raced indexing
+    // (instead of awaiting it) would reliably read the stale record.
     await s.disconnectAll()
     await s.connect('coordinator', 'removed')
+    for (let i = 0; i < 150; i++) {
+      const dummyDeviceId = Buffer.from(
+        `stale-role-dummy-${i}`.padEnd(32, '0').slice(0, 32)
+      ).toString('hex')
+      await s
+        .project('coordinator')
+        .$member.assignRole(dummyDeviceId, MEMBER_ROLE_ID)
+    }
     await s.assignRole('coordinator', 'removed', BLOCKED_ROLE_ID)
     await s.waitForSync('initial', ['coordinator', 'removed'])
     await s.disconnectAll()
