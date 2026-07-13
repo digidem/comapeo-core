@@ -30,6 +30,13 @@ export class SyncProgress extends TypedEmitter {
   #coreStates = new Map()
   /** @type {Map<Namespace, NamespaceProgress | null>} */
   #cache = new Map()
+  /**
+   * Cores added to the core manager, per namespace. Distinct from
+   * `#coreStates`, which also tracks cores we only know from pre-have
+   * messages (e.g. cores of a blocked peer that we never add or replicate).
+   * @type {Map<Namespace, number>}
+   */
+  #addedCoreCounts = new Map()
   /** @type {Set<string>} */
   #registeredDeviceIds = new Set()
   #coreManager
@@ -69,6 +76,7 @@ export class SyncProgress extends TypedEmitter {
     for (const namespace of NAMESPACES) {
       this.#coreStates.set(namespace, new Map())
       this.#cache.set(namespace, null)
+      this.#addedCoreCounts.set(namespace, 0)
     }
 
     for (const namespace of NAMESPACES) {
@@ -166,7 +174,7 @@ export class SyncProgress extends TypedEmitter {
     const coreStates = this.#getCoreStates(namespace)
     /** @type {NamespaceProgress} */
     const progress = {
-      coreCount: coreStates.size,
+      coreCount: this.#addedCoreCounts.get(namespace) || 0,
       local: { have: 0, toReceive: 0, toSend: 0 },
       devices: {},
     }
@@ -212,6 +220,11 @@ export class SyncProgress extends TypedEmitter {
    */
   #addCore(namespace, core, coreKey) {
     const discoveryId = discoveryKey(coreKey).toString('hex')
+    this.#addedCoreCounts.set(
+      namespace,
+      (this.#addedCoreCounts.get(namespace) || 0) + 1
+    )
+    this.#cache.set(namespace, null)
     this.#getOrCreateCoreState(namespace, discoveryId).attachCore(core)
   }
 
