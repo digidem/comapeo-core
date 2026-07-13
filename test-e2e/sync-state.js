@@ -401,6 +401,45 @@ test(
 )
 
 test(
+  'a peer disconnecting mid-transfer does not stop the remaining peers completing',
+  { timeout: 120_000 },
+  async (t) => {
+    const s = await createSyncScenario(t, {
+      devices: { creator: {}, dropper: {}, stayer: {} },
+      connected: false,
+    })
+
+    // A large dataset, seeded before connecting, so the disconnect below
+    // genuinely lands mid-transfer, with channels open and blocks in flight
+    // (when already connected, 600 blocks move faster than we can react)
+    await s.seed('dropper', { observation: 600 })
+    await s.connect()
+    s.startDataSync()
+
+    // Yank the dropper while its data is still flowing to the other two
+    await delay(60)
+    const creatorMidCount = (await s.project('creator').observation.getMany())
+      .length
+    assert(
+      creatorMidCount < 600,
+      `disconnected before the transfer finished (creator had ${creatorMidCount}/600)`
+    )
+    await s.disconnect('dropper')
+
+    // The remaining pair hold (possibly different) partial copies of the
+    // dropper's data. They must converge on the union of what they got and
+    // reach completion — the departed peer's undelivered blocks must not be
+    // counted as pending
+    await s.waitForSync('all', ['creator', 'stayer'], { timeout: 60_000 })
+    assert(
+      !(s.deviceId('dropper') in s.project('creator').$sync.getState().devices),
+      'the disconnected device is no longer reported in devices'
+    )
+    await s.assertDocsConverged(['creator', 'stayer'], 'observation')
+  }
+)
+
+test(
   'completion with a newly-arrived peer is not blocked by an absent one',
   { timeout: 120_000 },
   async (t) => {

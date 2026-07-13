@@ -360,7 +360,10 @@ export class CoreSyncState {
     this.#update()
 
     // We want to emit state when a peer's bitfield changes, which can happen as
-    // a result of these two internal calls.
+    // a result of these two internal calls. Hypercore dispatches wire messages
+    // by property lookup on this peer object (its channel's userData), so
+    // shadowing the two methods on the instance is the only interception
+    // point — wrapping the peer in a Proxy would never see these calls.
     const originalOnBitfield = peer.onbitfield
     const originalOnRange = peer.onrange
     this.#patchedPeers.set(peer, {
