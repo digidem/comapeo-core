@@ -13,6 +13,10 @@
       "types": "./dist/errors.d.ts",
       "default": "./src/errors.js"
     },
+    "./sync-state.js": {
+      "types": "./dist/sync-state.d.ts",
+      "default": "./src/sync-state.js"
+    },
     "./schema.js": {
       "types": "./dist/schema.d.ts",
       "default": "./src/schema.js"
