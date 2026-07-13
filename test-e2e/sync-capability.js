@@ -9,7 +9,7 @@ import {
   COORDINATOR_ROLE_ID,
   MEMBER_ROLE_ID,
 } from '../src/roles.js'
-import { kCoreManager, kCoreOwnership } from '../src/mapeo-project.js'
+import { kCoreManager } from '../src/mapeo-project.js'
 import { NAMESPACES } from '../src/constants.js'
 import { createSyncScenario } from './sync-scenario.js'
 
@@ -170,59 +170,64 @@ test(
       'the blocked device learned its role via auth sync'
     )
 
-    // And nobody added the blocked device's non-auth cores
+    // The blocked device's cores ARE still added: blocking revokes what the
+    // device may *receive*, not the project's claim on the data it
+    // contributed before the block
     for (const ns of NAMESPACES) {
-      const expectedCoreCount = ns === 'auth' ? 3 : 2
       assert.equal(
         s.project('creator')[kCoreManager].getCores(ns).length,
-        expectedCoreCount,
-        `creator did not add the blocked device's ${ns} core`
+        3,
+        `creator added the blocked device's ${ns} core`
       )
     }
   }
 )
 
 test(
-  "a blocked device's non-auth cores are not added locally",
+  "a blocked device's pre-block data keeps propagating to new devices",
   { timeout: 120_000 },
   async (t) => {
+    // Blocking revokes a device's ability to *receive* project data; the
+    // data it contributed before the block remains project data. A device
+    // that joins after the block — and never meets the blocked device —
+    // must still receive that data, relayed by the remaining members.
     const s = await createSyncScenario(t, {
-      devices: { creator: {}, blocked: { role: BLOCKED_ROLE_ID } },
+      devices: { creator: {}, member: {} },
     })
+    const memberSeed = await s.seed('member', { observation: 30 })
     s.startDataSync()
+    await s.waitForSync('all')
 
-    // Wait for the creator to have the blocked device's core-ownership doc
-    // (which arrives via auth sync and is what would trigger core-adding)
-    const creatorProject = s.project('creator')
-    const blockedDeviceId = s.deviceId('blocked')
-    const coreOwnership = creatorProject[kCoreOwnership]
-    /** @type {null | string} */ let blockedDataCoreId = null
-    const deadline = Date.now() + 30_000
-    while (Date.now() < deadline) {
-      blockedDataCoreId = await coreOwnership
-        .getCoreId(blockedDeviceId, 'data')
-        .catch(() => null)
-      if (blockedDataCoreId) break
-      await delay(200)
-    }
-    assert(
-      blockedDataCoreId,
-      "creator synced the blocked device's ownership doc"
+    await s.assignRole('creator', 'member', BLOCKED_ROLE_ID)
+    await s.disconnect('member')
+
+    // A fresh device joins via the creator only (scenario helpers all run
+    // on one project, so drive the join directly). Named uniquely —
+    // createManagers() seeds identities by index, which would collide with
+    // the scenario's first device.
+    const { createManager, invite, connectPeers } = await import('./utils.js')
+    const joiner = createManager('blocked-data-joiner', t)
+    await joiner.setDeviceInfo({
+      name: 'blocked-data-joiner',
+      deviceType: 'mobile',
+    })
+    const disconnectJoiner = connectPeers([s.manager('creator'), joiner])
+    t.after(disconnectJoiner)
+    await invite({
+      invitor: s.manager('creator'),
+      invitees: [joiner],
+      projectId: s.projectId,
+    })
+    const joinerProject = await joiner.getProject(s.projectId)
+    joinerProject.$sync.start()
+    await joinerProject.$sync.waitForSync('all', { timeoutMs: 60_000 })
+
+    const joinerObservations = await joinerProject.observation.getMany()
+    assert.equal(
+      joinerObservations.length,
+      memberSeed.observation.length,
+      "joiner received the blocked device's pre-block observations via the creator"
     )
-
-    // Give core-adding a beat to (incorrectly) run
-    await delay(2_000)
-
-    const coreManager = creatorProject[kCoreManager]
-    for (const ns of /** @type {const} */ (['config', 'data', 'blobIndex'])) {
-      const nsCoreId = await coreOwnership.getCoreId(blockedDeviceId, ns)
-      const keys = coreManager.getCores(ns).map((r) => r.key.toString('hex'))
-      assert.equal(
-        keys.includes(nsCoreId),
-        false,
-        `creator did not add the blocked device's ${ns} core`
-      )
-    }
   }
 )
 

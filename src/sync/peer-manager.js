@@ -744,10 +744,8 @@ export class PeerManager extends TypedEmitter {
 
   /**
    * Add the device's non-auth cores to the core manager, so they replicate
-   * and are indexed. Only done for devices whose role permits syncing at
-   * least one non-auth namespace — we don't want to fetch and store data for
-   * devices that are blocked, have left, or were never added to the project.
-   * (Auth cores are added from the project extension messages instead.)
+   * and are indexed. (Auth cores are added from the project extension
+   * messages instead.)
    *
    * @param {CoreOwnershipDoc} coreOwnership
    * @returns {Promise<void>}
@@ -756,11 +754,11 @@ export class PeerManager extends TypedEmitter {
     const peerDeviceId = coreOwnership.docId
     const role = await this.#roles.getRole(peerDeviceId)
     if (this.#isClosed) return
-    // Don't add cores for devices that were never members (NO_ROLE) or were
-    // blocked — we don't want to fetch and store a blocked device's data.
-    // LEFT is deliberately allowed: a departed member's data remains project
-    // data and must keep propagating to new devices.
-    if (role.roleId === NO_ROLE_ID || role.roleId === BLOCKED_ROLE_ID) return
+    // Only NO_ROLE (never a member) is skipped. BLOCKED and LEFT devices'
+    // cores are deliberately still added: blocking revokes a device's
+    // ability to *receive* project data, but the data it contributed before
+    // being blocked remains project data and must keep propagating.
+    if (role.roleId === NO_ROLE_ID) return
     for (const ns of NAMESPACES) {
       if (ns === 'auth') continue
       const coreKey = Buffer.from(coreOwnership[`${ns}CoreId`], 'hex')

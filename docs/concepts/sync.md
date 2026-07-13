@@ -25,7 +25,10 @@ graph TD;
   initial sync with that peer is complete.
 - What may sync with a peer is governed by the peer's role (its per-namespace
   sync *capability*); what is currently syncing is governed by the device's
-  *sync mode* (`stopped` / `initial` / `all`).
+  *sync mode* (`stopped` / `initial` / `all`). Blocking a device revokes what
+  it may *receive* (everything except auth, which carries its block record) —
+  the data it contributed before the block remains project data and keeps
+  propagating to other devices.
 - Progress and completion are derived from core bitfields (plus "pre-have"
   extension messages that advertise what a peer holds before replication
   starts) into a single snapshot; all completion questions are answered by
