@@ -8,7 +8,7 @@ export const MIGRATION_REASON_NEEDS_UPGRADE = 0
 export const MIGRATION_REASON_ALREADY_UPGRADED = 1
 export const MIGRATION_REASON_NO_SPACE = 2
 
-export const AVAILABLE_SPACE_MULTIPLIER = 1.05
+export const AVAILABLE_SPACE_MULTIPLIER = 1.5
 
 /** @typedef {MIGRATION_REASON_NEEDS_UPGRADE|MIGRATION_REASON_ALREADY_UPGRADED|MIGRATION_REASON_NO_SPACE} MigrationReason*/
 
@@ -22,9 +22,16 @@ export const AVAILABLE_SPACE_MULTIPLIER = 1.05
  * @returns {Promise<Array<string>>} - Array of project IDs
  */
 export async function listProjectsFromStorage(storagePath) {
-  const entries = await fsPromises.readdir(storagePath, {
-    withFileTypes: true,
-  })
+  let entries
+  try {
+    entries = await fsPromises.readdir(storagePath, {
+      withFileTypes: true,
+    })
+  } catch (err) {
+    // @ts-expect-error
+    if (err.code === 'ENOENT') return []
+    throw err
+  }
 
   const projectIds = []
   for (const entry of entries) {
@@ -138,14 +145,13 @@ export function makeDefaultCorestoreStorage(path) {
 }
 
 /**
- * Run a migration dry-run for all projects in a MapeoManager storage folder.
+ * Run the hypercore-storage migration (v0 -> v1) for all projects in a MapeoManager storage folder.
  *
- * This performs a dry-run of the hypercore-storage migration (v0 -> v1) for each
- * project's corestore. In dry-run mode, the migration analyzes what changes would
- * be made without actually modifying the storage.
+ * This migrates each project's corestore from the old flat file format (v0) to the
+ * new RocksDB-based format (v1).
  *
  * @param {string} managerPath - Path to the MapeoManager storage folder
- * @param {(doneSoFar: number, totalCores: number) => void} [onProgress] - Callcback called after each core migrates
+ * @param {(doneSoFar: number, totalCores: number) => void} [onProgress] - Callback called after each core migrates
  * @returns {Promise<Record<string, { migrated: boolean, error?: Error }>>}
  *         Map of project IDs to migration status
  */
@@ -205,12 +211,15 @@ export async function migrateStorage(
         await storage.close()
       }
     } catch (error) {
-      console.log(error)
       results[projectId] = {
         migrated: false,
         error: ensureKnownError(error),
       }
     }
+  }
+
+  if (migratedSoFar !== totalCoresToMigrate) {
+    onProgress?.(totalCoresToMigrate, totalCoresToMigrate)
   }
 
   return results
@@ -236,7 +245,7 @@ export async function needsMigration(corestorePath) {
 
 /**
  * Checks if it makes sense to migrate. Are we already migrated? Do we have enough storage to migrate?
- * Available space needs to be at least 2.5x the largest core
+ * Available space needs to be at least 1.5x the largest core
  * @param {string} managerPath Folder where the MapeoManager stores its data
  * @param {number} availableStorage How much storage is available to migrate.
  * @returns {Promise<{shouldUpgrade:boolean, useFallback: boolean, reason: MigrationReason}>}

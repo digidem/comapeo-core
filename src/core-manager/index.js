@@ -71,7 +71,7 @@ export class CoreManager extends ReadyResource {
    * @param {Buffer} options.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
-   * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
+   * @param {string} options.storage Folder to store all hypercore data
    * @param {boolean} [options.autoDownload=true] Immediately start downloading cores - should only be set to false for tests
    * @param {Logger} [options.logger]
    */
@@ -320,7 +320,7 @@ export class CoreManager extends ReadyResource {
     // Otherwise this would only happen once we call core.download()
     core.on('peer-add', (/** @type {HypercorePeer} */ peer) => {
       if (core.length === 0) return
-      forceBitfieldExchange(peer)
+      forceBitfieldExchange(core, peer)
     })
 
     patchCoreReplicator(core)
@@ -354,7 +354,7 @@ export class CoreManager extends ReadyResource {
           // TODO: It would be more efficient (in terms of network traffic) to
           // send a want with start = length of previous want. Need to track
           // "last want length" sent by peer.
-          forceBitfieldExchange(peer)
+          forceBitfieldExchange(core, peer)
         }
       })
     }

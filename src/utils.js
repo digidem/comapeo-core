@@ -13,6 +13,7 @@ import pTimeout, { TimeoutError as pTimeoutError } from 'p-timeout'
 
 /** @import { MapShareExtension } from './generated/rpc.js' */
 /** @import {Attachment, BlobId, HypercorePeer} from "./types.js" */
+/** @import Hypercore from 'hypercore' */
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
 
@@ -346,16 +347,13 @@ export function validateMapShareExtension(mapShare) {
 /**
  * Force want wire messages to force peer to send us their bitfield
  * Uses a bunch of hypercore internals so expect type errors
+ * @param {Hypercore<Hypercore.ValueEncoding, Buffer>} core
  * @param {HypercorePeer} peer
  */
-export function forceBitfieldExchange(peer) {
+export function forceBitfieldExchange(core, peer) {
   const DEFAULT_SEGMENT_SIZE = 128 * 1024
 
-  const length = /** @type {number} */ (
-    // @ts-ignore
-    peer.core.length
-  )
-
+  const length = /** @type {number} */ (core.length)
   // Tell other side we might want everything to try to get their bitfield
   // Needed for older comapeo clients to send us their bitfield
   const maxPage = Math.ceil(length / DEFAULT_SEGMENT_SIZE)

@@ -76,8 +76,8 @@ import { parseBcp47 } from '../intl/parse-bcp-47.js'
 /**
  * @typedef {object} DerivedDocFields
  * @property {string[]} forks
- * @property {string} createdBy
- * @property {string} updatedBy
+ * @property {string} [createdBy]
+ * @property {string} [updatedBy]
  */
 
 function generateId() {
@@ -116,7 +116,7 @@ export class DataType extends TypedEmitter {
    * @param {TDataStore} opts.dataStore
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.db
    * @param {import('../translation-api.js').default['get']} [opts.getTranslations]
-   * @param {(versionId: string) => Promise<string>} opts.getDeviceIdForVersionId
+   * @param {(versionId: string) => Promise<string | undefined>} [opts.getDeviceIdForVersionId]
    */
   constructor({
     dataStore,
@@ -131,7 +131,8 @@ export class DataType extends TypedEmitter {
     this.#schemaName = /** @type {TSchemaName} */ (getTableConfig(table).name)
     this.#db = db
     this.#getTranslations = getTranslations
-    this.#getDeviceIdForVersionId = getDeviceIdForVersionId
+    this.#getDeviceIdForVersionId =
+      getDeviceIdForVersionId ?? (() => Promise.resolve(undefined))
     this.#sql = {
       getByDocId: db
         .select()
