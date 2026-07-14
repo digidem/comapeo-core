@@ -9,7 +9,7 @@ import { InviteLinkJoiner } from '../src/invite/invite-link-joiner.js'
 import { makeInviteURL } from '../src/invite/invite-urls.js'
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
-/** @import { InviteApiEvents, Invite, InviteApi } from '../src/invite/invite-api.js' */
+/** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
 
 /**
  * @param {Buffer} handshakePublicKey
@@ -30,9 +30,6 @@ function mockConnection(handshakePublicKey) {
  * @property {string} [projectId] Project ID returned by accept (default: random)
  */
 
-/**
- * @extends {InviteApi}
- */
 class MockInviteApi extends TypedEmitter {
   /** @type {string} */
   #projectId
@@ -88,28 +85,45 @@ test('happy path: connect, redeem, accept, complete', async () => {
     sendRedeemInviteOverInternet: async (deviceId, redeem) => {
       redeemCalls.push([deviceId, redeem])
     },
-    inviteApi,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
   })
 
   /** @type {import('../src/invite/invite-link-joiner.js').JoinRequestUpdate[]} */
   const updates = []
   joiner.on('join-request-update', (update) => updates.push(update))
 
+  const onConnecting = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'connecting',
+  })
+  const onConnected = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'connected',
+  })
+  const onAccepted = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'accepted',
+  })
+  const onCompleted = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'completed',
+  })
+
   const joinRequest = joiner.createJoinRequest(url)
 
   assert.equal(joinRequest.status, 'connecting')
   assert.equal(joinRequest.inviteId, inviteId.toString('hex'))
 
-  // Wait for 'connecting' update
-  await pEvent(joiner, 'join-request-update', { timeout: 1000 })
+  // Wait for 'connecting' update if we dont have it yet
+  await onConnecting
   assert.equal(updates.length, 2)
-  assert.equal(updates[1].status, 'connecting')
+  assert.equal(updates[0].status, 'connecting')
 
   // Verify connectPeer was called
   assert.deepEqual(connectCalls, [swarmPublicKey.toString('hex')])
 
   // Status should now be 'connected'
-  await pEvent(joiner, 'join-request-update', { timeout: 1000 })
+  await onConnected
   assert.equal(updates[1].status, 'connected')
 
   // Verify redeem was sent with correct identity key
@@ -131,11 +145,11 @@ test('happy path: connect, redeem, accept, complete', async () => {
   })
 
   // Wait for 'accepted' update
-  await pEvent(joiner, 'join-request-update', { timeout: 1000 })
+  await onAccepted
   assert.equal(updates[2].status, 'accepted')
 
   // Wait for 'completed' update
-  await pEvent(joiner, 'join-request-update', { timeout: 1000 })
+  await onCompleted
   assert.equal(updates[3].status, 'completed')
   assert.equal(updates[3].projectId, projectId)
 
