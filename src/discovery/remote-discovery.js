@@ -244,6 +244,8 @@ export class RemoteDiscovery extends TypedEmitter {
 
       return socket
     } catch (e) {
+      // We should stop trying to connect if we time out
+      swarm.leavePeer(noisePublicKey)
       if (e instanceof EventTimeoutError) {
         throw new TimeoutError('Timed out waiting for peer')
       }
