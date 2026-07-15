@@ -57,7 +57,6 @@ export class InviteLinksApiForProject {
    * @returns {Promise<void>}
    */
   async create(data) {
-    await this.#inviteLinksApi.ready()
     return this.#inviteLinksApi.create({
       ...data,
       projectId: this.#projectId,
@@ -70,7 +69,6 @@ export class InviteLinksApiForProject {
    * @returns {Promise<InviteLinkRecord | undefined>}
    */
   async getById(inviteId) {
-    await this.#inviteLinksApi.ready()
     const link = await this.#inviteLinksApi.getById(inviteId)
     if (!link) return link
     if (link.projectId !== this.#projectId) {
@@ -84,7 +82,6 @@ export class InviteLinksApiForProject {
    * @returns {Promise<InviteLinkRecord[]>}
    */
   async getAll() {
-    await this.#inviteLinksApi.ready()
     return this.#inviteLinksApi.getAllForProject(this.#projectId)
   }
 
@@ -94,7 +91,6 @@ export class InviteLinksApiForProject {
    * @returns {Promise<void>}
    */
   async delete(inviteId) {
-    await this.#inviteLinksApi.ready()
     return this.#inviteLinksApi.delete(inviteId)
   }
 
@@ -103,7 +99,6 @@ export class InviteLinksApiForProject {
    * @returns {Promise<void>}
    */
   async deleteAll() {
-    await this.#inviteLinksApi.ready()
     return this.#inviteLinksApi.deleteAllFrom(this.#projectId)
   }
 }
@@ -152,9 +147,8 @@ export class InviteLinksApi extends ReadyResource {
         .from(inviteLinksTable)
         .where(eq(inviteLinksTable.projectId, sql.placeholder('projectId')))
         .prepare(),
-      getExpired: db
-        .select()
-        .from(inviteLinksTable)
+      deleteExpired: db
+        .delete(inviteLinksTable)
         .where(
           sql`${inviteLinksTable.expiresAt} < ${sql.placeholder('cutoff')}`
         )
@@ -183,18 +177,14 @@ export class InviteLinksApi extends ReadyResource {
   }
 
   /**
-   * Delete all invite links whose createdAt timestamp is older than 24 hours.
+   * Delete all invite links that have expired.
+   * Stop listening over internet if none are left.
    */
   async #clearExpired() {
     const cutoff = Date.now()
-    const expired = this.#sql.getExpired.all({ cutoff })
-    for (const row of expired) {
-      await this.#db
-        .delete(inviteLinksTable)
-        .where(eq(inviteLinksTable.inviteId, row.inviteId))
-    }
+    const result = this.#sql.deleteExpired.run({ cutoff })
     // Update the listen state once, after all deletions
-    if (expired.length > 0) {
+    if (result.changes > 0) {
       await this.#checkSetShouldListenOverInternet(false)
     }
   }
@@ -235,7 +225,7 @@ export class InviteLinksApi extends ReadyResource {
    */
   async #checkSetShouldListenOverInternet(direction) {
     const count = this.#sql.getAll.all().length
-    if (direction && count === 1) {
+    if (direction && count) {
       await this.#setShouldListenOverInternet(true)
     } else if (!direction && count === 0) {
       await this.#setShouldListenOverInternet(false)
