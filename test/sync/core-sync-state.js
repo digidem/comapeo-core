@@ -640,6 +640,81 @@ test('peer status stays "starting" for a 4th concurrent peer (hypercore upgrade 
   await waitForStatus(crs, emitter, fourthPeerId, 'started')
 })
 
+test('peer status falls back to "started" if the first Synchronize never arrives', async (t) => {
+  // A channel close/open crossing can leave the remote never re-sending its
+  // Synchronize (it believes its old session is still live) — see the
+  // comment in CoreSyncState's #onPeerAdd. A live channel in that state
+  // must not block sync state forever: after a fallback timeout the peer is
+  // treated as started, with its blocks still counted via pre-haves.
+  const localCore = await createCore(t)
+  await localCore.append(['a', 'b', 'c'])
+
+  const emitter = new EventEmitter()
+  const crs = new CoreSyncState({
+    onUpdate: () => emitter.emit('update'),
+    peerSyncControllers: new Map(),
+    namespace: 'auth',
+    deviceId: '',
+    hasDownloadFilter: () => false,
+  })
+  crs.attachCore(localCore)
+
+  // Never released: the Synchronize never arrives
+  holdSynchronize(localCore)
+  const remoteCore = await createCore(t, localCore.key)
+  const kp2 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1))
+  const peerId = kp2.publicKey.toString('hex')
+  const destroy = replicate(localCore, remoteCore, { kp2 })
+  t.after(destroy)
+
+  await once(localCore, 'peer-add')
+  assert.equal(
+    crs.getState().remoteStates[peerId].status,
+    'starting',
+    'peer is "starting" while the Synchronize is missing'
+  )
+
+  // 5000ms fallback (FIRST_SYNC_FALLBACK_MS) plus margin
+  await waitForStatus(crs, emitter, peerId, 'started', 8_000)
+  const livePeer = localCore.peers.find((p) =>
+    p.remotePublicKey.equals(kp2.publicKey)
+  )
+  assert.equal(
+    livePeer?.remoteSynced,
+    false,
+    'sanity: "started" came from the fallback, not a Synchronize'
+  )
+})
+
+test('peer status becomes "started" for a peer that synced before the core was attached', async (t) => {
+  // Defensive invariant: production wiring attaches cores before their
+  // channel handshakes can complete, but nothing in CoreSyncState enforces
+  // that. A peer whose Synchronize was already processed when the core is
+  // attached must become "started" without waiting for another message.
+  const localCore = await createCore(t)
+  await localCore.append(['a', 'b', 'c'])
+  const remoteCore = await createCore(t, localCore.key)
+  const kp2 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1))
+  const peerId = kp2.publicKey.toString('hex')
+  const destroy = replicate(localCore, remoteCore, { kp2 })
+  t.after(destroy)
+
+  await once(localCore, 'peer-add')
+  await waitFor(() => localCore.peers[0].remoteSynced === true)
+
+  const emitter = new EventEmitter()
+  const crs = new CoreSyncState({
+    onUpdate: () => emitter.emit('update'),
+    peerSyncControllers: new Map(),
+    namespace: 'auth',
+    deviceId: '',
+    hasDownloadFilter: () => false,
+  })
+  crs.attachCore(localCore)
+
+  await waitForStatus(crs, emitter, peerId, 'started')
+})
+
 /**
  * Intercept and queue the first Synchronize message(s) from peers that are
  * added to `core` after this is called, so tests can hold a peer in the
