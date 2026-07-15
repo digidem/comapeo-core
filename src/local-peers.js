@@ -88,13 +88,23 @@ const MESSAGE_TYPES = {
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
 
 /**
+ * RPC methods allowed to be _received_ from an untrusted peer.
  * @type {Set<keyof typeof MESSAGE_TYPES>}
  */
-const ALLOWED_UNTRUSTED_RPC = new Set([
+const ALLOWED_RECEIVE_UNTRUSTED_RPC = new Set([
   'DeviceInfo',
   'RedeemInviteOverInternet',
   'RedeemInviteOverInternetAck',
   'DenyInviteOverInternetAck',
+])
+
+/**
+ * RPC methods allowed to be _sent_ to an untrusted peer.
+ * @type {Set<keyof typeof MESSAGE_TYPES>}
+ */
+const ALLOWED_SEND_UNTRUSTED_RPC = new Set([
+  'RedeemInviteOverInternet',
+  'DenyInviteOverInternet',
 ])
 
 export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
@@ -675,6 +685,7 @@ export class LocalPeers extends TypedEmitter {
   async sendDenyInviteOverInternet(deviceId, deny) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('DenyInviteOverInternet', peer)
     await peer.sendDenyInviteOverInternet(deny)
   }
 
@@ -687,6 +698,7 @@ export class LocalPeers extends TypedEmitter {
   async sendRedeemInviteOverInternet(deviceId, redeem) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('RedeemInviteOverInternet', peer)
     await peer.sendRedeemInviteOverInternet(redeem)
   }
 
@@ -947,7 +959,7 @@ export class LocalPeers extends TypedEmitter {
     if (!peer) return // TODO: report error - this should not happen
     // If the peer isn't trusted, ignore anything not allowed
     // Allow acknowledge messages by default
-    if (!peer.isTrusted && !ALLOWED_UNTRUSTED_RPC.has(type)) {
+    if (!peer.isTrusted && !ALLOWED_RECEIVE_UNTRUSTED_RPC.has(type)) {
       throw new UntrustedRPCMethodError({
         type,
         peerId: peer.id,
@@ -1264,11 +1276,12 @@ export function peerIdFromNoise(stream) {
 }
 
 /**
- * @param {string} type
+ * @param {keyof typeof MESSAGE_TYPES} type
  * @param {Peer} peer
  */
 function checkTrusted(type, peer) {
   if (peer.isTrusted) return
+  if (ALLOWED_SEND_UNTRUSTED_RPC.has(type)) return
   throw new UntrustedRPCMethodError({
     type,
     peerId: peer.id,

@@ -49,7 +49,7 @@ export class RemoteDiscovery extends TypedEmitter {
   #sm
   #identityKeypair
   #deriveSwarmIdentityKeypair
-  /** @type {KeyPair?}*/
+  /** @type {Keypair?} */
   #lastKeyPair = null
   #swarmOpts
   /** @type {Set<string>} */
