@@ -32,7 +32,6 @@ import {
   deNullify,
   getDeviceId,
   keyToId,
-  noop,
   projectIdToNonce,
   projectKeyToId,
   projectKeyToProjectInviteId,
@@ -59,23 +58,19 @@ import {
   FailedToSetIsArchiveDeviceError,
   NotFoundError,
   ProjectExistsError,
-  InviteRedeemConnectionClosedError,
   InvalidMapShareReceiverError,
-  InviteDeniedByInviterError,
-  JoinProjectCancelledError,
-  InvalidInternetInviteURLError,
   InitialSyncFailedError,
   UnknownInviteIDRedeemAttemptError,
   RPCDisconnectBeforeAckError,
   UnknownInviteIDError,
+  InviteDeniedByInviterError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
 import { RemoteDiscovery } from './discovery/remote-discovery.js'
-import { pEvent } from 'p-event'
 import { InviteLinksApi } from './invite/invite-links-api.js'
-import { parseInviteURL } from './invite/invite-urls.js'
+import { InviteLinkJoiner } from './invite/invite-link-joiner.js'
 import { kHandleRedeemInviteOverInternet } from './member-api.js'
 
 /** @import { DenyInviteOverInternet, MapShareExtension } from './generated/rpc.js' */
@@ -153,8 +148,6 @@ const RPC_FEATURES = [
  * @property {(mapShare: MapShare) => void} map-share Emitted when a project has recieved a map share request
  * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error - Emitted when an incoming map share fails to be recieved due to formatting issues
  * @property {(projectId: string, deviceId: string, inviteId: string) => void} invite-link-join-request Emitted when an invite over the internet link has been redeemed, accept the deviceId to add them
- * @property {(url: string) => void} invite-link-join-connected Emitted when we've connected to the invitor for an invite over the internet link
- * @property {(url: string) => void} invite-link-join-accepted Emitted when the invitor has accepted our request to join
  * @property {(err: Error, deviceId: string, inviteId: string) => void} invite-link-join-request-error Emitted when an invite over the internet has failed to be redeemed
  */
 
@@ -176,6 +169,7 @@ export class MapeoManager extends TypedEmitter {
   #projectMigrationsFolder
   #deviceId
   #localPeers
+  #inviteLinkStore
   #inviteLinks
   #invite
   #fastify
@@ -189,10 +183,6 @@ export class MapeoManager extends TypedEmitter {
   #untrustedTimeout
   /** @type {Set<ReturnType<setTimeout>>}*/
   #pendingTrustedTimers = new Set()
-
-  // Maps invite ID (hex string) to AbortController for in-flight redeem attempts
-  /** @type {Map<string, AbortController>} */
-  #outboundRedeemInvites = new Map()
 
   /**
    * @param {Object} opts
@@ -358,9 +348,21 @@ export class MapeoManager extends TypedEmitter {
     })
     this.#remoteDiscovery.on('connection', this.#replicate.bind(this))
 
-    this.#inviteLinks = new InviteLinksApi(this.#db, (shouldListen) => {
+    this.#inviteLinkStore = new InviteLinksApi(this.#db, (shouldListen) => {
       if (shouldListen) return this.#remoteDiscovery.start()
       else return this.#remoteDiscovery.stop()
+    })
+
+    this.#inviteLinks = new InviteLinkJoiner({
+      connectPeer: this.#remoteDiscovery.connectPeer.bind(
+        this.#remoteDiscovery
+      ),
+      disconnectPeer: this.#remoteDiscovery.disconnectPeer.bind(
+        this.#remoteDiscovery
+      ),
+      sendRedeemInviteOverInternet:
+        this.#localPeers.sendRedeemInviteOverInternet.bind(this.#localPeers),
+      inviteApi: this.#invite,
     })
   }
 
@@ -369,11 +371,18 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
+   * @returns {import('./invite/invite-link-joiner.js').InviteLinkJoiner}
+   */
+  get inviteLinks() {
+    return this.#inviteLinks
+  }
+
+  /**
    * @returns {KeyPair}
    */
   get #swarmIdentity() {
     return this.#keyManager.deriveSwarmIdentity(
-      new Date(this.#inviteLinks.getSeedTime())
+      new Date(this.#inviteLinkStore.getSeedTime())
     )
   }
 
@@ -716,7 +725,7 @@ export class MapeoManager extends TypedEmitter {
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
-      inviteLinks: this.#inviteLinks,
+      inviteLinks: this.#inviteLinkStore,
       logger: this.#loggerBase,
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
       isArchiveDevice,
@@ -815,100 +824,6 @@ export class MapeoManager extends TypedEmitter {
     }
 
     return result
-  }
-
-  /**
-   * Attempt to join a project over the internet
-   * @param {string} url
-   * @param {object} [options]
-   * @param {number} [options.timeout]
-   * @returns {Promise<string>}
-   */
-  async joinProjectFromLink(url, { timeout = 60_000 } = {}) {
-    const { swarmPublicKey, inviteIdString } = parseInviteURL(url)
-    const inviteId = Buffer.from(inviteIdString, 'hex')
-
-    const redeemAbortController = new AbortController()
-    const signal = redeemAbortController.signal
-    this.#outboundRedeemInvites.set(inviteIdString, redeemAbortController)
-
-    const connection = await this.#remoteDiscovery.connectPeer(swarmPublicKey, {
-      timeout,
-      signal: redeemAbortController.signal,
-    })
-
-    signal.addEventListener(
-      'abort',
-      () => this.#remoteDiscovery.disconnectPeer(swarmPublicKey),
-      { once: true }
-    )
-
-    const onClose = pEvent(connection, 'close').then(
-      () => {
-        throw new InviteRedeemConnectionClosedError()
-      },
-      // Handle `error` event on connection if there's sudden closes
-      (e) => {
-        throw new InviteRedeemConnectionClosedError({ cause: e })
-      }
-    )
-    // It's okay if this rejection never gets handled
-    onClose.catch(noop)
-
-    this.emit('invite-link-join-connected', url)
-
-    try {
-      // Use the identity key from the handshake, not the swarm key from the URL
-      const identityPublicKeyHex = connection.handshakePublicKey.toString('hex')
-
-      const onInvited = pEvent(this.#invite, 'invite-received', {
-        filter: (invite) => invite.invitorDeviceId === identityPublicKeyHex,
-        signal,
-      })
-
-      // This is to make sure all rejectable promises are listend to synchronously
-      // Else we get a PromiseRejectionHandledWarning in the tests
-      const [invite] = await Promise.race([
-        Promise.all([
-          onInvited,
-          this.#localPeers.sendRedeemInviteOverInternet(identityPublicKeyHex, {
-            inviteId,
-          }),
-        ]),
-        onClose,
-      ])
-
-      this.emit('invite-link-join-accepted', url)
-
-      const projectId = await this.#invite.accept(invite)
-
-      return projectId
-    } catch (e) {
-      // Disconnect from them on error
-      await this.#remoteDiscovery.disconnectPeer(swarmPublicKey)
-      throw e
-    } finally {
-      this.#outboundRedeemInvites.delete(inviteIdString)
-      connection.end()
-    }
-  }
-
-  /**
-   * Cancel an in-flight join project attempt initiated via joinProjectFromLink.
-   * If no matching redeem attempt is found, nothing happens.
-   *
-   * @param {string} url - The invite URL
-   * @returns {Promise<void>}
-   */
-  async cancelJoinProjectFromLink(url) {
-    const { inviteIdString } = parseInviteURL(url)
-    const ac = this.#outboundRedeemInvites.get(inviteIdString)
-    if (ac) {
-      ac.abort(new JoinProjectCancelledError())
-      this.#outboundRedeemInvites.delete(inviteIdString)
-    } else {
-      throw new InvalidInternetInviteURLError()
-    }
   }
 
   /**
@@ -1368,14 +1283,19 @@ export class MapeoManager extends TypedEmitter {
       inviteIdString.slice(0, 7),
       peerId
     )
-    const ac = this.#outboundRedeemInvites.get(inviteIdString)
-    if (ac) {
+    try {
       const err =
         reason === 'unknown_invite_id'
           ? new UnknownInviteIDError()
           : new InviteDeniedByInviterError({ reason })
-      ac.abort(err)
-      this.#outboundRedeemInvites.delete(inviteIdString)
+      this.#inviteLinks.cancelJoinRequest(inviteIdString, err)
+    } catch (e) {
+      this.#l.log(
+        'No pending join request for denied invite %S from %S, error: %s',
+        inviteIdString.slice(0, 7),
+        peerId,
+        ensureError(e).message
+      )
     }
   }
 
@@ -1386,7 +1306,7 @@ export class MapeoManager extends TypedEmitter {
    */
   async #handleRedeemInviteOverInternet(peerId, inviteId) {
     const inviteIdString = inviteId.toString('hex')
-    const invite = await this.#inviteLinks.getById(inviteIdString)
+    const invite = await this.#inviteLinkStore.getById(inviteIdString)
 
     if (!invite) {
       try {
@@ -1446,7 +1366,7 @@ export class MapeoManager extends TypedEmitter {
     for (const timer of this.#pendingTrustedTimers) {
       clearTimeout(timer)
     }
-    await this.#inviteLinks.close()
+    await this.#inviteLinkStore.close()
     await this.#remoteDiscovery.close()
     // This added for workers PR
     // await this.#projectSettingsIndexWriter.close()

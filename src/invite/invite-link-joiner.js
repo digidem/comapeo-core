@@ -5,6 +5,7 @@ import {
   ExistingJoinRequestError,
   InviteRedeemConnectionClosedError,
   JoinRequestNotFoundError,
+  JoinProjectCancelledError,
 } from '../errors.js'
 
 /** @import { RemoteDiscovery } from '../discovery/remote-discovery.js' */
@@ -271,14 +272,15 @@ export class InviteLinkJoiner extends TypedEmitter {
    * Cancel an in-flight join request.
    *
    * @param {string} inviteId Hex invite ID
+   * @param {Error} [reason] Reason for cancellation. Defaults to a generic cancellation error.
    * @returns {void}
    */
-  cancelJoinRequest(inviteId) {
+  cancelJoinRequest(inviteId, reason) {
     const pending = this.#pending.get(inviteId)
     if (!pending) {
       throw new JoinRequestNotFoundError({ inviteId })
     }
-    pending.abortController.abort(new Error('Join project cancelled'))
+    pending.abortController.abort(reason ?? new JoinProjectCancelledError())
     this.#pending.delete(inviteId)
   }
 }
