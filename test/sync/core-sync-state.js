@@ -463,6 +463,265 @@ test('CoreReplicationState', async (t) => {
   }
 })
 
+test('peer status stays "starting" until that peer\'s first Synchronize (writable core)', async (t) => {
+  // `core.update({ wait: true })` resolves immediately for writable cores
+  // (hypercore short-circuits: a writer is always "up to date"), so it can
+  // never be a signal that a *peer* has completed its length handshake.
+  const localCore = await createCore(t)
+  await localCore.append(['a', 'b', 'c'])
+
+  const emitter = new EventEmitter()
+  const crs = new CoreSyncState({
+    onUpdate: () => emitter.emit('update'),
+    peerSyncControllers: new Map(),
+    namespace: 'auth',
+    deviceId: '',
+    hasDownloadFilter: () => false,
+  })
+  crs.attachCore(localCore)
+
+  const hold = holdSynchronize(localCore)
+  const remoteCore = await createCore(t, localCore.key)
+  const kp2 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1))
+  const peerId = kp2.publicKey.toString('hex')
+  const destroy = replicate(localCore, remoteCore, { kp2 })
+  t.after(destroy)
+
+  await once(localCore, 'peer-add')
+  // Allow any (incorrect) async continuations to settle
+  await new Promise((res) => setTimeout(res, 200))
+
+  assert.equal(
+    localCore.peers[0].remoteSynced,
+    false,
+    'sanity: the peer has not sent its first Synchronize yet'
+  )
+  assert.equal(
+    crs.getState().remoteStates[peerId].status,
+    'starting',
+    'peer is still "starting" before its first Synchronize'
+  )
+
+  hold.release()
+  await waitForStatus(crs, emitter, peerId, 'started')
+  assert.equal(
+    localCore.peers[0].remoteSynced,
+    true,
+    'sanity: Synchronize has now been processed'
+  )
+})
+
+test('peer status stays "starting" while another peer supplies an upgrade', async (t) => {
+  // `core.update({ wait: true })` resolves for *all* waiters as soon as any
+  // peer advances the core's length, so on an actively-transferring core a
+  // newly-connected peer would be marked "started" before it has said
+  // anything at all.
+  const writerCore = await createCore(t)
+  await writerCore.append(['a', 'b', 'c'])
+  const localCore = await createCore(t, writerCore.key)
+
+  const emitter = new EventEmitter()
+  const crs = new CoreSyncState({
+    onUpdate: () => emitter.emit('update'),
+    peerSyncControllers: new Map(),
+    namespace: 'auth',
+    deviceId: '',
+    hasDownloadFilter: () => false,
+  })
+  crs.attachCore(localCore)
+
+  // Sync fully with the writer first
+  const kpWriter = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1))
+  const destroyWriterConn = replicate(localCore, writerCore, {
+    kp2: kpWriter,
+  })
+  t.after(destroyWriterConn)
+  localCore.download({ start: 0, end: -1 })
+  await once(localCore, 'peer-add')
+  await waitFor(() => localCore.contiguousLength === 3)
+
+  // Now a new peer connects, but its first Synchronize is withheld
+  const hold = holdSynchronize(localCore)
+  const newPeerCore = await createCore(t, writerCore.key)
+  const kpNew = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(2))
+  const newPeerId = kpNew.publicKey.toString('hex')
+  const destroyNewConn = replicate(localCore, newPeerCore, { kp2: kpNew })
+  t.after(destroyNewConn)
+  await once(localCore, 'peer-add')
+
+  // The writer appends and we download it: the core's length advances, which
+  // resolves every pending `core.update()` — but tells us nothing about the
+  // new peer
+  await writerCore.append('d')
+  await waitFor(() => localCore.contiguousLength === 4)
+  await new Promise((res) => setTimeout(res, 200))
+
+  const newPeer = localCore.peers.find((p) =>
+    p.remotePublicKey.equals(kpNew.publicKey)
+  )
+  assert(newPeer, 'sanity: new peer is connected')
+  assert.equal(
+    newPeer.remoteSynced,
+    false,
+    'sanity: the new peer has not sent its first Synchronize yet'
+  )
+  assert.equal(
+    crs.getState().remoteStates[newPeerId].status,
+    'starting',
+    'new peer is still "starting" before its first Synchronize'
+  )
+
+  hold.release()
+  await waitForStatus(crs, emitter, newPeerId, 'started')
+})
+
+test('peer status stays "starting" for a 4th concurrent peer (hypercore upgrade quorum cap)', async (t) => {
+  // `core.update({ wait: true })` samples at most MAX_PEERS_UPGRADE (3)
+  // peers, so with 4+ connected peers it can resolve without ever
+  // consulting the 4th peer's handshake — it must not be treated as a
+  // per-peer "handshake complete" signal.
+  const keySource = await createCore(t) // never replicated; provides a key
+  const localCore = await createCore(t, keySource.key)
+
+  const emitter = new EventEmitter()
+  const crs = new CoreSyncState({
+    onUpdate: () => emitter.emit('update'),
+    peerSyncControllers: new Map(),
+    namespace: 'auth',
+    deviceId: '',
+    hasDownloadFilter: () => false,
+  })
+  crs.attachCore(localCore)
+
+  // Three peers, fully synced
+  for (let i = 1; i <= 3; i++) {
+    const remoteCore = await createCore(t, keySource.key)
+    const kp2 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(i))
+    const destroy = replicate(localCore, remoteCore, { kp2 })
+    t.after(destroy)
+  }
+  await waitFor(
+    () =>
+      localCore.peers.length === 3 &&
+      localCore.peers.every((p) => p.remoteSynced)
+  )
+
+  // A 4th peer connects, but its first Synchronize is withheld
+  const hold = holdSynchronize(localCore, { maxPeers: 1 })
+  const fourthCore = await createCore(t, keySource.key)
+  const kp4 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(4))
+  const fourthPeerId = kp4.publicKey.toString('hex')
+  const destroy = replicate(localCore, fourthCore, { kp2: kp4 })
+  t.after(destroy)
+  await once(localCore, 'peer-add')
+
+  // A 5th peer connects and syncs normally: its handshake re-evaluates
+  // hypercore's shared upgrade request, which samples only the first
+  // MAX_PEERS_UPGRADE peers — never the still-silent 4th
+  const fifthCore = await createCore(t, keySource.key)
+  const kp5 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(5))
+  const destroy5 = replicate(localCore, fifthCore, { kp2: kp5 })
+  t.after(destroy5)
+  await waitFor(() =>
+    localCore.peers.some(
+      (p) => p.remotePublicKey.equals(kp5.publicKey) && p.remoteSynced
+    )
+  )
+  // Allow any (incorrect) async continuations to settle
+  await new Promise((res) => setTimeout(res, 300))
+
+  assert.equal(
+    crs.getState().remoteStates[fourthPeerId].status,
+    'starting',
+    '4th peer is still "starting" before its first Synchronize'
+  )
+
+  hold.release()
+  await waitForStatus(crs, emitter, fourthPeerId, 'started')
+})
+
+/**
+ * Intercept and queue the first Synchronize message(s) from peers that are
+ * added to `core` after this is called, so tests can hold a peer in the
+ * "channel open, length handshake not yet processed" state. Uses the same
+ * interception point as production code: hypercore dispatches wire messages
+ * by property lookup on the peer object, so shadowing `onsync` on the
+ * instance sees every message.
+ *
+ * @param {import('hypercore')} core
+ * @param {object} [opts]
+ * @param {number} [opts.maxPeers] only hold the first `maxPeers` peers added
+ * after this call (later peers' messages flow normally)
+ */
+function holdSynchronize(core, { maxPeers = Infinity } = {}) {
+  /** @type {Array<() => unknown>} */
+  const queued = []
+  /** @type {Array<() => void>} */
+  const restores = []
+  let held = true
+  let heldPeerCount = 0
+  /** @param {import('../../src/types.js').HypercorePeer} peer */
+  const onPeerAdd = (peer) => {
+    if (heldPeerCount >= maxPeers) return
+    heldPeerCount++
+    const originalOnSync = peer.onsync
+    peer.onsync = (...args) => {
+      if (!held) return originalOnSync.apply(peer, args)
+      queued.push(() => originalOnSync.apply(peer, args))
+      return Promise.resolve()
+    }
+    restores.push(() => {
+      peer.onsync = originalOnSync
+    })
+  }
+  core.on('peer-add', onPeerAdd)
+  return {
+    release() {
+      held = false
+      core.off('peer-add', onPeerAdd)
+      for (const apply of queued) apply()
+      for (const restore of restores) restore()
+    },
+  }
+}
+
+/**
+ * @param {() => boolean} condition
+ * @param {number} [timeoutMs]
+ */
+async function waitFor(condition, timeoutMs = 1000) {
+  const start = Date.now()
+  while (!condition()) {
+    if (Date.now() - start > timeoutMs) {
+      throw new Error('Timed out waiting for condition')
+    }
+    await new Promise((res) => setTimeout(res, 10))
+  }
+}
+
+/**
+ * Wait until the peer's status matches, driven by state update events.
+ *
+ * @param {CoreSyncState} crs
+ * @param {EventEmitter} emitter
+ * @param {string} peerId
+ * @param {import('../../src/sync/core-sync-state.js').PeerNamespaceState['status']} status
+ * @param {number} [timeoutMs]
+ */
+async function waitForStatus(crs, emitter, peerId, status, timeoutMs = 1000) {
+  await pTimeout(
+    (async () => {
+      while (crs.getState().remoteStates[peerId]?.status !== status) {
+        await once(emitter, 'update')
+      }
+    })(),
+    {
+      milliseconds: timeoutMs,
+      message: `Timed out waiting for status ${status}`,
+    }
+  )
+}
+
 test('bitCount32', () => {
   const testCases = new Set([0, 2 ** 32 - 1])
   for (let i = 0; i < 32; i++) {
