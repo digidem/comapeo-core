@@ -49,6 +49,8 @@ export class RemoteDiscovery extends TypedEmitter {
   #sm
   #identityKeypair
   #deriveSwarmIdentityKeypair
+  /** @type {KeyPair?}*/
+  #lastKeyPair = null
   #swarmOpts
   /** @type {Set<string>} */
   #shouldTrustKeys = new Set()
@@ -82,9 +84,24 @@ export class RemoteDiscovery extends TypedEmitter {
   }
 
   async #start() {
+    const keyPair = this.#deriveSwarmIdentityKeypair()
+    if (this.#swarm) {
+      if (
+        !this.#lastKeyPair ||
+        this.#lastKeyPair.publicKey.equals(keyPair.publicKey)
+      ) {
+        this.#l.log('Resuming swarm')
+        await this.#swarm.resume()
+        return
+      } else {
+        this.#l.log('Swarm key changed, destroying old swarm')
+        await this.#swarm.destroy()
+      }
+    }
     this.#l.log('Initializing swarm')
+    this.#lastKeyPair = keyPair
     const swarm = new Hyperswarm({
-      keyPair: this.#deriveSwarmIdentityKeypair(),
+      keyPair,
       maxPeers: 16,
       ...this.#swarmOpts,
     })
@@ -114,11 +131,18 @@ export class RemoteDiscovery extends TypedEmitter {
   }
 
   /**
-   * @param {object} [_opts]
+   * @param {object} [opts]
+   * @param {boolean} [opts.force=false] Force-close open connections
    */
-  async #stop(_opts) {
+  async #stop(opts) {
     this.#l.log('Suspending swarm')
     await this.#swarm?.suspend()
+    if (opts?.force && this.#connections.size) {
+      this.#l.log('Force closing existing connections')
+      for (const connection of this.#connections) {
+        connection.end()
+      }
+    }
   }
 
   async close() {
