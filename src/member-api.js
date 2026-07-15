@@ -313,7 +313,6 @@ export class MemberApi extends TypedEmitter {
     for (const deviceIds of this.#redeemedInvites.values()) {
       if (deviceIds.has(peer.deviceId)) {
         deviceIds.delete(peer.deviceId)
-        break
       }
     }
   }
