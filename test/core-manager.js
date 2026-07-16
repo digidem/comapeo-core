@@ -18,6 +18,8 @@ import { Transform } from 'streamx'
 import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { createCore } from './helpers/create-core.js'
+import { temporaryDirectory } from 'tempy'
+import fsPromises from 'node:fs/promises'
 /** @import { Namespace } from '../src/types.js' */
 
 test('project creator auth core has project key', async function (t) {
@@ -555,3 +557,47 @@ function latencyStream(delay = 0) {
     },
   })
 }
+
+test('deleteOthersData leaves purged cores usable after re-opening storage', async function (t) {
+  const projectKey = randomBytes(32)
+  const cm1 = createCoreManager(t, { projectKey })
+
+  // cm2 gets stable identity, storage and db so it can be re-opened, as
+  // happens when a device re-joins a project after leaving
+  const rootKey = randomBytes(16)
+  const db = drizzle(new Sqlite(':memory:'))
+  const storage = temporaryDirectory()
+  t.after(() => fsPromises.rm(storage, { recursive: true, force: true }))
+
+  const cm2 = createCoreManager(t, { projectKey, rootKey, db, storage }, false)
+
+  const writer = cm1.getWriterCore('data')
+  await writer.core.append(['a', 'b', 'c'])
+
+  cm2.addCore(writer.key, 'data')
+  const rep1 = await replicate(cm1, cm2)
+  const core2 = cm2.getCoreByKey(writer.key)
+  assert(core2, 'core was added')
+  await core2.download({ start: 0, end: 3 }).done()
+  await rep1.destroy()
+
+  await cm2.deleteOthersData('data')
+  await cm2.close()
+
+  const cm2reopened = createCoreManager(t, { projectKey, rootKey, db, storage })
+  cm2reopened.addCore(writer.key, 'data')
+  const core2reopened = cm2reopened.getCoreByKey(writer.key)
+  assert(core2reopened, 'core was re-added')
+  await core2reopened.ready()
+
+  const rep2 = await replicate(cm1, cm2reopened)
+  t.after(() => rep2.destroy())
+
+  const block = await Promise.race([
+    core2reopened.get(0),
+    delay(5000).then(() => {
+      throw new Error('timed out re-syncing the purged core')
+    }),
+  ])
+  assert.deepEqual(block, Buffer.from('a'), 're-downloaded purged block')
+})
