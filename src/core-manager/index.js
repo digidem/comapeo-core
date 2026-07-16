@@ -522,6 +522,11 @@ async function purgeCore(core) {
   const tx = privateCore.storage.write()
   tx.deleteTreeNodeRange(0, -1)
   tx.deleteBlockRange(0, -1)
+  // Also delete the head record (fork, length, root hash): a header claiming
+  // length > 0 with no merkle roots in storage puts the core in hypercore's
+  // repair mode on next open, in which it never sends a Synchronize and so
+  // never syncs again
+  tx.deleteHead()
   // @ts-ignore Private methods on storage
   privateCore.bitfield.clear(tx)
   await tx.flush()
