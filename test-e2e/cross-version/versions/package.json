@@ -1,0 +1,31 @@
+{
+  "name": "comapeo-core-cross-version-versions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Published @comapeo/core versions used by the cross-version sync tests. Installed separately from the root package (`npm ci --prefix test-e2e/cross-version/versions`) so that regular `npm ci` stays fast and old versions resolve their dependencies in isolation from the working tree. See ../versions.js for the canonical list and the procedure for adding or removing a version.",
+  "devDependencies": {
+    "@comapeo/core2.3.1": "npm:@comapeo/core@2.3.1",
+    "@comapeo/core3.1.1": "npm:@comapeo/core@3.1.1",
+    "@comapeo/core4.1.4": "npm:@comapeo/core@4.1.4",
+    "@comapeo/core4.4.0": "npm:@comapeo/core@4.4.0",
+    "@comapeo/core5.1.2": "npm:@comapeo/core@5.1.2",
+    "@comapeo/core5.1.4": "npm:@comapeo/core@5.1.4",
+    "@comapeo/core5.2.1": "npm:@comapeo/core@5.2.1",
+    "@comapeo/core5.4.1": "npm:@comapeo/core@5.4.1",
+    "@comapeo/core5.5.0": "npm:@comapeo/core@5.5.0",
+    "@comapeo/core7.1.0": "npm:@comapeo/core@7.1.0",
+    "@comapeo/core7.4.0": "npm:@comapeo/core@7.4.0"
+  },
+  "overrides": {
+    "@comapeo/core5.1.2": {
+      "drizzle-orm": "1.0.0-beta.1-ac4ce44"
+    },
+    "@comapeo/core5.1.4": {
+      "drizzle-orm": "1.0.0-beta.1-ac4ce44"
+    },
+    "@comapeo/core5.2.1": {
+      "drizzle-orm": "1.0.0-beta.1-ac4ce44"
+    }
+  }
+}

@@ -1,0 +1,145 @@
+# Cross-version sync tests: the working tree is tested against every
+# @comapeo/core version that shipped in a released CoMapeo app (see
+# test-e2e/cross-version/versions.js), over p2p (noise streams) and via a
+# @comapeo/cloud server (websockets). Because every release is tested against
+# all shipped versions before it ships, any pair of published versions has
+# also been tested — the version list grows linearly, not combinatorially.
+#
+# Runs on one OS and node version only: sync protocol behaviour is
+# OS-independent, and OS/node coverage is already provided by node.yml.
+
+name: Cross-version sync tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly: catches drift in old versions' floating transitive dependency
+    # ranges and problems in freshly published packages, neither of which a
+    # PR-triggered run with committed lockfiles can see.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      old-pairs:
+        description: 'Also run sync tests between pairs of old published versions'
+        type: boolean
+        default: false
+
+jobs:
+  cross-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test-e2e/cross-version/versions/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix test-e2e/cross-version/versions
+      - run: node --test test-e2e/cross-version/*.test.js
+        env:
+          DEBUG: ${{ runner.debug == '1' && 'mapeo:*' || '' }}
+
+  # Same suite, but resolving the old versions' dependency ranges fresh
+  # against the npm registry instead of the committed lockfile. Old versions
+  # in the field installed their dependencies at various points in time, so
+  # drift in their floating transitive ranges can break real installs without
+  # any change in this repo.
+  fresh-install:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+      - run: npm ci
+      - run: npm install --prefix test-e2e/cross-version/versions --no-package-lock
+      - run: node --test test-e2e/cross-version/*.test.js
+        env:
+          DEBUG: ${{ runner.debug == '1' && 'mapeo:*' || '' }}
+
+  # Same suite, additionally testing against whatever is published as
+  # @comapeo/core@latest and @comapeo/cloud@latest, to catch packaging or
+  # compatibility problems that only appear post-publish. Also fails if the
+  # latest CoMapeo Mobile release ships a core version missing from the
+  # version manifest.
+  latest-published:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test-e2e/cross-version/versions/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix test-e2e/cross-version/versions
+      - run: |
+          npm install --prefix test-e2e/cross-version/versions --no-save \
+            "@comapeo/corelatest@npm:@comapeo/core@latest"
+      - run: npm install --no-save "@comapeo/cloud@latest"
+      - run: node --test test-e2e/cross-version/*.test.js
+        env:
+          CROSS_VERSION_INCLUDE_LATEST: '1'
+          DEBUG: ${{ runner.debug == '1' && 'mapeo:*' || '' }}
+      - name: Check manifest covers the latest CoMapeo Mobile release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh api repos/digidem/comapeo-mobile/releases/latest --jq .tag_name)
+          coreVersion=$(gh api "repos/digidem/comapeo-mobile/contents/package.json?ref=$tag" \
+            --jq .content | base64 -d | node -e "
+              let d = '';
+              process.stdin.on('data', (c) => (d += c));
+              process.stdin.on('end', () =>
+                console.log(JSON.parse(d).devDependencies['@comapeo/core'])
+              );
+            ")
+          echo "CoMapeo Mobile $tag ships @comapeo/core@$coreVersion"
+          node --input-type=module -e "
+            import { VERSIONS } from './test-e2e/cross-version/versions.js';
+            const version = process.argv[1];
+            if (!VERSIONS.some((v) => v.coreVersion === version)) {
+              console.error(
+                'The latest CoMapeo Mobile release ships @comapeo/core@' +
+                  version +
+                  ', which is missing from test-e2e/cross-version/versions.js.' +
+                  ' Add it (see the instructions in that file).'
+              );
+              process.exit(1);
+            }
+          " "$coreVersion"
+
+  # One-time backfill: sync between adjacent pairs of already-published
+  # versions. Documents field reality — a failure here cannot be fixed in the
+  # versions involved, so this is not part of the regular runs.
+  old-pairs:
+    if: github.event_name == 'workflow_dispatch' && inputs.old-pairs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test-e2e/cross-version/versions/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix test-e2e/cross-version/versions
+      - run: node --test test-e2e/cross-version/old-pairs.test.js
+        env:
+          CROSS_VERSION_OLD_PAIRS: '1'
+          DEBUG: ${{ runner.debug == '1' && 'mapeo:*' || '' }}

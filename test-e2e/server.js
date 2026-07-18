@@ -3,19 +3,20 @@ import { generate } from '@mapeo/mock-data'
 import { execa } from 'execa'
 import createFastify from 'fastify'
 import assert from 'node:assert/strict'
-import { randomBytes } from 'node:crypto'
 import test, { mock } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
-import fsPromises from 'node:fs/promises'
 import pDefer from 'p-defer'
-import { pEvent } from 'p-event'
 import { map } from 'iterpal'
 import {
   BLOCKED_ROLE_ID,
   COORDINATOR_ROLE_ID,
   MEMBER_ROLE_ID,
 } from '../src/roles.js'
-import comapeoServer from '@comapeo/cloud'
+import {
+  createLocalCloudServer,
+  findServerPeer,
+  waitForSyncWithServer,
+} from './cloud-utils.js'
 import {
   connectPeers,
   createManager,
@@ -26,7 +27,6 @@ import {
 } from './utils.js'
 import { fileURLToPath } from 'node:url'
 import WebSocket from 'ws'
-import { temporaryDirectory } from 'tempy'
 
 import {
   IncompleteProjectDataError,
@@ -35,11 +35,9 @@ import {
   NetworkError,
 } from '../src/errors.js'
 
-/** @import { FastifyInstance } from 'fastify' */
+/** @import { LocalTestServer } from './cloud-utils.js' */
 /** @import { MapeoManager } from '../src/mapeo-manager.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
-/** @import { MemberInfo } from '../src/member-api.js' */
-/** @import { State as SyncState } from '../src/sync/sync-api.js' */
 
 const USE_REMOTE_SERVER = Boolean(process.env.REMOTE_TEST_SERVER)
 
@@ -426,7 +424,7 @@ test('add server, remove server, check that it knows it got blocked', async (t) 
   await manager.setDeviceInfo({ name: 'manager', deviceType: 'mobile' })
 
   // Because we need to stop the server, we can't use a remote server here.
-  const { server, serverBaseUrl } = await createLocalTestServer(t)
+  const { server, serverBaseUrl } = await createLocalCloudServer(t)
   t.after(() => server.close())
 
   const projectId = await manager.createProject({ name: 'foo' })
@@ -461,7 +459,7 @@ test('connecting and then immediately disconnecting (and then immediately connec
   await manager.setDeviceInfo({ name: 'manager', deviceType: 'mobile' })
 
   // Because we need to stop the server, we can't use a remote server here.
-  const { server, serverBaseUrl } = await createLocalTestServer(t)
+  const { server, serverBaseUrl } = await createLocalCloudServer(t)
 
   const projectId = await manager.createProject({ name: 'foo' })
   const project = await manager.getProject(projectId)
@@ -576,13 +574,6 @@ test('duplicate add server from more than one device', async (t) => {
 })
 
 /**
- * @typedef {object} LocalTestServer
- * @prop {'local'} type
- * @prop {string} serverBaseUrl
- * @prop {FastifyInstance} server
- */
-
-/**
  * @typedef {object} RemoteTestServer
  * @prop {'remote'} type
  * @prop {string} serverBaseUrl
@@ -596,7 +587,7 @@ async function createTestServer(t) {
   if (USE_REMOTE_SERVER) {
     return createRemoteTestServer(t)
   } else {
-    return createLocalTestServer(t)
+    return createLocalCloudServer(t)
   }
 }
 
@@ -651,55 +642,6 @@ async function createRemoteTestServer(t) {
 }
 
 /**
- * @param {import('node:test').TestContext} t
- * @returns {Promise<LocalTestServer>}
- */
-async function createLocalTestServer(t) {
-  const projectMigrationsFolder = new URL('./drizzle/project', comapeoCoreUrl)
-    .pathname
-  const clientMigrationsFolder = new URL('./drizzle/client', comapeoCoreUrl)
-    .pathname
-
-  const dbFolder = temporaryDirectory()
-  const coreStorage = temporaryDirectory()
-  const directories = [dbFolder, coreStorage]
-  async function closeDirs() {
-    await Promise.all(
-      directories.map((dir) =>
-        fsPromises.rm(dir, {
-          recursive: true,
-        })
-      )
-    )
-  }
-  t.after(closeDirs)
-
-  const server = createFastify()
-  server.register(comapeoServer, {
-    rootKey: randomBytes(16),
-    projectMigrationsFolder,
-    clientMigrationsFolder,
-    dbFolder,
-    coreStorage,
-    serverName: 'test server',
-    serverBearerToken: 'ignored',
-  })
-  const serverBaseUrl = await server.listen()
-  t.after(() => server.close())
-  return { type: 'local', server, serverBaseUrl }
-}
-
-/**
- * @param {MapeoProject} project
- * @returns {Promise<undefined | MemberInfo>}
- */
-async function findServerPeer(project) {
-  return (await project.$member.getMany({ includeLeft: true })).find(
-    (member) => member.deviceType === 'selfHostedServer'
-  )
-}
-
-/**
  * @param {MapeoManager} manager
  * @returns {Promise<void>}
  */
@@ -717,33 +659,4 @@ function waitForNoPeersToBeConnected(manager) {
     manager.on('local-peers', checkIfDone)
     checkIfDone()
   })
-}
-
-/**
- * @param {MapeoProject} project
- * @param {string} serverDeviceId
- * @returns {Promise<void>}
- */
-async function waitForSyncWithServer(project, serverDeviceId) {
-  const initialState = project.$sync.getState()
-  if (isSyncedWithServer(initialState, serverDeviceId)) return
-  await pEvent(project.$sync, 'sync-state', (state) =>
-    isSyncedWithServer(state, serverDeviceId)
-  )
-}
-
-/**
- * @param {SyncState} syncState
- * @param {string} serverDeviceId
- * @returns {boolean}
- */
-function isSyncedWithServer(syncState, serverDeviceId) {
-  const serverSyncState = syncState.remoteDeviceSyncState[serverDeviceId]
-  return Boolean(
-    serverSyncState &&
-      serverSyncState.initial.want === 0 &&
-      serverSyncState.initial.wanted === 0 &&
-      serverSyncState.data.want === 0 &&
-      serverSyncState.data.wanted === 0
-  )
 }

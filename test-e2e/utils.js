@@ -14,6 +14,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { getProperty } from 'dot-prop-extra'
 
 import { MapeoManager, roles } from '../src/index.js'
+import { resolveOldCoreVersion } from './cross-version/versions/resolve.js'
 import { generate } from '@mapeo/mock-data'
 import { valueOf } from '../src/utils.js'
 import { createHash, randomBytes, randomInt } from 'node:crypto'
@@ -300,28 +301,33 @@ export async function createOldManagerOnVersion2_0_1(seed, t, overrides = {}) {
   return createOldManager('2.0.1', t, seed, overrides)
 }
 
-// To add support for other versions of @comapeo/core:
-// 1. Install the version with `npm install -D @comapeo/coreX.Y.Z@npm:@comapeo/core@X.Y.Z`
-// 2. Add an overload to the `createOldManager` function below
-// It's best to use the version that was in the previous release of the mobile and/or desktop apps.
+// Old versions of @comapeo/core used by the cross-version tests are installed
+// in the ./cross-version/versions sub-package. See ./cross-version/versions.js
+// for the list of versions and the procedure for adding or removing one. The
+// @comapeo/core2.0.1 and @comapeo/core4.1.4 aliases in the root package.json
+// are kept for tests that run in the default test suite (migration.js and
+// project-leave.js) without the sub-package installed.
 
 /**
- * @overload
- * @param {'4.1.4'} version
- * @param {import('node:test').TestContext} t
- * @param {string} seed
- * @param {Partial<ConstructorParameters<typeof import('@comapeo/core4.1.4').MapeoManager>[0]>} [overrides]
- * @returns {Promise<import('@comapeo/core4.1.4').MapeoManager>}
+ * @param {string} version
+ * @returns {Promise<string | undefined>}
  */
+async function resolveOldCoreVersionFromRootAlias(version) {
+  try {
+    return await import.meta.resolve?.('@comapeo/core' + version)
+  } catch {
+    return undefined
+  }
+}
+
 /**
- * @overload
- * @param {'2.0.1'} version
- * @param {import('node:test').TestContext} t
- * @param {string} seed
- * @param {Partial<ConstructorParameters<typeof import('@comapeo/core2.0.1').MapeoManager>[0]>} [overrides]
- * @returns {Promise<import('@comapeo/core2.0.1').MapeoManager>}
- */
-/**
+ * Create a manager running an old published version of @comapeo/core. The
+ * version is resolved from the ./cross-version/versions sub-package if
+ * installed there, falling back to an alias in the root package.json.
+ *
+ * Unless `overrides.fastify` is provided, the manager gets its own listening
+ * fastify instance (needed for blob URLs), closed via `t.after`.
+ *
  * @param {string} version
  * @param {import('node:test').TestContext} t
  * @param {string} seed
@@ -329,17 +335,33 @@ export async function createOldManagerOnVersion2_0_1(seed, t, overrides = {}) {
  * @returns {Promise<any>}
  */
 export async function createOldManager(version, t, seed, overrides = {}) {
-  const comapeoCorePreMigrationUrl = await import.meta.resolve?.(
-    '@comapeo/core' + version
-  )
+  const comapeoCorePreMigrationUrl =
+    (await resolveOldCoreVersion(version)) ??
+    (await resolveOldCoreVersionFromRootAlias(version))
   assert(
     comapeoCorePreMigrationUrl,
-    'Could not resolve @comapeo/core' + version
+    `Could not resolve @comapeo/core${version}. If it is listed in ` +
+      'test-e2e/cross-version/versions.js, run ' +
+      '`npm ci --prefix test-e2e/cross-version/versions` first.'
   )
 
-  const { MapeoManager } = await import('@comapeo/core' + version)
+  const { MapeoManager } = await import(comapeoCorePreMigrationUrl)
 
   const { dbFolder, coreStorage } = makeManagerStorage(t)
+
+  let fastify = overrides.fastify
+  if (!fastify) {
+    const ownFastify = Fastify()
+    const listenPromise = ownFastify.listen()
+    t.after(async () => {
+      await listenPromise
+      await ownFastify.close()
+      // Needed to overcome race condition in fastify
+      // If tests run too quick it won't actually close
+      await ownFastify.server.close()
+    })
+    fastify = ownFastify
+  }
 
   return new MapeoManager({
     rootKey: getRootKey(seed),
@@ -351,8 +373,8 @@ export async function createOldManager(version, t, seed, overrides = {}) {
     ),
     dbFolder,
     coreStorage,
-    fastify: Fastify(),
     ...overrides,
+    fastify,
   })
 }
 
