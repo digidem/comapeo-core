@@ -563,6 +563,50 @@ test('migrate storage after one project has already migrated', async (t) => {
   }
 })
 
+test('checkShouldMigrate reports spaceNeeded when lacking space', async (t) => {
+  const dbFolder = temporaryDirectory()
+  const coreStorage = temporaryDirectory()
+
+  const rootKey = KeyManager.generateRootKey()
+
+  const manager = await createOldManagerOnVersion2_0_1('seed', t, {
+    rootKey,
+    dbFolder,
+    coreStorage,
+  })
+
+  // Create a project with observations to produce some core size
+  const projectId = await manager.createProject({ name: 'Project' })
+  const project = await manager.getProject(projectId)
+  for (let j = 0; j < 20; j++) {
+    const { docId } = await project.observation.create(
+      // @ts-ignore It's fine we can create these anyway
+      valueOf(generate('observation')[0])
+    )
+    await project.observation.getByDocId(docId)
+  }
+  await project.close()
+
+  t.after(async () => {
+    await fsPromises.rm(dbFolder, { recursive: true })
+    await fsPromises.rm(coreStorage, { recursive: true })
+  })
+
+  // Use a very small available storage to trigger the no-space condition
+  const availableStorage = 420
+
+  const result = await checkShouldMigrate(coreStorage, availableStorage)
+
+  assert.equal(
+    result.reason,
+    MIGRATION_REASON_NO_SPACE,
+    'should report no space'
+  )
+  assert(!result.shouldUpgrade, 'should not upgrade')
+  assert.ok(result.spaceNeeded !== undefined, 'should include spaceNeeded')
+  assert.ok(result.spaceNeeded > 0, 'spaceNeeded should be positive (deficit)')
+})
+
 test('onProgress callback reports core migration progress', async (t) => {
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
