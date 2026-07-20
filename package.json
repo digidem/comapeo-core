@@ -207,6 +207,7 @@
     "hyperblobs": "^2.12.1",
     "hypercore": "^11.30.2",
     "hypercore-crypto": "^3.7.0",
+    "hypercore-storage": "^2.9.0",
     "hyperdrive": "^13.3.2",
     "iso-3166": "^4.3.0",
     "json-stable-stringify": "^1.1.1",
