@@ -9,15 +9,17 @@ import {
 } from '../generated/extensions.js'
 import { Logger } from '../logger.js'
 import { NAMESPACES } from '../constants.js'
-import { noop } from '../utils.js'
+import { forceBitfieldExchange, noop, patchCoreReplicator } from '../utils.js'
 import { coresTable } from '../schema/project.js'
 import * as rle from './bitfield-rle.js'
 import { CoreIndex } from './core-index.js'
 import mapObject from 'map-obj'
 import ReadyResource from 'ready-resource'
+import CorestoreStorage from 'hypercore-storage'
 import {
   InvalidProjectKeyError,
   InvalidProjectSecretKeyError,
+  UnexpectedError,
 } from '../errors.js'
 
 /** @import Hypercore from 'hypercore' */
@@ -43,12 +45,14 @@ export const kCoreManagerReplicate = Symbol('replicate core manager')
 export class CoreManager extends ReadyResource {
   #corestore
   #coreIndex
+  #storage
   /** @type {CoreRecord} */
   #creatorCoreRecord
   #queries
   #encryptionKeys
   #projectExtension
   /** @type {'opened' | 'closing' | 'closed'} */
+  // @ts-ignore
   #state = 'opened'
   #haveExtension
   #deviceId
@@ -67,7 +71,7 @@ export class CoreManager extends ReadyResource {
    * @param {Buffer} options.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace
-   * @param {import('hypercore').HypercoreStorage} options.storage Folder to store all hypercore data
+   * @param {string} options.storage Folder to store all hypercore data
    * @param {boolean} [options.autoDownload=true] Immediately start downloading cores - should only be set to false for tests
    * @param {Logger} [options.logger]
    */
@@ -110,11 +114,13 @@ export class CoreManager extends ReadyResource {
         .prepare(),
     }
 
+    this.#storage = new CorestoreStorage(storage)
+
     // Note: the primary key here should not be used, because we do not rely on
     // corestore for key storage (i.e. we do not get cores from corestore via a
     // name, which would derive the keypair from the primary key), but setting
     // this just in case a dependency does (e.g. hyperdrive) and we miss it.
-    this.#corestore = new Corestore(storage, { primaryKey })
+    this.#corestore = new Corestore(this.#storage, { primaryKey, unsafe: true })
     // Persistent index of core keys and namespaces in the project
     this.#coreIndex = new CoreIndex()
 
@@ -290,11 +296,15 @@ export class CoreManager extends ReadyResource {
     const existingCore = this.#coreIndex.getByCoreKey(keyPair.publicKey)
     if (existingCore) return existingCore
 
+    const encryptionKey = this.#encryptionKeys[namespace]
     const { publicKey: key, secretKey } = keyPair
     const writer = !!secretKey
+    // Pass both key and keyPair to work around corestore bug where keyPair alone
+    // doesn't result in the correct core key
     const core = this.#corestore.get({
+      key,
       keyPair,
-      encryptionKey: this.#encryptionKeys[namespace],
+      encryption: encryptionKey ? { key: encryptionKey } : undefined,
     })
     if (this.#autoDownload && namespace !== 'blob') {
       // Blob downloads are managed by BlobStore
@@ -302,19 +312,18 @@ export class CoreManager extends ReadyResource {
     }
     // Every peer adds a listener, so could have many peers
     core.setMaxListeners(0)
-    // @ts-ignore - ensure key is defined before hypercore is ready
-    core.key = key
+
     this.#coreIndex.add({ core, key, namespace, writer })
 
     // **Hack** As soon as a peer is added, eagerly send a "want" for the entire
     // core. This ensures that the peer sends back its entire bitfield.
     // Otherwise this would only happen once we call core.download()
-    core.on('peer-add', (peer) => {
+    core.on('peer-add', (/** @type {HypercorePeer} */ peer) => {
       if (core.length === 0) return
-      // **Warning** uses internal method, but should be covered by tests
-      peer._maybeWant(0, core.length)
+      forceBitfieldExchange(core, peer)
     })
 
+    patchCoreReplicator(core)
     if (writer) {
       const sendHaves = debounce(WRITER_CORE_PREHAVES_DEBOUNCE_DELAY, () => {
         for (const peer of this.creatorCore.peers) {
@@ -345,7 +354,7 @@ export class CoreManager extends ReadyResource {
           // TODO: It would be more efficient (in terms of network traffic) to
           // send a want with start = length of previous want. Need to track
           // "last want length" sent by peer.
-          peer._maybeWant(0, core.length)
+          forceBitfieldExchange(core, peer)
         }
       })
     }
@@ -486,13 +495,43 @@ export class CoreManager extends ReadyResource {
 
     for (const { core, key } of coreRecords) {
       if (key.equals(ownWriterCore.key)) continue
-      deletionPromises.push(core.purge())
+      deletionPromises.push(purgeCore(core))
     }
 
     await Promise.all(deletionPromises)
 
     this.#queries.removeCores.run({ namespace })
+
+    // This actually clears out the data
+    await this.#storage.compact()
   }
+}
+
+/**
+ * Purge data inside a hypercore.
+ * Pending on this PR being merged into hypercore11
+ * https://github.com/holepunchto/hypercore/pull/788
+ * @param {Hypercore<Hypercore.ValueEncoding, Buffer>} core
+ */
+async function purgeCore(core) {
+  const privateCore = core.core
+  // Should never happen
+  if (!privateCore) throw new UnexpectedError('Core not initialized')
+  if (privateCore.opened === false) await privateCore.opening
+  // @ts-ignore Private methods on storage
+  const tx = privateCore.storage.write()
+  tx.deleteTreeNodeRange(0, -1)
+  tx.deleteBlockRange(0, -1)
+  // Also delete the head record (fork, length, root hash): a header claiming
+  // length > 0 with no merkle roots in storage puts the core in hypercore's
+  // repair mode on next open, in which it never sends a Synchronize and so
+  // never syncs again
+  tx.deleteHead()
+  // @ts-ignore Private methods on storage
+  privateCore.bitfield.clear(tx)
+  await tx.flush()
+  await privateCore.closeAllSessions()
+  await privateCore.close()
 }
 
 /**

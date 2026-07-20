@@ -124,6 +124,8 @@ export class Downloader extends ReadyResource {
   /** @param {Error} err */
   #handleError = (err) => {
     if (this.#ac.signal.aborted) return
+    // Ignore request cancelled errors since they are false positives
+    if ('code' in err && err.code === 'REQUEST_CANCELLED') return
     this.emit('error', err)
     this.#ac.abort(err)
   }

@@ -113,7 +113,7 @@ async function routes(fastify, options) {
       } catch (e) {
         // This matches [how Hyperblobs checks if a blob is unavailable][0].
         // [0]: https://github.com/holepunchto/hyperblobs/blob/518088d2b828082fd70a276fa2c8848a2cf2a56b/index.js#L49
-        if (ensureError(e).message === 'Block not available') {
+        if (ensureError(e).message.includes('BLOCK_NOT_AVAILABLE')) {
           reply.code(404)
           throw new BlobNotFoundError()
         } else {

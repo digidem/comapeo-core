@@ -165,6 +165,7 @@ export type HypercorePeer = {
   protomux: Protomux
   remotePublicKey: Buffer
   remoteBitfield: HypercoreRemoteBitfield
+  remoteContiguousLength: number
   onbitfield: (options: { start: number; bitfield: Buffer }) => void
   onrange: (options: { drop: boolean; start: number; length: number }) => void
 }
