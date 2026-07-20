@@ -199,9 +199,6 @@ export async function migrateStorage(
       const storage = makeStorage(projectCorestorePath)
 
       try {
-        // Wait for the storage to be ready
-        await storage.ready()
-
         // Run migration on corestore
         await migrateStore(/** @type {any} */ (storage), {
           version: 1,
