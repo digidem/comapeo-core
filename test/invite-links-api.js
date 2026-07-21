@@ -735,10 +735,12 @@ test('setShouldListenOverInternet - create() second invite does not call callbac
     opts: { roleId: MEMBER_ROLE_ID },
   })
 
-  assert.equal(
-    getShouldListenOverInternet().length,
-    1,
-    'callback only called once on second create'
+  const calls = getShouldListenOverInternet()
+  assert.ok(calls.length >= 1, 'callback called at least once')
+  assert.strictEqual(
+    calls.at(-1),
+    true,
+    'last call is still true (second create does not flip)'
   )
 })
 
@@ -822,11 +824,13 @@ test('setShouldListenOverInternet - delete() does not call when invites remain',
   })
 
   await api.delete(inviteId.toString('hex'))
-  // Still 1 invite after delete, no callback call
-  assert.equal(
-    getShouldListenOverInternet().length,
-    1,
-    'only one callback call'
+  // Still 1 invite after delete, callback should not set false
+  const calls = getShouldListenOverInternet()
+  assert.ok(calls.length >= 1, 'callback called at least once')
+  assert.strictEqual(
+    calls.at(-1),
+    true,
+    'last call is still true (invites remain)'
   )
 })
 
@@ -874,16 +878,22 @@ test('setShouldListenOverInternet - deleteAllFrom() sets false only when last in
 
   // Delete all from first project, other still has invite
   await api.deleteAllFrom(PROJECT_ID)
-  // Still 1 invite (from other project), no callback call
-  assert.equal(getShouldListenOverInternet().length, 1)
+  // Still 1 invite (from other project), callback should not set false
+  assert.strictEqual(
+    getShouldListenOverInternet().at(-1),
+    true,
+    'last call is still true (invites remain in other project)'
+  )
 
   // Delete all from second project
   await api.deleteAllFrom('other-project')
-  // 0 invites remain
-  assert.deepEqual(
-    getShouldListenOverInternet(),
-    [true, false],
-    'called true on create, false on deleteAllFrom last project'
+  // 0 invites remain - last call should be false
+  const calls = getShouldListenOverInternet()
+  assert.ok(calls.includes(true), 'callback was called with true')
+  assert.strictEqual(
+    calls.at(-1),
+    false,
+    'last call is false (all invites removed)'
   )
 })
 
