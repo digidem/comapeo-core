@@ -38,7 +38,6 @@ import {
   RPCDisconnectBeforeAckError,
   InvalidInternetInviteURLError,
   InviteAlreadyRedeemedError,
-  UnknownInviteIDRedeemAttemptError,
   InviteNotYetRedeemedError,
   PeerDisconnectedSinceRedeemingInviteError,
   UnknownInviteIDError,
@@ -320,25 +319,11 @@ export class MemberApi extends TypedEmitter {
   /**
    * Handle an incoming redeem attempt from the RPC layer.
    * @param {string} peerId
-   * @param {string} inviteIdString
+   * @param {InviteLinkRecord} invite
    */
-  async [kHandleRedeemInviteOverInternet](peerId, inviteIdString) {
+  async [kHandleRedeemInviteOverInternet](peerId, invite) {
+    const inviteIdString = invite.inviteId
     this.#l.log('Got incoming invite redeem %S from %S', inviteIdString, peerId)
-
-    const invite = await this.#inviteLinks.getById(inviteIdString)
-    if (!invite) {
-      this.#l.log(
-        'Incoming invite was invalid, disconnecting',
-        inviteIdString.slice(0, 7)
-      )
-
-      await this.denyInviteLinkRequest(
-        inviteIdString,
-        peerId,
-        DenyInviteOverInternet_DenyReason.unknown_invite_id
-      )
-      throw new UnknownInviteIDRedeemAttemptError()
-    }
 
     const redeemedSet = this.#redeemedInvites.get(inviteIdString)
     if (redeemedSet?.has(peerId)) {
@@ -351,17 +336,12 @@ export class MemberApi extends TypedEmitter {
       throw new InviteAlreadyRedeemedError()
     }
 
-    try {
-      if (!redeemedSet) {
-        this.#redeemedInvites.set(inviteIdString, new Set([peerId]))
-      } else {
-        redeemedSet.add(peerId)
-      }
-      return inviteIdString
-    } catch (e) {
-      await this.#disconnectFromPeer(peerId)
-      throw e
+    if (!redeemedSet) {
+      this.#redeemedInvites.set(inviteIdString, new Set([peerId]))
+    } else {
+      redeemedSet.add(peerId)
     }
+    return inviteIdString
   }
 
   /**
@@ -908,7 +888,9 @@ export class MemberApi extends TypedEmitter {
         const memberInfo = { deviceId, role }
 
         try {
-          const deviceInfo = await this.#getDeviceInfo(deviceId)
+          const deviceInfo = await this.#getDeviceInfo(deviceId).catch(
+            () => undefined
+          )
 
           memberInfo.name = deviceInfo?.name
           memberInfo.deviceType = deviceInfo?.deviceType

@@ -1328,10 +1328,7 @@ export class MapeoManager extends TypedEmitter {
 
     const project = await this.getProject(projectId)
 
-    await project.$member[kHandleRedeemInviteOverInternet](
-      peerId,
-      inviteIdString
-    )
+    await project.$member[kHandleRedeemInviteOverInternet](peerId, invite)
 
     this.emit('invite-link-join-request', projectId, peerId, inviteIdString)
   }
