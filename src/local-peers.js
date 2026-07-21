@@ -1100,7 +1100,7 @@ export class LocalPeers extends TypedEmitter {
       }
       /* c8 ignore next 2 */
       default:
-        throw new ExhaustivenessError(type)
+        throw new ExhaustivenessError({ value: type })
     }
   }
 

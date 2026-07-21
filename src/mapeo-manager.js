@@ -1213,10 +1213,18 @@ export class MapeoManager extends TypedEmitter {
 
     await project[kProjectLeave]()
 
-    // Sync any role changes from project leave
-    await project.$sync.waitForSync('initial', {
-      timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
-    })
+    // Failure to sync the leave action (e.g. due to poor connectivity with a
+    // peer) should not throw this `leaveProject()` action, because an API
+    // consumer reads the error as a failure to leave, but leave has already
+    // happened. This is a "best effort" attempt to sync the leave state. If it
+    // fails, it will sync on the next connection.
+    try {
+      await project.$sync.waitForSync('initial', {
+        timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
+      })
+    } catch {
+      // Ignore — propagation is opportunistic.
+    }
   }
 
   /**
