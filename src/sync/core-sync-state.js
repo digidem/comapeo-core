@@ -44,6 +44,15 @@ import { InvalidBitfieldIndexError } from '../errors.js'
 const WANT_FULL = 2 ** 32 - 1
 
 /**
+ * How long after `peer-add` to wait for the peer's first Synchronize message
+ * before treating the peer as started with its channel-level state unknown
+ * (see `#onPeerAdd`). Normally the Synchronize arrives in the same batch as
+ * the channel open, so this is only hit when a channel close/open crossing
+ * swallowed the handshake.
+ */
+const FIRST_SYNC_FALLBACK_MS = 5_000
+
+/**
  * Track sync state for a core identified by `discoveryId`. Can start tracking
  * state before the core instance exists locally, via the "preHave" messages
  * received over the project creator core.
@@ -279,12 +288,6 @@ export class CoreSyncState {
     const peerState = this.#getOrCreatePeerState(peerId)
     peerState.status = 'starting'
 
-    this.#core?.update({ wait: true }).then(() => {
-      peerState.status = 'started'
-      peerState.contiguousLength = peer.remoteContiguousLength
-      this.#update()
-    })
-
     // A peer can have a pre-emptive "have" bitfield received via an extension
     // message, but when the peer actually connects then we switch to the actual
     // bitfield from the peer object
@@ -294,7 +297,9 @@ export class CoreSyncState {
     this.#update()
 
     // We want to emit state when a peer's bitfield changes, which can happen as
-    // a result of these two internal calls.
+    // a result of these two internal calls. Hypercore dispatches wire messages
+    // by property lookup on this peer object (its channel's userData), so
+    // shadowing the methods on the instance is the interception point.
     const originalOnBitfield = peer.onbitfield
     const originalOnRange = peer.onrange
     peer.onbitfield = (...args) => {
@@ -306,6 +311,79 @@ export class CoreSyncState {
       originalOnRange.apply(peer, args)
       peerState.contiguousLength = peer.remoteContiguousLength
       this.#update()
+    }
+
+    // The peer is "started" once its first Synchronize message has been
+    // processed (hypercore sets `peer.remoteSynced`): only then do we know
+    // the peer's length and fork, so only then can counts about this peer be
+    // trusted. Every channel sends a Synchronize immediately on open, so this
+    // always arrives. Do NOT use `core.update({ wait: true })` as a proxy for
+    // this: it answers a core-global question ("am I up to date with the
+    // swarm?") which (a) resolves immediately for writable cores, (b)
+    // resolves for all waiters when *any* peer supplies an upgrade, and (c)
+    // samples at most 3 peers (hypercore's MAX_PEERS_UPGRADE) — so it can
+    // report a peer as started before we have heard anything from it.
+    const markStarted = () => {
+      peerState.status = 'started'
+      peerState.contiguousLength = peer.remoteContiguousLength
+      this.#update()
+    }
+    if (peer.remoteSynced) {
+      // Defensive only — not reachable in production wiring: cores are
+      // attached synchronously on the core manager's 'add-core' event (or at
+      // construction), before a channel handshake could possibly complete,
+      // so peers replayed by `attachCore` have never synced yet. But nothing
+      // in this class enforces that callers attach before handshakes
+      // complete, so handle an already-synced peer correctly rather than
+      // waiting for a Synchronize that already happened.
+      markStarted()
+    } else {
+      const originalOnSync = peer.onsync
+      peer.onsync = (...args) => {
+        const result = originalOnSync.apply(peer, args)
+        // `remoteSynced` is set synchronously at the top of `onsync`
+        if (peer.remoteSynced) {
+          if (peerState.status === 'starting') {
+            clearTimeout(firstSyncFallback)
+            markStarted()
+          } else {
+            // A Synchronize arriving after the fallback below fired still
+            // carries state (the peer's length and fork), so re-derive
+            peerState.contiguousLength = peer.remoteContiguousLength
+            this.#update()
+          }
+        }
+        return result
+      }
+      // The remote sends its first Synchronize as soon as the channel
+      // opens, so normally this timer never fires. The exception is a
+      // renegotiation bug in hypercore/protomux (their `Peer#onclose` has a
+      // TODO about it): when both sides close and re-open a channel at the
+      // same time — e.g. a namespace toggling off and on around a role
+      // change — the messages cross and the remote keeps its old session,
+      // never re-sending its state, so we would wait forever. This is not
+      // repairable from here (no message forces a re-send, and
+      // closing/re-opening the channel from this layer destabilizes the
+      // replication layers that own it), only upstream. So stop waiting and
+      // mark the peer started. The cost is the same as any reconnect, and
+      // the same as the previous `core.update()`-based code: until this
+      // peer reconnects we only know about this core what its pre-haves
+      // told us (what it had at connect, plus its own writer-core appends),
+      // not blocks it downloaded from third devices mid-session, so its
+      // `have`/`wanted` counts can run low.
+      const firstSyncFallback = setTimeout(() => {
+        if (peer.remoteSynced || peer.removed) return
+        if (peerState.status !== 'starting') return
+        this.#l.log(
+          'Peer %S sent no Synchronize %dms after channel open, marking started',
+          peerId,
+          FIRST_SYNC_FALLBACK_MS
+        )
+        markStarted()
+      }, FIRST_SYNC_FALLBACK_MS)
+      // Don't keep the process alive for this; it matters only while the
+      // connection (which itself holds the process open) is live
+      firstSyncFallback.unref?.()
     }
   }
 
