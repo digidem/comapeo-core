@@ -130,6 +130,7 @@ export class InviteApi extends TypedEmitter {
       projectDescription,
       sendStats,
       invitorWroteDeviceInfo,
+      leaveOnFail,
     } = inviteRpcMessage
     const invite = { ...inviteRpcMessage, receivedAt: Date.now() }
 
@@ -171,6 +172,7 @@ export class InviteApi extends TypedEmitter {
               projectDescription,
               sendStats,
               invitorWroteDeviceInfo,
+              leaveOnFail,
             })
           }),
         },

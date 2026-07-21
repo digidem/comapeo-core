@@ -1,9 +1,9 @@
-import { keyToId } from '../utils.js'
 import RemoteBitfield, {
   BITS_PER_PAGE,
 } from '../core-manager/remote-bitfield.js'
 import { Logger } from '../logger.js'
 import { InvalidBitfieldIndexError } from '../errors.js'
+import { peerIdFromNoise } from '../local-peers.js'
 /** @import { HypercorePeer, HypercoreRemoteBitfield, Namespace } from '../types.js' */
 
 /**
@@ -263,7 +263,7 @@ export class CoreSyncState {
    * @param {HypercorePeer} peer
    */
   #onPeerAdd = (peer) => {
-    const peerId = keyToId(peer.remotePublicKey)
+    const peerId = peerIdFromNoise(peer.protomux.stream)
 
     // Update state to ensure this peer is in the state correctly
     const peerState = this.#getOrCreatePeerState(peerId)
@@ -301,7 +301,7 @@ export class CoreSyncState {
    * @param {HypercorePeer} peer
    */
   #onPeerRemove = (peer) => {
-    const peerId = keyToId(peer.remotePublicKey)
+    const peerId = peerIdFromNoise(peer.protomux.stream)
     const peerState = this.#remoteStates.get(peerId)
     if (!peerState) return
     peerState.status = 'stopped'

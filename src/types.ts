@@ -58,6 +58,7 @@ import { DefaultListener, ListenerSignature } from 'tiny-typed-emitter'
 import type { NAMESPACES } from './constants.js'
 import type { Readable } from 'stream'
 import type { HyperdriveEntry } from 'hyperdrive'
+import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js'
 
 export type Namespace = (typeof NAMESPACES)[number]
 
@@ -162,7 +163,7 @@ export type HypercoreRemoteBitfield = {
  * TODO: Contribute these types upstream.
  */
 export type HypercorePeer = {
-  protomux: Protomux
+  protomux: Protomux<OpenedNoiseStream>
   remotePublicKey: Buffer
   remoteBitfield: HypercoreRemoteBitfield
   onbitfield: (options: { start: number; bitfield: Buffer }) => void

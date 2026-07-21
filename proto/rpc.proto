@@ -13,6 +13,7 @@ message Invite {
   optional string projectDescription = 8;
   bool sendStats = 9;
   bool invitorWroteDeviceInfo = 10;
+  bool leaveOnFail = 11;
 }
 
 message InviteCancel {
@@ -34,6 +35,20 @@ message ProjectJoinDetails {
   bytes inviteId = 1;
   bytes projectKey = 2;
   EncryptionKeys encryptionKeys = 3;
+}
+
+message RedeemInviteOverInternet {
+  bytes inviteId = 1;
+}
+
+message DenyInviteOverInternet {
+  enum DenyReason {
+    unspecified = 0;
+    unknown_invite_id = 1;
+    invitor_denied = 2;
+  }
+  bytes inviteId = 1;
+  DenyReason reason = 2;
 }
 
 message DeviceInfo {
@@ -66,6 +81,14 @@ message InviteResponseAck {
 }
 
 message ProjectJoinDetailsAck {
+  bytes inviteId = 1;
+}
+
+message RedeemInviteOverInternetAck {
+  bytes inviteId = 1;
+}
+
+message DenyInviteOverInternetAck {
   bytes inviteId = 1;
 }
 

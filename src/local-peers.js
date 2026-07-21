@@ -16,6 +16,10 @@ import {
   ProjectJoinDetailsAck,
   DeviceInfo_RPCFeatures,
   MapShareExtension,
+  RedeemInviteOverInternet,
+  RedeemInviteOverInternetAck,
+  DenyInviteOverInternet,
+  DenyInviteOverInternetAck,
 } from './generated/rpc.js'
 import pDefer from 'p-defer'
 import { Logger } from './logger.js'
@@ -29,10 +33,14 @@ import {
   InvalidInviteError,
   InvalidProjectJoinDetailsError,
   MapShareNotSupportedByPeerError,
+  UntrustedRPCMethodError,
+  ensureKnownError,
 } from './errors.js'
+
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 /** @import {DeferredPromise} from 'p-defer' */
+/** @import {AuthedNoiseStream} from "./lib/noise-secret-stream-helpers.js" */
 
 /**
  * @typedef {InviteAck|InviteCancelAck|InviteResponseAck|ProjectJoinDetailsAck} AckResponse
@@ -72,8 +80,32 @@ const MESSAGE_TYPES = {
   InviteResponseAck: 7,
   ProjectJoinDetailsAck: 8,
   MapShareExtension: 9,
+  RedeemInviteOverInternet: 10,
+  RedeemInviteOverInternetAck: 11,
+  DenyInviteOverInternet: 12,
+  DenyInviteOverInternetAck: 13,
 }
 const MESSAGES_MAX_ID = Math.max.apply(null, [...Object.values(MESSAGE_TYPES)])
+
+/**
+ * RPC methods allowed to be _received_ from an untrusted peer.
+ * @type {Set<keyof typeof MESSAGE_TYPES>}
+ */
+const ALLOWED_RECEIVE_UNTRUSTED_RPC = new Set([
+  'DeviceInfo',
+  'RedeemInviteOverInternet',
+  'RedeemInviteOverInternetAck',
+  'DenyInviteOverInternetAck',
+])
+
+/**
+ * RPC methods allowed to be _sent_ to an untrusted peer.
+ * @type {Set<keyof typeof MESSAGE_TYPES>}
+ */
+const ALLOWED_SEND_UNTRUSTED_RPC = new Set([
+  'RedeemInviteOverInternet',
+  'DenyInviteOverInternet',
+])
 
 export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
 
@@ -101,6 +133,7 @@ class Peer {
   /** @type {PeerState} */
   #state = 'connecting'
   #deviceId
+  #isTrusted
   #channel
   #connected
   /** @type {string | undefined} */
@@ -122,11 +155,13 @@ class Peer {
    * @param {object} options
    * @param {string} options.peerId
    * @param {ReturnType<typeof Protomux.prototype.createChannel>} options.channel
+   * @param {boolean} options.isTrusted
    * @param {Protomux<any>} options.protomux
    * @param {Logger} [options.logger]
    */
-  constructor({ peerId, channel, protomux, logger }) {
+  constructor({ peerId, channel, protomux, isTrusted, logger }) {
     this.#deviceId = peerId
+    this.#isTrusted = isTrusted
     this.#channel = channel
     this.#protomux = protomux
     this.#connected = pDefer()
@@ -193,6 +228,18 @@ class Peer {
     return this.#protomux
   }
 
+  get id() {
+    return this.#deviceId
+  }
+
+  get isTrusted() {
+    return this.#isTrusted
+  }
+
+  set isTrusted(isTrusted) {
+    this.#isTrusted = isTrusted
+  }
+
   connect() {
     /* c8 ignore next 4 */
     if (this.#state !== 'connecting') {
@@ -219,9 +266,9 @@ class Peer {
     for (const listener of this.#drainedListeners) {
       listener.reject(new RPCDisconnectBeforeSendingError())
     }
-    for (const waiters of this.#ackWaiters.values()) {
+    for (const [type, waiters] of this.#ackWaiters.entries()) {
       for (const { deferred } of waiters) {
-        deferred.reject(new RPCDisconnectBeforeAckError())
+        deferred.reject(new RPCDisconnectBeforeAckError({ type }))
       }
     }
     this.#ackWaiters.clear()
@@ -410,6 +457,70 @@ class Peer {
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
   }
 
+  /**
+   * @param {DenyInviteOverInternet} deny
+   * @returns {Promise<void>}
+   */
+  async sendDenyInviteOverInternet(deny) {
+    this.#assertConnected('Peer disconnected before sending deny over internet')
+    const buf = Buffer.from(DenyInviteOverInternet.encode(deny).finish())
+    const messageType = MESSAGE_TYPES.DenyInviteOverInternet
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+    await this.#waitForAck('DenyInviteOverInternetAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, deny.inviteId)
+    )
+    this.#log('denied invite over internet %h', deny.inviteId)
+  }
+
+  /**
+   * @param {DenyInviteOverInternet} deny
+   * @returns {Promise<void>}
+   */
+  async sendDenyInviteOverInternetAck({ inviteId }) {
+    this.#assertConnected(
+      'Peer disconnected before sending deny over internet ack'
+    )
+    if (!this.supportsAck()) return
+    const buf = Buffer.from(
+      DenyInviteOverInternetAck.encode({ inviteId }).finish()
+    )
+    const messageType = MESSAGE_TYPES.DenyInviteOverInternetAck
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+  }
+
+  /**
+   * @param {RedeemInviteOverInternet} redeem
+   * @returns {Promise<void>}
+   */
+  async sendRedeemInviteOverInternet(redeem) {
+    this.#assertConnected(
+      'Peer disconnected before sending redeem over internet'
+    )
+    const buf = Buffer.from(RedeemInviteOverInternet.encode(redeem).finish())
+    const messageType = MESSAGE_TYPES.RedeemInviteOverInternet
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+    await this.#waitForAck('RedeemInviteOverInternetAck', ({ inviteId }) =>
+      timingSafeEqual(inviteId, redeem.inviteId)
+    )
+    this.#log('redeemed invite over internet %h: %s', redeem.inviteId)
+  }
+
+  /**
+   * @param {RedeemInviteOverInternet} redeem
+   * @returns {Promise<void>}
+   */
+  async sendRedeemInviteOverInternetAck({ inviteId }) {
+    this.#assertConnected(
+      'Peer disconnected before sending redeem over internet ack'
+    )
+    if (!this.supportsAck()) return
+    const buf = Buffer.from(
+      RedeemInviteOverInternetAck.encode({ inviteId }).finish()
+    )
+    const messageType = MESSAGE_TYPES.RedeemInviteOverInternetAck
+    await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
+  }
+
   /** @param {ProjectJoinDetails} details */
   async sendProjectJoinDetails(details) {
     this.#assertConnected(
@@ -463,17 +574,23 @@ class Peer {
  * @typedef {object} LocalPeersEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
  * @property {(peer: PeerInfoConnected) => void} peer-add Emitted when a new peer is connected
+ * @property {(peer: PeerInfoDisconnected) => void} peer-remove Emitted when an existing peer is disconnected
  * @property {(peerId: string, invite: Invite) => void} invite Emitted when an invite is received
  * @property {(peerId: string, invite: InviteAck) => void} invite-ack Emitted when an invite acknowledgement is received
  * @property {(peerId: string, invite: InviteCancel) => void} invite-cancel Emitted when we receive a cancelation for an invite
  * @property {(peerId: string, invite: InviteCancelAck) => void} invite-cancel-ack Emitted when we receive a cancelation acknowledgement for an invite
  * @property {(peerId: string, inviteResponse: InviteResponse) => void} invite-response Emitted when an invite response is received
  * @property {(peerId: string, inviteResponse: InviteResponseAck) => void} invite-response-ack Emitted when an invite response acknowledgement is received
+ * @property {(peerId: string, inviteResponse: RedeemInviteOverInternet) => void} invite-over-internet-redeemed Emitted when a peer attempts to redeem an invite over the internet
+ * @property {(peerId: string, inviteResponse: RedeemInviteOverInternetAck) => void} invite-over-internet-redeemed-ack Emitted when an invite redeem acknowledgement is received
+ * @property {(peerId: string, inviteResponse: DenyInviteOverInternet) => void} invite-over-internet-denied Emitted when a peer attempts to deny an invite over the internet
+ * @property {(peerId: string, inviteResponse: DenyInviteOverInternetAck) => void} invite-over-internet-denied-ack Emitted when an invite deny acknowledgement is received
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
  * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
  * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
- * @property {(messageType: string, errorMessage?: string) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
+ * @property {(messageType: string, errorMessage: import('./errors.js').KnownError) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
+ * @property {(peerId:string) => void} peer-trusted Emitted when a previously untrusted peer gets marked as trusted
  */
 
 /** @extends {TypedEmitter<LocalPeersEvents>} */
@@ -518,6 +635,7 @@ export class LocalPeers extends TypedEmitter {
     if (!peer.supportsMapShare()) {
       throw new MapShareNotSupportedByPeerError()
     }
+    checkTrusted('MapShareExtension', peer)
     await peer.sendMapShare(mapShare)
   }
 
@@ -529,6 +647,7 @@ export class LocalPeers extends TypedEmitter {
   async sendInvite(deviceId, invite) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('Invite', peer)
     await peer.sendInvite(invite)
   }
 
@@ -540,6 +659,7 @@ export class LocalPeers extends TypedEmitter {
   async sendInviteCancel(deviceId, inviteCancel) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('InviteCancel', peer)
     await peer.sendInviteCancel(inviteCancel)
   }
 
@@ -552,7 +672,34 @@ export class LocalPeers extends TypedEmitter {
   async sendInviteResponse(deviceId, inviteResponse) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('InviteResponse', peer)
     await peer.sendInviteResponse(inviteResponse)
+  }
+
+  /**
+   * Deny an invite over the internet
+   *
+   * @param {string} deviceId id of the peer you want to deny from (publicKey of peer as hex string)
+   * @param {DenyInviteOverInternet} deny
+   */
+  async sendDenyInviteOverInternet(deviceId, deny) {
+    await this.#waitForPendingConnections()
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('DenyInviteOverInternet', peer)
+    await peer.sendDenyInviteOverInternet(deny)
+  }
+
+  /**
+   * Redeem an invite over the internet
+   *
+   * @param {string} deviceId id of the peer you want to redeem from (publicKey of peer as hex string)
+   * @param {RedeemInviteOverInternet} redeem
+   */
+  async sendRedeemInviteOverInternet(deviceId, redeem) {
+    await this.#waitForPendingConnections()
+    const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('RedeemInviteOverInternet', peer)
+    await peer.sendRedeemInviteOverInternet(redeem)
   }
 
   /**
@@ -562,6 +709,7 @@ export class LocalPeers extends TypedEmitter {
   async sendProjectJoinDetails(deviceId, details) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('ProjectJoinDetails', peer)
     await peer.sendProjectJoinDetails(details)
   }
 
@@ -573,6 +721,7 @@ export class LocalPeers extends TypedEmitter {
   async sendDeviceInfo(deviceId, deviceInfo) {
     await this.#waitForPendingConnections()
     const peer = await this.#getPeerByDeviceId(deviceId)
+    checkTrusted('DeviceInfo', peer)
     await peer.sendDeviceInfo(deviceInfo)
   }
 
@@ -587,12 +736,32 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
+   * Mark a peer as trusted, allowing it to use all RPC methods
+   * @param {string} peerId
+   */
+  async trustPeer(peerId) {
+    const peer = await this.#getPeerByDeviceId(peerId)
+    peer.isTrusted = true
+    this.emit('peer-trusted', peerId)
+  }
+
+  /**
+   * Check if a given peer is currently trusted for RPC calls
+   * @param {string} peerId
+   */
+  async isTrusted(peerId) {
+    const peer = await this.#getPeerByDeviceId(peerId)
+    return peer.isTrusted
+  }
+
+  /**
    * Connect to a peer over an existing NoiseSecretStream
    *
-   * @param {NoiseStream<any>} stream
+   * @param {NoiseStream<any>|AuthedNoiseStream} stream
+   * @param {boolean} isTrusted
    * @returns {import('./types.js').ReplicationStream}
    */
-  connect(stream) {
+  connect(stream, isTrusted) {
     const noiseStream = stream.noiseStream
     const outerStream = noiseStream.rawStream
     const protomux =
@@ -623,7 +792,7 @@ export class LocalPeers extends TypedEmitter {
       this.#opening.delete(deferredOpen.promise)
     }
 
-    const makePeer = this.#makePeer.bind(this, protomux, done)
+    const makePeer = this.#makePeer.bind(this, protomux, isTrusted, done)
 
     this.#attached.add(protomux)
     // This happens when the connected peer opens the channel
@@ -647,17 +816,18 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * @param {Protomux<OpenedNoiseStream>} protomux
+   * @param {Protomux<OpenedNoiseStream|AuthedNoiseStream>} protomux
+   * @param {boolean} isTrusted
    * @param {() => void} done
    */
-  #makePeer(protomux, done) {
+  #makePeer(protomux, isTrusted, done) {
     // #makePeer is called when the noise stream is opened, but it is also
     // called when the connected peer tries to open the channel. We only want
     // one channel, so we ignore attempts to create a peer if the channel is
     // already open
     if (protomux.opened({ protocol: PROTOCOL_NAME })) return done()
 
-    const peerId = keyToId(protomux.stream.remotePublicKey)
+    const peerId = peerIdFromNoise(protomux.stream)
 
     // This is written like this because the protomux uses the index within
     // the messages array to define the message id over the wire, so this must
@@ -675,9 +845,8 @@ export class LocalPeers extends TypedEmitter {
               message
             )
           } catch (e) {
-            const errorMessage = String(e)
-            this.emit('failed-to-handle-message', type, errorMessage)
-            this.#l.log(`Error handling ${type} message: ${errorMessage}`)
+            this.emit('failed-to-handle-message', type, ensureKnownError(e))
+            this.#l.log(`Error handling ${type} message: ${e}`)
           }
         },
       }
@@ -701,6 +870,11 @@ export class LocalPeers extends TypedEmitter {
           existingDevicePeers.delete(peer)
         }
         this.#attached.delete(peer.protomux)
+        if (peer.info.status === 'disconnected') {
+          this.emit('peer-remove', peer.info)
+        } else {
+          this.#l.log('Error: Peer not marked as disconnected after disconnect')
+        }
         this.#emitPeers()
         done()
       },
@@ -712,6 +886,7 @@ export class LocalPeers extends TypedEmitter {
 
     const existingDevicePeers = this.#peers.get(peerId) || new Set()
     const peer = new Peer({
+      isTrusted,
       peerId,
       protomux,
       channel,
@@ -729,7 +904,7 @@ export class LocalPeers extends TypedEmitter {
     // We could also index peers by protomux to avoid this, but that would mean
     // we need to keep around protomux references for closed peers, and we keep
     // around closed peers for the lifecycle of the app
-    const peerId = keyToId(protomux.stream.remotePublicKey)
+    const peerId = peerIdFromNoise(protomux.stream)
     // We could have more than one connection to the same peer
     const devicePeers = this.#peers.get(peerId)
     /** @type {Peer | undefined} */
@@ -782,52 +957,85 @@ export class LocalPeers extends TypedEmitter {
     const peer = this.#getPeerByProtomux(protomux)
     /* c8 ignore next */
     if (!peer) return // TODO: report error - this should not happen
+    // If the peer isn't trusted, ignore anything not allowed
+    // Allow acknowledge messages by default
+    if (!peer.isTrusted && !ALLOWED_RECEIVE_UNTRUSTED_RPC.has(type)) {
+      throw new UntrustedRPCMethodError({
+        type,
+        peerId: peer.id,
+      })
+    }
+
     switch (type) {
       case 'Invite': {
         const invite = parseInvite(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite', peerId, invite)
-        peer.sendInviteAck(invite).catch((e) => {
-          this.#l.log(`Error sending invite ack ${e.stack}`)
-        })
-        this.#l.log(
-          'Invite %h from %S for %h',
-          invite.inviteId,
-          peerId,
-          invite.projectInviteId
-        )
+        peer
+          .sendInviteAck(invite)
+          .then(() => {
+            this.#l.log(
+              'Invite %h from %S for %h',
+              invite.inviteId,
+              peer.id,
+              invite.projectInviteId
+            )
+            this.emit('invite', peer.id, invite)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending invite ack ${e.stack}`)
+          })
         break
       }
       case 'InviteCancel': {
         const inviteCancel = parseInviteCancel(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-cancel', peerId, inviteCancel)
-        peer.sendInviteCancelAck(inviteCancel).catch((e) => {
-          this.#l.log(`Error sending invite cancel ack ${e.stack}`)
-        })
-        this.#l.log(
-          'Invite cancel from %S for %h',
-          peerId,
-          inviteCancel.inviteId
-        )
+        peer
+          .sendInviteCancelAck(inviteCancel)
+          .then(() => {
+            this.emit('invite-cancel', peer.id, inviteCancel)
+            this.#l.log(
+              'Invite cancel from %S for %h',
+              peer.id,
+              inviteCancel.inviteId
+            )
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending invite cancel ack ${e.stack}`)
+          })
         break
       }
       case 'InviteResponse': {
         const inviteResponse = parseInviteResponse(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-response', peerId, inviteResponse)
-        peer.sendInviteResponseAck(inviteResponse).catch((e) => {
-          this.#l.log(`Error sending invite response ack ${e.stack}`)
-        })
+        peer
+          .sendInviteResponseAck(inviteResponse)
+          .then(() => {
+            this.emit('invite-response', peer.id, inviteResponse)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending invite response ack ${e.stack}`)
+          })
+        break
+      }
+      case 'RedeemInviteOverInternet': {
+        const redeem = RedeemInviteOverInternet.decode(value)
+        peer
+          .sendRedeemInviteOverInternetAck(redeem)
+          .then(() => {
+            this.emit('invite-over-internet-redeemed', peer.id, redeem)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending redeem over internet ack ${e.stack}`)
+          })
         break
       }
       case 'ProjectJoinDetails': {
         const details = parseProjectJoinDetails(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('got-project-details', peerId, details)
-        peer.sendProjectJoinDetailsAck(details).catch((e) => {
-          this.#l.log(`Error sending project details ack ${e.stack}`)
-        })
+        peer
+          .sendProjectJoinDetailsAck(details)
+          .then(() => {
+            this.emit('got-project-details', peer.id, details)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending project details ack ${e.stack}`)
+          })
         break
       }
       case 'DeviceInfo': {
@@ -845,29 +1053,49 @@ export class LocalPeers extends TypedEmitter {
       case 'InviteAck': {
         const ack = InviteAck.decode(value)
         peer.receiveAck('InviteAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-ack', peerId, ack)
+        this.emit('invite-ack', peer.id, ack)
         break
       }
       case 'InviteCancelAck': {
         const ack = InviteCancelAck.decode(value)
         peer.receiveAck('InviteCancelAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-cancel-ack', peerId, ack)
+        this.emit('invite-cancel-ack', peer.id, ack)
         break
       }
       case 'InviteResponseAck': {
         const ack = InviteResponseAck.decode(value)
         peer.receiveAck('InviteResponseAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-response-ack', peerId, ack)
+        this.emit('invite-response-ack', peer.id, ack)
         break
       }
       case 'ProjectJoinDetailsAck': {
         const ack = ProjectJoinDetailsAck.decode(value)
         peer.receiveAck('ProjectJoinDetailsAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('got-project-details-ack', peerId, ack)
+        this.emit('got-project-details-ack', peer.id, ack)
+        break
+      }
+      case 'RedeemInviteOverInternetAck': {
+        const ack = RedeemInviteOverInternetAck.decode(value)
+        peer.receiveAck('RedeemInviteOverInternetAck', ack)
+        this.emit('invite-over-internet-redeemed-ack', peer.id, ack)
+        break
+      }
+      case 'DenyInviteOverInternet': {
+        const deny = DenyInviteOverInternet.decode(value)
+        peer
+          .sendDenyInviteOverInternetAck(deny)
+          .then(() => {
+            this.emit('invite-over-internet-denied', peer.id, deny)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending deny over internet ack ${e.stack}`)
+          })
+        break
+      }
+      case 'DenyInviteOverInternetAck': {
+        const ack = DenyInviteOverInternetAck.decode(value)
+        peer.receiveAck('DenyInviteOverInternetAck', ack)
+        this.emit('invite-over-internet-denied-ack', peer.id, ack)
         break
       }
       /* c8 ignore next 2 */
@@ -1031,4 +1259,28 @@ function chooseDevicePeer(devicePeers) {
   if (pick.info.status === 'connecting') return
   // @ts-ignore
   return pick
+}
+
+/**
+ * @param {AuthedNoiseStream|OpenedNoiseStream} stream
+ */
+export function peerIdFromNoise(stream) {
+  const publicKey =
+    'authenticatedPublicKey' in stream
+      ? stream.authenticatedPublicKey
+      : stream.remotePublicKey
+  return keyToId(publicKey)
+}
+
+/**
+ * @param {keyof typeof MESSAGE_TYPES} type
+ * @param {Peer} peer
+ */
+function checkTrusted(type, peer) {
+  if (peer.isTrusted) return
+  if (ALLOWED_SEND_UNTRUSTED_RPC.has(type)) return
+  throw new UntrustedRPCMethodError({
+    type,
+    peerId: peer.id,
+  })
 }
