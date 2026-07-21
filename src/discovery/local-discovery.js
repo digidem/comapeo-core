@@ -11,10 +11,10 @@ import { Logger } from '../logger.js'
 import { ensureKnownError, getErrorCode } from '../errors.js'
 import { ServerNotListeningError } from '../errors.js'
 
-/** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
+/** @import { OpenedNoiseStream, AuthedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
 
 /** @typedef {{ publicKey: Buffer, secretKey: Buffer }} Keypair */
-/** @typedef {OpenedNoiseStream<net.Socket>} OpenedNetNoiseStream */
+/** @typedef {AuthedNoiseStream & OpenedNoiseStream<net.Socket>} AuthedNetNoiseStream */
 
 /** @satisfies {import('node:net').ServerOpts | import('node:net').TcpNetConnectOpts} */
 const TCP_KEEP_ALIVE_OPTIONS = {
@@ -28,7 +28,7 @@ export const ERR_DUPLICATE = 'Duplicate connection'
 
 /**
  * @typedef {Object} DiscoveryEvents
- * @property {(connection: OpenedNetNoiseStream) => void} connection
+ * @property {(connection: AuthedNetNoiseStream) => void} connection
  */
 
 /**
@@ -38,7 +38,7 @@ export class LocalDiscovery extends TypedEmitter {
   #identityKeypair
   #name = randomBytes(8).toString('hex')
   #server
-  /** @type {Map<string, OpenedNetNoiseStream>} */
+  /** @type {Map<string, AuthedNetNoiseStream>} */
   #noiseConnections = new Map()
   #sm
   #log
@@ -166,15 +166,15 @@ export class LocalDiscovery extends TypedEmitter {
       secretStream.off('error', this.#handleSocketError)
       this.#handleNoiseStreamConnection(
         // We know the NoiseStream is open at this point, so we can coerce the type
-        /** @type {OpenedNetNoiseStream} */
+        /** @type {OpenedNoiseStream<net.Socket>} */
         (secretStream)
       )
     })
   }
 
   /**
-   * @param {OpenedNetNoiseStream} existing
-   * @param {OpenedNetNoiseStream} keeping
+   * @param {AuthedNetNoiseStream} existing
+   * @param {OpenedNoiseStream<net.Socket>} keeping
    * @returns {void}
    */
   #handleConnectionSwap(existing, keeping) {
@@ -199,7 +199,7 @@ export class LocalDiscovery extends TypedEmitter {
   }
 
   /**
-   * @param {OpenedNetNoiseStream} conn
+   * @param {OpenedNoiseStream<net.Socket>} conn
    * @returns {void}
    */
   #handleNoiseStreamConnection(conn) {
@@ -259,16 +259,23 @@ export class LocalDiscovery extends TypedEmitter {
       return
     }
 
-    this.#noiseConnections.set(remoteId, conn)
+    // Mark local connections as authenticated and trusted before storing
+    // @ts-expect-error adding AuthedNoiseStream properties to OpenedNoiseStream
+    conn.authenticatedPublicKey = conn.remotePublicKey
+    // @ts-expect-error adding AuthedNoiseStream properties to OpenedNoiseStream
+    conn.isTrusted = true
 
-    conn.on('close', () => {
+    const authedConn = /** @type {AuthedNetNoiseStream} */ (conn)
+    this.#noiseConnections.set(remoteId, authedConn)
+
+    authedConn.on('close', () => {
       this.#log('closed connection with %h', remotePublicKey)
       this.#noiseConnections.delete(remoteId)
     })
 
     // No 'error' listeners attached to `conn` at this point, it's up to the
     // consumer to attach an 'error' listener to avoid uncaught errors.
-    this.emit('connection', conn)
+    this.emit('connection', authedConn)
   }
 
   /**

@@ -87,32 +87,32 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
   const peerId2 = keyToPublicId(identityKeypair2.publicKey)
 
   assert.equal(
-    keyToPublicId(inboundStream.handshakePublicKey),
+    keyToPublicId(inboundStream.authenticatedPublicKey),
     peerId2,
     'instance 1 connected to correct peer'
   )
   assert.equal(
-    keyToPublicId(outboundStream.handshakePublicKey),
+    keyToPublicId(outboundStream.authenticatedPublicKey),
     peerId1,
     'instance 2 connected to correct peer'
   )
 
-  // Verify remotePublicKey and handshakePublicKey are as expected
+  // Verify remotePublicKey and authenticatedPublicKey are as expected
   assert.ok(
     inboundStream.remotePublicKey.equals(swarmKeypair2.publicKey),
     'inbound remotePublicKey should match swarmKeypair2'
   )
   assert.ok(
-    inboundStream.handshakePublicKey.equals(identityKeypair2.publicKey),
-    'inbound handshakePublicKey should match identityKeypair2'
+    inboundStream.authenticatedPublicKey.equals(identityKeypair2.publicKey),
+    'inbound authenticatedPublicKey should match identityKeypair2'
   )
   assert.ok(
     outboundStream.remotePublicKey.equals(swarmKeypair1.publicKey),
     'outbound remotePublicKey should match swarmKeypair1'
   )
   assert.ok(
-    outboundStream.handshakePublicKey.equals(identityKeypair1.publicKey),
-    'outbound handshakePublicKey should match identityKeypair1'
+    outboundStream.authenticatedPublicKey.equals(identityKeypair1.publicKey),
+    'outbound authenticatedPublicKey should match identityKeypair1'
   )
 
   // Set up data listeners before writing
@@ -390,7 +390,7 @@ test('RemoteDiscovery - connectPeer returns same socket for duplicate connection
 
   assert.equal(gotConnection, connection, 'Got existing connection')
   assert(
-    gotConnection.handshakePublicKey.equals(identityKeypair2.publicKey),
+    gotConnection.authenticatedPublicKey.equals(identityKeypair2.publicKey),
     'Handshake was valid'
   )
 })
@@ -456,11 +456,11 @@ test('RemoteDiscovery - connect two peers to a third peer', async (t) => {
   const inboundStream2 = await onConnectionFromPeer2
 
   assert.ok(
-    inboundStream2.handshakePublicKey.equals(identityKeypair2.publicKey),
+    inboundStream2.authenticatedPublicKey.equals(identityKeypair2.publicKey),
     'peer 1 should see peer 2 identity'
   )
   assert.ok(
-    outboundStream2.handshakePublicKey.equals(identityKeypair1.publicKey),
+    outboundStream2.authenticatedPublicKey.equals(identityKeypair1.publicKey),
     'peer 2 should see peer 1 identity'
   )
 
@@ -473,11 +473,11 @@ test('RemoteDiscovery - connect two peers to a third peer', async (t) => {
   const inboundStream3 = await onConnectionFromPeer3
 
   assert.ok(
-    inboundStream3.handshakePublicKey.equals(identityKeypair3.publicKey),
+    inboundStream3.authenticatedPublicKey.equals(identityKeypair3.publicKey),
     'peer 1 should see peer 3 identity'
   )
   assert.ok(
-    outboundStream3.handshakePublicKey.equals(identityKeypair1.publicKey),
+    outboundStream3.authenticatedPublicKey.equals(identityKeypair1.publicKey),
     'peer 3 should see peer 1 identity'
   )
 

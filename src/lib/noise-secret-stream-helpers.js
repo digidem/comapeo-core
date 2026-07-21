@@ -1,11 +1,17 @@
 /** @import { Duplex as NodeDuplex } from 'node:stream' */
 /** @import { Duplex as StreamxDuplex } from 'streamx' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
-/** @import {RemoteAuthedNoiseStream} from "../discovery/remote-discovery.js" */
-
 /**
  * @internal
  * @typedef {NodeDuplex | StreamxDuplex} RawStream
+ */
+
+/**
+ * A noise stream that has been authenticated with a stable public key and
+ * has an explicit trust flag. Both LocalDiscovery and RemoteDiscovery emit
+ * streams of this shape, so downstream code does not need runtime type checks.
+ *
+ * @typedef {OpenedNoiseStream & { authenticatedPublicKey: Buffer, isTrusted: boolean }} AuthedNoiseStream
  */
 
 /**
@@ -29,12 +35,12 @@
  * stream is opened)
  *
  * @template {RawStream} T
- * @param {NoiseSecretStream<T>|RemoteAuthedNoiseStream} stream
- * @returns {Promise<OpenedNoiseStream<T> | DestroyedNoiseStream<T> | RemoteAuthedNoiseStream>}
+ * @param {NoiseSecretStream<T>|AuthedNoiseStream} stream
+ * @returns {Promise<OpenedNoiseStream<T> | DestroyedNoiseStream<T> | AuthedNoiseStream>}
  */
 export async function openedNoiseSecretStream(stream) {
   await stream.opened
-  return /** @type {OpenedNoiseStream<T> | DestroyedNoiseStream<T> | RemoteAuthedNoiseStream} */ (
+  return /** @type {OpenedNoiseStream<T> | DestroyedNoiseStream<T> | AuthedNoiseStream} */ (
     stream
   )
 }

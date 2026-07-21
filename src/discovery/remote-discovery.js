@@ -16,11 +16,12 @@ import {
 import { openedNoiseSecretStream } from '../lib/noise-secret-stream-helpers.js'
 import pDefer from 'p-defer'
 
-/** @import {OpenedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
+/** @import {OpenedNoiseStream, AuthedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
 /** @import {Keypair} from './local-discovery.js' */
 /** @import {Duplex, Readable} from "streamx" */
 
-/** @typedef {OpenedNoiseStream & {handshakePublicKey:Buffer, isTrusted: boolean}} RemoteAuthedNoiseStream */
+// Re-export for consumers that import from this module
+/** @typedef {AuthedNoiseStream} RemoteAuthedNoiseStream */
 
 /**
  * @typedef {Object} DiscoveryEvents
@@ -54,9 +55,9 @@ export class RemoteDiscovery extends TypedEmitter {
   #swarmOpts
   /** @type {Set<string>} */
   #shouldTrustKeys = new Set()
-  /** @type {Set<OpenedNoiseStream|RemoteAuthedNoiseStream>} */
+  /** @type {Set<OpenedNoiseStream|AuthedNoiseStream>} */
   #connections = new Set()
-  /** @type {Map<OpenedNoiseStream,Promise<boolean>>}*/
+  /** @type {Map<OpenedNoiseStream, Promise<boolean>>} */
   #pendingHandshakes = new Map()
 
   /**
@@ -167,8 +168,8 @@ export class RemoteDiscovery extends TypedEmitter {
     for (const connection of this.#connections) {
       if (
         connection.remotePublicKey?.equals(noisePublicKey) ||
-        ('handshakePublicKey' in connection &&
-          connection.handshakePublicKey.equals(noisePublicKey))
+        ('authenticatedPublicKey' in connection &&
+          connection.authenticatedPublicKey.equals(noisePublicKey))
       ) {
         this.#l.log('Disconnecting from peer %S', publicKey)
         connection.end()
@@ -194,7 +195,7 @@ export class RemoteDiscovery extends TypedEmitter {
       // If the connection closed, try again
       if (opened.destroyed) return this.#findExistingPeer(noisePublicKey)
       // @ts-ignore Some connections might not be handshaked, wait for them to be
-      if (!existingConnection.handshakePublicKey) {
+      if (!existingConnection.authenticatedPublicKey) {
         const success = await this.#pendingHandshakes.get(existingConnection)
         if (!success) return this.#findExistingPeer(noisePublicKey)
       }
@@ -297,10 +298,9 @@ export class RemoteDiscovery extends TypedEmitter {
         throw new InvalidIdentityProofError({ cause: e })
       }
 
-      // @ts-ignore
-      socket.handshakePublicKey = msg.publicKey
-      // @ts-ignore
-      this.emit('connection', socket)
+      // @ts-expect-error adding AuthedNoiseStream properties
+      socket.authenticatedPublicKey = msg.publicKey
+      this.emit('connection', /** @type {AuthedNoiseStream} */ (socket))
       this.#pendingHandshakes.delete(socket)
       pendingDefer.resolve(true)
     } catch (err) {

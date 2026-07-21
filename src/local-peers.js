@@ -40,7 +40,7 @@ import {
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 /** @import {DeferredPromise} from 'p-defer' */
-/** @import {RemoteAuthedNoiseStream} from "./discovery/remote-discovery.js" */
+/** @import {AuthedNoiseStream} from "./lib/noise-secret-stream-helpers.js" */
 
 /**
  * @typedef {InviteAck|InviteCancelAck|InviteResponseAck|ProjectJoinDetailsAck} AckResponse
@@ -757,11 +757,11 @@ export class LocalPeers extends TypedEmitter {
   /**
    * Connect to a peer over an existing NoiseSecretStream
    *
-   * @param {NoiseStream<any>|RemoteAuthedNoiseStream} stream
-   * @param {boolean} [isTrusted]
+   * @param {NoiseStream<any>|AuthedNoiseStream} stream
+   * @param {boolean} isTrusted
    * @returns {import('./types.js').ReplicationStream}
    */
-  connect(stream, isTrusted = true) {
+  connect(stream, isTrusted) {
     const noiseStream = stream.noiseStream
     const outerStream = noiseStream.rawStream
     const protomux =
@@ -816,7 +816,7 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * @param {Protomux<OpenedNoiseStream|RemoteAuthedNoiseStream>} protomux
+   * @param {Protomux<OpenedNoiseStream|AuthedNoiseStream>} protomux
    * @param {boolean} isTrusted
    * @param {() => void} done
    */
@@ -1262,17 +1262,14 @@ function chooseDevicePeer(devicePeers) {
 }
 
 /**
- * @param {OpenedNoiseStream|RemoteAuthedNoiseStream} stream
+ * @param {AuthedNoiseStream|OpenedNoiseStream} stream
  */
 export function peerIdFromNoise(stream) {
   const publicKey =
-    'handshakePublicKey' in stream
-      ? stream.handshakePublicKey
+    'authenticatedPublicKey' in stream
+      ? stream.authenticatedPublicKey
       : stream.remotePublicKey
-
-  const peerId = keyToId(publicKey)
-
-  return peerId
+  return keyToId(publicKey)
 }
 
 /**

@@ -12,14 +12,14 @@ import { makeInviteURL } from '../src/invite/invite-urls.js'
 /** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
 
 /**
- * @param {Buffer} handshakePublicKey
+ * @param {Buffer} authenticatedPublicKey
  * @returns {RemoteAuthedNoiseStream}
  */
-function mockConnection(handshakePublicKey) {
+function mockConnection(authenticatedPublicKey) {
   const connection = /** @type {RemoteAuthedNoiseStream} */ (
     /** @type {unknown} */ (new Transform())
   )
-  connection.handshakePublicKey = handshakePublicKey
+  connection.authenticatedPublicKey = authenticatedPublicKey
   connection.isTrusted = true
   connection.remotePublicKey = randomBytes(32)
   return connection
@@ -53,7 +53,7 @@ class MockInviteApi extends TypedEmitter {
 
 test('happy path: connect, redeem, accept, complete', async () => {
   const swarmPublicKey = randomBytes(32)
-  const handshakePublicKey = randomBytes(32)
+  const authenticatedPublicKey = randomBytes(32)
   const inviteId = randomBytes(32)
   const projectId = randomBytes(20).toString('hex')
   const url = makeInviteURL({
@@ -64,7 +64,7 @@ test('happy path: connect, redeem, accept, complete', async () => {
     expiresAt: Date.now() + 60_000,
   })
 
-  const connection = mockConnection(handshakePublicKey)
+  const connection = mockConnection(authenticatedPublicKey)
   const inviteApi = new MockInviteApi({ projectId })
 
   /** @type {string[]} */
@@ -130,7 +130,7 @@ test('happy path: connect, redeem, accept, complete', async () => {
   assert.equal(redeemCalls.length, 1)
   assert.equal(
     redeemCalls[0][0],
-    handshakePublicKey.toString('hex'),
+    authenticatedPublicKey.toString('hex'),
     'redeem sent to identity key, not swarm key'
   )
   assert.ok(
@@ -140,7 +140,7 @@ test('happy path: connect, redeem, accept, complete', async () => {
 
   // Simulate the inviter sending back the invite
   inviteApi.emit('invite-received', {
-    invitorDeviceId: handshakePublicKey.toString('hex'),
+    invitorDeviceId: authenticatedPublicKey.toString('hex'),
     inviteId: inviteId.toString('hex'),
   })
 

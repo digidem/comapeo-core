@@ -40,6 +40,7 @@ import {
   validateMapShareExtension,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
+/** @import {AuthedNoiseStream} from './lib/noise-secret-stream-helpers.js' */
 import { omit } from './lib/omit.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
@@ -80,7 +81,6 @@ import { kHandleRedeemInviteOverInternet } from './member-api.js'
 /** @import { CoreStorage, KeyPair, Namespace } from './types.js' */
 /** @import { DeviceInfoParam, ProjectInfo } from './schema/client.js' */
 /** @import { ProjectSettings, ProjectSettingsValue } from '@comapeo/schema' */
-/** @import {RemoteAuthedNoiseStream} from "./discovery/remote-discovery.js" */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
 /** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean, leaveOnFail?: boolean }} ProjectToAddDetails */
@@ -420,10 +420,10 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @param {NoiseSecretStream<any>|RemoteAuthedNoiseStream} noiseStream
+   * @param {AuthedNoiseStream} noiseStream
    */
   #replicate(noiseStream) {
-    const isTrusted = `isTrusted` in noiseStream ? noiseStream.isTrusted : true
+    const isTrusted = noiseStream.isTrusted
     const replicationStream = this.#localPeers.connect(noiseStream, isTrusted)
 
     noiseStream.resume()
@@ -440,7 +440,9 @@ export class MapeoManager extends TypedEmitter {
           features: RPC_FEATURES,
         }
 
-        const peerId = peerIdFromNoise(openedNoiseStream)
+        const peerId = peerIdFromNoise(
+          /** @type {AuthedNoiseStream} */ (openedNoiseStream)
+        )
 
         if (!isTrusted) {
           const timer = setTimeout(async () => {

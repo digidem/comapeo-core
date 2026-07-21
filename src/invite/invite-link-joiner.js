@@ -50,7 +50,7 @@ import {
 
 /**
  * @typedef {object} InviteLinkJoinerOptions
- * @property {(swarmPublicKey: string, opts?: ConnectPeerOptions) => Promise<import('../discovery/remote-discovery.js').RemoteAuthedNoiseStream>} options.connectPeer Connect to a remote peer
+ * @property {(swarmPublicKey: string, opts?: ConnectPeerOptions) => Promise<import('../lib/noise-secret-stream-helpers.js').AuthedNoiseStream>} options.connectPeer Connect to a remote peer
  * @property {(swarmPublicKey: string) => Promise<void>} options.disconnectPeer Disconnect from a remote peer
  * @property {(deviceId: string, redeem: RedeemInvite) => Promise<void>} options.sendRedeemInviteOverInternet Send redeem request to a peer
  * @property {Pick<InviteApi, 'on' | 'accept'>} options.inviteApi Invite API (on + accept only)
@@ -182,7 +182,8 @@ export class InviteLinkJoiner extends TypedEmitter {
       this.#emitUpdate(joinRequest)
 
       // Use the identity key from the handshake, not the swarm key from the URL
-      const identityPublicKeyHex = connection.handshakePublicKey.toString('hex')
+      const identityPublicKeyHex =
+        connection.authenticatedPublicKey.toString('hex')
 
       const onInvited = pEvent(this.#inviteApi, 'invite-received', {
         filter: (invite) => invite.invitorDeviceId === identityPublicKeyHex,
