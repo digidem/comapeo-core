@@ -189,19 +189,30 @@ export class RemoteDiscovery extends TypedEmitter {
    * @returns {Promise<RemoteAuthedNoiseStream | null >}
    */
   async #findExistingPeer(noisePublicKey) {
+    let shouldRetry = false
     for (const existingConnection of this.#connections) {
       if (!existingConnection.remotePublicKey?.equals(noisePublicKey)) continue
       const opened = await openedNoiseSecretStream(existingConnection)
-      // If the connection closed, try again
-      if (opened.destroyed) return this.#findExistingPeer(noisePublicKey)
+      // If the connection closed, skip it and continue the loop
+      if (opened.destroyed) {
+        shouldRetry = true
+        continue
+      }
       // @ts-ignore Some connections might not be handshaked, wait for them to be
       if (!existingConnection.authenticatedPublicKey) {
         const success = await this.#pendingHandshakes.get(existingConnection)
-        if (!success) return this.#findExistingPeer(noisePublicKey)
+        if (!success) {
+          shouldRetry = true
+          continue
+        }
       }
       // @ts-ignore
       return opened
     }
+
+    // If we encountered a closed connection, recurse once to retry
+    // after the 'close' event may have removed it from #connections
+    if (shouldRetry) return this.#findExistingPeer(noisePublicKey)
 
     return null
   }
@@ -265,6 +276,7 @@ export class RemoteDiscovery extends TypedEmitter {
     const pendingDefer = pDefer()
     this.#pendingHandshakes.set(socket, pendingDefer.promise)
     socket.once('close', () => this.#connections.delete(socket))
+    socket.once('finish', () => this.#connections.delete(socket))
     try {
       const remotePublicKeyString = socket.remotePublicKey.toString('hex')
       // @ts-ignore
