@@ -1046,21 +1046,46 @@ export class MapeoManager extends TypedEmitter {
       .where(eq(projectSettingsTable.docId, projectId))
       .run()
 
+    let phaseStart = Date.now()
     const project = await this.getProject(projectPublicId)
+    this.#l.log(
+      'leaveProject %S: getProject took %d ms',
+      projectPublicId,
+      Date.now() - phaseStart
+    )
 
+    phaseStart = Date.now()
     await project[kProjectLeave]()
+    this.#l.log(
+      'leaveProject %S: project leave (role + clear data) took %d ms',
+      projectPublicId,
+      Date.now() - phaseStart
+    )
 
     // Failure to sync the leave action (e.g. due to poor connectivity with a
     // peer) should not throw this `leaveProject()` action, because an API
     // consumer reads the error as a failure to leave, but leave has already
     // happened. This is a "best effort" attempt to sync the leave state. If it
     // fails, it will sync on the next connection.
+    phaseStart = Date.now()
     try {
       await project.$sync.waitForSync('initial', {
         timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
       })
+      this.#l.log(
+        'leaveProject %S: initial sync after leave took %d ms',
+        projectPublicId,
+        Date.now() - phaseStart
+      )
     } catch {
-      // Ignore — propagation is opportunistic.
+      // Ignore — propagation is opportunistic. Log the sync state so a
+      // stalled or disconnected peer is distinguishable from slow local IO.
+      this.#l.log(
+        'leaveProject %S: gave up waiting for initial sync after %d ms, sync state: %j',
+        projectPublicId,
+        Date.now() - phaseStart,
+        project.$sync.getState()
+      )
     }
   }
 

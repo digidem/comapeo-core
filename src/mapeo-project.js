@@ -930,13 +930,22 @@ export class MapeoProject extends ReadyResource {
   }
 
   async [kProjectLeave]() {
+    let phaseStart = Date.now()
     const ownRole = await this.$getOwnRole()
+    this.#l.log('projectLeave: getOwnRole took %d ms', Date.now() - phaseStart)
 
     if (ownRole.roleId !== BLOCKED_ROLE_ID) {
+      phaseStart = Date.now()
       await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
+      this.#l.log(
+        'projectLeave: assign LEFT role took %d ms',
+        Date.now() - phaseStart
+      )
     }
 
+    phaseStart = Date.now()
     await this[kClearData]()
+    this.#l.log('projectLeave: clear data took %d ms', Date.now() - phaseStart)
   }
 
   /**
@@ -955,16 +964,31 @@ export class MapeoProject extends ReadyResource {
       (dataStore) => dataStore.namespace !== 'auth'
     )
 
+    let phaseStart = Date.now()
     await Promise.all(dataStoresToUnlink.map((ds) => ds.close()))
+    this.#l.log(
+      'clearData: close data stores took %d ms',
+      Date.now() - phaseStart
+    )
 
+    phaseStart = Date.now()
     await Promise.all(
       namespacesWithoutAuth.flatMap((namespace) => [
         this.#coreManager.getWriterCore(namespace).core.close(),
         this.#coreManager.deleteOthersData(namespace),
       ])
     )
+    this.#l.log(
+      'clearData: close writer cores + delete others data took %d ms',
+      Date.now() - phaseStart
+    )
 
+    phaseStart = Date.now()
     await Promise.all(dataStoresToUnlink.map((ds) => ds.unlink()))
+    this.#l.log(
+      'clearData: unlink data stores took %d ms',
+      Date.now() - phaseStart
+    )
 
     /** @type {Set<string>} */
     const authSchemas = new Set(NAMESPACE_SCHEMAS.auth)
