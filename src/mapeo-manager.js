@@ -165,6 +165,7 @@ export class MapeoManager extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
+   * @param {Buffer} [opts.masterKey] Previously derived 32-byte master key for `opts.rootKey`; skips the expensive derivation. See `@mapeo/crypto`
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string} opts.projectMigrationsFolder path for drizzle migrations folder for project database
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
@@ -179,6 +180,7 @@ export class MapeoManager extends TypedEmitter {
    */
   constructor({
     rootKey,
+    masterKey,
     dbFolder,
     projectMigrationsFolder,
     clientMigrationsFolder,
@@ -192,7 +194,7 @@ export class MapeoManager extends TypedEmitter {
     makeWebsocket = (url) => new WebSocket(url),
   }) {
     super()
-    this.#keyManager = new KeyManager(rootKey)
+    this.#keyManager = new KeyManager(rootKey, { masterKey })
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#defaultConfigPath = defaultConfigPath
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
