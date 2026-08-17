@@ -1,4 +1,4 @@
-import { verifySignature, sign } from '@mapeo/crypto'
+import { verifySignature, sign } from '@comapeo/crypto'
 import { parseVersionId } from '@comapeo/schema'
 import { defaultGetWinner } from '@mapeo/sqlite-indexer'
 import assert from 'node:assert/strict'

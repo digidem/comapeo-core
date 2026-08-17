@@ -63,7 +63,7 @@ export class CoreManager extends ReadyResource {
   /**
    * @param {Object} options
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} options.db Drizzle better-sqlite3 database instance
-   * @param {import('@mapeo/crypto').KeyManager} options.keyManager mapeo/crypto KeyManager instance
+   * @param {import('@comapeo/crypto').KeyManager} options.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} options.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [options.projectSecretKey] 32-byte secret key of the project creator core
    * @param {Partial<Record<Namespace, Buffer>>} [options.encryptionKeys] Encryption keys for each namespace

@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto'
 import path from 'path'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import Database from 'better-sqlite3'
 import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
@@ -165,7 +165,7 @@ export class MapeoManager extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
-   * @param {Buffer} [opts.masterKey] Previously derived 32-byte master key for `opts.rootKey`; skips the expensive derivation. See `@mapeo/crypto`
+   * @param {Buffer} [opts.masterKey] Previously derived 32-byte master key for `opts.rootKey`; skips the expensive derivation. See `@comapeo/crypto`
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string} opts.projectMigrationsFolder path for drizzle migrations folder for project database
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database

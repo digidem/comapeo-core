@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import { generate } from '@mapeo/mock-data'
 import { parseVersionId, valueOf } from '@comapeo/schema'
 import { discoveryKey } from 'hypercore-crypto'
