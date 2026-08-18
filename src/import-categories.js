@@ -76,7 +76,7 @@ export async function importCategories(project, { filePath, logger }) {
           const iconXml = await reader.getIcon(iconName)
           if (!iconXml) {
             // This should never happen because of the validate() call above
-            throw new IconNotFoundError(iconName)
+            throw new IconNotFoundError({ iconName })
           }
           /** @type {Parameters<typeof project.$icons.create>[0]} */
           const icon = {
@@ -360,7 +360,7 @@ function appliesToToGeometry(appliesTo) {
 function getOrThrow(map, key) {
   if (!(map instanceof Map)) throw new TypeError('map must be a Map')
   if (!map.has(key)) {
-    throw new KeyNotFoundError(key)
+    throw new KeyNotFoundError({ key })
   }
   return /** @type {V} */ (map.get(key))
 }

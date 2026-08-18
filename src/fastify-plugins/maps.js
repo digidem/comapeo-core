@@ -49,7 +49,7 @@ export async function plugin(fastify, opts) {
       }
 
       if (!response.ok) {
-        throw new FailedToGetStyleError(customStyleJsonUrl)
+        throw new FailedToGetStyleError({ href: customStyleJsonUrl })
       }
 
       /** @type {Stats | undefined} */

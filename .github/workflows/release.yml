@@ -22,6 +22,9 @@ on:
 
 jobs:
   release:
+    if: >-
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event.pull_request.user.login == 'optic-release-automation[bot]')
     runs-on: ubuntu-latest
     permissions:
       contents: write
