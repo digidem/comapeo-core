@@ -7,6 +7,7 @@ declare module 'corestore' {
     type CreateProtocolStreamOpts,
   } from 'hypercore'
   import { SetRequired } from 'type-fest'
+  import type CorestoreStorage from 'hypercore-storage'
 
   interface CorestoreEvents {
     'core-open'(core: Corestore): void
@@ -15,8 +16,12 @@ declare module 'corestore' {
 
   class Corestore extends TypedEmitter<CorestoreEvents> {
     constructor(
-      storage: HypercoreStorage,
-      options?: { primaryKey?: Buffer | Uint8Array; poolSize?: number }
+      storage: HypercoreStorage | CorestoreStorage,
+      options?: {
+        primaryKey?: Buffer | Uint8Array
+        poolSize?: number
+        unsafe?: boolean
+      }
     )
     get(key: Buffer | Uint8Array): Hypercore<Hypercore.ValueEncoding, Buffer>
     get(

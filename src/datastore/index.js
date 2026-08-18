@@ -6,6 +6,7 @@ import { discoveryKey } from 'hypercore-crypto'
 import { NAMESPACE_SCHEMAS } from '../constants.js'
 import { createMap } from '../utils.js'
 import {
+  DataStoreClosedError,
   InvalidDocSchemaError,
   InvalidVersionIdError,
   NotFoundError,
@@ -50,6 +51,7 @@ export class DataStore extends TypedEmitter {
   #pendingAppends = new Set()
   /** @type {Record<MapeoDoc['schemaName'], Set<string>>} */
   #pendingEmits
+  #closed = false
   /** @type {(coreRecord: import('../core-manager/index.js').CoreRecord) => void} */
   #handleAddCore
 
@@ -145,6 +147,7 @@ export class DataStore extends TypedEmitter {
    * @returns {Promise<Extract<MapeoDoc, TDoc>>}
    */
   async write(doc) {
+    this.#checkClosed('write')
     // @ts-ignore
     if (!NAMESPACE_SCHEMAS[this.#namespace].includes(doc.schemaName)) {
       throw new InvalidDocSchemaError({
@@ -196,6 +199,7 @@ export class DataStore extends TypedEmitter {
 
   /** @param {Buffer} buf */
   async writeRaw(buf) {
+    this.#checkClosed('write')
     const { length } = await this.#writerCore.append(buf)
     const index = length - 1
     const coreDiscoveryKey = this.#writerCore.discoveryKey
@@ -217,11 +221,21 @@ export class DataStore extends TypedEmitter {
   }
 
   async close() {
+    if (this.#closed) return
+    this.#closed = true
     // Remove the add-core listener before closing the indexer so a late
     // 'add-core' event during teardown can't call addCore() on a closed indexer
     // (which would throw 'Cannot add core after closing').
     this.#coreManager.off('add-core', this.#handleAddCore)
     await this.#coreIndexer.close()
+  }
+
+  /**
+   * Throw an error if the datastore is closed.
+   * @param {string} method
+   */
+  #checkClosed(method) {
+    if (this.#closed) throw new DataStoreClosedError({ method })
   }
 
   /**

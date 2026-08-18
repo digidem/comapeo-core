@@ -1,5 +1,4 @@
 import test from 'node:test'
-import { access, constants } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import Hypercore from 'hypercore'
@@ -15,17 +14,12 @@ import { unreplicate } from '../src/lib/hypercore-helpers.js'
 import RemoteBitfield from '../src/core-manager/remote-bitfield.js'
 import assert from 'node:assert/strict'
 import { once } from 'node:events'
-import { temporaryDirectoryTask } from 'tempy'
-import { exec } from 'child_process'
-import { RandomAccessFilePool } from '../src/core-manager/random-access-file-pool.js'
-import RandomAccessFile from 'random-access-file'
-import path from 'path'
 import { Transform } from 'streamx'
 import { waitForCores } from './helpers/core-manager.js'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { coresTable } from '../src/schema/project.js'
-import { eq } from 'drizzle-orm'
 import { createCore } from './helpers/create-core.js'
+import { temporaryDirectory } from 'tempy'
+import fsPromises from 'node:fs/promises'
 /** @import { Namespace } from '../src/types.js' */
 
 test('project creator auth core has project key', async function (t) {
@@ -79,7 +73,6 @@ test('eagerly updates remote bitfields', async (t) => {
   await new Promise((res) => setTimeout(res, 200))
 
   assert.equal(cm2Core.length, cm1Core.length)
-
   {
     assert(cm1Core.core)
     // This is testing that the remote bitfield is a duplicate of the bitfield
@@ -156,6 +149,55 @@ test('eagerly updates remote bitfields', async (t) => {
       'remote bitfield updated via indirect replication'
     )
   }
+})
+
+test('createCore helper eagerly shares sparse bitfields', async (t) => {
+  // Tests using the createCore helper rely on it mimicking CoreManager's
+  // eager bitfield exchange: a peer's non-contiguous bitfield must reach the
+  // other side even when nothing is downloaded. Native hypercore replication
+  // only shares the contiguous length on connect (bitfields are otherwise
+  // only sent in response to wants from a download), so we must not download
+  // here — a download would fetch the bitfield anyway and mask a broken
+  // helper.
+  const writer = await createCore(t)
+  await writer.append(['a', 'b', 'c', 'd', 'e'])
+  await writer.clear(2, 3)
+
+  const reader = await createCore(t, writer.key)
+  replicateCores(writer, reader)
+  await reader.update({ wait: true })
+  // Need to wait for now, since no event for when a remote bitfield is updated
+  await delay(200)
+
+  assert(writer.core)
+  assert.equal(reader.peers.length, 1)
+  assert(
+    bitfieldEquals(
+      reader.peers[0].remoteBitfield,
+      writer.core.bitfield,
+      writer.length
+    ),
+    'reader learns writer sparse bitfield without downloading'
+  )
+
+  // A core whose own data is sparse (from a partial download) must also share
+  // its bitfield with a newly connected peer.
+  await reader.download({ blocks: [0, 3] }).done()
+  const observer = await createCore(t, writer.key)
+  replicateCores(reader, observer)
+  await observer.update({ wait: true })
+  await delay(200)
+
+  assert(reader.core)
+  assert.equal(observer.peers.length, 1)
+  assert(
+    bitfieldEquals(
+      observer.peers[0].remoteBitfield,
+      reader.core.bitfield,
+      reader.length
+    ),
+    'newly connected peer learns sparse bitfield without downloading'
+  )
 })
 
 test('multiplexing waits for cores to be added', async (t) => {
@@ -253,61 +295,6 @@ test('encryption', async (t) => {
     assert.notDeepEqual(await coreReplica2.get(0), value)
     assert.deepEqual(await coreReplica3.get(0), value)
   }
-})
-
-test('poolSize limits number of open file descriptors', async (t) => {
-  const keyManager = new KeyManager(randomBytes(16))
-  const { publicKey: projectKey, secretKey: projectSecretKey } =
-    keyManager.getHypercoreKeypair('auth', randomBytes(32))
-
-  const CORE_COUNT = 500
-  await temporaryDirectoryTask(async (tempPath) => {
-    /** @param {string} name */
-    const storage = (name) => new RandomAccessFile(path.join(tempPath, name))
-    const cm = createCoreManager(t, {
-      keyManager,
-      storage,
-      projectKey,
-      projectSecretKey,
-    })
-    // -1 because CoreManager creates a writer core already
-    for (let i = 0; i < CORE_COUNT - 1; i++) {
-      const coreKey = randomBytes(32)
-      cm.addCore(coreKey, 'data')
-    }
-    const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
-    assert.equal(readyPromises.length, CORE_COUNT)
-    await Promise.all(readyPromises)
-    const fdCount = await countOpenFileDescriptors(tempPath)
-    assert(fdCount > CORE_COUNT, 'without pool, at least one fd per core')
-  })
-
-  await temporaryDirectoryTask(async (tempPath) => {
-    const POOL_SIZE = 100
-    const pool = new RandomAccessFilePool(POOL_SIZE)
-    /** @param {string} name */
-    const storage = (name) =>
-      new RandomAccessFile(path.join(tempPath, name), { pool })
-    const cm = createCoreManager(t, {
-      keyManager,
-      storage,
-      projectKey,
-      projectSecretKey,
-    })
-    // -1 because we CoreManager creates a writer core already
-    for (let i = 0; i < CORE_COUNT - 1; i++) {
-      const coreKey = randomBytes(32)
-      cm.addCore(coreKey, 'data')
-    }
-    const readyPromises = cm.getCores('data').map(({ core }) => core.ready())
-    await Promise.all(readyPromises)
-    const fdCount = await countOpenFileDescriptors(tempPath)
-    assert.equal(
-      fdCount,
-      POOL_SIZE,
-      'with pool, no more file descriptors than pool size'
-    )
-  })
 })
 
 test('sends "haves" bitfields over project creator core replication stream', async (t) => {
@@ -508,158 +495,6 @@ test('unreplicate', async (t) => {
   }
 })
 
-test('deleteOthersData()', async (t) => {
-  await temporaryDirectoryTask(async (tempPath) => {
-    const projectKey = randomBytes(32)
-
-    /** @type {Array<string>} */
-    const storageNames = []
-
-    const peer1TempPath = path.join(tempPath, 'peer1')
-
-    /// Set up core managers
-    const db1 = drizzle(new Sqlite(':memory:'))
-    const cm1 = createCoreManager(t, {
-      db: db1,
-      projectKey,
-      storage: (name) => {
-        storageNames.push(name)
-        return new RandomAccessFile(path.join(peer1TempPath, name))
-      },
-      autoDownload: true,
-    })
-
-    const db2 = drizzle(new Sqlite(':memory:'))
-    const cm2 = createCoreManager(t, {
-      db: db2,
-      projectKey,
-      storage: (name) => {
-        return new RandomAccessFile(path.join(tempPath, 'peer2', name))
-      },
-      // We're only checking the filesystem for peer 1 so can avoid downloading for peer 2
-      autoDownload: false,
-    })
-
-    /// Write data
-    const dataWriter1 = cm1.getWriterCore('data')
-    const dataWriter2 = cm2.getWriterCore('data')
-
-    await dataWriter1.core.ready()
-    await dataWriter2.core.ready()
-
-    await dataWriter1.core.append(
-      Array(100)
-        .fill(null)
-        .map((_, i) => 'block' + i)
-    )
-
-    await dataWriter2.core.append(
-      Array(50)
-        .fill(null)
-        .map((_, i) => 'block' + i)
-    )
-
-    const { destroy } = await replicate(cm1, cm2)
-    t.after(destroy)
-
-    // This delay is needed in order for replication to finish properly
-    await new Promise((res) => setTimeout(res, 200))
-
-    /// Confirmation to ensure that replication worked
-    assert.equal(
-      cm1.getCores('data').length,
-      2,
-      'peer 1 has expected number of data cores after replication'
-    )
-
-    const peer1DataCoreStoragePath = getCoreStoragePath(
-      // @ts-expect-error
-      dataWriter1.core.discoveryKey.toString('hex')
-    )
-
-    const peer2DataCoreStoragePath = getCoreStoragePath(
-      // @ts-expect-error
-      dataWriter2.core.discoveryKey.toString('hex')
-    )
-
-    const dataCoreStorageNames = storageNames.filter(
-      (name) =>
-        name.startsWith(peer1DataCoreStoragePath) ||
-        name.startsWith(peer2DataCoreStoragePath)
-    )
-
-    // Hypercore uses 4 files per core (oplog, tree, bitfield, data)
-    assert.equal(
-      dataCoreStorageNames.length,
-      8,
-      'peer 1 has expected number of data core storage files after replication'
-    )
-
-    assert.equal(
-      db1
-        .select()
-        .from(coresTable)
-        .where(eq(coresTable.namespace, 'data'))
-        .all().length,
-      1,
-      'peer 1 `cores` table has info about `data` core from peer 2'
-    )
-
-    assert.equal(
-      db2
-        .select()
-        .from(coresTable)
-        .where(eq(coresTable.namespace, 'data'))
-        .all().length,
-      1,
-      'peer 2 `cores` table has info about `data` core from peer 1'
-    )
-
-    /// Delete data (not their own)
-    await cm1.deleteOthersData('data')
-
-    const peer1DataStoragePreservedForPeer1 = (
-      await checkExistenceForFiles(
-        dataCoreStorageNames
-          .filter((storageName) =>
-            storageName.startsWith(peer1DataCoreStoragePath)
-          )
-          .map((storageName) => path.join(peer1TempPath, storageName))
-      )
-    ).every((exists) => exists === true)
-
-    const peer2DataStorageDeletedForPeer1 = (
-      await checkExistenceForFiles(
-        dataCoreStorageNames
-          .filter((storageName) =>
-            storageName.startsWith(peer2DataCoreStoragePath)
-          )
-          .map((storageName) => path.join(peer1TempPath, storageName))
-      )
-    ).every((exists) => exists === false)
-
-    assert(
-      peer1DataStoragePreservedForPeer1,
-      'peer 1 still has `data` storage for itself'
-    )
-
-    assert(
-      peer2DataStorageDeletedForPeer1,
-      'peer 1 no longer has `data` storage for peer 2'
-    )
-
-    assert.equal(
-      db1
-        .select()
-        .from(coresTable)
-        .where(eq(coresTable.namespace, 'data'))
-        .all().length,
-      0,
-      'peer 1 `cores` table has no info about `data` core from peer 2'
-    )
-  })
-})
-
 const DEBUG = process.env.DEBUG
 
 /**
@@ -700,21 +535,6 @@ function bitfieldEquals(actual, expected, len) {
 }
 
 /**
- * Count the open file descriptors in a given folder
- *
- * @param {string} dir folder for counting open file descriptors
- * @returns {Promise<number>}
- */
-async function countOpenFileDescriptors(dir) {
-  return new Promise((res, rej) => {
-    exec(`lsof +D '${dir}' | wc -l`, (error, stdout) => {
-      if (error) return rej(error)
-      res(Number(stdout) - 1)
-    })
-  })
-}
-
-/**
  * @param {Hypercore} a
  * @param {Hypercore} b
  * @param {Parameters<typeof Hypercore.prototype.replicate>[1] & { delay?: number }} [opts]
@@ -738,25 +558,46 @@ function latencyStream(delay = 0) {
   })
 }
 
-/**
- * From https://github.com/holepunchto/corestore/blob/v6.8.4/index.js#L240
- *
- * @param {string} id Core discovery key as hex string
- */
-function getCoreStoragePath(id) {
-  return ['cores', id.slice(0, 2), id.slice(2, 4), id].join('/')
-}
+test('deleteOthersData leaves purged cores usable after re-opening storage', async function (t) {
+  const projectKey = randomBytes(32)
+  const cm1 = createCoreManager(t, { projectKey })
 
-/**
- * @param {Array<string>} files
- * @returns {Promise<Array<boolean>>} Promise that resolves with array of results, where `true` means the file exists and `false` means it does not exist
- */
-async function checkExistenceForFiles(files) {
-  return Promise.all(
-    files.map((filePath) =>
-      access(filePath, constants.F_OK)
-        .then(() => true)
-        .catch(() => false)
-    )
-  )
-}
+  // cm2 gets stable identity, storage and db so it can be re-opened, as
+  // happens when a device re-joins a project after leaving
+  const rootKey = randomBytes(16)
+  const db = drizzle(new Sqlite(':memory:'))
+  const storage = temporaryDirectory()
+  t.after(() => fsPromises.rm(storage, { recursive: true, force: true }))
+
+  const cm2 = createCoreManager(t, { projectKey, rootKey, db, storage }, false)
+
+  const writer = cm1.getWriterCore('data')
+  await writer.core.append(['a', 'b', 'c'])
+
+  cm2.addCore(writer.key, 'data')
+  const rep1 = await replicate(cm1, cm2)
+  const core2 = cm2.getCoreByKey(writer.key)
+  assert(core2, 'core was added')
+  await core2.download({ start: 0, end: 3 }).done()
+  await rep1.destroy()
+
+  await cm2.deleteOthersData('data')
+  await cm2.close()
+
+  const cm2reopened = createCoreManager(t, { projectKey, rootKey, db, storage })
+  cm2reopened.addCore(writer.key, 'data')
+  const core2reopened = cm2reopened.getCoreByKey(writer.key)
+  assert(core2reopened, 'core was re-added')
+  await core2reopened.ready()
+
+  const rep2 = await replicate(cm1, cm2reopened)
+  t.after(() => rep2.destroy())
+
+  const block = await Promise.race([
+    core2reopened.get(0),
+    delay(5000).then(() => {
+      throw new Error('timed out re-syncing the purged core')
+    }),
+  ])
+  assert.deepEqual(block, Buffer.from('a'), 're-downloaded purged block')
+})

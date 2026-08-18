@@ -253,7 +253,7 @@ test('blobStore.createReadStream should not wait', async (t) => {
         })
         await concat(stream)
       },
-      { message: 'Block not available' }
+      { message: /BLOCK_NOT_AVAILABLE/ }
     )
   }
 })
@@ -460,7 +460,7 @@ test('blobStore.getEntryReadStream(driveId, entry) should not wait', async (t) =
       const stream = await blobStore.createReadStreamFromEntry(driveId, entry)
       await concat(stream)
     },
-    { message: 'Block not available' }
+    { message: /BLOCK_NOT_AVAILABLE/ }
   )
 })
 

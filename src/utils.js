@@ -12,7 +12,8 @@ import {
 import pTimeout, { TimeoutError as pTimeoutError } from 'p-timeout'
 
 /** @import { MapShareExtension } from './generated/rpc.js' */
-/** @import {Attachment, BlobId} from "./types.js" */
+/** @import {Attachment, BlobId, HypercorePeer} from "./types.js" */
+/** @import Hypercore from 'hypercore' */
 
 const PROJECT_INVITE_ID_SALT = Buffer.from('mapeo project invite id', 'ascii')
 
@@ -340,5 +341,76 @@ export function validateMapShareExtension(mapShare) {
   }
   if (estimatedSizeBytes <= 0) {
     throw new InvalidMapShareError('Map size bytes must greater than zero')
+  }
+}
+
+/**
+ * Force want wire messages to force peer to send us their bitfield
+ * Uses a bunch of hypercore internals so expect type errors
+ * @param {Hypercore<Hypercore.ValueEncoding, Buffer>} core
+ * @param {HypercorePeer} peer
+ */
+export function forceBitfieldExchange(core, peer) {
+  const DEFAULT_SEGMENT_SIZE = 128 * 1024
+
+  const length = /** @type {number} */ (core.length)
+  // Tell other side we might want everything to try to get their bitfield
+  // Needed for older comapeo clients to send us their bitfield
+  const maxPage = Math.ceil(length / DEFAULT_SEGMENT_SIZE)
+  for (let page = 0; page < maxPage; page++) {
+    // @ts-ignore
+    peer.wireWant.send({
+      start: page * DEFAULT_SEGMENT_SIZE,
+      length: DEFAULT_SEGMENT_SIZE,
+    })
+  }
+
+  // Send over our entire bitfield
+  // @ts-ignore
+  for (const msg of peer.core.bitfield.want(0, length)) {
+    // @ts-ignore
+    peer.wireBitfield.send(msg)
+  }
+
+  // Send over our contiguous length and entire bitfield
+  // Needed because we no longer send bitfieds otherwise
+  const contig = /** @type {number} */ (
+    // @ts-ignore
+    Math.min(peer.core.state.length, peer.core.header.hints.contiguousLength)
+  )
+  sendRange(peer, 0, contig, false)
+}
+
+/**
+ * Force a range event down the wire
+ * @param {HypercorePeer} peer
+ * @param {number} start
+ * @param {number} length
+ * @param {boolean} drop
+ */
+export function sendRange(peer, start, length, drop) {
+  // @ts-ignore
+  peer.wireRange.send({
+    drop,
+    start,
+    length,
+  })
+}
+
+/**
+ * Patch the hypercore replicator to notify all peers of new ranges
+ * @param {import('./core-manager/index.js').Core} core
+ */
+export function patchCoreReplicator(core) {
+  // @ts-ignore
+  const originalOnHave = core.replicator.onhave
+  // @ts-ignore
+  core.replicator.onhave = (start, length, drop) => {
+    // @ts-ignore
+    originalOnHave.call(core.replicator, start, length, drop)
+    if (drop) return
+    for (const peer of core.peers) {
+      sendRange(peer, start, length, drop)
+    }
   }
 }

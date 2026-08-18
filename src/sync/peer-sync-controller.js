@@ -65,7 +65,7 @@ export class PeerSyncController {
     this.#updateEnabledNamespaces()
   }
 
-  dispose() {
+  close() {
     this.#coreManager.off('add-core', this.#handleAddCore)
     this.#syncState.off('state', this.#handleStateChange)
     this.#roles.off('update', this.#handleRolesUpdate)

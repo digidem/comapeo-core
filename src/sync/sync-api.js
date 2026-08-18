@@ -576,7 +576,7 @@ export class SyncApi extends TypedEmitter {
       )
       return
     }
-    psc.dispose()
+    psc.close()
     this.#peerSyncControllers.delete(protomux)
     const peerId = keyToId(peer.remotePublicKey)
     this.#pscByPeerId.delete(peerId)

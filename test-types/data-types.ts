@@ -13,17 +13,19 @@ import {
 } from '@comapeo/schema'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import RAM from 'random-access-memory'
 import { IndexWriter } from '../dist/index-writer/index.js'
 import { DerivedDocFields } from '../dist/datatype/index.js'
 import { projectSettingsTable } from '../dist/schema/client.js'
 import { LocalPeers } from '../dist/local-peers.js'
 import { Expect, type Equal } from './utils.js'
+import { temporaryDirectory } from 'tempy'
 
 type ObservationWithDerivedDocFields = Observation & DerivedDocFields
 type PresetWithDerivedDocFields = Preset & DerivedDocFields
 type FieldWithDerivedDocFields = Field & DerivedDocFields
 type TrackWithDerivedDocFields = Track & DerivedDocFields
+
+const coreStorage = temporaryDirectory()
 
 const sqlite = new Database(':memory:')
 
@@ -31,7 +33,7 @@ const mapeoProject = new MapeoProject({
   dbPath: ':memory:',
   projectMigrationsFolder: new URL('../drizzle/project', import.meta.url)
     .pathname,
-  coreStorage: () => new RAM(),
+  coreStorage,
   keyManager: new KeyManager(randomBytes(32)),
   projectKey: randomBytes(32),
   encryptionKeys: { auth: randomBytes(32) },
