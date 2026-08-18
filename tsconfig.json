@@ -24,6 +24,9 @@
       "@hyperswarm/secret-stream": [
         "./node_modules/@digidem/types/vendor/@hyperswarm/secret-stream/index.d.ts"
       ],
+      // streamx >=2.28 bundles declarations incompatible with the @types/streamx
+      // ones that @digidem/types' vendored typings are written against.
+      "streamx": ["./node_modules/@types/streamx/index.d.ts"],
       "*": ["./types", "./node_modules/@digidem/types/vendor/*/index.d.ts"]
     }
   },
