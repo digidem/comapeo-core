@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { KeyManager, sign } from '@mapeo/crypto'
+import { KeyManager, sign } from '@comapeo/crypto'
 import sodium from 'sodium-universal'
 import {
   mapAndValidateCoreOwnership,

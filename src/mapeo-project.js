@@ -149,7 +149,7 @@ export class MapeoProject extends ReadyResource {
    * @param {Object} opts
    * @param {string} opts.dbPath Path to store project sqlite db. Use `:memory:` for memory storage
    * @param {string} opts.projectMigrationsFolder path for drizzle migration folder for project
-   * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
+   * @param {import('@comapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
@@ -1032,7 +1032,7 @@ function extractEditableProjectSettings(projectDoc) {
  * @param {object} opts
  * @param {Buffer} opts.projectKey
  * @param {Buffer} [opts.projectSecretKey]
- * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
+ * @param {import('@comapeo/crypto').KeyManager} opts.keyManager
  * @returns {Record<Namespace, KeyPair>}
  */
 function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {

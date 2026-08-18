@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import pDefer from 'p-defer'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import { NamespaceSyncState } from '../../src/sync/namespace-sync-state.js'
 import {
   createCoreManager,

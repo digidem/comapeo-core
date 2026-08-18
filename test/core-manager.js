@@ -6,7 +6,7 @@ import Hypercore from 'hypercore'
 import { createCoreManager, replicate } from './helpers/core-manager.js'
 import { randomBytes } from 'crypto'
 import Sqlite from 'better-sqlite3'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import {
   CoreManager,
   kCoreManagerReplicate,
