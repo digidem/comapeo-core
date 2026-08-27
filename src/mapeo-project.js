@@ -63,6 +63,7 @@ import {
   nullIfNotFound,
   MultipleCategoryImportsError,
   UnexpectedDocSchemaError,
+  ProjectLeftError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 
@@ -118,6 +119,23 @@ const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
 /**
  * @type {ReadyResource & TypedEmitter<ProjectEvents>}
  */
+
+/**
+ * @param {any} target
+ * @returns {any}
+ */
+function createProjectLeftMock(target) {
+  return new Proxy(target, {
+    get(obj, prop) {
+      const value = Reflect.get(obj, prop)
+      if (typeof value === 'function') {
+        return () => Promise.reject(new ProjectLeftError())
+      }
+      return value
+    },
+  })
+}
+
 export class MapeoProject extends ReadyResource {
   #projectKey
   #deviceId
@@ -141,6 +159,8 @@ export class MapeoProject extends ReadyResource {
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #importingCategories
+  /** @type {Boolean} */
+  #hasLeft = false
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
   #getFallbackProjectInfo
@@ -666,19 +686,26 @@ export class MapeoProject extends ReadyResource {
   }
 
   get observation() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.observation)
     return this.#dataTypes.observation
   }
   get track() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.track)
     return this.#dataTypes.track
   }
   get preset() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.preset)
     return this.#dataTypes.preset
   }
   get field() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.field)
     return this.#dataTypes.field
   }
 
   get remoteDetectionAlert() {
+    if (this.#hasLeft) {
+      return createProjectLeftMock(this.#dataTypes.remoteDetectionAlert)
+    }
     return this.#dataTypes.remoteDetectionAlert
   }
 
@@ -691,6 +718,7 @@ export class MapeoProject extends ReadyResource {
   }
 
   get $translation() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#translationApi)
     return this.#translationApi
   }
 
@@ -862,6 +890,7 @@ export class MapeoProject extends ReadyResource {
    * @returns {import('./icon-api.js').IconApi}
    */
   get $icons() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#iconApi)
     return this.#iconApi
   }
 
@@ -936,6 +965,7 @@ export class MapeoProject extends ReadyResource {
       await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
     }
 
+    this.#hasLeft = true
     await this[kClearData]()
   }
 

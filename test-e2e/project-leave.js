@@ -251,6 +251,48 @@ test('Data access after leaving project', async (t) => {
   }, 'coordinator cannot update project settings after leaving')
 })
 
+test('all data and config getters throw ProjectLeftError after leaving', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const projectId = await manager.createProject({ name: 'mapeo' })
+  const project = await manager.getProject(projectId)
+
+  await manager.leaveProject(projectId)
+
+  /** @type {[string, () => any][]} */
+  const projectLeftGetters = [
+    ['observation', () => project.observation.getMany()],
+    ['track', () => project.track.getMany()],
+    ['remoteDetectionAlert', () => project.remoteDetectionAlert.getMany()],
+    ['preset', () => project.preset.getMany()],
+    ['field', () => project.field.getMany()],
+    ['$translation', () => project.$translation.get({})],
+    [
+      '$icons',
+      () =>
+        project.$icons.getIconUrl('example', {
+          mimeType: 'image/png',
+          pixelDensity: 1,
+          size: 'large',
+        }),
+    ],
+  ]
+
+  for (const [name, fn] of projectLeftGetters) {
+    await assert.rejects(
+      fn,
+      { name: 'ProjectLeftError' },
+      `${name} should reject`
+    )
+  }
+
+  const members = await project.$member.getMany()
+  assert(
+    Array.isArray(members),
+    '$member.getMany() should still work after leaving'
+  )
+})
+
 test('leaving a project deletes data from disk', async (t) => {
   const memberCoreStorage = temporaryDirectory()
   t.after(() =>
