@@ -266,7 +266,12 @@ test('all data and config getters throw ProjectLeftError after leaving', async (
     ['remoteDetectionAlert', () => project.remoteDetectionAlert.getMany()],
     ['preset', () => project.preset.getMany()],
     ['field', () => project.field.getMany()],
-    ['$translation', () => project.$translation.get({})],
+    [
+      '$translation',
+      () =>
+        // @ts-ignore
+        project.$translation.get({}),
+    ],
     [
       '$icons',
       () =>
