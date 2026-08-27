@@ -630,8 +630,6 @@ export class MapeoProject extends ReadyResource {
     await this.#coreManager.close()
 
     this.#sqlite.close()
-
-    this.emit('close')
   }
 
   /**
