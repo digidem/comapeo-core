@@ -121,19 +121,22 @@ const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
  */
 
 /**
- * @param {any} target
- * @returns {any}
+ * @template T
+ * @param {T} target
+ * @returns {T}
  */
 function createProjectLeftMock(target) {
-  return new Proxy(target, {
-    get(obj, prop) {
-      const value = Reflect.get(obj, prop)
-      if (typeof value === 'function') {
-        return () => Promise.reject(new ProjectLeftError())
-      }
-      return value
-    },
-  })
+  return /** @type {T} */ (
+    new Proxy(/** @type {object} */ (target), {
+      get(obj, prop) {
+        const value = Reflect.get(obj, prop)
+        if (typeof value === 'function') {
+          return () => Promise.reject(new ProjectLeftError())
+        }
+        return value
+      },
+    })
+  )
 }
 
 export class MapeoProject extends ReadyResource {
