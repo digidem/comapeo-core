@@ -31,7 +31,7 @@ test('$originalVersionIdToDeviceId', async (t) => {
     valueOf(generate('observation')[0])
   )
 
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
 
   assert.equal(
     await creatorProject.$originalVersionIdToDeviceId(

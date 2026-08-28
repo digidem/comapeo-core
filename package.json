@@ -1,6 +1,6 @@
 {
   "name": "@comapeo/core",
-  "version": "7.3.0",
+  "version": "9.0.0-next.0",
   "description": "Offline p2p mapping library",
   "main": "src/index.js",
   "types": "dist/index.d.ts",
@@ -12,6 +12,10 @@
     "./errors.js": {
       "types": "./dist/errors.d.ts",
       "default": "./src/errors.js"
+    },
+    "./sync-state.js": {
+      "types": "./dist/sync-state.d.ts",
+      "default": "./src/sync-state.js"
     },
     "./schema.js": {
       "types": "./dist/schema.d.ts",

@@ -153,6 +153,8 @@ export class MapeoManager extends TypedEmitter {
   #defaultConfigPath
   #makeWebsocket
   #defaultIsArchiveDevice
+  /** @type {number | undefined} */
+  #syncThrottleMs
 
   /**
    * @param {Object} opts
@@ -168,6 +170,7 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    * @param {boolean} [opts.defaultIsArchiveDevice] Whether the node is an archive device by default
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
+   * @param {number} [opts.syncThrottleMs] Throttle interval for sync state updates (default 200). Exposed for deterministic tests; set to 0 to make sync-state re-evaluation immediate.
    */
   constructor({
     rootKey,
@@ -182,6 +185,7 @@ export class MapeoManager extends TypedEmitter {
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
     defaultIsArchiveDevice = DEFAULT_IS_ARCHIVE_DEVICE,
     makeWebsocket = (url) => new WebSocket(url),
+    syncThrottleMs,
   }) {
     super()
     this.#keyManager = new KeyManager(rootKey)
@@ -189,6 +193,7 @@ export class MapeoManager extends TypedEmitter {
     this.#defaultConfigPath = defaultConfigPath
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
     this.#makeWebsocket = makeWebsocket
+    this.#syncThrottleMs = syncThrottleMs
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
     this.#dbFolder = dbFolder
@@ -603,6 +608,7 @@ export class MapeoManager extends TypedEmitter {
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
       isArchiveDevice,
       makeWebsocket: this.#makeWebsocket,
+      syncThrottleMs: this.#syncThrottleMs,
       getFallbackProjectInfo: () => {
         return this.#db
           .select({ projectInfo: projectKeysTable.projectInfo })

@@ -4,66 +4,64 @@ import RemoteBitfield, {
 } from '../core-manager/remote-bitfield.js'
 import { Logger } from '../logger.js'
 import { InvalidBitfieldIndexError } from '../errors.js'
-/** @import { HypercorePeer, HypercoreRemoteBitfield, Namespace } from '../types.js' */
+/** @import { HypercorePeer, HypercoreRemoteBitfield } from '../types.js' */
 
 /**
  * @typedef {RemoteBitfield} Bitfield
  */
 /**
- * @typedef {string} PeerId
+ * @typedef {string} DeviceId
+ */
+/**
+ * State of the replication channel between us and a peer, for one core:
+ * - `'closed'`: no live replication session (default, and after disconnect)
+ * - `'opening'`: session opened, waiting for the first length/bitfield
+ *   exchange — we don't yet know what the peer has
+ * - `'open'`: active session, remote length known
+ * @typedef {'closed' | 'opening' | 'open'} ChannelState
+ */
+/**
+ * Block counts for one core, always from the local device's point of view.
+ * @typedef {object} LocalCoreState
+ * @property {number} have blocks we have
+ * @property {number} toReceive unique blocks we still need from any peer
+ * @property {number} toSend unique blocks any peer still needs from us
+ */
+/**
+ * @typedef {object} PeerCoreDerivedState
+ * @property {number} have blocks the peer has
+ * @property {number} toReceive blocks we still need from this peer
+ * @property {number} toSend blocks this peer still needs from us
+ * @property {ChannelState} channel
+ */
+/**
+ * @typedef {object} DerivedCoreState
+ * @property {number} coreLength known (sparse) length of the core
+ * @property {LocalCoreState} local
+ * @property {Record<DeviceId, PeerCoreDerivedState>} devices state of each known peer
  */
 /**
  * @typedef {Object} InternalState
- * @property {number | undefined} length Core length, e.g. how many blocks in the core (including blocks that are not downloaded)
- * @property {PeerState} localState
- * @property {Map<PeerId, PeerState>} remoteStates
- * @property {Map<string, import('./peer-sync-controller.js').PeerSyncController>} peerSyncControllers
- * @property {Namespace} namespace
- */
-/**
- * @typedef {object} LocalCoreState
- * @property {number} have blocks we have
- * @property {number} want unique blocks we want from any other peer
- * @property {number} wanted unique blocks any other peer wants from us
- */
-/**
- * @typedef {object} PeerNamespaceState
- * @property {number} have blocks the peer has locally
- * @property {number} want blocks this peer wants from us
- * @property {number} wanted blocks we want from this peer
- * @property {'stopped' | 'starting' | 'started'} status
- */
-/**
- * @typedef {object} DerivedState
- * @property {number} coreLength known (sparse) length of the core
- * @property {LocalCoreState} localState local state
- * @property {{ [peerId in PeerId]: PeerNamespaceState }} remoteStates map of state of all known peers
+ * @property {number | undefined} length Core length, e.g. how many blocks in
+ * the core (including blocks that are not downloaded)
+ * @property {PeerCoreState} localState
+ * @property {Map<DeviceId, PeerCoreState>} remoteStates
+ * @property {(deviceId: DeviceId) => boolean} isPeerSyncAllowed whether the
+ * peer's role allows syncing this core's namespace (blocked peers are
+ * excluded from derived counts)
  */
 
 // This is a 32-bit number with all bits set
-const WANT_FULL = 2 ** 32 - 1
+const ALL_32_BITS = 2 ** 32 - 1
 
 /**
- * Track sync state for a core identified by `discoveryId`. Can start tracking
- * state before the core instance exists locally, via the "preHave" messages
- * received over the project creator core.
+ * Track sync state for a single core. Can start tracking state before the
+ * core instance exists locally, via the "pre-have" messages received over the
+ * project creator core.
  *
- * Because deriving the state is expensive (it iterates through the bitfields of
- * all peers), this is designed to be pull-based: the onUpdate event signals
- * that the state is updated, but does not pass the state. The consumer can
- * "pull" the state when it wants it via `coreSyncState.getState()`.
- *
- * Each peer (including the local peer) has a state of:
- *
- * 1. `have` - number of blocks the peer has locally
- *
- * 2. `want` - number of blocks this peer wants. For local state, this is the
- *    number of unique blocks we want from anyone else. For remote peers, it is
- *    the number of blocks this peer wants from us.
- *
- * 3. `wanted` - number of blocks this peer has that's wanted by others. For
- *    local state, this is the number of unique blocks any of our peers want.
- *    For remote peers, it is the number of blocks we want from them.
+ * Because deriving the state is expensive (it iterates through the bitfields
+ * of all peers), this is pull-based: `onUpdate` signals that the state has
+ * changed, and the consumer calls `getState()` when it wants the state.
  */
 export class CoreSyncState {
   /** @type {import('hypercore')<'binary', Buffer> | undefined} */
@@ -74,59 +72,74 @@ export class CoreSyncState {
   #localState
   #preHavesLength = 0
   #update
-  #peerSyncControllers
-  #namespace
+  #isPeerSyncAllowed
   #deviceId
   #l
   #hasDownloadFilter
+  #isClosed = false
+  /** @type {Map<HypercorePeer, { onbitfield: HypercorePeer['onbitfield'], onrange: HypercorePeer['onrange'] }>} */
+  #patchedPeers = new Map()
+  /**
+   * A device can briefly have more than one connection (overlapping
+   * reconnect), which shows up here as multiple hypercore peers with the
+   * same public key. The channel state for the device is derived across all
+   * of them, so a stale connection's peer-remove can't mark the channel
+   * closed while another connection is live.
+   * @type {Map<DeviceId, { opening: Set<HypercorePeer>, open: Set<HypercorePeer> }>}
+   */
+  #channelPeers = new Map()
 
   /**
    * @param {object} opts
    * @param {() => void} opts.onUpdate Called when a state update is available (via getState())
-   * @param {Map<string, import('./peer-sync-controller.js').PeerSyncController>} opts.peerSyncControllers
-   * @param {Namespace} opts.namespace
+   * @param {(deviceId: DeviceId) => boolean} opts.isPeerSyncAllowed
    * @param {string} opts.deviceId
-   * @param {(peerId: string) => boolean} opts.hasDownloadFilter
+   * @param {(deviceId: DeviceId) => boolean} opts.hasDownloadFilter
    * @param {Logger} [opts.logger]
    */
   constructor({
     onUpdate,
-    peerSyncControllers,
-    namespace,
+    isPeerSyncAllowed,
     deviceId,
     hasDownloadFilter,
     logger,
   }) {
-    // The logger parameter is already namespaced by NamespaceSyncState
-    this.#l = logger || Logger.create('css')
-    this.#peerSyncControllers = peerSyncControllers
-    this.#namespace = namespace
+    // The logger parameter is already namespaced by SyncProgress
+    this.#l = logger || Logger.create('coreSyncState')
+    this.#isPeerSyncAllowed = isPeerSyncAllowed
     this.#deviceId = deviceId
     this.#hasDownloadFilter = hasDownloadFilter
-    this.#localState = new PeerState({
+    this.#localState = new PeerCoreState({
       wantsEverything: !hasDownloadFilter(deviceId),
     })
-    // Called whenever the state changes, so we clear the cache because next
-    // call to getState() will need to re-derive the state
     this.#update = () => {
+      if (this.#isClosed) return
       process.nextTick(onUpdate)
     }
   }
 
-  /** @type {() => DerivedState} */
+  /**
+   * Whether a local core instance is attached: cores we have actually added
+   * to the core manager (and so will replicate), as opposed to cores we only
+   * know about from pre-have messages.
+   */
+  get isAttached() {
+    return this.#core !== undefined
+  }
+
+  /** @type {() => DerivedCoreState} */
   getState() {
-    // No way to listen on all contiguousLength changes (like clear)
-    //.We need to fetch it fresh each time
+    // No way to listen on all contiguousLength changes (like clear), so we
+    // need to fetch it fresh each time
     if (this.#core) {
       this.#localState.contiguousLength = this.#core.contiguousLength
     }
     const localCoreLength = this.#core?.length || 0
-    return deriveState({
+    return deriveCoreState({
       length: Math.max(localCoreLength, this.#preHavesLength),
       localState: this.#localState,
       remoteStates: this.#remoteStates,
-      peerSyncControllers: this.#peerSyncControllers,
-      namespace: this.#namespace,
+      isPeerSyncAllowed: this.#isPeerSyncAllowed,
     })
   }
 
@@ -139,10 +152,12 @@ export class CoreSyncState {
    */
   attachCore(core) {
     if (this.#core) return
+    if (this.#isClosed) return
 
     this.#core = core
 
     this.#core.ready().then(() => {
+      if (this.#isClosed) return
       this.#localState.setHavesBitfield(
         // @ts-ignore - internal property
         core?.core?.bitfield
@@ -156,20 +171,32 @@ export class CoreSyncState {
     }
 
     this.#core.on('peer-add', this.#onPeerAdd)
-
     this.#core.on('peer-remove', this.#onPeerRemove)
-
-    // TODO: Maybe we need to also wait on core.update() and then emit state?
 
     // These events happen when the local bitfield changes, so we want to emit
     // state because it will have changed
-    this.#core.on('download', () => {
-      this.#update()
-    })
+    this.#core.on('download', this.#update)
+    this.#core.on('append', this.#update)
+  }
 
-    this.#core.on('append', () => {
-      this.#update()
-    })
+  /**
+   * Stop listening and emitting updates. Idempotent. The pending
+   * `core.update()` continuations are guarded by `#isClosed`.
+   */
+  close() {
+    if (this.#isClosed) return
+    this.#isClosed = true
+    if (this.#core) {
+      this.#core.off('peer-add', this.#onPeerAdd)
+      this.#core.off('peer-remove', this.#onPeerRemove)
+      this.#core.off('download', this.#update)
+      this.#core.off('append', this.#update)
+    }
+    for (const [peer, original] of this.#patchedPeers) {
+      peer.onbitfield = original.onbitfield
+      peer.onrange = original.onrange
+    }
+    this.#patchedPeers.clear()
   }
 
   /**
@@ -177,12 +204,14 @@ export class CoreSyncState {
    * a peer "have" via extension message - it allows us to have a state for the
    * peer before the peer actually starts syncing this core
    *
-   * @param {PeerId} peerId
+   * @param {DeviceId} deviceId
    * @param {number} start
    * @param {Uint32Array} bitfield
    */
-  insertPreHaves(peerId, start, bitfield) {
-    const peerState = this.#getOrCreatePeerState(peerId)
+  insertPreHaves(deviceId, start, bitfield) {
+    const peerState = this.#getOrCreatePeerState(deviceId)
+    // Pre-haves prove the peer knows this core
+    peerState.markCoreKnown(!this.#hasDownloadFilter(deviceId))
     peerState.insertPreHaves(start, bitfield)
     const previousLength = Math.max(
       this.#preHavesLength,
@@ -195,7 +224,7 @@ export class CoreSyncState {
     if (this.#preHavesLength > previousLength) {
       this.#l.log(
         'Updated peer %S pre-haves length from %d to %d',
-        peerId,
+        deviceId,
         previousLength,
         this.#preHavesLength
       )
@@ -204,63 +233,80 @@ export class CoreSyncState {
   }
 
   /**
-   * Add a ranges of wanted blocks for a peer. By default a peer wants all
+   * Add a range of blocks that a peer wants. By default a peer wants all
    * blocks in a core - calling this will change the peer to only want the
    * blocks/ranges that are added here
    *
-   * @param {PeerId} peerId
+   * @param {DeviceId} deviceId
    * @param {number} start
    * @param {number} length
    * @returns {void}
    */
-  addWantRange(peerId, start, length) {
-    this.#l.log('Peer %S wants range %d-%d', peerId, start, start + length)
-    const peerState = this.#getOrCreatePeerState(peerId)
+  addWantRange(deviceId, start, length) {
+    this.#l.log('Peer %S wants range %d-%d', deviceId, start, start + length)
+    const peerState = this.#getOrCreatePeerState(deviceId)
     peerState.addWantRange(start, length)
     this.#update()
   }
 
   /**
    * Set whether a peer wants everything or only blocks specified by addWantRange()
-   * @param {PeerId} peerId
+   * @param {DeviceId} deviceId
    * @param {boolean} wantsEverything
    */
-  setWantsEverything(peerId, wantsEverything) {
-    this.#l.log('Peer %S wants everything: %s', peerId, wantsEverything)
-    const peerState = this.#getOrCreatePeerState(peerId)
+  setWantsEverything(deviceId, wantsEverything) {
+    this.#l.log('Peer %S wants everything: %s', deviceId, wantsEverything)
+    const peerState = this.#getOrCreatePeerState(deviceId)
     peerState.setWantsEverything(wantsEverything)
     this.#update()
   }
 
   /**
-   * @param {PeerId} peerId
+   * @param {DeviceId} deviceId
+   * @param {object} [opts]
+   * @param {boolean} [opts.assumeCoreKnown=true] whether to assume the peer
+   * knows this core exists. When a peer connects, we assume it knows (or will
+   * imminently learn about) all cores we know of, so it is treated as wanting
+   * all blocks it doesn't have (which is what makes progress reporting show
+   * pending data for peers that haven't started syncing). But when a core is
+   * discovered *after* a peer connected, we may know something the peer has
+   * no way of knowing about, so we must not fabricate wants for it —
+   * completion would block forever on a transfer the peer will never
+   * request. Evidence that the peer does know the core (an open replication
+   * channel, pre-haves, an explicit want range) upgrades this.
    */
-  addPeer(peerId) {
-    this.#getOrCreatePeerState(peerId)
+  addPeer(deviceId, { assumeCoreKnown = true } = {}) {
+    this.#getOrCreatePeerState(deviceId, { assumeCoreKnown })
     this.#update()
   }
 
   /**
-   * @param {PeerId} peerId
+   * Remove all state for a peer, e.g. when its device disconnects.
+   *
+   * @param {DeviceId} deviceId
    */
-  disconnectPeer(peerId) {
-    const wasRemoved = this.#remoteStates.delete(peerId)
+  removePeer(deviceId) {
+    this.#channelPeers.delete(deviceId)
+    const wasRemoved = this.#remoteStates.delete(deviceId)
     if (wasRemoved) {
       this.#update()
     }
   }
 
   /**
-   * @param {PeerId} peerId
+   * @param {DeviceId} deviceId
+   * @param {object} [opts]
+   * @param {boolean} [opts.assumeCoreKnown=true] see {@link addPeer}
    */
-  #getOrCreatePeerState(peerId) {
-    if (peerId === this.#deviceId) return this.#localState
-    let peerState = this.#remoteStates.get(peerId)
+  #getOrCreatePeerState(deviceId, { assumeCoreKnown = true } = {}) {
+    if (deviceId === this.#deviceId) return this.#localState
+    let peerState = this.#remoteStates.get(deviceId)
     if (!peerState) {
-      peerState = new PeerState({
-        wantsEverything: !this.#hasDownloadFilter(peerId),
+      peerState = new PeerCoreState({
+        wantsEverything: assumeCoreKnown && !this.#hasDownloadFilter(deviceId),
+        coreKnown: assumeCoreKnown,
       })
-      this.#remoteStates.set(peerId, peerState)
+      this.#remoteStates.set(deviceId, peerState)
     }
     return peerState
   }
@@ -273,17 +319,37 @@ export class CoreSyncState {
    * @param {HypercorePeer} peer
    */
   #onPeerAdd = (peer) => {
-    const peerId = keyToId(peer.remotePublicKey)
+    const deviceId = keyToId(peer.remotePublicKey)
 
     // Update state to ensure this peer is in the state correctly
-    const peerState = this.#getOrCreatePeerState(peerId)
-    peerState.status = 'starting'
+    const peerState = this.#getOrCreatePeerState(deviceId)
+    // An open replication channel proves the peer knows this core
+    peerState.markCoreKnown(!this.#hasDownloadFilter(deviceId))
+    let channelPeers = this.#channelPeers.get(deviceId)
+    if (!channelPeers) {
+      channelPeers = { opening: new Set(), open: new Set() }
+      this.#channelPeers.set(deviceId, channelPeers)
+    }
+    channelPeers.opening.add(peer)
+    this.#deriveChannelState(deviceId)
 
-    this.#core?.update({ wait: true }).then(() => {
-      peerState.status = 'started'
-      peerState.contiguousLength = peer.remoteContiguousLength
-      this.#update()
-    })
+    this.#core?.update({ wait: true }).then(
+      () => {
+        if (this.#isClosed) return
+        // The peer may have disconnected, or its state replaced, while we
+        // were waiting for the length handshake
+        if (this.#remoteStates.get(deviceId) !== peerState) return
+        const channelPeers = this.#channelPeers.get(deviceId)
+        if (!channelPeers?.opening.delete(peer)) return
+        channelPeers.open.add(peer)
+        this.#deriveChannelState(deviceId)
+        peerState.contiguousLength = peer.remoteContiguousLength
+        this.#update()
+      },
+      () => {
+        // Ignore: hypercore rejects the pending update when the core closes
+      }
+    )
 
     // A peer can have a pre-emptive "have" bitfield received via an extension
     // message, but when the peer actually connects then we switch to the actual
@@ -294,9 +360,16 @@ export class CoreSyncState {
     this.#update()
 
     // We want to emit state when a peer's bitfield changes, which can happen as
-    // a result of these two internal calls.
+    // a result of these two internal calls. Hypercore dispatches wire messages
+    // by property lookup on this peer object (its channel's userData), so
+    // shadowing the two methods on the instance is the only interception
+    // point — wrapping the peer in a Proxy would never see these calls.
     const originalOnBitfield = peer.onbitfield
     const originalOnRange = peer.onrange
+    this.#patchedPeers.set(peer, {
+      onbitfield: originalOnBitfield,
+      onrange: originalOnRange,
+    })
     peer.onbitfield = (...args) => {
       originalOnBitfield.apply(peer, args)
       peerState.contiguousLength = peer.remoteContiguousLength
@@ -310,30 +383,82 @@ export class CoreSyncState {
   }
 
   /**
-   * Handle a peer being removed - keeps it in state, but marks it stopped
+   * Handle a peer being removed - keeps it in state, but marks the channel
+   * closed. State is fully removed only when the device disconnects (see
+   * `removePeer`).
    *
    * (defined as class field to bind to `this`)
    * @param {HypercorePeer} peer
    */
   #onPeerRemove = (peer) => {
-    const peerId = keyToId(peer.remotePublicKey)
-    const peerState = this.#remoteStates.get(peerId)
+    const original = this.#patchedPeers.get(peer)
+    if (original) {
+      peer.onbitfield = original.onbitfield
+      peer.onrange = original.onrange
+      this.#patchedPeers.delete(peer)
+    }
+    const deviceId = keyToId(peer.remotePublicKey)
+    const channelPeers = this.#channelPeers.get(deviceId)
+    if (channelPeers) {
+      channelPeers.opening.delete(peer)
+      channelPeers.open.delete(peer)
+      if (channelPeers.opening.size === 0 && channelPeers.open.size === 0) {
+        this.#channelPeers.delete(deviceId)
+      }
+    }
+    const peerState = this.#remoteStates.get(deviceId)
     if (!peerState) return
-    peerState.status = 'stopped'
+    // If the device has another live connection, re-point the haves bitfield
+    // at it: the removed hypercore peer's bitfield object is dead and would
+    // never receive further updates (overlapping-reconnect case). With no
+    // surviving connection, keep the last-known bitfield as a frozen
+    // snapshot of what the device had.
+    const survivor =
+      channelPeers &&
+      (channelPeers.open.values().next().value ??
+        channelPeers.opening.values().next().value)
+    if (survivor) {
+      peerState.setHavesBitfield(survivor.remoteBitfield)
+      peerState.contiguousLength = survivor.remoteContiguousLength
+    }
+    this.#deriveChannelState(deviceId)
     this.#update()
+  }
+
+  /**
+   * Set a device's channel state from its live hypercore peers: open if any
+   * connection has completed the length handshake, opening if any is still
+   * handshaking, otherwise closed.
+   *
+   * @param {DeviceId} deviceId
+   */
+  #deriveChannelState(deviceId) {
+    const peerState = this.#remoteStates.get(deviceId)
+    if (!peerState) return
+    const channelPeers = this.#channelPeers.get(deviceId)
+    if (
+      !channelPeers ||
+      (channelPeers.open.size === 0 && channelPeers.opening.size === 0)
+    ) {
+      peerState.channel = 'closed'
+    } else if (channelPeers.open.size > 0) {
+      peerState.channel = 'open'
+    } else {
+      peerState.channel = 'opening'
+    }
   }
 }
 
 /**
- * Sync state for a core for a peer. Uses an internal bitfield from Hypercore to
- * track which blocks the peer has. Default is that a peer wants all blocks, but
- * can set ranges of "wants". Setting a want range changes all other blocks to
- * "not wanted"
+ * Sync state for a core for a peer. Uses an internal bitfield from Hypercore
+ * to track which blocks the peer has. Default is that a peer wants all
+ * blocks, but can set ranges of "wants". Setting a want range changes all
+ * other blocks to "not wanted"
  *
  * @private
  * Only exported for testing
  */
-export class PeerState {
+export class PeerCoreState {
   /** @type {Bitfield} */
   #preHaves = new RemoteBitfield()
   /** @type {HypercoreRemoteBitfield | undefined} */
@@ -343,6 +468,14 @@ export class PeerState {
    * @type {null | Bitfield}
    */
   #wants
+  /**
+   * Do we have evidence that the peer knows this core exists (an open
+   * replication channel, pre-haves, or explicit want ranges)? While `false`,
+   * the peer is treated as wanting nothing from this core: fabricating wants
+   * for a core the peer may never learn about would block sync completion on
+   * a transfer that will never be requested.
+   */
+  #coreKnown
 
   /**
    * This is how many consecutive blocks the peer has
@@ -350,11 +483,26 @@ export class PeerState {
    * @type {number}
    */
   contiguousLength = 0
-  /** @type {PeerNamespaceState['status']} */
-  status = 'stopped'
+  /** @type {ChannelState} */
+  channel = 'closed'
 
-  constructor({ wantsEverything = true } = {}) {
+  constructor({ wantsEverything = true, coreKnown = true } = {}) {
     this.#wants = wantsEverything ? null : new RemoteBitfield()
+    this.#coreKnown = coreKnown
+  }
+
+  /**
+   * Record evidence that the peer knows this core exists. If there was no
+   * evidence before, the peer switches to the default assumption for what it
+   * wants.
+   *
+   * @param {boolean} wantsEverythingDefault `false` when a blob download
+   * filter means the peer only wants explicitly-requested ranges
+   */
+  markCoreKnown(wantsEverythingDefault) {
+    if (this.#coreKnown) return
+    this.#coreKnown = true
+    this.#wants = wantsEverythingDefault ? null : new RemoteBitfield()
   }
 
   get preHavesBitfield() {
@@ -386,6 +534,8 @@ export class PeerState {
    * @returns {void}
    */
   addWantRange(start, length) {
+    // Explicit wants are evidence the peer knows this core
+    this.#coreKnown = true
     this.#wants ??= new RemoteBitfield()
     this.#wants.setRange(start, length, true)
   }
@@ -394,6 +544,7 @@ export class PeerState {
    * @param {boolean} wantsEverything
    */
   setWantsEverything(wantsEverything) {
+    this.#coreKnown = true
     this.#wants = wantsEverything ? null : new RemoteBitfield()
   }
   /**
@@ -427,7 +578,7 @@ export class PeerState {
       const contiguousEnd = index + 32
       if (contiguousEnd <= this.contiguousLength) {
         // All 32 bits are within contiguous range
-        haveWord |= WANT_FULL
+        haveWord |= ALL_32_BITS
       } else {
         // Partial overlap: only some bits are within contiguous range
         const bitsInsideContiguous = this.contiguousLength - index
@@ -457,7 +608,7 @@ export class PeerState {
       // Create a mask of bits that are outside the contiguous range
       if (index >= this.contiguousLength) {
         // All 32 bits in this word are outside contiguous range
-        return WANT_FULL
+        return ALL_32_BITS
       }
       if (index + 32 <= this.contiguousLength) {
         // All 32 bits are within contiguous range, so peer doesn't want them
@@ -466,7 +617,7 @@ export class PeerState {
       // Partial overlap: some bits are within contiguous range
       const bitsInsideContiguous = this.contiguousLength - index
       // Mask out the bits that are inside the contiguous range
-      return ((1 << bitsInsideContiguous) - 1) ^ WANT_FULL
+      return ((1 << bitsInsideContiguous) - 1) ^ ALL_32_BITS
     }
     // Peer has specific want ranges - get those bits
     const wantWord = getBitfieldWord(this.#wants, index)
@@ -478,41 +629,41 @@ export class PeerState {
       return 0
     }
     const bitsInsideContiguous = this.contiguousLength - index
-    const mask = ((1 << bitsInsideContiguous) - 1) ^ WANT_FULL
+    const mask = ((1 << bitsInsideContiguous) - 1) ^ ALL_32_BITS
     return wantWord & mask
   }
 }
 
 /**
- * Derive count for each peer: "want"; "have"; "wanted".
+ * Derive the block counts for one core: what we have, what we still need to
+ * receive, and what we still need to send, in total and per peer.
+ *
+ * Peers whose role blocks syncing this core's namespace are excluded
+ * entirely: their blocks are not counted as needing to be sent or received,
+ * because they will never sync.
  *
  * @param {InternalState} coreState
  *
  * @private
- * Only exporteed for testing
+ * Only exported for testing
  */
-export function deriveState(coreState) {
+export function deriveCoreState(coreState) {
   const length = coreState.length || 0
   /** @type {LocalCoreState} */
-  const localState = { have: 0, want: 0, wanted: 0 }
-  /** @type {Record<PeerId, PeerNamespaceState>} */
-  const remoteStates = {}
+  const local = { have: 0, toReceive: 0, toSend: 0 }
+  /** @type {Record<DeviceId, PeerCoreDerivedState>} */
+  const devices = {}
 
-  /** @type {Map<PeerId, PeerState>} */
+  /** @type {Map<DeviceId, PeerCoreState>} */
   const peers = new Map()
-  for (const [peerId, peerState] of coreState.remoteStates.entries()) {
-    const psc = coreState.peerSyncControllers.get(peerId)
-    const isBlocked = psc?.syncCapability[coreState.namespace] === 'blocked'
-    // Currently we do not include blocked peers in sync state - it's unclear
-    // how to expose this state in a meaningful way for considering sync
-    // completion, because blocked peers do not sync.
-    if (isBlocked) continue
-    peers.set(peerId, peerState)
-    remoteStates[peerId] = {
+  for (const [deviceId, peerState] of coreState.remoteStates.entries()) {
+    if (!coreState.isPeerSyncAllowed(deviceId)) continue
+    peers.set(deviceId, peerState)
+    devices[deviceId] = {
       have: 0,
-      want: 0,
-      wanted: 0,
-      status: peerState.status,
+      toReceive: 0,
+      toSend: 0,
+      channel: peerState.channel,
     }
   }
 
@@ -521,32 +672,32 @@ export function deriveState(coreState) {
 
     const localHaves = coreState.localState.haveWord(i) & truncate
     const localWants = coreState.localState.wantWord(i) & truncate
-    localState.have += bitCount32(localHaves)
+    local.have += bitCount32(localHaves)
 
-    let someoneElseWantsFromMe = 0
-    let iWantFromSomeoneElse = 0
+    let someoneElseNeedsFromMe = 0
+    let iNeedFromSomeoneElse = 0
 
-    for (const [peerId, peer] of peers.entries()) {
+    for (const [deviceId, peer] of peers.entries()) {
       const peerHaves = peer.haveWord(i) & truncate
-      remoteStates[peerId].have += bitCount32(peerHaves)
+      devices[deviceId].have += bitCount32(peerHaves)
 
-      const theyWantFromMe = peer.wantWord(i) & ~peerHaves & localHaves
-      remoteStates[peerId].want += bitCount32(theyWantFromMe)
-      someoneElseWantsFromMe |= theyWantFromMe
+      const toSendToPeer = peer.wantWord(i) & ~peerHaves & localHaves
+      devices[deviceId].toSend += bitCount32(toSendToPeer)
+      someoneElseNeedsFromMe |= toSendToPeer
 
-      const iWantFromThem = peerHaves & ~localHaves & localWants
-      remoteStates[peerId].wanted += bitCount32(iWantFromThem)
-      iWantFromSomeoneElse |= iWantFromThem
+      const toReceiveFromPeer = peerHaves & ~localHaves & localWants
+      devices[deviceId].toReceive += bitCount32(toReceiveFromPeer)
+      iNeedFromSomeoneElse |= toReceiveFromPeer
     }
 
-    localState.wanted += bitCount32(someoneElseWantsFromMe)
-    localState.want += bitCount32(iWantFromSomeoneElse)
+    local.toSend += bitCount32(someoneElseNeedsFromMe)
+    local.toReceive += bitCount32(iNeedFromSomeoneElse)
   }
 
   return {
     coreLength: length,
-    localState,
-    remoteStates,
+    local,
+    devices,
   }
 }
 

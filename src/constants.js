@@ -10,12 +10,16 @@ export const NAMESPACES = /** @type {const} */ ([
   'blob',
 ])
 
+// The "initial" group syncs whenever a peer is connected (unless sync is
+// fully stopped): it carries membership, permissions, and metadata needed
+// before data sync can be meaningful. The "data" group only syncs while data
+// sync is turned on.
 /** @type {ReadonlyArray<Namespace>} */
-export const PRESYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
+export const INITIAL_SYNC_NAMESPACES = ['auth', 'config', 'blobIndex']
 
 /** @type {ReadonlyArray<Namespace>} */
-export const DATA_NAMESPACES = NAMESPACES.filter(
-  (namespace) => !PRESYNC_NAMESPACES.includes(namespace)
+export const DATA_SYNC_NAMESPACES = NAMESPACES.filter(
+  (namespace) => !INITIAL_SYNC_NAMESPACES.includes(namespace)
 )
 
 export const NAMESPACE_SCHEMAS = /** @type {const} */ ({

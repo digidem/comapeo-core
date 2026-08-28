@@ -123,8 +123,10 @@ const BLOCKED_ROLE = {
     ]
   }),
   roleAssignment: [],
+  // auth stays 'allowed' so a blocked device can still receive the role
+  // record telling it that it has been blocked.
   sync: {
-    auth: 'blocked',
+    auth: 'allowed',
     config: 'blocked',
     data: 'blocked',
     blobIndex: 'blocked',

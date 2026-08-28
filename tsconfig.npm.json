@@ -12,6 +12,7 @@
     "src/index.js",
     "src/schema.js",
     "src/migration.js",
+    "src/sync-state.js",
     "types/**/*.d.ts"
   ]
 }
