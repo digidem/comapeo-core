@@ -256,11 +256,18 @@ export async function needsMigration(corestorePath) {
 }
 
 /**
+ * @typedef {{ shouldUpgrade: true, reason: typeof MIGRATION_REASON_NEEDS_UPGRADE, useFallback: false }} ShouldUpgrade
+ * @typedef {{ shouldUpgrade: false, reason: typeof MIGRATION_REASON_ALREADY_UPGRADED, useFallback: false }} AlreadyUpgraded
+ * @typedef {{ shouldUpgrade: false, reason: typeof MIGRATION_REASON_NO_SPACE, spaceNeeded: number, useFallback: true }} NeedsSpace
+ * @typedef {ShouldUpgrade | AlreadyUpgraded | NeedsSpace} MigrationCheckResult
+ */
+
+/**
  * Checks if it makes sense to migrate. Are we already migrated? Do we have enough storage to migrate?
  * Available space needs to be at least 1.5x the largest core
  * @param {string} managerPath Folder where the MapeoManager stores its data
  * @param {number} availableStorage How much storage is available to migrate.
- * @returns {Promise<{shouldUpgrade:boolean, useFallback: boolean, reason: MigrationReason, spaceNeeded?: number}>}
+ * @returns {Promise<MigrationCheckResult>}
  */
 export async function checkShouldMigrate(managerPath, availableStorage) {
   const projectIds = await listProjectsFromStorage(managerPath)
