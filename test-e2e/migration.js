@@ -249,9 +249,9 @@ test('migrate hypercore storage', async (t) => {
     'Should have migration results for 4 projects'
   )
 
-  for (const { error, migrated } of Object.values(migrationResults)) {
-    assert.ok(migrated, 'migration successful')
-    assert.ok(!error, 'no error after migrating')
+  for (const result of Object.values(migrationResults)) {
+    assert.ok(result.migrated, 'migration successful')
+    assert.ok(!('error' in result), 'no error after migrating')
   }
 
   // Verify each project was successfully analyzed
@@ -262,9 +262,6 @@ test('migrate hypercore storage', async (t) => {
       result.migrated === true,
       `Project ${projectId} should have successful migration`
     )
-    if (result.error) {
-      console.error(`Project ${projectId} migration error:`, result.error)
-    }
   }
 
   const { shouldUpgrade: shouldUpgradeAgain, reason: migrateAgainReason } =
@@ -367,10 +364,10 @@ test('recover from hypercore migration failing', async (t) => {
     'Should have migration results for 1 project'
   )
 
-  for (const { error, migrated } of Object.values(migrationResults)) {
-    assert.ok(!migrated, 'migration failed')
+  for (const result of Object.values(migrationResults)) {
+    assert.ok(!result.migrated, 'migration failed')
     assert.equal(
-      error?.message,
+      result.error.message,
       'An unexpected error type occurred: Error: Simulate failed write',
       'no error after migrating'
     )
@@ -385,9 +382,9 @@ test('recover from hypercore migration failing', async (t) => {
     'Should have migration results for 1 project'
   )
 
-  for (const { error, migrated } of Object.values(migrationResults)) {
-    assert.ok(!error, 'no error after migrating')
-    assert.ok(migrated, 'migration successful')
+  for (const result of Object.values(migrationResults)) {
+    assert.ok(result.migrated, 'migration successful')
+    assert.ok(!('error' in result), 'no error after migrating')
   }
 })
 
@@ -527,7 +524,7 @@ test('migrate storage after one project has already migrated', async (t) => {
     'failed project migrated successfully on retry'
   )
   assert.ok(
-    !migrationResults2[failedProjectId].error,
+    !('error' in migrationResults2[failedProjectId]),
     'failed project had no error on retry'
   )
 
