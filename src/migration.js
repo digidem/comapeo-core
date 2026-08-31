@@ -256,9 +256,9 @@ export async function needsMigration(corestorePath) {
 }
 
 /**
- * @typedef {{ shouldUpgrade: true, reason: typeof MIGRATION_REASON_NEEDS_UPGRADE, useFallback: false }} ShouldUpgrade
- * @typedef {{ shouldUpgrade: false, reason: typeof MIGRATION_REASON_ALREADY_UPGRADED, useFallback: false }} AlreadyUpgraded
- * @typedef {{ shouldUpgrade: false, reason: typeof MIGRATION_REASON_NO_SPACE, spaceNeeded: number, useFallback: true }} NeedsSpace
+ * @typedef {{ shouldUpgrade: true, reason: typeof MIGRATION_REASON_NEEDS_UPGRADE }} ShouldUpgrade
+ * @typedef {{ shouldUpgrade: false, reason: typeof MIGRATION_REASON_ALREADY_UPGRADED }} AlreadyUpgraded
+ * @typedef {{ shouldUpgrade: false, reason: typeof MIGRATION_REASON_NO_SPACE, spaceNeeded: number }} NeedsSpace
  * @typedef {ShouldUpgrade | AlreadyUpgraded | NeedsSpace} MigrationCheckResult
  */
 
@@ -283,7 +283,6 @@ export async function checkShouldMigrate(managerPath, availableStorage) {
     if (requiredSpace >= availableStorage) {
       return {
         shouldUpgrade: false,
-        useFallback: true,
         reason: MIGRATION_REASON_NO_SPACE,
         spaceNeeded: requiredSpace - availableStorage,
       }
@@ -293,14 +292,12 @@ export async function checkShouldMigrate(managerPath, availableStorage) {
   if (!needsUpgrade) {
     return {
       shouldUpgrade: false,
-      useFallback: false,
       reason: MIGRATION_REASON_ALREADY_UPGRADED,
     }
   }
 
   return {
     shouldUpgrade: true,
-    useFallback: false,
     reason: MIGRATION_REASON_NEEDS_UPGRADE,
   }
 }
