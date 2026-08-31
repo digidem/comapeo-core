@@ -10,7 +10,7 @@ export const MIGRATION_REASON_NO_SPACE = 2
 
 export const AVAILABLE_SPACE_MULTIPLIER = 1.5
 
-/** @typedef {MIGRATION_REASON_NEEDS_UPGRADE|MIGRATION_REASON_ALREADY_UPGRADED|MIGRATION_REASON_NO_SPACE} MigrationReason*/
+/** @typedef {typeof MIGRATION_REASON_NEEDS_UPGRADE | typeof MIGRATION_REASON_ALREADY_UPGRADED | typeof MIGRATION_REASON_NO_SPACE} MigrationReason*/
 
 /**
  * List all project directories in a storage folder.
