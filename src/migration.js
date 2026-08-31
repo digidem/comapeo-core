@@ -156,6 +156,8 @@ export function makeDefaultCorestoreStorage(path) {
   })
 }
 
+/** @typedef {{ migrated: true } | { migrated: false, error: Error}} MigrationResult */
+
 /**
  * Run the hypercore-storage migration (v0 -> v1) for all projects in a MapeoManager storage folder.
  *
@@ -165,7 +167,7 @@ export function makeDefaultCorestoreStorage(path) {
  * @param {string} managerPath - Path to the MapeoManager storage folder
  * @param {(doneSoFar: number, totalCores: number) => void} [onProgress] - Callback called after each core migrates
  * @param {(path: string) => MigrationStorage} [makeStorage] - Storage factory, only overridden in tests
- * @returns {Promise<Record<string, { migrated: boolean, error?: Error }>>}
+ * @returns {Promise<Record<string, MigrationResult>>}
  *         Map of project IDs to migration status
  */
 export async function migrateStorage(
@@ -185,7 +187,7 @@ export async function migrateStorage(
     }
   }
 
-  /** @type {Record<string, { migrated: boolean, error?: Error }>} */
+  /** @type {Record<string, MigrationResult>} */
   const results = {}
   let migratedSoFar = 0
   onProgress?.(migratedSoFar, totalCoresToMigrate)
