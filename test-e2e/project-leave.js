@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
 import { temporaryDirectory } from 'tempy'
 
 import { generate } from '@mapeo/mock-data'
@@ -285,7 +286,16 @@ test('all data and config getters throw ProjectLeftError after leaving', async (
     ['$setProjectSettings', () => project.$setProjectSettings({ name: 'x' })],
     ['exportGeoJSONFile', () => project.exportGeoJSONFile('/tmp')],
     ['exportZipFile', () => project.exportZipFile('/tmp')],
-    ['$blobs', () => project.$blobs.getUrl('fake-id')],
+    [
+      '$blobs',
+      () =>
+        project.$blobs.getUrl({
+          driveId: randomBytes(32).toString('hex'),
+          name: randomBytes(8).toString('hex'),
+          type: 'video',
+          variant: 'original',
+        }),
+    ],
   ]
 
   for (const [name, fn] of projectLeftGetters) {
