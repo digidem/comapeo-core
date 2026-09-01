@@ -969,6 +969,7 @@ export class MapeoProject extends ReadyResource {
     })
   }
 
+  /** Leave the project and clear the data. Does not re-assign role when already left */
   async [kProjectLeave]() {
     const { roleId } = await this.$getOwnRole()
 
