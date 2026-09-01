@@ -970,9 +970,9 @@ export class MapeoProject extends ReadyResource {
   }
 
   async [kProjectLeave]() {
-    const ownRole = await this.$getOwnRole()
+    const { roleId } = await this.$getOwnRole()
 
-    if (ownRole.roleId !== BLOCKED_ROLE_ID) {
+    if (roleId !== BLOCKED_ROLE_ID && roleId !== LEFT_ROLE_ID) {
       await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
     }
 
