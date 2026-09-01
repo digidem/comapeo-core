@@ -418,6 +418,12 @@ export const ExhaustivenessError = createErrorClass({
   status: 500,
 })
 
+export const ProjectLeftError = createErrorClass({
+  code: 'PROJECT_LEFT_ERROR',
+  message: 'Project has been left',
+  status: 403,
+})
+
 export const PeerNotFoundError = createErrorClass({
   code: 'PEER_NOT_FOUND_ERROR',
   message: 'Peer not found',

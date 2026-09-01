@@ -63,6 +63,7 @@ import {
   nullIfNotFound,
   MultipleCategoryImportsError,
   UnexpectedDocSchemaError,
+  ProjectLeftError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 
@@ -118,6 +119,26 @@ const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
 /**
  * @type {ReadyResource & TypedEmitter<ProjectEvents>}
  */
+
+/**
+ * @template T
+ * @param {T} target
+ * @returns {T}
+ */
+function createProjectLeftMock(target) {
+  return /** @type {T} */ (
+    new Proxy(/** @type {object} */ (target), {
+      get(obj, prop) {
+        const value = Reflect.get(obj, prop)
+        if (typeof value === 'function') {
+          return () => Promise.reject(new ProjectLeftError())
+        }
+        return value
+      },
+    })
+  )
+}
+
 export class MapeoProject extends ReadyResource {
   #projectKey
   #deviceId
@@ -127,6 +148,7 @@ export class MapeoProject extends ReadyResource {
   #dataStores
   #dataTypes
   #blobStore
+  #blobApi
   #coreOwnership
   #roles
   #sqlite
@@ -141,6 +163,8 @@ export class MapeoProject extends ReadyResource {
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #importingCategories
+  /** @type {Boolean} */
+  #hasLeft = false
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
   #getFallbackProjectInfo
@@ -433,7 +457,7 @@ export class MapeoProject extends ReadyResource {
       console.error('BlobStore error', e)
     })
 
-    this.$blobs = new BlobApi({
+    this.#blobApi = new BlobApi({
       blobStore: this.#blobStore,
       getMediaBaseUrl: async () => {
         let base = await getMediaBaseUrl('blobs')
@@ -664,23 +688,36 @@ export class MapeoProject extends ReadyResource {
   }
 
   get observation() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.observation)
     return this.#dataTypes.observation
   }
   get track() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.track)
     return this.#dataTypes.track
   }
   get preset() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.preset)
     return this.#dataTypes.preset
   }
   get field() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.field)
     return this.#dataTypes.field
   }
 
   get remoteDetectionAlert() {
+    if (this.#hasLeft) {
+      return createProjectLeftMock(this.#dataTypes.remoteDetectionAlert)
+    }
     return this.#dataTypes.remoteDetectionAlert
   }
 
+  get $blobs() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#blobApi)
+    return this.#blobApi
+  }
+
   get $member() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#memberApi)
     return this.#memberApi
   }
 
@@ -689,6 +726,7 @@ export class MapeoProject extends ReadyResource {
   }
 
   get $translation() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#translationApi)
     return this.#translationApi
   }
 
@@ -697,6 +735,7 @@ export class MapeoProject extends ReadyResource {
    * @returns {Promise<EditableProjectSettings>}
    */
   async $setProjectSettings(settings) {
+    if (this.#hasLeft) throw new ProjectLeftError()
     const { projectSettings } = this.#dataTypes
 
     const existing = await projectSettings
@@ -860,6 +899,7 @@ export class MapeoProject extends ReadyResource {
    * @returns {import('./icon-api.js').IconApi}
    */
   get $icons() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#iconApi)
     return this.#iconApi
   }
 
@@ -898,6 +938,7 @@ export class MapeoProject extends ReadyResource {
     exportFolder,
     { observations = true, tracks = true, lang } = {}
   ) {
+    if (this.#hasLeft) throw new ProjectLeftError()
     return this.#dataExporter.exportGeoJSONFile(exportFolder, {
       observations,
       tracks,
@@ -919,6 +960,7 @@ export class MapeoProject extends ReadyResource {
     exportFolder,
     { observations = true, tracks = true, attachments = true, lang } = {}
   ) {
+    if (this.#hasLeft) throw new ProjectLeftError()
     return this.#dataExporter.exportZipFile(exportFolder, {
       observations,
       tracks,
@@ -927,13 +969,15 @@ export class MapeoProject extends ReadyResource {
     })
   }
 
+  /** Leave the project and clear the data. Does not re-assign role when already left */
   async [kProjectLeave]() {
-    const ownRole = await this.$getOwnRole()
+    const { roleId } = await this.$getOwnRole()
 
-    if (ownRole.roleId !== BLOCKED_ROLE_ID) {
+    if (roleId !== BLOCKED_ROLE_ID && roleId !== LEFT_ROLE_ID) {
       await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
     }
 
+    this.#hasLeft = true
     await this[kClearData]()
   }
 

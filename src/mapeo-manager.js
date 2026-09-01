@@ -13,7 +13,6 @@ import { IndexWriter } from './index-writer/index.js'
 import {
   MapeoProject,
   kBlobStore,
-  kClearData,
   kProjectLeave,
   kSetIsArchiveDevice,
   kSetOwnDeviceInfo,
@@ -588,7 +587,7 @@ export class MapeoManager extends TypedEmitter {
     // trying to create a project instance if we have marked the project as
     // "left".
     if (projectKeysTableResult.hasLeftProject) {
-      await project[kClearData]()
+      await project[kProjectLeave]()
     }
 
     // 3. Keep track of project instance as we know it's a properly existing project
