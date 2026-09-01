@@ -281,6 +281,11 @@ test('all data and config getters throw ProjectLeftError after leaving', async (
           size: 'large',
         }),
     ],
+    ['$member', () => project.$member.getMany()],
+    ['$setProjectSettings', () => project.$setProjectSettings({ name: 'x' })],
+    ['exportGeoJSONFile', () => project.exportGeoJSONFile('/tmp')],
+    ['exportZipFile', () => project.exportZipFile('/tmp')],
+    ['$blobs', () => project.$blobs.getUrl('fake-id')],
   ]
 
   for (const [name, fn] of projectLeftGetters) {
@@ -290,12 +295,6 @@ test('all data and config getters throw ProjectLeftError after leaving', async (
       `${name} should reject`
     )
   }
-
-  const members = await project.$member.getMany()
-  assert(
-    Array.isArray(members),
-    '$member.getMany() should still work after leaving'
-  )
 })
 
 test('leaving a project deletes data from disk', async (t) => {

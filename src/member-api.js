@@ -634,8 +634,7 @@ export class MemberApi extends TypedEmitter {
   async getMany({ includeLeft = false } = {}) {
     const [allRoles, allDeviceInfo] = await Promise.all([
       this.#roles.getAll(),
-      // If we can't get info due to leave, still allow listing
-      this.#dataTypes.deviceInfo.getMany().catch(() => []),
+      this.#dataTypes.deviceInfo.getMany(),
     ])
 
     const deviceInfoByConfigCoreId = keyBy(allDeviceInfo, ({ docId }) => docId)

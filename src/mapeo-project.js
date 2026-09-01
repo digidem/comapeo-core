@@ -148,6 +148,7 @@ export class MapeoProject extends ReadyResource {
   #dataStores
   #dataTypes
   #blobStore
+  #blobApi
   #coreOwnership
   #roles
   #sqlite
@@ -456,7 +457,7 @@ export class MapeoProject extends ReadyResource {
       console.error('BlobStore error', e)
     })
 
-    this.$blobs = new BlobApi({
+    this.#blobApi = new BlobApi({
       blobStore: this.#blobStore,
       getMediaBaseUrl: async () => {
         let base = await getMediaBaseUrl('blobs')
@@ -710,7 +711,13 @@ export class MapeoProject extends ReadyResource {
     return this.#dataTypes.remoteDetectionAlert
   }
 
+  get $blobs() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#blobApi)
+    return this.#blobApi
+  }
+
   get $member() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#memberApi)
     return this.#memberApi
   }
 
@@ -728,6 +735,7 @@ export class MapeoProject extends ReadyResource {
    * @returns {Promise<EditableProjectSettings>}
    */
   async $setProjectSettings(settings) {
+    if (this.#hasLeft) throw new ProjectLeftError()
     const { projectSettings } = this.#dataTypes
 
     const existing = await projectSettings
@@ -930,6 +938,7 @@ export class MapeoProject extends ReadyResource {
     exportFolder,
     { observations = true, tracks = true, lang } = {}
   ) {
+    if (this.#hasLeft) throw new ProjectLeftError()
     return this.#dataExporter.exportGeoJSONFile(exportFolder, {
       observations,
       tracks,
@@ -951,6 +960,7 @@ export class MapeoProject extends ReadyResource {
     exportFolder,
     { observations = true, tracks = true, attachments = true, lang } = {}
   ) {
+    if (this.#hasLeft) throw new ProjectLeftError()
     return this.#dataExporter.exportZipFile(exportFolder, {
       observations,
       tracks,
