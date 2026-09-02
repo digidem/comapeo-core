@@ -145,6 +145,11 @@ export class MapeoManager extends TypedEmitter {
   // Maps project public id -> project instance
   /** @type {Map<string, MapeoProject>} */
   #activeProjects
+  // Maps project public id -> in-flight getProject() promise. Prevents
+  // concurrent calls for the same not-yet-cached project from constructing
+  // multiple MapeoProject instances over the same storage.
+  /** @type {Map<string, Promise<MapeoProject>>} */
+  #pendingProjects
   /** @type {CoreStorage} */
   #coreStorage
   #dbFolder
@@ -243,6 +248,7 @@ export class MapeoManager extends TypedEmitter {
       logger,
     })
     this.#activeProjects = new Map()
+    this.#pendingProjects = new Map()
 
     this.#invite = new InviteApi({
       rpc: this.#localPeers,
@@ -525,9 +531,12 @@ export class MapeoManager extends TypedEmitter {
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
 
-    // Make sure to clean up when closed
+    // Make sure to clean up when closed, but only if this instance is still
+    // the cached one (a stale instance closing must not evict the live one).
     project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
+      if (this.#activeProjects.get(projectPublicId) === project) {
+        this.#activeProjects.delete(projectPublicId)
+      }
     })
 
     // 7. Load config, if relevant
@@ -559,6 +568,23 @@ export class MapeoManager extends TypedEmitter {
 
     if (activeProject) return activeProject
 
+    // If a getProject() for this project is already in flight, return the same
+    // promise so we don't construct a second MapeoProject instance over the
+    // same SQLite file / corestore directory.
+    const pendingProject = this.#pendingProjects.get(projectPublicId)
+    if (pendingProject) return pendingProject
+
+    const pending = this.#getProjectInternal(projectPublicId)
+    this.#pendingProjects.set(projectPublicId, pending)
+    try {
+      return await pending
+    } finally {
+      this.#pendingProjects.delete(projectPublicId)
+    }
+  }
+
+  /** @param {string} projectPublicId */
+  async #getProjectInternal(projectPublicId) {
     // 2. Create project instance
     const projectKeysTableResult = this.#db
       .select({
@@ -593,9 +619,12 @@ export class MapeoManager extends TypedEmitter {
     // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectPublicId, project)
 
-    // Make sure to clean up when closed
+    // Make sure to clean up when closed, but only if this instance is still
+    // the cached one (a stale instance closing must not evict the live one).
     project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
+      if (this.#activeProjects.get(projectPublicId) === project) {
+        this.#activeProjects.delete(projectPublicId)
+      }
     })
 
     return project
