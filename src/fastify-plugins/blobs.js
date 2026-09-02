@@ -99,10 +99,22 @@ async function routes(fastify, options) {
       }
 
       const { metadata } = entry.value
+      const totalLength = entry.value.blob.byteLength
+
+      // Without Content-Length (and, for seeking, Range support), iOS's
+      // AVPlayer can't determine the resource's duration and treats it as
+      // an indefinite live stream, which stalls forever instead of playing.
+      const range = parseRangeHeader(request.headers.range, totalLength)
 
       let blobStream
       try {
-        blobStream = await blobStore.createReadStreamFromEntry(driveId, entry)
+        blobStream = await blobStore.createReadStreamFromEntry(
+          driveId,
+          entry,
+          range
+            ? { wait: false, start: range.start, length: range.length }
+            : { wait: false }
+        )
       } catch (e) {
         reply.code(404)
         throw ensureKnownError(e)
@@ -119,6 +131,18 @@ async function routes(fastify, options) {
         } else {
           throw ensureKnownError(e)
         }
+      }
+
+      reply.header('Accept-Ranges', 'bytes')
+      if (range) {
+        reply.code(206)
+        reply.header(
+          'Content-Range',
+          `bytes ${range.start}-${range.end}/${totalLength}`
+        )
+        reply.header('Content-Length', range.length)
+      } else {
+        reply.header('Content-Length', totalLength)
       }
 
       // Extract the 'mimeType' property of the metadata and use it for the response header if found
@@ -148,6 +172,52 @@ async function routes(fastify, options) {
       return reply.send(blobStream)
     }
   )
+}
+
+/**
+ * Parses a single-range `Range: bytes=start-end` header (the only form
+ * clients like AVPlayer send for progressive download/seek requests).
+ * Returns null if the header is absent, malformed, or unsatisfiable, in
+ * which case the caller should fall back to serving the full resource.
+ *
+ * @param {string | undefined} rangeHeader
+ * @param {number} totalLength
+ * @returns {{ start: number, end: number, length: number } | null}
+ */
+function parseRangeHeader(rangeHeader, totalLength) {
+  if (!rangeHeader || totalLength === 0) return null
+
+  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader)
+  if (!match) return null
+
+  const [, startStr, endStr] = match
+  if (!startStr && !endStr) return null
+
+  let start
+  let end
+  if (startStr) {
+    start = Number(startStr)
+    end = endStr ? Number(endStr) : totalLength - 1
+  } else {
+    // Suffix range, e.g. `bytes=-500` means "the last 500 bytes"
+    const suffixLength = Number(endStr)
+    start = Math.max(0, totalLength - suffixLength)
+    end = totalLength - 1
+  }
+
+  if (
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
+    start < 0 ||
+    start > end ||
+    start >= totalLength
+  ) {
+    return null
+  }
+
+  end = Math.min(end, totalLength - 1)
+
+  return { start, end, length: end - start + 1 }
 }
 
 /**
