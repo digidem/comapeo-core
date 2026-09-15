@@ -1,4 +1,5 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { pEventIterator } from 'p-event'
 import { InviteResponse_Decision } from '../generated/rpc.js'
 import { keyToId, noop } from '../utils.js'
 import HashMap from '../lib/hashmap.js'
@@ -263,6 +264,22 @@ export class InviteApi extends TypedEmitter {
       invites.push(toInvite(value, snapshot, peerId))
     }
     return invites
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<Invite>}
+   */
+  async *watchInviteReceived({ signal } = {}) {
+    yield* pEventIterator(this, 'invite-received', { signal })
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<Invite>}
+   */
+  async *watchInviteUpdated({ signal } = {}) {
+    yield* pEventIterator(this, 'invite-updated', { signal })
   }
 
   /**
