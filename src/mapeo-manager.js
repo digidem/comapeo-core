@@ -16,6 +16,7 @@ import {
   kProjectLeave,
   kSetIsArchiveDevice,
   kSetOwnDeviceInfo,
+  kClearData,
 } from './mapeo-project.js'
 import {
   deviceSettingsTable,
