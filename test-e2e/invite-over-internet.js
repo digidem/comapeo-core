@@ -19,6 +19,7 @@ import {
   InviteAbortedError,
   JoinProjectCancelledError,
   UnknownInviteIDError,
+  InviteConnectionError,
 } from '../src/errors.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
 import { temporaryDirectory } from 'tempy'
@@ -335,7 +336,9 @@ test('invite over internet errors if invitor deviceID is invalid', async (t) => 
   invitee.inviteLinks.createJoinRequest(modifiedUrl, { timeout: 1000 })
   await assert.rejects(
     awaitJoinComplete(invitee.inviteLinks, inviteId, { timeout: 2000 }),
-    (err) => ensureKnownError(err).code === TimeoutError.code
+    (err) =>
+      err instanceof InviteConnectionError &&
+      ensureKnownError(err.cause).code === TimeoutError.code
   )
 })
 
@@ -383,7 +386,9 @@ test('invite over internet errors if inviter closes before accepting', async (t)
     assert.rejects(
       onJoinComplete,
       (err) =>
-        ensureKnownError(err).code === InviteRedeemConnectionClosedError.code
+        err instanceof InviteConnectionError &&
+        ensureKnownError(err.cause).code ===
+          InviteRedeemConnectionClosedError.code
     ),
     // Close the invitor before accepting
     invitor.close(),
