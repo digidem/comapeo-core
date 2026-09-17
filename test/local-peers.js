@@ -6,7 +6,7 @@ import { on, once } from 'events'
 import { replicate } from './helpers/local-peers.js'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import Protomux from 'protomux'
 import {
   DeviceInfo_RPCFeatures,

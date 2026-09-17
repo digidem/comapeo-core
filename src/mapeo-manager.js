@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto'
 import path from 'path'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import Database from 'better-sqlite3'
 import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
@@ -13,7 +13,6 @@ import { IndexWriter } from './index-writer/index.js'
 import {
   MapeoProject,
   kBlobStore,
-  kClearData,
   kProjectLeave,
   kSetIsArchiveDevice,
   kSetOwnDeviceInfo,
@@ -162,6 +161,11 @@ export class MapeoManager extends TypedEmitter {
   // Maps project public id -> project instance
   /** @type {Map<string, MapeoProject>} */
   #activeProjects
+  // Maps project public id -> in-flight getProject() promise. Prevents
+  // concurrent calls for the same not-yet-cached project from constructing
+  // multiple MapeoProject instances over the same storage.
+  /** @type {Map<string, Promise<MapeoProject>>} */
+  #pendingProjects
   /** @type {CoreStorage} */
   #coreStorage
   #dbFolder
@@ -187,6 +191,7 @@ export class MapeoManager extends TypedEmitter {
   /**
    * @param {Object} opts
    * @param {Buffer} opts.rootKey 16-bytes of random data that uniquely identify the device, used to derive a 32-byte master key, which is used to derive all the keypairs used for Mapeo
+   * @param {Buffer} [opts.masterKey] Previously derived 32-byte master key for `opts.rootKey`; skips the expensive derivation. See `@comapeo/crypto`
    * @param {string} opts.dbFolder Folder for sqlite Dbs. Folder must exist. Use ':memory:' to store everything in-memory
    * @param {string} opts.projectMigrationsFolder path for drizzle migrations folder for project database
    * @param {string} opts.clientMigrationsFolder path for drizzle migrations folder for client database
@@ -203,6 +208,7 @@ export class MapeoManager extends TypedEmitter {
    */
   constructor({
     rootKey,
+    masterKey,
     dbFolder,
     projectMigrationsFolder,
     clientMigrationsFolder,
@@ -218,7 +224,7 @@ export class MapeoManager extends TypedEmitter {
     makeWebsocket = (url) => new WebSocket(url),
   }) {
     super()
-    this.#keyManager = new KeyManager(rootKey)
+    this.#keyManager = new KeyManager(rootKey, { masterKey })
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#defaultConfigPath = defaultConfigPath
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
@@ -293,6 +299,7 @@ export class MapeoManager extends TypedEmitter {
       logger,
     })
     this.#activeProjects = new Map()
+    this.#pendingProjects = new Map()
 
     this.#invite = new InviteApi({
       rpc: this.#localPeers,
@@ -637,9 +644,12 @@ export class MapeoManager extends TypedEmitter {
     // TODO: Close the project instance instead of keeping it around
     this.#activeProjects.set(projectPublicId, project)
 
-    // Make sure to clean up when closed
+    // Make sure to clean up when closed, but only if this instance is still
+    // the cached one (a stale instance closing must not evict the live one).
     project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
+      if (this.#activeProjects.get(projectPublicId) === project) {
+        this.#activeProjects.delete(projectPublicId)
+      }
     })
 
     // 7. Load config, if relevant
@@ -671,6 +681,23 @@ export class MapeoManager extends TypedEmitter {
 
     if (activeProject) return activeProject
 
+    // If a getProject() for this project is already in flight, return the same
+    // promise so we don't construct a second MapeoProject instance over the
+    // same SQLite file / corestore directory.
+    const pendingProject = this.#pendingProjects.get(projectPublicId)
+    if (pendingProject) return pendingProject
+
+    const pending = this.#getProjectInternal(projectPublicId)
+    this.#pendingProjects.set(projectPublicId, pending)
+    try {
+      return await pending
+    } finally {
+      this.#pendingProjects.delete(projectPublicId)
+    }
+  }
+
+  /** @param {string} projectPublicId */
+  async #getProjectInternal(projectPublicId) {
     // 2. Create project instance
     const projectKeysTableResult = this.#db
       .select({
@@ -699,15 +726,18 @@ export class MapeoManager extends TypedEmitter {
     // trying to create a project instance if we have marked the project as
     // "left".
     if (projectKeysTableResult.hasLeftProject) {
-      await project[kClearData]()
+      await project[kProjectLeave]()
     }
 
     // 3. Keep track of project instance as we know it's a properly existing project
     this.#activeProjects.set(projectPublicId, project)
 
-    // Make sure to clean up when closed
+    // Make sure to clean up when closed, but only if this instance is still
+    // the cached one (a stale instance closing must not evict the live one).
     project.once('close', () => {
-      this.#activeProjects.delete(projectPublicId)
+      if (this.#activeProjects.get(projectPublicId) === project) {
+        this.#activeProjects.delete(projectPublicId)
+      }
     })
 
     return project

@@ -450,6 +450,27 @@ test('CRUD operations', async (t) => {
   }
 })
 
+test('getProject() de-duplicates concurrent calls for the same project', async (t) => {
+  const manager = createManager('device0', t)
+  const projectId = await manager.createProject()
+  const project = await manager.getProject(projectId)
+  // Close it so it is evicted from the cache, forcing the next getProject()
+  // calls to construct a fresh instance.
+  await project.close()
+
+  const projects = await Promise.all(
+    Array.from({ length: 10 }, () => manager.getProject(projectId))
+  )
+
+  for (const p of projects) {
+    assert.equal(
+      p,
+      projects[0],
+      'concurrent getProject() calls return the same instance'
+    )
+  }
+})
+
 function trackPositionFixture() {
   return {
     timestamp: randomDate().toISOString(),

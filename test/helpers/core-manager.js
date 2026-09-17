@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import fsPromises from 'node:fs/promises'
 
 import Sqlite from 'better-sqlite3'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'

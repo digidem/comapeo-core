@@ -1,6 +1,6 @@
 import { MapeoProject } from '../dist/mapeo-project.js'
 import { randomBytes } from 'crypto'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import {
   Field,
   FieldValue,

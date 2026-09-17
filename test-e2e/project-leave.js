@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as fs from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
 import { temporaryDirectory } from 'tempy'
 
 import { generate } from '@mapeo/mock-data'
@@ -249,6 +250,61 @@ test('Data access after leaving project', async (t) => {
   await assert.rejects(async () => {
     await coordinatorProject.$setProjectSettings({ name: 'foo' })
   }, 'coordinator cannot update project settings after leaving')
+})
+
+test('all data and config getters throw ProjectLeftError after leaving', async (t) => {
+  const [manager] = await createManagers(1, t)
+
+  const projectId = await manager.createProject({ name: 'mapeo' })
+  const project = await manager.getProject(projectId)
+
+  await manager.leaveProject(projectId)
+
+  /** @type {[string, () => any][]} */
+  const projectLeftGetters = [
+    ['observation', () => project.observation.getMany()],
+    ['track', () => project.track.getMany()],
+    ['remoteDetectionAlert', () => project.remoteDetectionAlert.getMany()],
+    ['preset', () => project.preset.getMany()],
+    ['field', () => project.field.getMany()],
+    [
+      '$translation',
+      () =>
+        // @ts-ignore
+        project.$translation.get({}),
+    ],
+    [
+      '$icons',
+      () =>
+        project.$icons.getIconUrl('example', {
+          mimeType: 'image/png',
+          pixelDensity: 1,
+          size: 'large',
+        }),
+    ],
+    ['$member', () => project.$member.getMany()],
+    ['$setProjectSettings', () => project.$setProjectSettings({ name: 'x' })],
+    ['exportGeoJSONFile', () => project.exportGeoJSONFile('/tmp')],
+    ['exportZipFile', () => project.exportZipFile('/tmp')],
+    [
+      '$blobs',
+      () =>
+        project.$blobs.getUrl({
+          driveId: randomBytes(32).toString('hex'),
+          name: randomBytes(8).toString('hex'),
+          type: 'video',
+          variant: 'original',
+        }),
+    ],
+  ]
+
+  for (const [name, fn] of projectLeftGetters) {
+    await assert.rejects(
+      fn,
+      { name: 'ProjectLeftError' },
+      `${name} should reject`
+    )
+  }
 })
 
 test('leaving a project deletes data from disk', async (t) => {

@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes, createHash } from 'crypto'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import RAM from 'random-access-memory'
 import { createManager } from './utils.js'
 import { MapeoProject } from '../src/mapeo-project.js'

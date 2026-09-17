@@ -3,10 +3,10 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import net from 'node:net'
 import { every } from 'iterpal'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import pDefer from 'p-defer'
-import { keyToPublicId } from '@mapeo/crypto'
+import { keyToPublicId } from '@comapeo/crypto'
 import {
   ERR_DUPLICATE,
   LocalDiscovery,

@@ -1,4 +1,4 @@
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import Fastify from 'fastify'
 import assert from 'node:assert/strict'
 import fsPromises from 'node:fs/promises'

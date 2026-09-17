@@ -4,7 +4,7 @@ import { once } from 'node:events'
 import { compact, concat, map, every, first } from 'iterpal'
 import { onTimes } from './helpers/events.js'
 import { randomBytes } from 'crypto'
-import { KeyManager } from '@mapeo/crypto'
+import { KeyManager } from '@comapeo/crypto'
 import { LocalPeers } from '../src/local-peers.js'
 import { InviteApi } from '../src/invite/invite-api.js'
 import {

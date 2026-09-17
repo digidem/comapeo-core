@@ -1,5 +1,5 @@
 import sodium from 'sodium-universal'
-import { keyToPublicId } from '@mapeo/crypto'
+import { keyToPublicId } from '@comapeo/crypto'
 import { createHash } from 'node:crypto'
 import stableStringify from 'json-stable-stringify'
 import { omit } from './lib/omit.js'
@@ -165,7 +165,7 @@ export function projectIdToNonce(projectId) {
 }
 
 /**
- * @param {import('@mapeo/crypto').KeyManager} keyManager
+ * @param {import('@comapeo/crypto').KeyManager} keyManager
  * @returns {string}
  */
 export function getDeviceId(keyManager) {
