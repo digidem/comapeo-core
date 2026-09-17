@@ -54,7 +54,7 @@ const [{
   roleId,
   createdAt,
   expiresAt,
-}] = await project.$member.listInviteLinks(url)
+}] = await project.$member.listInviteLinks()
 ```
 
 ## Invitee Flow
@@ -72,6 +72,8 @@ const {
 // Listen for join progress updates
 // update.status: 'connecting' | 'connected' | 'accepted' | 'completed' | 'failed'
 // update.projectId is set on 'completed'
+// update.inviteId can be used to differantiat between concurrent invites
+// update.url is te original URL
 // update.error is set on 'failed'
 manager.inviteLinks.on('join-request-update', (update) => {
   switch (update.status) {
@@ -91,6 +93,15 @@ manager.inviteLinks.on('join-request-update', (update) => {
       break
     case 'failed':
       // Join failed — update.error has the reason
+      // InviteConnectionError — network failure (see .cause for details)
+      // JoinProjectCancelledError
+      // InviteDeniedByInviterError
+      // UnknownInviteIDError
+      // AlreadyJoinedError
+      // ProjectExistsError
+      // InviteNotFoundError
+      // InviteSendError
+      // UnknownError
       break
   }
 })

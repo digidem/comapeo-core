@@ -458,6 +458,12 @@ export const InviteRedeemConnectionClosedError = createErrorClass({
   status: 408,
 })
 
+export const InviteConnectionError = createErrorClass({
+  code: 'INVITE_CONNECTION_ERROR',
+  message: 'Network error during invite join',
+  status: 502,
+})
+
 export const InviteNotFoundError = createErrorClass({
   code: 'INVITE_NOT_FOUND_ERROR',
   message: 'Cannot find invite {inviteId}',

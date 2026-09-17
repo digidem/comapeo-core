@@ -4,9 +4,33 @@ import { parseInviteURL } from './invite-urls.js'
 import {
   ExistingJoinRequestError,
   InviteRedeemConnectionClosedError,
+  InviteConnectionError,
   JoinRequestNotFoundError,
   JoinProjectCancelledError,
+  TimeoutError,
+  PeerDisconnectedError,
+  RPCDisconnectBeforeSendingError,
+  RPCDisconnectBeforeAckError,
+  UnknownPeerError,
+  InitialSyncFailedError,
+  UntrustedRPCMethodError,
+  ensureKnownError,
 } from '../errors.js'
+
+/**
+ * Error codes that indicate a network/transport failure
+ * @type {Set<string>}
+ */
+const NETWORK_ERROR_CODES = new Set([
+  TimeoutError.code,
+  InviteRedeemConnectionClosedError.code,
+  PeerDisconnectedError.code,
+  RPCDisconnectBeforeSendingError.code,
+  RPCDisconnectBeforeAckError.code,
+  UnknownPeerError.code,
+  InitialSyncFailedError.code,
+  UntrustedRPCMethodError.code,
+])
 
 /** @import { RemoteDiscovery } from '../discovery/remote-discovery.js' */
 /** @import { LocalPeers } from '../local-peers.js' */
@@ -218,7 +242,7 @@ export class InviteLinkJoiner extends TypedEmitter {
     } catch (e) {
       // Failed
       joinRequest.status = 'failed'
-      joinRequest.error = /** @type {Error} */ (e)
+      joinRequest.error = wrapNetworkError(e)
       this.#emitUpdate(joinRequest)
 
       try {
@@ -288,3 +312,16 @@ export class InviteLinkJoiner extends TypedEmitter {
 
 /** @param {unknown} _x */
 function noop(_x) {}
+
+/**
+ * Wrap network/transport errors in an InviteConnectionError, pass others through.
+ * @param {unknown} e
+ * @returns {Error}
+ */
+function wrapNetworkError(e) {
+  const err = ensureKnownError(e)
+  if (NETWORK_ERROR_CODES.has(err.code)) {
+    return new InviteConnectionError({ cause: err })
+  }
+  return err
+}
