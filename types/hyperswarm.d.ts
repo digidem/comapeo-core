@@ -67,6 +67,7 @@ declare module 'hyperdht/testnet.js' {
   class TestNet {
     nodes: HyperDHT[]
     bootstrap: string[]
+    createNode(opts?: object): HyperDHT
     destroy(): Promise<void>
   }
 
