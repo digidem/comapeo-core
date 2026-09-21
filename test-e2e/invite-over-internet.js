@@ -131,6 +131,9 @@ test('invite over internet and join from URL', async (t) => {
 })
 
 test('invite over internet, close, reopen, and join from URL', async (t) => {
+  const testnet = await createTestnet(2)
+  t.after(() => testnet.destroy())
+
   const dbFolder = temporaryDirectory()
   const coreStorage = temporaryDirectory()
   const directories = [dbFolder, coreStorage]
@@ -148,8 +151,11 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
   let invitor = createManager('invitor', t, {
     coreStorage,
     dbFolder,
+    swarm: { dht: testnet.createNode() },
   })
-  const invitee = createManager('invitee', t)
+  const invitee = createManager('invitee', t, {
+    swarm: { dht: testnet.nodes[0] },
+  })
 
   await invitor.setDeviceInfo({ name: 'invitor', deviceType: 'desktop' })
   await invitee.setDeviceInfo({ name: 'invitee', deviceType: 'desktop' })
@@ -169,6 +175,7 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
   invitor = createManager('invitor', t, {
     coreStorage,
     dbFolder,
+    swarm: { dht: testnet.nodes[0] },
   })
 
   project = await invitor.getProject(projectId)
