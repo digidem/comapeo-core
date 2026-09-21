@@ -44,6 +44,7 @@ import {
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
+import { InviteLinksApiForProject } from './invite/invite-links-api.js'
 import { MemberApi } from './member-api.js'
 import {
   SyncApi,
@@ -142,6 +143,7 @@ function createProjectLeftMock(target) {
 export class MapeoProject extends ReadyResource {
   #projectKey
   #deviceId
+  #getSwarmPublicKey
   #identityKeypair
   #coreManager
   #indexWriter
@@ -175,6 +177,7 @@ export class MapeoProject extends ReadyResource {
    * @param {string} opts.projectMigrationsFolder path for drizzle migration folder for project
    * @param {import('@comapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
+   * @param {() => Buffer} opts.getSwarmPublicKey Get the current 32 byte public key used for hyperswarm connections
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
@@ -183,8 +186,11 @@ export class MapeoProject extends ReadyResource {
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
+   * @param {import('./invite/invite-links-api.js').InviteLinksApi} opts.inviteLinks
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
+   * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
+   * @param {(deviceId: string) => Promise<void>} opts.disconnectFromPeer
    * @param {Logger} [opts.logger]
    *
    */
@@ -201,14 +207,19 @@ export class MapeoProject extends ReadyResource {
     getMediaBaseUrl,
     makeWebsocket = (url) => new WebSocket(url),
     localPeers,
+    inviteLinks,
     logger,
     isArchiveDevice,
     getFallbackProjectInfo,
+    markInternetPeerAsTrusted,
+    disconnectFromPeer,
+    getSwarmPublicKey,
   }) {
     super()
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
+    this.#getSwarmPublicKey = getSwarmPublicKey
     this.#projectKey = projectKey
     this.#importingCategories = false
     this.#getFallbackProjectInfo = getFallbackProjectInfo
@@ -427,19 +438,38 @@ export class MapeoProject extends ReadyResource {
     this.#memberApi = new MemberApi({
       deviceId: this.#deviceId,
       roles: this.#roles,
-      coreOwnership: this.#coreOwnership,
       encryptionKeys,
-      getProjectName: this.#getProjectName.bind(this),
       projectKey,
       rpc: localPeers,
+      inviteLinks: new InviteLinksApiForProject(
+        this.#projectPublicId,
+        inviteLinks
+      ),
+      getSwarmPublicKey: this.#getSwarmPublicKey,
       makeWebsocket,
       getReplicationStream,
       waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
         this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
-      dataTypes: {
-        deviceInfo: this.#dataTypes.deviceInfo,
-        project: this.#dataTypes.projectSettings,
+      getProjectSettings: () => this.$getProjectSettings(),
+      getDeviceInfo: async (deviceId) => {
+        try {
+          return await this.#dataTypes.deviceInfo.getByDocId(deviceId)
+        } catch (e) {
+          const configCoreId = await this.#coreOwnership.getCoreId(
+            deviceId,
+            'config'
+          )
+          return this.#dataTypes.deviceInfo.getByDocId(configCoreId)
+        }
       },
+      setDeviceInfo: async (deviceId, deviceInfo) => {
+        await this.#dataTypes.deviceInfo[kCreateOrUpdateWithDocId](
+          deviceId,
+          deviceInfo
+        )
+      },
+      markInternetPeerAsTrusted,
+      disconnectFromPeer,
       logger: this.#l,
     })
 
@@ -622,9 +652,11 @@ export class MapeoProject extends ReadyResource {
   }
 
   /**
+   * Clear up resources via ready-resource
    */
   async _close() {
     this.#l.log('closing project %h', this.#projectId)
+    await this.#memberApi.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())

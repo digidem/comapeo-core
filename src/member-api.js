@@ -1,20 +1,21 @@
 import * as b4a from 'b4a'
 import * as crypto from 'node:crypto'
 import WebSocket from 'ws'
-import { TypedEmitter } from 'tiny-typed-emitter'
 import { pEvent } from 'p-event'
-import { InviteResponse_Decision } from './generated/rpc.js'
+import {
+  InviteResponse_Decision,
+  DenyInviteOverInternet_DenyReason,
+} from './generated/rpc.js'
 import {
   noop,
-  projectKeyToId,
   projectKeyToProjectInviteId,
   projectKeyToPublicId,
 } from './utils.js'
 import { Logger } from './logger.js'
-import { keyBy } from './lib/key-by.js'
 import { abortSignalAny } from './lib/ponyfills.js'
 import timingSafeEqual from 'string-timing-safe-equal'
 import { isHostnameIpAddress } from './lib/is-hostname-ip-address.js'
+import { TypedEmitter } from 'tiny-typed-emitter'
 import {
   AlreadyBlockedError,
   DeviceIdNotForServerError,
@@ -35,7 +36,13 @@ import {
   AlreadyInvitingError,
   InvalidResponseBodyError,
   RPCDisconnectBeforeAckError,
+  InvalidInternetInviteURLError,
+  InviteAlreadyRedeemedError,
+  InviteNotYetRedeemedError,
+  PeerDisconnectedSinceRedeemingInviteError,
+  UnknownInviteIDError,
   CannotBlockSelfError,
+  InitialSyncFailedError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
@@ -47,9 +54,14 @@ import {
   ROLES,
   isRoleIdForNewInvite,
 } from './roles.js'
-import { kCreateOrUpdateWithDocId } from './datatype/index.js'
+import { DEFAULT_INVITE_EXPIRY_MS } from './invite/invite-links-api.js'
+import { makeInviteURL, parseInviteURL } from './invite/invite-urls.js'
 
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
+
+export const kHandleRedeemInviteOverInternet = Symbol(
+  'handleRedeemInviteOverInternet'
+)
 
 /**
  * @import {
@@ -59,16 +71,20 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  *   ProjectSettingsValue,
  * } from '@comapeo/schema'
  */
-/** @import { Promisable } from 'type-fest' */
-/** @import { DeviceInfo_DeviceType, Invite, InviteResponse } from './generated/rpc.js' */
+/** @import { Invite, InviteResponse } from './generated/rpc.js' */
 /** @import { DataType } from './datatype/index.js' */
 /** @import { DataStore } from './datastore/index.js' */
 /** @import { deviceInfoTable } from './schema/project.js' */
 /** @import { projectSettingsTable } from './schema/client.js' */
-/** @import { ReplicationStream } from './types.js' */
+/** @import { ReplicationStream, MapeoValueMap } from './types.js' */
+/** @import { PeerInfoDisconnected } from './local-peers.js' */
+/** @import { InviteLinkRecord } from './invite/invite-links-api.js' */
+/** @import { InviteLinksApiForProject } from './invite/invite-links-api.js' */
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
+/** @typedef {import('./datatype/index.js').ExcludeSchema<MapeoValueMap['deviceInfo'], 'coreOwnership'>} NewDeviceInfo */
+
 /**
  * @typedef {object} MemberInfo
  * @prop {string} deviceId
@@ -81,76 +97,322 @@ const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
  */
 
 /**
+ * @typedef {Pick<DeviceInfo, 'name'|'deviceType'|'selfHostedServerDetails'|'createdAt'>} MemberDeviceInfo
+ */
+
+/**
  * @typedef {object} InvitePeerInfo
  * @prop {DeviceInfo['name']} name
  * @prop {DeviceInfo['deviceType']} deviceType
  */
 
 /**
+ * @typedef {object} InviteOptions
+ * @prop {import('./roles.js').RoleIdForNewInvite} opts.roleId
+ * @prop {string} [roleName]
+ * @prop {string} [roleDescription]
+ * @prop {boolean} [leaveOnFail]
+ * @prop {Buffer} [__testOnlyInviteId] Hard-code the invite ID. Only for tests.
+ * @prop {number} [initialSyncTimeoutMs=5000]
+ * @prop {InvitePeerInfo} [peerInfo]
+ */
+
+/**
+ * @typedef {(
+ *   typeof InviteResponse_Decision.ACCEPT |
+ *   typeof InviteResponse_Decision.REJECT |
+ *   typeof InviteResponse_Decision.ALREADY
+ * )} InviteDecision
+ */
+
+/**
  * @typedef {Omit<MemberInfo, 'role'> & {role: import('./roles.js').Role<typeof MEMBER_ROLE_ID | typeof COORDINATOR_ROLE_ID | typeof CREATOR_ROLE_ID>}} ActiveMemberInfo
  */
 
+/**
+ * @typedef {object} MemberEvents
+ */
+
+/**
+ * @extends {TypedEmitter<MemberEvents>}
+ */
 export class MemberApi extends TypedEmitter {
   #ownDeviceId
   #roles
-  #coreOwnership
   #encryptionKeys
-  #getProjectName
   #projectKey
   #rpc
   #makeWebsocket
   #getReplicationStream
   #waitForInitialSyncWithPeer
-  #dataTypes
+  #markInternetPeerAsTrusted
+  #disconnectFromPeer
+  #getProjectSettings
+  #getDeviceInfo
+  #setDeviceInfo
+  #getSwarmPublicKey
+  #inviteLinks
   #l
 
   /** @type {Map<string, { abortController: AbortController }>} */
   #outboundInvitesByDevice = new Map()
 
+  /** Track which device IDs have redeemed each invite (by inviteId) */
+  /** @type {Map<string, Set<string>>} */
+  #redeemedInvites = new Map()
+
   /**
    * @param {Object} opts
    * @param {string} opts.deviceId public key of this device as hex string
-   * @param {import('./roles.js').Roles} opts.roles
-   * @param {import('./core-ownership.js').CoreOwnership} opts.coreOwnership
+   * @param {() => Buffer} opts.getSwarmPublicKey
+   * @param {Pick<import('./roles.js').Roles, 'getAll' | 'assignRole' | 'getRole'>} opts.roles
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys
-   * @param {() => Promisable<undefined | string>} opts.getProjectName
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
+   * @param {Pick<InviteLinksApiForProject,'create'|'delete'|'deleteAll'|'getAll'|'getById'>} opts.inviteLinks
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
-   * @param {Object} opts.dataTypes
-   * @param {Pick<DeviceInfoDataType, 'getByDocId' | 'getMany' | kCreateOrUpdateWithDocId>} opts.dataTypes.deviceInfo
-   * @param {Pick<ProjectDataType, 'getByDocId'>} opts.dataTypes.project
+   * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
+   * @param {(deviceId: string) => Promise<void>} opts.disconnectFromPeer
+   * @param {() => Promise<import('./mapeo-project.js').EditableProjectSettings>} opts.getProjectSettings
+   * @param {(deviceId: string) => Promise<MemberDeviceInfo>} opts.getDeviceInfo
+   * @param {(deviceId: string, deviceInfo: NewDeviceInfo) => Promise<void>} opts.setDeviceInfo
    * @param {Logger} [opts.logger]
    */
   constructor({
     deviceId,
     roles,
-    coreOwnership,
     encryptionKeys,
-    getProjectName,
     projectKey,
     rpc,
+    inviteLinks,
     makeWebsocket = (url) => new WebSocket(url),
     getReplicationStream,
     waitForInitialSyncWithPeer,
-    dataTypes,
+    markInternetPeerAsTrusted,
+    disconnectFromPeer,
+    getProjectSettings,
+    getDeviceInfo,
+    setDeviceInfo,
+    getSwarmPublicKey,
     logger,
   }) {
     super()
     this.#l = Logger.create('member-api', logger)
     this.#ownDeviceId = deviceId
     this.#roles = roles
-    this.#coreOwnership = coreOwnership
     this.#encryptionKeys = encryptionKeys
-    this.#getProjectName = getProjectName
     this.#projectKey = projectKey
     this.#rpc = rpc
+    this.#inviteLinks = inviteLinks
     this.#makeWebsocket = makeWebsocket
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
-    this.#dataTypes = dataTypes
+    this.#markInternetPeerAsTrusted = markInternetPeerAsTrusted
+    this.#disconnectFromPeer = disconnectFromPeer
+    this.#getProjectSettings = getProjectSettings
+    this.#getDeviceInfo = getDeviceInfo
+    this.#setDeviceInfo = setDeviceInfo
+    this.#getSwarmPublicKey = getSwarmPublicKey
+
+    this.#rpc.on('peer-remove', this.#handlePeerRemove)
+  }
+
+  async close() {
+    this.#rpc.removeListener('peer-remove', this.#handlePeerRemove)
+  }
+
+  /**
+   * Start inviting somone over the internet. Returns a URL for the recipient to load.
+   * @param {InviteOptions} opts
+   */
+  async createInviteLink(opts) {
+    const inviteId = opts.__testOnlyInviteId || crypto.randomBytes(32)
+    const inviteIdString = inviteId.toString('hex')
+    const swarmPublicKey = this.#getSwarmPublicKey().toString('hex')
+    const project = await this.#getProjectSettings()
+    const projectName = project.name
+    if (!projectName) {
+      throw new InvalidProjectNameError()
+    }
+
+    const { name: invitorName } = await this.getById(this.#ownDeviceId)
+
+    if (!invitorName) {
+      throw new UnexpectedError(
+        'Internal error trying to read own device name for this invite'
+      )
+    }
+
+    const url = makeInviteURL({
+      inviteIdString,
+      swarmPublicKey,
+      invitorName,
+      projectName,
+      expiresAt: Date.now() + DEFAULT_INVITE_EXPIRY_MS,
+    })
+
+    await this.#inviteLinks.create({
+      inviteId: inviteIdString,
+      inviteIdBuffer: inviteId,
+      url,
+      opts,
+    })
+
+    return url
+  }
+
+  /**
+   * Cancel an invite over internet attempt. Omit the specific URL to cancel all instances
+   * @param {string} [url]
+   */
+  async cancelInviteLink(url) {
+    if (!url) {
+      await this.#inviteLinks.deleteAll()
+      return
+    }
+    const { inviteIdString } = parseInviteURL(url)
+    await this.#cancelInviteLinkById(inviteIdString)
+  }
+
+  /**
+   * Cancel an invite over internet attempt.
+   * @param {string} inviteIdString
+   */
+  async #cancelInviteLinkById(inviteIdString) {
+    if (!(await this.#inviteLinks.getById(inviteIdString))) {
+      throw new InvalidInternetInviteURLError()
+    }
+    this.#redeemedInvites.delete(inviteIdString)
+    await this.#inviteLinks.delete(inviteIdString)
+  }
+
+  /**
+   * Get the list of pending invites over the internet
+   * @returns {Promise<Pick<InviteLinkRecord, 'url' | 'inviteId' | 'createdAt' | 'expiresAt' | 'roleId'>[]>}
+   */
+  async listInviteLinks() {
+    const invites = await this.#inviteLinks.getAll()
+    return invites.map(({ url, inviteId, createdAt, expiresAt, roleId }) => ({
+      url,
+      inviteId,
+      roleId,
+      createdAt,
+      expiresAt,
+    }))
+  }
+
+  /**
+   * When a peer disconnects, remove them from the redeemed invites set.
+   * @param {PeerInfoDisconnected} peer
+   */
+  #handlePeerRemove = async (peer) => {
+    if (!peer) return
+    for (const deviceIds of this.#redeemedInvites.values()) {
+      if (deviceIds.has(peer.deviceId)) {
+        deviceIds.delete(peer.deviceId)
+      }
+    }
+  }
+
+  /**
+   * Handle an incoming redeem attempt from the RPC layer.
+   * @param {string} peerId
+   * @param {InviteLinkRecord} invite
+   */
+  async [kHandleRedeemInviteOverInternet](peerId, invite) {
+    const inviteIdString = invite.inviteId
+    this.#l.log('Got incoming invite redeem %S from %S', inviteIdString, peerId)
+
+    const redeemedSet = this.#redeemedInvites.get(inviteIdString)
+    if (redeemedSet?.has(peerId)) {
+      this.#l.log(
+        'Incoming invite was already redeemed, disconnecting',
+        inviteIdString.slice(0, 7)
+      )
+      await this.#disconnectFromPeer(peerId)
+
+      throw new InviteAlreadyRedeemedError()
+    }
+
+    if (!redeemedSet) {
+      this.#redeemedInvites.set(inviteIdString, new Set([peerId]))
+    } else {
+      redeemedSet.add(peerId)
+    }
+    return inviteIdString
+  }
+
+  /**
+   * Accept a specific device's attempt at redeeming an invite.
+   * @param {string} inviteId
+   * @param {string} deviceId
+   * @returns {Promise<InviteDecision>}
+   */
+  async acceptInviteLinkRequest(inviteId, deviceId) {
+    const redeemedSet = this.#redeemedInvites.get(inviteId)
+    if (!redeemedSet || !redeemedSet.has(deviceId)) {
+      throw new InviteNotYetRedeemedError()
+    }
+
+    const pendingInvite = await this.#inviteLinks.getById(inviteId)
+    if (!pendingInvite) {
+      throw new UnknownInviteIDError()
+    }
+
+    const stillConnected = await this.#markInternetPeerAsTrusted(deviceId)
+
+    if (!stillConnected) {
+      throw new PeerDisconnectedSinceRedeemingInviteError()
+    }
+    const { roleId, roleName, roleDescription } = pendingInvite
+    try {
+      const decision = await this.invite(deviceId, {
+        roleId,
+        roleName,
+        roleDescription,
+        leaveOnFail: true,
+      })
+      return decision
+    } catch (e) {
+      await this.#disconnectFromPeer(deviceId)
+      throw e
+    }
+  }
+
+  /**
+   * Deny a specific device's attempt at redeeming an invite.
+   * @param {string} inviteId
+   * @param {string} deviceId
+   * @param {DenyInviteOverInternet_DenyReason} [reason] Reason for denying the request
+   * @returns {Promise<void>}
+   */
+  async denyInviteLinkRequest(
+    inviteId,
+    deviceId,
+    reason = DenyInviteOverInternet_DenyReason.invitor_denied
+  ) {
+    const redeemedSet = this.#redeemedInvites.get(inviteId)
+    if (!redeemedSet || !redeemedSet.has(deviceId)) {
+      throw new InviteNotYetRedeemedError()
+    }
+
+    const pendingInvite = await this.#inviteLinks.getById(inviteId)
+    if (!pendingInvite) {
+      throw new UnknownInviteIDError()
+    }
+
+    try {
+      await this.#rpc.sendDenyInviteOverInternet(deviceId, {
+        inviteId: Buffer.from(inviteId, 'hex'),
+        reason,
+      })
+    } catch {
+      // RPC may fail if the peer disconnected, that's ok
+    }
+
+    await this.#disconnectFromPeer(deviceId)
   }
 
   /**
@@ -158,18 +420,8 @@ export class MemberApi extends TypedEmitter {
    * is canceled, or if something else goes wrong.
    *
    * @param {string} deviceId
-   * @param {Object} opts
-   * @param {import('./roles.js').RoleIdForNewInvite} opts.roleId
-   * @param {string} [opts.roleName]
-   * @param {string} [opts.roleDescription]
-   * @param {Buffer} [opts.__testOnlyInviteId] Hard-code the invite ID. Only for tests.
-   * @param {number} [opts.initialSyncTimeoutMs=5000]
-   * @param {InvitePeerInfo} [opts.peerInfo]
-   * @returns {Promise<(
-   *   typeof InviteResponse_Decision.ACCEPT |
-   *   typeof InviteResponse_Decision.REJECT |
-   *   typeof InviteResponse_Decision.ALREADY
-   * )>}
+   * @param {InviteOptions} opts
+   * @returns {Promise<InviteDecision>}
    */
   async invite(
     deviceId,
@@ -177,6 +429,7 @@ export class MemberApi extends TypedEmitter {
       roleId,
       roleName = ROLES[roleId]?.name,
       roleDescription,
+      leaveOnFail = false,
       __testOnlyInviteId,
       initialSyncTimeoutMs = 5000,
       peerInfo,
@@ -206,9 +459,8 @@ export class MemberApi extends TypedEmitter {
       abortSignal.throwIfAborted()
 
       const inviteId = __testOnlyInviteId || crypto.randomBytes(32)
-      const projectId = projectKeyToId(this.#projectKey)
       const projectInviteId = projectKeyToProjectInviteId(this.#projectKey)
-      const project = await this.#dataTypes.project.getByDocId(projectId)
+      const project = await this.#getProjectSettings()
       const projectName = project.name
       if (!projectName) {
         throw new InvalidProjectNameError()
@@ -232,6 +484,7 @@ export class MemberApi extends TypedEmitter {
         invitorName,
         sendStats,
         invitorWroteDeviceInfo,
+        leaveOnFail,
       }
 
       const inviteResponse = await this.#sendInviteAndGetResponse(
@@ -271,10 +524,7 @@ export class MemberApi extends TypedEmitter {
               selfHostedServerDetails: undefined,
               schemaName: /** @type {const} */ ('deviceInfo'),
             }
-            await this.#dataTypes.deviceInfo[kCreateOrUpdateWithDocId](
-              deviceId,
-              doc
-            )
+            await this.#setDeviceInfo(deviceId, doc)
           }
 
           try {
@@ -286,6 +536,11 @@ export class MemberApi extends TypedEmitter {
             await this.#waitForInitialSyncWithPeer(deviceId, abortSync)
           } catch (e) {
             this.#l.log('ERROR: Could not initial sync with peer', e)
+            if (leaveOnFail) {
+              this.#l.log('Removing member due to leave on fail flag')
+              await this.remove(deviceId, { reason: 'failed initial sync' })
+              throw new InitialSyncFailedError()
+            }
           }
 
           return inviteResponse.decision
@@ -478,7 +733,7 @@ export class MemberApi extends TypedEmitter {
    * @returns {Promise<{ serverDeviceId: string }>}
    */
   async #addServerToProject(baseUrl) {
-    const projectName = await this.#getProjectName()
+    const { name: projectName } = await this.#getProjectSettings()
     if (!projectName) {
       throw new IncompleteProjectDataError()
     }
@@ -602,22 +857,6 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
-   * @param {string} deviceId
-   * @returns {Promise<DeviceInfo>}
-   */
-  async #getDeviceInfo(deviceId) {
-    try {
-      return await this.#dataTypes.deviceInfo.getByDocId(deviceId)
-    } catch (e) {
-      const configCoreId = await this.#coreOwnership.getCoreId(
-        deviceId,
-        'config'
-      )
-      return this.#dataTypes.deviceInfo.getByDocId(configCoreId)
-    }
-  }
-
-  /**
    * @overload
    * @returns {Promise<Array<ActiveMemberInfo>>}
    */
@@ -632,12 +871,7 @@ export class MemberApi extends TypedEmitter {
    *
    */
   async getMany({ includeLeft = false } = {}) {
-    const [allRoles, allDeviceInfo] = await Promise.all([
-      this.#roles.getAll(),
-      this.#dataTypes.deviceInfo.getMany(),
-    ])
-
-    const deviceInfoByConfigCoreId = keyBy(allDeviceInfo, ({ docId }) => docId)
+    const allRoles = await this.#roles.getAll()
 
     /**
      * @type {Array<Promise<MemberInfo>>}
@@ -654,12 +888,9 @@ export class MemberApi extends TypedEmitter {
         const memberInfo = { deviceId, role }
 
         try {
-          const configCoreId = await this.#coreOwnership.getCoreId(
-            deviceId,
-            'config'
+          const deviceInfo = await this.#getDeviceInfo(deviceId).catch(
+            () => undefined
           )
-
-          const deviceInfo = deviceInfoByConfigCoreId.get(configCoreId)
 
           memberInfo.name = deviceInfo?.name
           memberInfo.deviceType = deviceInfo?.deviceType

@@ -11,6 +11,7 @@ export interface Invite {
     projectDescription?: string | undefined;
     sendStats: boolean;
     invitorWroteDeviceInfo: boolean;
+    leaveOnFail: boolean;
 }
 export interface InviteCancel {
     inviteId: Buffer;
@@ -34,6 +35,22 @@ export interface ProjectJoinDetails {
     projectKey: Buffer;
     encryptionKeys: EncryptionKeys | undefined;
 }
+export interface RedeemInviteOverInternet {
+    inviteId: Buffer;
+}
+export interface DenyInviteOverInternet {
+    inviteId: Buffer;
+    reason: DenyInviteOverInternet_DenyReason;
+}
+export declare const DenyInviteOverInternet_DenyReason: {
+    readonly unspecified: "unspecified";
+    readonly unknown_invite_id: "unknown_invite_id";
+    readonly invitor_denied: "invitor_denied";
+    readonly UNRECOGNIZED: "UNRECOGNIZED";
+};
+export type DenyInviteOverInternet_DenyReason = typeof DenyInviteOverInternet_DenyReason[keyof typeof DenyInviteOverInternet_DenyReason];
+export declare function denyInviteOverInternet_DenyReasonFromJSON(object: any): DenyInviteOverInternet_DenyReason;
+export declare function denyInviteOverInternet_DenyReasonToNumber(object: DenyInviteOverInternet_DenyReason): number;
 export interface DeviceInfo {
     name: string;
     deviceType?: DeviceInfo_DeviceType | undefined;
@@ -68,6 +85,12 @@ export interface InviteResponseAck {
     inviteId: Buffer;
 }
 export interface ProjectJoinDetailsAck {
+    inviteId: Buffer;
+}
+export interface RedeemInviteOverInternetAck {
+    inviteId: Buffer;
+}
+export interface DenyInviteOverInternetAck {
     inviteId: Buffer;
 }
 export interface MapShareExtension {
@@ -118,6 +141,18 @@ export declare const ProjectJoinDetails: {
     create<I extends Exact<DeepPartial<ProjectJoinDetails>, I>>(base?: I): ProjectJoinDetails;
     fromPartial<I extends Exact<DeepPartial<ProjectJoinDetails>, I>>(object: I): ProjectJoinDetails;
 };
+export declare const RedeemInviteOverInternet: {
+    encode(message: RedeemInviteOverInternet, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): RedeemInviteOverInternet;
+    create<I extends Exact<DeepPartial<RedeemInviteOverInternet>, I>>(base?: I): RedeemInviteOverInternet;
+    fromPartial<I extends Exact<DeepPartial<RedeemInviteOverInternet>, I>>(object: I): RedeemInviteOverInternet;
+};
+export declare const DenyInviteOverInternet: {
+    encode(message: DenyInviteOverInternet, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): DenyInviteOverInternet;
+    create<I extends Exact<DeepPartial<DenyInviteOverInternet>, I>>(base?: I): DenyInviteOverInternet;
+    fromPartial<I extends Exact<DeepPartial<DenyInviteOverInternet>, I>>(object: I): DenyInviteOverInternet;
+};
 export declare const DeviceInfo: {
     encode(message: DeviceInfo, writer?: _m0.Writer): _m0.Writer;
     decode(input: _m0.Reader | Uint8Array, length?: number): DeviceInfo;
@@ -147,6 +182,18 @@ export declare const ProjectJoinDetailsAck: {
     decode(input: _m0.Reader | Uint8Array, length?: number): ProjectJoinDetailsAck;
     create<I extends Exact<DeepPartial<ProjectJoinDetailsAck>, I>>(base?: I): ProjectJoinDetailsAck;
     fromPartial<I extends Exact<DeepPartial<ProjectJoinDetailsAck>, I>>(object: I): ProjectJoinDetailsAck;
+};
+export declare const RedeemInviteOverInternetAck: {
+    encode(message: RedeemInviteOverInternetAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): RedeemInviteOverInternetAck;
+    create<I extends Exact<DeepPartial<RedeemInviteOverInternetAck>, I>>(base?: I): RedeemInviteOverInternetAck;
+    fromPartial<I extends Exact<DeepPartial<RedeemInviteOverInternetAck>, I>>(object: I): RedeemInviteOverInternetAck;
+};
+export declare const DenyInviteOverInternetAck: {
+    encode(message: DenyInviteOverInternetAck, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): DenyInviteOverInternetAck;
+    create<I extends Exact<DeepPartial<DenyInviteOverInternetAck>, I>>(base?: I): DenyInviteOverInternetAck;
+    fromPartial<I extends Exact<DeepPartial<DenyInviteOverInternetAck>, I>>(object: I): DenyInviteOverInternetAck;
 };
 export declare const MapShareExtension: {
     encode(message: MapShareExtension, writer?: _m0.Writer): _m0.Writer;

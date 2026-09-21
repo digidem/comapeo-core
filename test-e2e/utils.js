@@ -29,9 +29,11 @@ import { kDataTypes } from '../src/mapeo-project.js'
 import { kGetIconBlob } from '../src/icon-api.js'
 import { execa } from 'execa'
 import { ExhaustivenessError } from '../src/errors.js'
+import createTestnet from 'hyperdht/testnet.js'
 
 /** @import { InvitePeerInfo, MemberApi } from '../src/member-api.js' */
 /** @import { PublicPeerInfo } from '../src/mapeo-manager.js' */
+/** @import { TestNet } from 'hyperdht/testnet.js' */
 
 const projectMigrationsFolder = new URL('../drizzle/project', import.meta.url)
   .pathname
@@ -222,22 +224,33 @@ export async function waitForPeers(
  * @param {T} count
  * @param {import('node:test').TestContext} t
  * @param {import('../src/generated/rpc.js').DeviceInfo['deviceType']} [deviceType]
- * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]>} [overrides]
+ * @param {Partial<ConstructorParameters<typeof MapeoManager>[0]> & {useTestnet?: boolean}} [overrides]
  * @returns {Promise<import('type-fest').ReadonlyTuple<MapeoManager, T>>}
  */
 export async function createManagers(
   count,
   t,
   deviceType = 'device_type_unspecified',
-  overrides = {}
+  { useTestnet, ...overrides } = {}
 ) {
+  /**
+   * @type {TestNet|null}
+   */
+  let testnet = null
+  if (useTestnet) {
+    testnet = await createTestnet(count)
+    t.after(() => testnet?.destroy())
+  }
   // @ts-ignore
   return Promise.all(
     Array(count)
       .fill(null)
       .map(async (_, i) => {
+        const opts = testnet
+          ? { ...overrides, swarm: { dht: testnet.nodes[0] } }
+          : overrides
         const name = 'device' + i + (deviceType ? `-${deviceType}` : '')
-        const manager = createManager(name, t, overrides)
+        const manager = createManager(name, t, opts)
         await manager.setDeviceInfo({ name, deviceType })
         return manager
       })
