@@ -282,6 +282,8 @@ export class BlobStore extends ReadyResource {
    * @param {import('hyperdrive').HyperdriveEntry} entry Hyperdrive entry
    * @param {object} [options]
    * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
+   * @param {number} [options.start] Byte offset to start reading from
+   * @param {number} [options.length] Number of bytes to read
    * @returns {Promise<Readable>}
    */
   async createReadStreamFromEntry(driveId, entry, options = { wait: false }) {
