@@ -4,21 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { KeyManager, keyToPublicId } from '@mapeo/crypto'
 import { pEvent } from 'p-event'
-import {
-  RemoteDiscovery,
-  readHandshakeBuffer,
-  kTestOnlyHandleHyperswarmConnection,
-  makeSwarmHandshake,
-  lengthPrefix,
-} from '../../src/discovery/remote-discovery.js'
-import { SwarmHandshake } from '../../src/generated/handshake.js'
-import {
-  ensureKnownError,
-  HandshakeTooLargeError,
-  UnableToReadHandshakeError,
-  InvalidIdentityProofError,
-} from '../../src/errors.js'
-import { Duplex, Transform, Readable } from 'streamx'
+import { RemoteDiscovery } from '../../src/discovery/remote-discovery.js'
 
 /** @import {OpenedNoiseStream} from '../../src/lib/noise-secret-stream-helpers.js'*/
 
@@ -114,6 +100,10 @@ test('RemoteDiscovery - connect two instances and verify keypair', async (t) => 
     outboundStream.authenticatedPublicKey.equals(identityKeypair1.publicKey),
     'outbound authenticatedPublicKey should match identityKeypair1'
   )
+
+  // Verify protomux is stored on the stream
+  assert.ok(outboundStream.userData, 'outbound stream should have userData')
+  assert.ok(inboundStream.userData, 'inbound stream should have userData')
 
   // Set up data listeners before writing
   const dataFromOutbound = Buffer.from('Hello from outbound!')
@@ -238,163 +228,6 @@ test('RemoteDiscovery - Able to reconnect after disconnecting', async (t) => {
   )
 })
 
-test('RemoteDiscovery - readHandshakeBuffer throws HandshakeTooLargeError when length exceeds max', async () => {
-  const prefix = Buffer.alloc(2)
-  prefix.writeUInt16LE(0xffff, 0)
-
-  const stream = Readable.from([prefix])
-
-  await assert.rejects(
-    readHandshakeBuffer(stream),
-    (err) => ensureKnownError(err).code === HandshakeTooLargeError.code,
-    'should throw HandshakeTooLargeError when length exceeds max'
-  )
-})
-
-test('RemoteDiscovery - readChunk throws UnableToReadHandshakeError on empty stream', async () => {
-  // Create a stream that closes immediately without providing data
-  const emptyStream = new Transform({
-    // @ts-ignore
-    transform(_chunk, _encoding, callback) {
-      callback()
-    },
-  })
-
-  // Close the stream immediately
-  emptyStream.end()
-
-  // readChunk should throw UnableToReadHandshakeError when it can't read data
-  await assert.rejects(
-    readHandshakeBuffer(emptyStream),
-    (err) => ensureKnownError(err).code === UnableToReadHandshakeError.code,
-    'readChunk should throw UnableToReadHandshakeError'
-  )
-})
-
-test('RemoteDiscovery - emits InvalidIdentityProofError on invalid signature', async (t) => {
-  const identityKeypair1 = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const swarmKeypair1 = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
-  const swarmKeypair2 = new KeyManager(Buffer.alloc(16, 4)).getIdentityKeypair()
-
-  const remoteDiscovery1 = new RemoteDiscovery({
-    identityKeypair: identityKeypair1,
-    deriveSwarmIdentityKeypair: () => swarmKeypair1,
-  })
-
-  t.after(() => Promise.all([remoteDiscovery1.close()]))
-
-  // Should reject with an error event
-  const onError = pEvent(remoteDiscovery1, 'error', {
-    timeout: 5000,
-  })
-
-  // Create a mock stream with the required properties
-  const connection = mockConnection(
-    swarmKeypair2,
-    // Push the handshake data inside the read handler
-    lengthPrefix(
-      SwarmHandshake.encode({
-        publicKey: identityKeypair1.publicKey,
-        signature: Buffer.alloc(64),
-      }).finish()
-    )
-  )
-
-  await remoteDiscovery1[kTestOnlyHandleHyperswarmConnection](connection)
-
-  const err = await onError
-
-  // The error should be emitted on the server side when invalid signature is received
-  assert.equal(
-    ensureKnownError(err).code,
-    InvalidIdentityProofError.code,
-    'should emit error with InvalidIdentityProofError code on invalid signature'
-  )
-})
-
-test('RemoteDiscovery - emits InvalidIdentityProofError on invalid handshake', async (t) => {
-  const identityKeypair1 = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const swarmKeypair1 = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
-  const swarmKeypair2 = new KeyManager(Buffer.alloc(16, 4)).getIdentityKeypair()
-
-  const remoteDiscovery1 = new RemoteDiscovery({
-    identityKeypair: identityKeypair1,
-    deriveSwarmIdentityKeypair: () => swarmKeypair1,
-  })
-
-  t.after(() => Promise.all([remoteDiscovery1.close()]))
-
-  // Should reject with an error event
-  const onError = pEvent(remoteDiscovery1, 'error', {
-    timeout: 5000,
-  })
-
-  // Create a mock stream with the required properties
-  const connection = mockConnection(
-    swarmKeypair2,
-    lengthPrefix(Buffer.from('Hello World!'))
-  )
-
-  await remoteDiscovery1[kTestOnlyHandleHyperswarmConnection](connection)
-
-  const err = await onError
-
-  // The error should be emitted on the server side when invalid signature is received
-  assert.equal(
-    ensureKnownError(err).code,
-    InvalidIdentityProofError.code,
-    'should emit error with InvalidIdentityProofError code on invalid signature'
-  )
-})
-
-test('RemoteDiscovery - connectPeer returns same socket for duplicate connection', async (t) => {
-  const identityKeypair1 = new KeyManager(
-    Buffer.alloc(16, 1)
-  ).getIdentityKeypair()
-  const identityKeypair2 = new KeyManager(
-    Buffer.alloc(16, 2)
-  ).getIdentityKeypair()
-  const swarmKeypair1 = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
-  const swarmKeypair2 = new KeyManager(Buffer.alloc(16, 4)).getIdentityKeypair()
-
-  const remoteDiscovery1 = new RemoteDiscovery({
-    identityKeypair: identityKeypair1,
-    deriveSwarmIdentityKeypair: () => swarmKeypair1,
-  })
-
-  t.after(() => Promise.all([remoteDiscovery1.close()]))
-
-  const onConnection = pEvent(remoteDiscovery1, 'connection')
-
-  // Set up the stream properties
-  const handshakeHash = Buffer.alloc(32, 0)
-
-  // Create a mock stream with the required properties
-  const connection = mockConnection(
-    swarmKeypair2,
-    makeSwarmHandshake(handshakeHash, identityKeypair2),
-    handshakeHash
-  )
-
-  await remoteDiscovery1[kTestOnlyHandleHyperswarmConnection](connection)
-
-  await onConnection
-
-  const gotConnection = await remoteDiscovery1.connectPeer(
-    swarmKeypair2.publicKey.toString('hex')
-  )
-
-  assert.equal(gotConnection, connection, 'Got existing connection')
-  assert(
-    gotConnection.authenticatedPublicKey.equals(identityKeypair2.publicKey),
-    'Handshake was valid'
-  )
-})
-
 test('RemoteDiscovery - connect two peers to a third peer', async (t) => {
   const testnet = await createTestnet(3)
   t.after(async () => {
@@ -492,33 +325,4 @@ test('RemoteDiscovery - connect two peers to a third peer', async (t) => {
  */
 function handleConnectionError(e) {
   assert.fail(`Unexpected connection error: ${e.message}`)
-}
-
-/**
- * @param {import('../../src/types.js').KeyPair} swarmKeypair
- * @param {Uint8Array|Buffer} body
- * @param {Buffer} [handshakeHash]
- * @returns {OpenedNoiseStream}
- */
-function mockConnection(
-  swarmKeypair,
-  body,
-  handshakeHash = Buffer.alloc(32, 0)
-) {
-  const connection = /** @type {OpenedNoiseStream}*/ (
-    /** @type {unknown} */ new Duplex({
-      read() {
-        this.push(body)
-        this.push(null) // end the stream
-      },
-      write(_chunk, callback) {
-        callback()
-      },
-    })
-  )
-
-  // Set up the stream properties
-  connection.remotePublicKey = swarmKeypair.publicKey
-  connection.handshakeHash = handshakeHash
-  return connection
 }

@@ -549,16 +549,10 @@ export const InvalidIdentityProofError = createErrorClass({
   status: 400,
 })
 
-export const UnableToReadHandshakeError = createErrorClass({
-  code: 'UNABLE_TO_READ_HANDSHAKE_ERROR',
-  message: 'Unable to read handshake from hyperswarm connection',
-  status: 500,
-})
-
-export const HandshakeTooLargeError = createErrorClass({
-  code: 'HANDSHAKE_TOO_LARGE_ERROR',
-  message: 'Handshake packet is too large',
-  status: 400,
+export const AuthProtocolVersionMismatchError = createErrorClass({
+  code: 'AUTH_PROTOCOL_VERSION_MISMATCH_ERROR',
+  message: 'Peer is running an incompatible protocol version',
+  status: 426,
 })
 
 export const InvalidInternetInviteURLError = createErrorClass({
