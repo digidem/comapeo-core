@@ -332,7 +332,7 @@ export class RemoteDiscovery extends TypedEmitter {
       }
 
       // Register pair handler so the remote's CHANNEL_OPEN is accepted
-      protomux.pair({ protocol: AUTH_PROTOCOL }, () => {
+      protomux.pair({ protocol: AUTH_PROTOCOL }, async () => {
         openAuthChannel()
       })
 
