@@ -42,6 +42,8 @@ import {
 /** @import {DeferredPromise} from 'p-defer' */
 /** @import {AuthedNoiseStream} from "./lib/noise-secret-stream-helpers.js" */
 
+/** @typedef {Protomux<OpenedNoiseStream|AuthedNoiseStream>} PeerProtomux */
+
 /**
  * @typedef {InviteAck|InviteCancelAck|InviteResponseAck|ProjectJoinDetailsAck} AckResponse
  */
@@ -122,7 +124,7 @@ export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
  * @property {PeerSupportedFeatures} supportedFeatures
  */
 /** @typedef {PeerInfoBase & { status: 'connecting' }} PeerInfoConnecting */
-/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: Protomux<import('@hyperswarm/secret-stream')> }} PeerInfoConnected */
+/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: PeerProtomux }} PeerInfoConnected */
 /** @typedef {PeerInfoBase & { status: 'disconnected', disconnectedAt: number }} PeerInfoDisconnected */
 
 /** @typedef {PeerInfoConnecting | PeerInfoConnected | PeerInfoDisconnected} PeerInfoInternal */
@@ -156,7 +158,7 @@ class Peer {
    * @param {string} options.peerId
    * @param {ReturnType<typeof Protomux.prototype.createChannel>} options.channel
    * @param {boolean} options.isTrusted
-   * @param {Protomux<any>} options.protomux
+   * @param {PeerProtomux} options.protomux
    * @param {Logger} [options.logger]
    */
   constructor({ peerId, channel, protomux, isTrusted, logger }) {
@@ -588,7 +590,7 @@ class Peer {
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
  * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
- * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
+ * @property {(discoveryKey: Buffer, protomux: PeerProtomux) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
  * @property {(messageType: string, errorMessage: import('./errors.js').KnownError) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
  * @property {(peerId:string) => void} peer-trusted Emitted when a previously untrusted peer gets marked as trusted
  */
@@ -742,6 +744,7 @@ export class LocalPeers extends TypedEmitter {
   async trustPeer(peerId) {
     const peer = await this.#getPeerByDeviceId(peerId)
     peer.isTrusted = true
+    this.#attachDiscoveryChannel(peer.protomux)
     this.emit('peer-trusted', peerId)
   }
 
@@ -755,6 +758,20 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
+   * @param {PeerProtomux} protomux
+   */
+  #attachDiscoveryChannel(protomux) {
+    protomux.pair(
+      { protocol: 'hypercore/alpha' },
+      /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
+        const peerId = peerIdFromNoise(protomux.stream)
+        this.#l.log('Received discovery key %h from %h', discoveryKey, peerId)
+        this.emit('discovery-key', discoveryKey, protomux)
+      }
+    )
+  }
+
+  /**
    * Connect to a peer over an existing NoiseSecretStream
    *
    * @param {NoiseStream<any>|AuthedNoiseStream} stream
@@ -764,6 +781,7 @@ export class LocalPeers extends TypedEmitter {
   connect(stream, isTrusted) {
     const noiseStream = stream.noiseStream
     const outerStream = noiseStream.rawStream
+    /** @type {PeerProtomux} */
     const protomux =
       noiseStream.userData && Protomux.isProtomux(noiseStream.userData)
         ? noiseStream.userData
@@ -772,17 +790,9 @@ export class LocalPeers extends TypedEmitter {
 
     if (this.#attached.has(protomux)) return outerStream
 
-    protomux.pair(
-      { protocol: 'hypercore/alpha' },
-      /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
-        this.#l.log(
-          'Received discovery key %h from %h',
-          discoveryKey,
-          stream.noiseStream.remotePublicKey
-        )
-        this.emit('discovery-key', discoveryKey, protomux)
-      }
-    )
+    if (isTrusted) {
+      this.#attachDiscoveryChannel(protomux)
+    }
 
     const deferredOpen = pDefer()
     this.#opening.add(deferredOpen.promise)
@@ -816,7 +826,7 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * @param {Protomux<OpenedNoiseStream|AuthedNoiseStream>} protomux
+   * @param {PeerProtomux} protomux
    * @param {boolean} isTrusted
    * @param {() => void} done
    */
@@ -898,7 +908,7 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * @param {Protomux<OpenedNoiseStream>} protomux
+   * @param {PeerProtomux} protomux
    */
   #getPeerByProtomux(protomux) {
     // We could also index peers by protomux to avoid this, but that would mean
@@ -949,7 +959,7 @@ export class LocalPeers extends TypedEmitter {
 
   /**
    *
-   * @param {Protomux<OpenedNoiseStream>} protomux
+   * @param {PeerProtomux} protomux
    * @param {keyof typeof MESSAGE_TYPES} type
    * @param {Buffer} value
    */
