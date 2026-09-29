@@ -11,6 +11,7 @@ import { timeoutPromise } from '../utils.js'
 import { openedNoiseSecretStream } from '../lib/noise-secret-stream-helpers.js'
 import { Hello, IdentityProof } from '../generated/auth.js'
 import {
+  AuthProtocolVersionMismatchError,
   ensureKnownError,
   InvalidIdentityProofError,
   TimeoutError,
@@ -33,7 +34,7 @@ export const kTestOnlyHandleHyperswarmConnection = Symbol(
   'testOnlyHandleHyperswarmConnection'
 )
 
-const AUTH_PROTOCOL = 'comapeo/auth'
+export const AUTH_PROTOCOL = 'comapeo/auth'
 const AUTH_PROTOCOL_VERSION = 1
 const AUTH_HANDSHAKE_TIMEOUT = 10_000
 
@@ -290,10 +291,9 @@ export class RemoteDiscovery extends TypedEmitter {
       // Set up the auth channel
       const helloDefer = pDefer()
       const identityDefer = pDefer()
+      const onAuthOpen = pDefer()
       /** @type {ReturnType<typeof pDefer>} */
       let drainDefer
-      /** @type {ReturnType<typeof Protomux.prototype.createChannel>} */
-      let authChannel
 
       const messages = [
         {
@@ -306,8 +306,7 @@ export class RemoteDiscovery extends TypedEmitter {
                 remotePublicKeyString,
                 hello.protocolVersion
               )
-              pendingDefer.resolve(false)
-              socket.end()
+              helloDefer.reject(new AuthProtocolVersionMismatchError())
               return
             }
             helloDefer.resolve(hello)
@@ -321,23 +320,14 @@ export class RemoteDiscovery extends TypedEmitter {
         },
       ]
 
-      const openAuthChannel = () => {
-        if (protomux.opened({ protocol: AUTH_PROTOCOL })) return
-        authChannel = protomux.createChannel({
-          protocol: AUTH_PROTOCOL,
-          messages,
-          ondrain: () => drainDefer?.resolve(),
-        })
-        authChannel.open()
-      }
-
-      // Register pair handler so the remote's CHANNEL_OPEN is accepted
-      protomux.pair({ protocol: AUTH_PROTOCOL }, async () => {
-        openAuthChannel()
+      const authChannel = protomux.createChannel({
+        protocol: AUTH_PROTOCOL,
+        messages,
+        onopen: () => onAuthOpen.resolve(),
+        ondrain: () => drainDefer?.resolve(),
       })
-
-      // Open our side
-      openAuthChannel()
+      authChannel.open()
+      await onAuthOpen.promise
 
       /**
        * @param {Buffer} buf
@@ -352,7 +342,6 @@ export class RemoteDiscovery extends TypedEmitter {
       // Send our hello
       const myHello = Hello.encode({
         protocolVersion: AUTH_PROTOCOL_VERSION,
-        features: ['identity-proof'],
       }).finish()
       await sendAndDrain(Buffer.from(myHello), 0)
 

@@ -1,7 +1,6 @@
 import _m0 from "protobufjs/minimal.js";
 export interface Hello {
     protocolVersion: number;
-    features: string[];
 }
 export interface IdentityProof {
     publicKey: Buffer;

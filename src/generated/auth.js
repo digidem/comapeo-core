@@ -1,17 +1,13 @@
 /* eslint-disable */
 import _m0 from "protobufjs/minimal.js";
 function createBaseHello() {
-    return { protocolVersion: 0, features: [] };
+    return { protocolVersion: 0 };
 }
 export var Hello = {
     encode: function (message, writer) {
         if (writer === void 0) { writer = _m0.Writer.create(); }
         if (message.protocolVersion !== 0) {
             writer.uint32(8).int32(message.protocolVersion);
-        }
-        for (var _i = 0, _a = message.features; _i < _a.length; _i++) {
-            var v = _a[_i];
-            writer.uint32(18).string(v);
         }
         return writer;
     },
@@ -28,12 +24,6 @@ export var Hello = {
                     }
                     message.protocolVersion = reader.int32();
                     continue;
-                case 2:
-                    if (tag !== 18) {
-                        break;
-                    }
-                    message.features.push(reader.string());
-                    continue;
             }
             if ((tag & 7) === 4 || tag === 0) {
                 break;
@@ -46,10 +36,9 @@ export var Hello = {
         return Hello.fromPartial(base !== null && base !== void 0 ? base : {});
     },
     fromPartial: function (object) {
-        var _a, _b;
+        var _a;
         var message = createBaseHello();
         message.protocolVersion = (_a = object.protocolVersion) !== null && _a !== void 0 ? _a : 0;
-        message.features = ((_b = object.features) === null || _b === void 0 ? void 0 : _b.map(function (e) { return e; })) || [];
         return message;
     },
 };

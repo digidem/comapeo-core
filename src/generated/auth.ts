@@ -3,7 +3,6 @@ import _m0 from "protobufjs/minimal.js";
 
 export interface Hello {
   protocolVersion: number;
-  features: string[];
 }
 
 export interface IdentityProof {
@@ -12,16 +11,13 @@ export interface IdentityProof {
 }
 
 function createBaseHello(): Hello {
-  return { protocolVersion: 0, features: [] };
+  return { protocolVersion: 0 };
 }
 
 export const Hello = {
   encode(message: Hello, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.protocolVersion !== 0) {
       writer.uint32(8).int32(message.protocolVersion);
-    }
-    for (const v of message.features) {
-      writer.uint32(18).string(v!);
     }
     return writer;
   },
@@ -40,13 +36,6 @@ export const Hello = {
 
           message.protocolVersion = reader.int32();
           continue;
-        case 2:
-          if (tag !== 18) {
-            break;
-          }
-
-          message.features.push(reader.string());
-          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -62,7 +51,6 @@ export const Hello = {
   fromPartial<I extends Exact<DeepPartial<Hello>, I>>(object: I): Hello {
     const message = createBaseHello();
     message.protocolVersion = object.protocolVersion ?? 0;
-    message.features = object.features?.map((e) => e) || [];
     return message;
   },
 };
