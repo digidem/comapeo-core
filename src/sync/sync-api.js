@@ -11,7 +11,12 @@ import {
 import { getOwn } from '../lib/get-own.js'
 import { wsCoreReplicator } from '../lib/ws-core-replicator.js'
 import { NO_ROLE_ID } from '../roles.js'
-import { AutoStopTimeoutError, ExhaustivenessError } from '../errors.js'
+import {
+  AutoStopTimeoutError,
+  ExhaustivenessError,
+  SyncTimeoutError,
+  NoPeersForInitialSyncError,
+} from '../errors.js'
 import { peerIdFromNoise } from '../local-peers.js'
 import { noop } from '../utils.js'
 
@@ -459,14 +464,14 @@ export class SyncApi extends TypedEmitter {
 
       const onTimeout = () => {
         this[kSyncState].off('state', onState)
-        reject(new Error('Sync timeout'))
+        reject(new SyncTimeoutError())
       }
       /** @param {import('./sync-state.js').State} state */
       const onState = (state) => {
         if (timeoutId) clearTimeout(timeoutId)
         if (errorOnNoPeers && !hasRemoteStates(state)) {
           this[kSyncState].off('state', onState)
-          reject(new Error('No peers found to do initial sync with'))
+          reject(new NoPeersForInitialSyncError())
           return
         }
         if (isSynced(state, type, this.#peerSyncControllers)) {

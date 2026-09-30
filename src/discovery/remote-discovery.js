@@ -9,6 +9,7 @@ import cenc from 'compact-encoding'
 import pDefer from 'p-defer'
 import { timeoutPromise } from '../utils.js'
 import { openedNoiseSecretStream } from '../lib/noise-secret-stream-helpers.js'
+import { SwarmNotInitializedError } from '../errors.js'
 import { Hello, IdentityProof } from '../generated/auth.js'
 import {
   AuthProtocolVersionMismatchError,
@@ -226,7 +227,7 @@ export class RemoteDiscovery extends TypedEmitter {
   async connectPeer(publicKey, { timeout = 60_000, signal } = {}) {
     await this.#sm.start()
     const swarm = this.#swarm
-    if (!swarm) throw new Error('Swarm not initialized')
+    if (!swarm) throw new SwarmNotInitializedError()
     const noisePublicKey = Buffer.from(publicKey, 'hex')
 
     const existing = await this.#findExistingPeer(noisePublicKey)

@@ -646,6 +646,30 @@ export const UntrustedRPCMethodError = createErrorClass({
   status: 405,
 })
 
+export const SwarmNotInitializedError = createErrorClass({
+  code: 'SWARM_NOT_INITIALIZED_ERROR',
+  message: 'Swarm not initialized',
+  status: 503,
+})
+
+export const InvalidInviteLinkRoleIdError = createErrorClass({
+  code: 'INVALID_INVITE_LINK_ROLE_ID_ERROR',
+  message: 'Invalid roleId in database: {roleId}',
+  status: 500,
+})
+
+export const SyncTimeoutError = createErrorClass({
+  code: 'SYNC_TIMEOUT_ERROR',
+  message: 'Sync timeout',
+  status: 408,
+})
+
+export const NoPeersForInitialSyncError = createErrorClass({
+  code: 'NO_PEERS_FOR_INITIAL_SYNC_ERROR',
+  message: 'No peers found to do initial sync with',
+  status: 404,
+})
+
 /**
  * @param {unknown} err
  * @returns {null}
