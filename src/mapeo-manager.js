@@ -355,6 +355,9 @@ export class MapeoManager extends TypedEmitter {
       logger,
     })
     this.#remoteDiscovery.on('connection', this.#replicate.bind(this))
+    this.#remoteDiscovery.on('error', (e) => {
+      this.#l.log('Error: Unable to handle incoming Map Share', ensureError(e))
+    })
 
     this.#inviteLinkStore = new InviteLinksApi(this.#db, (shouldListen) => {
       if (shouldListen) return this.#remoteDiscovery.start()
