@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin'
 import { filetypemime } from 'magic-bytes.js'
 import { pEvent } from 'p-event'
+import parseRange from 'range-parser'
 import { Type as T } from '@sinclair/typebox'
 
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
@@ -99,10 +100,49 @@ async function routes(fastify, options) {
       }
 
       const { metadata } = entry.value
+      const totalLength = entry.value.blob.byteLength
+
+      const rangeHeader = request.headers.range
+
+      let rangeStart
+      let rangeLength
+
+      if (rangeHeader && totalLength > 0) {
+        const range = parseRange(totalLength, rangeHeader, { combine: true })
+
+        // -1 signals an unsatisfiable range which is a 416 response
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/416
+        if (range === -1) {
+          reply.code(416)
+          reply.header('Content-Range', `bytes */${totalLength}`)
+          return reply.send()
+        }
+
+        // -2 signals a malformed header string but does not necessarily mean there is an error in the file
+        if (range !== -2 && range?.type === 'bytes' && range.length === 1) {
+          rangeStart = range[0].start
+          // end is inclusive, so +1 accounts for that.
+          rangeLength = range[0].end - rangeStart + 1
+          reply.code(206)
+          reply.header(
+            'Content-Range',
+            `bytes ${rangeStart}-${range[0].end}/${totalLength}`
+          )
+          reply.header('Content-Length', rangeLength)
+        } else {
+          reply.header('Content-Length', totalLength)
+        }
+      }
 
       let blobStream
       try {
-        blobStream = await blobStore.createReadStreamFromEntry(driveId, entry)
+        blobStream = await blobStore.createReadStreamFromEntry(
+          driveId,
+          entry,
+          rangeStart && rangeLength
+            ? { wait: false, start: rangeStart, length: rangeLength }
+            : { wait: false }
+        )
       } catch (e) {
         reply.code(404)
         throw ensureKnownError(e)
