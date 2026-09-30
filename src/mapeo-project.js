@@ -3,6 +3,7 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { sql, count, eq } from 'drizzle-orm'
+import { pEvent, pEventIterator } from 'p-event'
 
 import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
@@ -805,6 +806,45 @@ export class MapeoProject extends ReadyResource {
     const reason = await this.#roles.getRoleReason(this.#deviceId)
     const role = await this.#roles.getRole(this.#deviceId)
     return { ...role, reason }
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<Role & {reason: string | undefined}>}
+   */
+  async *$watchOwnRole({ signal } = {}) {
+    yield await this.$getOwnRole()
+
+    yield* pEventIterator(this, 'own-role-change', {
+      resolutionEvents: ['close'],
+      signal,
+    })
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<void>}
+   */
+  async *$watchReady({ signal } = {}) {
+    if (this.opened) {
+      yield undefined
+      return
+    }
+    await pEvent(this, 'ready', { signal })
+    yield undefined
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<void>}
+   */
+  async *$watchClose({ signal } = {}) {
+    if (this.closed) {
+      yield undefined
+      return
+    }
+    await pEvent(this, 'close', { signal })
+    yield undefined
   }
 
   async #handleRoleChange() {

@@ -1,4 +1,5 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { pEventIterator } from 'p-event'
 import WebSocket from 'ws'
 import { SyncState } from './sync-state.js'
 import { PeerSyncController } from './peer-sync-controller.js'
@@ -198,6 +199,16 @@ export class SyncApi extends TypedEmitter {
    */
   getState() {
     return this.#getState(this[kSyncState].getState())
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<State>}
+   */
+  async *watchSyncState({ signal } = {}) {
+    yield this.getState()
+
+    yield* pEventIterator(this, 'sync-state', { signal })
   }
 
   /**

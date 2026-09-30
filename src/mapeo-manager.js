@@ -6,6 +6,7 @@ import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Hypercore from 'hypercore'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { pEvent, pEventIterator } from 'p-event'
 import { createRequire } from 'module'
 import ensureError from 'ensure-error'
 
@@ -1003,6 +1004,58 @@ export class MapeoManager extends TypedEmitter {
    */
   async listLocalPeers() {
     return omitPeerProtomux(this.#localPeers.peers)
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<PublicPeerInfo[]>}
+   */
+  async *watchLocalPeers({ signal } = {}) {
+    yield await this.listLocalPeers()
+
+    yield* pEventIterator(this, 'local-peers', { signal })
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<MapShare>}
+   */
+  async *watchMapShare({ signal } = {}) {
+    yield* pEventIterator(this, 'map-share', { signal })
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<[Error, MapShareExtension]>}
+   */
+  async *watchMapShareError({ signal } = {}) {
+    yield* pEventIterator(this, 'map-share-error', { signal, multiArgs: true })
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<void>}
+   */
+  async *watchReady({ signal } = {}) {
+    if (this.opened) {
+      yield undefined
+      return
+    }
+    await pEvent(this, 'ready', { signal })
+    yield undefined
+  }
+
+  /**
+   * @param {{ signal?: AbortSignal }} [opts]
+   * @returns {AsyncGenerator<void>}
+   */
+  async *watchClose({ signal } = {}) {
+    if (this.closed) {
+      yield undefined
+      return
+    }
+    await pEvent(this, 'close', { signal })
+    yield undefined
   }
 
   /**
