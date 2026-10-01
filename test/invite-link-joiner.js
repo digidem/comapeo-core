@@ -7,6 +7,7 @@ import { pEvent } from 'p-event'
 
 import { InviteLinkJoiner } from '../src/invite/invite-link-joiner.js'
 import { makeInviteURL } from '../src/invite/invite-urls.js'
+import { MEMBER_ROLE_ID } from '../src/roles.js'
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
 /** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
@@ -62,6 +63,7 @@ test('happy path: connect, redeem, accept, complete', async () => {
     invitorName: 'invitor',
     projectName: 'project',
     expiresAt: Date.now() + 60_000,
+    roleId: MEMBER_ROLE_ID,
   })
 
   const connection = mockConnection(authenticatedPublicKey)

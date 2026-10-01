@@ -251,6 +251,7 @@ export class MemberApi extends TypedEmitter {
       invitorName,
       projectName,
       expiresAt: Date.now() + DEFAULT_INVITE_EXPIRY_MS,
+      roleId: opts.roleId,
     })
 
     await this.#inviteLinks.create({

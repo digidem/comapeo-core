@@ -1,3 +1,5 @@
+import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../roles.js'
+
 /**
  * @typedef {object} InviteLinkParams
  * @property {string} inviteIdString
@@ -5,11 +7,13 @@
  * @property {string} invitorName
  * @property {string} projectName
  * @property {number} expiresAt
+ * @property {COORDINATOR_ROLE_ID|MEMBER_ROLE_ID} roleId
  */
 
 import {
   MissingInviteURLParameter,
   InvalidInviteURLKeyParameterError,
+  InvalidInviteURLRoleError,
 } from '../errors.js'
 import { CrockfordBase32 } from 'crockford-base32'
 
@@ -22,6 +26,13 @@ export const URL_PARAM_MAPPINGS = {
   invitorName: 'n',
   projectName: 'p',
   expiresAt: 'e',
+  roleId: 'r',
+}
+
+/** @type {Record<string, COORDINATOR_ROLE_ID| MEMBER_ROLE_ID>} */
+const ROLE_MAP = {
+  c: COORDINATOR_ROLE_ID,
+  m: MEMBER_ROLE_ID,
 }
 
 export const INTERNET_INVITE_PAGE = 'https://a.comapeo.app/invite'
@@ -46,6 +57,10 @@ export function parseInviteURL(url) {
     if (optName === 'expiresAt') {
       // Convert timestamp from seconds string to milliseconds number
       opts[optName] = parseInt(value) * 1000
+    } else if (optName === 'roleId') {
+      const roleId = ROLE_MAP[value]
+      if (!roleId) throw new InvalidInviteURLRoleError({ value })
+      opts.roleId = roleId
     } else if (optName === 'inviteIdString' || optName === 'swarmPublicKey') {
       // Decode z32 and convert to hex
       const decoded = CrockfordBase32.decode(value)
@@ -80,6 +95,14 @@ export function makeInviteURL(opts) {
       value = Math.floor(value / 1000).toString()
     } else if (optName === 'inviteIdString' || optName === 'swarmPublicKey') {
       value = CrockfordBase32.encode(Buffer.from(value, 'hex'))
+    }
+    if (optName === 'roleId') {
+      for (const [paramValue, roleId] of Object.entries(ROLE_MAP)) {
+        if (roleId === value) {
+          value = paramValue
+          break
+        }
+      }
     }
     params.set(paramName, value)
   }

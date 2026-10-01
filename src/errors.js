@@ -604,6 +604,12 @@ export const InvalidInviteURLKeyParameterError = createErrorClass({
   status: 400,
 })
 
+export const InvalidInviteURLRoleError = createErrorClass({
+  code: 'INVALID_INVITE_URL_ROLE',
+  message: 'Invalid URL role parameter {value}',
+  status: 400,
+})
+
 export const InviteLinkAlreadyExistsError = createErrorClass({
   code: 'INVITE_LINK_ALREADY_EXISTS_ERROR',
   message: 'Invite link with ID {inviteId} already exists',
