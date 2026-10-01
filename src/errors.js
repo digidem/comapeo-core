@@ -549,16 +549,10 @@ export const InvalidIdentityProofError = createErrorClass({
   status: 400,
 })
 
-export const UnableToReadHandshakeError = createErrorClass({
-  code: 'UNABLE_TO_READ_HANDSHAKE_ERROR',
-  message: 'Unable to read handshake from hyperswarm connection',
-  status: 500,
-})
-
-export const HandshakeTooLargeError = createErrorClass({
-  code: 'HANDSHAKE_TOO_LARGE_ERROR',
-  message: 'Handshake packet is too large',
-  status: 400,
+export const AuthProtocolVersionMismatchError = createErrorClass({
+  code: 'AUTH_PROTOCOL_VERSION_MISMATCH_ERROR',
+  message: 'Peer is running an incompatible protocol version',
+  status: 426,
 })
 
 export const InvalidInternetInviteURLError = createErrorClass({
@@ -610,6 +604,12 @@ export const InvalidInviteURLKeyParameterError = createErrorClass({
   status: 400,
 })
 
+export const InvalidInviteURLRoleError = createErrorClass({
+  code: 'INVALID_INVITE_URL_ROLE',
+  message: 'Invalid URL role parameter {value}',
+  status: 400,
+})
+
 export const InviteLinkAlreadyExistsError = createErrorClass({
   code: 'INVITE_LINK_ALREADY_EXISTS_ERROR',
   message: 'Invite link with ID {inviteId} already exists',
@@ -650,6 +650,30 @@ export const UntrustedRPCMethodError = createErrorClass({
   code: 'UNTRUSTED_RPC_METHOD_ERROR',
   message: 'Got a restricted RPC method {type} from {peerId}',
   status: 405,
+})
+
+export const SwarmNotInitializedError = createErrorClass({
+  code: 'SWARM_NOT_INITIALIZED_ERROR',
+  message: 'Swarm not initialized',
+  status: 503,
+})
+
+export const InvalidInviteLinkRoleIdError = createErrorClass({
+  code: 'INVALID_INVITE_LINK_ROLE_ID_ERROR',
+  message: 'Invalid roleId in database: {roleId}',
+  status: 500,
+})
+
+export const SyncTimeoutError = createErrorClass({
+  code: 'SYNC_TIMEOUT_ERROR',
+  message: 'Sync timeout',
+  status: 408,
+})
+
+export const NoPeersForInitialSyncError = createErrorClass({
+  code: 'NO_PEERS_FOR_INITIAL_SYNC_ERROR',
+  message: 'No peers found to do initial sync with',
+  status: 404,
 })
 
 /**

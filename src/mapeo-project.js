@@ -882,7 +882,7 @@ export class MapeoProject extends ReadyResource {
         /** @param {Buffer} discoveryKey */
         ondiscoverykey: async (discoveryKey) => {
           const protomux =
-            /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
+            /** @type {import('./local-peers.js').PeerProtomux} */ (
               replicationStream.noiseStream.userData
             )
           this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)

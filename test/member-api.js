@@ -8,7 +8,12 @@ import { LocalPeers } from '../src/local-peers.js'
 import { MEMBER_ROLE_ID, ROLES } from '../src/roles.js'
 import { DeviceInfo_DeviceType } from '../src/generated/rpc.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
-import { InvalidInviteURLKeyParameterError } from '../src/errors.js'
+/** @import { InviteLinkParams } from '../src/invite/invite-urls.js' */
+import {
+  InvalidInviteURLKeyParameterError,
+  InvalidInviteURLRoleError,
+  MissingInviteURLParameter,
+} from '../src/errors.js'
 import { CrockfordBase32 } from 'crockford-base32'
 
 /** @import { ProjectJoinDetails } from '../src/generated/rpc.js' */
@@ -22,12 +27,14 @@ test('serialize and parse invite URLs', () => {
   const testInviteId = randomBytes(32).toString('hex')
   // Timestamp gets rounded to seconds anyway
   const expiresAt = Math.round(Date.now() / 1000) * 1000
+  /** @type {InviteLinkParams} */
   const params = {
     inviteIdString: testInviteId,
     swarmPublicKey: testSwarmPublicKey,
     invitorName: 'some name here',
     projectName: 'my cool project',
     expiresAt,
+    roleId: MEMBER_ROLE_ID,
   }
   const url = makeInviteURL(params)
 
@@ -43,7 +50,7 @@ test('parseInviteURL throws on non-32-byte invite id', () => {
   const shortKey = CrockfordBase32.encode(randomBytes(16))
   const url = `https://i.comapeo.app/invite/#i=${shortKey}&d=${CrockfordBase32.encode(
     randomBytes(32)
-  )}&n=test&p=test&e=${Math.floor(Date.now() / 1000)}`
+  )}&n=test&p=test&e=${Math.floor(Date.now() / 1000)}&r=m`
 
   assert.throws(
     () => parseInviteURL(url),
@@ -59,7 +66,7 @@ test('parseInviteURL throws on non-32-byte swarm public key', () => {
   const shortKey = CrockfordBase32.encode(randomBytes(16))
   const url = `https://i.comapeo.app/invite/#i=${CrockfordBase32.encode(
     randomBytes(32)
-  )}&d=${shortKey}&n=test&p=test&e=${Math.floor(Date.now() / 1000)}`
+  )}&d=${shortKey}&n=test&p=test&e=${Math.floor(Date.now() / 1000)}&r=m`
 
   assert.throws(
     () => parseInviteURL(url),
@@ -67,6 +74,38 @@ test('parseInviteURL throws on non-32-byte swarm public key', () => {
       code: InvalidInviteURLKeyParameterError.code,
     },
     'should throw InvalidInviteURLKeyParameterError for short swarm public key'
+  )
+})
+
+test('parseInviteURL throws on missing role param', () => {
+  const url = `https://i.comapeo.app/invite/#i=${CrockfordBase32.encode(
+    randomBytes(32)
+  )}&d=${CrockfordBase32.encode(randomBytes(32))}&n=test&p=test&e=${Math.floor(
+    Date.now() / 1000
+  )}`
+
+  assert.throws(
+    () => parseInviteURL(url),
+    {
+      code: MissingInviteURLParameter.code,
+    },
+    'should throw MissingInviteURLParameter when r is missing'
+  )
+})
+
+test('parseInviteURL throws on invalid role value', () => {
+  const url = `https://i.comapeo.app/invite/#i=${CrockfordBase32.encode(
+    randomBytes(32)
+  )}&d=${CrockfordBase32.encode(randomBytes(32))}&n=test&p=test&e=${Math.floor(
+    Date.now() / 1000
+  )}&r=x`
+
+  assert.throws(
+    () => parseInviteURL(url),
+    {
+      code: InvalidInviteURLRoleError.code,
+    },
+    'should throw InvalidInviteURLRoleError for unknown role value'
   )
 })
 
@@ -112,7 +151,7 @@ test('Cancel invite over internet requests', async () => {
   let persisted = await inviteLinks.getAll()
   assert.equal(persisted.length, 2, 'Two invites persisted initially')
 
-  await member.cancelInviteLink(url1)
+  await member.cancelInviteLink(parseInviteURL(url1).inviteIdString)
 
   assert.deepEqual(
     await member.listInviteLinks().then((r) => r.map((p) => p.url)),
@@ -164,6 +203,7 @@ test('Pending invites are loaded from persistence on ready', async () => {
     invitorName: 'hello',
     projectName: 'world',
     expiresAt: Date.now(),
+    roleId: MEMBER_ROLE_ID,
   })
 
   // Pre-populate the mock with a pending invite

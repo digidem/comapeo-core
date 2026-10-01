@@ -6,6 +6,7 @@ import {
   ensureKnownError,
   getErrorCode,
   InviteLinkAlreadyExistsError,
+  InvalidInviteLinkRoleIdError,
 } from '../errors.js'
 import { deNullify } from '../utils.js'
 
@@ -286,7 +287,7 @@ export class InviteLinksApi extends ReadyResource {
     if (!row) return undefined
 
     if (!isRoleIdForNewInvite(row.roleId)) {
-      throw new Error(`Invalid roleId in database: ${row.roleId}`)
+      throw new InvalidInviteLinkRoleIdError({ roleId: row.roleId })
     }
 
     return /** @type {InviteLinkRecord} */ (deNullify(row))
@@ -302,7 +303,7 @@ export class InviteLinksApi extends ReadyResource {
 
     return rows.map((row) => {
       if (!isRoleIdForNewInvite(row.roleId)) {
-        throw new Error(`Invalid roleId in database: ${row.roleId}`)
+        throw new InvalidInviteLinkRoleIdError({ roleId: row.roleId })
       }
       return /** @type {InviteLinkRecord} */ (deNullify(row))
     })
@@ -321,12 +322,11 @@ export class InviteLinksApi extends ReadyResource {
 
     return rows.map((row) => {
       if (!isRoleIdForNewInvite(row.roleId)) {
-        throw new Error(`Invalid roleId in database: ${row.roleId}`)
+        throw new InvalidInviteLinkRoleIdError({ roleId: row.roleId })
       }
       return /** @type {InviteLinkRecord} */ (deNullify(row))
     })
   }
-
   /**
    * Delete a invite link
    * @param {string} inviteId

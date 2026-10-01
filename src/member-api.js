@@ -55,7 +55,7 @@ import {
   isRoleIdForNewInvite,
 } from './roles.js'
 import { DEFAULT_INVITE_EXPIRY_MS } from './invite/invite-links-api.js'
-import { makeInviteURL, parseInviteURL } from './invite/invite-urls.js'
+import { makeInviteURL } from './invite/invite-urls.js'
 
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
@@ -104,6 +104,10 @@ export const kHandleRedeemInviteOverInternet = Symbol(
  * @typedef {object} InvitePeerInfo
  * @prop {DeviceInfo['name']} name
  * @prop {DeviceInfo['deviceType']} deviceType
+ */
+
+/**
+ * @typedef {Pick<InviteLinkRecord, 'url' | 'inviteId' | 'createdAt' | 'expiresAt' | 'roleId'>} InviteLink
  */
 
 /**
@@ -251,6 +255,7 @@ export class MemberApi extends TypedEmitter {
       invitorName,
       projectName,
       expiresAt: Date.now() + DEFAULT_INVITE_EXPIRY_MS,
+      roleId: opts.roleId,
     })
 
     await this.#inviteLinks.create({
@@ -265,15 +270,14 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * Cancel an invite over internet attempt. Omit the specific URL to cancel all instances
-   * @param {string} [url]
+   * @param {string} [inviteId]
    */
-  async cancelInviteLink(url) {
-    if (!url) {
+  async cancelInviteLink(inviteId) {
+    if (!inviteId) {
       await this.#inviteLinks.deleteAll()
       return
     }
-    const { inviteIdString } = parseInviteURL(url)
-    await this.#cancelInviteLinkById(inviteIdString)
+    await this.#cancelInviteLinkById(inviteId)
   }
 
   /**
@@ -290,7 +294,7 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * Get the list of pending invites over the internet
-   * @returns {Promise<Pick<InviteLinkRecord, 'url' | 'inviteId' | 'createdAt' | 'expiresAt' | 'roleId'>[]>}
+   * @returns {Promise<InviteLink[]>}
    */
   async listInviteLinks() {
     const invites = await this.#inviteLinks.getAll()

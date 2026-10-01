@@ -4,21 +4,22 @@ import Hyperswarm from 'hyperswarm'
 import StartStopStateMachine from 'start-stop-state-machine'
 import { pEvent, TimeoutError as EventTimeoutError } from 'p-event'
 import sodium from 'sodium-universal'
-import { SwarmHandshake } from '../generated/handshake.js'
+import Protomux from 'protomux'
+import cenc from 'compact-encoding'
+import pDefer from 'p-defer'
+import { timeoutPromise } from '../utils.js'
+import { openedNoiseSecretStream } from '../lib/noise-secret-stream-helpers.js'
+import { SwarmNotInitializedError } from '../errors.js'
+import { Hello, IdentityProof } from '../generated/auth.js'
 import {
+  AuthProtocolVersionMismatchError,
   ensureKnownError,
-  HandshakeTooLargeError,
   InvalidIdentityProofError,
   TimeoutError,
-  UnableToReadHandshakeError,
 } from '../errors.js'
-
-import { openedNoiseSecretStream } from '../lib/noise-secret-stream-helpers.js'
-import pDefer from 'p-defer'
 
 /** @import {OpenedNoiseStream, AuthedNoiseStream} from '../lib/noise-secret-stream-helpers.js' */
 /** @import {Keypair} from './local-discovery.js' */
-/** @import {Duplex, Readable} from "streamx" */
 
 // Re-export for consumers that import from this module
 /** @typedef {AuthedNoiseStream} RemoteAuthedNoiseStream */
@@ -34,11 +35,9 @@ export const kTestOnlyHandleHyperswarmConnection = Symbol(
   'testOnlyHandleHyperswarmConnection'
 )
 
-// 2 bytes 16bit unsigned int
-export const LENGTH_BYTES_LENGTH = 2
-
-// Max payload size: total packet (prefix + body) capped at UInt16 max, minus the 2-byte prefix itself
-const MAX_HANDSHAKE_SIZE = 0xffff - 2
+export const AUTH_PROTOCOL = 'comapeo/auth'
+const AUTH_PROTOCOL_VERSION = 1
+const AUTH_HANDSHAKE_TIMEOUT = 10_000
 
 /**
  * @extends {TypedEmitter<DiscoveryEvents>}
@@ -228,7 +227,7 @@ export class RemoteDiscovery extends TypedEmitter {
   async connectPeer(publicKey, { timeout = 60_000, signal } = {}) {
     await this.#sm.start()
     const swarm = this.#swarm
-    if (!swarm) throw new Error('Swarm not initialized')
+    if (!swarm) throw new SwarmNotInitializedError()
     const noisePublicKey = Buffer.from(publicKey, 'hex')
 
     const existing = await this.#findExistingPeer(noisePublicKey)
@@ -282,36 +281,108 @@ export class RemoteDiscovery extends TypedEmitter {
       // @ts-ignore
       socket.isTrusted = this.#shouldTrustKeys.has(remotePublicKeyString)
 
-      const firstData = readHandshakeBuffer(socket)
-      const keyPair = this.#identityKeypair
-      // Sign the Noise handshake hash with our stable key
-      const handshakeBuffer = makeSwarmHandshake(socket.handshakeHash, keyPair)
+      // Wait for the NOISE handshake to complete
+      const opened = await socket.opened
+      if (!opened || socket.destroyed) return
 
-      const hasDrained = socket.write(Buffer.from(handshakeBuffer))
+      // Create protomux and store on the stream so LocalPeers can reuse it
+      const protomux = Protomux.from(socket)
+      socket.userData = protomux
 
-      if (!hasDrained) await pEvent(socket, 'drain', { timeout: 10000 })
+      // Set up the auth channel
+      const helloDefer = pDefer()
+      const identityDefer = pDefer()
+      const onAuthOpen = pDefer()
+      /** @type {ReturnType<typeof pDefer>} */
+      let drainDefer
 
-      const data = await firstData
+      const messages = [
+        {
+          encoding: cenc.raw,
+          onmessage: /** @param {Buffer} msg */ (msg) => {
+            const hello = Hello.decode(msg)
+            if (hello.protocolVersion !== AUTH_PROTOCOL_VERSION) {
+              this.#l.log(
+                'Peer %s has incompatible protocol version %d',
+                remotePublicKeyString,
+                hello.protocolVersion
+              )
+              helloDefer.reject(new AuthProtocolVersionMismatchError())
+              return
+            }
+            helloDefer.resolve(hello)
+          },
+        },
+        {
+          encoding: cenc.raw,
+          onmessage: /** @param {Buffer} msg */ (msg) => {
+            identityDefer.resolve(IdentityProof.decode(msg))
+          },
+        },
+      ]
 
-      const msg = SwarmHandshake.decode(data)
+      const authChannel = protomux.createChannel({
+        protocol: AUTH_PROTOCOL,
+        messages,
+        onopen: () => onAuthOpen.resolve(),
+        ondrain: () => drainDefer?.resolve(),
+      })
+      authChannel.open()
+      await onAuthOpen.promise
 
-      try {
-        const valid = sodium.crypto_sign_verify_detached(
-          msg.signature,
-          socket.handshakeHash, // same hash on both sides
-          msg.publicKey
-        )
-
-        if (!valid) {
-          throw new InvalidIdentityProofError()
-        }
-      } catch (e) {
-        if (e instanceof InvalidIdentityProofError) throw e
-        throw new InvalidIdentityProofError({ cause: e })
+      /**
+       * @param {Buffer} buf
+       * @param {number} messageId
+       */
+      const sendAndDrain = async (buf, messageId) => {
+        drainDefer = pDefer()
+        const didWrite = authChannel.messages[messageId].send(buf)
+        if (!didWrite) await drainDefer.promise
       }
 
+      // Send our hello
+      const myHello = Hello.encode({
+        protocolVersion: AUTH_PROTOCOL_VERSION,
+      }).finish()
+      await sendAndDrain(Buffer.from(myHello), 0)
+
+      // Receive peer's hello
+      await timeoutPromise(helloDefer.promise, {
+        milliseconds: AUTH_HANDSHAKE_TIMEOUT,
+      })
+
+      // Send our identity proof
+      const sig = new Uint8Array(64)
+      sodium.crypto_sign_detached(
+        sig,
+        socket.handshakeHash,
+        this.#identityKeypair.secretKey
+      )
+      const myProof = IdentityProof.encode({
+        publicKey: this.#identityKeypair.publicKey,
+        signature: Buffer.from(sig),
+      }).finish()
+      await sendAndDrain(Buffer.from(myProof), 1)
+
+      // Receive and verify peer's identity proof
+      const peerProof = await timeoutPromise(identityDefer.promise, {
+        milliseconds: AUTH_HANDSHAKE_TIMEOUT,
+      })
+
+      let valid
+      try {
+        valid = sodium.crypto_sign_verify_detached(
+          peerProof.signature,
+          socket.handshakeHash,
+          peerProof.publicKey
+        )
+      } catch {
+        valid = false
+      }
+      if (!valid) throw new InvalidIdentityProofError()
+
       // @ts-expect-error adding AuthedNoiseStream properties
-      socket.authenticatedPublicKey = msg.publicKey
+      socket.authenticatedPublicKey = peerProof.publicKey
       this.emit('connection', /** @type {AuthedNoiseStream} */ (socket))
       this.#pendingHandshakes.delete(socket)
       pendingDefer.resolve(true)
@@ -321,109 +392,4 @@ export class RemoteDiscovery extends TypedEmitter {
       pendingDefer.resolve(false)
     }
   }
-}
-
-/**
- *
- * @param {Readable|Duplex} stream
- * @param {number} length
- * @returns {Promise<Uint8Array>}
- */
-async function readChunk(stream, length) {
-  let data = stream.read()
-
-  if (!data) {
-    try {
-      await pEvent(stream, 'readable', {
-        timeout: 10_000,
-        rejectionEvents: ['error', 'close'],
-      })
-      data = stream.read()
-    } catch {
-      throw new UnableToReadHandshakeError()
-    }
-  }
-
-  stream.pause()
-
-  if (!data) {
-    // This should never happen
-    throw new UnableToReadHandshakeError()
-  }
-
-  if (data.length === length) return data
-
-  if (data.length > length) {
-    const slice = data.subarray(0, length)
-    const remainder = data.subarray(length)
-    stream.unshift(remainder)
-    return slice
-  }
-
-  const remainingBytes = length - data.length
-  const remainingData = await readChunk(stream, remainingBytes)
-  const result = new Uint8Array(length)
-  result.set(data, 0)
-  result.set(remainingData, data.length)
-  return result
-}
-
-/**
- *
- * @param {Readable|Duplex} stream
- * @returns {Promise<Buffer>}
- */
-export async function readHandshakeBuffer(stream) {
-  const handshakeLengthBytes = await readChunk(stream, LENGTH_BYTES_LENGTH)
-
-  const handshakeLength = new DataView(
-    handshakeLengthBytes.buffer,
-    handshakeLengthBytes.byteOffset
-  ).getUint16(0, true)
-
-  if (handshakeLength > MAX_HANDSHAKE_SIZE) {
-    throw new HandshakeTooLargeError()
-  }
-
-  const data = await readChunk(stream, handshakeLength)
-
-  return Buffer.from(data)
-}
-
-/**
- *
- * @param {Buffer|null} handshakeHash
- * @param {import('../types.js').KeyPair} keyPair
- * @returns
- */
-export function makeSwarmHandshake(handshakeHash, keyPair) {
-  const sig = new Uint8Array(64)
-  sodium.crypto_sign_detached(sig, handshakeHash, keyPair.secretKey)
-
-  // Send stable public key + proof in a single message
-  const handshakeBuffer = SwarmHandshake.encode({
-    publicKey: keyPair.publicKey,
-    signature: Buffer.from(sig),
-  }).finish()
-
-  return lengthPrefix(handshakeBuffer)
-}
-
-/**
- * Convert a buffer to its length prefixed version using UInt16LE
- * @param {Uint8Array} buffer
- * @return
- */
-export function lengthPrefix(buffer) {
-  const fullBuffer = new Uint8Array(buffer.length + LENGTH_BYTES_LENGTH)
-
-  new DataView(fullBuffer.buffer, fullBuffer.byteOffset).setUint16(
-    0,
-    buffer.length,
-    true
-  )
-
-  fullBuffer.set(buffer, LENGTH_BYTES_LENGTH)
-
-  return fullBuffer
 }
