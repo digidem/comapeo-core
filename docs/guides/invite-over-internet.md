@@ -44,7 +44,7 @@ const url = await project.$member.createInviteLink({
 // InvalidProjectNameError
 
 // cancel at any time
-await project.$member.cancelInviteLink(url)
+await project.$member.cancelInviteLink(inviteId)
 // InvalidInternetInviteURLError
 
 // get curren list
@@ -67,6 +67,7 @@ const {
 	projectName,
 	expiresAt,
 	inviteIdString,
+	roleId,
 } = parseInviteURL(url)
 
 // Listen for join progress updates
