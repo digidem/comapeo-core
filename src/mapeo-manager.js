@@ -288,8 +288,8 @@ export class MapeoManager extends TypedEmitter {
       }
     )
 
-    this.#localPeers.on('peer-trusted', (peerId) => {
-      this.#handlePeerTrusted(peerId).catch((e) => {
+    this.#localPeers.on('peer-trusted', (peer) => {
+      this.#handlePeerTrusted(peer.deviceId).catch((e) => {
         this.#l.log('Error: Unable to handle peer trust update', ensureError(e))
       })
     })

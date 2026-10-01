@@ -556,6 +556,7 @@ export class MapeoProject extends ReadyResource {
     // Replicate already connected local peers
     for (const peer of localPeers.peers) {
       if (peer.status !== 'connected') continue
+      if (!peer.isTrusted) continue
       this.#coreManager.creatorCore.replicate(peer.protomux)
     }
 
@@ -563,6 +564,14 @@ export class MapeoProject extends ReadyResource {
      * @type {import('./local-peers.js').LocalPeersEvents['peer-add']}
      */
     const onPeerAdd = (peer) => {
+      if (peer.isTrusted) this.#coreManager.creatorCore.replicate(peer.protomux)
+    }
+
+    /**
+     * @type {import('./local-peers.js').LocalPeersEvents['peer-trusted']}
+     */
+    const onPeerTrusted = (peer) => {
+      if (peer.status !== 'connected') return
       this.#coreManager.creatorCore.replicate(peer.protomux)
     }
 
@@ -576,6 +585,9 @@ export class MapeoProject extends ReadyResource {
     // When a new peer is found, try to replicate (if it is not a member of the
     // project it will fail the role check and be ignored)
     localPeers.on('peer-add', onPeerAdd)
+
+    // When a previously untrusted peer becomes trusted, replicate with them
+    localPeers.on('peer-trusted', onPeerTrusted)
 
     // This happens whenever a peer replicates a core to the stream. SyncApi
     // handles replicating this core if we also have it, or requesting the key
@@ -594,6 +606,7 @@ export class MapeoProject extends ReadyResource {
 
     this.once('close', () => {
       localPeers.off('peer-add', onPeerAdd)
+      localPeers.off('peer-trusted', onPeerTrusted)
       localPeers.off('discovery-key', onDiscoverykey)
     })
 

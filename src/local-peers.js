@@ -119,6 +119,7 @@ export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
 /**
  * @typedef {object} PeerInfoBase
  * @property {string} deviceId
+ * @property {boolean} isTrusted
  * @property {string | undefined} name
  * @property {import('./generated/rpc.js').DeviceInfo['deviceType']} deviceType
  * @property {PeerSupportedFeatures} supportedFeatures
@@ -191,6 +192,7 @@ class Peer {
         return {
           status: this.#state,
           deviceId: this.#deviceId,
+          isTrusted: this.#isTrusted,
           name: this.#name,
           deviceType: this.#deviceType,
           supportedFeatures,
@@ -199,6 +201,7 @@ class Peer {
         return {
           status: this.#state,
           deviceId: this.#deviceId,
+          isTrusted: this.#isTrusted,
           name: this.#name,
           deviceType: this.#deviceType,
           connectedAt: this.#connectedAt,
@@ -209,6 +212,7 @@ class Peer {
         return {
           status: this.#state,
           deviceId: this.#deviceId,
+          isTrusted: this.#isTrusted,
           name: this.#name,
           deviceType: this.#deviceType,
           disconnectedAt: this.#disconnectedAt,
@@ -592,7 +596,7 @@ class Peer {
  * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
  * @property {(discoveryKey: Buffer, protomux: PeerProtomux) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
  * @property {(messageType: string, errorMessage: import('./errors.js').KnownError) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
- * @property {(peerId:string) => void} peer-trusted Emitted when a previously untrusted peer gets marked as trusted
+ * @property {(peer: PeerInfo) => void} peer-trusted Emitted when a previously untrusted peer gets marked as trusted
  */
 
 /** @extends {TypedEmitter<LocalPeersEvents>} */
@@ -744,8 +748,7 @@ export class LocalPeers extends TypedEmitter {
   async trustPeer(peerId) {
     const peer = await this.#getPeerByDeviceId(peerId)
     peer.isTrusted = true
-    this.#attachDiscoveryChannel(peer.protomux)
-    this.emit('peer-trusted', peerId)
+    this.emit('peer-trusted', peer.info)
   }
 
   /**
@@ -755,20 +758,6 @@ export class LocalPeers extends TypedEmitter {
   async isTrusted(peerId) {
     const peer = await this.#getPeerByDeviceId(peerId)
     return peer.isTrusted
-  }
-
-  /**
-   * @param {PeerProtomux} protomux
-   */
-  #attachDiscoveryChannel(protomux) {
-    protomux.pair(
-      { protocol: 'hypercore/alpha' },
-      /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
-        const peerId = peerIdFromNoise(protomux.stream)
-        this.#l.log('Received discovery key %h from %h', discoveryKey, peerId)
-        this.emit('discovery-key', discoveryKey, protomux)
-      }
-    )
   }
 
   /**
@@ -790,9 +779,14 @@ export class LocalPeers extends TypedEmitter {
 
     if (this.#attached.has(protomux)) return outerStream
 
-    if (isTrusted) {
-      this.#attachDiscoveryChannel(protomux)
-    }
+    protomux.pair(
+      { protocol: 'hypercore/alpha' },
+      /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
+        const peerId = peerIdFromNoise(protomux.stream)
+        this.#l.log('Received discovery key %h from %h', discoveryKey, peerId)
+        this.emit('discovery-key', discoveryKey, protomux)
+      }
+    )
 
     const deferredOpen = pDefer()
     this.#opening.add(deferredOpen.promise)

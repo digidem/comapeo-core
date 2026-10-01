@@ -576,8 +576,9 @@ test('peer-trusted event fires on trustPeer', async () => {
 
   await r1.trustPeer(peerFromR1.deviceId)
 
-  const [emittedPeerId] = await trustedPromise
-  assert.equal(emittedPeerId, peerFromR1.deviceId)
+  const [emittedPeer] = await trustedPromise
+  assert.equal(emittedPeer.deviceId, peerFromR1.deviceId)
+  assert.equal(emittedPeer.isTrusted, true)
 })
 
 test('restricted RPC methods work after trustPeer', async () => {
