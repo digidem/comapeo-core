@@ -107,6 +107,10 @@ export const kHandleRedeemInviteOverInternet = Symbol(
  */
 
 /**
+ * @typedef {Pick<InviteLinkRecord, 'url' | 'inviteId' | 'createdAt' | 'expiresAt' | 'roleId'>} InviteLink
+ */
+
+/**
  * @typedef {object} InviteOptions
  * @prop {import('./roles.js').RoleIdForNewInvite} opts.roleId
  * @prop {string} [roleName]
@@ -290,7 +294,7 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * Get the list of pending invites over the internet
-   * @returns {Promise<Pick<InviteLinkRecord, 'url' | 'inviteId' | 'createdAt' | 'expiresAt' | 'roleId'>[]>}
+   * @returns {Promise<InviteLink[]>}
    */
   async listInviteLinks() {
     const invites = await this.#inviteLinks.getAll()
