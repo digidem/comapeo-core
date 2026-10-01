@@ -8,6 +8,7 @@ import { LocalPeers } from '../src/local-peers.js'
 import { MEMBER_ROLE_ID, ROLES } from '../src/roles.js'
 import { DeviceInfo_DeviceType } from '../src/generated/rpc.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
+/** @import { InviteLinkParams } from '../src/invite/invite-urls.js' */
 import {
   InvalidInviteURLKeyParameterError,
   InvalidInviteURLRoleError,
@@ -26,6 +27,7 @@ test('serialize and parse invite URLs', () => {
   const testInviteId = randomBytes(32).toString('hex')
   // Timestamp gets rounded to seconds anyway
   const expiresAt = Math.round(Date.now() / 1000) * 1000
+  /** @type {InviteLinkParams} */
   const params = {
     inviteIdString: testInviteId,
     swarmPublicKey: testSwarmPublicKey,

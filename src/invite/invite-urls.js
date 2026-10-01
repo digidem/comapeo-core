@@ -1,4 +1,10 @@
-import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../roles.js'
+import {
+  COORDINATOR_ROLE_ID,
+  MEMBER_ROLE_ID,
+  BLOCKED_ROLE_ID,
+} from '../roles.js'
+
+/** @import {RoleIdForNewInvite} from '../roles.js' */
 
 /**
  * @typedef {object} InviteLinkParams
@@ -7,7 +13,7 @@ import { COORDINATOR_ROLE_ID, MEMBER_ROLE_ID } from '../roles.js'
  * @property {string} invitorName
  * @property {string} projectName
  * @property {number} expiresAt
- * @property {COORDINATOR_ROLE_ID|MEMBER_ROLE_ID} roleId
+ * @property {RoleIdForNewInvite} roleId
  */
 
 import {
@@ -29,10 +35,11 @@ export const URL_PARAM_MAPPINGS = {
   roleId: 'r',
 }
 
-/** @type {Record<string, COORDINATOR_ROLE_ID| MEMBER_ROLE_ID>} */
+/** @type {Record<string, RoleIdForNewInvite>} */
 const ROLE_MAP = {
   c: COORDINATOR_ROLE_ID,
   m: MEMBER_ROLE_ID,
+  b: BLOCKED_ROLE_ID,
 }
 
 export const INTERNET_INVITE_PAGE = 'https://a.comapeo.app/invite'
