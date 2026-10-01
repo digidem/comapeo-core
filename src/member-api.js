@@ -55,7 +55,7 @@ import {
   isRoleIdForNewInvite,
 } from './roles.js'
 import { DEFAULT_INVITE_EXPIRY_MS } from './invite/invite-links-api.js'
-import { makeInviteURL, parseInviteURL } from './invite/invite-urls.js'
+import { makeInviteURL } from './invite/invite-urls.js'
 
 const ACTIVE_ROLE_IDS = [CREATOR_ROLE_ID, MEMBER_ROLE_ID, COORDINATOR_ROLE_ID]
 
@@ -265,15 +265,14 @@ export class MemberApi extends TypedEmitter {
 
   /**
    * Cancel an invite over internet attempt. Omit the specific URL to cancel all instances
-   * @param {string} [url]
+   * @param {string} [inviteId]
    */
-  async cancelInviteLink(url) {
-    if (!url) {
+  async cancelInviteLink(inviteId) {
+    if (!inviteId) {
       await this.#inviteLinks.deleteAll()
       return
     }
-    const { inviteIdString } = parseInviteURL(url)
-    await this.#cancelInviteLinkById(inviteIdString)
+    await this.#cancelInviteLinkById(inviteId)
   }
 
   /**

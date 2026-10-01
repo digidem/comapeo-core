@@ -112,7 +112,7 @@ test('Cancel invite over internet requests', async () => {
   let persisted = await inviteLinks.getAll()
   assert.equal(persisted.length, 2, 'Two invites persisted initially')
 
-  await member.cancelInviteLink(url1)
+  await member.cancelInviteLink(parseInviteURL(url1).inviteIdString)
 
   assert.deepEqual(
     await member.listInviteLinks().then((r) => r.map((p) => p.url)),
