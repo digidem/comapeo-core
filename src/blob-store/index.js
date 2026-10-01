@@ -14,6 +14,7 @@ import {
   DriveNotFoundError,
 } from '../errors.js'
 import ensureError from 'ensure-error'
+import { peerIdFromNoise } from '../local-peers.js'
 
 /** @import Hyperdrive from 'hyperdrive' */
 /** @import { JsonObject } from 'type-fest' */
@@ -123,7 +124,7 @@ export class BlobStore extends ReadyResource {
   /**
    * Bound to `this`
    * This will be called whenever a peer is successfully added to the creatorcore
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<import('../lib/noise-secret-stream-helpers.js').OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer } peer
    */
   #handlePeerAdd = (peer) => {
     const downloadFilter = getBlobDownloadFilter(this.#isArchiveDevice)
@@ -132,11 +133,10 @@ export class BlobStore extends ReadyResource {
 
   /**
    * Bound to `this`
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<import('../lib/noise-secret-stream-helpers.js').OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer} peer
    */
   #handlePeerRemove = (peer) => {
-    const peerKey = peer.protomux.stream.remotePublicKey
-    const peerId = peerKey.toString('hex')
+    const peerId = peerIdFromNoise(peer.protomux.stream)
     this.#entriesStreams.get(peerId)?.destroy()
     this.#entriesStreams.delete(peerId)
   }

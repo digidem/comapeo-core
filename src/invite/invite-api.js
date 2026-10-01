@@ -12,6 +12,7 @@ import {
   InviteSendError,
   ensureKnownError,
   InviteNotFoundError,
+  UnknownError,
 } from '../errors.js'
 
 /** @import { ProjectToAddDetails } from '../mapeo-manager.js' */
@@ -130,6 +131,7 @@ export class InviteApi extends TypedEmitter {
       projectDescription,
       sendStats,
       invitorWroteDeviceInfo,
+      leaveOnFail,
     } = inviteRpcMessage
     const invite = { ...inviteRpcMessage, receivedAt: Date.now() }
 
@@ -171,6 +173,7 @@ export class InviteApi extends TypedEmitter {
               projectDescription,
               sendStats,
               invitorWroteDeviceInfo,
+              leaveOnFail,
             })
           }),
         },
@@ -322,7 +325,7 @@ export class InviteApi extends TypedEmitter {
         const { context, value } = invite.actor.getSnapshot()
         throw value === 'respondedAlready'
           ? new AlreadyJoinedError('Already joining or in project')
-          : context.error || new Error('Unknown error')
+          : context.error || new UnknownError({ err: 'invite accept failed' })
       }
 
       return projectPublicId
@@ -365,7 +368,9 @@ function toInvite(internal, snapshot, invitorDeviceId) {
       inviteId: internal.inviteId.toString('hex'),
       projectInviteId: internal.projectInviteId.toString('hex'),
       state,
-      error: snapshot.context.error || new Error('Unknown error'),
+      error:
+        snapshot.context.error ||
+        new UnknownError({ err: 'invite accept failed' }),
     }
   } else {
     return {
