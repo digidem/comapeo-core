@@ -696,3 +696,52 @@ test('untrusted peer can send allowed RPC methods', async () => {
   const [r1Peers] = await once(r1, 'peers')
   assert.equal(r1Peers[0].name, 'untrusted')
 })
+
+test('reconnected peer is auto-trusted if it was trusted before', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  // First connection: both sides start untrusted (like a fresh internet peer)
+  let destroy = replicate(r1, r2, { isTrusted1: false, isTrusted2: false })
+
+  const [[peerFromR1]] = await once(r1, 'peers')
+  assert.equal(peerFromR1.isTrusted, false, 'untrusted on first connect')
+
+  // Trust the device
+  await r1.trustPeer(peerFromR1.deviceId)
+  const trustedNow = r1.peers.find((p) => p.deviceId === peerFromR1.deviceId)
+  assert.equal(trustedNow?.isTrusted, true, 'trusted after trustPeer')
+
+  // The connection drops and restarts. Reconnecting starts UNTRUSTED again,
+  // which mirrors remote discovery re-deriving isTrusted=false after the
+  // transient should-trust set has been cleared.
+  await destroy()
+  destroy = replicate(r1, r2, { isTrusted1: false, isTrusted2: false })
+
+  const [r1Peers] = await once(r1, 'peers')
+  const reconnected = r1Peers.find((p) => p.deviceId === peerFromR1.deviceId)
+  assert.equal(reconnected?.status, 'connected')
+  assert.equal(
+    reconnected?.isTrusted,
+    true,
+    'reconnected peer should be auto-trusted because we trust this device'
+  )
+})
+
+test('reconnected peer stays untrusted if it was never trusted', async () => {
+  const r1 = new LocalPeers()
+  const r2 = new LocalPeers()
+
+  let destroy = replicate(r1, r2, { isTrusted1: false, isTrusted2: false })
+  const [[peerFromR1]] = await once(r1, 'peers')
+
+  await destroy()
+  destroy = replicate(r1, r2, { isTrusted1: false, isTrusted2: false })
+
+  const [r1Peers] = await once(r1, 'peers')
+  assert.equal(
+    r1Peers.find((p) => p.deviceId === peerFromR1.deviceId)?.isTrusted,
+    false,
+    'never-trusted device should not become trusted on reconnect'
+  )
+})
