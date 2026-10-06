@@ -15,6 +15,8 @@ import {
 import { pEvent } from 'p-event'
 import { UnknownPeerError, UntrustedRPCMethodError } from '../src/errors.js'
 
+/** @import {PeerInfo} from '../src/local-peers.js' */
+
 test('sending and receiving invites', async () => {
   const r1 = new LocalPeers()
   const r2 = new LocalPeers()
@@ -719,7 +721,9 @@ test('reconnected peer is auto-trusted if it was trusted before', async () => {
   destroy = replicate(r1, r2, { isTrusted1: false, isTrusted2: false })
 
   const [r1Peers] = await once(r1, 'peers')
-  const reconnected = r1Peers.find((p) => p.deviceId === peerFromR1.deviceId)
+  const reconnected = r1Peers.find(
+    (/** @type {PeerInfo} */ p) => p.deviceId === peerFromR1.deviceId
+  )
   assert.equal(reconnected?.status, 'connected')
   assert.equal(
     reconnected?.isTrusted,
@@ -740,7 +744,9 @@ test('reconnected peer stays untrusted if it was never trusted', async () => {
 
   const [r1Peers] = await once(r1, 'peers')
   assert.equal(
-    r1Peers.find((p) => p.deviceId === peerFromR1.deviceId)?.isTrusted,
+    r1Peers.find(
+      (/** @type {PeerInfo} */ p) => p.deviceId === peerFromR1.deviceId
+    )?.isTrusted,
     false,
     'never-trusted device should not become trusted on reconnect'
   )
