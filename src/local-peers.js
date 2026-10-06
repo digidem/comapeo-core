@@ -605,6 +605,15 @@ export class LocalPeers extends TypedEmitter {
   #peers = new Map()
   /** @type {Set<Peer>} */
   #lastEmittedPeers = new Set()
+  /**
+   * Device IDs that have ever been trusted on any connection. This is used to
+   * account for reconnects over remote discovery when connections drop and
+   * restart unexpectedly: trust is a property of the device, not a single
+   * connection, so once a device is trusted every future (re)connection to it
+   * is auto-trusted.
+   * @type {Set<string>}
+   */
+  #trustedDeviceIds = new Set()
   /** @type {Set<Promise<any>>} */
   #opening = new Set()
 
@@ -748,6 +757,7 @@ export class LocalPeers extends TypedEmitter {
   async trustPeer(peerId) {
     const peer = await this.#getPeerByDeviceId(peerId)
     peer.isTrusted = true
+    this.#trustedDeviceIds.add(peerId)
     this.emit('peer-trusted', peer.info)
   }
 
@@ -888,9 +898,15 @@ export class LocalPeers extends TypedEmitter {
     })
     channel.open()
 
+    // Auto-trust devices we have trusted before. This is used to account for
+    // reconnects over remote discovery when connections drop and restart
+    // unexpectedly: a reconnected peer should not silently become untrusted
+    // just because it is a new connection to a device we already trusted.
+    const trusted = isTrusted || this.#trustedDeviceIds.has(peerId)
+    if (trusted) this.#trustedDeviceIds.add(peerId)
     const existingDevicePeers = this.#peers.get(peerId) || new Set()
     const peer = new Peer({
-      isTrusted,
+      isTrusted: trusted,
       peerId,
       protomux,
       channel,
