@@ -490,7 +490,7 @@ export class SyncApi extends TypedEmitter {
       }
 
       const onTimeout = () => {
-        clearTimeout(initialPeersTimeoutId)
+        if (initialPeersTimeoutId) clearTimeout(initialPeersTimeoutId)
         this[kSyncState].off('state', onState)
         reject(new SyncTimeoutError())
       }
@@ -500,7 +500,7 @@ export class SyncApi extends TypedEmitter {
         if (timeoutId) clearTimeout(timeoutId)
         if (initialPeersTimeoutId) {
           if (hasRemoteStates(state)) {
-            clearTimeout(initialPeersTimeoutId)
+            if (initialPeersTimeoutId) clearTimeout(initialPeersTimeoutId)
             initialPeersTimeoutId = null
           } else {
             return
@@ -508,7 +508,7 @@ export class SyncApi extends TypedEmitter {
         }
         if (isSynced(state, type, this.#peerSyncControllers)) {
           this[kSyncState].off('state', onState)
-          clearTimeout(initialPeersTimeoutId)
+          if (initialPeersTimeoutId) clearTimeout(initialPeersTimeoutId)
           resolve()
           return
         }
