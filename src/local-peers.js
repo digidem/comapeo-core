@@ -793,7 +793,7 @@ export class LocalPeers extends TypedEmitter {
       { protocol: 'hypercore/alpha' },
       /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
         const peerId = peerIdFromNoise(protomux.stream)
-        this.#l.log('Received discovery key %h from %h', discoveryKey, peerId)
+        this.#l.log('Received discovery key %h from %S', discoveryKey, peerId)
         this.emit('discovery-key', discoveryKey, protomux)
       }
     )
