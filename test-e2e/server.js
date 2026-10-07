@@ -47,6 +47,7 @@ const comapeoCoreUrl = new URL('..', import.meta.url)
 
 test('invalid base URLs', async (t) => {
   const manager = createManager('device0', t)
+  await manager.setDeviceInfo({ name: 'device0', deviceType: 'mobile' })
   const projectId = await manager.createProject()
   const project = await manager.getProject(projectId)
 
@@ -273,6 +274,7 @@ test("fails if first request succeeds but sync doesn't", async (t) => {
 
 test('adding a server peer', async (t) => {
   const manager = createManager('device0', t)
+  await manager.setDeviceInfo({ name: 'device0', deviceType: 'mobile' })
   const projectId = await manager.createProject({ name: 'foo' })
   const project = await manager.getProject(projectId)
 
@@ -321,6 +323,7 @@ test('adding a server peer and getting stream errors in connectServers', async (
   const manager = createManager('device0', t, {
     makeWebsocket,
   })
+  await manager.setDeviceInfo({ name: 'device0', deviceType: 'mobile' })
 
   const projectId = await manager.createProject({ name: 'foo' })
   const project = await manager.getProject(projectId)

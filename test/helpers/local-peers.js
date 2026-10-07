@@ -7,7 +7,7 @@ import NoiseSecretStream from '@hyperswarm/secret-stream'
 /**
  * @param {import('../../src/local-peers.js').LocalPeers} rpc1
  * @param {import('../../src/local-peers.js').LocalPeers} rpc2
- * @param { {kp1?: KeyPair, kp2?: KeyPair} } [keyPairs]
+ * @param { {kp1?: KeyPair, kp2?: KeyPair, isTrusted1?: boolean, isTrusted2?: boolean} } [opts]
  */
 export function replicate(
   rpc1,
@@ -16,6 +16,8 @@ export function replicate(
     // Keep keypairs deterministic for tests, since we use peer.publicKey as an identifier.
     kp1 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(0)),
     kp2 = NoiseSecretStream.keyPair(Buffer.allocUnsafe(32).fill(1)),
+    isTrusted1 = true,
+    isTrusted2 = true,
   } = {}
 ) {
   const n1 = new NoiseSecretStream(true, undefined, {
@@ -28,8 +30,8 @@ export function replicate(
   // @ts-expect-error
   n1.rawStream.pipe(n2.rawStream).pipe(n1.rawStream)
 
-  rpc1.connect(n1)
-  rpc2.connect(n2)
+  rpc1.connect(n1, isTrusted1)
+  rpc2.connect(n2, isTrusted2)
 
   /** @param {Error} [e] */
   return async function destroy(e) {
