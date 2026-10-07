@@ -23,7 +23,7 @@ import {
 } from '../src/errors.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
 import { temporaryDirectory } from 'tempy'
-import { kWaitForInitialSyncWithPeer } from '../src/sync/sync-api.js'
+import { kForceAddProjectFail } from '../src/mapeo-manager.js'
 import { LocalPeers } from '../src/local-peers.js'
 
 /**
@@ -640,12 +640,8 @@ test('invite over the internet removes project and removes member when failing t
   })
   const project = await invitor.getProject(projectId)
 
-  const origSyncWithPeer = project.$sync[kWaitForInitialSyncWithPeer]
-
-  project.$sync[kWaitForInitialSyncWithPeer] = async () => {
-    await new Promise((resolve) => setTimeout(resolve, 200))
-    throw new Error('Unexpected error!')
-  }
+  // Force the invitee's addProject to fail during initial sync
+  invitee[kForceAddProjectFail](true)
 
   const url = await project.$member.createInviteLink({
     roleId: MEMBER_ROLE_ID,
@@ -672,8 +668,6 @@ test('invite over the internet removes project and removes member when failing t
   assert.equal(invitedProjectId, projectId)
   assert.equal(deviceId, invitee.deviceId)
 
-  // Show the user the device ID and their name and have them verify the invitee sees the same device ID
-  // We should either take the first 4-8 bytes from the deviceID or derive something visual like emoji
   const onInviteeAccepted = project.$member.acceptInviteLinkRequest(
     redeemInviteId,
     deviceId
@@ -692,7 +686,8 @@ test('invite over the internet removes project and removes member when failing t
 
   assert.equal(projects.length, 0, 'invitee no longer in a project')
 
-  project.$sync[kWaitForInitialSyncWithPeer] = origSyncWithPeer
+  // Turn off the forced failure and retry the join
+  invitee[kForceAddProjectFail](false)
 
   invitor.on('invite-link-join-request', (_projectId, deviceId, inviteId) => {
     project.$member.acceptInviteLinkRequest(inviteId, deviceId)

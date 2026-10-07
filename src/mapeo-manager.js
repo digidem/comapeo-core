@@ -65,6 +65,7 @@ import {
   RPCDisconnectBeforeAckError,
   UnknownInviteIDError,
   InviteDeniedByInviterError,
+  SyncTimeoutError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
@@ -139,6 +140,14 @@ const RPC_FEATURES = [
 ]
 
 /**
+ * Symbol-gated method to force `addProject` to fail during initial sync.
+ * Used exclusively in tests.
+ *
+ * @type {unique symbol}
+ */
+export const kForceAddProjectFail = Symbol('kForceAddProjectFail')
+
+/**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
  */
 
@@ -188,6 +197,8 @@ export class MapeoManager extends TypedEmitter {
   #untrustedTimeout
   /** @type {Set<ReturnType<setTimeout>>}*/
   #pendingTrustedTimers = new Set()
+  /** @type {boolean} */
+  #testOnlyForceSyncFail = false
 
   /**
    * @param {Object} opts
@@ -978,6 +989,7 @@ export class MapeoManager extends TypedEmitter {
     // 5. Wait for initial project sync
     if (waitForSync) {
       try {
+        if (this.#testOnlyForceSyncFail) throw new SyncTimeoutError()
         await project.$sync.waitForSync('initial', {
           timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
           errorOnNoPeers: true,
@@ -1150,6 +1162,16 @@ export class MapeoManager extends TypedEmitter {
    */
   get invite() {
     return this.#invite
+  }
+
+  /**
+   * Toggle whether the next `addProject` call fails during initial sync.
+   * Test-only.
+   * @param {boolean} shouldFail
+   * @returns {void}
+   */
+  [kForceAddProjectFail](shouldFail) {
+    this.#testOnlyForceSyncFail = shouldFail
   }
 
   /** @returns {Promise<{ name: string, port: number }>} */
