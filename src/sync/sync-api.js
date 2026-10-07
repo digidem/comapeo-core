@@ -16,6 +16,7 @@ import {
   ExhaustivenessError,
   SyncTimeoutError,
   NoPeersForInitialSyncError,
+  InvalidSyncTimeoutsError,
 } from '../errors.js'
 import { peerIdFromNoise } from '../local-peers.js'
 import { noop } from '../utils.js'
@@ -32,6 +33,8 @@ export const kRescindFullStopRequest = Symbol('foreground')
 export const kWaitForInitialSyncWithPeer = Symbol(
   'wait for initial sync with peer'
 )
+
+const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -455,27 +458,57 @@ export class SyncApi extends TypedEmitter {
    * without any sync activity, then this will reject.
    * @param {boolean} [options.errorOnNoPeers] Whether to quickly exit when no
    * remote states for peers are detected.
+   * @param {number} [options.initialPeerWaitMs] How long to wait for at least
+   * one peer to appear before giving up when `errorOnNoPeers` is true.
    * @returns {Promise<void>}
    */
-  async waitForSync(type, { timeoutMs, errorOnNoPeers = false } = {}) {
+  async waitForSync(
+    type,
+    { timeoutMs, errorOnNoPeers = false, initialPeerWaitMs } = {}
+  ) {
+    if (
+      errorOnNoPeers &&
+      typeof initialPeerWaitMs === 'number' &&
+      typeof timeoutMs === 'number' &&
+      initialPeerWaitMs > timeoutMs
+    ) {
+      throw new InvalidSyncTimeoutsError({ initialPeerWaitMs, timeoutMs })
+    }
+
     return new Promise((resolve, reject) => {
       /** @type {NodeJS.Timeout | null} */
       let timeoutId = null
+      /** @type {NodeJS.Timeout | null} */
+      let initialPeersTimeoutId = null
+
+      if (errorOnNoPeers) {
+        const waitMs = initialPeerWaitMs ?? DEFAULT_INITIAL_PEER_WAIT_MS
+        initialPeersTimeoutId = setTimeout(() => {
+          this[kSyncState].off('state', onState)
+          reject(new NoPeersForInitialSyncError())
+        }, waitMs)
+      }
 
       const onTimeout = () => {
+        clearTimeout(initialPeersTimeoutId)
         this[kSyncState].off('state', onState)
         reject(new SyncTimeoutError())
       }
+
       /** @param {import('./sync-state.js').State} state */
       const onState = (state) => {
         if (timeoutId) clearTimeout(timeoutId)
-        if (errorOnNoPeers && !hasRemoteStates(state)) {
-          this[kSyncState].off('state', onState)
-          reject(new NoPeersForInitialSyncError())
-          return
+        if (initialPeersTimeoutId) {
+          if (hasRemoteStates(state)) {
+            clearTimeout(initialPeersTimeoutId)
+            initialPeersTimeoutId = null
+          } else {
+            return
+          }
         }
         if (isSynced(state, type, this.#peerSyncControllers)) {
           this[kSyncState].off('state', onState)
+          clearTimeout(initialPeersTimeoutId)
           resolve()
           return
         }

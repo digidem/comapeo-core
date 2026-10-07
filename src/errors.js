@@ -676,6 +676,13 @@ export const NoPeersForInitialSyncError = createErrorClass({
   status: 404,
 })
 
+export const InvalidSyncTimeoutsError = createErrorClass({
+  code: 'INVALID_SYNC_TIMEOUTS_ERROR',
+  message:
+    'initialPeerWaitMs ({initialPeerWaitMs}) must not be greater than timeoutMs ({timeoutMs})',
+  status: 400,
+})
+
 /**
  * @param {unknown} err
  * @returns {null}
