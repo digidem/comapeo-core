@@ -297,7 +297,7 @@ test('leaving a project deletes data from disk', async (t) => {
   creatorProject.$sync.start()
   memberProject.$sync.start()
 
-  await waitForSync(projects, 'full')
+  await waitForSync(projects, 'all')
 
   assert(
     await memberProject.observation.getByDocId(observation.docId),

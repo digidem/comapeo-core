@@ -97,7 +97,7 @@ test('syncing @comapeo/core@2.0.1 with the current version', async (t) => {
 
   await Promise.all([
     oldProject.$sync.waitForSync('full'),
-    newProject.$sync.waitForSync('full'),
+    newProject.$sync.waitForSync('all'),
   ])
 
   assert(

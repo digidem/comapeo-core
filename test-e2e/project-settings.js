@@ -82,7 +82,7 @@ test('Set project settings after being invited', async (t) => {
     'Invitee sees name before full sync'
   )
 
-  await waitForSync([project], 'full')
+  await waitForSync([project], 'all')
 
   const expectedSettings = {
     name: 'updated',
