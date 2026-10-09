@@ -166,8 +166,25 @@ export type HypercorePeer = {
   remotePublicKey: Buffer
   remoteBitfield: HypercoreRemoteBitfield
   remoteContiguousLength: number
+  /**
+   * Set (synchronously) when the peer's first Synchronize wire message is
+   * processed, i.e. once we know the peer's length and fork.
+   */
+  remoteSynced: boolean
+  /** Set when the peer's channel has closed and it was removed from the replicator. */
+  removed: boolean
   onbitfield: (options: { start: number; bitfield: Buffer }) => void
   onrange: (options: { drop: boolean; start: number; length: number }) => void
+  onsync: (options: {
+    fork: number
+    length: number
+    remoteLength: number
+    canUpgrade: boolean
+    uploading: boolean
+    downloading: boolean
+    hasManifest: boolean
+    allowPush: boolean
+  }) => Promise<void>
 }
 
 type ProtocolStream = Omit<NoiseStream, 'userData'> & {
