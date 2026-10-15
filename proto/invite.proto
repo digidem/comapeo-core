@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+message RedeemInviteOverInternet {
+  bytes inviteId = 1;
+}
+
+message DenyInviteOverInternet {
+  enum DenyReason {
+    unspecified = 0;
+    unknown_invite_id = 1;
+    invitor_denied = 2;
+  }
+  bytes inviteId = 1;
+  DenyReason reason = 2;
+}
+
+message AcceptInviteOverInternet {
+  bytes inviteId = 1;
+}
+
+message RedeemInviteOverInternetAck {
+  bytes inviteId = 1;
+}
+
+message DenyInviteOverInternetAck {
+  bytes inviteId = 1;
+}
+
+message AcceptInviteOverInternetAck {
+  bytes inviteId = 1;
+}

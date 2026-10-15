@@ -1,3 +1,5 @@
+import { keyToId } from '../utils.js'
+
 /** @import { Duplex as NodeDuplex } from 'node:stream' */
 /** @import { Duplex as StreamxDuplex } from 'streamx' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
@@ -43,4 +45,15 @@ export async function openedNoiseSecretStream(stream) {
   return /** @type {OpenedNoiseStream<T> | DestroyedNoiseStream<T> | AuthedNoiseStream} */ (
     stream
   )
+}
+
+/**
+ * @param {AuthedNoiseStream|OpenedNoiseStream} stream
+ */
+export function peerIdFromNoise(stream) {
+  const publicKey =
+    'authenticatedPublicKey' in stream
+      ? stream.authenticatedPublicKey
+      : stream.remotePublicKey
+  return keyToId(publicKey)
 }
