@@ -259,11 +259,9 @@ export class LocalDiscovery extends TypedEmitter {
       return
     }
 
-    // Mark local connections as authenticated and trusted before storing
+    // Mark local connections as authenticated before storing
     // @ts-expect-error adding AuthedNoiseStream properties to OpenedNoiseStream
     conn.authenticatedPublicKey = conn.remotePublicKey
-    // @ts-expect-error adding AuthedNoiseStream properties to OpenedNoiseStream
-    conn.isTrusted = true
 
     const authedConn = /** @type {AuthedNetNoiseStream} */ (conn)
     this.#noiseConnections.set(remoteId, authedConn)

@@ -13,7 +13,6 @@ import {
   RPCDisconnectBeforeAckError,
   UnknownPeerError,
   InitialSyncFailedError,
-  UntrustedRPCMethodError,
   ensureKnownError,
   InviteDeniedByInviterError,
 } from '../errors.js'
@@ -30,7 +29,6 @@ const NETWORK_ERROR_CODES = new Set([
   RPCDisconnectBeforeAckError.code,
   UnknownPeerError.code,
   InitialSyncFailedError.code,
-  UntrustedRPCMethodError.code,
 ])
 
 /** @import {

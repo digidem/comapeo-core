@@ -24,7 +24,6 @@ function mockConnection(authenticatedPublicKey) {
     /** @type {unknown} */ (new Transform())
   )
   connection.authenticatedPublicKey = authenticatedPublicKey
-  connection.isTrusted = true
   connection.remotePublicKey = randomBytes(32)
   return connection
 }

@@ -117,7 +117,7 @@ const MAX_FILE_DESCRIPTORS = 768
 // This is the timeout for waiting for sync state updates during initial sync (when adding a project or leaving a project)
 const INITIAL_SYNC_TIMEOUT_MS = 45_000 // 45 seconds
 
-// how long to wait for a remote peer to be trusted before forec disconnecting
+// how long to wait for a remote peer to be trusted before disconnecting
 export const UNTRUSTED_TIMEOUT = 16000
 
 // Prefix names for routes registered with http server

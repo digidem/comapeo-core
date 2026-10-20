@@ -9,11 +9,11 @@ import { keyToId } from '../utils.js'
  */
 
 /**
- * A noise stream that has been authenticated with a stable public key and
- * has an explicit trust flag. Both LocalDiscovery and RemoteDiscovery emit
- * streams of this shape, so downstream code does not need runtime type checks.
+ * A noise stream that has been authenticated with a stable public key.
+ * Both LocalDiscovery and RemoteDiscovery emit streams of this shape,
+ * so downstream code does not need runtime type checks.
  *
- * @typedef {OpenedNoiseStream & { authenticatedPublicKey: Buffer, isTrusted: boolean }} AuthedNoiseStream
+ * @typedef {OpenedNoiseStream & { authenticatedPublicKey: Buffer }} AuthedNoiseStream
  */
 
 /**

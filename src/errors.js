@@ -646,12 +646,6 @@ export const JoinRequestNotFoundError = createErrorClass({
   status: 404,
 })
 
-export const UntrustedRPCMethodError = createErrorClass({
-  code: 'UNTRUSTED_RPC_METHOD_ERROR',
-  message: 'Got a restricted RPC method {type} from {peerId}',
-  status: 405,
-})
-
 export const SwarmNotInitializedError = createErrorClass({
   code: 'SWARM_NOT_INITIALIZED_ERROR',
   message: 'Swarm not initialized',
