@@ -151,6 +151,7 @@ export class InviteLinkRPC extends TypedEmitter {
         },
         ondrain: () => {
           this.#drainDefer?.resolve()
+          this.#drainDefer = null
         },
       })
       if (!channel) return
