@@ -1,6 +1,7 @@
 import Protomux from 'protomux'
 import cenc from 'compact-encoding'
 import pDefer from 'p-defer'
+import { pEvent, TimeoutError } from 'p-event'
 import { TypedEmitter } from 'tiny-typed-emitter'
 
 import {
@@ -13,8 +14,12 @@ import {
   AcceptInviteOverInternetAck,
 } from '../generated/invite.js'
 import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
-import { PeerNotFoundError } from '../errors.js'
-import { pEvent } from 'p-event'
+import {
+  PeerDisconnectedError,
+  PeerNotFoundError,
+  RPCDisconnectBeforeAckError,
+  UnexpectedError,
+} from '../errors.js'
 
 /** @import {AuthedNoiseStream} from '../lib/noise-secret-stream-helpers.js'*/
 /** @typedef {ReturnType<typeof Protomux.prototype.createChannel>} Channel */
@@ -22,6 +27,7 @@ import { pEvent } from 'p-event'
 
 export const INTERNET_INVITE_PROTOCOL = 'comapeo/internet-invite'
 export const ACK_TIMEOUT = 1000
+export const PEER_WAIT_TIMEOUT = 1000
 
 const MESSAGE_TYPES = {
   RedeemInviteOverInternet: 0,
@@ -34,12 +40,15 @@ const MESSAGE_TYPES = {
 
 /**
  * @typedef {object} InviteLinkEvents
- * @property {(redeemed: RedeemInviteOverInternet) => void} redeemed
- * @property {(denied: DenyInviteOverInternet) => void} denied
- * @property {(accepted: AcceptInviteOverInternet) => void} accepted
- * @property {(ack: RedeemInviteOverInternetAck) => void} redeem-ack
- * @property {(ack: DenyInviteOverInternetAck) => void} deny-ack
- * @property {(ack: AcceptInviteOverInternetAck) => void} accept-ack
+ * @property {(redeemed: RedeemInviteOverInternet, deviceId: string) => void} redeemed
+ * @property {(denied: DenyInviteOverInternet, deviceId: string) => void} denied
+ * @property {(accepted: AcceptInviteOverInternet, deviceId: string) => void} accepted
+ * @property {(ack: RedeemInviteOverInternetAck, deviceId: string) => void} redeem-ack
+ * @property {(ack: DenyInviteOverInternetAck, deviceId: string) => void} deny-ack
+ * @property {(ack: AcceptInviteOverInternetAck, deviceId: string) => void} accept-ack
+ * @property {(connection: AuthedNoiseStream) => void} connection-ready
+ * @property {(connection: AuthedNoiseStream, deviceId: string) => void} connection
+ * @property {(deviceId: string) => void} disconnected Emitted when a peer's invite-link connection is closed or disconnected
  */
 
 /** @extends {TypedEmitter<InviteLinkEvents>}*/
@@ -85,65 +94,101 @@ export class InviteLinkRPC extends TypedEmitter {
         encoding: cenc.raw,
         onmessage: /** @param {Buffer} msg */ (msg) => {
           const parsed = RedeemInviteOverInternet.decode(msg)
-          this.emit('redeemed', parsed)
+          this.emit('redeemed', parsed, deviceId)
         },
       },
       {
         encoding: cenc.raw,
         onmessage: /** @param {Buffer} msg */ (msg) => {
           const parsed = DenyInviteOverInternet.decode(msg)
-          this.emit('denied', parsed)
+          this.emit('denied', parsed, deviceId)
         },
       },
       {
         encoding: cenc.raw,
         onmessage: /** @param {Buffer} msg */ (msg) => {
           const parsed = AcceptInviteOverInternet.decode(msg)
-          this.emit('accepted', parsed)
+          this.emit('accepted', parsed, deviceId)
         },
       },
       {
         encoding: cenc.raw,
         onmessage: /** @param {Buffer} msg */ (msg) => {
           const parsed = RedeemInviteOverInternetAck.decode(msg)
-          this.emit('redeem-ack', parsed)
+          this.emit('redeem-ack', parsed, deviceId)
         },
       },
       {
         encoding: cenc.raw,
         onmessage: /** @param {Buffer} msg */ (msg) => {
           const parsed = DenyInviteOverInternetAck.decode(msg)
-          this.emit('deny-ack', parsed)
+          this.emit('deny-ack', parsed, deviceId)
         },
       },
       {
         encoding: cenc.raw,
         onmessage: /** @param {Buffer} msg */ (msg) => {
           const parsed = AcceptInviteOverInternetAck.decode(msg)
-          this.emit('accept-ack', parsed)
+          this.emit('accept-ack', parsed, deviceId)
         },
       },
     ]
 
-    const channel = protomux.createChannel({
-      messages,
-      protocol: INTERNET_INVITE_PROTOCOL,
-      onopen: () => {
-        onOpen.resolve()
-      },
-      ondrain: () => {
-        this.#drainDefer?.resolve()
-      },
-    })
+    let channel = null
+    const makeChannel = async () => {
+      // If the peer opened the channel first, protomux has already matched it
+      // - do not create a duplicate.
+      if (protomux.opened({ protocol: INTERNET_INVITE_PROTOCOL })) return
+
+      channel = protomux.createChannel({
+        messages,
+        protocol: INTERNET_INVITE_PROTOCOL,
+        onopen: () => {
+          onOpen.resolve()
+        },
+        onclose: () => {
+          this.#removeConnection(deviceId, stream)
+        },
+        ondrain: () => {
+          this.#drainDefer?.resolve()
+        },
+      })
+      if (!channel) return
+
+      channel.open()
+    }
+
+    // Answer the peer if it opens the channel before we do, and also open
+    // proactively. The pair handler makes the open order-independent.
+    protomux.pair({ protocol: INTERNET_INVITE_PROTOCOL }, makeChannel)
+    makeChannel()
+
+    // Wait for the channel to open before handing the connection on. We only
+    // register the connection once it's open so callers (e.g. waitForPeer)
+    // never try to send on a channel that hasn't finished its handshake.
+    await onOpen.promise
+
+    if (!channel) throw new UnexpectedError('Channel should be set after open')
 
     this.#connections.set(deviceId, { channel, stream })
 
-    channel.open()
+    this.emit('connection', stream, deviceId)
+  }
 
-    // Save to connections
-    // clear from connections and redeemedInvites on close
-    // wait for open before returning
-    await onOpen.promise
+  /**
+   * @param {string} deviceId
+   * @param {object} [options]
+   * @param {number} [options.timeoutMs]
+   */
+  async waitForPeer(deviceId, { timeoutMs = PEER_WAIT_TIMEOUT } = {}) {
+    if (this.#connections.has(deviceId)) return
+    await pEvent(this, 'connection', {
+      filter: ([_connection, peerId]) => peerId === deviceId,
+      multiArgs: true,
+      timeout: timeoutMs,
+    }).catch((e) => {
+      throw e instanceof TimeoutError ? new PeerDisconnectedError() : e
+    })
   }
 
   /**
@@ -159,11 +204,15 @@ export class InviteLinkRPC extends TypedEmitter {
       MESSAGE_TYPES.RedeemInviteOverInternet,
       msg
     )
-    // Send redeem, wait for accept or deny or disconnect.
+    // Send redeem, wait for ack
     await pEvent(this, 'redeem-ack', {
       filter: ({ inviteId: receivedInviteId }) =>
         receivedInviteId.equals(inviteId),
       timeout: ACK_TIMEOUT,
+    }).catch((e) => {
+      throw e instanceof TimeoutError
+        ? new RPCDisconnectBeforeAckError({ type: 'redeem' })
+        : e
     })
   }
 
@@ -195,11 +244,14 @@ export class InviteLinkRPC extends TypedEmitter {
       MESSAGE_TYPES.AcceptInviteOverInternet,
       msg
     )
-    // Wait for ack.
     await pEvent(this, 'accept-ack', {
       filter: ({ inviteId: receivedInviteId }) =>
         receivedInviteId.equals(inviteId),
       timeout: ACK_TIMEOUT,
+    }).catch((e) => {
+      throw e instanceof TimeoutError
+        ? new RPCDisconnectBeforeAckError({ type: 'accept' })
+        : e
     })
   }
 
@@ -274,7 +326,32 @@ export class InviteLinkRPC extends TypedEmitter {
     const connection = this.#connections.get(deviceId)
     if (!connection) return
     connection.stream.destroy()
+    this.#removeConnection(deviceId, connection.stream)
+  }
+
+  /**
+   * Remove a connection and emit `disconnected` once. Guarded so a peer is
+   * only reported as disconnected once, even when both an explicit
+   * `disconnect()` and the resulting channel `onclose` fire.
+   * @param {string} deviceId
+   * @param {AuthedNoiseStream} stream
+   */
+  #removeConnection(deviceId, stream) {
+    const existing = this.#connections.get(deviceId)
+    if (!existing) return
+    if (existing.stream !== stream) return
     this.#connections.delete(deviceId)
+    this.emit('disconnected', deviceId)
+  }
+
+  /**
+   * Mark a connection as ready to be passed to local peer replication
+   * @param {string} deviceId
+   */
+  markReady(deviceId) {
+    const connection = this.#connections.get(deviceId)
+    if (!connection) throw new PeerNotFoundError()
+    this.emit('connection-ready', connection.stream)
   }
 
   /**

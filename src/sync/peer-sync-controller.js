@@ -4,7 +4,7 @@ import { Logger } from '../logger.js'
 import { createMap, noop } from '../utils.js'
 import { unreplicate } from '../lib/hypercore-helpers.js'
 import { ExhaustivenessError } from '../errors.js'
-import { peerIdFromNoise } from '../local-peers.js'
+import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
 /** @import { CoreRecord } from '../core-manager/index.js' */
 /** @import { Role } from '../roles.js' */
 /** @import { SyncEnabledState } from './sync-api.js' */

@@ -187,10 +187,9 @@ export class MapeoProject extends ReadyResource {
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
    * @param {import('./invite/invite-links-api.js').InviteLinksApi} opts.inviteLinks
+   * @param {import('./invite/invite-link-rpc.js').InviteLinkRPC} opts.inviteLinkRPC
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
-   * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
-   * @param {(deviceId: string) => Promise<void>} opts.disconnectFromPeer
    * @param {Logger} [opts.logger]
    *
    */
@@ -208,11 +207,10 @@ export class MapeoProject extends ReadyResource {
     makeWebsocket = (url) => new WebSocket(url),
     localPeers,
     inviteLinks,
+    inviteLinkRPC,
     logger,
     isArchiveDevice,
     getFallbackProjectInfo,
-    markInternetPeerAsTrusted,
-    disconnectFromPeer,
     getSwarmPublicKey,
   }) {
     super()
@@ -445,6 +443,7 @@ export class MapeoProject extends ReadyResource {
         this.#projectPublicId,
         inviteLinks
       ),
+      inviteLinkRPC,
       getSwarmPublicKey: this.#getSwarmPublicKey,
       makeWebsocket,
       getReplicationStream,
@@ -468,8 +467,6 @@ export class MapeoProject extends ReadyResource {
           deviceInfo
         )
       },
-      markInternetPeerAsTrusted,
-      disconnectFromPeer,
       logger: this.#l,
     })
 
@@ -556,7 +553,6 @@ export class MapeoProject extends ReadyResource {
     // Replicate already connected local peers
     for (const peer of localPeers.peers) {
       if (peer.status !== 'connected') continue
-      if (!peer.isTrusted) continue
       this.#coreManager.creatorCore.replicate(peer.protomux)
     }
 
@@ -564,14 +560,6 @@ export class MapeoProject extends ReadyResource {
      * @type {import('./local-peers.js').LocalPeersEvents['peer-add']}
      */
     const onPeerAdd = (peer) => {
-      if (peer.isTrusted) this.#coreManager.creatorCore.replicate(peer.protomux)
-    }
-
-    /**
-     * @type {import('./local-peers.js').LocalPeersEvents['peer-trusted']}
-     */
-    const onPeerTrusted = (peer) => {
-      if (peer.status !== 'connected') return
       this.#coreManager.creatorCore.replicate(peer.protomux)
     }
 
@@ -585,9 +573,6 @@ export class MapeoProject extends ReadyResource {
     // When a new peer is found, try to replicate (if it is not a member of the
     // project it will fail the role check and be ignored)
     localPeers.on('peer-add', onPeerAdd)
-
-    // When a previously untrusted peer becomes trusted, replicate with them
-    localPeers.on('peer-trusted', onPeerTrusted)
 
     // This happens whenever a peer replicates a core to the stream. SyncApi
     // handles replicating this core if we also have it, or requesting the key
@@ -606,7 +591,6 @@ export class MapeoProject extends ReadyResource {
 
     this.once('close', () => {
       localPeers.off('peer-add', onPeerAdd)
-      localPeers.off('peer-trusted', onPeerTrusted)
       localPeers.off('discovery-key', onDiscoverykey)
     })
 

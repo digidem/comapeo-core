@@ -8,6 +8,7 @@ import { LocalPeers } from '../src/local-peers.js'
 import { MEMBER_ROLE_ID, ROLES } from '../src/roles.js'
 import { DeviceInfo_DeviceType } from '../src/generated/rpc.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
+import { MockInviteLinkRPC } from './helpers/invite-link-rpc.js'
 /** @import { InviteLinkParams } from '../src/invite/invite-urls.js' */
 import {
   InvalidInviteURLKeyParameterError,
@@ -336,12 +337,11 @@ class MockInviteLinksApiForProject {
  * @param {(url: string) => WebSocket} [opts.makeWebsocket]
  * @param {() => import('../src/types.js').ReplicationStream} [opts.getReplicationStream]
  * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} [opts.waitForInitialSyncWithPeer]
- * @param {(deviceId: string) => Promise<boolean>} [opts.markInternetPeerAsTrusted]
- * @param {(deviceId: string) => Promise<void>} [opts.disconnectFromPeer]
  * @param {() => Promise<import('../src/mapeo-project.js').EditableProjectSettings>} [opts.getProjectSettings]
  * @param {(deviceId: string) => Promise<import('../src/member-api.js').MemberDeviceInfo>} [opts.getDeviceInfo]
  * @param {(deviceId: string, deviceInfo: import('../src/member-api.js').NewDeviceInfo) => Promise<void>} [opts.setDeviceInfo]
  * @param {MockInviteLinksApiForProject} [opts.inviteLinks]
+ * @param {MockInviteLinkRPC} [opts.inviteLinkRPC]
  * @returns
  */
 function setup({
@@ -356,15 +356,14 @@ function setup({
     }),
   setDeviceInfo = () => Promise.reject(new Error('Not implemented')),
   waitForInitialSyncWithPeer = () => Promise.resolve(),
-  disconnectFromPeer = () => Promise.resolve(),
   makeWebsocket = () => {
     throw new Error('Not implemented')
   },
   getReplicationStream = () => {
     throw new Error('Not implemented')
   },
-  markInternetPeerAsTrusted = () => Promise.resolve(true),
   inviteLinks,
+  inviteLinkRPC = new MockInviteLinkRPC(),
 } = {}) {
   const keyManager = new KeyManager(rootKey)
 
@@ -387,11 +386,10 @@ function setup({
     encryptionKeys,
     projectKey,
     inviteLinks: finalInviteLinks,
+    inviteLinkRPC: /** @type {any} */ (inviteLinkRPC),
     makeWebsocket,
     getReplicationStream,
     waitForInitialSyncWithPeer,
-    disconnectFromPeer,
-    markInternetPeerAsTrusted,
     getProjectSettings,
     getDeviceInfo,
     setDeviceInfo,
@@ -404,5 +402,6 @@ function setup({
     member,
     projectKey,
     inviteLinks: finalInviteLinks,
+    inviteLinkRPC,
   }
 }

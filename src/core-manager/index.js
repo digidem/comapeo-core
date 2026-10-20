@@ -19,7 +19,7 @@ import {
   InvalidProjectKeyError,
   InvalidProjectSecretKeyError,
 } from '../errors.js'
-import { peerIdFromNoise } from '../local-peers.js'
+import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
 
 /** @import Hypercore from 'hypercore' */
 /** @import { BlobFilter, GenericBlobFilter, HypercorePeer, Namespace } from '../types.js' */

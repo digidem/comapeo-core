@@ -18,13 +18,12 @@ import {
   InviteDeniedByInviterError,
   InviteAbortedError,
   JoinProjectCancelledError,
-  UnknownInviteIDError,
   InviteConnectionError,
 } from '../src/errors.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
 import { temporaryDirectory } from 'tempy'
 import { kForceAddProjectFail } from '../src/mapeo-manager.js'
-import { LocalPeers } from '../src/local-peers.js'
+import { InviteLinkRPC } from '../src/invite/invite-link-rpc.js'
 
 /**
  * Await a join request update for a given inviteId until it reaches a terminal
@@ -578,7 +577,7 @@ test('invite over internet errors if invitee uses invalid inviteId', async (t) =
     assert.rejects(
       // Try to join with invalid invite ID
       onJoinComplete,
-      (err) => ensureKnownError(err).code === UnknownInviteIDError.code
+      (err) => ensureKnownError(err).code === InviteDeniedByInviterError.code
     ),
   ])
 })
@@ -689,16 +688,21 @@ test('invite over the internet removes project and removes member when failing t
   // Turn off the forced failure and retry the join
   invitee[kForceAddProjectFail](false)
 
-  invitor.on('invite-link-join-request', (_projectId, deviceId, inviteId) => {
-    project.$member.acceptInviteLinkRequest(inviteId, deviceId)
+  const onInvited = /** @type {Promise<[string, string, string]>} */ (
+    /** @type {unknown} */ (
+      pEvent(invitor, 'invite-link-join-request', {
+        multiArgs: true,
+      })
+    )
+  ).then(([_projectId, deviceId, inviteId]) => {
+    return project.$member.acceptInviteLinkRequest(inviteId, deviceId)
   })
 
   invitee.inviteLinks.createJoinRequest(url)
-  const { projectId: gotProjectId } = await awaitJoinComplete(
-    invitee.inviteLinks,
-    inviteId,
-    { timeout: 5000 }
-  )
+  const [{ projectId: gotProjectId }] = await Promise.all([
+    awaitJoinComplete(invitee.inviteLinks, inviteId, { timeout: 5000 }),
+    onInvited,
+  ])
 
   assert.equal(gotProjectId, projectId, 'Invited to project')
 })
@@ -745,7 +749,7 @@ test('untrusted peer is disconnected after untrustedTimeout', async (t) => {
   })
   t.after(() => remoteDiscovery.close())
 
-  const localPeers = new LocalPeers()
+  const inviteLinkRPC = new InviteLinkRPC()
 
   await remoteDiscovery.start()
 
@@ -755,8 +759,11 @@ test('untrusted peer is disconnected after untrustedTimeout', async (t) => {
   })
 
   // Set up protomux connection
-  localPeers.connect(connection, true)
+  inviteLinkRPC.handleConnection(connection)
 
-  // Connection should close within untrustedTimeout + small buffer
-  await pEvent(connection, 'close', { timeout: UNTRUSTED_TIMEOUT + 2000 })
+  // Connection should close (or reset) within untrustedTimeout + small buffer
+  await pEvent(connection, 'close', {
+    timeout: UNTRUSTED_TIMEOUT + 2000,
+    rejectionEvents: [],
+  })
 })

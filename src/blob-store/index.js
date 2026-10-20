@@ -14,7 +14,7 @@ import {
   DriveNotFoundError,
 } from '../errors.js'
 import ensureError from 'ensure-error'
-import { peerIdFromNoise } from '../local-peers.js'
+import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
 
 /** @import Hyperdrive from 'hyperdrive' */
 /** @import { JsonObject } from 'type-fest' */

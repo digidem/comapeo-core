@@ -3,7 +3,7 @@ import RemoteBitfield, {
 } from '../core-manager/remote-bitfield.js'
 import { Logger } from '../logger.js'
 import { InvalidBitfieldIndexError } from '../errors.js'
-import { peerIdFromNoise } from '../local-peers.js'
+import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
 /** @import { HypercorePeer, HypercoreRemoteBitfield, Namespace } from '../types.js' */
 
 /**

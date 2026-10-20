@@ -2,10 +2,8 @@ import * as b4a from 'b4a'
 import * as crypto from 'node:crypto'
 import WebSocket from 'ws'
 import { pEvent } from 'p-event'
-import {
-  InviteResponse_Decision,
-  DenyInviteOverInternet_DenyReason,
-} from './generated/rpc.js'
+import { InviteResponse_Decision } from './generated/rpc.js'
+import { DenyInviteOverInternet_DenyReason } from './generated/invite.js'
 import {
   noop,
   projectKeyToProjectInviteId,
@@ -43,6 +41,7 @@ import {
   UnknownInviteIDError,
   CannotBlockSelfError,
   InitialSyncFailedError,
+  PeerNotFoundError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
@@ -77,9 +76,9 @@ export const kHandleRedeemInviteOverInternet = Symbol(
 /** @import { deviceInfoTable } from './schema/project.js' */
 /** @import { projectSettingsTable } from './schema/client.js' */
 /** @import { ReplicationStream, MapeoValueMap } from './types.js' */
-/** @import { PeerInfoDisconnected } from './local-peers.js' */
 /** @import { InviteLinkRecord } from './invite/invite-links-api.js' */
 /** @import { InviteLinksApiForProject } from './invite/invite-links-api.js' */
+/** @import { InviteLinkRPC } from './invite/invite-link-rpc.js'*/
 
 /** @typedef {DataType<DataStore<'config'>, typeof deviceInfoTable, "deviceInfo", DeviceInfo, DeviceInfoValue>} DeviceInfoDataType */
 /** @typedef {DataType<DataStore<'config'>, typeof projectSettingsTable, "projectSettings", ProjectSettings, ProjectSettingsValue>} ProjectDataType */
@@ -149,13 +148,12 @@ export class MemberApi extends TypedEmitter {
   #makeWebsocket
   #getReplicationStream
   #waitForInitialSyncWithPeer
-  #markInternetPeerAsTrusted
-  #disconnectFromPeer
   #getProjectSettings
   #getDeviceInfo
   #setDeviceInfo
   #getSwarmPublicKey
   #inviteLinks
+  #inviteLinkRPC
   #l
 
   /** @type {Map<string, { abortController: AbortController }>} */
@@ -174,11 +172,10 @@ export class MemberApi extends TypedEmitter {
    * @param {Buffer} opts.projectKey
    * @param {import('./local-peers.js').LocalPeers} opts.rpc
    * @param {Pick<InviteLinksApiForProject,'create'|'delete'|'deleteAll'|'getAll'|'getById'>} opts.inviteLinks
+   * @param {Pick<InviteLinkRPC, 'on'|'removeListener'|'redeemAck'|'disconnect'|'markReady'|'accept'|'deny'>} opts.inviteLinkRPC
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {() => ReplicationStream} opts.getReplicationStream
    * @param {(deviceId: string, abortSignal: AbortSignal) => Promise<void>} opts.waitForInitialSyncWithPeer
-   * @param {(deviceId: string) => Promise<boolean>} opts.markInternetPeerAsTrusted
-   * @param {(deviceId: string) => Promise<void>} opts.disconnectFromPeer
    * @param {() => Promise<import('./mapeo-project.js').EditableProjectSettings>} opts.getProjectSettings
    * @param {(deviceId: string) => Promise<MemberDeviceInfo>} opts.getDeviceInfo
    * @param {(deviceId: string, deviceInfo: NewDeviceInfo) => Promise<void>} opts.setDeviceInfo
@@ -191,11 +188,10 @@ export class MemberApi extends TypedEmitter {
     projectKey,
     rpc,
     inviteLinks,
+    inviteLinkRPC,
     makeWebsocket = (url) => new WebSocket(url),
     getReplicationStream,
     waitForInitialSyncWithPeer,
-    markInternetPeerAsTrusted,
-    disconnectFromPeer,
     getProjectSettings,
     getDeviceInfo,
     setDeviceInfo,
@@ -210,21 +206,23 @@ export class MemberApi extends TypedEmitter {
     this.#projectKey = projectKey
     this.#rpc = rpc
     this.#inviteLinks = inviteLinks
+    this.#inviteLinkRPC = inviteLinkRPC
     this.#makeWebsocket = makeWebsocket
     this.#getReplicationStream = getReplicationStream
     this.#waitForInitialSyncWithPeer = waitForInitialSyncWithPeer
-    this.#markInternetPeerAsTrusted = markInternetPeerAsTrusted
-    this.#disconnectFromPeer = disconnectFromPeer
     this.#getProjectSettings = getProjectSettings
     this.#getDeviceInfo = getDeviceInfo
     this.#setDeviceInfo = setDeviceInfo
     this.#getSwarmPublicKey = getSwarmPublicKey
 
-    this.#rpc.on('peer-remove', this.#handlePeerRemove)
+    this.#inviteLinkRPC.on('disconnected', this.#handlePeerDisconnect)
   }
 
   async close() {
-    this.#rpc.removeListener('peer-remove', this.#handlePeerRemove)
+    this.#inviteLinkRPC.removeListener(
+      'disconnected',
+      this.#handlePeerDisconnect
+    )
   }
 
   /**
@@ -308,14 +306,15 @@ export class MemberApi extends TypedEmitter {
   }
 
   /**
-   * When a peer disconnects, remove them from the redeemed invites set.
-   * @param {PeerInfoDisconnected} peer
+   * When a peer's invite-link connection is closed, remove them from the
+   * redeemed invites set.
+   * @param {string} deviceId
    */
-  #handlePeerRemove = async (peer) => {
-    if (!peer) return
+  #handlePeerDisconnect = (deviceId) => {
+    if (!deviceId) return
     for (const deviceIds of this.#redeemedInvites.values()) {
-      if (deviceIds.has(peer.deviceId)) {
-        deviceIds.delete(peer.deviceId)
+      if (deviceIds.has(deviceId)) {
+        deviceIds.delete(deviceId)
       }
     }
   }
@@ -327,6 +326,7 @@ export class MemberApi extends TypedEmitter {
    */
   async [kHandleRedeemInviteOverInternet](peerId, invite) {
     const inviteIdString = invite.inviteId
+    const inviteIdBuffer = Buffer.from(inviteIdString, 'hex')
     this.#l.log('Got incoming invite redeem %S from %S', inviteIdString, peerId)
 
     const redeemedSet = this.#redeemedInvites.get(inviteIdString)
@@ -335,7 +335,9 @@ export class MemberApi extends TypedEmitter {
         'Incoming invite was already redeemed, disconnecting',
         inviteIdString.slice(0, 7)
       )
-      await this.#disconnectFromPeer(peerId)
+      await this.#inviteLinkRPC.redeemAck(inviteIdBuffer, peerId)
+      await this.#inviteLinkRPC.deny(Buffer.from(inviteIdString, 'hex'), peerId)
+      await this.#inviteLinkRPC.disconnect(peerId)
 
       throw new InviteAlreadyRedeemedError()
     }
@@ -345,6 +347,8 @@ export class MemberApi extends TypedEmitter {
     } else {
       redeemedSet.add(peerId)
     }
+    await this.#inviteLinkRPC.redeemAck(inviteIdBuffer, peerId)
+
     return inviteIdString
   }
 
@@ -365,11 +369,17 @@ export class MemberApi extends TypedEmitter {
       throw new UnknownInviteIDError()
     }
 
-    const stillConnected = await this.#markInternetPeerAsTrusted(deviceId)
-
-    if (!stillConnected) {
-      throw new PeerDisconnectedSinceRedeemingInviteError()
+    try {
+      this.#inviteLinkRPC.markReady(deviceId)
+      await this.#inviteLinkRPC.accept(Buffer.from(inviteId, 'hex'), deviceId)
+    } catch (e) {
+      if (ensureKnownError(e).code === PeerNotFoundError.code) {
+        throw new PeerDisconnectedSinceRedeemingInviteError()
+      } else if (e instanceof RPCDisconnectBeforeAckError) {
+        throw new InviteAbortedError()
+      } else throw e
     }
+
     const { roleId, roleName, roleDescription } = pendingInvite
     try {
       const decision = await this.invite(deviceId, {
@@ -380,7 +390,7 @@ export class MemberApi extends TypedEmitter {
       })
       return decision
     } catch (e) {
-      await this.#disconnectFromPeer(deviceId)
+      await this.#inviteLinkRPC.disconnect(deviceId)
       throw e
     }
   }
@@ -408,15 +418,14 @@ export class MemberApi extends TypedEmitter {
     }
 
     try {
-      await this.#rpc.sendDenyInviteOverInternet(deviceId, {
-        inviteId: Buffer.from(inviteId, 'hex'),
-        reason,
-      })
+      await this.#inviteLinkRPC.deny(
+        Buffer.from(inviteId, 'hex'),
+        deviceId,
+        reason
+      )
     } catch {
       // RPC may fail if the peer disconnected, that's ok
     }
-
-    await this.#disconnectFromPeer(deviceId)
   }
 
   /**

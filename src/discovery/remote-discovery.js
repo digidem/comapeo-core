@@ -52,8 +52,6 @@ export class RemoteDiscovery extends TypedEmitter {
   /** @type {Keypair?} */
   #lastKeyPair = null
   #swarmOpts
-  /** @type {Set<string>} */
-  #shouldTrustKeys = new Set()
   /** @type {Set<OpenedNoiseStream|AuthedNoiseStream>} */
   #connections = new Set()
   /** @type {Map<OpenedNoiseStream, Promise<boolean>>} */
@@ -238,8 +236,6 @@ export class RemoteDiscovery extends TypedEmitter {
       swarm.leavePeer(noisePublicKey)
     }
 
-    this.#shouldTrustKeys.add(publicKey)
-
     const onConnected = pEvent(this, 'connection', {
       filter: (connection) => connection.remotePublicKey.equals(noisePublicKey),
       timeout,
@@ -252,6 +248,7 @@ export class RemoteDiscovery extends TypedEmitter {
     signal?.addEventListener('abort', onAbort, { once: true })
     try {
       const socket = await onConnected
+      swarm.leavePeer(noisePublicKey)
 
       return socket
     } catch (e) {
@@ -263,7 +260,6 @@ export class RemoteDiscovery extends TypedEmitter {
       throw e
     } finally {
       signal?.removeEventListener('abort', onAbort)
-      this.#shouldTrustKeys.delete(publicKey)
     }
   }
 
@@ -278,8 +274,6 @@ export class RemoteDiscovery extends TypedEmitter {
     socket.once('finish', () => this.#connections.delete(socket))
     try {
       const remotePublicKeyString = socket.remotePublicKey.toString('hex')
-      // @ts-ignore
-      socket.isTrusted = this.#shouldTrustKeys.has(remotePublicKeyString)
 
       // Wait for the NOISE handshake to complete
       const opened = await socket.opened

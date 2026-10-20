@@ -15,6 +15,7 @@ import {
   InitialSyncFailedError,
   UntrustedRPCMethodError,
   ensureKnownError,
+  InviteDeniedByInviterError,
 } from '../errors.js'
 
 /**
@@ -32,9 +33,12 @@ const NETWORK_ERROR_CODES = new Set([
   UntrustedRPCMethodError.code,
 ])
 
-/** @import { RemoteDiscovery } from '../discovery/remote-discovery.js' */
-/** @import { LocalPeers } from '../local-peers.js' */
+/** @import {
+  AcceptInviteOverInternet,
+  DenyInviteOverInternet,
+} from '../generated/invite.js' */
 /** @import { InviteApi } from '../invite/invite-api.js' */
+/** @import { InviteLinkRPC } from '../invite/invite-link-rpc.js' */
 
 /**
  * @typedef {'connecting' | 'connected' | 'accepted' | 'completed' | 'failed'} JoinRequestStatus
@@ -75,9 +79,8 @@ const NETWORK_ERROR_CODES = new Set([
 /**
  * @typedef {object} InviteLinkJoinerOptions
  * @property {(swarmPublicKey: string, opts?: ConnectPeerOptions) => Promise<import('../lib/noise-secret-stream-helpers.js').AuthedNoiseStream>} options.connectPeer Connect to a remote peer
- * @property {(swarmPublicKey: string) => Promise<void>} options.disconnectPeer Disconnect from a remote peer
- * @property {(deviceId: string, redeem: RedeemInvite) => Promise<void>} options.sendRedeemInviteOverInternet Send redeem request to a peer
  * @property {Pick<InviteApi, 'on' | 'accept'>} options.inviteApi Invite API (on + accept only)
+ * @property {Pick<InviteLinkRPC, 'once' | 'on'| 'acceptAck'|'denyAck'|'redeem'|'disconnect'|'waitForPeer'|'markReady'>} options.inviteLinkRPC
  * @property {number} [options.defaultTimeout] Default timeout in ms for peer connection (default: 60_000)
  */
 
@@ -98,12 +101,10 @@ const NETWORK_ERROR_CODES = new Set([
 export class InviteLinkJoiner extends TypedEmitter {
   /** @type {InviteLinkJoinerOptions['connectPeer']} */
   #connectPeer
-  /** @type {InviteLinkJoinerOptions['disconnectPeer']} */
-  #disconnectPeer
-  /** @type {InviteLinkJoinerOptions['sendRedeemInviteOverInternet']} */
-  #sendRedeemInviteOverInternet
   /** @type {InviteLinkJoinerOptions['inviteApi']} */
   #inviteApi
+  /** @type {InviteLinkJoinerOptions['inviteLinkRPC']} */
+  #inviteLinkRPC
   /** @type {number} */
   #defaultTimeout
   /** @type {Map<string, PendingJoinRequest>} */
@@ -114,16 +115,14 @@ export class InviteLinkJoiner extends TypedEmitter {
    */
   constructor({
     connectPeer,
-    disconnectPeer,
-    sendRedeemInviteOverInternet,
     inviteApi,
+    inviteLinkRPC,
     defaultTimeout = 60_000,
   }) {
     super()
     this.#connectPeer = connectPeer
-    this.#disconnectPeer = disconnectPeer
-    this.#sendRedeemInviteOverInternet = sendRedeemInviteOverInternet
     this.#inviteApi = inviteApi
+    this.#inviteLinkRPC = inviteLinkRPC
     this.#defaultTimeout = defaultTimeout
   }
 
@@ -177,15 +176,17 @@ export class InviteLinkJoiner extends TypedEmitter {
     const inviteIdBuffer = Buffer.from(inviteIdString, 'hex')
     const signal = redeemAbortController.signal
 
+    let connection = null
+
     try {
-      const connection = await this.#connectPeer(swarmPublicKey, {
+      connection = await this.#connectPeer(swarmPublicKey, {
         timeout,
         signal,
       })
 
       signal.addEventListener(
         'abort',
-        () => this.#disconnectPeer(swarmPublicKey),
+        () => this.#inviteLinkRPC.disconnect(swarmPublicKey),
         { once: true }
       )
 
@@ -201,33 +202,59 @@ export class InviteLinkJoiner extends TypedEmitter {
       // It's okay if this rejection never gets handled
       onClose.catch(noop)
 
-      // Connected
-      joinRequest.status = 'connected'
-      this.#emitUpdate(joinRequest)
-
       // Use the identity key from the handshake, not the swarm key from the URL
       const identityPublicKeyHex =
         connection.authenticatedPublicKey.toString('hex')
+
+      await this.#inviteLinkRPC.waitForPeer(identityPublicKeyHex)
+
+      // Connected
+      joinRequest.status = 'connected'
+      this.#emitUpdate(joinRequest)
 
       const onInvited = pEvent(this.#inviteApi, 'invite-received', {
         filter: (invite) => invite.invitorDeviceId === identityPublicKeyHex,
         signal,
       })
+      // It's okay if this rejection never gets handled (e.g. we went down the
+      // deny/close path before consuming it)
+      onInvited.catch(noop)
 
-      // Race: wait for invite vs connection close
-      const [invite] = await Promise.race([
-        Promise.all([
-          onInvited,
-          this.#sendRedeemInviteOverInternet(identityPublicKeyHex, {
-            inviteId: inviteIdBuffer,
-          }),
-        ]),
-        onClose,
-      ])
+      const onAccept = pEvent(this.#inviteLinkRPC, 'accepted', {
+        filter: /** @param {AcceptInviteOverInternet} accept */ (accept) =>
+          accept.inviteId.equals(inviteIdBuffer),
+        signal,
+      })
+      onAccept.catch(noop)
+      const onDeny = pEvent(this.#inviteLinkRPC, 'denied', {
+        filter: /** @param {DenyInviteOverInternet} deny */ (deny) =>
+          deny.inviteId.equals(inviteIdBuffer),
+        signal,
+      }).then(async ({ reason }) => {
+        await this.#inviteLinkRPC.denyAck(inviteIdBuffer, identityPublicKeyHex)
+        throw new InviteDeniedByInviterError({ reason })
+      })
+      onDeny.catch(noop)
+
+      // Send redeem and wait for ack
+      await this.#inviteLinkRPC.redeem(inviteIdBuffer, identityPublicKeyHex)
+
+      // Make available to local-peers and regular invite RPC
+      this.#inviteLinkRPC.markReady(identityPublicKeyHex)
+
+      // Wait for the accept or deny to happen
+      // This will throw on deny or close
+      await Promise.race([onAccept, onDeny, onClose])
+
+      // Tell the invitor we've marked the connection as ready
+      await this.#inviteLinkRPC.acceptAck(inviteIdBuffer, identityPublicKeyHex)
 
       // Accepted
       joinRequest.status = 'accepted'
       this.#emitUpdate(joinRequest)
+
+      // Race: wait for invite vs connection close
+      const invite = await Promise.race([onInvited, onClose])
 
       const projectId = await this.#inviteApi.accept(
         /** @type {{ inviteId: string }} */ (invite)
@@ -245,10 +272,16 @@ export class InviteLinkJoiner extends TypedEmitter {
       joinRequest.error = wrapNetworkError(e)
       this.#emitUpdate(joinRequest)
 
-      try {
-        await this.#disconnectPeer(swarmPublicKey)
-      } catch {
-        // ignore disconnect errors
+      if (connection) {
+        // Use the identity key from the handshake, not the swarm key from the URL
+        const identityPublicKeyHex =
+          connection.authenticatedPublicKey.toString('hex')
+
+        try {
+          await this.#inviteLinkRPC.disconnect(identityPublicKeyHex)
+        } catch {
+          // ignore disconnect errors
+        }
       }
     } finally {
       this.#pending.delete(inviteIdString)

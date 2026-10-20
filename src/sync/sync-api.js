@@ -18,7 +18,7 @@ import {
   NoPeersForInitialSyncError,
   InvalidSyncTimeoutsError,
 } from '../errors.js'
-import { peerIdFromNoise } from '../local-peers.js'
+import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
 import { noop } from '../utils.js'
 
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */

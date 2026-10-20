@@ -157,3 +157,23 @@ if (update.status === 'completed') {
 // Start the join (must be set up before awaiting)
 manager.inviteLinks.createJoinRequest(url)
 ```
+
+## Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant I as Invitor
+    participant J as Joiner
+    I->>J: Send URL over sidechannel
+    J->>I: Connect over RemoteDiscovery
+    J->>I: Send redeem over invite RPC channel
+    I->>J: Redeem ack
+    Note over I: Prompt user to accept/deny
+    Note Over I: mark connection as "ready" and add to local-peers
+    I->>J: Accept over invite RPC
+    Note over J: mark connection as "ready" and add to local-peers
+    J->>I: Accept ack
+    I->>J: Invite over local-peers
+    J->>I: auto-accept invite and join
+```
