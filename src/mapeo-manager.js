@@ -200,6 +200,8 @@ export class MapeoManager extends TypedEmitter {
   #pendingInviteTimers = new Map()
   /** @type {boolean} */
   #testOnlyForceSyncFail = false
+  /** @type {Set<string>} */
+  #trustedRemotePeers = new Set()
 
   /**
    * @param {Object} opts
@@ -266,6 +268,7 @@ export class MapeoManager extends TypedEmitter {
     this.#inviteLinkRPC = new InviteLinkRPC()
     this.#inviteLinkRPC.on('connection-ready', this.#replicate.bind(this))
     this.#inviteLinkRPC.on('connection', (_stream, deviceId) => {
+      if (this.#trustedRemotePeers.has(deviceId)) return
       const timer = setTimeout(() => {
         this.#pendingInviteTimers.delete(deviceId)
         this.#inviteLinkRPC.disconnect(deviceId)
@@ -444,8 +447,11 @@ export class MapeoManager extends TypedEmitter {
   /**
    * @param {AuthedNoiseStream} noiseStream
    */
-  #replicateRemote(noiseStream) {
-    this.#inviteLinkRPC.handleConnection(noiseStream)
+  async #replicateRemote(noiseStream) {
+    await this.#inviteLinkRPC.handleConnection(noiseStream)
+    if (this.#trustedRemotePeers.has(peerIdFromNoise(noiseStream))) {
+      this.#replicate(noiseStream)
+    }
   }
 
   /**
@@ -1338,6 +1344,7 @@ export class MapeoManager extends TypedEmitter {
       throw new UnknownInviteIDRedeemAttemptError()
     }
 
+    this.#trustedRemotePeers.add(peerId)
     const timer = this.#pendingInviteTimers.get(peerId)
     if (timer) {
       clearTimeout(timer)
