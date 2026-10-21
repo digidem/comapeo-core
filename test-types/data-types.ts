@@ -20,6 +20,7 @@ import { projectSettingsTable } from '../dist/schema/client.js'
 import { LocalPeers } from '../dist/local-peers.js'
 import { Expect, type Equal } from './utils.js'
 import { InviteLinksApi } from '../dist/invite/invite-links-api.js'
+import { InviteLinkRPC } from '../dist/invite/invite-link-rpc.js'
 
 type ObservationWithDerivedDocFields = Observation & DerivedDocFields
 type PresetWithDerivedDocFields = Preset & DerivedDocFields
@@ -46,10 +47,9 @@ const mapeoProject = new MapeoProject({
   getMediaBaseUrl: async (mediaType: 'blobs' | 'icons') =>
     `http://127.0.0.1:8080/${mediaType}`,
   localPeers: new LocalPeers(),
+  inviteLinkRPC: new InviteLinkRPC(),
   inviteLinks: new InviteLinksApi(drizzle(sqlite), () => Promise.resolve()),
   getFallbackProjectInfo: () => ({ sendStats: false }),
-  markInternetPeerAsTrusted: async (_deviceId) => Promise.resolve(true),
-  disconnectFromPeer: async (_deviceId) => Promise.resolve(),
 })
 
 ///// Observations
