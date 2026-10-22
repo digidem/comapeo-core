@@ -1,6 +1,7 @@
 import test from 'node:test'
 import fsPromises from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 import { createManager, createManagers } from './utils.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import createTestnet from 'hyperdht/testnet.js'
@@ -19,11 +20,13 @@ import {
   InviteAbortedError,
   JoinProjectCancelledError,
   InviteConnectionError,
+  AlreadyInvitingError,
 } from '../src/errors.js'
 import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
 import { temporaryDirectory } from 'tempy'
 import { kForceAddProjectFail } from '../src/mapeo-manager.js'
 import { InviteLinkRPC } from '../src/invite/invite-link-rpc.js'
+import { LocalPeers } from '../src/local-peers.js'
 
 /**
  * Await a join request update for a given inviteId until it reaches a terminal
@@ -179,14 +182,6 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
 
   project = await invitor.getProject(projectId)
 
-  const pending = await project.$member.listInviteLinks()
-
-  assert.deepEqual(
-    pending.map((p) => p.url),
-    [url],
-    'Pending internet invites loaded on reload'
-  )
-
   const { inviteIdString: inviteId } = parseInviteURL(url)
 
   const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
@@ -221,6 +216,14 @@ test('invite over internet, close, reopen, and join from URL', async (t) => {
   const { projectId: gotProjectId } = await onJoinComplete
 
   assert.equal(gotProjectId, projectId, 'joined expected project')
+
+  const pending = await project.$member.listInviteLinks()
+
+  assert.deepEqual(
+    pending.map((p) => p.url),
+    [url],
+    'Pending internet invites loaded on reload'
+  )
 })
 
 test('invite over internet can be redeemed by multiple peers', async (t) => {
@@ -766,4 +769,175 @@ test('untrusted peer is disconnected after untrustedTimeout', async (t) => {
     timeout: UNTRUSTED_TIMEOUT + 2000,
     rejectionEvents: [],
   })
+})
+
+test('invite over internet completes when accept takes longer than untrustedTimeout', async (t) => {
+  const testnet = await createTestnet(2)
+  t.after(() => testnet.destroy())
+
+  const UNTRUSTED_TIMEOUT = 1000
+
+  const invitor = createManager('invitor', t, {
+    swarm: { dht: testnet.nodes[0] },
+  })
+  const invitee = createManager('invitee', t, {
+    swarm: { dht: testnet.nodes[0] },
+    untrustedTimeout: UNTRUSTED_TIMEOUT,
+  })
+  await invitor.setDeviceInfo({ name: 'invitor', deviceType: 'desktop' })
+  await invitee.setDeviceInfo({ name: 'invitee', deviceType: 'desktop' })
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  const project = await invitor.getProject(projectId)
+  const url = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+  const { inviteIdString: inviteId } = parseInviteURL(url)
+
+  const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
+  const onJoinComplete = awaitJoinComplete(invitee.inviteLinks, inviteId, {
+    timeout: 10_000,
+  })
+
+  invitee.inviteLinks.createJoinRequest(url)
+
+  const [, deviceId, redeemInviteId] = /** @type {[string, string, string]} */ (
+    /**@type unknown*/ (await onInviteRedeemAttempt)
+  )
+
+  // The inviter is a human and takes a while to tap accept
+  const [{ projectId: gotProjectId }, reason] = await Promise.all([
+    onJoinComplete,
+    delay(UNTRUSTED_TIMEOUT * 2).then(() =>
+      project.$member.acceptInviteLinkRequest(redeemInviteId, deviceId)
+    ),
+  ])
+
+  assert.equal(reason, InviteResponse_Decision.ACCEPT)
+  assert.equal(gotProjectId, projectId, 'joined expected project')
+})
+
+test('invite over internet survives a second accept while the first is in progress', async (t) => {
+  const [invitor, invitee] = await createManagers(
+    2,
+    t,
+    'device_type_unspecified',
+    { useTestnet: true }
+  )
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  const project = await invitor.getProject(projectId)
+  const url = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+  const { inviteIdString: inviteId } = parseInviteURL(url)
+
+  const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
+  const onJoinComplete = awaitJoinComplete(invitee.inviteLinks, inviteId, {
+    timeout: 5000,
+  })
+
+  invitee.inviteLinks.createJoinRequest(url)
+
+  const [, deviceId, redeemInviteId] = /** @type {[string, string, string]} */ (
+    /**@type unknown*/ (await onInviteRedeemAttempt)
+  )
+
+  // e.g. a double tap on "accept" in the UI
+  const first = project.$member.acceptInviteLinkRequest(
+    redeemInviteId,
+    deviceId
+  )
+  const second = project.$member.acceptInviteLinkRequest(
+    redeemInviteId,
+    deviceId
+  )
+  const outcome = Promise.all([onJoinComplete, first])
+
+  await assert.rejects(second, { code: AlreadyInvitingError.code })
+
+  const [{ projectId: gotProjectId }, reason] = await outcome
+  assert.equal(reason, InviteResponse_Decision.ACCEPT)
+  assert.equal(gotProjectId, projectId, 'joined expected project')
+})
+
+test('denied peer reconnecting with the same identity is not replicated with', async (t) => {
+  const testnet = await createTestnet(2)
+  t.after(() => testnet.destroy())
+
+  const UNTRUSTED_TIMEOUT = 1000
+  const inviteeRootKey = Buffer.alloc(16, 2)
+
+  const invitor = createManager('invitor', t, {
+    swarm: { dht: testnet.nodes[0] },
+    untrustedTimeout: UNTRUSTED_TIMEOUT,
+  })
+  const invitee = createManager('invitee', t, {
+    swarm: { dht: testnet.nodes[0] },
+    rootKey: inviteeRootKey,
+  })
+  await invitor.setDeviceInfo({ name: 'invitor', deviceType: 'desktop' })
+  await invitee.setDeviceInfo({ name: 'invitee', deviceType: 'desktop' })
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  const project = await invitor.getProject(projectId)
+  const url = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+  const { inviteIdString: inviteId, swarmPublicKey } = parseInviteURL(url)
+
+  const onInviteRedeemAttempt = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
+  const onJoinComplete = awaitJoinComplete(invitee.inviteLinks, inviteId, {
+    timeout: 5000,
+  })
+
+  invitee.inviteLinks.createJoinRequest(url)
+
+  const [, deviceId, redeemInviteId] = /** @type {[string, string, string]} */ (
+    /**@type unknown*/ (await onInviteRedeemAttempt)
+  )
+
+  await Promise.all([
+    assert.rejects(onJoinComplete),
+    project.$member.denyInviteLinkRequest(redeemInviteId, deviceId),
+  ])
+
+  // Reconnect with the invitee's identity key, but never redeem the invite
+  const remoteDiscovery = new RemoteDiscovery({
+    identityKeypair: new KeyManager(inviteeRootKey).getIdentityKeypair(),
+    deriveSwarmIdentityKeypair: () =>
+      new KeyManager(Buffer.alloc(16, 100)).getIdentityKeypair(),
+    swarm: { dht: testnet.nodes[0] },
+  })
+  t.after(() => remoteDiscovery.close())
+  await remoteDiscovery.start()
+
+  const connection = await remoteDiscovery.connectPeer(swarmPublicKey, {
+    timeout: 10000,
+  })
+  const onClose = pEvent(connection, 'close', {
+    timeout: UNTRUSTED_TIMEOUT + 2000,
+    rejectionEvents: [],
+  })
+  new InviteLinkRPC().handleConnection(connection)
+  new LocalPeers().connect(connection)
+
+  await onClose
+  assert.deepEqual(
+    await invitor.listLocalPeers(),
+    [],
+    'unaccepted peer never reached local peers'
+  )
 })

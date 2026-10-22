@@ -538,7 +538,11 @@ test('RemoteDiscovery - valid auth handshake completes and emits connection', as
 
   // Peer signs the handshakeHash with its identity keypair (valid proof)
   const sig = new Uint8Array(64)
-  sodium.crypto_sign_detached(sig, handshakeHash, peerIdentityKeypair.secretKey)
+  sodium.crypto_sign_detached(
+    sig,
+    Buffer.concat([handshakeHash, Buffer.from('i-dev')]),
+    peerIdentityKeypair.secretKey
+  )
   const goodProof = IdentityProof.encode({
     publicKey: peerIdentityKeypair.publicKey,
     signature: Buffer.from(sig),
@@ -564,3 +568,39 @@ test('RemoteDiscovery - valid auth handshake completes and emits connection', as
 function handleConnectionError(e) {
   assert.fail(`Unexpected connection error: ${e.message}`)
 }
+
+test('RemoteDiscovery - a peer that reflects our identity proof is not authenticated', async (t) => {
+  const identityKeypair = new KeyManager(
+    Buffer.alloc(16, 1)
+  ).getIdentityKeypair()
+  const swarmKeypair = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+
+  const discovery = new RemoteDiscovery({
+    identityKeypair,
+    deriveSwarmIdentityKeypair: () => swarmKeypair,
+  })
+  t.after(() => discovery.close())
+
+  const [serverStream, peerStream] = createStreamPair()
+  const serverSocket = makeServerStream(serverStream, swarmKeypair)
+
+  const onConnection = pEvent(discovery, 'connection', { timeout: 5000 })
+  const serverPromise =
+    discovery[kTestOnlyHandleHyperswarmConnection](serverSocket)
+
+  const peerChannel = await setupPeerAuth(peerStream)
+
+  // Peer has no identity key of its own: it echoes the server's proof back
+  peerChannel.messages[1].onmessage = (/** @type {Buffer} */ proof) => {
+    peerChannel.messages[1].send(proof)
+  }
+  const goodHello = Hello.encode({ protocolVersion: 1 }).finish()
+  peerChannel.messages[0].send(Buffer.from(goodHello))
+
+  await assert.rejects(
+    onConnection,
+    { code: InvalidIdentityProofError.code },
+    'reflected proof must not authenticate the peer as ourselves'
+  )
+  await serverPromise
+})
