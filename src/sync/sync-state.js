@@ -14,7 +14,7 @@ import mapObject from 'map-obj'
 
 /**
  * Emit sync state when it changes
- * @extends {TypedEmitter<{ state: (state: State) => void}>}
+ * @extends {TypedEmitter<{ state: (state: State) => void, update: () => void }>}
  */
 export class SyncState extends TypedEmitter {
   #syncStates = /** @type {Record<Namespace, NamespaceSyncState> } */ ({})
@@ -35,12 +35,19 @@ export class SyncState extends TypedEmitter {
     logger,
   }) {
     super()
+    // The 'state' event carries the full (relatively expensive) computed state
+    // and is throttled to avoid churning consumers on every micro-update. The
+    // 'update' event is cheap (no argument) and fires on every real change so
+    // that consumers needing a lossless signal can re-read state themselves.
     const throttledHandleUpdate = throttle(throttleMs, this.#handleUpdate)
     for (const namespace of NAMESPACES) {
       this.#syncStates[namespace] = new NamespaceSyncState({
         namespace,
         coreManager,
-        onUpdate: throttledHandleUpdate,
+        onUpdate: () => {
+          this.emit('update')
+          throttledHandleUpdate()
+        },
         peerSyncControllers,
         blobStore,
         logger,
