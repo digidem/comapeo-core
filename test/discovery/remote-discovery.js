@@ -538,7 +538,11 @@ test('RemoteDiscovery - valid auth handshake completes and emits connection', as
 
   // Peer signs the handshakeHash with its identity keypair (valid proof)
   const sig = new Uint8Array(64)
-  sodium.crypto_sign_detached(sig, handshakeHash, peerIdentityKeypair.secretKey)
+  sodium.crypto_sign_detached(
+    sig,
+    Buffer.concat([handshakeHash, Buffer.from('i-dev')]),
+    peerIdentityKeypair.secretKey
+  )
   const goodProof = IdentityProof.encode({
     publicKey: peerIdentityKeypair.publicKey,
     signature: Buffer.from(sig),

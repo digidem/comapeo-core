@@ -542,7 +542,13 @@ export class SyncApi extends TypedEmitter {
       }
       const onAbort = () => {
         cleanup()
-        reject(abortSignal.reason)
+        // 'state' events are throttled, so check the live state. Relies on the
+        // mapeo/rpc channel closing before hypercore channels delete remote state
+        if (isInitiallySyncedWithPeer(this[kSyncState].getState(), deviceId)) {
+          resolve()
+        } else {
+          reject(abortSignal.reason)
+        }
       }
 
       const cleanup = () => {

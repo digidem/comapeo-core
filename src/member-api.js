@@ -42,6 +42,7 @@ import {
   CannotBlockSelfError,
   InitialSyncFailedError,
   PeerNotFoundError,
+  PeerDisconnectedError,
 } from './errors.js'
 import { wsCoreReplicator } from './lib/ws-core-replicator.js'
 import {
@@ -387,10 +388,17 @@ export class MemberApi extends TypedEmitter {
         roleName,
         roleDescription,
         leaveOnFail: true,
+        // Hard cap. Must be generous: the invitee's own initial sync only gives
+        // up after 45s without progress, and failure here blocks the member
+        // TODO: This should be a no-progress timeout rather than a hard cap
+        initialSyncTimeoutMs: 180_000,
       })
       return decision
     } catch (e) {
-      await this.#inviteLinkRPC.disconnect(deviceId)
+      // A second accept (e.g. a double tap) must not tear down the first
+      if (!(e instanceof AlreadyInvitingError)) {
+        await this.#inviteLinkRPC.disconnect(deviceId)
+      }
       throw e
     }
   }
@@ -541,12 +549,10 @@ export class MemberApi extends TypedEmitter {
           }
 
           try {
-            let abortSync = new AbortController().signal
-            if (initialSyncTimeoutMs) {
-              abortSync = AbortSignal.timeout(initialSyncTimeoutMs)
-            }
-
-            await this.#waitForInitialSyncWithPeer(deviceId, abortSync)
+            await this.#waitForInitialSyncOrDisconnect(
+              deviceId,
+              initialSyncTimeoutMs
+            )
           } catch (e) {
             this.#l.log('ERROR: Could not initial sync with peer', e)
             if (leaveOnFail) {
@@ -568,6 +574,30 @@ export class MemberApi extends TypedEmitter {
       throw ensureKnownError(e)
     } finally {
       this.#outboundInvitesByDevice.delete(deviceId)
+    }
+  }
+
+  /**
+   * Wait for initial sync with a peer. Gives up as soon as the peer
+   * disconnects, rather than waiting out the timeout.
+   * @param {string} deviceId
+   * @param {number} [timeoutMs]
+   */
+  async #waitForInitialSyncOrDisconnect(deviceId, timeoutMs) {
+    const peerGone = new AbortController()
+    /** @param {{ deviceId: string }} peer */
+    const onPeerRemove = (peer) => {
+      if (peer.deviceId === deviceId) {
+        peerGone.abort(new PeerDisconnectedError())
+      }
+    }
+    this.#rpc.on('peer-remove', onPeerRemove)
+    const signals = [peerGone.signal]
+    if (timeoutMs) signals.push(AbortSignal.timeout(timeoutMs))
+    try {
+      await this.#waitForInitialSyncWithPeer(deviceId, abortSignalAny(signals))
+    } finally {
+      this.#rpc.off('peer-remove', onPeerRemove)
     }
   }
 

@@ -9,7 +9,7 @@ import cenc from 'compact-encoding'
 import pDefer from 'p-defer'
 import { timeoutPromise } from '../utils.js'
 import { openedNoiseSecretStream } from '../lib/noise-secret-stream-helpers.js'
-import { SwarmNotInitializedError } from '../errors.js'
+import { SwarmNotInitializedError, UnexpectedError } from '../errors.js'
 import { Hello, IdentityProof } from '../generated/auth.js'
 import {
   AuthProtocolVersionMismatchError,
@@ -322,7 +322,9 @@ export class RemoteDiscovery extends TypedEmitter {
         ondrain: () => drainDefer?.resolve(),
       })
       authChannel.open()
-      await onAuthOpen.promise
+      await timeoutPromise(onAuthOpen.promise, {
+        milliseconds: AUTH_HANDSHAKE_TIMEOUT,
+      })
 
       /**
        * @param {Buffer} buf
@@ -345,11 +347,19 @@ export class RemoteDiscovery extends TypedEmitter {
         milliseconds: AUTH_HANDSHAKE_TIMEOUT,
       })
 
+      // Each side signs a different message so a peer cannot reflect our own
+      // proof back at us.
+      const [mySigContext, peerSigContext] = socket.isInitiator
+        ? ['i-dev', 'r-dev']
+        : ['r-dev', 'i-dev']
+      const { handshakeHash } = socket
+      if (!handshakeHash) throw new UnexpectedError('Missing handshakeHash')
+
       // Send our identity proof
       const sig = new Uint8Array(64)
       sodium.crypto_sign_detached(
         sig,
-        socket.handshakeHash,
+        Buffer.concat([handshakeHash, Buffer.from(mySigContext)]),
         this.#identityKeypair.secretKey
       )
       const myProof = IdentityProof.encode({
@@ -367,7 +377,7 @@ export class RemoteDiscovery extends TypedEmitter {
       try {
         valid = sodium.crypto_sign_verify_detached(
           peerProof.signature,
-          socket.handshakeHash,
+          Buffer.concat([handshakeHash, Buffer.from(peerSigContext)]),
           peerProof.publicKey
         )
       } catch {

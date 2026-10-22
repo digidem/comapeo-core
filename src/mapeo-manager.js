@@ -200,8 +200,6 @@ export class MapeoManager extends TypedEmitter {
   #pendingInviteTimers = new Map()
   /** @type {boolean} */
   #testOnlyForceSyncFail = false
-  /** @type {Set<string>} */
-  #trustedRemotePeers = new Set()
 
   /**
    * @param {Object} opts
@@ -267,8 +265,10 @@ export class MapeoManager extends TypedEmitter {
 
     this.#inviteLinkRPC = new InviteLinkRPC()
     this.#inviteLinkRPC.on('connection-ready', this.#replicate.bind(this))
-    this.#inviteLinkRPC.on('connection', (_stream, deviceId) => {
-      if (this.#trustedRemotePeers.has(deviceId)) return
+    this.#inviteLinkRPC.on('connection', (stream, deviceId) => {
+      // Only inbound peers are unknown to us. We dialled outbound ones
+      // ourselves, and the invitor may take a long time to accept.
+      if (stream.isInitiator) return
       const timer = setTimeout(() => {
         this.#pendingInviteTimers.delete(deviceId)
         this.#inviteLinkRPC.disconnect(deviceId)
@@ -374,12 +374,16 @@ export class MapeoManager extends TypedEmitter {
     })
     this.#remoteDiscovery.on('connection', this.#replicateRemote.bind(this))
     this.#remoteDiscovery.on('error', (e) => {
-      this.#l.log('Error: Unable to handle incoming Map Share', ensureError(e))
+      this.#l.log('Error: remote peer connection failed', ensureError(e))
     })
 
     this.#inviteLinkStore = new InviteLinksApi(this.#db, (shouldListen) => {
       if (shouldListen) return this.#remoteDiscovery.start()
       else return this.#remoteDiscovery.stop()
+    })
+    // Resume listening for pending invite links from a previous session
+    this.#inviteLinkStore.ready().catch((e) => {
+      this.#l.log('Error: could not open invite link store', ensureError(e))
     })
 
     this.#inviteLinks = new InviteLinkJoiner({
@@ -447,11 +451,8 @@ export class MapeoManager extends TypedEmitter {
   /**
    * @param {AuthedNoiseStream} noiseStream
    */
-  async #replicateRemote(noiseStream) {
-    await this.#inviteLinkRPC.handleConnection(noiseStream)
-    if (this.#trustedRemotePeers.has(peerIdFromNoise(noiseStream))) {
-      this.#replicate(noiseStream)
-    }
+  #replicateRemote(noiseStream) {
+    this.#inviteLinkRPC.handleConnection(noiseStream)
   }
 
   /**
@@ -1344,7 +1345,6 @@ export class MapeoManager extends TypedEmitter {
       throw new UnknownInviteIDRedeemAttemptError()
     }
 
-    this.#trustedRemotePeers.add(peerId)
     const timer = this.#pendingInviteTimers.get(peerId)
     if (timer) {
       clearTimeout(timer)
