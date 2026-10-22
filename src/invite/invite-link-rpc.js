@@ -26,7 +26,7 @@ import {
 /** @import {PeerProtomux} from '../local-peers.js' */
 
 export const INTERNET_INVITE_PROTOCOL = 'comapeo/invite'
-export const ACK_TIMEOUT = 1000
+export const ACK_TIMEOUT = 5000
 export const PEER_WAIT_TIMEOUT = 1000
 
 const MESSAGE_TYPES = {
@@ -49,6 +49,14 @@ const MESSAGE_TYPES = {
  * @property {(connection: AuthedNoiseStream) => void} connection-ready
  * @property {(connection: AuthedNoiseStream, deviceId: string) => void} connection
  * @property {(deviceId: string) => void} disconnected Emitted when a peer's invite-link connection is closed or disconnected
+ */
+
+/**
+ * @typedef {
+ *   | RedeemInviteOverInternetAck
+ *   | DenyInviteOverInternetAck
+ *   | AcceptInviteOverInternetAck
+ * } InviteAck
  */
 
 /** @extends {TypedEmitter<InviteLinkEvents>}*/
@@ -207,14 +215,11 @@ export class InviteLinkRPC extends TypedEmitter {
       msg
     )
     // Send redeem, wait for ack
-    await pEvent(this, 'redeem-ack', {
+    await this.#awaitAck('redeem-ack', {
       filter: ({ inviteId: receivedInviteId }) =>
         receivedInviteId.equals(inviteId),
-      timeout: ACK_TIMEOUT,
-    }).catch((e) => {
-      throw e instanceof TimeoutError
-        ? new RPCDisconnectBeforeAckError({ type: 'redeem' })
-        : e
+      deviceId,
+      type: 'redeem',
     })
   }
 
@@ -246,14 +251,11 @@ export class InviteLinkRPC extends TypedEmitter {
       MESSAGE_TYPES.AcceptInviteOverInternet,
       msg
     )
-    await pEvent(this, 'accept-ack', {
+    await this.#awaitAck('accept-ack', {
       filter: ({ inviteId: receivedInviteId }) =>
         receivedInviteId.equals(inviteId),
-      timeout: ACK_TIMEOUT,
-    }).catch((e) => {
-      throw e instanceof TimeoutError
-        ? new RPCDisconnectBeforeAckError({ type: 'accept' })
-        : e
+      deviceId,
+      type: 'accept',
     })
   }
 
@@ -293,15 +295,16 @@ export class InviteLinkRPC extends TypedEmitter {
       MESSAGE_TYPES.DenyInviteOverInternet,
       msg
     )
-    // Close connection on ack or timeout.
+    // Close connection on ack or timeout/disconnect.
     try {
-      await pEvent(this, 'deny-ack', {
+      await this.#awaitAck('deny-ack', {
         filter: ({ inviteId: receivedInviteId }) =>
           receivedInviteId.equals(inviteId),
-        timeout: ACK_TIMEOUT,
+        deviceId,
+        type: 'deny',
       })
     } catch {
-      // ack timed out, still disconnect
+      // ack timed out or peer disconnected, still disconnect
     }
     await this.disconnect(deviceId)
   }
@@ -354,6 +357,41 @@ export class InviteLinkRPC extends TypedEmitter {
     const connection = this.#connections.get(deviceId)
     if (!connection) throw new PeerNotFoundError()
     this.emit('connection-ready', connection.stream)
+  }
+
+  /**
+   * Wait for an ack event from a peer, failing fast if the peer
+   * disconnects before the ack (or the timeout) is reached.
+   * @param {string} eventName
+   * @param {object} options
+   * @param {(ack: InviteAck) => boolean} options.filter
+   * @param {string} options.deviceId
+   * @param {'redeem'|'accept'|'deny'} options.type
+   * @returns {Promise<InviteAck>}
+   */
+  async #awaitAck(eventName, { filter, deviceId, type }) {
+    /** @type {import('tiny-typed-emitter').TypedEmitter<Record<string, (ack: InviteAck) => void>>} */
+    const ackEmitter = this
+    const ack = pEvent(ackEmitter, eventName, { filter, timeout: ACK_TIMEOUT })
+    /** @type {(peerId: string) => boolean} */
+    const disconnectedFilter = (peerId) => peerId === deviceId
+    const disconnected = pEvent(this, 'disconnected', disconnectedFilter)
+    try {
+      await Promise.race([
+        ack,
+        disconnected.then(() => {
+          throw new RPCDisconnectBeforeAckError({ type })
+        }),
+      ])
+    } catch (err) {
+      if (err instanceof TimeoutError) {
+        throw new RPCDisconnectBeforeAckError({ type })
+      }
+      throw err
+    } finally {
+      ack.cancel()
+      disconnected.cancel()
+    }
   }
 
   /**

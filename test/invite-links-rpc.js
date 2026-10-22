@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import NoiseSecretStream from '@hyperswarm/secret-stream'
-import { InviteLinkRPC } from '../src/invite/invite-link-rpc.js'
+import { InviteLinkRPC, ACK_TIMEOUT } from '../src/invite/invite-link-rpc.js'
+import { RPCDisconnectBeforeAckError } from '../src/errors.js'
 import { keyToId } from '../src/utils.js'
 import { pEvent } from 'p-event'
 
@@ -77,6 +78,39 @@ test('accept round trip over duplex streams', async () => {
   await onAckSent
 
   await destroy()
+})
+
+test('redeem fails fast when the peer disconnects before acking', async () => {
+  const rpc1 = new InviteLinkRPC()
+  const rpc2 = new InviteLinkRPC()
+  const { open, deviceId1, destroy } = replicate(rpc1, rpc2)
+  await open
+
+  const inviteId = testInviteId()
+  const rpc1Redeemed = pEvent(rpc1, 'redeemed', { timeout: 1000 })
+
+  // Deliberately do not ack the redeem
+  const started = Date.now()
+  const redeemResult = rpc2.redeem('invitee-name', inviteId, deviceId1).then(
+    () => null,
+    (err) => err
+  )
+
+  // Let the redeem arrive, then disconnect without acking
+  const msg = await rpc1Redeemed
+  assert.deepEqual(msg.inviteId, inviteId, 'rpc1 received the redeem')
+  await destroy()
+
+  const err = await redeemResult
+  assert.ok(
+    err instanceof RPCDisconnectBeforeAckError,
+    `expected RPCDisconnectBeforeAckError, got: ${err}`
+  )
+  const elapsed = Date.now() - started
+  assert.ok(
+    elapsed < ACK_TIMEOUT,
+    `redeem should fail fast on disconnect (took ${elapsed}ms, timeout is ${ACK_TIMEOUT}ms)`
+  )
 })
 
 test('deny round trip over duplex streams', async () => {
