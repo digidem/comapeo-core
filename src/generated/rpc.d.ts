@@ -11,6 +11,7 @@ export interface Invite {
     projectDescription?: string | undefined;
     sendStats: boolean;
     invitorWroteDeviceInfo: boolean;
+    leaveOnFail: boolean;
 }
 export interface InviteCancel {
     inviteId: Buffer;

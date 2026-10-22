@@ -8,16 +8,23 @@ import {
   NAMESPACES,
   PRESYNC_NAMESPACES,
 } from '../constants.js'
-import { keyToId, noop } from '../utils.js'
 import { getOwn } from '../lib/get-own.js'
 import { wsCoreReplicator } from '../lib/ws-core-replicator.js'
 import { NO_ROLE_ID } from '../roles.js'
-import { AutoStopTimeoutError, ExhaustivenessError } from '../errors.js'
+import {
+  AutoStopTimeoutError,
+  ExhaustivenessError,
+  SyncTimeoutError,
+  NoPeersForInitialSyncError,
+  InvalidSyncTimeoutsError,
+} from '../errors.js'
+import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
+import { noop } from '../utils.js'
+
 /** @import { CoreOwnership as CoreOwnershipDoc } from '@comapeo/schema' */
 /** @import * as http from 'node:http' */
 /** @import { CoreOwnership } from '../core-ownership.js' */
-/** @import { OpenedNoiseStream } from '../lib/noise-secret-stream-helpers.js' */
-/** @import { BlobFilter, ReplicationStream } from '../types.js' */
+/** @import { HypercorePeer, ReplicationStream } from '../types.js' */
 
 export const kHandleDiscoveryKey = Symbol('handle discovery key')
 export const kSyncState = Symbol('sync state')
@@ -26,6 +33,8 @@ export const kRescindFullStopRequest = Symbol('foreground')
 export const kWaitForInitialSyncWithPeer = Symbol(
   'wait for initial sync with peer'
 )
+
+const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -447,21 +456,59 @@ export class SyncApi extends TypedEmitter {
    * to wait between sync state updates before giving up. As long as syncing is
    * happening, this will never timeout, but if more than timeoutMs passes
    * without any sync activity, then this will reject.
+   * @param {boolean} [options.errorOnNoPeers] Whether to quickly exit when no
+   * remote states for peers are detected.
+   * @param {number} [options.initialPeerWaitMs] How long to wait for at least
+   * one peer to appear before giving up when `errorOnNoPeers` is true.
    * @returns {Promise<void>}
    */
-  async waitForSync(type, { timeoutMs } = {}) {
+  async waitForSync(
+    type,
+    { timeoutMs, errorOnNoPeers = false, initialPeerWaitMs } = {}
+  ) {
+    if (
+      errorOnNoPeers &&
+      typeof initialPeerWaitMs === 'number' &&
+      typeof timeoutMs === 'number' &&
+      initialPeerWaitMs > timeoutMs
+    ) {
+      throw new InvalidSyncTimeoutsError({ initialPeerWaitMs, timeoutMs })
+    }
+
     return new Promise((resolve, reject) => {
-      /** @type {NodeJS.Timeout | undefined} */
-      let timeoutId
-      const onTimeout = () => {
-        this[kSyncState].off('state', onState)
-        reject(new Error('Sync timeout'))
+      /** @type {NodeJS.Timeout | null} */
+      let timeoutId = null
+      /** @type {NodeJS.Timeout | null} */
+      let initialPeersTimeoutId = null
+
+      if (errorOnNoPeers) {
+        const waitMs = initialPeerWaitMs ?? DEFAULT_INITIAL_PEER_WAIT_MS
+        initialPeersTimeoutId = setTimeout(() => {
+          this[kSyncState].off('state', onState)
+          reject(new NoPeersForInitialSyncError())
+        }, waitMs)
       }
+
+      const onTimeout = () => {
+        if (initialPeersTimeoutId) clearTimeout(initialPeersTimeoutId)
+        this[kSyncState].off('state', onState)
+        reject(new SyncTimeoutError())
+      }
+
       /** @param {import('./sync-state.js').State} state */
       const onState = (state) => {
-        clearTimeout(timeoutId)
+        if (timeoutId) clearTimeout(timeoutId)
+        if (initialPeersTimeoutId) {
+          if (hasRemoteStates(state)) {
+            if (initialPeersTimeoutId) clearTimeout(initialPeersTimeoutId)
+            initialPeersTimeoutId = null
+          } else {
+            return
+          }
+        }
         if (isSynced(state, type, this.#peerSyncControllers)) {
           this[kSyncState].off('state', onState)
+          if (initialPeersTimeoutId) clearTimeout(initialPeersTimeoutId)
           resolve()
           return
         }
@@ -486,25 +533,38 @@ export class SyncApi extends TypedEmitter {
     if (isInitiallySyncedWithPeer(state, deviceId)) return
 
     return new Promise((resolve, reject) => {
-      /** @param {import('./sync-state.js').State} state */
-      const onState = (state) => {
-        if (isInitiallySyncedWithPeer(state, deviceId)) {
+      const check = () => {
+        if (isInitiallySyncedWithPeer(this[kSyncState].getState(), deviceId)) {
           cleanup()
           resolve()
         }
       }
       const onAbort = () => {
         cleanup()
-        reject(abortSignal.reason)
+        // 'state' events are throttled, so check the live state. Relies on the
+        // mapeo/rpc channel closing before hypercore channels delete remote state
+        if (isInitiallySyncedWithPeer(this[kSyncState].getState(), deviceId)) {
+          resolve()
+        } else {
+          reject(abortSignal.reason)
+        }
       }
 
       const cleanup = () => {
-        this[kSyncState].off('state', onState)
+        this[kSyncState].off('update', check)
         abortSignal.removeEventListener('abort', onAbort)
       }
 
-      this[kSyncState].on('state', onState)
+      // Subscribe to the unthrottled 'update' event rather than the throttled
+      // 'state' event. The initial-sync state can be transient: a peer can
+      // reach a fully-synced state and then disconnect before the throttled
+      // 'state' emission fires, in which case the throttled event would only
+      // ever report the post-disconnect (non-synced) state and this wait would
+      // incorrectly time out. Re-checking on every real state change avoids
+      // missing that window.
+      this[kSyncState].on('update', check)
       abortSignal.addEventListener('abort', onAbort)
+      check()
     })
   }
 
@@ -523,14 +583,14 @@ export class SyncApi extends TypedEmitter {
    * will then handle validation of role records to ensure that the peer is
    * actually still part of the project.
    *
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer} peer
    */
   #handlePeerAdd = (peer) => {
     const { protomux } = peer
     if (this.#peerSyncControllers.has(protomux)) {
       this.#l.log(
-        'Unexpected existing peer sync controller for peer %h',
-        protomux.stream.remotePublicKey
+        'Unexpected existing peer sync controller for peer %S',
+        peerIdFromNoise(protomux.stream)
       )
       return
     }
@@ -564,21 +624,21 @@ export class SyncApi extends TypedEmitter {
    * Called when a peer is removed from the creator core, e.g. when the
    * connection is terminated.
    *
-   * @param {{ protomux: import('protomux')<import('@hyperswarm/secret-stream')>, remotePublicKey: Buffer }} peer
+   * @param {Pick<HypercorePeer, 'protomux' >} peer
    */
   #handlePeerDisconnect = (peer) => {
     const { protomux } = peer
+    const peerId = peerIdFromNoise(protomux.stream)
     const psc = this.#peerSyncControllers.get(protomux)
     if (!psc) {
       this.#l.log(
-        'Unexpected no existing peer sync controller for peer %h',
-        protomux.stream.remotePublicKey
+        'Unexpected no existing peer sync controller for peer %S',
+        peerId
       )
       return
     }
     psc.dispose()
     this.#peerSyncControllers.delete(protomux)
-    const peerId = keyToId(peer.remotePublicKey)
     this.#pscByPeerId.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
     this[kSyncState].disconnectPeer(peerId)
@@ -683,6 +743,19 @@ function isSynced(state, type, peerSyncControllers) {
     }
   }
   return true
+}
+
+/**
+ * Check if there are any remote states present
+ * Use this to see if we're lacking any peers to sync with
+ * @param {import('./sync-state.js').State} state
+ * @returns
+ */
+function hasRemoteStates(state) {
+  for (const { remoteStates } of Object.values(state)) {
+    if (Object.keys(remoteStates).length) return true
+  }
+  return false
 }
 
 /**

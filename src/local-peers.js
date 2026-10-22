@@ -1,9 +1,10 @@
 import { TypedEmitter } from 'tiny-typed-emitter'
 import Protomux from 'protomux'
 import timingSafeEqual from 'string-timing-safe-equal'
-import { keyToId, noop, timeoutPromise } from './utils.js'
-import { isBlank } from './lib/string.js'
 import cenc from 'compact-encoding'
+import { noop, timeoutPromise } from './utils.js'
+import { peerIdFromNoise } from './lib/noise-secret-stream-helpers.js'
+import { isBlank } from './lib/string.js'
 import {
   DeviceInfo,
   Invite,
@@ -29,10 +30,15 @@ import {
   InvalidInviteError,
   InvalidProjectJoinDetailsError,
   MapShareNotSupportedByPeerError,
+  ensureKnownError,
 } from './errors.js'
+
 /** @import NoiseStream from '@hyperswarm/secret-stream' */
 /** @import { OpenedNoiseStream } from './lib/noise-secret-stream-helpers.js' */
 /** @import {DeferredPromise} from 'p-defer' */
+/** @import {AuthedNoiseStream} from "./lib/noise-secret-stream-helpers.js" */
+
+/** @typedef {Protomux<OpenedNoiseStream|AuthedNoiseStream>} PeerProtomux */
 
 /**
  * @typedef {InviteAck|InviteCancelAck|InviteResponseAck|ProjectJoinDetailsAck} AckResponse
@@ -90,7 +96,7 @@ export const kTestOnlySendRawInvite = Symbol('testOnlySendRawInvite')
  * @property {PeerSupportedFeatures} supportedFeatures
  */
 /** @typedef {PeerInfoBase & { status: 'connecting' }} PeerInfoConnecting */
-/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: Protomux<import('@hyperswarm/secret-stream')> }} PeerInfoConnected */
+/** @typedef {PeerInfoBase & { status: 'connected', connectedAt: number, protomux: PeerProtomux }} PeerInfoConnected */
 /** @typedef {PeerInfoBase & { status: 'disconnected', disconnectedAt: number }} PeerInfoDisconnected */
 
 /** @typedef {PeerInfoConnecting | PeerInfoConnected | PeerInfoDisconnected} PeerInfoInternal */
@@ -122,7 +128,7 @@ class Peer {
    * @param {object} options
    * @param {string} options.peerId
    * @param {ReturnType<typeof Protomux.prototype.createChannel>} options.channel
-   * @param {Protomux<any>} options.protomux
+   * @param {PeerProtomux} options.protomux
    * @param {Logger} [options.logger]
    */
   constructor({ peerId, channel, protomux, logger }) {
@@ -193,6 +199,10 @@ class Peer {
     return this.#protomux
   }
 
+  get id() {
+    return this.#deviceId
+  }
+
   connect() {
     /* c8 ignore next 4 */
     if (this.#state !== 'connecting') {
@@ -219,9 +229,9 @@ class Peer {
     for (const listener of this.#drainedListeners) {
       listener.reject(new RPCDisconnectBeforeSendingError())
     }
-    for (const waiters of this.#ackWaiters.values()) {
+    for (const [type, waiters] of this.#ackWaiters.entries()) {
       for (const { deferred } of waiters) {
-        deferred.reject(new RPCDisconnectBeforeAckError())
+        deferred.reject(new RPCDisconnectBeforeAckError({ type }))
       }
     }
     this.#ackWaiters.clear()
@@ -409,7 +419,6 @@ class Peer {
     const messageType = MESSAGE_TYPES.InviteResponseAck
     await this.#waitForDrain(this.#channel.messages[messageType].send(buf))
   }
-
   /** @param {ProjectJoinDetails} details */
   async sendProjectJoinDetails(details) {
     this.#assertConnected(
@@ -463,6 +472,7 @@ class Peer {
  * @typedef {object} LocalPeersEvents
  * @property {(peers: PeerInfo[]) => void} peers Emitted whenever the connection status of peers changes. An array of peerInfo objects with a peer id and the peer connection status
  * @property {(peer: PeerInfoConnected) => void} peer-add Emitted when a new peer is connected
+ * @property {(peer: PeerInfoDisconnected) => void} peer-remove Emitted when an existing peer is disconnected
  * @property {(peerId: string, invite: Invite) => void} invite Emitted when an invite is received
  * @property {(peerId: string, invite: InviteAck) => void} invite-ack Emitted when an invite acknowledgement is received
  * @property {(peerId: string, invite: InviteCancel) => void} invite-cancel Emitted when we receive a cancelation for an invite
@@ -472,8 +482,8 @@ class Peer {
  * @property {(peerId: string, details: ProjectJoinDetails) => void} got-project-details Emitted when project details are received
  * @property {(peerId: string, details: ProjectJoinDetailsAck) => void} got-project-details-ack Emitted when project details are acknowledged as received
  * @property {(sender: PeerInfo, details: MapShareExtension) => void} map-share Emitted when a MapShare request is received
- * @property {(discoveryKey: Buffer, protomux: Protomux<import('@hyperswarm/secret-stream')>) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
- * @property {(messageType: string, errorMessage?: string) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
+ * @property {(discoveryKey: Buffer, protomux: PeerProtomux) => void} discovery-key Emitted when a new hypercore is replicated (by a peer) to a peer protomux instance (passed as the second parameter)
+ * @property {(messageType: string, errorMessage: import('./errors.js').KnownError) => void} failed-to-handle-message Emitted when we received a message we couldn't handle for some reason. Primarily useful for testing
  */
 
 /** @extends {TypedEmitter<LocalPeersEvents>} */
@@ -589,12 +599,13 @@ export class LocalPeers extends TypedEmitter {
   /**
    * Connect to a peer over an existing NoiseSecretStream
    *
-   * @param {NoiseStream<any>} stream
+   * @param {NoiseStream<any>|AuthedNoiseStream} stream
    * @returns {import('./types.js').ReplicationStream}
    */
   connect(stream) {
     const noiseStream = stream.noiseStream
     const outerStream = noiseStream.rawStream
+    /** @type {PeerProtomux} */
     const protomux =
       noiseStream.userData && Protomux.isProtomux(noiseStream.userData)
         ? noiseStream.userData
@@ -606,11 +617,8 @@ export class LocalPeers extends TypedEmitter {
     protomux.pair(
       { protocol: 'hypercore/alpha' },
       /** @param {Buffer} discoveryKey */ async (discoveryKey) => {
-        this.#l.log(
-          'Received discovery key %h from %h',
-          discoveryKey,
-          stream.noiseStream.remotePublicKey
-        )
+        const peerId = peerIdFromNoise(protomux.stream)
+        this.#l.log('Received discovery key %h from %S', discoveryKey, peerId)
         this.emit('discovery-key', discoveryKey, protomux)
       }
     )
@@ -647,7 +655,7 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * @param {Protomux<OpenedNoiseStream>} protomux
+   * @param {PeerProtomux} protomux
    * @param {() => void} done
    */
   #makePeer(protomux, done) {
@@ -657,7 +665,7 @@ export class LocalPeers extends TypedEmitter {
     // already open
     if (protomux.opened({ protocol: PROTOCOL_NAME })) return done()
 
-    const peerId = keyToId(protomux.stream.remotePublicKey)
+    const peerId = peerIdFromNoise(protomux.stream)
 
     // This is written like this because the protomux uses the index within
     // the messages array to define the message id over the wire, so this must
@@ -675,9 +683,8 @@ export class LocalPeers extends TypedEmitter {
               message
             )
           } catch (e) {
-            const errorMessage = String(e)
-            this.emit('failed-to-handle-message', type, errorMessage)
-            this.#l.log(`Error handling ${type} message: ${errorMessage}`)
+            this.emit('failed-to-handle-message', type, ensureKnownError(e))
+            this.#l.log(`Error handling ${type} message: ${e}`)
           }
         },
       }
@@ -701,6 +708,11 @@ export class LocalPeers extends TypedEmitter {
           existingDevicePeers.delete(peer)
         }
         this.#attached.delete(peer.protomux)
+        if (peer.info.status === 'disconnected') {
+          this.emit('peer-remove', peer.info)
+        } else {
+          this.#l.log('Error: Peer not marked as disconnected after disconnect')
+        }
         this.#emitPeers()
         done()
       },
@@ -723,13 +735,13 @@ export class LocalPeers extends TypedEmitter {
   }
 
   /**
-   * @param {Protomux<OpenedNoiseStream>} protomux
+   * @param {PeerProtomux} protomux
    */
   #getPeerByProtomux(protomux) {
     // We could also index peers by protomux to avoid this, but that would mean
     // we need to keep around protomux references for closed peers, and we keep
     // around closed peers for the lifecycle of the app
-    const peerId = keyToId(protomux.stream.remotePublicKey)
+    const peerId = peerIdFromNoise(protomux.stream)
     // We could have more than one connection to the same peer
     const devicePeers = this.#peers.get(peerId)
     /** @type {Peer | undefined} */
@@ -774,7 +786,7 @@ export class LocalPeers extends TypedEmitter {
 
   /**
    *
-   * @param {Protomux<OpenedNoiseStream>} protomux
+   * @param {PeerProtomux} protomux
    * @param {keyof typeof MESSAGE_TYPES} type
    * @param {Buffer} value
    */
@@ -782,52 +794,65 @@ export class LocalPeers extends TypedEmitter {
     const peer = this.#getPeerByProtomux(protomux)
     /* c8 ignore next */
     if (!peer) return // TODO: report error - this should not happen
+
     switch (type) {
       case 'Invite': {
         const invite = parseInvite(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite', peerId, invite)
-        peer.sendInviteAck(invite).catch((e) => {
-          this.#l.log(`Error sending invite ack ${e.stack}`)
-        })
-        this.#l.log(
-          'Invite %h from %S for %h',
-          invite.inviteId,
-          peerId,
-          invite.projectInviteId
-        )
+        peer
+          .sendInviteAck(invite)
+          .then(() => {
+            this.#l.log(
+              'Invite %h from %S for %h',
+              invite.inviteId,
+              peer.id,
+              invite.projectInviteId
+            )
+            this.emit('invite', peer.id, invite)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending invite ack ${e.stack}`)
+          })
         break
       }
       case 'InviteCancel': {
         const inviteCancel = parseInviteCancel(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-cancel', peerId, inviteCancel)
-        peer.sendInviteCancelAck(inviteCancel).catch((e) => {
-          this.#l.log(`Error sending invite cancel ack ${e.stack}`)
-        })
-        this.#l.log(
-          'Invite cancel from %S for %h',
-          peerId,
-          inviteCancel.inviteId
-        )
+        peer
+          .sendInviteCancelAck(inviteCancel)
+          .then(() => {
+            this.emit('invite-cancel', peer.id, inviteCancel)
+            this.#l.log(
+              'Invite cancel from %S for %h',
+              peer.id,
+              inviteCancel.inviteId
+            )
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending invite cancel ack ${e.stack}`)
+          })
         break
       }
       case 'InviteResponse': {
         const inviteResponse = parseInviteResponse(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-response', peerId, inviteResponse)
-        peer.sendInviteResponseAck(inviteResponse).catch((e) => {
-          this.#l.log(`Error sending invite response ack ${e.stack}`)
-        })
+        peer
+          .sendInviteResponseAck(inviteResponse)
+          .then(() => {
+            this.emit('invite-response', peer.id, inviteResponse)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending invite response ack ${e.stack}`)
+          })
         break
       }
       case 'ProjectJoinDetails': {
         const details = parseProjectJoinDetails(value)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('got-project-details', peerId, details)
-        peer.sendProjectJoinDetailsAck(details).catch((e) => {
-          this.#l.log(`Error sending project details ack ${e.stack}`)
-        })
+        peer
+          .sendProjectJoinDetailsAck(details)
+          .then(() => {
+            this.emit('got-project-details', peer.id, details)
+          })
+          .catch((e) => {
+            this.#l.log(`Error sending project details ack ${e.stack}`)
+          })
         break
       }
       case 'DeviceInfo': {
@@ -845,29 +870,25 @@ export class LocalPeers extends TypedEmitter {
       case 'InviteAck': {
         const ack = InviteAck.decode(value)
         peer.receiveAck('InviteAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-ack', peerId, ack)
+        this.emit('invite-ack', peer.id, ack)
         break
       }
       case 'InviteCancelAck': {
         const ack = InviteCancelAck.decode(value)
         peer.receiveAck('InviteCancelAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-cancel-ack', peerId, ack)
+        this.emit('invite-cancel-ack', peer.id, ack)
         break
       }
       case 'InviteResponseAck': {
         const ack = InviteResponseAck.decode(value)
         peer.receiveAck('InviteResponseAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('invite-response-ack', peerId, ack)
+        this.emit('invite-response-ack', peer.id, ack)
         break
       }
       case 'ProjectJoinDetailsAck': {
         const ack = ProjectJoinDetailsAck.decode(value)
         peer.receiveAck('ProjectJoinDetailsAck', ack)
-        const peerId = keyToId(protomux.stream.remotePublicKey)
-        this.emit('got-project-details-ack', peerId, ack)
+        this.emit('got-project-details-ack', peer.id, ack)
         break
       }
       /* c8 ignore next 2 */
