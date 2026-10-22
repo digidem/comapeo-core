@@ -4,21 +4,26 @@ import { kCreateWithDocId, kDataStore } from './datatype/index.js'
 import { setHas } from './utils.js'
 import { nullIfNotFound, RoleAssignError } from './errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
-/** @import { Namespace } from './types.js' */
-
-// Randomly generated 8-byte encoded as hex
-export const CREATOR_ROLE_ID = 'a12a6702b93bd7ff'
-export const COORDINATOR_ROLE_ID = 'f7c150f5a3a9a855'
-export const MEMBER_ROLE_ID = '012fd2d431c0bf60'
-export const BLOCKED_ROLE_ID = '9e6d29263cba36c9'
-export const LEFT_ROLE_ID = '8ced989b1904606b'
-export const NO_ROLE_ID = '08e4251e36f6e7ed'
-
-export const INACTIVE_MEMBER_ROLE_IDS = [
+import {
+  CREATOR_ROLE_ID,
+  COORDINATOR_ROLE_ID,
+  MEMBER_ROLE_ID,
   BLOCKED_ROLE_ID,
   LEFT_ROLE_ID,
   NO_ROLE_ID,
-]
+  INACTIVE_MEMBER_ROLE_IDS,
+} from './role-ids.js'
+/** @import { Namespace } from './types.js' */
+
+export {
+  CREATOR_ROLE_ID,
+  COORDINATOR_ROLE_ID,
+  MEMBER_ROLE_ID,
+  BLOCKED_ROLE_ID,
+  LEFT_ROLE_ID,
+  NO_ROLE_ID,
+  INACTIVE_MEMBER_ROLE_IDS,
+}
 
 /**
  * @typedef {T extends Iterable<infer U> ? U : never} ElementOf

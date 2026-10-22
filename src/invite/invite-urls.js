@@ -2,7 +2,7 @@ import {
   COORDINATOR_ROLE_ID,
   MEMBER_ROLE_ID,
   BLOCKED_ROLE_ID,
-} from '../roles.js'
+} from '../role-ids.js'
 
 /** @import {RoleIdForNewInvite} from '../roles.js' */
 
