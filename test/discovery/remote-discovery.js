@@ -12,6 +12,8 @@ import {
   RemoteDiscovery,
   kTestOnlyHandleHyperswarmConnection,
   AUTH_PROTOCOL,
+  AUTH_INITIATOR,
+  AUTH_RESPONDER,
 } from '../../src/discovery/remote-discovery.js'
 import { Hello, IdentityProof } from '../../src/generated/auth.js'
 import {
@@ -536,11 +538,11 @@ test('RemoteDiscovery - valid auth handshake completes and emits connection', as
   const goodHello = Hello.encode({ protocolVersion: 1 }).finish()
   peerChannel.messages[0].send(Buffer.from(goodHello))
 
-  // Peer signs the handshakeHash with its identity keypair (valid proof)
+  // Peer signs the handshakeHash with its initiator cap (valid proof)
   const sig = new Uint8Array(64)
   sodium.crypto_sign_detached(
     sig,
-    Buffer.concat([handshakeHash, Buffer.from('i-dev')]),
+    Buffer.concat([handshakeHash, AUTH_INITIATOR]),
     peerIdentityKeypair.secretKey
   )
   const goodProof = IdentityProof.encode({
@@ -568,6 +570,62 @@ test('RemoteDiscovery - valid auth handshake completes and emits connection', as
 function handleConnectionError(e) {
   assert.fail(`Unexpected connection error: ${e.message}`)
 }
+
+test('RemoteDiscovery - a peer that signs with the wrong role cap is not authenticated', async (t) => {
+  const identityKeypair = new KeyManager(
+    Buffer.alloc(16, 1)
+  ).getIdentityKeypair()
+  const peerIdentityKeypair = new KeyManager(
+    Buffer.alloc(16, 2)
+  ).getIdentityKeypair()
+  const swarmKeypair = new KeyManager(Buffer.alloc(16, 3)).getIdentityKeypair()
+  const handshakeHash = Buffer.alloc(32, 0)
+
+  const discovery = new RemoteDiscovery({
+    identityKeypair,
+    deriveSwarmIdentityKeypair: () => swarmKeypair,
+  })
+  t.after(() => discovery.close())
+
+  const [serverStream, peerStream] = createStreamPair()
+  const serverSocket = makeServerStream(
+    serverStream,
+    swarmKeypair,
+    handshakeHash
+  )
+
+  const onError = pEvent(discovery, 'error', { timeout: 5000 })
+  const serverPromise =
+    discovery[kTestOnlyHandleHyperswarmConnection](serverSocket)
+
+  const peerChannel = await setupPeerAuth(peerStream)
+
+  const goodHello = Hello.encode({ protocolVersion: 1 }).finish()
+  peerChannel.messages[0].send(Buffer.from(goodHello))
+
+  // Peer signs with the responder cap, but the server (as responder)
+  // expects the peer (as initiator) to sign with the initiator cap
+  const sig = new Uint8Array(64)
+  sodium.crypto_sign_detached(
+    sig,
+    Buffer.concat([handshakeHash, AUTH_RESPONDER]),
+    peerIdentityKeypair.secretKey
+  )
+  const wrongRoleProof = IdentityProof.encode({
+    publicKey: peerIdentityKeypair.publicKey,
+    signature: Buffer.from(sig),
+  }).finish()
+  peerChannel.messages[1].send(Buffer.from(wrongRoleProof))
+
+  const err = ensureKnownError(await onError)
+  assert.equal(
+    err.code,
+    InvalidIdentityProofError.code,
+    'proof signed with the wrong role cap must be rejected'
+  )
+
+  await serverPromise
+})
 
 test('RemoteDiscovery - a peer that reflects our identity proof is not authenticated', async (t) => {
   const identityKeypair = new KeyManager(

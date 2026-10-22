@@ -4,6 +4,7 @@ import Hyperswarm from 'hyperswarm'
 import StartStopStateMachine from 'start-stop-state-machine'
 import { pEvent, TimeoutError as EventTimeoutError } from 'p-event'
 import sodium from 'sodium-universal'
+import { namespace } from 'hypercore-crypto'
 import Protomux from 'protomux'
 import cenc from 'compact-encoding'
 import pDefer from 'p-defer'
@@ -37,6 +38,12 @@ export const kTestOnlyHandleHyperswarmConnection = Symbol(
 
 export const AUTH_PROTOCOL = 'comapeo/auth'
 const AUTH_PROTOCOL_VERSION = 1
+
+// Domain-separated role caps derived from the auth protocol name.
+// The initiator and responder sign different payloads so a peer cannot
+// reflect its own proof back at us.
+// Exported for tests.
+export const [AUTH_INITIATOR, AUTH_RESPONDER] = namespace('comapeo/auth', 2)
 const AUTH_HANDSHAKE_TIMEOUT = 10_000
 
 /**
@@ -350,8 +357,8 @@ export class RemoteDiscovery extends TypedEmitter {
       // Each side signs a different message so a peer cannot reflect our own
       // proof back at us.
       const [mySigContext, peerSigContext] = socket.isInitiator
-        ? ['i-dev', 'r-dev']
-        : ['r-dev', 'i-dev']
+        ? [AUTH_INITIATOR, AUTH_RESPONDER]
+        : [AUTH_RESPONDER, AUTH_INITIATOR]
       const { handshakeHash } = socket
       if (!handshakeHash) throw new UnexpectedError('Missing handshakeHash')
 
@@ -359,7 +366,7 @@ export class RemoteDiscovery extends TypedEmitter {
       const sig = new Uint8Array(64)
       sodium.crypto_sign_detached(
         sig,
-        Buffer.concat([handshakeHash, Buffer.from(mySigContext)]),
+        Buffer.concat([handshakeHash, mySigContext]),
         this.#identityKeypair.secretKey
       )
       const myProof = IdentityProof.encode({
