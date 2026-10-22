@@ -37,13 +37,16 @@ export function denyInviteOverInternet_DenyReasonToNumber(object) {
     }
 }
 function createBaseRedeemInviteOverInternet() {
-    return { inviteId: Buffer.alloc(0) };
+    return { inviteId: Buffer.alloc(0), name: "" };
 }
 export var RedeemInviteOverInternet = {
     encode: function (message, writer) {
         if (writer === void 0) { writer = _m0.Writer.create(); }
         if (message.inviteId.length !== 0) {
             writer.uint32(10).bytes(message.inviteId);
+        }
+        if (message.name !== "") {
+            writer.uint32(18).string(message.name);
         }
         return writer;
     },
@@ -60,6 +63,12 @@ export var RedeemInviteOverInternet = {
                     }
                     message.inviteId = reader.bytes();
                     continue;
+                case 2:
+                    if (tag !== 18) {
+                        break;
+                    }
+                    message.name = reader.string();
+                    continue;
             }
             if ((tag & 7) === 4 || tag === 0) {
                 break;
@@ -72,9 +81,10 @@ export var RedeemInviteOverInternet = {
         return RedeemInviteOverInternet.fromPartial(base !== null && base !== void 0 ? base : {});
     },
     fromPartial: function (object) {
-        var _a;
+        var _a, _b;
         var message = createBaseRedeemInviteOverInternet();
         message.inviteId = (_a = object.inviteId) !== null && _a !== void 0 ? _a : Buffer.alloc(0);
+        message.name = (_b = object.name) !== null && _b !== void 0 ? _b : "";
         return message;
     },
 };

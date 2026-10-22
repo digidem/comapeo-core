@@ -2,6 +2,7 @@ syntax = "proto3";
 
 message RedeemInviteOverInternet {
   bytes inviteId = 1;
+  string name = 2;
 }
 
 message DenyInviteOverInternet {

@@ -101,6 +101,7 @@ test('happy path: connect, redeem, accept, complete', async () => {
     },
     inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
     inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
   /** @type {JoinRequestUpdate[]} */
@@ -141,6 +142,7 @@ test('happy path: connect, redeem, accept, complete', async () => {
 
   // Verify redeem was called with inviteId and identity key
   assert.equal(mockRpc.redeemCalls.length, 1)
+  assert.equal(mockRpc.redeemCalls[0].name, 'invitee')
   assert.ok(mockRpc.redeemCalls[0].inviteId.equals(ctx.inviteId))
   assert.equal(mockRpc.redeemCalls[0].deviceId, identityKey)
 
@@ -176,6 +178,7 @@ test('deny: inviter denies the invite', async () => {
     connectPeer: async () => ctx.connection,
     inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
     inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
   /** @type {JoinRequestUpdate[]} */
@@ -233,6 +236,7 @@ test('connection close: peer disconnects before invite arrives', async () => {
     connectPeer: async () => ctx.connection,
     inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
     inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
   })
 
   /** @type {JoinRequestUpdate[]} */

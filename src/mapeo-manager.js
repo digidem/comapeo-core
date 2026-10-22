@@ -156,7 +156,7 @@ export const kForceAddProjectFail = Symbol('kForceAddProjectFail')
  * @property {(peers: PublicPeerInfo[]) => void} local-peers Emitted when the list of connected peers changes (new ones added, or connection status changes)
  * @property {(mapShare: MapShare) => void} map-share Emitted when a project has recieved a map share request
  * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error - Emitted when an incoming map share fails to be recieved due to formatting issues
- * @property {(projectId: string, deviceId: string, inviteId: string) => void} invite-link-join-request Emitted when an invite over the internet link has been redeemed, accept the deviceId to add them
+ * @property {(projectId: string, deviceId: string, inviteId: string, name: string) => void} invite-link-join-request Emitted when an invite over the internet link has been redeemed, accept the deviceId to add them, name is the invitee's device name
  * @property {(err: Error, deviceId: string, inviteId: string) => void} invite-link-join-request-error Emitted when an invite over the internet has failed to be redeemed
  */
 
@@ -282,15 +282,17 @@ export class MapeoManager extends TypedEmitter {
         this.#pendingInviteTimers.delete(deviceId)
       }
     })
-    this.#inviteLinkRPC.on('redeemed', ({ inviteId }, deviceId) => {
-      this.#handleRedeemInviteOverInternet(deviceId, inviteId).catch((e) => {
-        this.emit(
-          'invite-link-join-request-error',
-          e,
-          deviceId,
-          inviteId.toString('hex')
-        )
-      })
+    this.#inviteLinkRPC.on('redeemed', ({ inviteId, name }, deviceId) => {
+      this.#handleRedeemInviteOverInternet(deviceId, inviteId, name).catch(
+        (e) => {
+          this.emit(
+            'invite-link-join-request-error',
+            e,
+            deviceId,
+            inviteId.toString('hex')
+          )
+        }
+      )
     })
 
     this.#localPeers = new LocalPeers({ logger })
@@ -392,6 +394,7 @@ export class MapeoManager extends TypedEmitter {
       ),
       inviteLinkRPC: this.#inviteLinkRPC,
       inviteApi: this.#invite,
+      getDeviceInfo: async () => this.getDeviceInfo(),
     })
   }
 
@@ -1326,8 +1329,9 @@ export class MapeoManager extends TypedEmitter {
    *
    * @param {string} peerId
    * @param {Buffer} inviteId
+   * @param {string} name Invitee's device name
    */
-  async #handleRedeemInviteOverInternet(peerId, inviteId) {
+  async #handleRedeemInviteOverInternet(peerId, inviteId, name) {
     const inviteIdString = inviteId.toString('hex')
     const invite = await this.#inviteLinkStore.getById(inviteIdString)
 
@@ -1357,7 +1361,13 @@ export class MapeoManager extends TypedEmitter {
 
     await project.$member[kHandleRedeemInviteOverInternet](peerId, invite)
 
-    this.emit('invite-link-join-request', projectId, peerId, inviteIdString)
+    this.emit(
+      'invite-link-join-request',
+      projectId,
+      peerId,
+      inviteIdString,
+      name
+    )
   }
 
   async getMapStyleJsonUrl() {

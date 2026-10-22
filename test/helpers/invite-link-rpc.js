@@ -27,7 +27,7 @@ export class MockInviteLinkRPC extends TypedEmitter {
 
   /** @type {string[]} */
   waitForPeerCalls = []
-  /** @type {{inviteId: Buffer, deviceId: string}[]} */
+  /** @type {{name: string, inviteId: Buffer, deviceId: string}[]} */
   redeemCalls = []
   /** @type {{inviteId: Buffer, deviceId: string}[]} */
   redeemAckCalls = []
@@ -66,11 +66,12 @@ export class MockInviteLinkRPC extends TypedEmitter {
   }
 
   /**
+   * @param {string} name
    * @param {Buffer} inviteId
    * @param {string} deviceId
    */
-  async redeem(inviteId, deviceId) {
-    this.redeemCalls.push({ inviteId, deviceId })
+  async redeem(name, inviteId, deviceId) {
+    this.redeemCalls.push({ name, inviteId, deviceId })
     if (this.#noResponse) return
     if (this.#inviteApi) {
       this.#inviteApi.emit('invite-received', {

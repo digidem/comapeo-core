@@ -89,19 +89,24 @@ test('invite over internet and join from URL', async (t) => {
   })
   onJoinComplete.catch((e) => abortOnFailedJoin.abort(e))
 
+  await invitee.setDeviceInfo({ name: 'invitee', deviceType: 'desktop' })
+
   invitee.inviteLinks.createJoinRequest(url)
 
-  const [connectedUpdate, [invitedProjectId, deviceId, redeemInviteId]] =
-    await Promise.all([
-      onConnected,
-      /** @type {[string, string, string]} */ (
-        /**@type unknown*/ (await onInviteRedeemAttempt)
-      ),
-    ])
+  const [
+    connectedUpdate,
+    [invitedProjectId, deviceId, redeemInviteId, inviteeName],
+  ] = await Promise.all([
+    onConnected,
+    /** @type {[string, string, string, string]} */ (
+      /**@type unknown*/ (await onInviteRedeemAttempt)
+    ),
+  ])
 
   assert.equal(connectedUpdate.inviteId, inviteId)
   assert.equal(invitedProjectId, projectId)
   assert.equal(deviceId, invitee.deviceId)
+  assert.equal(inviteeName, 'invitee')
 
   const onAccepted = pEvent(invitee.inviteLinks, 'join-request-update', {
     signal: abortOnFailedJoin.signal,

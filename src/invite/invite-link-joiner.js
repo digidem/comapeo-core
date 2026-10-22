@@ -79,6 +79,7 @@ const NETWORK_ERROR_CODES = new Set([
  * @property {(swarmPublicKey: string, opts?: ConnectPeerOptions) => Promise<import('../lib/noise-secret-stream-helpers.js').AuthedNoiseStream>} options.connectPeer Connect to a remote peer
  * @property {Pick<InviteApi, 'on' | 'accept'>} options.inviteApi Invite API (on + accept only)
  * @property {Pick<InviteLinkRPC, 'once' | 'on'| 'acceptAck'|'denyAck'|'redeem'|'disconnect'|'waitForPeer'|'markReady'>} options.inviteLinkRPC
+ * @property {() => Promise<{name?: string}>} options.getDeviceInfo Get the current user's device info (for the invitee name sent with the redeem)
  * @property {number} [options.defaultTimeout] Default timeout in ms for peer connection (default: 60_000)
  */
 
@@ -103,6 +104,8 @@ export class InviteLinkJoiner extends TypedEmitter {
   #inviteApi
   /** @type {InviteLinkJoinerOptions['inviteLinkRPC']} */
   #inviteLinkRPC
+  /** @type {InviteLinkJoinerOptions['getDeviceInfo']} */
+  #getDeviceInfo
   /** @type {number} */
   #defaultTimeout
   /** @type {Map<string, PendingJoinRequest>} */
@@ -115,12 +118,14 @@ export class InviteLinkJoiner extends TypedEmitter {
     connectPeer,
     inviteApi,
     inviteLinkRPC,
+    getDeviceInfo,
     defaultTimeout = 60_000,
   }) {
     super()
     this.#connectPeer = connectPeer
     this.#inviteApi = inviteApi
     this.#inviteLinkRPC = inviteLinkRPC
+    this.#getDeviceInfo = getDeviceInfo
     this.#defaultTimeout = defaultTimeout
   }
 
@@ -235,7 +240,12 @@ export class InviteLinkJoiner extends TypedEmitter {
       onDeny.catch(noop)
 
       // Send redeem and wait for ack
-      await this.#inviteLinkRPC.redeem(inviteIdBuffer, identityPublicKeyHex)
+      const { name = '' } = await this.#getDeviceInfo()
+      await this.#inviteLinkRPC.redeem(
+        name,
+        inviteIdBuffer,
+        identityPublicKeyHex
+      )
 
       // Make available to local-peers and regular invite RPC
       this.#inviteLinkRPC.markReady(identityPublicKeyHex)

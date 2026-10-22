@@ -6,6 +6,8 @@ import { InviteLinkRPC } from '../src/invite/invite-link-rpc.js'
 import { keyToId } from '../src/utils.js'
 import { pEvent } from 'p-event'
 
+/** @import { RedeemInviteOverInternet } from '../src/generated/invite.js' */
+
 function testInviteId() {
   return randomBytes(32)
 }
@@ -111,10 +113,13 @@ test('redeem round trip over duplex streams', async () => {
   // When rpc1 receives the redeem, ack it so rpc2.redeem resolves
   const onAckSent = rpc1Redeemed.then(() => rpc1.redeemAck(inviteId, deviceId2))
 
-  await rpc2.redeem(inviteId, deviceId1)
+  await rpc2.redeem('invitee-name', inviteId, deviceId1)
 
-  const msg = await rpc1Redeemed
+  const msg = /** @type {RedeemInviteOverInternet} */ (
+    /** @type {unknown} */ (await rpc1Redeemed)
+  )
   assert.deepEqual(msg.inviteId, inviteId, 'rpc1 received the redeem')
+  assert.equal(msg.name, 'invitee-name', 'rpc1 received the invitee name')
 
   await onAckSent
 

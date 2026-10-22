@@ -26,7 +26,7 @@ import {
 /** @import {PeerProtomux} from '../local-peers.js' */
 
 export const INTERNET_INVITE_PROTOCOL = 'comapeo/invite'
-export const ACK_TIMEOUT = 10000
+export const ACK_TIMEOUT = 1000
 export const PEER_WAIT_TIMEOUT = 1000
 
 const MESSAGE_TYPES = {
@@ -193,12 +193,13 @@ export class InviteLinkRPC extends TypedEmitter {
   }
 
   /**
+   * @param {string} name
    * @param {Buffer} inviteId
    * @param {string} deviceId
    */
-  async redeem(inviteId, deviceId) {
+  async redeem(name, inviteId, deviceId) {
     const msg = Buffer.from(
-      RedeemInviteOverInternet.encode({ inviteId }).finish()
+      RedeemInviteOverInternet.encode({ name, inviteId }).finish()
     )
     await this.#sendAndDrain(
       deviceId,

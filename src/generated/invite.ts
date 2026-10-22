@@ -3,6 +3,7 @@ import _m0 from "protobufjs/minimal.js";
 
 export interface RedeemInviteOverInternet {
   inviteId: Buffer;
+  name: string;
 }
 
 export interface DenyInviteOverInternet {
@@ -69,13 +70,16 @@ export interface AcceptInviteOverInternetAck {
 }
 
 function createBaseRedeemInviteOverInternet(): RedeemInviteOverInternet {
-  return { inviteId: Buffer.alloc(0) };
+  return { inviteId: Buffer.alloc(0), name: "" };
 }
 
 export const RedeemInviteOverInternet = {
   encode(message: RedeemInviteOverInternet, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.inviteId.length !== 0) {
       writer.uint32(10).bytes(message.inviteId);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
     }
     return writer;
   },
@@ -94,6 +98,13 @@ export const RedeemInviteOverInternet = {
 
           message.inviteId = reader.bytes() as Buffer;
           continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -109,6 +120,7 @@ export const RedeemInviteOverInternet = {
   fromPartial<I extends Exact<DeepPartial<RedeemInviteOverInternet>, I>>(object: I): RedeemInviteOverInternet {
     const message = createBaseRedeemInviteOverInternet();
     message.inviteId = object.inviteId ?? Buffer.alloc(0);
+    message.name = object.name ?? "";
     return message;
   },
 };

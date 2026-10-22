@@ -1,6 +1,7 @@
 import _m0 from "protobufjs/minimal.js";
 export interface RedeemInviteOverInternet {
     inviteId: Buffer;
+    name: string;
 }
 export interface DenyInviteOverInternet {
     inviteId: Buffer;

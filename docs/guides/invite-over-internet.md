@@ -21,8 +21,8 @@
 
 ## Invitor Flow
 
-```JavaScript
-manager.on('invite-link-join-request', async (projectId, deviceId, inviteId,) => {
+// name is the invitee's device name, sent with the redeem message
+manager.on('invite-link-join-request', async (projectId, deviceId, inviteId, name) => {
   const project = await manager.getProject(projectId)
 
   // Reason is same as from invite api
