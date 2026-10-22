@@ -533,9 +533,8 @@ export class SyncApi extends TypedEmitter {
     if (isInitiallySyncedWithPeer(state, deviceId)) return
 
     return new Promise((resolve, reject) => {
-      /** @param {import('./sync-state.js').State} state */
-      const onState = (state) => {
-        if (isInitiallySyncedWithPeer(state, deviceId)) {
+      const check = () => {
+        if (isInitiallySyncedWithPeer(this[kSyncState].getState(), deviceId)) {
           cleanup()
           resolve()
         }
@@ -552,12 +551,20 @@ export class SyncApi extends TypedEmitter {
       }
 
       const cleanup = () => {
-        this[kSyncState].off('state', onState)
+        this[kSyncState].off('update', check)
         abortSignal.removeEventListener('abort', onAbort)
       }
 
-      this[kSyncState].on('state', onState)
+      // Subscribe to the unthrottled 'update' event rather than the throttled
+      // 'state' event. The initial-sync state can be transient: a peer can
+      // reach a fully-synced state and then disconnect before the throttled
+      // 'state' emission fires, in which case the throttled event would only
+      // ever report the post-disconnect (non-synced) state and this wait would
+      // incorrectly time out. Re-checking on every real state change avoids
+      // missing that window.
+      this[kSyncState].on('update', check)
       abortSignal.addEventListener('abort', onAbort)
+      check()
     })
   }
 
