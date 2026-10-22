@@ -25,7 +25,7 @@ import {
 /** @typedef {ReturnType<typeof Protomux.prototype.createChannel>} Channel */
 /** @import {PeerProtomux} from '../local-peers.js' */
 
-export const INTERNET_INVITE_PROTOCOL = 'comapeo/internet-invite'
+export const INTERNET_INVITE_PROTOCOL = 'comapeo/invite'
 export const ACK_TIMEOUT = 1000
 export const PEER_WAIT_TIMEOUT = 1000
 
