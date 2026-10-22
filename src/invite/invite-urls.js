@@ -14,12 +14,14 @@ import {
  * @property {string} projectName
  * @property {number} expiresAt
  * @property {RoleIdForNewInvite} roleId
+ * @property {string} [version]
  */
 
 import {
   MissingInviteURLParameter,
   InvalidInviteURLKeyParameterError,
   InvalidInviteURLRoleError,
+  InvalidInviteURLVersion,
 } from '../errors.js'
 import { CrockfordBase32 } from 'crockford-base32'
 
@@ -33,6 +35,7 @@ export const URL_PARAM_MAPPINGS = {
   projectName: 'p',
   expiresAt: 'e',
   roleId: 'r',
+  version: 'v',
 }
 
 /** @type {Record<string, RoleIdForNewInvite>} */
@@ -43,6 +46,8 @@ const ROLE_MAP = {
 }
 
 export const INTERNET_INVITE_PAGE = 'https://a.comapeo.app/invite'
+
+export const URL_VERSION = '1'
 
 /**
  * @param {string} url
@@ -86,6 +91,13 @@ export function parseInviteURL(url) {
     }
   }
 
+  if (opts.version !== URL_VERSION) {
+    throw new InvalidInviteURLVersion({
+      version: opts.version,
+      expected: URL_VERSION,
+    })
+  }
+
   return validateGotAllURLOpts(opts)
 }
 
@@ -95,12 +107,16 @@ export function parseInviteURL(url) {
  */
 export function makeInviteURL(opts) {
   const params = new URLSearchParams()
+
   for (const [optName, paramName] of Object.entries(URL_PARAM_MAPPINGS)) {
     let value = opts[/**@type {keyof InviteLinkParams}*/ (optName)]
     if (typeof value === 'number') {
       // Convert milliseconds timestamp to seconds and then to a string
       value = Math.floor(value / 1000).toString()
-    } else if (optName === 'inviteIdString' || optName === 'swarmPublicKey') {
+    } else if (
+      value &&
+      (optName === 'inviteIdString' || optName === 'swarmPublicKey')
+    ) {
       value = CrockfordBase32.encode(Buffer.from(value, 'hex'))
     }
     if (optName === 'roleId') {
@@ -111,7 +127,11 @@ export function makeInviteURL(opts) {
         }
       }
     }
+    if (value === undefined) continue
     params.set(paramName, value)
+  }
+  if (!params.has(URL_PARAM_MAPPINGS.version)) {
+    params.set(URL_PARAM_MAPPINGS.version, URL_VERSION)
   }
   const url = INTERNET_INVITE_PAGE + `#` + params.toString()
 

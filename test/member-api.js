@@ -7,7 +7,11 @@ import { MemberApi } from '../src/member-api.js'
 import { LocalPeers } from '../src/local-peers.js'
 import { MEMBER_ROLE_ID, ROLES } from '../src/roles.js'
 import { DeviceInfo_DeviceType } from '../src/generated/rpc.js'
-import { makeInviteURL, parseInviteURL } from '../src/invite/invite-urls.js'
+import {
+  makeInviteURL,
+  parseInviteURL,
+  URL_VERSION,
+} from '../src/invite/invite-urls.js'
 import { MockInviteLinkRPC } from './helpers/invite-link-rpc.js'
 /** @import { InviteLinkParams } from '../src/invite/invite-urls.js' */
 import {
@@ -36,6 +40,7 @@ test('serialize and parse invite URLs', () => {
     projectName: 'my cool project',
     expiresAt,
     roleId: MEMBER_ROLE_ID,
+    version: URL_VERSION,
   }
   const url = makeInviteURL(params)
 

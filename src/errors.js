@@ -604,6 +604,12 @@ export const InvalidInviteURLKeyParameterError = createErrorClass({
   status: 400,
 })
 
+export const InvalidInviteURLVersion = createErrorClass({
+  code: 'INVALID_INVITE_URL_VERSION',
+  message: 'Invite URL version is {version}, but we only support {expected}',
+  status: 400,
+})
+
 export const InvalidInviteURLRoleError = createErrorClass({
   code: 'INVALID_INVITE_URL_ROLE',
   message: 'Invalid URL role parameter {value}',
