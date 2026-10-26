@@ -15,6 +15,7 @@ import {
   InitialSyncFailedError,
   ensureKnownError,
   InviteDeniedByInviterError,
+  InviteExpiredError,
 } from '../errors.js'
 
 /**
@@ -136,9 +137,14 @@ export class InviteLinkJoiner extends TypedEmitter {
    * @param {object} [opts]
    * @param {number} [opts.timeout] Connection timeout in ms
    * @returns {JoinRequest}
+   * @throws {ExistingJoinRequestError}
+   * @throws {InviteExpiredError}
    */
   createJoinRequest(url, { timeout = this.#defaultTimeout } = {}) {
     const parsed = parseInviteURL(url)
+    if (Date.now() >= parsed.expiresAt) {
+      throw new InviteExpiredError()
+    }
     const inviteId = parsed.inviteIdString
 
     if (this.#pending.has(inviteId)) {

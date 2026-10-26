@@ -640,6 +640,12 @@ export const InitialSyncFailedError = createErrorClass({
   status: 409,
 })
 
+export const InviteExpiredError = createErrorClass({
+  code: 'INVITE_EXPIRED_ERROR',
+  message: 'Invite link has expired',
+  status: 400,
+})
+
 export const ExistingJoinRequestError = createErrorClass({
   code: 'EXISTING_JOIN_REQUEST_ERROR',
   message: 'A join request for this invite already exists: {inviteId}',

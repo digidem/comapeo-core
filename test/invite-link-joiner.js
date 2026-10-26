@@ -9,7 +9,7 @@ import { InviteLinkJoiner } from '../src/invite/invite-link-joiner.js'
 import { makeInviteURL } from '../src/invite/invite-urls.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { MockInviteLinkRPC } from './helpers/invite-link-rpc.js'
-import { ensureKnownError } from '../src/errors.js'
+import { ensureKnownError, InviteExpiredError } from '../src/errors.js'
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
 /** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
@@ -87,6 +87,34 @@ function makeTestContext() {
     connection,
   }
 }
+
+test('expired: throws InviteExpiredError without connecting', () => {
+  const expiredUrl = makeInviteURL({
+    inviteIdString: randomBytes(32).toString('hex'),
+    swarmPublicKey: randomBytes(32).toString('hex'),
+    invitorName: 'invitor',
+    projectName: 'project',
+    expiresAt: Date.now() - 60_000,
+    roleId: MEMBER_ROLE_ID,
+  })
+
+  let connectCalled = false
+  const inviteApi = new MockInviteApi()
+  const mockRpc = new MockInviteLinkRPC({ inviteApi })
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => {
+      connectCalled = true
+      throw new Error('connectPeer should not be called')
+    },
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  assert.throws(() => joiner.createJoinRequest(expiredUrl), InviteExpiredError)
+  assert.equal(connectCalled, false)
+  assert.deepEqual(joiner.getJoinRequests(), [])
+})
 
 test('happy path: connect, redeem, accept, complete', async () => {
   const ctx = makeTestContext()
