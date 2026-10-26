@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+message Hello {
+  int32 protocolVersion = 1;
+}
+
+message IdentityProof {
+  bytes publicKey = 1;
+  bytes signature = 2;
+}

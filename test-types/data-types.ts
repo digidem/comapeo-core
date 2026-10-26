@@ -19,6 +19,8 @@ import { DerivedDocFields } from '../dist/datatype/index.js'
 import { projectSettingsTable } from '../dist/schema/client.js'
 import { LocalPeers } from '../dist/local-peers.js'
 import { Expect, type Equal } from './utils.js'
+import { InviteLinksApi } from '../dist/invite/invite-links-api.js'
+import { InviteLinkRPC } from '../dist/invite/invite-link-rpc.js'
 
 type ObservationWithDerivedDocFields = Observation & DerivedDocFields
 type PresetWithDerivedDocFields = Preset & DerivedDocFields
@@ -34,6 +36,7 @@ const mapeoProject = new MapeoProject({
   coreStorage: () => new RAM(),
   keyManager: new KeyManager(randomBytes(32)),
   projectKey: randomBytes(32),
+  getSwarmPublicKey: () => randomBytes(32),
   encryptionKeys: { auth: randomBytes(32) },
   sharedDb: drizzle(sqlite),
   sharedIndexWriter: new IndexWriter({
@@ -44,6 +47,8 @@ const mapeoProject = new MapeoProject({
   getMediaBaseUrl: async (mediaType: 'blobs' | 'icons') =>
     `http://127.0.0.1:8080/${mediaType}`,
   localPeers: new LocalPeers(),
+  inviteLinkRPC: new InviteLinkRPC(),
+  inviteLinks: new InviteLinksApi(drizzle(sqlite), () => Promise.resolve()),
   getFallbackProjectInfo: () => ({ sendStats: false }),
 })
 

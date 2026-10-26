@@ -61,7 +61,7 @@ src/
   local-peers.js      LocalPeers — protomux-based peer RPC over (Noise) streams
   roles.js            Role IDs (creator/coordinator/member) and role helpers
   member-api.js       Membership operations (invite, accept, block, role changes)
-  invite/             Invite logic: invite-api, invite-links-api, invite-link-joiner, invite-urls, state machine
+  invite/             Invite logic: invite-api, invite-links-api, invite-link-joiner, invite-link-rpc, invite-urls, state machine
   discovery/          local-discovery.js (LAN) and remote-discovery.js (internet/hyperdht)
   core-manager/       CoreManager — hypercore namespaces, indexer, file pool, bitfield RLE
   datastore/          DataStore — read cores for indexing + write/read docs in a namespace
@@ -107,6 +107,17 @@ Cross-module "private" methods are exported `Symbol` constants, conventionally
 on the class as `[kSomething]` method names. This is the established pattern for reaching
 into another module's internals without polluting the public API. True private state uses
 `#` class fields.
+
+### Peer identity: `peerIdFromNoise`
+
+All peer-identity resolution goes through `peerIdFromNoise(stream)` (in
+`src/lib/noise-secret-stream-helpers.js`), **not** `keyToId(stream.remotePublicKey)`
+or `stream.remotePublicKey.toString('hex')`. Local (LAN) peers use their Noise
+public key as identity, but internet peers carry a separate `authenticatedPublicKey`
+(verified via the `comapeo/auth` handshake). `peerIdFromNoise` returns the right one
+for either. `AuthedNoiseStream` (same module) is the typedef for a stream that has
+been through that auth step — both `LocalDiscovery` and `RemoteDiscovery` emit
+streams of that shape.
 
 ### Data model: DataStore → DataType → IndexWriter
 
@@ -244,6 +255,12 @@ yes, update it.
   project is marked left.
 - **Writes block on indexing.** A `DataStore` write only resolves after `batch()` (the
   index write) resolves — that's intentional; don't "fix" it by fire-and-forgetting.
+- **SyncState has two events.** `state` is _throttled_ and carries the full computed
+  state; `update` is _unthrottled_ and carries no argument (re-read via
+  `getState()`). Consumers gating a one-shot completion on a transition (e.g. waiting
+  for initial sync) must subscribe to `update` — a peer can reach a fully-synced state
+  and disconnect inside a single throttle window, which the throttled `state` event
+  would never report.
 - **`node:assert` is banned** by lint — always `node:assert/strict`.
 - **Tests must not touch the network or real disk.** Use `:memory:` SQLite, `RAM` cores,
   and injected fakes (`makeWebsocket`, `coreStorage`, `swarm`).

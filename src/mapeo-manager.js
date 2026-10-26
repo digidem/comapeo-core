@@ -16,6 +16,7 @@ import {
   kProjectLeave,
   kSetIsArchiveDevice,
   kSetOwnDeviceInfo,
+  kClearData,
 } from './mapeo-project.js'
 import {
   deviceSettingsTable,
@@ -39,6 +40,7 @@ import {
   validateMapShareExtension,
 } from './utils.js'
 import { openedNoiseSecretStream } from './lib/noise-secret-stream-helpers.js'
+/** @import {AuthedNoiseStream} from './lib/noise-secret-stream-helpers.js' */
 import { omit } from './lib/omit.js'
 import { RandomAccessFilePool } from './core-manager/random-access-file-pool.js'
 import BlobServerPlugin from './fastify-plugins/blobs.js'
@@ -46,6 +48,7 @@ import IconServerPlugin from './fastify-plugins/icons.js'
 import { plugin as MapServerPlugin } from './fastify-plugins/maps.js'
 import { getFastifyServerAddress } from './fastify-plugins/utils.js'
 import { LocalPeers } from './local-peers.js'
+import { peerIdFromNoise } from './lib/noise-secret-stream-helpers.js'
 import { InviteApi } from './invite/invite-api.js'
 import { LocalDiscovery } from './discovery/local-discovery.js'
 import { Logger } from './logger.js'
@@ -57,21 +60,31 @@ import {
   FailedToSetIsArchiveDeviceError,
   NotFoundError,
   ProjectExistsError,
+  InvalidMapShareReceiverError,
+  InitialSyncFailedError,
+  UnknownInviteIDRedeemAttemptError,
+  RPCDisconnectBeforeAckError,
+  SyncTimeoutError,
 } from './errors.js'
 import { WebSocket } from 'ws'
 import { excludeKeys } from 'filter-obj'
 import { migrate } from './lib/drizzle-helpers.js'
+import { RemoteDiscovery } from './discovery/remote-discovery.js'
+import { InviteLinksApi } from './invite/invite-links-api.js'
+import { InviteLinkJoiner } from './invite/invite-link-joiner.js'
+import { kHandleRedeemInviteOverInternet } from './member-api.js'
+import { InviteLinkRPC } from './invite/invite-link-rpc.js'
 
+/** @import { DenyInviteOverInternet } from './generated/invite.js' */
 /** @import { MapShareExtension } from './generated/rpc.js' */
-/** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
 /** @import { SetNonNullable } from 'type-fest' */
 /** @import { ProjectJoinDetails, } from './generated/rpc.js' */
-/** @import { CoreStorage, Namespace } from './types.js' */
+/** @import { CoreStorage, KeyPair, Namespace } from './types.js' */
 /** @import { DeviceInfoParam, ProjectInfo } from './schema/client.js' */
-/** @import { ProjectSettings, ProjectSettingsValue } from '@comapeo/schema' */
+/** @import { ProjectSettings} from '@comapeo/schema' */
 
 /** @typedef {SetNonNullable<ProjectKeys, 'encryptionKeys'>} ValidatedProjectKeys */
-/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean }} ProjectToAddDetails */
+/** @typedef {Pick<ProjectJoinDetails, 'projectKey' | 'encryptionKeys'> & { projectName: string, projectColor?: string, projectDescription?: string, sendStats?: boolean, invitorWroteDeviceInfo? : boolean, leaveOnFail?: boolean }} ProjectToAddDetails */
 /** @typedef {Pick<ProjectSettings, 'createdAt' | 'updatedAt' | 'name' | 'projectColor' | 'projectDescription' | 'sendStats'>} ListedProjectSettings */
 /** @typedef {ListedProjectSettings & { status: 'joined', projectId: string } | ProjectInfo & { status: 'joining' | 'left', projectId: string }} ListedProject */
 
@@ -104,6 +117,9 @@ const MAX_FILE_DESCRIPTORS = 768
 // This is the timeout for waiting for sync state updates during initial sync (when adding a project or leaving a project)
 const INITIAL_SYNC_TIMEOUT_MS = 45_000 // 45 seconds
 
+// how long to wait for a remote peer to be trusted before disconnecting
+export const UNTRUSTED_TIMEOUT = 16000
+
 // Prefix names for routes registered with http server
 const BLOBS_PREFIX = 'blobs'
 const ICONS_PREFIX = 'icons'
@@ -124,6 +140,14 @@ const RPC_FEATURES = [
 ]
 
 /**
+ * Symbol-gated method to force `addProject` to fail during initial sync.
+ * Used exclusively in tests.
+ *
+ * @type {unique symbol}
+ */
+export const kForceAddProjectFail = Symbol('kForceAddProjectFail')
+
+/**
  * @typedef {Omit<import('./local-peers.js').PeerInfo, 'protomux'>} PublicPeerInfo
  */
 
@@ -132,6 +156,8 @@ const RPC_FEATURES = [
  * @property {(peers: PublicPeerInfo[]) => void} local-peers Emitted when the list of connected peers changes (new ones added, or connection status changes)
  * @property {(mapShare: MapShare) => void} map-share Emitted when a project has recieved a map share request
  * @property {(e: Error, mapShare: MapShareExtension) => void} map-share-error - Emitted when an incoming map share fails to be recieved due to formatting issues
+ * @property {(projectId: string, deviceId: string, inviteId: string, name: string) => void} invite-link-join-request Emitted when an invite over the internet link has been redeemed, accept the deviceId to add them, name is the invitee's device name
+ * @property {(err: Error, deviceId: string, inviteId: string) => void} invite-link-join-request-error Emitted when an invite over the internet has failed to be redeemed
  */
 
 /**
@@ -157,14 +183,23 @@ export class MapeoManager extends TypedEmitter {
   #projectMigrationsFolder
   #deviceId
   #localPeers
+  #inviteLinkStore
+  #inviteLinks
+  #inviteLinkRPC
   #invite
   #fastify
   #localDiscovery
+  #remoteDiscovery
   #loggerBase
   #l
   #defaultConfigPath
   #makeWebsocket
   #defaultIsArchiveDevice
+  #untrustedTimeout
+  /** @type {Map<string, ReturnType<typeof setTimeout>>} */
+  #pendingInviteTimers = new Map()
+  /** @type {boolean} */
+  #testOnlyForceSyncFail = false
 
   /**
    * @param {Object} opts
@@ -180,7 +215,9 @@ export class MapeoManager extends TypedEmitter {
    * @param {string} [opts.fallbackMapPath] File path to a locally stored Styled Map Package (SMP)
    * @param {string} [opts.defaultOnlineStyleUrl] URL for an online-hosted StyleJSON asset.
    * @param {boolean} [opts.defaultIsArchiveDevice] Whether the node is an archive device by default
+   * @param {number} [opts.untrustedTimeout] How long to wait before disconnecting an untrusted peer
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
+   * @param {import('hyperswarm').SwarmOpts} [opts.swarm]
    */
   constructor({
     rootKey,
@@ -190,11 +227,13 @@ export class MapeoManager extends TypedEmitter {
     clientMigrationsFolder,
     coreStorage,
     fastify,
+    swarm,
     defaultConfigPath,
     customMapPath,
     fallbackMapPath = DEFAULT_FALLBACK_MAP_FILE_PATH,
     defaultOnlineStyleUrl = DEFAULT_ONLINE_STYLE_URL,
     defaultIsArchiveDevice = DEFAULT_IS_ARCHIVE_DEVICE,
+    untrustedTimeout = UNTRUSTED_TIMEOUT,
     makeWebsocket = (url) => new WebSocket(url),
   }) {
     super()
@@ -202,6 +241,7 @@ export class MapeoManager extends TypedEmitter {
     this.#deviceId = getDeviceId(this.#keyManager)
     this.#defaultConfigPath = defaultConfigPath
     this.#defaultIsArchiveDevice = defaultIsArchiveDevice
+    this.#untrustedTimeout = untrustedTimeout
     this.#makeWebsocket = makeWebsocket
     const logger = (this.#loggerBase = new Logger({ deviceId: this.#deviceId }))
     this.#l = Logger.create('manager', logger)
@@ -222,6 +262,38 @@ export class MapeoManager extends TypedEmitter {
     })
 
     this.#sqlite = sqlite
+
+    this.#inviteLinkRPC = new InviteLinkRPC()
+    this.#inviteLinkRPC.on('connection-ready', this.#replicate.bind(this))
+    this.#inviteLinkRPC.on('connection', (stream, deviceId) => {
+      // Only inbound peers are unknown to us. We dialled outbound ones
+      // ourselves, and the invitor may take a long time to accept.
+      if (stream.isInitiator) return
+      const timer = setTimeout(() => {
+        this.#pendingInviteTimers.delete(deviceId)
+        this.#inviteLinkRPC.disconnect(deviceId)
+      }, this.#untrustedTimeout)
+      this.#pendingInviteTimers.set(deviceId, timer)
+    })
+    this.#inviteLinkRPC.on('disconnected', (deviceId) => {
+      const timer = this.#pendingInviteTimers.get(deviceId)
+      if (timer) {
+        clearTimeout(timer)
+        this.#pendingInviteTimers.delete(deviceId)
+      }
+    })
+    this.#inviteLinkRPC.on('redeemed', ({ inviteId, name }, deviceId) => {
+      this.#handleRedeemInviteOverInternet(deviceId, inviteId, name).catch(
+        (e) => {
+          this.emit(
+            'invite-link-join-request-error',
+            e,
+            deviceId,
+            inviteId.toString('hex')
+          )
+        }
+      )
+    })
 
     this.#localPeers = new LocalPeers({ logger })
     this.#localPeers.on('peers', (peers) => {
@@ -296,10 +368,54 @@ export class MapeoManager extends TypedEmitter {
       logger,
     })
     this.#localDiscovery.on('connection', this.#replicate.bind(this))
+    this.#remoteDiscovery = new RemoteDiscovery({
+      identityKeypair: this.#keyManager.getIdentityKeypair(),
+      deriveSwarmIdentityKeypair: () => this.#swarmIdentity,
+      swarm,
+      logger,
+    })
+    this.#remoteDiscovery.on('connection', this.#replicateRemote.bind(this))
+    this.#remoteDiscovery.on('error', (e) => {
+      this.#l.log('Error: remote peer connection failed', ensureError(e))
+    })
+
+    this.#inviteLinkStore = new InviteLinksApi(this.#db, (shouldListen) => {
+      if (shouldListen) return this.#remoteDiscovery.start()
+      else return this.#remoteDiscovery.stop()
+    })
+    // Resume listening for pending invite links from a previous session
+    this.#inviteLinkStore.ready().catch((e) => {
+      this.#l.log('Error: could not open invite link store', ensureError(e))
+    })
+
+    this.#inviteLinks = new InviteLinkJoiner({
+      connectPeer: this.#remoteDiscovery.connectPeer.bind(
+        this.#remoteDiscovery
+      ),
+      inviteLinkRPC: this.#inviteLinkRPC,
+      inviteApi: this.#invite,
+      getDeviceInfo: async () => this.getDeviceInfo(),
+    })
   }
 
   get deviceId() {
     return this.#deviceId
+  }
+
+  /**
+   * @returns {import('./invite/invite-link-joiner.js').InviteLinkJoiner}
+   */
+  get inviteLinks() {
+    return this.#inviteLinks
+  }
+
+  /**
+   * @returns {KeyPair}
+   */
+  get #swarmIdentity() {
+    return this.#keyManager.deriveSwarmIdentity(
+      new Date(this.#inviteLinkStore.getSeedTime())
+    )
   }
 
   /**
@@ -336,10 +452,19 @@ export class MapeoManager extends TypedEmitter {
   }
 
   /**
-   * @param {NoiseSecretStream<any>} noiseStream
+   * @param {AuthedNoiseStream} noiseStream
+   */
+  #replicateRemote(noiseStream) {
+    this.#inviteLinkRPC.handleConnection(noiseStream)
+  }
+
+  /**
+   * @param {AuthedNoiseStream} noiseStream
    */
   #replicate(noiseStream) {
     const replicationStream = this.#localPeers.connect(noiseStream)
+
+    noiseStream.resume()
 
     openedNoiseSecretStream(noiseStream)
       .then((openedNoiseStream) => {
@@ -353,16 +478,18 @@ export class MapeoManager extends TypedEmitter {
           features: RPC_FEATURES,
         }
 
-        const peerId = keyToId(openedNoiseStream.remotePublicKey)
+        const peerId = peerIdFromNoise(
+          /** @type {AuthedNoiseStream} */ (openedNoiseStream)
+        )
 
         return this.#localPeers.sendDeviceInfo(peerId, deviceInfoToSend)
       })
       .catch((e) => {
         // Ignore error but log
         this.#l.log(
-          'Failed to send device info to peer %h',
+          'Failed to send device info to peer %h, error: %s',
           noiseStream.remotePublicKey,
-          e
+          e.message
         )
       })
 
@@ -640,9 +767,12 @@ export class MapeoManager extends TypedEmitter {
       ...projectKeys,
       projectMigrationsFolder: this.#projectMigrationsFolder,
       keyManager: this.#keyManager,
+      getSwarmPublicKey: () => this.#swarmIdentity.publicKey,
       sharedDb: this.#db,
       sharedIndexWriter: this.#projectSettingsIndexWriter,
       localPeers: this.#localPeers,
+      inviteLinkRPC: this.#inviteLinkRPC,
+      inviteLinks: this.#inviteLinkStore,
       logger: this.#loggerBase,
       getMediaBaseUrl: this.#getMediaBaseUrl.bind(this),
       isArchiveDevice,
@@ -749,6 +879,7 @@ export class MapeoManager extends TypedEmitter {
       projectDescription,
       sendStats = false,
       invitorWroteDeviceInfo = false,
+      leaveOnFail = false,
     },
     { waitForSync = true } = {}
   ) => {
@@ -846,11 +977,49 @@ export class MapeoManager extends TypedEmitter {
     // 5. Wait for initial project sync
     if (waitForSync) {
       try {
+        if (this.#testOnlyForceSyncFail) throw new SyncTimeoutError()
         await project.$sync.waitForSync('initial', {
           timeoutMs: INITIAL_SYNC_TIMEOUT_MS,
+          errorOnNoPeers: true,
         })
       } catch (e) {
-        this.#l.log('ERROR: could not do initial project sync', e)
+        this.#l.log(
+          'ERROR: could not do initial project sync, leaving %b',
+          e,
+          leaveOnFail
+        )
+        if (leaveOnFail) {
+          // Delete keys and mark as left
+          this.#saveToProjectKeysTable({
+            projectId,
+            projectPublicId,
+            projectInviteId,
+            projectInfo: {
+              name: projectName,
+              projectColor,
+              projectDescription,
+              sendStats,
+            },
+            projectKeys: {
+              projectKey,
+              projectSecretKey,
+              encryptionKeys: encryptionKeys
+                ? { auth: encryptionKeys.auth }
+                : undefined,
+            },
+            hasLeftProject: true,
+          })
+
+          this.#db
+            .delete(projectSettingsTable)
+            .where(eq(projectSettingsTable.docId, projectId))
+            .run()
+
+          // We'll just clear the data without assigning the left role
+          // since the invitor will add the blocked role already
+          await project[kClearData]()
+          throw new InitialSyncFailedError()
+        }
       }
     }
     this.#l.log('Added project %h, public ID: %S', projectKey, projectPublicId)
@@ -981,6 +1150,16 @@ export class MapeoManager extends TypedEmitter {
    */
   get invite() {
     return this.#invite
+  }
+
+  /**
+   * Toggle whether the next `addProject` call fails during initial sync.
+   * Test-only.
+   * @param {boolean} shouldFail
+   * @returns {void}
+   */
+  [kForceAddProjectFail](shouldFail) {
+    this.#testOnlyForceSyncFail = shouldFail
   }
 
   /** @returns {Promise<{ name: string, port: number }>} */
@@ -1131,7 +1310,7 @@ export class MapeoManager extends TypedEmitter {
     const receiverDeviceId = receiverDeviceKey.toString('hex')
 
     if (receiverDeviceId !== this.#deviceId) {
-      throw new Error('Got map share intended for a different peer')
+      throw new InvalidMapShareReceiverError()
     }
 
     /** @type {MapShare} */
@@ -1146,6 +1325,51 @@ export class MapeoManager extends TypedEmitter {
     this.emit('map-share', mapShare)
   }
 
+  /**
+   *
+   * @param {string} peerId
+   * @param {Buffer} inviteId
+   * @param {string} name Invitee's device name
+   */
+  async #handleRedeemInviteOverInternet(peerId, inviteId, name) {
+    const inviteIdString = inviteId.toString('hex')
+    const invite = await this.#inviteLinkStore.getById(inviteIdString)
+
+    if (!invite) {
+      try {
+        await this.#inviteLinkRPC.redeemAck(inviteId, peerId)
+        await this.#inviteLinkRPC.deny(inviteId, peerId, 'unknown_invite_id')
+      } catch (e) {
+        // This error happens sometimes since both sides break the conn on deny
+        if (ensureKnownError(e).code !== RPCDisconnectBeforeAckError.code) {
+          throw e
+        }
+      }
+      await this.#remoteDiscovery.disconnectPeer(peerId)
+      throw new UnknownInviteIDRedeemAttemptError()
+    }
+
+    const timer = this.#pendingInviteTimers.get(peerId)
+    if (timer) {
+      clearTimeout(timer)
+      this.#pendingInviteTimers.delete(peerId)
+    }
+
+    const { projectId } = invite
+
+    const project = await this.getProject(projectId)
+
+    await project.$member[kHandleRedeemInviteOverInternet](peerId, invite)
+
+    this.emit(
+      'invite-link-join-request',
+      projectId,
+      peerId,
+      inviteIdString,
+      name
+    )
+  }
+
   async getMapStyleJsonUrl() {
     await timeoutPromise(Promise.resolve(this.#fastify.ready()), {
       milliseconds: 1000,
@@ -1158,6 +1382,12 @@ export class MapeoManager extends TypedEmitter {
    * @returns {Promise<void>}
    */
   async close() {
+    for (const timer of this.#pendingInviteTimers.values()) {
+      clearTimeout(timer)
+    }
+    this.#pendingInviteTimers.clear()
+    await this.#inviteLinkStore.close()
+    await this.#remoteDiscovery.close()
     // This added for workers PR
     // await this.#projectSettingsIndexWriter.close()
     await Promise.all(

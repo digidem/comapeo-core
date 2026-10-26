@@ -14,6 +14,7 @@ export interface Invite {
   projectDescription?: string | undefined;
   sendStats: boolean;
   invitorWroteDeviceInfo: boolean;
+  leaveOnFail: boolean;
 }
 
 export interface InviteCancel {
@@ -221,6 +222,7 @@ function createBaseInvite(): Invite {
     invitorName: "",
     sendStats: false,
     invitorWroteDeviceInfo: false,
+    leaveOnFail: false,
   };
 }
 
@@ -255,6 +257,9 @@ export const Invite = {
     }
     if (message.invitorWroteDeviceInfo === true) {
       writer.uint32(80).bool(message.invitorWroteDeviceInfo);
+    }
+    if (message.leaveOnFail === true) {
+      writer.uint32(88).bool(message.leaveOnFail);
     }
     return writer;
   },
@@ -336,6 +341,13 @@ export const Invite = {
 
           message.invitorWroteDeviceInfo = reader.bool();
           continue;
+        case 11:
+          if (tag !== 88) {
+            break;
+          }
+
+          message.leaveOnFail = reader.bool();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -360,6 +372,7 @@ export const Invite = {
     message.projectDescription = object.projectDescription ?? undefined;
     message.sendStats = object.sendStats ?? false;
     message.invitorWroteDeviceInfo = object.invitorWroteDeviceInfo ?? false;
+    message.leaveOnFail = object.leaveOnFail ?? false;
     return message;
   },
 };
