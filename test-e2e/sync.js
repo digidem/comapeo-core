@@ -1520,14 +1520,16 @@ async function waitForRemoteDeviceSync(
   { timeoutMs = 5000 } = {}
 ) {
   const deadline = Date.now() + timeoutMs
-  for (;;) {
-    const remote = project.$sync.getState().remoteDeviceSyncState[deviceId]
+  /** @type {State['remoteDeviceSyncState'][string] | undefined} */
+  let remote
+  do {
+    remote = project.$sync.getState().remoteDeviceSyncState[deviceId]
     if (remote?.initial.isSyncEnabled && remote.data.isSyncEnabled) {
       return remote
     }
-    if (Date.now() > deadline) return remote
     await delay(100)
-  }
+  } while (Date.now() < deadline)
+  return remote
 }
 
 /**
