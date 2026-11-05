@@ -1,5 +1,9 @@
 import mapObject from 'map-obj'
-import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
+import {
+  DATA_NAMESPACES,
+  NAMESPACES,
+  PRESYNC_NAMESPACES,
+} from '../constants.js'
 import { Logger } from '../logger.js'
 import { createMap, noop } from '../utils.js'
 import { unreplicate } from '../lib/hypercore-helpers.js'
@@ -15,26 +19,10 @@ import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
  * @typedef {Role['sync'][Namespace] | 'unknown'} SyncCapability
  */
 
-/**
- * @typedef {object} DrainingNamespace
- * @property {Set<import('hypercore')<'binary', any>>} cores
- * @property {number} [want] remote's want for the namespace when last checked
- * @property {ReturnType<typeof setTimeout>} [idleTimer]
- */
-
-/** Stop serving a stopped namespace once the peer's want stops dropping */
-const DRAIN_IDLE_TIMEOUT_MS = 15_000
-
 export class PeerSyncController {
   #replicatingCores = new Set()
   /** @type {Set<Namespace>} */
   #enabledNamespaces = new Set()
-  /**
-   * Disabled namespaces whose cores are left open so the peer can finish
-   * downloading
-   * @type {Map<Namespace, DrainingNamespace>}
-   */
-  #draining = new Map()
   #coreManager
   #protomux
   #roles
@@ -84,10 +72,6 @@ export class PeerSyncController {
     this.#coreManager.off('add-core', this.#handleAddCore)
     this.#syncState.off('state', this.#handleStateChange)
     this.#roles.off('update', this.#handleRolesUpdate)
-    for (const { idleTimer } of this.#draining.values()) {
-      clearTimeout(idleTimer)
-    }
-    this.#draining.clear()
   }
 
   get peerId() {
@@ -96,6 +80,11 @@ export class PeerSyncController {
 
   get syncCapability() {
     return this.#syncCapability
+  }
+
+  /** Whether any data namespace is currently replicating with this peer */
+  get isDataSyncEnabled() {
+    return DATA_NAMESPACES.some((ns) => this.#enabledNamespaces.has(ns))
   }
 
   /** @param {SyncEnabledState} syncEnabledState */
@@ -298,14 +287,12 @@ export class PeerSyncController {
             this.#enableNamespace(ns)
           }
         } else {
-          this.#disableNamespace(ns, { keepServing: true })
+          this.#disableNamespace(ns)
         }
       } else {
         throw new ExhaustivenessError({ value: cap })
       }
     }
-
-    this.#stopServingWhenDrained()
   }
 
   /**
@@ -355,7 +342,6 @@ export class PeerSyncController {
    */
   #enableNamespace(namespace) {
     if (this.#enabledNamespaces.has(namespace)) return
-    this.#resumeRequesting(namespace)
     for (const coreRecord of this.#coreManager.getCores(namespace)) {
       this.#replicateCoreRecord(coreRecord)
     }
@@ -365,110 +351,14 @@ export class PeerSyncController {
 
   /**
    * @param {Namespace} namespace
-   * @param {object} [opts]
-   * @param {boolean} [opts.keepServing] Keep cores the peer is downloading
-   * open (but stop requesting from it) until it has everything it wants
    */
-  #disableNamespace(namespace, { keepServing = false } = {}) {
-    if (!keepServing) this.#stopServing(namespace)
+  #disableNamespace(namespace) {
     if (!this.#enabledNamespaces.has(namespace)) return
     for (const coreRecord of this.#coreManager.getCores(namespace)) {
-      if (keepServing && this.#stopRequesting(coreRecord)) continue
       this.#unreplicateCoreRecord(coreRecord)
     }
     this.#enabledNamespaces.delete(namespace)
     this.#log('disabled namespace %s', namespace)
-  }
-
-  /**
-   * Leave the channel open so the peer can finish downloading, but stop
-   * requesting from it and stop accepting new channels for this core.
-   *
-   * @param {CoreRecord} coreRecord
-   * @returns {boolean} `false` if the peer is not replicating this core
-   */
-  #stopRequesting({ core, namespace }) {
-    if (core === this.#coreManager.creatorCore) return false
-    const peer = this.#getPeer(core)
-    if (!peer) return false
-    this.#replicatingCores.delete(core)
-    this.#protomux.unpair({
-      protocol: 'hypercore/alpha',
-      id: core.discoveryKey,
-    })
-    // Hypercore's own flag for holding requests to a peer (it uses it during
-    // fork checks); serving the peer's requests is unaffected
-    peer.paused = true
-    let draining = this.#draining.get(namespace)
-    if (!draining) {
-      draining = { cores: new Set() }
-      this.#draining.set(namespace, draining)
-    }
-    draining.cores.add(core)
-    return true
-  }
-
-  /**
-   * @param {Namespace} namespace
-   */
-  #resumeRequesting(namespace) {
-    const draining = this.#draining.get(namespace)
-    if (!draining) return
-    this.#draining.delete(namespace)
-    clearTimeout(draining.idleTimer)
-    for (const core of draining.cores) {
-      const peer = this.#getPeer(core)
-      if (!peer) continue
-      peer.paused = false
-      peer.replicator.updatePeer(peer)
-    }
-  }
-
-  /**
-   * Close cores left open by {@link #stopRequesting}
-   *
-   * @param {Namespace} namespace
-   */
-  #stopServing(namespace) {
-    const draining = this.#draining.get(namespace)
-    if (!draining) return
-    this.#draining.delete(namespace)
-    clearTimeout(draining.idleTimer)
-    for (const core of draining.cores) {
-      unreplicate(core, this.#protomux)
-    }
-    this.#log('stopped serving namespace %s', namespace)
-  }
-
-  /**
-   * Stop serving a draining namespace once the peer wants nothing more from
-   * us, or once its want has not dropped for {@link DRAIN_IDLE_TIMEOUT_MS}
-   * (e.g. the peer has stopped too, so neither side is requesting)
-   */
-  #stopServingWhenDrained() {
-    if (this.#draining.size === 0) return
-    const state = this.#syncState.getState()
-    for (const [namespace, draining] of this.#draining) {
-      const want = state[namespace].remoteStates[this.peerId]?.want ?? 0
-      if (want === 0) {
-        this.#stopServing(namespace)
-        continue
-      }
-      if (draining.want !== undefined && want >= draining.want) continue
-      draining.want = want
-      clearTimeout(draining.idleTimer)
-      draining.idleTimer = setTimeout(
-        () => this.#stopServing(namespace),
-        DRAIN_IDLE_TIMEOUT_MS
-      )
-    }
-  }
-
-  /**
-   * @param {import('hypercore')<'binary', any>} core
-   */
-  #getPeer(core) {
-    return core.peers.find((peer) => peer.protomux === this.#protomux)
   }
 }
 

@@ -35,6 +35,8 @@ export const kWaitForInitialSyncWithPeer = Symbol(
 )
 
 const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
+/** After stop(), drop a peer whose data sync makes no progress for this long */
+const DRAIN_IDLE_TIMEOUT_MS = 15_000
 
 /**
  * @typedef {'initial' | 'full'} SyncType
@@ -71,8 +73,16 @@ const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
 /**
  * @typedef {object} State
  * @property {{ isSyncEnabled: boolean }} initial state of initial namespace syncing (auth, config, and blob index) for local device
- * @property {{ isSyncEnabled: boolean }} data state of data namespace syncing (data and blob) for local device
+ * @property {{ isSyncEnabled: boolean, isStopping: boolean }} data state of data namespace syncing (data and blob) for local device. After {@link SyncApi.stop} is called, `isStopping` is true while peers that were already syncing data finish, and `isSyncEnabled` stays true until they have.
  * @property {Record<string, RemoteDeviceSyncState>} remoteDeviceSyncState sync states for remote peers
+ */
+
+/**
+ * @internal
+ * @typedef {object} DrainingPeer
+ * @property {string} progress data want and wanted when the idle timer was last reset
+ * @property {ReturnType<typeof setTimeout>} idleTimer
+ * @property {boolean} isIdle
  */
 
 /**
@@ -92,6 +102,12 @@ export class SyncApi extends TypedEmitter {
   /** @type {Map<string, PeerSyncController>} */
   #pscByPeerId = new Map()
   #wantsToSyncData = false
+  /**
+   * Peers that were syncing data when {@link stop} was called and have not
+   * finished yet
+   * @type {Map<PeerSyncController, DrainingPeer>}
+   */
+  #draining = new Map()
   #wantsToConnectToServers = false
   #hasRequestedFullStop = false
   /** @type {SyncEnabledState} */
@@ -219,27 +235,28 @@ export class SyncApi extends TypedEmitter {
       this.#peerSyncControllers.values()
     )
 
+    /** @type {boolean} */ let isInitialEnabled
+    /** @type {boolean} */ let isDataEnabled
     switch (this.#previousSyncEnabledState) {
       case 'none':
-        return {
-          initial: { isSyncEnabled: false },
-          data: { isSyncEnabled: false },
-          remoteDeviceSyncState,
-        }
+        isInitialEnabled = isDataEnabled = false
+        break
       case 'presync':
-        return {
-          initial: { isSyncEnabled: true },
-          data: { isSyncEnabled: false },
-          remoteDeviceSyncState,
-        }
+        isInitialEnabled = true
+        isDataEnabled = false
+        break
       case 'all':
-        return {
-          initial: { isSyncEnabled: true },
-          data: { isSyncEnabled: true },
-          remoteDeviceSyncState,
-        }
+        isInitialEnabled = isDataEnabled = true
+        break
       default:
         throw new ExhaustivenessError({ value: this.#previousSyncEnabledState })
+    }
+    // Peers still finishing after stop() keep all namespaces enabled
+    const isStopping = this.#draining.size > 0
+    return {
+      initial: { isSyncEnabled: isInitialEnabled || isStopping },
+      data: { isSyncEnabled: isDataEnabled || isStopping, isStopping },
+      remoteDeviceSyncState,
     }
   }
 
@@ -258,6 +275,9 @@ export class SyncApi extends TypedEmitter {
    * | yes                | no                   | yes     | all     | on      |
    * | yes                | yes                  | no      | all     | off     |
    * | yes                | yes                  | yes     | none    | off     |
+   *
+   * Exception: a peer that was syncing data when we stopped wanting to stays
+   * at `all` until it has finished (see {@link #updateDraining}).
    */
   #updateState(namespaceSyncState = this[kSyncState].getState()) {
     const dataHave = DATA_NAMESPACES.reduce(
@@ -316,12 +336,65 @@ export class SyncApi extends TypedEmitter {
       this.#l.log(`Setting sync enabled state to "${syncEnabledState}"`)
     }
     for (const peerSyncController of this.#peerSyncControllers.values()) {
-      peerSyncController.setSyncEnabledState(syncEnabledState)
+      const isDraining = this.#updateDraining(
+        peerSyncController,
+        namespaceSyncState
+      )
+      peerSyncController.setSyncEnabledState(
+        isDraining ? 'all' : syncEnabledState
+      )
     }
 
     this.#previousSyncEnabledState = syncEnabledState
 
     this.emit('sync-state', this.#getState(namespaceSyncState))
+  }
+
+  /**
+   * After {@link stop}, a peer that was already syncing data keeps doing so
+   * until it is synced with us in both directions, its data want and wanted
+   * have not changed for {@link DRAIN_IDLE_TIMEOUT_MS}, or it disconnects.
+   *
+   * @param {PeerSyncController} psc
+   * @param {import('./sync-state.js').State} namespaceSyncState
+   * @returns {boolean} Whether the peer should keep syncing data
+   */
+  #updateDraining(psc, namespaceSyncState) {
+    const draining = this.#draining.get(psc)
+    const shouldDrain =
+      !this.#wantsToSyncData &&
+      psc.isDataSyncEnabled &&
+      !draining?.isIdle &&
+      !isDataSyncedWithPeer(namespaceSyncState, psc)
+    if (!shouldDrain) {
+      this.#endDrain(psc)
+      return false
+    }
+    const progress = getDataSyncProgress(namespaceSyncState, psc.peerId)
+    if (draining?.progress === progress) return true
+    if (draining) {
+      clearTimeout(draining.idleTimer)
+    } else {
+      this.#l.log('Finishing data sync with %S before stopping', psc.peerId)
+    }
+    const idleTimer = setTimeout(() => {
+      const draining = this.#draining.get(psc)
+      if (!draining) return
+      this.#l.log('No data sync progress with %S, stopping', psc.peerId)
+      draining.isIdle = true
+      this.#updateState()
+    }, DRAIN_IDLE_TIMEOUT_MS)
+    idleTimer.unref()
+    this.#draining.set(psc, { progress, idleTimer, isIdle: false })
+    return true
+  }
+
+  /** @param {PeerSyncController} psc */
+  #endDrain(psc) {
+    const draining = this.#draining.get(psc)
+    if (!draining) return
+    clearTimeout(draining.idleTimer)
+    this.#draining.delete(psc)
   }
 
   /**
@@ -413,7 +486,8 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
-   * Stop syncing data cores.
+   * Stop syncing data cores with new peers. Peers that are already syncing
+   * data with us finish first (see {@link State} `data.isStopping`).
    *
    * Pre-sync cores will continue syncing unless the app is backgrounded.
    */
@@ -638,6 +712,7 @@ export class SyncApi extends TypedEmitter {
       return
     }
     psc.dispose()
+    this.#endDrain(psc)
     this.#peerSyncControllers.delete(protomux)
     this.#pscByPeerId.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
@@ -743,6 +818,46 @@ function isSynced(state, type, peerSyncControllers) {
     }
   }
   return true
+}
+
+/**
+ * Is data sync with this peer finished in both directions? A data namespace
+ * the peer is not replicating with us ('stopped') counts as finished: nothing
+ * can move on it either way.
+ *
+ * @param {import('./sync-state.js').State} state
+ * @param {PeerSyncController} psc
+ */
+function isDataSyncedWithPeer(state, psc) {
+  for (const ns of DATA_NAMESPACES) {
+    if (psc.syncCapability[ns] === 'blocked') continue
+    const remoteState = getOwn(state[ns].remoteStates, psc.peerId)
+    if (!remoteState) continue
+    switch (remoteState.status) {
+      case 'starting':
+        return false
+      case 'started':
+        if (remoteState.want || remoteState.wanted) return false
+        break
+      case 'stopped':
+        break
+      default:
+        throw new ExhaustivenessError({ value: remoteState.status })
+    }
+  }
+  return true
+}
+
+/**
+ * @param {import('./sync-state.js').State} state
+ * @param {string} peerId
+ * @returns {string} Changes whenever the peer's data want or wanted changes
+ */
+function getDataSyncProgress(state, peerId) {
+  return DATA_NAMESPACES.map((ns) => {
+    const remoteState = getOwn(state[ns].remoteStates, peerId)
+    return remoteState ? `${remoteState.want}/${remoteState.wanted}` : ''
+  }).join(',')
 }
 
 /**
