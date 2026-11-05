@@ -3,20 +3,24 @@ import { createEntriesStream } from './entries-stream.js'
 import { filePathMatchesFilter } from './utils.js'
 import { DriveNotFoundError, UnexpectedEndOfStreamError } from '../errors.js'
 import { noop } from '../utils.js'
+import { Logger } from '../logger.js'
 
 /** @import { BlobFilter } from '../types.js' */
+/** @import { HyperdriveEntry } from 'hyperdrive' */
 /** @import { THyperdriveIndex } from './hyperdrive-index.js' */
 /** @import { TypedEmitter } from 'tiny-typed-emitter' */
 
 /**
  * Like hyperdrive.download() but 'live', and for multiple drives.
  *
+ * Errors processing a single entry (e.g. a drive referenced in an entry is not
+ * found, or core.has() throws) are logged and the entry is skipped, so that one
+ * bad entry does not stop downloads for the whole project.
+ *
  * Will emit an 'error' event for any unexpected errors. A consumer must attach
  * an error listener to avoid uncaught errors. Sources of errors include:
  *
  * - If the entries stream emits an error
- * - If a drive referenced in an entry is not found
- * - If core.has() throws (e.g. if hypercore is closed)
  * - If core.download().done() throws, which should not happen according to
  *   current hypercore code.
  * - If the entries stream ends unexpectedly (it should be live and not end)
@@ -37,15 +41,18 @@ export class Downloader extends ReadyResource {
   #processEntriesPromise
   #ac = new AbortController()
   #shouldDownloadFile
+  #l
 
   /**
    * @param {THyperdriveIndex} driveIndex
    * @param {object} [options]
    * @param {BlobFilter | null} [options.filter] Filter blobs of specific types and/or sizes to download
+   * @param {Logger} [options.logger]
    */
-  constructor(driveIndex, { filter } = {}) {
+  constructor(driveIndex, { filter, logger } = {}) {
     super()
     this.#driveIndex = driveIndex
+    this.#l = Logger.create('downloader', logger)
 
     this.#shouldDownloadFile = filter
       ? filePathMatchesFilter.bind(null, filter)
@@ -73,19 +80,17 @@ export class Downloader extends ReadyResource {
   async #processEntries() {
     for await (const entry of this.#entriesStream) {
       this.#ac.signal.throwIfAborted()
-      const {
-        driveId,
-        key: filePath,
-        value: { blob },
-      } = entry
-      if (!this.#shouldDownloadFile(filePath)) continue
-      const drive = this.#driveIndex.get(driveId)
-      // ERROR HANDLING: this is unexpected and should not happen
-      if (!drive) throw new DriveNotFoundError({ driveId })
-      const blobs = await drive.getBlobs()
-      this.#ac.signal.throwIfAborted()
-      await this.#processEntry(blobs.core, blob)
-      this.#ac.signal.throwIfAborted()
+      try {
+        await this.#processEntry(entry)
+      } catch (e) {
+        this.#ac.signal.throwIfAborted()
+        this.#l.log(
+          'Skipping entry %s in drive %s: %o',
+          entry.key,
+          entry.driveId,
+          e
+        )
+      }
     }
     throw new UnexpectedEndOfStreamError()
   }
@@ -93,10 +98,20 @@ export class Downloader extends ReadyResource {
   /**
    * Update state and queue missing entries for download
    *
-   * @param {import('hypercore')} blobsCore
-   * @param {{ blockOffset: number, blockLength: number, byteLength: number }} blob
+   * @param {HyperdriveEntry & { driveId: string }} entry
    */
-  async #processEntry(blobsCore, { blockOffset: start, blockLength: length }) {
+  async #processEntry(entry) {
+    const {
+      driveId,
+      key: filePath,
+      value: { blob },
+    } = entry
+    if (!this.#shouldDownloadFile(filePath)) return
+    const drive = this.#driveIndex.get(driveId)
+    if (!drive) throw new DriveNotFoundError({ driveId })
+    const { core: blobsCore } = await drive.getBlobs()
+    this.#ac.signal.throwIfAborted()
+    const { blockOffset: start, blockLength: length } = blob
     const end = start + length
     const have = await blobsCore.has(start, end)
     this.#ac.signal.throwIfAborted()

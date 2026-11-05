@@ -164,6 +164,7 @@ export class BlobStore extends ReadyResource {
     }
     this.#downloader = new Downloader(this.#driveIndex, {
       filter: downloadFilter,
+      logger: this.#l,
     })
     this.#downloader.on('error', (error) => this.emit('error', error))
 
@@ -205,6 +206,7 @@ export class BlobStore extends ReadyResource {
     this.#downloader.close().catch(noop)
     this.#downloader = new Downloader(this.#driveIndex, {
       filter: blobDownloadFilter,
+      logger: this.#l,
     })
     this.#downloader.on('error', (error) => this.emit('error', error))
     // Even if blobFilter is null, e.g. we plan to download everything, we still
