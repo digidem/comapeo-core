@@ -18,6 +18,7 @@ import {
   waitForPeers,
   waitForSync,
 } from './utils.js'
+import { connectProjectsControllably } from './controllable-wire.js'
 import { kCoreManager } from '../src/mapeo-project.js'
 import { getKeys } from '../test/helpers/core-manager.js'
 import { NAMESPACES, PRESYNC_NAMESPACES } from '../src/constants.js'
@@ -1443,6 +1444,93 @@ test(
     await disconnectB()
   }
 )
+
+test(
+  'sync continues when a peer reconnects while its old connection is still open',
+  { timeout: 60_000 },
+  async (t) => {
+    const [ma, mb] = await createManagers(2, t)
+    const disconnectInvite = connectPeers([ma, mb])
+    const projectId = await ma.createProject({ name: 'reconnect' })
+    await invite({ invitor: ma, invitees: [mb], projectId })
+    await disconnectInvite()
+
+    const projectA = await ma.getProject(projectId)
+    const projectB = await mb.getProject(projectId)
+    const projects = [projectA, projectB]
+
+    const link1 = connectProjectsControllably(projectA, projectB)
+    t.after(() => link1.destroy())
+    projectA.$sync.start()
+    projectB.$sync.start()
+    await waitForSync(projects, 'full')
+
+    // Same device connects again while its first connection is still open
+    const peerAdded = projects.map((p) =>
+      pEvent(p[kCoreManager].creatorCore, 'peer-add')
+    )
+    const link2 = connectProjectsControllably(projectA, projectB)
+    t.after(() => link2.destroy())
+    await Promise.all(peerAdded)
+    await waitForSync(projects, 'full')
+
+    await link1.destroy()
+
+    for (const [project, other] of [
+      [projectA, projectB],
+      [projectB, projectA],
+    ]) {
+      const label = [project, other]
+        .map((p) => p.deviceId.slice(0, 7))
+        .join(' -> ')
+      const remote = await waitForRemoteDeviceSync(project, other.deviceId)
+      assert.equal(
+        remote?.initial.isSyncEnabled,
+        true,
+        `${label}: initial sync still enabled`
+      )
+      assert.equal(
+        remote?.data.isSyncEnabled,
+        true,
+        `${label}: data sync still enabled`
+      )
+    }
+
+    const observation = await projectA.observation.create(
+      valueOf(generate('observation')[0])
+    )
+    await waitForSync(projects, 'full', { timeout: 5000 })
+    const synced = await projectB.observation.getByDocId(observation.docId)
+    assert.equal(synced.docId, observation.docId, 'observation reached B')
+  }
+)
+
+/**
+ * Wait for `project` to report both namespace groups syncing with `deviceId`,
+ * returning the last observed remote state (possibly undefined) on timeout.
+ *
+ * @param {MapeoProject} project
+ * @param {string} deviceId
+ * @param {{ timeoutMs?: number }} [opts]
+ * @returns {Promise<State['remoteDeviceSyncState'][string] | undefined>}
+ */
+async function waitForRemoteDeviceSync(
+  project,
+  deviceId,
+  { timeoutMs = 5000 } = {}
+) {
+  const deadline = Date.now() + timeoutMs
+  /** @type {State['remoteDeviceSyncState'][string] | undefined} */
+  let remote
+  do {
+    remote = project.$sync.getState().remoteDeviceSyncState[deviceId]
+    if (remote?.initial.isSyncEnabled && remote.data.isSyncEnabled) {
+      return remote
+    }
+    await delay(100)
+  } while (Date.now() < deadline)
+  return remote
+}
 
 /**
  * @param {MapeoProject[]} projects
