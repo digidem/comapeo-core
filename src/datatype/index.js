@@ -12,6 +12,7 @@ import {
   nullIfNotFound,
 } from '../errors.js'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { pEventIterator } from 'p-event'
 import { setProperty, getProperty } from 'dot-prop-extra'
 import { parseBcp47 } from '../intl/parse-bcp-47.js'
 
@@ -371,6 +372,18 @@ export class DataType extends TypedEmitter {
     return await Promise.all(
       rows.map((doc) => this.#mutatingAddDerivedFields(doc, { lang }))
     )
+  }
+
+  /**
+   * @param {object} [opts]
+   * @param {string} [opts.lang]
+   * @param {AbortSignal} [opts.signal]
+   * @returns {AsyncGenerator<Array<TDoc & DerivedDocFields>>}
+   */
+  async *watch({ lang, signal } = {}) {
+    yield await this.getMany({ lang })
+
+    yield* pEventIterator(this, 'updated-docs', { signal })
   }
 
   /**
