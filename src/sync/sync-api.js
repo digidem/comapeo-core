@@ -639,9 +639,19 @@ export class SyncApi extends TypedEmitter {
     }
     psc.dispose()
     this.#peerSyncControllers.delete(protomux)
-    this.#pscByPeerId.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
-    this[kSyncState].disconnectPeer(peerId)
+    // State is per device, so keep it while another connection to it is open
+    /** @type {PeerSyncController | undefined} */
+    let survivor
+    for (const other of this.#peerSyncControllers.values()) {
+      if (other.peerId === peerId) survivor = other
+    }
+    if (survivor) {
+      this.#pscByPeerId.set(peerId, survivor)
+    } else {
+      this.#pscByPeerId.delete(peerId)
+      this[kSyncState].disconnectPeer(peerId)
+    }
     this.#updateState()
   }
 
