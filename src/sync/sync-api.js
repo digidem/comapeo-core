@@ -17,6 +17,7 @@ import {
   SyncTimeoutError,
   NoPeersForInitialSyncError,
   InvalidSyncTimeoutsError,
+  PeerDisconnectedError,
 } from '../errors.js'
 import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
 import { noop } from '../utils.js'
@@ -450,6 +451,9 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
+   * Wait until nothing is left to sync with the connected peers. Rejects with
+   * `PeerDisconnectedError` if all peers disconnect while waiting.
+   *
    * @param {SyncType} type
    * @param {object} [options]
    * @param {number} [options.timeoutMs] Timeout in milliseconds for max time
@@ -480,6 +484,7 @@ export class SyncApi extends TypedEmitter {
       let timeoutId = null
       /** @type {NodeJS.Timeout | null} */
       let initialPeersTimeoutId = null
+      let hasHadPeers = false
 
       if (errorOnNoPeers) {
         const waitMs = initialPeerWaitMs ?? DEFAULT_INITIAL_PEER_WAIT_MS
@@ -505,6 +510,15 @@ export class SyncApi extends TypedEmitter {
           } else {
             return
           }
+        }
+        // isSynced() is vacuously true with no peers, so losing them all
+        // mid-wait must not resolve as synced
+        if (this.#peerSyncControllers.size > 0) {
+          hasHadPeers = true
+        } else if (hasHadPeers) {
+          this[kSyncState].off('state', onState)
+          reject(new PeerDisconnectedError())
+          return
         }
         if (isSynced(state, type, this.#peerSyncControllers)) {
           this[kSyncState].off('state', onState)
