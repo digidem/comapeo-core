@@ -228,8 +228,11 @@ test('GET photo returns 404 when trying to get non-replicated blob', async (t) =
     coreManager: cm1,
   } = await setup(t, { projectKey })
 
+  // Not an archive device, so its downloader never fetches the original and
+  // cannot race the teardown below
   const { blobStore: bs2, coreManager: cm2 } = createBlobStore(t, {
     projectKey,
+    isArchiveDevice: false,
   })
 
   const [{ blobId }] = data
