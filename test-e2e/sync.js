@@ -854,6 +854,119 @@ test('stopping sync drops a peer that stops making progress', async (t) => {
   assert(inviteeState.data.want > 0, 'invitee still wanted blocks when dropped')
 })
 
+test('stopping sync keeps waiting for a slow peer that is making progress', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
+
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const disconnectInvite = connectPeers(managers)
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+  await disconnectInvite()
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  await seedProjectBlobs(invitorProject, t, { photoCount: 20, audioCount: 0 })
+
+  const link = connectProjectsControllably(invitorProject, inviteeProject, {
+    latencyMs: 20,
+  })
+  t.after(() => link.destroy())
+  await waitForSync([invitorProject, inviteeProject], 'initial')
+
+  const inviteeWant = () =>
+    invitorProject.$sync.getState().remoteDeviceSyncState[invitee.deviceId]
+      ?.data.want ?? 0
+  const inviteeIsDownloading = pEvent(invitorProject.$sync, 'sync-state', {
+    filter: ({ remoteDeviceSyncState }) => {
+      const data = remoteDeviceSyncState[invitee.deviceId]?.data
+      return Boolean(data?.isSyncEnabled && data.want > 0)
+    },
+    timeout: 10_000,
+  })
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+  await inviteeIsDownloading
+
+  link.pause()
+  invitorProject.$sync.stop()
+  await clock.tickAsync(10_000)
+  assert(
+    invitorProject.$sync.getState().data.isStopping,
+    'still finishing 10 s after stopping with no progress'
+  )
+
+  // Let a little through, so the idle timer restarts
+  const wantBefore = inviteeWant()
+  const inviteeProgressed = pEvent(invitorProject.$sync, 'sync-state', {
+    filter: () => inviteeWant() < wantBefore,
+    timeout: 10_000,
+  })
+  link.resume()
+  await inviteeProgressed
+  link.pause()
+  assert(inviteeWant() > 0, 'invitee still wants blocks')
+
+  await clock.tickAsync(10_000)
+  assert(
+    invitorProject.$sync.getState().data.isStopping,
+    'still finishing 20 s after stopping, 10 s after the last progress'
+  )
+
+  await clock.tickAsync(10_000)
+  await waitForSyncStopped(invitorProject)
+  assert.deepEqual(
+    invitorProject.$sync.getState().data,
+    { isSyncEnabled: false, isStopping: false },
+    'stopped once the invitee made no progress for the idle timeout'
+  )
+})
+
+test('stopping sync finishes when the peer it is waiting for disconnects', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const disconnectInvite = connectPeers(managers)
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+  await disconnectInvite()
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  await seedProjectBlobs(invitorProject, t, { photoCount: 20, audioCount: 0 })
+
+  const link = connectProjectsControllably(invitorProject, inviteeProject)
+  t.after(() => link.destroy())
+  await waitForSync([invitorProject, inviteeProject], 'initial')
+
+  const inviteeIsDownloading = pEvent(invitorProject.$sync, 'sync-state', {
+    filter: ({ remoteDeviceSyncState }) => {
+      const data = remoteDeviceSyncState[invitee.deviceId]?.data
+      return Boolean(data?.isSyncEnabled && data.want > 0)
+    },
+    timeout: 10_000,
+  })
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+  await inviteeIsDownloading
+
+  link.pause()
+  invitorProject.$sync.stop()
+  assert(invitorProject.$sync.getState().data.isStopping, 'invitor is stopping')
+
+  await link.destroy()
+  await waitForSyncStopped(invitorProject, { timeout: 5_000 })
+  assert.deepEqual(
+    invitorProject.$sync.getState().data,
+    { isSyncEnabled: false, isStopping: false },
+    'invitor stopped once the invitee disconnected'
+  )
+})
+
 test('starting sync again after stopping mid-sync resumes downloading', async (t) => {
   const managers = await createManagers(2, t)
   const [invitor, invitee] = managers
@@ -1380,8 +1493,8 @@ test('Sync state emitted when starting and stopping sync', async function (t) {
   const disconnect = connectPeers(managers)
   t.after(disconnect)
   await invite({ invitor, invitees, projectId })
-  // Something the invitee wants but never starts data sync to get, so that
-  // stopping does not wait for it
+  // The invitee wants this but never starts data sync, so its data channels
+  // stay closed and stop() must not wait for it
   await project.observation.create(valueOf(generate('observation')[0]))
   const inviteeProject = await invitees[0].getProject(projectId)
   await waitForSync([project, inviteeProject], 'initial')
