@@ -15,6 +15,7 @@ import {
   invite,
   seedDatabases,
   seedProjectBlobs,
+  seedProjectDatabase,
   waitForPeers,
   waitForSync,
 } from './utils.js'
@@ -516,6 +517,198 @@ test('sync only happens if both sides are enabled', async (t) => {
     () => inviteeProject.observation.getByDocId(obs3.docId),
     'one side stopping sync should prevent data from syncing'
   )
+})
+
+test('stopping sync keeps serving a peer that is still downloading', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const disconnect = connectPeers(managers)
+  t.after(disconnect)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  const blobs = await seedProjectBlobs(invitorProject, t, {
+    photoCount: 20,
+    audioCount: 0,
+  })
+  await waitForSync([invitorProject, inviteeProject], 'initial')
+
+  const inviteeIsDownloading = pEvent(
+    invitorProject.$sync,
+    'sync-state',
+    ({ remoteDeviceSyncState }) => {
+      const data = remoteDeviceSyncState[invitee.deviceId]?.data
+      return Boolean(data?.isSyncEnabled && data.want > 0)
+    }
+  )
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+  await inviteeIsDownloading
+
+  invitorProject.$sync.stop()
+  assert(
+    !invitorProject.$sync.getState().data.isSyncEnabled,
+    'invitor has stopped data sync'
+  )
+
+  await inviteeProject.$sync.waitForSync('full', { timeoutMs: 10_000 })
+
+  for (const { blobId, hashes } of blobs) {
+    for (const variant of ['original', 'preview', 'thumbnail']) {
+      await assertHasBlob(
+        inviteeProject,
+        // @ts-expect-error
+        { ...blobId, variant },
+        // @ts-expect-error
+        hashes[variant],
+        'invitee received everything the invitor had before it stopped'
+      )
+    }
+  }
+
+  // Once the invitee has everything the invitor stops serving it (within the
+  // next throttled sync state update), so a blob added afterwards does not sync
+  await delay(1000)
+  const [laterBlob] = await seedProjectBlobs(invitorProject, t, {
+    photoCount: 1,
+    audioCount: 0,
+  })
+  await delay(1000)
+  await assertDoesNotHaveBlob(
+    inviteeProject,
+    { ...laterBlob.blobId, variant: 'original' },
+    'blob added after stopping does not sync'
+  )
+})
+
+test('both sides stopping mid-sync eventually stop serving each other', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
+
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const disconnect = connectPeers(managers)
+  t.after(disconnect)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  // Enough in both data namespaces that both sides are still mid-download
+  // when they stop
+  const seedOpts = {
+    schemas: /** @type {const} */ (['observation']),
+    seedCounts: new Map(/** @type {const} */ ([['observation', 1000]])),
+  }
+  await Promise.all([
+    seedProjectDatabase(invitorProject, seedOpts),
+    seedProjectDatabase(inviteeProject, seedOpts),
+    seedProjectBlobs(invitorProject, t, { photoCount: 10, audioCount: 0 }),
+    seedProjectBlobs(inviteeProject, t, { photoCount: 10, audioCount: 0 }),
+  ])
+  await waitForSync([invitorProject, inviteeProject], 'initial')
+
+  const invitorSyncState = invitorProject.$sync[kSyncState]
+  const bothDownloading = pEvent(invitorSyncState, 'state', {
+    filter: (state) =>
+      ['data', 'blob'].every((ns) => {
+        // @ts-expect-error - ns is a namespace
+        const remote = state[ns].remoteStates[invitee.deviceId]
+        return (
+          remote?.status === 'started' && remote.want > 0 && remote.wanted > 0
+        )
+      }),
+    timeout: 10_000,
+  })
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+  await bothDownloading
+
+  invitorProject.$sync.stop()
+  inviteeProject.$sync.stop()
+
+  await delay(500)
+  assert.equal(
+    invitorProject.$sync[kSyncState].getState().blob.remoteStates[
+      invitee.deviceId
+    ]?.status,
+    'started',
+    'invitor keeps serving blobs while the invitee still wants them'
+  )
+  assert.equal(
+    inviteeProject.$sync[kSyncState].getState().blob.remoteStates[
+      invitor.deviceId
+    ]?.status,
+    'started',
+    'invitee keeps serving blobs while the invitor still wants them'
+  )
+
+  const stoppedServing = managers.map(async (manager, index) => {
+    const project = await manager.getProject(projectId)
+    const other = managers[1 - index]
+    await pEvent(
+      project.$sync,
+      'sync-state',
+      ({ remoteDeviceSyncState }) =>
+        remoteDeviceSyncState[other.deviceId]?.data.isSyncEnabled === false
+    )
+  })
+  // Past the idle timeout that bounds how long a stopped side keeps serving
+  await clock.tickAsync(20_000)
+  await pTimeout(Promise.all(stoppedServing), { milliseconds: 10_000 })
+})
+
+test('starting sync again after stopping mid-sync resumes downloading', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const disconnect = connectPeers(managers)
+  t.after(disconnect)
+
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  const [, inviteeBlobs] = await Promise.all([
+    seedProjectBlobs(invitorProject, t, { photoCount: 10, audioCount: 0 }),
+    seedProjectBlobs(inviteeProject, t, { photoCount: 10, audioCount: 0 }),
+  ])
+  await waitForSync([invitorProject, inviteeProject], 'initial')
+
+  const bothDownloading = pEvent(invitorProject.$sync, 'sync-state', {
+    filter: ({ remoteDeviceSyncState }) => {
+      const data = remoteDeviceSyncState[invitee.deviceId]?.data
+      return Boolean(data?.isSyncEnabled && data.want > 0 && data.wanted > 0)
+    },
+    timeout: 10_000,
+  })
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+  await bothDownloading
+
+  invitorProject.$sync.stop()
+  invitorProject.$sync.start()
+
+  await waitForSync([invitorProject, inviteeProject], 'full')
+
+  for (const { blobId, hashes } of inviteeBlobs) {
+    await assertHasBlob(
+      invitorProject,
+      { ...blobId, variant: 'original' },
+      hashes.original,
+      'invitor downloaded the rest of the invitee blobs after starting again'
+    )
+  }
 })
 
 test('auto-stop', async (t) => {
