@@ -29,7 +29,7 @@ import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
 import { createHash } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
-/** @import { State } from '../src/sync/sync-api.js' */
+/** @import { PeerDisconnectInfo, State } from '../src/sync/sync-api.js' */
 /** @import { BlobId, BlobVariant } from '../src/types.js' */
 /** @import { MapeoProject } from '../src/mapeo-project.js' */
 
@@ -1482,3 +1482,72 @@ async function assertDoesNotHaveBlob(project, blobId, message) {
   const response = await request(url, { reset: true })
   assert.equal(response.statusCode, 404, message)
 }
+
+test('peer-disconnect reports sync left unfinished with the peer', async (t) => {
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+
+  const disconnect1 = connectPeers(managers)
+  t.after(disconnect1)
+  await invite({ invitor, invitees: [invitee], projectId })
+
+  const projects = await Promise.all(
+    managers.map((m) => m.getProject(projectId))
+  )
+  const generated = await seedDatabases(projects, { schemas: ['observation'] })
+  await waitForSync(projects, 'initial')
+
+  // Reconnect so that pre-haves for the seeded data are exchanged
+  await disconnect1()
+  const disconnect2 = connectPeers(managers)
+  t.after(disconnect2)
+  await waitForPeers(managers)
+
+  const expectedSyncStates = projects.map((_, i) => ({
+    initial: { isSyncEnabled: true, want: 0, wanted: 0 },
+    data: {
+      isSyncEnabled: false,
+      want: generated[i].length,
+      wanted: generated[1 - i].length,
+    },
+  }))
+  await Promise.all(
+    projects.map((project, i) =>
+      pEvent(project.$sync, 'sync-state', (syncState) =>
+        isDeepStrictEqual(
+          syncState.remoteDeviceSyncState[projects[1 - i].deviceId],
+          expectedSyncStates[i]
+        )
+      )
+    )
+  )
+
+  const disconnectEvents = projects.map(
+    (project) =>
+      /** @type {Promise<PeerDisconnectInfo>} */ (
+        new Promise((resolve) => project.$sync.once('peer-disconnect', resolve))
+      )
+  )
+  await disconnect2()
+
+  const events = await Promise.all(disconnectEvents)
+  for (const [i, event] of events.entries()) {
+    assert.equal(event.deviceId, projects[1 - i].deviceId)
+    assert.equal(event.isServer, false)
+    // isSyncEnabled can flip as the other side tears down first
+    for (const group of /** @type {const} */ (['initial', 'data'])) {
+      assert.equal(
+        event.syncState[group].want,
+        expectedSyncStates[i][group].want
+      )
+      assert.equal(
+        event.syncState[group].wanted,
+        expectedSyncStates[i][group].wanted
+      )
+    }
+  }
+  for (const project of projects) {
+    assert.deepEqual(project.$sync.getState().remoteDeviceSyncState, {})
+  }
+})
