@@ -28,6 +28,7 @@ import {
 import { createWebsocketRelay } from './controllable-wire.js'
 import { defaultConfigPath } from '../test/helpers/default-config.js'
 import FakeTimers from '@sinonjs/fake-timers'
+import { kSyncState } from '../src/sync/sync-api.js'
 import { fileURLToPath } from 'node:url'
 import WebSocket from 'ws'
 import { temporaryDirectory } from 'tempy'
@@ -655,6 +656,9 @@ test('connectServers() cancels a pending disconnect', async (t) => {
 })
 
 test('disconnectServers() gives up on a server that stops making progress', async (t) => {
+  // Real time for the close to travel through the relay and the server
+  const realSetTimeout = setTimeout
+  const settle = () => new Promise((resolve) => realSetTimeout(resolve, 500))
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
 
@@ -674,6 +678,7 @@ test('disconnectServers() gives up on a server that stops making progress', asyn
   relay.pause()
   project.$sync.disconnectServers()
   await clock.tickAsync(10_000)
+  await settle()
   assert(
     isServerConnected(project, serverDeviceId),
     'still connected 10 s after disconnecting with no progress'
@@ -681,7 +686,8 @@ test('disconnectServers() gives up on a server that stops making progress', asyn
 
   // Past the idle timeout that bounds how long we wait for a stalled server
   await clock.tickAsync(10_000)
-  await waitForServerDisconnected(project, serverDeviceId, 5_000)
+  await settle()
+  await waitForServerDisconnected(project, serverDeviceId, 2_000)
   const serverState = lastServerState()
   assert(serverState, 'server sync state was seen')
   assert(serverState.data.want > 0, 'server still wanted blocks when dropped')
@@ -756,6 +762,174 @@ test('disconnectServers() finishes syncing config with the server when data sync
     serverState.initial.want,
     0,
     'server had the config before we disconnected'
+  )
+})
+
+test('disconnectServers() during presync still syncs the data that start() asked for', async (t) => {
+  const { project, serverDeviceId, relay } =
+    await createRelayedManagerWithServer(t)
+  await project.$importCategories({ filePath: defaultConfigPath })
+  await seedProjectBlobs(project, t, { photoCount: 5, audioCount: 0 })
+  const lastServerState = trackLastServerSyncState(project, serverDeviceId)
+  const sawDataOpen = trackServerDataSyncOpened(project, serverDeviceId)
+
+  project.$sync.start()
+  project.$sync.connectServers()
+  await waitForServerSyncState(
+    project,
+    serverDeviceId,
+    ({ initial }) => initial.isSyncEnabled && initial.want > 0
+  )
+
+  // Data namespaces only open once presync has finished
+  relay.pause()
+  project.$sync.disconnectServers()
+  assert(isServerConnected(project, serverDeviceId), 'still connected')
+  relay.resume()
+
+  await waitForServerDisconnected(project, serverDeviceId)
+  assert(sawDataOpen(), 'data namespaces opened with the server')
+  const serverState = lastServerState()
+  assert(serverState, 'server sync state was seen')
+  assert.equal(
+    serverState.data.want,
+    0,
+    'server had all the data before we disconnected'
+  )
+})
+
+test('disconnectServers() while auth is still syncing finishes the config first', async (t) => {
+  const { project, serverDeviceId } = await createRelayedManagerWithServer(t)
+  await project.$importCategories({ filePath: defaultConfigPath })
+  const lastServerState = trackLastServerSyncState(project, serverDeviceId)
+
+  // The first unthrottled state with the server present, before its role is
+  // known and config and blobIndex have been enabled
+  const syncState = project.$sync[kSyncState]
+  const serverAppeared = new Promise((resolve) => {
+    const check = () => {
+      if (syncState.getState().auth.remoteStates[serverDeviceId]) {
+        syncState.off('update', check)
+        resolve(undefined)
+      }
+    }
+    syncState.on('update', check)
+  })
+  project.$sync.connectServers()
+  await serverAppeared
+  project.$sync.disconnectServers()
+  assert(isServerConnected(project, serverDeviceId), 'still connected')
+
+  await waitForServerDisconnected(project, serverDeviceId)
+  const serverState = lastServerState()
+  assert(serverState, 'server sync state was seen')
+  assert.equal(
+    serverState.initial.want,
+    0,
+    'server had the config before we disconnected'
+  )
+})
+
+test('start() while a disconnect is pending syncs the data too', async (t) => {
+  const { project, serverDeviceId, relay } =
+    await createRelayedManagerWithServer(t)
+  await project.$importCategories({ filePath: defaultConfigPath })
+  await seedProjectBlobs(project, t, { photoCount: 5, audioCount: 0 })
+  const lastServerState = trackLastServerSyncState(project, serverDeviceId)
+  const sawDataOpen = trackServerDataSyncOpened(project, serverDeviceId)
+
+  project.$sync.connectServers()
+  await waitForServerSyncState(
+    project,
+    serverDeviceId,
+    ({ initial }) => initial.isSyncEnabled && initial.want > 0
+  )
+
+  relay.pause()
+  project.$sync.disconnectServers()
+  project.$sync.start()
+  assert(isServerConnected(project, serverDeviceId), 'still connected')
+  relay.resume()
+
+  await waitForServerDisconnected(project, serverDeviceId)
+  assert(sawDataOpen(), 'data namespaces opened with the server')
+  const serverState = lastServerState()
+  assert(serverState, 'server sync state was seen')
+  assert.equal(
+    serverState.data.want,
+    0,
+    'server had all the data before we disconnected'
+  )
+})
+
+test('autostop while a disconnect is pending', async (t) => {
+  const { project, serverDeviceId, relay } =
+    await createRelayedManagerWithServer(t)
+  await seedProjectBlobs(project, t, { photoCount: 20, audioCount: 0 })
+  const lastServerState = trackLastServerSyncState(project, serverDeviceId)
+
+  project.$sync.start({ autostopDataSyncAfter: 500 })
+  project.$sync.connectServers()
+  await waitForServerSyncState(
+    project,
+    serverDeviceId,
+    ({ data }) => data.isSyncEnabled && data.want > 0
+  )
+
+  relay.pause()
+  project.$sync.disconnectServers()
+  relay.resume()
+
+  await waitForServerDisconnected(project, serverDeviceId)
+  const serverState = lastServerState()
+  assert(serverState, 'server sync state was seen')
+  assert.equal(
+    serverState.data.want,
+    0,
+    'server had everything before we disconnected'
+  )
+  if (project.$sync.getState().data.isSyncEnabled) {
+    await pEvent(project.$sync, 'sync-state', {
+      filter: ({ data }) => !data.isSyncEnabled,
+      timeout: 5_000,
+    })
+  }
+  assert.deepEqual(
+    project.$sync.getState().data,
+    { isSyncEnabled: false, isStopping: false },
+    'autostop stopped data sync after the server disconnected'
+  )
+})
+
+test('a full stop while a disconnect is pending finishes the transfer first', async (t) => {
+  const { manager, project, serverDeviceId, relay } =
+    await createRelayedManagerWithServer(t)
+  await seedProjectBlobs(project, t, { photoCount: 20, audioCount: 0 })
+  const lastServerState = trackLastServerSyncState(project, serverDeviceId)
+
+  project.$sync.start()
+  project.$sync.connectServers()
+  await waitForServerSyncState(
+    project,
+    serverDeviceId,
+    ({ data }) => data.isSyncEnabled && data.want > 0
+  )
+
+  // Leaving the screen and then backgrounding the app
+  relay.pause()
+  project.$sync.disconnectServers()
+  manager.onBackgrounded()
+  t.after(() => manager.onForegrounded())
+  assert(isServerConnected(project, serverDeviceId), 'still connected')
+  relay.resume()
+
+  await waitForServerDisconnected(project, serverDeviceId)
+  const serverState = lastServerState()
+  assert(serverState, 'server sync state was seen')
+  assert.equal(
+    serverState.data.want,
+    0,
+    'server had everything before we disconnected'
   )
 })
 
@@ -1024,4 +1198,21 @@ function trackLastServerSyncState(project, serverDeviceId) {
     if (state) last = state
   })
   return () => last
+}
+
+/**
+ * Whether data sync with the server has been open at any point
+ *
+ * @param {MapeoProject} project
+ * @param {string} serverDeviceId
+ * @returns {() => boolean}
+ */
+function trackServerDataSyncOpened(project, serverDeviceId) {
+  let opened = false
+  project.$sync.on('sync-state', ({ remoteDeviceSyncState }) => {
+    if (remoteDeviceSyncState[serverDeviceId]?.data.isSyncEnabled) {
+      opened = true
+    }
+  })
+  return () => opened
 }
