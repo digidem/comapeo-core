@@ -21,9 +21,13 @@ import {
   createManager,
   createManagers,
   invite,
+  seedProjectBlobs,
   waitForPeers,
   waitForSync,
 } from './utils.js'
+import { createWebsocketRelay } from './controllable-wire.js'
+import { defaultConfigPath } from '../test/helpers/default-config.js'
+import FakeTimers from '@sinonjs/fake-timers'
 import { fileURLToPath } from 'node:url'
 import WebSocket from 'ws'
 import { temporaryDirectory } from 'tempy'
@@ -591,6 +595,170 @@ test('duplicate add server from more than one device', async (t) => {
  * @prop {string} serverBaseUrl
  */
 
+test('disconnectServers() finishes uploading to the server first', async (t) => {
+  const { project, serverDeviceId, relay } =
+    await createRelayedManagerWithServer(t)
+  await seedProjectBlobs(project, t, { photoCount: 20, audioCount: 0 })
+  const lastServerState = trackLastServerSyncState(project, serverDeviceId)
+
+  project.$sync.start()
+  project.$sync.connectServers()
+  await waitForServerSyncState(
+    project,
+    serverDeviceId,
+    ({ data }) => data.isSyncEnabled && data.want > 0
+  )
+
+  relay.pause()
+  project.$sync.disconnectServers()
+  await delay(500)
+  assert(
+    isServerConnected(project, serverDeviceId),
+    'still connected while the server is downloading'
+  )
+
+  relay.resume()
+  await waitForServerDisconnected(project, serverDeviceId)
+  const serverState = lastServerState()
+  assert(serverState, 'server sync state was seen')
+  assert.equal(
+    serverState.data.want,
+    0,
+    'server had everything before we disconnected'
+  )
+})
+
+test('connectServers() cancels a pending disconnect', async (t) => {
+  const { project, serverDeviceId, relay } =
+    await createRelayedManagerWithServer(t)
+  await seedProjectBlobs(project, t, { photoCount: 20, audioCount: 0 })
+
+  project.$sync.start()
+  project.$sync.connectServers()
+  await waitForServerSyncState(
+    project,
+    serverDeviceId,
+    ({ data }) => data.isSyncEnabled && data.want > 0
+  )
+
+  relay.pause()
+  project.$sync.disconnectServers()
+  project.$sync.connectServers()
+  relay.resume()
+
+  await waitForServerSyncState(project, serverDeviceId, isSyncedState)
+  await delay(1000)
+  assert(
+    isServerConnected(project, serverDeviceId),
+    'still connected after sync finished'
+  )
+})
+
+test('disconnectServers() gives up on a server that stops making progress', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
+
+  const { project, serverDeviceId, relay } =
+    await createRelayedManagerWithServer(t)
+  await seedProjectBlobs(project, t, { photoCount: 20, audioCount: 0 })
+  const lastServerState = trackLastServerSyncState(project, serverDeviceId)
+
+  project.$sync.start()
+  project.$sync.connectServers()
+  await waitForServerSyncState(
+    project,
+    serverDeviceId,
+    ({ data }) => data.isSyncEnabled && data.want > 0
+  )
+
+  relay.pause()
+  project.$sync.disconnectServers()
+  await clock.tickAsync(10_000)
+  assert(
+    isServerConnected(project, serverDeviceId),
+    'still connected 10 s after disconnecting with no progress'
+  )
+
+  // Past the idle timeout that bounds how long we wait for a stalled server
+  await clock.tickAsync(10_000)
+  await waitForServerDisconnected(project, serverDeviceId, 5_000)
+  const serverState = lastServerState()
+  assert(serverState, 'server sync state was seen')
+  assert(serverState.data.want > 0, 'server still wanted blocks when dropped')
+})
+
+test('disconnectServers() after stop() finishes the transfer first', async (t) => {
+  const { project, serverDeviceId, relay } =
+    await createRelayedManagerWithServer(t)
+  await seedProjectBlobs(project, t, { photoCount: 20, audioCount: 0 })
+  const lastServerState = trackLastServerSyncState(project, serverDeviceId)
+
+  project.$sync.start()
+  project.$sync.connectServers()
+  await waitForServerSyncState(
+    project,
+    serverDeviceId,
+    ({ data }) => data.isSyncEnabled && data.want > 0
+  )
+
+  // Leaving the Exchange screen while the archive is still downloading
+  relay.pause()
+  project.$sync.stop()
+  project.$sync.disconnectServers()
+  assert(project.$sync.getState().data.isStopping, 'finishing with the server')
+  assert(
+    isServerConnected(project, serverDeviceId),
+    'still connected while the server is downloading'
+  )
+
+  relay.resume()
+  await waitForServerDisconnected(project, serverDeviceId)
+  assert.deepEqual(
+    project.$sync.getState().data,
+    { isSyncEnabled: false, isStopping: false },
+    'stopped once the server had everything'
+  )
+  const serverState = lastServerState()
+  assert(serverState, 'server sync state was seen')
+  assert.equal(
+    serverState.data.want,
+    0,
+    'server had everything before we disconnected'
+  )
+})
+
+test('disconnectServers() finishes syncing config with the server when data sync is off', async (t) => {
+  const { project, serverDeviceId, relay } =
+    await createRelayedManagerWithServer(t)
+  await project.$importCategories({ filePath: defaultConfigPath })
+  const lastServerState = trackLastServerSyncState(project, serverDeviceId)
+
+  project.$sync.connectServers()
+  await waitForServerSyncState(
+    project,
+    serverDeviceId,
+    ({ initial }) => initial.isSyncEnabled && initial.want > 0
+  )
+
+  relay.pause()
+  project.$sync.disconnectServers()
+  await delay(500)
+  assert(
+    isServerConnected(project, serverDeviceId),
+    'still connected while the server is downloading config'
+  )
+
+  relay.resume()
+  await waitForServerDisconnected(project, serverDeviceId)
+  const serverState = lastServerState()
+  assert(serverState, 'server sync state was seen')
+  assert.equal(
+    serverState.initial.want,
+    0,
+    'server had the config before we disconnected'
+  )
+})
+
 /**
  * @param {import('node:test').TestContext} t
  * @returns {Promise<LocalTestServer | RemoteTestServer>}
@@ -749,4 +917,111 @@ function isSyncedWithServer(syncState, serverDeviceId) {
       serverSyncState.data.want === 0 &&
       serverSyncState.data.wanted === 0
   )
+}
+
+/** @typedef {SyncState['remoteDeviceSyncState'][string]} RemoteDeviceSyncState */
+
+/**
+ * A mobile manager whose server websockets go through a pausable relay, with
+ * a project that has a local test server as a peer
+ *
+ * @param {import('node:test').TestContext} t
+ */
+async function createRelayedManagerWithServer(t) {
+  const relay = await createWebsocketRelay()
+  t.after(() => relay.close())
+  const manager = createManager('seed', t, {
+    makeWebsocket: relay.makeWebsocket,
+  })
+  await manager.setDeviceInfo({ name: 'manager', deviceType: 'mobile' })
+  const { server, serverBaseUrl } = await createLocalTestServer(t)
+  const projectId = await manager.createProject({ name: 'foo' })
+  const project = await manager.getProject(projectId)
+  await project.$member.addServerPeer(serverBaseUrl, {
+    dangerouslyAllowInsecureConnections: true,
+  })
+  const serverPeer = await findServerPeer(project)
+  assert(serverPeer, 'test setup: server peer exists')
+  return {
+    manager,
+    project,
+    server,
+    serverDeviceId: serverPeer.deviceId,
+    relay,
+  }
+}
+
+/**
+ * @param {MapeoProject} project
+ * @param {string} serverDeviceId
+ */
+function isServerConnected(project, serverDeviceId) {
+  return serverDeviceId in project.$sync.getState().remoteDeviceSyncState
+}
+
+/**
+ * @param {MapeoProject} project
+ * @param {string} serverDeviceId
+ * @param {(state: RemoteDeviceSyncState) => boolean} predicate
+ * @param {number} [timeout]
+ */
+async function waitForServerSyncState(
+  project,
+  serverDeviceId,
+  predicate,
+  timeout = 10_000
+) {
+  const current = project.$sync.getState().remoteDeviceSyncState[serverDeviceId]
+  if (current && predicate(current)) return
+  await pEvent(project.$sync, 'sync-state', {
+    filter: ({ remoteDeviceSyncState }) => {
+      const state = remoteDeviceSyncState[serverDeviceId]
+      return Boolean(state && predicate(state))
+    },
+    timeout,
+  })
+}
+
+/**
+ * @param {MapeoProject} project
+ * @param {string} serverDeviceId
+ * @param {number} [timeout]
+ */
+async function waitForServerDisconnected(
+  project,
+  serverDeviceId,
+  timeout = 20_000
+) {
+  if (!isServerConnected(project, serverDeviceId)) return
+  await pEvent(project.$sync, 'sync-state', {
+    filter: ({ remoteDeviceSyncState }) =>
+      !(serverDeviceId in remoteDeviceSyncState),
+    timeout,
+  })
+}
+
+/** @param {RemoteDeviceSyncState} state */
+function isSyncedState({ initial, data }) {
+  return (
+    initial.want === 0 &&
+    initial.wanted === 0 &&
+    data.want === 0 &&
+    data.wanted === 0
+  )
+}
+
+/**
+ * The server's sync state as last seen, kept after it disconnects
+ *
+ * @param {MapeoProject} project
+ * @param {string} serverDeviceId
+ * @returns {() => RemoteDeviceSyncState | undefined}
+ */
+function trackLastServerSyncState(project, serverDeviceId) {
+  let last = project.$sync.getState().remoteDeviceSyncState[serverDeviceId]
+  project.$sync.on('sync-state', ({ remoteDeviceSyncState }) => {
+    const state = remoteDeviceSyncState[serverDeviceId]
+    if (state) last = state
+  })
+  return () => last
 }
