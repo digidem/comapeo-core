@@ -797,6 +797,9 @@ test('a peer that connects after stopping sync is not sent data', async (t) => {
 })
 
 test('stopping sync drops a peer that stops making progress', async (t) => {
+  // Real time for the state change to come through after the timer fires
+  const realSetTimeout = setTimeout
+  const settle = () => new Promise((resolve) => realSetTimeout(resolve, 500))
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
 
@@ -836,12 +839,18 @@ test('stopping sync drops a peer that stops making progress', async (t) => {
     { isSyncEnabled: true, isStopping: true },
     'invitor is finishing with the invitee before stopping'
   )
+  await clock.tickAsync(10_000)
+  await settle()
+  assert(
+    invitorProject.$sync.getState().data.isStopping,
+    'still finishing 10 s after stopping with no progress'
+  )
 
   // Past the idle timeout that bounds how long a stopped side keeps syncing
   // with a peer that is making no progress
-  await clock.tickAsync(20_000)
-
-  await waitForSyncStopped(invitorProject)
+  await clock.tickAsync(10_000)
+  await settle()
+  await waitForSyncStopped(invitorProject, { timeout: 2_000 })
   const { data, remoteDeviceSyncState } = invitorProject.$sync.getState()
   assert.deepEqual(
     data,
