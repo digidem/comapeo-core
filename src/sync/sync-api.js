@@ -54,7 +54,6 @@ const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
  */
 
 /**
- * @internal
  * @typedef {object} RemoteDeviceNamespaceGroupSyncState
  * @property {boolean} isSyncEnabled do we want to sync this namespace group?
  * @property {number} want number of blocks this device wants from us
@@ -62,7 +61,6 @@ const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
  */
 
 /**
- * @internal
  * @typedef {object} RemoteDeviceSyncState state of sync for a remote peer
  * @property {RemoteDeviceNamespaceGroupSyncState} initial state of initial namespaces (auth, config, and blob index)
  * @property {RemoteDeviceNamespaceGroupSyncState} data state of data namespaces (data and blob)
@@ -661,11 +659,17 @@ export class SyncApi extends TypedEmitter {
     this.#pendingDiscoveryKeys.delete(protomux)
     this[kSyncState].disconnectPeer(peerId)
     this.#updateState()
-    this.emit('peer-disconnect', {
-      deviceId: peerId,
-      isServer: this.#serverNoiseStreams.has(protomux.stream),
-      syncState,
-    })
+    // Runs inside hypercore's synchronous peer teardown, so a throwing
+    // listener must not propagate
+    try {
+      this.emit('peer-disconnect', {
+        deviceId: peerId,
+        isServer: this.#serverNoiseStreams.has(protomux.stream),
+        syncState,
+      })
+    } catch (err) {
+      this.#l.log('Error in peer-disconnect listener: %o', err)
+    }
   }
 
   /**

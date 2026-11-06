@@ -1529,6 +1529,10 @@ test('peer-disconnect reports sync left unfinished with the peer', async (t) => 
         new Promise((resolve) => project.$sync.once('peer-disconnect', resolve))
       )
   )
+  // Registered after the waiters above so they still run before it throws
+  projects[0].$sync.on('peer-disconnect', () => {
+    throw new Error('listener error')
+  })
   await disconnect2()
 
   const events = await Promise.all(disconnectEvents)

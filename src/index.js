@@ -46,6 +46,12 @@ export { MapeoManager } from './mapeo-manager.js'
  * @typedef {import('./roles.js').RoleIdAssignableToOthers} MemberApi.RoleIdAssignableToOthers
  */
 /**
+ * @namespace SyncApi
+ * @typedef {import('./sync/sync-api.js').State} SyncApi.State
+ * @typedef {import('./sync/sync-api.js').RemoteDeviceSyncState} SyncApi.RemoteDeviceSyncState
+ * @typedef {import('./sync/sync-api.js').PeerDisconnectInfo} SyncApi.PeerDisconnectInfo
+ */
+/**
  * @namespace InviteLinkJoiner
  * @typedef {import('./invite/invite-link-joiner.js').JoinRequest} InviteLinkJoiner.JoinRequest
  * @typedef {import('./invite/invite-link-joiner.js').JoinRequestUpdate} InviteLinkJoiner.JoinRequestUpdate
