@@ -427,8 +427,11 @@ export class SyncApi extends TypedEmitter {
 
   /**
    * After {@link disconnectServers}, close each server connection once sync
-   * with the server has finished in both directions, its want and wanted have
-   * not changed for {@link FINISHING_IDLE_TIMEOUT_MS}, or it disconnects.
+   * with the server has finished in both directions for every namespace at
+   * the peer's sync level, its want and wanted have not changed for
+   * {@link FINISHING_IDLE_TIMEOUT_MS}, or it disconnects. The level is what
+   * {@link #updateState} has just set, so this does not depend on the peer
+   * sync controller having opened those namespaces yet.
    *
    * @param {import('./sync-state.js').State} namespaceSyncState
    */
@@ -438,7 +441,7 @@ export class SyncApi extends TypedEmitter {
       if (!disconnecting) continue
       const psc = this.#peerSyncControllers.get(protomux)
       // No peer yet means nothing has started syncing
-      if (!psc || isSyncedWithPeer(namespaceSyncState, psc, NAMESPACES)) {
+      if (!psc || isSyncFinishedWithPeer(namespaceSyncState, psc)) {
         this.#endDisconnecting(websocket)
         websocket.close()
         continue
@@ -446,7 +449,7 @@ export class SyncApi extends TypedEmitter {
       const progress = getSyncProgress(
         namespaceSyncState,
         psc.peerId,
-        NAMESPACES
+        namespacesAtLevel(psc.syncEnabledState)
       )
       if (disconnecting.progress === progress) continue
       if (disconnecting.idleTimer) {
@@ -479,7 +482,8 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
-   * Connect to servers. Cancels a pending {@link disconnectServers}.
+   * Connect to servers. Cancels a pending {@link disconnectServers}, keeping
+   * any connection that is still open.
    *
    * @returns {void}
    */
@@ -548,9 +552,13 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
-   * Disconnect from servers. A server we are syncing with is disconnected once
-   * sync with it has finished, or it has made no progress for a while.
-   * {@link connectServers} cancels this.
+   * Disconnect from servers once sync with them has finished. While data sync
+   * is enabled that means every namespace, otherwise the presync namespaces
+   * (auth, config and blob index). A server that makes no sync progress for
+   * 15 seconds is disconnected anyway, and one that has not finished its
+   * handshake is disconnected straight away. The server stays in
+   * `remoteDeviceSyncState` until it is disconnected. {@link connectServers}
+   * cancels this.
    *
    * @returns {void}
    */
@@ -946,6 +954,43 @@ function isSyncedWithPeer(state, psc, namespaces) {
     }
   }
   return true
+}
+
+/**
+ * Is sync with this peer finished for every namespace it should be
+ * replicating at its sync level? Unlike {@link isSyncedWithPeer}, a namespace
+ * that is not open yet ('stopped') is not finished: the peer has been set to
+ * a level that includes it, so it is still opening.
+ *
+ * @param {import('./sync-state.js').State} state
+ * @param {PeerSyncController} psc
+ */
+function isSyncFinishedWithPeer(state, psc) {
+  for (const ns of namespacesAtLevel(psc.syncEnabledState)) {
+    if (psc.syncCapability[ns] === 'blocked') continue
+    const remoteState = getOwn(state[ns].remoteStates, psc.peerId)
+    if (!remoteState) return false
+    if (remoteState.status !== 'started') return false
+    if (remoteState.want || remoteState.wanted) return false
+  }
+  return true
+}
+
+/**
+ * @param {SyncEnabledState} level
+ * @returns {ReadonlyArray<import('../types.js').Namespace>}
+ */
+function namespacesAtLevel(level) {
+  switch (level) {
+    case 'none':
+      return []
+    case 'presync':
+      return PRESYNC_NAMESPACES
+    case 'all':
+      return NAMESPACES
+    default:
+      throw new ExhaustivenessError({ value: level })
+  }
 }
 
 /**
