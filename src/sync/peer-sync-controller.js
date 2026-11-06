@@ -1,5 +1,9 @@
 import mapObject from 'map-obj'
-import { NAMESPACES, PRESYNC_NAMESPACES } from '../constants.js'
+import {
+  DATA_NAMESPACES,
+  NAMESPACES,
+  PRESYNC_NAMESPACES,
+} from '../constants.js'
 import { Logger } from '../logger.js'
 import { createMap, noop } from '../utils.js'
 import { unreplicate } from '../lib/hypercore-helpers.js'
@@ -76,6 +80,11 @@ export class PeerSyncController {
 
   get syncCapability() {
     return this.#syncCapability
+  }
+
+  /** Whether any data namespace is currently replicating with this peer */
+  get isDataSyncEnabled() {
+    return DATA_NAMESPACES.some((ns) => this.#enabledNamespaces.has(ns))
   }
 
   /** @param {SyncEnabledState} syncEnabledState */
