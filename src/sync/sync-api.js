@@ -537,7 +537,10 @@ export class SyncApi extends TypedEmitter {
             websocket.off('error', onWebsocketError)
             websocket.off('unexpected-response', onWebsocketUnexpectedResponse)
             this.#endDisconnecting(websocket)
-            this.#serverConnections.delete(url)
+            // A reconnect may already have replaced this socket for the url
+            if (this.#serverConnections.get(url)?.websocket === websocket) {
+              this.#serverConnections.delete(url)
+            }
           })
         }
       })
