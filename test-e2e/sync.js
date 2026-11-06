@@ -1023,6 +1023,135 @@ test('starting sync again after stopping mid-sync resumes downloading', async (t
   }
 })
 
+test('stopping again after starting restarts the idle timer', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
+
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const disconnectInvite = connectPeers(managers)
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+  await disconnectInvite()
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  await seedProjectBlobs(invitorProject, t, { photoCount: 20, audioCount: 0 })
+
+  const link = connectProjectsControllably(invitorProject, inviteeProject)
+  t.after(() => link.destroy())
+  await waitForSync([invitorProject, inviteeProject], 'initial')
+
+  const inviteeIsDownloading = pEvent(invitorProject.$sync, 'sync-state', {
+    filter: ({ remoteDeviceSyncState }) => {
+      const data = remoteDeviceSyncState[invitee.deviceId]?.data
+      return Boolean(data?.isSyncEnabled && data.want > 0)
+    },
+    timeout: 10_000,
+  })
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+  await inviteeIsDownloading
+
+  link.pause()
+  invitorProject.$sync.stop()
+  await clock.tickAsync(10_000)
+  assert(
+    invitorProject.$sync.getState().data.isStopping,
+    'still finishing 10 s after the first stop'
+  )
+
+  invitorProject.$sync.start()
+  assert.deepEqual(
+    invitorProject.$sync.getState().data,
+    { isSyncEnabled: true, isStopping: false },
+    'starting again cancels the stop'
+  )
+  invitorProject.$sync.stop()
+
+  // 20 s after the first stop: the timer from the first stop would have fired
+  await clock.tickAsync(10_000)
+  assert(
+    invitorProject.$sync.getState().data.isStopping,
+    'still finishing 10 s after the second stop'
+  )
+
+  await clock.tickAsync(10_000)
+  await waitForSyncStopped(invitorProject)
+  assert.deepEqual(
+    invitorProject.$sync.getState().data,
+    { isSyncEnabled: false, isStopping: false },
+    'stopped once the second idle timeout passed'
+  )
+})
+
+test('starting sync again after dropping a stalled peer resumes downloading', async (t) => {
+  const clock = FakeTimers.install({ shouldAdvanceTime: true })
+  t.after(() => clock.uninstall())
+
+  const managers = await createManagers(2, t)
+  const [invitor, invitee] = managers
+
+  const disconnectInvite = connectPeers(managers)
+  const projectId = await invitor.createProject({ name: 'Mapeo' })
+  await invite({ invitor, invitees: [invitee], projectId })
+  await disconnectInvite()
+
+  const invitorProject = await invitor.getProject(projectId)
+  const inviteeProject = await invitee.getProject(projectId)
+
+  const invitorBlobs = await seedProjectBlobs(invitorProject, t, {
+    photoCount: 20,
+    audioCount: 0,
+  })
+
+  const link = connectProjectsControllably(invitorProject, inviteeProject)
+  t.after(() => link.destroy())
+  await waitForSync([invitorProject, inviteeProject], 'initial')
+
+  const inviteeIsDownloading = pEvent(invitorProject.$sync, 'sync-state', {
+    filter: ({ remoteDeviceSyncState }) => {
+      const data = remoteDeviceSyncState[invitee.deviceId]?.data
+      return Boolean(data?.isSyncEnabled && data.want > 0)
+    },
+    timeout: 10_000,
+  })
+  invitorProject.$sync.start()
+  inviteeProject.$sync.start()
+  await inviteeIsDownloading
+
+  link.pause()
+  invitorProject.$sync.stop()
+  await clock.tickAsync(20_000)
+  await waitForSyncStopped(invitorProject)
+  const dropped = invitorProject.$sync.getState()
+  assert(
+    !dropped.remoteDeviceSyncState[invitee.deviceId]?.data.isSyncEnabled,
+    'data sync with the stalled invitee is closed'
+  )
+
+  invitorProject.$sync.start()
+  assert.deepEqual(
+    invitorProject.$sync.getState().data,
+    { isSyncEnabled: true, isStopping: false },
+    'invitor is syncing again'
+  )
+  link.resume()
+
+  await waitForSync([invitorProject, inviteeProject], 'full')
+
+  for (const { blobId, hashes } of invitorBlobs) {
+    await assertHasBlob(
+      inviteeProject,
+      { ...blobId, variant: 'original' },
+      hashes.original,
+      'invitee downloaded the rest of the invitor blobs after starting again'
+    )
+  }
+})
+
 test('auto-stop', async (t) => {
   const clock = FakeTimers.install({ shouldAdvanceTime: true })
   t.after(() => clock.uninstall())
