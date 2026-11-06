@@ -35,7 +35,10 @@ export const kWaitForInitialSyncWithPeer = Symbol(
 )
 
 const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
-/** After stop(), drop a peer whose data sync makes no progress for this long */
+/**
+ * After stop() or disconnectServers(), give up on a peer whose sync makes no
+ * progress for this long
+ */
 const FINISHING_IDLE_TIMEOUT_MS = 15_000
 
 /**
@@ -86,6 +89,20 @@ const FINISHING_IDLE_TIMEOUT_MS = 15_000
  */
 
 /**
+ * @internal
+ * @typedef {object} ServerConnection
+ * @property {WebSocket} websocket
+ * @property {import('protomux')} protomux
+ */
+
+/**
+ * @internal
+ * @typedef {object} DisconnectingServer
+ * @property {string | null} progress want and wanted when the idle timer was last reset
+ * @property {ReturnType<typeof setTimeout> | null} idleTimer
+ */
+
+/**
  * @typedef {object} SyncEvents
  * @property {(syncState: State) => void} sync-state
  */
@@ -123,8 +140,14 @@ export class SyncApi extends TypedEmitter {
   #l
   #getServerWebsocketUrls
   #getReplicationStream
-  /** @type {Map<string, WebSocket>} */
-  #serverWebsockets = new Map()
+  /** @type {Map<string, ServerConnection>} */
+  #serverConnections = new Map()
+  /**
+   * Server connections that {@link disconnectServers} closes once sync with
+   * the server has finished
+   * @type {Map<WebSocket, DisconnectingServer>}
+   */
+  #disconnecting = new Map()
   #makeWebsocket
 
   /**
@@ -346,6 +369,7 @@ export class SyncApi extends TypedEmitter {
     }
 
     this.#previousSyncEnabledState = syncEnabledState
+    this.#closeDisconnectingServers(namespaceSyncState)
 
     this.emit('sync-state', this.#getState(namespaceSyncState))
   }
@@ -365,12 +389,16 @@ export class SyncApi extends TypedEmitter {
       !this.#wantsToSyncData &&
       psc.isDataSyncEnabled &&
       !finishing?.isIdle &&
-      !isDataSyncedWithPeer(namespaceSyncState, psc)
+      !isSyncedWithPeer(namespaceSyncState, psc, DATA_NAMESPACES)
     if (!shouldFinish) {
       this.#endFinishing(psc)
       return false
     }
-    const progress = getDataSyncProgress(namespaceSyncState, psc.peerId)
+    const progress = getSyncProgress(
+      namespaceSyncState,
+      psc.peerId,
+      DATA_NAMESPACES
+    )
     if (finishing?.progress === progress) return true
     if (finishing) {
       clearTimeout(finishing.idleTimer)
@@ -398,10 +426,72 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
+   * After {@link disconnectServers}, close each server connection once sync
+   * with the server has finished in both directions for every namespace at
+   * the peer's sync level, its want and wanted have not changed for
+   * {@link FINISHING_IDLE_TIMEOUT_MS}, or it disconnects. The level is what
+   * {@link #updateState} has just set, so this does not depend on the peer
+   * sync controller having opened those namespaces yet.
+   *
+   * @param {import('./sync-state.js').State} namespaceSyncState
+   */
+  #closeDisconnectingServers(namespaceSyncState) {
+    for (const { websocket, protomux } of this.#serverConnections.values()) {
+      const disconnecting = this.#disconnecting.get(websocket)
+      if (!disconnecting) continue
+      const psc = this.#peerSyncControllers.get(protomux)
+      // No peer yet means nothing has started syncing
+      if (!psc || isSyncFinishedWithPeer(namespaceSyncState, psc)) {
+        this.#endDisconnecting(websocket)
+        websocket.close()
+        continue
+      }
+      const progress = getSyncProgress(
+        namespaceSyncState,
+        psc.peerId,
+        namespacesAtLevel(psc.syncEnabledState)
+      )
+      if (disconnecting.progress === progress) continue
+      if (disconnecting.idleTimer) {
+        clearTimeout(disconnecting.idleTimer)
+      } else {
+        this.#l.log(
+          'Finishing sync with server %S before disconnecting',
+          psc.peerId
+        )
+      }
+      disconnecting.progress = progress
+      disconnecting.idleTimer = setTimeout(() => {
+        this.#l.log(
+          'No sync progress with server %S, disconnecting',
+          psc.peerId
+        )
+        this.#endDisconnecting(websocket)
+        websocket.close()
+      }, FINISHING_IDLE_TIMEOUT_MS)
+      disconnecting.idleTimer.unref()
+    }
+  }
+
+  /** @param {WebSocket} websocket */
+  #endDisconnecting(websocket) {
+    const disconnecting = this.#disconnecting.get(websocket)
+    if (!disconnecting) return
+    if (disconnecting.idleTimer) clearTimeout(disconnecting.idleTimer)
+    this.#disconnecting.delete(websocket)
+  }
+
+  /**
+   * Connect to servers. Cancels a pending {@link disconnectServers}, keeping
+   * any connection that is still open.
+   *
    * @returns {void}
    */
   connectServers() {
     this.#wantsToConnectToServers = true
+    for (const websocket of this.#disconnecting.keys()) {
+      this.#endDisconnecting(websocket)
+    }
 
     this.#getServerWebsocketUrls()
       .then((urls) => {
@@ -410,7 +500,7 @@ export class SyncApi extends TypedEmitter {
         if (hasDisconnectedSinceWebsocketUrlsRequestFinished) return
 
         for (const url of urls) {
-          const existingWebsocket = this.#serverWebsockets.get(url)
+          const existingWebsocket = this.#serverConnections.get(url)?.websocket
           if (
             existingWebsocket &&
             (existingWebsocket.readyState === WebSocket.OPEN ||
@@ -442,12 +532,19 @@ export class SyncApi extends TypedEmitter {
 
           const replicationStream = this.#getReplicationStream()
           wsCoreReplicator(websocket, replicationStream).catch(noop)
+          const protomux = /** @type {import('protomux')} */ (
+            replicationStream.noiseStream.userData
+          )
 
-          this.#serverWebsockets.set(url, websocket)
+          this.#serverConnections.set(url, { websocket, protomux })
           websocket.once('close', () => {
             websocket.off('error', onWebsocketError)
             websocket.off('unexpected-response', onWebsocketUnexpectedResponse)
-            this.#serverWebsockets.delete(url)
+            this.#endDisconnecting(websocket)
+            // A reconnect may already have replaced this socket for the url
+            if (this.#serverConnections.get(url)?.websocket === websocket) {
+              this.#serverConnections.delete(url)
+            }
           })
         }
       })
@@ -455,14 +552,24 @@ export class SyncApi extends TypedEmitter {
   }
 
   /**
+   * Disconnect from servers once sync with them has finished. While data sync
+   * is enabled that means every namespace, otherwise the presync namespaces
+   * (auth, config and blob index). A server that makes no sync progress for
+   * 15 seconds is disconnected anyway, and one that has not finished its
+   * handshake is disconnected straight away. The server stays in
+   * `remoteDeviceSyncState` until it is disconnected. {@link connectServers}
+   * cancels this.
+   *
    * @returns {void}
    */
   disconnectServers() {
-    for (const websocket of this.#serverWebsockets.values()) {
-      websocket.close()
-    }
-    this.#serverWebsockets.clear()
     this.#wantsToConnectToServers = false
+    for (const { websocket } of this.#serverConnections.values()) {
+      if (!this.#disconnecting.has(websocket)) {
+        this.#disconnecting.set(websocket, { progress: null, idleTimer: null })
+      }
+    }
+    this.#closeDisconnectingServers(this[kSyncState].getState())
   }
 
   /**
@@ -821,15 +928,16 @@ function isSynced(state, type, peerSyncControllers) {
 }
 
 /**
- * Is data sync with this peer finished in both directions? A data namespace
- * the peer is not replicating with us ('stopped') counts as finished: nothing
- * can move on it either way.
+ * Is sync with this peer finished in both directions for these namespaces? A
+ * namespace the peer is not replicating with us ('stopped') counts as
+ * finished: nothing can move on it either way.
  *
  * @param {import('./sync-state.js').State} state
  * @param {PeerSyncController} psc
+ * @param {ReadonlyArray<import('../types.js').Namespace>} namespaces
  */
-function isDataSyncedWithPeer(state, psc) {
-  for (const ns of DATA_NAMESPACES) {
+function isSyncedWithPeer(state, psc, namespaces) {
+  for (const ns of namespaces) {
     if (psc.syncCapability[ns] === 'blocked') continue
     const remoteState = getOwn(state[ns].remoteStates, psc.peerId)
     if (!remoteState) continue
@@ -849,15 +957,55 @@ function isDataSyncedWithPeer(state, psc) {
 }
 
 /**
+ * Is sync with this peer finished for every namespace it should be
+ * replicating at its sync level? Unlike {@link isSyncedWithPeer}, a namespace
+ * that is not open yet ('stopped') is not finished: the peer has been set to
+ * a level that includes it, so it is still opening.
+ *
+ * @param {import('./sync-state.js').State} state
+ * @param {PeerSyncController} psc
+ */
+function isSyncFinishedWithPeer(state, psc) {
+  for (const ns of namespacesAtLevel(psc.syncEnabledState)) {
+    if (psc.syncCapability[ns] === 'blocked') continue
+    const remoteState = getOwn(state[ns].remoteStates, psc.peerId)
+    if (!remoteState) return false
+    if (remoteState.status !== 'started') return false
+    if (remoteState.want || remoteState.wanted) return false
+  }
+  return true
+}
+
+/**
+ * @param {SyncEnabledState} level
+ * @returns {ReadonlyArray<import('../types.js').Namespace>}
+ */
+function namespacesAtLevel(level) {
+  switch (level) {
+    case 'none':
+      return []
+    case 'presync':
+      return PRESYNC_NAMESPACES
+    case 'all':
+      return NAMESPACES
+    default:
+      throw new ExhaustivenessError({ value: level })
+  }
+}
+
+/**
  * @param {import('./sync-state.js').State} state
  * @param {string} peerId
- * @returns {string} Changes whenever the peer's data want or wanted changes
+ * @param {ReadonlyArray<import('../types.js').Namespace>} namespaces
+ * @returns {string} Changes whenever the peer's want or wanted changes
  */
-function getDataSyncProgress(state, peerId) {
-  return DATA_NAMESPACES.map((ns) => {
-    const remoteState = getOwn(state[ns].remoteStates, peerId)
-    return remoteState ? `${remoteState.want}/${remoteState.wanted}` : ''
-  }).join(',')
+function getSyncProgress(state, peerId, namespaces) {
+  return namespaces
+    .map((ns) => {
+      const remoteState = getOwn(state[ns].remoteStates, peerId)
+      return remoteState ? `${remoteState.want}/${remoteState.wanted}` : ''
+    })
+    .join(',')
 }
 
 /**
