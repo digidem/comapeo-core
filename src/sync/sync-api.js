@@ -54,7 +54,6 @@ const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
  */
 
 /**
- * @internal
  * @typedef {object} RemoteDeviceNamespaceGroupSyncState
  * @property {boolean} isSyncEnabled do we want to sync this namespace group?
  * @property {number} want number of blocks this device wants from us
@@ -62,7 +61,6 @@ const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
  */
 
 /**
- * @internal
  * @typedef {object} RemoteDeviceSyncState state of sync for a remote peer
  * @property {RemoteDeviceNamespaceGroupSyncState} initial state of initial namespaces (auth, config, and blob index)
  * @property {RemoteDeviceNamespaceGroupSyncState} data state of data namespaces (data and blob)
@@ -76,8 +74,16 @@ const DEFAULT_INITIAL_PEER_WAIT_MS = 2000
  */
 
 /**
+ * @typedef {object} PeerDisconnectInfo
+ * @property {string} deviceId
+ * @property {boolean} isServer whether the connection was opened by {@link SyncApi#connectServers}
+ * @property {RemoteDeviceSyncState} syncState sync state with the peer at the moment it disconnected
+ */
+
+/**
  * @typedef {object} SyncEvents
  * @property {(syncState: State) => void} sync-state
+ * @property {(info: PeerDisconnectInfo) => void} peer-disconnect
  */
 
 /**
@@ -109,6 +115,8 @@ export class SyncApi extends TypedEmitter {
   #getReplicationStream
   /** @type {Map<string, WebSocket>} */
   #serverWebsockets = new Map()
+  /** @type {WeakSet<object>} */
+  #serverNoiseStreams = new WeakSet()
   #makeWebsocket
 
   /**
@@ -368,6 +376,7 @@ export class SyncApi extends TypedEmitter {
           websocket.on('unexpected-response', onWebsocketUnexpectedResponse)
 
           const replicationStream = this.#getReplicationStream()
+          this.#serverNoiseStreams.add(replicationStream.noiseStream)
           wsCoreReplicator(websocket, replicationStream).catch(noop)
 
           this.#serverWebsockets.set(url, websocket)
@@ -637,12 +646,30 @@ export class SyncApi extends TypedEmitter {
       )
       return
     }
+    // Must read before disconnectPeer() clears the peer's remote state
+    const syncState = getRemoteDevicesSyncState(this[kSyncState].getState(), [
+      psc,
+    ])[peerId] ?? {
+      initial: { isSyncEnabled: false, want: 0, wanted: 0 },
+      data: { isSyncEnabled: false, want: 0, wanted: 0 },
+    }
     psc.dispose()
     this.#peerSyncControllers.delete(protomux)
     this.#pscByPeerId.delete(peerId)
     this.#pendingDiscoveryKeys.delete(protomux)
     this[kSyncState].disconnectPeer(peerId)
     this.#updateState()
+    // Runs inside hypercore's synchronous peer teardown, so a throwing
+    // listener must not propagate
+    try {
+      this.emit('peer-disconnect', {
+        deviceId: peerId,
+        isServer: this.#serverNoiseStreams.has(protomux.stream),
+        syncState,
+      })
+    } catch (err) {
+      this.#l.log('Error in peer-disconnect listener: %o', err)
+    }
   }
 
   /**

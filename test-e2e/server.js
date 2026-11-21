@@ -407,7 +407,15 @@ test('data can be synced via a server', async (t) => {
   )
   const serverDeviceId = await serverDeviceIdPromise
   await waitForSyncWithServer(managerAProject, serverDeviceId)
+  /** @type {Promise<import('../src/sync/sync-api.js').PeerDisconnectInfo>} */
+  const serverDisconnectEvent = new Promise((resolve) =>
+    managerAProject.$sync.once('peer-disconnect', resolve)
+  )
   managerAProject.$sync.disconnectServers()
+  const { deviceId, isServer, syncState } = await serverDisconnectEvent
+  assert.equal(deviceId, serverDeviceId)
+  assert(isServer, 'peer-disconnect reports the peer as a server')
+  assert.equal(syncState.data.want + syncState.data.wanted, 0)
   managerAProject.$sync.stop()
   await assert.rejects(
     () => managerBProject.observation.getByDocId(observation.docId),
