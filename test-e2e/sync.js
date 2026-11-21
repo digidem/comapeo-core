@@ -27,6 +27,7 @@ import { valueOf } from '../src/utils.js'
 import pTimeout from 'p-timeout'
 import { BLOCKED_ROLE_ID, COORDINATOR_ROLE_ID } from '../src/roles.js'
 import { kSyncState } from '../src/sync/sync-api.js'
+import { PeerDisconnectedError } from '../src/errors.js'
 import { createHash } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 /** @import { State } from '../src/sync/sync-api.js' */
@@ -1441,6 +1442,53 @@ test(
     })
 
     await disconnectB()
+  }
+)
+
+test(
+  'waitForSync rejects when the only peer disconnects before sync completes',
+  { timeout: 100_000 },
+  async (t) => {
+    const managers = await createManagers(2, t)
+    const [invitor, invitee] = managers
+    const disconnect = connectPeers(managers)
+    t.after(disconnect)
+    const projectId = await invitor.createProject({ name: 'Mapeo' })
+    await invite({ invitor, invitees: [invitee], projectId })
+
+    const projects = await Promise.all(
+      managers.map((m) => m.getProject(projectId))
+    )
+    const [invitorProject, inviteeProject] = projects
+
+    const obs = await invitorProject.observation.create(
+      valueOf(generate('observation')[0])
+    )
+    await waitForSync(projects, 'initial')
+
+    // Only the invitee enables data sync, so the observation can never arrive
+    inviteeProject.$sync.start()
+
+    // Need to wait for pre-have of invitor observation to be received
+    await pEvent(
+      inviteeProject.$sync[kSyncState],
+      'state',
+      (state) => state.data.localState.want === 1
+    )
+
+    await Promise.all([
+      assert.rejects(
+        inviteeProject.$sync.waitForSync('full'),
+        { code: PeerDisconnectedError.code },
+        'waitForSync rejects rather than reporting synced with no peers'
+      ),
+      disconnect(),
+    ])
+
+    await assert.rejects(
+      () => inviteeProject.observation.getByDocId(obs.docId),
+      'observation did not sync'
+    )
   }
 )
 
