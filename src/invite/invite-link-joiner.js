@@ -38,6 +38,7 @@ const NETWORK_ERROR_CODES = new Set([
 } from '../generated/invite.js' */
 /** @import { InviteApi } from '../invite/invite-api.js' */
 /** @import { InviteLinkRPC } from '../invite/invite-link-rpc.js' */
+/** @import { KnownError } from '../errors.js' */
 
 /**
  * @typedef {'connecting' | 'connected' | 'accepted' | 'completed' | 'failed'} JoinRequestStatus
@@ -52,7 +53,7 @@ const NETWORK_ERROR_CODES = new Set([
  * @property {string} swarmPublicKey Invitor's swarm public key
  * @property {string} url Original invite URL
  * @property {JoinRequestStatus} status Current status
- * @property {Error|null} error Error if status is 'failed'
+ * @property {KnownError|null} error Error if status is 'failed'
  * @property {string|undefined} projectId Resolved project ID on completion
  */
 
@@ -86,7 +87,7 @@ const NETWORK_ERROR_CODES = new Set([
 
 /**
  * @typedef {object} InviteLinkJoinerEvents
- * @property {(update: JoinRequestUpdate) => void} join-request-update
+ * @property {(update: JoinRequestUpdate, error?: KnownError) => void} join-request-update
  */
 
 /**
@@ -313,7 +314,7 @@ export class InviteLinkJoiner extends TypedEmitter {
       error: joinRequest.error,
       projectId: joinRequest.projectId,
     }
-    this.emit('join-request-update', update)
+    this.emit('join-request-update', update, joinRequest.error ?? undefined)
   }
 
   /**
@@ -363,7 +364,7 @@ function noop(_x) {}
 /**
  * Wrap network/transport errors in an InviteConnectionError, pass others through.
  * @param {unknown} e
- * @returns {Error}
+ * @returns {KnownError}
  */
 function wrapNetworkError(e) {
   const err = ensureKnownError(e)

@@ -14,6 +14,7 @@ import { ensureKnownError, InviteExpiredError } from '../src/errors.js'
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
 /** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
 /** @import { JoinRequestUpdate } from '../src/invite/invite-link-joiner.js' */
+/** @import { KnownError } from '../src/errors.js' */
 
 /**
  * @param {Buffer} authenticatedPublicKey
@@ -134,7 +135,12 @@ test('happy path: connect, redeem, accept, complete', async () => {
 
   /** @type {JoinRequestUpdate[]} */
   const updates = []
-  joiner.on('join-request-update', (update) => updates.push(update))
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update, error) => {
+    updates.push(update)
+    lastError = error
+  })
 
   const onConnected = pEvent(joiner, 'join-request-update', {
     timeout: 1000,
@@ -163,6 +169,9 @@ test('happy path: connect, redeem, accept, complete', async () => {
     updates.map((u) => u.status),
     ['connecting', 'connected', 'accepted', 'completed']
   )
+
+  // No error is emitted as a separate parameter
+  assert.equal(lastError, undefined)
   assert.equal(updates[3].projectId, ctx.projectId)
 
   // Verify waitForPeer was called with identity key (not swarm key)
@@ -211,7 +220,12 @@ test('deny: inviter denies the invite', async () => {
 
   /** @type {JoinRequestUpdate[]} */
   const updates = []
-  joiner.on('join-request-update', (update) => updates.push(update))
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update, error) => {
+    updates.push(update)
+    lastError = error
+  })
 
   const onFailed = pEvent(joiner, 'join-request-update', {
     timeout: 1000,
@@ -251,6 +265,11 @@ test('deny: inviter denies the invite', async () => {
     'INVITE_DENIED_BY_INVITER_ERROR'
   )
 
+  // Error is also emitted as a separate parameter
+  assert.ok(lastError)
+  assert.equal(lastError, failedUpdate.error)
+  assert.equal(lastError.code, 'INVITE_DENIED_BY_INVITER_ERROR')
+
   ctx.connection.end()
 })
 
@@ -269,7 +288,12 @@ test('connection close: peer disconnects before invite arrives', async () => {
 
   /** @type {JoinRequestUpdate[]} */
   const updates = []
-  joiner.on('join-request-update', (update) => updates.push(update))
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update, error) => {
+    updates.push(update)
+    lastError = error
+  })
 
   const onFailed = pEvent(joiner, 'join-request-update', {
     timeout: 2000,
@@ -308,4 +332,9 @@ test('connection close: peer disconnects before invite arrives', async () => {
     ensureKnownError(failedUpdate.error).code,
     'INVITE_CONNECTION_ERROR'
   )
+
+  // Error is also emitted as a separate parameter
+  assert.ok(lastError)
+  assert.equal(lastError, failedUpdate.error)
+  assert.equal(lastError.code, 'INVITE_CONNECTION_ERROR')
 })
