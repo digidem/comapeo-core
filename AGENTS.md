@@ -153,6 +153,9 @@ streams of that shape.
 - `MapeoManager` and peers extend `TypedEmitter` (`tiny-typed-emitter`). Event maps are
   documented with `@typedef {...Events}` JSDoc (e.g. `MapeoManagerEvents`).
 - Internal control signals (sync stop/resume, etc.) are `Symbol`-keyed methods, not events.
+- **When adding an event, read [docs/development/events.md](docs/development/events.md).**
+  Key rule: an event that reports an error must emit a `KnownError` (coerce with
+  `ensureKnownError`) as the **only** argument.
 
 ### HTTP (Fastify)
 
