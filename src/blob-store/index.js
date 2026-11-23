@@ -331,11 +331,8 @@ export class BlobStore extends ReadyResource {
 
     const { blockOffset, blockLength } = entry.value.blob
 
-    const core = blobs.core.session()
     try {
-      const start = blockOffset
-      const end = blockOffset + blockLength
-      return core.has(start, end)
+      return await blobs.core.has(blockOffset, blockOffset + blockLength)
     } catch {
       return false
     }

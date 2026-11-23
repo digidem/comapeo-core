@@ -268,6 +268,12 @@ export const BlobNotFoundError = createErrorClass({
   status: 404,
 })
 
+export const BlobNotAvailableError = createErrorClass({
+  code: 'BLOB_NOT_AVAILABLE_ERROR',
+  message: 'Blob is not fully available locally',
+  status: 404,
+})
+
 export const InvalidIconSizeError = createErrorClass({
   code: 'INVALID_ICON_SIZE_ERROR',
   message: '{value} is not a valid icon size',
