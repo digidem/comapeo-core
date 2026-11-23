@@ -137,8 +137,10 @@ test('happy path: connect, redeem, accept, complete', async () => {
   const updates = []
   /** @type {KnownError|undefined} */
   let lastError
-  joiner.on('join-request-update', (update, error) => {
+  joiner.on('join-request-update', (update) => {
     updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
     lastError = error
   })
 
@@ -222,8 +224,10 @@ test('deny: inviter denies the invite', async () => {
   const updates = []
   /** @type {KnownError|undefined} */
   let lastError
-  joiner.on('join-request-update', (update, error) => {
+  joiner.on('join-request-update', (update) => {
     updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
     lastError = error
   })
 
@@ -290,8 +294,10 @@ test('connection close: peer disconnects before invite arrives', async () => {
   const updates = []
   /** @type {KnownError|undefined} */
   let lastError
-  joiner.on('join-request-update', (update, error) => {
+  joiner.on('join-request-update', (update) => {
     updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
     lastError = error
   })
 

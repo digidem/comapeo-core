@@ -53,7 +53,7 @@ const NETWORK_ERROR_CODES = new Set([
  * @property {string} swarmPublicKey Invitor's swarm public key
  * @property {string} url Original invite URL
  * @property {JoinRequestStatus} status Current status
- * @property {KnownError|null} error Error if status is 'failed'
+ * @property {(KnownError & { inviteId: string })|null} error Error if status is 'failed'
  * @property {string|undefined} projectId Resolved project ID on completion
  */
 
@@ -87,7 +87,8 @@ const NETWORK_ERROR_CODES = new Set([
 
 /**
  * @typedef {object} InviteLinkJoinerEvents
- * @property {(update: JoinRequestUpdate, error?: KnownError) => void} join-request-update
+ * @property {(update: JoinRequestUpdate) => void} join-request-update
+ * @property {(error: KnownError & { inviteId: string }) => void} join-request-error
  */
 
 /**
@@ -284,8 +285,9 @@ export class InviteLinkJoiner extends TypedEmitter {
     } catch (e) {
       // Failed
       joinRequest.status = 'failed'
-      joinRequest.error = wrapNetworkError(e)
+      joinRequest.error = wrapNetworkError(e, joinRequest.inviteId)
       this.#emitUpdate(joinRequest)
+      this.emit('join-request-error', joinRequest.error)
 
       if (connection) {
         // Use the identity key from the handshake, not the swarm key from the URL
@@ -314,7 +316,7 @@ export class InviteLinkJoiner extends TypedEmitter {
       error: joinRequest.error,
       projectId: joinRequest.projectId,
     }
-    this.emit('join-request-update', update, joinRequest.error ?? undefined)
+    this.emit('join-request-update', update)
   }
 
   /**
@@ -366,10 +368,18 @@ function noop(_x) {}
  * @param {unknown} e
  * @returns {KnownError}
  */
-function wrapNetworkError(e) {
+/**
+ * Wrap a join-flow error as a KnownError carrying the inviteId, so concurrent
+ * join requests can be told apart on the `join-request-error` event.
+ *
+ * @param {unknown} e
+ * @param {string} inviteId
+ * @returns {KnownError & { inviteId: string }}
+ */
+function wrapNetworkError(e, inviteId) {
   const err = ensureKnownError(e)
-  if (NETWORK_ERROR_CODES.has(err.code)) {
-    return new InviteConnectionError({ cause: err })
-  }
-  return err
+  const wrapped = NETWORK_ERROR_CODES.has(err.code)
+    ? new InviteConnectionError({ cause: err })
+    : err
+  return Object.assign(wrapped, { inviteId })
 }

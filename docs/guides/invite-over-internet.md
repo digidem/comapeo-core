@@ -12,7 +12,8 @@
 - Invitee: use invite link to connect and join
   - Creates a join request and listens to `join-request-update` events for progress
   - On `completed` the join request contains the resolved project ID
-  - On `failed` the join request contains the error
+  - On `failed` the join request contains the error, and a `join-request-error`
+    event is emitted with a `KnownError` carrying the `inviteId`
 - Invitor: Get `invite-link-join-request`
 - Invitor: Accept invite link request which sends them an invite and follows the usual flow
 - **OR** Invitor: Deny invite link request which disconnects and errors them out
@@ -105,6 +106,14 @@ manager.inviteLinks.on('join-request-update', (update) => {
       // UnknownError
       break
   }
+})
+
+// Failed joins are also reported as a dedicated `join-request-error` event.
+// The error is a KnownError carrying the inviteId, so you can tell concurrent
+// join requests apart (and subscribe to errors without the update stream):
+manager.inviteLinks.on('join-request-error', (error) => {
+  // error.inviteId — which join request failed
+  // error.code / error.status — machine-readable reason
 })
 
 // Start the join (fire-and-forget, returns a JoinRequest synchronously)
