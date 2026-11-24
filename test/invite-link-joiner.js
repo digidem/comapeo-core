@@ -9,7 +9,11 @@ import { InviteLinkJoiner } from '../src/invite/invite-link-joiner.js'
 import { makeInviteURL } from '../src/invite/invite-urls.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { MockInviteLinkRPC } from './helpers/invite-link-rpc.js'
-import { InviteExpiredError, ExistingJoinRequestError } from '../src/errors.js'
+import {
+  InviteExpiredError,
+  ExistingJoinRequestError,
+  JoinProjectCancelledError,
+} from '../src/errors.js'
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
 /** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
@@ -347,7 +351,7 @@ test('connection close: peer disconnects before invite arrives', async () => {
   assert.equal(lastError.code, 'INVITE_CONNECTION_ERROR')
 })
 
-test('finished requests are cleared when a new invite starts', async () => {
+test('finished requests are kept when a new invite starts', async () => {
   const ctxA = makeTestContext()
   const ctxB = makeTestContext()
   const connections = new Map([
@@ -384,14 +388,18 @@ test('finished requests are cleared when a new invite starts', async () => {
       .some((r) => r.inviteId === inviteIdA && r.status === 'completed')
   )
 
-  // Request B (different invite) starts and clears the finished A synchronously
+  // Request B (different invite) starts without clearing the finished A
   const onCompletedB = pEvent(joiner, 'join-request-update', {
     timeout: 1000,
     filter: (u) => u.inviteId === inviteIdB && u.status === 'completed',
   })
   joiner.createJoinRequest(ctxB.url)
 
-  assert.ok(!joiner.getJoinRequests().some((r) => r.inviteId === inviteIdA))
+  assert.ok(
+    joiner
+      .getJoinRequests()
+      .some((r) => r.inviteId === inviteIdA && r.status === 'completed')
+  )
   assert.ok(
     joiner
       .getJoinRequests()
@@ -401,7 +409,7 @@ test('finished requests are cleared when a new invite starts', async () => {
   await onCompletedB
   assert.deepEqual(
     joiner.getJoinRequests().map((r) => r.inviteId),
-    [inviteIdB]
+    [inviteIdA, inviteIdB]
   )
 })
 
@@ -469,4 +477,40 @@ test('an in-flight request for the same invite is not cleared', async () => {
   assert.equal(joiner.getJoinRequestById(inviteId).status, 'connected')
 
   ctx.connection.destroy()
+})
+
+test('cancel leaves the request in the list as failed', async () => {
+  const ctx = makeTestContext()
+  const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
+  const mockRpc = new MockInviteLinkRPC({ inviteApi, noResponse: true })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  const inviteId = ctx.inviteId.toString('hex')
+
+  const onConnected = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'connected',
+  })
+  joiner.createJoinRequest(ctx.url)
+  await onConnected
+
+  const onFailed = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'failed',
+  })
+  joiner.cancelJoinRequest(inviteId)
+  await onFailed
+
+  // The cancelled request lingers in the list as failed (it is not removed)
+  const cancelled = joiner.getJoinRequestById(inviteId)
+  assert.equal(cancelled.status, 'failed')
+  assert.equal(cancelled.error, JoinProjectCancelledError.code)
+
+  ctx.connection.end()
 })

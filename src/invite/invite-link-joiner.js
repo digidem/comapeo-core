@@ -34,6 +34,13 @@ const NETWORK_ERROR_CODES = new Set([
   InitialSyncFailedError.code,
 ])
 
+/**
+ * Join request statuses that are final — a request in one of these is no
+ * longer in flight and its entry may be replaced by a new attempt.
+ * @type {Set<JoinRequestStatus>}
+ */
+const TERMINAL_STATUSES = new Set(['completed', 'failed'])
+
 /** @import {
   AcceptInviteOverInternet,
   DenyInviteOverInternet,
@@ -137,9 +144,10 @@ export class InviteLinkJoiner extends TypedEmitter {
   /**
    * Create and start a join request from an invite URL.
    *
-   * Any previously finished (`failed` or `completed`) join requests are
-   * cleared first; only in-flight requests remain, so an in-flight request
-   * for the same invite ID will still throw `ExistingJoinRequestError`.
+   * An in-flight request for the same invite ID throws
+   * `ExistingJoinRequestError`. A finished (`failed`/`completed`) request for
+   * the same invite ID is replaced with a fresh attempt, and finished
+   * requests for other invite IDs are left in place.
    *
    * @param {string} url Invite URL
    * @param {object} [opts]
@@ -155,11 +163,10 @@ export class InviteLinkJoiner extends TypedEmitter {
     }
     const inviteId = parsed.inviteIdString
 
-    // Clear any finished (failed/completed) requests so a re-click on a link
-    // whose previous attempt finished can start a fresh attempt.
-    this.#clearFinishedPending()
-
-    if (this.#pending.has(inviteId)) {
+    // An in-flight request for this invite ID cannot be started again; a
+    // finished (terminal) one is replaced so the link can be re-clicked.
+    const existing = this.#pending.get(inviteId)
+    if (existing && !TERMINAL_STATUSES.has(existing.joinRequest.status)) {
       throw new ExistingJoinRequestError({ inviteId })
     }
 
@@ -318,23 +325,6 @@ export class InviteLinkJoiner extends TypedEmitter {
   }
 
   /**
-   * Remove finished (`failed` or `completed`) join requests from pending.
-   * In-flight requests are left untouched.
-   *
-   * @returns {void}
-   */
-  #clearFinishedPending() {
-    for (const [inviteId, pending] of this.#pending) {
-      if (
-        pending.joinRequest.status === 'failed' ||
-        pending.joinRequest.status === 'completed'
-      ) {
-        this.#pending.delete(inviteId)
-      }
-    }
-  }
-
-  /**
    * @param {JoinRequest} joinRequest
    */
   #emitUpdate(joinRequest) {
@@ -364,9 +354,9 @@ export class InviteLinkJoiner extends TypedEmitter {
   }
 
   /**
-   * Get all join requests — in-flight ones plus any that finished
-   * (`failed`/`completed`) but have not yet been cleared by a new
-   * {@link InviteLinkJoiner.createJoinRequest}.
+   * Get all join requests, both in-flight and finished (`failed`/`completed`).
+   * Finished requests persist until their entry is replaced by a new
+   * {@link InviteLinkJoiner.createJoinRequest} for the same invite ID.
    *
    * @returns {JoinRequest[]}
    */
@@ -376,6 +366,9 @@ export class InviteLinkJoiner extends TypedEmitter {
 
   /**
    * Cancel an in-flight join request.
+   *
+   * The request transitions to `failed` (with `JoinProjectCancelledError`) and
+   * remains in the list — it is not removed.
    *
    * @param {string} inviteId Hex invite ID
    * @param {Error} [reason] Reason for cancellation. Defaults to a generic cancellation error.
@@ -387,7 +380,6 @@ export class InviteLinkJoiner extends TypedEmitter {
       throw new JoinRequestNotFoundError({ inviteId })
     }
     pending.abortController.abort(reason ?? new JoinProjectCancelledError())
-    this.#pending.delete(inviteId)
   }
 }
 
