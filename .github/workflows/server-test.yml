@@ -47,7 +47,7 @@ jobs:
           set -o pipefail
           mkdir -p "$SERVER_TEST_LOG_DIR"
           # Full debug output goes to the log artifact; the job log keeps the rest
-          node --test --test-timeout=600000 ./test-e2e/server.js 2>&1 \
+          node --test ./test-e2e/server.js 2>&1 \
             | tee "$SERVER_TEST_LOG_DIR/client.log" \
             | grep --line-buffered -vE '^\s*# \S+ mapeo:'
       - name: Upload logs
