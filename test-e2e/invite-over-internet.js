@@ -11,6 +11,7 @@ import assert from 'node:assert/strict'
 import { pEvent } from 'p-event'
 import { InviteResponse_Decision } from '../src/generated/rpc.js'
 import {
+  AlreadyJoinedError,
   UnknownInviteIDRedeemAttemptError,
   TimeoutError,
   InviteRedeemConnectionClosedError,
@@ -325,6 +326,63 @@ test('invite over internet can be redeemed by multiple peers', async (t) => {
     pending.map((p) => p.url),
     [url],
     'Invite still pending after two redeems'
+  )
+})
+
+test('invite over internet auto-denies a peer that is already a member', async (t) => {
+  const managers = await createManagers(2, t, 'device_type_unspecified', {
+    useTestnet: true,
+  })
+  const [invitor, invitee] = managers
+
+  const projectId = await invitor.createProject({
+    name: 'Mapeo',
+    projectColor: '#123456',
+    projectDescription: 'fun project',
+  })
+  const project = await invitor.getProject(projectId)
+
+  const url = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+  const { inviteIdString: inviteId } = parseInviteURL(url)
+
+  // First join: invitee connects and becomes a member
+  const onFirstRedeem = pEvent(invitor, 'invite-link-join-request', {
+    multiArgs: true,
+    rejectionEvents: ['invite-link-join-request-error'],
+    timeout: 5000,
+  })
+  const onFirstJoin = awaitJoinComplete(invitee.inviteLinks, inviteId, {
+    timeout: 5000,
+  })
+  await invitee.setDeviceInfo({ name: 'invitee', deviceType: 'desktop' })
+  invitee.inviteLinks.createJoinRequest(url)
+
+  const [, firstDeviceId, firstRedeemId] =
+    /** @type {[string, string, string]} */ (
+      /**@type unknown*/ (await onFirstRedeem)
+    )
+  assert.equal(firstDeviceId, invitee.deviceId)
+  await project.$member.acceptInviteLinkRequest(firstRedeemId, firstDeviceId)
+  const { projectId: gotProjectId } = await onFirstJoin
+  assert.equal(gotProjectId, projectId, 'joined expected project')
+
+  // Second join: a fresh link (a same-link re-redeem would instead trip
+  // InviteAlreadyRedeemedError). The invitee is already a member, so this
+  // redeem is auto-denied with the already_joined reason.
+  const url2 = await project.$member.createInviteLink({
+    roleId: MEMBER_ROLE_ID,
+  })
+  const { inviteIdString: inviteId2 } = parseInviteURL(url2)
+
+  const onSecondJoin = awaitJoinComplete(invitee.inviteLinks, inviteId2, {
+    timeout: 5000,
+  })
+  invitee.inviteLinks.createJoinRequest(url2)
+  await assert.rejects(
+    onSecondJoin,
+    (err) => ensureKnownError(err).code === AlreadyJoinedError.code
   )
 })
 

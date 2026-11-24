@@ -10,6 +10,7 @@ import { makeInviteURL } from '../src/invite/invite-urls.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { MockInviteLinkRPC } from './helpers/invite-link-rpc.js'
 import {
+  AlreadyJoinedError,
   InviteExpiredError,
   ExistingJoinRequestError,
   JoinProjectCancelledError,
@@ -282,6 +283,56 @@ test('deny: inviter denies the invite', async () => {
   assert.equal(failed.status, 'failed')
   assert.ok(failed.error)
   assert.equal(joiner.getJoinRequests().length, 1)
+
+  ctx.connection.end()
+})
+
+test('deny: inviter auto-denies an already-joined peer', async () => {
+  const ctx = makeTestContext()
+  const identityKey = ctx.authenticatedPublicKey.toString('hex')
+  const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
+  const mockRpc = new MockInviteLinkRPC({
+    inviteApi,
+    denyReason: 'already_joined',
+  })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  /** @type {JoinRequestUpdate[]} */
+  const updates = []
+  /** @type {KnownError|undefined} */
+  let lastError
+  joiner.on('join-request-update', (update) => {
+    updates.push(update)
+  })
+  joiner.on('join-request-error', (error) => {
+    lastError = error
+  })
+
+  const onFailed = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'failed',
+  })
+
+  joiner.createJoinRequest(ctx.url)
+
+  await onFailed
+
+  const failedUpdate = updates.find((u) => u.status === 'failed')
+  assert.ok(failedUpdate)
+  assert.equal(failedUpdate.error, AlreadyJoinedError.code)
+
+  assert.ok(lastError)
+  assert.equal(lastError.code, AlreadyJoinedError.code)
+
+  // denyAck was sent for the auto-deny, and the connection was torn down
+  assert.equal(mockRpc.denyAckCalls.length, 1)
+  assert.deepEqual(mockRpc.disconnectCalls, [identityKey])
 
   ctx.connection.end()
 })

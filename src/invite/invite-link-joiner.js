@@ -2,6 +2,7 @@ import { TypedEmitter } from 'tiny-typed-emitter'
 import { pEvent } from 'p-event'
 import { parseInviteURL } from './invite-urls.js'
 import {
+  AlreadyJoinedError,
   ExistingJoinRequestError,
   InviteRedeemConnectionClosedError,
   InviteConnectionError,
@@ -262,6 +263,9 @@ export class InviteLinkJoiner extends TypedEmitter {
         await this.#inviteLinkRPC.denyAck(inviteIdBuffer, identityPublicKeyHex)
         if (reason === DenyInviteOverInternet_DenyReason.unknown_invite_id) {
           throw new UnknownInviteIDError()
+        }
+        if (reason === DenyInviteOverInternet_DenyReason.already_joined) {
+          throw new AlreadyJoinedError()
         }
         throw new InviteDeniedByInviterError()
       })
