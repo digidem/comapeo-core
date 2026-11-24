@@ -14,6 +14,11 @@
   - On `completed` the join request contains the resolved project ID
   - On `failed` the join request contains the error, and a `join-request-error`
     event is emitted with a `KnownError` carrying the `inviteId`
+  - Finished (`failed`/`completed`) join requests stay in the list (visible via
+    `getJoinRequests` / `getJoinRequestById`) until the next `createJoinRequest`,
+    which clears them — so a link whose previous attempt finished can be re-clicked
+    to start a fresh attempt, while an in-flight one for the same invite ID still
+    throws `ExistingJoinRequestError`
 - Invitor: Get `invite-link-join-request`
 - Invitor: Accept invite link request which sends them an invite and follows the usual flow
 - **OR** Invitor: Deny invite link request which disconnects and errors them out
@@ -126,12 +131,17 @@ const {
   projectId,  // string | undefined — set on 'completed'
 } = manager.inviteLinks.createJoinRequest(url)
 // ExistingJoinRequestError — already joining with this invite ID
+// Only in-flight requests block a new one: any previous failed/completed
+// request (for this or other invites) is cleared first, so re-clicking a
+// link whose prior attempt finished starts a fresh attempt.
 
 // Cancel the join at any time (use inviteId from the URL or joinRequest)
+// Cancelling removes the request immediately (it does not linger as failed)
 manager.inviteLinks.cancelJoinRequest(inviteIdString)
-// JoinRequestNotFoundError — no in-flight join for this invite ID
+// JoinRequestNotFoundError — no pending join for this invite ID
 
-// You can also list all in-flight join requests
+// List all join requests: in-flight plus any that finished (failed/completed)
+// and have not yet been cleared by a subsequent createJoinRequest
 const requests = manager.inviteLinks.getJoinRequests()
 ```
 
