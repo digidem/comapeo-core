@@ -9,8 +9,6 @@ import { setTimeout as delay } from 'node:timers/promises'
 import fsPromises from 'node:fs/promises'
 import pDefer from 'p-defer'
 import { pEvent } from 'p-event'
-import pTimeout from 'p-timeout'
-import path from 'node:path'
 import { map } from 'iterpal'
 import {
   BLOCKED_ROLE_ID,
@@ -44,11 +42,10 @@ import {
 /** @import { State as SyncState } from '../src/sync/sync-api.js' */
 
 const USE_REMOTE_SERVER = Boolean(process.env.REMOTE_TEST_SERVER)
-// If set, remote server logs are saved here so CI can upload them
-const SERVER_LOG_DIR = process.env.SERVER_TEST_LOG_DIR
-// CI sets this per job so it can destroy apps that a killed run left behind
-const FLY_APP_PREFIX = process.env.FLY_APP_PREFIX ?? 'comapeo-cloud-test-local-'
-const STEP_TIMEOUT_MS = 60_000
+// Set by CI, which saves each app's logs and then destroys it after the run
+const CI_FLY_APP_PREFIX = process.env.FLY_APP_PREFIX
+const FLY_APP_PREFIX = CI_FLY_APP_PREFIX ?? 'comapeo-cloud-test-local-'
+const MULTI_DEVICE_TEST_TIMEOUT = USE_REMOTE_SERVER ? 10 * 60_000 : 60_000
 
 const comapeoCoreUrl = new URL('..', import.meta.url)
 
@@ -368,88 +365,81 @@ test("can't add a server to two different projects", async (t) => {
   }, Error)
 })
 
-test('data can be synced via a server', async (t) => {
-  const [managers, { serverBaseUrl }] = await Promise.all([
-    createManagers(2, t, 'mobile'),
-    createTestServer(t),
-  ])
-  const [managerA, managerB] = managers
+test(
+  'data can be synced via a server',
+  { timeout: MULTI_DEVICE_TEST_TIMEOUT },
+  async (t) => {
+    const [managers, { serverBaseUrl }] = await Promise.all([
+      createManagers(2, t, 'mobile'),
+      createTestServer(t),
+    ])
+    const [managerA, managerB] = managers
 
-  // Manager A: create project and add the server to it
-  const projectId = await managerA.createProject({ name: 'foo' })
-  const managerAProject = await managerA.getProject(projectId)
-  t.after(() =>
-    step(t, 'teardown: A disconnectServers', () =>
-      managerAProject.$sync.disconnectServers()
-    )
-  )
-  await step(t, 'A addServerPeer', () =>
-    managerAProject.$member.addServerPeer(serverBaseUrl, {
+    // Manager A: create project and add the server to it
+    const projectId = await managerA.createProject({ name: 'foo' })
+    const managerAProject = await managerA.getProject(projectId)
+    t.after(() => managerAProject.$sync.disconnectServers())
+    log(t, 'A addServerPeer')
+    await managerAProject.$member.addServerPeer(serverBaseUrl, {
       dangerouslyAllowInsecureConnections: true,
     })
-  )
-  const serverDeviceIdPromise = findServerPeer(managerAProject).then(
-    (serverMember) => {
-      assert(serverMember, 'Manager A must have a server member')
-      return serverMember.deviceId
-    }
-  )
-
-  // Add Manager B to project
-  const disconnectManagers = connectPeers(managers)
-  t.after(() => step(t, 'teardown: disconnect managers', disconnectManagers))
-  await step(t, 'waitForPeers', () => waitForPeers(managers))
-  await step(t, 'invite B', () =>
-    invite({ invitor: managerA, invitees: [managerB], projectId })
-  )
-  const managerBProject = await managerB.getProject(projectId)
-  t.after(() =>
-    step(t, 'teardown: B disconnectServers', () =>
-      managerBProject.$sync.disconnectServers()
+    const serverDeviceIdPromise = findServerPeer(managerAProject).then(
+      (serverMember) => {
+        assert(serverMember, 'Manager A must have a server member')
+        return serverMember.deviceId
+      }
     )
-  )
 
-  // Sync managers to tell Manager B about the server
-  const projects = [managerAProject, managerBProject]
-  await step(t, 'waitForSync', () => waitForSync(projects, 'initial'))
-  const serverPeer = await findServerPeer(managerBProject)
-  assert(serverPeer, 'expected a server peer to be found by the client')
+    // Add Manager B to project
+    const disconnectManagers = connectPeers(managers)
+    t.after(disconnectManagers)
+    log(t, 'waitForPeers')
+    await waitForPeers(managers)
+    log(t, 'invite B')
+    await invite({ invitor: managerA, invitees: [managerB], projectId })
+    const managerBProject = await managerB.getProject(projectId)
+    t.after(() => managerBProject.$sync.disconnectServers())
 
-  // Manager A adds data that Manager B doesn't know about
-  await step(t, 'disconnect managers', disconnectManagers)
-  await step(t, 'wait for no peers', () =>
-    Promise.all([
+    // Sync managers to tell Manager B about the server
+    const projects = [managerAProject, managerBProject]
+    log(t, 'waitForSync')
+    await waitForSync(projects, 'initial')
+    const serverPeer = await findServerPeer(managerBProject)
+    assert(serverPeer, 'expected a server peer to be found by the client')
+
+    // Manager A adds data that Manager B doesn't know about
+    log(t, 'disconnect managers')
+    await disconnectManagers()
+    await Promise.all([
       waitForNoPeersToBeConnected(managerA),
       waitForNoPeersToBeConnected(managerB),
     ])
-  )
-  managerAProject.$sync.start()
-  managerAProject.$sync.connectServers()
-  const observation = await managerAProject.observation.create(
-    valueOf(generate('observation')[0])
-  )
-  const serverDeviceId = await serverDeviceIdPromise
-  await step(t, 'A waitForSyncWithServer', () =>
-    waitForSyncWithServer(managerAProject, serverDeviceId)
-  )
-  managerAProject.$sync.disconnectServers()
-  managerAProject.$sync.stop()
-  await assert.rejects(
-    () => managerBProject.observation.getByDocId(observation.docId),
-    "manager B doesn't see observation yet"
-  )
+    managerAProject.$sync.start()
+    managerAProject.$sync.connectServers()
+    const observation = await managerAProject.observation.create(
+      valueOf(generate('observation')[0])
+    )
+    const serverDeviceId = await serverDeviceIdPromise
+    log(t, 'A waitForSyncWithServer')
+    await waitForSyncWithServer(managerAProject, serverDeviceId)
+    managerAProject.$sync.disconnectServers()
+    managerAProject.$sync.stop()
+    await assert.rejects(
+      () => managerBProject.observation.getByDocId(observation.docId),
+      "manager B doesn't see observation yet"
+    )
 
-  // Manager B sees observation after syncing
-  managerBProject.$sync.connectServers()
-  managerBProject.$sync.start()
-  await step(t, 'B waitForSyncWithServer', () =>
-    waitForSyncWithServer(managerBProject, serverDeviceId)
-  )
-  assert(
-    await managerBProject.observation.getByDocId(observation.docId),
-    'manager B now sees data'
-  )
-})
+    // Manager B sees observation after syncing
+    managerBProject.$sync.connectServers()
+    managerBProject.$sync.start()
+    log(t, 'B waitForSyncWithServer')
+    await waitForSyncWithServer(managerBProject, serverDeviceId)
+    assert(
+      await managerBProject.observation.getByDocId(observation.docId),
+      'manager B now sees data'
+    )
+  }
+)
 
 test('add server, remove server, check that it knows it got blocked', async (t) => {
   const manager = createManager('seed', t)
@@ -542,84 +532,80 @@ test('connecting and then immediately disconnecting (and then immediately connec
   )
 })
 
-test('duplicate add server from more than one device', async (t) => {
-  const [managers, { serverBaseUrl }] = await Promise.all([
-    createManagers(2, t, 'mobile'),
-    createTestServer(t),
-  ])
-  const [managerA, managerB] = managers
+test(
+  'duplicate add server from more than one device',
+  { timeout: MULTI_DEVICE_TEST_TIMEOUT },
+  async (t) => {
+    const [managers, { serverBaseUrl }] = await Promise.all([
+      createManagers(2, t, 'mobile'),
+      createTestServer(t),
+    ])
+    const [managerA, managerB] = managers
 
-  // Manager A: create project and add the server to it
-  const projectId = await managerA.createProject({ name: 'foo' })
-  const managerAProject = await managerA.getProject(projectId)
-  t.after(() =>
-    step(t, 'teardown: A disconnectServers', () =>
-      managerAProject.$sync.disconnectServers()
-    )
-  )
+    // Manager A: create project and add the server to it
+    const projectId = await managerA.createProject({ name: 'foo' })
+    const managerAProject = await managerA.getProject(projectId)
+    t.after(() => managerAProject.$sync.disconnectServers())
 
-  // Add Manager B to project
-  const disconnectManagers1 = connectPeers(managers)
-  await step(t, 'waitForPeers (1)', () => waitForPeers(managers))
-  await step(t, 'invite B', () =>
-    invite({
+    // Add Manager B to project
+    const disconnectManagers1 = connectPeers(managers)
+    log(t, 'waitForPeers (1)')
+    await waitForPeers(managers)
+    log(t, 'invite B')
+    await invite({
       invitor: managerA,
       invitees: [managerB],
       projectId,
       roleId: COORDINATOR_ROLE_ID,
     })
-  )
-  const managerBProject = await managerB.getProject(projectId)
-  t.after(() =>
-    step(t, 'teardown: B disconnectServers', () =>
-      managerBProject.$sync.disconnectServers()
+    const managerBProject = await managerB.getProject(projectId)
+    t.after(() => managerBProject.$sync.disconnectServers())
+    await disconnectManagers1()
+
+    // Both managers add the same server without syncing with each other
+    log(t, 'A addServerPeer')
+    await managerAProject.$member.addServerPeer(serverBaseUrl, {
+      dangerouslyAllowInsecureConnections: true,
+    })
+
+    log(t, 'B addServerPeer')
+    await managerBProject.$member.addServerPeer(serverBaseUrl, {
+      dangerouslyAllowInsecureConnections: true,
+    })
+
+    // Sync managers so that duplicate server entries sync
+    const disconnectManagers2 = connectPeers(managers)
+    t.after(disconnectManagers2)
+    log(t, 'waitForPeers (2)')
+    await waitForPeers(managers)
+    const projects = [managerAProject, managerBProject]
+    log(t, 'waitForSync (1)')
+    await waitForSync(projects, 'initial')
+
+    // manager A tries to remove server peer
+    const serverPeerA = await findServerPeer(managerAProject)
+    assert(serverPeerA, 'Manager A must have a server peer')
+    log(t, 'A removeServerPeer')
+    await managerAProject.$member.removeServerPeer(serverPeerA.deviceId, {
+      dangerouslyAllowInsecureConnections: true,
+    })
+
+    // Sync managers so that removal syncs
+    log(t, 'waitForSync (2)')
+    await waitForSync(projects, 'initial')
+
+    const serverPeerInA = await findServerPeer(managerAProject)
+    assert(
+      serverPeerInA?.role.roleId === BLOCKED_ROLE_ID,
+      'server in A is blocked'
     )
-  )
-  await step(t, 'disconnect managers (1)', disconnectManagers1)
-
-  // Both managers add the same server without syncing with each other
-  await step(t, 'A addServerPeer', () =>
-    managerAProject.$member.addServerPeer(serverBaseUrl, {
-      dangerouslyAllowInsecureConnections: true,
-    })
-  )
-
-  await step(t, 'B addServerPeer', () =>
-    managerBProject.$member.addServerPeer(serverBaseUrl, {
-      dangerouslyAllowInsecureConnections: true,
-    })
-  )
-
-  // Sync managers so that duplicate server entries sync
-  const disconnectManagers2 = connectPeers(managers)
-  t.after(() => step(t, 'teardown: disconnect managers', disconnectManagers2))
-  await step(t, 'waitForPeers (2)', () => waitForPeers(managers))
-  const projects = [managerAProject, managerBProject]
-  await step(t, 'waitForSync (1)', () => waitForSync(projects, 'initial'))
-
-  // manager A tries to remove server peer
-  const serverPeerA = await findServerPeer(managerAProject)
-  assert(serverPeerA, 'Manager A must have a server peer')
-  await step(t, 'A removeServerPeer', () =>
-    managerAProject.$member.removeServerPeer(serverPeerA.deviceId, {
-      dangerouslyAllowInsecureConnections: true,
-    })
-  )
-
-  // Sync managers so that removal syncs
-  await step(t, 'waitForSync (2)', () => waitForSync(projects, 'initial'))
-
-  const serverPeerInA = await findServerPeer(managerAProject)
-  assert(
-    serverPeerInA?.role.roleId === BLOCKED_ROLE_ID,
-    'server in A is blocked'
-  )
-  const serverPeerInB = await findServerPeer(managerBProject)
-  assert(
-    serverPeerInB?.role.roleId === BLOCKED_ROLE_ID,
-    'server in B is blocked'
-  )
-})
+    const serverPeerInB = await findServerPeer(managerBProject)
+    assert(
+      serverPeerInB?.role.roleId === BLOCKED_ROLE_ID,
+      'server in B is blocked'
+    )
+  }
+)
 
 /**
  * @typedef {object} LocalTestServer
@@ -655,82 +641,65 @@ async function createRemoteTestServer(t) {
     './node_modules/@comapeo/cloud/',
     comapeoCoreUrl
   )
-  const execaOptions = {
-    cwd: fileURLToPath(comapeoCloudUrl),
-    stdio: /** @type {const} */ ('inherit'),
-    timeout: 3 * 60_000,
-  }
+  const cwd = fileURLToPath(comapeoCloudUrl)
 
-  await step(
-    t,
-    'npm install cloud server',
-    () => execa('npm', ['install', '--omit=dev'], execaOptions),
-    { timeout: 3 * 60_000 }
-  )
+  installCloudServer ??= execa('npm', ['install', '--omit=dev'], {
+    cwd,
+    stdio: 'inherit',
+    timeout: 3 * 60_000,
+  })
+  await installCloudServer
 
   const appName = FLY_APP_PREFIX + Math.random().toString(36).slice(8)
 
-  await step(t, `create fly app ${appName}`, () =>
-    execa(
-      'flyctl',
-      ['apps', 'create', '--name', appName, '--org', 'digidem', '--json'],
-      execaOptions
-    )
-  )
-  t.after(async () => {
-    if (SERVER_LOG_DIR) {
-      try {
-        const { stdout } = await execa(
-          'flyctl',
-          ['logs', '--app', appName, '--no-tail'],
-          { ...execaOptions, stdio: 'pipe', timeout: 30_000 }
-        )
-        await fsPromises.mkdir(SERVER_LOG_DIR, { recursive: true })
-        await fsPromises.writeFile(
-          path.join(SERVER_LOG_DIR, `${appName}.log`),
-          `# ${t.name}\n${stdout}`
-        )
-      } catch (err) {
-        console.error(`Failed to save logs for ${appName}`, err)
-      }
-    }
-    await execa('flyctl', ['apps', 'destroy', appName, '-y'], execaOptions)
-  })
+  /**
+   * @param {string[]} args
+   * @param {number} [timeout]
+   */
+  const flyctl = (args, timeout = 3 * 60_000) => {
+    log(t, `flyctl ${args.join(' ')}`)
+    return execa('flyctl', args, { cwd, stdio: 'inherit', timeout })
+  }
 
-  await step(t, 'set fly secrets', () =>
-    execa(
-      'flyctl',
-      ['secrets', 'set', 'SERVER_BEARER_TOKEN=ignored', '--app', appName],
-      execaOptions
-    )
-  )
+  await flyctl([
+    'apps',
+    'create',
+    '--name',
+    appName,
+    '--org',
+    'digidem',
+    '--json',
+  ])
+  if (!CI_FLY_APP_PREFIX) {
+    t.after(() => flyctl(['apps', 'destroy', appName, '-y']))
+  }
+  await flyctl([
+    'secrets',
+    'set',
+    'SERVER_BEARER_TOKEN=ignored',
+    '--app',
+    appName,
+  ])
 
   // Fly's registry sometimes 404s the image push for a newly created app
   const deployAttempts = 3
   for (let attempt = 1; ; attempt++) {
     try {
-      await step(
-        t,
-        `fly deploy (attempt ${attempt})`,
-        () =>
-          execa(
-            'flyctl',
-            [
-              'deploy',
-              '--app',
-              appName,
-              '--vm-memory',
-              '512',
-              '--wait-timeout',
-              '3m',
-              '-e',
-              'SERVER_NAME=test server',
-              '-e',
-              'DEBUG=mapeo:*',
-            ],
-            { ...execaOptions, timeout: 6 * 60_000 }
-          ),
-        { timeout: 6 * 60_000 }
+      await flyctl(
+        [
+          'deploy',
+          '--app',
+          appName,
+          '--vm-memory',
+          '512',
+          '--wait-timeout',
+          '3m',
+          '-e',
+          'SERVER_NAME=test server',
+          '-e',
+          'DEBUG=mapeo:*',
+        ],
+        6 * 60_000
       )
       break
     } catch (err) {
@@ -741,6 +710,9 @@ async function createRemoteTestServer(t) {
 
   return { type: 'remote', serverBaseUrl: `https://${appName}.fly.dev/` }
 }
+
+/** @type {undefined | Promise<unknown>} */
+let installCloudServer
 
 /**
  * @param {import('node:test').TestContext} t
@@ -782,32 +754,14 @@ async function createLocalTestServer(t) {
 }
 
 /**
- * node:test prints a test's result only after its after-hooks finish, so these
- * live stderr lines are the only record of where a hung test stopped.
+ * node:test prints a test's output only once it has finished, so these live
+ * lines are the only record of where a hung test stopped.
  *
- * @template T
  * @param {import('node:test').TestContext} t
- * @param {string} label
- * @param {() => T | PromiseLike<T>} fn
- * @param {object} [opts]
- * @param {number} [opts.timeout]
- * @returns {Promise<T>}
+ * @param {string} message
  */
-async function step(t, label, fn, { timeout = STEP_TIMEOUT_MS } = {}) {
-  const name = `[${t.name}] ${label}`
-  const start = Date.now()
-  console.error(`${new Date().toISOString()} step start: ${name}`)
-  try {
-    const result = await pTimeout(Promise.resolve(fn()), {
-      milliseconds: timeout,
-      message: `Step timed out after ${timeout}ms: ${name}`,
-    })
-    console.error(`step done (${Date.now() - start}ms): ${name}`)
-    return result
-  } catch (err) {
-    console.error(`step FAILED (${Date.now() - start}ms): ${name}`)
-    throw err
-  }
+function log(t, message) {
+  process.stderr.write(`${new Date().toISOString()} [${t.name}] ${message}\n`)
 }
 
 /**
@@ -848,9 +802,10 @@ function waitForNoPeersToBeConnected(manager) {
 async function waitForSyncWithServer(project, serverDeviceId) {
   const initialState = project.$sync.getState()
   if (isSyncedWithServer(initialState, serverDeviceId)) return
-  await pEvent(project.$sync, 'sync-state', (state) =>
-    isSyncedWithServer(state, serverDeviceId)
-  )
+  await pEvent(project.$sync, 'sync-state', {
+    filter: (state) => isSyncedWithServer(state, serverDeviceId),
+    timeout: 60_000,
+  })
 }
 
 /**
