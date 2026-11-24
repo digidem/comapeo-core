@@ -1,18 +1,13 @@
-# Runs test-e2e/server.js against real comapeo-cloud servers deployed to Fly.
-# The in-process server misses bugs this catches, but each run deploys several
-# Fly apps, so it runs on main, nightly, on demand, and on PRs labelled
-# `server-test`.
+# Runs test-e2e/server.js against real comapeo-cloud servers deployed to Fly,
+# which catches bugs that the in-process server misses.
 
 name: Server e2e cloud test
 
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: '30 4 * * *'
-  workflow_dispatch:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,10 +18,8 @@ defaults:
     shell: bash
 
 jobs:
-  # Job id is `build` because main's branch protection requires a check of that
-  # name; a job skipped by `if` counts as passing.
+  # Job id is `build` because main's branch protection requires a check of that name
   build:
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'server-test')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -70,31 +63,3 @@ jobs:
           name: server-test-logs-${{ github.run_attempt }}
           path: server-test-logs
           if-no-files-found: ignore
-
-  report:
-    needs: build
-    if: failure() && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-    steps:
-      - name: Open or update the tracking issue
-        run: |
-          label=server-test-failure
-          gh label create "$label" --color B60205 \
-            --description 'Server e2e cloud test failed on main or nightly' 2>/dev/null || true
-          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          line="- Failed on $GITHUB_EVENT_NAME (${GITHUB_SHA::7}): $run_url"
-          issue=$(gh issue list --label "$label" --state open --json number --jq '.[0].number // empty')
-          if [ -n "$issue" ]; then
-            gh issue comment "$issue" --body "$line"
-          else
-            gh issue create --label "$label" \
-              --title 'test: server e2e cloud test is failing' \
-              --body "The Fly server e2e test failed. Each further failure adds a comment here; close this once it's fixed and the next failure opens a new issue.
-
-          $line"
-          fi
