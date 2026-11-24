@@ -9,7 +9,11 @@ import { InviteLinkJoiner } from '../src/invite/invite-link-joiner.js'
 import { makeInviteURL } from '../src/invite/invite-urls.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { MockInviteLinkRPC } from './helpers/invite-link-rpc.js'
-import { ensureKnownError, InviteExpiredError } from '../src/errors.js'
+import {
+  ensureKnownError,
+  InviteExpiredError,
+  ExistingJoinRequestError,
+} from '../src/errors.js'
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
 /** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
@@ -196,10 +200,12 @@ test('happy path: connect, redeem, accept, complete', async () => {
   // Verify disconnect was NOT called on happy path
   assert.equal(mockRpc.disconnectCalls.length, 0)
 
-  // Verify join request is removed from pending
-  assert.throws(() => joiner.getJoinRequestById(ctx.inviteId.toString('hex')), {
-    code: 'JOIN_REQUEST_NOT_FOUND_ERROR',
-  })
+  // Completed requests persist in pending until the next createJoinRequest
+  const completed = joiner.getJoinRequestById(ctx.inviteId.toString('hex'))
+  assert.equal(completed.status, 'completed')
+  assert.equal(completed.projectId, ctx.projectId)
+  assert.equal(joiner.getJoinRequests().length, 1)
+  assert.equal(joiner.getJoinRequests()[0].status, 'completed')
 
   ctx.connection.end()
 })
@@ -274,6 +280,12 @@ test('deny: inviter denies the invite', async () => {
   assert.equal(lastError, failedUpdate.error)
   assert.equal(lastError.code, 'INVITE_DENIED_BY_INVITER_ERROR')
 
+  // Failed requests persist in pending until the next createJoinRequest
+  const failed = joiner.getJoinRequestById(ctx.inviteId.toString('hex'))
+  assert.equal(failed.status, 'failed')
+  assert.ok(failed.error)
+  assert.equal(joiner.getJoinRequests().length, 1)
+
   ctx.connection.end()
 })
 
@@ -343,4 +355,128 @@ test('connection close: peer disconnects before invite arrives', async () => {
   assert.ok(lastError)
   assert.equal(lastError, failedUpdate.error)
   assert.equal(lastError.code, 'INVITE_CONNECTION_ERROR')
+})
+
+test('finished requests are cleared when a new invite starts', async () => {
+  const ctxA = makeTestContext()
+  const ctxB = makeTestContext()
+  const connections = new Map([
+    [ctxA.swarmPublicKey.toString('hex'), ctxA.connection],
+    [ctxB.swarmPublicKey.toString('hex'), ctxB.connection],
+  ])
+  const inviteApi = new MockInviteApi({ projectId: ctxB.projectId })
+  const mockRpc = new MockInviteLinkRPC({ inviteApi })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async (swarmHex) => {
+      const c = connections.get(swarmHex)
+      assert.ok(c)
+      return c
+    },
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  const inviteIdA = ctxA.inviteId.toString('hex')
+  const inviteIdB = ctxB.inviteId.toString('hex')
+
+  // Request A completes and stays in pending
+  const onCompletedA = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: (u) => u.inviteId === inviteIdA && u.status === 'completed',
+  })
+  joiner.createJoinRequest(ctxA.url)
+  await onCompletedA
+  assert.ok(
+    joiner
+      .getJoinRequests()
+      .some((r) => r.inviteId === inviteIdA && r.status === 'completed')
+  )
+
+  // Request B (different invite) starts and clears the finished A synchronously
+  const onCompletedB = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: (u) => u.inviteId === inviteIdB && u.status === 'completed',
+  })
+  joiner.createJoinRequest(ctxB.url)
+
+  assert.ok(!joiner.getJoinRequests().some((r) => r.inviteId === inviteIdA))
+  assert.ok(
+    joiner
+      .getJoinRequests()
+      .some((r) => r.inviteId === inviteIdB && r.status === 'connecting')
+  )
+
+  await onCompletedB
+  assert.deepEqual(
+    joiner.getJoinRequests().map((r) => r.inviteId),
+    [inviteIdB]
+  )
+})
+
+test('a new join request is allowed for the same invite after a previous failure', async () => {
+  const ctx = makeTestContext()
+  const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
+  const mockRpc = new MockInviteLinkRPC({
+    inviteApi,
+    denyReason: 'invitor_denied',
+  })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  const inviteId = ctx.inviteId.toString('hex')
+
+  const onFailed = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'failed',
+  })
+  joiner.createJoinRequest(ctx.url)
+  await onFailed
+  assert.equal(joiner.getJoinRequestById(inviteId).status, 'failed')
+
+  // Re-clicking the same link now starts a fresh request instead of throwing
+  const fresh = joiner.createJoinRequest(ctx.url)
+  assert.equal(fresh.status, 'connecting')
+  assert.equal(fresh.inviteId, inviteId)
+
+  joiner.cancelJoinRequest(inviteId)
+  ctx.connection.end()
+})
+
+test('an in-flight request for the same invite is not cleared', async () => {
+  const ctx = makeTestContext()
+  const inviteApi = new MockInviteApi({ projectId: ctx.projectId })
+  const mockRpc = new MockInviteLinkRPC({ inviteApi, noResponse: true })
+
+  const joiner = new InviteLinkJoiner({
+    connectPeer: async () => ctx.connection,
+    inviteApi: /** @type {InviteApi} */ (/** @type {unknown} */ (inviteApi)),
+    inviteLinkRPC: /** @type {any} */ (mockRpc),
+    getDeviceInfo: async () => ({ name: 'invitee' }),
+  })
+
+  const inviteId = ctx.inviteId.toString('hex')
+
+  // Stays in-flight because the mock never responds
+  const onConnected = pEvent(joiner, 'join-request-update', {
+    timeout: 1000,
+    filter: ({ status }) => status === 'connected',
+  })
+  joiner.createJoinRequest(ctx.url)
+  await onConnected
+
+  // Only failed/completed are cleared, so the in-flight one is still guarded
+  assert.throws(
+    () => joiner.createJoinRequest(ctx.url),
+    ExistingJoinRequestError
+  )
+  assert.equal(joiner.getJoinRequestById(inviteId).status, 'connected')
+
+  ctx.connection.destroy()
 })

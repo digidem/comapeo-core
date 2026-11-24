@@ -137,6 +137,10 @@ export class InviteLinkJoiner extends TypedEmitter {
   /**
    * Create and start a join request from an invite URL.
    *
+   * Any previously finished (`failed` or `completed`) join requests are
+   * cleared first; only in-flight requests remain, so an in-flight request
+   * for the same invite ID will still throw `ExistingJoinRequestError`.
+   *
    * @param {string} url Invite URL
    * @param {object} [opts]
    * @param {number} [opts.timeout] Connection timeout in ms
@@ -150,6 +154,10 @@ export class InviteLinkJoiner extends TypedEmitter {
       throw new InviteExpiredError()
     }
     const inviteId = parsed.inviteIdString
+
+    // Clear any finished (failed/completed) requests so a re-click on a link
+    // whose previous attempt finished can start a fresh attempt.
+    this.#clearFinishedPending()
 
     if (this.#pending.has(inviteId)) {
       throw new ExistingJoinRequestError({ inviteId })
@@ -305,8 +313,23 @@ export class InviteLinkJoiner extends TypedEmitter {
           // ignore disconnect errors
         }
       }
-    } finally {
-      this.#pending.delete(inviteIdString)
+    }
+  }
+
+  /**
+   * Remove finished (`failed` or `completed`) join requests from pending.
+   * In-flight requests are left untouched.
+   *
+   * @returns {void}
+   */
+  #clearFinishedPending() {
+    for (const [inviteId, pending] of this.#pending) {
+      if (
+        pending.joinRequest.status === 'failed' ||
+        pending.joinRequest.status === 'completed'
+      ) {
+        this.#pending.delete(inviteId)
+      }
     }
   }
 
@@ -340,7 +363,9 @@ export class InviteLinkJoiner extends TypedEmitter {
   }
 
   /**
-   * Get all active (in-flight) join requests.
+   * Get all join requests — in-flight ones plus any that finished
+   * (`failed`/`completed`) but have not yet been cleared by a new
+   * {@link InviteLinkJoiner.createJoinRequest}.
    *
    * @returns {JoinRequest[]}
    */
