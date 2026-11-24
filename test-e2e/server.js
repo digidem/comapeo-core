@@ -705,29 +705,39 @@ async function createRemoteTestServer(t) {
     )
   )
 
-  await step(
-    t,
-    'fly deploy',
-    () =>
-      execa(
-        'flyctl',
-        [
-          'deploy',
-          '--app',
-          appName,
-          '--vm-memory',
-          '512',
-          '--wait-timeout',
-          '3m',
-          '-e',
-          'SERVER_NAME=test server',
-          '-e',
-          'DEBUG=mapeo:*',
-        ],
-        { ...execaOptions, timeout: 6 * 60_000 }
-      ),
-    { timeout: 6 * 60_000 }
-  )
+  // Fly's registry sometimes 404s the image push for a newly created app
+  const deployAttempts = 3
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await step(
+        t,
+        `fly deploy (attempt ${attempt})`,
+        () =>
+          execa(
+            'flyctl',
+            [
+              'deploy',
+              '--app',
+              appName,
+              '--vm-memory',
+              '512',
+              '--wait-timeout',
+              '3m',
+              '-e',
+              'SERVER_NAME=test server',
+              '-e',
+              'DEBUG=mapeo:*',
+            ],
+            { ...execaOptions, timeout: 6 * 60_000 }
+          ),
+        { timeout: 6 * 60_000 }
+      )
+      break
+    } catch (err) {
+      if (attempt >= deployAttempts) throw err
+      await delay(10_000)
+    }
+  }
 
   return { type: 'remote', serverBaseUrl: `https://${appName}.fly.dev/` }
 }
