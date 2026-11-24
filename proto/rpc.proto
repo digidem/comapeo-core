@@ -13,6 +13,7 @@ message Invite {
   optional string projectDescription = 8;
   bool sendStats = 9;
   bool invitorWroteDeviceInfo = 10;
+  bool leaveOnFail = 11;
 }
 
 message InviteCancel {

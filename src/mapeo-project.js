@@ -3,11 +3,6 @@ import Database from 'better-sqlite3'
 import { decodeBlockPrefix, decode, parseVersionId } from '@comapeo/schema'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { sql, count, eq } from 'drizzle-orm'
-import ZipArchive from 'zip-stream-promise'
-import * as b4a from 'b4a'
-import mime from 'mime/lite'
-// @ts-expect-error
-import { Readable, pipelinePromise } from 'streamx'
 
 import { NAMESPACES, NAMESPACE_SCHEMAS } from './constants.js'
 import { CoreManager } from './core-manager/index.js'
@@ -21,6 +16,7 @@ import { BlobStore } from './blob-store/index.js'
 import { BlobApi } from './blob-api.js'
 import { IndexWriter } from './index-writer/index.js'
 import { projectSettingsTable } from './schema/client.js'
+import { DataExporter } from './data-exporter.js'
 import {
   coreOwnershipTable,
   deviceInfoTable,
@@ -40,7 +36,6 @@ import {
 } from './core-ownership.js'
 import { BLOCKED_ROLE_ID, Roles, LEFT_ROLE_ID } from './roles.js'
 import {
-  buildBlobId,
   getDeviceId,
   noop,
   projectKeyToId,
@@ -49,6 +44,7 @@ import {
 } from './utils.js'
 import { migrate } from './lib/drizzle-helpers.js'
 import { omit } from './lib/omit.js'
+import { InviteLinksApiForProject } from './invite/invite-links-api.js'
 import { MemberApi } from './member-api.js'
 import {
   SyncApi,
@@ -66,29 +62,23 @@ import {
   NotFoundError,
   ExhaustivenessError,
   nullIfNotFound,
-  GeoJSONExportError,
   MultipleCategoryImportsError,
   UnexpectedDocSchemaError,
+  ProjectLeftError,
 } from './errors.js'
 import { WebSocket } from 'ws'
-import fs from 'node:fs'
 
 import ensureError from 'ensure-error'
 import ReadyResource from 'ready-resource'
 
 /** @import { MapShareExtension } from './generated/extensions.js' */
 /** @import { ProjectSettingsValue, Observation, Track } from '@comapeo/schema' */
-/** @import { Attachment, CoreStorage, BlobFilter, BlobId, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
+/** @import { CoreStorage, BlobFilter, BlobStoreEntriesStream, KeyPair, Namespace, ReplicationStream, GenericBlobFilter, MapeoValueMap, MapeoDocMap } from './types.js' */
 /** @import {Role} from './roles.js' */
 /** @import { TypedEmitter } from 'tiny-typed-emitter' */
 
 /** @typedef {Omit<ProjectSettingsValue, 'schemaName'>} EditableProjectSettings */
 /** @typedef {ProjectSettingsValue['configMetadata']} ConfigMetadata */
-/** @typedef {Map<string,Attachment>} SeenAttachments*/
-/** @typedef {object} BlobRef
- * @prop {string|undefined} mimeType
- * @prop {BlobId} blobId
- */
 /**
  * @typedef {Object} Stats
  * @property {string[]} columns
@@ -114,12 +104,7 @@ export const kProjectLeave = Symbol('leave project')
 export const kClearData = Symbol('clear project data')
 export const kSetIsArchiveDevice = Symbol('set isArchiveDevice')
 export const kIsArchiveDevice = Symbol('isArchiveDevice (temp - test only)')
-export const kGeoJSONFileName = Symbol('geoJSONFileName')
-
 const EMPTY_PROJECT_SETTINGS = Object.freeze({ sendStats: false })
-
-/** @type BlobId['variant'][]*/
-const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
 
 /**
  * @typedef RoleChangeEvent
@@ -135,15 +120,37 @@ const VARIANT_EXPORT_ORDER = ['original', 'preview', 'thumbnail']
 /**
  * @type {ReadyResource & TypedEmitter<ProjectEvents>}
  */
+
+/**
+ * @template T
+ * @param {T} target
+ * @returns {T}
+ */
+function createProjectLeftMock(target) {
+  return /** @type {T} */ (
+    new Proxy(/** @type {object} */ (target), {
+      get(obj, prop) {
+        const value = Reflect.get(obj, prop)
+        if (typeof value === 'function') {
+          return () => Promise.reject(new ProjectLeftError())
+        }
+        return value
+      },
+    })
+  )
+}
+
 export class MapeoProject extends ReadyResource {
   #projectKey
   #deviceId
+  #getSwarmPublicKey
   #identityKeypair
   #coreManager
   #indexWriter
   #dataStores
   #dataTypes
   #blobStore
+  #blobApi
   #coreOwnership
   #roles
   #sqlite
@@ -153,9 +160,13 @@ export class MapeoProject extends ReadyResource {
   #syncApi
   /** @type {TranslationApi} */
   #translationApi
+  /** @type {DataExporter} */
+  #dataExporter
   #l
   /** @type {Boolean} this avoids loading multiple configs in parallel */
   #importingCategories
+  /** @type {Boolean} */
+  #hasLeft = false
 
   static EMPTY_PROJECT_SETTINGS = EMPTY_PROJECT_SETTINGS
   #getFallbackProjectInfo
@@ -164,8 +175,9 @@ export class MapeoProject extends ReadyResource {
    * @param {Object} opts
    * @param {string} opts.dbPath Path to store project sqlite db. Use `:memory:` for memory storage
    * @param {string} opts.projectMigrationsFolder path for drizzle migration folder for project
-   * @param {import('@mapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
+   * @param {import('@comapeo/crypto').KeyManager} opts.keyManager mapeo/crypto KeyManager instance
    * @param {Buffer} opts.projectKey 32-byte public key of the project creator core
+   * @param {() => Buffer} opts.getSwarmPublicKey Get the current 32 byte public key used for hyperswarm connections
    * @param {Buffer} [opts.projectSecretKey] 32-byte secret key of the project creator core
    * @param {import('./generated/keys.js').EncryptionKeys} opts.encryptionKeys Encryption keys for each namespace
    * @param {import('drizzle-orm/better-sqlite3').BetterSQLite3Database} opts.sharedDb
@@ -174,6 +186,8 @@ export class MapeoProject extends ReadyResource {
    * @param {(mediaType: 'blobs' | 'icons') => Promise<string>} opts.getMediaBaseUrl
    * @param {(url: string) => WebSocket} [opts.makeWebsocket]
    * @param {import('./local-peers.js').LocalPeers} opts.localPeers
+   * @param {import('./invite/invite-links-api.js').InviteLinksApi} opts.inviteLinks
+   * @param {import('./invite/invite-link-rpc.js').InviteLinkRPC} opts.inviteLinkRPC
    * @param {boolean} opts.isArchiveDevice Whether this device is an archive device
    * @param {() => import('./schema/client.js').ProjectInfo | undefined} opts.getFallbackProjectInfo
    * @param {Logger} [opts.logger]
@@ -192,14 +206,18 @@ export class MapeoProject extends ReadyResource {
     getMediaBaseUrl,
     makeWebsocket = (url) => new WebSocket(url),
     localPeers,
+    inviteLinks,
+    inviteLinkRPC,
     logger,
     isArchiveDevice,
     getFallbackProjectInfo,
+    getSwarmPublicKey,
   }) {
     super()
 
     this.#l = Logger.create('project', logger)
     this.#deviceId = getDeviceId(keyManager)
+    this.#getSwarmPublicKey = getSwarmPublicKey
     this.#projectKey = projectKey
     this.#importingCategories = false
     this.#getFallbackProjectInfo = getFallbackProjectInfo
@@ -319,9 +337,15 @@ export class MapeoProject extends ReadyResource {
 
     /** @type {typeof TranslationApi.prototype.get} */
     const getTranslations = (...args) => this.$translation.get(...args)
-    /** @type {(versionId: string) => Promise<string>} */
-    const getDeviceIdForVersionId = (...args) =>
-      this.$originalVersionIdToDeviceId(...args)
+    /** @type {(versionId: string) => Promise<string | undefined>} */
+    const getDeviceIdForVersionId = async (...args) => {
+      try {
+        return this.$originalVersionIdToDeviceId(...args)
+      } catch (e) {
+        if (e instanceof NotFoundError) return undefined // core/ownership not synced yet
+        throw e
+      }
+    }
 
     this.#dataTypes = {
       observation: new DataType({
@@ -366,19 +390,16 @@ export class MapeoProject extends ReadyResource {
         dataStore: this.#dataStores.auth,
         table: coreOwnershipTable,
         db,
-        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       role: new DataType({
         dataStore: this.#dataStores.auth,
         table: roleTable,
         db,
-        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       deviceInfo: new DataType({
         dataStore: this.#dataStores.config,
         table: deviceInfoTable,
         db,
-        getDeviceIdForVersionId: () => Promise.resolve(''),
       }),
       icon: new DataType({
         dataStore: this.#dataStores.config,
@@ -415,18 +436,36 @@ export class MapeoProject extends ReadyResource {
     this.#memberApi = new MemberApi({
       deviceId: this.#deviceId,
       roles: this.#roles,
-      coreOwnership: this.#coreOwnership,
       encryptionKeys,
-      getProjectName: this.#getProjectName.bind(this),
       projectKey,
       rpc: localPeers,
+      inviteLinks: new InviteLinksApiForProject(
+        this.#projectPublicId,
+        inviteLinks
+      ),
+      inviteLinkRPC,
+      getSwarmPublicKey: this.#getSwarmPublicKey,
       makeWebsocket,
       getReplicationStream,
       waitForInitialSyncWithPeer: (deviceId, abortSignal) =>
         this.$sync[kWaitForInitialSyncWithPeer](deviceId, abortSignal),
-      dataTypes: {
-        deviceInfo: this.#dataTypes.deviceInfo,
-        project: this.#dataTypes.projectSettings,
+      getProjectSettings: () => this.$getProjectSettings(),
+      getDeviceInfo: async (deviceId) => {
+        try {
+          return await this.#dataTypes.deviceInfo.getByDocId(deviceId)
+        } catch (e) {
+          const configCoreId = await this.#coreOwnership.getCoreId(
+            deviceId,
+            'config'
+          )
+          return this.#dataTypes.deviceInfo.getByDocId(configCoreId)
+        }
+      },
+      setDeviceInfo: async (deviceId, deviceInfo) => {
+        await this.#dataTypes.deviceInfo[kCreateOrUpdateWithDocId](
+          deviceId,
+          deviceInfo
+        )
       },
       logger: this.#l,
     })
@@ -445,7 +484,7 @@ export class MapeoProject extends ReadyResource {
       console.error('BlobStore error', e)
     })
 
-    this.$blobs = new BlobApi({
+    this.#blobApi = new BlobApi({
       blobStore: this.#blobStore,
       getMediaBaseUrl: async () => {
         let base = await getMediaBaseUrl('blobs')
@@ -497,6 +536,16 @@ export class MapeoProject extends ReadyResource {
 
     this.#translationApi = new TranslationApi({
       dataType: this.#dataTypes.translation,
+    })
+
+    this.#dataExporter = new DataExporter({
+      observations: this.#dataTypes.observation,
+      tracks: this.#dataTypes.track,
+      presets: this.#dataTypes.preset,
+      deviceInfo: this.#dataTypes.deviceInfo,
+      getProjectName: this.#getProjectName.bind(this),
+      blobStore: this.#blobStore,
+      logger: this.#l,
     })
 
     ///////// 5. Replicate local peers automatically
@@ -600,9 +649,11 @@ export class MapeoProject extends ReadyResource {
   }
 
   /**
+   * Clear up resources via ready-resource
    */
   async _close() {
     this.#l.log('closing project %h', this.#projectId)
+    await this.#memberApi.close()
     const dataStorePromises = []
     for (const dataStore of Object.values(this.#dataStores)) {
       dataStorePromises.push(dataStore.close())
@@ -612,8 +663,6 @@ export class MapeoProject extends ReadyResource {
     await this.#coreManager.close()
 
     this.#sqlite.close()
-
-    this.emit('close')
   }
 
   /**
@@ -668,23 +717,36 @@ export class MapeoProject extends ReadyResource {
   }
 
   get observation() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.observation)
     return this.#dataTypes.observation
   }
   get track() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.track)
     return this.#dataTypes.track
   }
   get preset() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.preset)
     return this.#dataTypes.preset
   }
   get field() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#dataTypes.field)
     return this.#dataTypes.field
   }
 
   get remoteDetectionAlert() {
+    if (this.#hasLeft) {
+      return createProjectLeftMock(this.#dataTypes.remoteDetectionAlert)
+    }
     return this.#dataTypes.remoteDetectionAlert
   }
 
+  get $blobs() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#blobApi)
+    return this.#blobApi
+  }
+
   get $member() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#memberApi)
     return this.#memberApi
   }
 
@@ -693,6 +755,7 @@ export class MapeoProject extends ReadyResource {
   }
 
   get $translation() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#translationApi)
     return this.#translationApi
   }
 
@@ -701,6 +764,7 @@ export class MapeoProject extends ReadyResource {
    * @returns {Promise<EditableProjectSettings>}
    */
   async $setProjectSettings(settings) {
+    if (this.#hasLeft) throw new ProjectLeftError()
     const { projectSettings } = this.#dataTypes
 
     const existing = await projectSettings
@@ -815,7 +879,7 @@ export class MapeoProject extends ReadyResource {
         /** @param {Buffer} discoveryKey */
         ondiscoverykey: async (discoveryKey) => {
           const protomux =
-            /** @type {import('protomux')<import('@hyperswarm/secret-stream')>} */ (
+            /** @type {import('./local-peers.js').PeerProtomux} */ (
               replicationStream.noiseStream.userData
             )
           this.#syncApi[kHandleDiscoveryKey](discoveryKey, protomux)
@@ -864,6 +928,7 @@ export class MapeoProject extends ReadyResource {
    * @returns {import('./icon-api.js').IconApi}
    */
   get $icons() {
+    if (this.#hasLeft) return createProjectLeftMock(this.#iconApi)
     return this.#iconApi
   }
 
@@ -890,256 +955,7 @@ export class MapeoProject extends ReadyResource {
   }
 
   /**
-   * @param {Iterable<Observation>} observations
-   * @param {Object} options
-   * @param {Set<string>} [options.seenObservations=new Set()]
-   * @param {SeenAttachments} [options.seenAttachments]
-   * @returns {AsyncIterable<Buffer | Uint8Array>}
-   */
-  async *#exportObservations(
-    observations,
-    { seenObservations = new Set(), seenAttachments = new Map() }
-  ) {
-    let first = true
-    for (const observation of observations) {
-      const { lat, lon, docId } = observation
-      if (seenObservations.has(docId)) {
-        continue
-      }
-      seenObservations.add(docId)
-      for (const attachment of observation.attachments) {
-        const { hash } = attachment
-        if (!seenAttachments.has(hash)) {
-          seenAttachments.set(hash, attachment)
-        }
-      }
-
-      const metadataCoords = observation.metadata?.position?.coords
-      const altitude = metadataCoords?.altitude
-
-      /** @type {[number, number] | [number, number, number] | null} */
-      let coordinates = null
-
-      // Prioritize using the observation's `lat` and `lon` fields
-      if (typeof lat === 'number' && typeof lon === 'number') {
-        coordinates =
-          typeof altitude === 'number' ? [lon, lat, altitude] : [lon, lat]
-      } else {
-        // Fall back to using the observation metadata's position if possible
-        if (
-          typeof metadataCoords?.latitude === 'number' &&
-          typeof metadataCoords?.longitude === 'number'
-        ) {
-          coordinates =
-            typeof altitude === 'number'
-              ? [metadataCoords.longitude, metadataCoords.latitude, altitude]
-              : [metadataCoords.longitude, metadataCoords.latitude]
-        }
-      }
-
-      /** @type {import('geojson').Feature<import('geojson').Point | null>} */
-      const feature = {
-        type: 'Feature',
-        properties: observation,
-        geometry: coordinates
-          ? {
-              type: 'Point',
-              coordinates,
-            }
-          : null,
-      }
-      const comma = first ? '' : ','
-      first = false
-      yield b4a.from(`${comma}\n      ` + JSON.stringify(feature))
-    }
-  }
-
-  /**
-   * @param {Iterable<Track>} tracks
-   * @param {Object} options
-   * @param {Set<string>} [options.seenObservations=new Set()]
-   * @param {SeenAttachments} [options.seenAttachments]
-   * @param {string} [options.lang]
-   * @returns {AsyncIterable<Buffer | Uint8Array>}
-   */
-  async *#exportTracks(
-    tracks,
-    { lang, seenObservations = new Set(), seenAttachments = new Map() } = {}
-  ) {
-    let first = true
-    for (const track of tracks) {
-      const { observationRefs } = track
-
-      const observations = await Promise.all(
-        observationRefs.map(({ docId }) =>
-          this.#dataTypes.observation.getByDocId(docId, { lang })
-        )
-      )
-
-      /** @type {([number, number] | [number, number, number])[]} */
-      const coordinates = track.locations.map(
-        ({ coords: { longitude, latitude, altitude } }) =>
-          typeof altitude === 'number'
-            ? [longitude, latitude, altitude]
-            : [longitude, latitude]
-      )
-      const comma = first ? '' : ','
-      first = false
-      yield b4a.from(
-        `${comma}\n      ` +
-          JSON.stringify({
-            type: 'Feature',
-            properties: track,
-            geometry: {
-              type: 'LineString',
-              coordinates,
-            },
-          }) +
-          '\n'
-      )
-
-      let firstObs = true
-      for await (const chunk of this.#exportObservations(observations, {
-        seenObservations,
-        seenAttachments,
-      })) {
-        if (firstObs) {
-          yield b4a.from(',')
-          firstObs = false
-        }
-        yield chunk
-      }
-    }
-  }
-
-  /**
-   * @param {Object} [options={}]
-   * @param {boolean} [options.observations=true] Whether observations should be exported
-   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
-   * @param {SeenAttachments} [options.seenAttachments]
-   * @param {string} [options.lang]
-   * @returns {AsyncIterable<Buffer | Uint8Array>}
-   */
-  async *#exportGeoJSONIterator({
-    observations = true,
-    tracks = true,
-    lang,
-    seenAttachments = new Map(),
-  } = {}) {
-    yield b4a.from(`{
-  "type": "FeatureCollection",
-  "features": [
-`)
-
-    const seenObservations = new Set()
-
-    let hadTracks = false
-    if (tracks) {
-      const rows = await this.#dataTypes.track.getMany({ lang })
-      for await (const chunk of this.#exportTracks(rows, {
-        lang,
-        seenObservations,
-        seenAttachments,
-      })) {
-        hadTracks = true
-        yield chunk
-      }
-    }
-
-    if (observations) {
-      if (hadTracks) {
-        yield b4a.from(',')
-      }
-      const rows = await this.#dataTypes.observation.getMany({ lang })
-      yield* this.#exportObservations(rows, {
-        seenObservations,
-        seenAttachments,
-      })
-    }
-
-    yield b4a.from(`
-  ]
-}
-`)
-  }
-
-  /**
-   * Export observations and or tracks as a stream of GeoJSON data
-   * @param {Object} [options={}]
-   * @param {boolean} [options.observations=true] Whether observations should be exported
-   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
-   * @param {SeenAttachments} [options.seenAttachments]
-   * @param {string} [options.lang]
-   * @returns {Readable<Buffer | Uint8Array>}
-   */
-  #exportGeoJSONStream({
-    observations = true,
-    tracks = true,
-    lang,
-    seenAttachments = new Map(),
-  } = {}) {
-    // Format based on https://doc.arcgis.com/en/arcgis-online/reference/geojson.htm
-
-    return Readable.from(
-      this.#exportGeoJSONIterator({
-        observations,
-        tracks,
-        lang,
-        seenAttachments,
-      })
-    )
-  }
-
-  /**
-   *
-   * @param {string} type Type of export this will be
-   * @returns {Promise<string>}
-   */
-  async #exportPrefix(type = '') {
-    const name = await this.#getProjectName()
-    const date = new Date()
-    const yyyy = date.getFullYear()
-    const mm = `${date.getMonth() + 1}`.padStart(2, '0')
-    const dd = `${date.getDate()}`.padStart(2, '0')
-    return `CoMapeo_${name}_${type}_${yyyy}_${mm}_${dd}`
-  }
-
-  /**
-   * @param {boolean} observations
-   * @param {boolean} tracks
-   * @returns {Promise<string>}
-   */
-  async [kGeoJSONFileName](observations, tracks) {
-    let exportType = ''
-    if (observations) exportType += 'Obsvns'
-    if (tracks) {
-      if (observations) exportType += '_'
-      exportType += 'Tracks'
-    }
-    const prefix = await this.#exportPrefix(exportType)
-
-    return prefix + '.geojson'
-  }
-
-  /**
-   * @param {boolean} observations
-   * @param {boolean} tracks
-   * @returns {Promise<string>}
-   */
-  async #zipFileName(observations, tracks) {
-    let exportType = ''
-    if (observations) exportType += 'Obsvns'
-    if (tracks) {
-      if (observations) exportType += '_'
-      exportType += 'Tracks'
-    }
-    const prefix = await this.#exportPrefix(exportType)
-
-    return prefix + '.zip'
-  }
-
-  /**
-   * Export observations and or tracks as a GeoJSON file
+   * Export observations and/or tracks as a GeoJSON file
    * @param {string} exportFolder Path to save the file. The file name is auto-generated
    * @param {Object} [options={}]
    * @param {boolean} [options.observations=true] Whether observations should be exported
@@ -1151,167 +967,16 @@ export class MapeoProject extends ReadyResource {
     exportFolder,
     { observations = true, tracks = true, lang } = {}
   ) {
-    const fileName = await this[kGeoJSONFileName](observations, tracks)
-    const filePath = path.join(exportFolder, fileName)
-    const source = this.#exportGeoJSONStream({ observations, tracks, lang })
-
-    const sink = fs.createWriteStream(filePath)
-
-    try {
-      await pipelinePromise(source, sink)
-
-      return filePath
-    } catch (e) {
-      throw new GeoJSONExportError({ cause: e })
-    }
-  }
-
-  /**
-   * @param {Attachment} attachment
-   * @returns {Promise<null | BlobRef>}
-   */
-  async #tryGetAttachmentBlob(attachment) {
-    // Audio must not have variants
-    for (const variant of VARIANT_EXPORT_ORDER) {
-      try {
-        const blobId = buildBlobId(attachment, variant)
-        const entry = await this.#blobStore.entry(blobId)
-        if (!entry) continue
-        const metadata = entry.value.metadata
-        if (!metadata || typeof metadata !== 'object') continue
-        let mimeType = undefined
-        if ('mimeType' in metadata) {
-          if (typeof metadata.mimeType === 'string') {
-            mimeType = metadata.mimeType
-          } else {
-            this.#l.log('Invalid type for mimeType in blob', blobId, entry)
-            continue
-          }
-        }
-        const hasDownloaded = await this.#blobStore.hasDownloadedBlobEntry(
-          blobId.driveId,
-          entry
-        )
-        if (!hasDownloaded) {
-          continue
-        }
-        return { blobId, mimeType }
-      } catch (e) {
-        this.#l.log(
-          'Error loading blob id for attachment',
-          attachment,
-          variant,
-          ensureError(e).message
-        )
-        continue
-      }
-    }
-
-    return null
-  }
-
-  /**
-   * @param {ZipArchive} archive
-   * @param {Object} [options={}]
-   * @param {boolean} [options.observations=true] Whether observations should be exported
-   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
-   * @param {boolean} [options.attachments=true] Whether all attachments for observations should be exported
-   * @param {string} [options.lang]
-   * @returns {Promise<void>}
-   */
-  async #exportToArchive(
-    archive,
-    { observations = true, tracks = true, attachments = true, lang } = {}
-  ) {
-    // GeoJSON
-    const geoJSONFileName = await this[kGeoJSONFileName](observations, tracks)
-    const seenAttachments = new Map()
-    const geoJSONStream = this.#exportGeoJSONStream({
+    if (this.#hasLeft) throw new ProjectLeftError()
+    return this.#dataExporter.exportGeoJSONFile(exportFolder, {
       observations,
       tracks,
       lang,
-      seenAttachments,
     })
-
-    // @ts-expect-error
-    await archive.entry(geoJSONStream, { name: geoJSONFileName })
-
-    const missingAttachments = []
-    // Attachments
-    if (attachments) {
-      const mediaFolder = (await this.#exportPrefix('Media')) + '/'
-      for (const attachment of seenAttachments.values()) {
-        const ref = await this.#tryGetAttachmentBlob(attachment)
-        if (ref === null) {
-          missingAttachments.push(attachment)
-          continue
-        }
-
-        const { blobId, mimeType } = ref
-        let extensionString = ''
-        if (mimeType) {
-          const extension = mime.getExtension(mimeType)
-          if (extension) {
-            extensionString = '.' + extension
-          } else {
-            this.#l.log('Got unknown mime type in attachment blob', attachment)
-          }
-        }
-
-        const stream = this.#blobStore.createReadStream(blobId)
-        const name = path.posix.join(
-          mediaFolder,
-          `${attachment.name}_${blobId.variant}${extensionString}`
-        )
-        // @ts-expect-error
-        await archive.entry(stream, { name })
-      }
-
-      if (missingAttachments.length) {
-        this.#l.log(`Found missing attachments during export`)
-        const missingContent = missingAttachments
-          .map((attachment) => JSON.stringify(attachment))
-          .join('\n')
-
-        await archive.entry(missingContent, {
-          name: mediaFolder + 'missing.ndjson',
-        })
-      }
-    }
-    // Finalize
-    archive.finalize()
   }
 
   /**
-   * Export observations, tracks, and or attachments as a zip file stream.
-   * @param {Object} [options={}]
-   * @param {boolean} [options.observations=true] Whether observations should be exported
-   * @param {boolean} [options.tracks=true] Whether all tracks and their observations should be exported
-   * @param {boolean} [options.attachments=true] Whether all attachments for observations should be exported
-   * @param {string} [options.lang]
-   * @returns {Readable<Buffer | Uint8Array>}
-   */
-  #exportZipStream({
-    observations = true,
-    tracks = true,
-    attachments = true,
-    lang,
-  } = {}) {
-    const archive = new ZipArchive()
-
-    this.#exportToArchive(archive, {
-      observations,
-      tracks,
-      attachments,
-      lang,
-    }).catch((e) => archive.emit('error', ensureError(e)))
-
-    // @ts-expect-error
-    return archive
-  }
-
-  /**
-   * Export observations, tracks, and or attachments as a zip file.
+   * Export observations, tracks, and/or attachments as a zip file.
    * @param {string} exportFolder Path to save the file. The file name is auto-generated
    * @param {Object} [options={}]
    * @param {boolean} [options.observations=true] Whether observations should be exported
@@ -1324,31 +989,24 @@ export class MapeoProject extends ReadyResource {
     exportFolder,
     { observations = true, tracks = true, attachments = true, lang } = {}
   ) {
-    const fileName = await this.#zipFileName(observations, tracks)
-    const filePath = path.join(exportFolder, fileName)
-    const source = this.#exportZipStream({
+    if (this.#hasLeft) throw new ProjectLeftError()
+    return this.#dataExporter.exportZipFile(exportFolder, {
       observations,
       tracks,
       attachments,
       lang,
     })
-    const sink = fs.createWriteStream(filePath)
-    try {
-      await pipelinePromise(source, sink)
-
-      return filePath
-    } catch (e) {
-      throw new GeoJSONExportError({ cause: e })
-    }
   }
 
+  /** Leave the project and clear the data. Does not re-assign role when already left */
   async [kProjectLeave]() {
-    const ownRole = await this.$getOwnRole()
+    const { roleId } = await this.$getOwnRole()
 
-    if (ownRole.roleId !== BLOCKED_ROLE_ID) {
+    if (roleId !== BLOCKED_ROLE_ID && roleId !== LEFT_ROLE_ID) {
       await this.#roles.assignRole(this.#deviceId, LEFT_ROLE_ID)
     }
 
+    this.#hasLeft = true
     await this[kClearData]()
   }
 
@@ -1445,7 +1103,7 @@ function extractEditableProjectSettings(projectDoc) {
  * @param {object} opts
  * @param {Buffer} opts.projectKey
  * @param {Buffer} [opts.projectSecretKey]
- * @param {import('@mapeo/crypto').KeyManager} opts.keyManager
+ * @param {import('@comapeo/crypto').KeyManager} opts.keyManager
  * @returns {Record<Namespace, KeyPair>}
  */
 function getCoreKeypairs({ projectKey, projectSecretKey, keyManager }) {

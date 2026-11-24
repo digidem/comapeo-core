@@ -1,12 +1,14 @@
 import fp from 'fastify-plugin'
 import { filetypemime } from 'magic-bytes.js'
 import { pEvent } from 'p-event'
+import parseRange from 'range-parser'
 import { Type as T } from '@sinclair/typebox'
 
 import { SUPPORTED_BLOB_VARIANTS } from '../blob-store/index.js'
 import { HEX_REGEX_32_BYTES, Z_BASE_32_REGEX_32_BYTES } from './constants.js'
-import { ensureKnownError } from '../errors.js'
+import { ensureKnownError, getErrorCode } from '../errors.js'
 import {
+  BlobNotAvailableError,
   BlobNotFoundError,
   BlobStoreEntryNotFoundError,
   UnsupportedVariantError,
@@ -90,6 +92,7 @@ async function routes(fastify, options) {
         entry = await blobStore.entry(blobId, { wait: false })
       } catch (e) {
         reply.code(404)
+        if (isBlockNotAvailableError(e)) throw new BlobNotAvailableError()
         throw ensureKnownError(e)
       }
 
@@ -98,11 +101,54 @@ async function routes(fastify, options) {
         throw new BlobStoreEntryNotFoundError()
       }
 
+      if (!(await blobStore.hasDownloadedBlobEntry(driveId, entry))) {
+        reply.code(404)
+        throw new BlobNotAvailableError()
+      }
+
       const { metadata } = entry.value
+      const totalLength = entry.value.blob.byteLength
+
+      const rangeHeader = request.headers.range
+
+      let rangeStart
+      let rangeLength
+
+      if (rangeHeader && totalLength > 0) {
+        const range = parseRange(totalLength, rangeHeader, { combine: true })
+
+        // -1 signals an unsatisfiable range which is a 416 response
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/416
+        if (range === -1) {
+          reply.code(416)
+          reply.header('Content-Range', `bytes */${totalLength}`)
+          return reply.send()
+        }
+
+        // -2 signals a malformed header string but does not necessarily mean there is an error in the file
+        if (range !== -2 && range?.type === 'bytes' && range.length === 1) {
+          rangeStart = range[0].start
+          // end is inclusive, so +1 accounts for that.
+          rangeLength = range[0].end - rangeStart + 1
+          reply.code(206)
+          reply.header(
+            'Content-Range',
+            `bytes ${rangeStart}-${range[0].end}/${totalLength}`
+          )
+        }
+      }
+
+      reply.header('Content-Length', rangeLength ?? totalLength)
 
       let blobStream
       try {
-        blobStream = await blobStore.createReadStreamFromEntry(driveId, entry)
+        blobStream = await blobStore.createReadStreamFromEntry(
+          driveId,
+          entry,
+          rangeStart && rangeLength
+            ? { wait: false, start: rangeStart, length: rangeLength }
+            : { wait: false }
+        )
       } catch (e) {
         reply.code(404)
         throw ensureKnownError(e)
@@ -115,7 +161,7 @@ async function routes(fastify, options) {
         // [0]: https://github.com/holepunchto/hyperblobs/blob/518088d2b828082fd70a276fa2c8848a2cf2a56b/index.js#L49
         if (ensureError(e).message === 'Block not available') {
           reply.code(404)
-          throw new BlobNotFoundError()
+          throw new BlobNotAvailableError()
         } else {
           throw ensureKnownError(e)
         }
@@ -147,6 +193,18 @@ async function routes(fastify, options) {
 
       return reply.send(blobStream)
     }
+  )
+}
+
+/**
+ * Hyperbee throws a plain 'Block not available locally' Error for a missing
+ * index block; newer versions throw a coded BLOCK_NOT_AVAILABLE error instead.
+ * @param {unknown} e
+ */
+function isBlockNotAvailableError(e) {
+  return (
+    getErrorCode(e) === 'BLOCK_NOT_AVAILABLE' ||
+    ensureError(e).message.startsWith('Block not available')
   )
 }
 

@@ -38,9 +38,17 @@ export { MapeoManager } from './mapeo-manager.js'
  * @namespace MemberApi
  * @typedef {import('./member-api.js').MemberInfo} MemberApi.MemberInfo
  * @typedef {import('./member-api.js').ActiveMemberInfo} MemberApi.ActiveMemberInfo
+ * @typedef {import('./member-api.js').InviteLink} MemberApi.InviteLink
+ * @typedef {import('./member-api.js').InviteOptions} MemberApi.InviteOptions
+ * @typedef {import('./member-api.js').InviteDecision} MemberApi.InviteDecision
  * @typedef {import('./roles.js').RoleId} MemberApi.RoleId
  * @typedef {import('./roles.js').RoleIdForNewInvite} MemberApi.RoleIdForNewInvite
  * @typedef {import('./roles.js').RoleIdAssignableToOthers} MemberApi.RoleIdAssignableToOthers
+ */
+/**
+ * @namespace InviteLinkJoiner
+ * @typedef {import('./invite/invite-link-joiner.js').JoinRequest} InviteLinkJoiner.JoinRequest
+ * @typedef {import('./invite/invite-link-joiner.js').JoinRequestUpdate} InviteLinkJoiner.JoinRequestUpdate
  */
 /**
  * @param {MapeoProject} project

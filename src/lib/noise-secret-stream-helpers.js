@@ -1,10 +1,19 @@
+import { keyToId } from '../utils.js'
+
 /** @import { Duplex as NodeDuplex } from 'node:stream' */
 /** @import { Duplex as StreamxDuplex } from 'streamx' */
 /** @import NoiseSecretStream from '@hyperswarm/secret-stream' */
-
 /**
  * @internal
  * @typedef {NodeDuplex | StreamxDuplex} RawStream
+ */
+
+/**
+ * A noise stream that has been authenticated with a stable public key.
+ * Both LocalDiscovery and RemoteDiscovery emit streams of this shape,
+ * so downstream code does not need runtime type checks.
+ *
+ * @typedef {OpenedNoiseStream & { authenticatedPublicKey: Buffer }} AuthedNoiseStream
  */
 
 /**
@@ -28,10 +37,23 @@
  * stream is opened)
  *
  * @template {RawStream} T
- * @param {NoiseSecretStream<T>} stream
- * @returns {Promise<OpenedNoiseStream<T> | DestroyedNoiseStream<T>>}
+ * @param {NoiseSecretStream<T>|AuthedNoiseStream} stream
+ * @returns {Promise<OpenedNoiseStream<T> | DestroyedNoiseStream<T> | AuthedNoiseStream>}
  */
 export async function openedNoiseSecretStream(stream) {
   await stream.opened
-  return /** @type {OpenedNoiseStream<T> | DestroyedNoiseStream<T>} */ (stream)
+  return /** @type {OpenedNoiseStream<T> | DestroyedNoiseStream<T> | AuthedNoiseStream} */ (
+    stream
+  )
+}
+
+/**
+ * @param {AuthedNoiseStream|OpenedNoiseStream} stream
+ */
+export function peerIdFromNoise(stream) {
+  const publicKey =
+    'authenticatedPublicKey' in stream
+      ? stream.authenticatedPublicKey
+      : stream.remotePublicKey
+  return keyToId(publicKey)
 }

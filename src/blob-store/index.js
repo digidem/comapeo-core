@@ -14,6 +14,7 @@ import {
   DriveNotFoundError,
 } from '../errors.js'
 import ensureError from 'ensure-error'
+import { peerIdFromNoise } from '../lib/noise-secret-stream-helpers.js'
 
 /** @import Hyperdrive from 'hyperdrive' */
 /** @import { JsonObject } from 'type-fest' */
@@ -123,7 +124,7 @@ export class BlobStore extends ReadyResource {
   /**
    * Bound to `this`
    * This will be called whenever a peer is successfully added to the creatorcore
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<import('../lib/noise-secret-stream-helpers.js').OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer } peer
    */
   #handlePeerAdd = (peer) => {
     const downloadFilter = getBlobDownloadFilter(this.#isArchiveDevice)
@@ -132,11 +133,10 @@ export class BlobStore extends ReadyResource {
 
   /**
    * Bound to `this`
-   * @param {import('../types.js').HypercorePeer & { protomux: import('protomux')<import('../lib/noise-secret-stream-helpers.js').OpenedNoiseStream> }} peer
+   * @param {import('../types.js').HypercorePeer} peer
    */
   #handlePeerRemove = (peer) => {
-    const peerKey = peer.protomux.stream.remotePublicKey
-    const peerId = peerKey.toString('hex')
+    const peerId = peerIdFromNoise(peer.protomux.stream)
     this.#entriesStreams.get(peerId)?.destroy()
     this.#entriesStreams.delete(peerId)
   }
@@ -282,6 +282,8 @@ export class BlobStore extends ReadyResource {
    * @param {import('hyperdrive').HyperdriveEntry} entry Hyperdrive entry
    * @param {object} [options]
    * @param {boolean} [options.wait=false] Set to `true` to wait for a blob to download, otherwise will throw if blob is not available locally
+   * @param {number} [options.start] Byte offset (relative to the blob) to start reading from
+   * @param {number} [options.length] Number of bytes to read, starting from `options.start` (or the beginning of the blob)
    * @returns {Promise<Readable>}
    */
   async createReadStreamFromEntry(driveId, entry, options = { wait: false }) {
@@ -329,11 +331,8 @@ export class BlobStore extends ReadyResource {
 
     const { blockOffset, blockLength } = entry.value.blob
 
-    const core = blobs.core.session()
     try {
-      const start = blockOffset
-      const end = blockOffset + blockLength
-      return core.has(start, end)
+      return await blobs.core.has(blockOffset, blockOffset + blockLength)
     } catch {
       return false
     }
