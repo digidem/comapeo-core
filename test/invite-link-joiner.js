@@ -9,11 +9,7 @@ import { InviteLinkJoiner } from '../src/invite/invite-link-joiner.js'
 import { makeInviteURL } from '../src/invite/invite-urls.js'
 import { MEMBER_ROLE_ID } from '../src/roles.js'
 import { MockInviteLinkRPC } from './helpers/invite-link-rpc.js'
-import {
-  ensureKnownError,
-  InviteExpiredError,
-  ExistingJoinRequestError,
-} from '../src/errors.js'
+import { InviteExpiredError, ExistingJoinRequestError } from '../src/errors.js'
 
 /** @import { RemoteAuthedNoiseStream } from '../src/discovery/remote-discovery.js' */
 /** @import { Invite, InviteApi } from '../src/invite/invite-api.js' */
@@ -270,14 +266,11 @@ test('deny: inviter denies the invite', async () => {
   const failedUpdate = updates.find((u) => u.status === 'failed')
   assert.ok(failedUpdate)
   assert.ok(failedUpdate.error)
-  assert.equal(
-    ensureKnownError(failedUpdate.error).code,
-    'INVITE_DENIED_BY_INVITER_ERROR'
-  )
+  assert.equal(failedUpdate.error, 'INVITE_DENIED_BY_INVITER_ERROR')
 
-  // Error is also emitted as a separate parameter
+  // Error is also emitted as a separate parameter (the full KnownError)
   assert.ok(lastError)
-  assert.equal(lastError, failedUpdate.error)
+  assert.equal(lastError.code, failedUpdate.error)
   assert.equal(lastError.code, 'INVITE_DENIED_BY_INVITER_ERROR')
 
   // Failed requests persist in pending until the next createJoinRequest
@@ -346,14 +339,11 @@ test('connection close: peer disconnects before invite arrives', async () => {
   const failedUpdate = updates.find((u) => u.status === 'failed')
   assert.ok(failedUpdate)
   assert.ok(failedUpdate.error)
-  assert.equal(
-    ensureKnownError(failedUpdate.error).code,
-    'INVITE_CONNECTION_ERROR'
-  )
+  assert.equal(failedUpdate.error, 'INVITE_CONNECTION_ERROR')
 
-  // Error is also emitted as a separate parameter
+  // Error is also emitted as a separate parameter (the full KnownError)
   assert.ok(lastError)
-  assert.equal(lastError, failedUpdate.error)
+  assert.equal(lastError.code, failedUpdate.error)
   assert.equal(lastError.code, 'INVITE_CONNECTION_ERROR')
 })
 

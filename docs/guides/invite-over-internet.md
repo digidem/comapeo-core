@@ -12,8 +12,9 @@
 - Invitee: use invite link to connect and join
   - Creates a join request and listens to `join-request-update` events for progress
   - On `completed` the join request contains the resolved project ID
-  - On `failed` the join request contains the error, and a `join-request-error`
-    event is emitted with a `KnownError` carrying the `inviteId`
+  - On `failed` the join request's `error` is the error `code` (a string), and a
+    `join-request-error` event is emitted with the full `KnownError` carrying the
+    `inviteId` (use the event when you need `.message` / `.cause`)
   - Finished (`failed`/`completed`) join requests stay in the list (visible via
     `getJoinRequests` / `getJoinRequestById`) until the next `createJoinRequest`,
     which clears them — so a link whose previous attempt finished can be re-clicked
@@ -81,7 +82,7 @@ const {
 // update.projectId is set on 'completed'
 // update.inviteId can be used to differantiat between concurrent invites
 // update.url is te original URL
-// update.error is set on 'failed'
+// update.error is the error code (string), set on 'failed'
 manager.inviteLinks.on('join-request-update', (update) => {
   switch (update.status) {
     case 'connecting':
@@ -99,16 +100,8 @@ manager.inviteLinks.on('join-request-update', (update) => {
       // Join succeeded — update.projectId has the project public ID
       break
     case 'failed':
-      // Join failed — update.error has the reason
-      // InviteConnectionError — network failure (see .cause for details)
-      // JoinProjectCancelledError
-      // InviteDeniedByInviterError
-      // UnknownInviteIDError
-      // AlreadyJoinedError
-      // ProjectExistsError
-      // InviteNotFoundError
-      // InviteSendError
-      // UnknownError
+      // Join failed — update.error has the error code (e.g. 'INVITE_CONNECTION_ERROR')
+      // Subscribe to 'join-request-error' for the full KnownError and its .cause
       break
   }
 })
@@ -127,7 +120,7 @@ const {
   swarmPublicKey,
   url: originalUrl,
   status,     // 'connecting' | 'connected' | 'accepted' | 'completed' | 'failed'
-  error,      // Error | null — set on 'failed'
+  error,      // string | null — error code, set on 'failed'
   projectId,  // string | undefined — set on 'completed'
 } = manager.inviteLinks.createJoinRequest(url)
 // ExistingJoinRequestError — already joining with this invite ID
@@ -154,27 +147,35 @@ import {pEvent} from 'p-event'
 
 const {inviteIdString} = parseInviteURL(url)
 
-// Wait for completed or failed status
-const update = await pEvent(manager.inviteLinks, 'join-request-update', {
+// The update stream only carries the error code, so race the completed update
+// against the join-request-error event to get the full KnownError on failure.
+const onCompleted = pEvent(manager.inviteLinks, 'join-request-update', {
   timeout: 60_000,
-  filter: (u) =>
-    u.inviteId === inviteIdString &&
-    (u.status === 'completed' || u.status === 'failed'),
+  filter: (u) => u.inviteId === inviteIdString && u.status === 'completed',
 })
+const onError = pEvent(manager.inviteLinks, 'join-request-error', {
+  timeout: 60_000,
+  filter: (error) => error.inviteId === inviteIdString,
+})
+// Start the join (must be set up before awaiting)
+manager.inviteLinks.createJoinRequest(url)
 
-if (update.status === 'completed') {
+// Only one of these fires; swallow the loser's timeout to avoid unhandled rejections
+onCompleted.catch(() => {})
+onError.catch(() => {})
+
+try {
+  const update = await Promise.race([onCompleted, onError.then((e) => { throw e })])
   const projectId = update.projectId
   // joined!
-} else {
-  throw update.error
+} catch (error) {
+  // Full KnownError from join-request-error (use .code / .cause to branch):
   // InviteRedeemConnectionClosedError — connection lost
   // UnknownInviteIDError — invitor does not recognise the invite id
   // InviteDeniedByInviterError — invitor denied the request
   // JoinProjectCancelledError — cancelled by invitee
+  throw error
 }
-
-// Start the join (must be set up before awaiting)
-manager.inviteLinks.createJoinRequest(url)
 ```
 
 ## Flow

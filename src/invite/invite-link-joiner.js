@@ -55,7 +55,7 @@ const NETWORK_ERROR_CODES = new Set([
  * @property {string} swarmPublicKey Invitor's swarm public key
  * @property {string} url Original invite URL
  * @property {JoinRequestStatus} status Current status
- * @property {(KnownError & { inviteId: string })|null} error Error if status is 'failed'
+ * @property {string|null} error Error code if status is 'failed'
  * @property {string|undefined} projectId Resolved project ID on completion
  */
 
@@ -63,7 +63,7 @@ const NETWORK_ERROR_CODES = new Set([
  * @typedef {object} JoinRequestUpdate
  * @property {JoinRequestStatus} status
  * @property {string} inviteId
- * @property {Error|null} [error]
+ * @property {string|null} [error] Error code if status is 'failed'
  * @property {string|undefined} [projectId]
  */
 
@@ -298,9 +298,10 @@ export class InviteLinkJoiner extends TypedEmitter {
     } catch (e) {
       // Failed
       joinRequest.status = 'failed'
-      joinRequest.error = wrapNetworkError(e, joinRequest.inviteId)
+      const error = wrapNetworkError(e, joinRequest.inviteId)
+      joinRequest.error = error.code
       this.#emitUpdate(joinRequest)
-      this.emit('join-request-error', joinRequest.error)
+      this.emit('join-request-error', error)
 
       if (connection) {
         // Use the identity key from the handshake, not the swarm key from the URL

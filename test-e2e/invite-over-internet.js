@@ -40,15 +40,21 @@ import { LocalPeers } from '../src/local-peers.js'
  */
 function awaitJoinComplete(joiner, inviteId, opts = {}) {
   const { timeout } = opts
-  return pEvent(joiner, 'join-request-update', {
+  const onCompleted = pEvent(joiner, 'join-request-update', {
     timeout,
     filter: (update) =>
-      update.inviteId === inviteId &&
-      (update.status === 'completed' || update.status === 'failed'),
-  }).then((update) => {
-    if (update.status === 'completed') return update
-    throw update.error
+      update.inviteId === inviteId && update.status === 'completed',
   })
+  const onError = pEvent(joiner, 'join-request-error', {
+    timeout,
+    filter: (error) => error.inviteId === inviteId,
+  }).then((error) => {
+    throw error
+  })
+  // Only one of these fires for a given inviteId; swallow the loser's timeout.
+  onCompleted.catch(() => {})
+  onError.catch(() => {})
+  return Promise.race([onCompleted, onError])
 }
 
 test('invite over internet and join from URL', async (t) => {
