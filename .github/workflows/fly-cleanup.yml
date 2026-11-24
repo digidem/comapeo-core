@@ -24,24 +24,18 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          active_runs=$(gh run list --workflow server-test.yml --json status \
-            --jq '[.[] | select(.status != "completed")] | length')
           apps=$(flyctl apps list --org digidem --json \
             | jq -r '.[].Name | select(startswith("comapeo-cloud-test-"))')
           for app in $apps; do
             run_id=$(sed -nE 's/^comapeo-cloud-test-([0-9]+)-.*/\1/p' <<<"$app")
+            # Names without a run id come from local runs, and are fair game by now
             if [ -n "$run_id" ]; then
-              status=$(gh api "repos/$GH_REPO/actions/runs/$run_id" --jq .status 2>/dev/null || echo unknown)
+              status=$(gh run view "$run_id" --json status --jq .status || echo unknown)
               if [ "$status" != completed ]; then
                 echo "Keeping $app (run $run_id is $status)"
                 continue
               fi
-            elif [ "$active_runs" -gt 0 ]; then
-              # Names without a run id (older or local runs) can't be matched to a run
-              echo "Keeping $app (no run id, $active_runs server-test runs active)"
-              continue
             fi
             echo "Destroying $app"
             flyctl apps destroy "$app" -y
           done
-          echo "Done"

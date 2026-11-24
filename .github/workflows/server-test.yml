@@ -17,6 +17,11 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    # Explicit bash runs with -eo pipefail
+    shell: bash
+
 jobs:
   # Job id is `build` because main's branch protection requires a check of that
   # name; a job skipped by `if` counts as passing.
@@ -27,7 +32,7 @@ jobs:
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       # fly-cleanup.yml parses the run id out of these names
-      FLY_APP_PREFIX: comapeo-cloud-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}-
+      FLY_APP_PREFIX: comapeo-cloud-test-${{ github.run_id }}-${{ github.run_attempt }}-
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -42,31 +47,33 @@ jobs:
         env:
           REMOTE_TEST_SERVER: true
           DEBUG: mapeo:*
-          SERVER_TEST_LOG_DIR: ${{ runner.temp }}/server-test-logs
         run: |
-          set -o pipefail
-          mkdir -p "$SERVER_TEST_LOG_DIR"
+          mkdir -p server-test-logs
           # Full debug output goes to the log artifact; the job log keeps the rest
-          node --test ./test-e2e/server.js 2>&1 \
-            | tee "$SERVER_TEST_LOG_DIR/client.log" \
+          node --test --test-force-exit ./test-e2e/server.js 2>&1 \
+            | tee server-test-logs/client.log \
             | grep --line-buffered -vE '^\s*# \S+ mapeo:'
+      - name: Save server logs and destroy Fly apps
+        if: always()
+        run: |
+          mkdir -p server-test-logs
+          apps=$(flyctl apps list --org digidem --json \
+            | jq -r --arg p "$FLY_APP_PREFIX" '.[].Name | select(startswith($p))')
+          for app in $apps; do
+            flyctl logs --app "$app" --no-tail > "server-test-logs/$app.log" || true
+            flyctl apps destroy "$app" -y || true
+          done
       - name: Upload logs
         if: failure() || cancelled()
         uses: actions/upload-artifact@v7
         with:
-          name: server-test-logs-${{ github.run_attempt }}-${{ strategy.job-index }}
-          path: ${{ runner.temp }}/server-test-logs
+          name: server-test-logs-${{ github.run_attempt }}
+          path: server-test-logs
           if-no-files-found: ignore
-      - name: Destroy this job's Fly apps
-        if: always()
-        run: |
-          flyctl apps list --org digidem --json \
-            | jq -r --arg p "$FLY_APP_PREFIX" '.[].Name | select(startswith($p))' \
-            | while read -r app; do flyctl apps destroy "$app" -y || true; done
 
   report:
     needs: build
-    if: always() && github.event_name != 'pull_request' && (needs.build.result == 'failure' || needs.build.result == 'cancelled')
+    if: failure() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -80,7 +87,7 @@ jobs:
           gh label create "$label" --color B60205 \
             --description 'Server e2e cloud test failed on main or nightly' 2>/dev/null || true
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          line="- ${{ needs.build.result }} on \`$GITHUB_REF_NAME\` (${GITHUB_EVENT_NAME}, ${GITHUB_SHA::7}): $run_url"
+          line="- Failed on $GITHUB_EVENT_NAME (${GITHUB_SHA::7}): $run_url"
           issue=$(gh issue list --label "$label" --state open --json number --jq '.[0].number // empty')
           if [ -n "$issue" ]; then
             gh issue comment "$issue" --body "$line"
