@@ -50,7 +50,7 @@ jobs:
 
   # On a successful publish (optic publishes when its release PR merges into
   # main), tell downstream repos to fast-track the bump of this package, rather
-  # than waiting for their daily Dependabot run. Receiver: digidem/comapeo-core-react-native.
+  # than waiting for their daily Dependabot run.
   notify-downstream:
     needs: release
     if: >-
@@ -64,6 +64,8 @@ jobs:
         downstream:
           - owner: digidem
             repo: comapeo-core-react-native
+          - owner: digidem
+            repo: comapeo-cloud
     steps:
       - uses: actions/create-github-app-token@v3
         id: token
